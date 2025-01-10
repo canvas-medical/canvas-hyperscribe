@@ -11,7 +11,7 @@ from logger import log
 from commander.protocols.audio_interpreter import AudioInterpreter
 from commander.protocols.structures.instruction import Instruction
 from commander.protocols.structures.line import Line
-
+from commander.protocols.constants import Constants
 
 # ATTENTION temporary structure while waiting for a better solution
 class CachedDiscussion:
@@ -67,11 +67,20 @@ class Commander(BaseProtocol):
 
         log.info(f"COMMANDER PLUGIN STARTS ({event})")
         # log.info(f"target: {self.target}")
-        # log.info(f"context: {self.context}")
+        log.info(f"context: {self.context}")
 
         if event == EventType.Name(EventType.BILLING_LINE_ITEM_CREATED):
-            note_uuid = self.get_note_uuid()
-            patient_uuid = self.get_patient_uuid()
+            # the context will have the OpenAIKey, note_uuid and patient_uuid on local environment only (no database access yet)
+            if self.SECRET_OPENAI_KEY in self.context:
+                self.secrets = {self.SECRET_OPENAI_KEY: self.context[self.SECRET_OPENAI_KEY]}
+                Constants.HAS_DATABASE_ACCESS = False
+                note_uuid = self.context["note_uuid"]
+                patient_uuid = self.context["patient_uuid"]
+            else:
+                note_uuid = self.get_note_uuid()
+                patient_uuid = self.get_patient_uuid()
+
+            log.info(f"patient_uuid: {patient_uuid}, note_uuid: {note_uuid}")
             result = self.compute_audio(patient_uuid, note_uuid)
 
         # elif event == EventType.Name(EventType.INSTRUCTION_CREATED):

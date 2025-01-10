@@ -34,7 +34,7 @@ class AudioInterpreter:
         self.patient_id = patient_id
         self.note_uuid = note_uuid
         self._command_context = [
-            command_class(patient_id, note_uuid)
+            command_class(openai_key, patient_id, note_uuid)
             for command_class in self.implemented_commands()
         ]
 

@@ -5,14 +5,17 @@ from canvas_sdk.commands.base import _BaseCommand
 from canvas_sdk.v1.data import Condition
 from canvas_sdk.v1.data.condition import ClinicalStatus
 
+from commander.protocols.constants import Constants
+
 
 class Base:
 
-    def __init__(self, patient_id: str, note_uuid: str):
+    def __init__(self, openai_key: str, patient_id: str, note_uuid: str):
+        self.openai_key = openai_key
         self.patient_id = patient_id
         self.note_uuid = note_uuid
-        self._goals = []
-        self._conditions = []
+        self._goals: list | None = None
+        self._conditions: list | None = None
 
     def class_name(self) -> str:
         return self.__class__.__name__
@@ -43,12 +46,14 @@ class Base:
         raise NotImplementedError
 
     def current_goals(self) -> list[dict]:
-        if not self._goals:
+        if self._goals is None:
             self._goals = []
         return self._goals
 
     def current_conditions(self) -> list[dict]:
-        if not self._conditions:
+        if not Constants.HAS_DATABASE_ACCESS:
+            return []
+        if self._conditions is None:
             for condition in Condition.objects.committed().for_patient(self.patient_id).filter(clinical_status=ClinicalStatus.ACTIVE):
                 for coding in condition.codings.all():
                     if coding.system == "ICD-10":
