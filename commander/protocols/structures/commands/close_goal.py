@@ -1,0 +1,28 @@
+from canvas_sdk.commands.commands.close_goal import CloseGoalCommand
+from canvas_sdk.commands.commands.goal import GoalCommand
+
+from commander.protocols.structures.commands.base import Base
+
+
+class CloseGoal(Base):
+
+    def from_json(self, parameters: dict) -> CloseGoalCommand:
+        return CloseGoalCommand(
+            goal_id=parameters["goal"],
+            achievement_status=GoalCommand.AchievementStatus(parameters["status"]),
+            progress=parameters["progressAndBarriers"],
+        )
+
+    def parameters(self) -> dict:
+        statuses = "/".join([status.value for status in GoalCommand.AchievementStatus])
+        return {
+            "goal": "Name of the Goal to close",
+            "status": statuses,
+            "progressAndBarriers": "free text",
+        }
+
+    def information(self) -> str:
+        return "Final status of a previously set goal, including progress or barriers."
+
+    def is_available(self) -> bool:
+        return bool(self.current_goals())

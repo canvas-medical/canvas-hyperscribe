@@ -1,0 +1,29 @@
+{
+    "sdk_version": "0.1.4",
+    "plugin_version": "0.0.2",
+    "name": "commander",
+    "description": "Create commands based on the content of an audio discussion between a patient and a provider.",
+    "components": {
+        "protocols": [
+            {
+                "class": "commander.protocols.commander:Commander",
+                "description": "Commander add commands based on vocal instructions",
+                "data_access": {
+                    "event": "",
+                    "read": [],
+                    "write": []
+                }
+            }
+        ],
+        "commands": [],
+        "content": [],
+        "effects": [],
+        "views": []
+    },
+    "secrets": ["OpenAIKey"],
+    "tags": {},
+    "references": [],
+    "license": "",
+    "diagram": false,
+    "readme": "./README.md"
+}

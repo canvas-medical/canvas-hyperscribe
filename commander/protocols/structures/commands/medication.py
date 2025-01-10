@@ -1,0 +1,24 @@
+from canvas_sdk.commands.commands.medication_statement import MedicationStatementCommand
+
+from commander.protocols.structures.commands.base import Base
+
+
+class Medication(Base):
+    def from_json(self, parameters: dict) -> MedicationStatementCommand:
+        return MedicationStatementCommand(
+            fdb_code=None,  # TODO retrieve the FDB code
+            sig=f'{parameters["sig"]} - {parameters["medication"]}',
+        )
+
+    def parameters(self) -> dict:
+        return {
+            "medication": "name of the taken medication",
+            "sig": "directions as free text",
+        }
+
+    def information(self) -> str:
+        return ("Current medication. "
+                "There can be only one medication per instruction, and no instruction in the lack of.")
+
+    def is_available(self) -> bool:
+        return True
