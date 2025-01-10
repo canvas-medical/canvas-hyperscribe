@@ -1,11 +1,8 @@
 import json
-import re
 from datetime import datetime
-from http import HTTPStatus
-from typing import Any, Type
+from typing import Type
 
-from logger import log
-from requests import post as requests_post
+from canvas_sdk.commands.base import _BaseCommand as BaseCommand
 
 from commander.protocols.structures.commands.allergy import Allergy
 from commander.protocols.structures.commands.assess import Assess
@@ -16,6 +13,7 @@ from commander.protocols.structures.commands.family_history import FamilyHistory
 from commander.protocols.structures.commands.goal import Goal
 from commander.protocols.structures.commands.history_of_present_illness import HistoryOfPresentIllness
 from commander.protocols.structures.commands.immunize import Immunize
+from commander.protocols.structures.commands.instruct import Instruct
 from commander.protocols.structures.commands.medication import Medication
 from commander.protocols.structures.commands.plan import Plan
 from commander.protocols.structures.commands.prescription import Prescription
@@ -23,69 +21,22 @@ from commander.protocols.structures.commands.reason_for_visit import ReasonForVi
 from commander.protocols.structures.commands.surgery_history import SurgeryHistory
 from commander.protocols.structures.commands.update_goal import UpdateGoal
 from commander.protocols.structures.commands.vitals import Vitals
-from commander.protocols.structures.conversation import Conversation
-from commander.protocols.structures.http_response import HttpResponse
+from commander.protocols.openai_chat import OpenaiChat
 from commander.protocols.structures.instruction import Instruction
 from commander.protocols.structures.json_extract import JsonExtract
 from commander.protocols.structures.line import Line
-from canvas_sdk.commands.base import _BaseCommand as BaseCommand
 
 
-class OpenAiAudio:
+class AudioInterpreter:
 
     def __init__(self, openai_key: str, patient_id: str, note_uuid: str) -> None:
         self.openai_key = openai_key
         self.patient_id = patient_id
         self.note_uuid = note_uuid
         self._command_context = [
-            command_class(patient_id)
+            command_class(patient_id, note_uuid)
             for command_class in self.implemented_commands()
         ]
-
-    def post(self, url: str, params: dict, data: str, timeout: int | None = None) -> HttpResponse:
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {self.openai_key}",
-            "OpenAI-Beta": "assistants=v2",
-        }
-        request = requests_post(
-            url,
-            headers=headers,
-            params=params,
-            data=data,
-            verify=True,
-            timeout=timeout,
-        )
-        return HttpResponse(code=request.status_code, response=request.text)
-
-    def chat(self, conversation: Conversation) -> JsonExtract:
-        # TODO handle errors (network issue, incorrect LLM response format...)
-        url = "https://api.openai.com/v1/chat/completions"
-        response = self.post(url, {}, json.dumps(conversation.to_dict()))
-        if response.code == HTTPStatus.OK.value:
-            content = json.loads(response.response)
-            return self.extract_json_from(content.get("choices", [{}])[0].get("message", {}).get("content", ""))
-        else:
-            log.info("***********")
-            log.info(response.code)
-            log.info(response.response)
-            log.info("***********")
-        return JsonExtract(f"the reported error is: {response.code}", True, [])
-
-    @classmethod
-    def extract_json_from(cls, content: str) -> JsonExtract:
-        pattern_json = re.compile(r"```json\n(.*?)\n```", re.DOTALL | re.IGNORECASE)
-        for embedded in pattern_json.finditer(content):
-            try:
-                result: list[Any] = json.loads(embedded.group(1))
-                return JsonExtract(error="", has_error=False, content=result)
-            except Exception as e:
-                log.info(e)
-                log.info("---->")
-                log.info(embedded)
-                log.info("<----")
-                return JsonExtract(error=str(e), has_error=True, content=[])
-        return JsonExtract(error="No JSON markdown found", has_error=True, content=[])
 
     def instruction_definitions(self) -> list[dict[str, str]]:
         return [
@@ -105,7 +56,7 @@ class OpenAiAudio:
     def combine_and_speaker_detection(self, audio_chunks: list[bytes]) -> JsonExtract:
         model = "gpt-4o-audio-preview"
         temperature = 0.0
-        conversation = Conversation(model, temperature)
+        conversation = OpenaiChat(self.openai_key, model, temperature)
         conversation.system_prompt = [
             "The conversation is in the medical context.",
             "",
@@ -131,12 +82,12 @@ class OpenAiAudio:
         extension = "mp3"
         for audio in audio_chunks:
             conversation.add_audio(audio, extension)
-        return self.chat(conversation)
+        return conversation.chat()
 
     def detect_instructions(self, discussion: list[Line], known_instructions: list[Instruction]) -> JsonExtract:
         model = "gpt-4o"
         temperature = 0.0
-        conversation = Conversation(model, temperature)
+        conversation = OpenaiChat(self.openai_key, model, temperature)
         conversation.system_prompt = [
             "The conversation is in the medical context.",
             "The user will submit the transcript of the visit of a patient with a healthcare provider.",
@@ -177,7 +128,7 @@ class OpenAiAudio:
                 "```",
                 "Include them in your response, with any necessary additional information.",
             ])
-        return self.chat(conversation)
+        return conversation.chat()
 
     def create_sdk_commands(self, known_instructions: list[Instruction]) -> list[tuple[Instruction, dict]]:
         result: list[tuple[Instruction, dict]] = []
@@ -186,7 +137,7 @@ class OpenAiAudio:
 
         model = "gpt-4o"
         temperature = 0.0
-        conversation = Conversation(model, temperature)
+        conversation = OpenaiChat(self.openai_key, model, temperature)
         conversation.system_prompt = [
             "The conversation is in the medical context.",
             "During a visit of a patient with a healthcare provider, the user has identified instructions to record in its software.",
@@ -210,7 +161,7 @@ class OpenAiAudio:
                 "```",
                 "",
             ]
-            response = self.chat(conversation)
+            response = conversation.chat()
             if response.has_error is False:
                 result.append((instruction, response.content[0]))
         return result
@@ -218,9 +169,7 @@ class OpenAiAudio:
     def create_command_from(self, instruction: Instruction, parameters: dict) -> BaseCommand | None:
         for instance in self._command_context:
             if instruction.instruction == instance.class_name():
-                result = instance.from_json(parameters)
-                result.note_uuid = self.note_uuid
-                return result
+                return instance.from_json(parameters)
         return None
 
     @classmethod
@@ -255,6 +204,7 @@ class OpenAiAudio:
             Goal,
             HistoryOfPresentIllness,
             Immunize,
+            Instruct,
             Medication,
             Plan,
             Prescription,

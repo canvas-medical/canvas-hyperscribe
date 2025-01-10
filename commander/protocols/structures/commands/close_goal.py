@@ -6,11 +6,12 @@ from commander.protocols.structures.commands.base import Base
 
 class CloseGoal(Base):
 
-    def from_json(self, parameters: dict) -> CloseGoalCommand:
+    def from_json(self, parameters: dict) -> None | CloseGoalCommand:
         return CloseGoalCommand(
             goal_id=parameters["goal"],
             achievement_status=GoalCommand.AchievementStatus(parameters["status"]),
             progress=parameters["progressAndBarriers"],
+            note_uuid=self.note_uuid,
         )
 
     def parameters(self) -> dict:

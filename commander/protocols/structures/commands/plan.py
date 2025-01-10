@@ -4,9 +4,10 @@ from commander.protocols.structures.commands.base import Base
 
 
 class Plan(Base):
-    def from_json(self, parameters: dict) -> PlanCommand:
+    def from_json(self, parameters: dict) -> None | PlanCommand:
         return PlanCommand(
             narrative=parameters["plan"],
+            note_uuid=self.note_uuid,
         )
 
     def parameters(self) -> dict:

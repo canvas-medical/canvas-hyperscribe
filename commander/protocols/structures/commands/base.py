@@ -8,8 +8,9 @@ from canvas_sdk.v1.data.condition import ClinicalStatus
 
 class Base:
 
-    def __init__(self, patient_id: str):
+    def __init__(self, patient_id: str, note_uuid: str):
         self.patient_id = patient_id
+        self.note_uuid = note_uuid
         self._goals = []
         self._conditions = []
 
@@ -17,10 +18,11 @@ class Base:
         return self.__class__.__name__
 
     @classmethod
-    def str2date(cls, string: str | None) -> datetime:
-        if string is None:
-            return datetime.now()
-        return datetime.strptime(string, "%Y-%m-%d")
+    def str2date(cls, string: str | None) -> datetime | None:
+        try:
+            return datetime.strptime(string, "%Y-%m-%d")
+        except Exception:
+            return None
 
     @classmethod
     def icd10_add_dot(cls, code: str) -> str:
@@ -28,7 +30,7 @@ class Base:
             return f"{result.group(1)}.{result.group(2)}"
         return code
 
-    def from_json(self, parameters: dict) -> _BaseCommand:
+    def from_json(self, parameters: dict) -> None | _BaseCommand:
         raise NotImplementedError
 
     def parameters(self) -> dict:

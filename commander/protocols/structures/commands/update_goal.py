@@ -6,13 +6,14 @@ from commander.protocols.structures.commands.base import Base
 
 class UpdateGoal(Base):
 
-    def from_json(self, parameters: dict) -> UpdateGoalCommand:
+    def from_json(self, parameters: dict) -> None | UpdateGoalCommand:
         return UpdateGoalCommand(
             goal_id=parameters["goal"],
             due_date=self.str2date(parameters["dueDate"]),
             achievement_status=GoalCommand.AchievementStatus(parameters["status"]),
             priority=GoalCommand.Priority(parameters["priority"]),
             progress=parameters["progressAndBarriers"],
+            note_uuid=self.note_uuid,
         )
 
     def parameters(self) -> dict:

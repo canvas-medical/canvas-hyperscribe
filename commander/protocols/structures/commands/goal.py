@@ -4,7 +4,7 @@ from commander.protocols.structures.commands.base import Base
 
 
 class Goal(Base):
-    def from_json(self, parameters: dict) -> GoalCommand:
+    def from_json(self, parameters: dict) -> None | GoalCommand:
         return GoalCommand(
             goal_statement=parameters["goal"],
             start_date=self.str2date(parameters["startDate"]),
@@ -12,6 +12,7 @@ class Goal(Base):
             achievement_status=GoalCommand.AchievementStatus(parameters["status"]),
             priority=GoalCommand.Priority(parameters["priority"]),
             progress=parameters["progressAndBarriers"],
+            note_uuid=self.note_uuid,
         )
 
     def parameters(self) -> dict:

@@ -4,10 +4,11 @@ from commander.protocols.structures.commands.base import Base
 
 
 class Medication(Base):
-    def from_json(self, parameters: dict) -> MedicationStatementCommand:
+    def from_json(self, parameters: dict) -> None | MedicationStatementCommand:
         return MedicationStatementCommand(
             fdb_code=None,  # TODO retrieve the FDB code
             sig=f'{parameters["sig"]} - {parameters["medication"]}',
+            note_uuid=self.note_uuid,
         )
 
     def parameters(self) -> dict:

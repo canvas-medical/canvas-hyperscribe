@@ -8,7 +8,7 @@ from canvas_sdk.protocols import BaseProtocol
 from canvas_sdk.v1.data import BillingLineItem
 from logger import log
 
-from commander.protocols.openai_audio import OpenAiAudio
+from commander.protocols.audio_interpreter import AudioInterpreter
 from commander.protocols.structures.instruction import Instruction
 from commander.protocols.structures.line import Line
 
@@ -121,7 +121,7 @@ class Commander(BaseProtocol):
         sdk_commands: list[tuple[Instruction, dict]] = []
         log.info(f"--> audio chunks: {len(audios)}")
         if audios:
-            chatter = OpenAiAudio(self.secrets[self.SECRET_OPENAI_KEY], patient_uuid, note_uuid)
+            chatter = AudioInterpreter(self.secrets[self.SECRET_OPENAI_KEY], patient_uuid, note_uuid)
             response = chatter.combine_and_speaker_detection(audios)
             transcript: list[Line] = []
             if response.has_error is False:

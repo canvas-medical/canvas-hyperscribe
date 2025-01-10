@@ -4,7 +4,7 @@ from commander.protocols.structures.commands.base import Base
 
 
 class Allergy(Base):
-    def from_json(self, parameters: dict) -> AllergyCommand:
+    def from_json(self, parameters: dict) -> None | AllergyCommand:
         concept_type = AllergenType(1)
         if parameters["type"] == "medication":
             concept_type = AllergenType(2)
@@ -20,6 +20,7 @@ class Allergy(Base):
             severity=AllergyCommand.Severity(parameters["severity"]),
             narrative=parameters["reaction"],
             approximate_date=self.str2date(parameters["approximateDateOfOnset"]).date(),
+            note_uuid=self.note_uuid,
         )
 
     def parameters(self) -> dict:

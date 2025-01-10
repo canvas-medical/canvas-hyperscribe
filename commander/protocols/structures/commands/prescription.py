@@ -4,7 +4,7 @@ from commander.protocols.structures.commands.base import Base
 
 
 class Prescription(Base):
-    def from_json(self, parameters: dict) -> PrescribeCommand:
+    def from_json(self, parameters: dict) -> None | PrescribeCommand:
         return PrescribeCommand(
             fdb_code=None,  # TODO retrieve the FDB code
             icd10_codes=[],
@@ -14,6 +14,7 @@ class Prescription(Base):
             refills=parameters["refills"],
             substitutions=parameters["substitutions"],
             note_to_pharmacist=parameters["noteToPharmacist"],
+            note_uuid=self.note_uuid,
         )
 
     def parameters(self) -> dict:

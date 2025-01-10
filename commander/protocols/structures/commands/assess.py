@@ -5,7 +5,7 @@ from commander.protocols.structures.commands.base import Base
 
 class Assess(Base):
 
-    def from_json(self, parameters: dict) -> AssessCommand:
+    def from_json(self, parameters: dict) -> None | AssessCommand:
         condition_id = ""
         if 0 <= (idx := parameters["conditionIndex"]) < len(self.current_conditions()):
             condition_id = (self.current_conditions()[idx]["uuid"])
@@ -14,6 +14,7 @@ class Assess(Base):
             background=parameters["background"],
             status=AssessCommand.Status(parameters["status"]),
             narrative=parameters["narrative"],
+            note_uuid=self.note_uuid,
         )
 
     def parameters(self) -> dict:

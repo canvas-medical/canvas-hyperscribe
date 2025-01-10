@@ -4,9 +4,10 @@ from commander.protocols.structures.commands.base import Base
 
 
 class HistoryOfPresentIllness(Base):
-    def from_json(self, parameters: dict) -> HistoryOfPresentIllnessCommand:
+    def from_json(self, parameters: dict) -> None | HistoryOfPresentIllnessCommand:
         return HistoryOfPresentIllnessCommand(
             narrative=parameters["narrative"],
+            note_uuid=self.note_uuid,
         )
 
     def parameters(self) -> dict:

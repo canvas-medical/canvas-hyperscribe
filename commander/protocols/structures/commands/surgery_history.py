@@ -4,11 +4,12 @@ from commander.protocols.structures.commands.base import Base
 
 
 class SurgeryHistory(Base):
-    def from_json(self, parameters: dict) -> PastSurgicalHistoryCommand:
+    def from_json(self, parameters: dict) -> None | PastSurgicalHistoryCommand:
         return PastSurgicalHistoryCommand(
             past_surgical_history=parameters["surgery"],
             approximate_date=self.str2date(parameters["approximateDate"]).date(),
             comment=parameters["comment"],
+            note_uuid=self.note_uuid,
         )
 
     def parameters(self) -> dict:

@@ -4,8 +4,11 @@ from commander.protocols.structures.commands.base import Base
 
 
 class ReasonForVisit(Base):
-    def from_json(self, parameters: dict) -> ReasonForVisitCommand:
-        return ReasonForVisitCommand(comment=parameters["reasonForVisit"])
+    def from_json(self, parameters: dict) -> None | ReasonForVisitCommand:
+        return ReasonForVisitCommand(
+            comment=parameters["reasonForVisit"],
+            note_uuid=self.note_uuid,
+        )
 
     def parameters(self) -> dict:
         return {

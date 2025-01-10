@@ -4,13 +4,14 @@ from commander.protocols.structures.commands.base import Base
 
 
 class Diagnose(Base):
-    def from_json(self, parameters: dict) -> DiagnoseCommand:
+    def from_json(self, parameters: dict) -> None | DiagnoseCommand:
         # TODO use the `condition` field to retrieve the actual ICD-10 through the science service
         return DiagnoseCommand(
             icd10_code=parameters["ICD10"],
             background=parameters["background"],
             approximate_date_of_onset=self.str2date(parameters["onsetDate"]).date(),
             today_assessment=parameters["assessment"],
+            note_uuid=self.note_uuid,
         )
 
     def parameters(self) -> dict:
