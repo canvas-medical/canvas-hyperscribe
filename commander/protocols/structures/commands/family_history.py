@@ -1,27 +1,64 @@
 from canvas_sdk.commands.commands.family_history import FamilyHistoryCommand
 
+from commander.protocols.canvas_science import CanvasScience
+from commander.protocols.constants import Constants
+from commander.protocols.openai_chat import OpenaiChat
 from commander.protocols.structures.commands.base import Base
 
 
 class FamilyHistory(Base):
     def from_json(self, parameters: dict) -> None | FamilyHistoryCommand:
+        # retrieve existing family history conditions defined in Canvas Science
+        expressions = parameters["keywords"].split(",")
+        concepts = CanvasScience.family_histories(self.settings.science_host, expressions)
+
+        # ask the LLM to pick the most relevant condition
+        temperature = 0.0
+        conversation = OpenaiChat(self.settings.openai_key, Constants.OPENAI_CHAT_TEXT, temperature)
+        conversation.system_prompt = [
+            "The conversation is in the medical context.",
+            "",
+            "Your task is to identify the most relevant condition of a patient out of a list of conditions.",
+            "",
+        ]
+        conversation.user_prompt = [
+            'Here is the note provided by the healthcare provider in regards to the condition of a patient:',
+            '```text',
+            parameters["note"],
+            '```',
+            'Among the following conditions, identify the most relevant one:',
+            '',
+            "\n".join(f' * {concept.term} ({concept.concept_id})' for concept in concepts),
+            '',
+            'Please present your findings in a JSON format within a Markdown code block like',
+            '```json',
+            '[{"concept_id": "the concept ID", "term": "the expression"]'
+            '```',
+            '',
+        ]
+        response = conversation.chat()
+        condition = ""
+        if response.has_error is False and response.content:
+            condition = response.content[0]["term"]
+
         return FamilyHistoryCommand(
-            family_history=parameters["condition"],
+            family_history=condition,
             relative=parameters["relative"],
-            note=f'{parameters["note"]} - {parameters["condition"]}',
+            note=parameters["note"],
             note_uuid=self.note_uuid,
         )
 
     def parameters(self) -> dict:
         return {
-            "condition": "medical name of the condition",
+            "keywords": "comma separated keywords of up to 5 synonyms of the condition",
             "relative": "father/mother/parent/child/brother/sister/sibling/grand-parent/grand-father/grand-mother",
-            "note": "free text",
+            "note": "free text describing the condition",
         }
 
     def information(self) -> str:
-        return ("Any relevant condition of a relative among: father, mother, parent, child, brother, sister, sibling, grand-parent, grand-father, grand-mother. "
-                "There can be only one condition per relative per instruction, and no instruction in the lack of.")
+        return (
+            "Any relevant condition of a relative among: father, mother, parent, child, brother, sister, sibling, grand-parent, grand-father, grand-mother. "
+            "There can be only one condition per relative per instruction, and no instruction in the lack of.")
 
     def is_available(self) -> bool:
         return True

@@ -1,59 +1,20 @@
-import json
-
 from canvas_sdk.commands.commands.instruct import InstructCommand
-from logger import log
 
+from commander.protocols.canvas_science import CanvasScience
+from commander.protocols.constants import Constants
 from commander.protocols.openai_chat import OpenaiChat
 from commander.protocols.structures.commands.base import Base
 
 
 class Instruct(Base):
     def from_json(self, parameters: dict) -> None | InstructCommand:
-        # TODO retrieve the list of the instructions (https://science-staging.canvasmedical.com/search/instruction?query=xxxx&limit=10)
-        #  for each keyword and submit them to the LLM to pick the most relevant
-        #  the host science-staging.canvasmedical.com can be provided through the secrets
-        science_instructions = [
-            {
-                "concept_id": 170961007,
-                "term": "Menopause: dietary advice",
-                "score": 0,
-                "frequencies": {
-                    "query:snomed": 0,
-                    ":snomed": 0
-                }
-            },
-            {
-                "concept_id": 171054004,
-                "term": "Dietary advice for pregnancy",
-                "score": 0,
-                "frequencies": {
-                    "query:snomed": 0,
-                    ":snomed": 0
-                }
-            },
-            {
-                "concept_id": 183057009,
-                "term": "Patient advised about gluten-free diet",
-                "score": 0,
-                "frequencies": {
-                    "query:snomed": 0,
-                    ":snomed": 0
-                }
-            },
-            {
-                "concept_id": 183058004,
-                "term": "Patient advised about phenylalanine-free diet",
-                "score": 0,
-                "frequencies": {
-                    "query:snomed": 0,
-                    ":snomed": 0
-                }
-            },
-        ]
+        # retrieve existing instructions defined in Canvas Science
+        expressions = parameters["keywords"].split(",")
+        concepts = CanvasScience.instructions(self.settings.science_host, expressions)
 
-        model = "gpt-4o"
+        # ask the LLM to pick the most relevant instruction
         temperature = 0.0
-        conversation = OpenaiChat(self.openai_key, model, temperature)
+        conversation = OpenaiChat(self.settings.openai_key, Constants.OPENAI_CHAT_TEXT, temperature)
         conversation.system_prompt = [
             "The conversation is in the medical context.",
             "",
@@ -67,7 +28,7 @@ class Instruct(Base):
             '```',
             'Among the following expressions, identify the most relevant one:',
             '',
-            "\n".join(f' * {concept["term"]} ({concept["concept_id"]})' for concept in science_instructions),
+            "\n".join(f' * {concept.term} ({concept.concept_id})' for concept in concepts),
             '',
             'Please present your findings in a JSON format within a Markdown code block like',
             '```json',

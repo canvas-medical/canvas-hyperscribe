@@ -6,12 +6,13 @@ from canvas_sdk.v1.data import Condition
 from canvas_sdk.v1.data.condition import ClinicalStatus
 
 from commander.protocols.constants import Constants
+from commander.protocols.structures.settings import Settings
 
 
 class Base:
 
-    def __init__(self, openai_key: str, patient_id: str, note_uuid: str):
-        self.openai_key = openai_key
+    def __init__(self, settings: Settings, patient_id: str, note_uuid: str):
+        self.settings = settings
         self.patient_id = patient_id
         self.note_uuid = note_uuid
         self._goals: list | None = None
@@ -54,6 +55,7 @@ class Base:
         if not Constants.HAS_DATABASE_ACCESS:
             return []
         if self._conditions is None:
+            self._conditions = []
             for condition in Condition.objects.committed().for_patient(self.patient_id).filter(clinical_status=ClinicalStatus.ACTIVE):
                 for coding in condition.codings.all():
                     if coding.system == "ICD-10":

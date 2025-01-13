@@ -9,9 +9,11 @@ from canvas_sdk.v1.data import BillingLineItem
 from logger import log
 
 from commander.protocols.audio_interpreter import AudioInterpreter
+from commander.protocols.constants import Constants
 from commander.protocols.structures.instruction import Instruction
 from commander.protocols.structures.line import Line
-from commander.protocols.constants import Constants
+from commander.protocols.structures.settings import Settings
+
 
 # ATTENTION temporary structure while waiting for a better solution
 class CachedDiscussion:
@@ -56,6 +58,7 @@ class Audio:
 
 class Commander(BaseProtocol):
     SECRET_OPENAI_KEY = "OpenAIKey"
+    SECRET_SCIENCE_HOST = "ScienceHost"
     RESPONDS_TO = [
         EventType.Name(EventType.BILLING_LINE_ITEM_CREATED),  # ATTENTION react on the right event (e.g. CONSULTATION_RECORD)
         # EventType.Name(EventType.INSTRUCTION_CREATED),
@@ -72,7 +75,10 @@ class Commander(BaseProtocol):
         if event == EventType.Name(EventType.BILLING_LINE_ITEM_CREATED):
             # the context will have the OpenAIKey, note_uuid and patient_uuid on local environment only (no database access yet)
             if self.SECRET_OPENAI_KEY in self.context:
-                self.secrets = {self.SECRET_OPENAI_KEY: self.context[self.SECRET_OPENAI_KEY]}
+                self.secrets = {
+                    self.SECRET_OPENAI_KEY: self.context[self.SECRET_OPENAI_KEY],
+                    self.SECRET_SCIENCE_HOST: "https://science-staging.canvasmedical.com",
+                }
                 Constants.HAS_DATABASE_ACCESS = False
                 note_uuid = self.context["note_uuid"]
                 patient_uuid = self.context["patient_uuid"]
@@ -130,7 +136,11 @@ class Commander(BaseProtocol):
         sdk_commands: list[tuple[Instruction, dict]] = []
         log.info(f"--> audio chunks: {len(audios)}")
         if audios:
-            chatter = AudioInterpreter(self.secrets[self.SECRET_OPENAI_KEY], patient_uuid, note_uuid)
+            settings = Settings(
+                openai_key=self.secrets[self.SECRET_OPENAI_KEY],
+                science_host=self.secrets[self.SECRET_SCIENCE_HOST],
+            )
+            chatter = AudioInterpreter(settings, patient_uuid, note_uuid)
             response = chatter.combine_and_speaker_detection(audios)
             transcript: list[Line] = []
             if response.has_error is False:

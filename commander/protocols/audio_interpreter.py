@@ -4,6 +4,8 @@ from typing import Type
 
 from canvas_sdk.commands.base import _BaseCommand as BaseCommand
 
+from commander.protocols.constants import Constants
+from commander.protocols.openai_chat import OpenaiChat
 from commander.protocols.structures.commands.allergy import Allergy
 from commander.protocols.structures.commands.assess import Assess
 from commander.protocols.structures.commands.base import Base
@@ -14,6 +16,7 @@ from commander.protocols.structures.commands.goal import Goal
 from commander.protocols.structures.commands.history_of_present_illness import HistoryOfPresentIllness
 from commander.protocols.structures.commands.immunize import Immunize
 from commander.protocols.structures.commands.instruct import Instruct
+from commander.protocols.structures.commands.medical_history import MedicalHistory
 from commander.protocols.structures.commands.medication import Medication
 from commander.protocols.structures.commands.plan import Plan
 from commander.protocols.structures.commands.prescription import Prescription
@@ -21,20 +24,20 @@ from commander.protocols.structures.commands.reason_for_visit import ReasonForVi
 from commander.protocols.structures.commands.surgery_history import SurgeryHistory
 from commander.protocols.structures.commands.update_goal import UpdateGoal
 from commander.protocols.structures.commands.vitals import Vitals
-from commander.protocols.openai_chat import OpenaiChat
 from commander.protocols.structures.instruction import Instruction
 from commander.protocols.structures.json_extract import JsonExtract
 from commander.protocols.structures.line import Line
+from commander.protocols.structures.settings import Settings
 
 
 class AudioInterpreter:
 
-    def __init__(self, openai_key: str, patient_id: str, note_uuid: str) -> None:
-        self.openai_key = openai_key
+    def __init__(self, settings: Settings, patient_id: str, note_uuid: str) -> None:
+        self.settings = settings
         self.patient_id = patient_id
         self.note_uuid = note_uuid
         self._command_context = [
-            command_class(openai_key, patient_id, note_uuid)
+            command_class(settings, patient_id, note_uuid)
             for command_class in self.implemented_commands()
         ]
 
@@ -54,9 +57,8 @@ class AudioInterpreter:
         }
 
     def combine_and_speaker_detection(self, audio_chunks: list[bytes]) -> JsonExtract:
-        model = "gpt-4o-audio-preview"
         temperature = 0.0
-        conversation = OpenaiChat(self.openai_key, model, temperature)
+        conversation = OpenaiChat(self.settings.openai_key, Constants.OPENAI_CHAT_AUDIO, temperature)
         conversation.system_prompt = [
             "The conversation is in the medical context.",
             "",
@@ -85,9 +87,8 @@ class AudioInterpreter:
         return conversation.chat()
 
     def detect_instructions(self, discussion: list[Line], known_instructions: list[Instruction]) -> JsonExtract:
-        model = "gpt-4o"
         temperature = 0.0
-        conversation = OpenaiChat(self.openai_key, model, temperature)
+        conversation = OpenaiChat(self.settings.openai_key, Constants.OPENAI_CHAT_TEXT, temperature)
         conversation.system_prompt = [
             "The conversation is in the medical context.",
             "The user will submit the transcript of the visit of a patient with a healthcare provider.",
@@ -135,9 +136,8 @@ class AudioInterpreter:
 
         structures = self.command_structures()
 
-        model = "gpt-4o"
         temperature = 0.0
-        conversation = OpenaiChat(self.openai_key, model, temperature)
+        conversation = OpenaiChat(self.settings.openai_key, Constants.OPENAI_CHAT_TEXT, temperature)
         conversation.system_prompt = [
             "The conversation is in the medical context.",
             "During a visit of a patient with a healthcare provider, the user has identified instructions to record in its software.",
@@ -205,6 +205,7 @@ class AudioInterpreter:
             HistoryOfPresentIllness,
             Immunize,
             Instruct,
+            MedicalHistory,
             Medication,
             Plan,
             Prescription,

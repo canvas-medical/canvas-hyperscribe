@@ -32,7 +32,7 @@ class Vitals(Base):
 
     def information(self) -> str:
         return ("Vital sign measurements (height, weight, waist circumference, temperature, blood pressure, pulse rate, respiration rate). "
-                "All measurements should be combined in one instruction if provided at once, otherwise create a new instruction.")
+                "All measurements should be combined in one instruction.")
 
     def is_available(self) -> bool:
         return True
