@@ -1,4 +1,4 @@
 class Constants:
-    HAS_DATABASE_ACCESS = False
+    HAS_DATABASE_ACCESS = True
     OPENAI_CHAT_AUDIO = "gpt-4o-audio-preview"
     OPENAI_CHAT_TEXT = "gpt-4o"

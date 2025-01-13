@@ -1,15 +1,18 @@
 # from __future__ import annotations
+import json
 from datetime import datetime, timedelta
 
 import requests
 from canvas_sdk.effects import Effect
 from canvas_sdk.events import EventType
 from canvas_sdk.protocols import BaseProtocol
-from canvas_sdk.v1.data import BillingLineItem
+from canvas_sdk.v1.data import BillingLineItem, Medication
+from canvas_sdk.v1.data.condition import ClinicalStatus
 from logger import log
 
 from commander.protocols.audio_interpreter import AudioInterpreter
 from commander.protocols.constants import Constants
+from commander.protocols.structures.commands.base import Base
 from commander.protocols.structures.instruction import Instruction
 from commander.protocols.structures.line import Line
 from commander.protocols.structures.settings import Settings
@@ -87,6 +90,7 @@ class Commander(BaseProtocol):
                 patient_uuid = self.get_patient_uuid()
 
             log.info(f"patient_uuid: {patient_uuid}, note_uuid: {note_uuid}")
+
             result = self.compute_audio(patient_uuid, note_uuid)
 
         # elif event == EventType.Name(EventType.INSTRUCTION_CREATED):
@@ -160,6 +164,8 @@ class Commander(BaseProtocol):
                 sdk_commands = chatter.create_sdk_commands(new_instructions)
                 discussion.previous_instructions = cumulated_instructions
             log.info(f"--> new commands: {len(sdk_commands)}")
+            for sdk_command in sdk_commands:
+                log.info(f"------> {sdk_command}")
 
             # create the commands
             results = [
@@ -172,6 +178,9 @@ class Commander(BaseProtocol):
             log.info(f"instructions: {discussion.previous_instructions}")
             log.info("<-------->")
             log.info(f"sdk_commands: {sdk_commands}")
+            for result in results:
+                log.info(f"command: {result.type}")
+                log.info(json.loads(result.payload))
             log.info("<=== END ===>")
 
             return results

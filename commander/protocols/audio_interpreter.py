@@ -21,6 +21,7 @@ from commander.protocols.structures.commands.medication import Medication
 from commander.protocols.structures.commands.plan import Plan
 from commander.protocols.structures.commands.prescription import Prescription
 from commander.protocols.structures.commands.reason_for_visit import ReasonForVisit
+from commander.protocols.structures.commands.stop_medication import StopMedication
 from commander.protocols.structures.commands.surgery_history import SurgeryHistory
 from commander.protocols.structures.commands.update_goal import UpdateGoal
 from commander.protocols.structures.commands.vitals import Vitals
@@ -210,6 +211,7 @@ class AudioInterpreter:
             Plan,
             Prescription,
             ReasonForVisit,
+            StopMedication,
             SurgeryHistory,
             UpdateGoal,
             Vitals,
