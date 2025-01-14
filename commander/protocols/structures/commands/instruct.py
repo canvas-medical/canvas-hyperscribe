@@ -56,5 +56,8 @@ class Instruct(Base):
         return ("Specific or standard direction. "
                 "There can be only one direction per instruction, and no instruction in the lack of.")
 
+    def constraints(self) -> str:
+        return ""
+
     def is_available(self) -> bool:
         return True

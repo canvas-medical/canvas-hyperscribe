@@ -18,17 +18,14 @@ class Medication(Base):
         }
 
     def information(self) -> str:
-        if self.current_medications():
-            text = [
-                f'* {medication.label} (RxNorm: {medication.code})'
-                for medication in self.current_medications()
-            ]
-            text.insert(0, "Current medication not included in:")
-            text.append("There can be only one medication per instruction, and no instruction in the lack of.")
-            return "\n".join(text)
-
         return ("Current medication. "
                 "There can be only one medication per instruction, and no instruction in the lack of.")
+
+    def constraints(self) -> str:
+        if self.current_medications():
+            text = ", ".join([medication.label for medication in self.current_medications()])
+            return f"'Medication' cannot include: {text}."
+        return ""
 
     def is_available(self) -> bool:
         return True

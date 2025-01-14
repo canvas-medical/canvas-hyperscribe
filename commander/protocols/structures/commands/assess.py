@@ -29,13 +29,12 @@ class Assess(Base):
         }
 
     def information(self) -> str:
-        text = [
-            f'* {condition.label} (ICD-10: {condition.code})'
-            for condition in self.current_conditions()
-        ]
-        text.insert(0, "Assessment of a diagnosed condition limited to:")
-        text.append("There can be only one assessment per condition per instruction, and no instruction in the lack of.")
-        return "\n".join(text)
+        return ("Assessment of a diagnosed condition. "
+                "There can be only one assessment per condition per instruction, and no instruction in the lack of.")
+
+    def constraints(self) -> str:
+        text = ", ".join([f'{condition.label} (ICD-10: {condition.code})' for condition in self.current_conditions()])
+        return f"'Assess' has to be related to one of the following conditions: {text}"
 
     def is_available(self) -> bool:
         return bool(self.current_conditions())

@@ -34,6 +34,9 @@ class Vitals(Base):
         return ("Vital sign measurements (height, weight, waist circumference, temperature, blood pressure, pulse rate, respiration rate). "
                 "All measurements should be combined in one instruction.")
 
+    def constraints(self) -> str:
+        return ""
+
     def is_available(self) -> bool:
         return True
 

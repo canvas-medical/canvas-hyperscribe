@@ -22,5 +22,8 @@ class Immunize(Base):
         return ("Immunization or vaccine to be administered. "
                 "There can be only one immunization per instruction, and no instruction in the lack of.")
 
+    def constraints(self) -> str:
+        return ""
+
     def is_available(self) -> bool:
         return True

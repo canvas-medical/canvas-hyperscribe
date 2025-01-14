@@ -122,5 +122,8 @@ class Prescription(Base):
         return ("Medication prescription, including the name and the dosage. "
                 "There can be only one prescription per instruction, and no instruction in the lack of.")
 
+    def constraints(self) -> str:
+        return ""
+
     def is_available(self) -> bool:
         return True

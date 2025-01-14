@@ -62,5 +62,8 @@ class MedicalHistory(Base):
         return ("Any past condition. "
                 "There can be only one condition per instruction, and no instruction in the lack of.")
 
+    def constraints(self) -> str:
+        return ""
+
     def is_available(self) -> bool:
         return True

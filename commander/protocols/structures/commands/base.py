@@ -51,6 +51,9 @@ class Base:
     def information(self) -> str:
         raise NotImplementedError
 
+    def constraints(self) -> str:
+        raise NotImplementedError
+
     def is_available(self) -> bool:
         raise NotImplementedError
 

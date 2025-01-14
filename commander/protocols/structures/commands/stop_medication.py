@@ -25,13 +25,14 @@ class StopMedication(Base):
         }
 
     def information(self) -> str:
-        text = [
-            f'* {medication.label} (RxNorm: {medication.code})'
-            for medication in self.current_medications()
-        ]
-        text.insert(0, "Stop a medication, limited to:")
-        text.append("There can be only one medication, with the rationale, to stop per instruction, and no instruction in the lack of.")
-        return "\n".join(text)
+        return ("Stop a medication. "
+                "There can be only one medication, with the rationale, to stop per instruction, and no instruction in the lack of.")
+
+    def constraints(self) -> str:
+        if self.current_medications():
+            text = ", ".join([medication.label for medication in self.current_medications()])
+            return f"'StopMedication' has to be related to one of the following medications: {text}."
+        return ""
 
     def is_available(self) -> bool:
         # TODO wait for https://github.com/canvas-medical/canvas-plugins/issues/321

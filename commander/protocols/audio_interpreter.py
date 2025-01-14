@@ -51,6 +51,13 @@ class AudioInterpreter:
             for instance in self._command_context if instance.is_available()
         ]
 
+    def instruction_constraints(self) -> list[str]:
+        result: list[str] = []
+        for instance in self._command_context:
+            if instance.is_available() and (constraint := instance.constraints()):
+                result.append(constraint)
+        return result
+
     def command_structures(self) -> dict:
         return {
             instance.class_name(): instance.parameters()
@@ -128,7 +135,21 @@ class AudioInterpreter:
                 "```",
                 "Include them in your response, with any necessary additional information.",
             ])
-        return conversation.chat()
+        result = conversation.chat()
+        if result.has_error is False and (constraints := self.instruction_constraints()):
+            conversation.user_prompt = [
+                "Here is your last response:",
+                "```json",
+                json.dumps(result.content, indent=1),
+                "```",
+                "",
+                "Review your response and be sure to follow these constraints:",
+            ]
+            for constraint in constraints:
+                conversation.user_prompt.append(f" * {constraint}")
+            conversation.user_prompt.append("")
+            result = conversation.chat()
+        return result
 
     def create_sdk_commands(self, known_instructions: list[Instruction]) -> list[tuple[Instruction, dict]]:
         result: list[tuple[Instruction, dict]] = []

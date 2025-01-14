@@ -19,5 +19,8 @@ class Plan(Base):
         return ("Defined plan for future patient visits. "
                 "There can be only one plan per instruction, and no instruction in the lack of.")
 
+    def constraints(self) -> str:
+        return ""
+
     def is_available(self) -> bool:
         return True

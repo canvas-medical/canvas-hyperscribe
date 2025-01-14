@@ -19,5 +19,8 @@ class ReasonForVisit(Base):
         return ("Patient's reported reason for the visit. "
                 "There can be multiple reasons within an instruction.")
 
+    def constraints(self) -> str:
+        return ""
+
     def is_available(self) -> bool:
         return True

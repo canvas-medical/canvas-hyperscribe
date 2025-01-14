@@ -59,5 +59,8 @@ class FamilyHistory(Base):
             "Any relevant condition of a relative among: father, mother, parent, child, brother, sister, sibling, grand-parent, grand-father, grand-mother. "
             "There can be only one condition per relative per instruction, and no instruction in the lack of.")
 
+    def constraints(self) -> str:
+        return ""
+
     def is_available(self) -> bool:
         return True

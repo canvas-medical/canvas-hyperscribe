@@ -37,5 +37,8 @@ class Allergy(Base):
         return ("Any known allergy, one instruction per allergy. "
                 "There can be only one allergy per instruction, and no instruction in the lack of.")
 
+    def constraints(self) -> str:
+        return ""
+
     def is_available(self) -> bool:
         return True

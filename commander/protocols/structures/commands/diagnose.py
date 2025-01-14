@@ -27,5 +27,8 @@ class Diagnose(Base):
         return ("Medical condition identified by the provider, including reasoning, current assessment, and onset date. "
                 "There is one instruction per condition, and no instruction in the lack of.")
 
+    def constraints(self) -> str:
+        return ""
+
     def is_available(self) -> bool:
         return True

@@ -25,5 +25,8 @@ class CloseGoal(Base):
     def information(self) -> str:
         return "Final status of a previously set goal, including progress or barriers."
 
+    def constraints(self) -> str:
+        return ""
+
     def is_available(self) -> bool:
         return bool(self.current_goals())

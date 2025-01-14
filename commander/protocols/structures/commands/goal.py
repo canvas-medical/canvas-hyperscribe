@@ -31,5 +31,8 @@ class Goal(Base):
         return ("Defined goal set by the provider, including due date and priority. "
                 "There can be only one goal per instruction, and no instruction in the lack of.")
 
+    def constraints(self) -> str:
+        return ""
+
     def is_available(self) -> bool:
         return True

@@ -19,5 +19,8 @@ class HistoryOfPresentIllness(Base):
         return ("Provider's reported key highlights of the visit. "
                 "There can be multiple highlights within an instruction.")
 
+    def constraints(self) -> str:
+        return ""
+
     def is_available(self) -> bool:
         return True
