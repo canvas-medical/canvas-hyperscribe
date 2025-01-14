@@ -13,8 +13,7 @@ class Instruct(Base):
         concepts = CanvasScience.instructions(self.settings.science_host, expressions)
 
         # ask the LLM to pick the most relevant instruction
-        temperature = 0.0
-        conversation = OpenaiChat(self.settings.openai_key, Constants.OPENAI_CHAT_TEXT, temperature)
+        conversation = OpenaiChat(self.settings.openai_key, Constants.OPENAI_CHAT_TEXT)
         conversation.system_prompt = [
             "The conversation is in the medical context.",
             "",

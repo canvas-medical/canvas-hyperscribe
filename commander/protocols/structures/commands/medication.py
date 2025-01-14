@@ -20,7 +20,7 @@ class Medication(Base):
     def information(self) -> str:
         if self.current_medications():
             text = [
-                f'* {medication["label"]} (RxNorm: {medication["code"]})'
+                f'* {medication.label} (RxNorm: {medication.code})'
                 for medication in self.current_medications()
             ]
             text.insert(0, "Current medication not included in:")

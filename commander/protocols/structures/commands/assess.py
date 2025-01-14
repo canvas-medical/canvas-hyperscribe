@@ -8,7 +8,7 @@ class Assess(Base):
     def from_json(self, parameters: dict) -> None | AssessCommand:
         condition_id = ""
         if 0 <= (idx := parameters["conditionIndex"]) < len(self.current_conditions()):
-            condition_id = (self.current_conditions()[idx]["uuid"])
+            condition_id = self.current_conditions()[idx].uuid
         return AssessCommand(
             condition_id=condition_id,
             background=parameters["background"],
@@ -19,7 +19,7 @@ class Assess(Base):
 
     def parameters(self) -> dict:
         statuses = "/".join([status.value for status in AssessCommand.Status])
-        conditions = "/".join([f'{condition["label"]} (index: {idx})' for idx, condition in enumerate(self.current_conditions())])
+        conditions = "/".join([f'{condition.label} (index: {idx})' for idx, condition in enumerate(self.current_conditions())])
         return {
             "condition": conditions,
             "conditionIndex": "Index of the Condition to assess",
@@ -30,7 +30,7 @@ class Assess(Base):
 
     def information(self) -> str:
         text = [
-            f'* {condition["label"]} (ICD-10: {condition["code"]})'
+            f'* {condition.label} (ICD-10: {condition.code})'
             for condition in self.current_conditions()
         ]
         text.insert(0, "Assessment of a diagnosed condition limited to:")

@@ -15,10 +15,10 @@ class OpenaiChat:
     ROLE_SYSTEM = "system"
     ROLE_USER = "user"
 
-    def __init__(self, openai_key: str, model: str, temperature: float):
+    def __init__(self, openai_key: str, model: str):
         self.openai_key = openai_key
         self.model = model
-        self.temperature = temperature
+        self.temperature = 0.0
         self.system_prompt: list[str] = []
         self.user_prompt: list[str] = []
         self.audios: list[dict] = []

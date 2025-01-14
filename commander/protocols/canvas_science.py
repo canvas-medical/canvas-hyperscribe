@@ -5,6 +5,8 @@ from requests import get as requests_get
 
 from commander.protocols.structures.icd10_condition import Icd10Condition
 from commander.protocols.structures.medical_concept import MedicalConcept
+from commander.protocols.structures.medication_detail import MedicationDetail
+from commander.protocols.structures.medication_detail_quantity import MedicationDetailQuantity
 
 
 class CanvasScience:
@@ -25,9 +27,18 @@ class CanvasScience:
         return cls.medical_concept(f"{host}/search/medical-history-condition", expressions, Icd10Condition)
 
     @classmethod
-    def medical_concept(cls, url: str, expressions: list[str], returned_class: Type[MedicalConcept | Icd10Condition]) -> list[
-        MedicalConcept | Icd10Condition]:
-        result: list[MedicalConcept | Icd10Condition] = []
+    def medication_details(cls, host: str, expressions: list[str]) -> list[MedicationDetail]:
+        return cls.medical_concept(f"{host}/search/grouped-medication", expressions, MedicationDetail)
+
+    @classmethod
+    def medical_concept(
+            cls,
+            url: str,
+            expressions: list[str],
+            returned_class: Type[MedicalConcept | Icd10Condition | MedicationDetail],
+    ) -> list[
+        MedicalConcept | Icd10Condition | MedicationDetail]:
+        result: list[MedicalConcept | Icd10Condition | MedicationDetail] = []
         headers = {
             "Content-Type": "application/json",
         }
@@ -37,15 +48,24 @@ class CanvasScience:
                 "format": "json",
                 "limit": 10,
             }
-            request = requests_get(
-                url,
-                headers=headers,
-                params=params,
-                verify=True,
-            )
+            request = requests_get(url, headers=headers, params=params, verify=True)
             if request.status_code == HTTPStatus.OK.value and (concepts := request.json().get("results", [])):
                 for concept in concepts:
-                    if returned_class == Icd10Condition:
+                    if returned_class == MedicationDetail:
+                        quantities: list[MedicationDetailQuantity] = []
+                        for quantity in concept["clinical_quantities"]:
+                            quantities.append(MedicationDetailQuantity(
+                                quantity=quantity["erx_quantity"],
+                                representative_ndc=quantity["representative_ndc"],
+                                ncpdp_quantity_qualifier_code=quantity["erx_ncpdp_script_quantity_qualifier_code"],
+                                ncpdp_quantity_qualifier_description=quantity["erx_ncpdp_script_quantity_qualifier_description"],
+                            ))
+                        result.append(MedicationDetail(
+                            fdb_code=str(concept["med_medication_id"]),
+                            description=concept["description_and_quantity"],
+                            quantities=quantities,
+                        ))
+                    elif returned_class == Icd10Condition:
                         result.append(Icd10Condition(
                             code=concept["icd10_code"],
                             label=concept["icd10_text"],

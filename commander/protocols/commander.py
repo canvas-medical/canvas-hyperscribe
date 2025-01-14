@@ -6,13 +6,11 @@ import requests
 from canvas_sdk.effects import Effect
 from canvas_sdk.events import EventType
 from canvas_sdk.protocols import BaseProtocol
-from canvas_sdk.v1.data import BillingLineItem, Medication
-from canvas_sdk.v1.data.condition import ClinicalStatus
+from canvas_sdk.v1.data import BillingLineItem
 from logger import log
 
 from commander.protocols.audio_interpreter import AudioInterpreter
 from commander.protocols.constants import Constants
-from commander.protocols.structures.commands.base import Base
 from commander.protocols.structures.instruction import Instruction
 from commander.protocols.structures.line import Line
 from commander.protocols.structures.settings import Settings
@@ -85,13 +83,15 @@ class Commander(BaseProtocol):
                 Constants.HAS_DATABASE_ACCESS = False
                 note_uuid = self.context["note_uuid"]
                 patient_uuid = self.context["patient_uuid"]
+                provider_uuid = self.context["provider_uuid"]
             else:
                 note_uuid = self.get_note_uuid()
                 patient_uuid = self.get_patient_uuid()
+                provider_uuid = self.get_provider_uuid()
 
             log.info(f"patient_uuid: {patient_uuid}, note_uuid: {note_uuid}")
 
-            result = self.compute_audio(patient_uuid, note_uuid)
+            result = self.compute_audio(patient_uuid, note_uuid, provider_uuid)
 
         # elif event == EventType.Name(EventType.INSTRUCTION_CREATED):
         #     pass
@@ -123,7 +123,12 @@ class Commander(BaseProtocol):
         billing = BillingLineItem.objects.filter(id=self.target)
         return str(billing[0].patient.id)
 
-    def compute_audio(self, patient_uuid: str, note_uuid: str) -> list[Effect]:
+    def get_provider_uuid(self) -> str:
+        # ATTENTION the target is the billing item ==> retrieve the provider id of the open note
+        billing = BillingLineItem.objects.filter(id=self.target)
+        return str(billing[0].note.provider.id)
+
+    def compute_audio(self, patient_uuid: str, note_uuid: str, provider_uuid: str) -> list[Effect]:
         CachedDiscussion.clear_cache()
 
         discussion = CachedDiscussion.get_discussion(note_uuid)
@@ -144,17 +149,19 @@ class Commander(BaseProtocol):
                 openai_key=self.secrets[self.SECRET_OPENAI_KEY],
                 science_host=self.secrets[self.SECRET_SCIENCE_HOST],
             )
-            chatter = AudioInterpreter(settings, patient_uuid, note_uuid)
+            chatter = AudioInterpreter(settings, patient_uuid, note_uuid, provider_uuid)
             response = chatter.combine_and_speaker_detection(audios)
             transcript: list[Line] = []
             if response.has_error is False:
                 transcript = Line.load_from_json(response.content)
+
             # detect the instructions based on the transcript and the existing commands
             log.info(f"--> transcript back and forth: {len(transcript)}")
             if transcript:
                 response = chatter.detect_instructions(transcript, discussion.previous_instructions)
                 if response.has_error is False:
                     cumulated_instructions = Instruction.load_from_json(response.content)
+
             # identify the commands
             log.info(f"--> instructions: {len(cumulated_instructions)}")
             past_uuids = [instruction.uuid for instruction in discussion.previous_instructions]
@@ -164,8 +171,6 @@ class Commander(BaseProtocol):
                 sdk_commands = chatter.create_sdk_commands(new_instructions)
                 discussion.previous_instructions = cumulated_instructions
             log.info(f"--> new commands: {len(sdk_commands)}")
-            for sdk_command in sdk_commands:
-                log.info(f"------> {sdk_command}")
 
             # create the commands
             results = [

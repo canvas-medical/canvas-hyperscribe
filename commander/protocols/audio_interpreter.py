@@ -33,12 +33,12 @@ from commander.protocols.structures.settings import Settings
 
 class AudioInterpreter:
 
-    def __init__(self, settings: Settings, patient_id: str, note_uuid: str) -> None:
+    def __init__(self, settings: Settings, patient_id: str, note_uuid: str, provider_uuid: str) -> None:
         self.settings = settings
         self.patient_id = patient_id
         self.note_uuid = note_uuid
         self._command_context = [
-            command_class(settings, patient_id, note_uuid)
+            command_class(settings, patient_id, note_uuid, provider_uuid)
             for command_class in self.implemented_commands()
         ]
 
@@ -48,18 +48,17 @@ class AudioInterpreter:
                 "instruction": instance.class_name(),
                 "information": instance.information(),
             }
-            for instance in self._command_context
+            for instance in self._command_context if instance.is_available()
         ]
 
     def command_structures(self) -> dict:
         return {
             instance.class_name(): instance.parameters()
-            for instance in self._command_context
+            for instance in self._command_context if instance.is_available()
         }
 
     def combine_and_speaker_detection(self, audio_chunks: list[bytes]) -> JsonExtract:
-        temperature = 0.0
-        conversation = OpenaiChat(self.settings.openai_key, Constants.OPENAI_CHAT_AUDIO, temperature)
+        conversation = OpenaiChat(self.settings.openai_key, Constants.OPENAI_CHAT_AUDIO)
         conversation.system_prompt = [
             "The conversation is in the medical context.",
             "",
@@ -88,8 +87,7 @@ class AudioInterpreter:
         return conversation.chat()
 
     def detect_instructions(self, discussion: list[Line], known_instructions: list[Instruction]) -> JsonExtract:
-        temperature = 0.0
-        conversation = OpenaiChat(self.settings.openai_key, Constants.OPENAI_CHAT_TEXT, temperature)
+        conversation = OpenaiChat(self.settings.openai_key, Constants.OPENAI_CHAT_TEXT)
         conversation.system_prompt = [
             "The conversation is in the medical context.",
             "The user will submit the transcript of the visit of a patient with a healthcare provider.",
@@ -137,8 +135,7 @@ class AudioInterpreter:
 
         structures = self.command_structures()
 
-        temperature = 0.0
-        conversation = OpenaiChat(self.settings.openai_key, Constants.OPENAI_CHAT_TEXT, temperature)
+        conversation = OpenaiChat(self.settings.openai_key, Constants.OPENAI_CHAT_TEXT)
         conversation.system_prompt = [
             "The conversation is in the medical context.",
             "During a visit of a patient with a healthcare provider, the user has identified instructions to record in its software.",

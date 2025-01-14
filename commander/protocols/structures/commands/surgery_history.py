@@ -13,8 +13,7 @@ class SurgeryHistory(Base):
         concepts = CanvasScience.surgical_histories(self.settings.science_host, expressions)
 
         # ask the LLM to pick the most relevant condition
-        temperature = 0.0
-        conversation = OpenaiChat(self.settings.openai_key, Constants.OPENAI_CHAT_TEXT, temperature)
+        conversation = OpenaiChat(self.settings.openai_key, Constants.OPENAI_CHAT_TEXT)
         conversation.system_prompt = [
             "The conversation is in the medical context.",
             "",

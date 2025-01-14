@@ -9,7 +9,7 @@ class StopMedication(Base):
     def from_json(self, parameters: dict) -> None | AssessCommand:
         medication_id = ""
         if 0 <= (idx := parameters["medicationIndex"]) < len(self.current_medications()):
-            medication_id = (self.current_medications()[idx]["uuid"])
+            medication_id = self.current_medications()[idx].uuid
         return StopMedicationCommand(
             medication_id=medication_id,
             rationale=parameters["rationale"],
@@ -17,7 +17,7 @@ class StopMedication(Base):
         )
 
     def parameters(self) -> dict:
-        medications = "/".join([f'{medication["label"]} (index: {idx})' for idx, medication in enumerate(self.current_medications())])
+        medications = "/".join([f'{medication.label} (index: {idx})' for idx, medication in enumerate(self.current_medications())])
         return {
             "medication": medications,
             "medicationIndex": "Index of the medication to stop as integer",
@@ -26,7 +26,7 @@ class StopMedication(Base):
 
     def information(self) -> str:
         text = [
-            f'* {medication["label"]} (RxNorm: {medication["code"]})'
+            f'* {medication.label} (RxNorm: {medication.code})'
             for medication in self.current_medications()
         ]
         text.insert(0, "Stop a medication, limited to:")
@@ -34,4 +34,6 @@ class StopMedication(Base):
         return "\n".join(text)
 
     def is_available(self) -> bool:
-        return bool(self.current_medications())
+        # TODO wait for https://github.com/canvas-medical/canvas-plugins/issues/321
+        #  return bool(self.current_medications())
+        return False
