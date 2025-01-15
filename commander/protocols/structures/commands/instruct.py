@@ -7,7 +7,7 @@ from commander.protocols.structures.commands.base import Base
 
 
 class Instruct(Base):
-    def from_json(self, parameters: dict) -> None | InstructCommand:
+    def command_from_json(self, parameters: dict) -> None | InstructCommand:
         # retrieve existing instructions defined in Canvas Science
         expressions = parameters["keywords"].split(",")
         concepts = CanvasScience.instructions(self.settings.science_host, expressions)
@@ -46,17 +46,17 @@ class Instruct(Base):
             note_uuid=self.note_uuid,
         )
 
-    def parameters(self) -> dict:
+    def command_parameters(self) -> dict:
         return {
             "keywords": "comma separated single keywords of up to 5 synonyms to the specific direction",
             "comment": "direction as free text",
         }
 
-    def information(self) -> str:
+    def instruction_description(self) -> str:
         return ("Specific or standard direction. "
                 "There can be only one direction per instruction, and no instruction in the lack of.")
 
-    def constraints(self) -> str:
+    def instruction_constraints(self) -> str:
         return ""
 
     def is_available(self) -> bool:

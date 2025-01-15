@@ -6,7 +6,7 @@ from commander.protocols.structures.commands.base import Base
 
 class UpdateGoal(Base):
 
-    def from_json(self, parameters: dict) -> None | UpdateGoalCommand:
+    def command_from_json(self, parameters: dict) -> None | UpdateGoalCommand:
         return UpdateGoalCommand(
             goal_id=parameters["goal"],
             due_date=self.str2date(parameters["dueDate"]),
@@ -16,7 +16,7 @@ class UpdateGoal(Base):
             note_uuid=self.note_uuid,
         )
 
-    def parameters(self) -> dict:
+    def command_parameters(self) -> dict:
         statuses = "/".join([status.value for status in GoalCommand.AchievementStatus])
         priorities = "/".join([status.value for status in GoalCommand.Priority])
         return {
@@ -27,10 +27,10 @@ class UpdateGoal(Base):
             "progressAndBarriers": "free text",
         }
 
-    def information(self) -> str:
+    def instruction_description(self) -> str:
         return "Current status of a previously set goal, including progress or barriers."
 
-    def constraints(self) -> str:
+    def instruction_constraints(self) -> str:
         return ""
 
     def is_available(self) -> bool:

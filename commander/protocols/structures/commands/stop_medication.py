@@ -6,7 +6,7 @@ from commander.protocols.structures.commands.base import Base
 
 class StopMedication(Base):
 
-    def from_json(self, parameters: dict) -> None | AssessCommand:
+    def command_from_json(self, parameters: dict) -> None | AssessCommand:
         medication_id = ""
         if 0 <= (idx := parameters["medicationIndex"]) < len(self.current_medications()):
             medication_id = self.current_medications()[idx].uuid
@@ -16,7 +16,7 @@ class StopMedication(Base):
             note_uuid=self.note_uuid,
         )
 
-    def parameters(self) -> dict:
+    def command_parameters(self) -> dict:
         medications = "/".join([f'{medication.label} (index: {idx})' for idx, medication in enumerate(self.current_medications())])
         return {
             "medication": medications,
@@ -24,11 +24,11 @@ class StopMedication(Base):
             "rationale": "free text to explain why the medication is stopped",
         }
 
-    def information(self) -> str:
+    def instruction_description(self) -> str:
         return ("Stop a medication. "
                 "There can be only one medication, with the rationale, to stop per instruction, and no instruction in the lack of.")
 
-    def constraints(self) -> str:
+    def instruction_constraints(self) -> str:
         if self.current_medications():
             text = ", ".join([medication.label for medication in self.current_medications()])
             return f"'{self.class_name()}' has to be related to one of the following medications: {text}."

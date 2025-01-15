@@ -8,11 +8,11 @@ from commander.protocols.structures.commands.base import Base
 
 
 class Prescription(Base):
-    def from_json(self, parameters: dict) -> None | PrescribeCommand:
+    def command_from_json(self, parameters: dict) -> None | PrescribeCommand:
         result: None | PrescribeCommand = None
         condition_icd10s: list[str] = []
         prompt_condition = ""
-        if 0 <= (idx := parameters["conditionIndex"]) < len(self.current_conditions()):
+        if isinstance(parameters["conditionIndex"], int) and 0 <= (idx := parameters["conditionIndex"]) < len(self.current_conditions()):
             targeted_condition = self.current_conditions()[idx]
             condition_icd10s.append(self.icd10_strip_dot(targeted_condition.code))
             prompt_condition = f'The prescription is intended to the patient\'s condition: {targeted_condition.label}.'
@@ -102,13 +102,13 @@ class Prescription(Base):
 
         return result
 
-    def parameters(self) -> dict:
+    def command_parameters(self) -> dict:
         substitutions = "/".join([status.value for status in PrescribeCommand.Substitutions])
         conditions = "/".join([f'{condition.label} (index: {idx})' for idx, condition in enumerate(self.current_conditions())])
         return {
             "keywords": "comma separated keywords of up to 5 synonyms of the medication to prescribe",
             "condition": conditions,  # ATTENTION limiting to only one condition even if the UI accepts up to 2 conditions
-            "conditionIndex": "index of the condition for which the medication is prescribed, as integer",
+            "conditionIndex": "index of the condition for which the medication is prescribed, as integer or None if the prescription is not related to any provided condition",
             "sig": "directions, as free text",
             "suppliedDays": 0,
             # "quantityToDispense": 0,
@@ -118,11 +118,11 @@ class Prescription(Base):
             # "noteToPharmacist": "note to the pharmacist, as free text",
         }
 
-    def information(self) -> str:
+    def instruction_description(self) -> str:
         return ("Medication prescription, including the name and the dosage. "
                 "There can be only one prescription per instruction, and no instruction in the lack of.")
 
-    def constraints(self) -> str:
+    def instruction_constraints(self) -> str:
         return ""
 
     def is_available(self) -> bool:

@@ -46,7 +46,7 @@ class AudioInterpreter:
         return [
             {
                 "instruction": instance.class_name(),
-                "information": instance.information(),
+                "information": instance.instruction_description(),
             }
             for instance in self._command_context if instance.is_available()
         ]
@@ -54,13 +54,13 @@ class AudioInterpreter:
     def instruction_constraints(self) -> list[str]:
         result: list[str] = []
         for instance in self._command_context:
-            if instance.is_available() and (constraint := instance.constraints()):
+            if instance.is_available() and (constraint := instance.instruction_constraints()):
                 result.append(constraint)
         return result
 
     def command_structures(self) -> dict:
         return {
-            instance.class_name(): instance.parameters()
+            instance.class_name(): instance.command_parameters()
             for instance in self._command_context if instance.is_available()
         }
 
@@ -188,7 +188,7 @@ class AudioInterpreter:
     def create_command_from(self, instruction: Instruction, parameters: dict) -> BaseCommand | None:
         for instance in self._command_context:
             if instruction.instruction == instance.class_name():
-                return instance.from_json(parameters)
+                return instance.command_from_json(parameters)
         return None
 
     @classmethod

@@ -5,7 +5,7 @@ from commander.protocols.structures.commands.base import Base
 
 class Assess(Base):
 
-    def from_json(self, parameters: dict) -> None | AssessCommand:
+    def command_from_json(self, parameters: dict) -> None | AssessCommand:
         condition_id = ""
         if 0 <= (idx := parameters["conditionIndex"]) < len(self.current_conditions()):
             condition_id = self.current_conditions()[idx].uuid
@@ -17,7 +17,7 @@ class Assess(Base):
             note_uuid=self.note_uuid,
         )
 
-    def parameters(self) -> dict:
+    def command_parameters(self) -> dict:
         statuses = "/".join([status.value for status in AssessCommand.Status])
         conditions = "/".join([f'{condition.label} (index: {idx})' for idx, condition in enumerate(self.current_conditions())])
         return {
@@ -28,11 +28,11 @@ class Assess(Base):
             "narrative": "free text",
         }
 
-    def information(self) -> str:
+    def instruction_description(self) -> str:
         return ("Assessment of a diagnosed condition. "
                 "There can be only one assessment per condition per instruction, and no instruction in the lack of.")
 
-    def constraints(self) -> str:
+    def instruction_constraints(self) -> str:
         text = ", ".join([f'{condition.label} (ICD-10: {condition.code})' for condition in self.current_conditions()])
         return f"'{self.class_name()}' has to be related to one of the following conditions: {text}"
 

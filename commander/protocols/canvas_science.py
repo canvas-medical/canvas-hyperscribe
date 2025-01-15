@@ -31,6 +31,10 @@ class CanvasScience:
         return cls.medical_concept(f"{host}/search/grouped-medication", expressions, MedicationDetail)
 
     @classmethod
+    def search_conditions(cls, host: str, expressions: list[str]) -> list[Icd10Condition]:
+        return cls.medical_concept(f"{host}/search/condition", expressions, Icd10Condition)
+
+    @classmethod
     def medical_concept(
             cls,
             url: str,

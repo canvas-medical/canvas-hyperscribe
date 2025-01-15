@@ -7,7 +7,7 @@ from commander.protocols.structures.commands.base import Base
 
 
 class SurgeryHistory(Base):
-    def from_json(self, parameters: dict) -> None | PastSurgicalHistoryCommand:
+    def command_from_json(self, parameters: dict) -> None | PastSurgicalHistoryCommand:
         # retrieve existing family history conditions defined in Canvas Science
         expressions = parameters["keywords"].split(",")
         concepts = CanvasScience.surgical_histories(self.settings.science_host, expressions)
@@ -47,18 +47,18 @@ class SurgeryHistory(Base):
             note_uuid=self.note_uuid,
         )
 
-    def parameters(self) -> dict:
+    def command_parameters(self) -> dict:
         return {
             "keywords": "comma separated keywords of up to 5 synonyms of the surgery",
             "approximateDate": "YYYY-MM-DD",
             "comment": "free text describing the surgery",
         }
 
-    def information(self) -> str:
+    def instruction_description(self) -> str:
         return ("Any past surgery. "
                 "There can be only one surgery per instruction, and no instruction in the lack of.")
 
-    def constraints(self) -> str:
+    def instruction_constraints(self) -> str:
         return ""
 
     def is_available(self) -> bool:

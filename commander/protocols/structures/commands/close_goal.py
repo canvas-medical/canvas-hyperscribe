@@ -6,7 +6,7 @@ from commander.protocols.structures.commands.base import Base
 
 class CloseGoal(Base):
 
-    def from_json(self, parameters: dict) -> None | CloseGoalCommand:
+    def command_from_json(self, parameters: dict) -> None | CloseGoalCommand:
         return CloseGoalCommand(
             goal_id=parameters["goal"],
             achievement_status=GoalCommand.AchievementStatus(parameters["status"]),
@@ -14,7 +14,7 @@ class CloseGoal(Base):
             note_uuid=self.note_uuid,
         )
 
-    def parameters(self) -> dict:
+    def command_parameters(self) -> dict:
         statuses = "/".join([status.value for status in GoalCommand.AchievementStatus])
         return {
             "goal": "Name of the Goal to close",
@@ -22,10 +22,10 @@ class CloseGoal(Base):
             "progressAndBarriers": "free text",
         }
 
-    def information(self) -> str:
+    def instruction_description(self) -> str:
         return "Final status of a previously set goal, including progress or barriers."
 
-    def constraints(self) -> str:
+    def instruction_constraints(self) -> str:
         return ""
 
     def is_available(self) -> bool:

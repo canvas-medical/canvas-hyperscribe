@@ -4,22 +4,22 @@ from commander.protocols.structures.commands.base import Base
 
 
 class ReasonForVisit(Base):
-    def from_json(self, parameters: dict) -> None | ReasonForVisitCommand:
+    def command_from_json(self, parameters: dict) -> None | ReasonForVisitCommand:
         return ReasonForVisitCommand(
             comment=parameters["reasonForVisit"],
             note_uuid=self.note_uuid,
         )
 
-    def parameters(self) -> dict:
+    def command_parameters(self) -> dict:
         return {
             "reasonForVisit": "free text",
         }
 
-    def information(self) -> str:
+    def instruction_description(self) -> str:
         return ("Patient's reported reason for the visit. "
                 "There can be multiple reasons within an instruction.")
 
-    def constraints(self) -> str:
+    def instruction_constraints(self) -> str:
         return ""
 
     def is_available(self) -> bool:

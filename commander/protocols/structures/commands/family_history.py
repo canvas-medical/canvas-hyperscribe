@@ -7,7 +7,7 @@ from commander.protocols.structures.commands.base import Base
 
 
 class FamilyHistory(Base):
-    def from_json(self, parameters: dict) -> None | FamilyHistoryCommand:
+    def command_from_json(self, parameters: dict) -> None | FamilyHistoryCommand:
         # retrieve existing family history conditions defined in Canvas Science
         expressions = parameters["keywords"].split(",")
         concepts = CanvasScience.family_histories(self.settings.science_host, expressions)
@@ -47,19 +47,19 @@ class FamilyHistory(Base):
             note_uuid=self.note_uuid,
         )
 
-    def parameters(self) -> dict:
+    def command_parameters(self) -> dict:
         return {
             "keywords": "comma separated keywords of up to 5 synonyms of the condition",
             "relative": "father/mother/parent/child/brother/sister/sibling/grand-parent/grand-father/grand-mother",
             "note": "free text describing the condition",
         }
 
-    def information(self) -> str:
+    def instruction_description(self) -> str:
         return (
             "Any relevant condition of a relative among: father, mother, parent, child, brother, sister, sibling, grand-parent, grand-father, grand-mother. "
             "There can be only one condition per relative per instruction, and no instruction in the lack of.")
 
-    def constraints(self) -> str:
+    def instruction_constraints(self) -> str:
         return ""
 
     def is_available(self) -> bool:

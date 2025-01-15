@@ -4,7 +4,7 @@ from commander.protocols.structures.commands.base import Base
 
 
 class Allergy(Base):
-    def from_json(self, parameters: dict) -> None | AllergyCommand:
+    def command_from_json(self, parameters: dict) -> None | AllergyCommand:
         concept_type = AllergenType(1)
         if parameters["type"] == "medication":
             concept_type = AllergenType(2)
@@ -23,7 +23,7 @@ class Allergy(Base):
             note_uuid=self.note_uuid,
         )
 
-    def parameters(self) -> dict:
+    def command_parameters(self) -> dict:
         severity = "/".join([status.value for status in AllergyCommand.Severity])
         return {
             "allergy": "name of the component responsible fo the allergy",
@@ -33,11 +33,11 @@ class Allergy(Base):
             "approximateDateOfOnset": "YYYY-MM-DD",
         }
 
-    def information(self) -> str:
+    def instruction_description(self) -> str:
         return ("Any known allergy, one instruction per allergy. "
                 "There can be only one allergy per instruction, and no instruction in the lack of.")
 
-    def constraints(self) -> str:
+    def instruction_constraints(self) -> str:
         return ""
 
     def is_available(self) -> bool:

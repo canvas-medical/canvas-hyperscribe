@@ -4,7 +4,7 @@ from commander.protocols.structures.commands.base import Base
 
 
 class Immunize(Base):
-    def from_json(self, parameters: dict) -> None | InstructCommand:
+    def command_from_json(self, parameters: dict) -> None | InstructCommand:
         # TODO change to ImmunizeCommand when implemented
         return InstructCommand(
             instruction="Advice to read information",
@@ -12,17 +12,17 @@ class Immunize(Base):
             note_uuid=self.note_uuid,
         )
 
-    def parameters(self) -> dict:
+    def command_parameters(self) -> dict:
         return {
             "immunize": "medical name of the immunization and its CPT code",
             "sig": "directions as free text",
         }
 
-    def information(self) -> str:
+    def instruction_description(self) -> str:
         return ("Immunization or vaccine to be administered. "
                 "There can be only one immunization per instruction, and no instruction in the lack of.")
 
-    def constraints(self) -> str:
+    def instruction_constraints(self) -> str:
         return ""
 
     def is_available(self) -> bool:

@@ -42,16 +42,16 @@ class Base:
     def icd10_strip_dot(cls, code: str) -> str:
         return code.replace(".", "")
 
-    def from_json(self, parameters: dict) -> None | _BaseCommand:
+    def command_from_json(self, parameters: dict) -> None | _BaseCommand:
         raise NotImplementedError
 
-    def parameters(self) -> dict:
+    def command_parameters(self) -> dict:
         raise NotImplementedError
 
-    def information(self) -> str:
+    def instruction_description(self) -> str:
         raise NotImplementedError
 
-    def constraints(self) -> str:
+    def instruction_constraints(self) -> str:
         raise NotImplementedError
 
     def is_available(self) -> bool:
@@ -106,11 +106,11 @@ class Base:
                     label="hydrochlorothiazide 25 mg tablet",
                     code="310798",
                 ),
-                # CodedItem(
-                #     uuid="967ab04e-3c4d-45d8-849e-56680f609f01",
-                #     label="Lipitor 10 mg tablet",
-                #     code="617312",
-                # ),
+                CodedItem(
+                    uuid="967ab04e-3c4d-45d8-849e-56680f609f01",
+                    label="Lipitor 10 mg tablet",
+                    code="617312",
+                ),
             ]
         if self._medications is None:
             self._medications = []

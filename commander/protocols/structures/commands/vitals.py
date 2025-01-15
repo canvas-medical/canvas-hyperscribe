@@ -6,7 +6,7 @@ from commander.protocols.structures.commands.base import Base
 
 
 class Vitals(Base):
-    def from_json(self, parameters: dict) -> None | VitalsCommand:
+    def command_from_json(self, parameters: dict) -> None | VitalsCommand:
         return VitalsCommand(
             height=self.valid_or_none(VitalsCommand, "height", parameters["height"]["inches"]),
             weight_lbs=self.valid_or_none(VitalsCommand, "weight_lbs", parameters["weight"]["pounds"]),
@@ -19,7 +19,7 @@ class Vitals(Base):
             note_uuid=self.note_uuid,
         )
 
-    def parameters(self) -> dict:
+    def command_parameters(self) -> dict:
         return {
             "height": {"inches": 0},
             "weight": {"pounds": 0},
@@ -30,11 +30,11 @@ class Vitals(Base):
             "respirationRate": {"beatPerMinute": 0},
         }
 
-    def information(self) -> str:
+    def instruction_description(self) -> str:
         return ("Vital sign measurements (height, weight, waist circumference, temperature, blood pressure, pulse rate, respiration rate). "
                 "All measurements should be combined in one instruction.")
 
-    def constraints(self) -> str:
+    def instruction_constraints(self) -> str:
         return ""
 
     def is_available(self) -> bool:

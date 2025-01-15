@@ -4,7 +4,7 @@ from commander.protocols.structures.commands.base import Base
 
 
 class Goal(Base):
-    def from_json(self, parameters: dict) -> None | GoalCommand:
+    def command_from_json(self, parameters: dict) -> None | GoalCommand:
         return GoalCommand(
             goal_statement=parameters["goal"],
             start_date=self.str2date(parameters["startDate"]),
@@ -15,7 +15,7 @@ class Goal(Base):
             note_uuid=self.note_uuid,
         )
 
-    def parameters(self) -> dict:
+    def command_parameters(self) -> dict:
         statuses = "/".join([status.value for status in GoalCommand.AchievementStatus])
         priorities = "/".join([status.value for status in GoalCommand.Priority])
         return {
@@ -27,11 +27,11 @@ class Goal(Base):
             "progressAndBarriers": "free text",
         }
 
-    def information(self) -> str:
+    def instruction_description(self) -> str:
         return ("Defined goal set by the provider, including due date and priority. "
                 "There can be only one goal per instruction, and no instruction in the lack of.")
 
-    def constraints(self) -> str:
+    def instruction_constraints(self) -> str:
         return ""
 
     def is_available(self) -> bool:

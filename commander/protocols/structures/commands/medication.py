@@ -7,7 +7,7 @@ from commander.protocols.structures.commands.base import Base
 
 
 class Medication(Base):
-    def from_json(self, parameters: dict) -> None | MedicationStatementCommand:
+    def command_from_json(self, parameters: dict) -> None | MedicationStatementCommand:
         # retrieve existing medications defined in Canvas Science
         expressions = parameters["keywords"].split(",")
         medications = CanvasScience.medication_details(self.settings.science_host, expressions)
@@ -46,17 +46,17 @@ class Medication(Base):
             result.fdb_code = fdb_code
         return result
 
-    def parameters(self) -> dict:
+    def command_parameters(self) -> dict:
         return {
             "keywords": "comma separated keywords of up to 5 synonyms of the taken medication",
             "sig": "directions, as free text",
         }
 
-    def information(self) -> str:
+    def instruction_description(self) -> str:
         return ("Current medication. "
                 "There can be only one medication per instruction, and no instruction in the lack of.")
 
-    def constraints(self) -> str:
+    def instruction_constraints(self) -> str:
         if self.current_medications():
             text = ", ".join([medication.label for medication in self.current_medications()])
             return f"'{self.class_name()}' cannot include: {text}."
