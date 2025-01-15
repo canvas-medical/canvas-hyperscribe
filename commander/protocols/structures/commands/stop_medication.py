@@ -31,7 +31,7 @@ class StopMedication(Base):
     def constraints(self) -> str:
         if self.current_medications():
             text = ", ".join([medication.label for medication in self.current_medications()])
-            return f"'StopMedication' has to be related to one of the following medications: {text}."
+            return f"'{self.class_name()}' has to be related to one of the following medications: {text}."
         return ""
 
     def is_available(self) -> bool:

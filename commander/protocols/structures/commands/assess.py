@@ -34,7 +34,7 @@ class Assess(Base):
 
     def constraints(self) -> str:
         text = ", ".join([f'{condition.label} (ICD-10: {condition.code})' for condition in self.current_conditions()])
-        return f"'Assess' has to be related to one of the following conditions: {text}"
+        return f"'{self.class_name()}' has to be related to one of the following conditions: {text}"
 
     def is_available(self) -> bool:
         return bool(self.current_conditions())

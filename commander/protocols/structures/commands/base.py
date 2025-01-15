@@ -106,11 +106,11 @@ class Base:
                     label="hydrochlorothiazide 25 mg tablet",
                     code="310798",
                 ),
-                CodedItem(
-                    uuid="967ab04e-3c4d-45d8-849e-56680f609f01",
-                    label="Lipitor 10 mg tablet",
-                    code="617312",
-                ),
+                # CodedItem(
+                #     uuid="967ab04e-3c4d-45d8-849e-56680f609f01",
+                #     label="Lipitor 10 mg tablet",
+                #     code="617312",
+                # ),
             ]
         if self._medications is None:
             self._medications = []
