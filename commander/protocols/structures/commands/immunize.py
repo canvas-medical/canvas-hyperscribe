@@ -15,7 +15,7 @@ class Immunize(Base):
     def command_parameters(self) -> dict:
         return {
             "immunize": "medical name of the immunization and its CPT code",
-            "sig": "directions as free text",
+            "sig": "directions, as free text",
         }
 
     def instruction_description(self) -> str:
@@ -26,4 +26,4 @@ class Immunize(Base):
         return ""
 
     def is_available(self) -> bool:
-        return True
+        return False

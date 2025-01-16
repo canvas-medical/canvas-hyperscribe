@@ -12,7 +12,7 @@ class HistoryOfPresentIllness(Base):
 
     def command_parameters(self) -> dict:
         return {
-            "narrative": "free text",
+            "narrative": "highlights of the visit from the provider point of view, as free text",
         }
 
     def instruction_description(self) -> str:

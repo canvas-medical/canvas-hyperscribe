@@ -11,9 +11,9 @@ class Assess(Base):
             condition_id = self.current_conditions()[idx].uuid
         return AssessCommand(
             condition_id=condition_id,
-            background=parameters["background"],
+            background=parameters["rationale"],
             status=AssessCommand.Status(parameters["status"]),
-            narrative=parameters["narrative"],
+            narrative=parameters["assessment"],
             note_uuid=self.note_uuid,
         )
 
@@ -21,15 +21,16 @@ class Assess(Base):
         statuses = "/".join([status.value for status in AssessCommand.Status])
         conditions = "/".join([f'{condition.label} (index: {idx})' for idx, condition in enumerate(self.current_conditions())])
         return {
-            "condition": conditions,
-            "conditionIndex": "Index of the Condition to assess",
-            "background": "free text",
-            "status": statuses,
-            "narrative": "free text",
+            "condition": f"one of: {conditions}",
+            "conditionIndex": "index of the Condition to assess, as integer",
+            "rationale": "rationale about the current assessment, as free text",
+            "status": f"one of: {statuses}",
+            "assessment": "today's assessment of the condition, as free text",
         }
 
     def instruction_description(self) -> str:
-        return ("Assessment of a diagnosed condition. "
+        text = ", ".join([f'{condition.label}' for condition in self.current_conditions()])
+        return (f"Today's assessment of a diagnosed condition ({text}). "
                 "There can be only one assessment per condition per instruction, and no instruction in the lack of.")
 
     def instruction_constraints(self) -> str:

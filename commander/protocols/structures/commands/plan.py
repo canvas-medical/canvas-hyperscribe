@@ -12,7 +12,7 @@ class Plan(Base):
 
     def command_parameters(self) -> dict:
         return {
-            "plan": "free text",
+            "plan": "description of the plan, as free text",
         }
 
     def instruction_description(self) -> str:

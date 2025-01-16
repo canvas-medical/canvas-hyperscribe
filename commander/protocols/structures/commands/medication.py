@@ -57,10 +57,11 @@ class Medication(Base):
                 "There can be only one medication per instruction, and no instruction in the lack of.")
 
     def instruction_constraints(self) -> str:
+        result = ""
         if self.current_medications():
             text = ", ".join([medication.label for medication in self.current_medications()])
-            return f"'{self.class_name()}' cannot include: {text}."
-        return ""
+            result = f"'{self.class_name()}' cannot include: {text}."
+        return result
 
     def is_available(self) -> bool:
         return True

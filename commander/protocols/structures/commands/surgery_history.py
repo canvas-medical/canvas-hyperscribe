@@ -51,7 +51,7 @@ class SurgeryHistory(Base):
         return {
             "keywords": "comma separated keywords of up to 5 synonyms of the surgery",
             "approximateDate": "YYYY-MM-DD",
-            "comment": "free text describing the surgery",
+            "comment": "description of the surgery, as free text",
         }
 
     def instruction_description(self) -> str:
@@ -59,7 +59,11 @@ class SurgeryHistory(Base):
                 "There can be only one surgery per instruction, and no instruction in the lack of.")
 
     def instruction_constraints(self) -> str:
-        return ""
+        result = ""
+        if self.surgery_history():
+            text = ", ".join([f'{surgery.label}' for surgery in self.surgery_history()])
+            result = f"'{self.class_name()}' cannot include: {text}."
+        return result
 
     def is_available(self) -> bool:
         return True

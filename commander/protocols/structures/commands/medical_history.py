@@ -55,7 +55,7 @@ class MedicalHistory(Base):
             "keywords": "comma separated keywords of up to 5 synonyms of the condition",
             "approximateStartDate": "YYYY-MM-DD",
             "approximateEndDate": "YYYY-MM-DD",
-            "comments": "free text describing the condition in less than 900 characters",
+            "comments": "description of the condition, as free text in less than 900 characters",
         }
 
     def instruction_description(self) -> str:
@@ -63,7 +63,11 @@ class MedicalHistory(Base):
                 "There can be only one condition per instruction, and no instruction in the lack of.")
 
     def instruction_constraints(self) -> str:
-        return ""
+        result = ""
+        if self.condition_history():
+            text = ", ".join([f'{condition.label}' for condition in self.condition_history()])
+            result = f"'{self.class_name()}' cannot include: {text}."
+        return result
 
     def is_available(self) -> bool:
         return True

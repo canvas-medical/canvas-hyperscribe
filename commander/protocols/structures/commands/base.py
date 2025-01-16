@@ -22,8 +22,11 @@ class Base:
         self.provider_uuid = provider_uuid
         self._conditions: list | None = None
         self._allergies: list | None = None
+        self._family_history: list | None = None
+        self._condition_history: list | None = None
         self._goals: list | None = None
         self._medications: list | None = None
+        self._surgery_history: list | None = None
 
     def class_name(self) -> str:
         return self.__class__.__name__
@@ -60,7 +63,7 @@ class Base:
     def is_available(self) -> bool:
         raise NotImplementedError
 
-    def current_goals(self) -> list[dict]:
+    def current_goals(self) -> list[CodedItem]:
         if self._goals is None:
             self._goals = []
         return self._goals
@@ -69,17 +72,17 @@ class Base:
         if not Constants.HAS_DATABASE_ACCESS:
             return [
                 # CodedItem(
-                #     uuid="967ab04e-3c4d-45d8-849e-56680f609f0b",
+                #     uuid="ccc",
                 #     label="Type 2 diabetes mellitus without complications",
                 #     code="E119",
                 # ),
                 # CodedItem(
-                #     uuid="967ab04e-3c4d-45d8-849e-56680f609f00",
+                #     uuid="ddd",
                 #     label="Essential (primary) hypertension",
                 #     code="I10",
                 # ),
                 # CodedItem(
-                #     uuid="967ab04e-3c4d-45d8-849e-56680f609f01",
+                #     uuid="eee",
                 #     label="Hyperlipidemia, unspecified",
                 #     code="E785",
                 # ),
@@ -152,3 +155,42 @@ class Base:
                             code=coding.code,
                         ))
         return self._allergies
+
+    def family_history(self) -> list[CodedItem]:
+        if not Constants.HAS_DATABASE_ACCESS:
+            return []
+        if self._family_history is None:
+            self._family_history = []
+        return self._family_history
+
+    def condition_history(self) -> list[CodedItem]:
+        if not Constants.HAS_DATABASE_ACCESS:
+            return []
+        if self._condition_history is None:
+            self._condition_history = []
+            conditions = Condition.objects.committed().for_patient(self.patient_id)
+            for condition in conditions.filter(clinical_status=ClinicalStatus.RESOLVED):  # TODO add surgical=False
+                for coding in condition.codings.all():
+                    if coding.system == "ICD-10":
+                        self._condition_history.append(CodedItem(
+                            uuid=str(condition.id),
+                            label=coding.display,
+                            code=self.icd10_add_dot(coding.code),
+                        ))
+        return self._condition_history
+
+    def surgery_history(self) -> list[CodedItem]:
+        if not Constants.HAS_DATABASE_ACCESS:
+            return []
+        if self._surgery_history is None:
+            self._surgery_history = []
+            conditions = Condition.objects.committed().for_patient(self.patient_id)
+            for condition in conditions.filter(clinical_status=ClinicalStatus.RESOLVED):  # TODO add surgical=True
+                for coding in condition.codings.all():
+                    if coding.system == "ICD-10":
+                        self._surgery_history.append(CodedItem(
+                            uuid=str(condition.id),
+                            label=coding.display,
+                            code=self.icd10_add_dot(coding.code),
+                        ))
+        return self._surgery_history

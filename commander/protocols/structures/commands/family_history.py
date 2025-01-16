@@ -50,8 +50,8 @@ class FamilyHistory(Base):
     def command_parameters(self) -> dict:
         return {
             "keywords": "comma separated keywords of up to 5 synonyms of the condition",
-            "relative": "father/mother/parent/child/brother/sister/sibling/grand-parent/grand-father/grand-mother",
-            "note": "free text describing the condition",
+            "relative": "one of: father/mother/parent/child/brother/sister/sibling/grand-parent/grand-father/grand-mother",
+            "note": "description of the condition, as free text",
         }
 
     def instruction_description(self) -> str:
@@ -60,7 +60,11 @@ class FamilyHistory(Base):
             "There can be only one condition per relative per instruction, and no instruction in the lack of.")
 
     def instruction_constraints(self) -> str:
-        return ""
+        result = ""
+        if self.family_history():
+            text = ", ".join([f'{history.label}' for history in self.family_history()])
+            result = f"'{self.class_name()}' cannot include: {text}."
+        return result
 
     def is_available(self) -> bool:
         return True

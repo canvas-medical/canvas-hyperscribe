@@ -19,9 +19,9 @@ class RemoveAllergy(Base):
     def command_parameters(self) -> dict:
         allergies = "/".join([f'{allergy.label} (index: {idx})' for idx, allergy in enumerate(self.current_allergies())])
         return {
-            "allergies": allergies,
+            "allergies": f"one of: {allergies}",
             "allergyIndex": "Index of the allergy to remove, as integer",
-            "narrative": "free text to explain why the allergy is removed",
+            "narrative": "explanation of why the allergy is removed, as free text",
         }
 
     def instruction_description(self) -> str:
@@ -29,10 +29,11 @@ class RemoveAllergy(Base):
                 "There can be only one allergy, with the explanation, to remove per instruction, and no instruction in the lack of.")
 
     def instruction_constraints(self) -> str:
+        result = ""
         if self.current_allergies():
             text = ", ".join([allergy.label for allergy in self.current_allergies()])
-            return f"'{self.class_name()}' has to be related to one of the following allergies: {text}."
-        return ""
+            result = f"'{self.class_name()}' has to be related to one of the following allergies: {text}."
+        return result
 
     def is_available(self) -> bool:
         return True

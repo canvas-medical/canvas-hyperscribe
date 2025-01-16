@@ -19,12 +19,12 @@ class Goal(Base):
         statuses = "/".join([status.value for status in GoalCommand.AchievementStatus])
         priorities = "/".join([status.value for status in GoalCommand.Priority])
         return {
-            "goal": "free text",
+            "goal": "title of the goal, as free text",
             "startDate": "YYYY-MM-DD",
             "dueDate": "YYYY-MM-DD",
-            "status": statuses,
-            "priority": priorities,
-            "progressAndBarriers": "free text",
+            "status": f"one of: {statuses}",
+            "priority": f"one of: {priorities}",
+            "progressAndBarriers": "progress and barriers, as free text",
         }
 
     def instruction_description(self) -> str:
@@ -32,7 +32,8 @@ class Goal(Base):
                 "There can be only one goal per instruction, and no instruction in the lack of.")
 
     def instruction_constraints(self) -> str:
-        return ""
+        text = ", ".join([f'"{goal.label}"' for goal in self.current_goals()])
+        return f"'{self.class_name()}' cannot include: {text}"
 
     def is_available(self) -> bool:
         return True

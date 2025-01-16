@@ -12,7 +12,7 @@ class ReasonForVisit(Base):
 
     def command_parameters(self) -> dict:
         return {
-            "reasonForVisit": "free text",
+            "reasonForVisit": "description of the reason of the visit, as free text",
         }
 
     def instruction_description(self) -> str:

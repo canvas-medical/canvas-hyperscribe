@@ -107,13 +107,13 @@ class Prescription(Base):
         conditions = "/".join([f'{condition.label} (index: {idx})' for idx, condition in enumerate(self.current_conditions())])
         return {
             "keywords": "comma separated keywords of up to 5 synonyms of the medication to prescribe",
-            "condition": conditions,  # ATTENTION limiting to only one condition even if the UI accepts up to 2 conditions
+            "condition": f"None or, one of: {conditions}",  # ATTENTION limiting to only one condition even if the UI accepts up to 2 conditions
             "conditionIndex": "index of the condition for which the medication is prescribed, as integer or None if the prescription is not related to any provided condition",
             "sig": "directions, as free text",
             "suppliedDays": "duration of the treatment in days, as integer",
             # "quantityToDispense": 0,
             # "refills": 0,
-            "substitution": substitutions,
+            "substitution": f"one of: {substitutions}",
             "comment": "rational of the prescription, as free text",
             # "noteToPharmacist": "note to the pharmacist, as free text",
         }

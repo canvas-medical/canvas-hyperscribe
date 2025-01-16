@@ -83,6 +83,9 @@ class OpenaiChat:
 
     @classmethod
     def extract_json_from(cls, content: str) -> JsonExtract:
+        # print("-------------------------------------------------")
+        # print(content)
+        # print("-------------------------------------------------")
         pattern_json = re.compile(r"```json\n(.*?)\n```", re.DOTALL | re.IGNORECASE)
         for embedded in pattern_json.finditer(content):
             try:

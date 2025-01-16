@@ -24,6 +24,7 @@ from commander.protocols.structures.commands.reason_for_visit import ReasonForVi
 from commander.protocols.structures.commands.remove_allergy import RemoveAllergy
 from commander.protocols.structures.commands.stop_medication import StopMedication
 from commander.protocols.structures.commands.surgery_history import SurgeryHistory
+from commander.protocols.structures.commands.update_diagnose import UpdateDiagnose
 from commander.protocols.structures.commands.update_goal import UpdateGoal
 from commander.protocols.structures.commands.vitals import Vitals
 from commander.protocols.structures.instruction import Instruction
@@ -233,6 +234,7 @@ class AudioInterpreter:
             RemoveAllergy,
             StopMedication,
             SurgeryHistory,
+            UpdateDiagnose,
             UpdateGoal,
             Vitals,
         ]

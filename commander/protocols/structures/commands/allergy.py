@@ -64,9 +64,9 @@ class Allergy(Base):
         severity = "/".join([status.value for status in AllergyCommand.Severity])
         return {
             "keywords": "comma separated keywords of up to 5 synonyms of the component responsible fo the allergy",
-            "type": "allergen/medication/ingredient",
-            "severity": severity,
-            "reaction": "description of the reaction as free text",
+            "type": "one of: allergen/medication/ingredient",
+            "severity": f"one of: {severity}",
+            "reaction": "description of the reaction, as free text",
             "approximateDateOfOnset": "YYYY-MM-DD",
         }
 
@@ -75,10 +75,11 @@ class Allergy(Base):
                 "There can be only one allergy per instruction, and no instruction in the lack of.")
 
     def instruction_constraints(self) -> str:
+        result = ""
         if self.current_allergies():
             text = ", ".join([allergy.label for allergy in self.current_allergies()])
-            return f"'{self.class_name()}' cannot include: {text}."
-        return ""
+            result = f"'{self.class_name()}' cannot include: {text}."
+        return result
 
     def is_available(self) -> bool:
         return True

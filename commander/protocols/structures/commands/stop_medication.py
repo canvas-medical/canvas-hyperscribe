@@ -19,9 +19,9 @@ class StopMedication(Base):
     def command_parameters(self) -> dict:
         medications = "/".join([f'{medication.label} (index: {idx})' for idx, medication in enumerate(self.current_medications())])
         return {
-            "medication": medications,
-            "medicationIndex": "Index of the medication to stop, as integer",
-            "rationale": "free text to explain why the medication is stopped",
+            "medication": f"one of: {medications}",
+            "medicationIndex": "index of the medication to stop, as integer",
+            "rationale": "explanation of why the medication is stopped, as free text",
         }
 
     def instruction_description(self) -> str:
@@ -29,10 +29,11 @@ class StopMedication(Base):
                 "There can be only one medication, with the rationale, to stop per instruction, and no instruction in the lack of.")
 
     def instruction_constraints(self) -> str:
+        result = ""
         if self.current_medications():
             text = ", ".join([medication.label for medication in self.current_medications()])
-            return f"'{self.class_name()}' has to be related to one of the following medications: {text}."
-        return ""
+            result = f"'{self.class_name()}' has to be related to one of the following medications: {text}."
+        return result
 
     def is_available(self) -> bool:
         # TODO wait for https://github.com/canvas-medical/canvas-plugins/issues/321

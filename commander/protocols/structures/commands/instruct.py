@@ -49,7 +49,7 @@ class Instruct(Base):
     def command_parameters(self) -> dict:
         return {
             "keywords": "comma separated single keywords of up to 5 synonyms to the specific direction",
-            "comment": "direction as free text",
+            "comment": "directions from the provider, as free text",
         }
 
     def instruction_description(self) -> str:

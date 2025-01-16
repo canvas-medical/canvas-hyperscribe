@@ -180,7 +180,7 @@ class Commander(BaseProtocol):
 
             # create the commands
             results = [
-                command.originate()
+                command
                 for instruction, parameters in sdk_commands
                 if (command := chatter.create_command_from(instruction, parameters))
             ]
@@ -190,9 +190,9 @@ class Commander(BaseProtocol):
             log.info("<-------->")
             log.info(f"sdk_commands: {sdk_commands}")
             for result in results:
-                log.info(f"command: {result.type}")
-                log.info(json.loads(result.payload))
+                log.info(f"command: {result.constantized_key()}")
+                log.info(result.values)
             log.info("<=== END ===>")
 
-            return results
+            return [c.originate() for c in results]
         return []
