@@ -7,11 +7,11 @@ from commander.protocols.structures.commands.base import Base
 class StopMedication(Base):
 
     def command_from_json(self, parameters: dict) -> None | AssessCommand:
-        medication_id = ""
+        medication_uuid = ""
         if 0 <= (idx := parameters["medicationIndex"]) < len(self.current_medications()):
-            medication_id = self.current_medications()[idx].uuid
+            medication_uuid = self.current_medications()[idx].uuid
         return StopMedicationCommand(
-            medication_id=medication_id,
+            medication_id=medication_uuid,
             rationale=parameters["rationale"],
             note_uuid=self.note_uuid,
         )
@@ -20,7 +20,7 @@ class StopMedication(Base):
         medications = "/".join([f'{medication.label} (index: {idx})' for idx, medication in enumerate(self.current_medications())])
         return {
             "medication": medications,
-            "medicationIndex": "Index of the medication to stop as integer",
+            "medicationIndex": "Index of the medication to stop, as integer",
             "rationale": "free text to explain why the medication is stopped",
         }
 

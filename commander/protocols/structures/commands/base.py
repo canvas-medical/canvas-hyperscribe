@@ -4,7 +4,9 @@ from re import match
 from canvas_sdk.commands.base import _BaseCommand
 from canvas_sdk.v1.data import Condition
 from canvas_sdk.v1.data import Medication
+from canvas_sdk.v1.data.allergy_intolerance import AllergyIntolerance
 from canvas_sdk.v1.data.condition import ClinicalStatus
+from canvas_sdk.v1.data.medication import Status
 
 from commander.protocols.constants import Constants
 from commander.protocols.structures.coded_item import CodedItem
@@ -19,6 +21,7 @@ class Base:
         self.note_uuid = note_uuid
         self.provider_uuid = provider_uuid
         self._conditions: list | None = None
+        self._allergies: list | None = None
         self._goals: list | None = None
         self._medications: list | None = None
 
@@ -65,21 +68,21 @@ class Base:
     def current_conditions(self) -> list[CodedItem]:
         if not Constants.HAS_DATABASE_ACCESS:
             return [
-                CodedItem(
-                    uuid="967ab04e-3c4d-45d8-849e-56680f609f0b",
-                    label="Type 2 diabetes mellitus without complications",
-                    code="E119",
-                ),
-                CodedItem(
-                    uuid="967ab04e-3c4d-45d8-849e-56680f609f00",
-                    label="Essential (primary) hypertension",
-                    code="I10",
-                ),
-                CodedItem(
-                    uuid="967ab04e-3c4d-45d8-849e-56680f609f01",
-                    label="Hyperlipidemia, unspecified",
-                    code="E785",
-                ),
+                # CodedItem(
+                #     uuid="967ab04e-3c4d-45d8-849e-56680f609f0b",
+                #     label="Type 2 diabetes mellitus without complications",
+                #     code="E119",
+                # ),
+                # CodedItem(
+                #     uuid="967ab04e-3c4d-45d8-849e-56680f609f00",
+                #     label="Essential (primary) hypertension",
+                #     code="I10",
+                # ),
+                # CodedItem(
+                #     uuid="967ab04e-3c4d-45d8-849e-56680f609f01",
+                #     label="Hyperlipidemia, unspecified",
+                #     code="E785",
+                # ),
             ]
         if self._conditions is None:
             self._conditions = []
@@ -96,25 +99,25 @@ class Base:
     def current_medications(self) -> list[CodedItem]:
         if not Constants.HAS_DATABASE_ACCESS:
             return [
-                CodedItem(
-                    uuid="967ab04e-3c4d-45d8-849e-56680f609f0b",
-                    label="lisinopril 20 mg tablet",
-                    code="314077",
-                ),
-                CodedItem(
-                    uuid="967ab04e-3c4d-45d8-849e-56680f609f00",
-                    label="hydrochlorothiazide 25 mg tablet",
-                    code="310798",
-                ),
-                CodedItem(
-                    uuid="967ab04e-3c4d-45d8-849e-56680f609f01",
-                    label="Lipitor 10 mg tablet",
-                    code="617312",
-                ),
+                # CodedItem(
+                #     uuid="967ab04e-3c4d-45d8-849e-56680f609f0b",
+                #     label="lisinopril 20 mg tablet",
+                #     code="314077",
+                # ),
+                # CodedItem(
+                #     uuid="967ab04e-3c4d-45d8-849e-56680f609f00",
+                #     label="hydrochlorothiazide 25 mg tablet",
+                #     code="310798",
+                # ),
+                # CodedItem(
+                #     uuid="967ab04e-3c4d-45d8-849e-56680f609f01",
+                #     label="Lipitor 10 mg tablet",
+                #     code="617312",
+                # ),
             ]
         if self._medications is None:
             self._medications = []
-            for medication in Medication.objects.committed().for_patient(self.patient_id).filter(status=ClinicalStatus.ACTIVE):
+            for medication in Medication.objects.committed().for_patient(self.patient_id).filter(status=Status.ACTIVE):
                 for coding in medication.codings.all():
                     if coding.system == "http://www.nlm.nih.gov/research/umls/rxnorm":
                         self._medications.append(CodedItem(
@@ -123,3 +126,29 @@ class Base:
                             code=coding.code,
                         ))
         return self._medications
+
+    def current_allergies(self) -> list[CodedItem]:
+        if not Constants.HAS_DATABASE_ACCESS:
+            return [
+                # CodedItem(
+                #     uuid="aaa",
+                #     label="penicillin G sodium",
+                #     code="8228",
+                # ),
+                # CodedItem(
+                #     uuid="bbb",
+                #     label="lactose",
+                #     code="2432",
+                # ),
+            ]
+        if self._allergies is None:
+            self._allergies = []
+            for allergy in AllergyIntolerance.objects.committed().for_patient(self.patient_id).filter(status=Status.ACTIVE):
+                for coding in allergy.codings.all():
+                    if coding.system == "http://www.fdbhealth.com/":
+                        self._allergies.append(CodedItem(
+                            uuid=str(allergy.id),
+                            label=coding.display,
+                            code=coding.code,
+                        ))
+        return self._allergies

@@ -22,7 +22,9 @@
   },
   "secrets": [
     "OpenAIKey",
-    "ScienceHost"
+    "ScienceHost",
+    "OntologiesHost",
+    "PreSharedKey"
   ],
   "tags": {},
   "references": [],

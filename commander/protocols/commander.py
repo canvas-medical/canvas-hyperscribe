@@ -60,6 +60,8 @@ class Audio:
 class Commander(BaseProtocol):
     SECRET_OPENAI_KEY = "OpenAIKey"
     SECRET_SCIENCE_HOST = "ScienceHost"
+    SECRET_ONTOLOGIES_HOST = "OntologiesHost"
+    SECRET_PRE_SHARED_KEY = "PreSharedKey"
     RESPONDS_TO = [
         EventType.Name(EventType.BILLING_LINE_ITEM_CREATED),  # ATTENTION react on the right event (e.g. CONSULTATION_RECORD)
         # EventType.Name(EventType.INSTRUCTION_CREATED),
@@ -79,6 +81,8 @@ class Commander(BaseProtocol):
                 self.secrets = {
                     self.SECRET_OPENAI_KEY: self.context[self.SECRET_OPENAI_KEY],
                     self.SECRET_SCIENCE_HOST: "https://science-staging.canvasmedical.com",
+                    self.SECRET_ONTOLOGIES_HOST: "https://ontologies-aptible-staging.canvasmedical.com",
+                    self.SECRET_PRE_SHARED_KEY: self.context[self.SECRET_PRE_SHARED_KEY],
                 }
                 Constants.HAS_DATABASE_ACCESS = False
                 note_uuid = self.context["note_uuid"]
@@ -148,6 +152,8 @@ class Commander(BaseProtocol):
             settings = Settings(
                 openai_key=self.secrets[self.SECRET_OPENAI_KEY],
                 science_host=self.secrets[self.SECRET_SCIENCE_HOST],
+                ontologies_host=self.secrets[self.SECRET_ONTOLOGIES_HOST],
+                pre_shared_key=self.secrets[self.SECRET_PRE_SHARED_KEY],
             )
             chatter = AudioInterpreter(settings, patient_uuid, note_uuid, provider_uuid)
             response = chatter.combine_and_speaker_detection(audios)

@@ -110,7 +110,7 @@ class Prescription(Base):
             "condition": conditions,  # ATTENTION limiting to only one condition even if the UI accepts up to 2 conditions
             "conditionIndex": "index of the condition for which the medication is prescribed, as integer or None if the prescription is not related to any provided condition",
             "sig": "directions, as free text",
-            "suppliedDays": 0,
+            "suppliedDays": "duration of the treatment in days, as integer",
             # "quantityToDispense": 0,
             # "refills": 0,
             "substitution": substitutions,
@@ -119,7 +119,7 @@ class Prescription(Base):
         }
 
     def instruction_description(self) -> str:
-        return ("Medication prescription, including the name and the dosage. "
+        return ("Medication prescription, including the directions, the duration, the targeted condition and the dosage. "
                 "There can be only one prescription per instruction, and no instruction in the lack of.")
 
     def instruction_constraints(self) -> str:

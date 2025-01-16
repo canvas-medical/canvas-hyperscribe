@@ -1,8 +1,10 @@
 from http import HTTPStatus
 from typing import Type
 
+from canvas_sdk.commands.commands.allergy import AllergenType
 from requests import get as requests_get
 
+from commander.protocols.structures.AllergyDetail import AllergyDetail
 from commander.protocols.structures.icd10_condition import Icd10Condition
 from commander.protocols.structures.medical_concept import MedicalConcept
 from commander.protocols.structures.medication_detail import MedicationDetail
@@ -40,8 +42,7 @@ class CanvasScience:
             url: str,
             expressions: list[str],
             returned_class: Type[MedicalConcept | Icd10Condition | MedicationDetail],
-    ) -> list[
-        MedicalConcept | Icd10Condition | MedicationDetail]:
+    ) -> list[MedicalConcept | Icd10Condition | MedicationDetail]:
         result: list[MedicalConcept | Icd10Condition | MedicationDetail] = []
         headers = {
             "Content-Type": "application/json",
@@ -79,4 +80,27 @@ class CanvasScience:
                             concept_id=concept["concept_id"],
                             term=concept["term"],
                         ))
+        return result
+
+    @classmethod
+    def search_allergy(cls, host: str, pre_shared_key: str, expressions: list[str], concept_type: AllergenType) -> list[AllergyDetail]:
+        result: list = []
+        url = f"{host}/fdb/allergy/"
+        headers = {
+            "Authorization": pre_shared_key,
+        }
+        for expression in expressions:
+            params = {"dam_allergen_concept_id_description__fts": expression}
+            request = requests_get(url, headers=headers, params=params, verify=True)
+            if request.status_code == HTTPStatus.OK.value and (concepts := request.json().get("results", [])):
+                for concept in concepts:
+                    if concept["dam_allergen_concept_id_type"] == concept_type.value:
+                        result.append(
+                            AllergyDetail(
+                                concept_id_value=int(concept["dam_allergen_concept_id"]),
+                                concept_id_description=concept["dam_allergen_concept_id_description"],
+                                concept_type=concept["concept_type"],
+                                concept_id_type=concept["dam_allergen_concept_id_type"],
+                            )
+                        )
         return result
