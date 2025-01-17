@@ -16,14 +16,19 @@ from commander.protocols.structures.commands.goal import Goal
 from commander.protocols.structures.commands.history_of_present_illness import HistoryOfPresentIllness
 from commander.protocols.structures.commands.immunize import Immunize
 from commander.protocols.structures.commands.instruct import Instruct
+from commander.protocols.structures.commands.lab_order import LabOrder
 from commander.protocols.structures.commands.medical_history import MedicalHistory
 from commander.protocols.structures.commands.medication import Medication
+from commander.protocols.structures.commands.physical_exam import PhysicalExam
 from commander.protocols.structures.commands.plan import Plan
 from commander.protocols.structures.commands.prescription import Prescription
+from commander.protocols.structures.commands.questionnaire import Questionnaire
 from commander.protocols.structures.commands.reason_for_visit import ReasonForVisit
+from commander.protocols.structures.commands.refill import Refill
 from commander.protocols.structures.commands.remove_allergy import RemoveAllergy
 from commander.protocols.structures.commands.stop_medication import StopMedication
 from commander.protocols.structures.commands.surgery_history import SurgeryHistory
+from commander.protocols.structures.commands.task import Task
 from commander.protocols.structures.commands.update_diagnose import UpdateDiagnose
 from commander.protocols.structures.commands.update_goal import UpdateGoal
 from commander.protocols.structures.commands.vitals import Vitals
@@ -226,14 +231,19 @@ class AudioInterpreter:
             HistoryOfPresentIllness,
             Immunize,
             Instruct,
+            LabOrder,
             MedicalHistory,
             Medication,
+            PhysicalExam,
             Plan,
             Prescription,
+            Questionnaire,
             ReasonForVisit,
+            Refill,
             RemoveAllergy,
             StopMedication,
             SurgeryHistory,
+            Task,
             UpdateDiagnose,
             UpdateGoal,
             Vitals,

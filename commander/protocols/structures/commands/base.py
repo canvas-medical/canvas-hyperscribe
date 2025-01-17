@@ -15,9 +15,9 @@ from commander.protocols.structures.settings import Settings
 
 class Base:
 
-    def __init__(self, settings: Settings, patient_id: str, note_uuid: str, provider_uuid: str):
+    def __init__(self, settings: Settings, patient_uuid: str, note_uuid: str, provider_uuid: str):
         self.settings = settings
-        self.patient_id = patient_id
+        self.patient_uuid = patient_uuid
         self.note_uuid = note_uuid
         self.provider_uuid = provider_uuid
         self._conditions: list | None = None
@@ -64,8 +64,29 @@ class Base:
         raise NotImplementedError
 
     def current_goals(self) -> list[CodedItem]:
+        if not Constants.HAS_DATABASE_ACCESS:
+            return [
+                # CodedItem(
+                #     uuid="mmm",
+                #     label="Daily 1 hour walk",
+                #     code="1523",
+                # ),
+                # CodedItem(
+                #     uuid="nnn",
+                #     label="No Fast food dinner",
+                #     code="1528",
+                # ),
+            ]
         if self._goals is None:
             self._goals = []
+            # below code cannot be used since there is no way to know if a goal is closed
+            # commands = Command.objects.filter(patient__id=self.patient_uuid, schema_key="goal").order_by('-dbid')
+            # for command in commands:
+            #     self._goals.append(CodedItem(
+            #         uuid=str(command.id),
+            #         label=command.data["goal_statement"],
+            #         code=str(command.dbid),  # TODO should be "", waiting for https://github.com/canvas-medical/canvas-plugins/issues/338
+            #     ))
         return self._goals
 
     def current_conditions(self) -> list[CodedItem]:
@@ -89,7 +110,7 @@ class Base:
             ]
         if self._conditions is None:
             self._conditions = []
-            for condition in Condition.objects.committed().for_patient(self.patient_id).filter(clinical_status=ClinicalStatus.ACTIVE):
+            for condition in Condition.objects.committed().for_patient(self.patient_uuid).filter(clinical_status=ClinicalStatus.ACTIVE):
                 for coding in condition.codings.all():
                     if coding.system == "ICD-10":
                         self._conditions.append(CodedItem(
@@ -120,7 +141,7 @@ class Base:
             ]
         if self._medications is None:
             self._medications = []
-            for medication in Medication.objects.committed().for_patient(self.patient_id).filter(status=Status.ACTIVE):
+            for medication in Medication.objects.committed().for_patient(self.patient_uuid).filter(status=Status.ACTIVE):
                 for coding in medication.codings.all():
                     if coding.system == "http://www.nlm.nih.gov/research/umls/rxnorm":
                         self._medications.append(CodedItem(
@@ -146,7 +167,7 @@ class Base:
             ]
         if self._allergies is None:
             self._allergies = []
-            for allergy in AllergyIntolerance.objects.committed().for_patient(self.patient_id).filter(status=Status.ACTIVE):
+            for allergy in AllergyIntolerance.objects.committed().for_patient(self.patient_uuid).filter(status=Status.ACTIVE):
                 for coding in allergy.codings.all():
                     if coding.system == "http://www.fdbhealth.com/":
                         self._allergies.append(CodedItem(
@@ -168,7 +189,7 @@ class Base:
             return []
         if self._condition_history is None:
             self._condition_history = []
-            conditions = Condition.objects.committed().for_patient(self.patient_id)
+            conditions = Condition.objects.committed().for_patient(self.patient_uuid)
             for condition in conditions.filter(clinical_status=ClinicalStatus.RESOLVED):  # TODO add surgical=False
                 for coding in condition.codings.all():
                     if coding.system == "ICD-10":
@@ -184,7 +205,7 @@ class Base:
             return []
         if self._surgery_history is None:
             self._surgery_history = []
-            conditions = Condition.objects.committed().for_patient(self.patient_id)
+            conditions = Condition.objects.committed().for_patient(self.patient_uuid)
             for condition in conditions.filter(clinical_status=ClinicalStatus.RESOLVED):  # TODO add surgical=True
                 for coding in condition.codings.all():
                     if coding.system == "ICD-10":

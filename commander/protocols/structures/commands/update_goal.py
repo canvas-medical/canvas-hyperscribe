@@ -1,4 +1,3 @@
-from canvas_sdk.commands.commands.goal import GoalCommand
 from canvas_sdk.commands.commands.update_goal import UpdateGoalCommand
 
 from commander.protocols.structures.commands.base import Base
@@ -14,16 +13,16 @@ class UpdateGoal(Base):
         return UpdateGoalCommand(
             goal_id=goal_uuid,
             due_date=self.str2date(parameters["dueDate"]),
-            achievement_status=GoalCommand.AchievementStatus(parameters["status"]),
-            priority=GoalCommand.Priority(parameters["priority"]),
+            achievement_status=UpdateGoalCommand.AchievementStatus(parameters["status"]),
+            priority=UpdateGoalCommand.Priority(parameters["priority"]),
             progress=parameters["progressAndBarriers"],
             note_uuid=self.note_uuid,
         )
 
     def command_parameters(self) -> dict:
         goals = "/".join([f'{goal.label} (index: {idx})' for idx, goal in enumerate(self.current_goals())])
-        statuses = "/".join([status.value for status in GoalCommand.AchievementStatus])
-        priorities = "/".join([status.value for status in GoalCommand.Priority])
+        statuses = "/".join([status.value for status in UpdateGoalCommand.AchievementStatus])
+        priorities = "/".join([status.value for status in UpdateGoalCommand.Priority])
         return {
             "goal": f"one of: {goals}",
             "goalIndex": "index of the Goal to update, as integer",
@@ -34,7 +33,7 @@ class UpdateGoal(Base):
         }
 
     def instruction_description(self) -> str:
-        return "Current status of a previously set goal, including progress or barriers."
+        return "Change of status of a previously set goal, including progress, barriers, priority or due date."
 
     def instruction_constraints(self) -> str:
         text = ", ".join([f'"{goal.label}"' for goal in self.current_goals()])

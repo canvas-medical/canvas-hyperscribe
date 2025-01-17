@@ -9,10 +9,12 @@ class CloseGoal(Base):
     def command_from_json(self, parameters: dict) -> None | CloseGoalCommand:
         goal_uuid = ""
         if 0 <= (idx := parameters["goalIndex"]) < len(self.current_goals()):
-            goal_uuid = self.current_goals()[idx].uuid
+            # TODO should be  goal_uuid = self.current_goals()[idx].uuid, waiting for https://github.com/canvas-medical/canvas-plugins/issues/338
+            goal_uuid = self.current_goals()[idx].code
 
         return CloseGoalCommand(
-            # goal_id=goal_uuid, TODO waiting for https://github.com/canvas-medical/canvas-plugins/issues/338
+            # TODO should be goal_id=goal_uuid, waiting for https://github.com/canvas-medical/canvas-plugins/issues/338
+            goal_id=int(goal_uuid),
             achievement_status=GoalCommand.AchievementStatus(parameters["status"]),
             progress=parameters["progressAndBarriers"],
             note_uuid=self.note_uuid,
@@ -29,7 +31,7 @@ class CloseGoal(Base):
         }
 
     def instruction_description(self) -> str:
-        return "Final status of a previously set goal, including progress or barriers."
+        return "Ending of a previously set goal, including status, progress, barriers, priority or due date."
 
     def instruction_constraints(self) -> str:
         text = ", ".join([f'"{goal.label}"' for goal in self.current_goals()])
