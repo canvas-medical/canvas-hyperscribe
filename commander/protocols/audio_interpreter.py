@@ -155,6 +155,8 @@ class AudioInterpreter:
             for constraint in constraints:
                 conversation.user_prompt.append(f" * {constraint}")
             conversation.user_prompt.append("")
+            conversation.user_prompt.append("Return the original JSON if valid, or provide a corrected version to follow the constraints if needed.")
+            conversation.user_prompt.append("")
             result = conversation.chat()
         return result
 

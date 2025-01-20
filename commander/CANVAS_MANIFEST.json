@@ -24,7 +24,8 @@
     "OpenAIKey",
     "ScienceHost",
     "OntologiesHost",
-    "PreSharedKey"
+    "PreSharedKey",
+    "AudioHost"
   ],
   "tags": {},
   "references": [],

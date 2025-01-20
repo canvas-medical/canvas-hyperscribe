@@ -1,11 +1,14 @@
 # from __future__ import annotations
+import json
 from datetime import datetime, timedelta
 
 import requests
 from canvas_sdk.effects import Effect
+from canvas_sdk.effects.task.task import AddTaskComment, UpdateTask, TaskStatus
 from canvas_sdk.events import EventType
 from canvas_sdk.protocols import BaseProtocol
-from canvas_sdk.v1.data import BillingLineItem
+from canvas_sdk.v1.data import TaskComment
+from canvas_sdk.v1.data.note import Note
 from logger import log
 
 from commander.protocols.audio_interpreter import AudioInterpreter
@@ -21,7 +24,7 @@ class CachedDiscussion:
 
     def __init__(self, note_uuid: str) -> None:
         self.updated: datetime = datetime.now()
-        self.count: int = 0
+        self.count: int = 1
         self.note_uuid = note_uuid
         self.previous_instructions: list[Instruction] = []
 
@@ -44,12 +47,10 @@ class CachedDiscussion:
                 del cls.CACHED[note_uuid]
 
 
-# ATTENTION temporary way to retrieve the audios while waiting to receive them through the context
 class Audio:
     @classmethod
-    def get_audio(cls, chunk: int) -> bytes:
-        url = f"http://localhost:8000/protocol-draft/audio/{chunk}"
-        response = requests.get(url)
+    def get_audio(cls, chunk_audio_url: str) -> bytes:
+        response = requests.get(chunk_audio_url)
         # Check if the request was successful
         if response.status_code == 200:
             return response.content
@@ -61,85 +62,66 @@ class Commander(BaseProtocol):
     SECRET_SCIENCE_HOST = "ScienceHost"
     SECRET_ONTOLOGIES_HOST = "OntologiesHost"
     SECRET_PRE_SHARED_KEY = "PreSharedKey"
+    SECRET_AUDIO_HOST = "AudioHost"
+    LABEL_ENCOUNTER_COPILOT = "Encounter Copilot"
+
     RESPONDS_TO = [
-        EventType.Name(EventType.BILLING_LINE_ITEM_CREATED),  # ATTENTION react on the right event (e.g. CONSULTATION_RECORD)
-        # EventType.Name(EventType.INSTRUCTION_CREATED),
+        EventType.Name(EventType.TASK_COMMENT_CREATED),
     ]
 
     def compute(self) -> list[Effect]:
-        result: list[Effect] = []
-        event = EventType.Name(self.event.type)
+        comment = TaskComment.objects.get(id=self.target)
+        log.info(f"--> comment: {comment.id} (task: {comment.task.id}, labels: {[r for r in comment.task.labels.all()]})")
+        if not comment.task.title == self.LABEL_ENCOUNTER_COPILOT:
+            # TODO if not comment.task.labels.filter(name=self.LABEL_ENCOUNTER_COPILOT).first():
+            return []
 
-        log.info(f"COMMANDER PLUGIN STARTS ({event})")
-        # log.info(f"target: {self.target}")
-        log.info(f"context: {self.context}")
+            # the context will have the OpenAIKey on local environment only (no database access yet)
+        if self.SECRET_OPENAI_KEY in self.context:
+            self.secrets = {
+                self.SECRET_OPENAI_KEY: self.context[self.SECRET_OPENAI_KEY],
+                self.SECRET_SCIENCE_HOST: "https://science-staging.canvasmedical.com",
+                self.SECRET_ONTOLOGIES_HOST: "https://ontologies-aptible-staging.canvasmedical.com",
+                self.SECRET_PRE_SHARED_KEY: self.context[self.SECRET_PRE_SHARED_KEY],
+                self.SECRET_AUDIO_HOST: "http://localhost:8000/protocol-draft",
+            }
+            Constants.HAS_DATABASE_ACCESS = False
 
-        if event == EventType.Name(EventType.BILLING_LINE_ITEM_CREATED):
-            # the context will have the OpenAIKey, note_uuid and patient_uuid on local environment only (no database access yet)
-            if self.SECRET_OPENAI_KEY in self.context:
-                self.secrets = {
-                    self.SECRET_OPENAI_KEY: self.context[self.SECRET_OPENAI_KEY],
-                    self.SECRET_SCIENCE_HOST: "https://science-staging.canvasmedical.com",
-                    self.SECRET_ONTOLOGIES_HOST: "https://ontologies-aptible-staging.canvasmedical.com",
-                    self.SECRET_PRE_SHARED_KEY: self.context[self.SECRET_PRE_SHARED_KEY],
-                }
-                Constants.HAS_DATABASE_ACCESS = False
-                note_uuid = self.context["note_uuid"]
-                patient_uuid = self.context["patient_uuid"]
-                provider_uuid = self.context["provider_uuid"]
-            else:
-                note_uuid = self.get_note_uuid()
-                patient_uuid = self.get_patient_uuid()
-                provider_uuid = self.get_provider_uuid()
+        information = json.loads(comment.body)
+        chunk_index = information["chunk_index"]  # <--- starts with 1
+        note_uuid = information["note_id"]
+        note = Note.objects.get(id=note_uuid)
+        provider_uuid = note.provider.id
+        patient_uuid = note.patient.id
 
-            log.info(f"patient_uuid: {patient_uuid}, note_uuid: {note_uuid}")
-
-            result = self.compute_audio(patient_uuid, note_uuid, provider_uuid)
-
-        # elif event == EventType.Name(EventType.INSTRUCTION_CREATED):
-        #     pass
-
-        log.info(f"COMMANDER PLUGIN ENDS ({event})")
-        return result
-
-    def get_note_uuid(self) -> str:
-        # ATTENTION the target is the billing item ==> retrieve the note id
-        billing = BillingLineItem.objects.filter(id=self.target)
-        note_uuid = str(billing[0].note.id)
-        body = billing[0].note.body
-
-        # retrieve all the commands of the note
-        # ATTENTION this does not allow for now to actually find its content because of the lack of database access
-        assert isinstance(body, list)
-        commands: list[dict] = []
-        for component in body:
-            assert isinstance(component, dict)
-            if component.get("type") == "command":
-                commands.append({
-                    "command": component["value"],
-                    "id": component["data"]["id"],
+        had_audio, effects = self.compute_audio(patient_uuid, note_uuid, provider_uuid, chunk_index)
+        if had_audio:
+            effects.append(AddTaskComment(
+                task_id=str(comment.task.id),
+                body=json.dumps({
+                    "note_id": note_uuid,
+                    "patient_id": patient_uuid,
+                    "chunk_index": chunk_index + 1,
                 })
-        return note_uuid
+            ).apply())
+        else:
+            effects.append(UpdateTask(
+                id=str(comment.task.id),
+                status=TaskStatus.COMPLETED,
+            ).apply())
 
-    def get_patient_uuid(self) -> str:
-        # ATTENTION the target is the billing item ==> retrieve the patient id
-        billing = BillingLineItem.objects.filter(id=self.target)
-        return str(billing[0].patient.id)
+        return effects
 
-    def get_provider_uuid(self) -> str:
-        # ATTENTION the target is the billing item ==> retrieve the provider id of the open note
-        billing = BillingLineItem.objects.filter(id=self.target)
-        return str(billing[0].note.provider.id)
-
-    def compute_audio(self, patient_uuid: str, note_uuid: str, provider_uuid: str) -> list[Effect]:
+    def compute_audio(self, patient_uuid: str, note_uuid: str, provider_uuid: str, chunk_index: int) -> tuple[bool, list[Effect]]:
         CachedDiscussion.clear_cache()
 
         discussion = CachedDiscussion.get_discussion(note_uuid)
-        # retrieve the last two audio chunks ATTENTION the context should have the audio
+        # retrieve the last two audio chunks
+        audio_url = f"{self.secrets[self.SECRET_AUDIO_HOST]}/audio/{patient_uuid}/{note_uuid}"
         audios = [
             audio
-            for chunk in range(max(0, discussion.count - 1), discussion.count + 1)
-            if (audio := Audio.get_audio(chunk)) and len(audio) > 0
+            for chunk in range(max(1, chunk_index - 1), chunk_index + 1)
+            if (audio := Audio.get_audio(f"{audio_url}/{chunk}")) and len(audio) > 0
         ]
         discussion.add_one()
 
@@ -193,5 +175,5 @@ class Commander(BaseProtocol):
                 log.info(result.values)
             log.info("<=== END ===>")
 
-            return [c.originate() for c in results]
-        return []
+            return True, [c.originate() for c in results]
+        return False, []
