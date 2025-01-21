@@ -64,6 +64,7 @@ class Commander(BaseProtocol):
     SECRET_PRE_SHARED_KEY = "PreSharedKey"
     SECRET_AUDIO_HOST = "AudioHost"
     LABEL_ENCOUNTER_COPILOT = "Encounter Copilot"
+    MAX_AUDIOS = 2
 
     RESPONDS_TO = [
         EventType.Name(EventType.TASK_COMMENT_CREATED),
@@ -72,8 +73,8 @@ class Commander(BaseProtocol):
     def compute(self) -> list[Effect]:
         comment = TaskComment.objects.get(id=self.target)
         log.info(f"--> comment: {comment.id} (task: {comment.task.id}, labels: {[r for r in comment.task.labels.all()]})")
-        if not comment.task.title == self.LABEL_ENCOUNTER_COPILOT:
-            # TODO if not comment.task.labels.filter(name=self.LABEL_ENCOUNTER_COPILOT).first():
+        # if comment.task.title != self.LABEL_ENCOUNTER_COPILOT:
+        if not comment.task.labels.filter(name=self.LABEL_ENCOUNTER_COPILOT).first():
             return []
 
             # the context will have the OpenAIKey on local environment only (no database access yet)
@@ -96,6 +97,7 @@ class Commander(BaseProtocol):
 
         had_audio, effects = self.compute_audio(patient_uuid, note_uuid, provider_uuid, chunk_index)
         if had_audio:
+            log.info(f"audio was present => go to next iteration ({chunk_index + 1})")
             effects.append(AddTaskComment(
                 task_id=str(comment.task.id),
                 body=json.dumps({
@@ -105,6 +107,7 @@ class Commander(BaseProtocol):
                 })
             ).apply())
         else:
+            log.info("audio was NOT present => stop the task")
             effects.append(UpdateTask(
                 id=str(comment.task.id),
                 status=TaskStatus.COMPLETED,
@@ -112,68 +115,78 @@ class Commander(BaseProtocol):
 
         return effects
 
-    def compute_audio(self, patient_uuid: str, note_uuid: str, provider_uuid: str, chunk_index: int) -> tuple[bool, list[Effect]]:
-        CachedDiscussion.clear_cache()
+    @classmethod
+    def retrieve_audios(cls, host_audio: str, patient_uuid: str, note_uuid: str, chunk_index: int) -> list[bytes]:
+        audio_url = f"{host_audio}/audio/{patient_uuid}/{note_uuid}"
 
-        discussion = CachedDiscussion.get_discussion(note_uuid)
-        # retrieve the last two audio chunks
-        audio_url = f"{self.secrets[self.SECRET_AUDIO_HOST]}/audio/{patient_uuid}/{note_uuid}"
-        audios = [
+        audio = Audio.get_audio(f"{audio_url}/{chunk_index}")
+        if not audio:
+            return []
+        # retrieve the previous segments only if the last one is provided
+        result = [
             audio
-            for chunk in range(max(1, chunk_index - 1), chunk_index + 1)
+            for chunk in range(max(1, chunk_index - cls.MAX_AUDIOS), chunk_index)
             if (audio := Audio.get_audio(f"{audio_url}/{chunk}")) and len(audio) > 0
         ]
-        discussion.add_one()
+        result.append(audio)
+        return result
 
+    def compute_audio(self, patient_uuid: str, note_uuid: str, provider_uuid: str, chunk_index: int) -> tuple[bool, list[Effect]]:
+        CachedDiscussion.clear_cache()
+        # retrieve the last two audio chunks
+        audios = self.retrieve_audios(self.secrets[self.SECRET_AUDIO_HOST], patient_uuid, note_uuid, chunk_index)
+        log.info(f"--> audio chunks: {len(audios)}")
+        if not audios:
+            return False, []
+
+        discussion = CachedDiscussion.get_discussion(note_uuid)
+        discussion.add_one()
         # request the transcript of the audio (provider + patient...)
         cumulated_instructions: list[Instruction] = []
         sdk_commands: list[tuple[Instruction, dict]] = []
-        log.info(f"--> audio chunks: {len(audios)}")
-        if audios:
-            settings = Settings(
-                openai_key=self.secrets[self.SECRET_OPENAI_KEY],
-                science_host=self.secrets[self.SECRET_SCIENCE_HOST],
-                ontologies_host=self.secrets[self.SECRET_ONTOLOGIES_HOST],
-                pre_shared_key=self.secrets[self.SECRET_PRE_SHARED_KEY],
-            )
-            chatter = AudioInterpreter(settings, patient_uuid, note_uuid, provider_uuid)
-            response = chatter.combine_and_speaker_detection(audios)
-            transcript: list[Line] = []
+        settings = Settings(
+            openai_key=self.secrets[self.SECRET_OPENAI_KEY],
+            science_host=self.secrets[self.SECRET_SCIENCE_HOST],
+            ontologies_host=self.secrets[self.SECRET_ONTOLOGIES_HOST],
+            pre_shared_key=self.secrets[self.SECRET_PRE_SHARED_KEY],
+        )
+        chatter = AudioInterpreter(settings, patient_uuid, note_uuid, provider_uuid)
+        response = chatter.combine_and_speaker_detection(audios)
+        transcript: list[Line] = []
+        if response.has_error is False:
+            transcript = Line.load_from_json(response.content)
+
+        # detect the instructions based on the transcript and the existing commands
+        log.info(f"--> transcript back and forth: {len(transcript)}")
+        if transcript:
+            response = chatter.detect_instructions(transcript, discussion.previous_instructions)
             if response.has_error is False:
-                transcript = Line.load_from_json(response.content)
+                cumulated_instructions = Instruction.load_from_json(response.content)
 
-            # detect the instructions based on the transcript and the existing commands
-            log.info(f"--> transcript back and forth: {len(transcript)}")
-            if transcript:
-                response = chatter.detect_instructions(transcript, discussion.previous_instructions)
-                if response.has_error is False:
-                    cumulated_instructions = Instruction.load_from_json(response.content)
+        # identify the commands
+        log.info(f"--> instructions: {len(cumulated_instructions)}")
+        past_uuids = [instruction.uuid for instruction in discussion.previous_instructions]
+        new_instructions = [instruction for instruction in cumulated_instructions if instruction.uuid not in past_uuids]
+        log.info(f"--> new instructions: {len(new_instructions)}")
+        if new_instructions:
+            sdk_commands = chatter.create_sdk_commands(new_instructions)
+            discussion.previous_instructions = cumulated_instructions
+        log.info(f"--> new commands: {len(sdk_commands)}")
 
-            # identify the commands
-            log.info(f"--> instructions: {len(cumulated_instructions)}")
-            past_uuids = [instruction.uuid for instruction in discussion.previous_instructions]
-            new_instructions = [instruction for instruction in cumulated_instructions if instruction.uuid not in past_uuids]
-            log.info(f"--> new instructions: {len(new_instructions)}")
-            if new_instructions:
-                sdk_commands = chatter.create_sdk_commands(new_instructions)
-                discussion.previous_instructions = cumulated_instructions
-            log.info(f"--> new commands: {len(sdk_commands)}")
+        # create the commands
+        results = [
+            command
+            for instruction, parameters in sdk_commands
+            if (command := chatter.create_command_from(instruction, parameters))
+        ]
 
-            # create the commands
-            results = [
-                command
-                for instruction, parameters in sdk_commands
-                if (command := chatter.create_command_from(instruction, parameters))
-            ]
+        log.info(f"<===  note: {note_uuid} ===>")
+        log.info(f"instructions: {discussion.previous_instructions}")
+        log.info("<-------->")
+        log.info(f"sdk_commands: {sdk_commands}")
+        for result in results:
+            log.info(f"command: {result.constantized_key()}")
+            log.info(result.values)
+        log.info("<=== END ===>")
 
-            log.info(f"<===  note: {note_uuid} ===>")
-            log.info(f"instructions: {discussion.previous_instructions}")
-            log.info("<-------->")
-            log.info(f"sdk_commands: {sdk_commands}")
-            for result in results:
-                log.info(f"command: {result.constantized_key()}")
-                log.info(result.values)
-            log.info("<=== END ===>")
-
-            return True, [c.originate() for c in results]
-        return False, []
+        return True, [c.originate() for c in results]

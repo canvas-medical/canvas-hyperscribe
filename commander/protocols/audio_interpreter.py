@@ -74,20 +74,23 @@ class AudioInterpreter:
     def combine_and_speaker_detection(self, audio_chunks: list[bytes]) -> JsonExtract:
         conversation = OpenaiChat(self.settings.openai_key, Constants.OPENAI_CHAT_AUDIO)
         conversation.system_prompt = [
-            "The conversation is in the medical context.",
+            "The conversation is in the medical context, and related to visit of a patient with a healthcare provider.",
             "",
-            "Your task is to identify the speakers and report what they say.",
+            "Your task is to identify what was said regardless if the audios provided are recorded during or after the visit.",
             "",
         ]
         conversation.user_prompt = [
-            'These audio files contain recordings of a single conversation, segmented into overlapping parts. '
+            'These audio files contain recordings of a single session, segmented into overlapping parts. '
             'Each file has approximately 5 seconds of overlap with both the preceding and following segments.',
             '',
-            'The conversation takes place in a medical setting, specifically during a patient\'s visit to a healthcare provider.',
+            'The recordings take place in a medical setting, specifically related to a patient\'s visit to a healthcare provider.',
             '',
             'Your task is to:',
-            '1. Identify the speakers in the conversation',
-            '2. Transcribe what each person says',
+            '1. Detect if the audios were recorded during or after the visit',
+            '2. Identify the speakers in the conversation',
+            '3. Transcribe what each person says',
+            '',
+            'If the recording is too small, just assume that the speaker is the doctor and report what they said.',
             '',
             'Please present your findings in a JSON format within a Markdown code block. '
             'Each entry in the JSON should be an object with two keys:',
