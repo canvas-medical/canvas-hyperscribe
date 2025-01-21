@@ -95,7 +95,7 @@ class AudioInterpreter:
             '- "text": the verbatim transcription of what the speaker said',
             '',
         ]
-        extension = "webm"
+        extension = "mp3"
         for audio in audio_chunks:
             conversation.add_audio(audio, extension)
         return conversation.chat()
