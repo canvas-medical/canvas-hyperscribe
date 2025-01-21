@@ -67,11 +67,16 @@ class OpenaiChat:
         )
         return HttpResponse(code=request.status_code, response=request.text)
 
-    def chat(self) -> JsonExtract:
+    def chat(self, add_log: bool = False) -> JsonExtract:
         # TODO handle errors (network issue, incorrect LLM response format...)
         url = "https://api.openai.com/v1/chat/completions"
         response = self.post(url, {}, json.dumps(self.to_dict()))
         if response.code == HTTPStatus.OK.value:
+            if add_log:
+                log.info("***********")
+                log.info(response.code)
+                log.info(response.response)
+                log.info("***********")
             content = json.loads(response.response)
             return self.extract_json_from(content.get("choices", [{}])[0].get("message", {}).get("content", ""))
         else:
@@ -98,3 +103,33 @@ class OpenaiChat:
                 log.info("<----")
                 return JsonExtract(error=str(e), has_error=True, content=[])
         return JsonExtract(error="No JSON markdown found", has_error=True, content=[])
+
+    def audio_to_text(self, audio: bytes) -> HttpResponse:
+        default_model = "whisper-1"
+        language = "en"
+        response_format = "text"
+        url = "https://api.openai.com/v1/audio/transcriptions"
+        prompt = [
+            "The conversation is in the medical context.",
+        ]
+        data = {
+            "model": default_model,
+            "language": language,
+            "prompt": "\n".join(prompt),
+            "response_format": response_format,
+        }
+
+        headers = {
+            # "Content-Type": "multipart/form-data",
+            "Authorization": f"Bearer {self.openai_key}",
+        }
+        files = {"file": ("audio.mp3", audio, "application/octet-stream")}
+        request = requests_post(
+            url,
+            headers=headers,
+            params={},
+            data=data,
+            files=files,
+            verify=True,
+        )
+        return HttpResponse(code=request.status_code, response=request.text)

@@ -74,34 +74,36 @@ class AudioInterpreter:
     def combine_and_speaker_detection(self, audio_chunks: list[bytes]) -> JsonExtract:
         conversation = OpenaiChat(self.settings.openai_key, Constants.OPENAI_CHAT_AUDIO)
         conversation.system_prompt = [
-            "The conversation is in the medical context, and related to visit of a patient with a healthcare provider.",
+            "The conversation is in the medical context, and related to a visit of a patient with a healthcare provider.",
             "",
-            "Your task is to identify what was said regardless if the audios provided are recorded during or after the visit.",
+            "Your task is to identify what was said, regardless of whether the audio recordings were of dialogue during the visit or monologue after the visit.",
             "",
         ]
         conversation.user_prompt = [
-            'These audio files contain recordings of a single session, segmented into overlapping parts. '
-            'Each file has approximately 5 seconds of overlap with both the preceding and following segments.',
+            'The recording takes place in a medical setting, specifically related to a patient\'s visit to a healthcare provider.',
             '',
-            'The recordings take place in a medical setting, specifically related to a patient\'s visit to a healthcare provider.',
+            'These audio files contain recordings of a single session.',
+            'There is no overlap between the segments, so they should be regarded as a continuous flow and analyzed at once.',
             '',
             'Your task is to:',
-            '1. Detect if the audios were recorded during or after the visit',
-            '2. Identify the speakers in the conversation',
-            '3. Transcribe what each person says',
+            '1. If there are more than one voice, distinguish the role of the speakers (clinician, patient, nurse, parents...) in the conversation, if there is only voice, assume this is the clinician.',
+            '2. Transcribe what each person says as accurately as possible',
             '',
-            'If the recording is too small, just assume that the speaker is the doctor and report what they said.',
-            '',
-            'Please present your findings in a JSON format within a Markdown code block. '
-            'Each entry in the JSON should be an object with two keys:',
-            '- "speaker": to identify who is talking (e.g., "Patient", "Doctor", "Nurse"...)',
-            '- "text": the verbatim transcription of what the speaker said',
+            'Present your findings in a JSON format within a Markdown code block:',
+            "```json",
+            json.dumps([
+                {
+                    "speaker": "Patient/Clinician/Nurse/...",
+                    "text": "the verbatim transcription of what the speaker said",
+                }
+            ], indent=1),
+            "```",
             '',
         ]
         extension = "mp3"
         for audio in audio_chunks:
             conversation.add_audio(audio, extension)
-        return conversation.chat()
+        return conversation.chat(True)
 
     def detect_instructions(self, discussion: list[Line], known_instructions: list[Instruction]) -> JsonExtract:
         conversation = OpenaiChat(self.settings.openai_key, Constants.OPENAI_CHAT_TEXT)

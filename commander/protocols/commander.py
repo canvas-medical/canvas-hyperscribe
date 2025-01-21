@@ -40,7 +40,7 @@ class CachedDiscussion:
 
     @classmethod
     def clear_cache(cls) -> None:
-        oldest = datetime.now() - timedelta(minutes=5)
+        oldest = datetime.now() - timedelta(minutes=30)
         keys = list(cls.CACHED.keys())
         for note_uuid in keys:
             if cls.CACHED[note_uuid].updated < oldest:
@@ -50,7 +50,10 @@ class CachedDiscussion:
 class Audio:
     @classmethod
     def get_audio(cls, chunk_audio_url: str) -> bytes:
-        response = requests.get(chunk_audio_url)
+        log.info(f" ---> audio url: {chunk_audio_url}")
+        response = requests.get(chunk_audio_url, timeout=300)
+        log.info(f"           code: {response.status_code}")
+        log.info(f"        content: {len(response.content)}")
         # Check if the request was successful
         if response.status_code == 200:
             return response.content
@@ -64,7 +67,7 @@ class Commander(BaseProtocol):
     SECRET_PRE_SHARED_KEY = "PreSharedKey"
     SECRET_AUDIO_HOST = "AudioHost"
     LABEL_ENCOUNTER_COPILOT = "Encounter Copilot"
-    MAX_AUDIOS = 2
+    MAX_AUDIOS = 1
 
     RESPONDS_TO = [
         EventType.Name(EventType.TASK_COMMENT_CREATED),
@@ -119,8 +122,8 @@ class Commander(BaseProtocol):
     def retrieve_audios(cls, host_audio: str, patient_uuid: str, note_uuid: str, chunk_index: int) -> list[bytes]:
         audio_url = f"{host_audio}/audio/{patient_uuid}/{note_uuid}"
 
-        audio = Audio.get_audio(f"{audio_url}/{chunk_index}")
-        if not audio:
+        initial = Audio.get_audio(f"{audio_url}/{chunk_index}")
+        if not initial:
             return []
         # retrieve the previous segments only if the last one is provided
         result = [
@@ -128,7 +131,7 @@ class Commander(BaseProtocol):
             for chunk in range(max(1, chunk_index - cls.MAX_AUDIOS), chunk_index)
             if (audio := Audio.get_audio(f"{audio_url}/{chunk}")) and len(audio) > 0
         ]
-        result.append(audio)
+        result.append(initial)
         return result
 
     def compute_audio(self, patient_uuid: str, note_uuid: str, provider_uuid: str, chunk_index: int) -> tuple[bool, list[Effect]]:
