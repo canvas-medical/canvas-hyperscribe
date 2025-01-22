@@ -14,7 +14,9 @@ class Prescription(Base):
         result: None | PrescribeCommand = None
         condition_icd10s: list[str] = []
         prompt_condition = ""
-        if isinstance(parameters["conditionIndex"], int) and 0 <= (idx := parameters["conditionIndex"]) < len(self.current_conditions()):
+        if ("conditionIndex" in parameters
+                and isinstance(parameters["conditionIndex"], int)
+                and 0 <= (idx := parameters["conditionIndex"]) < len(self.current_conditions())):
             targeted_condition = self.current_conditions()[idx]
             condition_icd10s.append(self.icd10_strip_dot(targeted_condition.code))
             prompt_condition = f'The prescription is intended to the patient\'s condition: {targeted_condition.label}.'
@@ -34,6 +36,8 @@ class Prescription(Base):
         conversation.user_prompt = [
             'Here is the comment provided by the healthcare provider in regards to the prescription:',
             '```text',
+            f"keywords: {parameters['keywords']}",
+            " -- ",
             parameters["comment"],
             '```',
             "",
@@ -62,7 +66,7 @@ class Prescription(Base):
                 fdb_code=medication.fdb_code,
                 icd10_codes=condition_icd10s[:2],  # <--- no more than 2 conditions
                 sig=parameters["sig"],
-                days_supply=parameters["suppliedDays"],
+                days_supply=int(parameters["suppliedDays"]),
                 type_to_dispense=ClinicalQuantity(
                     representative_ndc=quantity.representative_ndc,
                     ncpdp_quantity_qualifier_code=quantity.ncpdp_quantity_qualifier_code,
@@ -104,7 +108,7 @@ class Prescription(Base):
             if response.has_error is False and response.content:
                 # TODO should be Decimal, waiting for https://github.com/canvas-medical/canvas-plugins/discussions/332
                 result.quantity_to_dispense = float(response.content[0]["quantityToDispense"])
-                result.refills = response.content[0]["refills"]
+                result.refills = int(response.content[0]["refills"])
                 result.note_to_pharmacist = response.content[0]["noteToPharmacist"]
 
         return result
@@ -113,16 +117,15 @@ class Prescription(Base):
         substitutions = "/".join([status.value for status in PrescribeCommand.Substitutions])
         conditions = "/".join([f'{condition.label} (index: {idx})' for idx, condition in enumerate(self.current_conditions())])
 
-        condition_text = None
-        condition_index = None
+        condition_dict = {}
         if conditions:
-            condition_text = f"None or, one of: {conditions}",  # ATTENTION limiting to only one condition even if the UI accepts up to 2 conditions
-            condition_index = "index of the condition for which the medication is prescribed, as integer or None if the prescription is not related to any listed condition"
+            condition_dict = {
+                "condition": f"None or, one of: {conditions}",  # ATTENTION limiting to only one condition even if the UI accepts up to 2 conditions
+                "conditionIndex": "index of the condition for which the medication is prescribed, as integer or -1 if the prescription is not related to any listed condition",
+            }
 
         return {
             "keywords": "comma separated keywords of up to 5 synonyms of the medication to prescribe",
-            "condition": condition_text,
-            "conditionIndex": condition_index,
             "sig": "directions, as free text",
             "suppliedDays": "mandatory, duration of the treatment in days either as mentioned, or following the standard practices, as integer",
             # "quantityToDispense": 0,
@@ -130,7 +133,7 @@ class Prescription(Base):
             "substitution": f"one of: {substitutions}",
             "comment": "rational of the prescription, as free text",
             # "noteToPharmacist": "note to the pharmacist, as free text",
-        }
+        } | condition_dict
 
     def instruction_description(self) -> str:
         return ("Medication prescription, including the directions, the duration, the targeted condition and the dosage. "
