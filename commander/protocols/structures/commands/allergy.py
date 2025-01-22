@@ -16,7 +16,12 @@ class Allergy(Base):
 
         # retrieve existing allergies defined in Canvas Ontologies
         expressions = parameters["keywords"].split(",")
-        allergies = CanvasScience.search_allergy(self.settings.ontologies_host, self.settings.pre_shared_key, expressions, concept_type)
+        allergies = CanvasScience.search_allergy(
+            self.settings.ontologies_host,
+            self.settings.pre_shared_key,
+            expressions,
+            [AllergenType(1), concept_type],  # <-- always include the Allergy Group
+        )
 
         conversation = OpenaiChat(self.settings.openai_key, Constants.OPENAI_CHAT_TEXT)
         # retrieve the correct allergy
@@ -46,7 +51,7 @@ class Allergy(Base):
         ]
         response = conversation.chat()
         result = AllergyCommand(
-            severity=AllergyCommand.Severity(parameters["severity"]),
+            severity=self.enum_or_none(parameters["severity"], AllergyCommand.Severity),
             narrative=parameters["reaction"],
             approximate_date=self.str2date(parameters["approximateDateOfOnset"]),
             note_uuid=self.note_uuid,
@@ -63,18 +68,17 @@ class Allergy(Base):
     def command_parameters(self) -> dict:
         severity = "/".join([status.value for status in AllergyCommand.Severity])
         return {
-            "keywords": "comma separated keywords of up to 5 synonyms of the component responsible fo the allergy",
-            "type": "one of: allergen/medication/ingredient",
-            "severity": f"one of: {severity}",
+            "keywords": "comma separated keywords of up to 5 distinct synonyms of the component related to the allergy or 'NKA' for No Known Allergy or 'NKDA' for No Known Drug Allergy",
+            "type": "mandatory, one of: allergy group/medication/ingredient",
+            "severity": f"mandatory, one of: {severity}",
             "reaction": "description of the reaction, as free text",
             "approximateDateOfOnset": "YYYY-MM-DD",
         }
 
     def instruction_description(self) -> str:
-        # TODO mention of no know allergies should lead to create an allergy with NKDA (No Know Drug Allergies) "Pertinent Negative"
         return ("Any diagnosed allergy, one instruction per allergy. "
-                "There can be only one allergy per instruction, and no instruction in the lack of.")
-
+                "There can be only one allergy per instruction, and no instruction in the lack of. "
+                "But, if it is stated that the patient has no know allergy, add an instruction mentioning it.")
 
     def instruction_constraints(self) -> str:
         result = ""

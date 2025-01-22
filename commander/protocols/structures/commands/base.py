@@ -1,5 +1,7 @@
 from datetime import datetime, date
+from enum import Enum
 from re import match
+from typing import Type
 
 from canvas_sdk.commands.base import _BaseCommand
 from canvas_sdk.v1.data import Condition
@@ -42,6 +44,12 @@ class Base:
     def str2date(cls, string: str | None) -> date | None:
         if result := cls.str2datetime(string):
             return result.date()
+        return None
+
+    @classmethod
+    def enum_or_none(cls, value: str, enum: Type[Enum]) -> Enum | None:
+        if value in (item.value for item in enum):
+            return enum(value)
         return None
 
     @classmethod

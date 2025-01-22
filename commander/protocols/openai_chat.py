@@ -30,7 +30,7 @@ class OpenaiChat:
                 "data": b64encode(audio).decode("utf-8"),
             })
 
-    def to_dict(self) -> dict:
+    def to_dict(self, for_log:bool=False) -> dict:
         content = [{
             "type": "text",
             "text": "\n".join(self.user_prompt),
@@ -38,7 +38,7 @@ class OpenaiChat:
         for audio in self.audios:
             content.append({
                 "type": "input_audio",
-                "input_audio": audio,
+                "input_audio": "some audio" if for_log else audio,
             })
 
         return {
@@ -72,13 +72,15 @@ class OpenaiChat:
         url = "https://api.openai.com/v1/chat/completions"
         response = self.post(url, {}, json.dumps(self.to_dict()))
         if response.code == HTTPStatus.OK.value:
-            if add_log:
-                log.info("***********")
-                log.info(response.code)
-                log.info(response.response)
-                log.info("***********")
             content = json.loads(response.response)
-            return self.extract_json_from(content.get("choices", [{}])[0].get("message", {}).get("content", ""))
+            text = content.get("choices", [{}])[0].get("message", {}).get("content", "")
+            if add_log:
+                log.info("***** CHAT STARTS ******")
+                log.info(self.to_dict(True))
+                log.info(f"   code>{response.code}<    ")
+                log.info(text)
+                log.info("****** CHAT ENDS *******")
+            return self.extract_json_from(text)
         else:
             log.info("***********")
             log.info(response.code)
