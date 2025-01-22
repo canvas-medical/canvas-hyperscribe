@@ -9,8 +9,8 @@ class Goal(Base):
             goal_statement=parameters["goal"],
             start_date=self.str2datetime(parameters["startDate"]),
             due_date=self.str2datetime(parameters["dueDate"]),
-            achievement_status=GoalCommand.AchievementStatus(parameters["status"]),
-            priority=GoalCommand.Priority(parameters["priority"]),
+            achievement_status=self.enum_or_none(parameters["status"], GoalCommand.AchievementStatus),
+            priority=self.enum_or_none(parameters["priority"], GoalCommand.Priority),
             progress=parameters["progressAndBarriers"],
             note_uuid=self.note_uuid,
         )

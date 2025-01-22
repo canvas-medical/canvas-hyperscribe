@@ -12,7 +12,7 @@ class Assess(Base):
         return AssessCommand(
             condition_id=condition_id,
             background=parameters["rationale"],
-            status=AssessCommand.Status(parameters["status"]),
+            status=self.enum_or_none(parameters["status"], AssessCommand.Status),
             narrative=parameters["assessment"],
             note_uuid=self.note_uuid,
         )

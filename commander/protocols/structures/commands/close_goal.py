@@ -15,7 +15,7 @@ class CloseGoal(Base):
         return CloseGoalCommand(
             # TODO should be goal_id=goal_uuid, waiting for https://github.com/canvas-medical/canvas-plugins/issues/338
             goal_id=int(goal_uuid),
-            achievement_status=GoalCommand.AchievementStatus(parameters["status"]),
+            achievement_status=self.enum_or_none(parameters["status"], GoalCommand.AchievementStatus),
             progress=parameters["progressAndBarriers"],
             note_uuid=self.note_uuid,
         )

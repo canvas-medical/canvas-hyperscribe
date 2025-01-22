@@ -65,7 +65,7 @@ class Prescription(Base):
                     representative_ndc=quantity.representative_ndc,
                     ncpdp_quantity_qualifier_code=quantity.ncpdp_quantity_qualifier_code,
                 ),
-                substitutions=PrescribeCommand.Substitutions(parameters["substitution"]),
+                substitutions=self.enum_or_none(parameters["substitution"], PrescribeCommand.Substitutions),
                 prescriber_id=self.provider_uuid,
                 note_uuid=self.note_uuid,
             )

@@ -22,7 +22,7 @@ class Refill(Base):
                     representative_ndc=medication.national_drug_code,
                     ncpdp_quantity_qualifier_code=medication.potency_unit_code,
                 ),
-                substitutions=PrescribeCommand.Substitutions(parameters["substitution"]),
+                substitutions=self.enum_or_none(parameters["substitution"], PrescribeCommand.Substitutions),
                 prescriber_id=self.provider_uuid,
                 note_uuid=self.note_uuid,
             )
@@ -30,7 +30,7 @@ class Refill(Base):
         return result
 
     def command_parameters(self) -> dict:
-        substitutions = "/".join([status.value for status in RefillCommand.Substitutions])
+        substitutions = "/".join([status.value for status in PrescribeCommand.Substitutions])
         medications = "/".join([f'{medication.label} (index: {idx})' for idx, medication in enumerate(self.current_medications())])
         return {
             "medication": f"one of: {medications}",

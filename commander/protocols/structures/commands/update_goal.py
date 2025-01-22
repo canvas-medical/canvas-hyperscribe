@@ -13,8 +13,8 @@ class UpdateGoal(Base):
         return UpdateGoalCommand(
             goal_id=goal_uuid,
             due_date=self.str2datetime(parameters["dueDate"]),
-            achievement_status=UpdateGoalCommand.AchievementStatus(parameters["status"]),
-            priority=UpdateGoalCommand.Priority(parameters["priority"]),
+            achievement_status=self.enum_or_none(parameters["status"], UpdateGoalCommand.AchievementStatus),
+            priority=self.enum_or_none(parameters["priority"], UpdateGoalCommand.Priority),
             progress=parameters["progressAndBarriers"],
             note_uuid=self.note_uuid,
         )
