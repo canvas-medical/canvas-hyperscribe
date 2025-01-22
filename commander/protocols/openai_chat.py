@@ -2,7 +2,6 @@ import json
 import re
 from base64 import b64encode
 from http import HTTPStatus
-from typing import Any
 
 from logger import log
 from requests import post as requests_post
@@ -76,8 +75,8 @@ class OpenaiChat:
             text = content.get("choices", [{}])[0].get("message", {}).get("content", "")
             if add_log:
                 log.info("***** CHAT STARTS ******")
-                log.info(self.to_dict(True))
-                log.info(f"   code>{response.code}<    ")
+                # log.info(self.to_dict(True))
+                # log.info(f"   -------------    ")
                 log.info(text)
                 log.info("****** CHAT ENDS *******")
             return self.extract_json_from(text)
@@ -93,18 +92,24 @@ class OpenaiChat:
         # print("-------------------------------------------------")
         # print(content)
         # print("-------------------------------------------------")
-        pattern_json = re.compile(r"```json\n(.*?)\n```", re.DOTALL | re.IGNORECASE)
+        result: list = []
+        pattern_json = re.compile(r"```json\s*\n(.*?)\n\s*```", re.DOTALL | re.IGNORECASE)
         for embedded in pattern_json.finditer(content):
             try:
-                result: list[Any] = json.loads(embedded.group(1))
-                return JsonExtract(error="", has_error=False, content=result)
+                result.append(json.loads(embedded.group(1)))
             except Exception as e:
                 log.info(e)
                 log.info("---->")
                 log.info(embedded)
                 log.info("<----")
                 return JsonExtract(error=str(e), has_error=True, content=[])
-        return JsonExtract(error="No JSON markdown found", has_error=True, content=[])
+
+        if not result:
+            return JsonExtract(error="No JSON markdown found", has_error=True, content=[])
+
+        if len(result) == 1:
+            return JsonExtract(error="", has_error=False, content=result[0])
+        return JsonExtract(error="", has_error=False, content=result)
 
     def audio_to_text(self, audio: bytes) -> HttpResponse:
         default_model = "whisper-1"

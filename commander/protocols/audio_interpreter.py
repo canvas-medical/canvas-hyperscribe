@@ -80,30 +80,62 @@ class AudioInterpreter:
             "",
         ]
         conversation.user_prompt = [
-            'The recording takes place in a medical setting, specifically related to a patient\'s visit to a healthcare provider.',
-            '',
-            'These audio files contain recordings of a single session.',
-            'There is no overlap between the segments, so they should be regarded as a continuous flow and analyzed at once.',
-            '',
+            "The recording takes place in a medical setting, specifically related to a patient's visit to a clinician.",
+            "",
+            "These audio files contain recordings of a single session.",
+            "There is no overlap between the segments, so they should be regarded as a continuous flow and analyzed at once.",
+            "",
             'Your task is to:',
-            '1. If there are more than one voice, distinguish the role of the speakers (clinician, patient, nurse, parents...) in the conversation, if there is only voice, assume this is the clinician.',
-            '2. Transcribe what each person says as accurately as possible',
-            '',
-            'Present your findings in a JSON format within a Markdown code block:',
+            "1. Distinguish and separate each voice if multiple speakers are present.",
+            "2. Transcribe each speaker's words with maximum accuracy",
+            "",
+            "Present your findings in a JSON format within a Markdown code block:",
             "```json",
             json.dumps([
                 {
-                    "speaker": "Patient/Clinician/Nurse/...",
+                    "voice": "voice1/voice2/...",
                     "text": "the verbatim transcription of what the speaker said",
                 }
             ], indent=1),
             "```",
-            '',
+            "",
+            "Then, review the discussion from the top and distinguish the role of the voices (patient, clinician, nurse, parents...) in the conversation, if there is only voice, assume this is the clinician",
+            "",
+            "Present your findings in a JSON format within a Markdown code block:",
+            "```json",
+            json.dumps([
+                {
+                    "speaker": "Patient/Clinician/Nurse/...",
+                    "voice": "voice1/voice2/...",
+                }
+            ], indent=1),
+            "```",
+            "",
         ]
+
         extension = "mp3"
         for audio in audio_chunks:
             conversation.add_audio(audio, extension)
-        return conversation.chat(True)
+        response = conversation.chat(True)
+        if response.has_error or len(response.content) < 2:
+            return response
+
+        discussion = response.content[0]
+        speakers = {
+            speaker["voice"]: speaker["speaker"]
+            for speaker in response.content[1]
+        }
+        return JsonExtract(
+            has_error=False,
+            error="",
+            content=[
+                {
+                    "speaker": speakers[text["voice"]],
+                    "text": text["text"],
+                }
+                for text in discussion
+            ],
+        )
 
     def detect_instructions(self, discussion: list[Line], known_instructions: list[Instruction]) -> JsonExtract:
         conversation = OpenaiChat(self.settings.openai_key, Constants.OPENAI_CHAT_TEXT)
