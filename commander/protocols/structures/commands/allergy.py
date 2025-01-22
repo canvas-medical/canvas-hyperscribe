@@ -48,7 +48,7 @@ class Allergy(Base):
         result = AllergyCommand(
             severity=AllergyCommand.Severity(parameters["severity"]),
             narrative=parameters["reaction"],
-            approximate_date=self.str2date(parameters["approximateDateOfOnset"]).date(),
+            approximate_date=self.str2date(parameters["approximateDateOfOnset"]),
             note_uuid=self.note_uuid,
         )
 
@@ -71,8 +71,10 @@ class Allergy(Base):
         }
 
     def instruction_description(self) -> str:
+        # TODO mention of no know allergies should lead to create an allergy with NKDA (No Know Drug Allergies) "Pertinent Negative"
         return ("Any diagnosed allergy, one instruction per allergy. "
                 "There can be only one allergy per instruction, and no instruction in the lack of.")
+
 
     def instruction_constraints(self) -> str:
         result = ""

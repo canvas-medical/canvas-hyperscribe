@@ -43,8 +43,8 @@ class MedicalHistory(Base):
 
         return MedicalHistoryCommand(
             past_medical_history=condition,
-            approximate_start_date=self.str2date(parameters["approximateStartDate"]).date(),
-            approximate_end_date=self.str2date(parameters["approximateEndDate"]).date(),
+            approximate_start_date=self.str2date(parameters["approximateStartDate"]),
+            approximate_end_date=self.str2date(parameters["approximateEndDate"]),
             show_on_condition_list=True,
             comments=parameters["comments"],
             note_uuid=self.note_uuid,

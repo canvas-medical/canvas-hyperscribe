@@ -42,7 +42,7 @@ class SurgeryHistory(Base):
 
         return PastSurgicalHistoryCommand(
             past_surgical_history=surgery,
-            approximate_date=self.str2date(parameters["approximateDate"]).date(),
+            approximate_date=self.str2date(parameters["approximateDate"]),
             comment=parameters["comment"],
             note_uuid=self.note_uuid,
         )

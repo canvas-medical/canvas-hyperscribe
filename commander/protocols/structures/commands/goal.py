@@ -7,8 +7,8 @@ class Goal(Base):
     def command_from_json(self, parameters: dict) -> None | GoalCommand:
         return GoalCommand(
             goal_statement=parameters["goal"],
-            start_date=self.str2date(parameters["startDate"]),
-            due_date=self.str2date(parameters["dueDate"]),
+            start_date=self.str2datetime(parameters["startDate"]),
+            due_date=self.str2datetime(parameters["dueDate"]),
             achievement_status=GoalCommand.AchievementStatus(parameters["status"]),
             priority=GoalCommand.Priority(parameters["priority"]),
             progress=parameters["progressAndBarriers"],

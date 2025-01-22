@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, date
 from re import match
 
 from canvas_sdk.commands.base import _BaseCommand
@@ -32,11 +32,17 @@ class Base:
         return self.__class__.__name__
 
     @classmethod
-    def str2date(cls, string: str | None) -> datetime | None:
+    def str2datetime(cls, string: str | None) -> datetime | None:
         try:
             return datetime.strptime(string, "%Y-%m-%d")
         except Exception:
             return None
+
+    @classmethod
+    def str2date(cls, string: str | None) -> date | None:
+        if result := cls.str2datetime(string):
+            return result.date()
+        return None
 
     @classmethod
     def icd10_add_dot(cls, code: str) -> str:

@@ -41,7 +41,7 @@ class Diagnose(Base):
         response = conversation.chat()
         result = DiagnoseCommand(
             background=parameters["rationale"],
-            approximate_date_of_onset=self.str2date(parameters["onsetDate"]).date(),
+            approximate_date_of_onset=self.str2date(parameters["onsetDate"]),
             today_assessment=parameters["assessment"],
             note_uuid=self.note_uuid,
         )
