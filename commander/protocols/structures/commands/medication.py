@@ -1,3 +1,5 @@
+import json
+
 from canvas_sdk.commands.commands.medication_statement import MedicationStatementCommand
 
 from commander.protocols.canvas_science import CanvasScience
@@ -30,9 +32,9 @@ class Medication(Base):
             '',
             "\n".join(f' * {medication.description} (fdbCode: {medication.fdb_code})' for medication in medications),
             '',
-            'Please present your findings in a JSON format within a Markdown code block like',
+            'Please, present your findings in a JSON format within a Markdown code block like:',
             '```json',
-            '[{"fdbCode": "the fdb code, as int", "description": "the description"]'
+            json.dumps([{"fdbCode": "the fdb code, as int", "description": "the description"}]),
             '```',
             '',
         ]

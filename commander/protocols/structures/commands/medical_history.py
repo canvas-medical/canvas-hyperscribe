@@ -1,3 +1,5 @@
+import json
+
 from canvas_sdk.commands.commands.medical_history import MedicalHistoryCommand
 from canvas_sdk.commands.commands.past_surgical_history import PastSurgicalHistoryCommand
 
@@ -30,9 +32,9 @@ class MedicalHistory(Base):
             '',
             "\n".join(f' * {concept.label} (ICD10: {concept.code})' for concept in concepts),
             '',
-            'Please present your findings in a JSON format within a Markdown code block like',
+            'Please, present your findings in a JSON format within a Markdown code block like:',
             '```json',
-            '[{"icd10": "the concept ID", "label": "the expression"]'
+            json.dumps([{"icd10": "the concept ID", "label": "the expression"}]),
             '```',
             '',
         ]

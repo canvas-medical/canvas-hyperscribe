@@ -1,3 +1,5 @@
+import json
+
 from canvas_sdk.commands.commands.prescribe import PrescribeCommand
 from canvas_sdk.commands.constants import ClinicalQuantity
 
@@ -41,9 +43,9 @@ class Prescription(Base):
             '',
             "\n".join(f' * {medication.description} (fdbCode: {medication.fdb_code})' for medication in medications),
             '',
-            'Please present your findings in a JSON format within a Markdown code block like',
+            'Please, present your findings in a JSON format within a Markdown code block like:',
             '```json',
-            '[{"fdbCode": "the fdb code, as int", "description": "the description"]'
+            json.dumps([{"fdbCode": "the fdb code, as int", "description": "the description"}]),
             '```',
             '',
         ]
@@ -88,15 +90,20 @@ class Prescription(Base):
                 "Based on this information, what are the quantity to dispense and the number of refills in order to "
                 f"fulfill the {result.days_supply} supply days?",
                 '',
-                'Please present your findings in a JSON format within a Markdown code block like',
+                'Please, present your findings in a JSON format within a Markdown code block like:',
                 '```json',
-                '[{"quantityToDispense": 0, "refills": 0, "noteToPharmacist": "note to the pharmacist, as free text"}]'
+                json.dumps([{
+                    "quantityToDispense": "mandatory, quantity to dispense, as decimal",
+                    "refills": "mandatory, refills allowed, as integer",
+                    "noteToPharmacist": "note to the pharmacist, as free text",
+                }]),
                 '```',
                 '',
             ]
             response = conversation.chat()
             if response.has_error is False and response.content:
-                result.quantity_to_dispense = response.content[0]["quantityToDispense"]
+                # TODO should be Decimal, waiting for https://github.com/canvas-medical/canvas-plugins/discussions/332
+                result.quantity_to_dispense = float(response.content[0]["quantityToDispense"])
                 result.refills = response.content[0]["refills"]
                 result.note_to_pharmacist = response.content[0]["noteToPharmacist"]
 
@@ -105,12 +112,19 @@ class Prescription(Base):
     def command_parameters(self) -> dict:
         substitutions = "/".join([status.value for status in PrescribeCommand.Substitutions])
         conditions = "/".join([f'{condition.label} (index: {idx})' for idx, condition in enumerate(self.current_conditions())])
+
+        condition_text = None
+        condition_index = None
+        if conditions:
+            condition_text = f"None or, one of: {conditions}",  # ATTENTION limiting to only one condition even if the UI accepts up to 2 conditions
+            condition_index = "index of the condition for which the medication is prescribed, as integer or None if the prescription is not related to any listed condition"
+
         return {
             "keywords": "comma separated keywords of up to 5 synonyms of the medication to prescribe",
-            "condition": f"None or, one of: {conditions}",  # ATTENTION limiting to only one condition even if the UI accepts up to 2 conditions
-            "conditionIndex": "index of the condition for which the medication is prescribed, as integer or None if the prescription is not related to any provided condition",
+            "condition": condition_text,
+            "conditionIndex": condition_index,
             "sig": "directions, as free text",
-            "suppliedDays": "duration of the treatment in days, as integer",
+            "suppliedDays": "mandatory, duration of the treatment in days either as mentioned, or following the standard practices, as integer",
             # "quantityToDispense": 0,
             # "refills": 0,
             "substitution": f"one of: {substitutions}",

@@ -30,7 +30,7 @@ class OpenaiChat:
                 "data": b64encode(audio).decode("utf-8"),
             })
 
-    def to_dict(self, for_log:bool=False) -> dict:
+    def to_dict(self, for_log: bool = False) -> dict:
         content = [{
             "type": "text",
             "text": "\n".join(self.user_prompt),

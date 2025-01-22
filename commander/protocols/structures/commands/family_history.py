@@ -1,3 +1,5 @@
+import json
+
 from canvas_sdk.commands.commands.family_history import FamilyHistoryCommand
 
 from commander.protocols.canvas_science import CanvasScience
@@ -29,9 +31,9 @@ class FamilyHistory(Base):
             '',
             "\n".join(f' * {concept.term} ({concept.concept_id})' for concept in concepts),
             '',
-            'Please present your findings in a JSON format within a Markdown code block like',
+            'Please, present your findings in a JSON format within a Markdown code block like:',
             '```json',
-            '[{"concept_id": "the concept ID", "term": "the expression"]'
+            json.dumps([{"concept_id": "the concept ID", "term": "the expression"}]),
             '```',
             '',
         ]

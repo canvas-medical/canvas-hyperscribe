@@ -1,3 +1,5 @@
+import json
+
 from canvas_sdk.commands.commands.diagnose import DiagnoseCommand
 from canvas_sdk.commands.commands.update_diagnosis import UpdateDiagnosisCommand
 
@@ -33,9 +35,9 @@ class UpdateDiagnose(Base):
             '',
             "\n".join(f' * {condition.label} (ICD-10: {self.icd10_add_dot(condition.code)})' for condition in conditions),
             '',
-            'Please present your findings in a JSON format within a Markdown code block like',
+            'Please, present your findings in a JSON format within a Markdown code block like:',
             '```json',
-            '[{"ICD10": "the ICD-10 code", "description": "the description"]'
+            json.dumps([{"ICD10": "the ICD-10 code", "description": "the description"}]),
             '```',
             '',
         ]
