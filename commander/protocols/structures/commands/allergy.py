@@ -80,7 +80,7 @@ class Allergy(Base):
     def instruction_description(self) -> str:
         return ("Any diagnosed allergy, one instruction per allergy. "
                 "There can be only one allergy per instruction, and no instruction in the lack of. "
-                "But, if it is explicitly said that the patient has no know allergy, add an instruction mentioning it.")
+                "But, if it is explicitly said that the patient has no known allergy, add an instruction mentioning it.")
 
     def instruction_constraints(self) -> str:
         result = ""

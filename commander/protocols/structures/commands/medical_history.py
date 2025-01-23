@@ -57,7 +57,7 @@ class MedicalHistory(Base):
             "keywords": "comma separated keywords of up to 5 synonyms of the condition",
             "approximateStartDate": "YYYY-MM-DD",
             "approximateEndDate": "YYYY-MM-DD",
-            "comments": "provided description of the condition, as free text",
+            "comments": "provided description of the patient specific history with the condition, as free text",
         }
 
     def instruction_description(self) -> str:
