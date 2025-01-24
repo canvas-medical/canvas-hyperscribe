@@ -25,6 +25,8 @@ class SurgeryHistory(Base):
         conversation.user_prompt = [
             'Here is the comment provided by the healthcare provider in regards to the surgery of a patient:',
             '```text',
+            f"keywords: {parameters['keywords']}",
+            " -- ",
             parameters["comment"],
             '```',
             'Among the following surgeries, identify the most relevant one:',

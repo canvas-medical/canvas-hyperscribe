@@ -26,6 +26,8 @@ class UpdateDiagnose(Base):
         conversation.user_prompt = [
             'Here is the comment provided by the healthcare provider in regards to the diagnosis:',
             '```text',
+            f"keywords: {parameters['keywords']}",
+            " -- ",
             parameters["rationale"],
             "",
             parameters["assessment"],

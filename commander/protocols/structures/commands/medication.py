@@ -25,6 +25,8 @@ class Medication(Base):
         conversation.user_prompt = [
             'Here is the comment provided by the healthcare provider in regards to the prescription:',
             '```text',
+            f"keywords: {parameters['keywords']}",
+            " -- ",
             parameters["sig"],
             '```',
             "",

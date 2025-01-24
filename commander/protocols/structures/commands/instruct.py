@@ -25,6 +25,8 @@ class Instruct(Base):
         conversation.user_prompt = [
             'Here is the description of a direction instructed by a healthcare provider to a patient:',
             '```text',
+            f"keywords: {parameters['keywords']}",
+            " -- ",
             parameters["comment"],
             '```',
             'Among the following expressions, identify the most relevant one:',

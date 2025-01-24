@@ -172,7 +172,11 @@ class Commander(BaseProtocol):
         new_instructions = [instruction for instruction in cumulated_instructions if instruction.uuid not in past_uuids]
         log.info(f"--> new instructions: {len(new_instructions)}")
         if new_instructions:
-            sdk_commands = chatter.create_sdk_commands(new_instructions)
+            sdk_commands = [
+                parameters
+                for instruction in new_instructions
+                if (parameters := chatter.create_sdk_command_parameters(instruction)) and parameters[1] is not None
+            ]
             discussion.previous_instructions = cumulated_instructions
         log.info(f"--> new commands: {len(sdk_commands)}")
 
@@ -180,7 +184,7 @@ class Commander(BaseProtocol):
         results = [
             command
             for instruction, parameters in sdk_commands
-            if (command := chatter.create_command_from(instruction, parameters))
+            if (command := chatter.create_sdk_command_from(instruction, parameters))
         ]
 
         log.info(f"<===  note: {note_uuid} ===>")

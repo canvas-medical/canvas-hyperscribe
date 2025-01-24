@@ -25,6 +25,8 @@ class FamilyHistory(Base):
         conversation.user_prompt = [
             'Here is the note provided by the healthcare provider in regards to the condition of a patient:',
             '```text',
+            f"keywords: {parameters['keywords']}",
+            " -- ",
             parameters["note"],
             '```',
             'Among the following conditions, identify the most relevant one:',

@@ -197,8 +197,8 @@ class AudioInterpreter:
             result = conversation.chat()
         return result
 
-    def create_sdk_commands(self, known_instructions: list[Instruction]) -> list[tuple[Instruction, dict]]:
-        result: list[tuple[Instruction, dict]] = []
+    def create_sdk_command_parameters(self, instruction: Instruction) -> tuple[Instruction, dict | None]:
+        result: tuple[Instruction, dict | None] = instruction, None
 
         structures = self.command_structures()
 
@@ -213,25 +213,24 @@ class AudioInterpreter:
             "",
             f"Please, note that now is {datetime.now().isoformat()}."
         ]
-        for instruction in known_instructions:
-            conversation.user_prompt = [
-                "Based on the text:",
-                "```text",
-                instruction.information,
-                "```",
-                "",
-                "Your task is to replace the values of the JSON object with the relevant information:",
-                "```json",
-                json.dumps([structures[instruction.instruction]], indent=1),
-                "```",
-                "",
-            ]
-            response = conversation.chat()
-            if response.has_error is False:
-                result.append((instruction, response.content[0]))
+        conversation.user_prompt = [
+            "Based on the text:",
+            "```text",
+            instruction.information,
+            "```",
+            "",
+            "Your task is to replace the values of the JSON object with the relevant information:",
+            "```json",
+            json.dumps([structures[instruction.instruction]], indent=1),
+            "```",
+            "",
+        ]
+        response = conversation.chat()
+        if response.has_error is False:
+            result = instruction, response.content[0]
         return result
 
-    def create_command_from(self, instruction: Instruction, parameters: dict) -> BaseCommand | None:
+    def create_sdk_command_from(self, instruction: Instruction, parameters: dict) -> BaseCommand | None:
         for instance in self._command_context:
             if instruction.instruction == instance.class_name():
                 return instance.command_from_json(parameters)

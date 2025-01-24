@@ -36,6 +36,8 @@ class Allergy(Base):
         conversation.user_prompt = [
             'Here is the comment provided by the healthcare provider in regards to the allergy:',
             '```text',
+            f"keywords: {parameters['keywords']}",
+            " -- ",
             f'severity: {parameters["severity"]}',
             "",
             parameters["reaction"],
