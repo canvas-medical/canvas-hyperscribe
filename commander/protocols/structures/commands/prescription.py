@@ -10,6 +10,10 @@ from commander.protocols.structures.commands.base import Base
 
 
 class Prescription(Base):
+    @classmethod
+    def schema_key(cls) -> str:
+        return "prescribe"
+
     def command_from_json(self, parameters: dict) -> None | PrescribeCommand:
         result: None | PrescribeCommand = None
         condition_icd10s: list[str] = []

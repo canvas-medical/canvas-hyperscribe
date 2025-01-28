@@ -4,6 +4,10 @@ from commander.protocols.structures.commands.base import Base
 
 
 class Goal(Base):
+    @classmethod
+    def schema_key(cls) -> str:
+        return "goal"
+
     def command_from_json(self, parameters: dict) -> None | GoalCommand:
         return GoalCommand(
             goal_statement=parameters["goal"],

@@ -4,6 +4,10 @@ from commander.protocols.structures.commands.base import Base
 
 
 class ReasonForVisit(Base):
+    @classmethod
+    def schema_key(cls) -> str:
+        return "reasonForVisit"
+
     def command_from_json(self, parameters: dict) -> None | ReasonForVisitCommand:
         return ReasonForVisitCommand(
             comment=parameters["reasonForVisit"],
@@ -16,8 +20,13 @@ class ReasonForVisit(Base):
         }
 
     def instruction_description(self) -> str:
-        return ("Patient's reported reason for the visit. "
-                "There can be multiple reasons within an instruction.")
+        result = ("Patient's reported reason for the visit. "
+                  "There can be multiple reasons within an instruction.")
+        if self.settings.allow_update:
+            result += (" There can be only one such instruction in the whole discussion, "
+                       "so if one was already found, just update it by intelligently merging all reasons.")
+
+        return result
 
     def instruction_constraints(self) -> str:
         return ""

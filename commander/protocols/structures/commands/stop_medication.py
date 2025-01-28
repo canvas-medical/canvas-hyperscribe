@@ -5,6 +5,9 @@ from commander.protocols.structures.commands.base import Base
 
 
 class StopMedication(Base):
+    @classmethod
+    def schema_key(cls) -> str:
+        return "stopMedication"
 
     def command_from_json(self, parameters: dict) -> None | AssessCommand:
         medication_uuid = ""

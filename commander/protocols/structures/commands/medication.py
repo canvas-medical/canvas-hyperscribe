@@ -9,6 +9,10 @@ from commander.protocols.structures.commands.base import Base
 
 
 class Medication(Base):
+    @classmethod
+    def schema_key(cls) -> str:
+        return "medicationStatement"
+
     def command_from_json(self, parameters: dict) -> None | MedicationStatementCommand:
         # retrieve existing medications defined in Canvas Science
         expressions = parameters["keywords"].split(",")

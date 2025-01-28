@@ -10,6 +10,10 @@ from commander.protocols.structures.commands.base import Base
 
 
 class MedicalHistory(Base):
+    @classmethod
+    def schema_key(cls) -> str:
+        return "medicalHistory"
+
     def command_from_json(self, parameters: dict) -> None | PastSurgicalHistoryCommand:
         # retrieve existing medical history conditions defined in Canvas Science
         expressions = parameters["keywords"].split(",")

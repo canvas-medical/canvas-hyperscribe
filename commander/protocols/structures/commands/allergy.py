@@ -9,6 +9,11 @@ from commander.protocols.structures.commands.base import Base
 
 
 class Allergy(Base):
+
+    @classmethod
+    def schema_key(cls) -> str:
+        return "allergy"
+
     def command_from_json(self, parameters: dict) -> None | AllergyCommand:
         concept_type = AllergenType(1)
         if parameters["type"] == "medication":

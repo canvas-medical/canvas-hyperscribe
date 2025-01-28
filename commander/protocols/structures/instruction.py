@@ -5,6 +5,8 @@ class Instruction(NamedTuple):
     uuid: str
     instruction: str
     information: str
+    is_new: bool
+    is_updated: bool
 
     @classmethod
     def load_from_json(cls, json_list: list) -> list["Instruction"]:
@@ -13,13 +15,21 @@ class Instruction(NamedTuple):
                 uuid=json_object.get("uuid", ""),
                 instruction=json_object.get("instruction", ""),
                 information=json_object.get("information", ""),
+                is_new=json_object.get("isNew", True),
+                is_updated=json_object.get("isUpdated", False),
             )
             for json_object in json_list
         ]
 
-    def to_json(self) -> dict:
+    def to_json(self, allow_update: bool) -> dict:
+        status = {}
+        if allow_update:
+            status = {
+                "isNew": False,
+                "isUpdated": False,
+            }
         return {
             "uuid": self.uuid,
             "instruction": self.instruction,
             "information": self.information,
-        }
+        } | status

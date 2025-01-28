@@ -30,8 +30,9 @@ class Base:
         self._medications: list | None = None
         self._surgery_history: list | None = None
 
-    def class_name(self) -> str:
-        return self.__class__.__name__
+    @classmethod
+    def class_name(cls) -> str:
+        return cls.__name__
 
     @classmethod
     def str2datetime(cls, string: str | None) -> datetime | None:
@@ -61,6 +62,10 @@ class Base:
     @classmethod
     def icd10_strip_dot(cls, code: str) -> str:
         return code.replace(".", "")
+
+    @classmethod
+    def schema_key(cls) -> str:
+        raise NotImplementedError
 
     def command_from_json(self, parameters: dict) -> None | _BaseCommand:
         raise NotImplementedError

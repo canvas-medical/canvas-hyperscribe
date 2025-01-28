@@ -7,6 +7,10 @@ from commander.protocols.structures.commands.base import Base
 
 
 class Refill(Base):
+    @classmethod
+    def schema_key(cls) -> str:
+        return "refill"
+
     def command_from_json(self, parameters: dict) -> None | RefillCommand:
         result: None | RefillCommand = None
         if 0 <= (idx := parameters["medicationIndex"]) < len(self.current_medications()):

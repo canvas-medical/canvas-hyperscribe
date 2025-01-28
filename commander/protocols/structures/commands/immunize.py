@@ -4,6 +4,10 @@ from commander.protocols.structures.commands.base import Base
 
 
 class Immunize(Base):
+    @classmethod
+    def schema_key(cls) -> str:
+        return "immunize"
+
     def command_from_json(self, parameters: dict) -> None | InstructCommand:
         # TODO change to ImmunizeCommand when implemented
         return InstructCommand(

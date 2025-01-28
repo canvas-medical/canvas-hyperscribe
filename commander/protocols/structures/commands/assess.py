@@ -4,6 +4,9 @@ from commander.protocols.structures.commands.base import Base
 
 
 class Assess(Base):
+    @classmethod
+    def schema_key(cls) -> str:
+        return "assess"
 
     def command_from_json(self, parameters: dict) -> None | AssessCommand:
         condition_id = ""

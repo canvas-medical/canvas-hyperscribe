@@ -5,6 +5,9 @@ from commander.protocols.structures.commands.base import Base
 
 
 class CloseGoal(Base):
+    @classmethod
+    def schema_key(cls) -> str:
+        return "closeGoal"
 
     def command_from_json(self, parameters: dict) -> None | CloseGoalCommand:
         goal_uuid = ""

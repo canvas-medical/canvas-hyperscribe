@@ -139,6 +139,17 @@ class AudioInterpreter:
 
     def detect_instructions(self, discussion: list[Line], known_instructions: list[Instruction]) -> JsonExtract:
         conversation = OpenaiChat(self.settings.openai_key, Constants.OPENAI_CHAT_TEXT)
+        example = {
+            "uuid": "a unique identifier in this discussion",
+            "instruction": "the instruction",
+            "information": "any information related to the instruction",
+        }
+        if self.settings.allow_update:
+            example |= {
+                "isNew": "the instruction is new for the discussion, as boolean",
+                "isUpdated": "the instruction is an update of one already identified in the discussion, as boolean",
+            }
+
         conversation.system_prompt = [
             "The conversation is in the medical context.",
             "The user will submit the transcript of the visit of a patient with a healthcare provider.",
@@ -150,14 +161,12 @@ class AudioInterpreter:
             json.dumps(self.instruction_definitions()),
             "```",
             "",
-            'Your response has to be a JSON Markdown block with a list of objects: {'
-            '"uuid": "a unique identifier in this discussion", '
-            '"instruction": "the instruction", '
-            '"information": "any information related to the instruction"},',
+            'Your response has to be a JSON Markdown block with a list of objects: ',
+            json.dumps(example),
             "",
             "The JSON will be validated with the schema:",
             "```json",
-            json.dumps(self.json_schema([instance.class_name() for instance in self._command_context])),
+            json.dumps(self.json_schema([instance.class_name() for instance in self._command_context], self.settings.allow_update)),
             "```",
             "",
         ]
@@ -171,7 +180,7 @@ class AudioInterpreter:
             "",
         ]
         if known_instructions:
-            content = json.dumps([instruction.to_json() for instruction in known_instructions], indent=1)
+            content = json.dumps([instruction.to_json(self.settings.allow_update) for instruction in known_instructions], indent=1)
             conversation.user_prompt.extend([
                 "From previous parts of the transcript, the following instructions were identified",
                 "```json",
@@ -237,22 +246,43 @@ class AudioInterpreter:
         return None
 
     @classmethod
-    def json_schema(cls, commands: list[str]) -> dict:
+    def json_schema(cls, commands: list[str], allow_update: bool) -> dict:
+        properties = {
+            "uuid": {
+                "type": "string",
+                "description": "a unique identifier in this discussion",
+            },
+            "instruction": {
+                "type": "string",
+                "enum": commands,
+            },
+            "information": {
+                "type": "string",
+                "description": "all relevant information extracted from the discussion explaining and/or defining the instruction",
+            },
+        }
+        required = ["uuid", "instruction", "information"]
+
+        if allow_update:
+            properties |= {
+                "isNew": {
+                    "type": "boolean",
+                    "description": "the instruction is new to the discussion",
+                },
+                "isUpdated": {
+                    "type": "boolean",
+                    "description": "the instruction is an update of an instruction previously identified in the discussion",
+                },
+            }
+            required.extend(["isNew", "isUpdated"])
+
         return {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "type": "array",
             "items": {
                 "type": "object",
-                "properties": {
-                    "uuid": {"type": "string", "description": "a unique identifier in this discussion"},
-                    "instruction": {
-                        "type": "string",
-                        "enum": commands,
-                    },
-                    "information": {"type": "string",
-                                    "description": "all relevant information extracted from the discussion explaining and/or defining the instruction"},
-                },
-                "required": ["uuid", "instruction", "information"],
+                "properties": properties,
+                "required": required,
                 "additionalProperties": False,
             }
         }
@@ -286,3 +316,10 @@ class AudioInterpreter:
             UpdateGoal,
             Vitals,
         ]
+
+    @classmethod
+    def schema_key2instruction(cls) -> dict[str, str]:
+        return {
+            command_class.schema_key(): command_class.class_name()
+            for command_class in cls.implemented_commands()
+        }

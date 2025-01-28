@@ -4,6 +4,10 @@ from commander.protocols.structures.commands.base import Base
 
 
 class HistoryOfPresentIllness(Base):
+    @classmethod
+    def schema_key(cls) -> str:
+        return "hpi"
+
     def command_from_json(self, parameters: dict) -> None | HistoryOfPresentIllnessCommand:
         return HistoryOfPresentIllnessCommand(
             narrative=parameters["narrative"],
@@ -16,8 +20,12 @@ class HistoryOfPresentIllness(Base):
         }
 
     def instruction_description(self) -> str:
-        return ("Provider's reported key highlights of the visit. "
-                "There can be multiple highlights within an instruction.")
+        result = ("Provider's reported key highlights of the visit. "
+                  "There can be multiple highlights within an instruction.")
+        if self.settings.allow_update:
+            result += (" There can be only one such instruction in the whole discussion, "
+                       "so if one was already found, just update it by intelligently merging all key highlights.")
+        return result
 
     def instruction_constraints(self) -> str:
         return ""

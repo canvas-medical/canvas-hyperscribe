@@ -6,6 +6,10 @@ from commander.protocols.structures.commands.base import Base
 
 
 class Vitals(Base):
+    @classmethod
+    def schema_key(cls) -> str:
+        return "vitals"
+
     def command_from_json(self, parameters: dict) -> None | VitalsCommand:
         return VitalsCommand(
             height=self.valid_or_none(VitalsCommand, "height", parameters["height"]["inches"]),

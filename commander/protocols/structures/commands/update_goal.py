@@ -4,6 +4,9 @@ from commander.protocols.structures.commands.base import Base
 
 
 class UpdateGoal(Base):
+    @classmethod
+    def schema_key(cls) -> str:
+        return "updateGoal"
 
     def command_from_json(self, parameters: dict) -> None | UpdateGoalCommand:
         goal_uuid = ""

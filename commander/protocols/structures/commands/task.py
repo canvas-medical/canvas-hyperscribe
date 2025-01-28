@@ -4,6 +4,10 @@ from commander.protocols.structures.commands.base import Base
 
 
 class Task(Base):
+    @classmethod
+    def schema_key(cls) -> str:
+        return "task"
+
     def command_from_json(self, parameters: dict) -> None | TaskCommand:
         return None
 

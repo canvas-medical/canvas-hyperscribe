@@ -9,6 +9,10 @@ from commander.protocols.structures.commands.base import Base
 
 
 class SurgeryHistory(Base):
+    @classmethod
+    def schema_key(cls) -> str:
+        return "surgicalHistory"
+
     def command_from_json(self, parameters: dict) -> None | PastSurgicalHistoryCommand:
         # retrieve existing family history conditions defined in Canvas Science
         expressions = parameters["keywords"].split(",")

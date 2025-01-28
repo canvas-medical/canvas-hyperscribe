@@ -4,6 +4,10 @@ from commander.protocols.structures.commands.base import Base
 
 
 class PhysicalExam(Base):
+    @classmethod
+    def schema_key(cls) -> str:
+        return "exam"
+
     def command_from_json(self, parameters: dict) -> None | PhysicalExamCommand:
         return None
 

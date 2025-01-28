@@ -54,6 +54,10 @@ class LabOrder(Base):
         except:
             return False
 
+    @classmethod
+    def schema_key(cls) -> str:
+        return "labOrder"
+
     def command_from_json(self, parameters: dict) -> None | LabOrderCommand:
         result: None | LabOrderCommand = None
         condition_icd10s: list[str] = []

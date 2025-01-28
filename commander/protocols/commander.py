@@ -8,6 +8,7 @@ from canvas_sdk.effects.task.task import AddTaskComment, UpdateTask, TaskStatus
 from canvas_sdk.events import EventType
 from canvas_sdk.protocols import BaseProtocol
 from canvas_sdk.v1.data import TaskComment
+from canvas_sdk.v1.data.command import Command
 from canvas_sdk.v1.data.note import Note
 from logger import log
 
@@ -65,6 +66,7 @@ class Commander(BaseProtocol):
     SECRET_SCIENCE_HOST = "ScienceHost"
     SECRET_ONTOLOGIES_HOST = "OntologiesHost"
     SECRET_PRE_SHARED_KEY = "PreSharedKey"
+    SECRET_ALLOW_COMMAND_UPDATES = "AllowCommandUpdates"
     SECRET_AUDIO_HOST = "AudioHost"
     LABEL_ENCOUNTER_COPILOT = "Encounter Copilot"
     MAX_AUDIOS = 1
@@ -80,7 +82,7 @@ class Commander(BaseProtocol):
         if not comment.task.labels.filter(name=self.LABEL_ENCOUNTER_COPILOT).first():
             return []
 
-            # the context will have the OpenAIKey on local environment only (no database access yet)
+        # the context will have the OpenAIKey on local environment only (no database access yet)
         if self.SECRET_OPENAI_KEY in self.context:
             self.secrets = {
                 self.SECRET_OPENAI_KEY: self.context[self.SECRET_OPENAI_KEY],
@@ -88,6 +90,7 @@ class Commander(BaseProtocol):
                 self.SECRET_ONTOLOGIES_HOST: "https://ontologies-aptible-staging.canvasmedical.com",
                 self.SECRET_PRE_SHARED_KEY: self.context[self.SECRET_PRE_SHARED_KEY],
                 self.SECRET_AUDIO_HOST: "http://localhost:8000/protocol-draft",
+                self.SECRET_ALLOW_COMMAND_UPDATES: True,
             }
             Constants.HAS_DATABASE_ACCESS = False
 
@@ -134,6 +137,12 @@ class Commander(BaseProtocol):
         result.append(initial)
         return result
 
+    def allow_command_updates(self) -> bool:
+        result = self.secrets.get(self.SECRET_ALLOW_COMMAND_UPDATES)
+        if isinstance(result, str) and result.lower() in ["yes", "y", "1"]:
+            return True
+        return False
+
     def compute_audio(self, patient_uuid: str, note_uuid: str, provider_uuid: str, chunk_index: int) -> tuple[bool, list[Effect]]:
         CachedDiscussion.clear_cache()
         # retrieve the last two audio chunks
@@ -146,12 +155,12 @@ class Commander(BaseProtocol):
         discussion.add_one()
         # request the transcript of the audio (provider + patient...)
         cumulated_instructions: list[Instruction] = []
-        sdk_commands: list[tuple[Instruction, dict]] = []
         settings = Settings(
             openai_key=self.secrets[self.SECRET_OPENAI_KEY],
             science_host=self.secrets[self.SECRET_SCIENCE_HOST],
             ontologies_host=self.secrets[self.SECRET_ONTOLOGIES_HOST],
             pre_shared_key=self.secrets[self.SECRET_PRE_SHARED_KEY],
+            allow_update=self.allow_command_updates(),
         )
         chatter = AudioInterpreter(settings, patient_uuid, note_uuid, provider_uuid)
         response = chatter.combine_and_speaker_detection(audios)
@@ -166,9 +175,13 @@ class Commander(BaseProtocol):
             if response.has_error is False:
                 cumulated_instructions = Instruction.load_from_json(response.content)
 
-        # identify the commands
         log.info(f"--> instructions: {len(cumulated_instructions)}")
-        past_uuids = [instruction.uuid for instruction in discussion.previous_instructions]
+        past_uuids = {instruction.uuid: instruction for instruction in discussion.previous_instructions}
+        discussion.previous_instructions = cumulated_instructions
+
+        # identify the commands
+        results: list[Effect] = []
+        # -- new commands
         new_instructions = [instruction for instruction in cumulated_instructions if instruction.uuid not in past_uuids]
         log.info(f"--> new instructions: {len(new_instructions)}")
         if new_instructions:
@@ -177,23 +190,50 @@ class Commander(BaseProtocol):
                 for instruction in new_instructions
                 if (parameters := chatter.create_sdk_command_parameters(instruction)) and parameters[1] is not None
             ]
-            discussion.previous_instructions = cumulated_instructions
-        log.info(f"--> new commands: {len(sdk_commands)}")
+            log.info(f"--> new commands: {len(sdk_commands)}")
+            results = [
+                command.originate()
+                for instruction, parameters in sdk_commands
+                if (command := chatter.create_sdk_command_from(instruction, parameters))
+            ]
 
-        # create the commands
-        results = [
-            command
-            for instruction, parameters in sdk_commands
-            if (command := chatter.create_sdk_command_from(instruction, parameters))
+        # -- updated commands
+        mapping = chatter.schema_key2instruction()
+        note = Note.objects.get(id=note_uuid)
+        last_commands = {
+            mapping.get(c.schema_key, ""): str(c.id)
+            for c in Command.objects.filter(patient__id=patient_uuid, note_id=note.dbid)
+        }
+
+        updated_instructions = [
+            instruction
+            for instruction in cumulated_instructions
+            if instruction.uuid in past_uuids.keys()
+               and instruction.instruction in last_commands.keys()
+               and instruction.instruction == past_uuids[instruction.uuid].instruction
+               and instruction.information != past_uuids[instruction.uuid].information
         ]
+        log.info(f"--> updated instructions: {len(updated_instructions)}")
+        if updated_instructions:
+            sdk_commands = [
+                parameters
+                for instruction in updated_instructions
+                if (parameters := chatter.create_sdk_command_parameters(instruction)) and parameters[1] is not None
+            ]
+            log.info(f"--> updated commands: {len(sdk_commands)}")
+            for instruction, parameters in sdk_commands:
+                command = chatter.create_sdk_command_from(instruction, parameters)
+                command.command_uuid = last_commands[instruction.instruction]
+                results.append(command.edit())
 
+        # summary
         log.info(f"<===  note: {note_uuid} ===>")
+        log.info(f"updates ok: {settings.allow_update}")
         log.info(f"instructions: {discussion.previous_instructions}")
         log.info("<-------->")
-        log.info(f"sdk_commands: {sdk_commands}")
         for result in results:
-            log.info(f"command: {result.constantized_key()}")
-            log.info(result.values)
+            log.info(f"command: {result.type}")
+            log.info(result.payload)
         log.info("<=== END ===>")
 
-        return True, [c.originate() for c in results]
+        return True, results

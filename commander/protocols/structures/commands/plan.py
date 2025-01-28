@@ -4,6 +4,10 @@ from commander.protocols.structures.commands.base import Base
 
 
 class Plan(Base):
+    @classmethod
+    def schema_key(cls) -> str:
+        return "plan"
+
     def command_from_json(self, parameters: dict) -> None | PlanCommand:
         return PlanCommand(
             narrative=parameters["plan"],

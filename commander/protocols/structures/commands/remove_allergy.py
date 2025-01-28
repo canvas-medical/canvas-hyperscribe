@@ -5,6 +5,9 @@ from commander.protocols.structures.commands.base import Base
 
 
 class RemoveAllergy(Base):
+    @classmethod
+    def schema_key(cls) -> str:
+        return "removeAllergy"
 
     def command_from_json(self, parameters: dict) -> None | AssessCommand:
         allergy_uuid = ""
