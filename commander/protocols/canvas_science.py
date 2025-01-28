@@ -5,7 +5,7 @@ from canvas_sdk.commands.commands.allergy import AllergenType
 from logger import log
 from requests import get as requests_get
 
-from commander.protocols.structures.AllergyDetail import AllergyDetail
+from commander.protocols.structures.allergy_detail import AllergyDetail
 from commander.protocols.structures.icd10_condition import Icd10Condition
 from commander.protocols.structures.medical_concept import MedicalConcept
 from commander.protocols.structures.medication_detail import MedicationDetail

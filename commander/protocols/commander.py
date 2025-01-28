@@ -202,7 +202,12 @@ class Commander(BaseProtocol):
         note = Note.objects.get(id=note_uuid)
         last_commands = {
             mapping.get(c.schema_key, ""): str(c.id)
-            for c in Command.objects.filter(patient__id=patient_uuid, note_id=note.dbid)
+            for c in Command.objects.filter(
+                patient__id=patient_uuid,
+                note_id=note.dbid,
+                origination_source="plugin",  # <--- TODO use an Enum when provided
+                state="stage",  # <--- TODO use an Enum when provided
+            )
         }
 
         updated_instructions = [
