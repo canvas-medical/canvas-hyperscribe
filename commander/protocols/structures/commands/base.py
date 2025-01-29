@@ -238,7 +238,13 @@ class Base:
 
     def existing_questionnaires(self) -> list[CodedItem]:
         if not Constants.HAS_DATABASE_ACCESS:
-            return []
+            return [
+                CodedItem(uuid="ooo", label="Medication Adherence", code=""),
+                CodedItem(uuid="ppp", label="Tobacco", code=""),
+                CodedItem(uuid="qqq", label="Exercise", code=""),
+                CodedItem(uuid="rrr", label="Stress", code=""),
+                CodedItem(uuid="sss", label="Care Plan", code=""),
+            ]
         if self._questionnaires is None:
             self._questionnaires = []
             questionnaires = Questionnaire.objects.filter(
