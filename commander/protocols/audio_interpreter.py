@@ -45,8 +45,10 @@ class AudioInterpreter:
         self.patient_id = patient_id
         self.note_uuid = note_uuid
         self._command_context = [
-            command_class(settings, patient_id, note_uuid, provider_uuid)
+            instance
             for command_class in self.implemented_commands()
+            if (instance :=command_class(settings, patient_id, note_uuid, provider_uuid))
+               and instance.is_available()
         ]
 
     def instruction_definitions(self) -> list[dict[str, str]]:
@@ -55,20 +57,20 @@ class AudioInterpreter:
                 "instruction": instance.class_name(),
                 "information": instance.instruction_description(),
             }
-            for instance in self._command_context if instance.is_available()
+            for instance in self._command_context
         ]
 
     def instruction_constraints(self) -> list[str]:
         result: list[str] = []
         for instance in self._command_context:
-            if instance.is_available() and (constraint := instance.instruction_constraints()):
+            if constraint := instance.instruction_constraints():
                 result.append(constraint)
         return result
 
     def command_structures(self) -> dict:
         return {
             instance.class_name(): instance.command_parameters()
-            for instance in self._command_context if instance.is_available()
+            for instance in self._command_context
         }
 
     def combine_and_speaker_detection(self, audio_chunks: list[bytes]) -> JsonExtract:
