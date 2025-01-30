@@ -78,18 +78,18 @@ class AudioInterpreter:
         conversation.system_prompt = [
             "The conversation is in the medical context, and related to a visit of a patient with a healthcare provider.",
             "",
-            "Your task is to identify what was said, regardless of whether the audio recordings were of dialogue during the visit or monologue after the visit.",
+            "Your task is to transcribe what was said, regardless of whether the audio recordings were of dialogue during the visit or monologue after the visit.",
             "",
         ]
         conversation.user_prompt = [
-            "The recording takes place in a medical setting, specifically related to a patient's visit to a clinician.",
+            "The recording takes place in a medical setting, specifically related to a patient's visit with a clinician.",
             "",
-            "These audio files contain recordings of a single session.",
+            "These audio files contain recordings of a single visit.",
             "There is no overlap between the segments, so they should be regarded as a continuous flow and analyzed at once.",
             "",
             'Your task is to:',
-            "1. Distinguish and separate each voice if multiple speakers are present.",
-            "2. Transcribe each speaker's words with maximum accuracy",
+            "1. label each voice if multiple voices are present.",
+            "2. transcribe each speaker's words with maximum accuracy",
             "",
             "Present your findings in a JSON format within a Markdown code block:",
             "```json",
