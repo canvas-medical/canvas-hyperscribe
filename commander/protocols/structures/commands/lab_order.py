@@ -77,7 +77,8 @@ class LabOrder(Base):
         for expression in parameters["keywords"].split(","):
             # expression can have several words: look for records that have all of them, regardless of their order
             keywords = expression.strip().split()
-            query = DataLabTestView.objects.filter(reduce(and_, (Q(keywords__icontains=kw) for kw in keywords)))
+            # ATTENTION: We need to determine the lab vendor in a smarter, dynamic way
+            query = DataLabTestView.objects.filter(lab__name="Generic Lab").filter(reduce(and_, (Q(keywords__icontains=kw) for kw in keywords)))
             for test in query:
                 lab_tests.append(test)
         # ask the LLM to pick the most relevant test
