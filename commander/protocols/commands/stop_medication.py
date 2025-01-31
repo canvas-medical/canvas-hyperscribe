@@ -1,7 +1,7 @@
 from canvas_sdk.commands.commands.assess import AssessCommand
 from canvas_sdk.commands.commands.stop_medication import StopMedicationCommand
 
-from commander.protocols.structures.commands.base import Base
+from commander.protocols.commands.base import Base
 
 
 class StopMedication(Base):

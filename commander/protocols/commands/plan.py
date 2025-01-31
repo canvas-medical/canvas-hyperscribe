@@ -1,6 +1,6 @@
 from canvas_sdk.commands.commands.plan import PlanCommand
 
-from commander.protocols.structures.commands.base import Base
+from commander.protocols.commands.base import Base
 
 
 class Plan(Base):

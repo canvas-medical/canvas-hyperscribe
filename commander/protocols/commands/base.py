@@ -1,7 +1,3 @@
-from datetime import datetime, date
-from enum import Enum
-from re import match
-from typing import Type
 
 from canvas_sdk.commands.base import _BaseCommand
 from canvas_sdk.v1.data import Condition, Questionnaire, Command
@@ -11,6 +7,7 @@ from canvas_sdk.v1.data.condition import ClinicalStatus
 from canvas_sdk.v1.data.medication import Status
 
 from commander.protocols.constants import Constants
+from commander.protocols.helper import Helper
 from commander.protocols.structures.coded_item import CodedItem
 from commander.protocols.structures.settings import Settings
 
@@ -34,35 +31,6 @@ class Base:
     @classmethod
     def class_name(cls) -> str:
         return cls.__name__
-
-    @classmethod
-    def str2datetime(cls, string: str | None) -> datetime | None:
-        try:
-            return datetime.strptime(string, "%Y-%m-%d")
-        except Exception:
-            return None
-
-    @classmethod
-    def str2date(cls, string: str | None) -> date | None:
-        if result := cls.str2datetime(string):
-            return result.date()
-        return None
-
-    @classmethod
-    def enum_or_none(cls, value: str, enum: Type[Enum]) -> Enum | None:
-        if value in (item.value for item in enum):
-            return enum(value)
-        return None
-
-    @classmethod
-    def icd10_add_dot(cls, code: str) -> str:
-        if result := match(r"([A-Za-z]+\d{2})(\d+)", code):
-            return f"{result.group(1)}.{result.group(2)}"
-        return code
-
-    @classmethod
-    def icd10_strip_dot(cls, code: str) -> str:
-        return code.replace(".", "")
 
     @classmethod
     def schema_key(cls) -> str:
@@ -136,7 +104,7 @@ class Base:
                         self._conditions.append(CodedItem(
                             uuid=str(condition.id),
                             label=coding.display,
-                            code=self.icd10_add_dot(coding.code),
+                            code=Helper.icd10_add_dot(coding.code),
                         ))
         return self._conditions
 
@@ -216,7 +184,7 @@ class Base:
                         self._condition_history.append(CodedItem(
                             uuid=str(condition.id),
                             label=coding.display,
-                            code=self.icd10_add_dot(coding.code),
+                            code=Helper.icd10_add_dot(coding.code),
                         ))
         return self._condition_history
 
@@ -232,7 +200,7 @@ class Base:
                         self._surgery_history.append(CodedItem(
                             uuid=str(condition.id),
                             label=coding.display,
-                            code=self.icd10_add_dot(coding.code),
+                            code=Helper.icd10_add_dot(coding.code),
                         ))
         return self._surgery_history
 

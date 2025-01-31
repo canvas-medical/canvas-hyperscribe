@@ -2,10 +2,11 @@ import json
 
 from canvas_sdk.commands.commands.task import TaskCommand, TaskAssigner, AssigneeType
 from canvas_sdk.v1.data import TaskLabel, Staff
+from commander.protocols.commands.base import Base
 
 from commander.protocols.constants import Constants
+from commander.protocols.helper import Helper
 from commander.protocols.openai_chat import OpenaiChat
-from commander.protocols.structures.commands.base import Base
 
 
 class Task(Base):
@@ -16,7 +17,7 @@ class Task(Base):
     def command_from_json(self, parameters: dict) -> None | TaskCommand:
         result = TaskCommand(
             title=parameters["title"],
-            due_date=self.str2date(parameters["dueDate"]),
+            due_date=Helper.str2date(parameters["dueDate"]),
             comment=parameters["comment"],
             note_uuid=self.note_uuid,
         )

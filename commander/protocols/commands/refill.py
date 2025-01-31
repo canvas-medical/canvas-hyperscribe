@@ -2,8 +2,9 @@ from canvas_sdk.commands.commands.prescribe import PrescribeCommand
 from canvas_sdk.commands.commands.refill import RefillCommand
 from canvas_sdk.commands.constants import ClinicalQuantity
 from canvas_sdk.v1.data import Medication
+from commander.protocols.commands.base import Base
 
-from commander.protocols.structures.commands.base import Base
+from commander.protocols.helper import Helper
 
 
 class Refill(Base):
@@ -26,7 +27,7 @@ class Refill(Base):
                     representative_ndc=medication.national_drug_code,
                     ncpdp_quantity_qualifier_code=medication.potency_unit_code,
                 ),
-                substitutions=self.enum_or_none(parameters["substitution"], PrescribeCommand.Substitutions),
+                substitutions=Helper.enum_or_none(parameters["substitution"], PrescribeCommand.Substitutions),
                 prescriber_id=self.provider_uuid,
                 note_uuid=self.note_uuid,
             )

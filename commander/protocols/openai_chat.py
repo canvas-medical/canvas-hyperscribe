@@ -66,7 +66,7 @@ class OpenaiChat:
         )
         return HttpResponse(code=request.status_code, response=request.text)
 
-    def chat(self, add_log: bool = False) -> JsonExtract:
+    def chat(self, add_log: bool = False, schemas: list | None = None) -> JsonExtract:
         # TODO handle errors (network issue, incorrect LLM response format...)
         url = "https://api.openai.com/v1/chat/completions"
         response = self.post(url, {}, json.dumps(self.to_dict()))
@@ -79,7 +79,7 @@ class OpenaiChat:
                 # log.info(f"   -------------    ")
                 log.info(text)
                 log.info("****** CHAT ENDS *******")
-            return self.extract_json_from(text)
+            return self.extract_json_from(text, schemas)
         else:
             log.info("***********")
             log.info(response.code)
@@ -88,7 +88,7 @@ class OpenaiChat:
         return JsonExtract(f"the reported error is: {response.code}", True, [])
 
     @classmethod
-    def extract_json_from(cls, content: str) -> JsonExtract:
+    def extract_json_from(cls, content: str, schemas: list | None = None) -> JsonExtract:
         # print("-------------------------------------------------")
         # print(content)
         # print("-------------------------------------------------")

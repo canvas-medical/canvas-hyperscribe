@@ -1,7 +1,8 @@
 from canvas_sdk.commands.commands.close_goal import CloseGoalCommand
 from canvas_sdk.commands.commands.goal import GoalCommand
+from commander.protocols.commands.base import Base
 
-from commander.protocols.structures.commands.base import Base
+from commander.protocols.helper import Helper
 
 
 class CloseGoal(Base):
@@ -18,7 +19,7 @@ class CloseGoal(Base):
         return CloseGoalCommand(
             # TODO should be goal_id=goal_uuid, waiting for https://github.com/canvas-medical/canvas-plugins/issues/338
             goal_id=int(goal_uuid),
-            achievement_status=self.enum_or_none(parameters["status"], GoalCommand.AchievementStatus),
+            achievement_status=Helper.enum_or_none(parameters["status"], GoalCommand.AchievementStatus),
             progress=parameters["progressAndBarriers"],
             note_uuid=self.note_uuid,
         )

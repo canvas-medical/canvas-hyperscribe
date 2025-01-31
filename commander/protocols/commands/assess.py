@@ -1,6 +1,7 @@
 from canvas_sdk.commands.commands.assess import AssessCommand
+from commander.protocols.commands.base import Base
 
-from commander.protocols.structures.commands.base import Base
+from commander.protocols.helper import Helper
 
 
 class Assess(Base):
@@ -15,7 +16,7 @@ class Assess(Base):
         return AssessCommand(
             condition_id=condition_id,
             background=parameters["rationale"],
-            status=self.enum_or_none(parameters["status"], AssessCommand.Status),
+            status=Helper.enum_or_none(parameters["status"], AssessCommand.Status),
             narrative=parameters["assessment"],
             note_uuid=self.note_uuid,
         )

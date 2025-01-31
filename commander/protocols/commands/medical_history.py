@@ -2,11 +2,12 @@ import json
 
 from canvas_sdk.commands.commands.medical_history import MedicalHistoryCommand
 from canvas_sdk.commands.commands.past_surgical_history import PastSurgicalHistoryCommand
+from commander.protocols.commands.base import Base
 
 from commander.protocols.canvas_science import CanvasScience
 from commander.protocols.constants import Constants
+from commander.protocols.helper import Helper
 from commander.protocols.openai_chat import OpenaiChat
-from commander.protocols.structures.commands.base import Base
 
 
 class MedicalHistory(Base):
@@ -51,8 +52,8 @@ class MedicalHistory(Base):
 
         return MedicalHistoryCommand(
             past_medical_history=condition,
-            approximate_start_date=self.str2date(parameters["approximateStartDate"]),
-            approximate_end_date=self.str2date(parameters["approximateEndDate"]),
+            approximate_start_date=Helper.str2date(parameters["approximateStartDate"]),
+            approximate_end_date=Helper.str2date(parameters["approximateEndDate"]),
             show_on_condition_list=True,
             comments=parameters["comments"],
             note_uuid=self.note_uuid,

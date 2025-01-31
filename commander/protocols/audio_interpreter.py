@@ -3,35 +3,35 @@ from datetime import datetime
 from typing import Type
 
 from canvas_sdk.commands.base import _BaseCommand as BaseCommand
+from commander.protocols.commands.allergy import Allergy
+from commander.protocols.commands.assess import Assess
+from commander.protocols.commands.base import Base
+from commander.protocols.commands.close_goal import CloseGoal
+from commander.protocols.commands.diagnose import Diagnose
+from commander.protocols.commands.family_history import FamilyHistory
+from commander.protocols.commands.goal import Goal
+from commander.protocols.commands.history_of_present_illness import HistoryOfPresentIllness
+from commander.protocols.commands.immunize import Immunize
+from commander.protocols.commands.instruct import Instruct
+from commander.protocols.commands.lab_order import LabOrder
+from commander.protocols.commands.medical_history import MedicalHistory
+from commander.protocols.commands.medication import Medication
+from commander.protocols.commands.physical_exam import PhysicalExam
+from commander.protocols.commands.plan import Plan
+from commander.protocols.commands.prescription import Prescription
+from commander.protocols.commands.questionnaire import Questionnaire
+from commander.protocols.commands.reason_for_visit import ReasonForVisit
+from commander.protocols.commands.refill import Refill
+from commander.protocols.commands.remove_allergy import RemoveAllergy
+from commander.protocols.commands.stop_medication import StopMedication
+from commander.protocols.commands.surgery_history import SurgeryHistory
+from commander.protocols.commands.task import Task
+from commander.protocols.commands.update_diagnose import UpdateDiagnose
+from commander.protocols.commands.update_goal import UpdateGoal
+from commander.protocols.commands.vitals import Vitals
 
 from commander.protocols.constants import Constants
 from commander.protocols.openai_chat import OpenaiChat
-from commander.protocols.structures.commands.allergy import Allergy
-from commander.protocols.structures.commands.assess import Assess
-from commander.protocols.structures.commands.base import Base
-from commander.protocols.structures.commands.close_goal import CloseGoal
-from commander.protocols.structures.commands.diagnose import Diagnose
-from commander.protocols.structures.commands.family_history import FamilyHistory
-from commander.protocols.structures.commands.goal import Goal
-from commander.protocols.structures.commands.history_of_present_illness import HistoryOfPresentIllness
-from commander.protocols.structures.commands.immunize import Immunize
-from commander.protocols.structures.commands.instruct import Instruct
-from commander.protocols.structures.commands.lab_order import LabOrder
-from commander.protocols.structures.commands.medical_history import MedicalHistory
-from commander.protocols.structures.commands.medication import Medication
-from commander.protocols.structures.commands.physical_exam import PhysicalExam
-from commander.protocols.structures.commands.plan import Plan
-from commander.protocols.structures.commands.prescription import Prescription
-from commander.protocols.structures.commands.questionnaire import Questionnaire
-from commander.protocols.structures.commands.reason_for_visit import ReasonForVisit
-from commander.protocols.structures.commands.refill import Refill
-from commander.protocols.structures.commands.remove_allergy import RemoveAllergy
-from commander.protocols.structures.commands.stop_medication import StopMedication
-from commander.protocols.structures.commands.surgery_history import SurgeryHistory
-from commander.protocols.structures.commands.task import Task
-from commander.protocols.structures.commands.update_diagnose import UpdateDiagnose
-from commander.protocols.structures.commands.update_goal import UpdateGoal
-from commander.protocols.structures.commands.vitals import Vitals
 from commander.protocols.structures.instruction import Instruction
 from commander.protocols.structures.json_extract import JsonExtract
 from commander.protocols.structures.line import Line
@@ -47,7 +47,7 @@ class AudioInterpreter:
         self._command_context = [
             instance
             for command_class in self.implemented_commands()
-            if (instance :=command_class(settings, patient_id, note_uuid, provider_uuid))
+            if (instance := command_class(settings, patient_id, note_uuid, provider_uuid))
                and instance.is_available()
         ]
 

@@ -2,11 +2,12 @@ import json
 
 from canvas_sdk.commands.commands.prescribe import PrescribeCommand
 from canvas_sdk.commands.constants import ClinicalQuantity
+from commander.protocols.commands.base import Base
 
 from commander.protocols.canvas_science import CanvasScience
 from commander.protocols.constants import Constants
+from commander.protocols.helper import Helper
 from commander.protocols.openai_chat import OpenaiChat
-from commander.protocols.structures.commands.base import Base
 
 
 class Prescription(Base):
@@ -22,7 +23,7 @@ class Prescription(Base):
                 and isinstance(parameters["conditionIndex"], int)
                 and 0 <= (idx := parameters["conditionIndex"]) < len(self.current_conditions())):
             targeted_condition = self.current_conditions()[idx]
-            condition_icd10s.append(self.icd10_strip_dot(targeted_condition.code))
+            condition_icd10s.append(Helper.icd10_strip_dot(targeted_condition.code))
             prompt_condition = f'The prescription is intended to the patient\'s condition: {targeted_condition.label}.'
 
         # retrieve existing medications defined in Canvas Science
@@ -75,7 +76,7 @@ class Prescription(Base):
                     representative_ndc=quantity.representative_ndc,
                     ncpdp_quantity_qualifier_code=quantity.ncpdp_quantity_qualifier_code,
                 ),
-                substitutions=self.enum_or_none(parameters["substitution"], PrescribeCommand.Substitutions),
+                substitutions=Helper.enum_or_none(parameters["substitution"], PrescribeCommand.Substitutions),
                 prescriber_id=self.provider_uuid,
                 note_uuid=self.note_uuid,
             )

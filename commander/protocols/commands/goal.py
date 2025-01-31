@@ -1,6 +1,7 @@
 from canvas_sdk.commands.commands.goal import GoalCommand
+from commander.protocols.commands.base import Base
 
-from commander.protocols.structures.commands.base import Base
+from commander.protocols.helper import Helper
 
 
 class Goal(Base):
@@ -11,10 +12,10 @@ class Goal(Base):
     def command_from_json(self, parameters: dict) -> None | GoalCommand:
         return GoalCommand(
             goal_statement=parameters["goal"],
-            start_date=self.str2datetime(parameters["startDate"]),
-            due_date=self.str2datetime(parameters["dueDate"]),
-            achievement_status=self.enum_or_none(parameters["status"], GoalCommand.AchievementStatus),
-            priority=self.enum_or_none(parameters["priority"], GoalCommand.Priority),
+            start_date=Helper.str2datetime(parameters["startDate"]),
+            due_date=Helper.str2datetime(parameters["dueDate"]),
+            achievement_status=Helper.enum_or_none(parameters["status"], GoalCommand.AchievementStatus),
+            priority=Helper.enum_or_none(parameters["priority"], GoalCommand.Priority),
             progress=parameters["progressAndBarriers"],
             note_uuid=self.note_uuid,
         )

@@ -78,8 +78,8 @@ class Commander(BaseProtocol):
     def compute(self) -> list[Effect]:
         comment = TaskComment.objects.get(id=self.target)
         log.info(f"--> comment: {comment.id} (task: {comment.task.id}, labels: {[r for r in comment.task.labels.all()]})")
-        # if comment.task.title != self.LABEL_ENCOUNTER_COPILOT:
-        if not comment.task.labels.filter(name=self.LABEL_ENCOUNTER_COPILOT).first():
+        # if not comment.task.labels.filter(name=self.LABEL_ENCOUNTER_COPILOT).first():
+        if comment.task.title != self.LABEL_ENCOUNTER_COPILOT:
             return []
 
         # the context will have the OpenAIKey on local environment only (no database access yet)

@@ -1,11 +1,12 @@
 import json
 
 from canvas_sdk.commands.commands.allergy import AllergyCommand, Allergen, AllergenType
+from commander.protocols.commands.base import Base
 
 from commander.protocols.canvas_science import CanvasScience
 from commander.protocols.constants import Constants
+from commander.protocols.helper import Helper
 from commander.protocols.openai_chat import OpenaiChat
-from commander.protocols.structures.commands.base import Base
 
 
 class Allergy(Base):
@@ -60,9 +61,9 @@ class Allergy(Base):
         ]
         response = conversation.chat()
         result = AllergyCommand(
-            severity=self.enum_or_none(parameters["severity"], AllergyCommand.Severity),
+            severity=Helper.enum_or_none(parameters["severity"], AllergyCommand.Severity),
             narrative=parameters["reaction"],
-            approximate_date=self.str2date(parameters["approximateDateOfOnset"]),
+            approximate_date=Helper.str2date(parameters["approximateDateOfOnset"]),
             note_uuid=self.note_uuid,
         )
 

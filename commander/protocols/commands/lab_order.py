@@ -1,0 +1,77 @@
+from canvas_sdk.commands.commands.lab_order import LabOrderCommand
+from commander.protocols.commands.base import Base
+
+from commander.protocols.selector_chat import SelectorChat
+from commander.protocols.temporary_data import TemporaryData
+
+
+class LabOrder(Base):
+
+    @classmethod
+    def schema_key(cls) -> str:
+        return "labOrder"
+
+    def command_from_json(self, parameters: dict) -> None | LabOrderCommand:
+        result = LabOrderCommand(
+            lab_partner="Generic Lab",  # ATTENTION: We need to determine the lab vendor in a smarter, dynamic way
+            ordering_provider_key=self.provider_uuid,
+            fasting_required=parameters["fastingRequired"],
+            comment=parameters["comment"][:127],  # <-- no more than 128 characters
+            note_uuid=self.note_uuid,
+        )
+
+        # retrieve the linked conditions
+        conditions = []
+        for condition in parameters["conditions"]:
+            item = SelectorChat.condition_from(
+                self.settings,
+                condition["conditionKeywords"].split(","),
+                condition["ICD10"].split(","),
+                parameters["comment"],
+            )
+            if item.code:
+                conditions.append(item)
+                result.diagnosis_codes.append(item.code)
+
+        # retrieve the tests based on the keywords
+        for lab_order in parameters["labOrders"]:
+            item = SelectorChat.lab_test_from(
+                self.settings,
+                result.lab_partner,
+                lab_order["labOrderKeyword"].split(","),
+                parameters["comment"],
+                [c.label for c in conditions],
+            )
+            if item.code:
+                result.tests_order_codes.append(item.code)
+
+        return result
+
+    def command_parameters(self) -> dict:
+        return {
+            "labOrders": [
+                {
+                    "labOrderKeyword": "comma separated keywords of up to 5 synonyms of each lab test to order",
+                },
+            ],
+            "conditions": [
+                {
+                    "conditionKeywords": "comma separated keywords of up to 5 synonyms of each condition targeted by the lab tests",
+                    "ICD10": "comma separated keywords of up to 5 ICD-10 codes of each condition targeted by the lab test",
+                },
+            ],
+            "fastingRequired": "mandatory, True or False, as boolean",
+            "comment": "rational of the prescription, as free text limited to 128 characters",
+        }
+
+    def instruction_description(self) -> str:
+        return ("Lab tests ordered, including the directions and the targeted condition. "
+                "There can be several lab orders in an instruction with the fasting requirement for the whole instruction "
+                "and all necessary information for each lab order, "
+                "and no instruction in the lack of.")
+
+    def instruction_constraints(self) -> str:
+        return ""
+
+    def is_available(self) -> bool:
+        return TemporaryData.access_to_lab_data()

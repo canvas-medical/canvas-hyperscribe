@@ -2,11 +2,12 @@ import json
 
 from canvas_sdk.commands.commands.diagnose import DiagnoseCommand
 from canvas_sdk.commands.commands.update_diagnosis import UpdateDiagnosisCommand
+from commander.protocols.commands.base import Base
 
 from commander.protocols.canvas_science import CanvasScience
 from commander.protocols.constants import Constants
+from commander.protocols.helper import Helper
 from commander.protocols.openai_chat import OpenaiChat
-from commander.protocols.structures.commands.base import Base
 
 
 class UpdateDiagnose(Base):
@@ -39,7 +40,7 @@ class UpdateDiagnose(Base):
             "",
             'Among the following conditions, identify the most relevant one:',
             '',
-            "\n".join(f' * {condition.label} (ICD-10: {self.icd10_add_dot(condition.code)})' for condition in conditions),
+            "\n".join(f' * {condition.label} (ICD-10: {Helper.icd10_add_dot(condition.code)})' for condition in conditions),
             '',
             'Please, present your findings in a JSON format within a Markdown code block like:',
             '```json',
@@ -60,7 +61,7 @@ class UpdateDiagnose(Base):
             note_uuid=self.note_uuid,
         )
         if response.has_error is False and response.content:
-            icd10 = self.icd10_strip_dot(response.content[0]["ICD10"])
+            icd10 = Helper.icd10_strip_dot(response.content[0]["ICD10"])
             result.new_condition_code = icd10
         return result
 

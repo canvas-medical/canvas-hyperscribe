@@ -1,6 +1,6 @@
 from canvas_sdk.commands.commands.reason_for_visit import ReasonForVisitCommand
 
-from commander.protocols.structures.commands.base import Base
+from commander.protocols.commands.base import Base
 
 
 class ReasonForVisit(Base):

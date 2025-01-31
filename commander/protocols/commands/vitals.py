@@ -1,8 +1,7 @@
 from typing import Type
 
 from canvas_sdk.commands.commands.vitals import VitalsCommand
-
-from commander.protocols.structures.commands.base import Base
+from commander.protocols.commands.base import Base
 
 
 class Vitals(Base):
