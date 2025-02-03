@@ -1,0 +1,17 @@
+{
+  "instructions": [
+    {
+      "uuid": "a",
+      "instruction": "Instruct",
+      "information": "Mix in some protein and veggies with carbs for a balanced diet.",
+      "isNew": false,
+      "is_updated": false
+    }
+  ],
+  "parameters": [
+    {
+      "keywords": "protein, veggies, carbohydrates, balanced, diet",
+      "comment": "Mix in some protein and veggies with carbs for a balanced diet."
+    }
+  ]
+}

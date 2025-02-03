@@ -1,0 +1,38 @@
+{
+  "commands": [
+    {
+      "module": "canvas_sdk.commands.commands.prescribe",
+      "class": "PrescribeCommand",
+      "attributes": {
+        "fdb_code": "586148",
+        "icd10_codes": [],
+        "sig": "Administer one dose of meningitis booster vaccine.",
+        "days_supply": 1,
+        "quantity_to_dispense": "0.85",
+        "type_to_dispense": {
+          "representative_ndc": "58160081305",
+          "ncpdp_quantity_qualifier_code": "C28254"
+        },
+        "refills": 0,
+        "substitutions": "not_allowed",
+        "pharmacy": null,
+        "prescriber_id": "providerUVW",
+        "note_to_pharmacist": "Dispense the exact amount needed for a single dose. No refills required for a booster dose."
+      }
+    }
+  ],
+  "instructions": [
+    {
+      "instruction": "Prescription"
+    }
+  ],
+  "parameters": [
+    {
+      "keywords": "meningitis booster, meningococcal vaccine, meningitis vaccine, meningococcal booster, meningitis shot",
+      "sig": "Administer one dose of meningitis booster vaccine.",
+      "suppliedDays": "1",
+      "substitution": "not_allowed",
+      "comment": "Recommended for booster protection against meningitis."
+    }
+  ]
+}

@@ -1,0 +1,42 @@
+{
+  "transcript": [
+    {
+      "speaker": "Clinician",
+      "text": "Sophia, let's check your blood pressure and pulse. Please sit here, rest your arm on the table. This will just take a minute. Okay. Alright, 112 over 70 for your blood pressure, and your pulse is 72. Both are excellent, especially for someone as active as you."
+    }
+  ],
+  "instructions": {
+    "initial": [
+      {
+        "uuid": "a",
+        "instruction": "Vitals",
+        "information": "Weight is 125 pounds, height is 5 feet 5 inches",
+        "isNew": true,
+        "is_updated": false
+      },
+      {
+        "uuid": "b",
+        "instruction": "HistoryOfPresentIllness",
+        "information": "Sophia is on the varsity water polo team, practicing five times a week with tournaments on some weekends. She has been consistent in her growth, with no major growth spurts.",
+        "isNew": true,
+        "isUpdated": false
+      }
+    ],
+    "result": [
+      {
+        "uuid": "a",
+        "instruction": "Vitals",
+        "information": "Weight is 125 pounds, height is 5 feet 5 inches. Blood pressure is 112 over 70, and pulse is 72.",
+        "isNew": false,
+        "isUpdated": true
+      },
+      {
+        "uuid": "b",
+        "instruction": "HistoryOfPresentIllness",
+        "information": "Sophia is on the varsity water polo team, practicing five times a week with tournaments on some weekends. She has been consistent in her growth, with no major growth spurts.",
+        "isNew": false,
+        "isUpdated": false
+      }
+    ]
+  }
+}

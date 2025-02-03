@@ -1,6 +1,6 @@
 import json
 
-from canvas_sdk.commands.commands.prescribe import PrescribeCommand
+from canvas_sdk.commands.commands.prescribe import PrescribeCommand, Decimal
 from canvas_sdk.commands.constants import ClinicalQuantity
 from commander.protocols.commands.base import Base
 
@@ -112,7 +112,7 @@ class Prescription(Base):
             response = conversation.chat()
             if response.has_error is False and response.content:
                 # TODO should be Decimal, waiting for https://github.com/canvas-medical/canvas-plugins/discussions/332
-                result.quantity_to_dispense = float(response.content[0]["quantityToDispense"])
+                result.quantity_to_dispense = Decimal(response.content[0]["quantityToDispense"]).quantize(Decimal('0.01'))
                 result.refills = int(response.content[0]["refills"])
                 result.note_to_pharmacist = response.content[0]["noteToPharmacist"]
 

@@ -1,0 +1,37 @@
+{
+  "instructions": [
+    {
+      "uuid": "a",
+      "instruction": "Vitals",
+      "information": "Height is 5 feet 5 inches, and weight is 125 pounds. Blood pressure is 112 over 70, and pulse is 72.",
+      "isNew": false,
+      "is_updated": false
+    }
+  ],
+  "parameters": [
+    {
+      "height": {
+        "inches": 65
+      },
+      "weight": {
+        "pounds": 125
+      },
+      "waistCircumference": {
+        "centimeters": 0
+      },
+      "temperature": {
+        "fahrenheit": 0.0
+      },
+      "bloodPressure": {
+        "systolicPressure": 112,
+        "diastolicPressure": 70
+      },
+      "pulseRate": {
+        "beatPerMinute": 72
+      },
+      "respirationRate": {
+        "beatPerMinute": 0
+      }
+    }
+  ]
+}

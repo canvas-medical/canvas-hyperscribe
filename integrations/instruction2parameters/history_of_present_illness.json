@@ -1,0 +1,16 @@
+{
+  "instructions": [
+    {
+      "uuid": "a",
+      "instruction": "HistoryOfPresentIllness",
+      "information": "Sophia is active in varsity water polo, practicing five times a week and participating in tournaments on some weekends. She has been consistent in her growth, with no major growth spurts. She feels fine during workouts, just tired after practice, which is normal. She had a sore shoulder once, which improved after a few days with ice and rest.",
+      "isNew": false,
+      "is_updated": false
+    }
+  ],
+  "parameters": [
+    {
+      "narrative": "Sophia is active in varsity water polo, practicing five times a week and participating in tournaments on some weekends. She has been consistent in her growth, with no major growth spurts. She feels fine during workouts, just tired after practice, which is normal. She had a sore shoulder once, which improved after a few days with ice and rest."
+    }
+  ]
+}
