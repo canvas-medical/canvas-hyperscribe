@@ -1,0 +1,31 @@
+{
+  "commands": [
+    {
+      "module": "canvas_sdk.commands.commands.allergy",
+      "class": "AllergyCommand",
+      "attributes": {
+        "allergy": {
+          "concept_id": 477,
+          "concept_type": 1
+        },
+        "severity": "moderate",
+        "narrative": "unknown",
+        "approximate_date": "2025-02-04"
+      }
+    }
+  ],
+  "instructions": [
+    {
+      "instruction": "Allergy"
+    }
+  ],
+  "parameters": [
+    {
+      "keywords": "cephalosporin",
+      "type": "allergy group",
+      "severity": "moderate",
+      "reaction": "unknown",
+      "approximateDateOfOnset": "2025-02-04"
+    }
+  ]
+}

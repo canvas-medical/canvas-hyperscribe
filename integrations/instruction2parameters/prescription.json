@@ -1,0 +1,20 @@
+{
+  "instructions": [
+    {
+      "uuid": "a",
+      "instruction": "Prescription",
+      "information": "Clotrimazole cream, one percent, to be applied on the affected area.",
+      "isNew": false,
+      "is_updated": false
+    }
+  ],
+  "parameters": [
+    {
+      "keywords": "Clotrimazole, antifungal, cream, topical, Lotrimin",
+      "sig": "Apply the cream on the affected area.",
+      "suppliedDays": 14,
+      "substitution": "allowed",
+      "comment": "Prescribed for treating fungal skin infections."
+    }
+  ]
+}

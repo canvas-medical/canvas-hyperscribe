@@ -1,10 +1,15 @@
+import json
 from os import environ
 
 from commander.protocols.commander import Commander
+from commander.protocols.constants import Constants
+from commander.protocols.openai_chat import OpenaiChat
 from commander.protocols.structures.settings import Settings
 
 
 class HelperSettings:
+    DIFFERENCE_LEVELS = ["minor", "moderate", "severe", "critical"]
+
     @classmethod
     def settings(cls) -> Settings:
         return Settings(
@@ -14,3 +19,81 @@ class HelperSettings:
             pre_shared_key=environ[Commander.SECRET_PRE_SHARED_KEY],
             allow_update=True,
         )
+
+    @classmethod
+    def json_nuanced_differences(cls, accepted_levels: list[str], result_json: str, expected_json: str) -> tuple[bool, str]:
+        system_prompt = [
+            "The user will provides two JSON objects. ",
+            "Your task is compare them and report the discrepancies as a JSON list in a Markdown block like:",
+            "```json",
+            json.dumps([
+                {
+                    "level": "/".join(cls.DIFFERENCE_LEVELS),
+                    "difference": "description of the difference between the JSONs",
+                }
+            ]),
+            "```",
+            "",
+            # "All text values should be considered on the levels scale in order to solely express the meaning differences.",
+            "All text values should be evaluated together and on the level scale to effectively convey the impact of the changes in meaning from a medical point of view.",
+            "Unless otherwise specified, dates and numbers must be presented identically.",
+        ]
+        user_prompt = [
+            "First JSON, called 'automated': ",
+            "```json",
+            result_json,
+            "```",
+            "",
+            "Second JSON, called 'reviewed': ",
+            "```json",
+            expected_json,
+            "```",
+            "",
+            "Please, review both JSONs and report as instructed all differences."
+        ]
+        return cls.nuanced_differences(accepted_levels, system_prompt, user_prompt)
+
+    @classmethod
+    def text_nuanced_differences(cls, accepted_levels: list[str], result_text: str, expected_text: str) -> tuple[bool, str]:
+        system_prompt = [
+            "The user will provides two texts. ",
+            "Your task is compare them *solely* from a medical meaning point of view and report the discrepancies as a JSON list in a Markdown block like:",
+            "```json",
+            json.dumps([
+                {
+                    "level": "/".join(cls.DIFFERENCE_LEVELS),
+                    "difference": "description of the difference between the texts",
+                }
+            ]),
+            "```",
+        ]
+        user_prompt = [
+            "First text, called 'automated': ",
+            "```text",
+            result_text,
+            "```",
+            "",
+            "Second text, called 'reviewed': ",
+            "```text",
+            expected_text,
+            "```",
+            "",
+            "Please, review both texts and report as instructed all differences from a meaning point of view."
+        ]
+        return cls.nuanced_differences(accepted_levels, system_prompt, user_prompt)
+
+    @classmethod
+    def nuanced_differences(cls, accepted_levels: list[str], system_prompt: list[str], user_prompt: list[str]) -> tuple[bool, str]:
+        settings = cls.settings()
+        conversation = OpenaiChat(settings.openai_key, Constants.OPENAI_CHAT_TEXT)
+        conversation.system_prompt = system_prompt
+        conversation.user_prompt = user_prompt
+        chat = conversation.chat()
+        if chat.has_error:
+            return False, f"encountered error: {chat.error}"
+        excluded_minor_differences = [
+            difference
+            for difference in chat.content
+            if difference["level"] not in accepted_levels
+        ]
+        return bool(excluded_minor_differences == []), json.dumps(chat.content, indent=1)

@@ -1,0 +1,21 @@
+{
+  "commands": [
+    {
+      "module": "canvas_sdk.commands.commands.history_present_illness",
+      "class": "HistoryOfPresentIllnessCommand",
+      "attributes": {
+        "narrative": "Patient presents with an itchy rash on the arm that started three days ago. The rash is splotchy, circular, larger than a quarter, expanding, with redder edges and a non-red center. The patient describes it as very itchy and concerning. The patient is experiencing anxiety and panic, particularly worried about a potential worm infection. The patient has a history of panic disorder and has run out of medication."
+      }
+    }
+  ],
+  "instructions": [
+    {
+      "instruction": "HistoryOfPresentIllness"
+    }
+  ],
+  "parameters": [
+    {
+      "narrative": "Patient presents with an itchy rash on the arm that started three days ago. The rash is splotchy, circular, larger than a quarter, expanding, with redder edges and a non-red center. The patient describes it as very itchy and concerning. The patient is experiencing anxiety and panic, particularly worried about a potential worm infection. The patient has a history of panic disorder and has run out of medication."
+    }
+  ]
+}
