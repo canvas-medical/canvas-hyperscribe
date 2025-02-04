@@ -109,6 +109,9 @@ class Prescription(Base):
                     "quantityToDispense": "mandatory, quantity to dispense, as decimal",
                     "refills": "mandatory, refills allowed, as integer",
                     "noteToPharmacist": "note to the pharmacist, as free text",
+                    "informationToPatient": "directions to the patient on how to use the medication, specifying the quantity, "
+                                            "the form (e.g. tablets, drops, puffs, etc), the frequency and/or max daily frequency, "
+                                            "and the route of use (e.g. by mouth, applied to skin, dropped in eye, etc), as free text",
                 }]),
                 "```",
                 "",
@@ -119,6 +122,7 @@ class Prescription(Base):
                 result.quantity_to_dispense = Decimal(response.content[0]["quantityToDispense"]).quantize(Decimal('0.01'))
                 result.refills = int(response.content[0]["refills"])
                 result.note_to_pharmacist = response.content[0]["noteToPharmacist"]
+                result.sig = response.content[0]["informationToPatient"]
 
         return result
 
