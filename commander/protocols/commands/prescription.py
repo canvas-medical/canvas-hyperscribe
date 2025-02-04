@@ -2,9 +2,9 @@ import json
 
 from canvas_sdk.commands.commands.prescribe import PrescribeCommand, Decimal
 from canvas_sdk.commands.constants import ClinicalQuantity
-from commander.protocols.commands.base import Base
 
 from commander.protocols.canvas_science import CanvasScience
+from commander.protocols.commands.base import Base
 from commander.protocols.constants import Constants
 from commander.protocols.helper import Helper
 from commander.protocols.openai_chat import OpenaiChat
@@ -39,24 +39,26 @@ class Prescription(Base):
             "",
         ]
         conversation.user_prompt = [
-            'Here is the comment provided by the healthcare provider in regards to the prescription:',
-            '```text',
+            "Here is the comment provided by the healthcare provider in regards to the prescription:",
+            "```text",
             f"keywords: {parameters['keywords']}",
             " -- ",
             parameters["comment"],
-            '```',
+            "```",
             "",
             prompt_condition,
             "",
-            'Among the following medications, identify the most relevant one:',
-            '',
+            f"The choice of the medication has to also take into account that {self.demographic__str__()}.",
+            "",
+            "Among the following medications, identify the most relevant one:",
+            "",
             "\n".join(f' * {medication.description} (fdbCode: {medication.fdb_code})' for medication in medications),
-            '',
-            'Please, present your findings in a JSON format within a Markdown code block like:',
-            '```json',
+            "",
+            "Please, present your findings in a JSON format within a Markdown code block like:",
+            "```json",
             json.dumps([{"fdbCode": "the fdb code, as int", "description": "the description"}]),
-            '```',
-            '',
+            "```",
+            "",
         ]
         response = conversation.chat()
         choose_medications = []
@@ -88,26 +90,28 @@ class Prescription(Base):
             ]
 
             conversation.user_prompt = [
-                f'Here is the comment provided by the healthcare provider in regards to the prescription of '
-                f'the medication {medication.description}:',
-                '```text',
+                "Here is the comment provided by the healthcare provider in regards to the prescription of "
+                f"the medication {medication.description}:",
+                "```text",
                 parameters["comment"],
-                '```',
+                "```",
                 "",
                 f"The medication is provided as {quantity.quantity}, {quantity.ncpdp_quantity_qualifier_description}.",
                 "",
                 "Based on this information, what are the quantity to dispense and the number of refills in order to "
                 f"fulfill the {result.days_supply} supply days?",
-                '',
-                'Please, present your findings in a JSON format within a Markdown code block like:',
-                '```json',
+                "",
+                f"The exact quantities and refill have to also take into account that {self.demographic__str__()}.",
+                "",
+                "Please, present your findings in a JSON format within a Markdown code block like:",
+                "```json",
                 json.dumps([{
                     "quantityToDispense": "mandatory, quantity to dispense, as decimal",
                     "refills": "mandatory, refills allowed, as integer",
                     "noteToPharmacist": "note to the pharmacist, as free text",
                 }]),
-                '```',
-                '',
+                "```",
+                "",
             ]
             response = conversation.chat()
             if response.has_error is False and response.content:

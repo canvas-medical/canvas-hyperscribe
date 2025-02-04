@@ -1,10 +1,12 @@
+from datetime import date
 
 from canvas_sdk.commands.base import _BaseCommand
-from canvas_sdk.v1.data import Condition, Questionnaire, Command
+from canvas_sdk.v1.data import Condition, Questionnaire, Command, Patient, Observation
 from canvas_sdk.v1.data import Medication
 from canvas_sdk.v1.data.allergy_intolerance import AllergyIntolerance
 from canvas_sdk.v1.data.condition import ClinicalStatus
 from canvas_sdk.v1.data.medication import Status
+from canvas_sdk.v1.data.patient import SexAtBirth
 
 from commander.protocols.constants import Constants
 from commander.protocols.helper import Helper
@@ -27,6 +29,7 @@ class Base:
         self._medications: list | None = None
         self._surgery_history: list | None = None
         self._questionnaires: list | None = None
+        self._demographic: str | None = None
 
     @classmethod
     def class_name(cls) -> str:
@@ -227,3 +230,60 @@ class Base:
                     code="",
                 ))
         return self._questionnaires
+
+    # def patient_birth_date(self) -> date:
+    #     if not Constants.HAS_DATABASE_ACCESS:
+    #         return date(1993, 4, 17)
+    #     if self._patient is None:
+    #         self._patient = Patient.objects.get(self.patient_uuid)
+    #     return self._patient.birth_date
+    #
+    # def patient_weight(self) -> str:
+    #     if not Constants.HAS_DATABASE_ACCESS:
+    #         return "169.3 pounds"
+    #     if self._weight is None:
+    #         self._weight = "unknown"
+    #         weight = Observation.objects.for_patient(
+    #             self.patient_uuid).filter(
+    #             name="weight", category="vital-signs").order_by(
+    #             "-effective_datetime").first()
+    #         if weight is not None:
+    #             self._weight = f"{weight.value / 16:1.2f} pounds"
+    #     return self._weight
+
+    def demographic__str__(self) -> str:
+        if not Constants.HAS_DATABASE_ACCESS:
+            # return "the patient is a boy, born on April 17, 2013 (age 11) and weight 100.00 pounds"
+            return "the patient is a man, born on April 17, 2001 (age 23) and weight 150.00 pounds"
+
+        if self._demographic is None:
+            patient = Patient.objects.get(id=self.patient_uuid)
+
+            is_female = bool(patient.sex_at_birth == SexAtBirth.FEMALE)
+            dob = patient.birth_date.strftime("%B %d, %Y")
+            today = date.today()
+            age = today.year - patient.birth_date.year - ((today.month, today.day) < (patient.birth_date.month, patient.birth_date.day))
+            age_str = str(age)
+            if age < 2:
+                age_str = f"{(today.year - patient.birth_date.year) * 12 + today.month - patient.birth_date.month} months"
+                sex_at_birth = "baby girl" if is_female else "baby boy"
+            elif age < 20:
+                sex_at_birth = "girl" if is_female else "boy"
+            elif age > 65:
+                sex_at_birth = "elderly woman" if is_female else "elderly man"
+            else:
+                sex_at_birth = "woman" if is_female else "man"
+
+            self._demographic = f"the patient is a {sex_at_birth}, born on {dob} (age {age_str})"
+
+            weight = Observation.objects.for_patient(
+                self.patient_uuid).filter(
+                name="weight", category="vital-signs").order_by(
+                "-effective_datetime").first()
+            if weight:
+                ratio = 1 / 1
+                if weight.units == "oz":
+                    ratio = 1 / 16
+                self._demographic = f"{self._demographic} and weight {int(weight.value) * ratio:1.2f} pounds"
+
+        return self._demographic
