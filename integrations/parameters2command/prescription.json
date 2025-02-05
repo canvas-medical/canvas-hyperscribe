@@ -4,20 +4,20 @@
       "module": "canvas_sdk.commands.commands.prescribe",
       "class": "PrescribeCommand",
       "attributes": {
-        "fdb_code": "586148",
+        "fdb_code": "287712",
         "icd10_codes": [],
-        "sig": "Administer one dose of meningitis booster vaccine.",
-        "days_supply": 1,
-        "quantity_to_dispense": "0.85",
+        "sig": "Apply approximately 1 gram of clotrimazole 1% cream to the affected area twice daily for 14 days. Ensure the area is clean and dry before application. Do not cover the treated area with a bandage unless directed by a healthcare provider.",
+        "days_supply": 14,
+        "quantity_to_dispense": "36.00",
         "type_to_dispense": {
-          "representative_ndc": "58160081305",
-          "ncpdp_quantity_qualifier_code": "C28254"
+          "representative_ndc": "41100059416",
+          "ncpdp_quantity_qualifier_code": "C48155"
         },
         "refills": 0,
-        "substitutions": "not_allowed",
+        "substitutions": "allowed",
         "pharmacy": null,
-        "prescriber_id": "providerUVW",
-        "note_to_pharmacist": "Dispense the exact amount needed for a single dose. No refills required for a booster dose."
+        "prescriber_id": "zzz",
+        "note_to_pharmacist": "Dispense three 12-gram tubes to cover the 14-day treatment period."
       }
     }
   ],
@@ -28,11 +28,11 @@
   ],
   "parameters": [
     {
-      "keywords": "meningitis booster, meningococcal vaccine, meningitis vaccine, meningococcal booster, meningitis shot",
-      "sig": "Administer one dose of meningitis booster vaccine.",
-      "suppliedDays": "1",
-      "substitution": "not_allowed",
-      "comment": "Recommended for booster protection against meningitis."
+      "keywords": "Clotrimazole, antifungal, cream, topical, Lotrimin",
+      "sig": "Apply to the affected area twice daily",
+      "suppliedDays": 14,
+      "substitution": "allowed",
+      "comment": "Prescribed for treating ringworm"
     }
   ]
 }
