@@ -1,0 +1,164 @@
+from unittest.mock import patch, call
+
+from canvas_sdk.commands.commands.assess import AssessCommand
+
+from commander.protocols.commands.assess import Assess
+from commander.protocols.commands.base import Base
+from commander.protocols.structures.coded_item import CodedItem
+from commander.protocols.structures.settings import Settings
+
+def helper_instance() -> Assess:
+    settings = Settings(
+        openai_key="openaiKey",
+        science_host="scienceHost",
+        ontologies_host="ontologiesHost",
+        pre_shared_key="preSharedKey",
+        allow_update=True,
+    )
+    return Assess(settings, "patientUuid", "noteUuid", "providerUuid")
+
+
+def test_class():
+    tested = Assess
+    assert issubclass(tested, Base)
+
+
+def test_schema_key():
+    tested = helper_instance()
+    result = tested.schema_key()
+    expected = "assess"
+    assert result == expected
+
+
+@patch.object(Assess, "current_conditions")
+def test_command_from_json(current_conditions):
+    def reset_mocks():
+        current_conditions.reset_mock()
+
+    tested = helper_instance()
+    conditions = [
+        CodedItem(uuid="theUuid1", label="display1a", code="CODE12.3"),
+        CodedItem(uuid="theUuid2", label="display2a", code="CODE45"),
+        CodedItem(uuid="theUuid3", label="display3a", code="CODE98.76"),
+    ]
+    tests = [
+        (1, "theUuid2", [call(), call()]),
+        (2, "theUuid3", [call(), call()]),
+        (4, "", [call()]),
+    ]
+    for idx, exp_uuid, calls in tests:
+        current_conditions.side_effect = [conditions, conditions]
+        params = {
+            'assessment': "theAssessment",
+            'condition': 'display2a',
+            'conditionIndex': idx,
+            'rationale': 'theRationale',
+            'status': 'stable',
+        }
+        result = tested.command_from_json(params)
+        expected = AssessCommand(
+            condition_id=exp_uuid,
+            background="theRationale",
+            status=AssessCommand.Status.STABLE,
+            narrative="theAssessment",
+            note_uuid="noteUuid",
+        )
+        assert result == expected
+        assert current_conditions.mock_calls == calls
+        reset_mocks()
+
+
+@patch.object(Assess, "current_conditions")
+def test_command_parameters(current_conditions):
+    def reset_mocks():
+        current_conditions.reset_mock()
+
+    tested = helper_instance()
+    conditions = [
+        CodedItem(uuid="theUuid1", label="display1a", code="CODE12.3"),
+        CodedItem(uuid="theUuid2", label="display2a", code="CODE45"),
+        CodedItem(uuid="theUuid3", label="display3a", code="CODE98.76"),
+    ]
+    current_conditions.side_effect = [conditions]
+    result = tested.command_parameters()
+    expected = {
+        'assessment': "today's assessment of the condition, as free text",
+        'condition': 'one of: display1a (index: 0)/display2a (index: 1)/display3a (index: 2)',
+        'conditionIndex': 'index of the Condition to assess, as integer',
+        'rationale': 'rationale about the current assessment, as free text',
+        'status': 'one of: improved/stable/deteriorated',
+    }
+    assert result == expected
+    calls = [call()]
+    assert current_conditions.mock_calls == calls
+    reset_mocks()
+
+
+@patch.object(Assess, "current_conditions")
+def test_instruction_description(current_conditions):
+    def reset_mocks():
+        current_conditions.reset_mock()
+
+    tested = helper_instance()
+    conditions = [
+        CodedItem(uuid="theUuid1", label="display1a", code="CODE12.3"),
+        CodedItem(uuid="theUuid2", label="display2a", code="CODE45"),
+        CodedItem(uuid="theUuid3", label="display3a", code="CODE98.76"),
+    ]
+    current_conditions.side_effect = [conditions]
+    result = tested.instruction_description()
+    expected = ("Today's assessment of a diagnosed condition (display1a, display2a, display3a). "
+                "There can be only one assessment per condition per instruction, "
+                "and no instruction in the lack of.")
+    assert result == expected
+    calls = [call()]
+    assert current_conditions.mock_calls == calls
+    reset_mocks()
+
+
+@patch.object(Assess, "current_conditions")
+def test_instruction_constraints(current_conditions):
+    def reset_mocks():
+        current_conditions.reset_mock()
+
+    tested = helper_instance()
+    conditions = [
+        CodedItem(uuid="theUuid1", label="display1a", code="CODE12.3"),
+        CodedItem(uuid="theUuid2", label="display2a", code="CODE45"),
+        CodedItem(uuid="theUuid3", label="display3a", code="CODE98.76"),
+    ]
+    current_conditions.side_effect = [conditions]
+    result = tested.instruction_constraints()
+    expected = ("'Assess' has to be related to one of the following conditions: "
+                "display1a (ICD-10: CODE12.3), "
+                "display2a (ICD-10: CODE45), "
+                "display3a (ICD-10: CODE98.76)")
+    assert result == expected
+    calls = [call()]
+    assert current_conditions.mock_calls == calls
+    reset_mocks()
+
+
+@patch.object(Assess, "current_conditions")
+def test_is_available(current_conditions):
+    def reset_mocks():
+        current_conditions.reset_mock()
+
+    tested = helper_instance()
+    conditions = [
+        CodedItem(uuid="theUuid1", label="display1a", code="CODE12.3"),
+        CodedItem(uuid="theUuid2", label="display2a", code="CODE45"),
+        CodedItem(uuid="theUuid3", label="display3a", code="CODE98.76"),
+    ]
+    tests = [
+        (conditions, True),
+        ([], False),
+    ]
+    for side_effect, expected in tests:
+        current_conditions.side_effect = [side_effect]
+        result = tested.is_available()
+        assert result is expected
+        calls = [call()]
+        assert current_conditions.mock_calls == calls
+        reset_mocks()
+

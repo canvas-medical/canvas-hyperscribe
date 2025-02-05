@@ -1,0 +1,205 @@
+from unittest.mock import patch, call
+
+from canvas_sdk.commands.commands.prescribe import PrescribeCommand
+from canvas_sdk.commands.commands.refill import RefillCommand
+from canvas_sdk.commands.constants import ClinicalQuantity
+from canvas_sdk.v1.data import MedicationCoding, Medication
+
+from commander.protocols.commands.base import Base
+from commander.protocols.commands.refill import Refill
+from commander.protocols.structures.coded_item import CodedItem
+from commander.protocols.structures.settings import Settings
+
+
+def helper_instance() -> Refill:
+    settings = Settings(
+        openai_key="openaiKey",
+        science_host="scienceHost",
+        ontologies_host="ontologiesHost",
+        pre_shared_key="preSharedKey",
+        allow_update=True,
+    )
+    return Refill(settings, "patientUuid", "noteUuid", "providerUuid")
+
+
+def test_class():
+    tested = Refill
+    assert issubclass(tested, Base)
+
+
+def test_schema_key():
+    tested = helper_instance()
+    result = tested.schema_key()
+    expected = "refill"
+    assert result == expected
+
+
+@patch('commander.protocols.commands.refill.Medication.codings')
+@patch('commander.protocols.commands.refill.Medication.objects')
+@patch.object(Refill, "current_medications")
+def test_command_from_json(current_medications, medication, codings):
+    def reset_mocks():
+        current_medications.reset_mock()
+        medication.reset_mock()
+        codings.reset_mock()
+
+    tested = helper_instance()
+    medications = [
+        CodedItem(uuid="theUuid1", label="display1a", code="123"),
+        CodedItem(uuid="theUuid2", label="display2a", code="45"),
+        CodedItem(uuid="theUuid3", label="display3a", code="9876"),
+
+    ]
+    tests = [
+        (1, "theUuid2"),
+        (2, "theUuid3"),
+    ]
+    for idx, medication_uuid in tests:
+        current_medications.side_effect = [medications, medications]
+        medication.get.side_effect = [Medication(national_drug_code="theNdc", potency_unit_code="thePuc")]
+        codings.filter.return_value.first.side_effect = [MedicationCoding(system="theSystem", display="theDisplay", code="theCode"), ]
+        params = {
+            'comment': 'theComment',
+            'medication': 'display2a',
+            'medicationIndex': idx,
+            'sig': 'theSig',
+            'substitution': 'not_allowed',
+            'suppliedDays': 7,
+        }
+        result = tested.command_from_json(params)
+        expected = RefillCommand(
+            fdb_code="theCode",
+            sig="theSig",
+            days_supply=7,
+            type_to_dispense=ClinicalQuantity(
+                representative_ndc="theNdc",
+                ncpdp_quantity_qualifier_code="thePuc",
+            ),
+            substitutions=PrescribeCommand.Substitutions.NOT_ALLOWED,
+            prescriber_id="providerUuid",
+            note_uuid="noteUuid",
+        )
+        assert result == expected
+        calls = [call(), call()]
+        assert current_medications.mock_calls == calls
+        calls = [call.get(id=medication_uuid)]
+        assert medication.mock_calls == calls
+        calls = [
+            call.filter(system='http://www.fdbhealth.com/'),
+            call.filter().first(),
+        ]
+        assert codings.mock_calls == calls
+        reset_mocks()
+    #
+    current_medications.side_effect = [medications]
+    params = {
+        'comment': 'theComment',
+        'medication': 'display2a',
+        'medicationIndex': 4,
+        'sig': 'theSig',
+        'substitution': 'allowed',
+        'suppliedDays': 7,
+    }
+    result = tested.command_from_json(params)
+    assert result is None
+    calls = [call()]
+    assert current_medications.mock_calls == calls
+    assert medication.mock_calls == []
+    assert codings.mock_calls == []
+    reset_mocks()
+
+
+@patch.object(Refill, "current_medications")
+def test_command_parameters(current_medications):
+    def reset_mocks():
+        current_medications.reset_mock()
+
+    tested = helper_instance()
+    medications = [
+        CodedItem(uuid="theUuid1", label="display1a", code="CODE123"),
+        CodedItem(uuid="theUuid2", label="display2a", code="CODE45"),
+        CodedItem(uuid="theUuid3", label="display3a", code="CODE9876"),
+    ]
+    current_medications.side_effect = [medications]
+    result = tested.command_parameters()
+    expected = {
+        'comment': 'rational of the prescription, as free text',
+        'medication': 'one of: display1a (index: 0)/display2a (index: 1)/display3a (index: 2)',
+        'medicationIndex': 'index of the medication to refill, as integer',
+        'sig': 'directions, as free text',
+        'substitution': 'one of: allowed/not_allowed',
+        'suppliedDays': 'duration of the treatment in days, as integer',
+    }
+    assert result == expected
+    calls = [call()]
+    assert current_medications.mock_calls == calls
+    reset_mocks()
+
+
+@patch.object(Refill, "current_medications")
+def test_instruction_description(current_medications):
+    def reset_mocks():
+        current_medications.reset_mock()
+
+    tested = helper_instance()
+    medications = [
+        CodedItem(uuid="theUuid1", label="display1a", code="CODE123"),
+        CodedItem(uuid="theUuid2", label="display2a", code="CODE45"),
+        CodedItem(uuid="theUuid3", label="display3a", code="CODE9876"),
+    ]
+    current_medications.side_effect = [medications]
+    result = tested.instruction_description()
+    expected = ("Refill of a current medication (display1a, display2a, display3a), "
+                "including the directions, the duration, the targeted condition and the dosage. "
+                "There can be only one refill per instruction, and no instruction in the lack of.")
+    assert result == expected
+    calls = [call()]
+    assert current_medications.mock_calls == calls
+    reset_mocks()
+
+
+@patch.object(Refill, "current_medications")
+def test_instruction_constraints(current_medications):
+    def reset_mocks():
+        current_medications.reset_mock()
+
+    tested = helper_instance()
+    medications = [
+        CodedItem(uuid="theUuid1", label="display1a", code="CODE123"),
+        CodedItem(uuid="theUuid2", label="display2a", code="CODE45"),
+        CodedItem(uuid="theUuid3", label="display3a", code="CODE9876"),
+    ]
+    current_medications.side_effect = [medications]
+    result = tested.instruction_constraints()
+    expected = ("'Refill' has to be related to one of the following medications: "
+                "display1a (RxNorm: CODE123), "
+                "display2a (RxNorm: CODE45), "
+                "display3a (RxNorm: CODE9876)")
+    assert result == expected
+    calls = [call()]
+    assert current_medications.mock_calls == calls
+    reset_mocks()
+
+
+@patch.object(Refill, "current_medications")
+def test_is_available(current_medications):
+    def reset_mocks():
+        current_medications.reset_mock()
+
+    tested = helper_instance()
+    medications = [
+        CodedItem(uuid="theUuid1", label="display1a", code="CODE123"),
+        CodedItem(uuid="theUuid2", label="display2a", code="CODE45"),
+        CodedItem(uuid="theUuid3", label="display3a", code="CODE9876"),
+    ]
+    tests = [
+        (medications, True),
+        ([], False),
+    ]
+    for side_effect, expected in tests:
+        current_medications.side_effect = [side_effect]
+        result = tested.is_available()
+        assert result is expected
+        calls = [call()]
+        assert current_medications.mock_calls == calls
+        reset_mocks()

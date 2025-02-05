@@ -9,7 +9,7 @@ class StopMedication(Base):
     def schema_key(cls) -> str:
         return "stopMedication"
 
-    def command_from_json(self, parameters: dict) -> None | AssessCommand:
+    def command_from_json(self, parameters: dict) -> None | StopMedicationCommand:
         medication_uuid = ""
         if 0 <= (idx := parameters["medicationIndex"]) < len(self.current_medications()):
             medication_uuid = self.current_medications()[idx].uuid

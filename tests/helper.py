@@ -1,0 +1,22 @@
+def is_namedtuple(cls, fields: dict) -> bool:
+    return (
+            issubclass(cls, tuple)
+            and hasattr(cls, '_fields')
+            and isinstance(cls._fields, tuple)
+            and len([field for field in cls._fields if field in fields]) == len(fields.keys())
+            and all(the_type == fields[field] for field, the_type in cls.__annotations__.items())
+    )
+
+
+def is_constant(cls, constants: dict) -> bool:
+    count = len([
+        attr
+        for attr in dir(cls)
+        if not (attr.startswith("__") or callable(getattr(cls, attr)))])
+    if count != len(constants.keys()):
+        return False
+
+    for key, value in constants.items():
+        if getattr(cls, key) != value:
+            return False
+    return True

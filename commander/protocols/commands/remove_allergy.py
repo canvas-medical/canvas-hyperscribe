@@ -9,7 +9,7 @@ class RemoveAllergy(Base):
     def schema_key(cls) -> str:
         return "removeAllergy"
 
-    def command_from_json(self, parameters: dict) -> None | AssessCommand:
+    def command_from_json(self, parameters: dict) -> None | RemoveAllergyCommand:
         allergy_uuid = ""
         if 0 <= (idx := parameters["allergyIndex"]) < len(self.current_allergies()):
             allergy_uuid = self.current_allergies()[idx].uuid

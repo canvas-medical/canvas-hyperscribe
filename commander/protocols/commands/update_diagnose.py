@@ -1,10 +1,9 @@
 import json
 
-from canvas_sdk.commands.commands.diagnose import DiagnoseCommand
 from canvas_sdk.commands.commands.update_diagnosis import UpdateDiagnosisCommand
-from commander.protocols.commands.base import Base
 
 from commander.protocols.canvas_science import CanvasScience
+from commander.protocols.commands.base import Base
 from commander.protocols.constants import Constants
 from commander.protocols.helper import Helper
 from commander.protocols.openai_chat import OpenaiChat
@@ -15,7 +14,7 @@ class UpdateDiagnose(Base):
     def schema_key(cls) -> str:
         return "updateDiagnosis"
 
-    def command_from_json(self, parameters: dict) -> None | DiagnoseCommand:
+    def command_from_json(self, parameters: dict) -> None | UpdateDiagnosisCommand:
         # retrieve existing conditions defined in Canvas Science
         expressions = parameters["keywords"].split(",") + parameters["ICD10"].split(",")
         conditions = CanvasScience.search_conditions(self.settings.science_host, expressions)

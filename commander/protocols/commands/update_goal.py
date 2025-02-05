@@ -41,7 +41,7 @@ class UpdateGoal(Base):
 
     def instruction_constraints(self) -> str:
         text = ", ".join([f'"{goal.label}"' for goal in self.current_goals()])
-        return f"'{self.class_name()}' has to be related to one of the following goals: {text}"
+        return f'"{self.class_name()}" has to be related to one of the following goals: {text}'
 
     def is_available(self) -> bool:
         return bool(self.current_goals())

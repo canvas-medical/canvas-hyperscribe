@@ -1,7 +1,7 @@
 from canvas_sdk.commands.commands.close_goal import CloseGoalCommand
 from canvas_sdk.commands.commands.goal import GoalCommand
-from commander.protocols.commands.base import Base
 
+from commander.protocols.commands.base import Base
 from commander.protocols.helper import Helper
 
 
@@ -11,7 +11,7 @@ class CloseGoal(Base):
         return "closeGoal"
 
     def command_from_json(self, parameters: dict) -> None | CloseGoalCommand:
-        goal_uuid = ""
+        goal_uuid = "0"
         if 0 <= (idx := parameters["goalIndex"]) < len(self.current_goals()):
             # TODO should be  goal_uuid = self.current_goals()[idx].uuid, waiting for https://github.com/canvas-medical/canvas-plugins/issues/338
             goal_uuid = self.current_goals()[idx].code
@@ -39,7 +39,7 @@ class CloseGoal(Base):
 
     def instruction_constraints(self) -> str:
         text = ", ".join([f'"{goal.label}"' for goal in self.current_goals()])
-        return f"'{self.class_name()}' has to be related to one of the following goals: {text}"
+        return f'"{self.class_name()}" has to be related to one of the following goals: {text}'
 
     def is_available(self) -> bool:
         return bool(self.current_goals())

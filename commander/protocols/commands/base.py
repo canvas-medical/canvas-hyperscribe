@@ -21,15 +21,15 @@ class Base:
         self.patient_uuid = patient_uuid
         self.note_uuid = note_uuid
         self.provider_uuid = provider_uuid
-        self._conditions: list | None = None
         self._allergies: list | None = None
-        self._family_history: list | None = None
         self._condition_history: list | None = None
+        self._conditions: list | None = None
+        self._demographic: str | None = None
+        self._family_history: list | None = None
         self._goals: list | None = None
         self._medications: list | None = None
-        self._surgery_history: list | None = None
         self._questionnaires: list | None = None
-        self._demographic: str | None = None
+        self._surgery_history: list | None = None
 
     @classmethod
     def class_name(cls) -> str:
@@ -101,7 +101,8 @@ class Base:
             ]
         if self._conditions is None:
             self._conditions = []
-            for condition in Condition.objects.committed().for_patient(self.patient_uuid).filter(clinical_status=ClinicalStatus.ACTIVE):
+            conditions = Condition.objects.committed().for_patient(self.patient_uuid).filter(clinical_status=ClinicalStatus.ACTIVE)
+            for condition in conditions.order_by('-dbid'):
                 for coding in condition.codings.all():
                     if coding.system == "ICD-10":
                         self._conditions.append(CodedItem(
@@ -132,7 +133,8 @@ class Base:
             ]
         if self._medications is None:
             self._medications = []
-            for medication in Medication.objects.committed().for_patient(self.patient_uuid).filter(status=Status.ACTIVE):
+            medications = Medication.objects.committed().for_patient(self.patient_uuid).filter(status=Status.ACTIVE)
+            for medication in medications.order_by('-dbid'):
                 for coding in medication.codings.all():
                     if coding.system == "http://www.nlm.nih.gov/research/umls/rxnorm":
                         self._medications.append(CodedItem(
@@ -158,7 +160,8 @@ class Base:
             ]
         if self._allergies is None:
             self._allergies = []
-            for allergy in AllergyIntolerance.objects.committed().for_patient(self.patient_uuid).filter(status=Status.ACTIVE):
+            allergies = AllergyIntolerance.objects.committed().for_patient(self.patient_uuid).filter(status=Status.ACTIVE)
+            for allergy in allergies.order_by('-dbid'):
                 for coding in allergy.codings.all():
                     if coding.system == "http://www.fdbhealth.com/":
                         self._allergies.append(CodedItem(
@@ -180,8 +183,10 @@ class Base:
             return []
         if self._condition_history is None:
             self._condition_history = []
-            conditions = Condition.objects.committed().for_patient(self.patient_uuid)
-            for condition in conditions.filter(clinical_status=ClinicalStatus.RESOLVED):  # TODO add surgical=False
+            conditions = Condition.objects.committed().for_patient(
+                self.patient_uuid).filter(
+                clinical_status=ClinicalStatus.RESOLVED)  # TODO add surgical=False
+            for condition in conditions.order_by('-dbid'):
                 for coding in condition.codings.all():
                     if coding.system == "ICD-10":
                         self._condition_history.append(CodedItem(
@@ -196,8 +201,10 @@ class Base:
             return []
         if self._surgery_history is None:
             self._surgery_history = []
-            conditions = Condition.objects.committed().for_patient(self.patient_uuid)
-            for condition in conditions.filter(clinical_status=ClinicalStatus.RESOLVED):  # TODO add surgical=True
+            conditions = Condition.objects.committed().for_patient(
+                self.patient_uuid).filter(
+                clinical_status=ClinicalStatus.RESOLVED)  # TODO add surgical=True
+            for condition in conditions.order_by('-dbid'):
                 for coding in condition.codings.all():
                     if coding.system == "ICD-10":
                         self._surgery_history.append(CodedItem(
@@ -210,11 +217,11 @@ class Base:
     def existing_questionnaires(self) -> list[CodedItem]:
         if not Constants.HAS_DATABASE_ACCESS:
             return [
-                CodedItem(uuid="ooo", label="Medication Adherence", code=""),
-                CodedItem(uuid="ppp", label="Tobacco", code=""),
-                CodedItem(uuid="qqq", label="Exercise", code=""),
-                CodedItem(uuid="rrr", label="Stress", code=""),
-                CodedItem(uuid="sss", label="Care Plan", code=""),
+                # CodedItem(uuid="ooo", label="Medication Adherence", code=""),
+                # CodedItem(uuid="ppp", label="Tobacco", code=""),
+                # CodedItem(uuid="qqq", label="Exercise", code=""),
+                # CodedItem(uuid="rrr", label="Stress", code=""),
+                # CodedItem(uuid="sss", label="Care Plan", code=""),
             ]
         if self._questionnaires is None:
             self._questionnaires = []
@@ -222,7 +229,7 @@ class Base:
                 status="AC",
                 can_originate_in_charting=True,
                 use_case_in_charting="QUES",
-            )
+            ).order_by('-dbid')
             for questionnaire in questionnaires:
                 self._questionnaires.append(CodedItem(
                     uuid=str(questionnaire.id),
@@ -284,6 +291,7 @@ class Base:
                 ratio = 1 / 1
                 if weight.units == "oz":
                     ratio = 1 / 16
+
                 self._demographic = f"{self._demographic} and weight {int(weight.value) * ratio:1.2f} pounds"
 
         return self._demographic
