@@ -4,6 +4,7 @@ from commander.protocols.commands.base import Base
 from commander.protocols.commands.instruct import Instruct
 from commander.protocols.structures.settings import Settings
 
+
 def helper_instance() -> Instruct:
     settings = Settings(
         openai_key="openaiKey",
@@ -13,6 +14,7 @@ def helper_instance() -> Instruct:
         allow_update=True,
     )
     return Instruct(settings, "patientUuid", "noteUuid", "providerUuid")
+
 
 def test_class():
     tested = Instruct
@@ -33,21 +35,25 @@ def te0st_command_from_json():
     assert result == expected
 
 
-def te0st_command_parameters():
+def test_command_parameters():
     tested = helper_instance()
     result = tested.command_parameters()
-    expected = {}
+    expected = {
+        "keywords": "comma separated single keywords of up to 5 synonyms to the specific direction",
+        "comment": "directions from the provider, as free text",
+    }
     assert result == expected
 
 
-def te0st_instruction_description():
+def test_instruction_description():
     tested = helper_instance()
     result = tested.instruction_description()
-    expected = ""
+    expected = ("Specific or standard direction. "
+                "There can be only one direction per instruction, and no instruction in the lack of.")
     assert result == expected
 
 
-def te0st_instruction_constraints():
+def test_instruction_constraints():
     tested = helper_instance()
     result = tested.instruction_constraints()
     expected = ""

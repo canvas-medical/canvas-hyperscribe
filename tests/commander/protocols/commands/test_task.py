@@ -4,6 +4,7 @@ from commander.protocols.commands.base import Base
 from commander.protocols.commands.task import Task
 from commander.protocols.structures.settings import Settings
 
+
 def helper_instance() -> Task:
     settings = Settings(
         openai_key="openaiKey",
@@ -13,6 +14,7 @@ def helper_instance() -> Task:
         allow_update=True,
     )
     return Task(settings, "patientUuid", "noteUuid", "providerUuid")
+
 
 def test_class():
     tested = Task
@@ -33,21 +35,29 @@ def te0st_command_from_json():
     assert result == expected
 
 
-def te0st_command_parameters():
+def test_command_parameters():
     tested = helper_instance()
     result = tested.command_parameters()
-    expected = {}
+    expected = {
+        "title": "title of the task",
+        "dueDate": "YYYY-MM-DD",
+        "assignTo": "information about the assignee for the task, or empty",
+        "labels": "information about the labels to link to the task, or empty",
+        "comment": "comment related to the task provided by the clinician",
+    }
     assert result == expected
 
 
-def te0st_instruction_description():
+def test_instruction_description():
     tested = helper_instance()
     result = tested.instruction_description()
-    expected = ""
+    expected = ("Specific task assigned to someone at the healthcare facility, including the speaking clinician. "
+                "A task might include a due date and a specific assignee. "
+                "There can be only one task per instruction, and no instruction in the lack of.")
     assert result == expected
 
 
-def te0st_instruction_constraints():
+def test_instruction_constraints():
     tested = helper_instance()
     result = tested.instruction_constraints()
     expected = ""

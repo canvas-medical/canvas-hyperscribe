@@ -51,7 +51,7 @@ def test_command_from_json(condition_from):
     expected = DiagnoseCommand(
         icd10_code="CODE12.3",
         background="theRationale",
-        approximate_date_of_onset=date(2025,2,3),
+        approximate_date_of_onset=date(2025, 2, 3),
         today_assessment="theAssessment",
         note_uuid="noteUuid",
     )
@@ -102,13 +102,14 @@ def test_instruction_constraints(current_conditions):
         CodedItem(uuid="theUuid3", label="display3a", code="CODE98.76"),
     ]
     tests = [
-        ([conditions, conditions], "'Diagnose' cannot include: display1a, display2a, display3a.", [call(), call()]),
-        ([[]], "", [call()]),
+        (conditions, "'Diagnose' cannot include: display1a, display2a, display3a."),
+        ([], ""),
     ]
-    for side_effect, expected, calls in tests:
-        current_conditions.side_effect = side_effect
+    for side_effect, expected in tests:
+        current_conditions.side_effect = [side_effect]
         result = tested.instruction_constraints()
         assert result == expected
+        calls = [call()]
         assert current_conditions.mock_calls == calls
         reset_mocks()
 

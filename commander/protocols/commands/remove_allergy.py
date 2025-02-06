@@ -1,4 +1,3 @@
-from canvas_sdk.commands.commands.assess import AssessCommand
 from canvas_sdk.commands.commands.remove_allergy import RemoveAllergyCommand
 
 from commander.protocols.commands.base import Base
@@ -33,10 +32,9 @@ class RemoveAllergy(Base):
 
     def instruction_constraints(self) -> str:
         result = ""
-        if self.current_allergies():
-            text = ", ".join([allergy.label for allergy in self.current_allergies()])
+        if text := ", ".join([allergy.label for allergy in self.current_allergies()]):
             result = f"'{self.class_name()}' has to be related to one of the following allergies: {text}."
         return result
 
     def is_available(self) -> bool:
-        return True
+        return bool(self.current_allergies())

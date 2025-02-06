@@ -1,8 +1,13 @@
+from datetime import datetime
+from unittest.mock import patch, call
+
 from canvas_sdk.commands.commands.goal import GoalCommand
 
 from commander.protocols.commands.base import Base
 from commander.protocols.commands.goal import Goal
+from commander.protocols.structures.coded_item import CodedItem
 from commander.protocols.structures.settings import Settings
+
 
 def helper_instance() -> Goal:
     settings = Settings(
@@ -13,6 +18,7 @@ def helper_instance() -> Goal:
         allow_update=True,
     )
     return Goal(settings, "patientUuid", "noteUuid", "providerUuid")
+
 
 def test_class():
     tested = Goal
@@ -26,32 +32,73 @@ def test_schema_key():
     assert result == expected
 
 
-def te0st_command_from_json():
+def test_command_from_json():
     tested = helper_instance()
-    result = tested.command_from_json({})
-    expected = GoalCommand()
+    parameters = {
+        "goal": "theGoal",
+        "startDate": "2023-11-12",
+        "dueDate": "2025-02-04",
+        "status": "improving",
+        "priority": "medium-priority",
+        "progressAndBarriers": "theProgressAndBarriers",
+    }
+    result = tested.command_from_json(parameters)
+    expected = GoalCommand(
+        goal_statement="theGoal",
+        start_date=datetime(2023, 11, 12),
+        due_date=datetime(2025, 2, 4),
+        achievement_status=GoalCommand.AchievementStatus.IMPROVING,
+        priority=GoalCommand.Priority.MEDIUM,
+        progress="theProgressAndBarriers",
+        note_uuid="noteUuid",
+    )
     assert result == expected
 
 
-def te0st_command_parameters():
+def test_command_parameters():
     tested = helper_instance()
     result = tested.command_parameters()
-    expected = {}
+    expected = {
+        "goal": "title of the goal, as free text",
+        "startDate": "YYYY-MM-DD",
+        "dueDate": "YYYY-MM-DD",
+        "status": "one of: in-progress/improving/worsening/no-change/achieved/sustaining/not-achieved/no-progress/not-attainable",
+        "priority": "one of: high-priority/medium-priority/low-priority",
+        "progressAndBarriers": "progress and barriers, as free text",
+    }
     assert result == expected
 
 
-def te0st_instruction_description():
+def test_instruction_description():
     tested = helper_instance()
     result = tested.instruction_description()
-    expected = ""
+    expected = ("Defined goal set by the provider, including due date and priority. "
+                "There can be only one goal per instruction, and no instruction in the lack of.")
     assert result == expected
 
 
-def te0st_instruction_constraints():
+@patch.object(Goal, "current_goals")
+def test_instruction_constraints(current_goals):
+    def reset_mocks():
+        current_goals.reset_mock()
+
     tested = helper_instance()
-    result = tested.instruction_constraints()
-    expected = ""
-    assert result == expected
+    goals = [
+        CodedItem(uuid="theUuid1", label="display1a", code="CODE123"),
+        CodedItem(uuid="theUuid2", label="display2a", code="CODE45"),
+        CodedItem(uuid="theUuid3", label="display3a", code="CODE9876"),
+    ]
+    tests = [
+        ([], ""),
+        (goals, '"Goal" cannot include: "display1a", "display2a", "display3a"'),
+    ]
+    for side_effect, expected in tests:
+        current_goals.side_effect = [side_effect]
+        result = tested.instruction_constraints()
+        assert result == expected
+        calls = [call()]
+        assert current_goals.mock_calls == calls
+        reset_mocks()
 
 
 def test_is_available():

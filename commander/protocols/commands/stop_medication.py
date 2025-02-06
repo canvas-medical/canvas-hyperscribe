@@ -1,4 +1,3 @@
-from canvas_sdk.commands.commands.assess import AssessCommand
 from canvas_sdk.commands.commands.stop_medication import StopMedicationCommand
 
 from commander.protocols.commands.base import Base
@@ -32,11 +31,8 @@ class StopMedication(Base):
                 "There can be only one medication, with the rationale, to stop per instruction, and no instruction in the lack of.")
 
     def instruction_constraints(self) -> str:
-        result = ""
-        if self.current_medications():
-            text = ", ".join([medication.label for medication in self.current_medications()])
-            result = f"'{self.class_name()}' has to be related to one of the following medications: {text}."
-        return result
+        text = ", ".join([medication.label for medication in self.current_medications()])
+        return f"'{self.class_name()}' has to be related to one of the following medications: {text}."
 
     def is_available(self) -> bool:
         # TODO wait for https://github.com/canvas-medical/canvas-plugins/issues/321

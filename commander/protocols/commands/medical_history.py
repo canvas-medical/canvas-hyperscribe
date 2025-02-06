@@ -1,10 +1,9 @@
 import json
 
 from canvas_sdk.commands.commands.medical_history import MedicalHistoryCommand
-from canvas_sdk.commands.commands.past_surgical_history import PastSurgicalHistoryCommand
-from commander.protocols.commands.base import Base
 
 from commander.protocols.canvas_science import CanvasScience
+from commander.protocols.commands.base import Base
 from commander.protocols.constants import Constants
 from commander.protocols.helper import Helper
 from commander.protocols.openai_chat import OpenaiChat
@@ -15,7 +14,7 @@ class MedicalHistory(Base):
     def schema_key(cls) -> str:
         return "medicalHistory"
 
-    def command_from_json(self, parameters: dict) -> None | PastSurgicalHistoryCommand:
+    def command_from_json(self, parameters: dict) -> None | MedicalHistoryCommand:
         # retrieve existing medical history conditions defined in Canvas Science
         expressions = parameters["keywords"].split(",")
         concepts = CanvasScience.medical_histories(self.settings.science_host, expressions)
@@ -73,8 +72,7 @@ class MedicalHistory(Base):
 
     def instruction_constraints(self) -> str:
         result = ""
-        if self.condition_history():
-            text = ", ".join([f'{condition.label}' for condition in self.condition_history()])
+        if text := ", ".join([f'{condition.label}' for condition in self.condition_history()]):
             result = f"'{self.class_name()}' cannot include: {text}."
         return result
 

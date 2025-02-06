@@ -2,8 +2,8 @@ import json
 
 from canvas_sdk.commands.commands.task import TaskCommand, TaskAssigner, AssigneeType
 from canvas_sdk.v1.data import TaskLabel, Staff
-from commander.protocols.commands.base import Base
 
+from commander.protocols.commands.base import Base
 from commander.protocols.constants import Constants
 from commander.protocols.helper import Helper
 from commander.protocols.openai_chat import OpenaiChat

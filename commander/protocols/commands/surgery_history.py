@@ -1,9 +1,9 @@
 import json
 
 from canvas_sdk.commands.commands.past_surgical_history import PastSurgicalHistoryCommand
-from commander.protocols.commands.base import Base
 
 from commander.protocols.canvas_science import CanvasScience
+from commander.protocols.commands.base import Base
 from commander.protocols.constants import Constants
 from commander.protocols.helper import Helper
 from commander.protocols.openai_chat import OpenaiChat
@@ -69,9 +69,8 @@ class SurgeryHistory(Base):
 
     def instruction_constraints(self) -> str:
         result = ""
-        if self.surgery_history():
-            text = ", ".join([f'{surgery.label}' for surgery in self.surgery_history()])
-            result = f"'{self.class_name()}' cannot include: {text}."
+        if text := ", ".join([f'"{surgery.label}"' for surgery in self.surgery_history()]):
+            result = f'"{self.class_name()}" cannot include: {text}.'
         return result
 
     def is_available(self) -> bool:

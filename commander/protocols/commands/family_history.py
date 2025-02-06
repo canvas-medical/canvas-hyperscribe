@@ -1,9 +1,9 @@
 import json
 
 from canvas_sdk.commands.commands.family_history import FamilyHistoryCommand
-from commander.protocols.commands.base import Base
 
 from commander.protocols.canvas_science import CanvasScience
+from commander.protocols.commands.base import Base
 from commander.protocols.constants import Constants
 from commander.protocols.openai_chat import OpenaiChat
 
@@ -63,15 +63,14 @@ class FamilyHistory(Base):
         }
 
     def instruction_description(self) -> str:
-        return (
-            "Any relevant condition of a relative among: father, mother, parent, child, brother, sister, sibling, grand-parent, grand-father, grand-mother. "
-            "There can be only one condition per relative per instruction, and no instruction in the lack of.")
+        return ("Any relevant condition of a relative among: "
+                "father, mother, parent, child, brother, sister, sibling, grand-parent, grand-father, grand-mother. "
+                "There can be only one condition per relative per instruction, and no instruction in the lack of.")
 
     def instruction_constraints(self) -> str:
         result = ""
-        if self.family_history():
-            text = ", ".join([f'{history.label}' for history in self.family_history()])
-            result = f"'{self.class_name()}' cannot include: {text}."
+        if text := ", ".join([f'{history.label}' for history in self.family_history()]):
+            result = f'"{self.class_name()}" cannot include: {text}.'
         return result
 
     def is_available(self) -> bool:

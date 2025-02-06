@@ -1,9 +1,9 @@
 import json
 
 from canvas_sdk.commands.commands.medication_statement import MedicationStatementCommand
-from commander.protocols.commands.base import Base
 
 from commander.protocols.canvas_science import CanvasScience
+from commander.protocols.commands.base import Base
 from commander.protocols.constants import Constants
 from commander.protocols.openai_chat import OpenaiChat
 
@@ -66,8 +66,7 @@ class Medication(Base):
 
     def instruction_constraints(self) -> str:
         result = ""
-        if self.current_medications():
-            text = ", ".join([medication.label for medication in self.current_medications()])
+        if text := ", ".join([medication.label for medication in self.current_medications()]):
             result = f"'{self.class_name()}' cannot include: {text}."
         return result
 

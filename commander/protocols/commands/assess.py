@@ -1,6 +1,6 @@
 from canvas_sdk.commands.commands.assess import AssessCommand
-from commander.protocols.commands.base import Base
 
+from commander.protocols.commands.base import Base
 from commander.protocols.helper import Helper
 
 

@@ -1,8 +1,12 @@
+from unittest.mock import patch, call
+
 from canvas_sdk.commands.commands.stop_medication import StopMedicationCommand
-from commander.protocols.commands.stop_medication import StopMedication
 
 from commander.protocols.commands.base import Base
+from commander.protocols.commands.stop_medication import StopMedication
+from commander.protocols.structures.coded_item import CodedItem
 from commander.protocols.structures.settings import Settings
+
 
 def helper_instance() -> StopMedication:
     settings = Settings(
@@ -13,6 +17,7 @@ def helper_instance() -> StopMedication:
         allow_update=True,
     )
     return StopMedication(settings, "patientUuid", "noteUuid", "providerUuid")
+
 
 def test_class():
     tested = StopMedication
@@ -26,32 +31,91 @@ def test_schema_key():
     assert result == expected
 
 
-def te0st_command_from_json():
+@patch.object(StopMedication, "current_medications")
+def test_command_from_json(current_medications):
+    def reset_mocks():
+        current_medications.reset_mock()
+
     tested = helper_instance()
-    result = tested.command_from_json({})
-    expected = StopMedicationCommand()
-    assert result == expected
+    medications = [
+        CodedItem(uuid="theUuid1", label="display1a", code="CODE123"),
+        CodedItem(uuid="theUuid2", label="display2a", code="CODE45"),
+        CodedItem(uuid="theUuid3", label="display3a", code="CODE9876"),
+    ]
+    tests = [
+        (1, "theUuid2", [call(), call()]),
+        (2, "theUuid3", [call(), call()]),
+        (4, "", [call()]),
+    ]
+    for idx, exp_uuid, calls in tests:
+        current_medications.side_effect = [medications, medications]
+        params = {
+            'medications': 'display2a',
+            'medicationIndex': idx,
+            'rationale': 'theRationale',
+        }
+        result = tested.command_from_json(params)
+        expected = StopMedicationCommand(
+            medication_id=exp_uuid,
+            rationale="theRationale",
+            note_uuid="noteUuid",
+        )
+        assert result == expected
+        assert current_medications.mock_calls == calls
+        reset_mocks()
 
 
-def te0st_command_parameters():
+@patch.object(StopMedication, "current_medications")
+def test_command_parameters(current_medications):
+    def reset_mocks():
+        current_medications.reset_mock()
+
     tested = helper_instance()
+    medications = [
+        CodedItem(uuid="theUuid1", label="display1a", code="CODE123"),
+        CodedItem(uuid="theUuid2", label="display2a", code="CODE45"),
+        CodedItem(uuid="theUuid3", label="display3a", code="CODE9876"),
+    ]
+    current_medications.side_effect = [medications]
     result = tested.command_parameters()
-    expected = {}
+    expected = {
+        'medication': 'one of: display1a (index: 0)/display2a (index: 1)/display3a (index: 2)',
+        "medicationIndex": "index of the medication to stop, as integer",
+        "rationale": "explanation of why the medication is stopped, as free text",
+    }
     assert result == expected
+    calls = [call()]
+    assert current_medications.mock_calls == calls
+    reset_mocks()
 
 
-def te0st_instruction_description():
+def test_instruction_description():
     tested = helper_instance()
     result = tested.instruction_description()
-    expected = ""
+    expected = ("Stop a medication. "
+                "There can be only one medication, with the rationale, to stop per instruction, and no instruction in the lack of.")
     assert result == expected
 
 
-def te0st_instruction_constraints():
+@patch.object(StopMedication, "current_medications")
+def test_instruction_constraints(current_medications):
+    def reset_mocks():
+        current_medications.reset_mock()
+
     tested = helper_instance()
+    medications = [
+        CodedItem(uuid="theUuid1", label="display1a", code="CODE123"),
+        CodedItem(uuid="theUuid2", label="display2a", code="CODE45"),
+        CodedItem(uuid="theUuid3", label="display3a", code="CODE9876"),
+    ]
+    current_medications.side_effect = [medications]
     result = tested.instruction_constraints()
-    expected = ""
+    expected = ("'StopMedication' has to be related to one of the following medications: "
+                "display1a, display2a, display3a.")
     assert result == expected
+    calls = [call()]
+    assert current_medications.mock_calls == calls
+    reset_mocks()
 
 
 def test_is_available():

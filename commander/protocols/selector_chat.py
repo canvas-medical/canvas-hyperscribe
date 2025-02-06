@@ -104,3 +104,13 @@ class SelectorChat:
                 uuid="",
             )
         return result
+
+    @classmethod
+    def single_conversation(cls, settings: Settings, system_prompt: list[str], user_prompt: list[str]) -> list:
+        conversation = OpenaiChat(settings.openai_key, Constants.OPENAI_CHAT_TEXT)
+        conversation.system_prompt = system_prompt
+        conversation.user_prompt = user_prompt
+        response = conversation.chat()
+        if response.has_error is False and response.content:
+            return response.content
+        return []

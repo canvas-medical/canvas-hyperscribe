@@ -1,18 +1,20 @@
 from canvas_sdk.commands.commands.reason_for_visit import ReasonForVisitCommand
-from commander.protocols.commands.reason_for_visit import ReasonForVisit
 
 from commander.protocols.commands.base import Base
+from commander.protocols.commands.reason_for_visit import ReasonForVisit
 from commander.protocols.structures.settings import Settings
 
-def helper_instance() -> ReasonForVisit:
+
+def helper_instance(allow_update: bool = True) -> ReasonForVisit:
     settings = Settings(
         openai_key="openaiKey",
         science_host="scienceHost",
         ontologies_host="ontologiesHost",
         pre_shared_key="preSharedKey",
-        allow_update=True,
+        allow_update=allow_update,
     )
     return ReasonForVisit(settings, "patientUuid", "noteUuid", "providerUuid")
+
 
 def test_class():
     tested = ReasonForVisit
@@ -26,28 +28,44 @@ def test_schema_key():
     assert result == expected
 
 
-def te0st_command_from_json():
+def test_command_from_json():
     tested = helper_instance()
-    result = tested.command_from_json({})
-    expected = ReasonForVisitCommand()
+    parameters = {
+        "reasonForVisit": "theReasonForVisit",
+    }
+    result = tested.command_from_json(parameters)
+    expected = ReasonForVisitCommand(
+        comment="theReasonForVisit",
+        note_uuid="noteUuid",
+    )
     assert result == expected
 
 
-def te0st_command_parameters():
+def test_command_parameters():
     tested = helper_instance()
     result = tested.command_parameters()
-    expected = {}
+    expected = {
+        "reasonForVisit": "description of the reason of the visit, as free text",
+    }
     assert result == expected
 
 
-def te0st_instruction_description():
+def test_instruction_description():
     tested = helper_instance()
     result = tested.instruction_description()
-    expected = ""
+    expected = ("Patient's reported reason for the visit. "
+                "There can be multiple reasons within an instruction."
+                " There can be only one such instruction in the whole discussion, "
+                "so if one was already found, just update it by intelligently merging all reasons.")
+    assert result == expected
+    tested = helper_instance(False)
+    result = tested.instruction_description()
+    expected = ("Patient's reported reason for the visit. "
+                "There can be multiple reasons within an instruction.")
     assert result == expected
 
 
-def te0st_instruction_constraints():
+def test_instruction_constraints():
     tested = helper_instance()
     result = tested.instruction_constraints()
     expected = ""

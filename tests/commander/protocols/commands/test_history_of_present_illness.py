@@ -4,15 +4,17 @@ from commander.protocols.commands.base import Base
 from commander.protocols.commands.history_of_present_illness import HistoryOfPresentIllness
 from commander.protocols.structures.settings import Settings
 
-def helper_instance() -> HistoryOfPresentIllness:
+
+def helper_instance(allow_update: bool = True) -> HistoryOfPresentIllness:
     settings = Settings(
         openai_key="openaiKey",
         science_host="scienceHost",
         ontologies_host="ontologiesHost",
         pre_shared_key="preSharedKey",
-        allow_update=True,
+        allow_update=allow_update,
     )
     return HistoryOfPresentIllness(settings, "patientUuid", "noteUuid", "providerUuid")
+
 
 def test_class():
     tested = HistoryOfPresentIllness
@@ -26,28 +28,44 @@ def test_schema_key():
     assert result == expected
 
 
-def te0st_command_from_json():
+def test_command_from_json():
     tested = helper_instance()
-    result = tested.command_from_json({})
-    expected = HistoryOfPresentIllnessCommand()
+    parameters = {
+        "narrative": "theNarrative",
+    }
+    result = tested.command_from_json(parameters)
+    expected = HistoryOfPresentIllnessCommand(
+        narrative="theNarrative",
+        note_uuid="noteUuid",
+    )
     assert result == expected
 
 
-def te0st_command_parameters():
+def test_command_parameters():
     tested = helper_instance()
     result = tested.command_parameters()
-    expected = {}
+    expected = {
+        "narrative": "highlights of the visit from the provider point of view, as free text",
+    }
     assert result == expected
 
 
-def te0st_instruction_description():
+def test_instruction_description():
     tested = helper_instance()
     result = tested.instruction_description()
-    expected = ""
+    expected = ("Provider's reported key highlights of the visit. "
+                "There can be multiple highlights within an instruction."
+                " There can be only one such instruction in the whole discussion, "
+                "so if one was already found, just update it by intelligently merging all key highlights.")
+    assert result == expected
+    tested = helper_instance(False)
+    result = tested.instruction_description()
+    expected = ("Provider's reported key highlights of the visit. "
+                "There can be multiple highlights within an instruction.")
     assert result == expected
 
 
-def te0st_instruction_constraints():
+def test_instruction_constraints():
     tested = helper_instance()
     result = tested.instruction_constraints()
     expected = ""

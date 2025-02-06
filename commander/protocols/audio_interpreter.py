@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import Type
 
 from canvas_sdk.commands.base import _BaseCommand as BaseCommand
+
 from commander.protocols.commands.allergy import Allergy
 from commander.protocols.commands.assess import Assess
 from commander.protocols.commands.base import Base
@@ -29,7 +30,6 @@ from commander.protocols.commands.task import Task
 from commander.protocols.commands.update_diagnose import UpdateDiagnose
 from commander.protocols.commands.update_goal import UpdateGoal
 from commander.protocols.commands.vitals import Vitals
-
 from commander.protocols.constants import Constants
 from commander.protocols.openai_chat import OpenaiChat
 from commander.protocols.structures.instruction import Instruction

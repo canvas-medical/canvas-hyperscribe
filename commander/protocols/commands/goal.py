@@ -1,6 +1,6 @@
 from canvas_sdk.commands.commands.goal import GoalCommand
-from commander.protocols.commands.base import Base
 
+from commander.protocols.commands.base import Base
 from commander.protocols.helper import Helper
 
 
@@ -37,8 +37,10 @@ class Goal(Base):
                 "There can be only one goal per instruction, and no instruction in the lack of.")
 
     def instruction_constraints(self) -> str:
-        text = ", ".join([f'"{goal.label}"' for goal in self.current_goals()])
-        return f"'{self.class_name()}' cannot include: {text}"
+        result = ""
+        if text := ", ".join([f'"{goal.label}"' for goal in self.current_goals()]):
+            result = f'"{self.class_name()}" cannot include: {text}'
+        return result
 
     def is_available(self) -> bool:
         return True

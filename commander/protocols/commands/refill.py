@@ -2,8 +2,8 @@ from canvas_sdk.commands.commands.prescribe import PrescribeCommand
 from canvas_sdk.commands.commands.refill import RefillCommand
 from canvas_sdk.commands.constants import ClinicalQuantity
 from canvas_sdk.v1.data import Medication
-from commander.protocols.commands.base import Base
 
+from commander.protocols.commands.base import Base
 from commander.protocols.helper import Helper
 
 

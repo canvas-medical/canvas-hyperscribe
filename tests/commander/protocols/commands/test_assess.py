@@ -7,6 +7,7 @@ from commander.protocols.commands.base import Base
 from commander.protocols.structures.coded_item import CodedItem
 from commander.protocols.structures.settings import Settings
 
+
 def helper_instance() -> Assess:
     settings = Settings(
         openai_key="openaiKey",
@@ -161,4 +162,3 @@ def test_is_available(current_conditions):
         calls = [call()]
         assert current_conditions.mock_calls == calls
         reset_mocks()
-

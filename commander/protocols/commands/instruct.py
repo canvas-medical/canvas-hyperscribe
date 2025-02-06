@@ -1,9 +1,9 @@
 import json
 
 from canvas_sdk.commands.commands.instruct import InstructCommand
-from commander.protocols.commands.base import Base
 
 from commander.protocols.canvas_science import CanvasScience
+from commander.protocols.commands.base import Base
 from commander.protocols.constants import Constants
 from commander.protocols.openai_chat import OpenaiChat
 

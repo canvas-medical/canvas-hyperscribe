@@ -1,6 +1,6 @@
 from canvas_sdk.commands.commands.lab_order import LabOrderCommand
-from commander.protocols.commands.base import Base
 
+from commander.protocols.commands.base import Base
 from commander.protocols.selector_chat import SelectorChat
 from commander.protocols.temporary_data import TemporaryData
 

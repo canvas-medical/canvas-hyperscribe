@@ -1,6 +1,6 @@
 from canvas_sdk.commands.commands.diagnose import DiagnoseCommand
-from commander.protocols.commands.base import Base
 
+from commander.protocols.commands.base import Base
 from commander.protocols.helper import Helper
 from commander.protocols.selector_chat import SelectorChat
 
@@ -45,8 +45,7 @@ class Diagnose(Base):
 
     def instruction_constraints(self) -> str:
         result = ""
-        if self.current_conditions():
-            text = ", ".join([f'{condition.label}' for condition in self.current_conditions()])
+        if text := ", ".join([f'{condition.label}' for condition in self.current_conditions()]):
             result = f"'{self.class_name()}' cannot include: {text}."
         return result
 

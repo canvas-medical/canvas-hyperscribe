@@ -4,6 +4,7 @@ from commander.protocols.commands.base import Base
 from commander.protocols.commands.plan import Plan
 from commander.protocols.structures.settings import Settings
 
+
 def helper_instance() -> Plan:
     settings = Settings(
         openai_key="openaiKey",
@@ -13,6 +14,7 @@ def helper_instance() -> Plan:
         allow_update=True,
     )
     return Plan(settings, "patientUuid", "noteUuid", "providerUuid")
+
 
 def test_class():
     tested = Plan
@@ -26,28 +28,37 @@ def test_schema_key():
     assert result == expected
 
 
-def te0st_command_from_json():
+def test_command_from_json():
     tested = helper_instance()
-    result = tested.command_from_json({})
-    expected = PlanCommand()
+    parameters = {
+        "plan": "thePlan",
+    }
+    result = tested.command_from_json(parameters)
+    expected = PlanCommand(
+        narrative="thePlan",
+        note_uuid="noteUuid",
+    )
     assert result == expected
 
 
-def te0st_command_parameters():
+def test_command_parameters():
     tested = helper_instance()
     result = tested.command_parameters()
-    expected = {}
+    expected = {
+        "plan": "description of the plan, as free text",
+    }
     assert result == expected
 
 
-def te0st_instruction_description():
+def test_instruction_description():
     tested = helper_instance()
     result = tested.instruction_description()
-    expected = ""
+    expected = ("Defined plan for future patient visits. "
+                "There can be only one plan per instruction, and no instruction in the lack of.")
     assert result == expected
 
 
-def te0st_instruction_constraints():
+def test_instruction_constraints():
     tested = helper_instance()
     result = tested.instruction_constraints()
     expected = ""
