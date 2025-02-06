@@ -1,6 +1,6 @@
 {
   "sdk_version": "0.16.0",
-  "plugin_version": "0.0.10",
+  "plugin_version": "0.0.11",
   "name": "commander",
   "description": "Create commands based on the content of an audio discussion between a patient and a provider.",
   "components": {

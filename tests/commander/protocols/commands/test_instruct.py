@@ -1,7 +1,12 @@
+from unittest.mock import patch, call
+
 from canvas_sdk.commands.commands.instruct import InstructCommand
 
+from commander.protocols.canvas_science import CanvasScience
 from commander.protocols.commands.base import Base
 from commander.protocols.commands.instruct import Instruct
+from commander.protocols.selector_chat import SelectorChat
+from commander.protocols.structures.medical_concept import MedicalConcept
 from commander.protocols.structures.settings import Settings
 
 
@@ -28,11 +33,98 @@ def test_schema_key():
     assert result == expected
 
 
-def te0st_command_from_json():
+@patch.object(SelectorChat, "single_conversation")
+@patch.object(CanvasScience, "instructions")
+def test_command_from_json(instructions, single_conversation):
+    def reset_mocks():
+        instructions.reset_mock()
+        single_conversation.reset_mock()
+
+    system_prompt = [
+        "The conversation is in the medical context.",
+        "",
+        "Your task is to identify the most relevant direction.",
+        "",
+    ]
+    user_prompt = [
+        'Here is the description of a direction instructed by a healthcare provider to a patient:',
+        '```text',
+        'keywords: keyword1,keyword2,keyword3',
+        ' -- ',
+        'theComment',
+        '```',
+        'Among the following expressions, identify the most relevant one:',
+        '',
+        ' * termA (123)\n * termB (369)\n * termC (752)',
+        '',
+        'Please, present your findings in a JSON format within a Markdown code block like:',
+        '```json',
+        '[{"concept_id": "the concept ID", "term": "the expression"}]',
+        '```',
+        '',
+    ]
+    keywords = ['keyword1', 'keyword2', 'keyword3']
     tested = helper_instance()
-    result = tested.command_from_json({})
-    expected = InstructCommand()
+
+    parameters = {
+        'keywords': 'keyword1,keyword2,keyword3',
+        'comment': 'theComment',
+    }
+    medical_concepts = [
+        MedicalConcept(concept_id=123, term="termA"),
+        MedicalConcept(concept_id=369, term="termB"),
+        MedicalConcept(concept_id=752, term="termC"),
+    ]
+
+    # all good
+    instructions.side_effect = [medical_concepts]
+    single_conversation.side_effect = [[{"conceptId": 369, "term": "termB"}]]
+
+    result = tested.command_from_json(parameters)
+    expected = InstructCommand(
+        instruction="termB",
+        comment="theComment",
+        note_uuid="noteUuid",
+    )
     assert result == expected
+    calls = [call('scienceHost', keywords)]
+    assert instructions.mock_calls == calls
+    calls = [call(tested.settings, system_prompt, user_prompt)]
+    assert single_conversation.mock_calls == calls
+    reset_mocks()
+
+    # no good response
+    instructions.side_effect = [medical_concepts]
+    single_conversation.side_effect = [[]]
+
+    result = tested.command_from_json(parameters)
+    expected = InstructCommand(
+        instruction="Advice to read information",
+        comment="theComment",
+        note_uuid="noteUuid",
+    )
+    assert result == expected
+    calls = [call('scienceHost', keywords)]
+    assert instructions.mock_calls == calls
+    calls = [call(tested.settings, system_prompt, user_prompt)]
+    assert single_conversation.mock_calls == calls
+    reset_mocks()
+
+    # no medical concept
+    instructions.side_effect = [[]]
+    single_conversation.side_effect = [[]]
+
+    result = tested.command_from_json(parameters)
+    expected = InstructCommand(
+        instruction="Advice to read information",
+        comment="theComment",
+        note_uuid="noteUuid",
+    )
+    assert result == expected
+    calls = [call('scienceHost', keywords)]
+    assert instructions.mock_calls == calls
+    assert single_conversation.mock_calls == []
+    reset_mocks()
 
 
 def test_command_parameters():

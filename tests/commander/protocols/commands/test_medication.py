@@ -2,9 +2,12 @@ from unittest.mock import patch, call
 
 from canvas_sdk.commands.commands.medication_statement import MedicationStatementCommand
 
+from commander.protocols.canvas_science import CanvasScience
 from commander.protocols.commands.base import Base
 from commander.protocols.commands.medication import Medication
+from commander.protocols.selector_chat import SelectorChat
 from commander.protocols.structures.coded_item import CodedItem
+from commander.protocols.structures.medication_detail import MedicationDetail
 from commander.protocols.structures.settings import Settings
 
 
@@ -31,11 +34,98 @@ def test_schema_key():
     assert result == expected
 
 
-def te0st_command_from_json():
+@patch.object(SelectorChat, "single_conversation")
+@patch.object(CanvasScience, "medication_details")
+def test_command_from_json(medication_details, single_conversation):
+    def reset_mocks():
+        medication_details.reset_mock()
+        single_conversation.reset_mock()
+
+    system_prompt = [
+        "The conversation is in the medical context.",
+        "",
+        "Your task is to identify the most relevant medication to prescribe to a patient out of a list of medications.",
+        "",
+    ]
+    user_prompt = [
+        'Here is the comment provided by the healthcare provider in regards to the prescription:',
+        '```text',
+        'keywords: keyword1,keyword2,keyword3',
+        ' -- ',
+        'theSig',
+        '```',
+        '', 'Among the following medications, identify the most relevant one:',
+        '',
+        ' * labelA (fdbCode: code123)\n * labelB (fdbCode: code369)\n * labelC (fdbCode: code752)',
+        '',
+        'Please, present your findings in a JSON format within a Markdown code block like:',
+        '```json',
+        '[{"fdbCode": "the fdb code, as int", "description": "the description"}]',
+        '```',
+        '',
+    ]
+    keywords = ['keyword1', 'keyword2', 'keyword3']
     tested = helper_instance()
-    result = tested.command_from_json({})
-    expected = MedicationStatementCommand()
+
+    parameters = {
+        'keywords': 'keyword1,keyword2,keyword3',
+        'sig': 'theSig',
+    }
+    medications = [
+        MedicationDetail(fdb_code="code123", description="labelA", quantities=[]),
+        MedicationDetail(fdb_code="code369", description="labelB", quantities=[]),
+        MedicationDetail(fdb_code="code752", description="labelC", quantities=[]),
+    ]
+
+    # all good
+    medication_details.side_effect = [medications]
+    single_conversation.side_effect = [[{"fdbCode": "code369", "description": "labelB"}]]
+
+    result = tested.command_from_json(parameters)
+    expected = MedicationStatementCommand(
+        sig="theSig",
+        fdb_code="code369",
+        note_uuid="noteUuid",
+    )
     assert result == expected
+    calls = [call('scienceHost', keywords)]
+    assert medication_details.mock_calls == calls
+    calls = [call(tested.settings, system_prompt, user_prompt)]
+    assert single_conversation.mock_calls == calls
+    reset_mocks()
+
+    # no good response
+    medication_details.side_effect = [medications]
+    single_conversation.side_effect = [[]]
+
+    result = tested.command_from_json(parameters)
+    expected = MedicationStatementCommand(
+        sig="theSig",
+        fdb_code=None,
+        note_uuid="noteUuid",
+    )
+    assert result == expected
+    calls = [call('scienceHost', keywords)]
+    assert medication_details.mock_calls == calls
+    calls = [call(tested.settings, system_prompt, user_prompt)]
+    assert single_conversation.mock_calls == calls
+    reset_mocks()
+
+    # no medical concept
+    medication_details.side_effect = [[]]
+    single_conversation.side_effect = [[]]
+
+    result = tested.command_from_json(parameters)
+    expected = MedicationStatementCommand(
+        sig="theSig",
+        fdb_code=None,
+        note_uuid="noteUuid",
+    )
+    assert result == expected
+    calls = [call('scienceHost', keywords)]
+    assert medication_details.mock_calls == calls
+    assert single_conversation.mock_calls == []
+    reset_mocks()
 
 
 def test_command_parameters():

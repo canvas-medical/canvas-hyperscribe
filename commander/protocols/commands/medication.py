@@ -4,8 +4,7 @@ from canvas_sdk.commands.commands.medication_statement import MedicationStatemen
 
 from commander.protocols.canvas_science import CanvasScience
 from commander.protocols.commands.base import Base
-from commander.protocols.constants import Constants
-from commander.protocols.openai_chat import OpenaiChat
+from commander.protocols.selector_chat import SelectorChat
 
 
 class Medication(Base):
@@ -14,44 +13,40 @@ class Medication(Base):
         return "medicationStatement"
 
     def command_from_json(self, parameters: dict) -> None | MedicationStatementCommand:
-        # retrieve existing medications defined in Canvas Science
-        expressions = parameters["keywords"].split(",")
-        medications = CanvasScience.medication_details(self.settings.science_host, expressions)
-
-        conversation = OpenaiChat(self.settings.openai_key, Constants.OPENAI_CHAT_TEXT)
-        # retrieve the correct medication
-        conversation.system_prompt = [
-            "The conversation is in the medical context.",
-            "",
-            "Your task is to identify the most relevant medication to prescribe to a patient out of a list of medications.",
-            "",
-        ]
-        conversation.user_prompt = [
-            'Here is the comment provided by the healthcare provider in regards to the prescription:',
-            '```text',
-            f"keywords: {parameters['keywords']}",
-            " -- ",
-            parameters["sig"],
-            '```',
-            "",
-            'Among the following medications, identify the most relevant one:',
-            '',
-            "\n".join(f' * {medication.description} (fdbCode: {medication.fdb_code})' for medication in medications),
-            '',
-            'Please, present your findings in a JSON format within a Markdown code block like:',
-            '```json',
-            json.dumps([{"fdbCode": "the fdb code, as int", "description": "the description"}]),
-            '```',
-            '',
-        ]
-        response = conversation.chat()
         result = MedicationStatementCommand(
             sig=parameters["sig"],
             note_uuid=self.note_uuid,
         )
-        if response.has_error is False and response.content:
-            fdb_code = str(response.content[0]["fdbCode"])
-            result.fdb_code = fdb_code
+        # retrieve existing medications defined in Canvas Science
+        expressions = parameters["keywords"].split(",")
+        if medications := CanvasScience.medication_details(self.settings.science_host, expressions):
+            # retrieve the correct medication
+            system_prompt = [
+                "The conversation is in the medical context.",
+                "",
+                "Your task is to identify the most relevant medication to prescribe to a patient out of a list of medications.",
+                "",
+            ]
+            user_prompt = [
+                'Here is the comment provided by the healthcare provider in regards to the prescription:',
+                '```text',
+                f"keywords: {parameters['keywords']}",
+                " -- ",
+                parameters["sig"],
+                '```',
+                "",
+                'Among the following medications, identify the most relevant one:',
+                '',
+                "\n".join(f' * {medication.description} (fdbCode: {medication.fdb_code})' for medication in medications),
+                '',
+                'Please, present your findings in a JSON format within a Markdown code block like:',
+                '```json',
+                json.dumps([{"fdbCode": "the fdb code, as int", "description": "the description"}]),
+                '```',
+                '',
+            ]
+            if response := SelectorChat.single_conversation(self.settings, system_prompt, user_prompt):
+                result.fdb_code = str(response[0]["fdbCode"])
         return result
 
     def command_parameters(self) -> dict:
