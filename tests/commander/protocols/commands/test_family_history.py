@@ -2,9 +2,12 @@ from unittest.mock import patch, call
 
 from canvas_sdk.commands.commands.family_history import FamilyHistoryCommand
 
+from commander.protocols.canvas_science import CanvasScience
 from commander.protocols.commands.base import Base
 from commander.protocols.commands.family_history import FamilyHistory
+from commander.protocols.selector_chat import SelectorChat
 from commander.protocols.structures.coded_item import CodedItem
+from commander.protocols.structures.medical_concept import MedicalConcept
 from commander.protocols.structures.settings import Settings
 
 
@@ -31,11 +34,101 @@ def test_schema_key():
     assert result == expected
 
 
-def te0st_command_from_json():
+@patch.object(SelectorChat, "single_conversation")
+@patch.object(CanvasScience, "family_histories")
+def test_command_from_json(family_histories, single_conversation):
+    def reset_mocks():
+        family_histories.reset_mock()
+        single_conversation.reset_mock()
+
+    system_prompt = [
+        "The conversation is in the medical context.",
+        "",
+        "Your task is to identify the most relevant condition of a patient out of a list of conditions.",
+        "",
+    ]
+    user_prompt = [
+        'Here is the note provided by the healthcare provider in regards to the condition of a patient:',
+        '```text',
+        'keywords: keyword1,keyword2,keyword3',
+        ' -- ',
+        'theNote',
+        '```',
+        'Among the following conditions, identify the most relevant one:',
+        '',
+        ' * termA (123)\n * termB (369)\n * termC (752)',
+        '',
+        'Please, present your findings in a JSON format within a Markdown code block like:',
+        '```json', '[{"concept_id": "the concept ID", "term": "the expression"}]',
+        '```',
+        '',
+    ]
+    keywords = ['keyword1', 'keyword2', 'keyword3']
     tested = helper_instance()
-    result = tested.command_from_json({})
-    expected = FamilyHistoryCommand()
+
+    parameters = {
+        'keywords': 'keyword1,keyword2,keyword3',
+        'relative': 'sibling',
+        'note': 'theNote',
+    }
+    medical_concepts = [
+        MedicalConcept(concept_id=123, term="termA"),
+        MedicalConcept(concept_id=369, term="termB"),
+        MedicalConcept(concept_id=752, term="termC"),
+    ]
+
+    # all good
+    family_histories.side_effect = [medical_concepts]
+    single_conversation.side_effect = [[{"conceptId": 369, "term": "termB"}]]
+
+    result = tested.command_from_json(parameters)
+    expected = FamilyHistoryCommand(
+        relative="sibling",
+        note="theNote",
+        family_history="termB",
+        note_uuid="noteUuid",
+    )
     assert result == expected
+    calls = [call('scienceHost', keywords)]
+    assert family_histories.mock_calls == calls
+    calls = [call(tested.settings, system_prompt, user_prompt)]
+    assert single_conversation.mock_calls == calls
+    reset_mocks()
+
+    # no good response
+    family_histories.side_effect = [medical_concepts]
+    single_conversation.side_effect = [[]]
+
+    result = tested.command_from_json(parameters)
+    expected = FamilyHistoryCommand(
+        relative="sibling",
+        note="theNote",
+        family_history=None,
+        note_uuid="noteUuid",
+    )
+    assert result == expected
+    calls = [call('scienceHost', keywords)]
+    assert family_histories.mock_calls == calls
+    calls = [call(tested.settings, system_prompt, user_prompt)]
+    assert single_conversation.mock_calls == calls
+    reset_mocks()
+
+    # no medical concept
+    family_histories.side_effect = [[]]
+    single_conversation.side_effect = [[]]
+
+    result = tested.command_from_json(parameters)
+    expected = FamilyHistoryCommand(
+        relative="sibling",
+        note="theNote",
+        family_history=None,
+        note_uuid="noteUuid",
+    )
+    assert result == expected
+    calls = [call('scienceHost', keywords)]
+    assert family_histories.mock_calls == calls
+    assert single_conversation.mock_calls == []
+    reset_mocks()
 
 
 def test_command_parameters():

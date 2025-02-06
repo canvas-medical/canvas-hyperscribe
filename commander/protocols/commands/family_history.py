@@ -4,8 +4,7 @@ from canvas_sdk.commands.commands.family_history import FamilyHistoryCommand
 
 from commander.protocols.canvas_science import CanvasScience
 from commander.protocols.commands.base import Base
-from commander.protocols.constants import Constants
-from commander.protocols.openai_chat import OpenaiChat
+from commander.protocols.selector_chat import SelectorChat
 
 
 class FamilyHistory(Base):
@@ -14,46 +13,41 @@ class FamilyHistory(Base):
         return "familyHistory"
 
     def command_from_json(self, parameters: dict) -> None | FamilyHistoryCommand:
-        # retrieve existing family history conditions defined in Canvas Science
-        expressions = parameters["keywords"].split(",")
-        concepts = CanvasScience.family_histories(self.settings.science_host, expressions)
-
-        # ask the LLM to pick the most relevant condition
-        conversation = OpenaiChat(self.settings.openai_key, Constants.OPENAI_CHAT_TEXT)
-        conversation.system_prompt = [
-            "The conversation is in the medical context.",
-            "",
-            "Your task is to identify the most relevant condition of a patient out of a list of conditions.",
-            "",
-        ]
-        conversation.user_prompt = [
-            'Here is the note provided by the healthcare provider in regards to the condition of a patient:',
-            '```text',
-            f"keywords: {parameters['keywords']}",
-            " -- ",
-            parameters["note"],
-            '```',
-            'Among the following conditions, identify the most relevant one:',
-            '',
-            "\n".join(f' * {concept.term} ({concept.concept_id})' for concept in concepts),
-            '',
-            'Please, present your findings in a JSON format within a Markdown code block like:',
-            '```json',
-            json.dumps([{"concept_id": "the concept ID", "term": "the expression"}]),
-            '```',
-            '',
-        ]
-        response = conversation.chat()
-        condition = ""
-        if response.has_error is False and response.content:
-            condition = response.content[0]["term"]
-
-        return FamilyHistoryCommand(
-            family_history=condition,
+        result = FamilyHistoryCommand(
             relative=parameters["relative"],
             note=parameters["note"],
             note_uuid=self.note_uuid,
         )
+        # retrieve existing family history conditions defined in Canvas Science
+        expressions = parameters["keywords"].split(",")
+        if concepts := CanvasScience.family_histories(self.settings.science_host, expressions):
+            # ask the LLM to pick the most relevant condition
+            system_prompt = [
+                "The conversation is in the medical context.",
+                "",
+                "Your task is to identify the most relevant condition of a patient out of a list of conditions.",
+                "",
+            ]
+            user_prompt = [
+                'Here is the note provided by the healthcare provider in regards to the condition of a patient:',
+                '```text',
+                f"keywords: {parameters['keywords']}",
+                " -- ",
+                parameters["note"],
+                '```',
+                'Among the following conditions, identify the most relevant one:',
+                '',
+                "\n".join(f' * {concept.term} ({concept.concept_id})' for concept in concepts),
+                '',
+                'Please, present your findings in a JSON format within a Markdown code block like:',
+                '```json',
+                json.dumps([{"concept_id": "the concept ID", "term": "the expression"}]),
+                '```',
+                '',
+            ]
+            if response := SelectorChat.single_conversation(self.settings, system_prompt, user_prompt):
+                result.family_history = response[0]["term"]
+        return result
 
     def command_parameters(self) -> dict:
         return {
