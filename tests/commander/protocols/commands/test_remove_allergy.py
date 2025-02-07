@@ -43,11 +43,11 @@ def test_command_from_json(current_allergies):
         CodedItem(uuid="theUuid3", label="display3a", code="CODE9876"),
     ]
     tests = [
-        (1, "theUuid2", [call(), call()]),
-        (2, "theUuid3", [call(), call()]),
-        (4, "", [call()]),
+        (1, "theUuid2"),
+        (2, "theUuid3"),
+        (4, ""),
     ]
-    for idx, exp_uuid, calls in tests:
+    for idx, exp_uuid in tests:
         current_allergies.side_effect = [allergies, allergies]
         params = {
             'allergies': 'display2a',
@@ -61,6 +61,7 @@ def test_command_from_json(current_allergies):
             note_uuid="noteUuid",
         )
         assert result == expected
+        calls = [call()]
         assert current_allergies.mock_calls == calls
         reset_mocks()
 

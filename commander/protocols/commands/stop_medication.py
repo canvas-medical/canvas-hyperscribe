@@ -10,8 +10,8 @@ class StopMedication(Base):
 
     def command_from_json(self, parameters: dict) -> None | StopMedicationCommand:
         medication_uuid = ""
-        if 0 <= (idx := parameters["medicationIndex"]) < len(self.current_medications()):
-            medication_uuid = self.current_medications()[idx].uuid
+        if 0 <= (idx := parameters["medicationIndex"]) < len(current := self.current_medications()):
+            medication_uuid = current[idx].uuid
         return StopMedicationCommand(
             medication_id=medication_uuid,
             rationale=parameters["rationale"],

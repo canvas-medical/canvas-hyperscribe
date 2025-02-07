@@ -45,11 +45,11 @@ def test_command_from_json(current_goals):
 
     ]
     tests = [
-        (1, "theUuid2", [call(), call()]),
-        (2, "theUuid3", [call(), call()]),
-        (4, "", [call()]),
+        (1, "theUuid2"),
+        (2, "theUuid3"),
+        (4, ""),
     ]
-    for idx, exp_uuid, calls in tests:
+    for idx, exp_uuid in tests:
         current_goals.side_effect = [goals, goals]
         params = {
             'goal': 'display2a',
@@ -69,6 +69,7 @@ def test_command_from_json(current_goals):
             note_uuid="noteUuid",
         )
         assert result == expected
+        calls = [call()]
         assert current_goals.mock_calls == calls
         reset_mocks()
 

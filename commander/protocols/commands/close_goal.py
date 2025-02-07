@@ -12,9 +12,9 @@ class CloseGoal(Base):
 
     def command_from_json(self, parameters: dict) -> None | CloseGoalCommand:
         goal_uuid = "0"
-        if 0 <= (idx := parameters["goalIndex"]) < len(self.current_goals()):
-            # TODO should be  goal_uuid = self.current_goals()[idx].uuid, waiting for https://github.com/canvas-medical/canvas-plugins/issues/338
-            goal_uuid = self.current_goals()[idx].code
+        if 0 <= (idx := parameters["goalIndex"]) < len(current := self.current_goals()):
+            # TODO should be  goal_uuid = current[idx].uuid, waiting for https://github.com/canvas-medical/canvas-plugins/issues/338
+            goal_uuid = current[idx].code
 
         return CloseGoalCommand(
             # TODO should be goal_id=goal_uuid, waiting for https://github.com/canvas-medical/canvas-plugins/issues/338

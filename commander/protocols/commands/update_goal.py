@@ -11,8 +11,8 @@ class UpdateGoal(Base):
 
     def command_from_json(self, parameters: dict) -> None | UpdateGoalCommand:
         goal_uuid = ""
-        if 0 <= (idx := parameters["goalIndex"]) < len(self.current_goals()):
-            goal_uuid = self.current_goals()[idx].uuid
+        if 0 <= (idx := parameters["goalIndex"]) < len(current := self.current_goals()):
+            goal_uuid = current[idx].uuid
 
         return UpdateGoalCommand(
             goal_id=goal_uuid,

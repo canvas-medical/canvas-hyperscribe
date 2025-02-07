@@ -1,10 +1,13 @@
 from unittest.mock import patch, call
 
-from canvas_sdk.commands.commands.diagnose import DiagnoseCommand
+from canvas_sdk.commands.commands.update_diagnosis import UpdateDiagnosisCommand
 
+from commander.protocols.canvas_science import CanvasScience
 from commander.protocols.commands.base import Base
 from commander.protocols.commands.update_diagnose import UpdateDiagnose
+from commander.protocols.selector_chat import SelectorChat
 from commander.protocols.structures.coded_item import CodedItem
+from commander.protocols.structures.icd10_condition import Icd10Condition
 from commander.protocols.structures.settings import Settings
 
 
@@ -31,11 +34,133 @@ def test_schema_key():
     assert result == expected
 
 
-def te0st_command_from_json():
+@patch.object(SelectorChat, "single_conversation")
+@patch.object(CanvasScience, "search_conditions")
+@patch.object(UpdateDiagnose, "current_conditions")
+def test_command_from_json(current_conditions, search_conditions, single_conversation):
+    def reset_mocks():
+        current_conditions.reset_mock()
+        search_conditions.reset_mock()
+        single_conversation.reset_mock()
+
+    system_prompt = [
+        "The conversation is in the medical context.",
+        "",
+        "Your task is to identify the most relevant condition diagnosed for a patient out of a list of conditions.",
+        "",
+    ]
+    user_prompt = [
+        'Here is the comment provided by the healthcare provider in regards to the diagnosis:',
+        '```text',
+        'keywords: keyword1,keyword2,keyword3',
+        ' -- ',
+        'theRationale',
+        '',
+        'theAssessment',
+        '```',
+        '',
+        'Among the following conditions, identify the most relevant one:',
+        '',
+        ' * labelA (ICD-10: code12.3)\n * labelB (ICD-10: code36.9)\n * labelC (ICD-10: code75.2)',
+        '',
+        'Please, present your findings in a JSON format within a Markdown code block like:',
+        '```json',
+        '[{"ICD10": "the ICD-10 code", "description": "the description"}]',
+        '```',
+        '',
+    ]
+    keywords = ['keyword1', 'keyword2', 'keyword3', "ICD01", "ICD02", "ICD03"]
     tested = helper_instance()
-    result = tested.command_from_json({})
-    expected = DiagnoseCommand()
-    assert result == expected
+
+    tests = [
+        (1, "CODE45"),
+        (2, "CODE98.76"),
+        (4, None),
+    ]
+    for idx, exp_current_icd10 in tests:
+        parameters = {
+            'keywords': 'keyword1,keyword2,keyword3',
+            "ICD10": "ICD01,ICD02,ICD03",
+            "previousCondition": "theCondition",
+            "previousConditionIndex": idx,
+            "rationale": "theRationale",
+            "assessment": "theAssessment",
+        }
+        conditions = [
+            CodedItem(uuid="theUuid1", label="display1a", code="CODE12.3"),
+            CodedItem(uuid="theUuid2", label="display2a", code="CODE45"),
+            CodedItem(uuid="theUuid3", label="display3a", code="CODE98.76"),
+        ]
+        search = [
+            Icd10Condition(code="code123", label="labelA"),
+            Icd10Condition(code="code369", label="labelB"),
+            Icd10Condition(code="code752", label="labelC"),
+        ]
+
+        # all good
+        current_conditions.side_effect = [conditions]
+        search_conditions.side_effect = [search]
+        single_conversation.side_effect = [[{"ICD10": "code369", "description": "labelB"}]]
+
+        result = tested.command_from_json(parameters)
+        expected = UpdateDiagnosisCommand(
+            background="theRationale",
+            narrative="theAssessment",
+            note_uuid="noteUuid",
+            condition_code=exp_current_icd10,
+            new_condition_code='code369',
+        )
+        assert result == expected
+        calls = [call()]
+        assert current_conditions.mock_calls == calls
+        calls = [call('scienceHost', keywords)]
+        assert search_conditions.mock_calls == calls
+        calls = [call(tested.settings, system_prompt, user_prompt)]
+        assert single_conversation.mock_calls == calls
+        reset_mocks()
+
+        # no condition found
+        current_conditions.side_effect = [conditions]
+        search_conditions.side_effect = [[]]
+        single_conversation.side_effect = []
+
+        result = tested.command_from_json(parameters)
+        expected = UpdateDiagnosisCommand(
+            background="theRationale",
+            narrative="theAssessment",
+            note_uuid="noteUuid",
+            condition_code=exp_current_icd10,
+            new_condition_code=None,
+        )
+        assert result == expected
+        calls = [call()]
+        assert current_conditions.mock_calls == calls
+        calls = [call('scienceHost', keywords)]
+        assert search_conditions.mock_calls == calls
+        assert single_conversation.mock_calls == []
+        reset_mocks()
+
+        # no response
+        current_conditions.side_effect = [conditions]
+        search_conditions.side_effect = [search]
+        single_conversation.side_effect = [[]]
+
+        result = tested.command_from_json(parameters)
+        expected = UpdateDiagnosisCommand(
+            background="theRationale",
+            narrative="theAssessment",
+            note_uuid="noteUuid",
+            condition_code=exp_current_icd10,
+            new_condition_code=None,
+        )
+        assert result == expected
+        calls = [call()]
+        assert current_conditions.mock_calls == calls
+        calls = [call('scienceHost', keywords)]
+        assert search_conditions.mock_calls == calls
+        calls = [call(tested.settings, system_prompt, user_prompt)]
+        assert single_conversation.mock_calls == calls
+        reset_mocks()
 
 
 @patch.object(UpdateDiagnose, "current_conditions")

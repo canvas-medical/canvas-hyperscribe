@@ -43,11 +43,11 @@ def test_command_from_json(current_conditions):
         CodedItem(uuid="theUuid3", label="display3a", code="CODE98.76"),
     ]
     tests = [
-        (1, "theUuid2", [call(), call()]),
-        (2, "theUuid3", [call(), call()]),
-        (4, "", [call()]),
+        (1, "theUuid2"),
+        (2, "theUuid3"),
+        (4, ""),
     ]
-    for idx, exp_uuid, calls in tests:
+    for idx, exp_uuid in tests:
         current_conditions.side_effect = [conditions, conditions]
         params = {
             'assessment': "theAssessment",
@@ -65,6 +65,7 @@ def test_command_from_json(current_conditions):
             note_uuid="noteUuid",
         )
         assert result == expected
+        calls = [call()]
         assert current_conditions.mock_calls == calls
         reset_mocks()
 

@@ -18,40 +18,38 @@ class SelectorChat:
     def condition_from(cls, settings: Settings, keywords: list[str], icd10s: list[str], comment: str) -> CodedItem:
         result = CodedItem(code="", label="", uuid="")
         # retrieve existing conditions defined in Canvas Science
-        conditions = CanvasScience.search_conditions(settings.science_host, keywords + icd10s)
-        conversation = OpenaiChat(settings.openai_key, Constants.OPENAI_CHAT_TEXT)
-        # retrieve the correct condition
-        conversation.system_prompt = [
-            "The conversation is in the medical context.",
-            "",
-            "Your task is to identify the most relevant condition diagnosed for a patient out of a list of conditions.",
-            "",
-        ]
-        conversation.user_prompt = [
-            'Here is the comment provided by the healthcare provider in regards to the diagnosis:',
-            '```text',
-            f"keywords: {', '.join(keywords)}",
-            " -- ",
-            comment,
-            '```',
-            "",
-            'Among the following conditions, identify the most relevant one:',
-            '',
-            "\n".join(f' * {condition.label} (ICD-10: {Helper.icd10_add_dot(condition.code)})' for condition in conditions),
-            '',
-            'Please, present your findings in a JSON format within a Markdown code block like:',
-            '```json',
-            json.dumps([{"ICD10": "the ICD-10 code", "label": "the label"}]),
-            '```',
-            '',
-        ]
-        response = conversation.chat()
-        if response.has_error is False and response.content:
-            result = CodedItem(
-                label=response.content[0]['label'],
-                code=Helper.icd10_strip_dot(response.content[0]["ICD10"]),
-                uuid="",
-            )
+        if conditions := CanvasScience.search_conditions(settings.science_host, keywords + icd10s):
+            # retrieve the correct condition
+            system_prompt = [
+                "The conversation is in the medical context.",
+                "",
+                "Your task is to identify the most relevant condition diagnosed for a patient out of a list of conditions.",
+                "",
+            ]
+            user_prompt = [
+                'Here is the comment provided by the healthcare provider in regards to the diagnosis:',
+                '```text',
+                f"keywords: {', '.join(keywords)}",
+                " -- ",
+                comment,
+                '```',
+                "",
+                'Among the following conditions, identify the most relevant one:',
+                '',
+                "\n".join(f' * {condition.label} (ICD-10: {Helper.icd10_add_dot(condition.code)})' for condition in conditions),
+                '',
+                'Please, present your findings in a JSON format within a Markdown code block like:',
+                '```json',
+                json.dumps([{"ICD10": "the ICD-10 code", "label": "the label"}]),
+                '```',
+                '',
+            ]
+            if response := cls.single_conversation(settings, system_prompt, user_prompt):
+                result = CodedItem(
+                    label=response[0]['label'],
+                    code=Helper.icd10_strip_dot(response[0]["ICD10"]),
+                    uuid="",
+                )
         return result
 
     @classmethod
@@ -65,44 +63,43 @@ class SelectorChat:
             for test in query:
                 lab_tests.append(test)
 
-        prompt_condition = ""
-        if conditions:
-            prompt_condition = f"The lab test is intended to the patient's conditions: {', '.join(conditions)}."
-        # ask the LLM to pick the most relevant test
-        conversation = OpenaiChat(settings.openai_key, Constants.OPENAI_CHAT_TEXT)
-        conversation.system_prompt = [
-            "The conversation is in the medical context.",
-            "",
-            "Your task is to select the most relevant lab test for a patient out of a list of lab tests.",
-            "",
-        ]
-        conversation.user_prompt = [
-            'Here is the comment provided by the healthcare provider in regards to the lab test to be ordered for the patient:',
-            '```text',
-            f"keywords: {', '.join(expressions)}",
-            " -- ",
-            comment,
-            '```',
-            "",
-            prompt_condition,
-            "",
-            'Among the following lab tests, select the most relevant one:',
-            '',
-            "\n".join(f' * {concept.order_name} (code: {concept.order_code})' for concept in lab_tests),
-            '',
-            'Please, present your findings in a JSON format within a Markdown code block like:',
-            '```json',
-            json.dumps([{"code": "the lab test code", "label": "the lab test label"}]),
-            '```',
-            '',
-        ]
-        response = conversation.chat()
-        if response.has_error is False and response.content:
-            result = CodedItem(
-                label=response.content[0]['label'],
-                code=response.content[0]["code"],
-                uuid="",
-            )
+        if lab_tests:
+            prompt_condition = ""
+            if conditions:
+                prompt_condition = f"The lab test is intended to the patient's conditions: {', '.join(conditions)}."
+            # ask the LLM to pick the most relevant test
+            system_prompt = [
+                "The conversation is in the medical context.",
+                "",
+                "Your task is to select the most relevant lab test for a patient out of a list of lab tests.",
+                "",
+            ]
+            user_prompt = [
+                'Here is the comment provided by the healthcare provider in regards to the lab test to be ordered for the patient:',
+                '```text',
+                f"keywords: {', '.join(expressions)}",
+                " -- ",
+                comment,
+                '```',
+                "",
+                prompt_condition,
+                "",
+                'Among the following lab tests, select the most relevant one:',
+                '',
+                "\n".join(f' * {concept.order_name} (code: {concept.order_code})' for concept in lab_tests),
+                '',
+                'Please, present your findings in a JSON format within a Markdown code block like:',
+                '```json',
+                json.dumps([{"code": "the lab test code", "label": "the lab test label"}]),
+                '```',
+                '',
+            ]
+            if response := cls.single_conversation(settings, system_prompt, user_prompt):
+                result = CodedItem(
+                    label=response[0]['label'],
+                    code=response[0]["code"],
+                    uuid="",
+                )
         return result
 
     @classmethod

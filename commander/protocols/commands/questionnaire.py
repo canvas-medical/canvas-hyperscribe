@@ -10,8 +10,8 @@ class Questionnaire(Base):
 
     def command_from_json(self, parameters: dict) -> None | QuestionnaireCommand:
         questionnaire_uuid = ""
-        if 0 <= (idx := parameters["questionnaireIndex"]) < len(self.existing_questionnaires()):
-            questionnaire_uuid = self.existing_questionnaires()[idx].uuid
+        if 0 <= (idx := parameters["questionnaireIndex"]) < len(current := self.existing_questionnaires()):
+            questionnaire_uuid = current[idx].uuid
 
         return QuestionnaireCommand(
             questionnaire_id=questionnaire_uuid,

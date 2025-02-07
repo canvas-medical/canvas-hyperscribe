@@ -11,8 +11,8 @@ class Assess(Base):
 
     def command_from_json(self, parameters: dict) -> None | AssessCommand:
         condition_id = ""
-        if 0 <= (idx := parameters["conditionIndex"]) < len(self.current_conditions()):
-            condition_id = self.current_conditions()[idx].uuid
+        if 0 <= (idx := parameters["conditionIndex"]) < len(current := self.current_conditions()):
+            condition_id = current[idx].uuid
         return AssessCommand(
             condition_id=condition_id,
             background=parameters["rationale"],

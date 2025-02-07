@@ -5,9 +5,9 @@ from canvas_sdk.commands.constants import ClinicalQuantity
 
 from commander.protocols.canvas_science import CanvasScience
 from commander.protocols.commands.base import Base
-from commander.protocols.constants import Constants
 from commander.protocols.helper import Helper
-from commander.protocols.openai_chat import OpenaiChat
+from commander.protocols.selector_chat import SelectorChat
+from commander.protocols.structures.medication_detail import MedicationDetail
 
 
 class Prescription(Base):
@@ -15,114 +15,122 @@ class Prescription(Base):
     def schema_key(cls) -> str:
         return "prescribe"
 
+    def medications_from(self, comment: str, keywords: list[str], condition: str) -> list[MedicationDetail]:
+        result: list[MedicationDetail] = []
+        if medications := CanvasScience.medication_details(self.settings.science_host, keywords):
+            prompt_condition = ""
+            if condition:
+                prompt_condition = f'The prescription is intended to the patient\'s condition: {condition}.'
+            # retrieve the correct medication
+            system_prompt = [
+                "The conversation is in the medical context.",
+                "",
+                "Your task is to identify the most relevant medication to prescribe to a patient out of a list of medications.",
+                "",
+            ]
+            user_prompt = [
+                "Here is the comment provided by the healthcare provider in regards to the prescription:",
+                "```text",
+                f"keywords: {', '.join(keywords)}",
+                " -- ",
+                comment,
+                "```",
+                "",
+                prompt_condition,
+                "",
+                f"The choice of the medication has to also take into account that {self.demographic__str__()}.",
+                "",
+                "Among the following medications, identify the most relevant one:",
+                "",
+                "\n".join(f' * {medication.description} (fdbCode: {medication.fdb_code})' for medication in medications),
+                "",
+                "Please, present your findings in a JSON format within a Markdown code block like:",
+                "```json",
+                json.dumps([{"fdbCode": "the fdb code, as int", "description": "the description"}]),
+                "```",
+                "",
+            ]
+            if response := SelectorChat.single_conversation(self.settings, system_prompt, user_prompt):
+                fdb_code = str(response[0]["fdbCode"])
+                result = [m for m in medications if m.fdb_code == fdb_code]
+
+        return result
+
+    def set_medication_dosage(self, comment: str, command: PrescribeCommand, medication: MedicationDetail) -> None:
+        quantity = medication.quantities[0]  # ATTENTION forced to the first option (only for simplicity 2025-01-14)
+
+        command.fdb_code = medication.fdb_code
+        command.type_to_dispense = ClinicalQuantity(
+            representative_ndc=quantity.representative_ndc,
+            ncpdp_quantity_qualifier_code=quantity.ncpdp_quantity_qualifier_code,
+        )
+
+        system_prompt = [
+            "The conversation is in the medical context.",
+            "",
+            "Your task is to compute the quantity to dispense and the number of refills for a prescription.",
+            "",
+        ]
+        user_prompt = [
+            "Here is the comment provided by the healthcare provider in regards to the prescription of "
+            f"the medication {medication.description}:",
+            "```text",
+            comment,
+            "```",
+            "",
+            f"The medication is provided as {quantity.quantity}, {quantity.ncpdp_quantity_qualifier_description}.",
+            "",
+            "Based on this information, what are the quantity to dispense and the number of refills in order to "
+            f"fulfill the {command.days_supply} supply days?",
+            "",
+            f"The exact quantities and refill have to also take into account that {self.demographic__str__()}.",
+            "",
+            "Please, present your findings in a JSON format within a Markdown code block like:",
+            "```json",
+            json.dumps([{
+                "quantityToDispense": "mandatory, quantity to dispense, as decimal",
+                "refills": "mandatory, refills allowed, as integer",
+                "noteToPharmacist": "note to the pharmacist, as free text",
+                "informationToPatient": "directions to the patient on how to use the medication, specifying the quantity, "
+                                        "the form (e.g. tablets, drops, puffs, etc), the frequency and/or max daily frequency, "
+                                        "and the route of use (e.g. by mouth, applied to skin, dropped in eye, etc), as free text",
+            }]),
+            "```",
+            "",
+        ]
+        if response := SelectorChat.single_conversation(self.settings, system_prompt, user_prompt):
+            # TODO should be Decimal, waiting for https://github.com/canvas-medical/canvas-plugins/discussions/332
+            command.quantity_to_dispense = Decimal(response[0]["quantityToDispense"]).quantize(Decimal('0.01'))
+            command.refills = int(response[0]["refills"])
+            command.note_to_pharmacist = response[0]["noteToPharmacist"]
+            command.sig = response[0]["informationToPatient"]
+
     def command_from_json(self, parameters: dict) -> None | PrescribeCommand:
-        result: None | PrescribeCommand = None
-        condition_icd10s: list[str] = []
-        prompt_condition = ""
+        result = PrescribeCommand(
+            sig=parameters["sig"],
+            days_supply=int(parameters["suppliedDays"]),
+            substitutions=Helper.enum_or_none(parameters["substitution"], PrescribeCommand.Substitutions),
+            prescriber_id=self.provider_uuid,
+            note_uuid=self.note_uuid,
+        )
+        # identified the condition, if any
+        condition = ""
         if ("conditionIndex" in parameters
                 and isinstance(parameters["conditionIndex"], int)
                 and 0 <= (idx := parameters["conditionIndex"]) < len(self.current_conditions())):
             targeted_condition = self.current_conditions()[idx]
-            condition_icd10s.append(Helper.icd10_strip_dot(targeted_condition.code))
-            prompt_condition = f'The prescription is intended to the patient\'s condition: {targeted_condition.label}.'
+            result.icd10_codes = [Helper.icd10_strip_dot(targeted_condition.code)]
+            condition = targeted_condition.label
 
         # retrieve existing medications defined in Canvas Science
-        expressions = parameters["keywords"].split(",")
-        medications = CanvasScience.medication_details(self.settings.science_host, expressions)
-
-        conversation = OpenaiChat(self.settings.openai_key, Constants.OPENAI_CHAT_TEXT)
-        # retrieve the correct medication
-        conversation.system_prompt = [
-            "The conversation is in the medical context.",
-            "",
-            "Your task is to identify the most relevant medication to prescribe to a patient out of a list of medications.",
-            "",
-        ]
-        conversation.user_prompt = [
-            "Here is the comment provided by the healthcare provider in regards to the prescription:",
-            "```text",
-            f"keywords: {parameters['keywords']}",
-            " -- ",
+        choose_medications = self.medications_from(
             parameters["comment"],
-            "```",
-            "",
-            prompt_condition,
-            "",
-            f"The choice of the medication has to also take into account that {self.demographic__str__()}.",
-            "",
-            "Among the following medications, identify the most relevant one:",
-            "",
-            "\n".join(f' * {medication.description} (fdbCode: {medication.fdb_code})' for medication in medications),
-            "",
-            "Please, present your findings in a JSON format within a Markdown code block like:",
-            "```json",
-            json.dumps([{"fdbCode": "the fdb code, as int", "description": "the description"}]),
-            "```",
-            "",
-        ]
-        response = conversation.chat()
-        choose_medications = []
-        if response.has_error is False and response.content:
-            fdb_code = str(response.content[0]["fdbCode"])
-            choose_medications = [m for m in medications if m.fdb_code == fdb_code]
-
+            parameters["keywords"].split(","),
+            condition,
+        )
         # find the correct quantity to dispense and refill values
         if choose_medications and (medication := choose_medications[0]):
-            quantity = medication.quantities[0]  # ATTENTION forced to the first option (only for simplicity 2025-01-14)
-            result = PrescribeCommand(
-                fdb_code=medication.fdb_code,
-                icd10_codes=condition_icd10s[:2],  # <--- no more than 2 conditions
-                sig=parameters["sig"],
-                days_supply=int(parameters["suppliedDays"]),
-                type_to_dispense=ClinicalQuantity(
-                    representative_ndc=quantity.representative_ndc,
-                    ncpdp_quantity_qualifier_code=quantity.ncpdp_quantity_qualifier_code,
-                ),
-                substitutions=Helper.enum_or_none(parameters["substitution"], PrescribeCommand.Substitutions),
-                prescriber_id=self.provider_uuid,
-                note_uuid=self.note_uuid,
-            )
-            conversation.system_prompt = [
-                "The conversation is in the medical context.",
-                "",
-                "Your task is to compute the quantity to dispense and the number of refills for a prescription.",
-                "",
-            ]
-
-            conversation.user_prompt = [
-                "Here is the comment provided by the healthcare provider in regards to the prescription of "
-                f"the medication {medication.description}:",
-                "```text",
-                parameters["comment"],
-                "```",
-                "",
-                f"The medication is provided as {quantity.quantity}, {quantity.ncpdp_quantity_qualifier_description}.",
-                "",
-                "Based on this information, what are the quantity to dispense and the number of refills in order to "
-                f"fulfill the {result.days_supply} supply days?",
-                "",
-                f"The exact quantities and refill have to also take into account that {self.demographic__str__()}.",
-                "",
-                "Please, present your findings in a JSON format within a Markdown code block like:",
-                "```json",
-                json.dumps([{
-                    "quantityToDispense": "mandatory, quantity to dispense, as decimal",
-                    "refills": "mandatory, refills allowed, as integer",
-                    "noteToPharmacist": "note to the pharmacist, as free text",
-                    "informationToPatient": "directions to the patient on how to use the medication, specifying the quantity, "
-                                            "the form (e.g. tablets, drops, puffs, etc), the frequency and/or max daily frequency, "
-                                            "and the route of use (e.g. by mouth, applied to skin, dropped in eye, etc), as free text",
-                }]),
-                "```",
-                "",
-            ]
-            response = conversation.chat()
-            if response.has_error is False and response.content:
-                # TODO should be Decimal, waiting for https://github.com/canvas-medical/canvas-plugins/discussions/332
-                result.quantity_to_dispense = Decimal(response.content[0]["quantityToDispense"]).quantize(Decimal('0.01'))
-                result.refills = int(response.content[0]["refills"])
-                result.note_to_pharmacist = response.content[0]["noteToPharmacist"]
-                result.sig = response.content[0]["informationToPatient"]
+            self.set_medication_dosage(parameters["comment"], result, medication)
 
         return result
 

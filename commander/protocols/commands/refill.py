@@ -14,8 +14,8 @@ class Refill(Base):
 
     def command_from_json(self, parameters: dict) -> None | RefillCommand:
         result: None | RefillCommand = None
-        if 0 <= (idx := parameters["medicationIndex"]) < len(self.current_medications()):
-            medication_uuid = self.current_medications()[idx].uuid
+        if 0 <= (idx := parameters["medicationIndex"]) < len(current := self.current_medications()):
+            medication_uuid = current[idx].uuid
             medication = Medication.objects.get(id=medication_uuid)
             coding = medication.codings.filter(system="http://www.fdbhealth.com/").first()
 

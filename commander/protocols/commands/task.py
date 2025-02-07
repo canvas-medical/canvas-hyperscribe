@@ -4,15 +4,83 @@ from canvas_sdk.commands.commands.task import TaskCommand, TaskAssigner, Assigne
 from canvas_sdk.v1.data import TaskLabel, Staff
 
 from commander.protocols.commands.base import Base
-from commander.protocols.constants import Constants
 from commander.protocols.helper import Helper
-from commander.protocols.openai_chat import OpenaiChat
+from commander.protocols.selector_chat import SelectorChat
 
 
 class Task(Base):
     @classmethod
     def schema_key(cls) -> str:
         return "task"
+
+    def select_staff(self, assigned_to: str, comment: str) -> None | TaskAssigner:
+        staff_members = Staff.objects.filter(active=True).order_by("last_name")
+        if not staff_members:
+            return None
+
+        system_prompt = [
+            "The conversation is in the medical context.",
+            "",
+            "The goal is to identify the most relevant staff member to assign a specific task to.",
+            "",
+        ]
+        user_prompt = [
+            'Here is the comment provided by the healthcare provider in regards to the task:',
+            '```text',
+            f"assign to: {assigned_to}",
+            " -- ",
+            f'comment: {comment}',
+            "",
+            '```',
+            "",
+            'Among the following staff members, identify the most relevant one:',
+            '',
+            "\n".join(f' * {staff.first_name} {staff.last_name} (staffId: {staff.dbid})' for staff in staff_members),
+            '',
+            'Please, present your findings in a JSON format within a Markdown code block like:',
+            '```json',
+            json.dumps([{"staffId": "the staff member id, as int", "name": "the name of the staff member"}]),
+            '```',
+            '',
+        ]
+        if response := SelectorChat.single_conversation(self.settings, system_prompt, user_prompt):
+            staff_id = int(response[0]["staffId"])
+            return TaskAssigner(to=AssigneeType.STAFF, id=staff_id)
+        return None
+
+    def select_labels(self, labels: str, comment: str) -> None | list[str]:
+        label_db = TaskLabel.objects.filter(active=True).order_by("name")
+        if not label_db:
+            return None
+
+        system_prompt = [
+            "The conversation is in the medical context.",
+            "",
+            "The goal is to identify the most relevant labels linked to a specific task.",
+            "",
+        ]
+        user_prompt = [
+            'Here is the comment provided by the healthcare provider in regards to the task:',
+            '```text',
+            f"labels: {labels}",
+            " -- ",
+            f'comment: {comment}',
+            "",
+            '```',
+            "",
+            'Among the following labels, identify all the most relevant to characterized the task:',
+            '',
+            "\n".join(f' * {label.name} (labelId: {label.dbid})' for label in label_db),
+            '',
+            'Please, present your findings in a JSON format within a Markdown code block like:',
+            '```json',
+            json.dumps([{"labelId": "the label id, as int", "name": "the name of the label"}]),
+            '```',
+            '',
+        ]
+        if response := SelectorChat.single_conversation(self.settings, system_prompt, user_prompt):
+            return [label["name"] for label in response]
+        return None
 
     def command_from_json(self, parameters: dict) -> None | TaskCommand:
         result = TaskCommand(
@@ -21,72 +89,11 @@ class Task(Base):
             comment=parameters["comment"],
             note_uuid=self.note_uuid,
         )
-
-        conversation = OpenaiChat(self.settings.openai_key, Constants.OPENAI_CHAT_TEXT)
         if parameters["assignTo"]:
-            staff_members = Staff.objects.filter(active=True).order_by("last_name")
-            conversation.system_prompt = [
-                "The conversation is in the medical context.",
-                "",
-                "The goal is to identify the most relevant staff member to assign a specific task to.",
-                "",
-            ]
-            conversation.user_prompt = [
-                'Here is the comment provided by the healthcare provider in regards to the task:',
-                '```text',
-                f"assign to: {parameters['assignTo']}",
-                " -- ",
-                f'comment: {parameters["comment"]}',
-                "",
-                '```',
-                "",
-                'Among the following staff members, identify the most relevant one:',
-                '',
-                "\n".join(f' * {staff.first_name} {staff.last_name} (staffId: {staff.dbid})' for staff in staff_members),
-                '',
-                'Please, present your findings in a JSON format within a Markdown code block like:',
-                '```json',
-                json.dumps([{"staffId": "the staff member id, as int", "name": "the name of the staff member"}]),
-                '```',
-                '',
-            ]
-            response = conversation.chat()
-            if response.has_error is False and response.content:
-                staff_id = int(response.content[0]["staffId"])
-                result.assign_to = TaskAssigner(
-                    to=AssigneeType.STAFF,
-                    id=staff_id,
-                )
+            result.assign_to = self.select_staff(parameters["assignTo"], parameters["comment"])
+
         if parameters["labels"]:
-            labels = TaskLabel.objects.filter(active=True).order_by("name")
-            conversation.system_prompt = [
-                "The conversation is in the medical context.",
-                "",
-                "The goal is to identify the most relevant labels linked to a specific task.",
-                "",
-            ]
-            conversation.user_prompt = [
-                'Here is the comment provided by the healthcare provider in regards to the task:',
-                '```text',
-                f"labels: {parameters['labels']}",
-                " -- ",
-                f'comment: {parameters["comment"]}',
-                "",
-                '```',
-                "",
-                'Among the following labels, identify all the most relevant to characterized the task:',
-                '',
-                "\n".join(f' * {label.name} (labelId: {label.dbid})' for label in labels),
-                '',
-                'Please, present your findings in a JSON format within a Markdown code block like:',
-                '```json',
-                json.dumps([{"labelId": "the label id, as int", "name": "the name of the label"}]),
-                '```',
-                '',
-            ]
-            response = conversation.chat(True)
-            if response.has_error is False and response.content:
-                result.labels = [l["name"] for l in response.content]
+            result.labels = self.select_labels(parameters["labels"], parameters["comment"])
 
         return result
 

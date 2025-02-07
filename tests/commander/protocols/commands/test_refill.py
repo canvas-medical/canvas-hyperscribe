@@ -80,7 +80,7 @@ def test_command_from_json(current_medications, medication, codings):
             note_uuid="noteUuid",
         )
         assert result == expected
-        calls = [call(), call()]
+        calls = [call()]
         assert current_medications.mock_calls == calls
         calls = [call.get(id=medication_uuid)]
         assert medication.mock_calls == calls

@@ -1,7 +1,12 @@
-from canvas_sdk.commands.commands.task import TaskCommand
+from datetime import date
+from unittest.mock import patch, call
+
+from canvas_sdk.commands.commands.task import TaskCommand, TaskAssigner, AssigneeType
+from canvas_sdk.v1.data import Staff, TaskLabel
 
 from commander.protocols.commands.base import Base
 from commander.protocols.commands.task import Task
+from commander.protocols.selector_chat import SelectorChat
 from commander.protocols.structures.settings import Settings
 
 
@@ -28,11 +33,247 @@ def test_schema_key():
     assert result == expected
 
 
-def te0st_command_from_json():
+@patch.object(Staff, 'objects')
+@patch.object(SelectorChat, "single_conversation")
+def test_select_staff(single_conversation, staff):
+    def reset_mocks():
+        single_conversation.reset_mock()
+        staff.reset_mock()
+
+    system_prompt = [
+        "The conversation is in the medical context.",
+        "",
+        "The goal is to identify the most relevant staff member to assign a specific task to.",
+        "",
+    ]
+    user_prompt = [
+        'Here is the comment provided by the healthcare provider in regards to the task:',
+        '```text',
+        'assign to: assignedTo',
+        ' -- ',
+        'comment: theComment',
+        '',
+        '```',
+        '',
+        'Among the following staff members, identify the most relevant one:',
+        '',
+        ' * Joe Smith (staffId: 741)\n * Jane Doe (staffId: 596)\n * Jim Boy (staffId: 963)',
+        '',
+        'Please, present your findings in a JSON format within a Markdown code block like:',
+        '```json',
+        '[{"staffId": "the staff member id, as int", "name": "the name of the staff member"}]',
+        '```',
+        '',
+    ]
+
     tested = helper_instance()
-    result = tested.command_from_json({})
-    expected = TaskCommand()
+
+    # no staff (just theoretical)
+    staff.filter.return_value.order_by.side_effect = [[]]
+    single_conversation.side_effect = []
+    result = tested.select_staff("assignedTo", "theComment")
+    assert result is None
+    calls = [call.filter(active=True), call.filter().order_by('last_name')]
+    assert staff.mock_calls == calls
+    assert single_conversation.mock_calls == []
+    reset_mocks()
+
+    # staff
+    staffers = [
+        Staff(dbid=741, first_name="Joe", last_name="Smith"),
+        Staff(dbid=596, first_name="Jane", last_name="Doe"),
+        Staff(dbid=963, first_name="Jim", last_name="Boy"),
+    ]
+    # -- response
+    staff.filter.return_value.order_by.side_effect = [staffers]
+    single_conversation.side_effect = [[{"staffId": 596, "name": "Jane Doe"}]]
+    result = tested.select_staff("assignedTo", "theComment")
+    expected = TaskAssigner(to=AssigneeType.STAFF, id=596)
     assert result == expected
+    calls = [call.filter(active=True), call.filter().order_by('last_name')]
+    assert staff.mock_calls == calls
+    calls = [call(tested.settings, system_prompt, user_prompt)]
+    assert single_conversation.mock_calls == calls
+    reset_mocks()
+    # -- no response
+    staff.filter.return_value.order_by.side_effect = [staffers]
+    single_conversation.side_effect = [[]]
+    result = tested.select_staff("assignedTo", "theComment")
+    assert result is None
+    calls = [call.filter(active=True), call.filter().order_by('last_name')]
+    assert staff.mock_calls == calls
+    calls = [call(tested.settings, system_prompt, user_prompt)]
+    assert single_conversation.mock_calls == calls
+    reset_mocks()
+
+
+@patch.object(TaskLabel, 'objects')
+@patch.object(SelectorChat, "single_conversation")
+def test_select_labels(single_conversation, task_labels):
+    def reset_mocks():
+        single_conversation.reset_mock()
+        task_labels.reset_mock()
+
+    system_prompt = [
+        "The conversation is in the medical context.",
+        "",
+        "The goal is to identify the most relevant labels linked to a specific task.",
+        "",
+    ]
+    user_prompt = [
+        'Here is the comment provided by the healthcare provider in regards to the task:',
+        '```text',
+        'labels: theLabels',
+        ' -- ',
+        'comment: theComment',
+        '',
+        '```',
+        '',
+        'Among the following labels, identify all the most relevant to characterized the task:',
+        '',
+        ' * Label1 (labelId: 741)\n * Label2 (labelId: 596)\n * Label3 (labelId: 963)',
+        '',
+        'Please, present your findings in a JSON format within a Markdown code block like:',
+        '```json',
+        '[{"labelId": "the label id, as int", "name": "the name of the label"}]',
+        '```',
+        '',
+    ]
+    tested = helper_instance()
+
+    # no labels
+    task_labels.filter.return_value.order_by.side_effect = [[]]
+    single_conversation.side_effect = []
+    result = tested.select_labels("theLabels", "theComment")
+    assert result is None
+    calls = [call.filter(active=True), call.filter().order_by('name')]
+    assert task_labels.mock_calls == calls
+    assert single_conversation.mock_calls == []
+    reset_mocks()
+
+    # staff
+    labels = [
+        TaskLabel(dbid=741, name="Label1"),
+        TaskLabel(dbid=596, name="Label2"),
+        TaskLabel(dbid=963, name="Label3"),
+    ]
+    # -- response
+    task_labels.filter.return_value.order_by.side_effect = [labels]
+    single_conversation.side_effect = [[{"labelId": 596, "name": "Label2"}, {"labelId": 963, "name": "Label3"}]]
+    result = tested.select_labels("theLabels", "theComment")
+    expected = ["Label2", "Label3"]
+    assert result == expected
+    calls = [call.filter(active=True), call.filter().order_by('name')]
+    assert task_labels.mock_calls == calls
+    calls = [call(tested.settings, system_prompt, user_prompt)]
+    assert single_conversation.mock_calls == calls
+    reset_mocks()
+    # -- no response
+    task_labels.filter.return_value.order_by.side_effect = [labels]
+    single_conversation.side_effect = [[]]
+    result = tested.select_labels("theLabels", "theComment")
+    assert result is None
+    calls = [call.filter(active=True), call.filter().order_by('name')]
+    assert task_labels.mock_calls == calls
+    calls = [call(tested.settings, system_prompt, user_prompt)]
+    assert single_conversation.mock_calls == calls
+    reset_mocks()
+
+
+@patch.object(Task, "select_labels")
+@patch.object(Task, "select_staff")
+def test_command_from_json(select_staff, select_labels):
+    def reset_mocks():
+        select_staff.reset_mock()
+        select_labels.reset_mock()
+
+    tested = helper_instance()
+
+    assignee = TaskAssigner(to=AssigneeType.STAFF, id=584)
+    labels = ["label1", "label2"]
+
+    tests = [
+        (assignee, labels),
+        (None, labels),
+        (assignee, None),
+        (None, None),
+    ]
+    for side_effect_staff, side_effect_labels in tests:
+        # all parameters
+        parameters = {
+            "title": "theTitle",
+            "dueDate": "2025-02-04",
+            "assignTo": "theAssignTo",
+            "labels": "theLabels",
+            "comment": "theComment",
+        }
+        select_staff.side_effect = [side_effect_staff]
+        select_labels.side_effect = [side_effect_labels]
+        result = tested.command_from_json(parameters)
+        expected = TaskCommand(
+            title="theTitle",
+            due_date=date(2025, 2, 4),
+            comment="theComment",
+            assign_to=side_effect_staff,
+            labels=side_effect_labels,
+            note_uuid="noteUuid",
+        )
+        assert result == expected
+        calls = [call("theAssignTo", 'theComment')]
+        assert select_staff.mock_calls == calls
+        calls = [call("theLabels", 'theComment')]
+        assert select_labels.mock_calls == calls
+        reset_mocks()
+
+        # no assignee
+        parameters = {
+            "title": "theTitle",
+            "dueDate": "2025-02-04",
+            "assignTo": "",
+            "labels": "theLabels",
+            "comment": "theComment",
+        }
+        select_staff.side_effect = []
+        select_labels.side_effect = [side_effect_labels]
+        result = tested.command_from_json(parameters)
+        expected = TaskCommand(
+            title="theTitle",
+            due_date=date(2025, 2, 4),
+            comment="theComment",
+            assign_to=None,
+            labels=side_effect_labels,
+            note_uuid="noteUuid",
+        )
+        assert result == expected
+        assert select_staff.mock_calls == []
+        calls = [call("theLabels", 'theComment')]
+        assert select_labels.mock_calls == calls
+        reset_mocks()
+
+        # no labels
+        parameters = {
+            "title": "theTitle",
+            "dueDate": "2025-02-04",
+            "assignTo": "theAssignTo",
+            "labels": "",
+            "comment": "theComment",
+        }
+        select_staff.side_effect = [side_effect_staff]
+        select_labels.side_effect = []
+        result = tested.command_from_json(parameters)
+        expected = TaskCommand(
+            title="theTitle",
+            due_date=date(2025, 2, 4),
+            comment="theComment",
+            assign_to=side_effect_staff,
+            labels=None,
+            note_uuid="noteUuid",
+        )
+        assert result == expected
+        calls = [call("theAssignTo", 'theComment')]
+        assert select_staff.mock_calls == calls
+        assert select_labels.mock_calls == []
+        reset_mocks()
 
 
 def test_command_parameters():

@@ -10,8 +10,8 @@ class RemoveAllergy(Base):
 
     def command_from_json(self, parameters: dict) -> None | RemoveAllergyCommand:
         allergy_uuid = ""
-        if 0 <= (idx := parameters["allergyIndex"]) < len(self.current_allergies()):
-            allergy_uuid = self.current_allergies()[idx].uuid
+        if 0 <= (idx := parameters["allergyIndex"]) < len(current := self.current_allergies()):
+            allergy_uuid = current[idx].uuid
         return RemoveAllergyCommand(
             allergy_id=allergy_uuid,
             narrative=parameters["narrative"],
@@ -31,10 +31,8 @@ class RemoveAllergy(Base):
                 "There can be only one allergy, with the explanation, to remove per instruction, and no instruction in the lack of.")
 
     def instruction_constraints(self) -> str:
-        result = ""
-        if text := ", ".join([allergy.label for allergy in self.current_allergies()]):
-            result = f"'{self.class_name()}' has to be related to one of the following allergies: {text}."
-        return result
+        text = ", ".join([allergy.label for allergy in self.current_allergies()])
+        return f"'{self.class_name()}' has to be related to one of the following allergies: {text}."
 
     def is_available(self) -> bool:
         return bool(self.current_allergies())
