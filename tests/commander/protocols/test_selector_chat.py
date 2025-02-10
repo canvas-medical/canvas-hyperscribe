@@ -1,17 +1,17 @@
-from unittest.mock import patch, call, MagicMock
+from unittest.mock import patch, call
 
 from django.db.models import Q
 
 from commander.protocols.canvas_science import CanvasScience
+from commander.protocols.openai_chat import OpenaiChat
 from commander.protocols.selector_chat import SelectorChat
 from commander.protocols.structures.coded_item import CodedItem
 from commander.protocols.structures.icd10_condition import Icd10Condition
-from commander.protocols.structures.json_extract import JsonExtract
 from commander.protocols.structures.settings import Settings
 from commander.protocols.temporary_data import DataLabTestView
 
 
-@patch.object(SelectorChat, "single_conversation")
+@patch.object(OpenaiChat, "single_conversation")
 @patch.object(CanvasScience, "search_conditions")
 def test_condition_from(search_conditions, single_conversation):
     def reset_mocks():
@@ -67,7 +67,7 @@ def test_condition_from(search_conditions, single_conversation):
     assert result == expected
     calls = [call('scienceHost', keywords)]
     assert search_conditions.mock_calls == calls
-    calls = [call(settings, system_prompt, user_prompt)]
+    calls = [call('openaiKey', system_prompt, user_prompt)]
     assert single_conversation.mock_calls == calls
     reset_mocks()
 
@@ -92,12 +92,12 @@ def test_condition_from(search_conditions, single_conversation):
     assert result == expected
     calls = [call('scienceHost', keywords)]
     assert search_conditions.mock_calls == calls
-    calls = [call(settings, system_prompt, user_prompt)]
+    calls = [call('openaiKey', system_prompt, user_prompt)]
     assert single_conversation.mock_calls == calls
     reset_mocks()
 
 
-@patch.object(SelectorChat, "single_conversation")
+@patch.object(OpenaiChat, "single_conversation")
 @patch.object(DataLabTestView, "objects")
 def test_lab_test_from(lab_test, single_conversation):
     def reset_mocks():
@@ -197,7 +197,7 @@ def test_lab_test_from(lab_test, single_conversation):
         call.filter().filter(Q(('keywords__icontains', 'word4'))),
     ]
     assert lab_test.mock_calls == calls
-    calls = [call(settings, system_prompt, user_prompts[0])]
+    calls = [call('openaiKey', system_prompt, user_prompts[0])]
     assert single_conversation.mock_calls == calls
     reset_mocks()
     # -- without conditions
@@ -214,7 +214,7 @@ def test_lab_test_from(lab_test, single_conversation):
         call.filter().filter(Q(('keywords__icontains', 'word4'))),
     ]
     assert lab_test.mock_calls == calls
-    calls = [call(settings, system_prompt, user_prompts[1])]
+    calls = [call('openaiKey', system_prompt, user_prompts[1])]
     assert single_conversation.mock_calls == calls
     reset_mocks()
 
@@ -232,7 +232,7 @@ def test_lab_test_from(lab_test, single_conversation):
         call.filter().filter(Q(('keywords__icontains', 'word4'))),
     ]
     assert lab_test.mock_calls == calls
-    calls = [call(settings, system_prompt, user_prompts[0])]
+    calls = [call('openaiKey', system_prompt, user_prompts[0])]
     assert single_conversation.mock_calls == calls
     reset_mocks()
 
@@ -251,52 +251,4 @@ def test_lab_test_from(lab_test, single_conversation):
     ]
     assert lab_test.mock_calls == calls
     assert single_conversation.mock_calls == []
-    reset_mocks()
-
-
-@patch('commander.protocols.selector_chat.OpenaiChat')
-def test_single_conversation(chat):
-    mock = MagicMock()
-
-    def reset_mocks():
-        chat.reset_mock()
-        mock.reset_mock()
-
-    settings = Settings(
-        openai_key="openaiKey",
-        science_host="scienceHost",
-        ontologies_host="ontologiesHost",
-        pre_shared_key="preSharedKey",
-        allow_update=True,
-    )
-    system_prompt = ["theSystemPrompt"]
-    user_prompt = ["theUserPrompt"]
-    tested = SelectorChat
-
-    # without error
-    chat.side_effect = [mock]
-    mock.chat.side_effect = [JsonExtract(error="theError", has_error=False, content=["theContent"])]
-    result = tested.single_conversation(settings, system_prompt, user_prompt)
-    assert result == ["theContent"]
-
-    calls = [call('openaiKey', 'gpt-4o')]
-    assert chat.mock_calls == calls
-    assert mock.system_prompt == system_prompt
-    assert mock.user_prompt == user_prompt
-    calls = [call.chat()]
-    assert mock.mock_calls == calls
-    reset_mocks()
-
-    # with error
-    chat.side_effect = [mock]
-    mock.chat.side_effect = [JsonExtract(error="theError", has_error=True, content=["theContent"])]
-    result = tested.single_conversation(settings, system_prompt, user_prompt)
-    assert result == []
-
-    calls = [call('openaiKey', 'gpt-4o')]
-    assert chat.mock_calls == calls
-    assert mock.system_prompt == system_prompt
-    assert mock.user_prompt == user_prompt
-    calls = [call.chat()]
-    assert mock.mock_calls == calls
     reset_mocks()

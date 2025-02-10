@@ -6,7 +6,7 @@ from canvas_sdk.v1.data import Staff, TaskLabel
 
 from commander.protocols.commands.base import Base
 from commander.protocols.commands.task import Task
-from commander.protocols.selector_chat import SelectorChat
+from commander.protocols.openai_chat import OpenaiChat
 from commander.protocols.structures.settings import Settings
 
 
@@ -34,7 +34,7 @@ def test_schema_key():
 
 
 @patch.object(Staff, 'objects')
-@patch.object(SelectorChat, "single_conversation")
+@patch.object(OpenaiChat, "single_conversation")
 def test_select_staff(single_conversation, staff):
     def reset_mocks():
         single_conversation.reset_mock()
@@ -92,7 +92,7 @@ def test_select_staff(single_conversation, staff):
     assert result == expected
     calls = [call.filter(active=True), call.filter().order_by('last_name')]
     assert staff.mock_calls == calls
-    calls = [call(tested.settings, system_prompt, user_prompt)]
+    calls = [call('openaiKey', system_prompt, user_prompt)]
     assert single_conversation.mock_calls == calls
     reset_mocks()
     # -- no response
@@ -102,13 +102,13 @@ def test_select_staff(single_conversation, staff):
     assert result is None
     calls = [call.filter(active=True), call.filter().order_by('last_name')]
     assert staff.mock_calls == calls
-    calls = [call(tested.settings, system_prompt, user_prompt)]
+    calls = [call('openaiKey', system_prompt, user_prompt)]
     assert single_conversation.mock_calls == calls
     reset_mocks()
 
 
 @patch.object(TaskLabel, 'objects')
-@patch.object(SelectorChat, "single_conversation")
+@patch.object(OpenaiChat, "single_conversation")
 def test_select_labels(single_conversation, task_labels):
     def reset_mocks():
         single_conversation.reset_mock()
@@ -165,7 +165,7 @@ def test_select_labels(single_conversation, task_labels):
     assert result == expected
     calls = [call.filter(active=True), call.filter().order_by('name')]
     assert task_labels.mock_calls == calls
-    calls = [call(tested.settings, system_prompt, user_prompt)]
+    calls = [call('openaiKey', system_prompt, user_prompt)]
     assert single_conversation.mock_calls == calls
     reset_mocks()
     # -- no response
@@ -175,7 +175,7 @@ def test_select_labels(single_conversation, task_labels):
     assert result is None
     calls = [call.filter(active=True), call.filter().order_by('name')]
     assert task_labels.mock_calls == calls
-    calls = [call(tested.settings, system_prompt, user_prompt)]
+    calls = [call('openaiKey', system_prompt, user_prompt)]
     assert single_conversation.mock_calls == calls
     reset_mocks()
 

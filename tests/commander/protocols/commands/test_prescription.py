@@ -6,7 +6,7 @@ from canvas_sdk.commands.commands.prescribe import PrescribeCommand
 from commander.protocols.canvas_science import CanvasScience
 from commander.protocols.commands.base import Base
 from commander.protocols.commands.prescription import Prescription
-from commander.protocols.selector_chat import SelectorChat
+from commander.protocols.openai_chat import OpenaiChat
 from commander.protocols.structures.coded_item import CodedItem
 from commander.protocols.structures.medication_detail import MedicationDetail
 from commander.protocols.structures.medication_detail_quantity import MedicationDetailQuantity
@@ -36,7 +36,7 @@ def test_schema_key():
     assert result == expected
 
 
-@patch.object(SelectorChat, "single_conversation")
+@patch.object(OpenaiChat, "single_conversation")
 @patch.object(CanvasScience, "medication_details")
 @patch.object(Prescription, "demographic__str__")
 def test_medications_from(demographic, medication_details, single_conversation):
@@ -118,7 +118,7 @@ def test_medications_from(demographic, medication_details, single_conversation):
     assert demographic.mock_calls == calls
     calls = [call('scienceHost', keywords)]
     assert medication_details.mock_calls == calls
-    calls = [call(tested.settings, system_prompt, user_prompts[0])]
+    calls = [call('openaiKey', system_prompt, user_prompts[0])]
     assert single_conversation.mock_calls == calls
     reset_mocks()
 
@@ -134,7 +134,7 @@ def test_medications_from(demographic, medication_details, single_conversation):
     assert demographic.mock_calls == calls
     calls = [call('scienceHost', keywords)]
     assert medication_details.mock_calls == calls
-    calls = [call(tested.settings, system_prompt, user_prompts[1])]
+    calls = [call('openaiKey', system_prompt, user_prompts[1])]
     assert single_conversation.mock_calls == calls
     reset_mocks()
 
@@ -149,7 +149,7 @@ def test_medications_from(demographic, medication_details, single_conversation):
     assert demographic.mock_calls == calls
     calls = [call('scienceHost', keywords)]
     assert medication_details.mock_calls == calls
-    calls = [call(tested.settings, system_prompt, user_prompts[1])]
+    calls = [call('openaiKey', system_prompt, user_prompts[1])]
     assert single_conversation.mock_calls == calls
     reset_mocks()
 
@@ -167,7 +167,7 @@ def test_medications_from(demographic, medication_details, single_conversation):
     reset_mocks()
 
 
-@patch.object(SelectorChat, "single_conversation")
+@patch.object(OpenaiChat, "single_conversation")
 @patch.object(Prescription, "demographic__str__")
 def test_set_medication_dosage(demographic, single_conversation):
     def reset_mocks():
@@ -251,7 +251,7 @@ def test_set_medication_dosage(demographic, single_conversation):
 
     calls = [call()]
     assert demographic.mock_calls == calls
-    calls = [call(tested.settings, system_prompt, user_prompt)]
+    calls = [call('openaiKey', system_prompt, user_prompt)]
     assert single_conversation.mock_calls == calls
     reset_mocks()
 
@@ -272,7 +272,7 @@ def test_set_medication_dosage(demographic, single_conversation):
 
     calls = [call()]
     assert demographic.mock_calls == calls
-    calls = [call(tested.settings, system_prompt, user_prompt)]
+    calls = [call('openaiKey', system_prompt, user_prompt)]
     assert single_conversation.mock_calls == calls
     reset_mocks()
 

@@ -6,7 +6,7 @@ from canvas_sdk.commands.commands.past_surgical_history import PastSurgicalHisto
 from commander.protocols.canvas_science import CanvasScience
 from commander.protocols.commands.base import Base
 from commander.protocols.commands.surgery_history import SurgeryHistory
-from commander.protocols.selector_chat import SelectorChat
+from commander.protocols.openai_chat import OpenaiChat
 from commander.protocols.structures.coded_item import CodedItem
 from commander.protocols.structures.medical_concept import MedicalConcept
 from commander.protocols.structures.settings import Settings
@@ -35,7 +35,7 @@ def test_schema_key():
     assert result == expected
 
 
-@patch.object(SelectorChat, "single_conversation")
+@patch.object(OpenaiChat, "single_conversation")
 @patch.object(CanvasScience, "surgical_histories")
 def test_command_from_json(surgical_histories, single_conversation):
     def reset_mocks():
@@ -93,7 +93,7 @@ def test_command_from_json(surgical_histories, single_conversation):
     assert result == expected
     calls = [call('scienceHost', keywords)]
     assert surgical_histories.mock_calls == calls
-    calls = [call(tested.settings, system_prompt, user_prompt)]
+    calls = [call('openaiKey', system_prompt, user_prompt)]
     assert single_conversation.mock_calls == calls
     reset_mocks()
 
@@ -111,7 +111,7 @@ def test_command_from_json(surgical_histories, single_conversation):
     assert result == expected
     calls = [call('scienceHost', keywords)]
     assert surgical_histories.mock_calls == calls
-    calls = [call(tested.settings, system_prompt, user_prompt)]
+    calls = [call('openaiKey', system_prompt, user_prompt)]
     assert single_conversation.mock_calls == calls
     reset_mocks()
 

@@ -12,11 +12,13 @@ def is_constant(cls, constants: dict) -> bool:
     count = len([
         attr
         for attr in dir(cls)
-        if not (attr.startswith("__") or callable(getattr(cls, attr)))])
+        if attr.upper() == attr and not (attr.startswith("__") or callable(getattr(cls, attr)))])
     if count != len(constants.keys()):
+        print(f"----> counts: {count} != {len(constants.keys())}")
         return False
 
     for key, value in constants.items():
         if getattr(cls, key) != value:
+            print(f"----> {key} != {value}")
             return False
     return True

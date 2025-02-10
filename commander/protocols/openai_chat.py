@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 import re
 from base64 import b64encode
@@ -6,6 +8,7 @@ from http import HTTPStatus
 from logger import log
 from requests import post as requests_post
 
+from commander.protocols.constants import Constants
 from commander.protocols.structures.http_response import HttpResponse
 from commander.protocols.structures.json_extract import JsonExtract
 
@@ -86,6 +89,20 @@ class OpenaiChat:
             log.info(response.response)
             log.info("***********")
         return JsonExtract(f"the reported error is: {response.code}", True, [])
+
+    @classmethod
+    def chat_instance(cls, openai_key: str) -> OpenaiChat:
+        return cls(openai_key, Constants.OPENAI_CHAT_TEXT)
+
+    @classmethod
+    def single_conversation(cls, openai_key: str, system_prompt: list[str], user_prompt: list[str]) -> list:
+        conversation = cls.chat_instance(openai_key)
+        conversation.system_prompt = system_prompt
+        conversation.user_prompt = user_prompt
+        response = conversation.chat()
+        if response.has_error is False and response.content:
+            return response.content
+        return []
 
     @classmethod
     def extract_json_from(cls, content: str, schemas: list | None = None) -> JsonExtract:

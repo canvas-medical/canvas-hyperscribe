@@ -13,7 +13,6 @@ from canvas_sdk.v1.data.note import Note
 from logger import log
 
 from commander.protocols.audio_interpreter import AudioInterpreter
-from commander.protocols.constants import Constants
 from commander.protocols.structures.instruction import Instruction
 from commander.protocols.structures.line import Line
 from commander.protocols.structures.settings import Settings
@@ -78,21 +77,21 @@ class Commander(BaseProtocol):
     def compute(self) -> list[Effect]:
         comment = TaskComment.objects.get(id=self.target)
         log.info(f"--> comment: {comment.id} (task: {comment.task.id}, labels: {[r for r in comment.task.labels.all()]})")
-        # if not comment.task.labels.filter(name=self.LABEL_ENCOUNTER_COPILOT).first():
-        if comment.task.title != self.LABEL_ENCOUNTER_COPILOT:
+        # if comment.task.title != self.LABEL_ENCOUNTER_COPILOT:
+        if not comment.task.labels.filter(name=self.LABEL_ENCOUNTER_COPILOT).first():
             return []
 
-        # the context will have the OpenAIKey on local environment only (no database access yet)
-        if self.SECRET_OPENAI_KEY in self.context:
-            self.secrets = {
-                self.SECRET_OPENAI_KEY: self.context[self.SECRET_OPENAI_KEY],
-                self.SECRET_SCIENCE_HOST: "https://science-staging.canvasmedical.com",
-                self.SECRET_ONTOLOGIES_HOST: "https://ontologies-aptible-staging.canvasmedical.com",
-                self.SECRET_PRE_SHARED_KEY: self.context[self.SECRET_PRE_SHARED_KEY],
-                self.SECRET_AUDIO_HOST: "http://localhost:8000/protocol-draft",
-                self.SECRET_ALLOW_COMMAND_UPDATES: True,
-            }
-            Constants.HAS_DATABASE_ACCESS = False
+        # # the context will have the OpenAIKey on local environment only (no database access yet)
+        # if self.SECRET_OPENAI_KEY in self.context:
+        #     self.secrets = {
+        #         self.SECRET_OPENAI_KEY: self.context[self.SECRET_OPENAI_KEY],
+        #         self.SECRET_SCIENCE_HOST: "https://science-staging.canvasmedical.com",
+        #         self.SECRET_ONTOLOGIES_HOST: "https://ontologies-aptible-staging.canvasmedical.com",
+        #         self.SECRET_PRE_SHARED_KEY: self.context[self.SECRET_PRE_SHARED_KEY],
+        #         self.SECRET_AUDIO_HOST: "http://localhost:8000/protocol-draft",
+        #         self.SECRET_ALLOW_COMMAND_UPDATES: True,
+        #     }
+        #     Constants.HAS_DATABASE_ACCESS = False
 
         information = json.loads(comment.body)
         chunk_index = information["chunk_index"]  # <--- starts with 1
@@ -172,8 +171,7 @@ class Commander(BaseProtocol):
         log.info(f"--> transcript back and forth: {len(transcript)}")
         if transcript:
             response = chatter.detect_instructions(transcript, discussion.previous_instructions)
-            if response.has_error is False:
-                cumulated_instructions = Instruction.load_from_json(response.content)
+            cumulated_instructions = Instruction.load_from_json(response)
 
         log.info(f"--> instructions: {len(cumulated_instructions)}")
         past_uuids = {instruction.uuid: instruction for instruction in discussion.previous_instructions}

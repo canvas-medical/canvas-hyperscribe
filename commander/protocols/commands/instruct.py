@@ -4,7 +4,7 @@ from canvas_sdk.commands.commands.instruct import InstructCommand
 
 from commander.protocols.canvas_science import CanvasScience
 from commander.protocols.commands.base import Base
-from commander.protocols.selector_chat import SelectorChat
+from commander.protocols.openai_chat import OpenaiChat
 
 
 class Instruct(Base):
@@ -45,7 +45,7 @@ class Instruct(Base):
                 '```',
                 '',
             ]
-            if response := SelectorChat.single_conversation(self.settings, system_prompt, user_prompt):
+            if response := OpenaiChat.single_conversation(self.settings.openai_key, system_prompt, user_prompt):
                 result.instruction = response[0]["term"]
 
         return result

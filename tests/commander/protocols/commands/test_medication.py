@@ -5,7 +5,7 @@ from canvas_sdk.commands.commands.medication_statement import MedicationStatemen
 from commander.protocols.canvas_science import CanvasScience
 from commander.protocols.commands.base import Base
 from commander.protocols.commands.medication import Medication
-from commander.protocols.selector_chat import SelectorChat
+from commander.protocols.openai_chat import OpenaiChat
 from commander.protocols.structures.coded_item import CodedItem
 from commander.protocols.structures.medication_detail import MedicationDetail
 from commander.protocols.structures.settings import Settings
@@ -34,7 +34,7 @@ def test_schema_key():
     assert result == expected
 
 
-@patch.object(SelectorChat, "single_conversation")
+@patch.object(OpenaiChat, "single_conversation")
 @patch.object(CanvasScience, "medication_details")
 def test_command_from_json(medication_details, single_conversation):
     def reset_mocks():
@@ -90,7 +90,7 @@ def test_command_from_json(medication_details, single_conversation):
     assert result == expected
     calls = [call('scienceHost', keywords)]
     assert medication_details.mock_calls == calls
-    calls = [call(tested.settings, system_prompt, user_prompt)]
+    calls = [call('openaiKey', system_prompt, user_prompt)]
     assert single_conversation.mock_calls == calls
     reset_mocks()
 
@@ -107,7 +107,7 @@ def test_command_from_json(medication_details, single_conversation):
     assert result == expected
     calls = [call('scienceHost', keywords)]
     assert medication_details.mock_calls == calls
-    calls = [call(tested.settings, system_prompt, user_prompt)]
+    calls = [call('openaiKey', system_prompt, user_prompt)]
     assert single_conversation.mock_calls == calls
     reset_mocks()
 

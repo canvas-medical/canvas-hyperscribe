@@ -119,8 +119,14 @@ class AudioInterpreter:
         for audio in audio_chunks:
             conversation.add_audio(audio, extension)
         response = conversation.chat(True)
-        if response.has_error or len(response.content) < 2:
+        if response.has_error:
             return response
+        if len(response.content) < 2:
+            return JsonExtract(
+                has_error=True,
+                error="partial response",
+                content=response.content,
+            )
 
         discussion = response.content[0]
         speakers = {
@@ -139,8 +145,7 @@ class AudioInterpreter:
             ],
         )
 
-    def detect_instructions(self, discussion: list[Line], known_instructions: list[Instruction]) -> JsonExtract:
-        conversation = OpenaiChat(self.settings.openai_key, Constants.OPENAI_CHAT_TEXT)
+    def detect_instructions(self, discussion: list[Line], known_instructions: list[Instruction]) -> list:
         example = {
             "uuid": "a unique identifier in this discussion",
             "instruction": "the instruction",
@@ -152,7 +157,7 @@ class AudioInterpreter:
                 "isUpdated": "the instruction is an update of one already identified in the discussion, as boolean",
             }
 
-        conversation.system_prompt = [
+        system_prompt = [
             "The conversation is in the medical context.",
             "The user will submit the transcript of the visit of a patient with a healthcare provider.",
             "The user needs to extract and store the relevant information in their software using several commands as described below.",
@@ -173,7 +178,7 @@ class AudioInterpreter:
             "",
         ]
         transcript = json.dumps([speaker.to_json() for speaker in discussion], indent=1)
-        conversation.user_prompt = [
+        user_prompt = [
             "Below is a part of the transcript of the visit of a patient with a healthcare provider.",
             "What are the instructions I need to add to my software to correctly record the visit?",
             "```json",
@@ -183,29 +188,29 @@ class AudioInterpreter:
         ]
         if known_instructions:
             content = json.dumps([instruction.to_json(self.settings.allow_update) for instruction in known_instructions], indent=1)
-            conversation.user_prompt.extend([
+            user_prompt.extend([
                 "From previous parts of the transcript, the following instructions were identified",
                 "```json",
                 content,
                 "```",
                 "Include them in your response, with any necessary additional information.",
             ])
-        result = conversation.chat()
-        if result.has_error is False and (constraints := self.instruction_constraints()):
-            conversation.user_prompt = [
+        result = OpenaiChat.single_conversation(self.settings.openai_key, system_prompt, user_prompt)
+        if result and (constraints := self.instruction_constraints()):
+            user_prompt = [
                 "Here is your last response:",
                 "```json",
-                json.dumps(result.content, indent=1),
+                json.dumps(result, indent=1),
                 "```",
                 "",
                 "Review your response and be sure to follow these constraints:",
             ]
             for constraint in constraints:
-                conversation.user_prompt.append(f" * {constraint}")
-            conversation.user_prompt.append("")
-            conversation.user_prompt.append("Return the original JSON if valid, or provide a corrected version to follow the constraints if needed.")
-            conversation.user_prompt.append("")
-            result = conversation.chat()
+                user_prompt.append(f" * {constraint}")
+            user_prompt.append("")
+            user_prompt.append("Return the original JSON if valid, or provide a corrected version to follow the constraints if needed.")
+            user_prompt.append("")
+            result = OpenaiChat.single_conversation(self.settings.openai_key, system_prompt, user_prompt)
         return result
 
     def create_sdk_command_parameters(self, instruction: Instruction) -> tuple[Instruction, dict | None]:
@@ -213,8 +218,7 @@ class AudioInterpreter:
 
         structures = self.command_structures()
 
-        conversation = OpenaiChat(self.settings.openai_key, Constants.OPENAI_CHAT_TEXT)
-        conversation.system_prompt = [
+        system_prompt = [
             "The conversation is in the medical context.",
             "During a visit of a patient with a healthcare provider, the user has identified instructions to record in its software.",
             "The user will submit an instruction, i.e. an action and the related information, as well as the structure of the associated command.",
@@ -224,7 +228,7 @@ class AudioInterpreter:
             "",
             f"Please, note that now is {datetime.now().isoformat()}."
         ]
-        conversation.user_prompt = [
+        user_prompt = [
             "Based on the text:",
             "```text",
             instruction.information,
@@ -236,9 +240,9 @@ class AudioInterpreter:
             "```",
             "",
         ]
-        response = conversation.chat()
-        if response.has_error is False:
-            result = instruction, response.content[0]
+        response = OpenaiChat.single_conversation(self.settings.openai_key, system_prompt, user_prompt)
+        if response:
+            result = instruction, response[0]
         return result
 
     def create_sdk_command_from(self, instruction: Instruction, parameters: dict) -> BaseCommand | None:

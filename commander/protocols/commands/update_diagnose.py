@@ -5,7 +5,7 @@ from canvas_sdk.commands.commands.update_diagnosis import UpdateDiagnosisCommand
 from commander.protocols.canvas_science import CanvasScience
 from commander.protocols.commands.base import Base
 from commander.protocols.helper import Helper
-from commander.protocols.selector_chat import SelectorChat
+from commander.protocols.openai_chat import OpenaiChat
 
 
 class UpdateDiagnose(Base):
@@ -52,7 +52,7 @@ class UpdateDiagnose(Base):
                 '```',
                 '',
             ]
-            if response := SelectorChat.single_conversation(self.settings, system_prompt, user_prompt):
+            if response := OpenaiChat.single_conversation(self.settings.openai_key, system_prompt, user_prompt):
                 result.new_condition_code = Helper.icd10_strip_dot(response[0]["ICD10"])
         return result
 
