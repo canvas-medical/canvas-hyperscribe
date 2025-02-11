@@ -163,15 +163,15 @@ class Commander(BaseProtocol):
         )
         chatter = AudioInterpreter(settings, patient_uuid, note_uuid, provider_uuid)
         response = chatter.combine_and_speaker_detection(audios)
-        transcript: list[Line] = []
-        if response.has_error is False:
-            transcript = Line.load_from_json(response.content)
+        if response.has_error is True:
+            log.info(f"--> transcript encountered: {response.error}")
+            return True, []  # <--- let's continue even if we were not able to get a transcript
 
-        # detect the instructions based on the transcript and the existing commands
+        transcript = Line.load_from_json(response.content)
         log.info(f"--> transcript back and forth: {len(transcript)}")
-        if transcript:
-            response = chatter.detect_instructions(transcript, discussion.previous_instructions)
-            cumulated_instructions = Instruction.load_from_json(response)
+        # detect the instructions based on the transcript and the existing commands
+        response = chatter.detect_instructions(transcript, discussion.previous_instructions)
+        cumulated_instructions = Instruction.load_from_json(response)
 
         log.info(f"--> instructions: {len(cumulated_instructions)}")
         past_uuids = {instruction.uuid: instruction for instruction in discussion.previous_instructions}
@@ -180,7 +180,31 @@ class Commander(BaseProtocol):
         # identify the commands
         results: list[Effect] = []
         # -- new commands
-        new_instructions = [instruction for instruction in cumulated_instructions if instruction.uuid not in past_uuids]
+        results.extend(self.new_commands_from(chatter, cumulated_instructions, past_uuids))
+        # -- updated commands
+        results.extend(self.update_commands_from(chatter, cumulated_instructions, past_uuids))
+
+        # summary
+        log.info(f"<===  note: {note_uuid} ===>")
+        log.info(f"updates ok: {settings.allow_update}")
+        log.info(f"instructions: {discussion.previous_instructions}")
+        log.info("<-------->")
+        for result in results:
+            log.info(f"command: {result.type}")
+            log.info(result.payload)
+        log.info("<=== END ===>")
+
+        return True, results
+
+    @classmethod
+    def new_commands_from(
+            cls,
+            chatter: AudioInterpreter,
+            instructions: list[Instruction],
+            past_uuids: dict[str, Instruction],
+    ) -> list[Effect]:
+        results: list[Effect] = []
+        new_instructions = [instruction for instruction in instructions if instruction.uuid not in past_uuids]
         log.info(f"--> new instructions: {len(new_instructions)}")
         if new_instructions:
             sdk_commands = [
@@ -194,23 +218,30 @@ class Commander(BaseProtocol):
                 for instruction, parameters in sdk_commands
                 if (command := chatter.create_sdk_command_from(instruction, parameters))
             ]
+        return results
 
-        # -- updated commands
+    @classmethod
+    def update_commands_from(
+            cls,
+            chatter: AudioInterpreter,
+            instructions: list[Instruction],
+            past_uuids: dict[str, Instruction],
+    ) -> list[Effect]:
+        results: list[Effect] = []
         mapping = chatter.schema_key2instruction()
-        note = Note.objects.get(id=note_uuid)
+        note = Note.objects.get(id=chatter.note_uuid)
         last_commands = {
             mapping.get(c.schema_key, ""): str(c.id)
             for c in Command.objects.filter(
-                patient__id=patient_uuid,
+                patient__id=chatter.patient_id,
                 note_id=note.dbid,
                 origination_source="plugin",  # <--- TODO use an Enum when provided
-                state="stage",  # <--- TODO use an Enum when provided
+                state="staged",  # <--- TODO use an Enum when provided
             )
         }
-
         updated_instructions = [
             instruction
-            for instruction in cumulated_instructions
+            for instruction in instructions
             if instruction.uuid in past_uuids.keys()
                and instruction.instruction in last_commands.keys()
                and instruction.instruction == past_uuids[instruction.uuid].instruction
@@ -226,17 +257,7 @@ class Commander(BaseProtocol):
             log.info(f"--> updated commands: {len(sdk_commands)}")
             for instruction, parameters in sdk_commands:
                 command = chatter.create_sdk_command_from(instruction, parameters)
-                command.command_uuid = last_commands[instruction.instruction]
-                results.append(command.edit())
-
-        # summary
-        log.info(f"<===  note: {note_uuid} ===>")
-        log.info(f"updates ok: {settings.allow_update}")
-        log.info(f"instructions: {discussion.previous_instructions}")
-        log.info("<-------->")
-        for result in results:
-            log.info(f"command: {result.type}")
-            log.info(result.payload)
-        log.info("<=== END ===>")
-
-        return True, results
+                if command:
+                    command.command_uuid = last_commands[instruction.instruction]
+                    results.append(command.edit())
+        return results

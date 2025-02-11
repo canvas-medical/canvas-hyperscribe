@@ -6,10 +6,14 @@ import requests
 from canvas_generated.messages.effects_pb2 import Effect
 from canvas_generated.messages.events_pb2 import Event as EventRequest
 from canvas_sdk.events import Event
-from canvas_sdk.v1.data import TaskComment, Note
+from canvas_sdk.v1.data import TaskComment, Note, Command
 from logger import log
 
 from commander.protocols.commander import CachedDiscussion, Audio, Commander
+from commander.protocols.structures.instruction import Instruction
+from commander.protocols.structures.json_extract import JsonExtract
+from commander.protocols.structures.line import Line
+from commander.protocols.structures.settings import Settings
 from tests.helper import is_constant
 
 
@@ -222,14 +226,14 @@ def test_retrieve_audios(get_audio):
 @patch.object(Note, "objects")
 @patch.object(TaskComment, "objects")
 @patch.object(Commander, "compute_audio")
-def test_compute(compute_audio, task_comment, note, info):
+def test_compute(compute_audio, task_comment_db, note_db, info):
     mock_comment = MagicMock()
     mock_note = MagicMock()
 
     def reset_mocks():
         compute_audio.reset_mock()
-        task_comment.reset_mock()
-        note.reset_mock()
+        task_comment_db.reset_mock()
+        note_db.reset_mock()
         info.reset_mock()
         mock_comment.reset_mock()
         mock_note.reset_mock()
@@ -244,15 +248,15 @@ def test_compute(compute_audio, task_comment, note, info):
     mock_comment.task.id = "taskUuid"
     mock_comment.task.labels.all.side_effect = [["label1", "label2"]]
     mock_comment.task.labels.filter.return_value.first.side_effect = [""]
-    task_comment.get.side_effect = [mock_comment]
+    task_comment_db.get.side_effect = [mock_comment]
 
     result = tested.compute()
     assert result == []
 
     assert compute_audio.mock_calls == []
     calls = [call.get(id='taskUuid')]
-    assert task_comment.mock_calls == calls
-    assert note.mock_calls == []
+    assert task_comment_db.mock_calls == calls
+    assert note_db.mock_calls == []
     calls = [call("--> comment: commentUuid (task: taskUuid, labels: ['label1', 'label2'])")]
     assert info.mock_calls == calls
     calls = [
@@ -272,11 +276,11 @@ def test_compute(compute_audio, task_comment, note, info):
     mock_comment.task.id = "taskUuid"
     mock_comment.task.labels.all.side_effect = [["label1", "label2"]]
     mock_comment.task.labels.filter.return_value.first.side_effect = ["aTask"]
-    task_comment.get.side_effect = [mock_comment]
+    task_comment_db.get.side_effect = [mock_comment]
 
     mock_note.provider.id = "providerUuid"
     mock_note.patient.id = "patientUuid"
-    note.get.side_effect = [mock_note]
+    note_db.get.side_effect = [mock_note]
 
     result = tested.compute()
     expected = [
@@ -296,7 +300,7 @@ def test_compute(compute_audio, task_comment, note, info):
     calls = [call('patientUuid', 'noteUuid', 'providerUuid', 1)]
     assert compute_audio.mock_calls == calls
     calls = [call.get(id='taskUuid')]
-    assert task_comment.mock_calls == calls
+    assert task_comment_db.mock_calls == calls
     calls = [
         call("--> comment: commentUuid (task: taskUuid, labels: ['label1', 'label2'])"),
         call('audio was present => go to next iteration (2)'),
@@ -317,11 +321,11 @@ def test_compute(compute_audio, task_comment, note, info):
     mock_comment.task.id = "taskUuid"
     mock_comment.task.labels.all.side_effect = [["label1", "label2"]]
     mock_comment.task.labels.filter.return_value.first.side_effect = ["aTask"]
-    task_comment.get.side_effect = [mock_comment]
+    task_comment_db.get.side_effect = [mock_comment]
 
     mock_note.provider.id = "providerUuid"
     mock_note.patient.id = "patientUuid"
-    note.get.side_effect = [mock_note]
+    note_db.get.side_effect = [mock_note]
 
     result = tested.compute()
     expected = [
@@ -335,7 +339,7 @@ def test_compute(compute_audio, task_comment, note, info):
     calls = [call('patientUuid', 'noteUuid', 'providerUuid', 1)]
     assert compute_audio.mock_calls == calls
     calls = [call.get(id='taskUuid')]
-    assert task_comment.mock_calls == calls
+    assert task_comment_db.mock_calls == calls
     calls = [
         call("--> comment: commentUuid (task: taskUuid, labels: ['label1', 'label2'])"),
         call('audio was NOT present => stop the task'),
@@ -368,3 +372,440 @@ def test_allow_command_updates():
         tested = Commander(event, secrets)
         result = tested.allow_command_updates()
         assert result is expected
+
+
+@patch('commander.protocols.commander.AudioInterpreter')
+@patch('commander.protocols.commander.CachedDiscussion')
+@patch.object(Commander, 'update_commands_from')
+@patch.object(Commander, 'new_commands_from')
+@patch.object(Commander, 'retrieve_audios')
+@patch.object(log, "info")
+def test_compute_audio(info, retrieve_audios, new_commands_from, update_commands_from, cached_discussion, audio_interpreter):
+    mock_chatter = MagicMock()
+
+    def reset_mocks():
+        info.reset_mock()
+        retrieve_audios.reset_mock()
+        new_commands_from.reset_mock()
+        update_commands_from.reset_mock()
+        cached_discussion.reset_mock()
+        audio_interpreter.reset_mock()
+        mock_chatter.reset_mock()
+
+    secrets = {
+        "AudioHost": "theAudioHost",
+        "OpenAIKey": "theOpenAIKey",
+        "ScienceHost": "theScienceHost",
+        "OntologiesHost": "theOntologiesHost",
+        "PreSharedKey": "thePreSharedKey",
+        "AllowCommandUpdates": "yes",
+    }
+    event = Event(EventRequest(target="taskUuid"))
+    tested = Commander(event, secrets)
+
+    # no more audio
+    retrieve_audios.side_effect = [[]]
+    new_commands_from.side_effect = []
+    update_commands_from.side_effect = []
+    cached_discussion.side_effect = []
+    audio_interpreter.side_effect = []
+    mock_chatter.side_effect = []
+
+    result = tested.compute_audio("patientUuid", "noteUuid", "providerUuid", 3)
+    expected = (False, [])
+    assert result == expected
+
+    calls = [call('--> audio chunks: 0')]
+    assert info.mock_calls == calls
+    calls = [call('theAudioHost', 'patientUuid', 'noteUuid', 3)]
+    assert retrieve_audios.mock_calls == calls
+    calls = [call.clear_cache()]
+    assert new_commands_from.mock_calls == []
+    assert update_commands_from.mock_calls == []
+    assert cached_discussion.mock_calls == calls
+    assert audio_interpreter.mock_calls == []
+    assert mock_chatter.mock_calls == []
+    reset_mocks()
+
+    # audios retrieved
+    transcript = [
+        {"speaker": "speaker1", "text": "textA"},
+        {"speaker": "speaker2", "text": "textB"},
+        {"speaker": "speaker1", "text": "textC"},
+    ]
+    # --- all good
+    retrieve_audios.side_effect = [[b"audio1", b"audio2"]]
+    new_commands_from.side_effect = [[Effect(type="LOG", payload="Log1"), Effect(type="LOG", payload="Log2")]]
+    update_commands_from.side_effect = [[Effect(type="LOG", payload="Log3")]]
+    cached_discussion.get_discussion.side_effect = [CachedDiscussion("noteUuid")]
+    audio_interpreter.side_effect = [mock_chatter]
+    mock_chatter.combine_and_speaker_detection.side_effect = [
+        JsonExtract(has_error=False, error="", content=transcript),
+    ]
+    mock_chatter.detect_instructions.side_effect = [
+        [
+            {"uuid": "uuidA", "instruction": "theInstructionA", "information": "theInformationA", "isNew": False, "isUpdated": True},
+            {"uuid": "uuidB", "instruction": "theInstructionB", "information": "theInformationB", "isNew": True, "isUpdated": False},
+            {"uuid": "uuidC", "instruction": "theInstructionC", "information": "theInformationC", "isNew": True, "isUpdated": False},
+        ],
+    ]
+
+    result = tested.compute_audio("patientUuid", "noteUuid", "providerUuid", 3)
+    expected = (
+        True, [
+            Effect(type="LOG", payload="Log1"),
+            Effect(type="LOG", payload="Log2"),
+            Effect(type="LOG", payload="Log3"),
+        ])
+    assert result == expected
+
+    calls = [
+        call('--> audio chunks: 2'),
+        call('--> transcript back and forth: 3'),
+        call('--> instructions: 3'),
+        call('<===  note: noteUuid ===>'),
+        call('updates ok: True'),
+        call("instructions: ["
+             "Instruction(uuid='uuidA', instruction='theInstructionA', information='theInformationA', is_new=False, is_updated=True), "
+             "Instruction(uuid='uuidB', instruction='theInstructionB', information='theInformationB', is_new=True, is_updated=False), "
+             "Instruction(uuid='uuidC', instruction='theInstructionC', information='theInformationC', is_new=True, is_updated=False)]"),
+        call('<-------->'),
+        call('command: 1'),
+        call('Log1'),
+        call('command: 1'),
+        call('Log2'),
+        call('command: 1'),
+        call('Log3'),
+        call('<=== END ===>'),
+
+    ]
+    assert info.mock_calls == calls
+    calls = [call('theAudioHost', 'patientUuid', 'noteUuid', 3)]
+    assert retrieve_audios.mock_calls == calls
+    calls = [
+        call(
+            mock_chatter,
+            [
+                Instruction(uuid='uuidA', instruction='theInstructionA', information='theInformationA', is_new=False, is_updated=True),
+                Instruction(uuid='uuidB', instruction='theInstructionB', information='theInformationB', is_new=True, is_updated=False),
+                Instruction(uuid='uuidC', instruction='theInstructionC', information='theInformationC', is_new=True, is_updated=False),
+            ],
+            {},
+        ),
+    ]
+    assert new_commands_from.mock_calls == calls
+    assert update_commands_from.mock_calls == calls
+    calls = [
+        call.clear_cache(),
+        call.get_discussion('noteUuid'),
+    ]
+    assert cached_discussion.mock_calls == calls
+    calls = [
+        call(Settings(
+            openai_key='theOpenAIKey',
+            science_host='theScienceHost',
+            ontologies_host='theOntologiesHost',
+            pre_shared_key='thePreSharedKey',
+            allow_update=True,
+        ), 'patientUuid', 'noteUuid', 'providerUuid')
+    ]
+    assert audio_interpreter.mock_calls == calls
+    calls = [
+        call.combine_and_speaker_detection([b'audio1', b'audio2']),
+        call.detect_instructions(
+            [
+                Line(speaker='speaker1', text='textA'),
+                Line(speaker='speaker2', text='textB'),
+                Line(speaker='speaker1', text='textC'),
+            ],
+            [],
+        ),
+    ]
+    assert mock_chatter.mock_calls == calls
+    reset_mocks()
+    # --- transcript has error
+    retrieve_audios.side_effect = [[b"audio1", b"audio2"]]
+    new_commands_from.side_effect = [[Effect(type="LOG", payload="Log1"), Effect(type="LOG", payload="Log2")]]
+    update_commands_from.side_effect = [[Effect(type="LOG", payload="Log3")]]
+    cached_discussion.get_discussion.side_effect = [CachedDiscussion("noteUuid")]
+    audio_interpreter.side_effect = [mock_chatter]
+    mock_chatter.combine_and_speaker_detection.side_effect = [
+        JsonExtract(has_error=True, error="theError", content=transcript),
+    ]
+    mock_chatter.detect_instructions.side_effect = []
+
+    result = tested.compute_audio("patientUuid", "noteUuid", "providerUuid", 3)
+    expected = (True, [])
+    assert result == expected
+
+    calls = [
+        call('--> audio chunks: 2'),
+        call('--> transcript encountered: theError'),
+    ]
+    assert info.mock_calls == calls
+    calls = [call('theAudioHost', 'patientUuid', 'noteUuid', 3)]
+    assert retrieve_audios.mock_calls == calls
+    assert new_commands_from.mock_calls == []
+    assert update_commands_from.mock_calls == []
+    calls = [
+        call.clear_cache(),
+        call.get_discussion('noteUuid'),
+    ]
+    assert cached_discussion.mock_calls == calls
+    calls = [
+        call(Settings(
+            openai_key='theOpenAIKey',
+            science_host='theScienceHost',
+            ontologies_host='theOntologiesHost',
+            pre_shared_key='thePreSharedKey',
+            allow_update=True,
+        ), 'patientUuid', 'noteUuid', 'providerUuid')
+    ]
+    assert audio_interpreter.mock_calls == calls
+    calls = [
+        call.combine_and_speaker_detection([b'audio1', b'audio2']),
+    ]
+    assert mock_chatter.mock_calls == calls
+    reset_mocks()
+
+
+@patch.object(log, "info")
+def test_new_commands_from(info):
+    chatter = MagicMock()
+    mock_commands = [
+        MagicMock(),
+        MagicMock(),
+    ]
+
+    def reset_mocks():
+        info.reset_mock()
+        chatter.reset_mock()
+        for a_command in mock_commands:
+            a_command.reset_mock()
+
+    instructions = [
+        Instruction(uuid='uuidA', instruction='theInstructionA', information='theInformationA', is_new=False, is_updated=True),
+        Instruction(uuid='uuidB', instruction='theInstructionB', information='theInformationB', is_new=True, is_updated=False),
+        Instruction(uuid='uuidC', instruction='theInstructionC', information='theInformationC', is_new=True, is_updated=False),
+        Instruction(uuid='uuidD', instruction='theInstructionD', information='theInformationD', is_new=True, is_updated=False),
+        Instruction(uuid='uuidE', instruction='theInstructionE', information='theInformationE', is_new=True, is_updated=False),
+    ]
+
+    tested = Commander
+    # no new instruction
+    past_uuids = {
+        "uuidA": instructions[0],
+        "uuidB": instructions[1],
+        "uuidC": instructions[2],
+        "uuidD": instructions[3],
+        "uuidE": instructions[4],
+    }
+    chatter.create_sdk_command_parameters.side_effect = []
+    chatter.create_sdk_command_from.side_effect = []
+    for mock_command in mock_commands:
+        mock_command.originate.side_effect = []
+
+    result = tested.new_commands_from(chatter, instructions, past_uuids)
+    assert result == []
+    calls = [call('--> new instructions: 0')]
+    assert info.mock_calls == calls
+    assert chatter.mock_calls == []
+    for mock_command in mock_commands:
+        assert mock_command.mock_calls == []
+    reset_mocks()
+
+    # with new instructions
+    past_uuids = {
+        "uuidA": instructions[0],
+    }
+    chatter.create_sdk_command_parameters.side_effect = [
+        (instructions[1], {"params": "instruction1"}),
+        (instructions[2], None),
+        (instructions[3], {"params": "instruction3"}),
+        (instructions[4], {"params": "instruction4"}),
+    ]
+    chatter.create_sdk_command_from.side_effect = [
+        mock_commands[0],
+        mock_commands[1],
+        None,
+    ]
+    for idx, mock_command in enumerate(mock_commands):
+        mock_command.originate.side_effect = [Effect(type="LOG", payload=f"Log{idx}")]
+
+    result = tested.new_commands_from(chatter, instructions, past_uuids)
+    expected = [
+        Effect(type="LOG", payload="Log0"),
+        Effect(type="LOG", payload="Log1"),
+    ]
+    assert result == expected
+    calls = [
+        call('--> new instructions: 4'),
+        call('--> new commands: 3'),
+    ]
+    assert info.mock_calls == calls
+    calls = [
+        call.create_sdk_command_parameters(instructions[1]),
+        call.create_sdk_command_parameters(instructions[2]),
+        call.create_sdk_command_parameters(instructions[3]),
+        call.create_sdk_command_parameters(instructions[4]),
+        call.create_sdk_command_from(instructions[1], {'params': 'instruction1'}),
+        call.create_sdk_command_from(instructions[3], {'params': 'instruction3'}),
+        call.create_sdk_command_from(instructions[4], {'params': 'instruction4'}),
+    ]
+    assert chatter.mock_calls == calls
+    calls = [
+        call.__bool__(),
+        call.originate(),
+    ]
+    for mock_command in mock_commands:
+        assert mock_command.mock_calls == calls
+    reset_mocks()
+
+
+@patch.object(Command, "objects")
+@patch.object(Note, "objects")
+@patch.object(log, "info")
+def test_update_commands_from(info, note_db, command_db):
+    chatter = MagicMock()
+    mock_commands = [
+        MagicMock(),
+        MagicMock(),
+    ]
+
+    def reset_mocks():
+        info.reset_mock()
+        note_db.reset_mock()
+        command_db.reset_mock()
+        chatter.reset_mock()
+        for a_command in mock_commands:
+            a_command.reset_mock()
+
+    instructions = [
+        Instruction(uuid='uuidA', instruction='theInstructionA', information='theInformationA', is_new=False, is_updated=True),
+        Instruction(uuid='uuidB', instruction='theInstructionB', information='theInformationB', is_new=False, is_updated=True),
+        Instruction(uuid='uuidC', instruction='theInstructionC', information='theInformationC', is_new=False, is_updated=True),
+        Instruction(uuid='uuidD', instruction='theInstructionD', information='theInformationD', is_new=False, is_updated=True),
+        Instruction(uuid='uuidE', instruction='theInstructionE', information='theInformationE', is_new=True, is_updated=False),
+    ]
+    chatter.note_uuid = "noteUuid"
+    chatter.patient_id = "patientUuid"
+
+    tested = Commander
+    # all new instructions
+    past_uuids = {}
+    note_db.get.side_effect = [Note(dbid=751)]
+    command_db.filter.side_effect = [
+        [
+            Command(id="uuid1", schema_key="canvas_command_A"),
+            Command(id="uuid2", schema_key="canvas_command_B"),
+            Command(id="uuid3", schema_key="canvas_command_C"),
+            Command(id="uuid4", schema_key="canvas_command_D"),
+            Command(id="uuid5", schema_key="canvas_command_E"),
+        ],
+    ]
+    chatter.schema_key2instruction.side_effect = [
+        {
+            "canvas_command_A": "theInstructionA",
+            "canvas_command_B": "theInstructionB",
+            "canvas_command_C": "theInstructionC",
+            "canvas_command_D": "theInstructionD",
+            "canvas_command_E": "theInstructionE",
+        },
+    ]
+    chatter.create_sdk_command_parameters.side_effect = []
+    chatter.create_sdk_command_from.side_effect = []
+    for mock_command in mock_commands:
+        mock_command.originate.side_effect = []
+
+    result = tested.update_commands_from(chatter, instructions, past_uuids)
+    assert result == []
+    calls = [call('--> updated instructions: 0')]
+    assert info.mock_calls == calls
+    calls = [call.get(id='noteUuid')]
+    assert note_db.mock_calls == calls
+    calls = [
+        call.filter(patient__id='patientUuid', note_id=751, origination_source='plugin', state='staged'),
+    ]
+    assert command_db.mock_calls == calls
+    calls = [call.schema_key2instruction()]
+    assert chatter.mock_calls == calls
+    for mock_command in mock_commands:
+        assert mock_command.mock_calls == []
+    reset_mocks()
+
+    # updated instructions
+    past_uuids = {
+        "uuidA": Instruction(uuid='uuidA', instruction='theInstructionA', information='changedA', is_new=False, is_updated=True),
+        "uuidB": instructions[1],
+        "uuidC": Instruction(uuid='uuidC', instruction='theInstructionC', information='changedC', is_new=False, is_updated=True),
+        "uuidD": Instruction(uuid='uuidD', instruction='theInstructionD', information='changedD', is_new=False, is_updated=True),
+        "uuidE": Instruction(uuid='uuidE', instruction='theInstructionE', information='changedE', is_new=True, is_updated=False),
+    }
+    note_db.get.side_effect = [Note(dbid=751)]
+    command_db.filter.side_effect = [
+        [
+            Command(id="uuid1", schema_key="canvas_command_A"),
+            Command(id="uuid2", schema_key="canvas_command_B"),
+            Command(id="uuid3", schema_key="canvas_command_C"),
+            Command(id="uuid4", schema_key="canvas_command_D"),
+            Command(id="uuid5", schema_key="canvas_command_E"),
+        ],
+    ]
+    chatter.schema_key2instruction.side_effect = [
+        {
+            "canvas_command_A": "theInstructionA",
+            "canvas_command_B": "theInstructionB",
+            "canvas_command_C": "theInstructionC",
+            "canvas_command_D": "theInstructionD",
+            "canvas_command_E": "theInstructionE",
+        },
+    ]
+    chatter.create_sdk_command_parameters.side_effect = [
+        (instructions[1], {"params": "instruction1"}),
+        (instructions[2], None),
+        (instructions[3], {"params": "instruction3"}),
+        (instructions[4], {"params": "instruction4"}),
+    ]
+    chatter.create_sdk_command_from.side_effect = [
+        mock_commands[0],
+        mock_commands[1],
+        None,
+    ]
+    for idx, mock_command in enumerate(mock_commands):
+        mock_command.edit.side_effect = [Effect(type="LOG", payload=f"Log{idx}")]
+
+    result = tested.update_commands_from(chatter, instructions, past_uuids)
+    expected = [
+        Effect(type="LOG", payload="Log0"),
+        Effect(type="LOG", payload="Log1"),
+    ]
+    assert result == expected
+    calls = [
+        call('--> updated instructions: 4'),
+        call('--> updated commands: 3'),
+    ]
+    assert info.mock_calls == calls
+    calls = [call.get(id='noteUuid')]
+    assert note_db.mock_calls == calls
+    calls = [
+        call.filter(patient__id='patientUuid', note_id=751, origination_source='plugin', state='staged'),
+    ]
+    assert command_db.mock_calls == calls
+    calls = [
+        call.schema_key2instruction(),
+        call.create_sdk_command_parameters(instructions[0]),
+        call.create_sdk_command_parameters(instructions[2]),
+        call.create_sdk_command_parameters(instructions[3]),
+        call.create_sdk_command_parameters(instructions[4]),
+        call.create_sdk_command_from(instructions[1], {'params': 'instruction1'}),
+        call.create_sdk_command_from(instructions[3], {'params': 'instruction3'}),
+        call.create_sdk_command_from(instructions[4], {'params': 'instruction4'}),
+    ]
+    assert chatter.mock_calls == calls
+    calls = [
+        call.__bool__(),
+        call.edit(),
+    ]
+    for mock_command in mock_commands:
+        assert mock_command.mock_calls == calls
+    reset_mocks()

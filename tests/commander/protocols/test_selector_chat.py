@@ -99,9 +99,9 @@ def test_condition_from(search_conditions, single_conversation):
 
 @patch.object(OpenaiChat, "single_conversation")
 @patch.object(DataLabTestView, "objects")
-def test_lab_test_from(lab_test, single_conversation):
+def test_lab_test_from(lab_test_db, single_conversation):
     def reset_mocks():
-        lab_test.reset_mock()
+        lab_test_db.reset_mock()
         single_conversation.reset_mock()
 
     tested = SelectorChat
@@ -184,7 +184,7 @@ def test_lab_test_from(lab_test, single_conversation):
 
     # all good
     # -- with conditions
-    lab_test.filter.return_value.filter.side_effect = [lab_tests, lab_tests]
+    lab_test_db.filter.return_value.filter.side_effect = [lab_tests, lab_tests]
     single_conversation.side_effect = [[{"code": "CODE9876", "label": "theLabTest"}]]
 
     result = tested.lab_test_from(settings, "theLabPartner", expressions, "theComment", conditions)
@@ -196,12 +196,12 @@ def test_lab_test_from(lab_test, single_conversation):
         call.filter(lab__name='theLabPartner'),
         call.filter().filter(Q(('keywords__icontains', 'word4'))),
     ]
-    assert lab_test.mock_calls == calls
+    assert lab_test_db.mock_calls == calls
     calls = [call('openaiKey', system_prompt, user_prompts[0])]
     assert single_conversation.mock_calls == calls
     reset_mocks()
     # -- without conditions
-    lab_test.filter.return_value.filter.side_effect = [lab_tests, lab_tests]
+    lab_test_db.filter.return_value.filter.side_effect = [lab_tests, lab_tests]
     single_conversation.side_effect = [[{"code": "CODE9876", "label": "theLabTest"}]]
 
     result = tested.lab_test_from(settings, "theLabPartner", expressions, "theComment", [])
@@ -213,13 +213,13 @@ def test_lab_test_from(lab_test, single_conversation):
         call.filter(lab__name='theLabPartner'),
         call.filter().filter(Q(('keywords__icontains', 'word4'))),
     ]
-    assert lab_test.mock_calls == calls
+    assert lab_test_db.mock_calls == calls
     calls = [call('openaiKey', system_prompt, user_prompts[1])]
     assert single_conversation.mock_calls == calls
     reset_mocks()
 
     # no response
-    lab_test.filter.return_value.filter.side_effect = [lab_tests, lab_tests]
+    lab_test_db.filter.return_value.filter.side_effect = [lab_tests, lab_tests]
     single_conversation.side_effect = [[]]
 
     result = tested.lab_test_from(settings, "theLabPartner", expressions, "theComment", conditions)
@@ -231,13 +231,13 @@ def test_lab_test_from(lab_test, single_conversation):
         call.filter(lab__name='theLabPartner'),
         call.filter().filter(Q(('keywords__icontains', 'word4'))),
     ]
-    assert lab_test.mock_calls == calls
+    assert lab_test_db.mock_calls == calls
     calls = [call('openaiKey', system_prompt, user_prompts[0])]
     assert single_conversation.mock_calls == calls
     reset_mocks()
 
     # no lab test
-    lab_test.filter.return_value.filter.side_effect = [[], []]
+    lab_test_db.filter.return_value.filter.side_effect = [[], []]
     single_conversation.side_effect = []
 
     result = tested.lab_test_from(settings, "theLabPartner", expressions, "theComment", conditions)
@@ -249,6 +249,6 @@ def test_lab_test_from(lab_test, single_conversation):
         call.filter(lab__name='theLabPartner'),
         call.filter().filter(Q(('keywords__icontains', 'word4'))),
     ]
-    assert lab_test.mock_calls == calls
+    assert lab_test_db.mock_calls == calls
     assert single_conversation.mock_calls == []
     reset_mocks()

@@ -101,22 +101,22 @@ def test_is_available():
     assert e.typename == expected
 
 
-@patch('commander.protocols.commands.base.Command.objects')
-def test_current_goals(command):
+@patch.object(Command, 'objects')
+def test_current_goals(command_db):
     # TODO to adapt when access to the database is available
     def reset_mocks():
-        command.reset_mock()
+        command_db.reset_mock()
 
     with patch('commander.protocols.constants.Constants.HAS_DATABASE_ACCESS', False):
         tested = helper_instance()
         result = tested.current_goals()
         assert result == []
         assert tested._goals is None
-        assert command.mock_calls == []
+        assert command_db.mock_calls == []
         reset_mocks()
 
     with patch('commander.protocols.constants.Constants.HAS_DATABASE_ACCESS', True):
-        command.filter.return_value.order_by.side_effect = [[
+        command_db.filter.return_value.order_by.side_effect = [[
             Command(id=uuid5(NAMESPACE_DNS, "1"), dbid=258, data={"goal_statement": "statement1"}),
             Command(id=uuid5(NAMESPACE_DNS, "2"), dbid=259, data={"goal_statement": "statement2"}),
             Command(id=uuid5(NAMESPACE_DNS, "3"), dbid=267, data={"goal_statement": "statement3"}),
@@ -135,36 +135,36 @@ def test_current_goals(command):
             call.filter(patient__id="patientUuid", schema_key="goal"),
             call.filter().order_by('-dbid'),
         ]
-        assert command.mock_calls == calls
+        assert command_db.mock_calls == calls
         reset_mocks()
 
         result = tested.current_goals()
         assert result == expected
         assert tested._goals == expected
-        assert command.mock_calls == []
+        assert command_db.mock_calls == []
         reset_mocks()
 
 
-@patch('commander.protocols.commands.base.Condition.codings')
-@patch('commander.protocols.commands.base.Condition.objects')
-def test_current_conditions(condition, codings):
+@patch.object(Condition, 'codings')
+@patch.object(Condition, 'objects')
+def test_current_conditions(condition_db, codings_db):
     # TODO to adapt when access to the database is available
     def reset_mocks():
-        condition.reset_mock()
-        codings.reset_mock()
+        condition_db.reset_mock()
+        codings_db.reset_mock()
 
     with patch('commander.protocols.constants.Constants.HAS_DATABASE_ACCESS', False):
         tested = helper_instance()
         result = tested.current_conditions()
         assert result == []
         assert tested._conditions is None
-        assert condition.mock_calls == []
-        for coding in codings:
+        assert condition_db.mock_calls == []
+        for coding in codings_db:
             assert coding.mock_calls == []
         reset_mocks()
 
     with patch('commander.protocols.constants.Constants.HAS_DATABASE_ACCESS', True):
-        codings.all.side_effect = [
+        codings_db.all.side_effect = [
             [
                 ConditionCoding(system="ICD-10", display="display1a", code="CODE123"),
                 ConditionCoding(system="OTHER", display="display1b", code="CODE321"),
@@ -178,7 +178,7 @@ def test_current_conditions(condition, codings):
                 ConditionCoding(system="ICD-10", display="display3a", code="CODE9876"),
             ],
         ]
-        condition.committed.return_value.for_patient.return_value.filter.return_value.order_by.side_effect = [
+        condition_db.committed.return_value.for_patient.return_value.filter.return_value.order_by.side_effect = [
             [
                 Condition(id=uuid5(NAMESPACE_DNS, "1")),
                 Condition(id=uuid5(NAMESPACE_DNS, "2")),
@@ -200,39 +200,39 @@ def test_current_conditions(condition, codings):
             call.committed().for_patient().filter(clinical_status="active"),
             call.committed().for_patient().filter().order_by('-dbid'),
         ]
-        assert condition.mock_calls == calls
+        assert condition_db.mock_calls == calls
         calls = [call.all(), call.all(), call.all()]
-        assert codings.mock_calls == calls
+        assert codings_db.mock_calls == calls
         reset_mocks()
 
         result = tested.current_conditions()
         assert result == expected
         assert tested._conditions == expected
-        assert condition.mock_calls == []
-        assert codings.mock_calls == []
+        assert condition_db.mock_calls == []
+        assert codings_db.mock_calls == []
         reset_mocks()
 
 
-@patch('commander.protocols.commands.base.Medication.codings')
-@patch('commander.protocols.commands.base.Medication.objects')
-def test_current_medications(medication, codings):
+@patch.object(Medication, 'codings')
+@patch.object(Medication, 'objects')
+def test_current_medications(medication_db, codings_db):
     # TODO to adapt when access to the database is available
     def reset_mocks():
-        medication.reset_mock()
-        codings.reset_mock()
+        medication_db.reset_mock()
+        codings_db.reset_mock()
 
     with patch('commander.protocols.constants.Constants.HAS_DATABASE_ACCESS', False):
         tested = helper_instance()
         result = tested.current_medications()
         assert result == []
         assert tested._medications is None
-        assert medication.mock_calls == []
-        for coding in codings:
+        assert medication_db.mock_calls == []
+        for coding in codings_db:
             assert coding.mock_calls == []
         reset_mocks()
 
     with patch('commander.protocols.constants.Constants.HAS_DATABASE_ACCESS', True):
-        codings.all.side_effect = [
+        codings_db.all.side_effect = [
             [
                 MedicationCoding(system="http://www.nlm.nih.gov/research/umls/rxnorm", display="display1a", code="CODE123"),
                 MedicationCoding(system="OTHER", display="display1b", code="CODE321"),
@@ -246,7 +246,7 @@ def test_current_medications(medication, codings):
                 MedicationCoding(system="http://www.nlm.nih.gov/research/umls/rxnorm", display="display3a", code="CODE9876"),
             ],
         ]
-        medication.committed.return_value.for_patient.return_value.filter.return_value.order_by.side_effect = [
+        medication_db.committed.return_value.for_patient.return_value.filter.return_value.order_by.side_effect = [
             [
                 Medication(id=uuid5(NAMESPACE_DNS, "1")),
                 Medication(id=uuid5(NAMESPACE_DNS, "2")),
@@ -268,39 +268,39 @@ def test_current_medications(medication, codings):
             call.committed().for_patient().filter(status="active"),
             call.committed().for_patient().filter().order_by('-dbid'),
         ]
-        assert medication.mock_calls == calls
+        assert medication_db.mock_calls == calls
         calls = [call.all(), call.all(), call.all()]
-        assert codings.mock_calls == calls
+        assert codings_db.mock_calls == calls
         reset_mocks()
 
         result = tested.current_medications()
         assert result == expected
         assert tested._medications == expected
-        assert medication.mock_calls == []
-        assert codings.mock_calls == []
+        assert medication_db.mock_calls == []
+        assert codings_db.mock_calls == []
         reset_mocks()
 
 
-@patch('commander.protocols.commands.base.AllergyIntolerance.codings')
-@patch('commander.protocols.commands.base.AllergyIntolerance.objects')
-def test_current_allergies(allergy, codings):
+@patch.object(AllergyIntolerance, 'codings')
+@patch.object(AllergyIntolerance, 'objects')
+def test_current_allergies(allergy_db, codings_db):
     # TODO to adapt when access to the database is available
     def reset_mocks():
-        allergy.reset_mock()
-        codings.reset_mock()
+        allergy_db.reset_mock()
+        codings_db.reset_mock()
 
     with patch('commander.protocols.constants.Constants.HAS_DATABASE_ACCESS', False):
         tested = helper_instance()
         result = tested.current_allergies()
         assert result == []
         assert tested._allergies is None
-        assert allergy.mock_calls == []
-        for coding in codings:
+        assert allergy_db.mock_calls == []
+        for coding in codings_db:
             assert coding.mock_calls == []
         reset_mocks()
 
     with patch('commander.protocols.constants.Constants.HAS_DATABASE_ACCESS', True):
-        codings.all.side_effect = [
+        codings_db.all.side_effect = [
             [
                 AllergyIntoleranceCoding(system="http://www.fdbhealth.com/", display="display1a", code="CODE123"),
                 AllergyIntoleranceCoding(system="OTHER", display="display1b", code="CODE321"),
@@ -314,7 +314,7 @@ def test_current_allergies(allergy, codings):
                 AllergyIntoleranceCoding(system="http://www.fdbhealth.com/", display="display3a", code="CODE9876"),
             ],
         ]
-        allergy.committed.return_value.for_patient.return_value.filter.return_value.order_by.side_effect = [
+        allergy_db.committed.return_value.for_patient.return_value.filter.return_value.order_by.side_effect = [
             [
                 AllergyIntolerance(id=uuid5(NAMESPACE_DNS, "1")),
                 AllergyIntolerance(id=uuid5(NAMESPACE_DNS, "2")),
@@ -336,16 +336,16 @@ def test_current_allergies(allergy, codings):
             call.committed().for_patient().filter(status="active"),
             call.committed().for_patient().filter().order_by('-dbid'),
         ]
-        assert allergy.mock_calls == calls
+        assert allergy_db.mock_calls == calls
         calls = [call.all(), call.all(), call.all()]
-        assert codings.mock_calls == calls
+        assert codings_db.mock_calls == calls
         reset_mocks()
 
         result = tested.current_allergies()
         assert result == expected
         assert tested._allergies == expected
-        assert allergy.mock_calls == []
-        assert codings.mock_calls == []
+        assert allergy_db.mock_calls == []
+        assert codings_db.mock_calls == []
         reset_mocks()
 
 
@@ -368,26 +368,26 @@ def test_family_history():
         assert tested._family_history == []
 
 
-@patch('commander.protocols.commands.base.Condition.codings')
-@patch('commander.protocols.commands.base.Condition.objects')
-def test_condition_history(condition, codings):
+@patch.object(Condition, 'codings')
+@patch.object(Condition, 'objects')
+def test_condition_history(condition_db, codings_db):
     # TODO to adapt when access to the database is available
     def reset_mocks():
-        condition.reset_mock()
-        codings.reset_mock()
+        condition_db.reset_mock()
+        codings_db.reset_mock()
 
     with patch('commander.protocols.constants.Constants.HAS_DATABASE_ACCESS', False):
         tested = helper_instance()
         result = tested.condition_history()
         assert result == []
         assert tested._condition_history is None
-        assert condition.mock_calls == []
-        for coding in codings:
+        assert condition_db.mock_calls == []
+        for coding in codings_db:
             assert coding.mock_calls == []
         reset_mocks()
 
     with patch('commander.protocols.constants.Constants.HAS_DATABASE_ACCESS', True):
-        codings.all.side_effect = [
+        codings_db.all.side_effect = [
             [
                 ConditionCoding(system="ICD-10", display="display1a", code="CODE123"),
                 ConditionCoding(system="OTHER", display="display1b", code="CODE321"),
@@ -401,7 +401,7 @@ def test_condition_history(condition, codings):
                 ConditionCoding(system="ICD-10", display="display3a", code="CODE9876"),
             ],
         ]
-        condition.committed.return_value.for_patient.return_value.filter.return_value.order_by.side_effect = [
+        condition_db.committed.return_value.for_patient.return_value.filter.return_value.order_by.side_effect = [
             [
                 Condition(id=uuid5(NAMESPACE_DNS, "1")),
                 Condition(id=uuid5(NAMESPACE_DNS, "2")),
@@ -423,39 +423,39 @@ def test_condition_history(condition, codings):
             call.committed().for_patient().filter(clinical_status="resolved"),
             call.committed().for_patient().filter().order_by('-dbid'),
         ]
-        assert condition.mock_calls == calls
+        assert condition_db.mock_calls == calls
         calls = [call.all(), call.all(), call.all()]
-        assert codings.mock_calls == calls
+        assert codings_db.mock_calls == calls
         reset_mocks()
 
         result = tested.condition_history()
         assert result == expected
         assert tested._condition_history == expected
-        assert condition.mock_calls == []
-        assert codings.mock_calls == []
+        assert condition_db.mock_calls == []
+        assert codings_db.mock_calls == []
         reset_mocks()
 
 
-@patch('commander.protocols.commands.base.Condition.codings')
-@patch('commander.protocols.commands.base.Condition.objects')
-def test_surgery_history(condition, codings):
+@patch.object(Condition, 'codings')
+@patch.object(Condition, 'objects')
+def test_surgery_history(condition_db, codings_db):
     # TODO to adapt when access to the database is available
     def reset_mocks():
-        condition.reset_mock()
-        codings.reset_mock()
+        condition_db.reset_mock()
+        codings_db.reset_mock()
 
     with patch('commander.protocols.constants.Constants.HAS_DATABASE_ACCESS', False):
         tested = helper_instance()
         result = tested.surgery_history()
         assert result == []
         assert tested._surgery_history is None
-        assert condition.mock_calls == []
-        for coding in codings:
+        assert condition_db.mock_calls == []
+        for coding in codings_db:
             assert coding.mock_calls == []
         reset_mocks()
 
     with patch('commander.protocols.constants.Constants.HAS_DATABASE_ACCESS', True):
-        codings.all.side_effect = [
+        codings_db.all.side_effect = [
             [
                 ConditionCoding(system="ICD-10", display="display1a", code="CODE123"),
                 ConditionCoding(system="OTHER", display="display1b", code="CODE321"),
@@ -469,7 +469,7 @@ def test_surgery_history(condition, codings):
                 ConditionCoding(system="ICD-10", display="display3a", code="CODE9876"),
             ],
         ]
-        condition.committed.return_value.for_patient.return_value.filter.return_value.order_by.side_effect = [
+        condition_db.committed.return_value.for_patient.return_value.filter.return_value.order_by.side_effect = [
             [
                 Condition(id=uuid5(NAMESPACE_DNS, "1")),
                 Condition(id=uuid5(NAMESPACE_DNS, "2")),
@@ -491,35 +491,35 @@ def test_surgery_history(condition, codings):
             call.committed().for_patient().filter(clinical_status="resolved"),
             call.committed().for_patient().filter().order_by('-dbid'),
         ]
-        assert condition.mock_calls == calls
+        assert condition_db.mock_calls == calls
         calls = [call.all(), call.all(), call.all()]
-        assert codings.mock_calls == calls
+        assert codings_db.mock_calls == calls
         reset_mocks()
 
         result = tested.surgery_history()
         assert result == expected
         assert tested._surgery_history == expected
-        assert condition.mock_calls == []
-        assert codings.mock_calls == []
+        assert condition_db.mock_calls == []
+        assert codings_db.mock_calls == []
         reset_mocks()
 
 
-@patch('commander.protocols.commands.base.Questionnaire.objects')
-def test_existing_questionnaires(questionnaire):
+@patch.object(Questionnaire, 'objects')
+def test_existing_questionnaires(questionnaire_db):
     # TODO to adapt when access to the database is available
     def reset_mocks():
-        questionnaire.reset_mock()
+        questionnaire_db.reset_mock()
 
     with patch('commander.protocols.constants.Constants.HAS_DATABASE_ACCESS', False):
         tested = helper_instance()
         result = tested.existing_questionnaires()
         assert result == []
         assert tested._questionnaires is None
-        assert questionnaire.mock_calls == []
+        assert questionnaire_db.mock_calls == []
         reset_mocks()
 
     with patch('commander.protocols.constants.Constants.HAS_DATABASE_ACCESS', True):
-        questionnaire.filter.return_value.order_by.side_effect = [
+        questionnaire_db.filter.return_value.order_by.side_effect = [
             [
                 Questionnaire(id=uuid5(NAMESPACE_DNS, "1"), name="questionnaire1"),
                 Questionnaire(id=uuid5(NAMESPACE_DNS, "2"), name="questionnaire2"),
@@ -539,24 +539,24 @@ def test_existing_questionnaires(questionnaire):
             call.filter(status="AC", can_originate_in_charting=True, use_case_in_charting="QUES"),
             call.filter().order_by('-dbid'),
         ]
-        assert questionnaire.mock_calls == calls
+        assert questionnaire_db.mock_calls == calls
         reset_mocks()
 
         result = tested.existing_questionnaires()
         assert result == expected
         assert tested._questionnaires == expected
-        assert questionnaire.mock_calls == []
+        assert questionnaire_db.mock_calls == []
         reset_mocks()
 
 
 @patch('commander.protocols.commands.base.date')
-@patch('commander.protocols.commands.base.Observation.objects')
-@patch('commander.protocols.commands.base.Patient.objects')
-def test_demographic__str__(patient, observation, mock_date):
+@patch.object(Observation, 'objects')
+@patch.object(Patient, 'objects')
+def test_demographic__str__(patient_db, observation_db, mock_date):
     # TODO to adapt when access to the database is available
     def reset_mocks():
-        patient.reset_mock()
-        observation.reset_mock()
+        patient_db.reset_mock()
+        observation_db.reset_mock()
         mock_date.reset_mock()
 
     mock_date.today.return_value = date(2025, 2, 5)
@@ -566,8 +566,8 @@ def test_demographic__str__(patient, observation, mock_date):
         result = tested.demographic__str__()
         expected = "the patient is a man, born on April 17, 2001 (age 23) and weight 150.00 pounds"
         assert result == expected
-        assert patient.mock_calls == []
-        assert observation.mock_calls == []
+        assert patient_db.mock_calls == []
+        assert observation_db.mock_calls == []
         assert mock_date.mock_calls == []
         reset_mocks()
 
@@ -616,10 +616,10 @@ def test_demographic__str__(patient, observation, mock_date):
         ]
 
         for sex_at_birth, birth_date, expected in tests:
-            patient.get.side_effect = [
+            patient_db.get.side_effect = [
                 Patient(sex_at_birth=sex_at_birth, birth_date=birth_date)
             ]
-            observation.for_patient.return_value.filter.return_value.order_by.return_value.first.side_effect = [
+            observation_db.for_patient.return_value.filter.return_value.order_by.return_value.first.side_effect = [
                 Observation(units="oz", value="1990"),
             ]
             tested = helper_instance()
@@ -628,14 +628,14 @@ def test_demographic__str__(patient, observation, mock_date):
             assert result == expected, f" ---> {sex_at_birth} - {birth_date}"
             assert tested._demographic == expected
             calls = [call.get(id="patientUuid")]
-            assert patient.mock_calls == calls
+            assert patient_db.mock_calls == calls
             calls = [
                 call.for_patient("patientUuid"),
                 call.for_patient().filter(name="weight", category="vital-signs"),
                 call.for_patient().filter().order_by("-effective_datetime"),
                 call.for_patient().filter().order_by().first(),
             ]
-            assert observation.mock_calls == calls
+            assert observation_db.mock_calls == calls
             calls = [call.today()]
             assert mock_date.mock_calls == calls
             reset_mocks()
@@ -643,16 +643,16 @@ def test_demographic__str__(patient, observation, mock_date):
             result = tested.demographic__str__()
             assert result == expected, f" ---> {sex_at_birth} - {birth_date}"
             assert tested._demographic == expected
-            assert patient.mock_calls == []
-            assert observation.mock_calls == []
+            assert patient_db.mock_calls == []
+            assert observation_db.mock_calls == []
             assert mock_date.mock_calls == []
             reset_mocks()
 
         # no weight
-        patient.get.side_effect = [
+        patient_db.get.side_effect = [
             Patient(sex_at_birth="F", birth_date=date(2000, 2, 7))
         ]
-        observation.for_patient.return_value.filter.return_value.order_by.return_value.first.side_effect = [
+        observation_db.for_patient.return_value.filter.return_value.order_by.return_value.first.side_effect = [
             None
         ]
         tested = helper_instance()
@@ -661,23 +661,23 @@ def test_demographic__str__(patient, observation, mock_date):
         assert result == expected
         assert tested._demographic == expected
         calls = [call.get(id="patientUuid")]
-        assert patient.mock_calls == calls
+        assert patient_db.mock_calls == calls
         calls = [
             call.for_patient("patientUuid"),
             call.for_patient().filter(name="weight", category="vital-signs"),
             call.for_patient().filter().order_by("-effective_datetime"),
             call.for_patient().filter().order_by().first(),
         ]
-        assert observation.mock_calls == calls
+        assert observation_db.mock_calls == calls
         calls = [call.today()]
         assert mock_date.mock_calls == calls
         reset_mocks()
 
         # weight as pounds
-        patient.get.side_effect = [
+        patient_db.get.side_effect = [
             Patient(sex_at_birth="F", birth_date=date(2000, 2, 7))
         ]
-        observation.for_patient.return_value.filter.return_value.order_by.return_value.first.side_effect = [
+        observation_db.for_patient.return_value.filter.return_value.order_by.return_value.first.side_effect = [
             Observation(units="any", value="125"),
         ]
         tested = helper_instance()
@@ -686,14 +686,14 @@ def test_demographic__str__(patient, observation, mock_date):
         assert result == expected
         assert tested._demographic == expected
         calls = [call.get(id="patientUuid")]
-        assert patient.mock_calls == calls
+        assert patient_db.mock_calls == calls
         calls = [
             call.for_patient("patientUuid"),
             call.for_patient().filter(name="weight", category="vital-signs"),
             call.for_patient().filter().order_by("-effective_datetime"),
             call.for_patient().filter().order_by().first(),
         ]
-        assert observation.mock_calls == calls
+        assert observation_db.mock_calls == calls
         calls = [call.today()]
         assert mock_date.mock_calls == calls
         reset_mocks()
