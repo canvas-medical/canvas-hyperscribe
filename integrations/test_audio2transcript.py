@@ -22,11 +22,7 @@ def pytest_generate_tests(metafunc):
         metafunc.parametrize('audio2transcript_files', files, ids=lambda path: path[0].stem)
 
 
-def test_audio2transcript(audio2transcript_files, allowed_levels, capsys):
-    Constants.HAS_DATABASE_ACCESS = False  # TODO to be changed when the SDK provides access to the database
-    settings = HelperSettings.settings()
-
-    audio_interpreter = AudioInterpreter(settings, "patientXYZ", "noteABC", "providerUVW")
+def test_audio2transcript(audio2transcript_files, allowed_levels, audio_interpreter, capsys):
 
     mp3_file, json_file = audio2transcript_files
     with mp3_file.open("rb") as f:

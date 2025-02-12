@@ -17,11 +17,7 @@ def pytest_generate_tests(metafunc):
         metafunc.parametrize('instruction2parameters', json_dir.glob('*.json'), ids=lambda path: path.stem)
 
 
-def test_instruction2parameters(instruction2parameters, allowed_levels, capsys):
-    Constants.HAS_DATABASE_ACCESS = False  # TODO to be changed when the SDK provides access to the database
-    settings = HelperSettings.settings()
-
-    audio_interpreter = AudioInterpreter(settings, "patientXYZ", "noteABC", "providerUVW")
+def test_instruction2parameters(instruction2parameters, allowed_levels, audio_interpreter, capsys):
 
     with instruction2parameters.open("r") as f:
         content = json.load(f)

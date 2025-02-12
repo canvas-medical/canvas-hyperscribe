@@ -16,7 +16,7 @@
         "refills": 0,
         "substitutions": "allowed",
         "pharmacy": null,
-        "prescriber_id": "zzz",
+        "prescriber_id": ">?<",
         "note_to_pharmacist": "Dispense three 12-gram tubes to cover the 14-day treatment period."
       }
     }

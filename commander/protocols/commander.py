@@ -3,6 +3,7 @@ import json
 from datetime import datetime, timedelta
 
 import requests
+from canvas_sdk.commands.base import _BaseCommand as BaseCommand
 from canvas_sdk.effects import Effect
 from canvas_sdk.effects.task.task import AddTaskComment, UpdateTask, TaskStatus
 from canvas_sdk.events import EventType
@@ -13,6 +14,7 @@ from canvas_sdk.v1.data.note import Note
 from logger import log
 
 from commander.protocols.audio_interpreter import AudioInterpreter
+from commander.protocols.auditor import Auditor
 from commander.protocols.structures.instruction import Instruction
 from commander.protocols.structures.line import Line
 from commander.protocols.structures.settings import Settings
@@ -153,7 +155,6 @@ class Commander(BaseProtocol):
         discussion = CachedDiscussion.get_discussion(note_uuid)
         discussion.add_one()
         # request the transcript of the audio (provider + patient...)
-        cumulated_instructions: list[Instruction] = []
         settings = Settings(
             openai_key=self.secrets[self.SECRET_OPENAI_KEY],
             science_host=self.secrets[self.SECRET_SCIENCE_HOST],
@@ -161,29 +162,12 @@ class Commander(BaseProtocol):
             pre_shared_key=self.secrets[self.SECRET_PRE_SHARED_KEY],
             allow_update=self.allow_command_updates(),
         )
-        chatter = AudioInterpreter(settings, patient_uuid, note_uuid, provider_uuid)
-        response = chatter.combine_and_speaker_detection(audios)
-        if response.has_error is True:
-            log.info(f"--> transcript encountered: {response.error}")
-            return True, []  # <--- let's continue even if we were not able to get a transcript
-
-        transcript = Line.load_from_json(response.content)
-        log.info(f"--> transcript back and forth: {len(transcript)}")
-        # detect the instructions based on the transcript and the existing commands
-        response = chatter.detect_instructions(transcript, discussion.previous_instructions)
-        cumulated_instructions = Instruction.load_from_json(response)
-
-        log.info(f"--> instructions: {len(cumulated_instructions)}")
-        past_uuids = {instruction.uuid: instruction for instruction in discussion.previous_instructions}
-        discussion.previous_instructions = cumulated_instructions
-
-        # identify the commands
-        results: list[Effect] = []
-        # -- new commands
-        results.extend(self.new_commands_from(chatter, cumulated_instructions, past_uuids))
-        # -- updated commands
-        results.extend(self.update_commands_from(chatter, cumulated_instructions, past_uuids))
-
+        discussion.previous_instructions, results = self.audio2commands(
+            Auditor(),
+            audios,
+            AudioInterpreter(settings, patient_uuid, note_uuid, provider_uuid),
+            discussion.previous_instructions,
+        )
         # summary
         log.info(f"<===  note: {note_uuid} ===>")
         log.info(f"updates ok: {settings.allow_update}")
@@ -197,37 +181,72 @@ class Commander(BaseProtocol):
         return True, results
 
     @classmethod
+    def audio2commands(
+            cls,
+            auditor: Auditor,
+            audios: list[bytes],
+            chatter: AudioInterpreter,
+            previous_instructions: list[Instruction],
+    ) -> tuple[list[Instruction], list[Effect]]:
+        response = chatter.combine_and_speaker_detection(audios)
+        if response.has_error is True:
+            log.info(f"--> transcript encountered: {response.error}")
+            return previous_instructions, []  # <--- let's continue even if we were not able to get a transcript
+
+        transcript = Line.load_from_json(response.content)
+        auditor.identified_transcript(audios[-1], transcript)
+        log.info(f"--> transcript back and forth: {len(transcript)}")
+
+        # detect the instructions based on the transcript and the existing commands
+        response = chatter.detect_instructions(transcript, previous_instructions)
+        cumulated_instructions = Instruction.load_from_json(response)
+        auditor.found_instructions(transcript, cumulated_instructions)
+        log.info(f"--> instructions: {len(cumulated_instructions)}")
+        past_uuids = {instruction.uuid: instruction for instruction in previous_instructions}
+
+        # identify the commands
+        results: list[Effect] = []
+        # -- new commands
+        results.extend(cls.new_commands_from(auditor, chatter, cumulated_instructions, past_uuids))
+        # -- updated commands
+        results.extend(cls.update_commands_from(auditor, chatter, cumulated_instructions, past_uuids))
+
+        return cumulated_instructions, results
+
+    @classmethod
     def new_commands_from(
             cls,
+            auditor: Auditor,
             chatter: AudioInterpreter,
             instructions: list[Instruction],
             past_uuids: dict[str, Instruction],
     ) -> list[Effect]:
-        results: list[Effect] = []
         new_instructions = [instruction for instruction in instructions if instruction.uuid not in past_uuids]
         log.info(f"--> new instructions: {len(new_instructions)}")
-        if new_instructions:
-            sdk_commands = [
-                parameters
-                for instruction in new_instructions
-                if (parameters := chatter.create_sdk_command_parameters(instruction)) and parameters[1] is not None
-            ]
-            log.info(f"--> new commands: {len(sdk_commands)}")
-            results = [
-                command.originate()
-                for instruction, parameters in sdk_commands
-                if (command := chatter.create_sdk_command_from(instruction, parameters))
-            ]
-        return results
+        sdk_parameters = [
+            parameters
+            for instruction in new_instructions
+            if (parameters := chatter.create_sdk_command_parameters(instruction)) and parameters[1] is not None
+        ]
+        auditor.computed_parameters(sdk_parameters)
+
+        log.info(f"--> new commands: {len(sdk_parameters)}")
+        sdk_commands = [
+            command
+            for instruction, parameters in sdk_parameters
+            if (command := chatter.create_sdk_command_from(instruction, parameters))
+        ]
+        auditor.computed_commands(sdk_parameters, sdk_commands)
+        return [command.originate() for command in sdk_commands]
 
     @classmethod
     def update_commands_from(
             cls,
+            auditor: Auditor,
             chatter: AudioInterpreter,
             instructions: list[Instruction],
             past_uuids: dict[str, Instruction],
     ) -> list[Effect]:
-        results: list[Effect] = []
         mapping = chatter.schema_key2instruction()
         note = Note.objects.get(id=chatter.note_uuid)
         last_commands = {
@@ -248,16 +267,20 @@ class Commander(BaseProtocol):
                and instruction.information != past_uuids[instruction.uuid].information
         ]
         log.info(f"--> updated instructions: {len(updated_instructions)}")
-        if updated_instructions:
-            sdk_commands = [
-                parameters
-                for instruction in updated_instructions
-                if (parameters := chatter.create_sdk_command_parameters(instruction)) and parameters[1] is not None
-            ]
-            log.info(f"--> updated commands: {len(sdk_commands)}")
-            for instruction, parameters in sdk_commands:
-                command = chatter.create_sdk_command_from(instruction, parameters)
-                if command:
-                    command.command_uuid = last_commands[instruction.instruction]
-                    results.append(command.edit())
-        return results
+        sdk_parameters = [
+            parameters
+            for instruction in updated_instructions
+            if (parameters := chatter.create_sdk_command_parameters(instruction)) and parameters[1] is not None
+        ]
+        auditor.computed_parameters(sdk_parameters)
+
+        log.info(f"--> updated commands: {len(sdk_parameters)}")
+        sdk_commands: list[BaseCommand] = []
+        for instruction, parameters in sdk_parameters:
+            command = chatter.create_sdk_command_from(instruction, parameters)
+            if command:
+                command.command_uuid = last_commands[instruction.instruction]
+                sdk_commands.append(command)
+
+        auditor.computed_commands(sdk_parameters, sdk_commands)
+        return [command.edit() for command in sdk_commands]

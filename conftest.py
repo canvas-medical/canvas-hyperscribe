@@ -1,5 +1,8 @@
 import pytest
 
+from commander.protocols.audio_interpreter import AudioInterpreter
+from integrations.helper_settings import HelperSettings
+
 
 def pytest_addoption(parser):
     parser.addoption(
@@ -7,6 +10,12 @@ def pytest_addoption(parser):
         action="store",
         default="minor,moderate",
         help="Coma seperated list of the levels of meaning difference that are accepted",
+    )
+    parser.addoption(
+        "--patient-uuid",
+        action="store",
+        default="",
+        help="patient uuid to consider",
     )
 
 
@@ -16,3 +25,12 @@ def allowed_levels(request):
         level.strip()
         for level in request.config.getoption("--integration-difference-levels").split(",")
     ]
+
+
+@pytest.fixture
+def audio_interpreter(request):
+    settings = HelperSettings.settings()
+    patient_uuid = request.config.getoption("--patient-uuid")
+    note_uuid = HelperSettings.get_note_uuid(patient_uuid) if patient_uuid else "noteUuid"
+    provider_uuid = HelperSettings.get_provider_uuid(patient_uuid) if patient_uuid else "providerUuid"
+    return AudioInterpreter(settings, patient_uuid, note_uuid, provider_uuid)

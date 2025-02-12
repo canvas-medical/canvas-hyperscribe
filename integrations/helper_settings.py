@@ -1,6 +1,8 @@
 import json
 from os import environ
 
+from canvas_sdk.v1.data import Note
+
 from commander.protocols.commander import Commander
 from commander.protocols.constants import Constants
 from commander.protocols.openai_chat import OpenaiChat
@@ -21,6 +23,16 @@ class HelperSettings:
         )
 
     @classmethod
+    def get_note_uuid(cls, patient_uuid: str) -> str:
+        note = Note.objects.filter(patient__id=patient_uuid).order_by("-id").first()  # the last note
+        return str(note.id)
+
+    @classmethod
+    def get_provider_uuid(cls, patient_uuid: str) -> str:
+        note = Note.objects.filter(patient__id=patient_uuid).order_by("-id").first()  # the last note
+        return str(note.provider.id)
+
+    @classmethod
     def json_nuanced_differences(cls, accepted_levels: list[str], result_json: str, expected_json: str) -> tuple[bool, str]:
         system_prompt = [
             "The user will provides two JSON objects. ",
@@ -36,6 +48,7 @@ class HelperSettings:
             "",
             # "All text values should be considered on the levels scale in order to solely express the meaning differences.",
             "All text values should be evaluated together and on the level scale to effectively convey the impact of the changes in meaning from a medical point of view.",
+            "Any key with the value '>?<' should be ignored.",
             "Unless otherwise specified, dates and numbers must be presented identically.",
         ]
         user_prompt = [

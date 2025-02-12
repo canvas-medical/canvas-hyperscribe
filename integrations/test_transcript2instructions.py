@@ -19,11 +19,7 @@ def pytest_generate_tests(metafunc):
         metafunc.parametrize('transcript2instructions', json_dir.glob('*.json'), ids=lambda path: path.stem)
 
 
-def test_transcript2instructions(transcript2instructions, allowed_levels, capsys):
-    Constants.HAS_DATABASE_ACCESS = False  # TODO to be changed when the SDK provides access to the database
-    settings = HelperSettings.settings()
-
-    audio_interpreter = AudioInterpreter(settings, "patientXYZ", "noteABC", "providerUVW")
+def test_transcript2instructions(transcript2instructions, allowed_levels, audio_interpreter, capsys):
 
     with transcript2instructions.open("r") as f:
         content = json.load(f)
@@ -33,8 +29,7 @@ def test_transcript2instructions(transcript2instructions, allowed_levels, capsys
     expected = Instruction.load_from_json(content["instructions"]["result"])
     response = audio_interpreter.detect_instructions(lines, instructions)
 
-    assert response.has_error is False
-    result = Instruction.load_from_json(response.content)
+    result = Instruction.load_from_json(response)
     assert len(result) == len(expected)
     for actual, instruction in zip(result, expected):
         if instruction.uuid:
