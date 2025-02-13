@@ -1,5 +1,11 @@
 [run]
 branch = True
+omit =
+   tests/*
+   integrations/*
+   debug*.py
+   conftest.py
+
 
 [report]
 exclude_lines =
