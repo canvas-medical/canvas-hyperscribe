@@ -130,14 +130,14 @@ chardet = ">=3.0.2"
 
 [[package]]
 name = "canvas"
-version = "0.18.0"
+version = "0.19.0"
 description = "SDK to customize event-driven actions in your Canvas instance"
 optional = false
 python-versions = "<3.13,>=3.11"
 groups = ["main"]
 files = [
-    {file = "canvas-0.18.0-py3-none-any.whl", hash = "sha256:7c3a35a8daac1f03a7a4221a51e7c8b977a81e1f5dace6238cbfef88bb8427bd"},
-    {file = "canvas-0.18.0.tar.gz", hash = "sha256:7de24fbc56bc0d7ea92f10f952c071968adf7626c9aa177b4dec73f2f2ff4057"},
+    {file = "canvas-0.19.0-py3-none-any.whl", hash = "sha256:4cb495e31de8e20bb35d68b32f9a63143a731d72b2c5b4a33033cdf764aa79c2"},
+    {file = "canvas-0.19.0.tar.gz", hash = "sha256:f502c160651cb985d4b676b152c3660bb727fc1e1cf0b1fe5ea8a89f28800087"},
 ]
 
 [package.dependencies]
@@ -2425,4 +2425,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11,<3.13"
-content-hash = "a35f2d204b39da5178c8fcba100ee0066e9c602430414dc0a5b00e5cce3d374c"
+content-hash = "121315a5456e2087d7d5f3671ee6bee58f40485aa52a62caac7fe2d4312618a8"
