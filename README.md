@@ -28,11 +28,17 @@ The Canvas plugin itself is in the folder `commander`.
 
 Useful commands:
 ```shell
-canvas install --host my-canvas-host commander # install the plugin or re-install it while keeping the secrets 
-canvas disable --host my-canvas-host commander # disable an installed plugin, while keeping the secrets
-canvas uninstall --host my-canvas-host commander # uninstall an installed plugin, as well as its secrets
+# install the plugin or re-install it while keeping the secrets
+canvas install --host my-canvas-host commander 
 
-canvas logs --host my-canvas-host # tail the logs of the remote canvas instance
+# disable an installed plugin, while keeping the secrets 
+canvas disable --host my-canvas-host commander 
+
+# uninstall an installed plugin, and remove its secrets
+canvas uninstall --host my-canvas-host commander 
+
+# tail the logs of the remote canvas instance
+canvas logs --host my-canvas-host 
 ```
 
 The `secrets` are stored in the Canvas instance database and can be upsert in `https://my-canvas-host.canvasmedical.com/admin/plugin_io/plugin/`.
@@ -79,22 +85,26 @@ Among standard `pytest` parameters, `-k` is useful as it allows to target a spec
 # run all integration tests for the patient patient_uuid
 poetry run pytest -v integrations --patient-uuid patient_uuid
 
-# run the test the_name defined for the step audio2transcript, accepting all differences minor, moderate and severe
+# run the test the_name defined for the step audio2transcript, 
+# accepting all differences minor, moderate and severe
 poetry run pytest -v integrations/test_audio2transcript.py -k the_name --integration-difference-levels "minor,moderate,severe"
 
-# run the test the_name defined for the step instruction2parameters for the patient patient_uuid
+# run the test the_name defined for the step instruction2parameters 
+# for the patient patient_uuid
 poetry run pytest -v integrations/test_instruction2parameters.py -k the_name --patient-uuid patient_uuid
 
-# run all tests for the step parameters2command for the patient patient_uuid
+# run all tests for the step parameters2command 
+# for the patient patient_uuid
 poetry run pytest -v integrations/test_parameters2command.py --patient-uuid patient_uuid
 
-# run all tests for the step transcript2instructions for the patient patient_uuid
+# run all tests for the step transcript2instructions 
+# for the patient patient_uuid
 poetry run pytest -v integrations/test_transcript2instructions.py --patient-uuid patient_uuid
 ```
 
 ### Create integration tests
 
-Based on a set of `mp3` files, an integration test can be created using:
+Based on a set of `mp3` files, a set (i.e. covering all steps) of integration tests can be created using:
 ```shell
 poetry run python case_builder.py \
   --patient patient_uuid \
@@ -103,16 +113,16 @@ poetry run python case_builder.py \
 ```
 
 Note that on the first step (`audio2transcript`):
-- all `mp3` files are saved in the `integrations/audio2transcript/inputs_mp3/` folder, the first one using the `--label` as name, the subsequent ones are added a number,
+- all `mp3` files are saved in the `integrations/audio2transcript/inputs_mp3/` folder, the first one using the `--label` as name, the subsequent files have the same name with an added number,
 
-- On the second step (`transcript2instructions`):
+On the second step (`transcript2instructions`):
 - the `uuid` of the instructions is by default set empty
 - the order of the instructions of different type is ignored
 
 
 ### Delete integration tests
 
-An integration test can be deleted using:
+A set of integration tests can be deleted using:
 ```shell
 poetry run python case_builder.py --label the_name --delete
 ```
