@@ -194,7 +194,7 @@ class Commander(BaseProtocol):
             return previous_instructions, []  # <--- let's continue even if we were not able to get a transcript
 
         transcript = Line.load_from_json(response.content)
-        auditor.identified_transcript(audios[-1], transcript)
+        auditor.identified_transcript(audios, transcript)
         log.info(f"--> transcript back and forth: {len(transcript)}")
 
         # detect the instructions based on the transcript and the existing commands

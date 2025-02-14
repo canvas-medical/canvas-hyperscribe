@@ -4,8 +4,8 @@ from canvas_sdk.commands.commands.lab_order import LabOrderCommand
 
 from commander.protocols.temporary_data import TemporaryData, DataLabView, DataLabTestView
 
+_ = LabOrderCommand  # <--- just to force the Django Settings
 
-_ = LabOrderCommand # <--- just to force the Django Settings
 
 @patch.object(TemporaryData, 'model_exists')
 def test_access_to_lab_data(model_exists):
@@ -40,6 +40,7 @@ def test_access_to_lab_data(model_exists):
     ]
     assert model_exists.mock_calls == calls
     reset_mocks()
+
 
 @patch.object(DataLabTestView, 'objects')
 def test_model_exists(model_db):

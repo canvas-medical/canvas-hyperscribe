@@ -130,14 +130,14 @@ chardet = ">=3.0.2"
 
 [[package]]
 name = "canvas"
-version = "0.19.0"
+version = "0.19.1"
 description = "SDK to customize event-driven actions in your Canvas instance"
 optional = false
 python-versions = "<3.13,>=3.11"
 groups = ["main"]
 files = [
-    {file = "canvas-0.19.0-py3-none-any.whl", hash = "sha256:4cb495e31de8e20bb35d68b32f9a63143a731d72b2c5b4a33033cdf764aa79c2"},
-    {file = "canvas-0.19.0.tar.gz", hash = "sha256:f502c160651cb985d4b676b152c3660bb727fc1e1cf0b1fe5ea8a89f28800087"},
+    {file = "canvas-0.19.1-py3-none-any.whl", hash = "sha256:3b89cc58afce3e31746a2a9504387206a052c3c32398ccd573c7d8b2c71e3af5"},
+    {file = "canvas-0.19.1.tar.gz", hash = "sha256:0fa8b802d76d142c76cc6c6e7e4a8550055d419055dc7f9368587ed0b66c55d8"},
 ]
 
 [package.dependencies]

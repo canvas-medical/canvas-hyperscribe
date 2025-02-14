@@ -1,8 +1,6 @@
 import json
 from pathlib import Path
 
-from commander.protocols.audio_interpreter import AudioInterpreter
-from commander.protocols.constants import Constants
 from commander.protocols.structures.instruction import Instruction
 from commander.protocols.structures.line import Line
 from integrations.helper_settings import HelperSettings
@@ -20,7 +18,6 @@ def pytest_generate_tests(metafunc):
 
 
 def test_transcript2instructions(transcript2instructions, allowed_levels, audio_interpreter, capsys):
-
     with transcript2instructions.open("r") as f:
         content = json.load(f)
 
@@ -31,6 +28,12 @@ def test_transcript2instructions(transcript2instructions, allowed_levels, audio_
 
     result = Instruction.load_from_json(response)
     assert len(result) == len(expected)
+
+    # order is not important for instruction of different types,
+    # but it is within the same type
+    expected.sort(key=lambda x: x.instruction)
+    result.sort(key=lambda x: x.instruction)
+
     for actual, instruction in zip(result, expected):
         if instruction.uuid:
             assert actual.uuid == instruction.uuid

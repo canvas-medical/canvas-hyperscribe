@@ -622,7 +622,8 @@ def test_audio2commands(info, new_commands_from, update_commands_from):
     assert update_commands_from.mock_calls == calls
     calls = [
         call.identified_transcript(
-            b'audio2', [
+            [b'audio1', b'audio2'],
+            [
                 Line(speaker='speaker1', text='textA'),
                 Line(speaker='speaker2', text='textB'),
                 Line(speaker='speaker1', text='textC'),

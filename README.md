@@ -102,6 +102,14 @@ poetry run python case_builder.py \
   --mp3 "file/path/to/file_01.mp3" "file/path/to/file_02.mp3"
 ```
 
+Note that on the first step (`audio2transcript`):
+- all `mp3` files are saved in the `integrations/audio2transcript/inputs_mp3/` folder, the first one using the `--label` as name, the subsequent ones are added a number,
+
+- On the second step (`transcript2instructions`):
+- the `uuid` of the instructions is by default set empty
+- the order of the instructions of different type is ignored
+
+
 ### Delete integration tests
 
 An integration test can be deleted using:

@@ -5,7 +5,7 @@ from commander.protocols.structures.line import Line
 
 
 class Auditor:
-    def identified_transcript(self, audio: bytes, transcript: list[Line]) -> bool:
+    def identified_transcript(self, audios: list[bytes], transcript: list[Line]) -> bool:
         return True
 
     def found_instructions(self, transcript: list[Line], instructions: list[Instruction]) -> bool:

@@ -3,8 +3,6 @@ from pathlib import Path
 
 from canvas_sdk.commands.base import _BaseCommand as BaseCommand
 
-from commander.protocols.audio_interpreter import AudioInterpreter
-from commander.protocols.constants import Constants
 from commander.protocols.structures.instruction import Instruction
 from integrations.helper_settings import HelperSettings
 
@@ -21,7 +19,6 @@ def pytest_generate_tests(metafunc):
 
 
 def test_parameters2command(parameters2command, allowed_levels, audio_interpreter, capsys):
-
     with parameters2command.open("r") as f:
         content = json.load(f)
 

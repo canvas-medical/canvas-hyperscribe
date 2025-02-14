@@ -15,8 +15,11 @@ class AuditorFile(Auditor):
         self.reset()
 
     def reset(self):
+        mp3_dir = Path(__file__).parent / 'audio2transcript/inputs_mp3'
+        for file in mp3_dir.glob(f"{self.case}*.mp3"):
+            Path(file).unlink(True)
+
         files = [
-            f"audio2transcript/inputs_mp3/{self.case}.mp3",
             f"audio2transcript/expected_json/{self.case}.json",
             f"transcript2instructions/{self.case}.json",
             f"instruction2parameters/{self.case}.json",
@@ -25,13 +28,19 @@ class AuditorFile(Auditor):
         for file_path in files:
             (Path(__file__).parent / file_path).unlink(True)
 
-    def identified_transcript(self, audio: bytes, transcript: list[Line]) -> bool:
-        file = Path(__file__).parent / f"audio2transcript/inputs_mp3/{self.case}.mp3"
-        with file.open("wb") as fp:
-            fp.write(audio)
+    def identified_transcript(self, audios: list[bytes], transcript: list[Line]) -> bool:
+        for idx, audio in enumerate(audios):
+            stem = self.case
+            if idx > 0:
+                stem = f"{self.case}.{idx:02d}"
+            file = Path(__file__).parent / f"audio2transcript/inputs_mp3/{stem}.mp3"
+            with file.open("wb") as fp:
+                fp.write(audio)
+
         file = Path(__file__).parent / f"audio2transcript/expected_json/{self.case}.json"
         with file.open("w") as fp:
             json.dump(transcript, fp, indent=2)  # type: ignore
+
         return file.exists()
 
     def found_instructions(self, transcript: list[Line], instructions: list[Instruction]) -> bool:
@@ -41,7 +50,10 @@ class AuditorFile(Auditor):
                 "transcript": [line.to_json() for line in transcript],
                 "instructions": {
                     "initial": [],
-                    "result": [instruction.to_json(True) | {"isNew": True} for instruction in instructions],
+                    "result": [
+                        instruction.to_json(True) | {"uuid": "", "isNew": True}
+                        for instruction in instructions
+                    ],
                 },
             }, fp, indent=2)  # type: ignore
         return file.exists()
