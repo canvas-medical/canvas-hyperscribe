@@ -8,7 +8,6 @@ from canvas_sdk.v1.data.condition import ClinicalStatus
 from canvas_sdk.v1.data.medication import Status
 from canvas_sdk.v1.data.patient import SexAtBirth
 
-from commander.protocols.constants import Constants
 from commander.protocols.helper import Helper
 from commander.protocols.structures.coded_item import CodedItem
 from commander.protocols.structures.settings import Settings
@@ -55,19 +54,6 @@ class Base:
         raise NotImplementedError
 
     def current_goals(self) -> list[CodedItem]:
-        if not Constants.HAS_DATABASE_ACCESS:
-            return [
-                # CodedItem(
-                #     uuid="mmm",
-                #     label="Weekend without dermatitis",
-                #     code="1523",
-                # ),
-                # CodedItem(
-                #     uuid="nnn",
-                #     label="No Fast food dinner",
-                #     code="1528",
-                # ),
-            ]
         if self._goals is None:
             self._goals = []
             # ATTENTION below code should not be used since there is no way to know if a goal is already closed
@@ -81,24 +67,6 @@ class Base:
         return self._goals
 
     def current_conditions(self) -> list[CodedItem]:
-        if not Constants.HAS_DATABASE_ACCESS:
-            return [
-                # CodedItem(
-                #     uuid="ccc",
-                #     label="Type 2 diabetes mellitus without complications",
-                #     code="E119",
-                # ),
-                # CodedItem(
-                #     uuid="ddd",
-                #     label="Essential (primary) hypertension",
-                #     code="I10",
-                # ),
-                # CodedItem(
-                #     uuid="eee",
-                #     label="Hyperlipidemia, unspecified",
-                #     code="E785",
-                # ),
-            ]
         if self._conditions is None:
             self._conditions = []
             conditions = Condition.objects.committed().for_patient(self.patient_uuid).filter(clinical_status=ClinicalStatus.ACTIVE)
@@ -113,24 +81,6 @@ class Base:
         return self._conditions
 
     def current_medications(self) -> list[CodedItem]:
-        if not Constants.HAS_DATABASE_ACCESS:
-            return [
-                # CodedItem(
-                #     uuid="967ab04e-3c4d-45d8-849e-56680f609f0b",
-                #     label="lisinopril 20 mg tablet",
-                #     code="314077",
-                # ),
-                # CodedItem(
-                #     uuid="967ab04e-3c4d-45d8-849e-56680f609f00",
-                #     label="hydrochlorothiazide 25 mg tablet",
-                #     code="310798",
-                # ),
-                # CodedItem(
-                #     uuid="967ab04e-3c4d-45d8-849e-56680f609f01",
-                #     label="Lipitor 10 mg tablet",
-                #     code="617312",
-                # ),
-            ]
         if self._medications is None:
             self._medications = []
             medications = Medication.objects.committed().for_patient(self.patient_uuid).filter(status=Status.ACTIVE)
@@ -145,19 +95,6 @@ class Base:
         return self._medications
 
     def current_allergies(self) -> list[CodedItem]:
-        if not Constants.HAS_DATABASE_ACCESS:
-            return [
-                # CodedItem(
-                #     uuid="aaa",
-                #     label="penicillin G sodium",
-                #     code="8228",
-                # ),
-                # CodedItem(
-                #     uuid="bbb",
-                #     label="lactose",
-                #     code="2432",
-                # ),
-            ]
         if self._allergies is None:
             self._allergies = []
             allergies = AllergyIntolerance.objects.committed().for_patient(self.patient_uuid).filter(status=Status.ACTIVE)
@@ -172,15 +109,11 @@ class Base:
         return self._allergies
 
     def family_history(self) -> list[CodedItem]:
-        if not Constants.HAS_DATABASE_ACCESS:
-            return []
         if self._family_history is None:
             self._family_history = []
         return self._family_history
 
     def condition_history(self) -> list[CodedItem]:
-        if not Constants.HAS_DATABASE_ACCESS:
-            return []
         if self._condition_history is None:
             self._condition_history = []
             conditions = Condition.objects.committed().for_patient(
@@ -197,8 +130,6 @@ class Base:
         return self._condition_history
 
     def surgery_history(self) -> list[CodedItem]:
-        if not Constants.HAS_DATABASE_ACCESS:
-            return []
         if self._surgery_history is None:
             self._surgery_history = []
             conditions = Condition.objects.committed().for_patient(
@@ -215,14 +146,6 @@ class Base:
         return self._surgery_history
 
     def existing_questionnaires(self) -> list[CodedItem]:
-        if not Constants.HAS_DATABASE_ACCESS:
-            return [
-                # CodedItem(uuid="ooo", label="Medication Adherence", code=""),
-                # CodedItem(uuid="ppp", label="Tobacco", code=""),
-                # CodedItem(uuid="qqq", label="Exercise", code=""),
-                # CodedItem(uuid="rrr", label="Stress", code=""),
-                # CodedItem(uuid="sss", label="Care Plan", code=""),
-            ]
         if self._questionnaires is None:
             self._questionnaires = []
             questionnaires = Questionnaire.objects.filter(
@@ -259,10 +182,6 @@ class Base:
     #     return self._weight
 
     def demographic__str__(self) -> str:
-        if not Constants.HAS_DATABASE_ACCESS:
-            # return "the patient is a boy, born on April 17, 2013 (age 11) and weight 100.00 pounds"
-            return "the patient is a man, born on April 17, 2001 (age 23) and weight 150.00 pounds"
-
         if self._demographic is None:
             patient = Patient.objects.get(id=self.patient_uuid)
 

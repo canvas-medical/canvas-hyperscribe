@@ -681,8 +681,9 @@ def test_audio2commands(info, new_commands_from, update_commands_from):
     reset_mocks()
 
 
+@patch("commander.protocols.commander.time")
 @patch.object(log, "info")
-def test_new_commands_from(info):
+def test_new_commands_from(info, time):
     auditor = MagicMock()
     chatter = MagicMock()
     mock_commands = [
@@ -692,6 +693,7 @@ def test_new_commands_from(info):
 
     def reset_mocks():
         info.reset_mock()
+        time.reset_mock()
         auditor.reset_mock()
         chatter.reset_mock()
         for a_command in mock_commands:
@@ -714,6 +716,7 @@ def test_new_commands_from(info):
         "uuidD": instructions[3],
         "uuidE": instructions[4],
     }
+    time.side_effect = [111.110, 111.219]
     chatter.create_sdk_command_parameters.side_effect = []
     chatter.create_sdk_command_from.side_effect = []
     for mock_command in mock_commands:
@@ -724,8 +727,11 @@ def test_new_commands_from(info):
     calls = [
         call('--> new instructions: 0'),
         call('--> new commands: 0'),
+        call('DURATION NEW: 108'),
     ]
     assert info.mock_calls == calls
+    calls = [call(), call()]
+    assert time.mock_calls == calls
     calls = [
         call.computed_parameters([]),
         call.computed_commands([], []),
@@ -740,6 +746,7 @@ def test_new_commands_from(info):
     past_uuids = {
         "uuidA": instructions[0],
     }
+    time.side_effect = [111.110, 111.357]
     chatter.create_sdk_command_parameters.side_effect = [
         (instructions[1], {"params": "instruction1"}),
         (instructions[2], None),
@@ -763,8 +770,11 @@ def test_new_commands_from(info):
     calls = [
         call('--> new instructions: 4'),
         call('--> new commands: 3'),
+        call('DURATION NEW: 246'),
     ]
     assert info.mock_calls == calls
+    calls = [call(), call()]
+    assert time.mock_calls == calls
     calls = [
         call.computed_parameters(
             [
@@ -802,10 +812,11 @@ def test_new_commands_from(info):
     reset_mocks()
 
 
+@patch("commander.protocols.commander.time")
 @patch.object(Command, "objects")
 @patch.object(Note, "objects")
 @patch.object(log, "info")
-def test_update_commands_from(info, note_db, command_db):
+def test_update_commands_from(info, note_db, command_db, time):
     auditor = MagicMock()
     chatter = MagicMock()
     mock_commands = [
@@ -815,6 +826,7 @@ def test_update_commands_from(info, note_db, command_db):
 
     def reset_mocks():
         info.reset_mock()
+        time.reset_mock()
         note_db.reset_mock()
         command_db.reset_mock()
         auditor.reset_mock()
@@ -835,6 +847,7 @@ def test_update_commands_from(info, note_db, command_db):
     tested = Commander
     # all new instructions
     past_uuids = {}
+    time.side_effect = [111.110, 111.357]
     note_db.get.side_effect = [Note(dbid=751)]
     command_db.filter.side_effect = [
         [
@@ -864,8 +877,11 @@ def test_update_commands_from(info, note_db, command_db):
     calls = [
         call('--> updated instructions: 0'),
         call('--> updated commands: 0'),
+        call('DURATION UPDATE: 246'),
     ]
     assert info.mock_calls == calls
+    calls = [call(), call()]
+    assert time.mock_calls == calls
     calls = [call.get(id='noteUuid')]
     assert note_db.mock_calls == calls
     calls = [
@@ -891,6 +907,7 @@ def test_update_commands_from(info, note_db, command_db):
         "uuidD": Instruction(uuid='uuidD', instruction='theInstructionD', information='changedD', is_new=False, is_updated=True),
         "uuidE": Instruction(uuid='uuidE', instruction='theInstructionE', information='changedE', is_new=True, is_updated=False),
     }
+    time.side_effect = [111.110, 111.451]
     note_db.get.side_effect = [Note(dbid=751)]
     command_db.filter.side_effect = [
         [
@@ -933,8 +950,11 @@ def test_update_commands_from(info, note_db, command_db):
     calls = [
         call('--> updated instructions: 4'),
         call('--> updated commands: 3'),
+        call('DURATION UPDATE: 340'),
     ]
     assert info.mock_calls == calls
+    calls = [call(), call()]
+    assert time.mock_calls == calls
     calls = [call.get(id='noteUuid')]
     assert note_db.mock_calls == calls
     calls = [
