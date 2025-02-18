@@ -804,7 +804,6 @@ def test_new_commands_from(info, time):
     ]
     assert chatter.mock_calls == calls
     calls = [
-        call.__bool__(),
         call.originate(),
     ]
     for mock_command in mock_commands:
@@ -813,10 +812,9 @@ def test_new_commands_from(info, time):
 
 
 @patch("commander.protocols.commander.time")
-@patch.object(Command, "objects")
-@patch.object(Note, "objects")
+@patch.object(Commander, "map_instruction2command_uuid")
 @patch.object(log, "info")
-def test_update_commands_from(info, note_db, command_db, time):
+def test_update_commands_from(info, map_uuid, time):
     auditor = MagicMock()
     chatter = MagicMock()
     mock_commands = [
@@ -827,19 +825,27 @@ def test_update_commands_from(info, note_db, command_db, time):
     def reset_mocks():
         info.reset_mock()
         time.reset_mock()
-        note_db.reset_mock()
-        command_db.reset_mock()
+        map_uuid.reset_mock()
         auditor.reset_mock()
         chatter.reset_mock()
         for a_command in mock_commands:
             a_command.reset_mock()
 
     instructions = [
-        Instruction(uuid='uuidA', instruction='theInstructionA', information='theInformationA', is_new=False, is_updated=True),
-        Instruction(uuid='uuidB', instruction='theInstructionB', information='theInformationB', is_new=False, is_updated=True),
-        Instruction(uuid='uuidC', instruction='theInstructionC', information='theInformationC', is_new=False, is_updated=True),
-        Instruction(uuid='uuidD', instruction='theInstructionD', information='theInformationD', is_new=False, is_updated=True),
-        Instruction(uuid='uuidE', instruction='theInstructionE', information='theInformationE', is_new=True, is_updated=False),
+        Instruction(uuid='uuidA', instruction='theInstructionX', information='theInformationA', is_new=False, is_updated=True),
+        Instruction(uuid='uuidB', instruction='theInstructionX', information='theInformationB', is_new=False, is_updated=True),
+        Instruction(uuid='uuidC', instruction='theInstructionY', information='theInformationC', is_new=False, is_updated=True),
+        Instruction(uuid='uuidD', instruction='theInstructionY', information='theInformationD', is_new=False, is_updated=True),
+        Instruction(uuid='uuidE', instruction='theInstructionY', information='theInformationE', is_new=True, is_updated=False),
+        Instruction(uuid='uuidF', instruction='theInstructionY', information='theInformationF', is_new=True, is_updated=False),
+    ]
+    mapped_instructions = [
+        Instruction(uuid='uuid1', instruction='theInstructionX', information='theInformationA', is_new=False, is_updated=True),
+        Instruction(uuid='uuid2', instruction='theInstructionX', information='theInformationB', is_new=False, is_updated=False),
+        Instruction(uuid='uuid3', instruction='theInstructionY', information='theInformationC', is_new=False, is_updated=False),
+        Instruction(uuid='uuid4', instruction='theInstructionY', information='theInformationD', is_new=False, is_updated=True),
+        Instruction(uuid='uuid5', instruction='theInstructionY', information='theInformationE', is_new=False, is_updated=True),
+        Instruction(uuid='uuid6', instruction='theInstructionY', information='theInformationF', is_new=False, is_updated=True),
     ]
     chatter.note_uuid = "noteUuid"
     chatter.patient_id = "patientUuid"
@@ -848,25 +854,7 @@ def test_update_commands_from(info, note_db, command_db, time):
     # all new instructions
     past_uuids = {}
     time.side_effect = [111.110, 111.357]
-    note_db.get.side_effect = [Note(dbid=751)]
-    command_db.filter.side_effect = [
-        [
-            Command(id="uuid1", schema_key="canvas_command_A"),
-            Command(id="uuid2", schema_key="canvas_command_B"),
-            Command(id="uuid3", schema_key="canvas_command_C"),
-            Command(id="uuid4", schema_key="canvas_command_D"),
-            Command(id="uuid5", schema_key="canvas_command_E"),
-        ],
-    ]
-    chatter.schema_key2instruction.side_effect = [
-        {
-            "canvas_command_A": "theInstructionA",
-            "canvas_command_B": "theInstructionB",
-            "canvas_command_C": "theInstructionC",
-            "canvas_command_D": "theInstructionD",
-            "canvas_command_E": "theInstructionE",
-        },
-    ]
+    map_uuid.side_effect = [{}]
     chatter.create_sdk_command_parameters.side_effect = []
     chatter.create_sdk_command_from.side_effect = []
     for mock_command in mock_commands:
@@ -882,56 +870,43 @@ def test_update_commands_from(info, note_db, command_db, time):
     assert info.mock_calls == calls
     calls = [call(), call()]
     assert time.mock_calls == calls
-    calls = [call.get(id='noteUuid')]
-    assert note_db.mock_calls == calls
-    calls = [
-        call.filter(patient__id='patientUuid', note_id=751, origination_source='plugin', state='staged'),
-    ]
-    assert command_db.mock_calls == calls
+    calls = [call(chatter, past_uuids)]
+    assert map_uuid.mock_calls == calls
     calls = [
         call.computed_parameters([]),
         call.computed_commands([], []),
     ]
     assert auditor.mock_calls == calls
-    calls = [call.schema_key2instruction()]
-    assert chatter.mock_calls == calls
+    assert chatter.mock_calls == []
     for mock_command in mock_commands:
         assert mock_command.mock_calls == []
     reset_mocks()
 
     # updated instructions
     past_uuids = {
-        "uuidA": Instruction(uuid='uuidA', instruction='theInstructionA', information='changedA', is_new=False, is_updated=True),
+        "uuidA": Instruction(uuid='uuidA', instruction='theInstructionX', information='changedA', is_new=False, is_updated=True),
         "uuidB": instructions[1],
-        "uuidC": Instruction(uuid='uuidC', instruction='theInstructionC', information='changedC', is_new=False, is_updated=True),
-        "uuidD": Instruction(uuid='uuidD', instruction='theInstructionD', information='changedD', is_new=False, is_updated=True),
-        "uuidE": Instruction(uuid='uuidE', instruction='theInstructionE', information='changedE', is_new=True, is_updated=False),
+        "uuidC": instructions[2],
+        "uuidD": Instruction(uuid='uuidD', instruction='theInstructionY', information='changedD', is_new=False, is_updated=True),
+        "uuidE": Instruction(uuid='uuidE', instruction='theInstructionY', information='changedE', is_new=True, is_updated=False),
+        "uuidF": Instruction(uuid='uuidF', instruction='theInstructionY', information='changedE', is_new=True, is_updated=False),
     }
     time.side_effect = [111.110, 111.451]
-    note_db.get.side_effect = [Note(dbid=751)]
-    command_db.filter.side_effect = [
-        [
-            Command(id="uuid1", schema_key="canvas_command_A"),
-            Command(id="uuid2", schema_key="canvas_command_B"),
-            Command(id="uuid3", schema_key="canvas_command_C"),
-            Command(id="uuid4", schema_key="canvas_command_D"),
-            Command(id="uuid5", schema_key="canvas_command_E"),
-        ],
-    ]
-    chatter.schema_key2instruction.side_effect = [
+    map_uuid.side_effect = [
         {
-            "canvas_command_A": "theInstructionA",
-            "canvas_command_B": "theInstructionB",
-            "canvas_command_C": "theInstructionC",
-            "canvas_command_D": "theInstructionD",
-            "canvas_command_E": "theInstructionE",
+            "uuidA": "uuid1",
+            "uuidB": "uuid2",
+            "uuidC": "uuid3",
+            "uuidD": "uuid4",
+            "uuidE": "uuid5",
+            "uuidF": "uuid6",
         },
     ]
     chatter.create_sdk_command_parameters.side_effect = [
-        (instructions[1], {"params": "instruction1"}),
-        (instructions[2], None),
-        (instructions[3], {"params": "instruction3"}),
-        (instructions[4], {"params": "instruction4"}),
+        (mapped_instructions[0], {"params": "instruction0"}),
+        (mapped_instructions[3], {"params": "instruction3"}),
+        (mapped_instructions[4], None),
+        (mapped_instructions[5], {"params": "instruction5"}),
     ]
     chatter.create_sdk_command_from.side_effect = [
         mock_commands[0],
@@ -955,45 +930,136 @@ def test_update_commands_from(info, note_db, command_db, time):
     assert info.mock_calls == calls
     calls = [call(), call()]
     assert time.mock_calls == calls
-    calls = [call.get(id='noteUuid')]
-    assert note_db.mock_calls == calls
-    calls = [
-        call.filter(patient__id='patientUuid', note_id=751, origination_source='plugin', state='staged'),
-    ]
-    assert command_db.mock_calls == calls
+    calls = [call(chatter, past_uuids)]
+    assert map_uuid.mock_calls == calls
     calls = [
         call.computed_parameters(
             [
-                (instructions[1], {'params': 'instruction1'}),
-                (instructions[3], {'params': 'instruction3'}),
-                (instructions[4], {'params': 'instruction4'}),
+                (mapped_instructions[0], {'params': 'instruction0'}),
+                (mapped_instructions[3], {'params': 'instruction3'}),
+                (mapped_instructions[5], {'params': 'instruction5'}),
             ]
         ),
         call.computed_commands(
             [
-                (instructions[1], {'params': 'instruction1'}),
-                (instructions[3], {'params': 'instruction3'}),
-                (instructions[4], {'params': 'instruction4'}),
+                (mapped_instructions[0], {'params': 'instruction0'}),
+                (mapped_instructions[3], {'params': 'instruction3'}),
+                (mapped_instructions[5], {'params': 'instruction5'}),
             ],
             mock_commands,
         ),
     ]
     assert auditor.mock_calls == calls
     calls = [
-        call.schema_key2instruction(),
-        call.create_sdk_command_parameters(instructions[0]),
-        call.create_sdk_command_parameters(instructions[2]),
-        call.create_sdk_command_parameters(instructions[3]),
-        call.create_sdk_command_parameters(instructions[4]),
-        call.create_sdk_command_from(instructions[1], {'params': 'instruction1'}),
-        call.create_sdk_command_from(instructions[3], {'params': 'instruction3'}),
-        call.create_sdk_command_from(instructions[4], {'params': 'instruction4'}),
+        call.create_sdk_command_parameters(mapped_instructions[0]),
+        call.create_sdk_command_parameters(mapped_instructions[3]),
+        call.create_sdk_command_parameters(mapped_instructions[4]),
+        call.create_sdk_command_parameters(mapped_instructions[5]),
+        call.create_sdk_command_from(mapped_instructions[0], {'params': 'instruction0'}),
+        call.create_sdk_command_from(mapped_instructions[3], {'params': 'instruction3'}),
+        call.create_sdk_command_from(mapped_instructions[5], {'params': 'instruction5'}),
     ]
     assert chatter.mock_calls == calls
     calls = [
-        call.__bool__(),
         call.edit(),
     ]
     for mock_command in mock_commands:
         assert mock_command.mock_calls == calls
+    reset_mocks()
+
+
+@patch.object(Command, "objects")
+@patch.object(Note, "objects")
+def test_map_instruction2command_uuid(note_db, command_db):
+    chatter = MagicMock()
+
+    def reset_mocks():
+        note_db.reset_mock()
+        command_db.reset_mock()
+        chatter.reset_mock()
+
+    instructions = [
+        Instruction(uuid='uuidA', instruction='theInstructionX', information='theInformationA', is_new=False, is_updated=True),
+        Instruction(uuid='uuidB', instruction='theInstructionX', information='theInformationB', is_new=False, is_updated=True),
+        Instruction(uuid='uuidC', instruction='theInstructionY', information='theInformationC', is_new=False, is_updated=True),
+        Instruction(uuid='uuidD', instruction='theInstructionY', information='theInformationD', is_new=False, is_updated=True),
+        Instruction(uuid='uuidE', instruction='theInstructionY', information='theInformationE', is_new=True, is_updated=False),
+    ]
+    chatter.note_uuid = "noteUuid"
+    chatter.patient_id = "patientUuid"
+
+    tested = Commander
+    # only new instructions
+    past_uuids = {}
+    note_db.get.side_effect = [Note(dbid=751)]
+    command_db.filter.return_value.order_by.side_effect = [
+        [
+            Command(id="uuid1", schema_key="canvas_command_X"),
+            Command(id="uuid2", schema_key="canvas_command_X"),
+            Command(id="uuid3", schema_key="canvas_command_Y"),
+            Command(id="uuid4", schema_key="canvas_command_Y"),
+            Command(id="uuid5", schema_key="canvas_command_Y"),
+        ],
+    ]
+    chatter.schema_key2instruction.side_effect = [
+        {
+            "canvas_command_X": "theInstructionX",
+            "canvas_command_Y": "theInstructionY",
+        },
+    ]
+
+    result = tested.map_instruction2command_uuid(chatter, past_uuids)
+    assert result == {}
+    calls = [call.get(id='noteUuid')]
+    assert note_db.mock_calls == calls
+    calls = [
+        call.filter(patient__id='patientUuid', note_id=751, origination_source='plugin', state='staged'),
+        call.filter().order_by("schema_key", "dbid"),
+    ]
+    assert command_db.mock_calls == calls
+    calls = [call.schema_key2instruction()]
+    assert chatter.mock_calls == calls
+    reset_mocks()
+
+    # updated instructions
+    past_uuids = {
+        "uuidA": Instruction(uuid='uuidA', instruction='theInstructionX', information='changedA', is_new=False, is_updated=True),
+        "uuidB": instructions[1],
+        "uuidC": instructions[2],
+        "uuidD": Instruction(uuid='uuidD', instruction='theInstructionY', information='changedD', is_new=False, is_updated=True),
+        "uuidE": Instruction(uuid='uuidE', instruction='theInstructionY', information='changedE', is_new=True, is_updated=False),
+    }
+    note_db.get.side_effect = [Note(dbid=751)]
+    command_db.filter.return_value.order_by.side_effect = [
+        [
+            Command(id="uuid1", schema_key="canvas_command_X"),
+            Command(id="uuid2", schema_key="canvas_command_X"),
+            Command(id="uuid3", schema_key="canvas_command_Y"),
+            Command(id="uuid4", schema_key="canvas_command_Y"),
+            Command(id="uuid5", schema_key="canvas_command_Y"),
+        ],
+    ]
+    chatter.schema_key2instruction.side_effect = [
+        {
+            "canvas_command_X": "theInstructionX",
+            "canvas_command_Y": "theInstructionY",
+        },
+    ]
+
+    result = tested.map_instruction2command_uuid(chatter, past_uuids)
+    expected = {
+        "uuidA": "uuid1",
+        "uuidB": "uuid2",
+        "uuidC": "uuid3",
+        "uuidD": "uuid4",
+        "uuidE": "uuid5",
+    }
+    assert result == expected
+    calls = [call.get(id='noteUuid')]
+    assert note_db.mock_calls == calls
+    calls = [
+        call.filter(patient__id='patientUuid', note_id=751, origination_source='plugin', state='staged'),
+        call.filter().order_by("schema_key", "dbid"),
+    ]
+    assert command_db.mock_calls == calls
     reset_mocks()

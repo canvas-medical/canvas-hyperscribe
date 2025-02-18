@@ -227,34 +227,20 @@ class Commander(BaseProtocol):
         new_instructions = [instruction for instruction in instructions if instruction.uuid not in past_uuids]
         log.info(f"--> new instructions: {len(new_instructions)}")
         start = time()
-        if Constants.MAX_WORKERS > 0:
-            with ThreadPoolExecutor(max_workers=Constants.MAX_WORKERS) as parameters_builder:
-                sdk_parameters = [
-                    parameters
-                    for parameters in parameters_builder.map(chatter.create_sdk_command_parameters, new_instructions)
-                    if parameters[1] is not None
-                ]
-        else:
+        max_workers = max(1, Constants.MAX_WORKERS)
+        with ThreadPoolExecutor(max_workers=max_workers) as parameters_builder:
             sdk_parameters = [
                 parameters
-                for instruction in new_instructions
-                if (parameters := chatter.create_sdk_command_parameters(instruction)) and parameters[1] is not None
+                for parameters in parameters_builder.map(chatter.create_sdk_command_parameters, new_instructions)
+                if parameters[1] is not None
             ]
         auditor.computed_parameters(sdk_parameters)
-
         log.info(f"--> new commands: {len(sdk_parameters)}")
-        if Constants.MAX_WORKERS > 0:
-            with ThreadPoolExecutor(max_workers=Constants.MAX_WORKERS) as command_builder:
-                sdk_commands = [
-                    command
-                    for command in command_builder.map(lambda params: chatter.create_sdk_command_from(*params), sdk_parameters)
-                    if command is not None
-                ]
-        else:
+        with ThreadPoolExecutor(max_workers=max_workers) as command_builder:
             sdk_commands = [
                 command
-                for instruction, parameters in sdk_parameters
-                if (command := chatter.create_sdk_command_from(instruction, parameters))
+                for command in command_builder.map(lambda params: chatter.create_sdk_command_from(*params), sdk_parameters)
+                if command is not None
             ]
         log.info(f"DURATION NEW: {int((time() - start) * 1000)}")
         auditor.computed_commands(sdk_parameters, sdk_commands)
@@ -268,57 +254,71 @@ class Commander(BaseProtocol):
             instructions: list[Instruction],
             past_uuids: dict[str, Instruction],
     ) -> list[Effect]:
-        mapping = chatter.schema_key2instruction()
-        note = Note.objects.get(id=chatter.note_uuid)
-        # TODO problem here when two commands of the same type are present
-        last_commands = {
-            mapping.get(c.schema_key, ""): str(c.id)
-            for c in Command.objects.filter(
-                patient__id=chatter.patient_id,
-                note_id=note.dbid,
-                origination_source="plugin",  # <--- TODO use an Enum when provided
-                state="staged",  # <--- TODO use an Enum when provided
-            )
-        }
-        updated_instructions = [
-            instruction
-            for instruction in instructions
-            if instruction.uuid in past_uuids.keys()
-               and instruction.instruction in last_commands.keys()
-               and instruction.instruction == past_uuids[instruction.uuid].instruction
-               and instruction.information != past_uuids[instruction.uuid].information
-        ]
-        log.info(f"--> updated instructions: {len(updated_instructions)}")
+        uuid_map = cls.map_instruction2command_uuid(chatter, past_uuids)
+        changed: list[Instruction] = []
+        for instruction in instructions:
+            if instruction.uuid not in past_uuids:
+                continue
+            past_instruction = past_uuids[instruction.uuid]
+            if instruction.information == past_instruction.information:
+                continue
+            # look for the actual UUID
+            changed.append(Instruction(
+                uuid=uuid_map[instruction.uuid],
+                instruction=instruction.instruction,
+                information=instruction.information,
+                is_new=False,
+                is_updated=True,
+            ))
+
+        log.info(f"--> updated instructions: {len(changed)}")
         start = time()
-        if Constants.MAX_WORKERS > 0:
-            with ThreadPoolExecutor(max_workers=Constants.MAX_WORKERS) as parameters_builder:
-                sdk_parameters = [
-                    parameters
-                    for parameters in parameters_builder.map(chatter.create_sdk_command_parameters, updated_instructions)
-                    if parameters[1] is not None
-                ]
-        else:
+        max_workers = max(1, Constants.MAX_WORKERS)
+        with ThreadPoolExecutor(max_workers=max_workers) as parameters_builder:
             sdk_parameters = [
                 parameters
-                for instruction in updated_instructions
-                if (parameters := chatter.create_sdk_command_parameters(instruction)) and parameters[1] is not None
+                for parameters in parameters_builder.map(chatter.create_sdk_command_parameters, changed)
+                if parameters[1] is not None
             ]
         auditor.computed_parameters(sdk_parameters)
-
         log.info(f"--> updated commands: {len(sdk_parameters)}")
         sdk_commands: list[BaseCommand] = []
-        # with ThreadPoolExecutor(max_workers=10) as command_builder:
-        #     for command in command_builder.map(lambda params: chatter.create_sdk_command_from(*params), sdk_parameters):
-        #         if command:
-        #             command.command_uuid = last_commands[instruction.instruction]
-        #             sdk_commands.append(command)
-        #
-        for instruction, parameters in sdk_parameters:
-            command = chatter.create_sdk_command_from(instruction, parameters)
-            if command:
-                command.command_uuid = last_commands[instruction.instruction]
-                sdk_commands.append(command)
+        with ThreadPoolExecutor(max_workers=max_workers) as command_builder:
+            for idx, command in enumerate(command_builder.map(lambda params: chatter.create_sdk_command_from(*params), sdk_parameters)):
+                if command is not None:
+                    command.command_uuid = changed[idx].uuid
+                    sdk_commands.append(command)
+
         log.info(f"DURATION UPDATE: {int((time() - start) * 1000)}")
 
         auditor.computed_commands(sdk_parameters, sdk_commands)
         return [command.edit() for command in sdk_commands]
+
+    @classmethod
+    def map_instruction2command_uuid(cls, chatter: AudioInterpreter, past_uuids: dict[str, Instruction]) -> dict[str, str]:
+        # assumptions are:
+        #  - the UUID of the instructions are kept by the LLMs
+        #  - the order of the created commands is kept by the Canvas SDK
+        note = Note.objects.get(id=chatter.note_uuid)
+        # create a map between the uuid from the LLM and Canvas UI
+        result: dict[str, str] = {}
+        current_commands = Command.objects.filter(
+            patient__id=chatter.patient_id,
+            note_id=note.dbid,
+            origination_source="plugin",  # <--- TODO use an Enum when provided
+            state="staged",  # <--- TODO use an Enum when provided
+        ).order_by("schema_key", "dbid")
+
+        mapping = chatter.schema_key2instruction()
+        previous_schema_key = ""
+        command_idx = -1
+        for command in current_commands:
+            if command.schema_key != previous_schema_key:
+                previous_schema_key = command.schema_key
+                command_idx = -1
+            command_idx = command_idx + 1
+            instructions = [i for _, i in past_uuids.items() if i.instruction == mapping[command.schema_key]]
+            if command_idx < len(instructions):
+                result[instructions[command_idx].uuid] = str(command.id)
+
+        return result

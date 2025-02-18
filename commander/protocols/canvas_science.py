@@ -48,13 +48,24 @@ class CanvasScience:
         headers = {
             "Content-Type": "application/json",
         }
-        for expression in expressions:
-            params = {
-                "query": expression,
-                "format": "json",
-                "limit": 10,
-            }
-            concepts = cls.get_attempts(url, headers=headers, params=params)
+
+        # from canvas_sdk.utils.http import ThreadPoolExecutor
+        # with ThreadPoolExecutor(max_workers=10) as get_runner:
+        #     all_concepts_thread = list(get_runner.map(lambda expression: cls.get_attempts(url, headers=headers, params={
+        #         "query": expression,
+        #         "format": "json",
+        #         "limit": 10,
+        #     }), expressions))
+
+        all_concepts: list = [
+            cls.get_attempts(
+                url,
+                headers=headers,
+                params={"query": expression, "format": "json", "limit": 10},
+            )
+            for expression in expressions
+        ]
+        for concepts in all_concepts:
             for concept in concepts:
                 if returned_class == MedicationDetail:
                     quantities: list[MedicationDetailQuantity] = []

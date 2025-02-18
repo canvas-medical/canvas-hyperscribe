@@ -5,14 +5,17 @@ Plugin inserting commands based on the content of an audio, discussion between a
 ## Set up
 
 In your home directory, add to `~/.canvas/credentials.ini` the host you have access to:
+
 ```shell
 [my-canvas-host]
 client_id=...
 client_secret=...
 ```
+
 (as described in the [Canvas Plugin Overview](https://www.youtube.com/watch?v=X2JOEElq2ck) video)
 
 To be able to run locally your code against your remote instance (`my-canvas-host.canvasmedical.com`), create the environment variables:
+
 ```shell
 export CANVAS_SDK_DB_NAME="..."
 export CANVAS_SDK_DB_USERNAME="..."
@@ -21,12 +24,12 @@ export CANVAS_SDK_DB_HOST="..."
 export CANVAS_SDK_DB_PORT=000
 ```
 
-
 ## Canvas plugin
 
 The Canvas plugin itself is in the folder `commander`.
 
 Useful commands:
+
 ```shell
 # install the plugin or re-install it while keeping the secrets
 canvas install --host my-canvas-host commander 
@@ -46,6 +49,7 @@ The `secrets` are stored in the Canvas instance database and can be upsert in `h
 ## Unit tests
 
 The `commander` code is tested with `pytest`.
+
 ```shell
 poetry run pytest -vv tests/ # run all tests and fully display any failure 
 
@@ -55,6 +59,7 @@ poetry run pytest tests/ --cov=. # run all tests and report the coverage
 ## Integration tests
 
 The `commander` plugin has four essential steps:
+
 1. transcript the audio into a discussion, identifying the speakers and what they say
 1. extract from the discussion a set of instructions, a plain english description of a Canvas command
 1. transform an instruction into a data structure close to a Canvas command parameters
@@ -63,20 +68,24 @@ The `commander` plugin has four essential steps:
 The integration tests are designed to test each of these steps.
 
 The convention used is to have:
+
 - a folder where to store tests for each step (`integrations/audio2transcript`, `integrations/transcript2instruction`...)
 - a test file to run the stored tests of each step (`test_audio2transcript.py`, `test_transcript2instructions.py`...)
 
-The tests are JSON files with the input and the expected output for the considered step. 
+The tests are JSON files with the input and the expected output for the considered step.
 
 ### Run integration tests
 
 The integration tests are run as `pytest` tests.
 
 The basic idea is that all figures or dates should be exactly the same from one run to another one.
-It is possible to ignore the value of a key when comparing the expected output and the actual output by setting it to `>?<` (see [here](integrations/helper_settings.py) the method `json_nuanced_differences`).
+It is possible to ignore the value of a key when comparing the expected output and the actual output by setting it to `>?<` (
+see [here](integrations/helper_settings.py) the method `json_nuanced_differences`).
 
 The following parameters can be used to configure the integration test:
-- `--integration-difference-levels` – Specifies the expected level of accuracy for any text value (`minor`, `moderate`, `severe`, `critical` as defined [here](integrations/helper_settings.py) as `DIFFERENCE_LEVELS`).
+
+- `--integration-difference-levels` – Specifies the expected level of accuracy for any text value (`minor`, `moderate`, `severe`, `critical` as
+  defined [here](integrations/helper_settings.py) as `DIFFERENCE_LEVELS`).
 - `--patient-uuid` – Identifies the patient to run the integration test against, it is __mandatory__ for most tests.
 
 Among standard `pytest` parameters, `-k` is useful as it allows to target a specific test.
@@ -105,6 +114,7 @@ poetry run pytest -v integrations/test_transcript2instructions.py --patient-uuid
 ### Create integration tests
 
 Based on a set of `mp3` files, a set (i.e. covering all steps) of integration tests can be created using:
+
 ```shell
 poetry run python case_builder.py \
   --patient patient_uuid \
@@ -113,16 +123,19 @@ poetry run python case_builder.py \
 ```
 
 Note that on the first step (`audio2transcript`):
-- all `mp3` files are saved in the `integrations/audio2transcript/inputs_mp3/` folder, the first one using the `--label` as name, the subsequent files have the same name with an added number,
+
+- all `mp3` files are saved in the `integrations/audio2transcript/inputs_mp3/` folder, the first one using the `--label` as name, the subsequent files
+  have the same name with an added number,
 
 On the second step (`transcript2instructions`):
+
 - the `uuid` of the instructions is by default set empty
 - the order of the instructions of different type is ignored
-
 
 ### Delete integration tests
 
 A set of integration tests can be deleted using:
+
 ```shell
 poetry run python case_builder.py --label the_name --delete
 ```

@@ -62,7 +62,7 @@ class CaseBuilder:
         # auditor
         recorder = AuditorFile(parameters.label)
         # chatter
-        note = Note.objects.filter(patient__id=parameters.patient).order_by("-id").first()  # the last note
+        note = Note.objects.filter(patient__id=parameters.patient).order_by("-dbid").first()  # the last note
         chatter = AudioInterpreter(
             HelperSettings.settings(),
             parameters.patient,

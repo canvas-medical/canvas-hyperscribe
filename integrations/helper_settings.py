@@ -24,12 +24,12 @@ class HelperSettings:
 
     @classmethod
     def get_note_uuid(cls, patient_uuid: str) -> str:
-        note = Note.objects.filter(patient__id=patient_uuid).order_by("-id").first()  # the last note
+        note = Note.objects.filter(patient__id=patient_uuid).order_by("-dbid").first()  # the last note
         return str(note.id)
 
     @classmethod
     def get_provider_uuid(cls, patient_uuid: str) -> str:
-        note = Note.objects.filter(patient__id=patient_uuid).order_by("-id").first()  # the last note
+        note = Note.objects.filter(patient__id=patient_uuid).order_by("-dbid").first()  # the last note
         return str(note.provider.id)
 
     @classmethod

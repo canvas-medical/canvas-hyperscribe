@@ -209,7 +209,7 @@ def test_run(reset, parameters, auditor_file, audio_interpreter, settings, audio
     assert audio2commands.mock_calls == calls
     calls = [
         call.filter(patient__id='patientUuid'),
-        call.filter().order_by('-id'),
+        call.filter().order_by('-dbid'),
         call.filter().order_by().first()
     ]
     assert note_db.mock_calls == calls
