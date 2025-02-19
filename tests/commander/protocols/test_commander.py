@@ -14,6 +14,7 @@ from commander.protocols.structures.instruction import Instruction
 from commander.protocols.structures.json_extract import JsonExtract
 from commander.protocols.structures.line import Line
 from commander.protocols.structures.settings import Settings
+from commander.protocols.structures.vendor_key import VendorKey
 from tests.helper import is_constant
 
 
@@ -176,7 +177,10 @@ def test_get_audio(get, info):
 def test_constants():
     tested = Commander
     constants = {
-        "SECRET_OPENAI_KEY": "OpenAIKey",
+        "SECRET_TEXT_VENDOR": "VendorTextLLM",
+        "SECRET_TEXT_KEY": "KeyTextLLM",
+        "SECRET_AUDIO_VENDOR": "VendorAudioLLM",
+        "SECRET_AUDIO_KEY": "KeyAudioLLM",
         "SECRET_SCIENCE_HOST": "ScienceHost",
         "SECRET_ONTOLOGIES_HOST": "OntologiesHost",
         "SECRET_PRE_SHARED_KEY": "PreSharedKey",
@@ -238,7 +242,10 @@ def test_compute(compute_audio, task_comment_db, note_db, info):
         mock_comment.reset_mock()
         mock_note.reset_mock()
 
-    secrets = {}
+    secrets = {
+        "VendorTextLLM": "theTextVendor",
+        "VendorAudioLLM": "theAudioVendor",
+    }
     event = Event(EventRequest(target="taskUuid"))
     tested = Commander(event, secrets)
 
@@ -303,6 +310,7 @@ def test_compute(compute_audio, task_comment_db, note_db, info):
     assert task_comment_db.mock_calls == calls
     calls = [
         call("--> comment: commentUuid (task: taskUuid, labels: ['label1', 'label2'])"),
+        call('Text: theTextVendor - Audio: theAudioVendor'),
         call('audio was present => go to next iteration (2)'),
     ]
     assert info.mock_calls == calls
@@ -342,6 +350,7 @@ def test_compute(compute_audio, task_comment_db, note_db, info):
     assert task_comment_db.mock_calls == calls
     calls = [
         call("--> comment: commentUuid (task: taskUuid, labels: ['label1', 'label2'])"),
+        call('Text: theTextVendor - Audio: theAudioVendor'),
         call('audio was NOT present => stop the task'),
     ]
     assert info.mock_calls == calls
@@ -391,14 +400,16 @@ def test_compute_audio(info, retrieve_audios, audio2commands, auditor, cached_di
 
     secrets = {
         "AudioHost": "theAudioHost",
-        "OpenAIKey": "theOpenAIKey",
+        "KeyTextLLM": "theKeyTextLLM",
+        "VendorTextLLM": "theVendorTextLLM",
+        "KeyAudioLLM": "theKeyAudioLLM",
+        "VendorAudioLLM": "theVendorAudioLLM",
         "ScienceHost": "theScienceHost",
         "OntologiesHost": "theOntologiesHost",
         "PreSharedKey": "thePreSharedKey",
         "AllowCommandUpdates": "yes",
     }
     event = Event(EventRequest(target="taskUuid"))
-    tested = Commander(event, secrets)
 
     # no more audio
     retrieve_audios.side_effect = [[]]
@@ -407,6 +418,7 @@ def test_compute_audio(info, retrieve_audios, audio2commands, auditor, cached_di
     cached_discussion.side_effect = []
     audio_interpreter.side_effect = []
 
+    tested = Commander(event, secrets)
     result = tested.compute_audio("patientUuid", "noteUuid", "providerUuid", 3)
     expected = (False, [])
     assert result == expected
@@ -423,17 +435,19 @@ def test_compute_audio(info, retrieve_audios, audio2commands, auditor, cached_di
     reset_mocks()
 
     # audios retrieved
-    transcript = [
-        {"speaker": "speaker1", "text": "textA"},
-        {"speaker": "speaker2", "text": "textB"},
-        {"speaker": "speaker1", "text": "textC"},
-    ]
+    exp_settings = Settings(
+        llm_text=VendorKey(vendor="theVendorTextLLM", api_key="theKeyTextLLM"),
+        llm_audio=VendorKey(vendor="theVendorAudioLLM", api_key="theKeyAudioLLM"),
+        science_host='theScienceHost',
+        ontologies_host='theOntologiesHost',
+        pre_shared_key='thePreSharedKey',
+        allow_update=True,
+    )
     discussion = CachedDiscussion("noteUuid")
     discussion.count = 2
     discussion.previous_instructions = [
         Instruction(uuid='uuidA', instruction='theInstructionA', information='theInformationA', is_new=True, is_updated=False),
     ]
-    # --- all good
     retrieve_audios.side_effect = [[b"audio1", b"audio2"]]
     audio2commands.side_effect = [
         (
@@ -452,7 +466,7 @@ def test_compute_audio(info, retrieve_audios, audio2commands, auditor, cached_di
     auditor.side_effect = ["AuditorInstance"]
     cached_discussion.get_discussion.side_effect = [discussion]
     audio_interpreter.side_effect = ["AudioInterpreterInstance"]
-
+    tested = Commander(event, secrets)
     result = tested.compute_audio("patientUuid", "noteUuid", "providerUuid", 3)
     expected = (
         True, [
@@ -510,13 +524,7 @@ def test_compute_audio(info, retrieve_audios, audio2commands, auditor, cached_di
     ]
     assert cached_discussion.mock_calls == calls
     calls = [
-        call(Settings(
-            openai_key='theOpenAIKey',
-            science_host='theScienceHost',
-            ontologies_host='theOntologiesHost',
-            pre_shared_key='thePreSharedKey',
-            allow_update=True,
-        ), 'patientUuid', 'noteUuid', 'providerUuid')
+        call(exp_settings, 'patientUuid', 'noteUuid', 'providerUuid')
     ]
     assert audio_interpreter.mock_calls == calls
     reset_mocks()

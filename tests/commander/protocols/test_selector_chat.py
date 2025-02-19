@@ -3,25 +3,27 @@ from unittest.mock import patch, call
 from django.db.models import Q
 
 from commander.protocols.canvas_science import CanvasScience
-from commander.protocols.openai_chat import OpenaiChat
+from commander.protocols.helper import Helper
 from commander.protocols.selector_chat import SelectorChat
 from commander.protocols.structures.coded_item import CodedItem
 from commander.protocols.structures.icd10_condition import Icd10Condition
 from commander.protocols.structures.settings import Settings
+from commander.protocols.structures.vendor_key import VendorKey
 from commander.protocols.temporary_data import DataLabTestView
 
 
-@patch.object(OpenaiChat, "single_conversation")
+@patch.object(Helper, "chatter")
 @patch.object(CanvasScience, "search_conditions")
-def test_condition_from(search_conditions, single_conversation):
+def test_condition_from(search_conditions, chatter):
     def reset_mocks():
         search_conditions.reset_mock()
-        single_conversation.reset_mock()
+        chatter.reset_mock()
 
     tested = SelectorChat
 
     settings = Settings(
-        openai_key="openaiKey",
+        llm_text=VendorKey(vendor="textVendor", api_key="textKey"),
+        llm_audio=VendorKey(vendor="audioVendor", api_key="audioKey"),
         science_host="scienceHost",
         ontologies_host="ontologiesHost",
         pre_shared_key="preSharedKey",
@@ -60,54 +62,61 @@ def test_condition_from(search_conditions, single_conversation):
 
     # all good
     search_conditions.side_effect = [search]
-    single_conversation.side_effect = [[{"ICD10": "CODE98.76", "label": "theCondition"}]]
+    chatter.return_value.single_conversation.side_effect = [[{"ICD10": "CODE98.76", "label": "theCondition"}]]
 
     result = tested.condition_from(settings, keywords[:3], keywords[3:], "theComment")
     expected = CodedItem(label="theCondition", code="CODE9876", uuid="")
     assert result == expected
     calls = [call('scienceHost', keywords)]
     assert search_conditions.mock_calls == calls
-    calls = [call('openaiKey', system_prompt, user_prompt)]
-    assert single_conversation.mock_calls == calls
+    calls = [
+        call(settings),
+        call().single_conversation(system_prompt, user_prompt),
+    ]
+    assert chatter.mock_calls == calls
     reset_mocks()
 
     # no condition found
     search_conditions.side_effect = [[]]
-    single_conversation.side_effect = []
+    chatter.return_value.single_conversation.side_effect = []
 
     result = tested.condition_from(settings, keywords[:3], keywords[3:], "theComment")
     expected = CodedItem(label="", code="", uuid="")
     assert result == expected
     calls = [call('scienceHost', keywords)]
     assert search_conditions.mock_calls == calls
-    assert single_conversation.mock_calls == []
+    assert chatter.mock_calls == []
     reset_mocks()
 
     # no response
     search_conditions.side_effect = [search]
-    single_conversation.side_effect = [[]]
+    chatter.return_value.single_conversation.side_effect = [[]]
 
     result = tested.condition_from(settings, keywords[:3], keywords[3:], "theComment")
     expected = CodedItem(label="", code="", uuid="")
     assert result == expected
     calls = [call('scienceHost', keywords)]
     assert search_conditions.mock_calls == calls
-    calls = [call('openaiKey', system_prompt, user_prompt)]
-    assert single_conversation.mock_calls == calls
+    calls = [
+        call(settings),
+        call().single_conversation(system_prompt, user_prompt),
+    ]
+    assert chatter.mock_calls == calls
     reset_mocks()
 
 
-@patch.object(OpenaiChat, "single_conversation")
+@patch.object(Helper, "chatter")
 @patch.object(DataLabTestView, "objects")
-def test_lab_test_from(lab_test_db, single_conversation):
+def test_lab_test_from(lab_test_db, chatter):
     def reset_mocks():
         lab_test_db.reset_mock()
-        single_conversation.reset_mock()
+        chatter.reset_mock()
 
     tested = SelectorChat
 
     settings = Settings(
-        openai_key="openaiKey",
+        llm_text=VendorKey(vendor="textVendor", api_key="textKey"),
+        llm_audio=VendorKey(vendor="audioVendor", api_key="audioKey"),
         science_host="scienceHost",
         ontologies_host="ontologiesHost",
         pre_shared_key="preSharedKey",
@@ -185,7 +194,7 @@ def test_lab_test_from(lab_test_db, single_conversation):
     # all good
     # -- with conditions
     lab_test_db.filter.return_value.filter.side_effect = [lab_tests, lab_tests]
-    single_conversation.side_effect = [[{"code": "CODE9876", "label": "theLabTest"}]]
+    chatter.return_value.single_conversation.side_effect = [[{"code": "CODE9876", "label": "theLabTest"}]]
 
     result = tested.lab_test_from(settings, "theLabPartner", expressions, "theComment", conditions)
     expected = CodedItem(label="theLabTest", code="CODE9876", uuid="")
@@ -197,12 +206,15 @@ def test_lab_test_from(lab_test_db, single_conversation):
         call.filter().filter(Q(('keywords__icontains', 'word4'))),
     ]
     assert lab_test_db.mock_calls == calls
-    calls = [call('openaiKey', system_prompt, user_prompts[0])]
-    assert single_conversation.mock_calls == calls
+    calls = [
+        call(settings),
+        call().single_conversation(system_prompt, user_prompts[0]),
+    ]
+    assert chatter.mock_calls == calls
     reset_mocks()
     # -- without conditions
     lab_test_db.filter.return_value.filter.side_effect = [lab_tests, lab_tests]
-    single_conversation.side_effect = [[{"code": "CODE9876", "label": "theLabTest"}]]
+    chatter.return_value.single_conversation.side_effect = [[{"code": "CODE9876", "label": "theLabTest"}]]
 
     result = tested.lab_test_from(settings, "theLabPartner", expressions, "theComment", [])
     expected = CodedItem(label="theLabTest", code="CODE9876", uuid="")
@@ -214,13 +226,16 @@ def test_lab_test_from(lab_test_db, single_conversation):
         call.filter().filter(Q(('keywords__icontains', 'word4'))),
     ]
     assert lab_test_db.mock_calls == calls
-    calls = [call('openaiKey', system_prompt, user_prompts[1])]
-    assert single_conversation.mock_calls == calls
+    calls = [
+        call(settings),
+        call().single_conversation(system_prompt, user_prompts[1]),
+    ]
+    assert chatter.mock_calls == calls
     reset_mocks()
 
     # no response
     lab_test_db.filter.return_value.filter.side_effect = [lab_tests, lab_tests]
-    single_conversation.side_effect = [[]]
+    chatter.return_value.single_conversation.side_effect = [[]]
 
     result = tested.lab_test_from(settings, "theLabPartner", expressions, "theComment", conditions)
     expected = CodedItem(label="", code="", uuid="")
@@ -232,13 +247,16 @@ def test_lab_test_from(lab_test_db, single_conversation):
         call.filter().filter(Q(('keywords__icontains', 'word4'))),
     ]
     assert lab_test_db.mock_calls == calls
-    calls = [call('openaiKey', system_prompt, user_prompts[0])]
-    assert single_conversation.mock_calls == calls
+    calls = [
+        call(settings),
+        call().single_conversation(system_prompt, user_prompts[0]),
+    ]
+    assert chatter.mock_calls == calls
     reset_mocks()
 
     # no lab test
     lab_test_db.filter.return_value.filter.side_effect = [[], []]
-    single_conversation.side_effect = []
+    chatter.return_value.single_conversation.side_effect = []
 
     result = tested.lab_test_from(settings, "theLabPartner", expressions, "theComment", conditions)
     expected = CodedItem(label="", code="", uuid="")
@@ -250,5 +268,5 @@ def test_lab_test_from(lab_test_db, single_conversation):
         call.filter().filter(Q(('keywords__icontains', 'word4'))),
     ]
     assert lab_test_db.mock_calls == calls
-    assert single_conversation.mock_calls == []
+    assert chatter.mock_calls == []
     reset_mocks()

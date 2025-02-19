@@ -5,14 +5,16 @@ from canvas_sdk.commands.commands.instruct import InstructCommand
 from commander.protocols.canvas_science import CanvasScience
 from commander.protocols.commands.base import Base
 from commander.protocols.commands.instruct import Instruct
-from commander.protocols.openai_chat import OpenaiChat
+from commander.protocols.helper import Helper
 from commander.protocols.structures.medical_concept import MedicalConcept
 from commander.protocols.structures.settings import Settings
+from commander.protocols.structures.vendor_key import VendorKey
 
 
 def helper_instance() -> Instruct:
     settings = Settings(
-        openai_key="openaiKey",
+        llm_text=VendorKey(vendor="textVendor", api_key="textKey"),
+        llm_audio=VendorKey(vendor="audioVendor", api_key="audioKey"),
         science_host="scienceHost",
         ontologies_host="ontologiesHost",
         pre_shared_key="preSharedKey",
@@ -33,12 +35,12 @@ def test_schema_key():
     assert result == expected
 
 
-@patch.object(OpenaiChat, "single_conversation")
+@patch.object(Helper, "chatter")
 @patch.object(CanvasScience, "instructions")
-def test_command_from_json(instructions, single_conversation):
+def test_command_from_json(instructions, chatter):
     def reset_mocks():
         instructions.reset_mock()
-        single_conversation.reset_mock()
+        chatter.reset_mock()
 
     system_prompt = [
         "The conversation is in the medical context.",
@@ -78,7 +80,7 @@ def test_command_from_json(instructions, single_conversation):
 
     # all good
     instructions.side_effect = [medical_concepts]
-    single_conversation.side_effect = [[{"conceptId": 369, "term": "termB"}]]
+    chatter.return_value.single_conversation.side_effect = [[{"conceptId": 369, "term": "termB"}]]
 
     result = tested.command_from_json(parameters)
     expected = InstructCommand(
@@ -89,13 +91,16 @@ def test_command_from_json(instructions, single_conversation):
     assert result == expected
     calls = [call('scienceHost', keywords)]
     assert instructions.mock_calls == calls
-    calls = [call('openaiKey', system_prompt, user_prompt)]
-    assert single_conversation.mock_calls == calls
+    calls = [
+        call(tested.settings),
+        call().single_conversation(system_prompt, user_prompt),
+    ]
+    assert chatter.mock_calls == calls
     reset_mocks()
 
     # no good response
     instructions.side_effect = [medical_concepts]
-    single_conversation.side_effect = [[]]
+    chatter.return_value.single_conversation.side_effect = [[]]
 
     result = tested.command_from_json(parameters)
     expected = InstructCommand(
@@ -106,13 +111,16 @@ def test_command_from_json(instructions, single_conversation):
     assert result == expected
     calls = [call('scienceHost', keywords)]
     assert instructions.mock_calls == calls
-    calls = [call('openaiKey', system_prompt, user_prompt)]
-    assert single_conversation.mock_calls == calls
+    calls = [
+        call(tested.settings),
+        call().single_conversation(system_prompt, user_prompt),
+    ]
+    assert chatter.mock_calls == calls
     reset_mocks()
 
     # no medical concept
     instructions.side_effect = [[]]
-    single_conversation.side_effect = [[]]
+    chatter.return_value.single_conversation.side_effect = [[]]
 
     result = tested.command_from_json(parameters)
     expected = InstructCommand(
@@ -123,7 +131,7 @@ def test_command_from_json(instructions, single_conversation):
     assert result == expected
     calls = [call('scienceHost', keywords)]
     assert instructions.mock_calls == calls
-    assert single_conversation.mock_calls == []
+    assert chatter.mock_calls == []
     reset_mocks()
 
 

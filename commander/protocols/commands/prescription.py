@@ -6,7 +6,6 @@ from canvas_sdk.commands.constants import ClinicalQuantity
 from commander.protocols.canvas_science import CanvasScience
 from commander.protocols.commands.base import Base
 from commander.protocols.helper import Helper
-from commander.protocols.openai_chat import OpenaiChat
 from commander.protocols.structures.medication_detail import MedicationDetail
 
 
@@ -50,7 +49,7 @@ class Prescription(Base):
                 "```",
                 "",
             ]
-            if response := OpenaiChat.single_conversation(self.settings.openai_key, system_prompt, user_prompt):
+            if response := Helper.chatter(self.settings).single_conversation(system_prompt, user_prompt):
                 fdb_code = str(response[0]["fdbCode"])
                 result = [m for m in medications if m.fdb_code == fdb_code]
 
@@ -98,7 +97,7 @@ class Prescription(Base):
             "```",
             "",
         ]
-        if response := OpenaiChat.single_conversation(self.settings.openai_key, system_prompt, user_prompt):
+        if response := Helper.chatter(self.settings).single_conversation(system_prompt, user_prompt):
             # TODO should be Decimal, waiting for https://github.com/canvas-medical/canvas-plugins/discussions/332
             command.quantity_to_dispense = Decimal(response[0]["quantityToDispense"]).quantize(Decimal('0.01'))
             command.refills = int(response[0]["refills"])

@@ -6,16 +6,18 @@ from canvas_sdk.commands.commands.prescribe import PrescribeCommand
 from commander.protocols.canvas_science import CanvasScience
 from commander.protocols.commands.base import Base
 from commander.protocols.commands.prescription import Prescription
-from commander.protocols.openai_chat import OpenaiChat
+from commander.protocols.helper import Helper
 from commander.protocols.structures.coded_item import CodedItem
 from commander.protocols.structures.medication_detail import MedicationDetail
 from commander.protocols.structures.medication_detail_quantity import MedicationDetailQuantity
 from commander.protocols.structures.settings import Settings
+from commander.protocols.structures.vendor_key import VendorKey
 
 
 def helper_instance() -> Prescription:
     settings = Settings(
-        openai_key="openaiKey",
+        llm_text=VendorKey(vendor="textVendor", api_key="textKey"),
+        llm_audio=VendorKey(vendor="audioVendor", api_key="audioKey"),
         science_host="scienceHost",
         ontologies_host="ontologiesHost",
         pre_shared_key="preSharedKey",
@@ -36,14 +38,14 @@ def test_schema_key():
     assert result == expected
 
 
-@patch.object(OpenaiChat, "single_conversation")
+@patch.object(Helper, "chatter")
 @patch.object(CanvasScience, "medication_details")
 @patch.object(Prescription, "demographic__str__")
-def test_medications_from(demographic, medication_details, single_conversation):
+def test_medications_from(demographic, medication_details, chatter):
     def reset_mocks():
         demographic.reset_mock()
         medication_details.reset_mock()
-        single_conversation.reset_mock()
+        chatter.reset_mock()
 
     system_prompt = [
         "The conversation is in the medical context.",
@@ -109,7 +111,7 @@ def test_medications_from(demographic, medication_details, single_conversation):
     # with condition
     demographic.side_effect = ["the patient has this demographic"]
     medication_details.side_effect = [medications]
-    single_conversation.side_effect = [[{"fdbCode": "code369", "description": "labelB"}]]
+    chatter.return_value.single_conversation.side_effect = [[{"fdbCode": "code369", "description": "labelB"}]]
     result = tested.medications_from("theComment", keywords, "theCondition")
     expected = [MedicationDetail(fdb_code="code369", description="labelB", quantities=[])]
     assert result == expected
@@ -118,14 +120,17 @@ def test_medications_from(demographic, medication_details, single_conversation):
     assert demographic.mock_calls == calls
     calls = [call('scienceHost', keywords)]
     assert medication_details.mock_calls == calls
-    calls = [call('openaiKey', system_prompt, user_prompts[0])]
-    assert single_conversation.mock_calls == calls
+    calls = [
+        call(tested.settings),
+        call().single_conversation(system_prompt, user_prompts[0]),
+    ]
+    assert chatter.mock_calls == calls
     reset_mocks()
 
     # without condition
     demographic.side_effect = ["the patient has this demographic"]
     medication_details.side_effect = [medications]
-    single_conversation.side_effect = [[{"fdbCode": "code369", "description": "labelB"}]]
+    chatter.return_value.single_conversation.side_effect = [[{"fdbCode": "code369", "description": "labelB"}]]
     result = tested.medications_from("theComment", keywords, "")
     expected = [MedicationDetail(fdb_code="code369", description="labelB", quantities=[])]
     assert result == expected
@@ -134,14 +139,17 @@ def test_medications_from(demographic, medication_details, single_conversation):
     assert demographic.mock_calls == calls
     calls = [call('scienceHost', keywords)]
     assert medication_details.mock_calls == calls
-    calls = [call('openaiKey', system_prompt, user_prompts[1])]
-    assert single_conversation.mock_calls == calls
+    calls = [
+        call(tested.settings),
+        call().single_conversation(system_prompt, user_prompts[1]),
+    ]
+    assert chatter.mock_calls == calls
     reset_mocks()
 
     # without response
     demographic.side_effect = ["the patient has this demographic"]
     medication_details.side_effect = [medications]
-    single_conversation.side_effect = [[]]
+    chatter.return_value.single_conversation.side_effect = [[]]
     result = tested.medications_from("theComment", keywords, "")
     assert result == []
 
@@ -149,29 +157,32 @@ def test_medications_from(demographic, medication_details, single_conversation):
     assert demographic.mock_calls == calls
     calls = [call('scienceHost', keywords)]
     assert medication_details.mock_calls == calls
-    calls = [call('openaiKey', system_prompt, user_prompts[1])]
-    assert single_conversation.mock_calls == calls
+    calls = [
+        call(tested.settings),
+        call().single_conversation(system_prompt, user_prompts[1]),
+    ]
+    assert chatter.mock_calls == calls
     reset_mocks()
 
     # no medication
     demographic.side_effect = []
     medication_details.side_effect = [[]]
-    single_conversation.side_effect = []
+    chatter.return_value.single_conversation.side_effect = []
     result = tested.medications_from("theComment", keywords, "theCondition")
     assert result == []
 
     assert demographic.mock_calls == []
     calls = [call('scienceHost', keywords)]
     assert medication_details.mock_calls == calls
-    assert single_conversation.mock_calls == []
+    assert chatter.mock_calls == []
     reset_mocks()
 
 
-@patch.object(OpenaiChat, "single_conversation")
+@patch.object(Helper, "chatter")
 @patch.object(Prescription, "demographic__str__")
-def test_set_medication_dosage(demographic, single_conversation):
+def test_set_medication_dosage(demographic, chatter):
     def reset_mocks():
-        single_conversation.reset_mock()
+        chatter.reset_mock()
         demographic.reset_mock()
 
     system_prompt = [
@@ -228,7 +239,7 @@ def test_set_medication_dosage(demographic, single_conversation):
     # with response
     command = PrescribeCommand(days_supply=11)
     demographic.side_effect = ["the patient has this demographic"]
-    single_conversation.side_effect = [[{
+    chatter.return_value.single_conversation.side_effect = [[{
         "quantityToDispense": "8.3",
         "refills": 3,
         "noteToPharmacist": "theNoteToPharmacist",
@@ -251,14 +262,17 @@ def test_set_medication_dosage(demographic, single_conversation):
 
     calls = [call()]
     assert demographic.mock_calls == calls
-    calls = [call('openaiKey', system_prompt, user_prompt)]
-    assert single_conversation.mock_calls == calls
+    calls = [
+        call(tested.settings),
+        call().single_conversation(system_prompt, user_prompt),
+    ]
+    assert chatter.mock_calls == calls
     reset_mocks()
 
     # no response
     command = PrescribeCommand(days_supply=11)
     demographic.side_effect = ["the patient has this demographic"]
-    single_conversation.side_effect = [[]]
+    chatter.return_value.single_conversation.side_effect = [[]]
     tested.set_medication_dosage("theComment", command, medication)
     expected = PrescribeCommand(
         days_supply=11,
@@ -272,8 +286,11 @@ def test_set_medication_dosage(demographic, single_conversation):
 
     calls = [call()]
     assert demographic.mock_calls == calls
-    calls = [call('openaiKey', system_prompt, user_prompt)]
-    assert single_conversation.mock_calls == calls
+    calls = [
+        call(tested.settings),
+        call().single_conversation(system_prompt, user_prompt),
+    ]
+    assert chatter.mock_calls == calls
     reset_mocks()
 
 

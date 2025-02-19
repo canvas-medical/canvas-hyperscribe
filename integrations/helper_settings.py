@@ -4,9 +4,9 @@ from os import environ
 from canvas_sdk.v1.data import Note
 
 from commander.protocols.commander import Commander
-from commander.protocols.constants import Constants
-from commander.protocols.openai_chat import OpenaiChat
+from commander.protocols.helper import Helper
 from commander.protocols.structures.settings import Settings
+from commander.protocols.structures.vendor_key import VendorKey
 
 
 class HelperSettings:
@@ -15,7 +15,14 @@ class HelperSettings:
     @classmethod
     def settings(cls) -> Settings:
         return Settings(
-            openai_key=environ[Commander.SECRET_OPENAI_KEY],
+            llm_text=VendorKey(
+                vendor=environ[Commander.SECRET_TEXT_VENDOR],
+                api_key=environ[Commander.SECRET_TEXT_KEY],
+            ),
+            llm_audio=VendorKey(
+                vendor=environ[Commander.SECRET_AUDIO_VENDOR],
+                api_key=environ[Commander.SECRET_AUDIO_KEY],
+            ),
             science_host=environ[Commander.SECRET_SCIENCE_HOST],
             ontologies_host=environ[Commander.SECRET_ONTOLOGIES_HOST],
             pre_shared_key=environ[Commander.SECRET_PRE_SHARED_KEY],
@@ -98,9 +105,9 @@ class HelperSettings:
     @classmethod
     def nuanced_differences(cls, accepted_levels: list[str], system_prompt: list[str], user_prompt: list[str]) -> tuple[bool, str]:
         settings = cls.settings()
-        conversation = OpenaiChat(settings.openai_key, Constants.OPENAI_CHAT_TEXT)
-        conversation.system_prompt = system_prompt
-        conversation.user_prompt = user_prompt
+        conversation = Helper.chatter(settings)
+        conversation.set_system_prompt(system_prompt)
+        conversation.set_user_prompt(user_prompt)
         chat = conversation.chat()
         if chat.has_error:
             return False, f"encountered error: {chat.error}"

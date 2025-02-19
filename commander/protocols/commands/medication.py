@@ -4,7 +4,7 @@ from canvas_sdk.commands.commands.medication_statement import MedicationStatemen
 
 from commander.protocols.canvas_science import CanvasScience
 from commander.protocols.commands.base import Base
-from commander.protocols.openai_chat import OpenaiChat
+from commander.protocols.helper import Helper
 
 
 class Medication(Base):
@@ -45,7 +45,7 @@ class Medication(Base):
                 '```',
                 '',
             ]
-            if response := OpenaiChat.single_conversation(self.settings.openai_key, system_prompt, user_prompt):
+            if response := Helper.chatter(self.settings).single_conversation(system_prompt, user_prompt):
                 result.fdb_code = str(response[0]["fdbCode"])
         return result
 

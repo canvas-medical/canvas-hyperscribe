@@ -1,25 +1,15 @@
 import json
-from unittest.mock import patch, MagicMock, call
+from unittest.mock import patch, call
 
 from logger import log
 
-from commander.protocols.openai_chat import OpenaiChat
+from commander.protocols.llms.llm_openai import LlmOpenai
 from commander.protocols.structures.http_response import HttpResponse
 from commander.protocols.structures.json_extract import JsonExtract
 
 
-def test___init__():
-    tested = OpenaiChat("openaiKey", "theModel")
-    assert tested.openai_key == "openaiKey"
-    assert tested.model == "theModel"
-    assert tested.temperature == 0.0
-    assert tested.system_prompt == []
-    assert tested.user_prompt == []
-    assert tested.audios == []
-
-
 def test_add_audio():
-    tested = OpenaiChat("openaiKey", "theModel")
+    tested = LlmOpenai("openaiKey", "theModel")
     tested.add_audio(b"", "mp3")
     assert tested.audios == []
     tested.add_audio(b"abc", "mp3")
@@ -28,7 +18,7 @@ def test_add_audio():
 
 
 def test_to_dict():
-    tested = OpenaiChat("openaiKey", "theModel")
+    tested = LlmOpenai("openaiKey", "theModel")
     tested.add_audio(b"abc", "mp3")
     tested.add_audio(b"def", "mp3")
     tested.system_prompt = ["line 1", "line 2", "line 3"]
@@ -73,7 +63,7 @@ def test_to_dict():
     assert result == expected
 
 
-@patch("commander.protocols.openai_chat.requests_post")
+@patch("commander.protocols.llms.llm_openai.requests_post")
 def test_post(requests_post):
     def reset_mocks():
         requests_post.reset_mock()
@@ -81,7 +71,7 @@ def test_post(requests_post):
     requests_post.return_value.status_code = 202
     requests_post.return_value.text = "theResponse"
 
-    tested = OpenaiChat("openaiKey", "theModel")
+    tested = LlmOpenai("openaiKey", "theModel")
     result = tested.post("theUrl", {"param": "value"}, "theData", 123)
     expected = HttpResponse(code=202, response="theResponse")
     assert result == expected
@@ -103,13 +93,13 @@ def test_post(requests_post):
 
 
 @patch.object(log, "info")
-@patch.object(OpenaiChat, "post")
+@patch.object(LlmOpenai, "post")
 def test_chat(post, info):
     def reset_mocks():
         post.reset_mock()
         info.reset_mock()
 
-    tested = OpenaiChat("openaiKey", "theModel")
+    tested = LlmOpenai("openaiKey", "theModel")
     # all good
     response = {
         "choices": [
@@ -176,149 +166,7 @@ def test_chat(post, info):
     reset_mocks()
 
 
-def test_chat_instance():
-    tested = OpenaiChat
-    result = tested.chat_instance("openaiKey")
-    assert isinstance(result, OpenaiChat)
-    assert result.openai_key == "openaiKey"
-    assert result.model == "gpt-4o"
-
-
-@patch.object(OpenaiChat, "chat_instance")
-def test_single_conversation(chat_instance):
-    mock = MagicMock()
-
-    system_prompt = ["theSystemPrompt"]
-    user_prompt = ["theUserPrompt"]
-    tested = OpenaiChat
-
-    def reset_mocks():
-        chat_instance.reset_mock()
-        mock.reset_mock()
-
-    # without error
-    chat_instance.side_effect = [mock]
-    mock.chat.side_effect = [JsonExtract(error="theError", has_error=False, content=["theContent"])]
-    result = tested.single_conversation("openaiKey", system_prompt, user_prompt)
-    assert result == ["theContent"]
-
-    calls = [call("openaiKey")]
-    assert chat_instance.mock_calls == calls
-    assert mock.system_prompt == system_prompt
-    assert mock.user_prompt == user_prompt
-    calls = [call.chat()]
-    assert mock.mock_calls == calls
-    reset_mocks()
-
-    # with error
-    chat_instance.side_effect = [mock]
-    mock.chat.side_effect = [JsonExtract(error="theError", has_error=True, content=["theContent"])]
-    result = tested.single_conversation("openaiKey", system_prompt, user_prompt)
-    assert result == []
-
-    calls = [call("openaiKey")]
-    assert chat_instance.mock_calls == calls
-    assert mock.system_prompt == system_prompt
-    assert mock.user_prompt == user_prompt
-    calls = [call.chat()]
-    assert mock.mock_calls == calls
-    reset_mocks()
-
-
-@patch.object(log, "info")
-def test_extract_json_from(info):
-    def reset_mocks():
-        info.reset_mock()
-
-    tested = OpenaiChat
-    # no error
-    # -- multiple JSON
-    content = "\n".join([
-        "response:",
-        "```json",
-        json.dumps(["item1", "item2"]),
-        "```",
-        "",
-        "```json",
-        json.dumps(["item3"]),
-        "```",
-        "",
-        "```json",
-        json.dumps(["item4"]),
-        "```",
-        "",
-        "end.",
-    ])
-    result = tested.extract_json_from(content)
-    expected = JsonExtract(
-        error="",
-        has_error=False,
-        content=[
-            ["item1", "item2"],
-            ["item3"],
-            ["item4"],
-        ],
-    )
-    assert result == expected
-    # -- one JSON
-    content = "\n".join([
-        "response:",
-        "```json",
-        json.dumps(["item1", "item2"]),
-        "```",
-        "",
-        "end.",
-    ])
-    result = tested.extract_json_from(content)
-    expected = JsonExtract(
-        error="",
-        has_error=False,
-        content=["item1", "item2"],
-    )
-    assert result == expected
-
-    # error
-    # -- JSON with error
-    content = "\n".join([
-        "response:",
-        "```json",
-        json.dumps(["item1", "item2"]),
-        "```",
-        "",
-        "```json",
-        "[\"item3\"",
-        "```",
-        "",
-        "```json",
-        json.dumps(["item4"]),
-        "```",
-        "",
-        "end.",
-    ])
-    result = tested.extract_json_from(content)
-    expected = JsonExtract(
-        error="Expecting ',' delimiter: line 1 column 9 (char 8)",
-        has_error=True,
-        content=[],
-    )
-    assert result == expected
-    # -- no JSON
-    content = "\n".join([
-        "response:",
-        json.dumps(["item1", "item2"]),
-        "",
-        "end.",
-    ])
-    result = tested.extract_json_from(content)
-    expected = JsonExtract(
-        error='No JSON markdown found',
-        has_error=True,
-        content=[],
-    )
-    assert result == expected
-
-
-@patch("commander.protocols.openai_chat.requests_post")
+@patch("commander.protocols.llms.llm_openai.requests_post")
 def test_audio_to_text(requests_post):
     def reset_mocks():
         requests_post.reset_mock()
@@ -326,7 +174,7 @@ def test_audio_to_text(requests_post):
     requests_post.return_value.status_code = 202
     requests_post.return_value.text = "theResponse"
 
-    tested = OpenaiChat("openaiKey", "theModel")
+    tested = LlmOpenai("openaiKey", "theModel")
     result = tested.audio_to_text(b"abc")
     expected = HttpResponse(code=202, response="theResponse")
     assert result == expected

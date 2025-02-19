@@ -113,13 +113,27 @@ poetry run pytest -v integrations/test_transcript2instructions.py --patient-uuid
 
 ### Create integration tests
 
+To be able to create integration codes locally, create the environment variables:
+
+```shell
+export VendorTextLLM="OpenAI"
+export KeyTextLLM="..."
+export VendorAudioLLM="OpenAI"
+export KeyAudioLLM="..."
+export ScienceHost="..."
+export OntologiesHost="...."
+export PreSharedKey="...."
+```
+
 Based on a set of `mp3` files, a set (i.e. covering all steps) of integration tests can be created using:
 
 ```shell
 poetry run python case_builder.py \
   --patient patient_uuid \
   --label the_name \
-  --mp3 "file/path/to/file_01.mp3" "file/path/to/file_02.mp3"
+  --mp3 "file/path/to/file_01.mp3" \
+  "file/path/to/file_02.mp3" \
+  "file/path/to/file_03.mp3"
 ```
 
 Note that on the first step (`audio2transcript`):

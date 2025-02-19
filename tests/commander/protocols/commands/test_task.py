@@ -6,13 +6,15 @@ from canvas_sdk.v1.data import Staff, TaskLabel
 
 from commander.protocols.commands.base import Base
 from commander.protocols.commands.task import Task
-from commander.protocols.openai_chat import OpenaiChat
+from commander.protocols.helper import Helper
 from commander.protocols.structures.settings import Settings
+from commander.protocols.structures.vendor_key import VendorKey
 
 
 def helper_instance() -> Task:
     settings = Settings(
-        openai_key="openaiKey",
+        llm_text=VendorKey(vendor="textVendor", api_key="textKey"),
+        llm_audio=VendorKey(vendor="audioVendor", api_key="audioKey"),
         science_host="scienceHost",
         ontologies_host="ontologiesHost",
         pre_shared_key="preSharedKey",
@@ -34,10 +36,10 @@ def test_schema_key():
 
 
 @patch.object(Staff, 'objects')
-@patch.object(OpenaiChat, "single_conversation")
-def test_select_staff(single_conversation, staff):
+@patch.object(Helper, "chatter")
+def test_select_staff(chatter, staff):
     def reset_mocks():
-        single_conversation.reset_mock()
+        chatter.reset_mock()
         staff.reset_mock()
 
     system_prompt = [
@@ -70,12 +72,12 @@ def test_select_staff(single_conversation, staff):
 
     # no staff (just theoretical)
     staff.filter.return_value.order_by.side_effect = [[]]
-    single_conversation.side_effect = []
+    chatter.return_value.single_conversation.side_effect = []
     result = tested.select_staff("assignedTo", "theComment")
     assert result is None
     calls = [call.filter(active=True), call.filter().order_by('last_name')]
     assert staff.mock_calls == calls
-    assert single_conversation.mock_calls == []
+    assert chatter.mock_calls == []
     reset_mocks()
 
     # staff
@@ -86,32 +88,38 @@ def test_select_staff(single_conversation, staff):
     ]
     # -- response
     staff.filter.return_value.order_by.side_effect = [staffers]
-    single_conversation.side_effect = [[{"staffId": 596, "name": "Jane Doe"}]]
+    chatter.return_value.single_conversation.side_effect = [[{"staffId": 596, "name": "Jane Doe"}]]
     result = tested.select_staff("assignedTo", "theComment")
     expected = TaskAssigner(to=AssigneeType.STAFF, id=596)
     assert result == expected
     calls = [call.filter(active=True), call.filter().order_by('last_name')]
     assert staff.mock_calls == calls
-    calls = [call('openaiKey', system_prompt, user_prompt)]
-    assert single_conversation.mock_calls == calls
+    calls = [
+        call(tested.settings),
+        call().single_conversation(system_prompt, user_prompt),
+    ]
+    assert chatter.mock_calls == calls
     reset_mocks()
     # -- no response
     staff.filter.return_value.order_by.side_effect = [staffers]
-    single_conversation.side_effect = [[]]
+    chatter.return_value.single_conversation.side_effect = [[]]
     result = tested.select_staff("assignedTo", "theComment")
     assert result is None
     calls = [call.filter(active=True), call.filter().order_by('last_name')]
     assert staff.mock_calls == calls
-    calls = [call('openaiKey', system_prompt, user_prompt)]
-    assert single_conversation.mock_calls == calls
+    calls = [
+        call(tested.settings),
+        call().single_conversation(system_prompt, user_prompt),
+    ]
+    assert chatter.mock_calls == calls
     reset_mocks()
 
 
 @patch.object(TaskLabel, 'objects')
-@patch.object(OpenaiChat, "single_conversation")
-def test_select_labels(single_conversation, task_labels):
+@patch.object(Helper, "chatter")
+def test_select_labels(chatter, task_labels):
     def reset_mocks():
-        single_conversation.reset_mock()
+        chatter.reset_mock()
         task_labels.reset_mock()
 
     system_prompt = [
@@ -143,12 +151,12 @@ def test_select_labels(single_conversation, task_labels):
 
     # no labels
     task_labels.filter.return_value.order_by.side_effect = [[]]
-    single_conversation.side_effect = []
+    chatter.return_value.single_conversation.side_effect = []
     result = tested.select_labels("theLabels", "theComment")
     assert result is None
     calls = [call.filter(active=True), call.filter().order_by('name')]
     assert task_labels.mock_calls == calls
-    assert single_conversation.mock_calls == []
+    assert chatter.mock_calls == []
     reset_mocks()
 
     # staff
@@ -159,24 +167,30 @@ def test_select_labels(single_conversation, task_labels):
     ]
     # -- response
     task_labels.filter.return_value.order_by.side_effect = [labels]
-    single_conversation.side_effect = [[{"labelId": 596, "name": "Label2"}, {"labelId": 963, "name": "Label3"}]]
+    chatter.return_value.single_conversation.side_effect = [[{"labelId": 596, "name": "Label2"}, {"labelId": 963, "name": "Label3"}]]
     result = tested.select_labels("theLabels", "theComment")
     expected = ["Label2", "Label3"]
     assert result == expected
     calls = [call.filter(active=True), call.filter().order_by('name')]
     assert task_labels.mock_calls == calls
-    calls = [call('openaiKey', system_prompt, user_prompt)]
-    assert single_conversation.mock_calls == calls
+    calls = [
+        call(tested.settings),
+        call().single_conversation(system_prompt, user_prompt),
+    ]
+    assert chatter.mock_calls == calls
     reset_mocks()
     # -- no response
     task_labels.filter.return_value.order_by.side_effect = [labels]
-    single_conversation.side_effect = [[]]
+    chatter.return_value.single_conversation.side_effect = [[]]
     result = tested.select_labels("theLabels", "theComment")
     assert result is None
     calls = [call.filter(active=True), call.filter().order_by('name')]
     assert task_labels.mock_calls == calls
-    calls = [call('openaiKey', system_prompt, user_prompt)]
-    assert single_conversation.mock_calls == calls
+    calls = [
+        call(tested.settings),
+        call().single_conversation(system_prompt, user_prompt),
+    ]
+    assert chatter.mock_calls == calls
     reset_mocks()
 
 

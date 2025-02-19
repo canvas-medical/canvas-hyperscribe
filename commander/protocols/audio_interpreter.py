@@ -30,8 +30,7 @@ from commander.protocols.commands.task import Task
 from commander.protocols.commands.update_diagnose import UpdateDiagnose
 from commander.protocols.commands.update_goal import UpdateGoal
 from commander.protocols.commands.vitals import Vitals
-from commander.protocols.constants import Constants
-from commander.protocols.openai_chat import OpenaiChat
+from commander.protocols.helper import Helper
 from commander.protocols.structures.instruction import Instruction
 from commander.protocols.structures.json_extract import JsonExtract
 from commander.protocols.structures.line import Line
@@ -74,14 +73,14 @@ class AudioInterpreter:
         }
 
     def combine_and_speaker_detection(self, audio_chunks: list[bytes]) -> JsonExtract:
-        conversation = OpenaiChat(self.settings.openai_key, Constants.OPENAI_CHAT_AUDIO)
-        conversation.system_prompt = [
+        conversation = Helper.audio2texter(self.settings)
+        conversation.set_system_prompt([
             "The conversation is in the medical context, and related to a visit of a patient with a healthcare provider.",
             "",
             "Your task is to transcribe what was said, regardless of whether the audio recordings were of dialogue during the visit or monologue after the visit.",
             "",
-        ]
-        conversation.user_prompt = [
+        ])
+        conversation.set_user_prompt([
             "The recording takes place in a medical setting, specifically related to a patient's visit with a clinician.",
             "",
             "These audio files contain recordings of a single visit.",
@@ -113,7 +112,7 @@ class AudioInterpreter:
             ], indent=1),
             "```",
             "",
-        ]
+        ])
 
         extension = "mp3"
         for audio in audio_chunks:
@@ -195,7 +194,7 @@ class AudioInterpreter:
                 "```",
                 "Include them in your response, with any necessary additional information.",
             ])
-        result = OpenaiChat.single_conversation(self.settings.openai_key, system_prompt, user_prompt)
+        result = Helper.chatter(self.settings).single_conversation(system_prompt, user_prompt)
         if result and (constraints := self.instruction_constraints()):
             user_prompt = [
                 "Here is your last response:",
@@ -210,7 +209,7 @@ class AudioInterpreter:
             user_prompt.append("")
             user_prompt.append("Return the original JSON if valid, or provide a corrected version to follow the constraints if needed.")
             user_prompt.append("")
-            result = OpenaiChat.single_conversation(self.settings.openai_key, system_prompt, user_prompt)
+            result = Helper.chatter(self.settings).single_conversation(system_prompt, user_prompt)
         return result
 
     def create_sdk_command_parameters(self, instruction: Instruction) -> tuple[Instruction, dict | None]:
@@ -240,7 +239,7 @@ class AudioInterpreter:
             "```",
             "",
         ]
-        response = OpenaiChat.single_conversation(self.settings.openai_key, system_prompt, user_prompt)
+        response = Helper.chatter(self.settings).single_conversation(system_prompt, user_prompt)
         if response:
             result = instruction, response[0]
         return result

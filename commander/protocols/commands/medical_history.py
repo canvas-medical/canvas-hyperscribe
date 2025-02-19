@@ -5,7 +5,6 @@ from canvas_sdk.commands.commands.medical_history import MedicalHistoryCommand
 from commander.protocols.canvas_science import CanvasScience
 from commander.protocols.commands.base import Base
 from commander.protocols.helper import Helper
-from commander.protocols.openai_chat import OpenaiChat
 
 
 class MedicalHistory(Base):
@@ -48,7 +47,7 @@ class MedicalHistory(Base):
                 '```',
                 '',
             ]
-            if response := OpenaiChat.single_conversation(self.settings.openai_key, system_prompt, user_prompt):
+            if response := Helper.chatter(self.settings).single_conversation(system_prompt, user_prompt):
                 result.past_medical_history = response[0]["label"]
         return result
 

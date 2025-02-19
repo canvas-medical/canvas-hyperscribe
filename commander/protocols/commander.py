@@ -21,6 +21,7 @@ from commander.protocols.constants import Constants
 from commander.protocols.structures.instruction import Instruction
 from commander.protocols.structures.line import Line
 from commander.protocols.structures.settings import Settings
+from commander.protocols.structures.vendor_key import VendorKey
 
 
 # ATTENTION temporary structure while waiting for a better solution
@@ -66,7 +67,10 @@ class Audio:
 
 
 class Commander(BaseProtocol):
-    SECRET_OPENAI_KEY = "OpenAIKey"
+    SECRET_TEXT_VENDOR = "VendorTextLLM"
+    SECRET_TEXT_KEY = "KeyTextLLM"
+    SECRET_AUDIO_VENDOR = "VendorAudioLLM"
+    SECRET_AUDIO_KEY = "KeyAudioLLM"
     SECRET_SCIENCE_HOST = "ScienceHost"
     SECRET_ONTOLOGIES_HOST = "OntologiesHost"
     SECRET_PRE_SHARED_KEY = "PreSharedKey"
@@ -86,18 +90,6 @@ class Commander(BaseProtocol):
         if not comment.task.labels.filter(name=self.LABEL_ENCOUNTER_COPILOT).first():
             return []
 
-        # # the context will have the OpenAIKey on local environment only (no database access yet)
-        # if self.SECRET_OPENAI_KEY in self.context:
-        #     self.secrets = {
-        #         self.SECRET_OPENAI_KEY: self.context[self.SECRET_OPENAI_KEY],
-        #         self.SECRET_SCIENCE_HOST: "https://science-staging.canvasmedical.com",
-        #         self.SECRET_ONTOLOGIES_HOST: "https://ontologies-aptible-staging.canvasmedical.com",
-        #         self.SECRET_PRE_SHARED_KEY: self.context[self.SECRET_PRE_SHARED_KEY],
-        #         self.SECRET_AUDIO_HOST: "http://localhost:8000/protocol-draft",
-        #         self.SECRET_ALLOW_COMMAND_UPDATES: True,
-        #     }
-        #     Constants.HAS_DATABASE_ACCESS = False
-
         information = json.loads(comment.body)
         chunk_index = information["chunk_index"]  # <--- starts with 1
         note_uuid = information["note_id"]
@@ -105,6 +97,7 @@ class Commander(BaseProtocol):
         provider_uuid = note.provider.id
         patient_uuid = note.patient.id
 
+        log.info(f"Text: {self.secrets[self.SECRET_TEXT_VENDOR]} - Audio: {self.secrets[self.SECRET_AUDIO_VENDOR]}")
         had_audio, effects = self.compute_audio(patient_uuid, note_uuid, provider_uuid, chunk_index)
         if had_audio:
             log.info(f"audio was present => go to next iteration ({chunk_index + 1})")
@@ -159,7 +152,14 @@ class Commander(BaseProtocol):
         discussion.add_one()
         # request the transcript of the audio (provider + patient...)
         settings = Settings(
-            openai_key=self.secrets[self.SECRET_OPENAI_KEY],
+            llm_text=VendorKey(
+                vendor=self.secrets[self.SECRET_TEXT_VENDOR],
+                api_key=self.secrets[self.SECRET_TEXT_KEY],
+            ),
+            llm_audio=VendorKey(
+                vendor=self.secrets[self.SECRET_AUDIO_VENDOR],
+                api_key=self.secrets[self.SECRET_AUDIO_KEY],
+            ),
             science_host=self.secrets[self.SECRET_SCIENCE_HOST],
             ontologies_host=self.secrets[self.SECRET_ONTOLOGIES_HOST],
             pre_shared_key=self.secrets[self.SECRET_PRE_SHARED_KEY],

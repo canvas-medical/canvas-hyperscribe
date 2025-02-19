@@ -3,6 +3,10 @@ from enum import Enum
 from unittest.mock import patch, call
 
 from commander.protocols.helper import Helper
+from commander.protocols.llms.llm_google import LlmGoogle
+from commander.protocols.llms.llm_openai import LlmOpenai
+from commander.protocols.structures.settings import Settings
+from commander.protocols.structures.vendor_key import VendorKey
 
 
 def test_str2datetime():
@@ -83,3 +87,43 @@ def test_icd10_strip_dot():
     for code, expected in tests:
         result = tested.icd10_strip_dot(code)
         assert result == expected, f"---> {code}"
+
+
+def test_chatter():
+    tested = Helper
+    tests = [
+        ("Google", LlmGoogle, "models/gemini-1.5-flash"),
+        ("Any", LlmOpenai, "gpt-4o"),
+    ]
+    for vendor, exp_class, exp_model in tests:
+        result = tested.chatter(Settings(
+            llm_text=VendorKey(vendor=vendor, api_key="textKey"),
+            llm_audio=VendorKey(vendor="audioVendor", api_key="audioKey"),
+            science_host="scienceHost",
+            ontologies_host="ontologiesHost",
+            pre_shared_key="preSharedKey",
+            allow_update=True,
+        ))
+        assert isinstance(result, exp_class)
+        assert result.api_key == "textKey"
+        assert result.model == exp_model
+
+
+def test_audio2texter():
+    tested = Helper
+    tests = [
+        ("Google", LlmOpenai, "gpt-4o-audio-preview"),
+        ("Any", LlmOpenai, "gpt-4o-audio-preview"),
+    ]
+    for vendor, exp_class, exp_model in tests:
+        result = tested.audio2texter(Settings(
+            llm_text=VendorKey(vendor="textVendor", api_key="textKey"),
+            llm_audio=VendorKey(vendor=vendor, api_key="audioKey"),
+            science_host="scienceHost",
+            ontologies_host="ontologiesHost",
+            pre_shared_key="preSharedKey",
+            allow_update=True,
+        ))
+        assert isinstance(result, exp_class)
+        assert result.api_key == "audioKey"
+        assert result.model == exp_model

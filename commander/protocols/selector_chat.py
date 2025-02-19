@@ -6,7 +6,6 @@ from django.db.models import Q
 
 from commander.protocols.canvas_science import CanvasScience
 from commander.protocols.helper import Helper
-from commander.protocols.openai_chat import OpenaiChat
 from commander.protocols.structures.coded_item import CodedItem
 from commander.protocols.structures.settings import Settings
 from commander.protocols.temporary_data import DataLabTestView
@@ -43,7 +42,7 @@ class SelectorChat:
                 '```',
                 '',
             ]
-            if response := OpenaiChat.single_conversation(settings.openai_key, system_prompt, user_prompt):
+            if response := Helper.chatter(settings).single_conversation(system_prompt, user_prompt):
                 result = CodedItem(
                     label=response[0]['label'],
                     code=Helper.icd10_strip_dot(response[0]["ICD10"]),
@@ -93,7 +92,7 @@ class SelectorChat:
                 '```',
                 '',
             ]
-            if response := OpenaiChat.single_conversation(settings.openai_key, system_prompt, user_prompt):
+            if response := Helper.chatter(settings).single_conversation(system_prompt, user_prompt):
                 result = CodedItem(
                     label=response[0]['label'],
                     code=response[0]["code"],

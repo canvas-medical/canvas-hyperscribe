@@ -6,15 +6,17 @@ from canvas_sdk.commands.commands.allergy import AllergyCommand, Allergen, Aller
 from commander.protocols.canvas_science import CanvasScience
 from commander.protocols.commands.allergy import Allergy
 from commander.protocols.commands.base import Base
-from commander.protocols.openai_chat import OpenaiChat
+from commander.protocols.helper import Helper
 from commander.protocols.structures.allergy_detail import AllergyDetail
 from commander.protocols.structures.coded_item import CodedItem
 from commander.protocols.structures.settings import Settings
+from commander.protocols.structures.vendor_key import VendorKey
 
 
 def helper_instance() -> Allergy:
     settings = Settings(
-        openai_key="openaiKey",
+        llm_text=VendorKey(vendor="textVendor", api_key="textKey"),
+        llm_audio=VendorKey(vendor="audioVendor", api_key="audioKey"),
         science_host="scienceHost",
         ontologies_host="ontologiesHost",
         pre_shared_key="preSharedKey",
@@ -35,12 +37,12 @@ def test_schema_key():
     assert result == expected
 
 
-@patch.object(OpenaiChat, "single_conversation")
+@patch.object(Helper, "chatter")
 @patch.object(CanvasScience, "search_allergy")
-def test_command_from_json(search_allergy, single_conversation):
+def test_command_from_json(search_allergy, chatter):
     def reset_mocks():
         search_allergy.reset_mock()
-        single_conversation.reset_mock()
+        chatter.reset_mock()
 
     system_prompt = [
         'The conversation is in the medical context.',
@@ -108,7 +110,7 @@ def test_command_from_json(search_allergy, single_conversation):
         ]
         # all good
         search_allergy.side_effect = [allergy_details]
-        single_conversation.side_effect = [[{"conceptId": 167, "description": "descriptionB"}]]
+        chatter.return_value.single_conversation.side_effect = [[{"conceptId": 167, "description": "descriptionB"}]]
 
         result = tested.command_from_json(parameters)
         expected = AllergyCommand(
@@ -126,13 +128,16 @@ def test_command_from_json(search_allergy, single_conversation):
 
         calls = [call('ontologiesHost', 'preSharedKey', keywords, allergen_types)]
         assert search_allergy.mock_calls == calls
-        calls = [call('openaiKey', system_prompt, user_prompt)]
-        assert single_conversation.mock_calls == calls
+        calls = [
+            call(tested.settings),
+            call().single_conversation(system_prompt, user_prompt),
+        ]
+        assert chatter.mock_calls == calls
         reset_mocks()
 
         # no good response
         search_allergy.side_effect = [allergy_details]
-        single_conversation.side_effect = [[]]
+        chatter.return_value.single_conversation.side_effect = [[]]
 
         result = tested.command_from_json(parameters)
         expected = AllergyCommand(
@@ -150,13 +155,16 @@ def test_command_from_json(search_allergy, single_conversation):
 
         calls = [call('ontologiesHost', 'preSharedKey', keywords, allergen_types)]
         assert search_allergy.mock_calls == calls
-        calls = [call('openaiKey', system_prompt, user_prompt)]
-        assert single_conversation.mock_calls == calls
+        calls = [
+            call(tested.settings),
+            call().single_conversation(system_prompt, user_prompt),
+        ]
+        assert chatter.mock_calls == calls
         reset_mocks()
 
         # no allergies
         search_allergy.side_effect = [[]]
-        single_conversation.side_effect = [[]]
+        chatter.return_value.single_conversation.side_effect = [[]]
 
         result = tested.command_from_json(parameters)
         expected = AllergyCommand(
@@ -174,7 +182,7 @@ def test_command_from_json(search_allergy, single_conversation):
 
         calls = [call('ontologiesHost', 'preSharedKey', keywords, allergen_types)]
         assert search_allergy.mock_calls == calls
-        assert single_conversation.mock_calls == []
+        assert chatter.mock_calls == []
         reset_mocks()
 
 

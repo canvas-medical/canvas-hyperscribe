@@ -3,11 +3,12 @@ from unittest.mock import patch, MagicMock, call
 
 from commander.protocols.audio_interpreter import AudioInterpreter
 from commander.protocols.commands.base import Base
-from commander.protocols.openai_chat import OpenaiChat
+from commander.protocols.helper import Helper
 from commander.protocols.structures.instruction import Instruction
 from commander.protocols.structures.json_extract import JsonExtract
 from commander.protocols.structures.line import Line
 from commander.protocols.structures.settings import Settings
+from commander.protocols.structures.vendor_key import VendorKey
 
 
 def helper_instance(mocks, updates: bool) -> AudioInterpreter:
@@ -16,7 +17,8 @@ def helper_instance(mocks, updates: bool) -> AudioInterpreter:
 
     with patch.object(AudioInterpreter, 'implemented_commands') as implemented_commands:
         settings = Settings(
-            openai_key="openaiKey",
+            llm_text=VendorKey(vendor="textVendor", api_key="textKey"),
+            llm_audio=VendorKey(vendor="audioVendor", api_key="audioKey"),
             science_host="scienceHost",
             ontologies_host="ontologiesHost",
             pre_shared_key="preSharedKey",
@@ -53,7 +55,8 @@ def test___init__(implemented_commands):
             mock.reset_mock()
 
     settings = Settings(
-        openai_key="openaiKey",
+        llm_text=VendorKey(vendor="textVendor", api_key="textKey"),
+        llm_audio=VendorKey(vendor="audioVendor", api_key="audioKey"),
         science_host="scienceHost",
         ontologies_host="ontologiesHost",
         pre_shared_key="preSharedKey",
@@ -205,83 +208,118 @@ def test_command_structures():
     reset_mocks()
 
 
-def test_combine_and_speaker_detection():
-    with patch("commander.protocols.audio_interpreter.OpenaiChat") as chat:
-        def reset_mocks():
-            chat.reset_mock()
+@patch.object(Helper, "audio2texter")
+def test_combine_and_speaker_detection(audio2texter):
+    def reset_mocks():
+        audio2texter.reset_mock()
 
-        discussion = [
-            {"voice": "voice3", "text": "the text A"},
-            {"voice": "voice2", "text": "the text B"},
-            {"voice": "voice1", "text": "the text C"},
-            {"voice": "voice2", "text": "the text D"},
-            {"voice": "voice2", "text": "the text E"},
-            {"voice": "voice1", "text": "the text F"},
-            {"voice": "voice2", "text": "the text G"},
-            {"voice": "voice3", "text": "the text H"},
-        ]
-        speakers = [
-            {"voice": "voice1", "speaker": "doctor"},
-            {"voice": "voice2", "speaker": "patient"},
-            {"voice": "voice3", "speaker": "nurse"},
-        ]
-        conversation = [
-            {"speaker": "nurse", "text": "the text A"},
-            {"speaker": "patient", "text": "the text B"},
-            {"speaker": "doctor", "text": "the text C"},
-            {"speaker": "patient", "text": "the text D"},
-            {"speaker": "patient", "text": "the text E"},
-            {"speaker": "doctor", "text": "the text F"},
-            {"speaker": "patient", "text": "the text G"},
-            {"speaker": "nurse", "text": "the text H"},
-        ]
-        audio_chunks = [b"chunk1", b"chunk2"]
+    system_prompt = [
+        "The conversation is in the medical context, and related to a visit of a patient with a healthcare provider.",
+        "",
+        "Your task is to transcribe what was said, regardless of whether the audio recordings were of dialogue during the visit or monologue after the visit.",
+        "",
+    ]
+    user_prompt = [
+        "The recording takes place in a medical setting, specifically related to a patient's visit with a clinician.",
+        "",
+        "These audio files contain recordings of a single visit.",
+        "There is no overlap between the segments, so they should be regarded as a continuous flow and analyzed at once.",
+        "",
+        "Your task is to:",
+        "1. label each voice if multiple voices are present.",
+        "2. transcribe each speaker's words with maximum accuracy",
+        "",
+        "Present your findings in a JSON format within a Markdown code block:",
+        "```json",
+        '[\n {\n  "voice": "voice1/voice2/...",\n  "text": "the verbatim transcription of what the speaker said"\n }\n]',
+        "```",
+        "",
+        "Then, review the discussion from the top and distinguish the role of the voices (patient, clinician, nurse, parents...) in the conversation, if there is only voice, assume this is the clinician",
+        "",
+        "Present your findings in a JSON format within a Markdown code block:",
+        "```json",
+        '[\n {\n  "speaker": "Patient/Clinician/Nurse/...",\n  "voice": "voice1/voice2/..."\n }\n]',
+        "```",
+        "",
+    ]
+    discussion = [
+        {"voice": "voice3", "text": "the text A"},
+        {"voice": "voice2", "text": "the text B"},
+        {"voice": "voice1", "text": "the text C"},
+        {"voice": "voice2", "text": "the text D"},
+        {"voice": "voice2", "text": "the text E"},
+        {"voice": "voice1", "text": "the text F"},
+        {"voice": "voice2", "text": "the text G"},
+        {"voice": "voice3", "text": "the text H"},
+    ]
+    speakers = [
+        {"voice": "voice1", "speaker": "doctor"},
+        {"voice": "voice2", "speaker": "patient"},
+        {"voice": "voice3", "speaker": "nurse"},
+    ]
+    conversation = [
+        {"speaker": "nurse", "text": "the text A"},
+        {"speaker": "patient", "text": "the text B"},
+        {"speaker": "doctor", "text": "the text C"},
+        {"speaker": "patient", "text": "the text D"},
+        {"speaker": "patient", "text": "the text E"},
+        {"speaker": "doctor", "text": "the text F"},
+        {"speaker": "patient", "text": "the text G"},
+        {"speaker": "nurse", "text": "the text H"},
+    ]
+    audio_chunks = [b"chunk1", b"chunk2"]
 
-        test = helper_instance([], True)
-        # no error
-        # -- all JSON
-        chat.return_value.chat.side_effect = [JsonExtract(error="theError", has_error=False, content=[discussion, speakers])]
-        result = test.combine_and_speaker_detection(audio_chunks)
-        expected = JsonExtract(error="", has_error=False, content=conversation)
-        assert result == expected
-        calls = [
-            call('openaiKey', 'gpt-4o-audio-preview'),
-            call().add_audio(b'chunk1', 'mp3'),
-            call().add_audio(b'chunk2', 'mp3'),
-            call().chat(True),
-        ]
-        assert chat.mock_calls == calls, f"---> {chat.mock_calls}"
-        reset_mocks()
-        # -- only one JSON
-        chat.return_value.chat.side_effect = [JsonExtract(error="theError", has_error=False, content=[discussion])]
-        result = test.combine_and_speaker_detection(audio_chunks)
-        expected = JsonExtract(error="partial response", has_error=True, content=[discussion])
-        assert result == expected
-        calls = [
-            call('openaiKey', 'gpt-4o-audio-preview'),
-            call().add_audio(b'chunk1', 'mp3'),
-            call().add_audio(b'chunk2', 'mp3'),
-            call().chat(True),
-        ]
-        assert chat.mock_calls == calls, f"---> {chat.mock_calls}"
-        reset_mocks()
+    tested = helper_instance([], True)
+    # no error
+    # -- all JSON
+    audio2texter.return_value.chat.side_effect = [JsonExtract(error="theError", has_error=False, content=[discussion, speakers])]
+    result = tested.combine_and_speaker_detection(audio_chunks)
+    expected = JsonExtract(error="", has_error=False, content=conversation)
+    assert result == expected
+    calls = [
+        call(tested.settings),
+        call().set_system_prompt(system_prompt),
+        call().set_user_prompt(user_prompt),
+        call().add_audio(b'chunk1', 'mp3'),
+        call().add_audio(b'chunk2', 'mp3'),
+        call().chat(True),
+    ]
+    assert audio2texter.mock_calls == calls
+    reset_mocks()
+    # -- only one JSON
+    audio2texter.return_value.chat.side_effect = [JsonExtract(error="theError", has_error=False, content=[discussion])]
+    result = tested.combine_and_speaker_detection(audio_chunks)
+    expected = JsonExtract(error="partial response", has_error=True, content=[discussion])
+    assert result == expected
+    calls = [
+        call(tested.settings),
+        call().set_system_prompt(system_prompt),
+        call().set_user_prompt(user_prompt),
+        call().add_audio(b'chunk1', 'mp3'),
+        call().add_audio(b'chunk2', 'mp3'),
+        call().chat(True),
+    ]
+    assert audio2texter.mock_calls == calls
+    reset_mocks()
 
-        # with error
-        chat.return_value.chat.side_effect = [JsonExtract(error="theError", has_error=True, content=[discussion, speakers])]
-        result = test.combine_and_speaker_detection(audio_chunks)
-        expected = JsonExtract(error="theError", has_error=True, content=[discussion, speakers])
-        assert result == expected
-        calls = [
-            call('openaiKey', 'gpt-4o-audio-preview'),
-            call().add_audio(b'chunk1', 'mp3'),
-            call().add_audio(b'chunk2', 'mp3'),
-            call().chat(True),
-        ]
-        assert chat.mock_calls == calls, f"---> {chat.mock_calls}"
-        reset_mocks()
+    # with error
+    audio2texter.return_value.chat.side_effect = [JsonExtract(error="theError", has_error=True, content=[discussion, speakers])]
+    result = tested.combine_and_speaker_detection(audio_chunks)
+    expected = JsonExtract(error="theError", has_error=True, content=[discussion, speakers])
+    assert result == expected
+    calls = [
+        call(tested.settings),
+        call().set_system_prompt(system_prompt),
+        call().set_user_prompt(user_prompt),
+        call().add_audio(b'chunk1', 'mp3'),
+        call().add_audio(b'chunk2', 'mp3'),
+        call().chat(True),
+    ]
+    assert audio2texter.mock_calls == calls
+    reset_mocks()
 
 
-@patch.object(OpenaiChat, "single_conversation")
+@patch.object(Helper, "chatter")
 @patch.object(AudioInterpreter, 'instruction_constraints')
 @patch.object(AudioInterpreter, 'json_schema')
 @patch.object(AudioInterpreter, 'instruction_definitions')
@@ -289,7 +327,7 @@ def test_detect_instructions(
         instruction_definitions,
         json_schema,
         instruction_constraints,
-        single_conversation,
+        chatter,
 ):
     mocks = [
         MagicMock(),
@@ -302,7 +340,7 @@ def test_detect_instructions(
         instruction_definitions.reset_mock()
         json_schema.reset_mock()
         instruction_constraints.reset_mock()
-        single_conversation.reset_mock()
+        chatter.reset_mock()
         for mock in mocks:
             mock.reset_mock()
         mocks[0].return_value.class_name.side_effect = ["First"]
@@ -461,7 +499,7 @@ def test_detect_instructions(
     instruction_definitions.side_effect = ["theInstructionDefinition"]
     json_schema.side_effect = ["theJsonSchema"]
     instruction_constraints.side_effect = [["theConstraint1", "theConstraint2"]]
-    single_conversation.side_effect = [["response1"], ["response2"]]
+    chatter.return_value.single_conversation.side_effect = [["response1"], ["response2"]]
     result = tested.detect_instructions(discussion, [])
     expected = ["response2"]
     assert result == expected
@@ -472,10 +510,12 @@ def test_detect_instructions(
     calls = [call()]
     assert instruction_constraints.mock_calls == calls
     calls = [
-        call('openaiKey', system_prompts["updatesOk"], user_prompts["noKnownInstructions"]),
-        call('openaiKey', system_prompts["updatesOk"], user_prompts["constraints"]),
+        call(tested.settings),
+        call().single_conversation(system_prompts["updatesOk"], user_prompts["noKnownInstructions"]),
+        call(tested.settings),
+        call().single_conversation(system_prompts["updatesOk"], user_prompts["constraints"]),
     ]
-    assert single_conversation.mock_calls == calls
+    assert chatter.mock_calls == calls
     for idx, mock in enumerate(mocks):
         calls = [
             call(tested.settings, 'patientUuid', 'noteUuid', 'providerUuid'),
@@ -490,7 +530,7 @@ def test_detect_instructions(
     instruction_definitions.side_effect = ["theInstructionDefinition"]
     json_schema.side_effect = ["theJsonSchema"]
     instruction_constraints.side_effect = [[]]
-    single_conversation.side_effect = [["response1"], ["response2"]]
+    chatter.return_value.single_conversation.side_effect = [["response1"], ["response2"]]
     result = tested.detect_instructions(discussion, [])
     expected = ["response1"]
     assert result == expected
@@ -501,9 +541,10 @@ def test_detect_instructions(
     calls = [call()]
     assert instruction_constraints.mock_calls == calls
     calls = [
-        call('openaiKey', system_prompts["updatesOk"], user_prompts["noKnownInstructions"]),
+        call(tested.settings),
+        call().single_conversation(system_prompts["updatesOk"], user_prompts["noKnownInstructions"]),
     ]
-    assert single_conversation.mock_calls == calls
+    assert chatter.mock_calls == calls
     for idx, mock in enumerate(mocks):
         calls = []
         if idx != 2:
@@ -515,7 +556,7 @@ def test_detect_instructions(
     instruction_definitions.side_effect = ["theInstructionDefinition"]
     json_schema.side_effect = ["theJsonSchema"]
     instruction_constraints.side_effect = [["theConstraint1", "theConstraint2"]]
-    single_conversation.side_effect = [["response1"], ["response2"]]
+    chatter.return_value.single_conversation.side_effect = [["response1"], ["response2"]]
     result = tested.detect_instructions(discussion, known_instructions)
     expected = ["response2"]
     assert result == expected
@@ -526,10 +567,12 @@ def test_detect_instructions(
     calls = [call()]
     assert instruction_constraints.mock_calls == calls
     calls = [
-        call('openaiKey', system_prompts["updatesOk"], user_prompts["withKnownInstructions"]),
-        call('openaiKey', system_prompts["updatesOk"], user_prompts["constraints"]),
+        call(tested.settings),
+        call().single_conversation(system_prompts["updatesOk"], user_prompts["withKnownInstructions"]),
+        call(tested.settings),
+        call().single_conversation(system_prompts["updatesOk"], user_prompts["constraints"]),
     ]
-    assert single_conversation.mock_calls == calls
+    assert chatter.mock_calls == calls
     for idx, mock in enumerate(mocks):
         calls = []
         if idx != 2:
@@ -543,7 +586,7 @@ def test_detect_instructions(
     instruction_definitions.side_effect = ["theInstructionDefinition"]
     json_schema.side_effect = ["theJsonSchema"]
     instruction_constraints.side_effect = [["theConstraint1", "theConstraint2"]]
-    single_conversation.side_effect = [["response1"], ["response2"]]
+    chatter.return_value.single_conversation.side_effect = [["response1"], ["response2"]]
     result = tested.detect_instructions(discussion, [])
     expected = ["response2"]
     assert result == expected
@@ -554,10 +597,12 @@ def test_detect_instructions(
     calls = [call()]
     assert instruction_constraints.mock_calls == calls
     calls = [
-        call('openaiKey', system_prompts["updatesNo"], user_prompts["noKnownInstructions"]),
-        call('openaiKey', system_prompts["updatesNo"], user_prompts["constraints"]),
+        call(tested.settings),
+        call().single_conversation(system_prompts["updatesNo"], user_prompts["noKnownInstructions"]),
+        call(tested.settings),
+        call().single_conversation(system_prompts["updatesNo"], user_prompts["constraints"]),
     ]
-    assert single_conversation.mock_calls == calls
+    assert chatter.mock_calls == calls
     for idx, mock in enumerate(mocks):
         calls = [
             call(tested.settings, 'patientUuid', 'noteUuid', 'providerUuid'),
@@ -572,7 +617,7 @@ def test_detect_instructions(
     instruction_definitions.side_effect = ["theInstructionDefinition"]
     json_schema.side_effect = ["theJsonSchema"]
     instruction_constraints.side_effect = [["theConstraint1", "theConstraint2"]]
-    single_conversation.side_effect = [["response1"], ["response2"]]
+    chatter.return_value.single_conversation.side_effect = [["response1"], ["response2"]]
     result = tested.detect_instructions(discussion, known_instructions)
     expected = ["response2"]
     assert result == expected
@@ -583,10 +628,12 @@ def test_detect_instructions(
     calls = [call()]
     assert instruction_constraints.mock_calls == calls
     calls = [
-        call('openaiKey', system_prompts["updatesNo"], user_prompts["withKnownInstructionsNoUpdate"]),
-        call('openaiKey', system_prompts["updatesNo"], user_prompts["constraints"]),
+        call(tested.settings),
+        call().single_conversation(system_prompts["updatesNo"], user_prompts["withKnownInstructionsNoUpdate"]),
+        call(tested.settings),
+        call().single_conversation(system_prompts["updatesNo"], user_prompts["constraints"]),
     ]
-    assert single_conversation.mock_calls == calls
+    assert chatter.mock_calls == calls
     for idx, mock in enumerate(mocks):
         calls = []
         if idx != 2:
@@ -596,8 +643,8 @@ def test_detect_instructions(
 
 
 @patch("commander.protocols.audio_interpreter.datetime", wraps=datetime)
-@patch.object(OpenaiChat, "single_conversation")
-def test_create_sdk_command_parameters(single_conversation, mock_datetime):
+@patch.object(Helper, "chatter")
+def test_create_sdk_command_parameters(chatter, mock_datetime):
     mocks = [
         MagicMock(),
         MagicMock(),
@@ -606,7 +653,7 @@ def test_create_sdk_command_parameters(single_conversation, mock_datetime):
     ]
 
     def reset_mocks():
-        single_conversation.reset_mock()
+        chatter.reset_mock()
         mock_datetime.reset_mock()
         for mock in mocks:
             mock.reset_mock()
@@ -647,12 +694,15 @@ def test_create_sdk_command_parameters(single_conversation, mock_datetime):
     tested = helper_instance(mocks, True)
     # with response
     mock_datetime.now.side_effect = [datetime(2025, 2, 4, 7, 48, 21, tzinfo=timezone.utc)]
-    single_conversation.side_effect = [["response1", "response2"]]
+    chatter.return_value.single_conversation.side_effect = [["response1", "response2"]]
     result = tested.create_sdk_command_parameters(instruction)
     expected = instruction, "response1"
     assert result == expected
-    calls = [call('openaiKey', system_prompt, user_prompt)]
-    assert single_conversation.mock_calls == calls
+    calls = [
+        call(tested.settings),
+        call().single_conversation(system_prompt, user_prompt),
+    ]
+    assert chatter.mock_calls == calls
     calls = [call.now()]
     assert mock_datetime.mock_calls == calls
     for idx, mock in enumerate(mocks):
@@ -670,12 +720,15 @@ def test_create_sdk_command_parameters(single_conversation, mock_datetime):
     reset_mocks()
     # without response
     mock_datetime.now.side_effect = [datetime(2025, 2, 4, 7, 48, 21, tzinfo=timezone.utc)]
-    single_conversation.side_effect = [[]]
+    chatter.return_value.single_conversation.side_effect = [[]]
     result = tested.create_sdk_command_parameters(instruction)
     expected = instruction, None
     assert result == expected
-    calls = [call('openaiKey', system_prompt, user_prompt)]
-    assert single_conversation.mock_calls == calls
+    calls = [
+        call(tested.settings),
+        call().single_conversation(system_prompt, user_prompt),
+    ]
+    assert chatter.mock_calls == calls
     calls = [call.now()]
     assert mock_datetime.mock_calls == calls
     for idx, mock in enumerate(mocks):

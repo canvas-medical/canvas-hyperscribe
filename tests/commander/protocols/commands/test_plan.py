@@ -3,11 +3,13 @@ from canvas_sdk.commands.commands.plan import PlanCommand
 from commander.protocols.commands.base import Base
 from commander.protocols.commands.plan import Plan
 from commander.protocols.structures.settings import Settings
+from commander.protocols.structures.vendor_key import VendorKey
 
 
 def helper_instance() -> Plan:
     settings = Settings(
-        openai_key="openaiKey",
+        llm_text=VendorKey(vendor="textVendor", api_key="textKey"),
+        llm_audio=VendorKey(vendor="audioVendor", api_key="audioKey"),
         science_host="scienceHost",
         ontologies_host="ontologiesHost",
         pre_shared_key="preSharedKey",

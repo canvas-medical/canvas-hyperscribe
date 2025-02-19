@@ -1,29 +1,20 @@
 from __future__ import annotations
 
 import json
-import re
 from base64 import b64encode
 from http import HTTPStatus
 
 from logger import log
 from requests import post as requests_post
 
-from commander.protocols.constants import Constants
+from commander.protocols.llms.llm_base import LlmBase
 from commander.protocols.structures.http_response import HttpResponse
 from commander.protocols.structures.json_extract import JsonExtract
 
 
-class OpenaiChat:
+class LlmOpenai(LlmBase):
     ROLE_SYSTEM = "system"
     ROLE_USER = "user"
-
-    def __init__(self, openai_key: str, model: str):
-        self.openai_key = openai_key
-        self.model = model
-        self.temperature = 0.0
-        self.system_prompt: list[str] = []
-        self.user_prompt: list[str] = []
-        self.audios: list[dict] = []
 
     def add_audio(self, audio: bytes, audio_format: str) -> None:
         if audio:
@@ -56,7 +47,7 @@ class OpenaiChat:
     def post(self, url: str, params: dict, data: str, timeout: int | None = None) -> HttpResponse:
         headers = {
             "Content-Type": "application/json",
-            "Authorization": f"Bearer {self.openai_key}",
+            "Authorization": f"Bearer {self.api_key}",
             "OpenAI-Beta": "assistants=v2",
         }
         request = requests_post(
@@ -90,44 +81,6 @@ class OpenaiChat:
             log.info("***********")
         return JsonExtract(f"the reported error is: {response.code}", True, [])
 
-    @classmethod
-    def chat_instance(cls, openai_key: str) -> OpenaiChat:
-        return cls(openai_key, Constants.OPENAI_CHAT_TEXT)
-
-    @classmethod
-    def single_conversation(cls, openai_key: str, system_prompt: list[str], user_prompt: list[str]) -> list:
-        conversation = cls.chat_instance(openai_key)
-        conversation.system_prompt = system_prompt
-        conversation.user_prompt = user_prompt
-        response = conversation.chat()
-        if response.has_error is False and response.content:
-            return response.content
-        return []
-
-    @classmethod
-    def extract_json_from(cls, content: str, schemas: list | None = None) -> JsonExtract:
-        # print("-------------------------------------------------")
-        # print(content)
-        # print("-------------------------------------------------")
-        result: list = []
-        pattern_json = re.compile(r"```json\s*\n(.*?)\n\s*```", re.DOTALL | re.IGNORECASE)
-        for embedded in pattern_json.finditer(content):
-            try:
-                result.append(json.loads(embedded.group(1)))
-            except Exception as e:
-                log.info(e)
-                log.info("---->")
-                log.info(embedded)
-                log.info("<----")
-                return JsonExtract(error=str(e), has_error=True, content=[])
-
-        if not result:
-            return JsonExtract(error="No JSON markdown found", has_error=True, content=[])
-
-        if len(result) == 1:
-            return JsonExtract(error="", has_error=False, content=result[0])
-        return JsonExtract(error="", has_error=False, content=result)
-
     def audio_to_text(self, audio: bytes) -> HttpResponse:
         default_model = "whisper-1"
         language = "en"
@@ -145,7 +98,7 @@ class OpenaiChat:
 
         headers = {
             # "Content-Type": "multipart/form-data",
-            "Authorization": f"Bearer {self.openai_key}",
+            "Authorization": f"Bearer {self.api_key}",
         }
         files = {"file": ("audio.mp3", audio, "application/octet-stream")}
         request = requests_post(

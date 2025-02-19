@@ -5,7 +5,6 @@ from canvas_sdk.commands.commands.allergy import AllergyCommand, Allergen, Aller
 from commander.protocols.canvas_science import CanvasScience
 from commander.protocols.commands.base import Base
 from commander.protocols.helper import Helper
-from commander.protocols.openai_chat import OpenaiChat
 
 
 class Allergy(Base):
@@ -63,7 +62,7 @@ class Allergy(Base):
                 '```',
                 '',
             ]
-            if response := OpenaiChat.single_conversation(self.settings.openai_key, system_prompt, user_prompt):
+            if response := Helper.chatter(self.settings).single_conversation(system_prompt, user_prompt):
                 concept_id = int(response[0]["conceptId"])
                 allergy = [
                     allergy
