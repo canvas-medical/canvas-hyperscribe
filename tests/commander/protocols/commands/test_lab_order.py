@@ -77,7 +77,7 @@ def test_command_from_json(condition_from, lab_test_from, lab_partner_db):
             ),
         ),
         (
-            LabPartner(id="uuidLab"),
+            LabPartner(id="uuidLab", name="theLabPartner"),
             LabOrderCommand(
                 lab_partner="uuidLab",
                 ordering_provider_key="providerUuid",
@@ -121,9 +121,9 @@ def test_command_from_json(condition_from, lab_test_from, lab_partner_db):
         calls = []
         if lab_partner is not None:
             calls = [
-                call(tested.settings, 'uuidLab', ['lab1', 'lab2'], comment, ['condition1', 'condition4']),
-                call(tested.settings, 'uuidLab', ['lab3'], comment, ['condition1', 'condition4']),
-                call(tested.settings, 'uuidLab', ['lab4'], comment, ['condition1', 'condition4']),
+                call(tested.settings, 'theLabPartner', ['lab1', 'lab2'], comment, ['condition1', 'condition4']),
+                call(tested.settings, 'theLabPartner', ['lab3'], comment, ['condition1', 'condition4']),
+                call(tested.settings, 'theLabPartner', ['lab4'], comment, ['condition1', 'condition4']),
             ]
         assert lab_test_from.mock_calls == calls
         calls = [call.filter(name='Generic Lab'), call.filter().first()]

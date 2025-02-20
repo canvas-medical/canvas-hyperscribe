@@ -10,6 +10,7 @@ from commander.protocols.commands.base import Base
 from commander.protocols.commands.close_goal import CloseGoal
 from commander.protocols.commands.diagnose import Diagnose
 from commander.protocols.commands.family_history import FamilyHistory
+from commander.protocols.commands.follow_up import FollowUp
 from commander.protocols.commands.goal import Goal
 from commander.protocols.commands.history_of_present_illness import HistoryOfPresentIllness
 from commander.protocols.commands.immunize import Immunize
@@ -300,6 +301,7 @@ class AudioInterpreter:
             CloseGoal,
             Diagnose,
             FamilyHistory,
+            FollowUp,
             Goal,
             HistoryOfPresentIllness,
             Immunize,

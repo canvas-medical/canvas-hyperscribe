@@ -1,9 +1,9 @@
 from datetime import date
 
 from canvas_sdk.commands.base import _BaseCommand
-from canvas_sdk.v1.data import Condition, Questionnaire, Command, Patient, Observation
-from canvas_sdk.v1.data import Medication
-from canvas_sdk.v1.data.allergy_intolerance import AllergyIntolerance
+from canvas_sdk.v1.data import (
+    AllergyIntolerance, Condition, Questionnaire, Command,
+    Patient, Observation, NoteType, Medication)
 from canvas_sdk.v1.data.condition import ClinicalStatus
 from canvas_sdk.v1.data.medication import Status
 from canvas_sdk.v1.data.patient import SexAtBirth
@@ -27,6 +27,7 @@ class Base:
         self._family_history: list | None = None
         self._goals: list | None = None
         self._medications: list | None = None
+        self._note_type: list | None = None
         self._questionnaires: list | None = None
         self._surgery_history: list | None = None
 
@@ -160,6 +161,18 @@ class Base:
                     code="",
                 ))
         return self._questionnaires
+
+    def existing_note_types(self) -> list[CodedItem]:
+        if self._note_type is None:
+            self._note_type = []
+            note_types = NoteType.objects.filter(is_active=True, is_visible=True, is_scheduleable=True).order_by('-dbid')
+            for note_type in note_types:
+                self._note_type.append(CodedItem(
+                    uuid=str(note_type.id),
+                    label=note_type.name,
+                    code=note_type.code,
+                ))
+        return self._note_type
 
     # def patient_birth_date(self) -> date:
     #     if not Constants.HAS_DATABASE_ACCESS:

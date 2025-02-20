@@ -17,6 +17,8 @@ class LabOrder(Base):
             fasting_required=parameters["fastingRequired"],
             comment=parameters["comment"][:127],  # <-- no more than 128 characters
             note_uuid=self.note_uuid,
+            diagnosis_codes=[],
+            tests_order_codes=[],
         )
         # retrieve the linked conditions
         conditions = []
@@ -39,7 +41,7 @@ class LabOrder(Base):
             for lab_order in parameters["labOrders"]:
                 item = SelectorChat.lab_test_from(
                     self.settings,
-                    result.lab_partner,
+                    lab_partner.name,
                     lab_order["labOrderKeyword"].split(","),
                     parameters["comment"],
                     [c.label for c in conditions],
