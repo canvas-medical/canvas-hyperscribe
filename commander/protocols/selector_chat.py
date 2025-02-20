@@ -2,13 +2,13 @@ import json
 from functools import reduce
 from operator import and_
 
+from canvas_sdk.v1.data.lab import LabPartnerTest
 from django.db.models import Q
 
 from commander.protocols.canvas_science import CanvasScience
 from commander.protocols.helper import Helper
 from commander.protocols.structures.coded_item import CodedItem
 from commander.protocols.structures.settings import Settings
-from commander.protocols.temporary_data import DataLabTestView
 
 
 class SelectorChat:
@@ -57,7 +57,7 @@ class SelectorChat:
         for expression in expressions:
             # expression can have several words: look for records that have all of them, regardless of their order
             keywords = expression.strip().split()
-            query = DataLabTestView.objects.filter(lab__name=lab_partner).filter(reduce(and_, (Q(keywords__icontains=kw) for kw in keywords)))
+            query = LabPartnerTest.objects.filter(lab_partner__name=lab_partner).filter(reduce(and_, (Q(keywords__icontains=kw) for kw in keywords)))
             for test in query:
                 lab_tests.append(test)
 

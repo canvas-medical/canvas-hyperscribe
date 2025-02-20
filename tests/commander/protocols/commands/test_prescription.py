@@ -347,14 +347,15 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
         }
         result = tested.command_from_json(parameters)
         expected = PrescribeCommand(
-            icd10_codes=condition_icd10,
             sig="theSig",
             days_supply=11,
             substitutions=PrescribeCommand.Substitutions.NOT_ALLOWED,
             prescriber_id="providerUuid",
             note_uuid="noteUuid",
         )
-        assert result == expected
+        if condition_icd10:
+            expected.icd10_codes = condition_icd10
+        assert result == expected, f"----> {idx}"
         assert current_conditions.mock_calls == condition_calls
         calls = [call("theComment", keywords, condition_label)]
         assert medications_from.mock_calls == calls

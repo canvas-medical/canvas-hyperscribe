@@ -254,7 +254,6 @@ def test_command_from_json(select_staff, select_labels):
             title="theTitle",
             due_date=date(2025, 2, 4),
             comment="theComment",
-            assign_to=None,
             labels=side_effect_labels,
             note_uuid="noteUuid",
         )
@@ -280,7 +279,6 @@ def test_command_from_json(select_staff, select_labels):
             due_date=date(2025, 2, 4),
             comment="theComment",
             assign_to=side_effect_staff,
-            labels=None,
             note_uuid="noteUuid",
         )
         assert result == expected

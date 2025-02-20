@@ -1,5 +1,6 @@
 from unittest.mock import patch, call
 
+from canvas_sdk.v1.data.lab import LabPartnerTest
 from django.db.models import Q
 
 from commander.protocols.canvas_science import CanvasScience
@@ -9,7 +10,6 @@ from commander.protocols.structures.coded_item import CodedItem
 from commander.protocols.structures.icd10_condition import Icd10Condition
 from commander.protocols.structures.settings import Settings
 from commander.protocols.structures.vendor_key import VendorKey
-from commander.protocols.temporary_data import DataLabTestView
 
 
 @patch.object(Helper, "chatter")
@@ -106,7 +106,7 @@ def test_condition_from(search_conditions, chatter):
 
 
 @patch.object(Helper, "chatter")
-@patch.object(DataLabTestView, "objects")
+@patch.object(LabPartnerTest, "objects")
 def test_lab_test_from(lab_test_db, chatter):
     def reset_mocks():
         lab_test_db.reset_mock()
@@ -181,9 +181,9 @@ def test_lab_test_from(lab_test_db, chatter):
         ],
     ]
     lab_tests = [
-        DataLabTestView(order_code="code123", order_name="labelA"),
-        DataLabTestView(order_code="code369", order_name="labelB"),
-        DataLabTestView(order_code="code752", order_name="labelC"),
+        LabPartnerTest(order_code="code123", order_name="labelA"),
+        LabPartnerTest(order_code="code369", order_name="labelB"),
+        LabPartnerTest(order_code="code752", order_name="labelC"),
     ]
     expressions = [
         "word1 word2 word3",
@@ -200,9 +200,9 @@ def test_lab_test_from(lab_test_db, chatter):
     expected = CodedItem(label="theLabTest", code="CODE9876", uuid="")
     assert result == expected
     calls = [
-        call.filter(lab__name='theLabPartner'),
+        call.filter(lab_partner__name='theLabPartner'),
         call.filter().filter(Q(('keywords__icontains', 'word1'), ('keywords__icontains', 'word2'), ('keywords__icontains', 'word3'))),
-        call.filter(lab__name='theLabPartner'),
+        call.filter(lab_partner__name='theLabPartner'),
         call.filter().filter(Q(('keywords__icontains', 'word4'))),
     ]
     assert lab_test_db.mock_calls == calls
@@ -220,9 +220,9 @@ def test_lab_test_from(lab_test_db, chatter):
     expected = CodedItem(label="theLabTest", code="CODE9876", uuid="")
     assert result == expected
     calls = [
-        call.filter(lab__name='theLabPartner'),
+        call.filter(lab_partner__name='theLabPartner'),
         call.filter().filter(Q(('keywords__icontains', 'word1'), ('keywords__icontains', 'word2'), ('keywords__icontains', 'word3'))),
-        call.filter(lab__name='theLabPartner'),
+        call.filter(lab_partner__name='theLabPartner'),
         call.filter().filter(Q(('keywords__icontains', 'word4'))),
     ]
     assert lab_test_db.mock_calls == calls
@@ -241,9 +241,9 @@ def test_lab_test_from(lab_test_db, chatter):
     expected = CodedItem(label="", code="", uuid="")
     assert result == expected
     calls = [
-        call.filter(lab__name='theLabPartner'),
+        call.filter(lab_partner__name='theLabPartner'),
         call.filter().filter(Q(('keywords__icontains', 'word1'), ('keywords__icontains', 'word2'), ('keywords__icontains', 'word3'))),
-        call.filter(lab__name='theLabPartner'),
+        call.filter(lab_partner__name='theLabPartner'),
         call.filter().filter(Q(('keywords__icontains', 'word4'))),
     ]
     assert lab_test_db.mock_calls == calls
@@ -262,9 +262,9 @@ def test_lab_test_from(lab_test_db, chatter):
     expected = CodedItem(label="", code="", uuid="")
     assert result == expected
     calls = [
-        call.filter(lab__name='theLabPartner'),
+        call.filter(lab_partner__name='theLabPartner'),
         call.filter().filter(Q(('keywords__icontains', 'word1'), ('keywords__icontains', 'word2'), ('keywords__icontains', 'word3'))),
-        call.filter(lab__name='theLabPartner'),
+        call.filter(lab_partner__name='theLabPartner'),
         call.filter().filter(Q(('keywords__icontains', 'word4'))),
     ]
     assert lab_test_db.mock_calls == calls

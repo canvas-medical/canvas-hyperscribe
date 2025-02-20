@@ -109,7 +109,6 @@ def test_command_from_json(surgical_histories, chatter):
     result = tested.command_from_json(parameters)
     expected = PastSurgicalHistoryCommand(
         approximate_date=date(2017, 5, 21),
-        past_surgical_history=None,
         comment="theComment",
         note_uuid="noteUuid",
     )
@@ -130,7 +129,6 @@ def test_command_from_json(surgical_histories, chatter):
     result = tested.command_from_json(parameters)
     expected = PastSurgicalHistoryCommand(
         approximate_date=date(2017, 5, 21),
-        past_surgical_history=None,
         comment="theComment",
         note_uuid="noteUuid",
     )

@@ -1,8 +1,8 @@
 from canvas_sdk.commands.commands.lab_order import LabOrderCommand
+from canvas_sdk.v1.data.lab import LabPartner
 
 from commander.protocols.commands.base import Base
 from commander.protocols.selector_chat import SelectorChat
-from commander.protocols.temporary_data import TemporaryData
 
 
 class LabOrder(Base):
@@ -13,13 +13,11 @@ class LabOrder(Base):
 
     def command_from_json(self, parameters: dict) -> None | LabOrderCommand:
         result = LabOrderCommand(
-            lab_partner="Generic Lab",  # ATTENTION: We need to determine the lab vendor in a smarter, dynamic way
             ordering_provider_key=self.provider_uuid,
             fasting_required=parameters["fastingRequired"],
             comment=parameters["comment"][:127],  # <-- no more than 128 characters
             note_uuid=self.note_uuid,
         )
-
         # retrieve the linked conditions
         conditions = []
         for condition in parameters["conditions"]:
@@ -33,17 +31,21 @@ class LabOrder(Base):
                 conditions.append(item)
                 result.diagnosis_codes.append(item.code)
 
-        # retrieve the tests based on the keywords
-        for lab_order in parameters["labOrders"]:
-            item = SelectorChat.lab_test_from(
-                self.settings,
-                result.lab_partner,
-                lab_order["labOrderKeyword"].split(","),
-                parameters["comment"],
-                [c.label for c in conditions],
-            )
-            if item.code:
-                result.tests_order_codes.append(item.code)
+        # ATTENTION: We need to determine the lab vendor in a smarter, dynamic way
+        lab_partner = LabPartner.objects.filter(name="Generic Lab").first()
+        if lab_partner is not None:
+            result.lab_partner = str(lab_partner.id)
+            # retrieve the tests based on the keywords
+            for lab_order in parameters["labOrders"]:
+                item = SelectorChat.lab_test_from(
+                    self.settings,
+                    result.lab_partner,
+                    lab_order["labOrderKeyword"].split(","),
+                    parameters["comment"],
+                    [c.label for c in conditions],
+                )
+                if item.code:
+                    result.tests_order_codes.append(item.code)
 
         return result
 
@@ -74,4 +76,4 @@ class LabOrder(Base):
         return ""
 
     def is_available(self) -> bool:
-        return TemporaryData.access_to_lab_data()
+        return True

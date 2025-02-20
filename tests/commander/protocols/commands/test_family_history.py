@@ -108,7 +108,6 @@ def test_command_from_json(family_histories, chatter):
     expected = FamilyHistoryCommand(
         relative="sibling",
         note="theNote",
-        family_history=None,
         note_uuid="noteUuid",
     )
     assert result == expected
@@ -129,7 +128,6 @@ def test_command_from_json(family_histories, chatter):
     expected = FamilyHistoryCommand(
         relative="sibling",
         note="theNote",
-        family_history=None,
         note_uuid="noteUuid",
     )
     assert result == expected

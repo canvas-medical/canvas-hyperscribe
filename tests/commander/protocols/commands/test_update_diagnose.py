@@ -109,10 +109,11 @@ def test_command_from_json(current_conditions, search_conditions, chatter):
             background="theRationale",
             narrative="theAssessment",
             note_uuid="noteUuid",
-            condition_code=exp_current_icd10,
             new_condition_code='code369',
         )
-        assert result == expected
+        if exp_current_icd10:
+            expected.condition_code = exp_current_icd10
+        assert result == expected, f"---> {idx}"
         calls = [call()]
         assert current_conditions.mock_calls == calls
         calls = [call('scienceHost', keywords)]
@@ -134,10 +135,10 @@ def test_command_from_json(current_conditions, search_conditions, chatter):
             background="theRationale",
             narrative="theAssessment",
             note_uuid="noteUuid",
-            condition_code=exp_current_icd10,
-            new_condition_code=None,
         )
-        assert result == expected
+        if exp_current_icd10:
+            expected.condition_code = exp_current_icd10
+        assert result == expected, f"---> {idx}"
         calls = [call()]
         assert current_conditions.mock_calls == calls
         calls = [call('scienceHost', keywords)]
@@ -155,10 +156,10 @@ def test_command_from_json(current_conditions, search_conditions, chatter):
             background="theRationale",
             narrative="theAssessment",
             note_uuid="noteUuid",
-            condition_code=exp_current_icd10,
-            new_condition_code=None,
         )
-        assert result == expected
+        if exp_current_icd10:
+            expected.condition_code = exp_current_icd10
+        assert result == expected, f"---> {idx}"
         calls = [call()]
         assert current_conditions.mock_calls == calls
         calls = [call('scienceHost', keywords)]

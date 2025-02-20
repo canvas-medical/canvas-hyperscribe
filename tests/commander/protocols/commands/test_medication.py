@@ -106,7 +106,6 @@ def test_command_from_json(medication_details, chatter):
     result = tested.command_from_json(parameters)
     expected = MedicationStatementCommand(
         sig="theSig",
-        fdb_code=None,
         note_uuid="noteUuid",
     )
     assert result == expected
@@ -126,7 +125,6 @@ def test_command_from_json(medication_details, chatter):
     result = tested.command_from_json(parameters)
     expected = MedicationStatementCommand(
         sig="theSig",
-        fdb_code=None,
         note_uuid="noteUuid",
     )
     assert result == expected

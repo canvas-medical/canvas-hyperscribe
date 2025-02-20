@@ -144,7 +144,6 @@ def test_command_from_json(search_allergy, chatter):
             severity=AllergyCommand.Severity.MODERATE,
             narrative="theReaction",
             approximate_date=date(2025, 2, 4),
-            allergy=None,
             note_uuid="noteUuid",
         )
         assert result == expected
@@ -171,7 +170,6 @@ def test_command_from_json(search_allergy, chatter):
             severity=AllergyCommand.Severity.MODERATE,
             narrative="theReaction",
             approximate_date=date(2025, 2, 4),
-            allergy=None,
             note_uuid="noteUuid",
         )
         assert result == expected

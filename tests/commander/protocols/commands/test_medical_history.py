@@ -115,7 +115,6 @@ def test_command_from_json(medical_histories, chatter):
         approximate_end_date=date(2021, 7, 19),
         show_on_condition_list=True,
         comments="theComment",
-        past_medical_history=None,
         note_uuid="noteUuid",
     )
     assert result == expected
@@ -138,7 +137,6 @@ def test_command_from_json(medical_histories, chatter):
         approximate_end_date=date(2021, 7, 19),
         show_on_condition_list=True,
         comments="theComment",
-        past_medical_history=None,
         note_uuid="noteUuid",
     )
     assert result == expected
