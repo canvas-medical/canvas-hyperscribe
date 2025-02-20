@@ -3,8 +3,8 @@ from unittest.mock import patch, call
 
 from canvas_sdk.commands.commands.follow_up import FollowUpCommand
 
-from commander.protocols.commands.follow_up import FollowUp
 from commander.protocols.commands.base import Base
+from commander.protocols.commands.follow_up import FollowUp
 from commander.protocols.structures.coded_item import CodedItem
 from commander.protocols.structures.settings import Settings
 from commander.protocols.structures.vendor_key import VendorKey
