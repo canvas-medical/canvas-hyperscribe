@@ -95,7 +95,7 @@ class AudioInterpreter:
             "```json",
             json.dumps([
                 {
-                    "voice": "voice1/voice2/...",
+                    "voice": "voice_X/voice_Y/.../voice_N",
                     "text": "the verbatim transcription of what the speaker said",
                 }
             ], indent=1),
@@ -108,7 +108,7 @@ class AudioInterpreter:
             json.dumps([
                 {
                     "speaker": "Patient/Clinician/Nurse/...",
-                    "voice": "voice1/voice2/...",
+                    "voice": "voice_A/voice_B/.../voice_N",
                 }
             ], indent=1),
             "```",
