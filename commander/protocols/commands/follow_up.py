@@ -35,11 +35,9 @@ class FollowUp(Base):
         }
 
     def instruction_description(self) -> str:
-        result = "Any follow up encounter, either virtually or in person."
-        if self.settings.allow_update:
-            result += (" There can be only one such instruction in the whole discussion, "
-                       "so if one was already found, just update it by intelligently merging all key information.")
-        return result
+        return ("Any follow up encounter, either virtually or in person. "
+                "There can be only one such instruction in the whole discussion, "
+                "so if one was already found, just update it by intelligently merging all key information.")
 
     def instruction_constraints(self) -> str:
         return ""

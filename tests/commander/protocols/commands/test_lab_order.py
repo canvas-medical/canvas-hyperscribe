@@ -18,7 +18,6 @@ def helper_instance() -> LabOrder:
         science_host="scienceHost",
         ontologies_host="ontologiesHost",
         pre_shared_key="preSharedKey",
-        allow_update=True,
     )
     return LabOrder(settings, "patientUuid", "noteUuid", "providerUuid")
 

@@ -150,12 +150,9 @@ class AudioInterpreter:
             "uuid": "a unique identifier in this discussion",
             "instruction": "the instruction",
             "information": "any information related to the instruction",
+            "isNew": "the instruction is new for the discussion, as boolean",
+            "isUpdated": "the instruction is an update of one already identified in the discussion, as boolean",
         }
-        if self.settings.allow_update:
-            example |= {
-                "isNew": "the instruction is new for the discussion, as boolean",
-                "isUpdated": "the instruction is an update of one already identified in the discussion, as boolean",
-            }
 
         system_prompt = [
             "The conversation is in the medical context.",
@@ -173,7 +170,7 @@ class AudioInterpreter:
             "",
             "The JSON will be validated with the schema:",
             "```json",
-            json.dumps(self.json_schema([instance.class_name() for instance in self._command_context], self.settings.allow_update)),
+            json.dumps(self.json_schema([instance.class_name() for instance in self._command_context])),
             "```",
             "",
         ]
@@ -187,7 +184,7 @@ class AudioInterpreter:
             "",
         ]
         if known_instructions:
-            content = json.dumps([instruction.to_json(self.settings.allow_update) for instruction in known_instructions], indent=1)
+            content = json.dumps([instruction.to_json() for instruction in known_instructions], indent=1)
             user_prompt.extend([
                 "From previous parts of the transcript, the following instructions were identified",
                 "```json",
@@ -252,7 +249,7 @@ class AudioInterpreter:
         return None
 
     @classmethod
-    def json_schema(cls, commands: list[str], allow_update: bool) -> dict:
+    def json_schema(cls, commands: list[str]) -> dict:
         properties = {
             "uuid": {
                 "type": "string",
@@ -266,22 +263,16 @@ class AudioInterpreter:
                 "type": "string",
                 "description": "all relevant information extracted from the discussion explaining and/or defining the instruction",
             },
+            "isNew": {
+                "type": "boolean",
+                "description": "the instruction is new to the discussion",
+            },
+            "isUpdated": {
+                "type": "boolean",
+                "description": "the instruction is an update of an instruction previously identified in the discussion",
+            },
         }
-        required = ["uuid", "instruction", "information"]
-
-        if allow_update:
-            properties |= {
-                "isNew": {
-                    "type": "boolean",
-                    "description": "the instruction is new to the discussion",
-                },
-                "isUpdated": {
-                    "type": "boolean",
-                    "description": "the instruction is an update of an instruction previously identified in the discussion",
-                },
-            }
-            required.extend(["isNew", "isUpdated"])
-
+        required = ["uuid", "instruction", "information", "isNew", "isUpdated"]
         return {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "type": "array",

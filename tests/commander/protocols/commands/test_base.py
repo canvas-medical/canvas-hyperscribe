@@ -19,7 +19,6 @@ def helper_instance() -> Base:
         science_host="scienceHost",
         ontologies_host="ontologiesHost",
         pre_shared_key="preSharedKey",
-        allow_update=True,
     )
     return Base(settings, "patientUuid", "noteUuid", "providerUuid")
 
@@ -31,7 +30,6 @@ def test___init__():
         science_host="scienceHost",
         ontologies_host="ontologiesHost",
         pre_shared_key="preSharedKey",
-        allow_update=True,
     )
     tested = Base(settings, "patientUuid", "noteUuid", "providerUuid")
     assert tested.settings == settings

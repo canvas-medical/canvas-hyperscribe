@@ -20,12 +20,10 @@ class HistoryOfPresentIllness(Base):
         }
 
     def instruction_description(self) -> str:
-        result = ("Provider's reported key highlights of the visit. "
-                  "There can be multiple highlights within an instruction.")
-        if self.settings.allow_update:
-            result += (" There can be only one such instruction in the whole discussion, "
-                       "so if one was already found, just update it by intelligently merging all key highlights.")
-        return result
+        return ("Provider's reported key highlights of the visit. "
+                "There can be multiple highlights within an instruction. "
+                "There can be only one such instruction in the whole discussion, "
+                "so if one was already found, just update it by intelligently merging all key highlights.")
 
     def instruction_constraints(self) -> str:
         return ""

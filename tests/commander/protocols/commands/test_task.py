@@ -18,7 +18,6 @@ def helper_instance() -> Task:
         science_host="scienceHost",
         ontologies_host="ontologiesHost",
         pre_shared_key="preSharedKey",
-        allow_update=True,
     )
     return Task(settings, "patientUuid", "noteUuid", "providerUuid")
 

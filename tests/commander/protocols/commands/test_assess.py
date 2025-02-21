@@ -16,7 +16,6 @@ def helper_instance() -> Assess:
         science_host="scienceHost",
         ontologies_host="ontologiesHost",
         pre_shared_key="preSharedKey",
-        allow_update=True,
     )
     return Assess(settings, "patientUuid", "noteUuid", "providerUuid")
 

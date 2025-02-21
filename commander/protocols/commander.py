@@ -74,7 +74,6 @@ class Commander(BaseProtocol):
     SECRET_SCIENCE_HOST = "ScienceHost"
     SECRET_ONTOLOGIES_HOST = "OntologiesHost"
     SECRET_PRE_SHARED_KEY = "PreSharedKey"
-    SECRET_ALLOW_COMMAND_UPDATES = "AllowCommandUpdates"
     SECRET_AUDIO_HOST = "AudioHost"
     LABEL_ENCOUNTER_COPILOT = "Encounter Copilot"
     MAX_AUDIOS = 1
@@ -134,12 +133,6 @@ class Commander(BaseProtocol):
         result.append(initial)
         return result
 
-    def allow_command_updates(self) -> bool:
-        result = self.secrets.get(self.SECRET_ALLOW_COMMAND_UPDATES)
-        if isinstance(result, str) and result.lower() in ["yes", "y", "1"]:
-            return True
-        return False
-
     def compute_audio(self, patient_uuid: str, note_uuid: str, provider_uuid: str, chunk_index: int) -> tuple[bool, list[Effect]]:
         CachedDiscussion.clear_cache()
         # retrieve the last two audio chunks
@@ -163,7 +156,6 @@ class Commander(BaseProtocol):
             science_host=self.secrets[self.SECRET_SCIENCE_HOST],
             ontologies_host=self.secrets[self.SECRET_ONTOLOGIES_HOST],
             pre_shared_key=self.secrets[self.SECRET_PRE_SHARED_KEY],
-            allow_update=self.allow_command_updates(),
         )
 
         chatter = AudioInterpreter(settings, patient_uuid, note_uuid, provider_uuid)
@@ -177,7 +169,6 @@ class Commander(BaseProtocol):
         )
         # summary
         log.info(f"<===  note: {note_uuid} ===>")
-        log.info(f"updates ok: {settings.allow_update}")
         log.info(f"instructions: {discussion.previous_instructions}")
         log.info("<-------->")
         for result in results:

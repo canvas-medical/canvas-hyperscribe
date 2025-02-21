@@ -19,7 +19,6 @@ def helper_instance() -> Refill:
         science_host="scienceHost",
         ontologies_host="ontologiesHost",
         pre_shared_key="preSharedKey",
-        allow_update=True,
     )
     return Refill(settings, "patientUuid", "noteUuid", "providerUuid")
 

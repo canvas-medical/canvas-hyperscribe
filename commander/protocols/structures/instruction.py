@@ -21,15 +21,11 @@ class Instruction(NamedTuple):
             for json_object in json_list
         ]
 
-    def to_json(self, allow_update: bool) -> dict:
-        status = {}
-        if allow_update:
-            status = {
-                "isNew": False,
-                "isUpdated": False,
-            }
+    def to_json(self) -> dict:
         return {
             "uuid": self.uuid,
             "instruction": self.instruction,
             "information": self.information,
-        } | status
+            "isNew": False,
+            "isUpdated": False,
+        }

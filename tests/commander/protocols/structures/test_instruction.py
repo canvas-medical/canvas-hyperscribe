@@ -39,14 +39,7 @@ def test_to_json():
         is_new=True,
         is_updated=True,
     )
-    result = tested.to_json(False)
-    expected = {
-        "uuid": "theUuid",
-        "instruction": "theInstruction",
-        "information": "theInformation",
-    }
-    assert expected == result
-    result = tested.to_json(True)
+    result = tested.to_json()
     expected = {
         "uuid": "theUuid",
         "instruction": "theInstruction",

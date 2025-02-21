@@ -17,7 +17,6 @@ def helper_instance() -> Goal:
         science_host="scienceHost",
         ontologies_host="ontologiesHost",
         pre_shared_key="preSharedKey",
-        allow_update=True,
     )
     return Goal(settings, "patientUuid", "noteUuid", "providerUuid")
 

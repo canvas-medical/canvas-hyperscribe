@@ -20,13 +20,10 @@ class ReasonForVisit(Base):
         }
 
     def instruction_description(self) -> str:
-        result = ("Patient's reported reason for the visit. "
-                  "There can be multiple reasons within an instruction.")
-        if self.settings.allow_update:
-            result += (" There can be only one such instruction in the whole discussion, "
-                       "so if one was already found, just update it by intelligently merging all reasons.")
-
-        return result
+        return ("Patient's reported reason for the visit. "
+                "There can be multiple reasons within an instruction. "
+                "There can be only one such instruction in the whole discussion, "
+                "so if one was already found, just update it by intelligently merging all reasons.")
 
     def instruction_constraints(self) -> str:
         return ""

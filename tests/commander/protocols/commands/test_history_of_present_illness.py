@@ -6,14 +6,13 @@ from commander.protocols.structures.settings import Settings
 from commander.protocols.structures.vendor_key import VendorKey
 
 
-def helper_instance(allow_update: bool = True) -> HistoryOfPresentIllness:
+def helper_instance() -> HistoryOfPresentIllness:
     settings = Settings(
         llm_text=VendorKey(vendor="textVendor", api_key="textKey"),
         llm_audio=VendorKey(vendor="audioVendor", api_key="audioKey"),
         science_host="scienceHost",
         ontologies_host="ontologiesHost",
         pre_shared_key="preSharedKey",
-        allow_update=allow_update,
     )
     return HistoryOfPresentIllness(settings, "patientUuid", "noteUuid", "providerUuid")
 
@@ -59,11 +58,6 @@ def test_instruction_description():
                 "There can be multiple highlights within an instruction."
                 " There can be only one such instruction in the whole discussion, "
                 "so if one was already found, just update it by intelligently merging all key highlights.")
-    assert result == expected
-    tested = helper_instance(False)
-    result = tested.instruction_description()
-    expected = ("Provider's reported key highlights of the visit. "
-                "There can be multiple highlights within an instruction.")
     assert result == expected
 
 

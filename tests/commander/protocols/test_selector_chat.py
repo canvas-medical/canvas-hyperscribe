@@ -27,7 +27,6 @@ def test_condition_from(search_conditions, chatter):
         science_host="scienceHost",
         ontologies_host="ontologiesHost",
         pre_shared_key="preSharedKey",
-        allow_update=True,
     )
     system_prompt = [
         "The conversation is in the medical context.",
@@ -120,7 +119,6 @@ def test_lab_test_from(lab_test_db, chatter):
         science_host="scienceHost",
         ontologies_host="ontologiesHost",
         pre_shared_key="preSharedKey",
-        allow_update=True,
     )
     system_prompt = [
         "The conversation is in the medical context.",

@@ -21,7 +21,6 @@ def helper_instance() -> Prescription:
         science_host="scienceHost",
         ontologies_host="ontologiesHost",
         pre_shared_key="preSharedKey",
-        allow_update=True,
     )
     return Prescription(settings, "patientUuid", "noteUuid", "providerUuid")
 

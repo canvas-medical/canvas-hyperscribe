@@ -11,7 +11,7 @@ from commander.protocols.structures.settings import Settings
 from commander.protocols.structures.vendor_key import VendorKey
 
 
-def helper_instance(mocks, updates: bool) -> AudioInterpreter:
+def helper_instance(mocks) -> AudioInterpreter:
     def reset_mocks():
         implemented_commands.reset_mocks()
 
@@ -22,7 +22,6 @@ def helper_instance(mocks, updates: bool) -> AudioInterpreter:
             science_host="scienceHost",
             ontologies_host="ontologiesHost",
             pre_shared_key="preSharedKey",
-            allow_update=updates,
         )
         if mocks:
             mocks[0].return_value.is_available.side_effect = [True]
@@ -60,7 +59,6 @@ def test___init__(implemented_commands):
         science_host="scienceHost",
         ontologies_host="ontologiesHost",
         pre_shared_key="preSharedKey",
-        allow_update=True,
     )
     mocks[0].return_value.is_available.side_effect = [True]
     mocks[1].return_value.is_available.side_effect = [True]
@@ -106,7 +104,7 @@ def test_instruction_definitions():
     mocks[2].return_value.instruction_description.side_effect = ["Description3"]
     mocks[3].return_value.instruction_description.side_effect = ["Description4"]
 
-    tested = helper_instance(mocks, True)
+    tested = helper_instance(mocks)
     result = tested.instruction_definitions()
     expected = [
         {'information': 'Description1', 'instruction': 'First'},
@@ -146,7 +144,7 @@ def test_instruction_constraints():
     mocks[2].return_value.instruction_constraints.side_effect = ["Constraints3"]
     mocks[3].return_value.instruction_constraints.side_effect = ["Constraints4"]
 
-    tested = helper_instance(mocks, True)
+    tested = helper_instance(mocks)
     result = tested.instruction_constraints()
     expected = ["Constraints1", "Constraints4"]
     assert result == expected
@@ -185,7 +183,7 @@ def test_command_structures():
     mocks[2].return_value.command_parameters.side_effect = ["Parameters3"]
     mocks[3].return_value.command_parameters.side_effect = ["Parameters4"]
 
-    tested = helper_instance(mocks, True)
+    tested = helper_instance(mocks)
     result = tested.command_structures()
     expected = {
         'First': 'Parameters1',
@@ -269,7 +267,7 @@ def test_combine_and_speaker_detection(audio2texter):
     ]
     audio_chunks = [b"chunk1", b"chunk2"]
 
-    tested = helper_instance([], True)
+    tested = helper_instance([])
     # no error
     # -- all JSON
     audio2texter.return_value.chat.side_effect = [JsonExtract(error="theError", has_error=False, content=[discussion, speakers])]
@@ -352,54 +350,30 @@ def test_detect_instructions(
         mocks[2].return_value.instruction_description.side_effect = ["Description3"]
         mocks[3].return_value.instruction_description.side_effect = ["Description4"]
 
-    system_prompts = {
-        "updatesOk": [
-            'The conversation is in the medical context.',
-            'The user will submit the transcript of the visit of a patient with a healthcare provider.',
-            'The user needs to extract and store the relevant information in their software using several commands as described below.',
-            'Your task is to help the user by identifying the instructions and the linked information, regardless of their location in the transcript.',
-            '', 'The instructions are limited to:',
-            '```json',
-            '"theInstructionDefinition"',
-            '```',
-            '',
-            'Your response has to be a JSON Markdown block with a list of objects: ',
-            '{'
-            '"uuid": "a unique identifier in this discussion", '
-            '"instruction": "the instruction", '
-            '"information": "any information related to the instruction", '
-            '"isNew": "the instruction is new for the discussion, as boolean", '
-            '"isUpdated": "the instruction is an update of one already identified in the discussion, as boolean"'
-            '}',
-            '', 'The JSON will be validated with the schema:',
-            '```json',
-            '"theJsonSchema"',
-            '```',
-            '',
-        ],
-        "updatesNo": [
-            'The conversation is in the medical context.',
-            'The user will submit the transcript of the visit of a patient with a healthcare provider.',
-            'The user needs to extract and store the relevant information in their software using several commands as described below.',
-            'Your task is to help the user by identifying the instructions and the linked information, regardless of their location in the transcript.',
-            '', 'The instructions are limited to:',
-            '```json',
-            '"theInstructionDefinition"',
-            '```',
-            '',
-            'Your response has to be a JSON Markdown block with a list of objects: ',
-            '{'
-            '"uuid": "a unique identifier in this discussion", '
-            '"instruction": "the instruction", '
-            '"information": "any information related to the instruction"'
-            '}',
-            '', 'The JSON will be validated with the schema:',
-            '```json',
-            '"theJsonSchema"',
-            '```',
-            '',
-        ],
-    }
+    system_prompts = [
+        'The conversation is in the medical context.',
+        'The user will submit the transcript of the visit of a patient with a healthcare provider.',
+        'The user needs to extract and store the relevant information in their software using several commands as described below.',
+        'Your task is to help the user by identifying the instructions and the linked information, regardless of their location in the transcript.',
+        '', 'The instructions are limited to:',
+        '```json',
+        '"theInstructionDefinition"',
+        '```',
+        '',
+        'Your response has to be a JSON Markdown block with a list of objects: ',
+        '{'
+        '"uuid": "a unique identifier in this discussion", '
+        '"instruction": "the instruction", '
+        '"information": "any information related to the instruction", '
+        '"isNew": "the instruction is new for the discussion, as boolean", '
+        '"isUpdated": "the instruction is an update of one already identified in the discussion, as boolean"'
+        '}',
+        '', 'The JSON will be validated with the schema:',
+        '```json',
+        '"theJsonSchema"',
+        '```',
+        '',
+    ]
     user_prompts = {
         "noKnownInstructions": [
             'Below is a part of the transcript of the visit of a patient with a healthcare provider.',
@@ -442,31 +416,6 @@ def test_detect_instructions(
             '```',
             'Include them in your response, with any necessary additional information.',
         ],
-        "withKnownInstructionsNoUpdate": [
-            'Below is a part of the transcript of the visit of a patient with a healthcare provider.',
-            'What are the instructions I need to add to my software to correctly record the visit?',
-            '```json',
-            '['
-            '\n {\n  "speaker": "personA",\n  "text": "the text 1"\n },'
-            '\n {\n  "speaker": "personB",\n  "text": "the text 2"\n },'
-            '\n {\n  "speaker": "personA",\n  "text": "the text 3"\n }'
-            '\n]',
-            '```',
-            '',
-            'From previous parts of the transcript, the following instructions were identified',
-            '```json',
-            '[\n {'
-            '\n  "uuid": "uuid1",'
-            '\n  "instruction": "the instruction 1",'
-            '\n  "information": "the information 1"'
-            '\n },\n {'
-            '\n  "uuid": "uuid2",'
-            '\n  "instruction": "the instruction 2",'
-            '\n  "information": "the information 2"'
-            '\n }\n]',
-            '```',
-            'Include them in your response, with any necessary additional information.',
-        ],
         "constraints": [
             'Here is your last response:',
             '```json',
@@ -494,7 +443,7 @@ def test_detect_instructions(
     reset_mocks()
 
     # allow updates
-    tested = helper_instance(mocks, True)
+    tested = helper_instance(mocks)
     # -- no known instruction
     instruction_definitions.side_effect = ["theInstructionDefinition"]
     json_schema.side_effect = ["theJsonSchema"]
@@ -505,15 +454,15 @@ def test_detect_instructions(
     assert result == expected
     calls = [call()]
     assert instruction_definitions.mock_calls == calls
-    calls = [call(['First', 'Second', 'Fourth'], True)]
+    calls = [call(['First', 'Second', 'Fourth'])]
     assert json_schema.mock_calls == calls
     calls = [call()]
     assert instruction_constraints.mock_calls == calls
     calls = [
         call(tested.settings),
-        call().single_conversation(system_prompts["updatesOk"], user_prompts["noKnownInstructions"]),
+        call().single_conversation(system_prompts, user_prompts["noKnownInstructions"]),
         call(tested.settings),
-        call().single_conversation(system_prompts["updatesOk"], user_prompts["constraints"]),
+        call().single_conversation(system_prompts, user_prompts["constraints"]),
     ]
     assert chatter.mock_calls == calls
     for idx, mock in enumerate(mocks):
@@ -536,13 +485,13 @@ def test_detect_instructions(
     assert result == expected
     calls = [call()]
     assert instruction_definitions.mock_calls == calls
-    calls = [call(['First', 'Second', 'Fourth'], True)]
+    calls = [call(['First', 'Second', 'Fourth'])]
     assert json_schema.mock_calls == calls
     calls = [call()]
     assert instruction_constraints.mock_calls == calls
     calls = [
         call(tested.settings),
-        call().single_conversation(system_prompts["updatesOk"], user_prompts["noKnownInstructions"]),
+        call().single_conversation(system_prompts, user_prompts["noKnownInstructions"]),
     ]
     assert chatter.mock_calls == calls
     for idx, mock in enumerate(mocks):
@@ -562,76 +511,15 @@ def test_detect_instructions(
     assert result == expected
     calls = [call()]
     assert instruction_definitions.mock_calls == calls
-    calls = [call(['First', 'Second', 'Fourth'], True)]
+    calls = [call(['First', 'Second', 'Fourth'])]
     assert json_schema.mock_calls == calls
     calls = [call()]
     assert instruction_constraints.mock_calls == calls
     calls = [
         call(tested.settings),
-        call().single_conversation(system_prompts["updatesOk"], user_prompts["withKnownInstructions"]),
+        call().single_conversation(system_prompts, user_prompts["withKnownInstructions"]),
         call(tested.settings),
-        call().single_conversation(system_prompts["updatesOk"], user_prompts["constraints"]),
-    ]
-    assert chatter.mock_calls == calls
-    for idx, mock in enumerate(mocks):
-        calls = []
-        if idx != 2:
-            calls.extend([call().class_name()])
-        assert mock.mock_calls == calls, f"---> {idx}"
-    reset_mocks()
-
-    # no updates
-    tested = helper_instance(mocks, False)
-    # -- no known instruction
-    instruction_definitions.side_effect = ["theInstructionDefinition"]
-    json_schema.side_effect = ["theJsonSchema"]
-    instruction_constraints.side_effect = [["theConstraint1", "theConstraint2"]]
-    chatter.return_value.single_conversation.side_effect = [["response1"], ["response2"]]
-    result = tested.detect_instructions(discussion, [])
-    expected = ["response2"]
-    assert result == expected
-    calls = [call()]
-    assert instruction_definitions.mock_calls == calls
-    calls = [call(['First', 'Second', 'Fourth'], False)]
-    assert json_schema.mock_calls == calls
-    calls = [call()]
-    assert instruction_constraints.mock_calls == calls
-    calls = [
-        call(tested.settings),
-        call().single_conversation(system_prompts["updatesNo"], user_prompts["noKnownInstructions"]),
-        call(tested.settings),
-        call().single_conversation(system_prompts["updatesNo"], user_prompts["constraints"]),
-    ]
-    assert chatter.mock_calls == calls
-    for idx, mock in enumerate(mocks):
-        calls = [
-            call(tested.settings, 'patientUuid', 'noteUuid', 'providerUuid'),
-            call().__bool__(),
-            call().is_available(),
-        ]
-        if idx != 2:
-            calls.extend([call().class_name()])
-        assert mock.mock_calls == calls, f"---> {idx}"
-    reset_mocks()
-    # -- with known instructions
-    instruction_definitions.side_effect = ["theInstructionDefinition"]
-    json_schema.side_effect = ["theJsonSchema"]
-    instruction_constraints.side_effect = [["theConstraint1", "theConstraint2"]]
-    chatter.return_value.single_conversation.side_effect = [["response1"], ["response2"]]
-    result = tested.detect_instructions(discussion, known_instructions)
-    expected = ["response2"]
-    assert result == expected
-    calls = [call()]
-    assert instruction_definitions.mock_calls == calls
-    calls = [call(['First', 'Second', 'Fourth'], False)]
-    assert json_schema.mock_calls == calls
-    calls = [call()]
-    assert instruction_constraints.mock_calls == calls
-    calls = [
-        call(tested.settings),
-        call().single_conversation(system_prompts["updatesNo"], user_prompts["withKnownInstructionsNoUpdate"]),
-        call(tested.settings),
-        call().single_conversation(system_prompts["updatesNo"], user_prompts["constraints"]),
+        call().single_conversation(system_prompts, user_prompts["constraints"]),
     ]
     assert chatter.mock_calls == calls
     for idx, mock in enumerate(mocks):
@@ -691,7 +579,7 @@ def test_create_sdk_command_parameters(chatter, mock_datetime):
     ]
     reset_mocks()
 
-    tested = helper_instance(mocks, True)
+    tested = helper_instance(mocks)
     # with response
     mock_datetime.now.side_effect = [datetime(2025, 2, 4, 7, 48, 21, tzinfo=timezone.utc)]
     chatter.return_value.single_conversation.side_effect = [["response1", "response2"]]
@@ -773,7 +661,7 @@ def test_create_sdk_command_from():
     for instruction, number, expected in tests:
         instruction = Instruction(uuid="theUuid", instruction=instruction, information="theInformation", is_new=False, is_updated=True)
         parameters = {"theKey": "theValue"}
-        tested = helper_instance(mocks, True)
+        tested = helper_instance(mocks)
         result = tested.create_sdk_command_from(instruction, parameters)
         assert result == expected
         for idx, mock in enumerate(mocks):
@@ -793,36 +681,7 @@ def test_create_sdk_command_from():
 def test_json_schema():
     tested = AudioInterpreter
 
-    # no update
-    result = tested.json_schema(["Command1", "Command2"], False)
-    expected = {
-        '$schema': 'http://json-schema.org/draft-07/schema#',
-        'items': {
-            'additionalProperties': False,
-            'properties': {
-                'information': {
-                    'description': 'all relevant information extracted from the discussion explaining and/or defining the instruction',
-                    'type': 'string',
-                },
-                'instruction': {
-                    'enum': ['Command1', 'Command2'],
-                    'type': 'string',
-                },
-                'uuid': {
-                    'description': 'a unique identifier in this discussion',
-                    'type': 'string',
-                },
-            },
-            'required': ['uuid', 'instruction', 'information'],
-            'type': 'object',
-        },
-        'type': 'array',
-    }
-
-    assert result == expected
-
-    # with update
-    result = tested.json_schema(["Command1", "Command2"], True)
+    result = tested.json_schema(["Command1", "Command2"])
     expected = {
         '$schema': 'http://json-schema.org/draft-07/schema#',
         'items': {

@@ -10,14 +10,13 @@ from commander.protocols.structures.settings import Settings
 from commander.protocols.structures.vendor_key import VendorKey
 
 
-def helper_instance(allow_update: bool = True) -> FollowUp:
+def helper_instance() -> FollowUp:
     settings = Settings(
         llm_text=VendorKey(vendor="textVendor", api_key="textKey"),
         llm_audio=VendorKey(vendor="audioVendor", api_key="audioKey"),
         science_host="scienceHost",
         ontologies_host="ontologiesHost",
         pre_shared_key="preSharedKey",
-        allow_update=allow_update,
     )
     return FollowUp(settings, "patientUuid", "noteUuid", "providerUuid")
 
@@ -107,10 +106,6 @@ def test_instruction_description():
     expected = ("Any follow up encounter, either virtually or in person."
                 " There can be only one such instruction in the whole discussion, "
                 "so if one was already found, just update it by intelligently merging all key information.")
-    assert result == expected
-    tested = helper_instance(False)
-    result = tested.instruction_description()
-    expected = "Any follow up encounter, either virtually or in person."
     assert result == expected
 
 

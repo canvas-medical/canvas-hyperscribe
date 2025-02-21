@@ -102,7 +102,6 @@ def test_chatter():
             science_host="scienceHost",
             ontologies_host="ontologiesHost",
             pre_shared_key="preSharedKey",
-            allow_update=True,
         ))
         assert isinstance(result, exp_class)
         assert result.api_key == "textKey"
@@ -112,7 +111,7 @@ def test_chatter():
 def test_audio2texter():
     tested = Helper
     tests = [
-        ("Google", LlmOpenai, "gpt-4o-audio-preview"),
+        ("Google", LlmGoogle, "models/gemini-1.5-flash"),
         ("Any", LlmOpenai, "gpt-4o-audio-preview"),
     ]
     for vendor, exp_class, exp_model in tests:
@@ -122,7 +121,6 @@ def test_audio2texter():
             science_host="scienceHost",
             ontologies_host="ontologiesHost",
             pre_shared_key="preSharedKey",
-            allow_update=True,
         ))
         assert isinstance(result, exp_class)
         assert result.api_key == "audioKey"

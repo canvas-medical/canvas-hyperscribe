@@ -51,7 +51,7 @@ class AuditorFile(Auditor):
                 "instructions": {
                     "initial": [],
                     "result": [
-                        instruction.to_json(True) | {"uuid": "", "isNew": True}
+                        instruction.to_json() | {"uuid": "", "isNew": True}
                         for instruction in instructions
                     ],
                 },
@@ -69,7 +69,7 @@ class AuditorFile(Auditor):
                 content = json.load(fp)
 
         for instruction, parameters in sdk_parameters:
-            content["instructions"].append(instruction.to_json(True))
+            content["instructions"].append(instruction.to_json())
             content["parameters"].append(parameters)
 
         with file.open("w") as fp:
@@ -88,7 +88,7 @@ class AuditorFile(Auditor):
                 content = json.load(fp)
 
         for (instruction, parameters), command in zip(sdk_parameters, sdk_commands):
-            content["instructions"].append(instruction.to_json(True))
+            content["instructions"].append(instruction.to_json())
             content["parameters"].append(parameters)
             content["commands"].append({
                 "module": command.__module__,

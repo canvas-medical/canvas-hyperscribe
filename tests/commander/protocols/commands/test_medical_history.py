@@ -20,7 +20,6 @@ def helper_instance() -> MedicalHistory:
         science_host="scienceHost",
         ontologies_host="ontologiesHost",
         pre_shared_key="preSharedKey",
-        allow_update=True,
     )
     return MedicalHistory(settings, "patientUuid", "noteUuid", "providerUuid")
 

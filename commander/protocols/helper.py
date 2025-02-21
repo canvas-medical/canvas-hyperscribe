@@ -50,8 +50,7 @@ class Helper:
 
     @classmethod
     def audio2texter(cls, settings: Settings) -> LlmBase:
-        # TODO implement the audio to text for Google
-        # if settings.llm_audio.vendor.upper() == Constants.VENDOR_GOOGLE.upper():
-        #     return GoogleChat(settings.llm_audio.api_key, Constants.GOOGLE_CHAT_ALL)
+        if settings.llm_audio.vendor.upper() == Constants.VENDOR_GOOGLE.upper():
+            return LlmGoogle(settings.llm_audio.api_key, Constants.GOOGLE_CHAT_ALL)
         # if settings.llm_text.upper() == Constants.VENDOR_OPENAI.upper():
         return LlmOpenai(settings.llm_audio.api_key, Constants.OPENAI_CHAT_AUDIO)

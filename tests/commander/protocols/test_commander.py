@@ -184,7 +184,6 @@ def test_constants():
         "SECRET_SCIENCE_HOST": "ScienceHost",
         "SECRET_ONTOLOGIES_HOST": "OntologiesHost",
         "SECRET_PRE_SHARED_KEY": "PreSharedKey",
-        "SECRET_ALLOW_COMMAND_UPDATES": "AllowCommandUpdates",
         "SECRET_AUDIO_HOST": "AudioHost",
         "LABEL_ENCOUNTER_COPILOT": "Encounter Copilot",
         "MAX_AUDIOS": 1,
@@ -364,25 +363,6 @@ def test_compute(compute_audio, task_comment_db, note_db, info):
     reset_mocks()
 
 
-def test_allow_command_updates():
-    event = Event(EventRequest())
-
-    tests = [
-        ({}, False),
-        ({"AllowCommandUpdates": "yes"}, True),
-        ({"AllowCommandUpdates": "YES"}, True),
-        ({"AllowCommandUpdates": "y"}, True),
-        ({"AllowCommandUpdates": "Y"}, True),
-        ({"AllowCommandUpdates": "1"}, True),
-        ({"AllowCommandUpdates": "0"}, False),
-        ({"AllowCommandUpdates": "anything"}, False),
-    ]
-    for secrets, expected in tests:
-        tested = Commander(event, secrets)
-        result = tested.allow_command_updates()
-        assert result is expected
-
-
 @patch('commander.protocols.commander.AudioInterpreter')
 @patch('commander.protocols.commander.CachedDiscussion')
 @patch('commander.protocols.commander.Auditor')
@@ -458,7 +438,6 @@ def test_compute_audio(
         science_host='theScienceHost',
         ontologies_host='theOntologiesHost',
         pre_shared_key='thePreSharedKey',
-        allow_update=True,
     )
     discussion = CachedDiscussion("noteUuid")
     discussion.count = 2
@@ -503,7 +482,6 @@ def test_compute_audio(
     calls = [
         call('--> audio chunks: 2'),
         call('<===  note: noteUuid ===>'),
-        call('updates ok: True'),
         call("instructions: ["
              "Instruction(uuid='uuidA', instruction='theInstructionA', information='theInformationA', is_new=False, is_updated=True), "
              "Instruction(uuid='uuidB', instruction='theInstructionB', information='theInformationB', is_new=True, is_updated=False), "

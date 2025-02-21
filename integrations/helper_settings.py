@@ -26,7 +26,6 @@ class HelperSettings:
             science_host=environ[Commander.SECRET_SCIENCE_HOST],
             ontologies_host=environ[Commander.SECRET_ONTOLOGIES_HOST],
             pre_shared_key=environ[Commander.SECRET_PRE_SHARED_KEY],
-            allow_update=True,
         )
 
     @classmethod

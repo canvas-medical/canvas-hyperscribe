@@ -13,7 +13,6 @@ def helper_instance() -> Plan:
         science_host="scienceHost",
         ontologies_host="ontologiesHost",
         pre_shared_key="preSharedKey",
-        allow_update=True,
     )
     return Plan(settings, "patientUuid", "noteUuid", "providerUuid")
 

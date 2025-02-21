@@ -11,6 +11,5 @@ def test_class():
         "science_host": str,
         "ontologies_host": str,
         "pre_shared_key": str,
-        "allow_update": bool,
     }
     assert is_namedtuple(tested, fields)

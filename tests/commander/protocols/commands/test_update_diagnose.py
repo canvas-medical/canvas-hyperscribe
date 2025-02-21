@@ -19,7 +19,6 @@ def helper_instance() -> UpdateDiagnose:
         science_host="scienceHost",
         ontologies_host="ontologiesHost",
         pre_shared_key="preSharedKey",
-        allow_update=True,
     )
     return UpdateDiagnose(settings, "patientUuid", "noteUuid", "providerUuid")
 

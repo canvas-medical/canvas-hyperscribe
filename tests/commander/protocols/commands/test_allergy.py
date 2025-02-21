@@ -20,7 +20,6 @@ def helper_instance() -> Allergy:
         science_host="scienceHost",
         ontologies_host="ontologiesHost",
         pre_shared_key="preSharedKey",
-        allow_update=True,
     )
     return Allergy(settings, "patientUuid", "noteUuid", "providerUuid")
 

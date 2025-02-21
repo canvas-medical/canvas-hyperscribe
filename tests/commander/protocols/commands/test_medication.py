@@ -19,7 +19,6 @@ def helper_instance() -> Medication:
         science_host="scienceHost",
         ontologies_host="ontologiesHost",
         pre_shared_key="preSharedKey",
-        allow_update=True,
     )
     return Medication(settings, "patientUuid", "noteUuid", "providerUuid")
 
