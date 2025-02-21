@@ -165,11 +165,15 @@ class Commander(BaseProtocol):
             pre_shared_key=self.secrets[self.SECRET_PRE_SHARED_KEY],
             allow_update=self.allow_command_updates(),
         )
+
+        chatter = AudioInterpreter(settings, patient_uuid, note_uuid, provider_uuid)
+        previous_instructions = self.existing_commands_to_instructions(chatter, discussion.previous_instructions)
+
         discussion.previous_instructions, results = self.audio2commands(
             Auditor(),
             audios,
-            AudioInterpreter(settings, patient_uuid, note_uuid, provider_uuid),
-            discussion.previous_instructions,
+            chatter,
+            previous_instructions,
         )
         # summary
         log.info(f"<===  note: {note_uuid} ===>")
@@ -254,23 +258,12 @@ class Commander(BaseProtocol):
             instructions: list[Instruction],
             past_uuids: dict[str, Instruction],
     ) -> list[Effect]:
-        uuid_map = cls.map_instruction2command_uuid(chatter, past_uuids)
-        changed: list[Instruction] = []
-        for instruction in instructions:
-            if instruction.uuid not in past_uuids:
-                continue
-            past_instruction = past_uuids[instruction.uuid]
-            if instruction.information == past_instruction.information:
-                continue
-            # look for the actual UUID
-            changed.append(Instruction(
-                uuid=uuid_map[instruction.uuid],
-                instruction=instruction.instruction,
-                information=instruction.information,
-                is_new=False,
-                is_updated=True,
-            ))
-
+        changed = [
+            instruction
+            for instruction in instructions
+            if instruction.uuid in past_uuids
+               and past_uuids[instruction.uuid].information != instruction.information
+        ]
         log.info(f"--> updated instructions: {len(changed)}")
         start = time()
         max_workers = max(1, Constants.MAX_WORKERS)
@@ -322,3 +315,35 @@ class Commander(BaseProtocol):
                 result[instructions[command_idx].uuid] = str(command.id)
 
         return result
+
+    @classmethod
+    def existing_commands_to_instructions(cls, chatter: AudioInterpreter, instructions: list[Instruction]) -> list[Instruction]:
+        result: dict[str, Instruction] = {}
+        note = Note.objects.get(id=chatter.note_uuid)
+        current_commands = Command.objects.filter(
+            patient__id=chatter.patient_id,
+            note_id=note.dbid,
+            # origination_source="plugin",  # <--- TODO use an Enum when provided
+            state="staged",  # <--- TODO use an Enum when provided
+        ).order_by("schema_key", "dbid")
+
+        consumed_indexes: list[int] = []
+        mapping = chatter.schema_key2instruction()
+        for command in current_commands:
+            instruction_type = mapping[command.schema_key]
+            instruction_uuid = str(command.id)
+            information = ""  # TODO set some information based on the current command.data?
+            for idx, instruction in enumerate(instructions):
+                if idx not in consumed_indexes and instruction_type == instruction.instruction:
+                    consumed_indexes.append(idx)
+                    information = instruction.information
+                    break
+
+            result[instruction_uuid] = Instruction(
+                uuid=instruction_uuid,
+                instruction=instruction_type,
+                information=information,
+                is_new=False,
+                is_updated=False,
+            )
+        return list(result.values())
