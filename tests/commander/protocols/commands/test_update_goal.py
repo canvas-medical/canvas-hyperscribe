@@ -5,6 +5,7 @@ from canvas_sdk.commands.commands.update_goal import UpdateGoalCommand
 
 from commander.protocols.commands.base import Base
 from commander.protocols.commands.update_goal import UpdateGoal
+from commander.protocols.limited_cache import LimitedCache
 from commander.protocols.structures.coded_item import CodedItem
 from commander.protocols.structures.settings import Settings
 from commander.protocols.structures.vendor_key import VendorKey
@@ -18,7 +19,8 @@ def helper_instance() -> UpdateGoal:
         ontologies_host="ontologiesHost",
         pre_shared_key="preSharedKey",
     )
-    return UpdateGoal(settings, "patientUuid", "noteUuid", "providerUuid")
+    cache = LimitedCache("patientUuid")
+    return UpdateGoal(settings, cache, "patientUuid", "noteUuid", "providerUuid")
 
 
 def test_class():
@@ -33,7 +35,7 @@ def test_schema_key():
     assert result == expected
 
 
-@patch.object(UpdateGoal, "current_goals")
+@patch.object(LimitedCache, "current_goals")
 def test_command_from_json(current_goals):
     def reset_mocks():
         current_goals.reset_mock()
@@ -75,7 +77,7 @@ def test_command_from_json(current_goals):
         reset_mocks()
 
 
-@patch.object(UpdateGoal, "current_goals")
+@patch.object(LimitedCache, "current_goals")
 def test_command_parameters(current_goals):
     def reset_mocks():
         current_goals.reset_mock()
@@ -109,7 +111,7 @@ def test_instruction_description():
     assert result == expected
 
 
-@patch.object(UpdateGoal, "current_goals")
+@patch.object(LimitedCache, "current_goals")
 def test_instruction_constraints(current_goals):
     def reset_mocks():
         current_goals.reset_mock()
@@ -129,7 +131,7 @@ def test_instruction_constraints(current_goals):
     reset_mocks()
 
 
-@patch.object(UpdateGoal, "current_goals")
+@patch.object(LimitedCache, "current_goals")
 def test_is_available(current_goals):
     def reset_mocks():
         current_goals.reset_mock()

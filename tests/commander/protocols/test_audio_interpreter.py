@@ -4,6 +4,7 @@ from unittest.mock import patch, MagicMock, call
 from commander.protocols.audio_interpreter import AudioInterpreter
 from commander.protocols.commands.base import Base
 from commander.protocols.helper import Helper
+from commander.protocols.limited_cache import LimitedCache
 from commander.protocols.structures.instruction import Instruction
 from commander.protocols.structures.json_extract import JsonExtract
 from commander.protocols.structures.line import Line
@@ -11,7 +12,7 @@ from commander.protocols.structures.settings import Settings
 from commander.protocols.structures.vendor_key import VendorKey
 
 
-def helper_instance(mocks) -> AudioInterpreter:
+def helper_instance(mocks) -> tuple[AudioInterpreter, Settings, LimitedCache]:
     def reset_mocks():
         implemented_commands.reset_mocks()
 
@@ -31,12 +32,13 @@ def helper_instance(mocks) -> AudioInterpreter:
 
         implemented_commands.side_effect = [mocks]
 
-        instance = AudioInterpreter(settings, "patientUuid", "noteUuid", "providerUuid")
+        cache = LimitedCache("patientUuid")
+        instance = AudioInterpreter(settings, cache, "patientUuid", "noteUuid", "providerUuid")
         calls = [call()]
         assert implemented_commands.mock_calls == calls
         reset_mocks()
 
-        return instance
+        return instance, settings, cache
 
 
 @patch.object(AudioInterpreter, 'implemented_commands')
@@ -66,7 +68,9 @@ def test___init__(implemented_commands):
     mocks[3].return_value.is_available.side_effect = [True]
     implemented_commands.side_effect = [mocks]
 
-    instance = AudioInterpreter(settings, "patientUuid", "noteUuid", "providerUuid")
+    cache = LimitedCache("patientUuid")
+
+    instance = AudioInterpreter(settings, cache, "patientUuid", "noteUuid", "providerUuid")
     assert instance.settings == settings
     assert instance.patient_id == "patientUuid"
     assert instance.note_uuid == "noteUuid"
@@ -75,7 +79,7 @@ def test___init__(implemented_commands):
     assert implemented_commands.mock_calls == calls
     for mock in mocks:
         calls = [
-            call(settings, 'patientUuid', 'noteUuid', 'providerUuid'),
+            call(settings, cache, 'patientUuid', 'noteUuid', 'providerUuid'),
             call().__bool__(),
             call().is_available(),
         ]
@@ -104,7 +108,7 @@ def test_instruction_definitions():
     mocks[2].return_value.instruction_description.side_effect = ["Description3"]
     mocks[3].return_value.instruction_description.side_effect = ["Description4"]
 
-    tested = helper_instance(mocks)
+    tested, settings, cache = helper_instance(mocks)
     result = tested.instruction_definitions()
     expected = [
         {'information': 'Description1', 'instruction': 'First'},
@@ -114,7 +118,7 @@ def test_instruction_definitions():
     assert result == expected
     for idx, mock in enumerate(mocks):
         calls = [
-            call(tested.settings, 'patientUuid', 'noteUuid', 'providerUuid'),
+            call(settings, cache, 'patientUuid', 'noteUuid', 'providerUuid'),
             call().__bool__(),
             call().is_available(),
         ]
@@ -144,13 +148,13 @@ def test_instruction_constraints():
     mocks[2].return_value.instruction_constraints.side_effect = ["Constraints3"]
     mocks[3].return_value.instruction_constraints.side_effect = ["Constraints4"]
 
-    tested = helper_instance(mocks)
+    tested, settings, cache = helper_instance(mocks)
     result = tested.instruction_constraints()
     expected = ["Constraints1", "Constraints4"]
     assert result == expected
     for idx, mock in enumerate(mocks):
         calls = [
-            call(tested.settings, 'patientUuid', 'noteUuid', 'providerUuid'),
+            call(settings, cache, 'patientUuid', 'noteUuid', 'providerUuid'),
             call().__bool__(),
             call().is_available(),
         ]
@@ -183,7 +187,7 @@ def test_command_structures():
     mocks[2].return_value.command_parameters.side_effect = ["Parameters3"]
     mocks[3].return_value.command_parameters.side_effect = ["Parameters4"]
 
-    tested = helper_instance(mocks)
+    tested, settings, cache = helper_instance(mocks)
     result = tested.command_structures()
     expected = {
         'First': 'Parameters1',
@@ -193,7 +197,7 @@ def test_command_structures():
     assert result == expected
     for idx, mock in enumerate(mocks):
         calls = [
-            call(tested.settings, 'patientUuid', 'noteUuid', 'providerUuid'),
+            call(settings, cache, 'patientUuid', 'noteUuid', 'providerUuid'),
             call().__bool__(),
             call().is_available(),
         ]
@@ -267,7 +271,7 @@ def test_combine_and_speaker_detection(audio2texter):
     ]
     audio_chunks = [b"chunk1", b"chunk2"]
 
-    tested = helper_instance([])
+    tested, settings, cache = helper_instance([])
     # no error
     # -- all JSON
     audio2texter.return_value.chat.side_effect = [JsonExtract(error="theError", has_error=False, content=[discussion, speakers])]
@@ -275,7 +279,7 @@ def test_combine_and_speaker_detection(audio2texter):
     expected = JsonExtract(error="", has_error=False, content=conversation)
     assert result == expected
     calls = [
-        call(tested.settings),
+        call(settings),
         call().set_system_prompt(system_prompt),
         call().set_user_prompt(user_prompt),
         call().add_audio(b'chunk1', 'mp3'),
@@ -290,7 +294,7 @@ def test_combine_and_speaker_detection(audio2texter):
     expected = JsonExtract(error="partial response", has_error=True, content=[discussion])
     assert result == expected
     calls = [
-        call(tested.settings),
+        call(settings),
         call().set_system_prompt(system_prompt),
         call().set_user_prompt(user_prompt),
         call().add_audio(b'chunk1', 'mp3'),
@@ -306,7 +310,7 @@ def test_combine_and_speaker_detection(audio2texter):
     expected = JsonExtract(error="theError", has_error=True, content=[discussion, speakers])
     assert result == expected
     calls = [
-        call(tested.settings),
+        call(settings),
         call().set_system_prompt(system_prompt),
         call().set_user_prompt(user_prompt),
         call().add_audio(b'chunk1', 'mp3'),
@@ -443,7 +447,7 @@ def test_detect_instructions(
     reset_mocks()
 
     # allow updates
-    tested = helper_instance(mocks)
+    tested, settings, cache = helper_instance(mocks)
     # -- no known instruction
     instruction_definitions.side_effect = ["theInstructionDefinition"]
     json_schema.side_effect = ["theJsonSchema"]
@@ -459,15 +463,15 @@ def test_detect_instructions(
     calls = [call()]
     assert instruction_constraints.mock_calls == calls
     calls = [
-        call(tested.settings),
+        call(settings),
         call().single_conversation(system_prompts, user_prompts["noKnownInstructions"]),
-        call(tested.settings),
+        call(settings),
         call().single_conversation(system_prompts, user_prompts["constraints"]),
     ]
     assert chatter.mock_calls == calls
     for idx, mock in enumerate(mocks):
         calls = [
-            call(tested.settings, 'patientUuid', 'noteUuid', 'providerUuid'),
+            call(settings, cache, 'patientUuid', 'noteUuid', 'providerUuid'),
             call().__bool__(),
             call().is_available(),
         ]
@@ -490,7 +494,7 @@ def test_detect_instructions(
     calls = [call()]
     assert instruction_constraints.mock_calls == calls
     calls = [
-        call(tested.settings),
+        call(settings),
         call().single_conversation(system_prompts, user_prompts["noKnownInstructions"]),
     ]
     assert chatter.mock_calls == calls
@@ -516,9 +520,9 @@ def test_detect_instructions(
     calls = [call()]
     assert instruction_constraints.mock_calls == calls
     calls = [
-        call(tested.settings),
+        call(settings),
         call().single_conversation(system_prompts, user_prompts["withKnownInstructions"]),
-        call(tested.settings),
+        call(settings),
         call().single_conversation(system_prompts, user_prompts["constraints"]),
     ]
     assert chatter.mock_calls == calls
@@ -579,7 +583,7 @@ def test_create_sdk_command_parameters(chatter, mock_datetime):
     ]
     reset_mocks()
 
-    tested = helper_instance(mocks)
+    tested, settings, cache = helper_instance(mocks)
     # with response
     mock_datetime.now.side_effect = [datetime(2025, 2, 4, 7, 48, 21, tzinfo=timezone.utc)]
     chatter.return_value.single_conversation.side_effect = [["response1", "response2"]]
@@ -587,7 +591,7 @@ def test_create_sdk_command_parameters(chatter, mock_datetime):
     expected = instruction, "response1"
     assert result == expected
     calls = [
-        call(tested.settings),
+        call(settings),
         call().single_conversation(system_prompt, user_prompt),
     ]
     assert chatter.mock_calls == calls
@@ -595,7 +599,7 @@ def test_create_sdk_command_parameters(chatter, mock_datetime):
     assert mock_datetime.mock_calls == calls
     for idx, mock in enumerate(mocks):
         calls = [
-            call(tested.settings, 'patientUuid', 'noteUuid', 'providerUuid'),
+            call(settings, cache, 'patientUuid', 'noteUuid', 'providerUuid'),
             call().__bool__(),
             call().is_available(),
         ]
@@ -613,7 +617,7 @@ def test_create_sdk_command_parameters(chatter, mock_datetime):
     expected = instruction, None
     assert result == expected
     calls = [
-        call(tested.settings),
+        call(settings),
         call().single_conversation(system_prompt, user_prompt),
     ]
     assert chatter.mock_calls == calls
@@ -661,12 +665,12 @@ def test_create_sdk_command_from():
     for instruction, number, expected in tests:
         instruction = Instruction(uuid="theUuid", instruction=instruction, information="theInformation", is_new=False, is_updated=True)
         parameters = {"theKey": "theValue"}
-        tested = helper_instance(mocks)
+        tested, settings, cache = helper_instance(mocks)
         result = tested.create_sdk_command_from(instruction, parameters)
         assert result == expected
         for idx, mock in enumerate(mocks):
             calls = [
-                call(tested.settings, 'patientUuid', 'noteUuid', 'providerUuid'),
+                call(settings, cache, 'patientUuid', 'noteUuid', 'providerUuid'),
                 call().__bool__(),
                 call().is_available(),
             ]

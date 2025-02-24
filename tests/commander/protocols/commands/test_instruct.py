@@ -6,6 +6,7 @@ from commander.protocols.canvas_science import CanvasScience
 from commander.protocols.commands.base import Base
 from commander.protocols.commands.instruct import Instruct
 from commander.protocols.helper import Helper
+from commander.protocols.limited_cache import LimitedCache
 from commander.protocols.structures.medical_concept import MedicalConcept
 from commander.protocols.structures.settings import Settings
 from commander.protocols.structures.vendor_key import VendorKey
@@ -19,7 +20,8 @@ def helper_instance() -> Instruct:
         ontologies_host="ontologiesHost",
         pre_shared_key="preSharedKey",
     )
-    return Instruct(settings, "patientUuid", "noteUuid", "providerUuid")
+    cache = LimitedCache("patientUuid")
+    return Instruct(settings, cache, "patientUuid", "noteUuid", "providerUuid")
 
 
 def test_class():

@@ -11,9 +11,9 @@ class FollowUp(Base):
 
     def command_from_json(self, parameters: dict) -> None | FollowUpCommand:
         idx = parameters["visitTypeIndex"]
-        if not (0 <= idx < len(self.existing_note_types())):
+        if not (0 <= idx < len(self.cache.existing_note_types())):
             idx = 0
-        note_type_uuid = self.existing_note_types()[idx].uuid
+        note_type_uuid = self.cache.existing_note_types()[idx].uuid
 
         return FollowUpCommand(
             note_uuid=self.note_uuid,
@@ -25,7 +25,7 @@ class FollowUp(Base):
         )
 
     def command_parameters(self) -> dict:
-        visits = "/".join([f"{item.label} (index:{idx})" for idx, item in enumerate(self.existing_note_types())])
+        visits = "/".join([f"{item.label} (index:{idx})" for idx, item in enumerate(self.cache.existing_note_types())])
         return {
             "visitType": f"one of: {visits}",
             "visitTypeIndex": "index of the visitType, as integer",
@@ -43,4 +43,4 @@ class FollowUp(Base):
         return ""
 
     def is_available(self) -> bool:
-        return bool(self.existing_note_types())
+        return bool(self.cache.existing_note_types())

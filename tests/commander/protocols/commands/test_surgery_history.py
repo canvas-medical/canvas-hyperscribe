@@ -7,6 +7,7 @@ from commander.protocols.canvas_science import CanvasScience
 from commander.protocols.commands.base import Base
 from commander.protocols.commands.surgery_history import SurgeryHistory
 from commander.protocols.helper import Helper
+from commander.protocols.limited_cache import LimitedCache
 from commander.protocols.structures.coded_item import CodedItem
 from commander.protocols.structures.medical_concept import MedicalConcept
 from commander.protocols.structures.settings import Settings
@@ -21,7 +22,8 @@ def helper_instance() -> SurgeryHistory:
         ontologies_host="ontologiesHost",
         pre_shared_key="preSharedKey",
     )
-    return SurgeryHistory(settings, "patientUuid", "noteUuid", "providerUuid")
+    cache = LimitedCache("patientUuid")
+    return SurgeryHistory(settings, cache, "patientUuid", "noteUuid", "providerUuid")
 
 
 def test_class():
@@ -157,7 +159,7 @@ def test_instruction_description():
     assert result == expected
 
 
-@patch.object(SurgeryHistory, "surgery_history")
+@patch.object(LimitedCache, "surgery_history")
 def test_instruction_constraints(surgery_history):
     def reset_mocks():
         surgery_history.reset_mock()

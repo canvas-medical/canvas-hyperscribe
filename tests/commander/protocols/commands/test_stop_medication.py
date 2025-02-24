@@ -4,6 +4,7 @@ from canvas_sdk.commands.commands.stop_medication import StopMedicationCommand
 
 from commander.protocols.commands.base import Base
 from commander.protocols.commands.stop_medication import StopMedication
+from commander.protocols.limited_cache import LimitedCache
 from commander.protocols.structures.coded_item import CodedItem
 from commander.protocols.structures.settings import Settings
 from commander.protocols.structures.vendor_key import VendorKey
@@ -17,7 +18,8 @@ def helper_instance() -> StopMedication:
         ontologies_host="ontologiesHost",
         pre_shared_key="preSharedKey",
     )
-    return StopMedication(settings, "patientUuid", "noteUuid", "providerUuid")
+    cache = LimitedCache("patientUuid")
+    return StopMedication(settings, cache, "patientUuid", "noteUuid", "providerUuid")
 
 
 def test_class():
@@ -32,7 +34,7 @@ def test_schema_key():
     assert result == expected
 
 
-@patch.object(StopMedication, "current_medications")
+@patch.object(LimitedCache, "current_medications")
 def test_command_from_json(current_medications):
     def reset_mocks():
         current_medications.reset_mock()
@@ -67,7 +69,7 @@ def test_command_from_json(current_medications):
         reset_mocks()
 
 
-@patch.object(StopMedication, "current_medications")
+@patch.object(LimitedCache, "current_medications")
 def test_command_parameters(current_medications):
     def reset_mocks():
         current_medications.reset_mock()
@@ -99,7 +101,7 @@ def test_instruction_description():
     assert result == expected
 
 
-@patch.object(StopMedication, "current_medications")
+@patch.object(LimitedCache, "current_medications")
 def test_instruction_constraints(current_medications):
     def reset_mocks():
         current_medications.reset_mock()

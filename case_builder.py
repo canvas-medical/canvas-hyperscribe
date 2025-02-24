@@ -6,6 +6,7 @@ from canvas_sdk.v1.data import Note, Patient
 
 from commander.protocols.audio_interpreter import AudioInterpreter
 from commander.protocols.commander import Commander
+from commander.protocols.limited_cache import LimitedCache
 from integrations.auditor_file import AuditorFile
 from integrations.helper_settings import HelperSettings
 
@@ -65,6 +66,7 @@ class CaseBuilder:
         note = Note.objects.filter(patient__id=parameters.patient).order_by("-dbid").first()  # the last note
         chatter = AudioInterpreter(
             HelperSettings.settings(),
+            LimitedCache(parameters.patient),
             parameters.patient,
             str(note.id),
             str(note.provider.id),

@@ -6,6 +6,7 @@ from commander.protocols.canvas_science import CanvasScience
 from commander.protocols.commands.base import Base
 from commander.protocols.commands.medication import Medication
 from commander.protocols.helper import Helper
+from commander.protocols.limited_cache import LimitedCache
 from commander.protocols.structures.coded_item import CodedItem
 from commander.protocols.structures.medication_detail import MedicationDetail
 from commander.protocols.structures.settings import Settings
@@ -20,7 +21,8 @@ def helper_instance() -> Medication:
         ontologies_host="ontologiesHost",
         pre_shared_key="preSharedKey",
     )
-    return Medication(settings, "patientUuid", "noteUuid", "providerUuid")
+    cache = LimitedCache("patientUuid")
+    return Medication(settings, cache, "patientUuid", "noteUuid", "providerUuid")
 
 
 def test_class():
@@ -151,7 +153,7 @@ def test_instruction_description():
     assert result == expected
 
 
-@patch.object(Medication, "current_medications")
+@patch.object(LimitedCache, "current_medications")
 def test_instruction_constraints(current_medications):
     def reset_mocks():
         current_medications.reset_mock()

@@ -10,7 +10,7 @@ class RemoveAllergy(Base):
 
     def command_from_json(self, parameters: dict) -> None | RemoveAllergyCommand:
         allergy_uuid = ""
-        if 0 <= (idx := parameters["allergyIndex"]) < len(current := self.current_allergies()):
+        if 0 <= (idx := parameters["allergyIndex"]) < len(current := self.cache.current_allergies()):
             allergy_uuid = current[idx].uuid
         return RemoveAllergyCommand(
             allergy_id=allergy_uuid,
@@ -19,7 +19,7 @@ class RemoveAllergy(Base):
         )
 
     def command_parameters(self) -> dict:
-        allergies = "/".join([f'{allergy.label} (index: {idx})' for idx, allergy in enumerate(self.current_allergies())])
+        allergies = "/".join([f'{allergy.label} (index: {idx})' for idx, allergy in enumerate(self.cache.current_allergies())])
         return {
             "allergies": f"one of: {allergies}",
             "allergyIndex": "Index of the allergy to remove, as integer",
@@ -31,8 +31,8 @@ class RemoveAllergy(Base):
                 "There can be only one allergy, with the explanation, to remove per instruction, and no instruction in the lack of.")
 
     def instruction_constraints(self) -> str:
-        text = ", ".join([allergy.label for allergy in self.current_allergies()])
+        text = ", ".join([allergy.label for allergy in self.cache.current_allergies()])
         return f"'{self.class_name()}' has to be related to one of the following allergies: {text}."
 
     def is_available(self) -> bool:
-        return bool(self.current_allergies())
+        return bool(self.cache.current_allergies())

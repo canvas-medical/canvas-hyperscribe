@@ -4,6 +4,7 @@ from canvas_sdk.commands.commands.remove_allergy import RemoveAllergyCommand
 
 from commander.protocols.commands.base import Base
 from commander.protocols.commands.remove_allergy import RemoveAllergy
+from commander.protocols.limited_cache import LimitedCache
 from commander.protocols.structures.coded_item import CodedItem
 from commander.protocols.structures.settings import Settings
 from commander.protocols.structures.vendor_key import VendorKey
@@ -17,7 +18,8 @@ def helper_instance() -> RemoveAllergy:
         ontologies_host="ontologiesHost",
         pre_shared_key="preSharedKey",
     )
-    return RemoveAllergy(settings, "patientUuid", "noteUuid", "providerUuid")
+    cache = LimitedCache("patientUuid")
+    return RemoveAllergy(settings, cache, "patientUuid", "noteUuid", "providerUuid")
 
 
 def test_class():
@@ -32,7 +34,7 @@ def test_schema_key():
     assert result == expected
 
 
-@patch.object(RemoveAllergy, "current_allergies")
+@patch.object(LimitedCache, "current_allergies")
 def test_command_from_json(current_allergies):
     def reset_mocks():
         current_allergies.reset_mock()
@@ -67,7 +69,7 @@ def test_command_from_json(current_allergies):
         reset_mocks()
 
 
-@patch.object(RemoveAllergy, "current_allergies")
+@patch.object(LimitedCache, "current_allergies")
 def test_command_parameters(current_allergies):
     def reset_mocks():
         current_allergies.reset_mock()
@@ -99,7 +101,7 @@ def test_instruction_description():
     assert result == expected
 
 
-@patch.object(RemoveAllergy, "current_allergies")
+@patch.object(LimitedCache, "current_allergies")
 def test_instruction_constraints(current_allergies):
     def reset_mocks():
         current_allergies.reset_mock()
@@ -120,7 +122,7 @@ def test_instruction_constraints(current_allergies):
     reset_mocks()
 
 
-@patch.object(RemoveAllergy, "current_allergies")
+@patch.object(LimitedCache, "current_allergies")
 def test_is_available(current_allergies):
     def reset_mocks():
         current_allergies.reset_mock()

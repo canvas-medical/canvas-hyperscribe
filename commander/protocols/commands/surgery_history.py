@@ -63,7 +63,7 @@ class SurgeryHistory(Base):
 
     def instruction_constraints(self) -> str:
         result = ""
-        if text := ", ".join([f'"{surgery.label}"' for surgery in self.surgery_history()]):
+        if text := ", ".join([f'"{surgery.label}"' for surgery in self.cache.surgery_history()]):
             result = f'"{self.class_name()}" cannot include: {text}.'
         return result
 

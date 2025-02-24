@@ -2,6 +2,7 @@ from canvas_sdk.commands.commands.history_present_illness import HistoryOfPresen
 
 from commander.protocols.commands.base import Base
 from commander.protocols.commands.history_of_present_illness import HistoryOfPresentIllness
+from commander.protocols.limited_cache import LimitedCache
 from commander.protocols.structures.settings import Settings
 from commander.protocols.structures.vendor_key import VendorKey
 
@@ -14,7 +15,8 @@ def helper_instance() -> HistoryOfPresentIllness:
         ontologies_host="ontologiesHost",
         pre_shared_key="preSharedKey",
     )
-    return HistoryOfPresentIllness(settings, "patientUuid", "noteUuid", "providerUuid")
+    cache = LimitedCache("patientUuid")
+    return HistoryOfPresentIllness(settings, cache, "patientUuid", "noteUuid", "providerUuid")
 
 
 def test_class():

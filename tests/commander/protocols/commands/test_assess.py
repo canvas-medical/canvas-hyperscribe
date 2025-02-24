@@ -4,6 +4,7 @@ from canvas_sdk.commands.commands.assess import AssessCommand
 
 from commander.protocols.commands.assess import Assess
 from commander.protocols.commands.base import Base
+from commander.protocols.limited_cache import LimitedCache
 from commander.protocols.structures.coded_item import CodedItem
 from commander.protocols.structures.settings import Settings
 from commander.protocols.structures.vendor_key import VendorKey
@@ -17,7 +18,8 @@ def helper_instance() -> Assess:
         ontologies_host="ontologiesHost",
         pre_shared_key="preSharedKey",
     )
-    return Assess(settings, "patientUuid", "noteUuid", "providerUuid")
+    cache = LimitedCache("patientUuid")
+    return Assess(settings, cache, "patientUuid", "noteUuid", "providerUuid")
 
 
 def test_class():
@@ -32,7 +34,7 @@ def test_schema_key():
     assert result == expected
 
 
-@patch.object(Assess, "current_conditions")
+@patch.object(LimitedCache, "current_conditions")
 def test_command_from_json(current_conditions):
     def reset_mocks():
         current_conditions.reset_mock()
@@ -71,7 +73,7 @@ def test_command_from_json(current_conditions):
         reset_mocks()
 
 
-@patch.object(Assess, "current_conditions")
+@patch.object(LimitedCache, "current_conditions")
 def test_command_parameters(current_conditions):
     def reset_mocks():
         current_conditions.reset_mock()
@@ -97,7 +99,7 @@ def test_command_parameters(current_conditions):
     reset_mocks()
 
 
-@patch.object(Assess, "current_conditions")
+@patch.object(LimitedCache, "current_conditions")
 def test_instruction_description(current_conditions):
     def reset_mocks():
         current_conditions.reset_mock()
@@ -119,7 +121,7 @@ def test_instruction_description(current_conditions):
     reset_mocks()
 
 
-@patch.object(Assess, "current_conditions")
+@patch.object(LimitedCache, "current_conditions")
 def test_instruction_constraints(current_conditions):
     def reset_mocks():
         current_conditions.reset_mock()
@@ -142,7 +144,7 @@ def test_instruction_constraints(current_conditions):
     reset_mocks()
 
 
-@patch.object(Assess, "current_conditions")
+@patch.object(LimitedCache, "current_conditions")
 def test_is_available(current_conditions):
     def reset_mocks():
         current_conditions.reset_mock()

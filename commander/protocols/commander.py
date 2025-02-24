@@ -20,6 +20,7 @@ from commander.protocols.auditor import Auditor
 from commander.protocols.commands.history_of_present_illness import HistoryOfPresentIllness
 from commander.protocols.commands.reason_for_visit import ReasonForVisit
 from commander.protocols.constants import Constants
+from commander.protocols.limited_cache import LimitedCache
 from commander.protocols.structures.instruction import Instruction
 from commander.protocols.structures.line import Line
 from commander.protocols.structures.settings import Settings
@@ -159,8 +160,9 @@ class Commander(BaseProtocol):
             ontologies_host=self.secrets[self.SECRET_ONTOLOGIES_HOST],
             pre_shared_key=self.secrets[self.SECRET_PRE_SHARED_KEY],
         )
+        cache = LimitedCache(patient_uuid)
 
-        chatter = AudioInterpreter(settings, patient_uuid, note_uuid, provider_uuid)
+        chatter = AudioInterpreter(settings, cache, patient_uuid, note_uuid, provider_uuid)
         previous_instructions = self.existing_commands_to_instructions(chatter, discussion.previous_instructions)
 
         discussion.previous_instructions, results = self.audio2commands(

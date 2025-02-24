@@ -2,6 +2,7 @@ from canvas_sdk.commands.commands.reason_for_visit import ReasonForVisitCommand
 
 from commander.protocols.commands.base import Base
 from commander.protocols.commands.reason_for_visit import ReasonForVisit
+from commander.protocols.limited_cache import LimitedCache
 from commander.protocols.structures.settings import Settings
 from commander.protocols.structures.vendor_key import VendorKey
 
@@ -14,7 +15,8 @@ def helper_instance() -> ReasonForVisit:
         ontologies_host="ontologiesHost",
         pre_shared_key="preSharedKey",
     )
-    return ReasonForVisit(settings, "patientUuid", "noteUuid", "providerUuid")
+    cache = LimitedCache("patientUuid")
+    return ReasonForVisit(settings, cache, "patientUuid", "noteUuid", "providerUuid")
 
 
 def test_class():

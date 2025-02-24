@@ -12,7 +12,7 @@ class CloseGoal(Base):
 
     def command_from_json(self, parameters: dict) -> None | CloseGoalCommand:
         goal_uuid = "0"
-        if 0 <= (idx := parameters["goalIndex"]) < len(current := self.current_goals()):
+        if 0 <= (idx := parameters["goalIndex"]) < len(current := self.cache.current_goals()):
             # TODO should be  goal_uuid = current[idx].uuid, waiting for https://github.com/canvas-medical/canvas-plugins/issues/338
             goal_uuid = current[idx].code
 
@@ -25,7 +25,7 @@ class CloseGoal(Base):
         )
 
     def command_parameters(self) -> dict:
-        goals = "/".join([f'{goal.label} (index: {idx})' for idx, goal in enumerate(self.current_goals())])
+        goals = "/".join([f'{goal.label} (index: {idx})' for idx, goal in enumerate(self.cache.current_goals())])
         statuses = "/".join([status.value for status in GoalCommand.AchievementStatus])
         return {
             "goal": f"one of: {goals}",
@@ -38,8 +38,8 @@ class CloseGoal(Base):
         return "Ending of a previously set goal, including status, progress, barriers, priority or due date."
 
     def instruction_constraints(self) -> str:
-        text = ", ".join([f'"{goal.label}"' for goal in self.current_goals()])
+        text = ", ".join([f'"{goal.label}"' for goal in self.cache.current_goals()])
         return f'"{self.class_name()}" has to be related to one of the following goals: {text}'
 
     def is_available(self) -> bool:
-        return bool(self.current_goals())
+        return bool(self.cache.current_goals())

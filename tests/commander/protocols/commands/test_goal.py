@@ -5,6 +5,7 @@ from canvas_sdk.commands.commands.goal import GoalCommand
 
 from commander.protocols.commands.base import Base
 from commander.protocols.commands.goal import Goal
+from commander.protocols.limited_cache import LimitedCache
 from commander.protocols.structures.coded_item import CodedItem
 from commander.protocols.structures.settings import Settings
 from commander.protocols.structures.vendor_key import VendorKey
@@ -18,7 +19,8 @@ def helper_instance() -> Goal:
         ontologies_host="ontologiesHost",
         pre_shared_key="preSharedKey",
     )
-    return Goal(settings, "patientUuid", "noteUuid", "providerUuid")
+    cache = LimitedCache("patientUuid")
+    return Goal(settings, cache, "patientUuid", "noteUuid", "providerUuid")
 
 
 def test_class():
@@ -78,7 +80,7 @@ def test_instruction_description():
     assert result == expected
 
 
-@patch.object(Goal, "current_goals")
+@patch.object(LimitedCache, "current_goals")
 def test_instruction_constraints(current_goals):
     def reset_mocks():
         current_goals.reset_mock()

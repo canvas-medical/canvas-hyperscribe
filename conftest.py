@@ -1,6 +1,7 @@
 import pytest
 
 from commander.protocols.audio_interpreter import AudioInterpreter
+from commander.protocols.limited_cache import LimitedCache
 from integrations.helper_settings import HelperSettings
 
 
@@ -31,6 +32,7 @@ def allowed_levels(request):
 def audio_interpreter(request):
     settings = HelperSettings.settings()
     patient_uuid = request.config.getoption("--patient-uuid")
+    cache = LimitedCache(patient_uuid)
     note_uuid = HelperSettings.get_note_uuid(patient_uuid) if patient_uuid else "noteUuid"
     provider_uuid = HelperSettings.get_provider_uuid(patient_uuid) if patient_uuid else "providerUuid"
-    return AudioInterpreter(settings, patient_uuid, note_uuid, provider_uuid)
+    return AudioInterpreter(settings, cache, patient_uuid, note_uuid, provider_uuid)

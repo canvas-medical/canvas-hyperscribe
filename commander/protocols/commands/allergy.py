@@ -92,7 +92,7 @@ class Allergy(Base):
 
     def instruction_constraints(self) -> str:
         result = ""
-        if text := ", ".join([allergy.label for allergy in self.current_allergies()]):
+        if text := ", ".join([allergy.label for allergy in self.cache.current_allergies()]):
             result = f"'{self.class_name()}' cannot include: {text}."
         return result
 

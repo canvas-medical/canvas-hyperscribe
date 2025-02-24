@@ -38,7 +38,7 @@ class Goal(Base):
 
     def instruction_constraints(self) -> str:
         result = ""
-        if text := ", ".join([f'"{goal.label}"' for goal in self.current_goals()]):
+        if text := ", ".join([f'"{goal.label}"' for goal in self.cache.current_goals()]):
             result = f'"{self.class_name()}" cannot include: {text}'
         return result
 

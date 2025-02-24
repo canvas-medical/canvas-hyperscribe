@@ -37,7 +37,7 @@ class Prescription(Base):
                 "",
                 prompt_condition,
                 "",
-                f"The choice of the medication has to also take into account that {self.demographic__str__()}.",
+                f"The choice of the medication has to also take into account that {self.cache.demographic__str__()}.",
                 "",
                 "Among the following medications, identify the most relevant one:",
                 "",
@@ -82,7 +82,7 @@ class Prescription(Base):
             "Based on this information, what are the quantity to dispense and the number of refills in order to "
             f"fulfill the {command.days_supply} supply days?",
             "",
-            f"The exact quantities and refill have to also take into account that {self.demographic__str__()}.",
+            f"The exact quantities and refill have to also take into account that {self.cache.demographic__str__()}.",
             "",
             "Please, present your findings in a JSON format within a Markdown code block like:",
             "```json",
@@ -116,8 +116,8 @@ class Prescription(Base):
         condition = ""
         if ("conditionIndex" in parameters
                 and isinstance(parameters["conditionIndex"], int)
-                and 0 <= (idx := parameters["conditionIndex"]) < len(self.current_conditions())):
-            targeted_condition = self.current_conditions()[idx]
+                and 0 <= (idx := parameters["conditionIndex"]) < len(self.cache.current_conditions())):
+            targeted_condition = self.cache.current_conditions()[idx]
             result.icd10_codes = [Helper.icd10_strip_dot(targeted_condition.code)]
             condition = targeted_condition.label
 
@@ -135,7 +135,7 @@ class Prescription(Base):
 
     def command_parameters(self) -> dict:
         substitutions = "/".join([status.value for status in PrescribeCommand.Substitutions])
-        conditions = "/".join([f'{condition.label} (index: {idx})' for idx, condition in enumerate(self.current_conditions())])
+        conditions = "/".join([f'{condition.label} (index: {idx})' for idx, condition in enumerate(self.cache.current_conditions())])
 
         condition_dict = {}
         if conditions:

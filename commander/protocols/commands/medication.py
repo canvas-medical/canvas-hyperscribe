@@ -61,7 +61,7 @@ class Medication(Base):
 
     def instruction_constraints(self) -> str:
         result = ""
-        if text := ", ".join([medication.label for medication in self.current_medications()]):
+        if text := ", ".join([medication.label for medication in self.cache.current_medications()]):
             result = f"'{self.class_name()}' cannot include: {text}."
         return result
 

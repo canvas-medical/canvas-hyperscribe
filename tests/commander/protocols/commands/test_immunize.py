@@ -2,6 +2,7 @@ from canvas_sdk.commands.commands.instruct import InstructCommand
 
 from commander.protocols.commands.base import Base
 from commander.protocols.commands.immunize import Immunize
+from commander.protocols.limited_cache import LimitedCache
 from commander.protocols.structures.settings import Settings
 from commander.protocols.structures.vendor_key import VendorKey
 
@@ -14,7 +15,8 @@ def helper_instance() -> Immunize:
         ontologies_host="ontologiesHost",
         pre_shared_key="preSharedKey",
     )
-    return Immunize(settings, "patientUuid", "noteUuid", "providerUuid")
+    cache = LimitedCache("patientUuid")
+    return Immunize(settings, cache, "patientUuid", "noteUuid", "providerUuid")
 
 
 def test_class():

@@ -5,6 +5,7 @@ from canvas_sdk.v1.data.lab import LabPartner
 
 from commander.protocols.commands.base import Base
 from commander.protocols.commands.lab_order import LabOrder
+from commander.protocols.limited_cache import LimitedCache
 from commander.protocols.selector_chat import SelectorChat
 from commander.protocols.structures.coded_item import CodedItem
 from commander.protocols.structures.settings import Settings
@@ -19,7 +20,8 @@ def helper_instance() -> LabOrder:
         ontologies_host="ontologiesHost",
         pre_shared_key="preSharedKey",
     )
-    return LabOrder(settings, "patientUuid", "noteUuid", "providerUuid")
+    cache = LimitedCache("patientUuid")
+    return LabOrder(settings, cache, "patientUuid", "noteUuid", "providerUuid")
 
 
 def test_class():

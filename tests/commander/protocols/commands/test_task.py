@@ -7,6 +7,7 @@ from canvas_sdk.v1.data import Staff, TaskLabel
 from commander.protocols.commands.base import Base
 from commander.protocols.commands.task import Task
 from commander.protocols.helper import Helper
+from commander.protocols.limited_cache import LimitedCache
 from commander.protocols.structures.settings import Settings
 from commander.protocols.structures.vendor_key import VendorKey
 
@@ -19,7 +20,8 @@ def helper_instance() -> Task:
         ontologies_host="ontologiesHost",
         pre_shared_key="preSharedKey",
     )
-    return Task(settings, "patientUuid", "noteUuid", "providerUuid")
+    cache = LimitedCache("patientUuid")
+    return Task(settings, cache, "patientUuid", "noteUuid", "providerUuid")
 
 
 def test_class():

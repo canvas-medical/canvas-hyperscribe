@@ -45,7 +45,7 @@ class Diagnose(Base):
 
     def instruction_constraints(self) -> str:
         result = ""
-        if text := ", ".join([f'{condition.label}' for condition in self.current_conditions()]):
+        if text := ", ".join([f'{condition.label}' for condition in self.cache.current_conditions()]):
             result = f"'{self.class_name()}' cannot include: {text}."
         return result
 

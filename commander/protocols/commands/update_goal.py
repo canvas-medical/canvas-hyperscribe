@@ -11,7 +11,7 @@ class UpdateGoal(Base):
 
     def command_from_json(self, parameters: dict) -> None | UpdateGoalCommand:
         goal_uuid = ""
-        if 0 <= (idx := parameters["goalIndex"]) < len(current := self.current_goals()):
+        if 0 <= (idx := parameters["goalIndex"]) < len(current := self.cache.current_goals()):
             goal_uuid = current[idx].uuid
 
         return UpdateGoalCommand(
@@ -24,7 +24,7 @@ class UpdateGoal(Base):
         )
 
     def command_parameters(self) -> dict:
-        goals = "/".join([f'{goal.label} (index: {idx})' for idx, goal in enumerate(self.current_goals())])
+        goals = "/".join([f'{goal.label} (index: {idx})' for idx, goal in enumerate(self.cache.current_goals())])
         statuses = "/".join([status.value for status in UpdateGoalCommand.AchievementStatus])
         priorities = "/".join([status.value for status in UpdateGoalCommand.Priority])
         return {
@@ -40,8 +40,8 @@ class UpdateGoal(Base):
         return "Change of status of a previously set goal, including progress, barriers, priority or due date."
 
     def instruction_constraints(self) -> str:
-        text = ", ".join([f'"{goal.label}"' for goal in self.current_goals()])
+        text = ", ".join([f'"{goal.label}"' for goal in self.cache.current_goals()])
         return f'"{self.class_name()}" has to be related to one of the following goals: {text}'
 
     def is_available(self) -> bool:
-        return bool(self.current_goals())
+        return bool(self.cache.current_goals())

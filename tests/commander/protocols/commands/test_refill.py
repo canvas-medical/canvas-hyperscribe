@@ -7,6 +7,7 @@ from canvas_sdk.v1.data import MedicationCoding, Medication
 
 from commander.protocols.commands.base import Base
 from commander.protocols.commands.refill import Refill
+from commander.protocols.limited_cache import LimitedCache
 from commander.protocols.structures.coded_item import CodedItem
 from commander.protocols.structures.settings import Settings
 from commander.protocols.structures.vendor_key import VendorKey
@@ -20,7 +21,8 @@ def helper_instance() -> Refill:
         ontologies_host="ontologiesHost",
         pre_shared_key="preSharedKey",
     )
-    return Refill(settings, "patientUuid", "noteUuid", "providerUuid")
+    cache = LimitedCache("patientUuid")
+    return Refill(settings, cache, "patientUuid", "noteUuid", "providerUuid")
 
 
 def test_class():
@@ -37,7 +39,7 @@ def test_schema_key():
 
 @patch('commander.protocols.commands.refill.Medication.codings')
 @patch('commander.protocols.commands.refill.Medication.objects')
-@patch.object(Refill, "current_medications")
+@patch.object(LimitedCache, "current_medications")
 def test_command_from_json(current_medications, medication, codings):
     def reset_mocks():
         current_medications.reset_mock()
@@ -110,7 +112,7 @@ def test_command_from_json(current_medications, medication, codings):
     reset_mocks()
 
 
-@patch.object(Refill, "current_medications")
+@patch.object(LimitedCache, "current_medications")
 def test_command_parameters(current_medications):
     def reset_mocks():
         current_medications.reset_mock()
@@ -137,7 +139,7 @@ def test_command_parameters(current_medications):
     reset_mocks()
 
 
-@patch.object(Refill, "current_medications")
+@patch.object(LimitedCache, "current_medications")
 def test_instruction_description(current_medications):
     def reset_mocks():
         current_medications.reset_mock()
@@ -159,7 +161,7 @@ def test_instruction_description(current_medications):
     reset_mocks()
 
 
-@patch.object(Refill, "current_medications")
+@patch.object(LimitedCache, "current_medications")
 def test_instruction_constraints(current_medications):
     def reset_mocks():
         current_medications.reset_mock()
@@ -182,7 +184,7 @@ def test_instruction_constraints(current_medications):
     reset_mocks()
 
 
-@patch.object(Refill, "current_medications")
+@patch.object(LimitedCache, "current_medications")
 def test_is_available(current_medications):
     def reset_mocks():
         current_medications.reset_mock()

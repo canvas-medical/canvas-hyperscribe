@@ -32,6 +32,7 @@ from commander.protocols.commands.update_diagnose import UpdateDiagnose
 from commander.protocols.commands.update_goal import UpdateGoal
 from commander.protocols.commands.vitals import Vitals
 from commander.protocols.helper import Helper
+from commander.protocols.limited_cache import LimitedCache
 from commander.protocols.structures.instruction import Instruction
 from commander.protocols.structures.json_extract import JsonExtract
 from commander.protocols.structures.line import Line
@@ -40,14 +41,14 @@ from commander.protocols.structures.settings import Settings
 
 class AudioInterpreter:
 
-    def __init__(self, settings: Settings, patient_id: str, note_uuid: str, provider_uuid: str) -> None:
+    def __init__(self, settings: Settings, cache: LimitedCache, patient_id: str, note_uuid: str, provider_uuid: str) -> None:
         self.settings = settings
         self.patient_id = patient_id
         self.note_uuid = note_uuid
         self._command_context = [
             instance
             for command_class in self.implemented_commands()
-            if (instance := command_class(settings, patient_id, note_uuid, provider_uuid))
+            if (instance := command_class(settings, cache, patient_id, note_uuid, provider_uuid))
                and instance.is_available()
         ]
 

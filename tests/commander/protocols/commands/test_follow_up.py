@@ -5,6 +5,7 @@ from canvas_sdk.commands.commands.follow_up import FollowUpCommand
 
 from commander.protocols.commands.base import Base
 from commander.protocols.commands.follow_up import FollowUp
+from commander.protocols.limited_cache import LimitedCache
 from commander.protocols.structures.coded_item import CodedItem
 from commander.protocols.structures.settings import Settings
 from commander.protocols.structures.vendor_key import VendorKey
@@ -18,7 +19,8 @@ def helper_instance() -> FollowUp:
         ontologies_host="ontologiesHost",
         pre_shared_key="preSharedKey",
     )
-    return FollowUp(settings, "patientUuid", "noteUuid", "providerUuid")
+    cache = LimitedCache("patientUuid")
+    return FollowUp(settings, cache, "patientUuid", "noteUuid", "providerUuid")
 
 
 def test_class():
@@ -33,7 +35,7 @@ def test_schema_key():
     assert result == expected
 
 
-@patch.object(FollowUp, "existing_note_types")
+@patch.object(LimitedCache, "existing_note_types")
 def test_command_from_json(note_types):
     def reset_mocks():
         note_types.reset_mock()
@@ -74,7 +76,7 @@ def test_command_from_json(note_types):
         reset_mocks()
 
 
-@patch.object(FollowUp, "existing_note_types")
+@patch.object(LimitedCache, "existing_note_types")
 def test_command_parameters(note_types):
     def reset_mocks():
         note_types.reset_mock()
@@ -115,7 +117,7 @@ def test_instruction_constraints():
     assert result == ""
 
 
-@patch.object(FollowUp, "existing_note_types")
+@patch.object(LimitedCache, "existing_note_types")
 def test_is_available(note_types):
     def reset_mocks():
         note_types.reset_mock()

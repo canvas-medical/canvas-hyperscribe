@@ -8,6 +8,7 @@ from canvas_sdk.v1.data import Patient, Note
 from case_builder import CaseBuilder
 from commander.protocols.audio_interpreter import AudioInterpreter
 from commander.protocols.commander import Commander
+from commander.protocols.limited_cache import LimitedCache
 from integrations.auditor_file import AuditorFile
 from integrations.helper_settings import HelperSettings
 
@@ -110,12 +111,13 @@ def test_reset(argument_parser):
 
 @patch.object(Note, "objects")
 @patch.object(Commander, "audio2commands")
+@patch.object(LimitedCache, "__new__")
 @patch.object(HelperSettings, "settings")
 @patch.object(AudioInterpreter, "__new__")
 @patch.object(AuditorFile, "__new__")
 @patch.object(CaseBuilder, "parameters")
 @patch.object(CaseBuilder, "reset")
-def test_run(reset, parameters, auditor_file, audio_interpreter, settings, audio2commands, note_db, capsys):
+def test_run(reset, parameters, auditor_file, audio_interpreter, settings, limited_cache, audio2commands, note_db, capsys):
     mock_arguments = MagicMock()
     mock_files = [MagicMock(), MagicMock()]
     mock_note = MagicMock()
@@ -127,6 +129,7 @@ def test_run(reset, parameters, auditor_file, audio_interpreter, settings, audio
         auditor_file.reset_mock()
         audio_interpreter.reset_mock()
         settings.reset_mock()
+        limited_cache.reset_mock()
         audio2commands.reset_mock()
         note_db.reset_mock()
         mock_arguments.reset_mock()
@@ -155,6 +158,7 @@ def test_run(reset, parameters, auditor_file, audio_interpreter, settings, audio
     assert auditor_file.mock_calls == calls
     assert audio_interpreter.mock_calls == []
     assert settings.mock_calls == []
+    assert limited_cache.mock_calls == []
     assert audio2commands.mock_calls == []
     assert note_db.mock_calls == []
     assert mock_note.mock_calls == []
@@ -172,12 +176,13 @@ def test_run(reset, parameters, auditor_file, audio_interpreter, settings, audio
         mock_file.__str__.side_effect = [f"audio file {idx}"]
         mock_file.open.return_value.__enter__.return_value.read.side_effect = [f"audio content {idx}".encode('utf-8')]
 
-    auditor_file.side_effect = ["auditor_file instance"]
-    audio_interpreter.side_effect = ["audio_interpreter instance"]
+    auditor_file.side_effect = ["auditorFileInstance"]
+    audio_interpreter.side_effect = ["audioInterpreterInstance"]
     note_db.filter.return_value.order_by.return_value.first.side_effect = [mock_note]
     mock_note.provider.id = "providerUuid"
     mock_note.id = "noteUuid"
-    settings.side_effect = ["settings instance"]
+    settings.side_effect = ["settingsInstance"]
+    limited_cache.side_effect = ["limitedCacheInstance"]
 
     result = tested.run()
     assert result is None
@@ -196,14 +201,16 @@ def test_run(reset, parameters, auditor_file, audio_interpreter, settings, audio
     assert parameters.mock_calls == calls
     calls = [call(AuditorFile, "theLabel")]
     assert auditor_file.mock_calls == calls
-    calls = [call(AudioInterpreter, "settings instance", "patientUuid", "noteUuid", "providerUuid")]
+    calls = [call(AudioInterpreter, "settingsInstance", "limitedCacheInstance", "patientUuid", "noteUuid", "providerUuid")]
     assert audio_interpreter.mock_calls == calls
     calls = [call()]
     assert settings.mock_calls == calls
+    calls = [call(LimitedCache, "patientUuid")]
+    assert limited_cache.mock_calls == calls
     calls = [call(
-        "auditor_file instance",
+        "auditorFileInstance",
         [b'audio content 0', b'audio content 1'],
-        "audio_interpreter instance",
+        "audioInterpreterInstance",
         [],
     )]
     assert audio2commands.mock_calls == calls

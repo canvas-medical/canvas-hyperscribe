@@ -363,6 +363,7 @@ def test_compute(compute_audio, task_comment_db, note_db, info):
     reset_mocks()
 
 
+@patch('commander.protocols.commander.LimitedCache')
 @patch('commander.protocols.commander.AudioInterpreter')
 @patch('commander.protocols.commander.CachedDiscussion')
 @patch('commander.protocols.commander.Auditor')
@@ -378,6 +379,7 @@ def test_compute_audio(
         auditor,
         cached_discussion,
         audio_interpreter,
+        limited_cache,
 ):
     def reset_mocks():
         info.reset_mock()
@@ -387,6 +389,7 @@ def test_compute_audio(
         auditor.reset_mock()
         cached_discussion.reset_mock()
         audio_interpreter.reset_mock()
+        limited_cache.reset_mock()
 
     secrets = {
         "AudioHost": "theAudioHost",
@@ -408,6 +411,7 @@ def test_compute_audio(
     auditor.side_effect = []
     cached_discussion.side_effect = []
     audio_interpreter.side_effect = []
+    limited_cache.side_effect = []
 
     tested = Commander(event, secrets)
     result = tested.compute_audio("patientUuid", "noteUuid", "providerUuid", 3)
@@ -424,6 +428,7 @@ def test_compute_audio(
     calls = [call.clear_cache()]
     assert cached_discussion.mock_calls == calls
     assert audio_interpreter.mock_calls == []
+    assert limited_cache.mock_calls == []
     reset_mocks()
 
     # audios retrieved
@@ -461,6 +466,7 @@ def test_compute_audio(
     auditor.side_effect = ["AuditorInstance"]
     cached_discussion.get_discussion.side_effect = [discussion]
     audio_interpreter.side_effect = ["AudioInterpreterInstance"]
+    limited_cache.side_effect = ["LimitedCacheInstance"]
     tested = Commander(event, secrets)
     result = tested.compute_audio("patientUuid", "noteUuid", "providerUuid", 3)
     expected = (
@@ -509,8 +515,10 @@ def test_compute_audio(
         call.get_discussion('noteUuid'),
     ]
     assert cached_discussion.mock_calls == calls
-    calls = [call(exp_settings, 'patientUuid', 'noteUuid', 'providerUuid')]
+    calls = [call(exp_settings, "LimitedCacheInstance", "patientUuid", "noteUuid", "providerUuid")]
     assert audio_interpreter.mock_calls == calls
+    calls = [call("patientUuid")]
+    assert limited_cache.mock_calls == calls
     reset_mocks()
 
 

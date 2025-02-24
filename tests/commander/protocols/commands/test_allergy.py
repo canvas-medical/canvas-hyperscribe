@@ -7,6 +7,7 @@ from commander.protocols.canvas_science import CanvasScience
 from commander.protocols.commands.allergy import Allergy
 from commander.protocols.commands.base import Base
 from commander.protocols.helper import Helper
+from commander.protocols.limited_cache import LimitedCache
 from commander.protocols.structures.allergy_detail import AllergyDetail
 from commander.protocols.structures.coded_item import CodedItem
 from commander.protocols.structures.settings import Settings
@@ -21,7 +22,8 @@ def helper_instance() -> Allergy:
         ontologies_host="ontologiesHost",
         pre_shared_key="preSharedKey",
     )
-    return Allergy(settings, "patientUuid", "noteUuid", "providerUuid")
+    cache = LimitedCache("patientUuid")
+    return Allergy(settings, cache, "patientUuid", "noteUuid", "providerUuid")
 
 
 def test_class():
@@ -207,7 +209,7 @@ def test_instruction_description():
     assert result == expected
 
 
-@patch.object(Allergy, "current_allergies")
+@patch.object(LimitedCache, "current_allergies")
 def test_instruction_constraints(current_allergies):
     def reset_mocks():
         current_allergies.reset_mock()

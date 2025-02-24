@@ -65,7 +65,7 @@ class MedicalHistory(Base):
 
     def instruction_constraints(self) -> str:
         result = ""
-        if text := ", ".join([f'{condition.label}' for condition in self.condition_history()]):
+        if text := ", ".join([f'{condition.label}' for condition in self.cache.condition_history()]):
             result = f"'{self.class_name()}' cannot include: {text}."
         return result
 

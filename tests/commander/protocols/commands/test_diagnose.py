@@ -5,6 +5,7 @@ from canvas_sdk.commands.commands.diagnose import DiagnoseCommand
 
 from commander.protocols.commands.base import Base
 from commander.protocols.commands.diagnose import Diagnose
+from commander.protocols.limited_cache import LimitedCache
 from commander.protocols.selector_chat import SelectorChat
 from commander.protocols.structures.coded_item import CodedItem
 from commander.protocols.structures.settings import Settings
@@ -19,7 +20,8 @@ def helper_instance() -> Diagnose:
         ontologies_host="ontologiesHost",
         pre_shared_key="preSharedKey",
     )
-    return Diagnose(settings, "patientUuid", "noteUuid", "providerUuid")
+    cache = LimitedCache("patientUuid")
+    return Diagnose(settings, cache, "patientUuid", "noteUuid", "providerUuid")
 
 
 def test_class():
@@ -91,7 +93,7 @@ def test_instruction_description():
     assert result == expected
 
 
-@patch.object(Diagnose, "current_conditions")
+@patch.object(LimitedCache, "current_conditions")
 def test_instruction_constraints(current_conditions):
     def reset_mocks():
         current_conditions.reset_mock()

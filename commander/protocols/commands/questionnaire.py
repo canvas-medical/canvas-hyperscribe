@@ -10,7 +10,7 @@ class Questionnaire(Base):
 
     def command_from_json(self, parameters: dict) -> None | QuestionnaireCommand:
         questionnaire_uuid = ""
-        if 0 <= (idx := parameters["questionnaireIndex"]) < len(current := self.existing_questionnaires()):
+        if 0 <= (idx := parameters["questionnaireIndex"]) < len(current := self.cache.existing_questionnaires()):
             questionnaire_uuid = current[idx].uuid
 
         return QuestionnaireCommand(
@@ -20,7 +20,7 @@ class Questionnaire(Base):
         )
 
     def command_parameters(self) -> dict:
-        questionnaires = "/".join([f'{questionnaire.label} (index: {idx})' for idx, questionnaire in enumerate(self.existing_questionnaires())])
+        questionnaires = "/".join([f'{questionnaire.label} (index: {idx})' for idx, questionnaire in enumerate(self.cache.existing_questionnaires())])
         return {
             "questionnaire": f"one of: {questionnaires}, mandatory",
             "questionnaireIndex": "index of the questionnaire, as integer",
@@ -33,8 +33,8 @@ class Questionnaire(Base):
                 "Each type of questionnaire can be submitted only once per discussion.")
 
     def instruction_constraints(self) -> str:
-        text = ", ".join([f'"{questionnaire.label}"' for questionnaire in self.existing_questionnaires()])
+        text = ", ".join([f'"{questionnaire.label}"' for questionnaire in self.cache.existing_questionnaires()])
         return f'"{self.class_name()}" has to be related to one of the following questionnaires: {text}'
 
     def is_available(self) -> bool:
-        return bool(self.existing_questionnaires())
+        return bool(self.cache.existing_questionnaires())

@@ -14,7 +14,7 @@ class Refill(Base):
 
     def command_from_json(self, parameters: dict) -> None | RefillCommand:
         result: None | RefillCommand = None
-        if 0 <= (idx := parameters["medicationIndex"]) < len(current := self.current_medications()):
+        if 0 <= (idx := parameters["medicationIndex"]) < len(current := self.cache.current_medications()):
             medication_uuid = current[idx].uuid
             medication = Medication.objects.get(id=medication_uuid)
             coding = medication.codings.filter(system="http://www.fdbhealth.com/").first()
@@ -36,7 +36,7 @@ class Refill(Base):
 
     def command_parameters(self) -> dict:
         substitutions = "/".join([status.value for status in PrescribeCommand.Substitutions])
-        medications = "/".join([f'{medication.label} (index: {idx})' for idx, medication in enumerate(self.current_medications())])
+        medications = "/".join([f'{medication.label} (index: {idx})' for idx, medication in enumerate(self.cache.current_medications())])
         return {
             "medication": f"one of: {medications}",
             "medicationIndex": "index of the medication to refill, as integer",
@@ -47,13 +47,13 @@ class Refill(Base):
         }
 
     def instruction_description(self) -> str:
-        text = ", ".join([f'{medication.label}' for medication in self.current_medications()])
+        text = ", ".join([f'{medication.label}' for medication in self.cache.current_medications()])
         return (f"Refill of a current medication ({text}), including the directions, the duration, the targeted condition and the dosage. "
                 "There can be only one refill per instruction, and no instruction in the lack of.")
 
     def instruction_constraints(self) -> str:
-        text = ", ".join([f'{medication.label} (RxNorm: {medication.code})' for medication in self.current_medications()])
+        text = ", ".join([f'{medication.label} (RxNorm: {medication.code})' for medication in self.cache.current_medications()])
         return f"'{self.class_name()}' has to be related to one of the following medications: {text}"
 
     def is_available(self) -> bool:
-        return bool(self.current_medications())
+        return bool(self.cache.current_medications())

@@ -6,6 +6,7 @@ from commander.protocols.canvas_science import CanvasScience
 from commander.protocols.commands.base import Base
 from commander.protocols.commands.update_diagnose import UpdateDiagnose
 from commander.protocols.helper import Helper
+from commander.protocols.limited_cache import LimitedCache
 from commander.protocols.structures.coded_item import CodedItem
 from commander.protocols.structures.icd10_condition import Icd10Condition
 from commander.protocols.structures.settings import Settings
@@ -20,7 +21,8 @@ def helper_instance() -> UpdateDiagnose:
         ontologies_host="ontologiesHost",
         pre_shared_key="preSharedKey",
     )
-    return UpdateDiagnose(settings, "patientUuid", "noteUuid", "providerUuid")
+    cache = LimitedCache("patientUuid")
+    return UpdateDiagnose(settings, cache, "patientUuid", "noteUuid", "providerUuid")
 
 
 def test_class():
@@ -37,7 +39,7 @@ def test_schema_key():
 
 @patch.object(Helper, "chatter")
 @patch.object(CanvasScience, "search_conditions")
-@patch.object(UpdateDiagnose, "current_conditions")
+@patch.object(LimitedCache, "current_conditions")
 def test_command_from_json(current_conditions, search_conditions, chatter):
     def reset_mocks():
         current_conditions.reset_mock()
@@ -171,7 +173,7 @@ def test_command_from_json(current_conditions, search_conditions, chatter):
         reset_mocks()
 
 
-@patch.object(UpdateDiagnose, "current_conditions")
+@patch.object(LimitedCache, "current_conditions")
 def test_command_parameters(current_conditions):
     def reset_mocks():
         current_conditions.reset_mock()
@@ -198,7 +200,7 @@ def test_command_parameters(current_conditions):
     reset_mocks()
 
 
-@patch.object(UpdateDiagnose, "current_conditions")
+@patch.object(LimitedCache, "current_conditions")
 def test_instruction_description(current_conditions):
     def reset_mocks():
         current_conditions.reset_mock()
@@ -220,7 +222,7 @@ def test_instruction_description(current_conditions):
     reset_mocks()
 
 
-@patch.object(UpdateDiagnose, "current_conditions")
+@patch.object(LimitedCache, "current_conditions")
 def test_instruction_constraints(current_conditions):
     def reset_mocks():
         current_conditions.reset_mock()
@@ -243,7 +245,7 @@ def test_instruction_constraints(current_conditions):
     reset_mocks()
 
 
-@patch.object(UpdateDiagnose, "current_conditions")
+@patch.object(LimitedCache, "current_conditions")
 def test_is_available(current_conditions):
     def reset_mocks():
         current_conditions.reset_mock()

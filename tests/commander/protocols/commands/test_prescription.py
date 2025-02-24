@@ -7,6 +7,7 @@ from commander.protocols.canvas_science import CanvasScience
 from commander.protocols.commands.base import Base
 from commander.protocols.commands.prescription import Prescription
 from commander.protocols.helper import Helper
+from commander.protocols.limited_cache import LimitedCache
 from commander.protocols.structures.coded_item import CodedItem
 from commander.protocols.structures.medication_detail import MedicationDetail
 from commander.protocols.structures.medication_detail_quantity import MedicationDetailQuantity
@@ -22,7 +23,8 @@ def helper_instance() -> Prescription:
         ontologies_host="ontologiesHost",
         pre_shared_key="preSharedKey",
     )
-    return Prescription(settings, "patientUuid", "noteUuid", "providerUuid")
+    cache = LimitedCache("patientUuid")
+    return Prescription(settings, cache, "patientUuid", "noteUuid", "providerUuid")
 
 
 def test_class():
@@ -39,7 +41,7 @@ def test_schema_key():
 
 @patch.object(Helper, "chatter")
 @patch.object(CanvasScience, "medication_details")
-@patch.object(Prescription, "demographic__str__")
+@patch.object(LimitedCache, "demographic__str__")
 def test_medications_from(demographic, medication_details, chatter):
     def reset_mocks():
         demographic.reset_mock()
@@ -178,7 +180,7 @@ def test_medications_from(demographic, medication_details, chatter):
 
 
 @patch.object(Helper, "chatter")
-@patch.object(Prescription, "demographic__str__")
+@patch.object(LimitedCache, "demographic__str__")
 def test_set_medication_dosage(demographic, chatter):
     def reset_mocks():
         chatter.reset_mock()
@@ -295,7 +297,7 @@ def test_set_medication_dosage(demographic, chatter):
 
 @patch.object(Prescription, "set_medication_dosage")
 @patch.object(Prescription, "medications_from")
-@patch.object(Prescription, "current_conditions")
+@patch.object(LimitedCache, "current_conditions")
 def test_command_from_json(current_conditions, medications_from, set_medication_dosage):
     def reset_mocks():
         current_conditions.reset_mock()
@@ -416,7 +418,7 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
     reset_mocks()
 
 
-@patch.object(Prescription, "current_conditions")
+@patch.object(LimitedCache, "current_conditions")
 def test_command_parameters(current_conditions):
     def reset_mocks():
         current_conditions.reset_mock()
