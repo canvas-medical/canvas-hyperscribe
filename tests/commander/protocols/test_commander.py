@@ -487,11 +487,11 @@ def test_compute_audio(
              "Instruction(uuid='uuidB', instruction='theInstructionB', information='theInformationB', is_new=True, is_updated=False), "
              "Instruction(uuid='uuidC', instruction='theInstructionC', information='theInformationC', is_new=True, is_updated=False)]"),
         call('<-------->'),
-        call('command: 1'),
+        call('command: LOG'),
         call('Log1'),
-        call('command: 1'),
+        call('command: LOG'),
         call('Log2'),
-        call('command: 1'),
+        call('command: LOG'),
         call('Log3'),
         call('<=== END ===>'),
     ]
@@ -1088,17 +1088,21 @@ def test_existing_commands_to_instructions(note_db, command_db):
     note_db.get.side_effect = [Note(dbid=751)]
     command_db.filter.return_value.order_by.side_effect = [
         [
-            Command(id="uuid1", schema_key="canvas_command_X"),
-            Command(id="uuid2", schema_key="canvas_command_X"),
-            Command(id="uuid3", schema_key="canvas_command_Y"),
-            Command(id="uuid4", schema_key="canvas_command_Y"),
-            Command(id="uuid5", schema_key="canvas_command_Y"),
+            Command(id="uuid1", schema_key="canvas_command_X", data={"narrative": "theNarrative1", "comment": "theComment1"}),
+            Command(id="uuid2", schema_key="canvas_command_X", data={"narrative": "theNarrative2", "comment": "theComment2"}),
+            Command(id="uuid3", schema_key="canvas_command_Y", data={"narrative": "theNarrative3", "comment": "theComment3"}),
+            Command(id="uuid4", schema_key="canvas_command_Y", data={"narrative": "theNarrative4", "comment": "theComment4"}),
+            Command(id="uuid5", schema_key="canvas_command_Y", data={"narrative": "theNarrative5", "comment": "theComment5"}),
+            Command(id="uuid6", schema_key="hpi", data={"narrative": "theNarrative6", "comment": "theComment6"}),
+            Command(id="uuid7", schema_key="reasonForVisit", data={"narrative": "theNarrative7", "comment": "theComment7"}),
         ],
     ]
     chatter.schema_key2instruction.side_effect = [
         {
             "canvas_command_X": "theInstructionX",
             "canvas_command_Y": "theInstructionY",
+            "hpi": "HistoryOfPresentIllness",
+            "reasonForVisit": "ReasonForVisit",
         },
     ]
     instructions = [
@@ -1114,6 +1118,8 @@ def test_existing_commands_to_instructions(note_db, command_db):
         Instruction(uuid='uuid3', instruction='theInstructionY', information='theInformationD', is_new=False, is_updated=False),
         Instruction(uuid='uuid4', instruction='theInstructionY', information='theInformationE', is_new=False, is_updated=False),
         Instruction(uuid='uuid5', instruction='theInstructionY', information='', is_new=False, is_updated=False),
+        Instruction(uuid='uuid6', instruction='HistoryOfPresentIllness', information='theNarrative6', is_new=False, is_updated=False),
+        Instruction(uuid='uuid7', instruction='ReasonForVisit', information='theComment7', is_new=False, is_updated=False),
     ]
     assert result == expected
     calls = [call.get(id='noteUuid')]

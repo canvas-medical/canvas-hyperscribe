@@ -41,7 +41,7 @@ class HelperSettings:
     @classmethod
     def json_nuanced_differences(cls, accepted_levels: list[str], result_json: str, expected_json: str) -> tuple[bool, str]:
         system_prompt = [
-            "The user will provides two JSON objects. ",
+            "The user will provides two JSON objects.",
             "Your task is compare them and report the discrepancies as a JSON list in a Markdown block like:",
             "```json",
             json.dumps([
@@ -68,14 +68,14 @@ class HelperSettings:
             expected_json,
             "```",
             "",
-            "Please, review both JSONs and report as instructed all differences."
+            "Please, review both JSONs and report as instructed all differences.",
         ]
         return cls.nuanced_differences(accepted_levels, system_prompt, user_prompt)
 
     @classmethod
     def text_nuanced_differences(cls, accepted_levels: list[str], result_text: str, expected_text: str) -> tuple[bool, str]:
         system_prompt = [
-            "The user will provides two texts. ",
+            "The user will provides two texts.",
             "Your task is compare them *solely* from a medical meaning point of view and report the discrepancies as a JSON list in a Markdown block like:",
             "```json",
             json.dumps([
@@ -97,7 +97,7 @@ class HelperSettings:
             expected_text,
             "```",
             "",
-            "Please, review both texts and report as instructed all differences from a meaning point of view."
+            "Please, review both texts and report as instructed all differences from a meaning point of view.",
         ]
         return cls.nuanced_differences(accepted_levels, system_prompt, user_prompt)
 

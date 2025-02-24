@@ -5,7 +5,7 @@ from time import time
 
 import requests
 from canvas_sdk.commands.base import _BaseCommand as BaseCommand
-from canvas_sdk.effects import Effect
+from canvas_sdk.effects import Effect, EffectType
 from canvas_sdk.effects.task.task import AddTaskComment, UpdateTask, TaskStatus
 from canvas_sdk.events import EventType
 from canvas_sdk.protocols import BaseProtocol
@@ -17,6 +17,8 @@ from logger import log
 
 from commander.protocols.audio_interpreter import AudioInterpreter
 from commander.protocols.auditor import Auditor
+from commander.protocols.commands.history_of_present_illness import HistoryOfPresentIllness
+from commander.protocols.commands.reason_for_visit import ReasonForVisit
 from commander.protocols.constants import Constants
 from commander.protocols.structures.instruction import Instruction
 from commander.protocols.structures.line import Line
@@ -172,7 +174,7 @@ class Commander(BaseProtocol):
         log.info(f"instructions: {discussion.previous_instructions}")
         log.info("<-------->")
         for result in results:
-            log.info(f"command: {result.type}")
+            log.info(f"command: {EffectType.Name(result.type)}")
             log.info(result.payload)
         log.info("<=== END ===>")
 
@@ -314,7 +316,6 @@ class Commander(BaseProtocol):
         current_commands = Command.objects.filter(
             patient__id=chatter.patient_id,
             note_id=note.dbid,
-            # origination_source="plugin",  # <--- TODO use an Enum when provided
             state="staged",  # <--- TODO use an Enum when provided
         ).order_by("schema_key", "dbid")
 
@@ -323,7 +324,12 @@ class Commander(BaseProtocol):
         for command in current_commands:
             instruction_type = mapping[command.schema_key]
             instruction_uuid = str(command.id)
-            information = ""  # TODO set some information based on the current command.data?
+            information = ""
+            if command.schema_key == HistoryOfPresentIllness.schema_key():
+                information = command.data.get("narrative", "")
+            elif command.schema_key == ReasonForVisit.schema_key():
+                information = command.data.get("comment", "")
+
             for idx, instruction in enumerate(instructions):
                 if idx not in consumed_indexes and instruction_type == instruction.instruction:
                     consumed_indexes.append(idx)

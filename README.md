@@ -51,9 +51,9 @@ The `secrets` are stored in the Canvas instance database and can be upsert in `h
 The `commander` code is tested with `pytest`.
 
 ```shell
-poetry run pytest -vv tests/ # run all tests and fully display any failure 
+uv  run pytest -vv tests/ # run all tests and fully display any failure 
 
-poetry run pytest tests/ --cov=. # run all tests and report the coverage
+uv  run pytest tests/ --cov=. # run all tests and report the coverage
 ```
 
 ## Integration tests
@@ -92,23 +92,23 @@ Among standard `pytest` parameters, `-k` is useful as it allows to target a spec
 
 ```shell
 # run all integration tests for the patient patient_uuid
-poetry run pytest -v integrations --patient-uuid patient_uuid
+uv  run pytest -v integrations --patient-uuid patient_uuid
 
 # run the test the_name defined for the step audio2transcript, 
 # accepting all differences minor, moderate and severe
-poetry run pytest -v integrations/test_audio2transcript.py -k the_name --integration-difference-levels "minor,moderate,severe"
+uv  run pytest -v integrations/test_audio2transcript.py -k the_name --integration-difference-levels "minor,moderate,severe"
 
 # run the test the_name defined for the step instruction2parameters 
 # for the patient patient_uuid
-poetry run pytest -v integrations/test_instruction2parameters.py -k the_name --patient-uuid patient_uuid
+uv  run pytest -v integrations/test_instruction2parameters.py -k the_name --patient-uuid patient_uuid
 
 # run all tests for the step parameters2command 
 # for the patient patient_uuid
-poetry run pytest -v integrations/test_parameters2command.py --patient-uuid patient_uuid
+uv  run pytest -v integrations/test_parameters2command.py --patient-uuid patient_uuid
 
 # run all tests for the step transcript2instructions 
 # for the patient patient_uuid
-poetry run pytest -v integrations/test_transcript2instructions.py --patient-uuid patient_uuid
+uv  run pytest -v integrations/test_transcript2instructions.py --patient-uuid patient_uuid
 ```
 
 ### Create integration tests
@@ -118,7 +118,7 @@ To be able to create integration codes locally, create the environment variables
 ```shell
 export VendorTextLLM="OpenAI"
 export KeyTextLLM="..."
-export VendorAudioLLM="OpenAI"
+export VendorAudioLLM="Google"
 export KeyAudioLLM="..."
 export ScienceHost="..."
 export OntologiesHost="...."
@@ -128,7 +128,7 @@ export PreSharedKey="...."
 Based on a set of `mp3` files, a set (i.e. covering all steps) of integration tests can be created using:
 
 ```shell
-poetry run python case_builder.py \
+uv  run python case_builder.py \
   --patient patient_uuid \
   --label the_name \
   --mp3 "file/path/to/file_01.mp3" \
@@ -151,5 +151,5 @@ On the second step (`transcript2instructions`):
 A set of integration tests can be deleted using:
 
 ```shell
-poetry run python case_builder.py --label the_name --delete
+uv  run python case_builder.py --label the_name --delete
 ```
