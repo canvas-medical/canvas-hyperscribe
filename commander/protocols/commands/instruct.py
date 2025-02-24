@@ -1,6 +1,7 @@
 import json
 
 from canvas_sdk.commands.commands.instruct import InstructCommand
+from canvas_sdk.commands.constants import CodeSystems, Coding
 
 from commander.protocols.canvas_science import CanvasScience
 from commander.protocols.commands.base import Base
@@ -14,7 +15,6 @@ class Instruct(Base):
 
     def command_from_json(self, parameters: dict) -> None | InstructCommand:
         result = InstructCommand(
-            instruction="Advice to read information",
             comment=parameters["comment"],
             note_uuid=self.note_uuid,
         )
@@ -41,12 +41,16 @@ class Instruct(Base):
                 '',
                 'Please, present your findings in a JSON format within a Markdown code block like:',
                 '```json',
-                json.dumps([{"concept_id": "the concept ID", "term": "the expression"}]),
+                json.dumps([{"conceptId": "the concept ID", "term": "the expression"}]),
                 '```',
                 '',
             ]
             if response := Helper.chatter(self.settings).single_conversation(system_prompt, user_prompt):
-                result.instruction = response[0]["term"]
+                result.coding = Coding(
+                    code=str(response[0]["conceptId"]),
+                    system=CodeSystems.SNOMED,
+                    display=response[0]["term"],
+                )
 
         return result
 

@@ -1,6 +1,7 @@
 from unittest.mock import patch, call
 
 from canvas_sdk.commands.commands.instruct import InstructCommand
+from canvas_sdk.commands.constants import Coding
 
 from commander.protocols.canvas_science import CanvasScience
 from commander.protocols.commands.base import Base
@@ -62,7 +63,7 @@ def test_command_from_json(instructions, chatter):
         '',
         'Please, present your findings in a JSON format within a Markdown code block like:',
         '```json',
-        '[{"concept_id": "the concept ID", "term": "the expression"}]',
+        '[{"conceptId": "the concept ID", "term": "the expression"}]',
         '```',
         '',
     ]
@@ -85,7 +86,11 @@ def test_command_from_json(instructions, chatter):
 
     result = tested.command_from_json(parameters)
     expected = InstructCommand(
-        instruction="termB",
+        coding=Coding(
+            code="369",
+            system="http://snomed.info/sct",
+            display="termB",
+        ),
         comment="theComment",
         note_uuid="noteUuid",
     )
@@ -105,7 +110,6 @@ def test_command_from_json(instructions, chatter):
 
     result = tested.command_from_json(parameters)
     expected = InstructCommand(
-        instruction="Advice to read information",
         comment="theComment",
         note_uuid="noteUuid",
     )
@@ -125,7 +129,6 @@ def test_command_from_json(instructions, chatter):
 
     result = tested.command_from_json(parameters)
     expected = InstructCommand(
-        instruction="Advice to read information",
         comment="theComment",
         note_uuid="noteUuid",
     )
