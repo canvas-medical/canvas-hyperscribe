@@ -27,6 +27,14 @@ class Prescription(Base):
                 "Your task is to identify the most relevant medication to prescribe to a patient out of a list of medications.",
                 "",
             ]
+            
+            # TODO Get allergies from staged in-note commands, too
+            allergies = ', '.join([a.label for a in self.cache.current_allergies()])
+            if allergies:
+                allergy_statement = f"The patient is allergic to {allergies}."
+            else:
+                allergy_statement = "The patient's medical record contains no information about allergies."
+            
             user_prompt = [
                 "Here is the comment provided by the healthcare provider in regards to the prescription:",
                 "```text",
@@ -38,8 +46,9 @@ class Prescription(Base):
                 prompt_condition,
                 "",
                 f"The choice of the medication has to also take into account that {self.cache.demographic__str__()}.",
+                allergy_statement,
                 "",
-                "Among the following medications, identify the most relevant one:",
+                "Among the following medications, identify the most appropriate option:",
                 "",
                 "\n".join(f' * {medication.description} (fdbCode: {medication.fdb_code})' for medication in medications),
                 "",
