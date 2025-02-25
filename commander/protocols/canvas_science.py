@@ -7,6 +7,7 @@ from requests import get as requests_get
 
 from commander.protocols.structures.allergy_detail import AllergyDetail
 from commander.protocols.structures.icd10_condition import Icd10Condition
+from commander.protocols.structures.imaging_report import ImagingReport
 from commander.protocols.structures.medical_concept import MedicalConcept
 from commander.protocols.structures.medication_detail import MedicationDetail
 from commander.protocols.structures.medication_detail_quantity import MedicationDetailQuantity
@@ -38,13 +39,17 @@ class CanvasScience:
         return cls.medical_concept(f"{host}/search/condition", expressions, Icd10Condition)
 
     @classmethod
+    def search_imagings(cls, host: str, expressions: list[str]) -> list[ImagingReport]:
+        return cls.medical_concept(f"{host}/parse-templates/imaging-reports", expressions, ImagingReport)
+
+    @classmethod
     def medical_concept(
             cls,
             url: str,
             expressions: list[str],
-            returned_class: Type[MedicalConcept | Icd10Condition | MedicationDetail],
-    ) -> list[MedicalConcept | Icd10Condition | MedicationDetail]:
-        result: list[MedicalConcept | Icd10Condition | MedicationDetail] = []
+            returned_class: Type[MedicalConcept | Icd10Condition | MedicationDetail | ImagingReport],
+    ) -> list[MedicalConcept | Icd10Condition | MedicationDetail | ImagingReport]:
+        result: list[MedicalConcept | Icd10Condition | MedicationDetail | ImagingReport] = []
         headers = {
             "Content-Type": "application/json",
         }
@@ -85,6 +90,11 @@ class CanvasScience:
                     result.append(Icd10Condition(
                         code=concept["icd10_code"],
                         label=concept["icd10_text"],
+                    ))
+                elif returned_class == ImagingReport:
+                    result.append(ImagingReport(
+                        code=concept["code"],
+                        name=concept["name"],
                     ))
                 else:
                     result.append(MedicalConcept(

@@ -5,6 +5,7 @@ from canvas_sdk.commands.commands.allergy import AllergenType
 from commander.protocols.canvas_science import CanvasScience
 from commander.protocols.structures.allergy_detail import AllergyDetail
 from commander.protocols.structures.icd10_condition import Icd10Condition
+from commander.protocols.structures.imaging_report import ImagingReport
 from commander.protocols.structures.medical_concept import MedicalConcept
 from commander.protocols.structures.medication_detail import MedicationDetail
 from commander.protocols.structures.medication_detail_quantity import MedicationDetailQuantity
@@ -125,6 +126,26 @@ def test_search_conditions(medical_concept):
         "theHost/search/condition",
         ["expression 1", "expression 2"],
         Icd10Condition,
+    )]
+    assert medical_concept.mock_calls == calls
+    reset_mocks()
+
+
+@patch.object(CanvasScience, 'medical_concept')
+def test_search_imagings(medical_concept):
+    def reset_mocks():
+        medical_concept.reset_mock()
+
+    tested = CanvasScience
+
+    medical_concept.side_effect = ["medical_concept was called"]
+    result = tested.search_imagings("theHost", ["expression 1", "expression 2"])
+    expected = "medical_concept was called"
+    assert result == expected
+    calls = [call(
+        "theHost/parse-templates/imaging-reports",
+        ["expression 1", "expression 2"],
+        ImagingReport,
     )]
     assert medical_concept.mock_calls == calls
     reset_mocks()
@@ -253,6 +274,72 @@ def test_medical_concept(get_attempts):
                     ],
                 ),
             ]
+        ),
+        (
+            ImagingReport,
+            [
+                [
+                    {
+                        "id": 5471,
+                        "fields": [
+                            {
+                                "id": 16562,
+                                "type": "text",
+                                "code_system": "CPT",
+                                "options": [],
+                                "sequence": 1,
+                                "code": "codeFieldA1",
+                                "label": "Comment",
+                                "units": None,
+                                "required": False
+                            },
+                        ],
+                        "name": "NameA",
+                        "score": 0,
+                        "code": "codeA",
+                        "code_system": "CPT",
+                        "search_keywords": "keywordA1, keywordA2",
+                        "active": True,
+                        "custom": False,
+                        "long_name": "LongNameA",
+                        "rank": 10
+                    },
+                    {
+                        "id": 5587,
+                        "fields": [],
+                        "name": "NameB",
+                        "score": 0,
+                        "code": "codeB",
+                        "code_system": "CPT",
+                        "search_keywords": "keywordB1",
+                        "active": True,
+                        "custom": True,
+                        "long_name": "LongNameB",
+                        "rank": 10
+                    },
+                ],
+                [
+                    {
+                        "id": 6325,
+                        "fields": [],
+                        "name": "NameC",
+                        "score": 0,
+                        "code": "codeC",
+                        "code_system": "CPT",
+                        "search_keywords": "keywordC1, keywordC2, keywordC3",
+                        "active": False,
+                        "custom": False,
+                        "long_name": "LongNameB",
+                        "rank": 10
+                    },
+                ],
+                [],
+            ],
+            [
+                ImagingReport(code="codeA", name="NameA"),
+                ImagingReport(code="codeB", name="NameB"),
+                ImagingReport(code="codeC", name="NameC"),
+            ],
         ),
     ]
     for returned_class, side_effects, expected in tests:

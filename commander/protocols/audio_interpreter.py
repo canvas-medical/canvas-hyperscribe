@@ -13,6 +13,7 @@ from commander.protocols.commands.family_history import FamilyHistory
 from commander.protocols.commands.follow_up import FollowUp
 from commander.protocols.commands.goal import Goal
 from commander.protocols.commands.history_of_present_illness import HistoryOfPresentIllness
+from commander.protocols.commands.imaging_order import ImagingOrder
 from commander.protocols.commands.immunize import Immunize
 from commander.protocols.commands.instruct import Instruct
 from commander.protocols.commands.lab_order import LabOrder
@@ -296,6 +297,7 @@ class AudioInterpreter:
             FollowUp,
             Goal,
             HistoryOfPresentIllness,
+            ImagingOrder,
             Immunize,
             Instruct,
             LabOrder,
