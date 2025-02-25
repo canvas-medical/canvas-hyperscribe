@@ -2,7 +2,7 @@ from datetime import date
 
 from canvas_sdk.v1.data import (
     AllergyIntolerance, Condition, Questionnaire, Command,
-    Patient, Observation, NoteType, Medication)
+    Patient, Observation, NoteType, Medication, ReasonForVisitSettingCoding)
 from canvas_sdk.v1.data.condition import ClinicalStatus
 from canvas_sdk.v1.data.medication import Status
 from canvas_sdk.v1.data.patient import SexAtBirth
@@ -23,6 +23,7 @@ class LimitedCache:
         self._medications: list | None = None
         self._note_type: list | None = None
         self._questionnaires: list | None = None
+        self._reason_for_visit: list | None = None
         self._surgery_history: list | None = None
 
     def current_goals(self) -> list[CodedItem]:
@@ -144,6 +145,17 @@ class LimitedCache:
                     code=note_type.code,
                 ))
         return self._note_type
+
+    def existing_reason_for_visits(self) -> list[CodedItem]:
+        if self._reason_for_visit is None:
+            self._reason_for_visit = []
+            for rfv in ReasonForVisitSettingCoding.objects.order_by('-dbid'):
+                self._reason_for_visit.append(CodedItem(
+                    uuid=str(rfv.id),
+                    label=rfv.display,
+                    code=rfv.code,
+                ))
+        return self._reason_for_visit
 
     # def patient_birth_date(self) -> date:
     #     if not Constants.HAS_DATABASE_ACCESS:

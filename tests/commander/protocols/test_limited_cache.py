@@ -2,8 +2,10 @@ from datetime import date
 from unittest.mock import patch, call
 from uuid import uuid5, NAMESPACE_DNS
 
-from canvas_sdk.v1.data import Command, Condition, ConditionCoding, MedicationCoding, Medication, AllergyIntolerance, AllergyIntoleranceCoding, \
-    Questionnaire, Patient, Observation, NoteType
+from canvas_sdk.v1.data import (
+    Command, Condition, ConditionCoding, MedicationCoding,
+    Medication, AllergyIntolerance, AllergyIntoleranceCoding,
+    Questionnaire, Patient, Observation, NoteType, ReasonForVisitSettingCoding)
 
 from commander.protocols.limited_cache import LimitedCache
 from commander.protocols.structures.coded_item import CodedItem
@@ -21,6 +23,7 @@ def test___init__():
     assert tested._medications is None
     assert tested._note_type is None
     assert tested._questionnaires is None
+    assert tested._reason_for_visit is None
     assert tested._surgery_history is None
 
 
@@ -416,6 +419,38 @@ def test_existing_note_types(note_type_db):
     assert result == expected
     assert tested._note_type == expected
     assert note_type_db.mock_calls == []
+    reset_mocks()
+
+
+@patch.object(ReasonForVisitSettingCoding, 'objects')
+def test_existing_reason_for_visits(rfv_coding_db):
+    def reset_mocks():
+        rfv_coding_db.reset_mock()
+
+    rfv_coding_db.order_by.side_effect = [
+        [
+            ReasonForVisitSettingCoding(id=uuid5(NAMESPACE_DNS, "1"), display="display1", code="code1"),
+            ReasonForVisitSettingCoding(id=uuid5(NAMESPACE_DNS, "2"), display="display2", code="code2"),
+            ReasonForVisitSettingCoding(id=uuid5(NAMESPACE_DNS, "3"), display="display3", code="code3"),
+        ],
+    ]
+    tested = LimitedCache("patientUuid")
+    expected = [
+        CodedItem(uuid="b04965e6-a9bb-591f-8f8a-1adcb2c8dc39", label="display1", code="code1"),
+        CodedItem(uuid="4b166dbe-d99d-5091-abdd-95b83330ed3a", label="display2", code="code2"),
+        CodedItem(uuid="98123fde-012f-5ff3-8b50-881449dac91a", label="display3", code="code3"),
+    ]
+    result = tested.existing_reason_for_visits()
+    assert result == expected
+    assert tested._reason_for_visit == expected
+    calls = [call.order_by('-dbid')]
+    assert rfv_coding_db.mock_calls == calls
+    reset_mocks()
+
+    result = tested.existing_reason_for_visits()
+    assert result == expected
+    assert tested._reason_for_visit == expected
+    assert rfv_coding_db.mock_calls == []
     reset_mocks()
 
 
