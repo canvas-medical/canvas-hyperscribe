@@ -102,6 +102,7 @@ def test_chatter():
             science_host="scienceHost",
             ontologies_host="ontologiesHost",
             pre_shared_key="preSharedKey",
+            structured_rfv=False,
         ))
         assert isinstance(result, exp_class)
         assert result.api_key == "textKey"
@@ -121,6 +122,7 @@ def test_audio2texter():
             science_host="scienceHost",
             ontologies_host="ontologiesHost",
             pre_shared_key="preSharedKey",
+            structured_rfv=False,
         ))
         assert isinstance(result, exp_class)
         assert result.api_key == "audioKey"

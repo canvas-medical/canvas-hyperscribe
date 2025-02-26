@@ -1,13 +1,21 @@
 from canvas_sdk.commands.commands.update_goal import UpdateGoalCommand
 
 from commander.protocols.commands.base import Base
+from commander.protocols.constants import Constants
 from commander.protocols.helper import Helper
+from commander.protocols.structures.coded_item import CodedItem
 
 
 class UpdateGoal(Base):
     @classmethod
     def schema_key(cls) -> str:
-        return "updateGoal"
+        return Constants.SCHEMA_KEY_UPDATE_GOAL
+
+    @classmethod
+    def staged_command_extract(cls, data: dict) -> None | CodedItem:
+        if (progress := data.get("progress")) and (goal := data.get("goal_statement", {}).get("text")):
+            return CodedItem(label=f'{goal}: {progress}', code="", uuid="")
+        return None
 
     def command_from_json(self, parameters: dict) -> None | UpdateGoalCommand:
         goal_uuid = ""

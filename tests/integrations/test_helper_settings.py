@@ -28,16 +28,27 @@ def test_settings(monkeypatch):
     monkeypatch.setenv("OntologiesHost", "theOntologiesHost")
     monkeypatch.setenv("PreSharedKey", "thePreSharedKey")
 
-    tested = HelperSettings
-    result = tested.settings()
-    expected = Settings(
-        llm_text=VendorKey(vendor="textVendor", api_key="textAPIKey"),
-        llm_audio=VendorKey(vendor="audioVendor", api_key="audioAPIKey"),
-        science_host="theScienceHost",
-        ontologies_host="theOntologiesHost",
-        pre_shared_key="thePreSharedKey",
-    )
-    assert result == expected
+    tests = [
+        ("y", True),
+        ("yes", True),
+        ("1", True),
+        ("n", False),
+        ("", False),
+    ]
+    for env_variable, exp_structured in tests:
+        monkeypatch.setenv("StructuredReasonForVisit", env_variable)
+
+        tested = HelperSettings
+        result = tested.settings()
+        expected = Settings(
+            llm_text=VendorKey(vendor="textVendor", api_key="textAPIKey"),
+            llm_audio=VendorKey(vendor="audioVendor", api_key="audioAPIKey"),
+            science_host="theScienceHost",
+            ontologies_host="theOntologiesHost",
+            pre_shared_key="thePreSharedKey",
+            structured_rfv=exp_structured,
+        )
+        assert result == expected
 
 
 @patch.object(Note, "objects")

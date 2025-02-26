@@ -2,8 +2,8 @@ from datetime import datetime, timezone
 from unittest.mock import patch, MagicMock, call
 
 from commander.protocols.audio_interpreter import AudioInterpreter
-from commander.protocols.commands.base import Base
 from commander.protocols.helper import Helper
+from commander.protocols.implemented_commands import ImplementedCommands
 from commander.protocols.limited_cache import LimitedCache
 from commander.protocols.structures.instruction import Instruction
 from commander.protocols.structures.json_extract import JsonExtract
@@ -14,15 +14,16 @@ from commander.protocols.structures.vendor_key import VendorKey
 
 def helper_instance(mocks) -> tuple[AudioInterpreter, Settings, LimitedCache]:
     def reset_mocks():
-        implemented_commands.reset_mocks()
+        command_list.reset_mocks()
 
-    with patch.object(AudioInterpreter, 'implemented_commands') as implemented_commands:
+    with patch.object(ImplementedCommands, 'command_list') as command_list:
         settings = Settings(
             llm_text=VendorKey(vendor="textVendor", api_key="textKey"),
             llm_audio=VendorKey(vendor="audioVendor", api_key="audioKey"),
             science_host="scienceHost",
             ontologies_host="ontologiesHost",
             pre_shared_key="preSharedKey",
+            structured_rfv=False,
         )
         if mocks:
             mocks[0].return_value.is_available.side_effect = [True]
@@ -30,19 +31,19 @@ def helper_instance(mocks) -> tuple[AudioInterpreter, Settings, LimitedCache]:
             mocks[2].return_value.is_available.side_effect = [False]
             mocks[3].return_value.is_available.side_effect = [True]
 
-        implemented_commands.side_effect = [mocks]
+        command_list.side_effect = [mocks]
 
-        cache = LimitedCache("patientUuid")
+        cache = LimitedCache("patientUuid", {})
         instance = AudioInterpreter(settings, cache, "patientUuid", "noteUuid", "providerUuid")
         calls = [call()]
-        assert implemented_commands.mock_calls == calls
+        assert command_list.mock_calls == calls
         reset_mocks()
 
         return instance, settings, cache
 
 
-@patch.object(AudioInterpreter, 'implemented_commands')
-def test___init__(implemented_commands):
+@patch.object(ImplementedCommands, 'command_list')
+def test___init__(command_list):
     mocks = [
         MagicMock(),
         MagicMock(),
@@ -51,7 +52,7 @@ def test___init__(implemented_commands):
     ]
 
     def reset_mocks():
-        implemented_commands.reset_mocks()
+        command_list.reset_mocks()
         for mock in mocks:
             mock.reset_mock()
 
@@ -61,14 +62,15 @@ def test___init__(implemented_commands):
         science_host="scienceHost",
         ontologies_host="ontologiesHost",
         pre_shared_key="preSharedKey",
+        structured_rfv=False,
     )
     mocks[0].return_value.is_available.side_effect = [True]
     mocks[1].return_value.is_available.side_effect = [True]
     mocks[2].return_value.is_available.side_effect = [False]
     mocks[3].return_value.is_available.side_effect = [True]
-    implemented_commands.side_effect = [mocks]
+    command_list.side_effect = [mocks]
 
-    cache = LimitedCache("patientUuid")
+    cache = LimitedCache("patientUuid", {})
 
     instance = AudioInterpreter(settings, cache, "patientUuid", "noteUuid", "providerUuid")
     assert instance.settings == settings
@@ -76,7 +78,7 @@ def test___init__(implemented_commands):
     assert instance.note_uuid == "noteUuid"
 
     calls = [call()]
-    assert implemented_commands.mock_calls == calls
+    assert command_list.mock_calls == calls
     for mock in mocks:
         calls = [
             call(settings, cache, 'patientUuid', 'noteUuid', 'providerUuid'),
@@ -718,77 +720,4 @@ def test_json_schema():
         'type': 'array',
     }
 
-    assert result == expected
-
-
-def test_implemented_commands():
-    tested = AudioInterpreter
-    result = tested.implemented_commands()
-    for command in result:
-        assert issubclass(command, Base)
-    commands = [c.class_name() for c in result]
-    expected = [
-        'Allergy',
-        'Assess',
-        'CloseGoal',
-        'Diagnose',
-        'FamilyHistory',
-        'FollowUp',
-        'Goal',
-        'HistoryOfPresentIllness',
-        'ImagingOrder',
-        'Immunize',
-        'Instruct',
-        'LabOrder',
-        'MedicalHistory',
-        'Medication',
-        'PhysicalExam',
-        'Plan',
-        'Prescription',
-        'Questionnaire',
-        'ReasonForVisit',
-        'Refill',
-        'RemoveAllergy',
-        'StopMedication',
-        'SurgeryHistory',
-        'Task',
-        'UpdateDiagnose',
-        'UpdateGoal',
-        'Vitals',
-    ]
-    assert commands == expected
-
-
-def test_schema_key2instruction():
-    tested = AudioInterpreter
-    result = tested.schema_key2instruction()
-    expected = {
-        'allergy': 'Allergy',
-        'assess': 'Assess',
-        'closeGoal': 'CloseGoal',
-        'diagnose': 'Diagnose',
-        'exam': 'PhysicalExam',
-        'familyHistory': 'FamilyHistory',
-        'followUp': 'FollowUp',
-        'goal': 'Goal',
-        'hpi': 'HistoryOfPresentIllness',
-        'imagingOrder': 'ImagingOrder',
-        'immunize': 'Immunize',
-        'instruct': 'Instruct',
-        'labOrder': 'LabOrder',
-        'medicalHistory': 'MedicalHistory',
-        'medicationStatement': 'Medication',
-        'plan': 'Plan',
-        'prescribe': 'Prescription',
-        'questionnaire': 'Questionnaire',
-        'reasonForVisit': 'ReasonForVisit',
-        'refill': 'Refill',
-        'removeAllergy': 'RemoveAllergy',
-        'stopMedication': 'StopMedication',
-        'surgicalHistory': 'SurgeryHistory',
-        'task': 'Task',
-        'updateDiagnosis': 'UpdateDiagnose',
-        'updateGoal': 'UpdateGoal',
-        'vitals': 'Vitals',
-    }
     assert result == expected

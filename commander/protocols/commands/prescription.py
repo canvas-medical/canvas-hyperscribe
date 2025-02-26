@@ -5,14 +5,38 @@ from canvas_sdk.commands.constants import ClinicalQuantity
 
 from commander.protocols.canvas_science import CanvasScience
 from commander.protocols.commands.base import Base
+from commander.protocols.constants import Constants
 from commander.protocols.helper import Helper
+from commander.protocols.structures.coded_item import CodedItem
 from commander.protocols.structures.medication_detail import MedicationDetail
 
 
 class Prescription(Base):
     @classmethod
     def schema_key(cls) -> str:
-        return "prescribe"
+        return Constants.SCHEMA_KEY_PRESCRIPTION
+
+    @classmethod
+    def staged_command_extract(cls, data: dict) -> None | CodedItem:
+        if (prescribe := data.get("prescribe")) and (text := prescribe.get("text")):
+            code = str((data.get('prescribe') or {}).get("value") or "")
+            sig = data.get('sig') or "n/a"
+            refills = data.get('refills') or "n/a"
+            quantity_to_dispense = data.get('quantity_to_dispense') or "n/a"
+            days_supply = data.get('days_supply') or "n/a"
+            substitution = data.get('substitutions') or "n/a"
+            indications = "/".join([
+                indication
+                for question in (data.get("indications") or [])
+                if (indication := question.get("text"))
+            ]) or "n/a"
+            return CodedItem(
+                label=f"{text}: {sig} (dispense: {quantity_to_dispense}, supply days: {days_supply}, "
+                      f"refills: {refills}, substitution: {substitution}, indications: {indications})",
+                code=code,
+                uuid="",
+            )
+        return None
 
     def medications_from(self, comment: str, keywords: list[str], condition: str) -> list[MedicationDetail]:
         result: list[MedicationDetail] = []

@@ -17,8 +17,9 @@ def helper_instance() -> Assess:
         science_host="scienceHost",
         ontologies_host="ontologiesHost",
         pre_shared_key="preSharedKey",
+        structured_rfv=False,
     )
-    cache = LimitedCache("patientUuid")
+    cache = LimitedCache("patientUuid", {})
     return Assess(settings, cache, "patientUuid", "noteUuid", "providerUuid")
 
 
@@ -28,10 +29,44 @@ def test_class():
 
 
 def test_schema_key():
-    tested = helper_instance()
+    tested = Assess
     result = tested.schema_key()
     expected = "assess"
     assert result == expected
+
+
+def test_staged_command_extract():
+    tested = Assess
+    tests = [
+        ({}, None),
+        ({
+             "condition": {},
+             "narrative": "better",
+             "background": "theBackground",
+         }, None),
+        ({
+             "condition": {
+                 "text": "theCondition",
+                 "annotations": ["theCode"],
+             },
+             "narrative": "theNarrative",
+             "background": "theBackground",
+         }, CodedItem(label="theCondition: theNarrative", code="", uuid="")),
+        ({
+             "condition": {
+                 "text": "theCondition",
+                 "annotations": ["theCode"],
+             },
+             "narrative": "",
+             "background": "theBackground",
+         }, None),
+    ]
+    for data, expected in tests:
+        result = tested.staged_command_extract(data)
+        if expected is None:
+            assert result is None
+        else:
+            assert result == expected
 
 
 @patch.object(LimitedCache, "current_conditions")

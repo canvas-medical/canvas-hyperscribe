@@ -12,19 +12,27 @@ from commander.protocols.structures.coded_item import CodedItem
 
 
 class LimitedCache:
-    def __init__(self, patient_uuid: str):
+    def __init__(self, patient_uuid: str, staged_commands_to_coded_items: dict[str, list[CodedItem]]):
         self.patient_uuid = patient_uuid
-        self._allergies: list | None = None
-        self._condition_history: list | None = None
-        self._conditions: list | None = None
+        self._allergies: list[CodedItem] | None = None
+        self._condition_history: list[CodedItem] | None = None
+        self._conditions: list[CodedItem] | None = None
         self._demographic: str | None = None
-        self._family_history: list | None = None
-        self._goals: list | None = None
-        self._medications: list | None = None
-        self._note_type: list | None = None
-        self._questionnaires: list | None = None
-        self._reason_for_visit: list | None = None
-        self._surgery_history: list | None = None
+        self._family_history: list[CodedItem] | None = None
+        self._goals: list[CodedItem] | None = None
+        self._medications: list[CodedItem] | None = None
+        self._note_type: list[CodedItem] | None = None
+        self._questionnaires: list[CodedItem] | None = None
+        self._reason_for_visit: list[CodedItem] | None = None
+        self._surgery_history: list[CodedItem] | None = None
+        self._staged_commands: dict[str, list[CodedItem]] = staged_commands_to_coded_items
+
+    def staged_commands_of(self, schema_keys: list[str]) -> list[CodedItem]:
+        return [
+            command
+            for key, commands in self._staged_commands.items() if key in schema_keys
+            for command in commands
+        ]
 
     def current_goals(self) -> list[CodedItem]:
         if self._goals is None:

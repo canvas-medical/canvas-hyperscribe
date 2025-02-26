@@ -3,6 +3,7 @@ from canvas_sdk.commands.commands.history_present_illness import HistoryOfPresen
 from commander.protocols.commands.base import Base
 from commander.protocols.commands.history_of_present_illness import HistoryOfPresentIllness
 from commander.protocols.limited_cache import LimitedCache
+from commander.protocols.structures.coded_item import CodedItem
 from commander.protocols.structures.settings import Settings
 from commander.protocols.structures.vendor_key import VendorKey
 
@@ -14,8 +15,9 @@ def helper_instance() -> HistoryOfPresentIllness:
         science_host="scienceHost",
         ontologies_host="ontologiesHost",
         pre_shared_key="preSharedKey",
+        structured_rfv=False,
     )
-    cache = LimitedCache("patientUuid")
+    cache = LimitedCache("patientUuid", {})
     return HistoryOfPresentIllness(settings, cache, "patientUuid", "noteUuid", "providerUuid")
 
 
@@ -25,10 +27,24 @@ def test_class():
 
 
 def test_schema_key():
-    tested = helper_instance()
+    tested = HistoryOfPresentIllness
     result = tested.schema_key()
     expected = "hpi"
     assert result == expected
+
+
+def test_staged_command_extract():
+    tested = HistoryOfPresentIllness
+    tests = [
+        ({}, None),
+        ({"narrative": "theNarrative"}, CodedItem(label="theNarrative", code="", uuid="")),
+    ]
+    for data, expected in tests:
+        result = tested.staged_command_extract(data)
+        if expected is None:
+            assert result is None
+        else:
+            assert result == expected
 
 
 def test_command_from_json():

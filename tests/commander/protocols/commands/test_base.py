@@ -13,8 +13,9 @@ def helper_instance() -> Base:
         science_host="scienceHost",
         ontologies_host="ontologiesHost",
         pre_shared_key="preSharedKey",
+        structured_rfv=False,
     )
-    cache = LimitedCache("patientUuid")
+    cache = LimitedCache("patientUuid", {})
     return Base(settings, cache, "patientUuid", "noteUuid", "providerUuid")
 
 
@@ -25,8 +26,9 @@ def test___init__():
         science_host="scienceHost",
         ontologies_host="ontologiesHost",
         pre_shared_key="preSharedKey",
+        structured_rfv=False,
     )
-    cache = LimitedCache("patientUuid")
+    cache = LimitedCache("patientUuid", {})
     tested = Base(settings, cache, "patientUuid", "noteUuid", "providerUuid")
     assert tested.settings == settings
     assert tested.patient_uuid == "patientUuid"
@@ -46,6 +48,14 @@ def test_schema_key():
     tested = helper_instance()
     with pytest.raises(Exception) as e:
         _ = tested.schema_key()
+    expected = "NotImplementedError"
+    assert e.typename == expected
+
+
+def test_staged_command_extract():
+    tested = helper_instance()
+    with pytest.raises(Exception) as e:
+        _ = tested.staged_command_extract({})
     expected = "NotImplementedError"
     assert e.typename == expected
 

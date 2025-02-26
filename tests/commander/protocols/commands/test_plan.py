@@ -3,6 +3,7 @@ from canvas_sdk.commands.commands.plan import PlanCommand
 from commander.protocols.commands.base import Base
 from commander.protocols.commands.plan import Plan
 from commander.protocols.limited_cache import LimitedCache
+from commander.protocols.structures.coded_item import CodedItem
 from commander.protocols.structures.settings import Settings
 from commander.protocols.structures.vendor_key import VendorKey
 
@@ -14,8 +15,9 @@ def helper_instance() -> Plan:
         science_host="scienceHost",
         ontologies_host="ontologiesHost",
         pre_shared_key="preSharedKey",
+        structured_rfv=False,
     )
-    cache = LimitedCache("patientUuid")
+    cache = LimitedCache("patientUuid", {})
     return Plan(settings, cache, "patientUuid", "noteUuid", "providerUuid")
 
 
@@ -25,10 +27,25 @@ def test_class():
 
 
 def test_schema_key():
-    tested = helper_instance()
+    tested = Plan
     result = tested.schema_key()
     expected = "plan"
     assert result == expected
+
+
+def test_staged_command_extract():
+    tested = Plan
+    tests = [
+        ({}, None),
+        ({"narrative": "theNarrative"}, CodedItem(label="theNarrative", code="", uuid="")),
+        ({"narrative": ""}, None),
+    ]
+    for data, expected in tests:
+        result = tested.staged_command_extract(data)
+        if expected is None:
+            assert result is None
+        else:
+            assert result == expected
 
 
 def test_command_from_json():

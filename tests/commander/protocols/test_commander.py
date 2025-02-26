@@ -10,6 +10,8 @@ from canvas_sdk.v1.data import TaskComment, Note, Command
 from logger import log
 
 from commander.protocols.commander import CachedDiscussion, Audio, Commander
+from commander.protocols.implemented_commands import ImplementedCommands
+from commander.protocols.structures.coded_item import CodedItem
 from commander.protocols.structures.instruction import Instruction
 from commander.protocols.structures.json_extract import JsonExtract
 from commander.protocols.structures.line import Line
@@ -185,6 +187,7 @@ def test_constants():
         "SECRET_ONTOLOGIES_HOST": "OntologiesHost",
         "SECRET_PRE_SHARED_KEY": "PreSharedKey",
         "SECRET_AUDIO_HOST": "AudioHost",
+        "SECRET_STRUCTURED_RFV": "StructuredReasonForVisit",
         "LABEL_ENCOUNTER_COPILOT": "Encounter Copilot",
         "MAX_AUDIOS": 1,
         "RESPONDS_TO": ["TASK_COMMENT_CREATED"],
@@ -363,19 +366,42 @@ def test_compute(compute_audio, task_comment_db, note_db, info):
     reset_mocks()
 
 
+def test_structured_rfv():
+    event = Event(EventRequest())
+
+    tests = [
+        ({}, False),
+        ({"StructuredReasonForVisit": "yes"}, True),
+        ({"StructuredReasonForVisit": "YES"}, True),
+        ({"StructuredReasonForVisit": "y"}, True),
+        ({"StructuredReasonForVisit": "Y"}, True),
+        ({"StructuredReasonForVisit": "1"}, True),
+        ({"StructuredReasonForVisit": "0"}, False),
+        ({"StructuredReasonForVisit": "anything"}, False),
+    ]
+    for secrets, expected in tests:
+        tested = Commander(event, secrets)
+        result = tested.structured_rfv()
+        assert result is expected
+
+
 @patch('commander.protocols.commander.LimitedCache')
 @patch('commander.protocols.commander.AudioInterpreter')
 @patch('commander.protocols.commander.CachedDiscussion')
 @patch('commander.protocols.commander.Auditor')
-@patch.object(Commander, 'audio2commands')
+@patch.object(Command, "objects")
+@patch.object(Commander, 'existing_commands_to_coded_items')
 @patch.object(Commander, 'existing_commands_to_instructions')
+@patch.object(Commander, 'audio2commands')
 @patch.object(Commander, 'retrieve_audios')
 @patch.object(log, "info")
 def test_compute_audio(
         info,
         retrieve_audios,
-        existing_commands_to_instructions,
         audio2commands,
+        existing_commands_to_instructions,
+        existing_commands_to_coded_items,
+        command_db,
         auditor,
         cached_discussion,
         audio_interpreter,
@@ -384,8 +410,10 @@ def test_compute_audio(
     def reset_mocks():
         info.reset_mock()
         retrieve_audios.reset_mock()
-        existing_commands_to_instructions.reset_mock()
         audio2commands.reset_mock()
+        existing_commands_to_instructions.reset_mock()
+        existing_commands_to_coded_items.reset_mock()
+        command_db.reset_mock()
         auditor.reset_mock()
         cached_discussion.reset_mock()
         audio_interpreter.reset_mock()
@@ -400,14 +428,16 @@ def test_compute_audio(
         "ScienceHost": "theScienceHost",
         "OntologiesHost": "theOntologiesHost",
         "PreSharedKey": "thePreSharedKey",
-        "AllowCommandUpdates": "yes",
+        "StructuredReasonForVisit": "yes",
     }
     event = Event(EventRequest(target="taskUuid"))
 
     # no more audio
     retrieve_audios.side_effect = [[]]
-    existing_commands_to_instructions.side_effect = []
     audio2commands.side_effect = []
+    existing_commands_to_instructions.side_effect = []
+    existing_commands_to_coded_items.side_effect = []
+    command_db.filter.return_value.order_by.side_effect = []
     auditor.side_effect = []
     cached_discussion.side_effect = []
     audio_interpreter.side_effect = []
@@ -422,8 +452,10 @@ def test_compute_audio(
     assert info.mock_calls == calls
     calls = [call('theAudioHost', 'patientUuid', 'noteUuid', 3)]
     assert retrieve_audios.mock_calls == calls
-    assert existing_commands_to_instructions.mock_calls == []
     assert audio2commands.mock_calls == []
+    assert existing_commands_to_instructions.mock_calls == []
+    assert existing_commands_to_coded_items.mock_calls == []
+    assert command_db.mock_calls == []
     assert auditor.mock_calls == []
     calls = [call.clear_cache()]
     assert cached_discussion.mock_calls == calls
@@ -443,12 +475,12 @@ def test_compute_audio(
         science_host='theScienceHost',
         ontologies_host='theOntologiesHost',
         pre_shared_key='thePreSharedKey',
+        structured_rfv=True,
     )
     discussion = CachedDiscussion("noteUuid")
     discussion.count = 2
     discussion.previous_instructions = instructions[2:]
     retrieve_audios.side_effect = [[b"audio1", b"audio2"]]
-    existing_commands_to_instructions.side_effect = [instructions]
     audio2commands.side_effect = [
         (
             [
@@ -463,6 +495,9 @@ def test_compute_audio(
             ],
         )
     ]
+    existing_commands_to_instructions.side_effect = [instructions]
+    existing_commands_to_coded_items.side_effect = ["stagedCommands"]
+    command_db.filter.return_value.order_by.side_effect = ["QuerySetCommands"]
     auditor.side_effect = ["AuditorInstance"]
     cached_discussion.get_discussion.side_effect = [discussion]
     audio_interpreter.side_effect = ["AudioInterpreterInstance"]
@@ -488,6 +523,7 @@ def test_compute_audio(
     calls = [
         call('--> audio chunks: 2'),
         call('<===  note: noteUuid ===>'),
+        call('Structured RfV: True'),
         call("instructions: ["
              "Instruction(uuid='uuidA', instruction='theInstructionA', information='theInformationA', is_new=False, is_updated=True), "
              "Instruction(uuid='uuidB', instruction='theInstructionB', information='theInformationB', is_new=True, is_updated=False), "
@@ -504,10 +540,17 @@ def test_compute_audio(
     assert info.mock_calls == calls
     calls = [call('theAudioHost', 'patientUuid', 'noteUuid', 3)]
     assert retrieve_audios.mock_calls == calls
-    calls = [call('AudioInterpreterInstance', instructions[2:])]
-    assert existing_commands_to_instructions.mock_calls == calls
     calls = [call('AuditorInstance', [b'audio1', b'audio2'], 'AudioInterpreterInstance', instructions)]
     assert audio2commands.mock_calls == calls
+    calls = [call('QuerySetCommands', instructions[2:])]
+    assert existing_commands_to_instructions.mock_calls == calls
+    calls = [call('QuerySetCommands')]
+    assert existing_commands_to_coded_items.mock_calls == calls
+    calls = [
+        call.filter(patient__id='patientUuid', note__id='noteUuid', state='staged'),
+        call.filter().order_by("dbid"),
+    ]
+    assert command_db.mock_calls == calls
     calls = [call()]
     assert auditor.mock_calls == calls
     calls = [
@@ -517,7 +560,7 @@ def test_compute_audio(
     assert cached_discussion.mock_calls == calls
     calls = [call(exp_settings, "LimitedCacheInstance", "patientUuid", "noteUuid", "providerUuid")]
     assert audio_interpreter.mock_calls == calls
-    calls = [call("patientUuid")]
+    calls = [call("patientUuid", "stagedCommands")]
     assert limited_cache.mock_calls == calls
     reset_mocks()
 
@@ -943,136 +986,28 @@ def test_update_commands_from(info, time):
     reset_mocks()
 
 
-@patch.object(Command, "objects")
-@patch.object(Note, "objects")
-def test_map_instruction2command_uuid(note_db, command_db):
-    chatter = MagicMock()
-
+@patch.object(ImplementedCommands, "schema_key2instruction")
+def test_existing_commands_to_instructions(schema_key2instruction):
     def reset_mocks():
-        note_db.reset_mock()
-        command_db.reset_mock()
-        chatter.reset_mock()
-
-    instructions = [
-        Instruction(uuid='uuidA', instruction='theInstructionX', information='theInformationA', is_new=False, is_updated=True),
-        Instruction(uuid='uuidB', instruction='theInstructionX', information='theInformationB', is_new=False, is_updated=True),
-        Instruction(uuid='uuidC', instruction='theInstructionY', information='theInformationC', is_new=False, is_updated=True),
-        Instruction(uuid='uuidD', instruction='theInstructionY', information='theInformationD', is_new=False, is_updated=True),
-        Instruction(uuid='uuidE', instruction='theInstructionY', information='theInformationE', is_new=True, is_updated=False),
-    ]
-    chatter.note_uuid = "noteUuid"
-    chatter.patient_id = "patientUuid"
+        schema_key2instruction.reset_mock()
 
     tested = Commander
     # only new instructions
-    past_uuids = {}
-    note_db.get.side_effect = [Note(dbid=751)]
-    command_db.filter.return_value.order_by.side_effect = [
-        [
-            Command(id="uuid1", schema_key="canvas_command_X"),
-            Command(id="uuid2", schema_key="canvas_command_X"),
-            Command(id="uuid3", schema_key="canvas_command_Y"),
-            Command(id="uuid4", schema_key="canvas_command_Y"),
-            Command(id="uuid5", schema_key="canvas_command_Y"),
-        ],
+    current_commands = [
+        Command(id="uuid1", schema_key="canvas_command_X"),
+        Command(id="uuid2", schema_key="canvas_command_X"),
+        Command(id="uuid3", schema_key="canvas_command_Y"),
+        Command(id="uuid4", schema_key="canvas_command_Y"),
+        Command(id="uuid5", schema_key="canvas_command_Y"),
     ]
-    chatter.schema_key2instruction.side_effect = [
+    schema_key2instruction.side_effect = [
         {
             "canvas_command_X": "theInstructionX",
             "canvas_command_Y": "theInstructionY",
         },
     ]
 
-    result = tested.map_instruction2command_uuid(chatter, past_uuids)
-    assert result == {}
-    calls = [call.get(id='noteUuid')]
-    assert note_db.mock_calls == calls
-    calls = [
-        call.filter(patient__id='patientUuid', note_id=751, origination_source='plugin', state='staged'),
-        call.filter().order_by("schema_key", "dbid"),
-    ]
-    assert command_db.mock_calls == calls
-    calls = [call.schema_key2instruction()]
-    assert chatter.mock_calls == calls
-    reset_mocks()
-
-    # updated instructions
-    past_uuids = {
-        "uuidA": Instruction(uuid='uuidA', instruction='theInstructionX', information='changedA', is_new=False, is_updated=True),
-        "uuidB": instructions[1],
-        "uuidC": instructions[2],
-        "uuidD": Instruction(uuid='uuidD', instruction='theInstructionY', information='changedD', is_new=False, is_updated=True),
-        "uuidE": Instruction(uuid='uuidE', instruction='theInstructionY', information='changedE', is_new=True, is_updated=False),
-    }
-    note_db.get.side_effect = [Note(dbid=751)]
-    command_db.filter.return_value.order_by.side_effect = [
-        [
-            Command(id="uuid1", schema_key="canvas_command_X"),
-            Command(id="uuid2", schema_key="canvas_command_X"),
-            Command(id="uuid3", schema_key="canvas_command_Y"),
-            Command(id="uuid4", schema_key="canvas_command_Y"),
-            Command(id="uuid5", schema_key="canvas_command_Y"),
-        ],
-    ]
-    chatter.schema_key2instruction.side_effect = [
-        {
-            "canvas_command_X": "theInstructionX",
-            "canvas_command_Y": "theInstructionY",
-        },
-    ]
-
-    result = tested.map_instruction2command_uuid(chatter, past_uuids)
-    expected = {
-        "uuidA": "uuid1",
-        "uuidB": "uuid2",
-        "uuidC": "uuid3",
-        "uuidD": "uuid4",
-        "uuidE": "uuid5",
-    }
-    assert result == expected
-    calls = [call.get(id='noteUuid')]
-    assert note_db.mock_calls == calls
-    calls = [
-        call.filter(patient__id='patientUuid', note_id=751, origination_source='plugin', state='staged'),
-        call.filter().order_by("schema_key", "dbid"),
-    ]
-    assert command_db.mock_calls == calls
-    reset_mocks()
-
-
-@patch.object(Command, "objects")
-@patch.object(Note, "objects")
-def test_existing_commands_to_instructions(note_db, command_db):
-    chatter = MagicMock()
-
-    def reset_mocks():
-        note_db.reset_mock()
-        command_db.reset_mock()
-        chatter.reset_mock()
-
-    chatter.note_uuid = "noteUuid"
-    chatter.patient_id = "patientUuid"
-
-    tested = Commander
-    # only new instructions
-    note_db.get.side_effect = [Note(dbid=751)]
-    command_db.filter.return_value.order_by.side_effect = [
-        [
-            Command(id="uuid1", schema_key="canvas_command_X"),
-            Command(id="uuid2", schema_key="canvas_command_X"),
-            Command(id="uuid3", schema_key="canvas_command_Y"),
-            Command(id="uuid4", schema_key="canvas_command_Y"),
-            Command(id="uuid5", schema_key="canvas_command_Y"),
-        ],
-    ]
-    chatter.schema_key2instruction.side_effect = [
-        {
-            "canvas_command_X": "theInstructionX",
-            "canvas_command_Y": "theInstructionY",
-        },
-    ]
-
-    result = tested.existing_commands_to_instructions(chatter, [])
+    result = tested.existing_commands_to_instructions(current_commands, [])
     expected = [
         Instruction(uuid='uuid1', instruction='theInstructionX', information='', is_new=False, is_updated=False),
         Instruction(uuid='uuid2', instruction='theInstructionX', information='', is_new=False, is_updated=False),
@@ -1081,31 +1016,21 @@ def test_existing_commands_to_instructions(note_db, command_db):
         Instruction(uuid='uuid5', instruction='theInstructionY', information='', is_new=False, is_updated=False),
     ]
     assert result == expected
-    calls = [call.get(id='noteUuid')]
-    assert note_db.mock_calls == calls
-    calls = [
-        call.filter(patient__id='patientUuid', note_id=751, state='staged'),
-        call.filter().order_by("schema_key", "dbid"),
-    ]
-    assert command_db.mock_calls == calls
-    calls = [call.schema_key2instruction()]
-    assert chatter.mock_calls == calls
+    calls = [call()]
+    assert schema_key2instruction.mock_calls == calls
     reset_mocks()
 
     # updated instructions
-    note_db.get.side_effect = [Note(dbid=751)]
-    command_db.filter.return_value.order_by.side_effect = [
-        [
-            Command(id="uuid1", schema_key="canvas_command_X", data={"narrative": "theNarrative1", "comment": "theComment1"}),
-            Command(id="uuid2", schema_key="canvas_command_X", data={"narrative": "theNarrative2", "comment": "theComment2"}),
-            Command(id="uuid3", schema_key="canvas_command_Y", data={"narrative": "theNarrative3", "comment": "theComment3"}),
-            Command(id="uuid4", schema_key="canvas_command_Y", data={"narrative": "theNarrative4", "comment": "theComment4"}),
-            Command(id="uuid5", schema_key="canvas_command_Y", data={"narrative": "theNarrative5", "comment": "theComment5"}),
-            Command(id="uuid6", schema_key="hpi", data={"narrative": "theNarrative6", "comment": "theComment6"}),
-            Command(id="uuid7", schema_key="reasonForVisit", data={"narrative": "theNarrative7", "comment": "theComment7"}),
-        ],
+    current_commands = [
+        Command(id="uuid1", schema_key="canvas_command_X", data={"narrative": "theNarrative1", "comment": "theComment1"}),
+        Command(id="uuid3", schema_key="canvas_command_Y", data={"narrative": "theNarrative3", "comment": "theComment3"}),
+        Command(id="uuid4", schema_key="canvas_command_Y", data={"narrative": "theNarrative4", "comment": "theComment4"}),
+        Command(id="uuid2", schema_key="canvas_command_X", data={"narrative": "theNarrative2", "comment": "theComment2"}),
+        Command(id="uuid5", schema_key="canvas_command_Y", data={"narrative": "theNarrative5", "comment": "theComment5"}),
+        Command(id="uuid6", schema_key="hpi", data={"narrative": "theNarrative6", "comment": "theComment6"}),
+        Command(id="uuid7", schema_key="reasonForVisit", data={"narrative": "theNarrative7", "comment": "theComment7"}),
     ]
-    chatter.schema_key2instruction.side_effect = [
+    schema_key2instruction.side_effect = [
         {
             "canvas_command_X": "theInstructionX",
             "canvas_command_Y": "theInstructionY",
@@ -1119,22 +1044,95 @@ def test_existing_commands_to_instructions(note_db, command_db):
         Instruction(uuid='uuidC', instruction='theInstructionY', information='theInformationE', is_new=True, is_updated=True),
     ]
 
-    result = tested.existing_commands_to_instructions(chatter, instructions)
+    result = tested.existing_commands_to_instructions(current_commands, instructions)
     expected = [
         Instruction(uuid='uuid1', instruction='theInstructionX', information='theInformationA', is_new=False, is_updated=False),
-        Instruction(uuid='uuid2', instruction='theInstructionX', information='', is_new=False, is_updated=False),
         Instruction(uuid='uuid3', instruction='theInstructionY', information='theInformationD', is_new=False, is_updated=False),
         Instruction(uuid='uuid4', instruction='theInstructionY', information='theInformationE', is_new=False, is_updated=False),
+        Instruction(uuid='uuid2', instruction='theInstructionX', information='', is_new=False, is_updated=False),
         Instruction(uuid='uuid5', instruction='theInstructionY', information='', is_new=False, is_updated=False),
         Instruction(uuid='uuid6', instruction='HistoryOfPresentIllness', information='theNarrative6', is_new=False, is_updated=False),
         Instruction(uuid='uuid7', instruction='ReasonForVisit', information='theComment7', is_new=False, is_updated=False),
     ]
     assert result == expected
-    calls = [call.get(id='noteUuid')]
-    assert note_db.mock_calls == calls
-    calls = [
-        call.filter(patient__id='patientUuid', note_id=751, state='staged'),
-        call.filter().order_by("schema_key", "dbid"),
+    calls = [call()]
+    assert schema_key2instruction.mock_calls == calls
+    reset_mocks()
+
+
+@patch.object(ImplementedCommands, "command_list")
+def test_existing_commands_to_coded_items(command_list):
+    mock_commands = [
+        MagicMock(),
+        MagicMock(),
+        MagicMock(),
     ]
-    assert command_db.mock_calls == calls
+
+    def reset_mocks():
+        command_list.reset_mock()
+
+    tested = Commander
+    current_commands = [
+        Command(id="uuid1", schema_key="canvas_command_X", data={"key1": "value1"}),
+        Command(id="uuid2", schema_key="canvas_command_X", data={"key2": "value2"}),
+        Command(id="uuid3", schema_key="canvas_command_Y", data={"key3": "value3"}),
+        Command(id="uuid4", schema_key="canvas_command_Y", data={"key4": "value4"}),
+        Command(id="uuid5", schema_key="canvas_command_Y", data={"key5": "value5"}),
+        Command(id="uuid6", schema_key="canvas_command_A", data={"key6": "value6"}),
+    ]
+    command_list.side_effect = [mock_commands] * 6
+
+    mock_commands[0].schema_key.return_value = "canvas_command_X"
+    mock_commands[1].schema_key.return_value = "canvas_command_Y"
+    mock_commands[2].schema_key.return_value = "canvas_command_Z"
+
+    mock_commands[0].staged_command_extract.side_effect = [
+        CodedItem(label="label1", code="code1", uuid="uuid1"),
+        None,
+    ]
+    mock_commands[1].staged_command_extract.side_effect = [
+        CodedItem(label="label3", code="code3", uuid="uuid3"),
+        CodedItem(label="label4", code="code4", uuid="uuid4"),
+        CodedItem(label="label5", code="code5", uuid="uuid5"),
+    ]
+    mock_commands[2].staged_command_extract.side_effect = []
+
+    result = tested.existing_commands_to_coded_items(current_commands)
+    expected = {
+        'canvas_command_X': [
+            CodedItem(uuid='uuid1', label='label1', code='code1'),
+        ],
+        'canvas_command_Y': [
+            CodedItem(uuid='uuid3', label='label3', code='code3'),
+            CodedItem(uuid='uuid4', label='label4', code='code4'),
+            CodedItem(uuid='uuid5', label='label5', code='code5'),
+        ],
+    }
+
+    assert result == expected
+    calls = [call()] * 6
+    assert command_list.mock_calls == calls
+    calls = [
+        call.schema_key(),
+        call.staged_command_extract({'key1': 'value1'}),
+        call.schema_key(),
+        call.staged_command_extract({'key2': 'value2'}),
+        call.schema_key(),
+        call.schema_key(),
+        call.schema_key(),
+        call.schema_key(),
+    ]
+    assert mock_commands[0].mock_calls == calls
+    calls = [
+        call.schema_key(),
+        call.staged_command_extract({'key3': 'value3'}),
+        call.schema_key(),
+        call.staged_command_extract({'key4': 'value4'}),
+        call.schema_key(),
+        call.staged_command_extract({'key5': 'value5'}),
+        call.schema_key(),
+    ]
+    assert mock_commands[1].mock_calls == calls
+    calls = [call.schema_key()]
+    assert mock_commands[2].mock_calls == calls
     reset_mocks()

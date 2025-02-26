@@ -20,8 +20,9 @@ def helper_instance() -> FamilyHistory:
         science_host="scienceHost",
         ontologies_host="ontologiesHost",
         pre_shared_key="preSharedKey",
+        structured_rfv=False,
     )
-    cache = LimitedCache("patientUuid")
+    cache = LimitedCache("patientUuid", {})
     return FamilyHistory(settings, cache, "patientUuid", "noteUuid", "providerUuid")
 
 
@@ -31,10 +32,36 @@ def test_class():
 
 
 def test_schema_key():
-    tested = helper_instance()
+    tested = FamilyHistory
     result = tested.schema_key()
     expected = "familyHistory"
     assert result == expected
+
+
+def test_staged_command_extract():
+    tested = FamilyHistory
+    tests = [
+        ({}, None),
+        ({
+             "relative": {"text": "theRelative"},
+             "family_history": {"text": "theFamilyHistory"}
+         }, CodedItem(label="theRelative: theFamilyHistory", code="", uuid="")),
+        ({
+             "relative": {"text": "theRelative"},
+             "family_history": {"text": ""}
+         }, None),
+        ({
+             "relative": {"text": ""},
+             "family_history": {"text": "theFamilyHistory"}
+         }, None),
+
+    ]
+    for data, expected in tests:
+        result = tested.staged_command_extract(data)
+        if expected is None:
+            assert result is None
+        else:
+            assert result == expected
 
 
 @patch.object(Helper, "chatter")

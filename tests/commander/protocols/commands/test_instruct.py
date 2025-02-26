@@ -8,6 +8,7 @@ from commander.protocols.commands.base import Base
 from commander.protocols.commands.instruct import Instruct
 from commander.protocols.helper import Helper
 from commander.protocols.limited_cache import LimitedCache
+from commander.protocols.structures.coded_item import CodedItem
 from commander.protocols.structures.medical_concept import MedicalConcept
 from commander.protocols.structures.settings import Settings
 from commander.protocols.structures.vendor_key import VendorKey
@@ -20,8 +21,9 @@ def helper_instance() -> Instruct:
         science_host="scienceHost",
         ontologies_host="ontologiesHost",
         pre_shared_key="preSharedKey",
+        structured_rfv=False,
     )
-    cache = LimitedCache("patientUuid")
+    cache = LimitedCache("patientUuid", {})
     return Instruct(settings, cache, "patientUuid", "noteUuid", "providerUuid")
 
 
@@ -31,10 +33,35 @@ def test_class():
 
 
 def test_schema_key():
-    tested = helper_instance()
+    tested = Instruct
     result = tested.schema_key()
     expected = "instruct"
     assert result == expected
+
+
+def test_staged_command_extract():
+    tested = Instruct
+    tests = [
+        ({}, None),
+        ({
+             "instruct": {"text": "theInstruction"},
+             "narrative": "theNarrative"
+         }, CodedItem(label="theInstruction (theNarrative)", code="", uuid="")),
+        ({
+             "instruct": {"text": "theInstruction"},
+             "narrative": ""
+         }, CodedItem(label="theInstruction (n/a)", code="", uuid="")),
+        ({
+             "instruct": {"text": "", },
+             "narrative": "theNarrative"
+         }, None),
+    ]
+    for data, expected in tests:
+        result = tested.staged_command_extract(data)
+        if expected is None:
+            assert result is None
+        else:
+            assert result == expected
 
 
 @patch.object(Helper, "chatter")

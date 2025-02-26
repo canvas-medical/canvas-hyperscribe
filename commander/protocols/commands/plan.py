@@ -1,12 +1,20 @@
 from canvas_sdk.commands.commands.plan import PlanCommand
 
 from commander.protocols.commands.base import Base
+from commander.protocols.constants import Constants
+from commander.protocols.structures.coded_item import CodedItem
 
 
 class Plan(Base):
     @classmethod
     def schema_key(cls) -> str:
-        return "plan"
+        return Constants.SCHEMA_KEY_PLAN
+
+    @classmethod
+    def staged_command_extract(cls, data: dict) -> None | CodedItem:
+        if text := data.get("narrative"):
+            return CodedItem(label=text, code="", uuid="")
+        return None
 
     def command_from_json(self, parameters: dict) -> None | PlanCommand:
         return PlanCommand(

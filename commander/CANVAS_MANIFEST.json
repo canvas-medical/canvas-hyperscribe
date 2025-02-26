@@ -1,6 +1,6 @@
 {
   "sdk_version": "0.22.0",
-  "plugin_version": "0.0.26",
+  "plugin_version": "0.0.27",
   "name": "commander",
   "description": "Create commands based on the content of an audio discussion between a patient and a provider.",
   "components": {
@@ -28,7 +28,8 @@
     "ScienceHost",
     "OntologiesHost",
     "PreSharedKey",
-    "AudioHost"
+    "AudioHost",
+    "StructuredReasonForVisit"
   ],
   "tags": {},
   "references": [],

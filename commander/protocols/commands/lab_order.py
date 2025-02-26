@@ -2,14 +2,37 @@ from canvas_sdk.commands.commands.lab_order import LabOrderCommand
 from canvas_sdk.v1.data.lab import LabPartner
 
 from commander.protocols.commands.base import Base
+from commander.protocols.constants import Constants
 from commander.protocols.selector_chat import SelectorChat
+from commander.protocols.structures.coded_item import CodedItem
 
 
 class LabOrder(Base):
 
     @classmethod
     def schema_key(cls) -> str:
-        return "labOrder"
+        return Constants.SCHEMA_KEY_LAB_ORDER
+
+    @classmethod
+    def staged_command_extract(cls, data: dict) -> None | CodedItem:
+        fasting = "n/a"
+        if "fasting_status" in data:
+            fasting = "yes" if data["fasting_status"] is True else "no"
+        diagnosis = "/".join([
+            diagnose
+            for item in (data.get("diagnosis") or [])
+            if (diagnose := item.get("text"))
+        ]) or "n/a"
+        comment = data.get("comment") or "n/a"
+        tests = "/".join([
+            test
+            for item in (data.get("tests") or [])
+            if (test := item.get("text"))
+        ])
+
+        if tests:
+            return CodedItem(label=f"{tests}: {comment} (fasting: {fasting}, diagnosis: {diagnosis})", code="", uuid="")
+        return None
 
     def command_from_json(self, parameters: dict) -> None | LabOrderCommand:
         result = LabOrderCommand(

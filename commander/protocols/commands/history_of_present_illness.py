@@ -1,12 +1,20 @@
 from canvas_sdk.commands.commands.history_present_illness import HistoryOfPresentIllnessCommand
 
 from commander.protocols.commands.base import Base
+from commander.protocols.constants import Constants
+from commander.protocols.structures.coded_item import CodedItem
 
 
 class HistoryOfPresentIllness(Base):
     @classmethod
     def schema_key(cls) -> str:
-        return "hpi"
+        return Constants.SCHEMA_KEY_HISTORY_OF_PRESENT_ILLNESS
+
+    @classmethod
+    def staged_command_extract(cls, data: dict) -> None | CodedItem:
+        if narrative := data.get("narrative"):
+            return CodedItem(label=narrative, code="", uuid="")
+        return None
 
     def command_from_json(self, parameters: dict) -> None | HistoryOfPresentIllnessCommand:
         return HistoryOfPresentIllnessCommand(

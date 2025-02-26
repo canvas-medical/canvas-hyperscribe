@@ -1,6 +1,7 @@
 from canvas_sdk.commands.base import _BaseCommand
 
 from commander.protocols.limited_cache import LimitedCache
+from commander.protocols.structures.coded_item import CodedItem
 from commander.protocols.structures.settings import Settings
 
 
@@ -19,6 +20,10 @@ class Base:
 
     @classmethod
     def schema_key(cls) -> str:
+        raise NotImplementedError
+
+    @classmethod
+    def staged_command_extract(cls, data: dict) -> None | CodedItem:
         raise NotImplementedError
 
     def command_from_json(self, parameters: dict) -> None | _BaseCommand:

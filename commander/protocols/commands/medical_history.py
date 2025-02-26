@@ -4,13 +4,24 @@ from canvas_sdk.commands.commands.medical_history import MedicalHistoryCommand
 
 from commander.protocols.canvas_science import CanvasScience
 from commander.protocols.commands.base import Base
+from commander.protocols.constants import Constants
 from commander.protocols.helper import Helper
+from commander.protocols.structures.coded_item import CodedItem
 
 
 class MedicalHistory(Base):
     @classmethod
     def schema_key(cls) -> str:
-        return "medicalHistory"
+        return Constants.SCHEMA_KEY_MEDICAL_HISTORY
+
+    @classmethod
+    def staged_command_extract(cls, data: dict) -> None | CodedItem:
+        comment = data.get("comments") or "n/a"
+        start_date = (data.get("approximate_start_date") or {}).get("date") or "n/a"
+        end_date = (data.get("approximate_end_date") or {}).get("date") or "n/a"
+        if text := (data.get("past_medical_history") or {}).get("text"):
+            return CodedItem(label=f"{text}: from {start_date} to {end_date} ({comment})", code="", uuid="")
+        return None
 
     def command_from_json(self, parameters: dict) -> None | MedicalHistoryCommand:
         result = MedicalHistoryCommand(

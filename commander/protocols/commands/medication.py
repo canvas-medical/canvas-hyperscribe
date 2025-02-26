@@ -4,13 +4,22 @@ from canvas_sdk.commands.commands.medication_statement import MedicationStatemen
 
 from commander.protocols.canvas_science import CanvasScience
 from commander.protocols.commands.base import Base
+from commander.protocols.constants import Constants
 from commander.protocols.helper import Helper
+from commander.protocols.structures.coded_item import CodedItem
 
 
 class Medication(Base):
     @classmethod
     def schema_key(cls) -> str:
-        return "medicationStatement"
+        return Constants.SCHEMA_KEY_MEDICATION
+
+    @classmethod
+    def staged_command_extract(cls, data: dict) -> None | CodedItem:
+        sig = data.get("sig") or "n/a"
+        if text := (data.get("medication") or {}).get("text"):
+            return CodedItem(label=f"{text}: {sig}", code="", uuid="")
+        return None
 
     def command_from_json(self, parameters: dict) -> None | MedicationStatementCommand:
         result = MedicationStatementCommand(

@@ -2,6 +2,7 @@
 import json
 from datetime import datetime, timedelta
 from time import time
+from typing import Iterable
 
 import requests
 from canvas_sdk.commands.base import _BaseCommand as BaseCommand
@@ -20,7 +21,9 @@ from commander.protocols.auditor import Auditor
 from commander.protocols.commands.history_of_present_illness import HistoryOfPresentIllness
 from commander.protocols.commands.reason_for_visit import ReasonForVisit
 from commander.protocols.constants import Constants
+from commander.protocols.implemented_commands import ImplementedCommands
 from commander.protocols.limited_cache import LimitedCache
+from commander.protocols.structures.coded_item import CodedItem
 from commander.protocols.structures.instruction import Instruction
 from commander.protocols.structures.line import Line
 from commander.protocols.structures.settings import Settings
@@ -78,6 +81,7 @@ class Commander(BaseProtocol):
     SECRET_ONTOLOGIES_HOST = "OntologiesHost"
     SECRET_PRE_SHARED_KEY = "PreSharedKey"
     SECRET_AUDIO_HOST = "AudioHost"
+    SECRET_STRUCTURED_RFV = "StructuredReasonForVisit"
     LABEL_ENCOUNTER_COPILOT = "Encounter Copilot"
     MAX_AUDIOS = 1
 
@@ -136,6 +140,12 @@ class Commander(BaseProtocol):
         result.append(initial)
         return result
 
+    def structured_rfv(self) -> bool:
+        result = self.secrets.get(self.SECRET_STRUCTURED_RFV)
+        if isinstance(result, str) and result.lower() in ["yes", "y", "1"]:
+            return True
+        return False
+
     def compute_audio(self, patient_uuid: str, note_uuid: str, provider_uuid: str, chunk_index: int) -> tuple[bool, list[Effect]]:
         CachedDiscussion.clear_cache()
         # retrieve the last two audio chunks
@@ -159,12 +169,30 @@ class Commander(BaseProtocol):
             science_host=self.secrets[self.SECRET_SCIENCE_HOST],
             ontologies_host=self.secrets[self.SECRET_ONTOLOGIES_HOST],
             pre_shared_key=self.secrets[self.SECRET_PRE_SHARED_KEY],
+            structured_rfv=self.structured_rfv(),
         )
-        cache = LimitedCache(patient_uuid)
 
-        chatter = AudioInterpreter(settings, cache, patient_uuid, note_uuid, provider_uuid)
-        previous_instructions = self.existing_commands_to_instructions(chatter, discussion.previous_instructions)
+        current_commands = Command.objects.filter(
+            patient__id=patient_uuid,
+            note__id=note_uuid,
+            state="staged",  # <--- TODO use an Enum when provided
+        ).order_by("dbid")
 
+        cache = LimitedCache(
+            patient_uuid,
+            self.existing_commands_to_coded_items(current_commands),
+        )
+        chatter = AudioInterpreter(
+            settings,
+            cache,
+            patient_uuid,
+            note_uuid,
+            provider_uuid,
+        )
+        previous_instructions = self.existing_commands_to_instructions(
+            current_commands,
+            discussion.previous_instructions,
+        )
         discussion.previous_instructions, results = self.audio2commands(
             Auditor(),
             audios,
@@ -173,6 +201,7 @@ class Commander(BaseProtocol):
         )
         # summary
         log.info(f"<===  note: {note_uuid} ===>")
+        log.info(f"Structured RfV: {settings.structured_rfv}")
         log.info(f"instructions: {discussion.previous_instructions}")
         log.info("<-------->")
         for result in results:
@@ -283,46 +312,10 @@ class Commander(BaseProtocol):
         return [command.edit() for command in sdk_commands]
 
     @classmethod
-    def map_instruction2command_uuid(cls, chatter: AudioInterpreter, past_uuids: dict[str, Instruction]) -> dict[str, str]:
-        # assumptions are:
-        #  - the UUID of the instructions are kept by the LLMs
-        #  - the order of the created commands is kept by the Canvas SDK
-        note = Note.objects.get(id=chatter.note_uuid)
-        # create a map between the uuid from the LLM and Canvas UI
-        result: dict[str, str] = {}
-        current_commands = Command.objects.filter(
-            patient__id=chatter.patient_id,
-            note_id=note.dbid,
-            origination_source="plugin",  # <--- TODO use an Enum when provided
-            state="staged",  # <--- TODO use an Enum when provided
-        ).order_by("schema_key", "dbid")
-
-        mapping = chatter.schema_key2instruction()
-        previous_schema_key = ""
-        command_idx = -1
-        for command in current_commands:
-            if command.schema_key != previous_schema_key:
-                previous_schema_key = command.schema_key
-                command_idx = -1
-            command_idx = command_idx + 1
-            instructions = [i for _, i in past_uuids.items() if i.instruction == mapping[command.schema_key]]
-            if command_idx < len(instructions):
-                result[instructions[command_idx].uuid] = str(command.id)
-
-        return result
-
-    @classmethod
-    def existing_commands_to_instructions(cls, chatter: AudioInterpreter, instructions: list[Instruction]) -> list[Instruction]:
+    def existing_commands_to_instructions(cls, current_commands: Iterable[Command], instructions: list[Instruction]) -> list[Instruction]:
         result: dict[str, Instruction] = {}
-        note = Note.objects.get(id=chatter.note_uuid)
-        current_commands = Command.objects.filter(
-            patient__id=chatter.patient_id,
-            note_id=note.dbid,
-            state="staged",  # <--- TODO use an Enum when provided
-        ).order_by("schema_key", "dbid")
-
         consumed_indexes: list[int] = []
-        mapping = chatter.schema_key2instruction()
+        mapping = ImplementedCommands.schema_key2instruction()
         for command in current_commands:
             instruction_type = mapping[command.schema_key]
             instruction_uuid = str(command.id)
@@ -346,3 +339,19 @@ class Commander(BaseProtocol):
                 is_updated=False,
             )
         return list(result.values())
+
+    @classmethod
+    def existing_commands_to_coded_items(cls, current_commands: Iterable[Command]) -> dict[str, list[CodedItem]]:
+        result: dict[str, list[CodedItem]] = {}
+        for command in current_commands:
+            for command_class in ImplementedCommands.command_list():
+                if command_class.schema_key() == command.schema_key:
+                    print("====>", command.schema_key)
+                    print(json.dumps(command.data, indent=2))
+                    if coded_item := command_class.staged_command_extract(command.data):
+                        key = command.schema_key
+                        if key not in result:
+                            result[key] = []
+                        result[key].append(coded_item)
+                    break
+        return result

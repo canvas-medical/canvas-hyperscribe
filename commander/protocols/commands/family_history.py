@@ -4,13 +4,23 @@ from canvas_sdk.commands.commands.family_history import FamilyHistoryCommand
 
 from commander.protocols.canvas_science import CanvasScience
 from commander.protocols.commands.base import Base
+from commander.protocols.constants import Constants
 from commander.protocols.helper import Helper
+from commander.protocols.structures.coded_item import CodedItem
 
 
 class FamilyHistory(Base):
     @classmethod
     def schema_key(cls) -> str:
-        return "familyHistory"
+        return Constants.SCHEMA_KEY_FAMILY_HISTORY
+
+    @classmethod
+    def staged_command_extract(cls, data: dict) -> None | CodedItem:
+        label = (data.get("family_history") or {}).get("text")
+        relative = (data.get("relative") or {}).get("text")
+        if label and relative:
+            return CodedItem(label=f"{relative}: {label}", code="", uuid="")
+        return None
 
     def command_from_json(self, parameters: dict) -> None | FamilyHistoryCommand:
         result = FamilyHistoryCommand(

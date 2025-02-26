@@ -5,13 +5,22 @@ from canvas_sdk.commands.constants import CodeSystems, Coding
 
 from commander.protocols.canvas_science import CanvasScience
 from commander.protocols.commands.base import Base
+from commander.protocols.constants import Constants
 from commander.protocols.helper import Helper
+from commander.protocols.structures.coded_item import CodedItem
 
 
 class Instruct(Base):
     @classmethod
     def schema_key(cls) -> str:
-        return "instruct"
+        return Constants.SCHEMA_KEY_INSTRUCT
+
+    @classmethod
+    def staged_command_extract(cls, data: dict) -> None | CodedItem:
+        narrative = data.get("narrative") or "n/a"
+        if instruct := (data.get("instruct") or {}).get("text"):
+            return CodedItem(label=f"{instruct} ({narrative})", code="", uuid="")
+        return None
 
     def command_from_json(self, parameters: dict) -> None | InstructCommand:
         result = InstructCommand(

@@ -1,13 +1,21 @@
 from canvas_sdk.commands.commands.goal import GoalCommand
 
 from commander.protocols.commands.base import Base
+from commander.protocols.constants import Constants
 from commander.protocols.helper import Helper
+from commander.protocols.structures.coded_item import CodedItem
 
 
 class Goal(Base):
     @classmethod
     def schema_key(cls) -> str:
-        return "goal"
+        return Constants.SCHEMA_KEY_GOAL
+
+    @classmethod
+    def staged_command_extract(cls, data: dict) -> None | CodedItem:
+        if goal := data.get("goal_statement"):
+            return CodedItem(label=goal, code="", uuid="")
+        return None
 
     def command_from_json(self, parameters: dict) -> None | GoalCommand:
         return GoalCommand(

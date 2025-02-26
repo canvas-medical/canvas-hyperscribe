@@ -17,8 +17,9 @@ def helper_instance() -> RemoveAllergy:
         science_host="scienceHost",
         ontologies_host="ontologiesHost",
         pre_shared_key="preSharedKey",
+        structured_rfv=False,
     )
-    cache = LimitedCache("patientUuid")
+    cache = LimitedCache("patientUuid", {})
     return RemoveAllergy(settings, cache, "patientUuid", "noteUuid", "providerUuid")
 
 
@@ -28,10 +29,38 @@ def test_class():
 
 
 def test_schema_key():
-    tested = helper_instance()
+    tested = RemoveAllergy
     result = tested.schema_key()
     expected = "removeAllergy"
     assert result == expected
+
+
+def test_staged_command_extract():
+    tested = RemoveAllergy
+    tests = [
+        ({}, None),
+        ({
+             "allergy": {"text": "theAllergy"},
+             "narrative": "theNarrative",
+         }
+        , CodedItem(label="theAllergy: theNarrative", code="", uuid="")),
+        ({
+             "allergy": {"text": ""},
+             "narrative": "theNarrative",
+         }
+        , None),
+        ({
+             "allergy": {"text": "theAllergy"},
+             "narrative": "",
+         }
+        , CodedItem(label="theAllergy: n/a", code="", uuid="")),
+    ]
+    for data, expected in tests:
+        result = tested.staged_command_extract(data)
+        if expected is None:
+            assert result is None
+        else:
+            assert result == expected
 
 
 @patch.object(LimitedCache, "current_allergies")

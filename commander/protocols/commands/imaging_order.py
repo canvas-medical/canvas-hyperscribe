@@ -4,15 +4,31 @@ from canvas_sdk.commands.commands.imaging_order import ImagingOrderCommand
 
 from commander.protocols.canvas_science import CanvasScience
 from commander.protocols.commands.base import Base
+from commander.protocols.constants import Constants
 from commander.protocols.helper import Helper
 from commander.protocols.selector_chat import SelectorChat
+from commander.protocols.structures.coded_item import CodedItem
 
 
 class ImagingOrder(Base):
 
     @classmethod
     def schema_key(cls) -> str:
-        return "imagingOrder"
+        return Constants.SCHEMA_KEY_IMAGING_ORDER
+
+    @classmethod
+    def staged_command_extract(cls, data: dict) -> None | CodedItem:
+        comment = data.get("comment") or "n/a"
+        priority = data.get("priority") or "n/a"
+        imaging = (data.get("image") or {}).get("text")
+        indications = "/".join([
+            indication
+            for item in (data.get("indications") or [])
+            if (indication := item.get("text"))
+        ]) or "n/a"
+        if imaging:
+            return CodedItem(label=f"{imaging}: {comment} (priority: {priority}, indications: {indications})", code="", uuid="")
+        return None
 
     def command_from_json(self, parameters: dict) -> None | ImagingOrderCommand:
         result = ImagingOrderCommand(

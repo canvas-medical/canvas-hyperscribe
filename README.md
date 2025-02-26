@@ -113,7 +113,7 @@ uv  run pytest -v integrations/test_transcript2instructions.py --patient-uuid pa
 
 ### Create integration tests
 
-To be able to create integration codes locally, create the environment variables:
+To be able to create integration codes locally, in addition to the `CANVAS_SDK_DB_...` defined above, create the environment variables:
 
 ```shell
 export VendorTextLLM="OpenAI"
@@ -123,6 +123,7 @@ export KeyAudioLLM="..."
 export ScienceHost="..."
 export OntologiesHost="...."
 export PreSharedKey="...."
+export StructuredReasonForVisit="y" or "n"
 ```
 
 Based on a set of `mp3` files, a set (i.e. covering all steps) of integration tests can be created using:

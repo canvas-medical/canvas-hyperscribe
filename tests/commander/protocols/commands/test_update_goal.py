@@ -18,8 +18,9 @@ def helper_instance() -> UpdateGoal:
         science_host="scienceHost",
         ontologies_host="ontologiesHost",
         pre_shared_key="preSharedKey",
+        structured_rfv=False,
     )
-    cache = LimitedCache("patientUuid")
+    cache = LimitedCache("patientUuid", {})
     return UpdateGoal(settings, cache, "patientUuid", "noteUuid", "providerUuid")
 
 
@@ -29,10 +30,44 @@ def test_class():
 
 
 def test_schema_key():
-    tested = helper_instance()
+    tested = UpdateGoal
     result = tested.schema_key()
     expected = "updateGoal"
     assert result == expected
+
+
+def test_staged_command_extract():
+    tested = UpdateGoal
+    tests = [
+        ({}, None),
+        ({
+             "due_date": "theDate",
+             "priority": "thePriority",
+             "progress": "theProgress",
+             "goal_statement": {},
+             "achievement_status": "theStatus"
+         }, None),
+        ({
+             "due_date": "theDate",
+             "priority": "thePriority",
+             "progress": "theProgress",
+             "goal_statement": {"text": "theGoal"},
+             "achievement_status": "theStatus"
+         }, CodedItem(label="theGoal: theProgress", code="", uuid="")),
+        ({
+             "due_date": "theDate",
+             "priority": "thePriority",
+             "progress": "",
+             "goal_statement": {"text": "theGoal"},
+             "achievement_status": "theStatus"
+         }, None),
+    ]
+    for data, expected in tests:
+        result = tested.staged_command_extract(data)
+        if expected is None:
+            assert result is None
+        else:
+            assert result == expected
 
 
 @patch.object(LimitedCache, "current_goals")

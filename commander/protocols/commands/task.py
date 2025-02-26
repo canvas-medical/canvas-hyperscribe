@@ -4,13 +4,28 @@ from canvas_sdk.commands.commands.task import TaskCommand, TaskAssigner, Assigne
 from canvas_sdk.v1.data import TaskLabel, Staff
 
 from commander.protocols.commands.base import Base
+from commander.protocols.constants import Constants
 from commander.protocols.helper import Helper
+from commander.protocols.structures.coded_item import CodedItem
 
 
 class Task(Base):
     @classmethod
     def schema_key(cls) -> str:
-        return "task"
+        return Constants.SCHEMA_KEY_TASK
+
+    @classmethod
+    def staged_command_extract(cls, data: dict) -> None | CodedItem:
+        comment = data.get("comment") or "n/a"
+        due_date = data.get("due_date") or "n/a"
+        if task := data.get("title"):
+            labels = "/".join([
+                label
+                for item in data.get("labels") or []
+                if (label := item.get("text"))
+            ]) or "n/a"
+            return CodedItem(label=f"{task}: {comment} (due on: {due_date}, labels: {labels})", code="", uuid="")
+        return None
 
     def select_staff(self, assigned_to: str, comment: str) -> None | TaskAssigner:
         staff_members = Staff.objects.filter(active=True).order_by("last_name")

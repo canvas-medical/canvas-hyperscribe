@@ -1,12 +1,21 @@
 from canvas_sdk.commands.commands.stop_medication import StopMedicationCommand
 
 from commander.protocols.commands.base import Base
+from commander.protocols.constants import Constants
+from commander.protocols.structures.coded_item import CodedItem
 
 
 class StopMedication(Base):
     @classmethod
     def schema_key(cls) -> str:
-        return "stopMedication"
+        return Constants.SCHEMA_KEY_STOP_MEDICATION
+
+    @classmethod
+    def staged_command_extract(cls, data: dict) -> None | CodedItem:
+        rationale = data.get("rationale") or "n/a"
+        if medication := (data.get("medication") or {}).get("text"):
+            return CodedItem(label=f"{medication}: {rationale}", code="", uuid="")
+        return None
 
     def command_from_json(self, parameters: dict) -> None | StopMedicationCommand:
         medication_uuid = ""

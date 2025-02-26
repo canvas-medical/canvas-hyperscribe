@@ -12,7 +12,15 @@ from commander.protocols.structures.coded_item import CodedItem
 
 
 def test___init__():
-    tested = LimitedCache("patientUuid")
+    staged_commands_to_coded_items = {
+        "keyX": [CodedItem(code="code1", label="label1", uuid="uuid1")],
+        "keyY": [],
+        "keyZ": [
+            CodedItem(code="code3", label="label3", uuid="uuid3"),
+            CodedItem(code="code2", label="label2", uuid="uuid2"),
+        ],
+    }
+    tested = LimitedCache("patientUuid", staged_commands_to_coded_items)
     assert tested.patient_uuid == "patientUuid"
     assert tested._allergies is None
     assert tested._condition_history is None
@@ -25,6 +33,33 @@ def test___init__():
     assert tested._questionnaires is None
     assert tested._reason_for_visit is None
     assert tested._surgery_history is None
+    assert tested._staged_commands == staged_commands_to_coded_items
+
+
+def test_staged_commands_of():
+    coded_items = [
+        CodedItem(code="code1", label="label1", uuid="uuid1"),
+        CodedItem(code="code3", label="label3", uuid="uuid3"),
+        CodedItem(code="code2", label="label2", uuid="uuid2"),
+    ]
+
+    staged_commands_to_coded_items = {
+        "keyX": [coded_items[0]],
+        "keyY": [],
+        "keyZ": [coded_items[1], coded_items[2]],
+    }
+    tested = LimitedCache("patientUuid", staged_commands_to_coded_items)
+
+    tests = [
+        (["keyX"], coded_items[:1]),
+        (["keyY"], []),
+        (["keyZ"], coded_items[1:]),
+        (["keyX", "keyY"], coded_items[:1]),
+        (["keyX", "keyZ"], coded_items),
+    ]
+    for keys, expected in tests:
+        result = tested.staged_commands_of(keys)
+        assert result == expected
 
 
 @patch.object(Command, 'objects')
@@ -37,7 +72,7 @@ def test_current_goals(command_db):
         Command(id=uuid5(NAMESPACE_DNS, "2"), dbid=259, data={"goal_statement": "statement2"}),
         Command(id=uuid5(NAMESPACE_DNS, "3"), dbid=267, data={"goal_statement": "statement3"}),
     ]]
-    tested = LimitedCache("patientUuid")
+    tested = LimitedCache("patientUuid", {})
     expected = [
         CodedItem(uuid="b04965e6-a9bb-591f-8f8a-1adcb2c8dc39", code="258", label="statement1"),
         CodedItem(uuid="4b166dbe-d99d-5091-abdd-95b83330ed3a", code="259", label="statement2"),
@@ -89,7 +124,7 @@ def test_current_conditions(condition_db, codings_db):
             Condition(id=uuid5(NAMESPACE_DNS, "3")),
         ],
     ]
-    tested = LimitedCache("patientUuid")
+    tested = LimitedCache("patientUuid", {})
     expected = [
         CodedItem(uuid="b04965e6-a9bb-591f-8f8a-1adcb2c8dc39", label="display1a", code="CODE12.3"),
         CodedItem(uuid="4b166dbe-d99d-5091-abdd-95b83330ed3a", label="display2a", code="CODE45"),
@@ -145,7 +180,7 @@ def test_current_medications(medication_db, codings_db):
             Medication(id=uuid5(NAMESPACE_DNS, "3")),
         ],
     ]
-    tested = LimitedCache("patientUuid")
+    tested = LimitedCache("patientUuid", {})
     expected = [
         CodedItem(uuid="b04965e6-a9bb-591f-8f8a-1adcb2c8dc39", label="display1a", code="CODE123"),
         CodedItem(uuid="4b166dbe-d99d-5091-abdd-95b83330ed3a", label="display2a", code="CODE45"),
@@ -201,7 +236,7 @@ def test_current_allergies(allergy_db, codings_db):
             AllergyIntolerance(id=uuid5(NAMESPACE_DNS, "3")),
         ],
     ]
-    tested = LimitedCache("patientUuid")
+    tested = LimitedCache("patientUuid", {})
     expected = [
         CodedItem(uuid="b04965e6-a9bb-591f-8f8a-1adcb2c8dc39", label="display1a", code="CODE123"),
         CodedItem(uuid="4b166dbe-d99d-5091-abdd-95b83330ed3a", label="display2a", code="CODE45"),
@@ -230,7 +265,7 @@ def test_current_allergies(allergy_db, codings_db):
 
 
 def test_family_history():
-    tested = LimitedCache("patientUuid")
+    tested = LimitedCache("patientUuid", {})
     result = tested.family_history()
     assert result == []
     assert tested._family_history == []
@@ -268,7 +303,7 @@ def test_condition_history(condition_db, codings_db):
             Condition(id=uuid5(NAMESPACE_DNS, "3")),
         ],
     ]
-    tested = LimitedCache("patientUuid")
+    tested = LimitedCache("patientUuid", {})
     expected = [
         CodedItem(uuid="b04965e6-a9bb-591f-8f8a-1adcb2c8dc39", label="display1a", code="CODE12.3"),
         CodedItem(uuid="4b166dbe-d99d-5091-abdd-95b83330ed3a", label="display2a", code="CODE45"),
@@ -324,7 +359,7 @@ def test_surgery_history(condition_db, codings_db):
             Condition(id=uuid5(NAMESPACE_DNS, "3")),
         ],
     ]
-    tested = LimitedCache("patientUuid")
+    tested = LimitedCache("patientUuid", {})
     expected = [
         CodedItem(uuid="b04965e6-a9bb-591f-8f8a-1adcb2c8dc39", label="display1a", code="CODE12.3"),
         CodedItem(uuid="4b166dbe-d99d-5091-abdd-95b83330ed3a", label="display2a", code="CODE45"),
@@ -364,7 +399,7 @@ def test_existing_questionnaires(questionnaire_db):
             Questionnaire(id=uuid5(NAMESPACE_DNS, "3"), name="questionnaire3"),
         ],
     ]
-    tested = LimitedCache("patientUuid")
+    tested = LimitedCache("patientUuid", {})
     expected = [
         CodedItem(uuid="b04965e6-a9bb-591f-8f8a-1adcb2c8dc39", label="questionnaire1", code=""),
         CodedItem(uuid="4b166dbe-d99d-5091-abdd-95b83330ed3a", label="questionnaire2", code=""),
@@ -399,7 +434,7 @@ def test_existing_note_types(note_type_db):
             NoteType(id=uuid5(NAMESPACE_DNS, "3"), name="noteType3", code="code3"),
         ],
     ]
-    tested = LimitedCache("patientUuid")
+    tested = LimitedCache("patientUuid", {})
     expected = [
         CodedItem(uuid="b04965e6-a9bb-591f-8f8a-1adcb2c8dc39", label="noteType1", code="code1"),
         CodedItem(uuid="4b166dbe-d99d-5091-abdd-95b83330ed3a", label="noteType2", code="code2"),
@@ -434,7 +469,7 @@ def test_existing_reason_for_visits(rfv_coding_db):
             ReasonForVisitSettingCoding(id=uuid5(NAMESPACE_DNS, "3"), display="display3", code="code3"),
         ],
     ]
-    tested = LimitedCache("patientUuid")
+    tested = LimitedCache("patientUuid", {})
     expected = [
         CodedItem(uuid="b04965e6-a9bb-591f-8f8a-1adcb2c8dc39", label="display1", code="code1"),
         CodedItem(uuid="4b166dbe-d99d-5091-abdd-95b83330ed3a", label="display2", code="code2"),
@@ -515,7 +550,7 @@ def test_demographic__str__(patient_db, observation_db, mock_date):
         observation_db.for_patient.return_value.filter.return_value.order_by.return_value.first.side_effect = [
             Observation(units="oz", value="1990"),
         ]
-        tested = LimitedCache("patientUuid")
+        tested = LimitedCache("patientUuid", {})
 
         result = tested.demographic__str__()
         assert result == expected, f" ---> {sex_at_birth} - {birth_date}"
@@ -548,7 +583,7 @@ def test_demographic__str__(patient_db, observation_db, mock_date):
     observation_db.for_patient.return_value.filter.return_value.order_by.return_value.first.side_effect = [
         None
     ]
-    tested = LimitedCache("patientUuid")
+    tested = LimitedCache("patientUuid", {})
     result = tested.demographic__str__()
     expected = "the patient is a woman, born on February 07, 2000 (age 24)"
     assert result == expected
@@ -573,7 +608,7 @@ def test_demographic__str__(patient_db, observation_db, mock_date):
     observation_db.for_patient.return_value.filter.return_value.order_by.return_value.first.side_effect = [
         Observation(units="any", value="125"),
     ]
-    tested = LimitedCache("patientUuid")
+    tested = LimitedCache("patientUuid", {})
     result = tested.demographic__str__()
     expected = "the patient is a woman, born on February 07, 2000 (age 24) and weight 125.00 pounds"
     assert result == expected

@@ -3,6 +3,7 @@ from canvas_sdk.commands.commands.instruct import InstructCommand
 from commander.protocols.commands.base import Base
 from commander.protocols.commands.immunize import Immunize
 from commander.protocols.limited_cache import LimitedCache
+from commander.protocols.structures.coded_item import CodedItem
 from commander.protocols.structures.settings import Settings
 from commander.protocols.structures.vendor_key import VendorKey
 
@@ -14,8 +15,9 @@ def helper_instance() -> Immunize:
         science_host="scienceHost",
         ontologies_host="ontologiesHost",
         pre_shared_key="preSharedKey",
+        structured_rfv=False,
     )
-    cache = LimitedCache("patientUuid")
+    cache = LimitedCache("patientUuid", {})
     return Immunize(settings, cache, "patientUuid", "noteUuid", "providerUuid")
 
 
@@ -25,10 +27,43 @@ def test_class():
 
 
 def test_schema_key():
-    tested = helper_instance()
+    tested = Immunize
     result = tested.schema_key()
     expected = "immunize"
     assert result == expected
+
+
+def test_staged_command_extract():
+    tested = Immunize
+    tests = [
+        ({}, None),
+        ({
+             "coding": {"text": "theImmunization"},
+             "manufacturer": "theManufacturer",
+             "sig_original": "theSig",
+         }, CodedItem(label="theImmunization: theSig (theManufacturer)", code="", uuid="")),
+        ({
+             "coding": {"text": "theImmunization"},
+             "manufacturer": "",
+             "sig_original": "theSig",
+         }, CodedItem(label="theImmunization: theSig (n/a)", code="", uuid="")),
+        ({
+             "coding": {"text": "theImmunization"},
+             "manufacturer": "theManufacturer",
+             "sig_original": "",
+         }, CodedItem(label="theImmunization: n/a (theManufacturer)", code="", uuid="")),
+        ({
+             "coding": {"text": ""},
+             "manufacturer": "theManufacturer",
+             "sig_original": "theSig",
+         }, None),
+    ]
+    for data, expected in tests:
+        result = tested.staged_command_extract(data)
+        if expected is None:
+            assert result is None
+        else:
+            assert result == expected
 
 
 def test_command_from_json():

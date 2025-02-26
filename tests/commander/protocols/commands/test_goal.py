@@ -18,8 +18,9 @@ def helper_instance() -> Goal:
         science_host="scienceHost",
         ontologies_host="ontologiesHost",
         pre_shared_key="preSharedKey",
+        structured_rfv=False,
     )
-    cache = LimitedCache("patientUuid")
+    cache = LimitedCache("patientUuid", {})
     return Goal(settings, cache, "patientUuid", "noteUuid", "providerUuid")
 
 
@@ -29,10 +30,39 @@ def test_class():
 
 
 def test_schema_key():
-    tested = helper_instance()
+    tested = Goal
     result = tested.schema_key()
     expected = "goal"
     assert result == expected
+
+
+def test_staged_command_extract():
+    tested = Goal
+    tests = [
+        ({}, None),
+        ({
+             "due_date": "2025-02-27",
+             "priority": "medium-priority",
+             "progress": "theProgress",
+             "start_date": "2025-02-26",
+             "goal_statement": "theGoal",
+             "achievement_status": "improving"
+         }, CodedItem(label="theGoal", code="", uuid="")),
+        ({
+             "due_date": "2025-02-27",
+             "priority": "medium-priority",
+             "progress": "theProgress",
+             "start_date": "2025-02-26",
+             "goal_statement": "",
+             "achievement_status": "improving"
+         }, None),
+    ]
+    for data, expected in tests:
+        result = tested.staged_command_extract(data)
+        if expected is None:
+            assert result is None
+        else:
+            assert result == expected
 
 
 def test_command_from_json():

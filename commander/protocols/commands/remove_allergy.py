@@ -1,12 +1,21 @@
 from canvas_sdk.commands.commands.remove_allergy import RemoveAllergyCommand
 
 from commander.protocols.commands.base import Base
+from commander.protocols.constants import Constants
+from commander.protocols.structures.coded_item import CodedItem
 
 
 class RemoveAllergy(Base):
     @classmethod
     def schema_key(cls) -> str:
-        return "removeAllergy"
+        return Constants.SCHEMA_KEY_REMOVE_ALLERGY
+
+    @classmethod
+    def staged_command_extract(cls, data: dict) -> None | CodedItem:
+        narrative = data.get("narrative") or "n/a"
+        if allergy := (data.get("allergy") or {}).get("text"):
+            return CodedItem(label=f"{allergy}: {narrative}", code="", uuid="")
+        return None
 
     def command_from_json(self, parameters: dict) -> None | RemoveAllergyCommand:
         allergy_uuid = ""

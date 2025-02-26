@@ -1,13 +1,21 @@
 from canvas_sdk.commands.commands.assess import AssessCommand
 
 from commander.protocols.commands.base import Base
+from commander.protocols.constants import Constants
 from commander.protocols.helper import Helper
+from commander.protocols.structures.coded_item import CodedItem
 
 
 class Assess(Base):
     @classmethod
     def schema_key(cls) -> str:
-        return "assess"
+        return Constants.SCHEMA_KEY_ASSESS
+
+    @classmethod
+    def staged_command_extract(cls, data: dict) -> None | CodedItem:
+        if (narrative := data.get("narrative")) and (condition := data.get("condition", {}).get("text")):
+            return CodedItem(label=f'{condition}: {narrative}', code="", uuid="")
+        return None
 
     def command_from_json(self, parameters: dict) -> None | AssessCommand:
         condition_id = ""

@@ -9,3 +9,4 @@ class Settings(NamedTuple):
     science_host: str
     ontologies_host: str
     pre_shared_key: str
+    structured_rfv: bool

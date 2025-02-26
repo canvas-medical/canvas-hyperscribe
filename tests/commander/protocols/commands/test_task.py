@@ -8,6 +8,7 @@ from commander.protocols.commands.base import Base
 from commander.protocols.commands.task import Task
 from commander.protocols.helper import Helper
 from commander.protocols.limited_cache import LimitedCache
+from commander.protocols.structures.coded_item import CodedItem
 from commander.protocols.structures.settings import Settings
 from commander.protocols.structures.vendor_key import VendorKey
 
@@ -19,8 +20,9 @@ def helper_instance() -> Task:
         science_host="scienceHost",
         ontologies_host="ontologiesHost",
         pre_shared_key="preSharedKey",
+        structured_rfv=False,
     )
-    cache = LimitedCache("patientUuid")
+    cache = LimitedCache("patientUuid", {})
     return Task(settings, cache, "patientUuid", "noteUuid", "providerUuid")
 
 
@@ -30,10 +32,55 @@ def test_class():
 
 
 def test_schema_key():
-    tested = helper_instance()
+    tested = Task
     result = tested.schema_key()
     expected = "task"
     assert result == expected
+
+
+def test_staged_command_extract():
+    tested = Task
+    tests = [
+        ({}, None),
+        ({
+             "title": "theTask",
+             "labels": [
+                 {"text": "label1"},
+                 {"text": "label2"},
+                 {"text": "label3"},
+             ],
+             "comment": "theComment",
+             "due_date": "theDate",
+         }, CodedItem(label="theTask: theComment (due on: theDate, labels: label1/label2/label3)", code="", uuid="")),
+        ({
+             "title": "",
+             "labels": [
+                 {"text": "label1"},
+                 {"text": "label2"},
+                 {"text": "label3"},
+             ],
+             "comment": "theComment",
+             "due_date": "theDate",
+         }, None),
+        ({
+             "title": "theTask",
+             "labels": [],
+             "comment": "theComment",
+             "due_date": "theDate",
+         }, CodedItem(label="theTask: theComment (due on: theDate, labels: n/a)", code="", uuid="")),
+        ({
+             "title": "theTask",
+             "labels": [{"text": "label1"}],
+             "comment": "",
+             "due_date": "",
+         }, CodedItem(label="theTask: n/a (due on: n/a, labels: label1)", code="", uuid="")),
+    ]
+    for data, expected in tests:
+        result = tested.staged_command_extract(data)
+        if expected is None:
+            assert result is None
+        else:
+            assert result == expected
 
 
 @patch.object(Staff, 'objects')

@@ -3,12 +3,21 @@ from canvas_sdk.commands.commands.diagnose import DiagnoseCommand
 from commander.protocols.commands.base import Base
 from commander.protocols.helper import Helper
 from commander.protocols.selector_chat import SelectorChat
+from commander.protocols.structures.coded_item import CodedItem
 
 
 class Diagnose(Base):
     @classmethod
     def schema_key(cls) -> str:
         return "diagnose"
+
+    @classmethod
+    def staged_command_extract(cls, data: dict) -> None | CodedItem:
+        assessment = data.get("today_assessment") or "n/a"
+        diagnose = data.get("diagnose") or {}
+        if (label := diagnose.get("text")) and (code := diagnose.get("value")):
+            return CodedItem(label=f"{label} ({assessment})", code=code, uuid="")
+        return None
 
     def command_from_json(self, parameters: dict) -> None | DiagnoseCommand:
         icd10_code = SelectorChat.condition_from(

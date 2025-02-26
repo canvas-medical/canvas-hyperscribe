@@ -20,8 +20,9 @@ def helper_instance() -> UpdateDiagnose:
         science_host="scienceHost",
         ontologies_host="ontologiesHost",
         pre_shared_key="preSharedKey",
+        structured_rfv=False,
     )
-    cache = LimitedCache("patientUuid")
+    cache = LimitedCache("patientUuid", {})
     return UpdateDiagnose(settings, cache, "patientUuid", "noteUuid", "providerUuid")
 
 
@@ -31,10 +32,47 @@ def test_class():
 
 
 def test_schema_key():
-    tested = helper_instance()
+    tested = UpdateDiagnose
     result = tested.schema_key()
     expected = "updateDiagnosis"
     assert result == expected
+
+
+def test_staged_command_extract():
+    tested = UpdateDiagnose
+    tests = [
+        ({}, None),
+        ({
+             "condition": {"text": "theCondition"},
+             "narrative": "theNarrative",
+             "background": "theBackground",
+             "new_condition": {"text": "theNewCondition"}
+         }, CodedItem(label="theCondition to theNewCondition: theNarrative", code="", uuid="")),
+        ({
+             "condition": {"text": ""},
+             "narrative": "theNarrative",
+             "background": "theBackground",
+             "new_condition": {"text": "theNewCondition"}
+         }, None),
+        ({
+             "condition": {"text": "theCondition"},
+             "narrative": "",
+             "background": "theBackground",
+             "new_condition": {"text": "theNewCondition"}
+         }, CodedItem(label="theCondition to theNewCondition: n/a", code="", uuid="")),
+        ({
+             "condition": {"text": "theCondition"},
+             "narrative": "theNarrative",
+             "background": "theBackground",
+             "new_condition": {"text": ""}
+         }, CodedItem(label="theCondition to n/a: theNarrative", code="", uuid="")),
+    ]
+    for data, expected in tests:
+        result = tested.staged_command_extract(data)
+        if expected is None:
+            assert result is None
+        else:
+            assert result == expected
 
 
 @patch.object(Helper, "chatter")

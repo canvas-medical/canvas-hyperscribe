@@ -1,6 +1,7 @@
 from commander.protocols.commands.base import Base
 from commander.protocols.commands.physical_exam import PhysicalExam
 from commander.protocols.limited_cache import LimitedCache
+from commander.protocols.structures.coded_item import CodedItem
 from commander.protocols.structures.settings import Settings
 from commander.protocols.structures.vendor_key import VendorKey
 
@@ -12,8 +13,9 @@ def helper_instance() -> PhysicalExam:
         science_host="scienceHost",
         ontologies_host="ontologiesHost",
         pre_shared_key="preSharedKey",
+        structured_rfv=False,
     )
-    cache = LimitedCache("patientUuid")
+    cache = LimitedCache("patientUuid", {})
     return PhysicalExam(settings, cache, "patientUuid", "noteUuid", "providerUuid")
 
 
@@ -23,10 +25,68 @@ def test_class():
 
 
 def test_schema_key():
-    tested = helper_instance()
+    tested = PhysicalExam
     result = tested.schema_key()
     expected = "exam"
     assert result == expected
+
+
+def test_staged_command_extract():
+    tested = PhysicalExam
+    tests = [
+        ({}, None),
+        ({
+             "question-1": "theQuestion1",
+             "question-2": "theQuestion2",
+             "question-3": "theQuestion3",
+             "questionnaire": {
+                 "text": "theQuestionnaire",
+                 "extra": {
+                     "questions": [
+                         {"name": "question-1"},
+                         {"name": "question-2"},
+                         {"name": "question-3"},
+                     ],
+                 },
+             }
+         }, CodedItem(label="theQuestionnaire: theQuestion1 \n theQuestion2 \n theQuestion3", code="", uuid="")),
+        ({
+             "question-1": "theQuestion1",
+             "question-2": "theQuestion2",
+             "question-3": "theQuestion3",
+             "questionnaire": {
+                 "text": "",
+                 "extra": {
+                     "questions": [
+                         {"name": "question-1"},
+                         {"name": "question-2"},
+                         {"name": "question-3"},
+                     ],
+                 },
+             }
+         }, None),
+        ({
+             "question-1": "theQuestion1",
+             "question-4": "theQuestion4",
+             "question-3": "theQuestion3",
+             "questionnaire": {
+                 "text": "theQuestionnaire",
+                 "extra": {
+                     "questions": [
+                         {"name": "question-1"},
+                         {"name": "question-2"},
+                         {"name": "question-3"},
+                     ],
+                 },
+             }
+         }, CodedItem(label="theQuestionnaire: theQuestion1 \n theQuestion3", code="", uuid="")),
+    ]
+    for data, expected in tests:
+        result = tested.staged_command_extract(data)
+        if expected is None:
+            assert result is None
+        else:
+            assert result == expected
 
 
 def test_command_from_json():

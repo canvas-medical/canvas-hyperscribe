@@ -4,13 +4,23 @@ from canvas_sdk.commands.commands.update_diagnosis import UpdateDiagnosisCommand
 
 from commander.protocols.canvas_science import CanvasScience
 from commander.protocols.commands.base import Base
+from commander.protocols.constants import Constants
 from commander.protocols.helper import Helper
+from commander.protocols.structures.coded_item import CodedItem
 
 
 class UpdateDiagnose(Base):
     @classmethod
     def schema_key(cls) -> str:
-        return "updateDiagnosis"
+        return Constants.SCHEMA_KEY_UPDATE_DIAGNOSE
+
+    @classmethod
+    def staged_command_extract(cls, data: dict) -> None | CodedItem:
+        if condition := (data.get("condition") or {}).get("text"):
+            new_condition = (data.get("new_condition") or {}).get("text") or "n/a"
+            narrative = data.get("narrative") or "n/a"
+            return CodedItem(label=f"{condition} to {new_condition}: {narrative}", code="", uuid="")
+        return None
 
     def command_from_json(self, parameters: dict) -> None | UpdateDiagnosisCommand:
         result = UpdateDiagnosisCommand(

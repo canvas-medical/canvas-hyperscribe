@@ -4,14 +4,22 @@ from canvas_sdk.commands.commands.allergy import AllergyCommand, Allergen, Aller
 
 from commander.protocols.canvas_science import CanvasScience
 from commander.protocols.commands.base import Base
+from commander.protocols.constants import Constants
 from commander.protocols.helper import Helper
+from commander.protocols.structures.coded_item import CodedItem
 
 
 class Allergy(Base):
 
     @classmethod
     def schema_key(cls) -> str:
-        return "allergy"
+        return Constants.SCHEMA_KEY_ALLERGY
+
+    @classmethod
+    def staged_command_extract(cls, data: dict) -> None | CodedItem:
+        if (allergy := data.get("allergy", {})) and "text" in allergy and "value" in allergy:
+            return CodedItem(label=allergy["text"], code=str(allergy["value"]), uuid="")
+        return None
 
     def command_from_json(self, parameters: dict) -> None | AllergyCommand:
         concept_types = [AllergenType(1)]  # <-- always include the Allergy Group
