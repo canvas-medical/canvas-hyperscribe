@@ -66,7 +66,7 @@ class CaseBuilder:
         note = Note.objects.filter(patient__id=parameters.patient).order_by("-dbid").first()  # the last note
         chatter = AudioInterpreter(
             HelperSettings.settings(),
-            LimitedCache(parameters.patient),
+            LimitedCache(parameters.patient, {}),
             parameters.patient,
             str(note.id),
             str(note.provider.id),

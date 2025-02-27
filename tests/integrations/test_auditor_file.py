@@ -98,11 +98,12 @@ def test_identified_transcript(reset, path):
         )
         assert result is test
         expected = [
-            ["voiceA", "theText1"],
-            ["voiceB", "theText2"],
-            ["voiceB", "theText3"],
-            ["voiceA", "theText4"]
+            {'speaker': 'voiceA', 'text': 'theText1'},
+            {'speaker': 'voiceB', 'text': 'theText2'},
+            {'speaker': 'voiceB', 'text': 'theText3'},
+            {'speaker': 'voiceA', 'text': 'theText4'},
         ]
+
         assert json.loads("".join(written_text)) == expected
         assert written_bytes == [b'audio1', b'audio2']
 

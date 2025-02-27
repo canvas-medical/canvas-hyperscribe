@@ -21,7 +21,8 @@ def pytest_generate_tests(metafunc):
             json_file = expected_dir / f"{mp3_file.stem}.json"
             assert json_file.exists(), f"{mp3_file.stem}: no corresponding JSON file found"
 
-            mp3_files = [file for file in input_dir.glob(f"{mp3_file.stem}*.mp3")]
+            # sorted to have the file without index first
+            mp3_files = sorted([file for file in input_dir.glob(f"{mp3_file.stem}*.mp3")], key=lambda x: f"{len(x.stem):03d}{x.stem}")
 
             files.append((mp3_files, json_file))
 

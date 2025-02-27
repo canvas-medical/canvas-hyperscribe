@@ -17,12 +17,12 @@ class LlmGoogle(LlmBase):
         if audio:
             self.audios.append({"format": f"audio/{audio_format}", "data": audio})
 
-    def to_dict(self, audio_uris: dict[str, str]) -> dict:
+    def to_dict(self, audio_uris: list[tuple[str, str]]) -> dict:
         parts = [
             {"text": "\n".join(self.system_prompt)},
             {"text": "\n".join(self.user_prompt)},
         ]
-        for mime, uri in audio_uris.items():
+        for mime, uri in audio_uris:
             parts.append({"file_data": {"mime_type": mime, "file_uri": uri}})
 
         return {
@@ -60,11 +60,11 @@ class LlmGoogle(LlmBase):
 
     def chat(self, add_log: bool = False, schemas: list | None = None) -> JsonExtract:
         # audios are to be uploaded first (they are auto-deleted after 48h)
-        audio_uris: dict[str, str] = {
-            audio["format"]: uri
+        audio_uris: list[tuple[str, str]] = [
+            (audio["format"], uri)
             for idx, audio in enumerate(self.audios)
             if (uri := self.upload_audio(audio["data"], audio["format"], f"audio{idx:02d}"))
-        }
+        ]
 
         url = f"https://generativelanguage.googleapis.com/v1beta/{self.model}:generateContent?key={self.api_key}"
         headers = {"Content-Type": "application/json"}
@@ -83,7 +83,7 @@ class LlmGoogle(LlmBase):
             text = content.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "")
             if add_log:
                 log.info("***** CHAT STARTS ******")
-                # log.info(self.to_dict(True))
+                # log.info(self.to_dict(audio_uris))
                 # log.info(f"   -------------    ")
                 log.info(text)
                 log.info("****** CHAT ENDS *******")

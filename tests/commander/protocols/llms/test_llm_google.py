@@ -32,7 +32,7 @@ def test_to_dict():
     tested.user_prompt = ["line 4", "line 5", "line 6"]
 
     #
-    result = tested.to_dict({})
+    result = tested.to_dict([])
     expected = {
         'contents': [
             {
@@ -48,7 +48,11 @@ def test_to_dict():
     assert result == expected
 
     # with audio
-    result = tested.to_dict({"audio/mp3": "uriAudio1", "audio/wav": "uriAudio2"})
+    result = tested.to_dict([
+        ('audio/mp3', 'uriAudio1'),
+        ('audio/wav', 'uriAudio2'),
+        ('audio/mp3', 'uriAudio3'),
+    ])
     expected = {
         'contents': [
             {
@@ -58,6 +62,7 @@ def test_to_dict():
                     {"text": "line 4\nline 5\nline 6"},
                     {"file_data": {"mime_type": "audio/mp3", "file_uri": "uriAudio1"}},
                     {"file_data": {"mime_type": "audio/wav", "file_uri": "uriAudio2"}},
+                    {"file_data": {"mime_type": "audio/mp3", "file_uri": "uriAudio3"}},
                 ],
             },
         ],
@@ -207,13 +212,14 @@ def test_chat(upload_audio, to_dict, info, requests_post):
     })()
 
     # error
-    upload_audio.side_effect = ["uri1", "uri2"]
+    upload_audio.side_effect = ["uri1", "uri2", "uri3"]
     to_dict.side_effect = [{"key": "value"}]
     requests_post.side_effect = [response]
 
     tested = LlmGoogle("apiKey", "theModel")
     tested.add_audio(b"the audio1", "mp3")
     tested.add_audio(b"the audio2", "wav")
+    tested.add_audio(b"the audio3", "mp3")
     result = tested.chat()
     expected = JsonExtract("the reported error is: 202", True, [])
     assert result == expected
@@ -221,9 +227,14 @@ def test_chat(upload_audio, to_dict, info, requests_post):
     calls = [
         call(b'the audio1', 'audio/mp3', 'audio00'),
         call(b'the audio2', 'audio/wav', 'audio01'),
+        call(b'the audio3', 'audio/mp3', 'audio02'),
     ]
     assert upload_audio.mock_calls == calls
-    calls = [call({'audio/mp3': 'uri1', 'audio/wav': 'uri2'})]
+    calls = [call([
+        ('audio/mp3', 'uri1'),
+        ('audio/wav', 'uri2'),
+        ('audio/mp3', 'uri3'),
+    ])]
     assert to_dict.mock_calls == calls
     calls = [
         call("***********"),
@@ -246,13 +257,14 @@ def test_chat(upload_audio, to_dict, info, requests_post):
     # no error
     response.status_code = 200
     # -- with log
-    upload_audio.side_effect = ["uri1", "uri2"]
+    upload_audio.side_effect = ["uri1", "uri2", "uri3"]
     to_dict.side_effect = [{"key": "value"}]
     requests_post.side_effect = [response]
 
     tested = LlmGoogle("apiKey", "theModel")
     tested.add_audio(b"the audio1", "mp3")
     tested.add_audio(b"the audio2", "wav")
+    tested.add_audio(b"the audio3", "mp3")
     result = tested.chat(True)
     expected = JsonExtract("", False, ["line 1", "line 2", "line 3"])
     assert result == expected
@@ -260,9 +272,14 @@ def test_chat(upload_audio, to_dict, info, requests_post):
     calls = [
         call(b'the audio1', 'audio/mp3', 'audio00'),
         call(b'the audio2', 'audio/wav', 'audio01'),
+        call(b'the audio3', 'audio/mp3', 'audio02'),
     ]
     assert upload_audio.mock_calls == calls
-    calls = [call({'audio/mp3': 'uri1', 'audio/wav': 'uri2'})]
+    calls = [call([
+        ('audio/mp3', 'uri1'),
+        ('audio/wav', 'uri2'),
+        ('audio/mp3', 'uri3'),
+    ])]
     assert to_dict.mock_calls == calls
     calls = [
         call("***** CHAT STARTS ******"),
@@ -297,7 +314,10 @@ def test_chat(upload_audio, to_dict, info, requests_post):
         call(b'the audio2', 'audio/wav', 'audio01'),
     ]
     assert upload_audio.mock_calls == calls
-    calls = [call({'audio/mp3': 'uri1', 'audio/wav': 'uri2'})]
+    calls = [call([
+        ('audio/mp3', 'uri1'),
+        ('audio/wav', 'uri2'),
+    ])]
     assert to_dict.mock_calls == calls
     assert info.mock_calls == []
     calls = [call(
@@ -321,7 +341,7 @@ def test_chat(upload_audio, to_dict, info, requests_post):
     assert result == expected
 
     assert upload_audio.mock_calls == []
-    calls = [call({})]
+    calls = [call([])]
     assert to_dict.mock_calls == calls
     assert info.mock_calls == []
     calls = [call(

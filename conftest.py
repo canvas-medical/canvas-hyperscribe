@@ -20,6 +20,19 @@ def pytest_addoption(parser):
     )
 
 
+def pytest_configure(config):
+    settings = HelperSettings().settings()
+    parameters = {
+        "integration-difference-levels": config.getoption("--integration-difference-levels", default=""),
+        "patient-uuid": config.getoption("--patient-uuid", default=""),
+        "llm-audio": settings.llm_audio.vendor,
+        "llm-text": settings.llm_text.vendor,
+        "structured-RfV": settings.structured_rfv,
+    }
+    for key, value in parameters.items():
+        print(f"{key}: {value}")
+
+
 @pytest.fixture
 def allowed_levels(request):
     return [
@@ -32,7 +45,7 @@ def allowed_levels(request):
 def audio_interpreter(request):
     settings = HelperSettings.settings()
     patient_uuid = request.config.getoption("--patient-uuid")
-    cache = LimitedCache(patient_uuid)
+    cache = LimitedCache(patient_uuid, {})
     note_uuid = HelperSettings.get_note_uuid(patient_uuid) if patient_uuid else "noteUuid"
     provider_uuid = HelperSettings.get_provider_uuid(patient_uuid) if patient_uuid else "providerUuid"
     return AudioInterpreter(settings, cache, patient_uuid, note_uuid, provider_uuid)

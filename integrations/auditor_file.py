@@ -39,7 +39,7 @@ class AuditorFile(Auditor):
 
         file = Path(__file__).parent / f"audio2transcript/expected_json/{self.case}.json"
         with file.open("w") as fp:
-            json.dump(transcript, fp, indent=2)  # type: ignore
+            json.dump([t.to_json() for t in transcript], fp, indent=2)  # type: ignore
 
         return file.exists()
 

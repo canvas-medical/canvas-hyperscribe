@@ -205,7 +205,7 @@ def test_run(reset, parameters, auditor_file, audio_interpreter, settings, limit
     assert audio_interpreter.mock_calls == calls
     calls = [call()]
     assert settings.mock_calls == calls
-    calls = [call(LimitedCache, "patientUuid")]
+    calls = [call(LimitedCache, "patientUuid", {})]
     assert limited_cache.mock_calls == calls
     calls = [call(
         "auditorFileInstance",
