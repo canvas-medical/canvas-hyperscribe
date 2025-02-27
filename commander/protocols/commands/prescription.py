@@ -44,6 +44,18 @@ class Prescription(Base):
             prompt_condition = ""
             if condition:
                 prompt_condition = f'The prescription is intended to the patient\'s condition: {condition}.'
+
+            allergies = '\n * '.join([
+                a.label
+                for a in
+                self.cache.current_allergies() +
+                self.cache.staged_commands_of(Constants.SCHEMA_KEY_ALLERGY)
+            ])
+            if allergies:
+                prompt_allergy = f"the patient is allergic to:\n * {allergies}"
+            else:
+                prompt_allergy = "the patient's medical record contains no information about allergies"
+
             # retrieve the correct medication
             system_prompt = [
                 "The conversation is in the medical context.",
@@ -61,9 +73,11 @@ class Prescription(Base):
                 "",
                 prompt_condition,
                 "",
-                f"The choice of the medication has to also take into account that {self.cache.demographic__str__()}.",
+                "The choice of the medication has to also take into account that:",
+                f" - {self.cache.demographic__str__()},",
+                f" - {prompt_allergy}.",
                 "",
-                "Among the following medications, identify the most relevant one:",
+                "Among the following medications, identify the most appropriate option:",
                 "",
                 "\n".join(f' * {medication.description} (fdbCode: {medication.fdb_code})' for medication in medications),
                 "",
@@ -73,7 +87,7 @@ class Prescription(Base):
                 "```",
                 "",
             ]
-            if response := Helper.chatter(self.settings).single_conversation(system_prompt, user_prompt):
+            if response := Helper.chatter(self.settings).single_conversation(system_prompt, user_prompt,):
                 fdb_code = str(response[0]["fdbCode"])
                 result = [m for m in medications if m.fdb_code == fdb_code]
 

@@ -124,10 +124,14 @@ def test_staged_command_extract():
 
 @patch.object(Helper, "chatter")
 @patch.object(CanvasScience, "medication_details")
+@patch.object(LimitedCache, "staged_commands_of")
+@patch.object(LimitedCache, "current_allergies")
 @patch.object(LimitedCache, "demographic__str__")
-def test_medications_from(demographic, medication_details, chatter):
+def test_medications_from(demographic, current_allergies, staged_commands_of, medication_details, chatter):
     def reset_mocks():
         demographic.reset_mock()
+        current_allergies.reset_mock()
+        staged_commands_of.reset_mock()
         medication_details.reset_mock()
         chatter.reset_mock()
 
@@ -137,8 +141,8 @@ def test_medications_from(demographic, medication_details, chatter):
         "Your task is to identify the most relevant medication to prescribe to a patient out of a list of medications.",
         "",
     ]
-    user_prompts = [
-        [
+    user_prompts = {
+        "with_conditions": [
             'Here is the comment provided by the healthcare provider in regards to the prescription:',
             '```text',
             'keywords: keyword1, keyword2, keyword3',
@@ -148,9 +152,11 @@ def test_medications_from(demographic, medication_details, chatter):
             '',
             "The prescription is intended to the patient's condition: theCondition.",
             '',
-            'The choice of the medication has to also take into account that the patient has this demographic.',
+            'The choice of the medication has to also take into account that:',
+            ' - the patient has this demographic,',
+            " - the patient's medical record contains no information about allergies.",
             '',
-            'Among the following medications, identify the most relevant one:',
+            'Among the following medications, identify the most appropriate option:',
             '',
             ' * labelA (fdbCode: code123)\n * labelB (fdbCode: code369)\n * labelC (fdbCode: code752)',
             '',
@@ -160,7 +166,7 @@ def test_medications_from(demographic, medication_details, chatter):
             '```',
             '',
         ],
-        [
+        "no_condition": [
             'Here is the comment provided by the healthcare provider in regards to the prescription:',
             '```text',
             'keywords: keyword1, keyword2, keyword3',
@@ -168,11 +174,13 @@ def test_medications_from(demographic, medication_details, chatter):
             'theComment',
             '```',
             '',
-            "",
             '',
-            'The choice of the medication has to also take into account that the patient has this demographic.',
             '',
-            'Among the following medications, identify the most relevant one:',
+            'The choice of the medication has to also take into account that:',
+            ' - the patient has this demographic,',
+            " - the patient's medical record contains no information about allergies.",
+            '',
+            'Among the following medications, identify the most appropriate option:',
             '',
             ' * labelA (fdbCode: code123)\n * labelB (fdbCode: code369)\n * labelC (fdbCode: code752)',
             '',
@@ -181,19 +189,50 @@ def test_medications_from(demographic, medication_details, chatter):
             '[{"fdbCode": "the fdb code, as int", "description": "the description"}]',
             '```',
             '',
-        ]
-    ]
+        ],
+        "with_allergies": [
+            'Here is the comment provided by the healthcare provider in regards to the prescription:',
+            '```text',
+            'keywords: keyword1, keyword2, keyword3',
+            ' -- ',
+            'theComment',
+            '```',
+            '',
+            '',
+            '',
+            'The choice of the medication has to also take into account that:',
+            ' - the patient has this demographic,',
+            ' - the patient is allergic to:\n * allergy1\n * allergy2\n * allergy3.',
+            '',
+            'Among the following medications, identify the most appropriate option:',
+            '',
+            ' * labelA (fdbCode: code123)\n * labelB (fdbCode: code369)\n * labelC (fdbCode: code752)',
+            '',
+            'Please, present your findings in a JSON format within a Markdown code block like:',
+            '```json',
+            '[{"fdbCode": "the fdb code, as int", "description": "the description"}]',
+            '```',
+            '',
+        ],
+    }
     keywords = ['keyword1', 'keyword2', 'keyword3']
     medications = [
         MedicationDetail(fdb_code="code123", description="labelA", quantities=[]),
         MedicationDetail(fdb_code="code369", description="labelB", quantities=[]),
         MedicationDetail(fdb_code="code752", description="labelC", quantities=[]),
     ]
+    allergies = [
+        CodedItem(label="allergy1", uuid="uuid1", code="code1"),
+        CodedItem(label="allergy2", uuid="uuid2", code="code2"),
+        CodedItem(label="allergy3", uuid="uuid3", code="code3"),
+    ]
 
     tested = helper_instance()
 
     # with condition
     demographic.side_effect = ["the patient has this demographic"]
+    current_allergies.side_effect = [[]]
+    staged_commands_of.side_effect = [[]]
     medication_details.side_effect = [medications]
     chatter.return_value.single_conversation.side_effect = [[{"fdbCode": "code369", "description": "labelB"}]]
     result = tested.medications_from("theComment", keywords, "theCondition")
@@ -202,17 +241,22 @@ def test_medications_from(demographic, medication_details, chatter):
 
     calls = [call()]
     assert demographic.mock_calls == calls
+    assert current_allergies.mock_calls == calls
+    calls = [call("allergy")]
+    assert staged_commands_of.mock_calls == calls
     calls = [call('scienceHost', keywords)]
     assert medication_details.mock_calls == calls
     calls = [
         call(tested.settings),
-        call().single_conversation(system_prompt, user_prompts[0]),
+        call().single_conversation(system_prompt, user_prompts["with_conditions"]),
     ]
     assert chatter.mock_calls == calls
     reset_mocks()
 
     # without condition
     demographic.side_effect = ["the patient has this demographic"]
+    current_allergies.side_effect = [[]]
+    staged_commands_of.side_effect = [[]]
     medication_details.side_effect = [medications]
     chatter.return_value.single_conversation.side_effect = [[{"fdbCode": "code369", "description": "labelB"}]]
     result = tested.medications_from("theComment", keywords, "")
@@ -221,17 +265,46 @@ def test_medications_from(demographic, medication_details, chatter):
 
     calls = [call()]
     assert demographic.mock_calls == calls
+    assert current_allergies.mock_calls == calls
+    calls = [call("allergy")]
+    assert staged_commands_of.mock_calls == calls
     calls = [call('scienceHost', keywords)]
     assert medication_details.mock_calls == calls
     calls = [
         call(tested.settings),
-        call().single_conversation(system_prompt, user_prompts[1]),
+        call().single_conversation(system_prompt, user_prompts["no_condition"]),
+    ]
+    assert chatter.mock_calls == calls
+    reset_mocks()
+
+    # without allergies
+    demographic.side_effect = ["the patient has this demographic"]
+    current_allergies.side_effect = [allergies[:2]]
+    staged_commands_of.side_effect = [allergies[2:]]
+    medication_details.side_effect = [medications]
+    chatter.return_value.single_conversation.side_effect = [[{"fdbCode": "code369", "description": "labelB"}]]
+    result = tested.medications_from("theComment", keywords, "")
+    expected = [MedicationDetail(fdb_code="code369", description="labelB", quantities=[])]
+    assert result == expected
+
+    calls = [call()]
+    assert demographic.mock_calls == calls
+    assert current_allergies.mock_calls == calls
+    calls = [call("allergy")]
+    assert staged_commands_of.mock_calls == calls
+    calls = [call('scienceHost', keywords)]
+    assert medication_details.mock_calls == calls
+    calls = [
+        call(tested.settings),
+        call().single_conversation(system_prompt, user_prompts["with_allergies"]),
     ]
     assert chatter.mock_calls == calls
     reset_mocks()
 
     # without response
     demographic.side_effect = ["the patient has this demographic"]
+    current_allergies.side_effect = [[]]
+    staged_commands_of.side_effect = [[]]
     medication_details.side_effect = [medications]
     chatter.return_value.single_conversation.side_effect = [[]]
     result = tested.medications_from("theComment", keywords, "")
@@ -239,23 +312,30 @@ def test_medications_from(demographic, medication_details, chatter):
 
     calls = [call()]
     assert demographic.mock_calls == calls
+    assert current_allergies.mock_calls == calls
+    calls = [call("allergy")]
+    assert staged_commands_of.mock_calls == calls
     calls = [call('scienceHost', keywords)]
     assert medication_details.mock_calls == calls
     calls = [
         call(tested.settings),
-        call().single_conversation(system_prompt, user_prompts[1]),
+        call().single_conversation(system_prompt, user_prompts["no_condition"]),
     ]
     assert chatter.mock_calls == calls
     reset_mocks()
 
     # no medication
     demographic.side_effect = []
+    current_allergies.side_effect = [[]]
+    staged_commands_of.side_effect = [[]]
     medication_details.side_effect = [[]]
     chatter.return_value.single_conversation.side_effect = []
     result = tested.medications_from("theComment", keywords, "theCondition")
     assert result == []
 
     assert demographic.mock_calls == []
+    assert current_allergies.mock_calls == []
+    assert staged_commands_of.mock_calls == []
     calls = [call('scienceHost', keywords)]
     assert medication_details.mock_calls == calls
     assert chatter.mock_calls == []

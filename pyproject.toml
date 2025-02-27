@@ -6,7 +6,7 @@ requires-python = ">=3.11,<3.13"
 readme = "README.md"
 dependencies = [
     "pytest (>=8.3.4,<9.0.0)",
-    "canvas>=0.22.0,<0.23.0",
+    "canvas>=0.22.0",
 ]
 
 [tool.hatch.build.targets.wheel]
