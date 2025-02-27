@@ -2,10 +2,12 @@ from datetime import date
 from unittest.mock import patch, call
 from uuid import uuid5, NAMESPACE_DNS
 
+from canvas_sdk.commands.constants import CodeSystems
 from canvas_sdk.v1.data import (
     Command, Condition, ConditionCoding, MedicationCoding,
     Medication, AllergyIntolerance, AllergyIntoleranceCoding,
     Questionnaire, Patient, Observation, NoteType, ReasonForVisitSettingCoding)
+from django.db.models.expressions import When, Value, Case
 
 from commander.protocols.limited_cache import LimitedCache
 from commander.protocols.structures.coded_item import CodedItem
@@ -34,6 +36,72 @@ def test___init__():
     assert tested._reason_for_visit is None
     assert tested._surgery_history is None
     assert tested._staged_commands == staged_commands_to_coded_items
+
+
+@patch.object(Condition, 'codings')
+@patch.object(Condition, 'objects')
+def test_retrieve_conditions(condition_db, codings_db):
+    def reset_mocks():
+        condition_db.reset_mock()
+        codings_db.reset_mock()
+
+    codings_db.filter.return_value.annotate.return_value.order_by.return_value.first.side_effect = [
+        ConditionCoding(system="ICD-10", display="display1a", code="CODE123"),
+        ConditionCoding(system="ICD-10", display="display4a", code="CODE45"),
+        ConditionCoding(system="http://snomed.info/sct", display="display2c", code="44"),
+        ConditionCoding(system="ICD-10", display="display3a", code="CODE9876"),
+        ConditionCoding(system="ICD-10", display="display5a", code="CODE8888"),
+        ConditionCoding(system="ImpossibleCase", display="ImpossibleCase", code="ImpossibleCase"),
+        None,
+    ]
+    condition_db.committed.return_value.for_patient.return_value.filter.return_value.order_by.side_effect = [
+        [
+            Condition(id=uuid5(NAMESPACE_DNS, "1"), clinical_status="active"),
+            Condition(id=uuid5(NAMESPACE_DNS, "2"), clinical_status="resolved"),
+            Condition(id=uuid5(NAMESPACE_DNS, "3"), clinical_status="resolved"),
+            Condition(id=uuid5(NAMESPACE_DNS, "4"), clinical_status="resolved"),
+            Condition(id=uuid5(NAMESPACE_DNS, "5"), clinical_status="active"),
+            Condition(id=uuid5(NAMESPACE_DNS, "6"), clinical_status="resolved"),
+            Condition(id=uuid5(NAMESPACE_DNS, "6"), clinical_status="active"),
+        ],
+    ]
+    tested = LimitedCache("patientUuid", {})
+    tested.retrieve_conditions()
+
+    result = tested._conditions
+    expected = [
+        CodedItem(uuid='b04965e6-a9bb-591f-8f8a-1adcb2c8dc39', label='display1a', code='CODE12.3'),
+        CodedItem(uuid='c8691da2-158a-5ed6-8537-0e6f140801f2', label='display5a', code='CODE88.88'),
+    ]
+    assert result == expected
+    result = tested._condition_history
+    expected = [
+        CodedItem(uuid='4b166dbe-d99d-5091-abdd-95b83330ed3a', label='display4a', code='CODE45'),
+        CodedItem(uuid='6ed955c6-506a-5343-9be4-2c0afae02eef', label='display3a', code='CODE98.76'),
+    ]
+    assert result == expected
+    result = tested._surgery_history
+    expected = [
+        CodedItem(uuid='98123fde-012f-5ff3-8b50-881449dac91a', label='display2c', code='44'),
+    ]
+    assert result == expected
+
+    calls = [
+        call.committed(),
+        call.committed().for_patient('patientUuid'),
+        call.committed().for_patient().filter(clinical_status__in=["active", "resolved"]),
+        call.committed().for_patient().filter().order_by('-dbid'),
+    ]
+    assert condition_db.mock_calls == calls
+
+    calls = [
+        call.filter(system__in=[CodeSystems.ICD10, CodeSystems.SNOMED]),
+        call.filter().annotate(system_order=Case(When(system=CodeSystems.ICD10, then=Value(1)), When(system=CodeSystems.SNOMED, then=Value(2)))),
+        call.filter().annotate().order_by('system_order'),
+        call.filter().annotate().order_by().first(),
+    ]
+    assert codings_db.mock_calls == calls * 7
+    reset_mocks()
 
 
 def test_staged_commands_of():
@@ -96,59 +164,24 @@ def test_current_goals(command_db):
     reset_mocks()
 
 
-@patch.object(Condition, 'codings')
-@patch.object(Condition, 'objects')
-def test_current_conditions(condition_db, codings_db):
+@patch.object(LimitedCache, 'retrieve_conditions')
+def test_current_conditions(retrieve_conditions):
     def reset_mocks():
-        condition_db.reset_mock()
-        codings_db.reset_mock()
+        retrieve_conditions.reset_mock()
 
-    codings_db.all.side_effect = [
-        [
-            ConditionCoding(system="ICD-10", display="display1a", code="CODE123"),
-            ConditionCoding(system="OTHER", display="display1b", code="CODE321"),
-        ],
-        [
-            ConditionCoding(system="ICD-10", display="display2a", code="CODE45"),
-            ConditionCoding(system="OTHER", display="display2b", code="CODE54"),
-        ],
-        [
-            ConditionCoding(system="OTHER", display="display3b", code="CODE6789"),
-            ConditionCoding(system="ICD-10", display="display3a", code="CODE9876"),
-        ],
-    ]
-    condition_db.committed.return_value.for_patient.return_value.filter.return_value.order_by.side_effect = [
-        [
-            Condition(id=uuid5(NAMESPACE_DNS, "1")),
-            Condition(id=uuid5(NAMESPACE_DNS, "2")),
-            Condition(id=uuid5(NAMESPACE_DNS, "3")),
-        ],
-    ]
     tested = LimitedCache("patientUuid", {})
-    expected = [
-        CodedItem(uuid="b04965e6-a9bb-591f-8f8a-1adcb2c8dc39", label="display1a", code="CODE12.3"),
-        CodedItem(uuid="4b166dbe-d99d-5091-abdd-95b83330ed3a", label="display2a", code="CODE45"),
-        CodedItem(uuid="98123fde-012f-5ff3-8b50-881449dac91a", label="display3a", code="CODE98.76"),
-    ]
+    assert tested._conditions is None
     result = tested.current_conditions()
-    assert result == expected
-    assert tested._conditions == expected
-    calls = [
-        call.committed(),
-        call.committed().for_patient('patientUuid'),
-        call.committed().for_patient().filter(clinical_status="active"),
-        call.committed().for_patient().filter().order_by('-dbid'),
-    ]
-    assert condition_db.mock_calls == calls
-    calls = [call.all(), call.all(), call.all()]
-    assert codings_db.mock_calls == calls
+    assert result is None
+    calls = [call()]
+    assert retrieve_conditions.mock_calls == calls
     reset_mocks()
 
+    tested._conditions = []
     result = tested.current_conditions()
-    assert result == expected
-    assert tested._conditions == expected
-    assert condition_db.mock_calls == []
-    assert codings_db.mock_calls == []
+    assert result == []
+    assert tested._conditions == []
+    assert retrieve_conditions.mock_calls == []
     reset_mocks()
 
 
@@ -275,115 +308,45 @@ def test_family_history():
     assert tested._family_history == []
 
 
-@patch.object(Condition, 'codings')
-@patch.object(Condition, 'objects')
-def test_condition_history(condition_db, codings_db):
+@patch.object(LimitedCache, 'retrieve_conditions')
+def test_condition_history(retrieve_conditions):
     def reset_mocks():
-        condition_db.reset_mock()
-        codings_db.reset_mock()
+        retrieve_conditions.reset_mock()
 
-    codings_db.all.side_effect = [
-        [
-            ConditionCoding(system="ICD-10", display="display1a", code="CODE123"),
-            ConditionCoding(system="OTHER", display="display1b", code="CODE321"),
-        ],
-        [
-            ConditionCoding(system="ICD-10", display="display2a", code="CODE45"),
-            ConditionCoding(system="OTHER", display="display2b", code="CODE54"),
-        ],
-        [
-            ConditionCoding(system="OTHER", display="display3b", code="CODE6789"),
-            ConditionCoding(system="ICD-10", display="display3a", code="CODE9876"),
-        ],
-    ]
-    condition_db.committed.return_value.for_patient.return_value.filter.return_value.order_by.side_effect = [
-        [
-            Condition(id=uuid5(NAMESPACE_DNS, "1")),
-            Condition(id=uuid5(NAMESPACE_DNS, "2")),
-            Condition(id=uuid5(NAMESPACE_DNS, "3")),
-        ],
-    ]
     tested = LimitedCache("patientUuid", {})
-    expected = [
-        CodedItem(uuid="b04965e6-a9bb-591f-8f8a-1adcb2c8dc39", label="display1a", code="CODE12.3"),
-        CodedItem(uuid="4b166dbe-d99d-5091-abdd-95b83330ed3a", label="display2a", code="CODE45"),
-        CodedItem(uuid="98123fde-012f-5ff3-8b50-881449dac91a", label="display3a", code="CODE98.76"),
-    ]
+    assert tested._condition_history is None
     result = tested.condition_history()
-    assert result == expected
-    assert tested._condition_history == expected
-    calls = [
-        call.committed(),
-        call.committed().for_patient('patientUuid'),
-        call.committed().for_patient().filter(clinical_status="resolved"),
-        call.committed().for_patient().filter().order_by('-dbid'),
-    ]
-    assert condition_db.mock_calls == calls
-    calls = [call.all(), call.all(), call.all()]
-    assert codings_db.mock_calls == calls
+    assert result is None
+    calls = [call()]
+    assert retrieve_conditions.mock_calls == calls
     reset_mocks()
 
+    tested._condition_history = []
     result = tested.condition_history()
-    assert result == expected
-    assert tested._condition_history == expected
-    assert condition_db.mock_calls == []
-    assert codings_db.mock_calls == []
+    assert result == []
+    assert tested._condition_history == []
+    assert retrieve_conditions.mock_calls == []
     reset_mocks()
 
 
-@patch.object(Condition, 'codings')
-@patch.object(Condition, 'objects')
-def test_surgery_history(condition_db, codings_db):
+@patch.object(LimitedCache, 'retrieve_conditions')
+def test_surgery_history(retrieve_conditions):
     def reset_mocks():
-        condition_db.reset_mock()
-        codings_db.reset_mock()
+        retrieve_conditions.reset_mock()
 
-    codings_db.all.side_effect = [
-        [
-            ConditionCoding(system="ICD-10", display="display1a", code="CODE123"),
-            ConditionCoding(system="OTHER", display="display1b", code="CODE321"),
-        ],
-        [
-            ConditionCoding(system="ICD-10", display="display2a", code="CODE45"),
-            ConditionCoding(system="OTHER", display="display2b", code="CODE54"),
-        ],
-        [
-            ConditionCoding(system="OTHER", display="display3b", code="CODE6789"),
-            ConditionCoding(system="ICD-10", display="display3a", code="CODE9876"),
-        ],
-    ]
-    condition_db.committed.return_value.for_patient.return_value.filter.return_value.order_by.side_effect = [
-        [
-            Condition(id=uuid5(NAMESPACE_DNS, "1")),
-            Condition(id=uuid5(NAMESPACE_DNS, "2")),
-            Condition(id=uuid5(NAMESPACE_DNS, "3")),
-        ],
-    ]
     tested = LimitedCache("patientUuid", {})
-    expected = [
-        CodedItem(uuid="b04965e6-a9bb-591f-8f8a-1adcb2c8dc39", label="display1a", code="CODE12.3"),
-        CodedItem(uuid="4b166dbe-d99d-5091-abdd-95b83330ed3a", label="display2a", code="CODE45"),
-        CodedItem(uuid="98123fde-012f-5ff3-8b50-881449dac91a", label="display3a", code="CODE98.76"),
-    ]
+    assert tested._surgery_history is None
     result = tested.surgery_history()
-    assert result == expected
-    assert tested._surgery_history == expected
-    calls = [
-        call.committed(),
-        call.committed().for_patient('patientUuid'),
-        call.committed().for_patient().filter(clinical_status="resolved"),
-        call.committed().for_patient().filter().order_by('-dbid'),
-    ]
-    assert condition_db.mock_calls == calls
-    calls = [call.all(), call.all(), call.all()]
-    assert codings_db.mock_calls == calls
+    assert result is None
+    calls = [call()]
+    assert retrieve_conditions.mock_calls == calls
     reset_mocks()
 
+    tested._surgery_history = []
     result = tested.surgery_history()
-    assert result == expected
-    assert tested._surgery_history == expected
-    assert condition_db.mock_calls == []
-    assert codings_db.mock_calls == []
+    assert result == []
+    assert tested._surgery_history == []
+    assert retrieve_conditions.mock_calls == []
     reset_mocks()
 
 

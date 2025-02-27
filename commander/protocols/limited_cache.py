@@ -1,11 +1,13 @@
 from datetime import date
 
+from canvas_sdk.commands.constants import CodeSystems
 from canvas_sdk.v1.data import (
     AllergyIntolerance, Condition, Questionnaire, Command,
     Patient, Observation, NoteType, Medication, ReasonForVisitSettingCoding)
 from canvas_sdk.v1.data.condition import ClinicalStatus
 from canvas_sdk.v1.data.medication import Status
 from canvas_sdk.v1.data.patient import SexAtBirth
+from django.db.models.expressions import When, Value, Case
 
 from commander.protocols.helper import Helper
 from commander.protocols.structures.coded_item import CodedItem
@@ -26,6 +28,32 @@ class LimitedCache:
         self._reason_for_visit: list[CodedItem] | None = None
         self._surgery_history: list[CodedItem] | None = None
         self._staged_commands: dict[str, list[CodedItem]] = staged_commands_to_coded_items
+
+    def retrieve_conditions(self) -> None:
+        self._conditions = []
+        self._condition_history = []
+        self._surgery_history = []
+        statuses = [ClinicalStatus.ACTIVE, ClinicalStatus.RESOLVED]
+        systems = [CodeSystems.ICD10, CodeSystems.SNOMED]
+        conditions = Condition.objects.committed().for_patient(self.patient_uuid).filter(clinical_status__in=statuses)
+        for condition in conditions.order_by('-dbid'):
+            case = Case(When(system=CodeSystems.ICD10, then=Value(1)), When(system=CodeSystems.SNOMED, then=Value(2)))
+            coding = condition.codings.filter(system__in=systems).annotate(system_order=case).order_by("system_order").first()
+
+            if coding:
+                item = CodedItem(
+                    uuid=str(condition.id),
+                    label=coding.display,
+                    code=Helper.icd10_add_dot(coding.code),
+                )
+                if condition.clinical_status == ClinicalStatus.ACTIVE:
+                    self._conditions.append(item)
+                elif condition.clinical_status == ClinicalStatus.RESOLVED and coding.system == CodeSystems.ICD10:
+                    # TODO ^ should be: elif condition.clinical_status == ClinicalStatus.RESOLVED and condition.surgical == False:
+                    self._condition_history.append(item)
+                elif condition.clinical_status == ClinicalStatus.RESOLVED and coding.system == CodeSystems.SNOMED:
+                    # TODO ^ should be: elif condition.clinical_status == ClinicalStatus.RESOLVED and condition.surgical == True:
+                    self._surgery_history.append(item)
 
     def staged_commands_of(self, schema_keys: list[str]) -> list[CodedItem]:
         return [
@@ -49,16 +77,7 @@ class LimitedCache:
 
     def current_conditions(self) -> list[CodedItem]:
         if self._conditions is None:
-            self._conditions = []
-            conditions = Condition.objects.committed().for_patient(self.patient_uuid).filter(clinical_status=ClinicalStatus.ACTIVE)
-            for condition in conditions.order_by('-dbid'):
-                for coding in condition.codings.all():
-                    if coding.system == "ICD-10":
-                        self._conditions.append(CodedItem(
-                            uuid=str(condition.id),
-                            label=coding.display,
-                            code=Helper.icd10_add_dot(coding.code),
-                        ))
+            self.retrieve_conditions()
         return self._conditions
 
     def current_medications(self) -> list[CodedItem]:
@@ -67,7 +86,7 @@ class LimitedCache:
             medications = Medication.objects.committed().for_patient(self.patient_uuid).filter(status=Status.ACTIVE)
             for medication in medications.order_by('-dbid'):
                 for coding in medication.codings.all():
-                    if coding.system == "http://www.nlm.nih.gov/research/umls/rxnorm":
+                    if coding.system == CodeSystems.RXNORM:
                         self._medications.append(CodedItem(
                             uuid=str(medication.id),
                             label=coding.display,
@@ -81,7 +100,7 @@ class LimitedCache:
             allergies = AllergyIntolerance.objects.committed().for_patient(self.patient_uuid).filter(status=Status.ACTIVE)
             for allergy in allergies.order_by('-dbid'):
                 for coding in allergy.codings.all():
-                    if coding.system == "http://www.fdbhealth.com/":
+                    if coding.system == CodeSystems.FDB:
                         self._allergies.append(CodedItem(
                             uuid=str(allergy.id),
                             label=coding.display,
@@ -96,34 +115,12 @@ class LimitedCache:
 
     def condition_history(self) -> list[CodedItem]:
         if self._condition_history is None:
-            self._condition_history = []
-            conditions = Condition.objects.committed().for_patient(
-                self.patient_uuid).filter(
-                clinical_status=ClinicalStatus.RESOLVED)  # TODO add surgical=False
-            for condition in conditions.order_by('-dbid'):
-                for coding in condition.codings.all():
-                    if coding.system == "ICD-10":
-                        self._condition_history.append(CodedItem(
-                            uuid=str(condition.id),
-                            label=coding.display,
-                            code=Helper.icd10_add_dot(coding.code),
-                        ))
+            self.retrieve_conditions()
         return self._condition_history
 
     def surgery_history(self) -> list[CodedItem]:
         if self._surgery_history is None:
-            self._surgery_history = []
-            conditions = Condition.objects.committed().for_patient(
-                self.patient_uuid).filter(
-                clinical_status=ClinicalStatus.RESOLVED)  # TODO add surgical=True
-            for condition in conditions.order_by('-dbid'):
-                for coding in condition.codings.all():
-                    if coding.system == "ICD-10":
-                        self._surgery_history.append(CodedItem(
-                            uuid=str(condition.id),
-                            label=coding.display,
-                            code=Helper.icd10_add_dot(coding.code),
-                        ))
+            self.retrieve_conditions()
         return self._surgery_history
 
     def existing_questionnaires(self) -> list[CodedItem]:
@@ -164,26 +161,6 @@ class LimitedCache:
                     code=rfv.code,
                 ))
         return self._reason_for_visit
-
-    # def patient_birth_date(self) -> date:
-    #     if not Constants.HAS_DATABASE_ACCESS:
-    #         return date(1993, 4, 17)
-    #     if self._patient is None:
-    #         self._patient = Patient.objects.get(self.patient_uuid)
-    #     return self._patient.birth_date
-    #
-    # def patient_weight(self) -> str:
-    #     if not Constants.HAS_DATABASE_ACCESS:
-    #         return "169.3 pounds"
-    #     if self._weight is None:
-    #         self._weight = "unknown"
-    #         weight = Observation.objects.for_patient(
-    #             self.patient_uuid).filter(
-    #             name="weight", category="vital-signs").order_by(
-    #             "-effective_datetime").first()
-    #         if weight is not None:
-    #             self._weight = f"{weight.value / 16:1.2f} pounds"
-    #     return self._weight
 
     def demographic__str__(self) -> str:
         if self._demographic is None:

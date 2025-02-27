@@ -1,6 +1,6 @@
 from canvas_sdk.commands.commands.prescribe import PrescribeCommand
 from canvas_sdk.commands.commands.refill import RefillCommand
-from canvas_sdk.commands.constants import ClinicalQuantity
+from canvas_sdk.commands.constants import ClinicalQuantity, CodeSystems
 from canvas_sdk.v1.data import Medication
 
 from commander.protocols.commands.base import Base
@@ -40,7 +40,7 @@ class Refill(Base):
         if 0 <= (idx := parameters["medicationIndex"]) < len(current := self.cache.current_medications()):
             medication_uuid = current[idx].uuid
             medication = Medication.objects.get(id=medication_uuid)
-            coding = medication.codings.filter(system="http://www.fdbhealth.com/").first()
+            coding = medication.codings.filter(system=CodeSystems.FDB).first()
 
             result = RefillCommand(
                 fdb_code=coding.code,

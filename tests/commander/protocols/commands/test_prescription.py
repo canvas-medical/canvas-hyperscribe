@@ -242,7 +242,7 @@ def test_medications_from(demographic, current_allergies, staged_commands_of, me
     calls = [call()]
     assert demographic.mock_calls == calls
     assert current_allergies.mock_calls == calls
-    calls = [call("allergy")]
+    calls = [call(["allergy"])]
     assert staged_commands_of.mock_calls == calls
     calls = [call('scienceHost', keywords)]
     assert medication_details.mock_calls == calls
@@ -266,7 +266,7 @@ def test_medications_from(demographic, current_allergies, staged_commands_of, me
     calls = [call()]
     assert demographic.mock_calls == calls
     assert current_allergies.mock_calls == calls
-    calls = [call("allergy")]
+    calls = [call(["allergy"])]
     assert staged_commands_of.mock_calls == calls
     calls = [call('scienceHost', keywords)]
     assert medication_details.mock_calls == calls
@@ -290,7 +290,7 @@ def test_medications_from(demographic, current_allergies, staged_commands_of, me
     calls = [call()]
     assert demographic.mock_calls == calls
     assert current_allergies.mock_calls == calls
-    calls = [call("allergy")]
+    calls = [call(["allergy"])]
     assert staged_commands_of.mock_calls == calls
     calls = [call('scienceHost', keywords)]
     assert medication_details.mock_calls == calls
@@ -313,7 +313,7 @@ def test_medications_from(demographic, current_allergies, staged_commands_of, me
     calls = [call()]
     assert demographic.mock_calls == calls
     assert current_allergies.mock_calls == calls
-    calls = [call("allergy")]
+    calls = [call(["allergy"])]
     assert staged_commands_of.mock_calls == calls
     calls = [call('scienceHost', keywords)]
     assert medication_details.mock_calls == calls

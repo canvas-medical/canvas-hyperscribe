@@ -49,7 +49,7 @@ class Prescription(Base):
                 a.label
                 for a in
                 self.cache.current_allergies() +
-                self.cache.staged_commands_of(Constants.SCHEMA_KEY_ALLERGY)
+                self.cache.staged_commands_of([Constants.SCHEMA_KEY_ALLERGY])
             ])
             if allergies:
                 prompt_allergy = f"the patient is allergic to:\n * {allergies}"
@@ -87,7 +87,7 @@ class Prescription(Base):
                 "```",
                 "",
             ]
-            if response := Helper.chatter(self.settings).single_conversation(system_prompt, user_prompt,):
+            if response := Helper.chatter(self.settings).single_conversation(system_prompt, user_prompt):
                 fdb_code = str(response[0]["fdbCode"])
                 result = [m for m in medications if m.fdb_code == fdb_code]
 
