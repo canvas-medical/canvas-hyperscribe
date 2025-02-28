@@ -6,29 +6,40 @@ from requests import post as requests_post
 
 from commander.protocols.llms.llm_base import LlmBase
 from commander.protocols.structures.http_response import HttpResponse
-from commander.protocols.structures.json_extract import JsonExtract
 
 
 class LlmGoogle(LlmBase):
-    ROLE_SYSTEM = "system"
-    ROLE_USER = "user"
 
     def add_audio(self, audio: bytes, audio_format: str) -> None:
         if audio:
             self.audios.append({"format": f"audio/{audio_format}", "data": audio})
 
     def to_dict(self, audio_uris: list[tuple[str, str]]) -> dict:
-        parts = [
-            {"text": "\n".join(self.system_prompt)},
-            {"text": "\n".join(self.user_prompt)},
-        ]
-        for mime, uri in audio_uris:
-            parts.append({"file_data": {"mime_type": mime, "file_uri": uri}})
-
-        return {
-            "contents": [{"role": "user", "parts": parts}],
+        result = {
+            "contents": [],
             "generationConfig": {"temperature": self.temperature},
         }
+        roles = {
+            self.ROLE_SYSTEM: "user",
+            self.ROLE_USER: "user",
+            self.ROLE_MODEL: "model",
+        }
+        for prompt in self.prompts:
+            role = roles[prompt.role]
+            part = {"text": "\n".join(prompt.text)}
+            # contiguous parts for the same role are merged
+            if result["contents"] and result["contents"][-1]["role"] == role:
+                result["contents"][-1]["parts"].append(part)
+            else:
+                result["contents"].append({
+                    "role": role,
+                    "parts": [part],
+                })
+        # on the first part, add the audio, if any
+        for mime, uri in audio_uris:
+            result["contents"][0]["parts"].append({"file_data": {"mime_type": mime, "file_uri": uri}})
+
+        return result
 
     def upload_audio(self, audio: bytes, audio_format: str, audio_name: str) -> str:
         result = ""
@@ -58,7 +69,7 @@ class LlmGoogle(LlmBase):
 
         return result
 
-    def chat(self, add_log: bool = False, schemas: list | None = None) -> JsonExtract:
+    def request(self, add_log: bool = False) -> HttpResponse:
         # audios are to be uploaded first (they are auto-deleted after 48h)
         audio_uris: list[tuple[str, str]] = [
             (audio["format"], uri)
@@ -77,20 +88,17 @@ class LlmGoogle(LlmBase):
             verify=True,
             timeout=None,
         )
-        response = HttpResponse(code=request.status_code, response=request.text)
-        if response.code == HTTPStatus.OK.value:
-            content = json.loads(response.response)
+        result = HttpResponse(code=request.status_code, response=request.text)
+        if result.code == HTTPStatus.OK.value:
+            content = json.loads(request.text)
             text = content.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "")
-            if add_log:
-                log.info("***** CHAT STARTS ******")
-                # log.info(self.to_dict(audio_uris))
-                # log.info(f"   -------------    ")
-                log.info(text)
-                log.info("****** CHAT ENDS *******")
-            return self.extract_json_from(text, schemas)
-        else:
-            log.info("***********")
-            log.info(response.code)
-            log.info(response.response)
-            log.info("***********")
-        return JsonExtract(f"the reported error is: {response.code}", True, [])
+            result = HttpResponse(code=result.code, response=text)
+
+        if add_log:
+            log.info("***** CHAT STARTS ******")
+            log.info(json.dumps(self.to_dict(audio_uris), indent=2))
+            log.info(f"response code: >{request.status_code}<")
+            log.info(request.text)
+            log.info("****** CHAT ENDS *******")
+
+        return result

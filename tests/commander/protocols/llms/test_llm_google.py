@@ -4,7 +4,7 @@ from unittest.mock import patch, call
 from logger import log
 
 from commander.protocols.llms.llm_google import LlmGoogle
-from commander.protocols.structures.json_extract import JsonExtract
+from commander.protocols.structures.http_response import HttpResponse
 
 
 def test_add_audio():
@@ -28,8 +28,8 @@ def test_add_audio():
 
 def test_to_dict():
     tested = LlmGoogle("googleKey", "theModel")
-    tested.system_prompt = ["line 1", "line 2", "line 3"]
-    tested.user_prompt = ["line 4", "line 5", "line 6"]
+    tested.set_system_prompt(["line 1", "line 2", "line 3"])
+    tested.set_user_prompt(["line 4", "line 5", "line 6"])
 
     #
     result = tested.to_dict([])
@@ -63,6 +63,37 @@ def test_to_dict():
                     {"file_data": {"mime_type": "audio/mp3", "file_uri": "uriAudio1"}},
                     {"file_data": {"mime_type": "audio/wav", "file_uri": "uriAudio2"}},
                     {"file_data": {"mime_type": "audio/mp3", "file_uri": "uriAudio3"}},
+                ],
+            },
+        ],
+        "generationConfig": {'temperature': 0.0},
+    }
+    assert result == expected
+
+    # with an exchange with the model
+    tested.set_model_prompt(["line 7", "line 8"])
+    tested.set_user_prompt(["line 9", "line 10"])
+    result = tested.to_dict([('audio/mp3', 'uriAudio1')])
+    expected = {
+        'contents': [
+            {
+                "role": "user",
+                "parts": [
+                    {"text": "line 1\nline 2\nline 3"},
+                    {"text": "line 4\nline 5\nline 6"},
+                    {"file_data": {"mime_type": "audio/mp3", "file_uri": "uriAudio1"}},
+                ],
+            },
+            {
+                "role": "model",
+                "parts": [
+                    {"text": "line 7\nline 8"},
+                ],
+            },
+            {
+                "role": "user",
+                "parts": [
+                    {"text": "line 9\nline 10"},
                 ],
             },
         ],
@@ -184,7 +215,7 @@ def test_upload_audio(requests_post):
 @patch.object(log, "info")
 @patch.object(LlmGoogle, "to_dict")
 @patch.object(LlmGoogle, "upload_audio")
-def test_chat(upload_audio, to_dict, info, requests_post):
+def test_request(upload_audio, to_dict, info, requests_post):
     def reset_mocks():
         upload_audio.reset_mock()
         to_dict.reset_mock()
@@ -220,8 +251,11 @@ def test_chat(upload_audio, to_dict, info, requests_post):
     tested.add_audio(b"the audio1", "mp3")
     tested.add_audio(b"the audio2", "wav")
     tested.add_audio(b"the audio3", "mp3")
-    result = tested.chat()
-    expected = JsonExtract("the reported error is: 202", True, [])
+    result = tested.request()
+    expected = HttpResponse(
+        code=202,
+        response='{"candidates": [{"content": {"parts": [{"text": "```json\\n[\\"line 1\\",\\"line 2\\",\\"line 3\\"]\\n```\\n"}]}}]}',
+    )
     assert result == expected
 
     calls = [
@@ -236,13 +270,7 @@ def test_chat(upload_audio, to_dict, info, requests_post):
         ('audio/mp3', 'uri3'),
     ])]
     assert to_dict.mock_calls == calls
-    calls = [
-        call("***********"),
-        call(202),
-        call('{"candidates": [{"content": {"parts": [{"text": "```json\\n[\\"line 1\\",\\"line 2\\",\\"line 3\\"]\\n```\\n"}]}}]}'),
-        call("***********"),
-    ]
-    assert info.mock_calls == calls
+    assert info.mock_calls == []
     calls = [call(
         "https://generativelanguage.googleapis.com/v1beta/theModel:generateContent?key=apiKey",
         headers={"Content-Type": "application/json"},
@@ -258,15 +286,15 @@ def test_chat(upload_audio, to_dict, info, requests_post):
     response.status_code = 200
     # -- with log
     upload_audio.side_effect = ["uri1", "uri2", "uri3"]
-    to_dict.side_effect = [{"key": "value"}]
+    to_dict.side_effect = [{"key": "valueA"}, {"key": "valueB"}]
     requests_post.side_effect = [response]
 
     tested = LlmGoogle("apiKey", "theModel")
     tested.add_audio(b"the audio1", "mp3")
     tested.add_audio(b"the audio2", "wav")
     tested.add_audio(b"the audio3", "mp3")
-    result = tested.chat(True)
-    expected = JsonExtract("", False, ["line 1", "line 2", "line 3"])
+    result = tested.request(True)
+    expected = HttpResponse(code=200, response='```json\n["line 1","line 2","line 3"]\n```\n')
     assert result == expected
 
     calls = [
@@ -275,15 +303,16 @@ def test_chat(upload_audio, to_dict, info, requests_post):
         call(b'the audio3', 'audio/mp3', 'audio02'),
     ]
     assert upload_audio.mock_calls == calls
-    calls = [call([
-        ('audio/mp3', 'uri1'),
-        ('audio/wav', 'uri2'),
-        ('audio/mp3', 'uri3'),
-    ])]
+    calls = [
+        call([('audio/mp3', 'uri1'), ('audio/wav', 'uri2'), ('audio/mp3', 'uri3')]),
+        call([('audio/mp3', 'uri1'), ('audio/wav', 'uri2'), ('audio/mp3', 'uri3')]),
+    ]
     assert to_dict.mock_calls == calls
     calls = [
         call("***** CHAT STARTS ******"),
-        call('```json\n["line 1","line 2","line 3"]\n```\n'),
+        call('{\n  "key": "valueB"\n}'),
+        call('response code: >200<'),
+        call('{"candidates": [{"content": {"parts": [{"text": "```json\\n[\\"line 1\\",\\"line 2\\",\\"line 3\\"]\\n```\\n"}]}}]}'),
         call("****** CHAT ENDS *******"),
     ]
     assert info.mock_calls == calls
@@ -291,7 +320,7 @@ def test_chat(upload_audio, to_dict, info, requests_post):
         "https://generativelanguage.googleapis.com/v1beta/theModel:generateContent?key=apiKey",
         headers={"Content-Type": "application/json"},
         params={},
-        data='{"key": "value"}',
+        data='{"key": "valueA"}',
         verify=True,
         timeout=None,
     )]
@@ -305,8 +334,8 @@ def test_chat(upload_audio, to_dict, info, requests_post):
     tested = LlmGoogle("apiKey", "theModel")
     tested.add_audio(b"the audio1", "mp3")
     tested.add_audio(b"the audio2", "wav")
-    result = tested.chat()
-    expected = JsonExtract("", False, ["line 1", "line 2", "line 3"])
+    result = tested.request()
+    expected = HttpResponse(code=200, response='```json\n["line 1","line 2","line 3"]\n```\n')
     assert result == expected
 
     calls = [
@@ -336,8 +365,8 @@ def test_chat(upload_audio, to_dict, info, requests_post):
     requests_post.side_effect = [response]
 
     tested = LlmGoogle("apiKey", "theModel")
-    result = tested.chat()
-    expected = JsonExtract("", False, ["line 1", "line 2", "line 3"])
+    result = tested.request()
+    expected = HttpResponse(code=200, response='```json\n["line 1","line 2","line 3"]\n```\n')
     assert result == expected
 
     assert upload_audio.mock_calls == []

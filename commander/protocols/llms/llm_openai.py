@@ -9,12 +9,9 @@ from requests import post as requests_post
 
 from commander.protocols.llms.llm_base import LlmBase
 from commander.protocols.structures.http_response import HttpResponse
-from commander.protocols.structures.json_extract import JsonExtract
 
 
 class LlmOpenai(LlmBase):
-    ROLE_SYSTEM = "system"
-    ROLE_USER = "user"
 
     def add_audio(self, audio: bytes, audio_format: str) -> None:
         if audio:
@@ -24,12 +21,21 @@ class LlmOpenai(LlmBase):
             })
 
     def to_dict(self, for_log: bool = False) -> dict:
-        content = [{
-            "type": "text",
-            "text": "\n".join(self.user_prompt),
-        }]
+        roles = {
+            self.ROLE_SYSTEM: "system",  # <-- for o1 models it should be "developer"
+            self.ROLE_USER: "user",
+            self.ROLE_MODEL: "assistant",
+        }
+        messages = [
+            {
+                "role": roles[prompt.role],
+                "content": [{"type": "text", "text": "\n".join(prompt.text)}],
+            }
+            for prompt in self.prompts
+        ]
+        # on the first user input, add the audio, if any
         for audio in self.audios:
-            content.append({
+            messages[1]["content"].append({
                 "type": "input_audio",
                 "input_audio": "some audio" if for_log else audio,
             })
@@ -37,49 +43,40 @@ class LlmOpenai(LlmBase):
         return {
             "model": self.model,
             "modalities": ["text"],
-            "messages": [
-                {"role": self.ROLE_SYSTEM, "content": "\n".join(self.system_prompt)},
-                {"role": self.ROLE_USER, "content": content},
-            ],
+            "messages": messages,
             "temperature": self.temperature,
         }
 
-    def post(self, url: str, params: dict, data: str, timeout: int | None = None) -> HttpResponse:
+    def request(self, add_log: bool = False) -> HttpResponse:
+        url = "https://api.openai.com/v1/chat/completions"
         headers = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {self.api_key}",
             "OpenAI-Beta": "assistants=v2",
         }
+        data = json.dumps(self.to_dict())
         request = requests_post(
             url,
             headers=headers,
-            params=params,
+            params={},
             data=data,
             verify=True,
-            timeout=timeout,
+            timeout=None,
         )
-        return HttpResponse(code=request.status_code, response=request.text)
-
-    def chat(self, add_log: bool = False, schemas: list | None = None) -> JsonExtract:
-        # TODO handle errors (network issue, incorrect LLM response format...)
-        url = "https://api.openai.com/v1/chat/completions"
-        response = self.post(url, {}, json.dumps(self.to_dict()))
-        if response.code == HTTPStatus.OK.value:
-            content = json.loads(response.response)
+        result = HttpResponse(code=request.status_code, response=request.text)
+        if result.code == HTTPStatus.OK.value:
+            content = json.loads(request.text)
             text = content.get("choices", [{}])[0].get("message", {}).get("content", "")
-            if add_log:
-                log.info("***** CHAT STARTS ******")
-                # log.info(self.to_dict(True))
-                # log.info(f"   -------------    ")
-                log.info(text)
-                log.info("****** CHAT ENDS *******")
-            return self.extract_json_from(text, schemas)
-        else:
-            log.info("***********")
-            log.info(response.code)
-            log.info(response.response)
-            log.info("***********")
-        return JsonExtract(f"the reported error is: {response.code}", True, [])
+            result = HttpResponse(code=result.code, response=text)
+
+        if add_log:
+            log.info("***** CHAT STARTS ******")
+            log.info(json.dumps(self.to_dict(True), indent=2))
+            log.info(f"response code: >{request.status_code}<")
+            log.info(request.text)
+            log.info("****** CHAT ENDS *******")
+
+        return result
 
     def audio_to_text(self, audio: bytes) -> HttpResponse:
         default_model = "whisper-1"

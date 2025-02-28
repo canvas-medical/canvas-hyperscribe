@@ -64,7 +64,7 @@ def test_command_parameters():
     tested = helper_instance()
     result = tested.command_parameters()
     expected = {
-        "narrative": "highlights of the visit from the provider point of view, as free text",
+        "narrative": "highlights of the patient's symptoms and surrounding events and observations, as free text",
     }
     assert result == expected
 
@@ -72,10 +72,9 @@ def test_command_parameters():
 def test_instruction_description():
     tested = helper_instance()
     result = tested.instruction_description()
-    expected = ("Provider's reported key highlights of the visit. "
-                "There can be multiple highlights within an instruction."
-                " There can be only one such instruction in the whole discussion, "
-                "so if one was already found, just update it by intelligently merging all key highlights.")
+    expected = ("Highlights of the patient's symptoms and surrounding events and observations. "
+                "There can be multiple highlights within an instruction, but only one such instruction in the whole discussion. "
+                "So, if one was already found, simply update it by intelligently merging all key highlights.")
     assert result == expected
 
 

@@ -123,23 +123,24 @@ class AudioInterpreter:
         example = {
             "uuid": "a unique identifier in this discussion",
             "instruction": "the instruction",
-            "information": "any information related to the instruction",
+            "information": "the information associated with the instruction, grounded in the transcript with no embellishment or omission",
             "isNew": "the instruction is new for the discussion, as boolean",
             "isUpdated": "the instruction is an update of one already identified in the discussion, as boolean",
         }
 
         system_prompt = [
-            "The conversation is in the medical context.",
-            "The user will submit the transcript of the visit of a patient with a healthcare provider.",
-            "The user needs to extract and store the relevant information in their software using several commands as described below.",
-            "Your task is to help the user by identifying the instructions and the linked information, regardless of their location in the transcript.",
+            "The conversation is in the context of a clinical encounter between patient and licensed healthcare provider.",
+            "The user will submit the transcript of the visit of a patient with the healthcare provider.",
+            "The user needs to extract and store the relevant information in their software using structured commands as described below.",
+            "Your task is to help the user by identifying the relevant instructions and their linked information, regardless of their location in the transcript.",
+            "If any portion of the transcript is small talk, chit chat, or side bar with no discernible connection to health concerns, then it should be ignored."
             "",
-            "The instructions are limited to:",
+            "The instructions are limited to the following:",
             "```json",
             json.dumps(self.instruction_definitions()),
             "```",
             "",
-            'Your response has to be a JSON Markdown block with a list of objects: ',
+            'Your response must be a JSON Markdown block with a list of objects: ',
             json.dumps(example),
             "",
             "The JSON will be validated with the schema:",
@@ -150,8 +151,8 @@ class AudioInterpreter:
         ]
         transcript = json.dumps([speaker.to_json() for speaker in discussion], indent=1)
         user_prompt = [
-            "Below is a part of the transcript of the visit of a patient with a healthcare provider.",
-            "What are the instructions I need to add to my software to correctly record the visit?",
+            "Below is the most recent segment of the transcript of the visit of a patient with a healthcare provider.",
+            "What are the instructions I need to add to my software to document the visit correctly?",
             "```json",
             transcript,
             "```",
@@ -160,7 +161,7 @@ class AudioInterpreter:
         if known_instructions:
             content = json.dumps([instruction.to_json() for instruction in known_instructions], indent=1)
             user_prompt.extend([
-                "From previous parts of the transcript, the following instructions were identified",
+                "From among all previous segments of the transcript, the following instructions were identified",
                 "```json",
                 content,
                 "```",
@@ -184,82 +185,17 @@ class AudioInterpreter:
             result = Helper.chatter(self.settings).single_conversation(system_prompt, user_prompt)
         return result
 
-    # def new_detect_instructions(self, discussion: list[Line], known_instructions: list[Instruction]) -> list:
-    #     example = {
-    #         "uuid": "a unique identifier in this discussion",
-    #         "instruction": "the instruction",
-    #         "information": "the information associated with the instruction, grounded in the transcript with no embellishment or omission",
-    #         "isNew": "the instruction is new for the discussion, as boolean",
-    #         "isUpdated": "the instruction is an update of one already identified in the discussion, as boolean",
-    #     }
-    #
-    #     system_prompt = [
-    #         "The conversation is in the context of a clinical encounter between patient and licensed healthcare provider.",
-    #         "The user will submit the transcript of the visit of a patient with the healthcare provider.",
-    #         "The user needs to extract and store the relevant information in their software using structured commands as described below.",
-    #         "Your task is to help the user by identifying the relevant instructions and their linked information, regardless of their location in the transcript.",
-    #         "If any portion of the transcript is small talk, chit chat, or side bar with no discernible connection to health concerns, then it should be ignored."
-    #         "",
-    #         "The instructions are limited to the following:",
-    #         "```json",
-    #         json.dumps(self.instruction_definitions()),
-    #         "```",
-    #         "",
-    #         'Your response must be a JSON Markdown block with a list of objects: ',
-    #         json.dumps(example),
-    #         "",
-    #         "The JSON will be validated with the schema:",
-    #         "```json",
-    #         json.dumps(self.json_schema([instance.class_name() for instance in self._command_context])),
-    #         "```",
-    #         "",
-    #     ]
-    #     transcript = json.dumps([speaker.to_json() for speaker in discussion], indent=1)
-    #     user_prompt = [
-    #         "Below is the most recent segment of the transcript of the visit of a patient with a healthcare provider.",
-    #         "What are the instructions I need to add to my software to document the visit correctly?",
-    #         "```json",
-    #         transcript,
-    #         "```",
-    #         "",
-    #     ]
-    #     if known_instructions:
-    #         content = json.dumps([instruction.to_json() for instruction in known_instructions], indent=1)
-    #         user_prompt.extend([
-    #             "From among all previous segments of the transcript, the following instructions were identified",
-    #             "```json",
-    #             content,
-    #             "```",
-    #             "Include them in your response, with any necessary additional information.",
-    #         ])
-    #     result = Helper.chatter(self.settings).single_conversation(system_prompt, user_prompt)
-    #     if result and (constraints := self.instruction_constraints()):
-    #         user_prompt = [
-    #             "Here is your last response:",
-    #             "```json",
-    #             json.dumps(result, indent=1),
-    #             "```",
-    #             "",
-    #             "Review your response and be sure to follow these constraints:",
-    #         ]
-    #         for constraint in constraints:
-    #             user_prompt.append(f" * {constraint}")
-    #         user_prompt.append("")
-    #         user_prompt.append("Return the original JSON if valid, or provide a corrected version to follow the constraints if needed.")
-    #         user_prompt.append("")
-    #         result = Helper.chatter(self.settings).single_conversation(system_prompt, user_prompt)
-    #     return result
-
     def create_sdk_command_parameters(self, instruction: Instruction) -> tuple[Instruction, dict | None]:
         result: tuple[Instruction, dict | None] = instruction, None
 
         structures = self.command_structures()
 
         system_prompt = [
-            "The conversation is in the medical context.",
-            "During a visit of a patient with a healthcare provider, the user has identified instructions to record in its software.",
-            "The user will submit an instruction, i.e. an action and the related information, as well as the structure of the associated command.",
-            "Your task is to help the user by identifying the actual data of the structured command.",
+            "The conversation is in the context of a clinical encounter between patient and licensed healthcare provider.",
+            "During the encounter, the user has identified instructions with key information to record in its software.",
+            "The user will submit an instruction and the linked information grounded in the transcript, as well as the structure of the associated command.",
+            "Your task is to help the user by writing correctly detailed data for the structured command.",
+            "Unless explicitly instructed otherwise for a specific command, you must not make up or refer to any details of any kind that are not explicitly present in the transcript or prior instructions.",
             "",
             "Your response has to be a JSON Markdown block encapsulating the filled structure.",
             "",
@@ -281,39 +217,6 @@ class AudioInterpreter:
         if response:
             result = instruction, response[0]
         return result
-
-    # def new_create_sdk_command_parameters(self, instruction: Instruction) -> tuple[Instruction, dict | None]:
-    #     result: tuple[Instruction, dict | None] = instruction, None
-    #
-    #     structures = self.command_structures()
-    #
-    #     system_prompt = [
-    #         "The conversation is in the context of a clinical encounter between patient and licensed healthcare provider.",
-    #         "During the encounter, the user has identified instructions with key information to record in its software.",
-    #         "The user will submit an instruction and the linked information grounded in the transcript, as well as the structure of the associated command.",
-    #         "Your task is to help the user by writing correctly detailed data for the structured command.",
-    #         "Unless explicitly instructed otherwise for a specific command, you must not make up or refer to any details of any kind that are not explicitly present in the transcript or prior instructions.",
-    #         "",
-    #         "Your response has to be a JSON Markdown block encapsulating the filled structure.",
-    #         "",
-    #         f"Please, note that now is {datetime.now().isoformat()}."
-    #     ]
-    #     user_prompt = [
-    #         "Based on the text:",
-    #         "```text",
-    #         instruction.information,
-    #         "```",
-    #         "",
-    #         "Your task is to replace the values of the JSON object with the relevant information:",
-    #         "```json",
-    #         json.dumps([structures[instruction.instruction]], indent=1),
-    #         "```",
-    #         "",
-    #     ]
-    #     response = Helper.chatter(self.settings).single_conversation(system_prompt, user_prompt)
-    #     if response:
-    #         result = instruction, response[0]
-    #     return result
 
     def create_sdk_command_from(self, instruction: Instruction, parameters: dict) -> BaseCommand | None:
         for instance in self._command_context:

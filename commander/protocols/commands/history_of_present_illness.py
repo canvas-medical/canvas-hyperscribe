@@ -24,14 +24,13 @@ class HistoryOfPresentIllness(Base):
 
     def command_parameters(self) -> dict:
         return {
-            "narrative": "highlights of the visit from the provider point of view, as free text",
+            "narrative": "highlights of the patient's symptoms and surrounding events and observations, as free text",
         }
 
     def instruction_description(self) -> str:
-        return ("Provider's reported key highlights of the visit. "
-                "There can be multiple highlights within an instruction. "
-                "There can be only one such instruction in the whole discussion, "
-                "so if one was already found, just update it by intelligently merging all key highlights.")
+        return ("Highlights of the patient's symptoms and surrounding events and observations. "
+                "There can be multiple highlights within an instruction, but only one such instruction in the whole discussion. "
+                "So, if one was already found, simply update it by intelligently merging all key highlights.")
 
     def instruction_constraints(self) -> str:
         return ""
