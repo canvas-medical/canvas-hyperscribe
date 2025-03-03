@@ -1,0 +1,35 @@
+{
+  "sdk_version": "0.25.0",
+  "plugin_version": "0.0.1",
+  "name": "hyperscribe_tuning",
+  "description": "Store audios in a S3 bucket",
+  "components": {
+    "protocols": [
+      {
+        "class": "hyperscribe_tuning.protocols.archiver:Archiver",
+        "description": "Store audios in a S3 bucket",
+        "data_access": {
+          "event": "",
+          "read": [],
+          "write": []
+        }
+      }
+    ],
+    "commands": [],
+    "content": [],
+    "effects": [],
+    "views": []
+  },
+  "secrets": [
+    "AwsKey",
+    "AwsSecret",
+    "AwsBucket",
+    "AwsRegion",
+    "AudioHost"
+  ],
+  "tags": {},
+  "references": [],
+  "license": "",
+  "diagram": false,
+  "readme": "./README.md"
+}

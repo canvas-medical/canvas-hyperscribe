@@ -1,4 +1,4 @@
-commander
+hyperscribe
 =========
 
 ## Description
