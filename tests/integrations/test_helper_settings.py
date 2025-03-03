@@ -3,10 +3,10 @@ from unittest.mock import patch, MagicMock, call
 
 from canvas_sdk.v1.data import Note
 
-from commander.protocols.helper import Helper
-from commander.protocols.structures.json_extract import JsonExtract
-from commander.protocols.structures.settings import Settings
-from commander.protocols.structures.vendor_key import VendorKey
+from hyperscribe.protocols.helper import Helper
+from hyperscribe.protocols.structures.json_extract import JsonExtract
+from hyperscribe.protocols.structures.settings import Settings
+from hyperscribe.protocols.structures.vendor_key import VendorKey
 from integrations.helper_settings import HelperSettings
 from tests.helper import is_constant
 
@@ -193,6 +193,22 @@ def test_nuanced_differences(settings, chatter):
         chatter.reset_mock()
         conversation.reset_mock()
 
+    schema = {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "array",
+        "items": {
+            "type": "object",
+            "properties": {
+                "level": {
+                    "type": "string",
+                    "enum": ["minor", "moderate", "severe", "critical"]
+                },
+                "difference": {"type": "string"},
+            },
+            "required": ["level", "difference"],
+        }
+    }
+
     tested = HelperSettings
 
     system_prompt = ["systemLine1", "systemLine2"]
@@ -222,7 +238,7 @@ def test_nuanced_differences(settings, chatter):
     calls = [
         call.set_system_prompt(system_prompt),
         call.set_user_prompt(user_prompt),
-        call.chat(),
+        call.chat([schema]),
     ]
     assert conversation.mock_calls == calls
     reset_mocks()
@@ -243,7 +259,7 @@ def test_nuanced_differences(settings, chatter):
     calls = [
         call.set_system_prompt(system_prompt),
         call.set_user_prompt(user_prompt),
-        call.chat(),
+        call.chat([schema]),
     ]
     assert conversation.mock_calls == calls
     reset_mocks()
@@ -262,7 +278,7 @@ def test_nuanced_differences(settings, chatter):
     calls = [
         call.set_system_prompt(system_prompt),
         call.set_user_prompt(user_prompt),
-        call.chat(),
+        call.chat([schema]),
     ]
     assert conversation.mock_calls == calls
     reset_mocks()

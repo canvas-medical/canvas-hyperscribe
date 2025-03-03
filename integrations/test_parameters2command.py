@@ -3,7 +3,7 @@ from pathlib import Path
 
 from canvas_sdk.commands.base import _BaseCommand as BaseCommand
 
-from commander.protocols.structures.instruction import Instruction
+from hyperscribe.protocols.structures.instruction import Instruction
 from integrations.helper_settings import HelperSettings
 
 

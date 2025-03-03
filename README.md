@@ -1,4 +1,4 @@
-# commander_audio_plugin
+# Hyperscribe
 
 Plugin inserting commands based on the content of an audio, discussion between a patient and a provider.
 
@@ -26,19 +26,19 @@ export CANVAS_SDK_DB_PORT=000
 
 ## Canvas plugin
 
-The Canvas plugin itself is in the folder `commander`.
+The Canvas plugin itself is in the folder `hyperscribe`.
 
 Useful commands:
 
 ```shell
 # install the plugin or re-install it while keeping the secrets
-canvas install --host my-canvas-host commander 
+canvas install --host my-canvas-host hyperscribe 
 
 # disable an installed plugin, while keeping the secrets 
-canvas disable --host my-canvas-host commander 
+canvas disable --host my-canvas-host hyperscribe 
 
 # uninstall an installed plugin, and remove its secrets
-canvas uninstall --host my-canvas-host commander 
+canvas uninstall --host my-canvas-host hyperscribe 
 
 # tail the logs of the remote canvas instance
 canvas logs --host my-canvas-host 
@@ -48,7 +48,7 @@ The `secrets` are stored in the Canvas instance database and can be upsert in `h
 
 ## Unit tests
 
-The `commander` code is tested with `pytest`.
+The `hyperscribe` code is tested with `pytest`.
 
 ```shell
 uv  run pytest -vv tests/ # run all tests and fully display any failure 
@@ -58,7 +58,7 @@ uv  run pytest tests/ --cov=. # run all tests and report the coverage
 
 ## Integration tests
 
-The `commander` plugin has four essential steps:
+The `hyperscribe` plugin has four essential steps:
 
 1. transcript the audio into a discussion, identifying the speakers and what they say
 1. extract from the discussion a set of instructions, a plain english description of a Canvas command

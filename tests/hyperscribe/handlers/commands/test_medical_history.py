@@ -1,0 +1,243 @@
+from datetime import date
+from unittest.mock import patch, call
+
+from canvas_sdk.commands.commands.medical_history import MedicalHistoryCommand
+
+from hyperscribe.protocols.canvas_science import CanvasScience
+from hyperscribe.protocols.commands.base import Base
+from hyperscribe.protocols.commands.medical_history import MedicalHistory
+from hyperscribe.protocols.helper import Helper
+from hyperscribe.protocols.limited_cache import LimitedCache
+from hyperscribe.protocols.structures.coded_item import CodedItem
+from hyperscribe.protocols.structures.icd10_condition import Icd10Condition
+from hyperscribe.protocols.structures.settings import Settings
+from hyperscribe.protocols.structures.vendor_key import VendorKey
+
+
+def helper_instance() -> MedicalHistory:
+    settings = Settings(
+        llm_text=VendorKey(vendor="textVendor", api_key="textKey"),
+        llm_audio=VendorKey(vendor="audioVendor", api_key="audioKey"),
+        science_host="scienceHost",
+        ontologies_host="ontologiesHost",
+        pre_shared_key="preSharedKey",
+        structured_rfv=False,
+    )
+    cache = LimitedCache("patientUuid", {})
+    return MedicalHistory(settings, cache, "patientUuid", "noteUuid", "providerUuid")
+
+
+def test_class():
+    tested = MedicalHistory
+    assert issubclass(tested, Base)
+
+
+def test_schema_key():
+    tested = MedicalHistory
+    result = tested.schema_key()
+    expected = "medicalHistory"
+    assert result == expected
+
+
+def test_staged_command_extract():
+    tested = MedicalHistory
+    tests = [
+        ({}, None),
+        ({
+             "comments": "theComment",
+             "approximate_end_date": {"date": "endDate"},
+             "past_medical_history": {"text": "theCondition"},
+             "approximate_start_date": {"date": "startDate"},
+         }, CodedItem(label="theCondition: from startDate to endDate (theComment)", code="", uuid="")),
+        ({
+             "comments": "theComment",
+             "approximate_end_date": {"date": "endDate"},
+             "past_medical_history": {"text": ""},
+             "approximate_start_date": {"date": "startDate"},
+         }, None),
+        ({
+             "comments": "",
+             "approximate_end_date": {"date": "endDate"},
+             "past_medical_history": {"text": "theCondition"},
+             "approximate_start_date": {"date": "startDate"},
+         }, CodedItem(label="theCondition: from startDate to endDate (n/a)", code="", uuid="")),
+        ({
+             "comments": "theComment",
+             "approximate_end_date": {"date": "endDate"},
+             "past_medical_history": {"text": "theCondition"},
+             "approximate_start_date": {"date": ""},
+         }, CodedItem(label="theCondition: from n/a to endDate (theComment)", code="", uuid="")),
+        ({
+             "comments": "theComment",
+             "approximate_end_date": {"date": ""},
+             "past_medical_history": {"text": "theCondition"},
+             "approximate_start_date": {"date": "startDate"},
+         }, CodedItem(label="theCondition: from startDate to n/a (theComment)", code="", uuid="")),
+    ]
+    for data, expected in tests:
+        result = tested.staged_command_extract(data)
+        if expected is None:
+            assert result is None
+        else:
+            assert result == expected
+
+
+@patch.object(Helper, "chatter")
+@patch.object(CanvasScience, "medical_histories")
+def test_command_from_json(medical_histories, chatter):
+    def reset_mocks():
+        medical_histories.reset_mock()
+        chatter.reset_mock()
+
+    system_prompt = [
+        "The conversation is in the medical context.",
+        "",
+        "Your task is to identify the most relevant condition of a patient out of a list of conditions.",
+        "",
+    ]
+    user_prompt = [
+        'Here is the comment provided by the healthcare provider in regards to the condition of a patient:',
+        '```text',
+        'keywords: keyword1,keyword2,keyword3',
+        ' -- ',
+        'theComment',
+        '```',
+        'Among the following conditions, identify the most relevant one:',
+        '',
+        ' * labelA (ICD10: code123)\n * labelB (ICD10: code369)\n * labelC (ICD10: code752)',
+        '',
+        'Please, present your findings in a JSON format within a Markdown code block like:',
+        '```json',
+        '[{"icd10": "the concept ID", "label": "the expression"}]',
+        '```',
+        '',
+    ]
+    keywords = ['keyword1', 'keyword2', 'keyword3']
+    tested = helper_instance()
+
+    parameters = {
+        'keywords': 'keyword1,keyword2,keyword3',
+        "approximateStartDate": "2018-03-15",
+        "approximateEndDate": "2021-07-19",
+        'comments': 'theComment',
+    }
+    conditions = [
+        Icd10Condition(code="code123", label="labelA"),
+        Icd10Condition(code="code369", label="labelB"),
+        Icd10Condition(code="code752", label="labelC"),
+    ]
+
+    # all good
+    medical_histories.side_effect = [conditions]
+    chatter.return_value.single_conversation.side_effect = [[{"icd10": "code369", "label": "labelB"}]]
+
+    result = tested.command_from_json(parameters)
+    expected = MedicalHistoryCommand(
+        approximate_start_date=date(2018, 3, 15),
+        approximate_end_date=date(2021, 7, 19),
+        show_on_condition_list=True,
+        comments="theComment",
+        past_medical_history="labelB",
+        note_uuid="noteUuid",
+    )
+    assert result == expected
+    calls = [call('scienceHost', keywords)]
+    assert medical_histories.mock_calls == calls
+    calls = [
+        call(tested.settings),
+        call().single_conversation(system_prompt, user_prompt),
+    ]
+    assert chatter.mock_calls == calls
+    reset_mocks()
+
+    # no good response
+    medical_histories.side_effect = [conditions]
+    chatter.return_value.single_conversation.side_effect = [[]]
+
+    result = tested.command_from_json(parameters)
+    expected = MedicalHistoryCommand(
+        approximate_start_date=date(2018, 3, 15),
+        approximate_end_date=date(2021, 7, 19),
+        show_on_condition_list=True,
+        comments="theComment",
+        note_uuid="noteUuid",
+    )
+    assert result == expected
+    calls = [call('scienceHost', keywords)]
+    assert medical_histories.mock_calls == calls
+    calls = [
+        call(tested.settings),
+        call().single_conversation(system_prompt, user_prompt),
+    ]
+    assert chatter.mock_calls == calls
+    reset_mocks()
+
+    # no medical concept
+    medical_histories.side_effect = [[]]
+    chatter.return_value.single_conversation.side_effect = [[]]
+
+    result = tested.command_from_json(parameters)
+    expected = MedicalHistoryCommand(
+        approximate_start_date=date(2018, 3, 15),
+        approximate_end_date=date(2021, 7, 19),
+        show_on_condition_list=True,
+        comments="theComment",
+        note_uuid="noteUuid",
+    )
+    assert result == expected
+    calls = [call('scienceHost', keywords)]
+    assert medical_histories.mock_calls == calls
+    assert chatter.mock_calls == []
+    reset_mocks()
+
+
+def test_command_parameters():
+    tested = helper_instance()
+    result = tested.command_parameters()
+    expected = {
+        "keywords": "comma separated keywords of up to 5 synonyms of the condition",
+        "approximateStartDate": "YYYY-MM-DD",
+        "approximateEndDate": "YYYY-MM-DD",
+        "comments": "provided description of the patient specific history with the condition, as free text",
+    }
+
+    assert result == expected
+
+
+def test_instruction_description():
+    tested = helper_instance()
+    result = tested.instruction_description()
+    expected = ("Any past condition. "
+                "There can be only one condition per instruction, and no instruction in the lack of.")
+    assert result == expected
+
+
+@patch.object(LimitedCache, "condition_history")
+def test_instruction_constraints(condition_history):
+    def reset_mocks():
+        condition_history.reset_mock()
+
+    tested = helper_instance()
+
+    conditions = [
+        CodedItem(uuid="theUuid1", label="display1a", code="CODE12.3"),
+        CodedItem(uuid="theUuid2", label="display2a", code="CODE45"),
+        CodedItem(uuid="theUuid3", label="display3a", code="CODE98.76"),
+    ]
+    tests = [
+        (conditions, "'MedicalHistory' cannot include: display1a, display2a, display3a."),
+        ([], ""),
+    ]
+    for side_effect, expected in tests:
+        condition_history.side_effect = [side_effect]
+        result = tested.instruction_constraints()
+        assert result == expected
+        calls = [call()]
+        assert condition_history.mock_calls == calls
+        reset_mocks()
+
+
+def test_is_available():
+    tested = helper_instance()
+    result = tested.is_available()
+    assert result is True

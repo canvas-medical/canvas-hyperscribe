@@ -1,0 +1,67 @@
+{
+  "sdk_version": "0.23.0",
+  "plugin_version": "0.0.32",
+  "name": "hyperscribe",
+  "description": "Create commands based on the content of an audio discussion between a patient and a provider.",
+  "url_permissions": [
+    {
+      "url": "https://testing-playground-hyperscribe-audio-server.replit.app/",
+      "permissions": [
+        "ALLOW_SAME_ORIGIN",
+        "MICROPHONE",
+        "SCRIPTS"
+      ]
+    },
+    {
+      "url": "https://encounter-copilot-audio-server-andrewhines8.replit.app/",
+      "permissions": [
+        "ALLOW_SAME_ORIGIN",
+        "MICROPHONE",
+        "SCRIPTS"
+      ]
+    }
+  ],
+  "components": {
+    "protocols": [
+      {
+        "class": "hyperscribe.protocols.commander:Commander",
+        "description": "Commander add commands based on vocal instructions",
+        "data_access": {
+          "event": "",
+          "read": [],
+          "write": []
+        }
+      },
+      {
+        "class": "hyperscribe.protocols.launcher:Launcher",
+        "description": "Action button on the note to launch Hyperscribe with note context",
+        "data_access": {
+          "event": "",
+          "read": [],
+          "write": []
+        }
+      }
+    ],
+    "commands": [],
+    "content": [],
+    "effects": [],
+    "views": []
+  },
+  "secrets": [
+    "VendorTextLLM",
+    "KeyTextLLM",
+    "VendorAudioLLM",
+    "KeyAudioLLM",
+    "ScienceHost",
+    "OntologiesHost",
+    "PreSharedKey",
+    "AudioHost",
+    "AudioIntervalSeconds",
+    "StructuredReasonForVisit"
+  ],
+  "tags": {},
+  "references": [],
+  "license": "",
+  "diagram": false,
+  "readme": "./README.md"
+}

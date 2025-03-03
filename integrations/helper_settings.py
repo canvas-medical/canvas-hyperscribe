@@ -1,12 +1,13 @@
 import json
 from os import environ
+from pathlib import Path
 
 from canvas_sdk.v1.data import Note
 
-from commander.protocols.commander import Commander
-from commander.protocols.helper import Helper
-from commander.protocols.structures.settings import Settings
-from commander.protocols.structures.vendor_key import VendorKey
+from hyperscribe.protocols.commander import Commander
+from hyperscribe.protocols.helper import Helper
+from hyperscribe.protocols.structures.settings import Settings
+from hyperscribe.protocols.structures.vendor_key import VendorKey
 
 
 class HelperSettings:
@@ -108,12 +109,13 @@ class HelperSettings:
         conversation = Helper.chatter(settings)
         conversation.set_system_prompt(system_prompt)
         conversation.set_user_prompt(user_prompt)
-        chat = conversation.chat()
-        if chat.has_error:
-            return False, f"encountered error: {chat.error}"
-        excluded_minor_differences = [
-            difference
-            for difference in chat.content
-            if difference["level"] not in accepted_levels
-        ]
-        return bool(excluded_minor_differences == []), json.dumps(chat.content, indent=1)
+        with (Path(__file__).parent / "schema_differences.json").open("r") as f:
+            chat = conversation.chat([json.load(f)])
+            if chat.has_error:
+                return False, f"encountered error: {chat.error}"
+            excluded_minor_differences = [
+                difference
+                for difference in chat.content
+                if difference["level"] not in accepted_levels
+            ]
+            return bool(excluded_minor_differences == []), json.dumps(chat.content, indent=1)
