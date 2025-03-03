@@ -19,6 +19,6 @@ def is_constant(cls, constants: dict) -> bool:
 
     for key, value in constants.items():
         if getattr(cls, key) != value:
-            print(f"----> {key} != {value}")
+            print(f"----> {key} value is {getattr(cls, key)}")
             return False
     return True

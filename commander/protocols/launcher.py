@@ -1,8 +1,8 @@
 from canvas_sdk.effects import Effect
-from canvas_sdk.handlers.action_button import ActionButton
 from canvas_sdk.effects.launch_modal import LaunchModalEffect
+from canvas_sdk.handlers.action_button import ActionButton
 from canvas_sdk.v1.data.note import Note
-from logger import log
+
 
 class HyperscribeLauncher(ActionButton):
     BUTTON_TITLE = "🖊️ Hyperscribe"
@@ -12,7 +12,7 @@ class HyperscribeLauncher(ActionButton):
     def handle(self) -> list[Effect]:
         audio_server_base_url = self.secrets['AudioHost'].rstrip('/')
         interval = self.secrets['AudioIntervalSeconds']
-        note_id = str(Note.objects.get(dbid=self.context['note_id']).id)
+        note_id = str(Note.objects.get(dbid=self.event.context['note_id']).id)
         patient_id = self.target
         hyperscribe_pane = LaunchModalEffect(
             url=f"{audio_server_base_url}/capture/{patient_id}/{note_id}?interval={interval}",
