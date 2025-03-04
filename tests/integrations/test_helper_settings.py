@@ -3,10 +3,10 @@ from unittest.mock import patch, MagicMock, call
 
 from canvas_sdk.v1.data import Note
 
-from hyperscribe.protocols.helper import Helper
-from hyperscribe.protocols.structures.json_extract import JsonExtract
-from hyperscribe.protocols.structures.settings import Settings
-from hyperscribe.protocols.structures.vendor_key import VendorKey
+from hyperscribe.handlers.helper import Helper
+from hyperscribe.handlers.structures.json_extract import JsonExtract
+from hyperscribe.handlers.structures.settings import Settings
+from hyperscribe.handlers.structures.vendor_key import VendorKey
 from integrations.helper_settings import HelperSettings
 from tests.helper import is_constant
 

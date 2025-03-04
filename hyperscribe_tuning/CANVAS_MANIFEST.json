@@ -1,12 +1,12 @@
 {
   "sdk_version": "0.25.0",
-  "plugin_version": "0.0.1",
+  "plugin_version": "0.0.2",
   "name": "hyperscribe_tuning",
   "description": "Store audios in a S3 bucket",
   "components": {
     "protocols": [
       {
-        "class": "hyperscribe_tuning.protocols.archiver:Archiver",
+        "class": "hyperscribe_tuning.handlers.archiver:Archiver",
         "description": "Store audios in a S3 bucket",
         "data_access": {
           "event": "",

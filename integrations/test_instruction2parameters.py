@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from hyperscribe.protocols.structures.instruction import Instruction
+from hyperscribe.handlers.structures.instruction import Instruction
 from integrations.helper_settings import HelperSettings
 
 

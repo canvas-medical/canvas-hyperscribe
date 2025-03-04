@@ -1,6 +1,6 @@
 {
   "sdk_version": "0.25.0",
-  "plugin_version": "0.0.32",
+  "plugin_version": "0.0.33",
   "name": "hyperscribe",
   "description": "Create commands based on the content of an audio discussion between a patient and a provider.",
   "url_permissions": [
@@ -24,7 +24,7 @@
   "components": {
     "protocols": [
       {
-        "class": "hyperscribe.protocols.commander:Commander",
+        "class": "hyperscribe.handlers.commander:Commander",
         "description": "Commander add commands based on vocal instructions",
         "data_access": {
           "event": "",
@@ -33,7 +33,7 @@
         }
       },
       {
-        "class": "hyperscribe.protocols.launcher:Launcher",
+        "class": "hyperscribe.handlers.launcher:Launcher",
         "description": "Action button on the note to launch Hyperscribe with note context",
         "data_access": {
           "event": "",

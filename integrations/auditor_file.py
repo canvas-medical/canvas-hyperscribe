@@ -3,9 +3,9 @@ from pathlib import Path
 
 from canvas_sdk.commands.base import _BaseCommand as BaseCommand
 
-from hyperscribe.protocols.auditor import Auditor
-from hyperscribe.protocols.structures.instruction import Instruction
-from hyperscribe.protocols.structures.line import Line
+from hyperscribe.handlers.auditor import Auditor
+from hyperscribe.handlers.structures.instruction import Instruction
+from hyperscribe.handlers.structures.line import Line
 
 
 class AuditorFile(Auditor):

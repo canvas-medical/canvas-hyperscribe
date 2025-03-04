@@ -4,9 +4,9 @@ from sys import argv
 
 from canvas_sdk.v1.data import Note, Patient
 
-from hyperscribe.protocols.audio_interpreter import AudioInterpreter
-from hyperscribe.protocols.commander import Commander
-from hyperscribe.protocols.limited_cache import LimitedCache
+from hyperscribe.handlers.audio_interpreter import AudioInterpreter
+from hyperscribe.handlers.commander import Commander
+from hyperscribe.handlers.limited_cache import LimitedCache
 from integrations.auditor_file import AuditorFile
 from integrations.helper_settings import HelperSettings
 

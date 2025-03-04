@@ -1,8 +1,8 @@
 import json
 from pathlib import Path
 
-from hyperscribe.protocols.structures.instruction import Instruction
-from hyperscribe.protocols.structures.line import Line
+from hyperscribe.handlers.structures.instruction import Instruction
+from hyperscribe.handlers.structures.line import Line
 from integrations.helper_settings import HelperSettings
 
 

@@ -4,10 +4,10 @@ from pathlib import Path
 
 from canvas_sdk.v1.data import Note
 
-from hyperscribe.protocols.commander import Commander
-from hyperscribe.protocols.helper import Helper
-from hyperscribe.protocols.structures.settings import Settings
-from hyperscribe.protocols.structures.vendor_key import VendorKey
+from hyperscribe.handlers.commander import Commander
+from hyperscribe.handlers.helper import Helper
+from hyperscribe.handlers.structures.settings import Settings
+from hyperscribe.handlers.structures.vendor_key import VendorKey
 
 
 class HelperSettings:

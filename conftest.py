@@ -1,7 +1,7 @@
 import pytest
 
-from hyperscribe.protocols.audio_interpreter import AudioInterpreter
-from hyperscribe.protocols.limited_cache import LimitedCache
+from hyperscribe.handlers.audio_interpreter import AudioInterpreter
+from hyperscribe.handlers.limited_cache import LimitedCache
 from integrations.helper_settings import HelperSettings
 
 
