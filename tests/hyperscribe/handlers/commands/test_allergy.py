@@ -87,10 +87,25 @@ def test_command_from_json(search_allergy, chatter):
         '',
         'Please, present your findings in a JSON format within a Markdown code block like:',
         '```json',
-        '[{"conceptId": "the concept id, as int", "description": "the description"}]',
+        '[{"conceptId": "the concept id, as int", "term": "the description"}]',
         '```',
         '',
     ]
+    schemas = [{
+        '$schema': 'http://json-schema.org/draft-07/schema#',
+        'type': 'array',
+        'items': {
+            'type': 'object',
+            'properties': {
+                'conceptId': {'type': 'string', 'minLength': 1},
+                'term': {'type': 'string', 'minLength': 1},
+            },
+            'required': ['conceptId', 'term'],
+            'additionalProperties': False,
+        },
+        'minItems': 1,
+        'maxItems': 1,
+    }]
     keywords = ['keyword1', 'keyword2', 'keyword3']
     tested = helper_instance()
 
@@ -151,7 +166,7 @@ def test_command_from_json(search_allergy, chatter):
         assert search_allergy.mock_calls == calls
         calls = [
             call(tested.settings),
-            call().single_conversation(system_prompt, user_prompt),
+            call().single_conversation(system_prompt, user_prompt, schemas),
         ]
         assert chatter.mock_calls == calls
         reset_mocks()
@@ -177,7 +192,7 @@ def test_command_from_json(search_allergy, chatter):
         assert search_allergy.mock_calls == calls
         calls = [
             call(tested.settings),
-            call().single_conversation(system_prompt, user_prompt),
+            call().single_conversation(system_prompt, user_prompt, schemas),
         ]
         assert chatter.mock_calls == calls
         reset_mocks()

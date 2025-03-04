@@ -246,6 +246,37 @@ def test_combine_and_speaker_detection(audio2texter):
         "```",
         "",
     ]
+    schemas = [
+        {
+            '$schema': 'http://json-schema.org/draft-07/schema#',
+            'type': 'array',
+            'items': {
+                'type': 'object',
+                'properties': {
+                    'voice': {'type': 'string', 'pattern': '^voice_[1-9]\\d*$'},
+                    'text': {'type': 'string', 'minLength': 1},
+                },
+                'required': ['voice', 'text'],
+                'additionalProperties': False,
+            },
+            'minItems': 1,
+        },
+        {
+            '$schema': 'http://json-schema.org/draft-07/schema#',
+            'type': 'array',
+            'items': {
+                'type': 'object',
+                'properties': {
+                    'speaker': {'type': 'string', 'minLength': 1},
+                    'voice': {'type': 'string', 'pattern': '^voice_[1-9]\\d*$'},
+                },
+                'required': ['speaker', 'voice'],
+                'additionalProperties': False,
+            },
+            'minItems': 1,
+            'uniqueItems': True,
+        },
+    ]
     discussion = [
         {"voice": "voice_3", "text": "the text A"},
         {"voice": "voice_2", "text": "the text B"},
@@ -286,7 +317,7 @@ def test_combine_and_speaker_detection(audio2texter):
         call().set_user_prompt(user_prompt),
         call().add_audio(b'chunk1', 'mp3'),
         call().add_audio(b'chunk2', 'mp3'),
-        call().chat([], True),
+        call().chat(schemas, True),
     ]
     assert audio2texter.mock_calls == calls
     reset_mocks()
@@ -301,7 +332,7 @@ def test_combine_and_speaker_detection(audio2texter):
         call().set_user_prompt(user_prompt),
         call().add_audio(b'chunk1', 'mp3'),
         call().add_audio(b'chunk2', 'mp3'),
-        call().chat([], True),
+        call().chat(schemas, True),
     ]
     assert audio2texter.mock_calls == calls
     reset_mocks()
@@ -317,7 +348,7 @@ def test_combine_and_speaker_detection(audio2texter):
         call().set_user_prompt(user_prompt),
         call().add_audio(b'chunk1', 'mp3'),
         call().add_audio(b'chunk2', 'mp3'),
-        call().chat([], True),
+        call().chat(schemas, True),
     ]
     assert audio2texter.mock_calls == calls
     reset_mocks()
@@ -468,9 +499,9 @@ def test_detect_instructions(
     assert instruction_constraints.mock_calls == calls
     calls = [
         call(settings),
-        call().single_conversation(system_prompts, user_prompts["noKnownInstructions"]),
+        call().single_conversation(system_prompts, user_prompts["noKnownInstructions"], ['theJsonSchema']),
         call(settings),
-        call().single_conversation(system_prompts, user_prompts["constraints"]),
+        call().single_conversation(system_prompts, user_prompts["constraints"], ['theJsonSchema']),
     ]
     assert chatter.mock_calls == calls
     for idx, mock in enumerate(mocks):
@@ -499,7 +530,7 @@ def test_detect_instructions(
     assert instruction_constraints.mock_calls == calls
     calls = [
         call(settings),
-        call().single_conversation(system_prompts, user_prompts["noKnownInstructions"]),
+        call().single_conversation(system_prompts, user_prompts["noKnownInstructions"], ['theJsonSchema']),
     ]
     assert chatter.mock_calls == calls
     for idx, mock in enumerate(mocks):
@@ -525,9 +556,9 @@ def test_detect_instructions(
     assert instruction_constraints.mock_calls == calls
     calls = [
         call(settings),
-        call().single_conversation(system_prompts, user_prompts["withKnownInstructions"]),
+        call().single_conversation(system_prompts, user_prompts["withKnownInstructions"], ['theJsonSchema']),
         call(settings),
-        call().single_conversation(system_prompts, user_prompts["constraints"]),
+        call().single_conversation(system_prompts, user_prompts["constraints"], ['theJsonSchema']),
     ]
     assert chatter.mock_calls == calls
     for idx, mock in enumerate(mocks):
@@ -586,6 +617,7 @@ def test_create_sdk_command_parameters(chatter, mock_datetime):
         '```',
         '',
     ]
+    schemas = []
     reset_mocks()
 
     tested, settings, cache = helper_instance(mocks)
@@ -597,7 +629,7 @@ def test_create_sdk_command_parameters(chatter, mock_datetime):
     assert result == expected
     calls = [
         call(settings),
-        call().single_conversation(system_prompt, user_prompt),
+        call().single_conversation(system_prompt, user_prompt, schemas),
     ]
     assert chatter.mock_calls == calls
     calls = [call.now()]
@@ -623,7 +655,7 @@ def test_create_sdk_command_parameters(chatter, mock_datetime):
     assert result == expected
     calls = [
         call(settings),
-        call().single_conversation(system_prompt, user_prompt),
+        call().single_conversation(system_prompt, user_prompt, schemas),
     ]
     assert chatter.mock_calls == calls
     calls = [call.now()]

@@ -1,0 +1,23 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "voice": {
+        "type": "string",
+        "pattern": "^voice_[1-9]\\d*$"
+      },
+      "text": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "required": [
+      "voice",
+      "text"
+    ],
+    "additionalProperties": false
+  },
+  "minItems": 1
+}

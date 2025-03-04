@@ -83,10 +83,10 @@ class LlmBase:
 
         return result
 
-    def single_conversation(self, system_prompt: list[str], user_prompt: list[str]) -> list:
+    def single_conversation(self, system_prompt: list[str], user_prompt: list[str], schemas: list) -> list:
         self.set_system_prompt(system_prompt)
         self.set_user_prompt(user_prompt)
-        response = self.chat([])
+        response = self.chat(schemas)
         if response.has_error is False and response.content:
             return response.content
         return []

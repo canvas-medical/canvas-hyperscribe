@@ -108,10 +108,25 @@ def test_command_from_json(medical_histories, chatter):
         '',
         'Please, present your findings in a JSON format within a Markdown code block like:',
         '```json',
-        '[{"icd10": "the concept ID", "label": "the expression"}]',
+        '[{"ICD10": "the ICD-10 code", "label": "the label"}]',
         '```',
         '',
     ]
+    schemas = [{
+        '$schema': 'http://json-schema.org/draft-07/schema#',
+        'type': 'array',
+        'items': {
+            'type': 'object',
+            'properties': {
+                'ICD10': {'type': 'string', 'minLength': 1},
+                'label': {'type': 'string', 'minLength': 1},
+            },
+            'required': ['ICD10', 'label'],
+            'additionalProperties': False,
+        },
+        'minItems': 1,
+        'maxItems': 1,
+    }]
     keywords = ['keyword1', 'keyword2', 'keyword3']
     tested = helper_instance()
 
@@ -129,7 +144,7 @@ def test_command_from_json(medical_histories, chatter):
 
     # all good
     medical_histories.side_effect = [conditions]
-    chatter.return_value.single_conversation.side_effect = [[{"icd10": "code369", "label": "labelB"}]]
+    chatter.return_value.single_conversation.side_effect = [[{"ICD10": "code369", "label": "labelB"}]]
 
     result = tested.command_from_json(parameters)
     expected = MedicalHistoryCommand(
@@ -145,7 +160,7 @@ def test_command_from_json(medical_histories, chatter):
     assert medical_histories.mock_calls == calls
     calls = [
         call(tested.settings),
-        call().single_conversation(system_prompt, user_prompt),
+        call().single_conversation(system_prompt, user_prompt, schemas),
     ]
     assert chatter.mock_calls == calls
     reset_mocks()
@@ -167,7 +182,7 @@ def test_command_from_json(medical_histories, chatter):
     assert medical_histories.mock_calls == calls
     calls = [
         call(tested.settings),
-        call().single_conversation(system_prompt, user_prompt),
+        call().single_conversation(system_prompt, user_prompt, schemas),
     ]
     assert chatter.mock_calls == calls
     reset_mocks()

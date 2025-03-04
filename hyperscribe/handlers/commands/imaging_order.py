@@ -76,12 +76,13 @@ class ImagingOrder(Base):
                 '',
                 'Please, present your findings in a JSON format within a Markdown code block like:',
                 '```json',
-                json.dumps([{"code": "the code ID", "name": "the name of the imaging"}]),
+                json.dumps([{"conceptId": "the code ID", "term": "the name of the imaging"}]),
                 '```',
                 '',
             ]
-            if response := Helper.chatter(self.settings).single_conversation(system_prompt, user_prompt):
-                result.image_code = response[0]["code"]
+            schemas = Helper.load_schema(["selector_concept"])
+            if response := Helper.chatter(self.settings).single_conversation(system_prompt, user_prompt,schemas):
+                result.image_code = response[0]["conceptId"]
 
         return result
 

@@ -115,6 +115,21 @@ def test_select_staff(chatter, staff):
         '```',
         '',
     ]
+    schemas = [{
+        '$schema': 'http://json-schema.org/draft-07/schema#',
+        'type': 'array',
+        'items': {
+            'type': 'object',
+            'properties': {
+                'staffId': {'type': 'integer', 'minimum': 1},
+                'name': {'type': 'string', 'minLength': 1},
+            },
+            'required': ['staffId', 'name'],
+            'additionalProperties': False,
+        },
+        'minItems': 1,
+        'maxItems': 1,
+    }]
 
     tested = helper_instance()
 
@@ -144,7 +159,7 @@ def test_select_staff(chatter, staff):
     assert staff.mock_calls == calls
     calls = [
         call(tested.settings),
-        call().single_conversation(system_prompt, user_prompt),
+        call().single_conversation(system_prompt, user_prompt, schemas),
     ]
     assert chatter.mock_calls == calls
     reset_mocks()
@@ -157,7 +172,7 @@ def test_select_staff(chatter, staff):
     assert staff.mock_calls == calls
     calls = [
         call(tested.settings),
-        call().single_conversation(system_prompt, user_prompt),
+        call().single_conversation(system_prompt, user_prompt, schemas),
     ]
     assert chatter.mock_calls == calls
     reset_mocks()
@@ -195,6 +210,21 @@ def test_select_labels(chatter, task_labels):
         '```',
         '',
     ]
+    schemas = [{
+        '$schema': 'http://json-schema.org/draft-07/schema#',
+        'type': 'array',
+        'items': {
+            'type': 'object',
+            'properties': {
+                'labelId': {'type': 'integer', 'minimum': 1},
+                'name': {'type': 'string', 'minLength': 1},
+            },
+            'required': ['labelId', 'name'],
+            'additionalProperties': False,
+        },
+        'minItems': 1,
+        'maxItems': 1,
+    }]
     tested = helper_instance()
 
     # no labels
@@ -223,7 +253,7 @@ def test_select_labels(chatter, task_labels):
     assert task_labels.mock_calls == calls
     calls = [
         call(tested.settings),
-        call().single_conversation(system_prompt, user_prompt),
+        call().single_conversation(system_prompt, user_prompt, schemas),
     ]
     assert chatter.mock_calls == calls
     reset_mocks()
@@ -236,7 +266,7 @@ def test_select_labels(chatter, task_labels):
     assert task_labels.mock_calls == calls
     calls = [
         call(tested.settings),
-        call().single_conversation(system_prompt, user_prompt),
+        call().single_conversation(system_prompt, user_prompt, schemas),
     ]
     assert chatter.mock_calls == calls
     reset_mocks()

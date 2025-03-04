@@ -139,10 +139,25 @@ def test_command_from_json(condition_from, search_imagings, chatter):
         "",
         "Please, present your findings in a JSON format within a Markdown code block like:",
         "```json",
-        '[{"code": "the code ID", "name": "the name of the imaging"}]',
+        '[{"conceptId": "the code ID", "term": "the name of the imaging"}]',
         "```",
         "",
     ]
+    schemas = [{
+        '$schema': 'http://json-schema.org/draft-07/schema#',
+        'type': 'array',
+        'items': {
+            'type': 'object',
+            'properties': {
+                'conceptId': {'type': 'string', 'minLength': 1},
+                'term': {'type': 'string', 'minLength': 1},
+            },
+            'required': ['conceptId', 'term'],
+            'additionalProperties': False,
+        },
+        'minItems': 1,
+        'maxItems': 1,
+    }]
 
     tested = helper_instance()
 
@@ -164,7 +179,7 @@ def test_command_from_json(condition_from, search_imagings, chatter):
         CodedItem(uuid="uuid4", label="condition4", code="icd3"),
     ]
     search_imagings.side_effect = [imaging_orders]
-    chatter.return_value.single_conversation.side_effect = [[{"code": "theCode", "name": "theName"}]]
+    chatter.return_value.single_conversation.side_effect = [[{"conceptId": "theCode", "name": "theName"}]]
 
     result = tested.command_from_json(parameters)
     expected = ImagingOrderCommand(
@@ -189,7 +204,7 @@ def test_command_from_json(condition_from, search_imagings, chatter):
     assert search_imagings.mock_calls == calls
     calls = [
         call(tested.settings),
-        call().single_conversation(system_prompt, user_prompt),
+        call().single_conversation(system_prompt, user_prompt, schemas),
     ]
     assert chatter.mock_calls == calls
     reset_mocks()
@@ -223,7 +238,7 @@ def test_command_from_json(condition_from, search_imagings, chatter):
     assert search_imagings.mock_calls == calls
     calls = [
         call(tested.settings),
-        call().single_conversation(system_prompt, user_prompt),
+        call().single_conversation(system_prompt, user_prompt, schemas),
     ]
     assert chatter.mock_calls == calls
     reset_mocks()

@@ -1,0 +1,32 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "quantityToDispense": {
+        "type": "number",
+        "exclusiveMinimum": 0
+      },
+      "refills": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "noteToPharmacist": {
+        "type": "string"
+      },
+      "informationToPatient": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "required": [
+      "quantityToDispense",
+      "refills",
+      "informationToPatient"
+    ],
+    "additionalProperties": false
+  },
+  "minItems": 1,
+  "maxItems": 1
+}

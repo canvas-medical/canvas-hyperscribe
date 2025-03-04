@@ -1,7 +1,10 @@
+import json
 from datetime import datetime, date
 from enum import Enum
 from re import match
 from typing import Type
+
+from canvas_sdk.utils.plugins import Path
 
 from hyperscribe.handlers.constants import Constants
 from hyperscribe.handlers.llms.llm_anthropic import LlmAnthropic
@@ -57,3 +60,11 @@ class Helper:
             return LlmGoogle(settings.llm_audio.api_key, Constants.GOOGLE_CHAT_ALL)
         # if settings.llm_text.upper() == Constants.VENDOR_OPENAI.upper():
         return LlmOpenai(settings.llm_audio.api_key, Constants.OPENAI_CHAT_AUDIO)
+
+    @classmethod
+    def load_schema(cls, schemas: list[str]) -> list[dict]:
+        result: list[dict] = []
+        for schema in schemas:
+            with (Path(__file__).parent / f"schemas/schema_{schema}.json").open("r") as f:
+                result.append(json.load(f))
+        return result

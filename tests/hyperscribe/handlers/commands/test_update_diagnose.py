@@ -110,6 +110,21 @@ def test_command_from_json(current_conditions, search_conditions, chatter):
         '```',
         '',
     ]
+    schemas = [{
+        '$schema': 'http://json-schema.org/draft-07/schema#',
+        'type': 'array',
+        'items': {
+            'type': 'object',
+            'properties': {
+                'ICD10': {'type': 'string', 'minLength': 1},
+                'label': {'type': 'string', 'minLength': 1},
+            },
+            'required': ['ICD10', 'label'],
+            'additionalProperties': False,
+        },
+        'minItems': 1,
+        'maxItems': 1,
+    }]
     keywords = ['keyword1', 'keyword2', 'keyword3', "ICD01", "ICD02", "ICD03"]
     tested = helper_instance()
 
@@ -159,7 +174,7 @@ def test_command_from_json(current_conditions, search_conditions, chatter):
         assert search_conditions.mock_calls == calls
         calls = [
             call(tested.settings),
-            call().single_conversation(system_prompt, user_prompt),
+            call().single_conversation(system_prompt, user_prompt, schemas),
         ]
         assert chatter.mock_calls == calls
         reset_mocks()
@@ -205,7 +220,7 @@ def test_command_from_json(current_conditions, search_conditions, chatter):
         assert search_conditions.mock_calls == calls
         calls = [
             call(tested.settings),
-            call().single_conversation(system_prompt, user_prompt),
+            call().single_conversation(system_prompt, user_prompt, schemas),
         ]
         assert chatter.mock_calls == calls
         reset_mocks()

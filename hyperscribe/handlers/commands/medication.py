@@ -54,7 +54,8 @@ class Medication(Base):
                 '```',
                 '',
             ]
-            if response := Helper.chatter(self.settings).single_conversation(system_prompt, user_prompt):
+            schemas = Helper.load_schema(["selector_fdb_code"])
+            if response := Helper.chatter(self.settings).single_conversation(system_prompt, user_prompt, schemas):
                 result.fdb_code = str(response[0]["fdbCode"])
         return result
 

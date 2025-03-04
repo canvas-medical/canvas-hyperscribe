@@ -51,11 +51,12 @@ class FamilyHistory(Base):
                 '',
                 'Please, present your findings in a JSON format within a Markdown code block like:',
                 '```json',
-                json.dumps([{"concept_id": "the concept ID", "term": "the expression"}]),
+                json.dumps([{"conceptId": "the concept ID", "term": "the expression"}]),
                 '```',
                 '',
             ]
-            if response := Helper.chatter(self.settings).single_conversation(system_prompt, user_prompt):
+            schemas = Helper.load_schema(["selector_concept"])
+            if response := Helper.chatter(self.settings).single_conversation(system_prompt, user_prompt, schemas):
                 result.family_history = response[0]["term"]
         return result
 

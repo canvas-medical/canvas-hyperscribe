@@ -57,7 +57,8 @@ class Task(Base):
             '```',
             '',
         ]
-        if response := Helper.chatter(self.settings).single_conversation(system_prompt, user_prompt):
+        schemas = Helper.load_schema(["selector_staff"])
+        if response := Helper.chatter(self.settings).single_conversation(system_prompt, user_prompt, schemas):
             staff_id = int(response[0]["staffId"])
             return TaskAssigner(to=AssigneeType.STAFF, id=staff_id)
         return None
@@ -92,7 +93,8 @@ class Task(Base):
             '```',
             '',
         ]
-        if response := Helper.chatter(self.settings).single_conversation(system_prompt, user_prompt):
+        schemas = Helper.load_schema(["selector_label"])
+        if response := Helper.chatter(self.settings).single_conversation(system_prompt, user_prompt, schemas):
             return [label["name"] for label in response]
         return None
 

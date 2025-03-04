@@ -215,6 +215,21 @@ def test_medications_from(demographic, current_allergies, staged_commands_of, me
             '',
         ],
     }
+    schemas = [{
+        '$schema': 'http://json-schema.org/draft-07/schema#',
+        'type': 'array',
+        'items': {
+            'type': 'object',
+            'properties': {
+                'fdbCode': {'type': 'integer', 'minimum': 1},
+                'description': {'type': 'string', 'minLength': 1},
+            },
+            'required': ['fdbCode', 'description'],
+            'additionalProperties': False,
+        },
+        'minItems': 1,
+        'maxItems': 1,
+    }]
     keywords = ['keyword1', 'keyword2', 'keyword3']
     medications = [
         MedicationDetail(fdb_code="code123", description="labelA", quantities=[]),
@@ -248,7 +263,7 @@ def test_medications_from(demographic, current_allergies, staged_commands_of, me
     assert medication_details.mock_calls == calls
     calls = [
         call(tested.settings),
-        call().single_conversation(system_prompt, user_prompts["with_conditions"]),
+        call().single_conversation(system_prompt, user_prompts["with_conditions"], schemas),
     ]
     assert chatter.mock_calls == calls
     reset_mocks()
@@ -272,7 +287,7 @@ def test_medications_from(demographic, current_allergies, staged_commands_of, me
     assert medication_details.mock_calls == calls
     calls = [
         call(tested.settings),
-        call().single_conversation(system_prompt, user_prompts["no_condition"]),
+        call().single_conversation(system_prompt, user_prompts["no_condition"], schemas),
     ]
     assert chatter.mock_calls == calls
     reset_mocks()
@@ -296,7 +311,7 @@ def test_medications_from(demographic, current_allergies, staged_commands_of, me
     assert medication_details.mock_calls == calls
     calls = [
         call(tested.settings),
-        call().single_conversation(system_prompt, user_prompts["with_allergies"]),
+        call().single_conversation(system_prompt, user_prompts["with_allergies"],schemas),
     ]
     assert chatter.mock_calls == calls
     reset_mocks()
@@ -319,7 +334,7 @@ def test_medications_from(demographic, current_allergies, staged_commands_of, me
     assert medication_details.mock_calls == calls
     calls = [
         call(tested.settings),
-        call().single_conversation(system_prompt, user_prompts["no_condition"]),
+        call().single_conversation(system_prompt, user_prompts["no_condition"], schemas),
     ]
     assert chatter.mock_calls == calls
     reset_mocks()
@@ -379,6 +394,23 @@ def test_set_medication_dosage(demographic, chatter):
         '```',
         '',
     ]
+    schemas = [{
+        '$schema': 'http://json-schema.org/draft-07/schema#',
+        'type': 'array',
+        'items': {
+            'type': 'object',
+            'properties': {
+                'quantityToDispense': {'type': 'number', 'exclusiveMinimum': 0},
+                'refills': {'type': 'integer', 'minimum': 0},
+                'noteToPharmacist': {'type': 'string'},
+                'informationToPatient': {'type': 'string', 'minLength': 1},
+            },
+            'required': ['quantityToDispense', 'refills', 'informationToPatient'],
+            'additionalProperties': False,
+        },
+        'minItems': 1,
+        'maxItems': 1,
+    }]
     medication = MedicationDetail(
         fdb_code="code369",
         description="labelB",
@@ -428,7 +460,7 @@ def test_set_medication_dosage(demographic, chatter):
     assert demographic.mock_calls == calls
     calls = [
         call(tested.settings),
-        call().single_conversation(system_prompt, user_prompt),
+        call().single_conversation(system_prompt, user_prompt, schemas),
     ]
     assert chatter.mock_calls == calls
     reset_mocks()
@@ -452,7 +484,7 @@ def test_set_medication_dosage(demographic, chatter):
     assert demographic.mock_calls == calls
     calls = [
         call(tested.settings),
-        call().single_conversation(system_prompt, user_prompt),
+        call().single_conversation(system_prompt, user_prompt, schemas),
     ]
     assert chatter.mock_calls == calls
     reset_mocks()

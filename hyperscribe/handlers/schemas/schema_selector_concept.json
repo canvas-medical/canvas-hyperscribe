@@ -1,0 +1,24 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "conceptId": {
+        "type": "string",
+        "minLength": 1
+      },
+      "term": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "required": [
+      "conceptId",
+      "term"
+    ],
+    "additionalProperties": false
+  },
+  "minItems": 1,
+  "maxItems": 1
+}

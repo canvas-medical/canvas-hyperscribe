@@ -42,7 +42,8 @@ class SelectorChat:
                 '```',
                 '',
             ]
-            if response := Helper.chatter(settings).single_conversation(system_prompt, user_prompt):
+            schemas = Helper.load_schema(["selector_condition"])
+            if response := Helper.chatter(settings).single_conversation(system_prompt, user_prompt, schemas):
                 result = CodedItem(
                     label=response[0]['label'],
                     code=Helper.icd10_strip_dot(response[0]["ICD10"]),
@@ -92,7 +93,8 @@ class SelectorChat:
                 '```',
                 '',
             ]
-            if response := Helper.chatter(settings).single_conversation(system_prompt, user_prompt):
+            schemas = Helper.load_schema(["selector_lab_test"])
+            if response := Helper.chatter(settings).single_conversation(system_prompt, user_prompt, schemas):
                 result = CodedItem(
                     label=response[0]['label'],
                     code=response[0]["code"],

@@ -61,7 +61,8 @@ class UpdateDiagnose(Base):
                 '```',
                 '',
             ]
-            if response := Helper.chatter(self.settings).single_conversation(system_prompt, user_prompt):
+            schemas = Helper.load_schema(["selector_condition"])
+            if response := Helper.chatter(self.settings).single_conversation(system_prompt, user_prompt, schemas):
                 result.new_condition_code = Helper.icd10_strip_dot(response[0]["ICD10"])
         return result
 

@@ -54,7 +54,8 @@ class Instruct(Base):
                 '```',
                 '',
             ]
-            if response := Helper.chatter(self.settings).single_conversation(system_prompt, user_prompt):
+            schemas = Helper.load_schema(["selector_concept"])
+            if response := Helper.chatter(self.settings).single_conversation(system_prompt, user_prompt, schemas):
                 result.coding = Coding(
                     code=str(response[0]["conceptId"]),
                     system=CodeSystems.SNOMED,

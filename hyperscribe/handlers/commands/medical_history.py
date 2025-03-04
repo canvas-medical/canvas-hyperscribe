@@ -54,11 +54,12 @@ class MedicalHistory(Base):
                 '',
                 'Please, present your findings in a JSON format within a Markdown code block like:',
                 '```json',
-                json.dumps([{"icd10": "the concept ID", "label": "the expression"}]),
+                json.dumps([{"ICD10": "the ICD-10 code", "label": "the label"}]),
                 '```',
                 '',
             ]
-            if response := Helper.chatter(self.settings).single_conversation(system_prompt, user_prompt):
+            schemas = Helper.load_schema(["selector_condition"])
+            if response := Helper.chatter(self.settings).single_conversation(system_prompt, user_prompt, schemas):
                 result.past_medical_history = response[0]["label"]
         return result
 

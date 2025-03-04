@@ -66,11 +66,12 @@ class Allergy(Base):
                 '',
                 'Please, present your findings in a JSON format within a Markdown code block like:',
                 '```json',
-                json.dumps([{"conceptId": "the concept id, as int", "description": "the description"}]),
+                json.dumps([{"conceptId": "the concept id, as int", "term": "the description"}]),
                 '```',
                 '',
             ]
-            if response := Helper.chatter(self.settings).single_conversation(system_prompt, user_prompt):
+            schemas = Helper.load_schema(["selector_concept"])
+            if response := Helper.chatter(self.settings).single_conversation(system_prompt, user_prompt, schemas):
                 concept_id = int(response[0]["conceptId"])
                 allergy = [
                     allergy

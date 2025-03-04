@@ -87,7 +87,8 @@ class Prescription(Base):
                 "```",
                 "",
             ]
-            if response := Helper.chatter(self.settings).single_conversation(system_prompt, user_prompt):
+            schemas = Helper.load_schema(["selector_fdb_code"])
+            if response := Helper.chatter(self.settings).single_conversation(system_prompt, user_prompt, schemas):
                 fdb_code = str(response[0]["fdbCode"])
                 result = [m for m in medications if m.fdb_code == fdb_code]
 
@@ -135,8 +136,8 @@ class Prescription(Base):
             "```",
             "",
         ]
-        if response := Helper.chatter(self.settings).single_conversation(system_prompt, user_prompt):
-            # TODO should be Decimal, waiting for https://github.com/canvas-medical/canvas-plugins/discussions/332
+        schemas = Helper.load_schema(["prescription_dosage"])
+        if response := Helper.chatter(self.settings).single_conversation(system_prompt, user_prompt, schemas):
             command.quantity_to_dispense = Decimal(response[0]["quantityToDispense"]).quantize(Decimal('0.01'))
             command.refills = int(response[0]["refills"])
             command.note_to_pharmacist = response[0]["noteToPharmacist"]

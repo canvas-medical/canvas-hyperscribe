@@ -92,7 +92,11 @@ class AudioInterpreter:
         extension = "mp3"
         for audio in audio_chunks:
             conversation.add_audio(audio, extension)
-        response = conversation.chat([], True)
+
+        response = conversation.chat(
+            Helper.load_schema(["voice_split", "voice_identification"]),
+            True,
+        )
         if response.has_error:
             return response
         if len(response.content) < 2:
@@ -127,7 +131,7 @@ class AudioInterpreter:
             "isNew": "the instruction is new for the discussion, as boolean",
             "isUpdated": "the instruction is an update of one already identified in the discussion, as boolean",
         }
-
+        schema = self.json_schema([instance.class_name() for instance in self._command_context])
         system_prompt = [
             "The conversation is in the context of a clinical encounter between patient and licensed healthcare provider.",
             "The user will submit the transcript of the visit of a patient with the healthcare provider.",
@@ -145,7 +149,7 @@ class AudioInterpreter:
             "",
             "The JSON will be validated with the schema:",
             "```json",
-            json.dumps(self.json_schema([instance.class_name() for instance in self._command_context])),
+            json.dumps(schema),
             "```",
             "",
         ]
@@ -167,7 +171,7 @@ class AudioInterpreter:
                 "```",
                 "Include them in your response, with any necessary additional information.",
             ])
-        result = Helper.chatter(self.settings).single_conversation(system_prompt, user_prompt)
+        result = Helper.chatter(self.settings).single_conversation(system_prompt, user_prompt, [schema])
         if result and (constraints := self.instruction_constraints()):
             user_prompt = [
                 "Here is your last response:",
@@ -182,7 +186,7 @@ class AudioInterpreter:
             user_prompt.append("")
             user_prompt.append("Return the original JSON if valid, or provide a corrected version to follow the constraints if needed.")
             user_prompt.append("")
-            result = Helper.chatter(self.settings).single_conversation(system_prompt, user_prompt)
+            result = Helper.chatter(self.settings).single_conversation(system_prompt, user_prompt, [schema])
         return result
 
     def create_sdk_command_parameters(self, instruction: Instruction) -> tuple[Instruction, dict | None]:
@@ -213,7 +217,7 @@ class AudioInterpreter:
             "```",
             "",
         ]
-        response = Helper.chatter(self.settings).single_conversation(system_prompt, user_prompt)
+        response = Helper.chatter(self.settings).single_conversation(system_prompt, user_prompt, [])
         if response:
             result = instruction, response[0]
         return result

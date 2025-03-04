@@ -239,23 +239,24 @@ def test_single_conversation(chat):
 
     system_prompt = ["theSystemPrompt"]
     user_prompt = ["theUserPrompt"]
+    schemas = ["schema1", "schema2"]
     tested = LlmBase("theApiKey", "theModel")
 
     # without error
     chat.side_effect = [JsonExtract(error="theError", has_error=False, content=["theContent"])]
-    result = tested.single_conversation(system_prompt, user_prompt)
+    result = tested.single_conversation(system_prompt, user_prompt, schemas)
     assert result == ["theContent"]
 
-    calls = [call([])]
+    calls = [call(["schema1", "schema2"])]
     assert chat.mock_calls == calls
     reset_mocks()
 
     # with error
     chat.side_effect = [JsonExtract(error="theError", has_error=True, content=["theContent"])]
-    result = tested.single_conversation(system_prompt, user_prompt)
+    result = tested.single_conversation(system_prompt, user_prompt, schemas)
     assert result == []
 
-    calls = [call([])]
+    calls = [call(["schema1", "schema2"])]
     assert chat.mock_calls == calls
     reset_mocks()
 

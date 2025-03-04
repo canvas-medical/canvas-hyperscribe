@@ -53,6 +53,21 @@ def test_condition_from(search_conditions, chatter):
         '```',
         '',
     ]
+    schemas = [{''
+                '$schema': 'http://json-schema.org/draft-07/schema#',
+                'type': 'array',
+                'items': {
+                    'type': 'object',
+                    'properties': {
+                        'ICD10': {'type': 'string', 'minLength': 1},
+                        'label': {'type': 'string', 'minLength': 1},
+                    },
+                    'required': ['ICD10', 'label'],
+                    'additionalProperties': False,
+                },
+                'minItems': 1,
+                'maxItems': 1,
+                }]
     keywords = ['keyword1', 'keyword2', 'keyword3', "ICD01", "ICD02", "ICD03"]
     search = [
         Icd10Condition(code="code123", label="labelA"),
@@ -71,7 +86,7 @@ def test_condition_from(search_conditions, chatter):
     assert search_conditions.mock_calls == calls
     calls = [
         call(settings),
-        call().single_conversation(system_prompt, user_prompt),
+        call().single_conversation(system_prompt, user_prompt, schemas),
     ]
     assert chatter.mock_calls == calls
     reset_mocks()
@@ -99,7 +114,7 @@ def test_condition_from(search_conditions, chatter):
     assert search_conditions.mock_calls == calls
     calls = [
         call(settings),
-        call().single_conversation(system_prompt, user_prompt),
+        call().single_conversation(system_prompt, user_prompt, schemas),
     ]
     assert chatter.mock_calls == calls
     reset_mocks()
@@ -180,6 +195,21 @@ def test_lab_test_from(lab_test_db, chatter):
             '',
         ],
     ]
+    schemas = [{
+        '$schema': 'http://json-schema.org/draft-07/schema#',
+        'type': 'array',
+        'items': {
+            'type': 'object',
+            'properties': {
+                'code': {'type': 'string', 'minLength': 1},
+                'label': {'type': 'string', 'minLength': 1},
+            },
+            'required': ['code', 'label'],
+            'additionalProperties': False,
+        },
+        'minItems': 1,
+        'maxItems': 1,
+    }]
     lab_tests = [
         LabPartnerTest(order_code="code123", order_name="labelA"),
         LabPartnerTest(order_code="code369", order_name="labelB"),
@@ -208,7 +238,7 @@ def test_lab_test_from(lab_test_db, chatter):
     assert lab_test_db.mock_calls == calls
     calls = [
         call(settings),
-        call().single_conversation(system_prompt, user_prompts[0]),
+        call().single_conversation(system_prompt, user_prompts[0], schemas),
     ]
     assert chatter.mock_calls == calls
     reset_mocks()
@@ -228,7 +258,7 @@ def test_lab_test_from(lab_test_db, chatter):
     assert lab_test_db.mock_calls == calls
     calls = [
         call(settings),
-        call().single_conversation(system_prompt, user_prompts[1]),
+        call().single_conversation(system_prompt, user_prompts[1], schemas),
     ]
     assert chatter.mock_calls == calls
     reset_mocks()
@@ -249,7 +279,7 @@ def test_lab_test_from(lab_test_db, chatter):
     assert lab_test_db.mock_calls == calls
     calls = [
         call(settings),
-        call().single_conversation(system_prompt, user_prompts[0]),
+        call().single_conversation(system_prompt, user_prompts[0], schemas),
     ]
     assert chatter.mock_calls == calls
     reset_mocks()
