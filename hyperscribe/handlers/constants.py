@@ -1,10 +1,12 @@
 class Constants:
+    ANTHROPIC_CHAT_TEXT = "claude-3-5-sonnet-20241022"  # LLM model used for text completion
     GOOGLE_CHAT_ALL = "models/gemini-1.5-flash"  # LLM model used for speech to text and text completion
     MAX_ATTEMPTS_LLM_HTTP = 3
     MAX_ATTEMPTS_LLM_JSON = 3
     MAX_WORKERS = 10  # max parallel executions
     OPENAI_CHAT_AUDIO = "gpt-4o-audio-preview"  # LLM model used for speech to text
     OPENAI_CHAT_TEXT = "gpt-4o"  # LLM model used for text completion
+    VENDOR_ANTHROPIC = "Anthropic"
     VENDOR_GOOGLE = "Google"
     VENDOR_OPENAI = "OpenAI"
     # schema_key field values of the Command view (canvas_sdk.v1.data.command.Command)

@@ -5,12 +5,14 @@ from tests.helper import is_constant
 def test_constants():
     tested = Constants
     constants = {
+        "ANTHROPIC_CHAT_TEXT": "claude-3-5-sonnet-20241022",
         "GOOGLE_CHAT_ALL": "models/gemini-1.5-flash",
         "MAX_ATTEMPTS_LLM_HTTP": 3,
         "MAX_ATTEMPTS_LLM_JSON": 3,
         "MAX_WORKERS": 10,
         "OPENAI_CHAT_AUDIO": "gpt-4o-audio-preview",
         "OPENAI_CHAT_TEXT": "gpt-4o",
+        "VENDOR_ANTHROPIC": "Anthropic",
         "VENDOR_GOOGLE": "Google",
         "VENDOR_OPENAI": "OpenAI",
         "SCHEMA_KEY_ALLERGY": "allergy",

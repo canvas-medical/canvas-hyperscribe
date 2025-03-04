@@ -3,6 +3,7 @@ from enum import Enum
 from unittest.mock import patch, call
 
 from hyperscribe.handlers.helper import Helper
+from hyperscribe.handlers.llms.llm_anthropic import LlmAnthropic
 from hyperscribe.handlers.llms.llm_google import LlmGoogle
 from hyperscribe.handlers.llms.llm_openai import LlmOpenai
 from hyperscribe.handlers.structures.settings import Settings
@@ -92,6 +93,7 @@ def test_icd10_strip_dot():
 def test_chatter():
     tested = Helper
     tests = [
+        ("Anthropic", LlmAnthropic, "claude-3-5-sonnet-20241022"),
         ("Google", LlmGoogle, "models/gemini-1.5-flash"),
         ("Any", LlmOpenai, "gpt-4o"),
     ]

@@ -4,6 +4,7 @@ from re import match
 from typing import Type
 
 from hyperscribe.handlers.constants import Constants
+from hyperscribe.handlers.llms.llm_anthropic import LlmAnthropic
 from hyperscribe.handlers.llms.llm_base import LlmBase
 from hyperscribe.handlers.llms.llm_google import LlmGoogle
 from hyperscribe.handlers.llms.llm_openai import LlmOpenai
@@ -45,6 +46,8 @@ class Helper:
     def chatter(cls, settings: Settings) -> LlmBase:
         if settings.llm_text.vendor.upper() == Constants.VENDOR_GOOGLE.upper():
             return LlmGoogle(settings.llm_text.api_key, Constants.GOOGLE_CHAT_ALL)
+        if settings.llm_text.vendor.upper() == Constants.VENDOR_ANTHROPIC.upper():
+            return LlmAnthropic(settings.llm_text.api_key, Constants.ANTHROPIC_CHAT_TEXT)
         # if settings.llm_text.upper() == Constants.VENDOR_OPENAI.upper():
         return LlmOpenai(settings.llm_text.api_key, Constants.OPENAI_CHAT_TEXT)
 

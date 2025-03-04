@@ -46,6 +46,21 @@ canvas logs --host my-canvas-host
 
 The `secrets` are stored in the Canvas instance database and can be upsert in `https://my-canvas-host.canvasmedical.com/admin/plugin_io/plugin/`.
 
+| Secret                      | Values                          | Comments                                      |
+|-----------------------------|---------------------------------|-----------------------------------------------|
+| `AudioHost`                 |                                 | `audio` Canvas service                        |
+| `AudioIntervalSeconds`      | `20`                            | duration of each audio chunk                  |
+| `VendorTextLLM`             | `OpenAi`, `Google`, `Anthropic` | by default `OpenAi` (case insensitive)        |
+| `KeyTextLLM`                |                                 | the vendor's API key                          |
+| `VendorAudioLLM`            | `OpenAi`, `Google`              | by default `OpenAi` (case insensitive)        |
+| `KeyAudioLLM`               |                                 | the vendor's API key                          |
+| `ScienceHost`               |                                 | `science` Canvas service                      |
+| `OntologiesHost`            |                                 | `ontologies` Canvas service                   |
+| `PreSharedKey`              |                                 | key provided by Canvas to access `ontologies` |
+| `StructuredReasonForVisit`  | `y`, `yes` or `1`               | any other value means `no`/`false`            |
+
+
+
 ## Unit tests
 
 The `hyperscribe` code is tested with `pytest`.
