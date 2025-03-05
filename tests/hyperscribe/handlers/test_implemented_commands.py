@@ -9,6 +9,7 @@ def test_implemented_commands():
         assert issubclass(command, Base)
     commands = [c.class_name() for c in result]
     expected = [
+        'AdjustPrescription',
         'Allergy',
         'Assess',
         'CloseGoal',
@@ -23,6 +24,7 @@ def test_implemented_commands():
         'LabOrder',
         'MedicalHistory',
         'Medication',
+        'Perform',
         'PhysicalExam',
         'Plan',
         'Prescription',
@@ -30,6 +32,8 @@ def test_implemented_commands():
         'ReasonForVisit',
         'Refill',
         'RemoveAllergy',
+        'ResolveCondition',
+        'ReviewOfSystem',
         'StopMedication',
         'SurgeryHistory',
         'Task',
@@ -44,6 +48,7 @@ def test_schema_key2instruction():
     tested = ImplementedCommands
     result = tested.schema_key2instruction()
     expected = {
+        'adjustPrescription': 'AdjustPrescription',
         'allergy': 'Allergy',
         'assess': 'Assess',
         'closeGoal': 'CloseGoal',
@@ -59,12 +64,15 @@ def test_schema_key2instruction():
         'labOrder': 'LabOrder',
         'medicalHistory': 'MedicalHistory',
         'medicationStatement': 'Medication',
+        'perform': 'Perform',
         'plan': 'Plan',
         'prescribe': 'Prescription',
         'questionnaire': 'Questionnaire',
         'reasonForVisit': 'ReasonForVisit',
         'refill': 'Refill',
         'removeAllergy': 'RemoveAllergy',
+        'resolveCondition': 'ResolveCondition',
+        'ros': 'ReviewOfSystem',
         'stopMedication': 'StopMedication',
         'surgicalHistory': 'SurgeryHistory',
         'task': 'Task',

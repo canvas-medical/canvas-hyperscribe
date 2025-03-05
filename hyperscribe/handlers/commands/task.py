@@ -6,6 +6,7 @@ from canvas_sdk.v1.data import TaskLabel, Staff
 from hyperscribe.handlers.commands.base import Base
 from hyperscribe.handlers.constants import Constants
 from hyperscribe.handlers.helper import Helper
+from hyperscribe.handlers.json_schema import JsonSchema
 from hyperscribe.handlers.structures.coded_item import CodedItem
 
 
@@ -57,7 +58,7 @@ class Task(Base):
             '```',
             '',
         ]
-        schemas = Helper.load_schema(["selector_staff"])
+        schemas = JsonSchema.get(["selector_staff"])
         if response := Helper.chatter(self.settings).single_conversation(system_prompt, user_prompt, schemas):
             staff_id = int(response[0]["staffId"])
             return TaskAssigner(to=AssigneeType.STAFF, id=staff_id)
@@ -93,7 +94,7 @@ class Task(Base):
             '```',
             '',
         ]
-        schemas = Helper.load_schema(["selector_label"])
+        schemas = JsonSchema.get(["selector_label"])
         if response := Helper.chatter(self.settings).single_conversation(system_prompt, user_prompt, schemas):
             return [label["name"] for label in response]
         return None

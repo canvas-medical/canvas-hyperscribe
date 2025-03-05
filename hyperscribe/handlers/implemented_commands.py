@@ -1,5 +1,6 @@
 from typing import Type
 
+from hyperscribe.handlers.commands.adjust_prescription import AdjustPrescription
 from hyperscribe.handlers.commands.allergy import Allergy
 from hyperscribe.handlers.commands.assess import Assess
 from hyperscribe.handlers.commands.base import Base
@@ -15,6 +16,7 @@ from hyperscribe.handlers.commands.instruct import Instruct
 from hyperscribe.handlers.commands.lab_order import LabOrder
 from hyperscribe.handlers.commands.medical_history import MedicalHistory
 from hyperscribe.handlers.commands.medication import Medication
+from hyperscribe.handlers.commands.perform import Perform
 from hyperscribe.handlers.commands.physical_exam import PhysicalExam
 from hyperscribe.handlers.commands.plan import Plan
 from hyperscribe.handlers.commands.prescription import Prescription
@@ -22,6 +24,8 @@ from hyperscribe.handlers.commands.questionnaire import Questionnaire
 from hyperscribe.handlers.commands.reason_for_visit import ReasonForVisit
 from hyperscribe.handlers.commands.refill import Refill
 from hyperscribe.handlers.commands.remove_allergy import RemoveAllergy
+from hyperscribe.handlers.commands.resolve_condition import ResolveCondition
+from hyperscribe.handlers.commands.review_of_system import ReviewOfSystem
 from hyperscribe.handlers.commands.stop_medication import StopMedication
 from hyperscribe.handlers.commands.surgery_history import SurgeryHistory
 from hyperscribe.handlers.commands.task import Task
@@ -35,6 +39,7 @@ class ImplementedCommands:
     @classmethod
     def command_list(cls) -> list[Type[Base]]:
         return [
+            AdjustPrescription,
             Allergy,
             Assess,
             CloseGoal,
@@ -49,6 +54,7 @@ class ImplementedCommands:
             LabOrder,
             MedicalHistory,
             Medication,
+            Perform,
             PhysicalExam,
             Plan,
             Prescription,
@@ -56,6 +62,8 @@ class ImplementedCommands:
             ReasonForVisit,
             Refill,
             RemoveAllergy,
+            ResolveCondition,
+            ReviewOfSystem,
             StopMedication,
             SurgeryHistory,
             Task,

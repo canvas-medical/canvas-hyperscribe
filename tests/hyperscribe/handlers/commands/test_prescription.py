@@ -311,7 +311,7 @@ def test_medications_from(demographic, current_allergies, staged_commands_of, me
     assert medication_details.mock_calls == calls
     calls = [
         call(tested.settings),
-        call().single_conversation(system_prompt, user_prompts["with_allergies"],schemas),
+        call().single_conversation(system_prompt, user_prompts["with_allergies"], schemas),
     ]
     assert chatter.mock_calls == calls
     reset_mocks()

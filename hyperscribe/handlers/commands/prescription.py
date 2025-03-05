@@ -7,6 +7,7 @@ from hyperscribe.handlers.canvas_science import CanvasScience
 from hyperscribe.handlers.commands.base import Base
 from hyperscribe.handlers.constants import Constants
 from hyperscribe.handlers.helper import Helper
+from hyperscribe.handlers.json_schema import JsonSchema
 from hyperscribe.handlers.structures.coded_item import CodedItem
 from hyperscribe.handlers.structures.medication_detail import MedicationDetail
 
@@ -87,7 +88,7 @@ class Prescription(Base):
                 "```",
                 "",
             ]
-            schemas = Helper.load_schema(["selector_fdb_code"])
+            schemas = JsonSchema.get(["selector_fdb_code"])
             if response := Helper.chatter(self.settings).single_conversation(system_prompt, user_prompt, schemas):
                 fdb_code = str(response[0]["fdbCode"])
                 result = [m for m in medications if m.fdb_code == fdb_code]
@@ -136,7 +137,7 @@ class Prescription(Base):
             "```",
             "",
         ]
-        schemas = Helper.load_schema(["prescription_dosage"])
+        schemas = JsonSchema.get(["prescription_dosage"])
         if response := Helper.chatter(self.settings).single_conversation(system_prompt, user_prompt, schemas):
             command.quantity_to_dispense = Decimal(response[0]["quantityToDispense"]).quantize(Decimal('0.01'))
             command.refills = int(response[0]["refills"])

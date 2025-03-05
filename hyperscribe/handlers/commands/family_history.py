@@ -6,6 +6,7 @@ from hyperscribe.handlers.canvas_science import CanvasScience
 from hyperscribe.handlers.commands.base import Base
 from hyperscribe.handlers.constants import Constants
 from hyperscribe.handlers.helper import Helper
+from hyperscribe.handlers.json_schema import JsonSchema
 from hyperscribe.handlers.structures.coded_item import CodedItem
 
 
@@ -55,7 +56,7 @@ class FamilyHistory(Base):
                 '```',
                 '',
             ]
-            schemas = Helper.load_schema(["selector_concept"])
+            schemas = JsonSchema.get(["selector_concept"])
             if response := Helper.chatter(self.settings).single_conversation(system_prompt, user_prompt, schemas):
                 result.family_history = response[0]["term"]
         return result

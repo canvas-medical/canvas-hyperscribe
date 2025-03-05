@@ -5,6 +5,7 @@ from canvas_sdk.commands.base import _BaseCommand as BaseCommand
 
 from hyperscribe.handlers.helper import Helper
 from hyperscribe.handlers.implemented_commands import ImplementedCommands
+from hyperscribe.handlers.json_schema import JsonSchema
 from hyperscribe.handlers.limited_cache import LimitedCache
 from hyperscribe.handlers.structures.instruction import Instruction
 from hyperscribe.handlers.structures.json_extract import JsonExtract
@@ -94,7 +95,7 @@ class AudioInterpreter:
             conversation.add_audio(audio, extension)
 
         response = conversation.chat(
-            Helper.load_schema(["voice_split", "voice_identification"]),
+            JsonSchema.get(["voice_split", "voice_identification"]),
             True,
         )
         if response.has_error:

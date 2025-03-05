@@ -7,6 +7,7 @@ from django.db.models import Q
 
 from hyperscribe.handlers.canvas_science import CanvasScience
 from hyperscribe.handlers.helper import Helper
+from hyperscribe.handlers.json_schema import JsonSchema
 from hyperscribe.handlers.structures.coded_item import CodedItem
 from hyperscribe.handlers.structures.settings import Settings
 
@@ -42,7 +43,7 @@ class SelectorChat:
                 '```',
                 '',
             ]
-            schemas = Helper.load_schema(["selector_condition"])
+            schemas = JsonSchema.get(["selector_condition"])
             if response := Helper.chatter(settings).single_conversation(system_prompt, user_prompt, schemas):
                 result = CodedItem(
                     label=response[0]['label'],
@@ -93,7 +94,7 @@ class SelectorChat:
                 '```',
                 '',
             ]
-            schemas = Helper.load_schema(["selector_lab_test"])
+            schemas = JsonSchema.get(["selector_lab_test"])
             if response := Helper.chatter(settings).single_conversation(system_prompt, user_prompt, schemas):
                 result = CodedItem(
                     label=response[0]['label'],
