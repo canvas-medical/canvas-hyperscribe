@@ -117,7 +117,7 @@ class HelperSettings:
 
     @classmethod
     def nuanced_differences(cls, case: str, accepted_levels: list[str], system_prompt: list[str], user_prompt: list[str]) -> tuple[bool, str]:
-        conversation = Helper.chatter(cls.settings(), MemoryLog("note_uuid", case))
+        conversation = Helper.chatter(cls.settings(), MemoryLog("theNoteUuid", case))
         conversation.set_system_prompt(system_prompt)
         conversation.set_user_prompt(user_prompt)
         with (Path(__file__).parent / "schema_differences.json").open("r") as f:

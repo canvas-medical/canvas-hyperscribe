@@ -19,6 +19,12 @@ def pytest_addoption(parser):
         default="",
         help="patient uuid to consider",
     )
+    parser.addoption(
+        "--print-logs",
+        action="store_true",
+        default=False,
+        help="Print the logs at the end of the test",
+    )
 
 
 def pytest_configure(config):
@@ -33,10 +39,13 @@ def pytest_configure(config):
     for key, value in parameters.items():
         print(f"{key}: {value}")
 
-# TODO add an option to print the LLM logs at the end of the test session
-# def pytest_unconfigure(config):
-#     if "note_uuid" in MemoryLog.ENTRIES:
-#         print(MemoryLog.end_session("note_uuid"))
+
+def pytest_unconfigure(config):
+    if config.getoption("--print-logs", default=False):
+        note_uuid_list = list(MemoryLog.ENTRIES.keys())
+        for note_uuid in note_uuid_list:
+            print(MemoryLog.end_session(note_uuid))
+
 
 @pytest.fixture
 def allowed_levels(request):

@@ -202,8 +202,10 @@ def test_constants():
 
 @patch("hyperscribe.handlers.commander.MemoryLog")
 @patch("hyperscribe.handlers.commander.AwsS3")
-def test_flush_log(aws_s3, memory_log):
+@patch.object(log, "info")
+def test_flush_log(info, aws_s3, memory_log):
     def reset_mocks():
+        info.reset_mock()
         aws_s3.reset_mock()
         memory_log.reset_mock()
 
@@ -221,6 +223,8 @@ def test_flush_log(aws_s3, memory_log):
         memory_log.end_session.side_effect = ["theLogText"]
         tested = Commander(event, secrets)
         tested.flush_log("theNoteUuid", "theLogPath")
+        calls = [call("--> log path: theLogPath")] if expected else []
+        assert info.mock_calls == calls
         calls = [
             call("theAwsKey", "theAwsSecret", "theAwsRegion", "theAwsBucket"),
             call().upload_text_to_s3("theLogPath", "theLogText"),

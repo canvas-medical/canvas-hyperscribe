@@ -103,6 +103,7 @@ class Commander(BaseProtocol):
         region = self.secrets.get(self.SECRET_AWS_REGION)
         bucket = self.secrets.get(self.SECRET_AWS_BUCKET)
         if aws_key and aws_secret and region and bucket:
+            log.info(f"--> log path: {log_path}")
             client_s3 = AwsS3(aws_key, aws_secret, region, bucket)
             client_s3.upload_text_to_s3(log_path, MemoryLog.end_session(note_uuid))
 

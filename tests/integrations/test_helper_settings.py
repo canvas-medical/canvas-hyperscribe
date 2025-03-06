@@ -282,7 +282,7 @@ def test_nuanced_differences(settings, chatter, memory_log):
 
     calls = [call()]
     assert settings.mock_calls == calls
-    calls = [call("note_uuid", "theCase")]
+    calls = [call("theNoteUuid", "theCase")]
     assert memory_log.mock_calls == calls
     calls = [call("theSettings", "MemoryLogInstance")]
     assert chatter.mock_calls == calls
@@ -306,7 +306,7 @@ def test_nuanced_differences(settings, chatter, memory_log):
 
     calls = [call()]
     assert settings.mock_calls == calls
-    calls = [call("note_uuid", "theCase")]
+    calls = [call("theNoteUuid", "theCase")]
     assert memory_log.mock_calls == calls
     calls = [call("theSettings", "MemoryLogInstance")]
     assert chatter.mock_calls == calls
@@ -328,7 +328,7 @@ def test_nuanced_differences(settings, chatter, memory_log):
 
     calls = [call()]
     assert settings.mock_calls == calls
-    calls = [call("note_uuid", "theCase")]
+    calls = [call("theNoteUuid", "theCase")]
     assert memory_log.mock_calls == calls
     calls = [call("theSettings", "MemoryLogInstance")]
     assert chatter.mock_calls == calls

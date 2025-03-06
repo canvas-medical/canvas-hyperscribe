@@ -32,7 +32,16 @@ def test_parameters2command(parameters2command, allowed_levels, audio_interprete
         assert response.__class__.__module__ == expected[idx]["module"]
         assert response.__class__.__name__ == expected[idx]["class"]
         assert isinstance(response, BaseCommand)
-        if (automated := response.values) != (reviewed := expected[idx]["attributes"]):
+
+        forced = {
+            "note_uuid": "theNoteUuid",
+            "command_uuid": "theCommandUuid",
+        }
+
+        automated = response.values | forced
+        reviewed = expected[idx]["attributes"] | forced
+
+        if automated != reviewed:
             valid, differences = HelperSettings.json_nuanced_differences(
                 f"{parameters2command.stem}-parameters2command",
                 allowed_levels,
