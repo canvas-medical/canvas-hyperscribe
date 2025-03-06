@@ -1,10 +1,9 @@
-from unittest.mock import patch, call
+from unittest.mock import patch, call, MagicMock
 
 from canvas_sdk.v1.data.lab import LabPartnerTest
 from django.db.models import Q
 
 from hyperscribe.handlers.canvas_science import CanvasScience
-from hyperscribe.handlers.helper import Helper
 from hyperscribe.handlers.selector_chat import SelectorChat
 from hyperscribe.handlers.structures.coded_item import CodedItem
 from hyperscribe.handlers.structures.icd10_condition import Icd10Condition
@@ -12,9 +11,10 @@ from hyperscribe.handlers.structures.settings import Settings
 from hyperscribe.handlers.structures.vendor_key import VendorKey
 
 
-@patch.object(Helper, "chatter")
 @patch.object(CanvasScience, "search_conditions")
-def test_condition_from(search_conditions, chatter):
+def test_condition_from(search_conditions):
+    chatter = MagicMock()
+
     def reset_mocks():
         search_conditions.reset_mock()
         chatter.reset_mock()
@@ -77,25 +77,22 @@ def test_condition_from(search_conditions, chatter):
 
     # all good
     search_conditions.side_effect = [search]
-    chatter.return_value.single_conversation.side_effect = [[{"ICD10": "CODE98.76", "label": "theCondition"}]]
+    chatter.single_conversation.side_effect = [[{"ICD10": "CODE98.76", "label": "theCondition"}]]
 
-    result = tested.condition_from(settings, keywords[:3], keywords[3:], "theComment")
+    result = tested.condition_from(chatter, settings, keywords[:3], keywords[3:], "theComment")
     expected = CodedItem(label="theCondition", code="CODE9876", uuid="")
     assert result == expected
     calls = [call('scienceHost', keywords)]
     assert search_conditions.mock_calls == calls
-    calls = [
-        call(settings),
-        call().single_conversation(system_prompt, user_prompt, schemas),
-    ]
+    calls = [call.single_conversation(system_prompt, user_prompt, schemas)]
     assert chatter.mock_calls == calls
     reset_mocks()
 
     # no condition found
     search_conditions.side_effect = [[]]
-    chatter.return_value.single_conversation.side_effect = []
+    chatter.single_conversation.side_effect = []
 
-    result = tested.condition_from(settings, keywords[:3], keywords[3:], "theComment")
+    result = tested.condition_from(chatter, settings, keywords[:3], keywords[3:], "theComment")
     expected = CodedItem(label="", code="", uuid="")
     assert result == expected
     calls = [call('scienceHost', keywords)]
@@ -105,24 +102,22 @@ def test_condition_from(search_conditions, chatter):
 
     # no response
     search_conditions.side_effect = [search]
-    chatter.return_value.single_conversation.side_effect = [[]]
+    chatter.single_conversation.side_effect = [[]]
 
-    result = tested.condition_from(settings, keywords[:3], keywords[3:], "theComment")
+    result = tested.condition_from(chatter, settings, keywords[:3], keywords[3:], "theComment")
     expected = CodedItem(label="", code="", uuid="")
     assert result == expected
     calls = [call('scienceHost', keywords)]
     assert search_conditions.mock_calls == calls
-    calls = [
-        call(settings),
-        call().single_conversation(system_prompt, user_prompt, schemas),
-    ]
+    calls = [call.single_conversation(system_prompt, user_prompt, schemas)]
     assert chatter.mock_calls == calls
     reset_mocks()
 
 
-@patch.object(Helper, "chatter")
 @patch.object(LabPartnerTest, "objects")
-def test_lab_test_from(lab_test_db, chatter):
+def test_lab_test_from(lab_test_db):
+    chatter = MagicMock()
+
     def reset_mocks():
         lab_test_db.reset_mock()
         chatter.reset_mock()
@@ -224,9 +219,9 @@ def test_lab_test_from(lab_test_db, chatter):
     # all good
     # -- with conditions
     lab_test_db.filter.return_value.filter.side_effect = [lab_tests, lab_tests]
-    chatter.return_value.single_conversation.side_effect = [[{"code": "CODE9876", "label": "theLabTest"}]]
+    chatter.single_conversation.side_effect = [[{"code": "CODE9876", "label": "theLabTest"}]]
 
-    result = tested.lab_test_from(settings, "theLabPartner", expressions, "theComment", conditions)
+    result = tested.lab_test_from(chatter, settings, "theLabPartner", expressions, "theComment", conditions)
     expected = CodedItem(label="theLabTest", code="CODE9876", uuid="")
     assert result == expected
     calls = [
@@ -236,17 +231,14 @@ def test_lab_test_from(lab_test_db, chatter):
         call.filter().filter(Q(('keywords__icontains', 'word4'))),
     ]
     assert lab_test_db.mock_calls == calls
-    calls = [
-        call(settings),
-        call().single_conversation(system_prompt, user_prompts[0], schemas),
-    ]
+    calls = [call.single_conversation(system_prompt, user_prompts[0], schemas)]
     assert chatter.mock_calls == calls
     reset_mocks()
     # -- without conditions
     lab_test_db.filter.return_value.filter.side_effect = [lab_tests, lab_tests]
-    chatter.return_value.single_conversation.side_effect = [[{"code": "CODE9876", "label": "theLabTest"}]]
+    chatter.single_conversation.side_effect = [[{"code": "CODE9876", "label": "theLabTest"}]]
 
-    result = tested.lab_test_from(settings, "theLabPartner", expressions, "theComment", [])
+    result = tested.lab_test_from(chatter, settings, "theLabPartner", expressions, "theComment", [])
     expected = CodedItem(label="theLabTest", code="CODE9876", uuid="")
     assert result == expected
     calls = [
@@ -256,18 +248,15 @@ def test_lab_test_from(lab_test_db, chatter):
         call.filter().filter(Q(('keywords__icontains', 'word4'))),
     ]
     assert lab_test_db.mock_calls == calls
-    calls = [
-        call(settings),
-        call().single_conversation(system_prompt, user_prompts[1], schemas),
-    ]
+    calls = [call.single_conversation(system_prompt, user_prompts[1], schemas)]
     assert chatter.mock_calls == calls
     reset_mocks()
 
     # no response
     lab_test_db.filter.return_value.filter.side_effect = [lab_tests, lab_tests]
-    chatter.return_value.single_conversation.side_effect = [[]]
+    chatter.single_conversation.side_effect = [[]]
 
-    result = tested.lab_test_from(settings, "theLabPartner", expressions, "theComment", conditions)
+    result = tested.lab_test_from(chatter, settings, "theLabPartner", expressions, "theComment", conditions)
     expected = CodedItem(label="", code="", uuid="")
     assert result == expected
     calls = [
@@ -277,18 +266,15 @@ def test_lab_test_from(lab_test_db, chatter):
         call.filter().filter(Q(('keywords__icontains', 'word4'))),
     ]
     assert lab_test_db.mock_calls == calls
-    calls = [
-        call(settings),
-        call().single_conversation(system_prompt, user_prompts[0], schemas),
-    ]
+    calls = [call.single_conversation(system_prompt, user_prompts[0], schemas)]
     assert chatter.mock_calls == calls
     reset_mocks()
 
     # no lab test
     lab_test_db.filter.return_value.filter.side_effect = [[], []]
-    chatter.return_value.single_conversation.side_effect = []
+    chatter.single_conversation.side_effect = []
 
-    result = tested.lab_test_from(settings, "theLabPartner", expressions, "theComment", conditions)
+    result = tested.lab_test_from(chatter, settings, "theLabPartner", expressions, "theComment", conditions)
     expected = CodedItem(label="", code="", uuid="")
     assert result == expected
     calls = [

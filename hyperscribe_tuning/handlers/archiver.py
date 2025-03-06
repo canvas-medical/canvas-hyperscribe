@@ -1,6 +1,7 @@
 # from __future__ import annotations
 import json
 from datetime import datetime, timezone
+from http import HTTPStatus
 
 from canvas_sdk.effects import Effect
 from canvas_sdk.events import EventType
@@ -21,7 +22,7 @@ class Audio:
         log.info(f"           code: {response.status_code}")
         log.info(f"        content: {len(response.content)}")
         # Check if the request was successful
-        if response.status_code == 200:
+        if response.status_code == HTTPStatus.OK.value:
             return response.content
         return b""
 

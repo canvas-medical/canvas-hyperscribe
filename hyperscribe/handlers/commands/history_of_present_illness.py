@@ -2,6 +2,7 @@ from canvas_sdk.commands.commands.history_present_illness import HistoryOfPresen
 
 from hyperscribe.handlers.commands.base import Base
 from hyperscribe.handlers.constants import Constants
+from hyperscribe.handlers.llms.llm_base import LlmBase
 from hyperscribe.handlers.structures.coded_item import CodedItem
 
 
@@ -16,7 +17,7 @@ class HistoryOfPresentIllness(Base):
             return CodedItem(label=narrative, code="", uuid="")
         return None
 
-    def command_from_json(self, parameters: dict) -> None | HistoryOfPresentIllnessCommand:
+    def command_from_json(self, chatter: LlmBase, parameters: dict) -> None | HistoryOfPresentIllnessCommand:
         return HistoryOfPresentIllnessCommand(
             narrative=parameters["narrative"],
             note_uuid=self.note_uuid,

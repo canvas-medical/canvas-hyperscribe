@@ -1,5 +1,5 @@
 from datetime import date
-from unittest.mock import patch, call
+from unittest.mock import patch, call, MagicMock
 
 from canvas_sdk.commands.commands.follow_up import FollowUpCommand
 
@@ -87,6 +87,8 @@ def test_staged_command_extract():
 @patch.object(LimitedCache, "existing_reason_for_visits")
 @patch.object(LimitedCache, "existing_note_types")
 def test_command_from_json(existing_note_types, existing_reason_for_visits):
+    chatter = MagicMock()
+
     def reset_mocks():
         existing_note_types.reset_mock()
         existing_reason_for_visits.reset_mock()
@@ -121,7 +123,7 @@ def test_command_from_json(existing_note_types, existing_reason_for_visits):
             "reasonForVisit": "theReasonForVisit",
             "comment": "theComment",
         }
-        result = tested.command_from_json(parameters)
+        result = tested.command_from_json(chatter, parameters)
         expected = FollowUpCommand(
             note_uuid="noteUuid",
             structured=False,
@@ -133,6 +135,7 @@ def test_command_from_json(existing_note_types, existing_reason_for_visits):
         assert result == expected
         assert existing_note_types.mock_calls == calls
         assert existing_reason_for_visits.mock_calls == []
+        assert chatter.mock_calls == []
         reset_mocks()
 
     # with structured RfV
@@ -153,7 +156,7 @@ def test_command_from_json(existing_note_types, existing_reason_for_visits):
             "reasonForVisitIndex": idx,
             "comment": "theComment",
         }
-        result = tested.command_from_json(parameters)
+        result = tested.command_from_json(chatter, parameters)
         expected = FollowUpCommand(
             note_uuid="noteUuid",
             structured=exp_structured,
@@ -170,6 +173,7 @@ def test_command_from_json(existing_note_types, existing_reason_for_visits):
         assert existing_note_types.mock_calls == calls
         calls = [call()]
         assert existing_reason_for_visits.mock_calls == calls
+        assert chatter.mock_calls == []
         reset_mocks()
 
 

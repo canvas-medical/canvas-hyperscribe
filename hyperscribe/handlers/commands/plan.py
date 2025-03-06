@@ -2,6 +2,7 @@ from canvas_sdk.commands.commands.plan import PlanCommand
 
 from hyperscribe.handlers.commands.base import Base
 from hyperscribe.handlers.constants import Constants
+from hyperscribe.handlers.llms.llm_base import LlmBase
 from hyperscribe.handlers.structures.coded_item import CodedItem
 
 
@@ -16,7 +17,7 @@ class Plan(Base):
             return CodedItem(label=text, code="", uuid="")
         return None
 
-    def command_from_json(self, parameters: dict) -> None | PlanCommand:
+    def command_from_json(self, chatter: LlmBase, parameters: dict) -> None | PlanCommand:
         return PlanCommand(
             narrative=parameters["plan"],
             note_uuid=self.note_uuid,

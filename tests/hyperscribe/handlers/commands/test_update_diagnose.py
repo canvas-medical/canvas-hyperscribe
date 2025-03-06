@@ -1,11 +1,10 @@
-from unittest.mock import patch, call
+from unittest.mock import patch, call, MagicMock
 
 from canvas_sdk.commands.commands.update_diagnosis import UpdateDiagnosisCommand
 
 from hyperscribe.handlers.canvas_science import CanvasScience
 from hyperscribe.handlers.commands.base import Base
 from hyperscribe.handlers.commands.update_diagnose import UpdateDiagnose
-from hyperscribe.handlers.helper import Helper
 from hyperscribe.handlers.limited_cache import LimitedCache
 from hyperscribe.handlers.structures.coded_item import CodedItem
 from hyperscribe.handlers.structures.icd10_condition import Icd10Condition
@@ -75,10 +74,11 @@ def test_staged_command_extract():
             assert result == expected
 
 
-@patch.object(Helper, "chatter")
 @patch.object(CanvasScience, "search_conditions")
 @patch.object(LimitedCache, "current_conditions")
-def test_command_from_json(current_conditions, search_conditions, chatter):
+def test_command_from_json(current_conditions, search_conditions):
+    chatter = MagicMock()
+
     def reset_mocks():
         current_conditions.reset_mock()
         search_conditions.reset_mock()
@@ -156,9 +156,9 @@ def test_command_from_json(current_conditions, search_conditions, chatter):
         # all good
         current_conditions.side_effect = [conditions]
         search_conditions.side_effect = [search]
-        chatter.return_value.single_conversation.side_effect = [[{"ICD10": "code369", "description": "labelB"}]]
+        chatter.single_conversation.side_effect = [[{"ICD10": "code369", "description": "labelB"}]]
 
-        result = tested.command_from_json(parameters)
+        result = tested.command_from_json(chatter, parameters)
         expected = UpdateDiagnosisCommand(
             background="theRationale",
             narrative="theAssessment",
@@ -172,19 +172,16 @@ def test_command_from_json(current_conditions, search_conditions, chatter):
         assert current_conditions.mock_calls == calls
         calls = [call('scienceHost', keywords)]
         assert search_conditions.mock_calls == calls
-        calls = [
-            call(tested.settings),
-            call().single_conversation(system_prompt, user_prompt, schemas),
-        ]
+        calls = [call.single_conversation(system_prompt, user_prompt, schemas)]
         assert chatter.mock_calls == calls
         reset_mocks()
 
         # no condition found
         current_conditions.side_effect = [conditions]
         search_conditions.side_effect = [[]]
-        chatter.return_value.single_conversation.side_effect = []
+        chatter.single_conversation.side_effect = []
 
-        result = tested.command_from_json(parameters)
+        result = tested.command_from_json(chatter, parameters)
         expected = UpdateDiagnosisCommand(
             background="theRationale",
             narrative="theAssessment",
@@ -203,9 +200,9 @@ def test_command_from_json(current_conditions, search_conditions, chatter):
         # no response
         current_conditions.side_effect = [conditions]
         search_conditions.side_effect = [search]
-        chatter.return_value.single_conversation.side_effect = [[]]
+        chatter.single_conversation.side_effect = [[]]
 
-        result = tested.command_from_json(parameters)
+        result = tested.command_from_json(chatter, parameters)
         expected = UpdateDiagnosisCommand(
             background="theRationale",
             narrative="theAssessment",
@@ -218,10 +215,7 @@ def test_command_from_json(current_conditions, search_conditions, chatter):
         assert current_conditions.mock_calls == calls
         calls = [call('scienceHost', keywords)]
         assert search_conditions.mock_calls == calls
-        calls = [
-            call(tested.settings),
-            call().single_conversation(system_prompt, user_prompt, schemas),
-        ]
+        calls = [call.single_conversation(system_prompt, user_prompt, schemas)]
         assert chatter.mock_calls == calls
         reset_mocks()
 

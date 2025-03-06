@@ -1,12 +1,11 @@
 from datetime import date
-from unittest.mock import patch, call
+from unittest.mock import patch, call, MagicMock
 
 from canvas_sdk.commands.commands.allergy import AllergyCommand, Allergen, AllergenType
 
 from hyperscribe.handlers.canvas_science import CanvasScience
 from hyperscribe.handlers.commands.allergy import Allergy
 from hyperscribe.handlers.commands.base import Base
-from hyperscribe.handlers.helper import Helper
 from hyperscribe.handlers.limited_cache import LimitedCache
 from hyperscribe.handlers.structures.allergy_detail import AllergyDetail
 from hyperscribe.handlers.structures.coded_item import CodedItem
@@ -58,9 +57,10 @@ def test_staged_command_extract():
             assert result == expected
 
 
-@patch.object(Helper, "chatter")
 @patch.object(CanvasScience, "search_allergy")
-def test_command_from_json(search_allergy, chatter):
+def test_command_from_json(search_allergy):
+    chatter = MagicMock()
+
     def reset_mocks():
         search_allergy.reset_mock()
         chatter.reset_mock()
@@ -146,9 +146,9 @@ def test_command_from_json(search_allergy, chatter):
         ]
         # all good
         search_allergy.side_effect = [allergy_details]
-        chatter.return_value.single_conversation.side_effect = [[{"conceptId": 167, "description": "descriptionB"}]]
+        chatter.single_conversation.side_effect = [[{"conceptId": 167, "description": "descriptionB"}]]
 
-        result = tested.command_from_json(parameters)
+        result = tested.command_from_json(chatter, parameters)
         expected = AllergyCommand(
             severity=AllergyCommand.Severity.MODERATE,
             narrative="theReaction",
@@ -164,18 +164,15 @@ def test_command_from_json(search_allergy, chatter):
 
         calls = [call('ontologiesHost', 'preSharedKey', keywords, allergen_types)]
         assert search_allergy.mock_calls == calls
-        calls = [
-            call(tested.settings),
-            call().single_conversation(system_prompt, user_prompt, schemas),
-        ]
+        calls = [call.single_conversation(system_prompt, user_prompt, schemas)]
         assert chatter.mock_calls == calls
         reset_mocks()
 
         # no good response
         search_allergy.side_effect = [allergy_details]
-        chatter.return_value.single_conversation.side_effect = [[]]
+        chatter.single_conversation.side_effect = [[]]
 
-        result = tested.command_from_json(parameters)
+        result = tested.command_from_json(chatter, parameters)
         expected = AllergyCommand(
             severity=AllergyCommand.Severity.MODERATE,
             narrative="theReaction",
@@ -190,18 +187,15 @@ def test_command_from_json(search_allergy, chatter):
 
         calls = [call('ontologiesHost', 'preSharedKey', keywords, allergen_types)]
         assert search_allergy.mock_calls == calls
-        calls = [
-            call(tested.settings),
-            call().single_conversation(system_prompt, user_prompt, schemas),
-        ]
+        calls = [call.single_conversation(system_prompt, user_prompt, schemas)]
         assert chatter.mock_calls == calls
         reset_mocks()
 
         # no allergies
         search_allergy.side_effect = [[]]
-        chatter.return_value.single_conversation.side_effect = [[]]
+        chatter.single_conversation.side_effect = [[]]
 
-        result = tested.command_from_json(parameters)
+        result = tested.command_from_json(chatter, parameters)
         expected = AllergyCommand(
             severity=AllergyCommand.Severity.MODERATE,
             narrative="theReaction",

@@ -2,6 +2,7 @@ from canvas_sdk.commands.commands.instruct import InstructCommand
 
 from hyperscribe.handlers.commands.base import Base
 from hyperscribe.handlers.constants import Constants
+from hyperscribe.handlers.llms.llm_base import LlmBase
 from hyperscribe.handlers.structures.coded_item import CodedItem
 
 
@@ -18,7 +19,7 @@ class Immunize(Base):
             return CodedItem(label=f"{immunization}: {sig_original} ({manufacturer})", code="", uuid="")
         return None
 
-    def command_from_json(self, parameters: dict) -> None | InstructCommand:
+    def command_from_json(self, chatter: LlmBase, parameters: dict) -> None | InstructCommand:
         # TODO change to ImmunizeCommand when implemented
         return InstructCommand(
             instruction="Advice to read information",

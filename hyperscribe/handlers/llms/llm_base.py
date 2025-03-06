@@ -8,6 +8,7 @@ from canvas_sdk.questionnaires.utils import Draft7Validator
 from logger import log
 
 from hyperscribe.handlers.constants import Constants
+from hyperscribe.handlers.memory_log import MemoryLog
 from hyperscribe.handlers.structures.http_response import HttpResponse
 from hyperscribe.handlers.structures.json_extract import JsonExtract
 from hyperscribe.handlers.structures.llm_turn import LlmTurn
@@ -18,7 +19,8 @@ class LlmBase:
     ROLE_USER = "user"
     ROLE_MODEL = "model"
 
-    def __init__(self, api_key: str, model: str):
+    def __init__(self, memory_log: MemoryLog, api_key: str, model: str, ):
+        self.memory_log = memory_log
         self.api_key = api_key
         self.model = model
         self.temperature = 0.0
@@ -37,24 +39,26 @@ class LlmBase:
     def add_audio(self, audio: bytes, audio_format: str) -> None:
         raise NotImplementedError()
 
-    def request(self, add_log: bool = False) -> HttpResponse:
+    def request(self) -> HttpResponse:
         raise NotImplementedError()
 
-    def attempt_requests(self, attempts: int, add_log: bool = False) -> HttpResponse:
+    def attempt_requests(self, attempts: int) -> HttpResponse:
         for _ in range(attempts):
-            result = self.request(add_log=add_log)
+            result = self.request()
             if result.code == HTTPStatus.OK.value:
                 break
         else:
             result = HttpResponse(
                 code=HTTPStatus.TOO_MANY_REQUESTS,
-                response=f"max attempts ({attempts}) exceeded",
+                response=f"Http error: max attempts ({attempts}) exceeded",
             )
+            self.memory_log.log(f"error: {result.response}")
         return result
 
-    def chat(self, schemas: list, add_log: bool = False) -> JsonExtract:
+    def chat(self, schemas: list) -> JsonExtract:
+        self.memory_log.log("-- CHAT BEGINS --")
         for _ in range(Constants.MAX_ATTEMPTS_LLM_JSON):
-            response = self.attempt_requests(Constants.MAX_ATTEMPTS_LLM_HTTP, add_log=add_log)
+            response = self.attempt_requests(Constants.MAX_ATTEMPTS_LLM_HTTP)
             # http error
             if response.code != HTTPStatus.OK.value:
                 result = JsonExtract(has_error=True, error=response.response, content=[])
@@ -62,6 +66,9 @@ class LlmBase:
 
             result = self.extract_json_from(response.response, schemas)
             if result.has_error is False:
+                self.memory_log.log("result->>")
+                self.memory_log.log(json.dumps(result.content, indent=2))
+                self.memory_log.log("<<-")
                 break
 
             # JSON error
@@ -77,10 +84,12 @@ class LlmBase:
         else:
             result = JsonExtract(
                 has_error=True,
-                error=f"max attempts ({Constants.MAX_ATTEMPTS_LLM_JSON}) exceeded",
+                error=f"JSON incorrect: max attempts ({Constants.MAX_ATTEMPTS_LLM_JSON}) exceeded",
                 content=[],
             )
+            self.memory_log.log(f"error: {result.error}")
 
+        self.memory_log.log("--- CHAT ENDS ---")
         return result
 
     def single_conversation(self, system_prompt: list[str], user_prompt: list[str], schemas: list) -> list:

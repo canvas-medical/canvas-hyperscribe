@@ -3,6 +3,7 @@ from canvas_sdk.v1.data.lab import LabPartner
 
 from hyperscribe.handlers.commands.base import Base
 from hyperscribe.handlers.constants import Constants
+from hyperscribe.handlers.llms.llm_base import LlmBase
 from hyperscribe.handlers.selector_chat import SelectorChat
 from hyperscribe.handlers.structures.coded_item import CodedItem
 
@@ -34,7 +35,7 @@ class LabOrder(Base):
             return CodedItem(label=f"{tests}: {comment} (fasting: {fasting}, diagnosis: {diagnosis})", code="", uuid="")
         return None
 
-    def command_from_json(self, parameters: dict) -> None | LabOrderCommand:
+    def command_from_json(self, chatter: LlmBase, parameters: dict) -> None | LabOrderCommand:
         result = LabOrderCommand(
             ordering_provider_key=self.provider_uuid,
             fasting_required=parameters["fastingRequired"],
@@ -47,6 +48,7 @@ class LabOrder(Base):
         conditions = []
         for condition in parameters["conditions"]:
             item = SelectorChat.condition_from(
+                chatter,
                 self.settings,
                 condition["conditionKeywords"].split(","),
                 condition["ICD10"].split(","),
@@ -63,6 +65,7 @@ class LabOrder(Base):
             # retrieve the tests based on the keywords
             for lab_order in parameters["labOrders"]:
                 item = SelectorChat.lab_test_from(
+                    chatter,
                     self.settings,
                     lab_partner.name,
                     lab_order["labOrderKeyword"].split(","),

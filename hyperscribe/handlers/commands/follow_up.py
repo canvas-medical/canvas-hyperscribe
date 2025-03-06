@@ -3,6 +3,7 @@ from canvas_sdk.commands.commands.follow_up import FollowUpCommand
 from hyperscribe.handlers.commands.base import Base
 from hyperscribe.handlers.constants import Constants
 from hyperscribe.handlers.helper import Helper
+from hyperscribe.handlers.llms.llm_base import LlmBase
 from hyperscribe.handlers.structures.coded_item import CodedItem
 
 
@@ -23,7 +24,7 @@ class FollowUp(Base):
             return CodedItem(label=f"{on_date}: {reason_for_visit} ({encounter})", code="", uuid="")
         return None
 
-    def command_from_json(self, parameters: dict) -> None | FollowUpCommand:
+    def command_from_json(self, chatter: LlmBase, parameters: dict) -> None | FollowUpCommand:
         result = FollowUpCommand(
             note_uuid=self.note_uuid,
             structured=False,

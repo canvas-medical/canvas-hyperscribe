@@ -1,12 +1,11 @@
 from datetime import date
-from unittest.mock import patch, call
+from unittest.mock import patch, call, MagicMock
 
 from canvas_sdk.commands.commands.past_surgical_history import PastSurgicalHistoryCommand
 
 from hyperscribe.handlers.canvas_science import CanvasScience
 from hyperscribe.handlers.commands.base import Base
 from hyperscribe.handlers.commands.surgery_history import SurgeryHistory
-from hyperscribe.handlers.helper import Helper
 from hyperscribe.handlers.limited_cache import LimitedCache
 from hyperscribe.handlers.structures.coded_item import CodedItem
 from hyperscribe.handlers.structures.medical_concept import MedicalConcept
@@ -97,9 +96,10 @@ def test_staged_command_extract():
             assert result == expected
 
 
-@patch.object(Helper, "chatter")
 @patch.object(CanvasScience, "surgical_histories")
-def test_command_from_json(surgical_histories, chatter):
+def test_command_from_json(surgical_histories):
+    chatter = MagicMock()
+
     def reset_mocks():
         surgical_histories.reset_mock()
         chatter.reset_mock()
@@ -156,9 +156,9 @@ def test_command_from_json(surgical_histories, chatter):
 
     # all good
     surgical_histories.side_effect = [medications]
-    chatter.return_value.single_conversation.side_effect = [[{"concept_id": 369, "term": "termB"}]]
+    chatter.single_conversation.side_effect = [[{"concept_id": 369, "term": "termB"}]]
 
-    result = tested.command_from_json(parameters)
+    result = tested.command_from_json(chatter, parameters)
     expected = PastSurgicalHistoryCommand(
         approximate_date=date(2017, 5, 21),
         past_surgical_history="termB",
@@ -168,18 +168,15 @@ def test_command_from_json(surgical_histories, chatter):
     assert result == expected
     calls = [call('scienceHost', keywords)]
     assert surgical_histories.mock_calls == calls
-    calls = [
-        call(tested.settings),
-        call().single_conversation(system_prompt, user_prompt, schemas),
-    ]
+    calls = [call.single_conversation(system_prompt, user_prompt, schemas)]
     assert chatter.mock_calls == calls
     reset_mocks()
 
     # no good response
     surgical_histories.side_effect = [medications]
-    chatter.return_value.single_conversation.side_effect = [[]]
+    chatter.single_conversation.side_effect = [[]]
 
-    result = tested.command_from_json(parameters)
+    result = tested.command_from_json(chatter, parameters)
     expected = PastSurgicalHistoryCommand(
         approximate_date=date(2017, 5, 21),
         comment="theComment",
@@ -188,18 +185,15 @@ def test_command_from_json(surgical_histories, chatter):
     assert result == expected
     calls = [call('scienceHost', keywords)]
     assert surgical_histories.mock_calls == calls
-    calls = [
-        call(tested.settings),
-        call().single_conversation(system_prompt, user_prompt, schemas),
-    ]
+    calls = [call.single_conversation(system_prompt, user_prompt, schemas)]
     assert chatter.mock_calls == calls
     reset_mocks()
 
     # no medical concept
     surgical_histories.side_effect = [[]]
-    chatter.return_value.single_conversation.side_effect = [[]]
+    chatter.single_conversation.side_effect = [[]]
 
-    result = tested.command_from_json(parameters)
+    result = tested.command_from_json(chatter, parameters)
     expected = PastSurgicalHistoryCommand(
         approximate_date=date(2017, 5, 21),
         comment="theComment",

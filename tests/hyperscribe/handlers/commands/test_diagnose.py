@@ -1,5 +1,5 @@
 from datetime import date
-from unittest.mock import patch, call
+from unittest.mock import patch, call, MagicMock
 
 from canvas_sdk.commands.commands.diagnose import DiagnoseCommand
 
@@ -73,6 +73,8 @@ def test_staged_command_extract():
 
 @patch.object(SelectorChat, "condition_from")
 def test_command_from_json(condition_from):
+    chatter = MagicMock()
+
     def reset_mocks():
         condition_from.reset_mock()
 
@@ -85,7 +87,7 @@ def test_command_from_json(condition_from):
         "onsetDate": "2025-02-03",
         "assessment": "theAssessment",
     }
-    result = tested.command_from_json(parameters)
+    result = tested.command_from_json(chatter, parameters)
     expected = DiagnoseCommand(
         icd10_code="CODE12.3",
         background="theRationale",
@@ -97,6 +99,7 @@ def test_command_from_json(condition_from):
 
     calls = [
         call(
+            chatter,
             tested.settings,
             ["keyword1", "keyword2", "keyword3"],
             ["ICD01", "ICD02", "ICD03"],
@@ -104,6 +107,7 @@ def test_command_from_json(condition_from):
         ),
     ]
     assert condition_from.mock_calls == calls
+    assert chatter.mock_calls == []
     reset_mocks()
 
 

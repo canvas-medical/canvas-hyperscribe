@@ -2,6 +2,7 @@ from canvas_sdk.commands.commands.adjust_prescription import AdjustPrescriptionC
 
 from hyperscribe.handlers.commands.base import Base
 from hyperscribe.handlers.constants import Constants
+from hyperscribe.handlers.llms.llm_base import LlmBase
 from hyperscribe.handlers.structures.coded_item import CodedItem
 
 
@@ -14,7 +15,7 @@ class AdjustPrescription(Base):
     def staged_command_extract(cls, data: dict) -> None | CodedItem:
         return None
 
-    def command_from_json(self, parameters: dict) -> None | AdjustPrescriptionCommand:
+    def command_from_json(self, chatter: LlmBase, parameters: dict) -> None | AdjustPrescriptionCommand:
         return None
 
     def command_parameters(self) -> dict:

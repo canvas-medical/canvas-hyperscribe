@@ -1,4 +1,4 @@
-from unittest.mock import patch, call
+from unittest.mock import patch, call, MagicMock
 
 from canvas_sdk.commands.commands.vitals import VitalsCommand
 
@@ -103,7 +103,10 @@ def test_staged_command_extract():
 
 @patch.object(Vitals, "valid_or_none")
 def test_command_from_json(valid_or_none):
+    chatter = MagicMock()
+
     def reset_mocks():
+        chatter.reset_mock()
         valid_or_none.reset_mock()
 
     tested = helper_instance()
@@ -128,7 +131,7 @@ def test_command_from_json(valid_or_none):
         "pulseRate": {"beatPerMinute": 7},
         "respirationRate": {"beatPerMinute": 8},
     }
-    result = tested.command_from_json(parameters)
+    result = tested.command_from_json(chatter, parameters)
     expected = VitalsCommand(
         height=50,
         weight_lbs=750,
@@ -152,6 +155,7 @@ def test_command_from_json(valid_or_none):
         call(VitalsCommand, "respiration_rate", 8),
     ]
     assert valid_or_none.mock_calls == calls
+    assert chatter.mock_calls == []
     reset_mocks()
 
 

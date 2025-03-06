@@ -1,3 +1,5 @@
+from unittest.mock import MagicMock
+
 from canvas_sdk.commands.commands.plan import PlanCommand
 
 from hyperscribe.handlers.commands.base import Base
@@ -49,16 +51,18 @@ def test_staged_command_extract():
 
 
 def test_command_from_json():
+    chatter = MagicMock()
     tested = helper_instance()
     parameters = {
         "plan": "thePlan",
     }
-    result = tested.command_from_json(parameters)
+    result = tested.command_from_json(chatter, parameters)
     expected = PlanCommand(
         narrative="thePlan",
         note_uuid="noteUuid",
     )
     assert result == expected
+    assert chatter.mock_calls == []
 
 
 def test_command_parameters():

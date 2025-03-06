@@ -7,6 +7,7 @@ from hyperscribe.handlers.commands.base import Base
 from hyperscribe.handlers.constants import Constants
 from hyperscribe.handlers.helper import Helper
 from hyperscribe.handlers.json_schema import JsonSchema
+from hyperscribe.handlers.llms.llm_base import LlmBase
 from hyperscribe.handlers.structures.coded_item import CodedItem
 
 
@@ -23,7 +24,7 @@ class UpdateDiagnose(Base):
             return CodedItem(label=f"{condition} to {new_condition}: {narrative}", code="", uuid="")
         return None
 
-    def command_from_json(self, parameters: dict) -> None | UpdateDiagnosisCommand:
+    def command_from_json(self, chatter: LlmBase, parameters: dict) -> None | UpdateDiagnosisCommand:
         result = UpdateDiagnosisCommand(
             background=parameters["rationale"],
             narrative=parameters["assessment"],
@@ -63,7 +64,7 @@ class UpdateDiagnose(Base):
                 '',
             ]
             schemas = JsonSchema.get(["selector_condition"])
-            if response := Helper.chatter(self.settings).single_conversation(system_prompt, user_prompt, schemas):
+            if response := chatter.single_conversation(system_prompt, user_prompt, schemas):
                 result.new_condition_code = Helper.icd10_strip_dot(response[0]["ICD10"])
         return result
 

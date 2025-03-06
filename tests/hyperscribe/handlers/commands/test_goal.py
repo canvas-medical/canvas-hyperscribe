@@ -1,5 +1,5 @@
 from datetime import datetime
-from unittest.mock import patch, call
+from unittest.mock import patch, call, MagicMock
 
 from canvas_sdk.commands.commands.goal import GoalCommand
 
@@ -66,6 +66,7 @@ def test_staged_command_extract():
 
 
 def test_command_from_json():
+    chatter = MagicMock()
     tested = helper_instance()
     parameters = {
         "goal": "theGoal",
@@ -75,7 +76,7 @@ def test_command_from_json():
         "priority": "medium-priority",
         "progressAndBarriers": "theProgressAndBarriers",
     }
-    result = tested.command_from_json(parameters)
+    result = tested.command_from_json(chatter, parameters)
     expected = GoalCommand(
         goal_statement="theGoal",
         start_date=datetime(2023, 11, 12),
@@ -86,6 +87,7 @@ def test_command_from_json():
         note_uuid="noteUuid",
     )
     assert result == expected
+    assert chatter.mock_calls == []
 
 
 def test_command_parameters():

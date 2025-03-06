@@ -212,10 +212,12 @@ def test_command_structures():
     reset_mocks()
 
 
+@patch("hyperscribe.handlers.audio_interpreter.MemoryLog")
 @patch.object(Helper, "audio2texter")
-def test_combine_and_speaker_detection(audio2texter):
+def test_combine_and_speaker_detection(audio2texter, memory_log):
     def reset_mocks():
         audio2texter.reset_mock()
+        memory_log.reset_mock()
 
     system_prompt = [
         "The conversation is in the medical context, and related to a visit of a patient with a healthcare provider.",
@@ -308,52 +310,62 @@ def test_combine_and_speaker_detection(audio2texter):
     # no error
     # -- all JSON
     audio2texter.return_value.chat.side_effect = [JsonExtract(error="theError", has_error=False, content=[discussion, speakers])]
+    memory_log.side_effect = ["MemoryLogInstance"]
     result = tested.combine_and_speaker_detection(audio_chunks)
     expected = JsonExtract(error="", has_error=False, content=conversation)
     assert result == expected
     calls = [
-        call(settings),
+        call(settings, "MemoryLogInstance"),
         call().set_system_prompt(system_prompt),
         call().set_user_prompt(user_prompt),
         call().add_audio(b'chunk1', 'mp3'),
         call().add_audio(b'chunk2', 'mp3'),
-        call().chat(schemas, True),
+        call().chat(schemas),
     ]
     assert audio2texter.mock_calls == calls
+    calls = [call("noteUuid", "audio2transcript")]
+    assert memory_log.mock_calls == calls
     reset_mocks()
     # -- only one JSON
     audio2texter.return_value.chat.side_effect = [JsonExtract(error="theError", has_error=False, content=[discussion])]
+    memory_log.side_effect = ["MemoryLogInstance"]
     result = tested.combine_and_speaker_detection(audio_chunks)
     expected = JsonExtract(error="partial response", has_error=True, content=[discussion])
     assert result == expected
     calls = [
-        call(settings),
+        call(settings, "MemoryLogInstance"),
         call().set_system_prompt(system_prompt),
         call().set_user_prompt(user_prompt),
         call().add_audio(b'chunk1', 'mp3'),
         call().add_audio(b'chunk2', 'mp3'),
-        call().chat(schemas, True),
+        call().chat(schemas),
     ]
     assert audio2texter.mock_calls == calls
+    calls = [call("noteUuid", "audio2transcript")]
+    assert memory_log.mock_calls == calls
     reset_mocks()
 
     # with error
     audio2texter.return_value.chat.side_effect = [JsonExtract(error="theError", has_error=True, content=[discussion, speakers])]
+    memory_log.side_effect = ["MemoryLogInstance"]
     result = tested.combine_and_speaker_detection(audio_chunks)
     expected = JsonExtract(error="theError", has_error=True, content=[discussion, speakers])
     assert result == expected
     calls = [
-        call(settings),
+        call(settings, "MemoryLogInstance"),
         call().set_system_prompt(system_prompt),
         call().set_user_prompt(user_prompt),
         call().add_audio(b'chunk1', 'mp3'),
         call().add_audio(b'chunk2', 'mp3'),
-        call().chat(schemas, True),
+        call().chat(schemas),
     ]
     assert audio2texter.mock_calls == calls
+    calls = [call("noteUuid", "audio2transcript")]
+    assert memory_log.mock_calls == calls
     reset_mocks()
 
 
+@patch("hyperscribe.handlers.audio_interpreter.MemoryLog")
 @patch.object(Helper, "chatter")
 @patch.object(AudioInterpreter, 'instruction_constraints')
 @patch.object(AudioInterpreter, 'json_schema')
@@ -363,6 +375,7 @@ def test_detect_instructions(
         json_schema,
         instruction_constraints,
         chatter,
+        memory_log,
 ):
     mocks = [
         MagicMock(),
@@ -376,6 +389,7 @@ def test_detect_instructions(
         json_schema.reset_mock()
         instruction_constraints.reset_mock()
         chatter.reset_mock()
+        memory_log.reset_mock()
         for mock in mocks:
             mock.reset_mock()
         mocks[0].return_value.class_name.side_effect = ["First"]
@@ -488,6 +502,7 @@ def test_detect_instructions(
     json_schema.side_effect = ["theJsonSchema"]
     instruction_constraints.side_effect = [["theConstraint1", "theConstraint2"]]
     chatter.return_value.single_conversation.side_effect = [["response1"], ["response2"]]
+    memory_log.side_effect = ["MemoryLogInstance"]
     result = tested.detect_instructions(discussion, [])
     expected = ["response2"]
     assert result == expected
@@ -498,12 +513,13 @@ def test_detect_instructions(
     calls = [call()]
     assert instruction_constraints.mock_calls == calls
     calls = [
-        call(settings),
+        call(settings, "MemoryLogInstance"),
         call().single_conversation(system_prompts, user_prompts["noKnownInstructions"], ['theJsonSchema']),
-        call(settings),
         call().single_conversation(system_prompts, user_prompts["constraints"], ['theJsonSchema']),
     ]
     assert chatter.mock_calls == calls
+    calls = [call("noteUuid", "transcript2instructions")]
+    assert memory_log.mock_calls == calls
     for idx, mock in enumerate(mocks):
         calls = [
             call(settings, cache, 'patientUuid', 'noteUuid', 'providerUuid'),
@@ -519,6 +535,7 @@ def test_detect_instructions(
     json_schema.side_effect = ["theJsonSchema"]
     instruction_constraints.side_effect = [[]]
     chatter.return_value.single_conversation.side_effect = [["response1"], ["response2"]]
+    memory_log.side_effect = ["MemoryLogInstance"]
     result = tested.detect_instructions(discussion, [])
     expected = ["response1"]
     assert result == expected
@@ -529,10 +546,12 @@ def test_detect_instructions(
     calls = [call()]
     assert instruction_constraints.mock_calls == calls
     calls = [
-        call(settings),
+        call(settings, "MemoryLogInstance"),
         call().single_conversation(system_prompts, user_prompts["noKnownInstructions"], ['theJsonSchema']),
     ]
     assert chatter.mock_calls == calls
+    calls = [call("noteUuid", "transcript2instructions")]
+    assert memory_log.mock_calls == calls
     for idx, mock in enumerate(mocks):
         calls = []
         if idx != 2:
@@ -545,6 +564,7 @@ def test_detect_instructions(
     json_schema.side_effect = ["theJsonSchema"]
     instruction_constraints.side_effect = [["theConstraint1", "theConstraint2"]]
     chatter.return_value.single_conversation.side_effect = [["response1"], ["response2"]]
+    memory_log.side_effect = ["MemoryLogInstance"]
     result = tested.detect_instructions(discussion, known_instructions)
     expected = ["response2"]
     assert result == expected
@@ -555,12 +575,13 @@ def test_detect_instructions(
     calls = [call()]
     assert instruction_constraints.mock_calls == calls
     calls = [
-        call(settings),
+        call(settings, "MemoryLogInstance"),
         call().single_conversation(system_prompts, user_prompts["withKnownInstructions"], ['theJsonSchema']),
-        call(settings),
         call().single_conversation(system_prompts, user_prompts["constraints"], ['theJsonSchema']),
     ]
     assert chatter.mock_calls == calls
+    calls = [call("noteUuid", "transcript2instructions")]
+    assert memory_log.mock_calls == calls
     for idx, mock in enumerate(mocks):
         calls = []
         if idx != 2:
@@ -570,8 +591,9 @@ def test_detect_instructions(
 
 
 @patch("hyperscribe.handlers.audio_interpreter.datetime", wraps=datetime)
+@patch("hyperscribe.handlers.audio_interpreter.MemoryLog")
 @patch.object(Helper, "chatter")
-def test_create_sdk_command_parameters(chatter, mock_datetime):
+def test_create_sdk_command_parameters(chatter, memory_log, mock_datetime):
     mocks = [
         MagicMock(),
         MagicMock(),
@@ -581,6 +603,7 @@ def test_create_sdk_command_parameters(chatter, mock_datetime):
 
     def reset_mocks():
         chatter.reset_mock()
+        memory_log.reset_mock()
         mock_datetime.reset_mock()
         for mock in mocks:
             mock.reset_mock()
@@ -624,14 +647,17 @@ def test_create_sdk_command_parameters(chatter, mock_datetime):
     # with response
     mock_datetime.now.side_effect = [datetime(2025, 2, 4, 7, 48, 21, tzinfo=timezone.utc)]
     chatter.return_value.single_conversation.side_effect = [["response1", "response2"]]
+    memory_log.side_effect = ["MemoryLogInstance"]
     result = tested.create_sdk_command_parameters(instruction)
     expected = instruction, "response1"
     assert result == expected
     calls = [
-        call(settings),
+        call(settings, "MemoryLogInstance"),
         call().single_conversation(system_prompt, user_prompt, schemas),
     ]
     assert chatter.mock_calls == calls
+    calls = [call("noteUuid", "Second_theUuid_instruction2parameters")]
+    assert memory_log.mock_calls == calls
     calls = [call.now()]
     assert mock_datetime.mock_calls == calls
     for idx, mock in enumerate(mocks):
@@ -650,14 +676,17 @@ def test_create_sdk_command_parameters(chatter, mock_datetime):
     # without response
     mock_datetime.now.side_effect = [datetime(2025, 2, 4, 7, 48, 21, tzinfo=timezone.utc)]
     chatter.return_value.single_conversation.side_effect = [[]]
+    memory_log.side_effect = ["MemoryLogInstance"]
     result = tested.create_sdk_command_parameters(instruction)
     expected = instruction, None
     assert result == expected
     calls = [
-        call(settings),
+        call(settings, "MemoryLogInstance"),
         call().single_conversation(system_prompt, user_prompt, schemas),
     ]
     assert chatter.mock_calls == calls
+    calls = [call("noteUuid", "Second_theUuid_instruction2parameters")]
+    assert memory_log.mock_calls == calls
     calls = [call.now()]
     assert mock_datetime.mock_calls == calls
     for idx, mock in enumerate(mocks):
@@ -671,7 +700,9 @@ def test_create_sdk_command_parameters(chatter, mock_datetime):
     reset_mocks()
 
 
-def test_create_sdk_command_from():
+@patch("hyperscribe.handlers.audio_interpreter.MemoryLog")
+@patch.object(Helper, "chatter")
+def test_create_sdk_command_from(chatter, memory_log):
     mocks = [
         MagicMock(),
         MagicMock(),
@@ -680,6 +711,8 @@ def test_create_sdk_command_from():
     ]
 
     def reset_mocks():
+        chatter.reset_mock()
+        memory_log.reset_mock()
         for mock in mocks:
             mock.reset_mock()
         mocks[0].return_value.class_name.side_effect = ["First"]
@@ -694,17 +727,24 @@ def test_create_sdk_command_from():
     reset_mocks()
 
     tests = [
-        ("First", 0, "theCommand1"),
-        ("Second", 1, "theCommand2"),
-        ("Fourth", 3, "theCommand4"),
-        ("Third", 4, None),
+        ("First", 0, "theCommand1", "First_theUuid_parameters2command"),
+        ("Second", 1, "theCommand2", "Second_theUuid_parameters2command"),
+        ("Fourth", 3, "theCommand4", "Fourth_theUuid_parameters2command"),
+        ("Third", 4, None, None),
     ]
-    for instruction, number, expected in tests:
+    for instruction, number, expected, exp_log_label in tests:
+        chatter.side_effect = ["LlmBaseInstance"]
+        memory_log.side_effect = ["MemoryLogInstance"]
         instruction = Instruction(uuid="theUuid", instruction=instruction, information="theInformation", is_new=False, is_updated=True)
         parameters = {"theKey": "theValue"}
         tested, settings, cache = helper_instance(mocks)
         result = tested.create_sdk_command_from(instruction, parameters)
         assert result == expected
+
+        calls = [call(settings, "MemoryLogInstance")] if exp_log_label else []
+        assert chatter.mock_calls == calls
+        calls = [call("noteUuid", exp_log_label)] if exp_log_label else []
+        assert memory_log.mock_calls == calls
         for idx, mock in enumerate(mocks):
             calls = [
                 call(settings, cache, 'patientUuid', 'noteUuid', 'providerUuid'),
@@ -714,7 +754,7 @@ def test_create_sdk_command_from():
             if idx < number + 1 and idx != 2:
                 calls.extend([call().class_name()])
             if idx == number and idx != 2:
-                calls.extend([call().command_from_json({'theKey': 'theValue'})])
+                calls.extend([call().command_from_json("LlmBaseInstance", {'theKey': 'theValue'})])
             assert mock.mock_calls == calls, f"---> {idx}"
         reset_mocks()
 

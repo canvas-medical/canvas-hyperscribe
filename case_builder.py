@@ -1,4 +1,5 @@
 from argparse import ArgumentParser, ArgumentTypeError, Namespace
+from datetime import datetime
 from pathlib import Path
 from sys import argv
 
@@ -7,6 +8,7 @@ from canvas_sdk.v1.data import Note, Patient
 from hyperscribe.handlers.audio_interpreter import AudioInterpreter
 from hyperscribe.handlers.commander import Commander
 from hyperscribe.handlers.limited_cache import LimitedCache
+from hyperscribe.handlers.memory_log import MemoryLog
 from integrations.auditor_file import AuditorFile
 from integrations.helper_settings import HelperSettings
 
@@ -64,11 +66,12 @@ class CaseBuilder:
         recorder = AuditorFile(parameters.label)
         # chatter
         note = Note.objects.filter(patient__id=parameters.patient).order_by("-dbid").first()  # the last note
+        note_uuid = str(note.id)
         chatter = AudioInterpreter(
             HelperSettings.settings(),
             LimitedCache(parameters.patient, {}),
             parameters.patient,
-            str(note.id),
+            note_uuid,
             str(note.provider.id),
         )
         # audio
@@ -77,7 +80,10 @@ class CaseBuilder:
             with file.open("rb") as f:
                 audios.append(f.read())
 
+        MemoryLog.begin_session(note_uuid)
         Commander.audio2commands(recorder, audios, chatter, [])
+        remote_path = f"{datetime.now().date().isoformat()}/case-builder-{parameters.label}.log"
+        HelperSettings.flush_log(note_uuid, remote_path)
 
 
 if __name__ == "__main__":

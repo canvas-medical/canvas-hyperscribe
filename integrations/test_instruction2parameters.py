@@ -25,6 +25,7 @@ def test_instruction2parameters(instruction2parameters, allowed_levels, audio_in
         _, response = audio_interpreter.create_sdk_command_parameters(instruction)
         if (automated := response) != (reviewed := expected[idx]):
             valid, differences = HelperSettings.json_nuanced_differences(
+                f"{instruction2parameters.stem}-instruction2parameters",
                 allowed_levels,
                 json.dumps(automated, indent=1),
                 json.dumps(reviewed, indent=1),

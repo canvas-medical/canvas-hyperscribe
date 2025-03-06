@@ -1,3 +1,5 @@
+from unittest.mock import MagicMock
+
 import pytest
 
 from hyperscribe.handlers.commands.base import Base
@@ -61,11 +63,13 @@ def test_staged_command_extract():
 
 
 def test_command_from_json():
+    chatter = MagicMock()
     tested = helper_instance()
     with pytest.raises(Exception) as e:
-        _ = tested.command_from_json({})
+        _ = tested.command_from_json(chatter, {})
     expected = "NotImplementedError"
     assert e.typename == expected
+    assert chatter.mock_calls == []
 
 
 def test_command_parameters():

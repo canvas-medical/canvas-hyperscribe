@@ -1,4 +1,4 @@
-from unittest.mock import patch, call
+from unittest.mock import patch, call, MagicMock
 
 from canvas_sdk.commands.commands.instruct import InstructCommand
 from canvas_sdk.commands.constants import Coding
@@ -6,7 +6,6 @@ from canvas_sdk.commands.constants import Coding
 from hyperscribe.handlers.canvas_science import CanvasScience
 from hyperscribe.handlers.commands.base import Base
 from hyperscribe.handlers.commands.instruct import Instruct
-from hyperscribe.handlers.helper import Helper
 from hyperscribe.handlers.limited_cache import LimitedCache
 from hyperscribe.handlers.structures.coded_item import CodedItem
 from hyperscribe.handlers.structures.medical_concept import MedicalConcept
@@ -64,9 +63,10 @@ def test_staged_command_extract():
             assert result == expected
 
 
-@patch.object(Helper, "chatter")
 @patch.object(CanvasScience, "instructions")
-def test_command_from_json(instructions, chatter):
+def test_command_from_json(instructions):
+    chatter = MagicMock()
+
     def reset_mocks():
         instructions.reset_mock()
         chatter.reset_mock()
@@ -124,9 +124,9 @@ def test_command_from_json(instructions, chatter):
 
     # all good
     instructions.side_effect = [medical_concepts]
-    chatter.return_value.single_conversation.side_effect = [[{"conceptId": 369, "term": "termB"}]]
+    chatter.single_conversation.side_effect = [[{"conceptId": 369, "term": "termB"}]]
 
-    result = tested.command_from_json(parameters)
+    result = tested.command_from_json(chatter, parameters)
     expected = InstructCommand(
         coding=Coding(
             code="369",
@@ -139,18 +139,15 @@ def test_command_from_json(instructions, chatter):
     assert result == expected
     calls = [call('scienceHost', keywords)]
     assert instructions.mock_calls == calls
-    calls = [
-        call(tested.settings),
-        call().single_conversation(system_prompt, user_prompt, schemas),
-    ]
+    calls = [call.single_conversation(system_prompt, user_prompt, schemas)]
     assert chatter.mock_calls == calls
     reset_mocks()
 
     # no good response
     instructions.side_effect = [medical_concepts]
-    chatter.return_value.single_conversation.side_effect = [[]]
+    chatter.single_conversation.side_effect = [[]]
 
-    result = tested.command_from_json(parameters)
+    result = tested.command_from_json(chatter, parameters)
     expected = InstructCommand(
         comment="theComment",
         note_uuid="noteUuid",
@@ -158,18 +155,15 @@ def test_command_from_json(instructions, chatter):
     assert result == expected
     calls = [call('scienceHost', keywords)]
     assert instructions.mock_calls == calls
-    calls = [
-        call(tested.settings),
-        call().single_conversation(system_prompt, user_prompt, schemas),
-    ]
+    calls = [call.single_conversation(system_prompt, user_prompt, schemas)]
     assert chatter.mock_calls == calls
     reset_mocks()
 
     # no medical concept
     instructions.side_effect = [[]]
-    chatter.return_value.single_conversation.side_effect = [[]]
+    chatter.single_conversation.side_effect = [[]]
 
-    result = tested.command_from_json(parameters)
+    result = tested.command_from_json(chatter, parameters)
     expected = InstructCommand(
         comment="theComment",
         note_uuid="noteUuid",

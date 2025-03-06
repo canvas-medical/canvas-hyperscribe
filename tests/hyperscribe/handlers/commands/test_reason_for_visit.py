@@ -1,4 +1,4 @@
-from unittest.mock import patch, call
+from unittest.mock import patch, call, MagicMock
 
 from canvas_sdk.commands.commands.reason_for_visit import ReasonForVisitCommand
 
@@ -62,8 +62,11 @@ def test_staged_command_extract():
 
 @patch.object(LimitedCache, "existing_reason_for_visits")
 def test_command_from_json(existing_reason_for_visits):
+    chatter = MagicMock()
+
     def reset_mocks():
         existing_reason_for_visits.reset_mock()
+        chatter.reset_mock()
 
     reason_for_visits = [
         CodedItem(uuid="theUuid1", label="display1", code="code1"),
@@ -77,13 +80,14 @@ def test_command_from_json(existing_reason_for_visits):
     parameters = {
         "reasonForVisit": "theReasonForVisit",
     }
-    result = tested.command_from_json(parameters)
+    result = tested.command_from_json(chatter, parameters)
     expected = ReasonForVisitCommand(
         comment="theReasonForVisit",
         note_uuid="noteUuid",
     )
     assert result == expected
     assert existing_reason_for_visits.mock_calls == []
+    assert chatter.mock_calls == []
     reset_mocks()
 
     # with structured RfV
@@ -99,7 +103,7 @@ def test_command_from_json(existing_reason_for_visits):
             "reasonForVisit": "theReasonForVisit",
             "reasonForVisitIndex": idx,
         }
-        result = tested.command_from_json(parameters)
+        result = tested.command_from_json(chatter, parameters)
         expected = ReasonForVisitCommand(
             comment="theReasonForVisit",
             note_uuid="noteUuid",
@@ -111,6 +115,7 @@ def test_command_from_json(existing_reason_for_visits):
         assert result == expected
         calls = [call()]
         assert existing_reason_for_visits.mock_calls == calls
+        assert chatter.mock_calls == []
         reset_mocks()
 
 

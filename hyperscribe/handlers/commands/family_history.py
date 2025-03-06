@@ -5,8 +5,8 @@ from canvas_sdk.commands.commands.family_history import FamilyHistoryCommand
 from hyperscribe.handlers.canvas_science import CanvasScience
 from hyperscribe.handlers.commands.base import Base
 from hyperscribe.handlers.constants import Constants
-from hyperscribe.handlers.helper import Helper
 from hyperscribe.handlers.json_schema import JsonSchema
+from hyperscribe.handlers.llms.llm_base import LlmBase
 from hyperscribe.handlers.structures.coded_item import CodedItem
 
 
@@ -23,7 +23,7 @@ class FamilyHistory(Base):
             return CodedItem(label=f"{relative}: {label}", code="", uuid="")
         return None
 
-    def command_from_json(self, parameters: dict) -> None | FamilyHistoryCommand:
+    def command_from_json(self, chatter: LlmBase, parameters: dict) -> None | FamilyHistoryCommand:
         result = FamilyHistoryCommand(
             relative=parameters["relative"],
             note=parameters["note"],
@@ -57,7 +57,7 @@ class FamilyHistory(Base):
                 '',
             ]
             schemas = JsonSchema.get(["selector_concept"])
-            if response := Helper.chatter(self.settings).single_conversation(system_prompt, user_prompt, schemas):
+            if response := chatter.single_conversation(system_prompt, user_prompt, schemas):
                 result.family_history = response[0]["term"]
         return result
 

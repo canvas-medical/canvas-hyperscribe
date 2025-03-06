@@ -1,11 +1,10 @@
-from unittest.mock import patch, call
+from unittest.mock import patch, call, MagicMock
 
 from canvas_sdk.commands.commands.imaging_order import ImagingOrderCommand
 
 from hyperscribe.handlers.canvas_science import CanvasScience
 from hyperscribe.handlers.commands.base import Base
 from hyperscribe.handlers.commands.imaging_order import ImagingOrder
-from hyperscribe.handlers.helper import Helper
 from hyperscribe.handlers.limited_cache import LimitedCache
 from hyperscribe.handlers.selector_chat import SelectorChat
 from hyperscribe.handlers.structures.coded_item import CodedItem
@@ -103,10 +102,11 @@ def test_staged_command_extract():
             assert result == expected
 
 
-@patch.object(Helper, "chatter")
 @patch.object(CanvasScience, "search_imagings")
 @patch.object(SelectorChat, "condition_from")
-def test_command_from_json(condition_from, search_imagings, chatter):
+def test_command_from_json(condition_from, search_imagings):
+    chatter = MagicMock()
+
     def reset_mocks():
         condition_from.reset_mock()
         search_imagings.reset_mock()
@@ -179,9 +179,9 @@ def test_command_from_json(condition_from, search_imagings, chatter):
         CodedItem(uuid="uuid4", label="condition4", code="icd3"),
     ]
     search_imagings.side_effect = [imaging_orders]
-    chatter.return_value.single_conversation.side_effect = [[{"conceptId": "theCode", "name": "theName"}]]
+    chatter.single_conversation.side_effect = [[{"conceptId": "theCode", "name": "theName"}]]
 
-    result = tested.command_from_json(parameters)
+    result = tested.command_from_json(chatter, parameters)
     expected = ImagingOrderCommand(
         note_uuid="noteUuid",
         image_code='theCode',
@@ -195,17 +195,14 @@ def test_command_from_json(condition_from, search_imagings, chatter):
     assert result == expected
 
     calls = [
-        call(tested.settings, ['condition1', 'condition2'], ['icd1', 'icd2'], "theComment"),
-        call(tested.settings, ['condition3'], ['icd3'], "theComment"),
-        call(tested.settings, ['condition4'], ['icd4'], "theComment"),
+        call(chatter, tested.settings, ['condition1', 'condition2'], ['icd1', 'icd2'], "theComment"),
+        call(chatter, tested.settings, ['condition3'], ['icd3'], "theComment"),
+        call(chatter, tested.settings, ['condition4'], ['icd4'], "theComment"),
     ]
     assert condition_from.mock_calls == calls
     calls = [call('scienceHost', keywords)]
     assert search_imagings.mock_calls == calls
-    calls = [
-        call(tested.settings),
-        call().single_conversation(system_prompt, user_prompt, schemas),
-    ]
+    calls = [call.single_conversation(system_prompt, user_prompt, schemas)]
     assert chatter.mock_calls == calls
     reset_mocks()
 
@@ -219,9 +216,9 @@ def test_command_from_json(condition_from, search_imagings, chatter):
     }
     condition_from.side_effect = []
     search_imagings.side_effect = [imaging_orders]
-    chatter.return_value.single_conversation.side_effect = [[]]
+    chatter.single_conversation.side_effect = [[]]
 
-    result = tested.command_from_json(parameters)
+    result = tested.command_from_json(chatter, parameters)
     expected = ImagingOrderCommand(
         note_uuid="noteUuid",
         ordering_provider_key="providerUuid",
@@ -236,10 +233,7 @@ def test_command_from_json(condition_from, search_imagings, chatter):
     assert condition_from.mock_calls == []
     calls = [call('scienceHost', keywords)]
     assert search_imagings.mock_calls == calls
-    calls = [
-        call(tested.settings),
-        call().single_conversation(system_prompt, user_prompt, schemas),
-    ]
+    calls = [call.single_conversation(system_prompt, user_prompt, schemas)]
     assert chatter.mock_calls == calls
     reset_mocks()
 
@@ -253,9 +247,9 @@ def test_command_from_json(condition_from, search_imagings, chatter):
     }
     condition_from.side_effect = []
     search_imagings.side_effect = [[]]
-    chatter.return_value.single_conversation.side_effect = []
+    chatter.single_conversation.side_effect = []
 
-    result = tested.command_from_json(parameters)
+    result = tested.command_from_json(chatter, parameters)
     expected = ImagingOrderCommand(
         note_uuid="noteUuid",
         ordering_provider_key="providerUuid",

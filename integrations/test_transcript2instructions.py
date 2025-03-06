@@ -42,6 +42,7 @@ def test_transcript2instructions(transcript2instructions, allowed_levels, audio_
         assert actual.is_updated == instruction.is_updated
 
         valid, differences = HelperSettings.text_nuanced_differences(
+            f"{transcript2instructions.stem}-transcript2instructions",
             allowed_levels,
             actual.information,
             instruction.information,

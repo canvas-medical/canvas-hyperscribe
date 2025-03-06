@@ -8,6 +8,7 @@ from hyperscribe.handlers.commands.base import Base
 from hyperscribe.handlers.constants import Constants
 from hyperscribe.handlers.helper import Helper
 from hyperscribe.handlers.json_schema import JsonSchema
+from hyperscribe.handlers.llms.llm_base import LlmBase
 from hyperscribe.handlers.structures.coded_item import CodedItem
 from hyperscribe.handlers.structures.medication_detail import MedicationDetail
 
@@ -39,7 +40,7 @@ class Prescription(Base):
             )
         return None
 
-    def medications_from(self, comment: str, keywords: list[str], condition: str) -> list[MedicationDetail]:
+    def medications_from(self, chatter: LlmBase, comment: str, keywords: list[str], condition: str) -> list[MedicationDetail]:
         result: list[MedicationDetail] = []
         if medications := CanvasScience.medication_details(self.settings.science_host, keywords):
             prompt_condition = ""
@@ -89,13 +90,13 @@ class Prescription(Base):
                 "",
             ]
             schemas = JsonSchema.get(["selector_fdb_code"])
-            if response := Helper.chatter(self.settings).single_conversation(system_prompt, user_prompt, schemas):
+            if response := chatter.single_conversation(system_prompt, user_prompt, schemas):
                 fdb_code = str(response[0]["fdbCode"])
                 result = [m for m in medications if m.fdb_code == fdb_code]
 
         return result
 
-    def set_medication_dosage(self, comment: str, command: PrescribeCommand, medication: MedicationDetail) -> None:
+    def set_medication_dosage(self, chatter: LlmBase, comment: str, command: PrescribeCommand, medication: MedicationDetail) -> None:
         quantity = medication.quantities[0]  # ATTENTION forced to the first option (only for simplicity 2025-01-14)
 
         command.fdb_code = medication.fdb_code
@@ -138,13 +139,13 @@ class Prescription(Base):
             "",
         ]
         schemas = JsonSchema.get(["prescription_dosage"])
-        if response := Helper.chatter(self.settings).single_conversation(system_prompt, user_prompt, schemas):
+        if response := chatter.single_conversation(system_prompt, user_prompt, schemas):
             command.quantity_to_dispense = Decimal(response[0]["quantityToDispense"]).quantize(Decimal('0.01'))
             command.refills = int(response[0]["refills"])
             command.note_to_pharmacist = response[0]["noteToPharmacist"]
             command.sig = response[0]["informationToPatient"]
 
-    def command_from_json(self, parameters: dict) -> None | PrescribeCommand:
+    def command_from_json(self, chatter: LlmBase, parameters: dict) -> None | PrescribeCommand:
         result = PrescribeCommand(
             sig=parameters["sig"],
             days_supply=int(parameters["suppliedDays"]),
@@ -163,13 +164,19 @@ class Prescription(Base):
 
         # retrieve existing medications defined in Canvas Science
         choose_medications = self.medications_from(
+            chatter,
             parameters["comment"],
             parameters["keywords"].split(","),
             condition,
         )
         # find the correct quantity to dispense and refill values
         if choose_medications and (medication := choose_medications[0]):
-            self.set_medication_dosage(parameters["comment"], result, medication)
+            self.set_medication_dosage(
+                chatter,
+                parameters["comment"],
+                result,
+                medication,
+            )
 
         return result
 

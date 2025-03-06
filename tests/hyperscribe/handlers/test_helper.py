@@ -1,6 +1,6 @@
 from datetime import datetime, date
 from enum import Enum
-from unittest.mock import patch, call
+from unittest.mock import patch, call, MagicMock
 
 from hyperscribe.handlers.helper import Helper
 from hyperscribe.handlers.llms.llm_anthropic import LlmAnthropic
@@ -91,6 +91,7 @@ def test_icd10_strip_dot():
 
 
 def test_chatter():
+    memory_log = MagicMock()
     tested = Helper
     tests = [
         ("Anthropic", LlmAnthropic, "claude-3-5-sonnet-20241022"),
@@ -98,6 +99,7 @@ def test_chatter():
         ("Any", LlmOpenai, "gpt-4o"),
     ]
     for vendor, exp_class, exp_model in tests:
+        memory_log.reset_mock()
         result = tested.chatter(Settings(
             llm_text=VendorKey(vendor=vendor, api_key="textKey"),
             llm_audio=VendorKey(vendor="audioVendor", api_key="audioKey"),
@@ -105,19 +107,23 @@ def test_chatter():
             ontologies_host="ontologiesHost",
             pre_shared_key="preSharedKey",
             structured_rfv=False,
-        ))
+        ), memory_log)
+        assert memory_log.mock_calls == []
         assert isinstance(result, exp_class)
         assert result.api_key == "textKey"
         assert result.model == exp_model
+        assert result.memory_log == memory_log
 
 
 def test_audio2texter():
+    memory_log = MagicMock()
     tested = Helper
     tests = [
         ("Google", LlmGoogle, "models/gemini-1.5-flash"),
         ("Any", LlmOpenai, "gpt-4o-audio-preview"),
     ]
     for vendor, exp_class, exp_model in tests:
+        memory_log.reset_mock()
         result = tested.audio2texter(Settings(
             llm_text=VendorKey(vendor="textVendor", api_key="textKey"),
             llm_audio=VendorKey(vendor=vendor, api_key="audioKey"),
@@ -125,7 +131,9 @@ def test_audio2texter():
             ontologies_host="ontologiesHost",
             pre_shared_key="preSharedKey",
             structured_rfv=False,
-        ))
+        ), memory_log)
+        assert memory_log.mock_calls == []
         assert isinstance(result, exp_class)
         assert result.api_key == "audioKey"
         assert result.model == exp_model
+        assert result.memory_log == memory_log

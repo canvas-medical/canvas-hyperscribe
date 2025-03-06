@@ -187,52 +187,56 @@ def test_constants():
         "SECRET_ONTOLOGIES_HOST": "OntologiesHost",
         "SECRET_PRE_SHARED_KEY": "PreSharedKey",
         "SECRET_AUDIO_HOST": "AudioHost",
+        "SECRET_AWS_KEY": "AwsKey",
+        "SECRET_AWS_SECRET": "AwsSecret",
+        "SECRET_AWS_REGION": "AwsRegion",
+        "SECRET_AWS_BUCKET": "AwsBucket",
         "SECRET_STRUCTURED_RFV": "StructuredReasonForVisit",
         "LABEL_ENCOUNTER_COPILOT": "Encounter Copilot",
         "MAX_AUDIOS": 1,
+        "MEMORY_LOG_LABEL": "main",
         "RESPONDS_TO": ["TASK_COMMENT_CREATED"],
     }
     assert is_constant(tested, constants)
 
 
-@patch.object(Audio, "get_audio")
-def test_retrieve_audios(get_audio):
+@patch("hyperscribe.handlers.commander.MemoryLog")
+@patch("hyperscribe.handlers.commander.AwsS3")
+def test_flush_log(aws_s3, memory_log):
     def reset_mocks():
-        get_audio.reset_mock()
+        aws_s3.reset_mock()
+        memory_log.reset_mock()
 
-    tested = Commander
+    event = Event(EventRequest())
 
-    # no more audio
-    get_audio.side_effect = [b""]
-    result = tested.retrieve_audios("theHost", "patientUuid", "noteUuid", 3)
-    assert result == []
-    calls = [call('theHost/audio/patientUuid/noteUuid/3')]
-    assert get_audio.mock_calls == calls
-    reset_mocks()
-
-    # some audio
-    with patch.object(Commander, "MAX_AUDIOS", 3):
-        get_audio.side_effect = [b"call 1", b"call 2", b"call 3", b"call 4"]
-        result = tested.retrieve_audios("theHost", "patientUuid", "noteUuid", 3)
-        assert result == [
-            b'call 2',
-            b'call 3',
-            b'call 1',
-        ]
+    tests = [
+        ({}, False),
+        ({"AwsKey": "theAwsKey", "AwsSecret": "theAwsSecret", "AwsRegion": "theAwsRegion", "AwsBucket": "theAwsBucket"}, True),
+        ({"AwsKey": "theAwsKey", "AwsSecret": "theAwsSecret", "AwsRegion": "theAwsRegion"}, False),
+        ({"AwsKey": "theAwsKey", "AwsSecret": "theAwsSecret", "AwsBucket": "theAwsBucket"}, False),
+        ({"AwsKey": "theAwsKey", "AwsRegion": "theAwsRegion", "AwsBucket": "theAwsBucket"}, False),
+        ({"AwsSecret": "theAwsSecret", "AwsRegion": "theAwsRegion", "AwsBucket": "theAwsBucket"}, False),
+    ]
+    for secrets, expected in tests:
+        memory_log.end_session.side_effect = ["theLogText"]
+        tested = Commander(event, secrets)
+        tested.flush_log("theNoteUuid", "theLogPath")
         calls = [
-            call('theHost/audio/patientUuid/noteUuid/3'),
-            call('theHost/audio/patientUuid/noteUuid/1'),
-            call('theHost/audio/patientUuid/noteUuid/2'),
-        ]
-        assert get_audio.mock_calls == calls
+            call("theAwsKey", "theAwsSecret", "theAwsRegion", "theAwsBucket"),
+            call().upload_text_to_s3("theLogPath", "theLogText"),
+        ] if expected else []
+        assert aws_s3.mock_calls == calls
+        calls = [call.end_session("theNoteUuid")] if expected else []
+        assert memory_log.mock_calls == calls
         reset_mocks()
 
 
+@patch("hyperscribe.handlers.commander.MemoryLog")
 @patch.object(log, "info")
 @patch.object(Note, "objects")
 @patch.object(TaskComment, "objects")
 @patch.object(Commander, "compute_audio")
-def test_compute(compute_audio, task_comment_db, note_db, info):
+def test_compute(compute_audio, task_comment_db, note_db, info, memory_log):
     mock_comment = MagicMock()
     mock_note = MagicMock()
 
@@ -241,6 +245,7 @@ def test_compute(compute_audio, task_comment_db, note_db, info):
         task_comment_db.reset_mock()
         note_db.reset_mock()
         info.reset_mock()
+        memory_log.reset_mock()
         mock_comment.reset_mock()
         mock_note.reset_mock()
 
@@ -268,6 +273,7 @@ def test_compute(compute_audio, task_comment_db, note_db, info):
     assert note_db.mock_calls == []
     calls = [call("--> comment: commentUuid (task: taskUuid, labels: ['label1', 'label2'])")]
     assert info.mock_calls == calls
+    assert memory_log.mock_calls == []
     calls = [
         call.task.labels.all(),
         call.task.labels.filter(name='Encounter Copilot'),
@@ -312,10 +318,14 @@ def test_compute(compute_audio, task_comment_db, note_db, info):
     assert task_comment_db.mock_calls == calls
     calls = [
         call("--> comment: commentUuid (task: taskUuid, labels: ['label1', 'label2'])"),
-        call('Text: theTextVendor - Audio: theAudioVendor'),
-        call('audio was present => go to next iteration (2)'),
     ]
     assert info.mock_calls == calls
+    calls = [
+        call('noteUuid', 'main'),
+        call().output('Text: theTextVendor - Audio: theAudioVendor'),
+        call().output('audio was present => go to next iteration (2)'),
+    ]
+    assert memory_log.mock_calls == calls
     calls = [
         call.task.labels.all(),
         call.task.labels.filter(name='Encounter Copilot'),
@@ -352,10 +362,15 @@ def test_compute(compute_audio, task_comment_db, note_db, info):
     assert task_comment_db.mock_calls == calls
     calls = [
         call("--> comment: commentUuid (task: taskUuid, labels: ['label1', 'label2'])"),
-        call('Text: theTextVendor - Audio: theAudioVendor'),
-        call('audio was NOT present => stop the task'),
     ]
     assert info.mock_calls == calls
+    calls = [
+        call('noteUuid', 'main'),
+        call().output('Text: theTextVendor - Audio: theAudioVendor'),
+        call().output('audio was NOT present => stop the task'),
+        call.end_session('noteUuid'),
+    ]
+    assert memory_log.mock_calls == calls
     calls = [
         call.task.labels.all(),
         call.task.labels.filter(name='Encounter Copilot'),
@@ -364,6 +379,39 @@ def test_compute(compute_audio, task_comment_db, note_db, info):
     assert mock_comment.mock_calls == calls
     assert mock_note.mock_calls == []
     reset_mocks()
+
+
+@patch.object(Audio, "get_audio")
+def test_retrieve_audios(get_audio):
+    def reset_mocks():
+        get_audio.reset_mock()
+
+    tested = Commander
+
+    # no more audio
+    get_audio.side_effect = [b""]
+    result = tested.retrieve_audios("theHost", "patientUuid", "noteUuid", 3)
+    assert result == []
+    calls = [call('theHost/audio/patientUuid/noteUuid/3')]
+    assert get_audio.mock_calls == calls
+    reset_mocks()
+
+    # some audio
+    with patch.object(Commander, "MAX_AUDIOS", 3):
+        get_audio.side_effect = [b"call 1", b"call 2", b"call 3", b"call 4"]
+        result = tested.retrieve_audios("theHost", "patientUuid", "noteUuid", 3)
+        assert result == [
+            b'call 2',
+            b'call 3',
+            b'call 1',
+        ]
+        calls = [
+            call('theHost/audio/patientUuid/noteUuid/3'),
+            call('theHost/audio/patientUuid/noteUuid/1'),
+            call('theHost/audio/patientUuid/noteUuid/2'),
+        ]
+        assert get_audio.mock_calls == calls
+        reset_mocks()
 
 
 def test_structured_rfv():
@@ -385,6 +433,7 @@ def test_structured_rfv():
         assert result is expected
 
 
+@patch('hyperscribe.handlers.commander.MemoryLog')
 @patch('hyperscribe.handlers.commander.LimitedCache')
 @patch('hyperscribe.handlers.commander.AudioInterpreter')
 @patch('hyperscribe.handlers.commander.CachedDiscussion')
@@ -394,9 +443,7 @@ def test_structured_rfv():
 @patch.object(Commander, 'existing_commands_to_instructions')
 @patch.object(Commander, 'audio2commands')
 @patch.object(Commander, 'retrieve_audios')
-@patch.object(log, "info")
 def test_compute_audio(
-        info,
         retrieve_audios,
         audio2commands,
         existing_commands_to_instructions,
@@ -406,9 +453,9 @@ def test_compute_audio(
         cached_discussion,
         audio_interpreter,
         limited_cache,
+        memory_log,
 ):
     def reset_mocks():
-        info.reset_mock()
         retrieve_audios.reset_mock()
         audio2commands.reset_mock()
         existing_commands_to_instructions.reset_mock()
@@ -418,6 +465,7 @@ def test_compute_audio(
         cached_discussion.reset_mock()
         audio_interpreter.reset_mock()
         limited_cache.reset_mock()
+        memory_log.reset_mock()
 
     secrets = {
         "AudioHost": "theAudioHost",
@@ -448,8 +496,11 @@ def test_compute_audio(
     expected = (False, [])
     assert result == expected
 
-    calls = [call('--> audio chunks: 0')]
-    assert info.mock_calls == calls
+    calls = [
+        call('noteUuid', 'main'),
+        call().output('--> audio chunks: 0'),
+    ]
+    assert memory_log.mock_calls == calls
     calls = [call('theAudioHost', 'patientUuid', 'noteUuid', 3)]
     assert retrieve_audios.mock_calls == calls
     assert audio2commands.mock_calls == []
@@ -521,23 +572,24 @@ def test_compute_audio(
     assert discussion.previous_instructions == previous
 
     calls = [
-        call('--> audio chunks: 2'),
-        call('<===  note: noteUuid ===>'),
-        call('Structured RfV: True'),
-        call("instructions: ["
-             "Instruction(uuid='uuidA', instruction='theInstructionA', information='theInformationA', is_new=False, is_updated=True), "
-             "Instruction(uuid='uuidB', instruction='theInstructionB', information='theInformationB', is_new=True, is_updated=False), "
-             "Instruction(uuid='uuidC', instruction='theInstructionC', information='theInformationC', is_new=True, is_updated=False)]"),
-        call('<-------->'),
-        call('command: LOG'),
-        call('Log1'),
-        call('command: LOG'),
-        call('Log2'),
-        call('command: LOG'),
-        call('Log3'),
-        call('<=== END ===>'),
+        call('noteUuid', 'main'),
+        call().output('--> audio chunks: 2'),
+        call().output('<===  note: noteUuid ===>'),
+        call().output('Structured RfV: True'),
+        call().output("instructions: ["
+                      "Instruction(uuid='uuidA', instruction='theInstructionA', information='theInformationA', is_new=False, is_updated=True), "
+                      "Instruction(uuid='uuidB', instruction='theInstructionB', information='theInformationB', is_new=True, is_updated=False), "
+                      "Instruction(uuid='uuidC', instruction='theInstructionC', information='theInformationC', is_new=True, is_updated=False)]"),
+        call().output('<-------->'),
+        call().output('command: LOG'),
+        call().output('Log1'),
+        call().output('command: LOG'),
+        call().output('Log2'),
+        call().output('command: LOG'),
+        call().output('Log3'),
+        call().output('<=== END ===>'),
     ]
-    assert info.mock_calls == calls
+    assert memory_log.mock_calls == calls
     calls = [call('theAudioHost', 'patientUuid', 'noteUuid', 3)]
     assert retrieve_audios.mock_calls == calls
     calls = [call('AuditorInstance', [b'audio1', b'audio2'], 'AudioInterpreterInstance', instructions)]
@@ -565,19 +617,19 @@ def test_compute_audio(
     reset_mocks()
 
 
+@patch('hyperscribe.handlers.commander.MemoryLog')
 @patch.object(Commander, 'update_commands_from')
 @patch.object(Commander, 'new_commands_from')
-@patch.object(log, "info")
-def test_audio2commands(info, new_commands_from, update_commands_from):
+def test_audio2commands(new_commands_from, update_commands_from, memory_log):
     mock_auditor = MagicMock()
     mock_chatter = MagicMock()
 
     def reset_mocks():
-        info.reset_mock()
         new_commands_from.reset_mock()
         update_commands_from.reset_mock()
         mock_auditor.reset_mock()
         mock_chatter.reset_mock()
+        memory_log.reset_mock()
 
     tested = Commander
 
@@ -609,6 +661,7 @@ def test_audio2commands(info, new_commands_from, update_commands_from):
             {"uuid": "uuidC", "instruction": "theInstructionC", "information": "theInformationC", "isNew": True, "isUpdated": False},
         ],
     ]
+    mock_chatter.note_uuid = "theNoteUuid"
 
     result = tested.audio2commands(mock_auditor, audios, mock_chatter, previous)
     expected = (
@@ -643,10 +696,11 @@ def test_audio2commands(info, new_commands_from, update_commands_from):
     assert result == expected
 
     calls = [
-        call('--> transcript back and forth: 3'),
-        call('--> instructions: 3'),
+        call('theNoteUuid', 'main'),
+        call().output('--> transcript back and forth: 3'),
+        call().output('--> instructions: 3'),
     ]
-    assert info.mock_calls == calls
+    assert memory_log.mock_calls == calls
     calls = [
         call(
             mock_auditor,
@@ -712,9 +766,10 @@ def test_audio2commands(info, new_commands_from, update_commands_from):
     assert result == expected
 
     calls = [
-        call('--> transcript encountered: theError'),
+        call('theNoteUuid', 'main'),
+        call().output('--> transcript encountered: theError'),
     ]
-    assert info.mock_calls == calls
+    assert memory_log.mock_calls == calls
     assert new_commands_from.mock_calls == []
     assert update_commands_from.mock_calls == []
     calls = [
@@ -724,9 +779,9 @@ def test_audio2commands(info, new_commands_from, update_commands_from):
     reset_mocks()
 
 
+@patch('hyperscribe.handlers.commander.MemoryLog')
 @patch("hyperscribe.handlers.commander.time")
-@patch.object(log, "info")
-def test_new_commands_from(info, time):
+def test_new_commands_from(time, memory_log):
     auditor = MagicMock()
     chatter = MagicMock()
     mock_commands = [
@@ -735,8 +790,8 @@ def test_new_commands_from(info, time):
     ]
 
     def reset_mocks():
-        info.reset_mock()
         time.reset_mock()
+        memory_log.reset_mock()
         auditor.reset_mock()
         chatter.reset_mock()
         for a_command in mock_commands:
@@ -762,17 +817,19 @@ def test_new_commands_from(info, time):
     time.side_effect = [111.110, 111.219]
     chatter.create_sdk_command_parameters.side_effect = []
     chatter.create_sdk_command_from.side_effect = []
+    chatter.note_uuid = "noteUuid"
     for mock_command in mock_commands:
         mock_command.originate.side_effect = []
 
     result = tested.new_commands_from(auditor, chatter, instructions, past_uuids)
     assert result == []
     calls = [
-        call('--> new instructions: 0'),
-        call('--> new commands: 0'),
-        call('DURATION NEW: 108'),
+        call('noteUuid', 'main'),
+        call().output('--> new instructions: 0'),
+        call().output('--> new commands: 0'),
+        call().output('DURATION NEW: 108'),
     ]
-    assert info.mock_calls == calls
+    assert memory_log.mock_calls == calls
     calls = [call(), call()]
     assert time.mock_calls == calls
     calls = [
@@ -811,11 +868,12 @@ def test_new_commands_from(info, time):
     ]
     assert result == expected
     calls = [
-        call('--> new instructions: 4'),
-        call('--> new commands: 3'),
-        call('DURATION NEW: 246'),
+        call('noteUuid', 'main'),
+        call().output('--> new instructions: 4'),
+        call().output('--> new commands: 3'),
+        call().output('DURATION NEW: 246'),
     ]
-    assert info.mock_calls == calls
+    assert memory_log.mock_calls == calls
     calls = [call(), call()]
     assert time.mock_calls == calls
     calls = [
@@ -854,9 +912,9 @@ def test_new_commands_from(info, time):
     reset_mocks()
 
 
+@patch('hyperscribe.handlers.commander.MemoryLog')
 @patch("hyperscribe.handlers.commander.time")
-@patch.object(log, "info")
-def test_update_commands_from(info, time):
+def test_update_commands_from(time, memory_log):
     auditor = MagicMock()
     chatter = MagicMock()
     mock_commands = [
@@ -865,8 +923,8 @@ def test_update_commands_from(info, time):
     ]
 
     def reset_mocks():
-        info.reset_mock()
         time.reset_mock()
+        memory_log.reset_mock()
         auditor.reset_mock()
         chatter.reset_mock()
         for a_command in mock_commands:
@@ -895,11 +953,12 @@ def test_update_commands_from(info, time):
     result = tested.update_commands_from(auditor, chatter, instructions, past_uuids)
     assert result == []
     calls = [
-        call('--> updated instructions: 0'),
-        call('--> updated commands: 0'),
-        call('DURATION UPDATE: 246'),
+        call('noteUuid', 'main'),
+        call().output('--> updated instructions: 0'),
+        call().output('--> updated commands: 0'),
+        call().output('DURATION UPDATE: 246'),
     ]
-    assert info.mock_calls == calls
+    assert memory_log.mock_calls == calls
     calls = [call(), call()]
     assert time.mock_calls == calls
     calls = [
@@ -943,11 +1002,12 @@ def test_update_commands_from(info, time):
     ]
     assert result == expected
     calls = [
-        call('--> updated instructions: 4'),
-        call('--> updated commands: 3'),
-        call('DURATION UPDATE: 340'),
+        call('noteUuid', 'main'),
+        call().output('--> updated instructions: 4'),
+        call().output('--> updated commands: 3'),
+        call().output('DURATION UPDATE: 340'),
     ]
-    assert info.mock_calls == calls
+    assert memory_log.mock_calls == calls
     calls = [call(), call()]
     assert time.mock_calls == calls
     calls = [

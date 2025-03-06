@@ -2,6 +2,7 @@ from canvas_sdk.commands.commands.exam import PhysicalExamCommand
 
 from hyperscribe.handlers.commands.base import Base
 from hyperscribe.handlers.constants import Constants
+from hyperscribe.handlers.llms.llm_base import LlmBase
 from hyperscribe.handlers.structures.coded_item import CodedItem
 
 
@@ -21,7 +22,7 @@ class PhysicalExam(Base):
             return CodedItem(label=f"{text}: {questions}", code="", uuid="")
         return None
 
-    def command_from_json(self, parameters: dict) -> None | PhysicalExamCommand:
+    def command_from_json(self, chatter: LlmBase, parameters: dict) -> None | PhysicalExamCommand:
         return None
 
     def command_parameters(self) -> dict:

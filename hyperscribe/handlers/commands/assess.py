@@ -3,6 +3,7 @@ from canvas_sdk.commands.commands.assess import AssessCommand
 from hyperscribe.handlers.commands.base import Base
 from hyperscribe.handlers.constants import Constants
 from hyperscribe.handlers.helper import Helper
+from hyperscribe.handlers.llms.llm_base import LlmBase
 from hyperscribe.handlers.structures.coded_item import CodedItem
 
 
@@ -17,7 +18,7 @@ class Assess(Base):
             return CodedItem(label=f'{condition}: {narrative}', code="", uuid="")
         return None
 
-    def command_from_json(self, parameters: dict) -> None | AssessCommand:
+    def command_from_json(self, chatter: LlmBase, parameters: dict) -> None | AssessCommand:
         condition_id = ""
         if 0 <= (idx := parameters["conditionIndex"]) < len(current := self.cache.current_conditions()):
             condition_id = current[idx].uuid

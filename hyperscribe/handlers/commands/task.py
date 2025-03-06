@@ -7,6 +7,7 @@ from hyperscribe.handlers.commands.base import Base
 from hyperscribe.handlers.constants import Constants
 from hyperscribe.handlers.helper import Helper
 from hyperscribe.handlers.json_schema import JsonSchema
+from hyperscribe.handlers.llms.llm_base import LlmBase
 from hyperscribe.handlers.structures.coded_item import CodedItem
 
 
@@ -28,7 +29,8 @@ class Task(Base):
             return CodedItem(label=f"{task}: {comment} (due on: {due_date}, labels: {labels})", code="", uuid="")
         return None
 
-    def select_staff(self, assigned_to: str, comment: str) -> None | TaskAssigner:
+    @classmethod
+    def select_staff(cls, chatter: LlmBase, assigned_to: str, comment: str) -> None | TaskAssigner:
         staff_members = Staff.objects.filter(active=True).order_by("last_name")
         if not staff_members:
             return None
@@ -59,12 +61,13 @@ class Task(Base):
             '',
         ]
         schemas = JsonSchema.get(["selector_staff"])
-        if response := Helper.chatter(self.settings).single_conversation(system_prompt, user_prompt, schemas):
+        if response := chatter.single_conversation(system_prompt, user_prompt, schemas):
             staff_id = int(response[0]["staffId"])
             return TaskAssigner(to=AssigneeType.STAFF, id=staff_id)
         return None
 
-    def select_labels(self, labels: str, comment: str) -> None | list[str]:
+    @classmethod
+    def select_labels(cls, chatter: LlmBase, labels: str, comment: str) -> None | list[str]:
         label_db = TaskLabel.objects.filter(active=True).order_by("name")
         if not label_db:
             return None
@@ -95,11 +98,11 @@ class Task(Base):
             '',
         ]
         schemas = JsonSchema.get(["selector_label"])
-        if response := Helper.chatter(self.settings).single_conversation(system_prompt, user_prompt, schemas):
+        if response := chatter.single_conversation(system_prompt, user_prompt, schemas):
             return [label["name"] for label in response]
         return None
 
-    def command_from_json(self, parameters: dict) -> None | TaskCommand:
+    def command_from_json(self, chatter: LlmBase, parameters: dict) -> None | TaskCommand:
         result = TaskCommand(
             title=parameters["title"],
             due_date=Helper.str2date(parameters["dueDate"]),
@@ -107,10 +110,10 @@ class Task(Base):
             note_uuid=self.note_uuid,
         )
         if parameters["assignTo"]:
-            result.assign_to = self.select_staff(parameters["assignTo"], parameters["comment"])
+            result.assign_to = self.select_staff(chatter, parameters["assignTo"], parameters["comment"])
 
         if parameters["labels"]:
-            result.labels = self.select_labels(parameters["labels"], parameters["comment"])
+            result.labels = self.select_labels(chatter, parameters["labels"], parameters["comment"])
 
         return result
 

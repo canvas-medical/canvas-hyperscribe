@@ -1,3 +1,5 @@
+from unittest.mock import MagicMock
+
 from hyperscribe.handlers.commands.base import Base
 from hyperscribe.handlers.commands.review_of_system import ReviewOfSystem
 from hyperscribe.handlers.limited_cache import LimitedCache
@@ -44,9 +46,11 @@ def test_staged_command_extract():
 
 
 def test_command_from_json():
+    chatter = MagicMock()
     tested = helper_instance()
-    result = tested.command_from_json({})
+    result = tested.command_from_json(chatter, {})
     assert result is None
+    assert chatter.mock_calls == []
 
 
 def test_command_parameters():

@@ -5,8 +5,8 @@ from canvas_sdk.commands.commands.medication_statement import MedicationStatemen
 from hyperscribe.handlers.canvas_science import CanvasScience
 from hyperscribe.handlers.commands.base import Base
 from hyperscribe.handlers.constants import Constants
-from hyperscribe.handlers.helper import Helper
 from hyperscribe.handlers.json_schema import JsonSchema
+from hyperscribe.handlers.llms.llm_base import LlmBase
 from hyperscribe.handlers.structures.coded_item import CodedItem
 
 
@@ -22,7 +22,7 @@ class Medication(Base):
             return CodedItem(label=f"{text}: {sig}", code="", uuid="")
         return None
 
-    def command_from_json(self, parameters: dict) -> None | MedicationStatementCommand:
+    def command_from_json(self, chatter: LlmBase, parameters: dict) -> None | MedicationStatementCommand:
         result = MedicationStatementCommand(
             sig=parameters["sig"],
             note_uuid=self.note_uuid,
@@ -56,7 +56,7 @@ class Medication(Base):
                 '',
             ]
             schemas = JsonSchema.get(["selector_fdb_code"])
-            if response := Helper.chatter(self.settings).single_conversation(system_prompt, user_prompt, schemas):
+            if response := chatter.single_conversation(system_prompt, user_prompt, schemas):
                 result.fdb_code = str(response[0]["fdbCode"])
         return result
 

@@ -2,6 +2,7 @@ from canvas_sdk.commands.commands.remove_allergy import RemoveAllergyCommand
 
 from hyperscribe.handlers.commands.base import Base
 from hyperscribe.handlers.constants import Constants
+from hyperscribe.handlers.llms.llm_base import LlmBase
 from hyperscribe.handlers.structures.coded_item import CodedItem
 
 
@@ -17,7 +18,7 @@ class RemoveAllergy(Base):
             return CodedItem(label=f"{allergy}: {narrative}", code="", uuid="")
         return None
 
-    def command_from_json(self, parameters: dict) -> None | RemoveAllergyCommand:
+    def command_from_json(self, chatter: LlmBase, parameters: dict) -> None | RemoveAllergyCommand:
         allergy_uuid = ""
         if 0 <= (idx := parameters["allergyIndex"]) < len(current := self.cache.current_allergies()):
             allergy_uuid = current[idx].uuid

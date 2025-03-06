@@ -1,23 +1,25 @@
 import json
-from unittest.mock import patch, call
+from unittest.mock import patch, call, MagicMock
 
 import pytest
-from logger import log
 
 from hyperscribe.handlers.llms.llm_anthropic import LlmAnthropic
 from hyperscribe.handlers.structures.http_response import HttpResponse
 
 
 def test_add_audio():
-    tested = LlmAnthropic("anthropicKey", "theModel")
+    memory_log = MagicMock()
+    tested = LlmAnthropic(memory_log, "anthropicKey", "theModel")
     with pytest.raises(Exception) as e:
         _ = tested.add_audio(b"audio", "format")
     expected = "NotImplementedError"
     assert e.typename == expected
+    assert memory_log.mock_calls == []
 
 
 def test_to_dict():
-    tested = LlmAnthropic("anthropicKey", "theModel")
+    memory_log = MagicMock()
+    tested = LlmAnthropic(memory_log, "anthropicKey", "theModel")
     tested.set_system_prompt(["line 1", "line 2", "line 3"])
     tested.set_user_prompt(["line 4", "line 5", "line 6"])
 
@@ -38,6 +40,7 @@ def test_to_dict():
         ],
     }
     assert result == expected
+    assert memory_log.mock_calls == []
 
     # with an exchange with the model
     tested.set_model_prompt(["line 7", "line 8"])
@@ -70,16 +73,18 @@ def test_to_dict():
         ],
     }
     assert result == expected
+    assert memory_log.mock_calls == []
 
 
 @patch("hyperscribe.handlers.llms.llm_anthropic.requests_post")
-@patch.object(log, "info")
 @patch.object(LlmAnthropic, "to_dict")
-def test_request(to_dict, info, requests_post):
+def test_request(to_dict, requests_post):
+    memory_log = MagicMock()
+
     def reset_mocks():
         to_dict.reset_mock()
-        info.reset_mock()
         requests_post.reset_mock()
+        memory_log.reset_mock()
 
     response = type("Response", (), {
         "status_code": 202,
@@ -96,10 +101,10 @@ def test_request(to_dict, info, requests_post):
     })()
 
     # error
-    to_dict.side_effect = [{"key": "value"}]
+    to_dict.side_effect = [{"key": "valueX"}, {"key": "valueY"}]
     requests_post.side_effect = [response]
 
-    tested = LlmAnthropic("apiKey", "theModel")
+    tested = LlmAnthropic(memory_log, "apiKey", "theModel")
     result = tested.request()
     expected = HttpResponse(
         code=202,
@@ -107,9 +112,8 @@ def test_request(to_dict, info, requests_post):
     )
     assert result == expected
 
-    calls = [call()]
+    calls = [call(), call()]
     assert to_dict.mock_calls == calls
-    assert info.mock_calls == []
     calls = [call(
         "https://api.anthropic.com/v1/messages",
         headers={
@@ -118,37 +122,33 @@ def test_request(to_dict, info, requests_post):
             "x-api-key": "apiKey",
         },
         params={},
-        data='{"key": "value"}',
+        data='{"key": "valueX"}',
         verify=True,
         timeout=None,
     )]
     assert requests_post.mock_calls == calls
+    calls = [
+        call.log('--- request begins:'),
+        call.log('{\n  "key": "valueY"\n}'),
+        call.log('status code: 202'),
+        call.log('{"content": [{"text": "```json\\n[\\"line 1\\",\\"line 2\\",\\"line 3\\"]\\n```\\n"}]}'),
+        call.log('--- request ends ---'),
+    ]
+    assert memory_log.mock_calls == calls
     reset_mocks()
 
     # no error
     response.status_code = 200
-    # -- with log
     to_dict.side_effect = [{"key": "valueA"}, {"key": "valueB"}]
     requests_post.side_effect = [response]
 
-    tested = LlmAnthropic("apiKey", "theModel")
-    result = tested.request(True)
+    tested = LlmAnthropic(memory_log, "apiKey", "theModel")
+    result = tested.request()
     expected = HttpResponse(code=200, response='```json\n["line 1","line 2","line 3"]\n```\n')
     assert result == expected
 
-    calls = [
-        call(),
-        call(),
-    ]
+    calls = [call(), call()]
     assert to_dict.mock_calls == calls
-    calls = [
-        call("***** CHAT STARTS ******"),
-        call('{\n  "key": "valueB"\n}'),
-        call('response code: >200<'),
-        call('{"content": [{"text": "```json\\n[\\"line 1\\",\\"line 2\\",\\"line 3\\"]\\n```\\n"}]}'),
-        call("****** CHAT ENDS *******"),
-    ]
-    assert info.mock_calls == calls
     calls = [call(
         "https://api.anthropic.com/v1/messages",
         headers={
@@ -162,30 +162,12 @@ def test_request(to_dict, info, requests_post):
         timeout=None,
     )]
     assert requests_post.mock_calls == calls
-    reset_mocks()
-    # -- without log
-    to_dict.side_effect = [{"key": "value"}]
-    requests_post.side_effect = [response]
-
-    tested = LlmAnthropic("apiKey", "theModel")
-    result = tested.request()
-    expected = HttpResponse(code=200, response='```json\n["line 1","line 2","line 3"]\n```\n')
-    assert result == expected
-
-    calls = [call()]
-    assert to_dict.mock_calls == calls
-    assert info.mock_calls == []
-    calls = [call(
-        "https://api.anthropic.com/v1/messages",
-        headers={
-            "Content-Type": "application/json",
-            "anthropic-version": "2023-06-01",
-            "x-api-key": "apiKey",
-        },
-        params={},
-        data='{"key": "value"}',
-        verify=True,
-        timeout=None,
-    )]
-    assert requests_post.mock_calls == calls
+    calls = [
+        call.log('--- request begins:'),
+        call.log('{\n  "key": "valueB"\n}'),
+        call.log('status code: 200'),
+        call.log('{"content": [{"text": "```json\\n[\\"line 1\\",\\"line 2\\",\\"line 3\\"]\\n```\\n"}]}'),
+        call.log('--- request ends ---'),
+    ]
+    assert memory_log.mock_calls == calls
     reset_mocks()

@@ -1,29 +1,30 @@
 import json
-from unittest.mock import patch, call
-
-from logger import log
+from unittest.mock import patch, call, MagicMock
 
 from hyperscribe.handlers.llms.llm_openai import LlmOpenai
 from hyperscribe.handlers.structures.http_response import HttpResponse
 
 
 def test_add_audio():
-    tested = LlmOpenai("openaiKey", "theModel")
+    memory_log = MagicMock()
+    tested = LlmOpenai(memory_log, "openaiKey", "theModel")
     tested.add_audio(b"", "mp3")
     assert tested.audios == []
     tested.add_audio(b"abc", "mp3")
     expected = [{"format": "mp3", "data": "YWJj"}]
     assert tested.audios == expected
+    assert memory_log.mock_calls == []
 
 
 def test_to_dict():
-    tested = LlmOpenai("openaiKey", "theModel")
+    memory_log = MagicMock()
+    tested = LlmOpenai(memory_log, "openaiKey", "theModel")
     tested.add_audio(b"abc", "mp3")
     tested.add_audio(b"def", "mp3")
     tested.set_system_prompt(["line 1", "line 2", "line 3"])
     tested.set_user_prompt(["line 4", "line 5", "line 6"])
     #
-    result = tested.to_dict()
+    result = tested.to_dict(False)
     expected = {
         'messages': [
             {
@@ -44,6 +45,7 @@ def test_to_dict():
         'temperature': 0.0,
     }
     assert result == expected
+    assert memory_log.mock_calls == []
     # for log
     result = tested.to_dict(True)
     expected = {
@@ -66,10 +68,11 @@ def test_to_dict():
         'temperature': 0.0,
     }
     assert result == expected
+    assert memory_log.mock_calls == []
     # with an exchange with the model
     tested.set_model_prompt(["line 7", "line 8"])
     tested.set_user_prompt(["line 9", "line 10"])
-    result = tested.to_dict()
+    result = tested.to_dict(False)
     expected = {
         'messages': [
             {
@@ -100,14 +103,16 @@ def test_to_dict():
         'temperature': 0.0,
     }
     assert result == expected
+    assert memory_log.mock_calls == []
 
 
 @patch("hyperscribe.handlers.llms.llm_openai.requests_post")
-@patch.object(log, "info")
-def test_request(info, requests_post):
+def test_request(requests_post):
+    memory_log = MagicMock()
+
     def reset_mocks():
-        info.reset_mock()
         requests_post.reset_mock()
+        memory_log.reset_mock()
 
     response = type("Response", (), {
         "status_code": 202,
@@ -132,43 +137,42 @@ def test_request(info, requests_post):
             ],
         }),
     })()
-    tested = LlmOpenai("openaiKey", "theModel")
+    tested = LlmOpenai(memory_log, "openaiKey", "theModel")
     # all good
     response.status_code = 200
     expected = HttpResponse(
         code=200,
         response='response:\n```json\n["item1", "item2"]\n```\n\n```json\n["item3"]\n```\n\nend.',
     )
-    calls = [call(
-        'https://api.openai.com/v1/chat/completions',
-        headers={'Content-Type': 'application/json', 'Authorization': 'Bearer openaiKey', 'OpenAI-Beta': 'assistants=v2'},
-        params={},
-        data='{"model": "theModel", "modalities": ["text"], "messages": [], "temperature": 0.0}',
-        verify=True,
-        timeout=None,
-    )]
-    # -- no log
+    calls_request_post = [
+        call(
+            'https://api.openai.com/v1/chat/completions',
+            headers={'Content-Type': 'application/json', 'Authorization': 'Bearer openaiKey', 'OpenAI-Beta': 'assistants=v2'},
+            params={},
+            data='{"model": "theModel", "modalities": ["text"], "messages": [], "temperature": 0.0}',
+            verify=True,
+            timeout=None,
+        ),
+    ]
     requests_post.side_effect = [response]
     result = tested.request()
     assert result == expected
-    assert requests_post.mock_calls == calls
-    assert info.mock_calls == []
-    reset_mocks()
-    # -- with log
-    requests_post.side_effect = [response]
-    result = tested.request(True)
-    assert result == expected
-    assert requests_post.mock_calls == calls
-    info_calls = [
-        call('***** CHAT STARTS ******'),
-        call('{\n  "model": "theModel",\n  "modalities": [\n    "text"\n  ],\n  "messages": [],\n  "temperature": 0.0\n}'),
-        call('response code: >200<'),
-        call('{"choices": [{"message": {"content": "response:'
-             '\\n```json\\n[\\"item1\\", \\"item2\\"]\\n```\\n'
-             '\\n```json\\n[\\"item3\\"]\\n```\\n\\nend."}}]}'),
-        call('****** CHAT ENDS *******'),
+    assert requests_post.mock_calls == calls_request_post
+    calls = [
+        call.log('--- request begins:'),
+        call.log('{\n  "model": "theModel",\n  "modalities": [\n    "text"\n  ],\n  "messages": [],\n  "temperature": 0.0\n}'),
+        call.log('status code: 200'),
+        call.log('{"choices": [{"message": {"content": "response:\\n'
+                 '```json\\n'
+                 '[\\"item1\\", \\"item2\\"]\\n'
+                 '```\\n\\n'
+                 '```json\\n'
+                 '[\\"item3\\"]\\n'
+                 '```\\n\\n'
+                 'end."}}]}'),
+        call.log('--- request ends ---'),
     ]
-    assert info.mock_calls == info_calls
+    assert memory_log.mock_calls == calls
     reset_mocks()
 
     # error
@@ -180,20 +184,37 @@ def test_request(info, requests_post):
         response='{"choices": [{"message": {"content": "response:\\n```json\\n[\\"item1\\", \\"item2\\"]\\n```\\n\\n```json\\n[\\"item3\\"]\\n```\\n\\nend."}}]}',
     )
     assert result == exp_with_error
-    assert requests_post.mock_calls == calls
-    assert info.mock_calls == []
+    assert requests_post.mock_calls == calls_request_post
+    calls = [
+        call.log('--- request begins:'),
+        call.log('{\n  "model": "theModel",\n  "modalities": [\n    "text"\n  ],\n  "messages": [],\n  "temperature": 0.0\n}'),
+        call.log('status code: 500'),
+        call.log('{"choices": [{"message": {"content": "response:\\n'
+                 '```json\\n'
+                 '[\\"item1\\", \\"item2\\"]\\n'
+                 '```\\n\\n'
+                 '```json\\n'
+                 '[\\"item3\\"]\\n'
+                 '```\\n\\n'
+                 'end."}}]}'),
+        call.log('--- request ends ---'),
+    ]
+    assert memory_log.mock_calls == calls
     reset_mocks()
 
 
 @patch("hyperscribe.handlers.llms.llm_openai.requests_post")
 def test_audio_to_text(requests_post):
+    memory_log = MagicMock()
+
     def reset_mocks():
         requests_post.reset_mock()
+        memory_log.reset_mock()
 
     requests_post.return_value.status_code = 202
     requests_post.return_value.text = "theResponse"
 
-    tested = LlmOpenai("openaiKey", "theModel")
+    tested = LlmOpenai(memory_log, "openaiKey", "theModel")
     result = tested.audio_to_text(b"abc")
     expected = HttpResponse(code=202, response="theResponse")
     assert result == expected
@@ -213,4 +234,5 @@ def test_audio_to_text(requests_post):
         )
     ]
     assert requests_post.mock_calls == calls
+    assert memory_log.mock_calls == []
     reset_mocks()

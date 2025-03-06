@@ -4,8 +4,10 @@ from pathlib import Path
 
 from canvas_sdk.v1.data import Note
 
+from hyperscribe.handlers.aws_s3 import AwsS3
 from hyperscribe.handlers.commander import Commander
 from hyperscribe.handlers.helper import Helper
+from hyperscribe.handlers.memory_log import MemoryLog
 from hyperscribe.handlers.structures.settings import Settings
 from hyperscribe.handlers.structures.vendor_key import VendorKey
 
@@ -31,6 +33,16 @@ class HelperSettings:
         )
 
     @classmethod
+    def flush_log(cls, note_uuid: str, log_path: str) -> None:
+        aws_key = environ.get(Commander.SECRET_AWS_KEY)
+        aws_secret = environ.get(Commander.SECRET_AWS_SECRET)
+        region = environ.get(Commander.SECRET_AWS_REGION)
+        bucket = environ.get(Commander.SECRET_AWS_BUCKET)
+        if aws_key and aws_secret and region and bucket:
+            client_s3 = AwsS3(aws_key, aws_secret, region, bucket)
+            client_s3.upload_text_to_s3(log_path, MemoryLog.end_session(note_uuid))
+
+    @classmethod
     def get_note_uuid(cls, patient_uuid: str) -> str:
         note = Note.objects.filter(patient__id=patient_uuid).order_by("-dbid").first()  # the last note
         return str(note.id)
@@ -41,7 +53,7 @@ class HelperSettings:
         return str(note.provider.id)
 
     @classmethod
-    def json_nuanced_differences(cls, accepted_levels: list[str], result_json: str, expected_json: str) -> tuple[bool, str]:
+    def json_nuanced_differences(cls, case: str, accepted_levels: list[str], result_json: str, expected_json: str) -> tuple[bool, str]:
         system_prompt = [
             "The user will provides two JSON objects.",
             "Your task is compare them and report the discrepancies as a JSON list in a Markdown block like:",
@@ -72,10 +84,10 @@ class HelperSettings:
             "",
             "Please, review both JSONs and report as instructed all differences.",
         ]
-        return cls.nuanced_differences(accepted_levels, system_prompt, user_prompt)
+        return cls.nuanced_differences(case, accepted_levels, system_prompt, user_prompt)
 
     @classmethod
-    def text_nuanced_differences(cls, accepted_levels: list[str], result_text: str, expected_text: str) -> tuple[bool, str]:
+    def text_nuanced_differences(cls, case: str, accepted_levels: list[str], result_text: str, expected_text: str) -> tuple[bool, str]:
         system_prompt = [
             "The user will provides two texts.",
             "Your task is compare them *solely* from a medical meaning point of view and report the discrepancies as a JSON list in a Markdown block like:",
@@ -101,12 +113,11 @@ class HelperSettings:
             "",
             "Please, review both texts and report as instructed all differences from a meaning point of view.",
         ]
-        return cls.nuanced_differences(accepted_levels, system_prompt, user_prompt)
+        return cls.nuanced_differences(case, accepted_levels, system_prompt, user_prompt)
 
     @classmethod
-    def nuanced_differences(cls, accepted_levels: list[str], system_prompt: list[str], user_prompt: list[str]) -> tuple[bool, str]:
-        settings = cls.settings()
-        conversation = Helper.chatter(settings)
+    def nuanced_differences(cls, case: str, accepted_levels: list[str], system_prompt: list[str], user_prompt: list[str]) -> tuple[bool, str]:
+        conversation = Helper.chatter(cls.settings(), MemoryLog("note_uuid", case))
         conversation.set_system_prompt(system_prompt)
         conversation.set_user_prompt(user_prompt)
         with (Path(__file__).parent / "schema_differences.json").open("r") as f:

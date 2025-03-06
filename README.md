@@ -46,20 +46,24 @@ canvas logs --host my-canvas-host
 
 The `secrets` are stored in the Canvas instance database and can be upsert in `https://my-canvas-host.canvasmedical.com/admin/plugin_io/plugin/`.
 
-| Secret                      | Values                          | Comments                                      |
-|-----------------------------|---------------------------------|-----------------------------------------------|
-| `AudioHost`                 |                                 | `audio` Canvas service                        |
-| `AudioIntervalSeconds`      | `20`                            | duration of each audio chunk                  |
-| `VendorTextLLM`             | `OpenAi`, `Google`, `Anthropic` | by default `OpenAi` (case insensitive)        |
-| `KeyTextLLM`                |                                 | the vendor's API key                          |
-| `VendorAudioLLM`            | `OpenAi`, `Google`              | by default `OpenAi` (case insensitive)        |
-| `KeyAudioLLM`               |                                 | the vendor's API key                          |
-| `ScienceHost`               |                                 | `science` Canvas service                      |
-| `OntologiesHost`            |                                 | `ontologies` Canvas service                   |
-| `PreSharedKey`              |                                 | key provided by Canvas to access `ontologies` |
-| `StructuredReasonForVisit`  | `y`, `yes` or `1`               | any other value means `no`/`false`            |
+| Secret                     | Values                          | Comments                                      |
+|----------------------------|---------------------------------|-----------------------------------------------|
+| `AudioHost`                |                                 | `audio` Canvas service                        |
+| `AudioIntervalSeconds`     | `20`                            | duration of each audio chunk                  |
+| `VendorTextLLM`            | `OpenAi`, `Google`, `Anthropic` | by default `OpenAi` (case insensitive)        |
+| `KeyTextLLM`               |                                 | the vendor's API key                          |
+| `VendorAudioLLM`           | `OpenAi`, `Google`              | by default `OpenAi` (case insensitive)        |
+| `KeyAudioLLM`              |                                 | the vendor's API key                          |
+| `ScienceHost`              |                                 | `science` Canvas service                      |
+| `OntologiesHost`           |                                 | `ontologies` Canvas service                   |
+| `PreSharedKey`             |                                 | key provided by Canvas to access `ontologies` |
+| `StructuredReasonForVisit` | `y`, `yes` or `1`               | any other value means `no`/`false`            |
+| `AwsKey`                   |                                 | AWS key to access the S3 service              |
+| `AwsSecret`                |                                 | AWS secret to access the S3 service           |
+| `AwsRegion`                |                                 | AWS region of the S3 service                  |
+| `AwsBucket`                |                                 | AWS bucket of the S3 service                  |
 
-
+The logs, mainly the communication with the LLMs, are stored in a `AWS S3 bucket` if credentials are provided as listed above. 
 
 ## Unit tests
 
@@ -139,6 +143,14 @@ export ScienceHost="..."
 export OntologiesHost="...."
 export PreSharedKey="...."
 export StructuredReasonForVisit="y" or "n"
+```
+The logs will be sent to the `AWS S3 bucket` if the following environment variables are set:
+
+```shell
+export AwsKey="..."
+export AwsSecret="..."
+export AwsRegion="..."
+export AwsBucket="..."
 ```
 
 Based on a set of `mp3` files, a set (i.e. covering all steps) of integration tests can be created using:

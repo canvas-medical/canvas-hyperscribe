@@ -1,6 +1,7 @@
 # from __future__ import annotations
 import json
 from datetime import datetime, timedelta
+from http import HTTPStatus
 from time import time
 from typing import Iterable
 
@@ -18,11 +19,13 @@ from logger import log
 
 from hyperscribe.handlers.audio_interpreter import AudioInterpreter
 from hyperscribe.handlers.auditor import Auditor
+from hyperscribe.handlers.aws_s3 import AwsS3
 from hyperscribe.handlers.commands.history_of_present_illness import HistoryOfPresentIllness
 from hyperscribe.handlers.commands.reason_for_visit import ReasonForVisit
 from hyperscribe.handlers.constants import Constants
 from hyperscribe.handlers.implemented_commands import ImplementedCommands
 from hyperscribe.handlers.limited_cache import LimitedCache
+from hyperscribe.handlers.memory_log import MemoryLog
 from hyperscribe.handlers.structures.coded_item import CodedItem
 from hyperscribe.handlers.structures.instruction import Instruction
 from hyperscribe.handlers.structures.line import Line
@@ -67,7 +70,7 @@ class Audio:
         log.info(f"           code: {response.status_code}")
         log.info(f"        content: {len(response.content)}")
         # Check if the request was successful
-        if response.status_code == 200:
+        if response.status_code == HTTPStatus.OK.value:
             return response.content
         return b""
 
@@ -81,13 +84,27 @@ class Commander(BaseProtocol):
     SECRET_ONTOLOGIES_HOST = "OntologiesHost"
     SECRET_PRE_SHARED_KEY = "PreSharedKey"
     SECRET_AUDIO_HOST = "AudioHost"
+    SECRET_AWS_KEY = "AwsKey"
+    SECRET_AWS_SECRET = "AwsSecret"
+    SECRET_AWS_REGION = "AwsRegion"
+    SECRET_AWS_BUCKET = "AwsBucket"
     SECRET_STRUCTURED_RFV = "StructuredReasonForVisit"
     LABEL_ENCOUNTER_COPILOT = "Encounter Copilot"
     MAX_AUDIOS = 1
+    MEMORY_LOG_LABEL = "main"
 
     RESPONDS_TO = [
         EventType.Name(EventType.TASK_COMMENT_CREATED),
     ]
+
+    def flush_log(self, note_uuid: str, log_path: str) -> None:
+        aws_key = self.secrets.get(self.SECRET_AWS_KEY)
+        aws_secret = self.secrets.get(self.SECRET_AWS_SECRET)
+        region = self.secrets.get(self.SECRET_AWS_REGION)
+        bucket = self.secrets.get(self.SECRET_AWS_BUCKET)
+        if aws_key and aws_secret and region and bucket:
+            client_s3 = AwsS3(aws_key, aws_secret, region, bucket)
+            client_s3.upload_text_to_s3(log_path, MemoryLog.end_session(note_uuid))
 
     def compute(self) -> list[Effect]:
         comment = TaskComment.objects.get(id=self.target)
@@ -103,10 +120,11 @@ class Commander(BaseProtocol):
         provider_uuid = note.provider.id
         patient_uuid = note.patient.id
 
-        log.info(f"Text: {self.secrets[self.SECRET_TEXT_VENDOR]} - Audio: {self.secrets[self.SECRET_AUDIO_VENDOR]}")
+        memory_log = MemoryLog(note_uuid, self.MEMORY_LOG_LABEL)
+        memory_log.output(f"Text: {self.secrets[self.SECRET_TEXT_VENDOR]} - Audio: {self.secrets[self.SECRET_AUDIO_VENDOR]}")
         had_audio, effects = self.compute_audio(patient_uuid, note_uuid, provider_uuid, chunk_index)
         if had_audio:
-            log.info(f"audio was present => go to next iteration ({chunk_index + 1})")
+            memory_log.output(f"audio was present => go to next iteration ({chunk_index + 1})")
             effects.append(AddTaskComment(
                 task_id=str(comment.task.id),
                 body=json.dumps({
@@ -115,13 +133,15 @@ class Commander(BaseProtocol):
                     "chunk_index": chunk_index + 1,
                 })
             ).apply())
+            remote_path = f"{datetime.now().date().isoformat()}/{patient_uuid}-{note_uuid}/{chunk_index:03}.log"
+            self.flush_log(note_uuid, remote_path)
         else:
-            log.info("audio was NOT present => stop the task")
+            memory_log.output("audio was NOT present => stop the task")
             effects.append(UpdateTask(
                 id=str(comment.task.id),
                 status=TaskStatus.COMPLETED,
             ).apply())
-
+            MemoryLog.end_session(note_uuid)
         return effects
 
     @classmethod
@@ -146,11 +166,18 @@ class Commander(BaseProtocol):
             return True
         return False
 
-    def compute_audio(self, patient_uuid: str, note_uuid: str, provider_uuid: str, chunk_index: int) -> tuple[bool, list[Effect]]:
+    def compute_audio(
+            self,
+            patient_uuid: str,
+            note_uuid: str,
+            provider_uuid: str,
+            chunk_index: int,
+    ) -> tuple[bool, list[Effect]]:
+        memory_log = MemoryLog(note_uuid, self.MEMORY_LOG_LABEL)
         CachedDiscussion.clear_cache()
         # retrieve the last two audio chunks
         audios = self.retrieve_audios(self.secrets[self.SECRET_AUDIO_HOST], patient_uuid, note_uuid, chunk_index)
-        log.info(f"--> audio chunks: {len(audios)}")
+        memory_log.output(f"--> audio chunks: {len(audios)}")
         if not audios:
             return False, []
 
@@ -200,14 +227,14 @@ class Commander(BaseProtocol):
             previous_instructions,
         )
         # summary
-        log.info(f"<===  note: {note_uuid} ===>")
-        log.info(f"Structured RfV: {settings.structured_rfv}")
-        log.info(f"instructions: {discussion.previous_instructions}")
-        log.info("<-------->")
+        memory_log.output(f"<===  note: {note_uuid} ===>")
+        memory_log.output(f"Structured RfV: {settings.structured_rfv}")
+        memory_log.output(f"instructions: {discussion.previous_instructions}")
+        memory_log.output("<-------->")
         for result in results:
-            log.info(f"command: {EffectType.Name(result.type)}")
-            log.info(result.payload)
-        log.info("<=== END ===>")
+            memory_log.output(f"command: {EffectType.Name(result.type)}")
+            memory_log.output(result.payload)
+        memory_log.output("<=== END ===>")
 
         return True, results
 
@@ -219,20 +246,21 @@ class Commander(BaseProtocol):
             chatter: AudioInterpreter,
             previous_instructions: list[Instruction],
     ) -> tuple[list[Instruction], list[Effect]]:
+        memory_log = MemoryLog(chatter.note_uuid, cls.MEMORY_LOG_LABEL)
         response = chatter.combine_and_speaker_detection(audios)
         if response.has_error is True:
-            log.info(f"--> transcript encountered: {response.error}")
+            memory_log.output(f"--> transcript encountered: {response.error}")
             return previous_instructions, []  # <--- let's continue even if we were not able to get a transcript
 
         transcript = Line.load_from_json(response.content)
         auditor.identified_transcript(audios, transcript)
-        log.info(f"--> transcript back and forth: {len(transcript)}")
+        memory_log.output(f"--> transcript back and forth: {len(transcript)}")
 
         # detect the instructions based on the transcript and the existing commands
         response = chatter.detect_instructions(transcript, previous_instructions)
         cumulated_instructions = Instruction.load_from_json(response)
         auditor.found_instructions(transcript, cumulated_instructions)
-        log.info(f"--> instructions: {len(cumulated_instructions)}")
+        memory_log.output(f"--> instructions: {len(cumulated_instructions)}")
         past_uuids = {instruction.uuid: instruction for instruction in previous_instructions}
 
         # identify the commands
@@ -252,8 +280,9 @@ class Commander(BaseProtocol):
             instructions: list[Instruction],
             past_uuids: dict[str, Instruction],
     ) -> list[Effect]:
+        memory_log = MemoryLog(chatter.note_uuid, cls.MEMORY_LOG_LABEL)
         new_instructions = [instruction for instruction in instructions if instruction.uuid not in past_uuids]
-        log.info(f"--> new instructions: {len(new_instructions)}")
+        memory_log.output(f"--> new instructions: {len(new_instructions)}")
         start = time()
         max_workers = max(1, Constants.MAX_WORKERS)
         with ThreadPoolExecutor(max_workers=max_workers) as parameters_builder:
@@ -263,14 +292,14 @@ class Commander(BaseProtocol):
                 if parameters[1] is not None
             ]
         auditor.computed_parameters(sdk_parameters)
-        log.info(f"--> new commands: {len(sdk_parameters)}")
+        memory_log.output(f"--> new commands: {len(sdk_parameters)}")
         with ThreadPoolExecutor(max_workers=max_workers) as command_builder:
             sdk_commands = [
                 command
                 for command in command_builder.map(lambda params: chatter.create_sdk_command_from(*params), sdk_parameters)
                 if command is not None
             ]
-        log.info(f"DURATION NEW: {int((time() - start) * 1000)}")
+        memory_log.output(f"DURATION NEW: {int((time() - start) * 1000)}")
         auditor.computed_commands(sdk_parameters, sdk_commands)
         return [command.originate() for command in sdk_commands]
 
@@ -282,13 +311,14 @@ class Commander(BaseProtocol):
             instructions: list[Instruction],
             past_uuids: dict[str, Instruction],
     ) -> list[Effect]:
+        memory_log = MemoryLog(chatter.note_uuid, cls.MEMORY_LOG_LABEL)
         changed = [
             instruction
             for instruction in instructions
             if instruction.uuid in past_uuids
                and past_uuids[instruction.uuid].information != instruction.information
         ]
-        log.info(f"--> updated instructions: {len(changed)}")
+        memory_log.output(f"--> updated instructions: {len(changed)}")
         start = time()
         max_workers = max(1, Constants.MAX_WORKERS)
         with ThreadPoolExecutor(max_workers=max_workers) as parameters_builder:
@@ -298,7 +328,7 @@ class Commander(BaseProtocol):
                 if parameters[1] is not None
             ]
         auditor.computed_parameters(sdk_parameters)
-        log.info(f"--> updated commands: {len(sdk_parameters)}")
+        memory_log.output(f"--> updated commands: {len(sdk_parameters)}")
         sdk_commands: list[BaseCommand] = []
         with ThreadPoolExecutor(max_workers=max_workers) as command_builder:
             for idx, command in enumerate(command_builder.map(lambda params: chatter.create_sdk_command_from(*params), sdk_parameters)):
@@ -306,7 +336,7 @@ class Commander(BaseProtocol):
                     command.command_uuid = changed[idx].uuid
                     sdk_commands.append(command)
 
-        log.info(f"DURATION UPDATE: {int((time() - start) * 1000)}")
+        memory_log.output(f"DURATION UPDATE: {int((time() - start) * 1000)}")
 
         auditor.computed_commands(sdk_parameters, sdk_commands)
         return [command.edit() for command in sdk_commands]
@@ -346,8 +376,6 @@ class Commander(BaseProtocol):
         for command in current_commands:
             for command_class in ImplementedCommands.command_list():
                 if command_class.schema_key() == command.schema_key:
-                    print("====>", command.schema_key)
-                    print(json.dumps(command.data, indent=2))
                     if coded_item := command_class.staged_command_extract(command.data):
                         key = command.schema_key
                         if key not in result:

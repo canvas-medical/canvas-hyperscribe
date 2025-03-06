@@ -6,6 +6,7 @@ from canvas_sdk.v1.data import Medication
 from hyperscribe.handlers.commands.base import Base
 from hyperscribe.handlers.constants import Constants
 from hyperscribe.handlers.helper import Helper
+from hyperscribe.handlers.llms.llm_base import LlmBase
 from hyperscribe.handlers.structures.coded_item import CodedItem
 
 
@@ -35,7 +36,7 @@ class Refill(Base):
             )
         return None
 
-    def command_from_json(self, parameters: dict) -> None | RefillCommand:
+    def command_from_json(self, chatter: LlmBase, parameters: dict) -> None | RefillCommand:
         result: None | RefillCommand = None
         if 0 <= (idx := parameters["medicationIndex"]) < len(current := self.cache.current_medications()):
             medication_uuid = current[idx].uuid

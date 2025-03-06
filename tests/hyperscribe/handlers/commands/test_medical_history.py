@@ -1,12 +1,11 @@
 from datetime import date
-from unittest.mock import patch, call
+from unittest.mock import patch, call, MagicMock
 
 from canvas_sdk.commands.commands.medical_history import MedicalHistoryCommand
 
 from hyperscribe.handlers.canvas_science import CanvasScience
 from hyperscribe.handlers.commands.base import Base
 from hyperscribe.handlers.commands.medical_history import MedicalHistory
-from hyperscribe.handlers.helper import Helper
 from hyperscribe.handlers.limited_cache import LimitedCache
 from hyperscribe.handlers.structures.coded_item import CodedItem
 from hyperscribe.handlers.structures.icd10_condition import Icd10Condition
@@ -82,9 +81,10 @@ def test_staged_command_extract():
             assert result == expected
 
 
-@patch.object(Helper, "chatter")
 @patch.object(CanvasScience, "medical_histories")
-def test_command_from_json(medical_histories, chatter):
+def test_command_from_json(medical_histories):
+    chatter = MagicMock()
+
     def reset_mocks():
         medical_histories.reset_mock()
         chatter.reset_mock()
@@ -144,9 +144,9 @@ def test_command_from_json(medical_histories, chatter):
 
     # all good
     medical_histories.side_effect = [conditions]
-    chatter.return_value.single_conversation.side_effect = [[{"ICD10": "code369", "label": "labelB"}]]
+    chatter.single_conversation.side_effect = [[{"ICD10": "code369", "label": "labelB"}]]
 
-    result = tested.command_from_json(parameters)
+    result = tested.command_from_json(chatter, parameters)
     expected = MedicalHistoryCommand(
         approximate_start_date=date(2018, 3, 15),
         approximate_end_date=date(2021, 7, 19),
@@ -158,18 +158,15 @@ def test_command_from_json(medical_histories, chatter):
     assert result == expected
     calls = [call('scienceHost', keywords)]
     assert medical_histories.mock_calls == calls
-    calls = [
-        call(tested.settings),
-        call().single_conversation(system_prompt, user_prompt, schemas),
-    ]
+    calls = [call.single_conversation(system_prompt, user_prompt, schemas)]
     assert chatter.mock_calls == calls
     reset_mocks()
 
     # no good response
     medical_histories.side_effect = [conditions]
-    chatter.return_value.single_conversation.side_effect = [[]]
+    chatter.single_conversation.side_effect = [[]]
 
-    result = tested.command_from_json(parameters)
+    result = tested.command_from_json(chatter, parameters)
     expected = MedicalHistoryCommand(
         approximate_start_date=date(2018, 3, 15),
         approximate_end_date=date(2021, 7, 19),
@@ -180,18 +177,15 @@ def test_command_from_json(medical_histories, chatter):
     assert result == expected
     calls = [call('scienceHost', keywords)]
     assert medical_histories.mock_calls == calls
-    calls = [
-        call(tested.settings),
-        call().single_conversation(system_prompt, user_prompt, schemas),
-    ]
+    calls = [call.single_conversation(system_prompt, user_prompt, schemas)]
     assert chatter.mock_calls == calls
     reset_mocks()
 
     # no medical concept
     medical_histories.side_effect = [[]]
-    chatter.return_value.single_conversation.side_effect = [[]]
+    chatter.single_conversation.side_effect = [[]]
 
-    result = tested.command_from_json(parameters)
+    result = tested.command_from_json(chatter, parameters)
     expected = MedicalHistoryCommand(
         approximate_start_date=date(2018, 3, 15),
         approximate_end_date=date(2021, 7, 19),

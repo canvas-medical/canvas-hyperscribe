@@ -4,7 +4,6 @@ import json
 from base64 import b64encode
 from http import HTTPStatus
 
-from logger import log
 from requests import post as requests_post
 
 from hyperscribe.handlers.llms.llm_base import LlmBase
@@ -20,7 +19,7 @@ class LlmOpenai(LlmBase):
                 "data": b64encode(audio).decode("utf-8"),
             })
 
-    def to_dict(self, for_log: bool = False) -> dict:
+    def to_dict(self, for_log: bool) -> dict:
         roles = {
             self.ROLE_SYSTEM: "system",  # <-- for o1 models it should be "developer"
             self.ROLE_USER: "user",
@@ -47,14 +46,16 @@ class LlmOpenai(LlmBase):
             "temperature": self.temperature,
         }
 
-    def request(self, add_log: bool = False) -> HttpResponse:
+    def request(self) -> HttpResponse:
         url = "https://api.openai.com/v1/chat/completions"
         headers = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {self.api_key}",
             "OpenAI-Beta": "assistants=v2",
         }
-        data = json.dumps(self.to_dict())
+        data = json.dumps(self.to_dict(False))
+        self.memory_log.log("--- request begins:")
+        self.memory_log.log(json.dumps(self.to_dict(True), indent=2))
         request = requests_post(
             url,
             headers=headers,
@@ -63,18 +64,14 @@ class LlmOpenai(LlmBase):
             verify=True,
             timeout=None,
         )
+        self.memory_log.log(f"status code: {request.status_code}")
+        self.memory_log.log(request.text)
+        self.memory_log.log("--- request ends ---")
         result = HttpResponse(code=request.status_code, response=request.text)
         if result.code == HTTPStatus.OK.value:
             content = json.loads(request.text)
             text = content.get("choices", [{}])[0].get("message", {}).get("content", "")
             result = HttpResponse(code=result.code, response=text)
-
-        if add_log:
-            log.info("***** CHAT STARTS ******")
-            log.info(json.dumps(self.to_dict(True), indent=2))
-            log.info(f"response code: >{request.status_code}<")
-            log.info(request.text)
-            log.info("****** CHAT ENDS *******")
 
         return result
 

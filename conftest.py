@@ -2,6 +2,7 @@ import pytest
 
 from hyperscribe.handlers.audio_interpreter import AudioInterpreter
 from hyperscribe.handlers.limited_cache import LimitedCache
+from hyperscribe.handlers.memory_log import MemoryLog
 from integrations.helper_settings import HelperSettings
 
 
@@ -32,6 +33,10 @@ def pytest_configure(config):
     for key, value in parameters.items():
         print(f"{key}: {value}")
 
+# TODO add an option to print the LLM logs at the end of the test session
+# def pytest_unconfigure(config):
+#     if "note_uuid" in MemoryLog.ENTRIES:
+#         print(MemoryLog.end_session("note_uuid"))
 
 @pytest.fixture
 def allowed_levels(request):

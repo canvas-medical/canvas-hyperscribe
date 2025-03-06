@@ -37,13 +37,15 @@ def test_audio2transcript(audio2transcript_files, allowed_levels, audio_interpre
         with mp3_file.open("rb") as f:
             content.append(f.read())
 
+    case = mp3_files[0].stem
     transcript = audio_interpreter.combine_and_speaker_detection(content)
-    assert transcript.has_error is False, f"{mp3_files[0].stem}: transcript failed"
+    assert transcript.has_error is False, f"{case}: transcript failed"
 
     with json_file.open('r') as f:
         expected = json.load(f)
 
     valid, differences = HelperSettings.json_nuanced_differences(
+        f"{case}-audio2transcript",
         allowed_levels,
         json.dumps(transcript.content, indent=1),
         json.dumps(expected, indent=1),
@@ -51,4 +53,4 @@ def test_audio2transcript(audio2transcript_files, allowed_levels, audio_interpre
     if not valid:
         with capsys.disabled():
             print(differences)
-    assert valid, f"{mp3_files[0].stem}: transcript incorrect"
+    assert valid, f"{case}: transcript incorrect"

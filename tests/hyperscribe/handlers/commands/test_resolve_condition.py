@@ -1,4 +1,4 @@
-from unittest.mock import patch, call
+from unittest.mock import patch, call, MagicMock
 
 from canvas_sdk.commands.commands.resolve_condition import ResolveConditionCommand
 
@@ -71,8 +71,11 @@ def test_staged_command_extract():
 
 @patch.object(LimitedCache, "current_conditions")
 def test_command_from_json(current_conditions):
+    chatter = MagicMock()
+
     def reset_mocks():
         current_conditions.reset_mock()
+        chatter.reset_mock()
 
     tested = helper_instance()
     conditions = [
@@ -92,7 +95,7 @@ def test_command_from_json(current_conditions):
             'conditionIndex': idx,
             'rationale': 'theRationale',
         }
-        result = tested.command_from_json(params)
+        result = tested.command_from_json(chatter, params)
         expected = ResolveConditionCommand(
             condition_id=exp_uuid,
             rationale="theRationale",
@@ -101,6 +104,7 @@ def test_command_from_json(current_conditions):
         assert result == expected
         calls = [call()]
         assert current_conditions.mock_calls == calls
+        assert chatter.mock_calls == []
         reset_mocks()
 
 

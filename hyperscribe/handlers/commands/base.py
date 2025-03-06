@@ -1,6 +1,7 @@
 from canvas_sdk.commands.base import _BaseCommand
 
 from hyperscribe.handlers.limited_cache import LimitedCache
+from hyperscribe.handlers.llms.llm_base import LlmBase
 from hyperscribe.handlers.structures.coded_item import CodedItem
 from hyperscribe.handlers.structures.settings import Settings
 
@@ -26,7 +27,7 @@ class Base:
     def staged_command_extract(cls, data: dict) -> None | CodedItem:
         raise NotImplementedError
 
-    def command_from_json(self, parameters: dict) -> None | _BaseCommand:
+    def command_from_json(self, chatter: LlmBase, parameters: dict) -> None | _BaseCommand:
         raise NotImplementedError
 
     def command_parameters(self) -> dict:

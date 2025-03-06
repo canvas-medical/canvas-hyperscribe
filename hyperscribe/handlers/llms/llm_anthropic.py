@@ -1,7 +1,6 @@
 import json
 from http import HTTPStatus
 
-from logger import log
 from requests import post as requests_post
 
 from hyperscribe.handlers.llms.llm_base import LlmBase
@@ -37,7 +36,7 @@ class LlmAnthropic(LlmBase):
 
         return result
 
-    def request(self, add_log: bool = False) -> HttpResponse:
+    def request(self) -> HttpResponse:
         url = "https://api.anthropic.com/v1/messages"
         headers = {
             "Content-Type": "application/json",
@@ -45,6 +44,8 @@ class LlmAnthropic(LlmBase):
             "x-api-key": self.api_key,
         }
         data = json.dumps(self.to_dict())
+        self.memory_log.log("--- request begins:")
+        self.memory_log.log(json.dumps(self.to_dict(), indent=2))
         request = requests_post(
             url,
             headers=headers,
@@ -53,17 +54,13 @@ class LlmAnthropic(LlmBase):
             verify=True,
             timeout=None,
         )
+        self.memory_log.log(f"status code: {request.status_code}")
+        self.memory_log.log(request.text)
+        self.memory_log.log("--- request ends ---")
         result = HttpResponse(code=request.status_code, response=request.text)
         if result.code == HTTPStatus.OK.value:
             content = json.loads(request.text)
             text = content.get("content", [{}])[0].get("text", "")
             result = HttpResponse(code=result.code, response=text)
-
-        if add_log:
-            log.info("***** CHAT STARTS ******")
-            log.info(json.dumps(self.to_dict(), indent=2))
-            log.info(f"response code: >{request.status_code}<")
-            log.info(request.text)
-            log.info("****** CHAT ENDS *******")
 
         return result

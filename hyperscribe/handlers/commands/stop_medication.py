@@ -2,6 +2,7 @@ from canvas_sdk.commands.commands.stop_medication import StopMedicationCommand
 
 from hyperscribe.handlers.commands.base import Base
 from hyperscribe.handlers.constants import Constants
+from hyperscribe.handlers.llms.llm_base import LlmBase
 from hyperscribe.handlers.structures.coded_item import CodedItem
 
 
@@ -17,7 +18,7 @@ class StopMedication(Base):
             return CodedItem(label=f"{medication}: {rationale}", code="", uuid="")
         return None
 
-    def command_from_json(self, parameters: dict) -> None | StopMedicationCommand:
+    def command_from_json(self, chatter: LlmBase, parameters: dict) -> None | StopMedicationCommand:
         medication_uuid = ""
         if 0 <= (idx := parameters["medicationIndex"]) < len(current := self.cache.current_medications()):
             medication_uuid = current[idx].uuid

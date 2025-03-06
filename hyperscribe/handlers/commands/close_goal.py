@@ -4,6 +4,7 @@ from canvas_sdk.commands.commands.goal import GoalCommand
 from hyperscribe.handlers.commands.base import Base
 from hyperscribe.handlers.constants import Constants
 from hyperscribe.handlers.helper import Helper
+from hyperscribe.handlers.llms.llm_base import LlmBase
 from hyperscribe.handlers.structures.coded_item import CodedItem
 
 
@@ -18,7 +19,7 @@ class CloseGoal(Base):
             return CodedItem(label=f'{text} ({data.get("progress") or "n/a"})', code="", uuid="")
         return None
 
-    def command_from_json(self, parameters: dict) -> None | CloseGoalCommand:
+    def command_from_json(self, chatter: LlmBase, parameters: dict) -> None | CloseGoalCommand:
         goal_uuid = "0"
         if 0 <= (idx := parameters["goalIndex"]) < len(current := self.cache.current_goals()):
             # TODO should be  goal_uuid = current[idx].uuid, waiting for https://github.com/canvas-medical/canvas-plugins/issues/338

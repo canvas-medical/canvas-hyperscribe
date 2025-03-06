@@ -7,6 +7,7 @@ from hyperscribe.handlers.commands.base import Base
 from hyperscribe.handlers.constants import Constants
 from hyperscribe.handlers.helper import Helper
 from hyperscribe.handlers.json_schema import JsonSchema
+from hyperscribe.handlers.llms.llm_base import LlmBase
 from hyperscribe.handlers.structures.coded_item import CodedItem
 
 
@@ -24,7 +25,7 @@ class SurgeryHistory(Base):
             return CodedItem(label=f"{surgery}: {comment} (on: {on_date})", code=code, uuid="")
         return None
 
-    def command_from_json(self, parameters: dict) -> None | PastSurgicalHistoryCommand:
+    def command_from_json(self, chatter: LlmBase, parameters: dict) -> None | PastSurgicalHistoryCommand:
         result = PastSurgicalHistoryCommand(
             approximate_date=Helper.str2date(parameters["approximateDate"]),
             comment=parameters["comment"],
@@ -58,7 +59,7 @@ class SurgeryHistory(Base):
                 '',
             ]
             schemas = JsonSchema.get(["selector_concept"])
-            if response := Helper.chatter(self.settings).single_conversation(system_prompt, user_prompt, schemas):
+            if response := chatter.single_conversation(system_prompt, user_prompt, schemas):
                 result.past_surgical_history = response[0]["term"]
 
         return result

@@ -7,6 +7,7 @@ from hyperscribe.handlers.commands.base import Base
 from hyperscribe.handlers.constants import Constants
 from hyperscribe.handlers.helper import Helper
 from hyperscribe.handlers.json_schema import JsonSchema
+from hyperscribe.handlers.llms.llm_base import LlmBase
 from hyperscribe.handlers.selector_chat import SelectorChat
 from hyperscribe.handlers.structures.coded_item import CodedItem
 
@@ -31,7 +32,7 @@ class ImagingOrder(Base):
             return CodedItem(label=f"{imaging}: {comment} (priority: {priority}, indications: {indications})", code="", uuid="")
         return None
 
-    def command_from_json(self, parameters: dict) -> None | ImagingOrderCommand:
+    def command_from_json(self, chatter: LlmBase, parameters: dict) -> None | ImagingOrderCommand:
         result = ImagingOrderCommand(
             note_uuid=self.note_uuid,
             ordering_provider_key=self.provider_uuid,
@@ -44,6 +45,7 @@ class ImagingOrder(Base):
         # retrieve the linked conditions
         for condition in parameters["conditions"]:
             item = SelectorChat.condition_from(
+                chatter,
                 self.settings,
                 condition["conditionKeywords"].split(","),
                 condition["ICD10"].split(","),
@@ -82,7 +84,7 @@ class ImagingOrder(Base):
                 '',
             ]
             schemas = JsonSchema.get(["selector_concept"])
-            if response := Helper.chatter(self.settings).single_conversation(system_prompt, user_prompt, schemas):
+            if response := chatter.single_conversation(system_prompt, user_prompt, schemas):
                 result.image_code = response[0]["conceptId"]
 
         return result

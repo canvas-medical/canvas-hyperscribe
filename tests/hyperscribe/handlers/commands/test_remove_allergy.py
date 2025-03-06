@@ -1,4 +1,4 @@
-from unittest.mock import patch, call
+from unittest.mock import patch, call, MagicMock
 
 from canvas_sdk.commands.commands.remove_allergy import RemoveAllergyCommand
 
@@ -65,8 +65,11 @@ def test_staged_command_extract():
 
 @patch.object(LimitedCache, "current_allergies")
 def test_command_from_json(current_allergies):
+    chatter = MagicMock()
+
     def reset_mocks():
         current_allergies.reset_mock()
+        chatter.reset_mock()
 
     tested = helper_instance()
     allergies = [
@@ -86,7 +89,7 @@ def test_command_from_json(current_allergies):
             'allergyIndex': idx,
             'narrative': 'theNarrative',
         }
-        result = tested.command_from_json(params)
+        result = tested.command_from_json(chatter, params)
         expected = RemoveAllergyCommand(
             allergy_id=exp_uuid,
             narrative="theNarrative",
@@ -95,6 +98,7 @@ def test_command_from_json(current_allergies):
         assert result == expected
         calls = [call()]
         assert current_allergies.mock_calls == calls
+        assert chatter.mock_calls == []
         reset_mocks()
 
 

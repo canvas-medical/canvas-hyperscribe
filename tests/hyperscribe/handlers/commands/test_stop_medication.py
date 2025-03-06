@@ -1,4 +1,4 @@
-from unittest.mock import patch, call
+from unittest.mock import patch, call, MagicMock
 
 from canvas_sdk.commands.commands.stop_medication import StopMedicationCommand
 
@@ -65,8 +65,11 @@ def test_staged_command_extract():
 
 @patch.object(LimitedCache, "current_medications")
 def test_command_from_json(current_medications):
+    chatter = MagicMock()
+
     def reset_mocks():
         current_medications.reset_mock()
+        chatter.reset_mock()
 
     tested = helper_instance()
     medications = [
@@ -86,7 +89,7 @@ def test_command_from_json(current_medications):
             'medicationIndex': idx,
             'rationale': 'theRationale',
         }
-        result = tested.command_from_json(params)
+        result = tested.command_from_json(chatter, params)
         expected = StopMedicationCommand(
             medication_id=exp_uuid,
             rationale="theRationale",
@@ -95,6 +98,7 @@ def test_command_from_json(current_medications):
         assert result == expected
         calls = [call()]
         assert current_medications.mock_calls == calls
+        assert chatter.mock_calls == []
         reset_mocks()
 
 

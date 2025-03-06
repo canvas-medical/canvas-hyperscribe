@@ -6,8 +6,8 @@ from canvas_sdk.commands.constants import CodeSystems, Coding
 from hyperscribe.handlers.canvas_science import CanvasScience
 from hyperscribe.handlers.commands.base import Base
 from hyperscribe.handlers.constants import Constants
-from hyperscribe.handlers.helper import Helper
 from hyperscribe.handlers.json_schema import JsonSchema
+from hyperscribe.handlers.llms.llm_base import LlmBase
 from hyperscribe.handlers.structures.coded_item import CodedItem
 
 
@@ -23,7 +23,7 @@ class Instruct(Base):
             return CodedItem(label=f"{instruct} ({narrative})", code="", uuid="")
         return None
 
-    def command_from_json(self, parameters: dict) -> None | InstructCommand:
+    def command_from_json(self, chatter: LlmBase, parameters: dict) -> None | InstructCommand:
         result = InstructCommand(
             comment=parameters["comment"],
             note_uuid=self.note_uuid,
@@ -56,7 +56,7 @@ class Instruct(Base):
                 '',
             ]
             schemas = JsonSchema.get(["selector_concept"])
-            if response := Helper.chatter(self.settings).single_conversation(system_prompt, user_prompt, schemas):
+            if response := chatter.single_conversation(system_prompt, user_prompt, schemas):
                 result.coding = Coding(
                     code=str(response[0]["conceptId"]),
                     system=CodeSystems.SNOMED,

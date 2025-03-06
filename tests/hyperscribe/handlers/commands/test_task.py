@@ -1,12 +1,11 @@
 from datetime import date
-from unittest.mock import patch, call
+from unittest.mock import patch, call, MagicMock
 
 from canvas_sdk.commands.commands.task import TaskCommand, TaskAssigner, AssigneeType
 from canvas_sdk.v1.data import Staff, TaskLabel
 
 from hyperscribe.handlers.commands.base import Base
 from hyperscribe.handlers.commands.task import Task
-from hyperscribe.handlers.helper import Helper
 from hyperscribe.handlers.limited_cache import LimitedCache
 from hyperscribe.handlers.structures.coded_item import CodedItem
 from hyperscribe.handlers.structures.settings import Settings
@@ -84,8 +83,9 @@ def test_staged_command_extract():
 
 
 @patch.object(Staff, 'objects')
-@patch.object(Helper, "chatter")
-def test_select_staff(chatter, staff):
+def test_select_staff(staff):
+    chatter = MagicMock()
+
     def reset_mocks():
         chatter.reset_mock()
         staff.reset_mock()
@@ -135,8 +135,8 @@ def test_select_staff(chatter, staff):
 
     # no staff (just theoretical)
     staff.filter.return_value.order_by.side_effect = [[]]
-    chatter.return_value.single_conversation.side_effect = []
-    result = tested.select_staff("assignedTo", "theComment")
+    chatter.single_conversation.side_effect = []
+    result = tested.select_staff(chatter, "assignedTo", "theComment")
     assert result is None
     calls = [call.filter(active=True), call.filter().order_by('last_name')]
     assert staff.mock_calls == calls
@@ -151,36 +151,31 @@ def test_select_staff(chatter, staff):
     ]
     # -- response
     staff.filter.return_value.order_by.side_effect = [staffers]
-    chatter.return_value.single_conversation.side_effect = [[{"staffId": 596, "name": "Jane Doe"}]]
-    result = tested.select_staff("assignedTo", "theComment")
+    chatter.single_conversation.side_effect = [[{"staffId": 596, "name": "Jane Doe"}]]
+    result = tested.select_staff(chatter, "assignedTo", "theComment")
     expected = TaskAssigner(to=AssigneeType.STAFF, id=596)
     assert result == expected
     calls = [call.filter(active=True), call.filter().order_by('last_name')]
     assert staff.mock_calls == calls
-    calls = [
-        call(tested.settings),
-        call().single_conversation(system_prompt, user_prompt, schemas),
-    ]
+    calls = [call.single_conversation(system_prompt, user_prompt, schemas)]
     assert chatter.mock_calls == calls
     reset_mocks()
     # -- no response
     staff.filter.return_value.order_by.side_effect = [staffers]
-    chatter.return_value.single_conversation.side_effect = [[]]
-    result = tested.select_staff("assignedTo", "theComment")
+    chatter.single_conversation.side_effect = [[]]
+    result = tested.select_staff(chatter, "assignedTo", "theComment")
     assert result is None
     calls = [call.filter(active=True), call.filter().order_by('last_name')]
     assert staff.mock_calls == calls
-    calls = [
-        call(tested.settings),
-        call().single_conversation(system_prompt, user_prompt, schemas),
-    ]
+    calls = [call.single_conversation(system_prompt, user_prompt, schemas)]
     assert chatter.mock_calls == calls
     reset_mocks()
 
 
 @patch.object(TaskLabel, 'objects')
-@patch.object(Helper, "chatter")
-def test_select_labels(chatter, task_labels):
+def test_select_labels(task_labels):
+    chatter = MagicMock()
+
     def reset_mocks():
         chatter.reset_mock()
         task_labels.reset_mock()
@@ -229,8 +224,8 @@ def test_select_labels(chatter, task_labels):
 
     # no labels
     task_labels.filter.return_value.order_by.side_effect = [[]]
-    chatter.return_value.single_conversation.side_effect = []
-    result = tested.select_labels("theLabels", "theComment")
+    chatter.single_conversation.side_effect = []
+    result = tested.select_labels(chatter, "theLabels", "theComment")
     assert result is None
     calls = [call.filter(active=True), call.filter().order_by('name')]
     assert task_labels.mock_calls == calls
@@ -245,29 +240,23 @@ def test_select_labels(chatter, task_labels):
     ]
     # -- response
     task_labels.filter.return_value.order_by.side_effect = [labels]
-    chatter.return_value.single_conversation.side_effect = [[{"labelId": 596, "name": "Label2"}, {"labelId": 963, "name": "Label3"}]]
-    result = tested.select_labels("theLabels", "theComment")
+    chatter.single_conversation.side_effect = [[{"labelId": 596, "name": "Label2"}, {"labelId": 963, "name": "Label3"}]]
+    result = tested.select_labels(chatter, "theLabels", "theComment")
     expected = ["Label2", "Label3"]
     assert result == expected
     calls = [call.filter(active=True), call.filter().order_by('name')]
     assert task_labels.mock_calls == calls
-    calls = [
-        call(tested.settings),
-        call().single_conversation(system_prompt, user_prompt, schemas),
-    ]
+    calls = [call.single_conversation(system_prompt, user_prompt, schemas)]
     assert chatter.mock_calls == calls
     reset_mocks()
     # -- no response
     task_labels.filter.return_value.order_by.side_effect = [labels]
-    chatter.return_value.single_conversation.side_effect = [[]]
-    result = tested.select_labels("theLabels", "theComment")
+    chatter.single_conversation.side_effect = [[]]
+    result = tested.select_labels(chatter, "theLabels", "theComment")
     assert result is None
     calls = [call.filter(active=True), call.filter().order_by('name')]
     assert task_labels.mock_calls == calls
-    calls = [
-        call(tested.settings),
-        call().single_conversation(system_prompt, user_prompt, schemas),
-    ]
+    calls = [call.single_conversation(system_prompt, user_prompt, schemas)]
     assert chatter.mock_calls == calls
     reset_mocks()
 
@@ -275,6 +264,8 @@ def test_select_labels(chatter, task_labels):
 @patch.object(Task, "select_labels")
 @patch.object(Task, "select_staff")
 def test_command_from_json(select_staff, select_labels):
+    chatter = MagicMock()
+
     def reset_mocks():
         select_staff.reset_mock()
         select_labels.reset_mock()
@@ -301,7 +292,7 @@ def test_command_from_json(select_staff, select_labels):
         }
         select_staff.side_effect = [side_effect_staff]
         select_labels.side_effect = [side_effect_labels]
-        result = tested.command_from_json(parameters)
+        result = tested.command_from_json(chatter, parameters)
         expected = TaskCommand(
             title="theTitle",
             due_date=date(2025, 2, 4),
@@ -311,10 +302,11 @@ def test_command_from_json(select_staff, select_labels):
             note_uuid="noteUuid",
         )
         assert result == expected
-        calls = [call("theAssignTo", 'theComment')]
+        calls = [call(chatter, "theAssignTo", 'theComment')]
         assert select_staff.mock_calls == calls
-        calls = [call("theLabels", 'theComment')]
+        calls = [call(chatter, "theLabels", 'theComment')]
         assert select_labels.mock_calls == calls
+        assert chatter.mock_calls == []
         reset_mocks()
 
         # no assignee
@@ -327,7 +319,7 @@ def test_command_from_json(select_staff, select_labels):
         }
         select_staff.side_effect = []
         select_labels.side_effect = [side_effect_labels]
-        result = tested.command_from_json(parameters)
+        result = tested.command_from_json(chatter, parameters)
         expected = TaskCommand(
             title="theTitle",
             due_date=date(2025, 2, 4),
@@ -337,8 +329,9 @@ def test_command_from_json(select_staff, select_labels):
         )
         assert result == expected
         assert select_staff.mock_calls == []
-        calls = [call("theLabels", 'theComment')]
+        calls = [call(chatter, "theLabels", 'theComment')]
         assert select_labels.mock_calls == calls
+        assert chatter.mock_calls == []
         reset_mocks()
 
         # no labels
@@ -351,7 +344,7 @@ def test_command_from_json(select_staff, select_labels):
         }
         select_staff.side_effect = [side_effect_staff]
         select_labels.side_effect = []
-        result = tested.command_from_json(parameters)
+        result = tested.command_from_json(chatter, parameters)
         expected = TaskCommand(
             title="theTitle",
             due_date=date(2025, 2, 4),
@@ -360,9 +353,10 @@ def test_command_from_json(select_staff, select_labels):
             note_uuid="noteUuid",
         )
         assert result == expected
-        calls = [call("theAssignTo", 'theComment')]
+        calls = [call(chatter, "theAssignTo", 'theComment')]
         assert select_staff.mock_calls == calls
         assert select_labels.mock_calls == []
+        assert chatter.mock_calls == []
         reset_mocks()
 
 

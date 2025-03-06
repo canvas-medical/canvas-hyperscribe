@@ -8,6 +8,7 @@ from hyperscribe.handlers.llms.llm_anthropic import LlmAnthropic
 from hyperscribe.handlers.llms.llm_base import LlmBase
 from hyperscribe.handlers.llms.llm_google import LlmGoogle
 from hyperscribe.handlers.llms.llm_openai import LlmOpenai
+from hyperscribe.handlers.memory_log import MemoryLog
 from hyperscribe.handlers.structures.settings import Settings
 
 
@@ -43,17 +44,17 @@ class Helper:
         return code.replace(".", "")
 
     @classmethod
-    def chatter(cls, settings: Settings) -> LlmBase:
+    def chatter(cls, settings: Settings, memory_log: MemoryLog) -> LlmBase:
         if settings.llm_text.vendor.upper() == Constants.VENDOR_GOOGLE.upper():
-            return LlmGoogle(settings.llm_text.api_key, Constants.GOOGLE_CHAT_ALL)
+            return LlmGoogle(memory_log, settings.llm_text.api_key, Constants.GOOGLE_CHAT_ALL)
         if settings.llm_text.vendor.upper() == Constants.VENDOR_ANTHROPIC.upper():
-            return LlmAnthropic(settings.llm_text.api_key, Constants.ANTHROPIC_CHAT_TEXT)
+            return LlmAnthropic(memory_log, settings.llm_text.api_key, Constants.ANTHROPIC_CHAT_TEXT)
         # if settings.llm_text.upper() == Constants.VENDOR_OPENAI.upper():
-        return LlmOpenai(settings.llm_text.api_key, Constants.OPENAI_CHAT_TEXT)
+        return LlmOpenai(memory_log, settings.llm_text.api_key, Constants.OPENAI_CHAT_TEXT)
 
     @classmethod
-    def audio2texter(cls, settings: Settings) -> LlmBase:
+    def audio2texter(cls, settings: Settings, memory_log: MemoryLog) -> LlmBase:
         if settings.llm_audio.vendor.upper() == Constants.VENDOR_GOOGLE.upper():
-            return LlmGoogle(settings.llm_audio.api_key, Constants.GOOGLE_CHAT_ALL)
+            return LlmGoogle(memory_log, settings.llm_audio.api_key, Constants.GOOGLE_CHAT_ALL)
         # if settings.llm_text.upper() == Constants.VENDOR_OPENAI.upper():
-        return LlmOpenai(settings.llm_audio.api_key, Constants.OPENAI_CHAT_AUDIO)
+        return LlmOpenai(memory_log, settings.llm_audio.api_key, Constants.OPENAI_CHAT_AUDIO)

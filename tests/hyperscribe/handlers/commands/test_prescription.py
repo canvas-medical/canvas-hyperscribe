@@ -1,12 +1,11 @@
 from decimal import Decimal
-from unittest.mock import patch, call
+from unittest.mock import patch, call, MagicMock
 
 from canvas_sdk.commands.commands.prescribe import PrescribeCommand
 
 from hyperscribe.handlers.canvas_science import CanvasScience
 from hyperscribe.handlers.commands.base import Base
 from hyperscribe.handlers.commands.prescription import Prescription
-from hyperscribe.handlers.helper import Helper
 from hyperscribe.handlers.limited_cache import LimitedCache
 from hyperscribe.handlers.structures.coded_item import CodedItem
 from hyperscribe.handlers.structures.medication_detail import MedicationDetail
@@ -122,12 +121,13 @@ def test_staged_command_extract():
             assert result == expected
 
 
-@patch.object(Helper, "chatter")
 @patch.object(CanvasScience, "medication_details")
 @patch.object(LimitedCache, "staged_commands_of")
 @patch.object(LimitedCache, "current_allergies")
 @patch.object(LimitedCache, "demographic__str__")
-def test_medications_from(demographic, current_allergies, staged_commands_of, medication_details, chatter):
+def test_medications_from(demographic, current_allergies, staged_commands_of, medication_details):
+    chatter = MagicMock()
+
     def reset_mocks():
         demographic.reset_mock()
         current_allergies.reset_mock()
@@ -249,8 +249,8 @@ def test_medications_from(demographic, current_allergies, staged_commands_of, me
     current_allergies.side_effect = [[]]
     staged_commands_of.side_effect = [[]]
     medication_details.side_effect = [medications]
-    chatter.return_value.single_conversation.side_effect = [[{"fdbCode": "code369", "description": "labelB"}]]
-    result = tested.medications_from("theComment", keywords, "theCondition")
+    chatter.single_conversation.side_effect = [[{"fdbCode": "code369", "description": "labelB"}]]
+    result = tested.medications_from(chatter, "theComment", keywords, "theCondition")
     expected = [MedicationDetail(fdb_code="code369", description="labelB", quantities=[])]
     assert result == expected
 
@@ -261,10 +261,7 @@ def test_medications_from(demographic, current_allergies, staged_commands_of, me
     assert staged_commands_of.mock_calls == calls
     calls = [call('scienceHost', keywords)]
     assert medication_details.mock_calls == calls
-    calls = [
-        call(tested.settings),
-        call().single_conversation(system_prompt, user_prompts["with_conditions"], schemas),
-    ]
+    calls = [call.single_conversation(system_prompt, user_prompts["with_conditions"], schemas)]
     assert chatter.mock_calls == calls
     reset_mocks()
 
@@ -273,8 +270,8 @@ def test_medications_from(demographic, current_allergies, staged_commands_of, me
     current_allergies.side_effect = [[]]
     staged_commands_of.side_effect = [[]]
     medication_details.side_effect = [medications]
-    chatter.return_value.single_conversation.side_effect = [[{"fdbCode": "code369", "description": "labelB"}]]
-    result = tested.medications_from("theComment", keywords, "")
+    chatter.single_conversation.side_effect = [[{"fdbCode": "code369", "description": "labelB"}]]
+    result = tested.medications_from(chatter, "theComment", keywords, "")
     expected = [MedicationDetail(fdb_code="code369", description="labelB", quantities=[])]
     assert result == expected
 
@@ -285,10 +282,7 @@ def test_medications_from(demographic, current_allergies, staged_commands_of, me
     assert staged_commands_of.mock_calls == calls
     calls = [call('scienceHost', keywords)]
     assert medication_details.mock_calls == calls
-    calls = [
-        call(tested.settings),
-        call().single_conversation(system_prompt, user_prompts["no_condition"], schemas),
-    ]
+    calls = [call.single_conversation(system_prompt, user_prompts["no_condition"], schemas)]
     assert chatter.mock_calls == calls
     reset_mocks()
 
@@ -297,8 +291,8 @@ def test_medications_from(demographic, current_allergies, staged_commands_of, me
     current_allergies.side_effect = [allergies[:2]]
     staged_commands_of.side_effect = [allergies[2:]]
     medication_details.side_effect = [medications]
-    chatter.return_value.single_conversation.side_effect = [[{"fdbCode": "code369", "description": "labelB"}]]
-    result = tested.medications_from("theComment", keywords, "")
+    chatter.single_conversation.side_effect = [[{"fdbCode": "code369", "description": "labelB"}]]
+    result = tested.medications_from(chatter, "theComment", keywords, "")
     expected = [MedicationDetail(fdb_code="code369", description="labelB", quantities=[])]
     assert result == expected
 
@@ -309,10 +303,7 @@ def test_medications_from(demographic, current_allergies, staged_commands_of, me
     assert staged_commands_of.mock_calls == calls
     calls = [call('scienceHost', keywords)]
     assert medication_details.mock_calls == calls
-    calls = [
-        call(tested.settings),
-        call().single_conversation(system_prompt, user_prompts["with_allergies"], schemas),
-    ]
+    calls = [call.single_conversation(system_prompt, user_prompts["with_allergies"], schemas)]
     assert chatter.mock_calls == calls
     reset_mocks()
 
@@ -321,8 +312,8 @@ def test_medications_from(demographic, current_allergies, staged_commands_of, me
     current_allergies.side_effect = [[]]
     staged_commands_of.side_effect = [[]]
     medication_details.side_effect = [medications]
-    chatter.return_value.single_conversation.side_effect = [[]]
-    result = tested.medications_from("theComment", keywords, "")
+    chatter.single_conversation.side_effect = [[]]
+    result = tested.medications_from(chatter, "theComment", keywords, "")
     assert result == []
 
     calls = [call()]
@@ -332,10 +323,7 @@ def test_medications_from(demographic, current_allergies, staged_commands_of, me
     assert staged_commands_of.mock_calls == calls
     calls = [call('scienceHost', keywords)]
     assert medication_details.mock_calls == calls
-    calls = [
-        call(tested.settings),
-        call().single_conversation(system_prompt, user_prompts["no_condition"], schemas),
-    ]
+    calls = [call.single_conversation(system_prompt, user_prompts["no_condition"], schemas)]
     assert chatter.mock_calls == calls
     reset_mocks()
 
@@ -344,8 +332,8 @@ def test_medications_from(demographic, current_allergies, staged_commands_of, me
     current_allergies.side_effect = [[]]
     staged_commands_of.side_effect = [[]]
     medication_details.side_effect = [[]]
-    chatter.return_value.single_conversation.side_effect = []
-    result = tested.medications_from("theComment", keywords, "theCondition")
+    chatter.single_conversation.side_effect = []
+    result = tested.medications_from(chatter, "theComment", keywords, "theCondition")
     assert result == []
 
     assert demographic.mock_calls == []
@@ -357,9 +345,10 @@ def test_medications_from(demographic, current_allergies, staged_commands_of, me
     reset_mocks()
 
 
-@patch.object(Helper, "chatter")
 @patch.object(LimitedCache, "demographic__str__")
-def test_set_medication_dosage(demographic, chatter):
+def test_set_medication_dosage(demographic):
+    chatter = MagicMock()
+
     def reset_mocks():
         chatter.reset_mock()
         demographic.reset_mock()
@@ -435,13 +424,13 @@ def test_set_medication_dosage(demographic, chatter):
     # with response
     command = PrescribeCommand(days_supply=11)
     demographic.side_effect = ["the patient has this demographic"]
-    chatter.return_value.single_conversation.side_effect = [[{
+    chatter.single_conversation.side_effect = [[{
         "quantityToDispense": "8.3",
         "refills": 3,
         "noteToPharmacist": "theNoteToPharmacist",
         "informationToPatient": "theInformationToPatient",
     }]]
-    tested.set_medication_dosage("theComment", command, medication)
+    tested.set_medication_dosage(chatter, "theComment", command, medication)
     expected = PrescribeCommand(
         days_supply=11,
         fdb_code="code369",
@@ -458,18 +447,15 @@ def test_set_medication_dosage(demographic, chatter):
 
     calls = [call()]
     assert demographic.mock_calls == calls
-    calls = [
-        call(tested.settings),
-        call().single_conversation(system_prompt, user_prompt, schemas),
-    ]
+    calls = [call.single_conversation(system_prompt, user_prompt, schemas)]
     assert chatter.mock_calls == calls
     reset_mocks()
 
     # no response
     command = PrescribeCommand(days_supply=11)
     demographic.side_effect = ["the patient has this demographic"]
-    chatter.return_value.single_conversation.side_effect = [[]]
-    tested.set_medication_dosage("theComment", command, medication)
+    chatter.single_conversation.side_effect = [[]]
+    tested.set_medication_dosage(chatter, "theComment", command, medication)
     expected = PrescribeCommand(
         days_supply=11,
         fdb_code="code369",
@@ -482,10 +468,7 @@ def test_set_medication_dosage(demographic, chatter):
 
     calls = [call()]
     assert demographic.mock_calls == calls
-    calls = [
-        call(tested.settings),
-        call().single_conversation(system_prompt, user_prompt, schemas),
-    ]
+    calls = [call.single_conversation(system_prompt, user_prompt, schemas)]
     assert chatter.mock_calls == calls
     reset_mocks()
 
@@ -494,7 +477,10 @@ def test_set_medication_dosage(demographic, chatter):
 @patch.object(Prescription, "medications_from")
 @patch.object(LimitedCache, "current_conditions")
 def test_command_from_json(current_conditions, medications_from, set_medication_dosage):
+    chatter = MagicMock()
+
     def reset_mocks():
+        chatter.reset_mock()
         current_conditions.reset_mock()
         medications_from.reset_mock()
         set_medication_dosage.reset_mock()
@@ -541,7 +527,7 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
             "condition": "theCondition",
             "conditionIndex": idx,
         }
-        result = tested.command_from_json(parameters)
+        result = tested.command_from_json(chatter, parameters)
         expected = PrescribeCommand(
             sig="theSig",
             days_supply=11,
@@ -553,10 +539,11 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
             expected.icd10_codes = condition_icd10
         assert result == expected, f"----> {idx}"
         assert current_conditions.mock_calls == condition_calls
-        calls = [call("theComment", keywords, condition_label)]
+        calls = [call(chatter, "theComment", keywords, condition_label)]
         assert medications_from.mock_calls == calls
-        calls = [call("theComment", expected, medication)]
+        calls = [call(chatter, "theComment", expected, medication)]
         assert set_medication_dosage.mock_calls == calls
+        assert chatter.mock_calls == []
         reset_mocks()
 
     # no condition
@@ -570,7 +557,7 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
         "substitution": "not_allowed",
         "comment": "theComment",
     }
-    result = tested.command_from_json(parameters)
+    result = tested.command_from_json(chatter, parameters)
     expected = PrescribeCommand(
         sig="theSig",
         days_supply=11,
@@ -580,10 +567,11 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
     )
     assert result == expected
     assert current_conditions.mock_calls == []
-    calls = [call("theComment", keywords, "")]
+    calls = [call(chatter, "theComment", keywords, "")]
     assert medications_from.mock_calls == calls
-    calls = [call("theComment", expected, medication)]
+    calls = [call(chatter, "theComment", expected, medication)]
     assert set_medication_dosage.mock_calls == calls
+    assert chatter.mock_calls == []
     reset_mocks()
 
     # no medication
@@ -597,7 +585,7 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
         "substitution": "not_allowed",
         "comment": "theComment",
     }
-    result = tested.command_from_json(parameters)
+    result = tested.command_from_json(chatter, parameters)
     expected = PrescribeCommand(
         sig="theSig",
         days_supply=11,
@@ -607,9 +595,10 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
     )
     assert result == expected
     assert current_conditions.mock_calls == []
-    calls = [call("theComment", keywords, "")]
+    calls = [call(chatter, "theComment", keywords, "")]
     assert medications_from.mock_calls == calls
     assert set_medication_dosage.mock_calls == []
+    assert chatter.mock_calls == []
     reset_mocks()
 
 

@@ -34,6 +34,7 @@ def test_parameters2command(parameters2command, allowed_levels, audio_interprete
         assert isinstance(response, BaseCommand)
         if (automated := response.values) != (reviewed := expected[idx]["attributes"]):
             valid, differences = HelperSettings.json_nuanced_differences(
+                f"{parameters2command.stem}-parameters2command",
                 allowed_levels,
                 json.dumps(automated, indent=1),
                 json.dumps(reviewed, indent=1),

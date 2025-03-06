@@ -1,4 +1,4 @@
-from unittest.mock import patch, call
+from unittest.mock import patch, call, MagicMock
 
 from canvas_sdk.commands.commands.lab_order import LabOrderCommand
 from canvas_sdk.v1.data.lab import LabPartner
@@ -93,10 +93,13 @@ def test_staged_command_extract():
 @patch.object(SelectorChat, "lab_test_from")
 @patch.object(SelectorChat, "condition_from")
 def test_command_from_json(condition_from, lab_test_from, lab_partner_db):
+    chatter = MagicMock()
+
     def reset_mocks():
         condition_from.reset_mock()
         lab_test_from.reset_mock()
         lab_partner_db.reset_mock()
+        chatter.reset_mock()
 
     tested = helper_instance()
 
@@ -156,7 +159,7 @@ def test_command_from_json(condition_from, lab_test_from, lab_partner_db):
             CodedItem(uuid="uuid4", label="lab4", code="code4"),
         ]
         lab_partner_db.filter.return_value.first.side_effect = [lab_partner]
-        result = tested.command_from_json(parameters)
+        result = tested.command_from_json(chatter, parameters)
         # ATTENTION the LabOrderCommand._get_error_details method checks the codes directly in the DB
         assert result.lab_partner == expected.lab_partner
         assert result.ordering_provider_key == expected.ordering_provider_key
@@ -167,21 +170,22 @@ def test_command_from_json(condition_from, lab_test_from, lab_partner_db):
         assert result.diagnosis_codes == expected.diagnosis_codes
 
         calls = [
-            call(tested.settings, ['condition1', 'condition2'], ['icd1', 'icd2'], comment),
-            call(tested.settings, ['condition3'], ['icd3'], comment),
-            call(tested.settings, ['condition4'], ['icd4'], comment),
+            call(chatter, tested.settings, ['condition1', 'condition2'], ['icd1', 'icd2'], comment),
+            call(chatter, tested.settings, ['condition3'], ['icd3'], comment),
+            call(chatter, tested.settings, ['condition4'], ['icd4'], comment),
         ]
         assert condition_from.mock_calls == calls
         calls = []
         if lab_partner is not None:
             calls = [
-                call(tested.settings, 'theLabPartner', ['lab1', 'lab2'], comment, ['condition1', 'condition4']),
-                call(tested.settings, 'theLabPartner', ['lab3'], comment, ['condition1', 'condition4']),
-                call(tested.settings, 'theLabPartner', ['lab4'], comment, ['condition1', 'condition4']),
+                call(chatter, tested.settings, 'theLabPartner', ['lab1', 'lab2'], comment, ['condition1', 'condition4']),
+                call(chatter, tested.settings, 'theLabPartner', ['lab3'], comment, ['condition1', 'condition4']),
+                call(chatter, tested.settings, 'theLabPartner', ['lab4'], comment, ['condition1', 'condition4']),
             ]
         assert lab_test_from.mock_calls == calls
         calls = [call.filter(name='Generic Lab'), call.filter().first()]
         assert lab_partner_db.mock_calls == calls
+        assert chatter.mock_calls == []
         reset_mocks()
 
 

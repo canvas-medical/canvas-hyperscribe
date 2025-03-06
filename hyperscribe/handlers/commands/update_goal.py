@@ -3,6 +3,7 @@ from canvas_sdk.commands.commands.update_goal import UpdateGoalCommand
 from hyperscribe.handlers.commands.base import Base
 from hyperscribe.handlers.constants import Constants
 from hyperscribe.handlers.helper import Helper
+from hyperscribe.handlers.llms.llm_base import LlmBase
 from hyperscribe.handlers.structures.coded_item import CodedItem
 
 
@@ -17,7 +18,7 @@ class UpdateGoal(Base):
             return CodedItem(label=f'{goal}: {progress}', code="", uuid="")
         return None
 
-    def command_from_json(self, parameters: dict) -> None | UpdateGoalCommand:
+    def command_from_json(self, chatter: LlmBase, parameters: dict) -> None | UpdateGoalCommand:
         goal_uuid = ""
         if 0 <= (idx := parameters["goalIndex"]) < len(current := self.cache.current_goals()):
             goal_uuid = current[idx].uuid

@@ -1,5 +1,5 @@
 import json
-from unittest.mock import patch, call
+from unittest.mock import patch, call, MagicMock
 
 import pytest
 
@@ -21,7 +21,10 @@ def test_constants():
 
 
 def test___init__():
-    tested = LlmBase("apiKey", "theModel")
+    memory_log = MagicMock()
+    tested = LlmBase(memory_log, "apiKey", "theModel")
+    assert memory_log.mock_calls == []
+    assert tested.memory_log == memory_log
     assert tested.api_key == "apiKey"
     assert tested.model == "theModel"
     assert tested.temperature == 0.0
@@ -30,54 +33,66 @@ def test___init__():
 
 
 def test_set_system_prompt():
-    tested = LlmBase("apiKey", "theModel")
+    memory_log = MagicMock()
+    tested = LlmBase(memory_log, "apiKey", "theModel")
     assert tested.prompts == []
     tested.set_system_prompt(["line 1", "line 2"])
     result = tested.prompts
     expected = [LlmTurn(role="system", text=["line 1", "line 2"])]
     assert result == expected
+    assert memory_log.mock_calls == []
 
 
 def test_set_user_prompt():
-    tested = LlmBase("apiKey", "theModel")
+    memory_log = MagicMock()
+    tested = LlmBase(memory_log, "apiKey", "theModel")
     assert tested.prompts == []
     tested.set_user_prompt(["line 1", "line 2"])
     result = tested.prompts
     expected = [LlmTurn(role="user", text=["line 1", "line 2"])]
     assert result == expected
+    assert memory_log.mock_calls == []
 
 
 def test_set_model_prompt():
-    tested = LlmBase("apiKey", "theModel")
+    memory_log = MagicMock()
+    tested = LlmBase(memory_log, "apiKey", "theModel")
     assert tested.prompts == []
     tested.set_model_prompt(["line 1", "line 2"])
     result = tested.prompts
     expected = [LlmTurn(role="model", text=["line 1", "line 2"])]
     assert result == expected
+    assert memory_log.mock_calls == []
 
 
 def test_add_audio():
-    tested = LlmBase("apiKey", "theModel")
+    memory_log = MagicMock()
+    tested = LlmBase(memory_log, "apiKey", "theModel")
     with pytest.raises(Exception) as e:
         _ = tested.add_audio(b"audio", "format")
     expected = "NotImplementedError"
     assert e.typename == expected
+    assert memory_log.mock_calls == []
 
 
 def test_request():
-    tested = LlmBase("apiKey", "theModel")
+    memory_log = MagicMock()
+    tested = LlmBase(memory_log, "apiKey", "theModel")
     with pytest.raises(Exception) as e:
         _ = tested.request()
     expected = "NotImplementedError"
     assert e.typename == expected
+    assert memory_log.mock_calls == []
 
 
 @patch.object(LlmBase, "request")
 def test_attempt_requests(request):
+    memory_log = MagicMock()
+
     def reset_mocks():
         request.reset_mock()
 
-    tested = LlmBase("apiKey", "theModel")
+    tested = LlmBase(memory_log, "apiKey", "theModel")
 
     # one error
     request.side_effect = [
@@ -87,8 +102,9 @@ def test_attempt_requests(request):
     result = tested.attempt_requests(3)
     expected = HttpResponse(code=200, response="some response2")
     assert result == expected
-    calls = [call(add_log=False), call(add_log=False)]
+    calls = [call(), call()]
     assert request.mock_calls == calls
+    assert memory_log.mock_calls == []
     reset_mocks()
 
     # too many errors
@@ -99,21 +115,25 @@ def test_attempt_requests(request):
         HttpResponse(code=200, response="some response4"),
     ]
     result = tested.attempt_requests(3)
-    expected = HttpResponse(code=429, response="max attempts (3) exceeded")
+    expected = HttpResponse(code=429, response="Http error: max attempts (3) exceeded")
     assert result == expected
-    calls = [call(add_log=False), call(add_log=False), call(add_log=False)]
+    calls = [call(), call(), call()]
     assert request.mock_calls == calls
+    calls = [call.log('error: Http error: max attempts (3) exceeded')]
+    assert memory_log.mock_calls == calls
     reset_mocks()
 
 
 @patch.object(LlmBase, "extract_json_from")
 @patch.object(LlmBase, "attempt_requests")
 def test_chat(attempt_requests, extract_json_from):
+    memory_log = MagicMock()
+
     def reset_mocks():
         attempt_requests.reset_mock()
         extract_json_from.reset_mock()
 
-    tested = LlmBase("apiKey", "theModel")
+    tested = LlmBase(memory_log, "apiKey", "theModel")
     assert tested.prompts == []
 
     # http error
@@ -125,9 +145,14 @@ def test_chat(attempt_requests, extract_json_from):
 
     assert tested.prompts == []
 
-    calls = [call(3, add_log=False)]
+    calls = [call(3)]
     assert attempt_requests.mock_calls == calls
     assert extract_json_from.mock_calls == []
+    calls = [
+        call.log('-- CHAT BEGINS --'),
+        call.log('--- CHAT ENDS ---'),
+    ]
+    assert memory_log.mock_calls == calls
     reset_mocks()
 
     # no http error
@@ -159,8 +184,8 @@ def test_chat(attempt_requests, extract_json_from):
     tested.prompts = []
 
     calls = [
-        call(3, add_log=False),
-        call(3, add_log=False),
+        call(3),
+        call(3),
     ]
     assert attempt_requests.mock_calls == calls
     calls = [
@@ -168,6 +193,15 @@ def test_chat(attempt_requests, extract_json_from):
         call('response2:\nline3\nline4', []),
     ]
     assert extract_json_from.mock_calls == calls
+    calls = [call.log('-- CHAT BEGINS --'),
+             call.log('--- CHAT ENDS ---'),
+             call.log('-- CHAT BEGINS --'),
+             call.log('result->>'),
+             call.log('[\n  "line1",\n  "line2"\n]'),
+             call.log('<<-'),
+             call.log('--- CHAT ENDS ---'),
+             ]
+    assert memory_log.mock_calls == calls
     reset_mocks()
     # -- too many json error
     attempt_requests.side_effect = [
@@ -182,7 +216,7 @@ def test_chat(attempt_requests, extract_json_from):
         JsonExtract(has_error=True, error="some error3", content=["error 3"]),
     ]
     result = tested.chat([])
-    expected = JsonExtract(has_error=True, error="max attempts (3) exceeded", content=[])
+    expected = JsonExtract(has_error=True, error="JSON incorrect: max attempts (3) exceeded", content=[])
     assert result == expected
 
     exp_prompts = [
@@ -218,9 +252,9 @@ def test_chat(attempt_requests, extract_json_from):
     tested.prompts = []
 
     calls = [
-        call(3, add_log=False),
-        call(3, add_log=False),
-        call(3, add_log=False),
+        call(3),
+        call(3),
+        call(3),
     ]
     assert attempt_requests.mock_calls == calls
     calls = [
@@ -229,18 +263,34 @@ def test_chat(attempt_requests, extract_json_from):
         call('response3:\nline5\nline6', []),
     ]
     assert extract_json_from.mock_calls == calls
+    calls = [
+        call.log('-- CHAT BEGINS --'),
+        call.log('--- CHAT ENDS ---'),
+        call.log('-- CHAT BEGINS --'),
+        call.log('result->>'),
+        call.log('[\n  "line1",\n  "line2"\n]'),
+        call.log('<<-'),
+        call.log('--- CHAT ENDS ---'),
+        call.log('-- CHAT BEGINS --'),
+        call.log('error: JSON incorrect: max attempts (3) exceeded'),
+        call.log('--- CHAT ENDS ---'),
+    ]
+    assert memory_log.mock_calls == calls
     reset_mocks()
 
 
 @patch.object(LlmBase, "chat")
 def test_single_conversation(chat):
+    memory_log = MagicMock()
+
     def reset_mocks():
         chat.reset_mock()
+        memory_log.reset_mock()
 
     system_prompt = ["theSystemPrompt"]
     user_prompt = ["theUserPrompt"]
     schemas = ["schema1", "schema2"]
-    tested = LlmBase("theApiKey", "theModel")
+    tested = LlmBase(memory_log, "theApiKey", "theModel")
 
     # without error
     chat.side_effect = [JsonExtract(error="theError", has_error=False, content=["theContent"])]
@@ -249,6 +299,7 @@ def test_single_conversation(chat):
 
     calls = [call(["schema1", "schema2"])]
     assert chat.mock_calls == calls
+    assert memory_log.mock_calls == []
     reset_mocks()
 
     # with error
@@ -258,6 +309,7 @@ def test_single_conversation(chat):
 
     calls = [call(["schema1", "schema2"])]
     assert chat.mock_calls == calls
+    assert memory_log.mock_calls == []
     reset_mocks()
 
 

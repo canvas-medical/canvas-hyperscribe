@@ -7,6 +7,7 @@ from hyperscribe.handlers.helper import Helper
 from hyperscribe.handlers.implemented_commands import ImplementedCommands
 from hyperscribe.handlers.json_schema import JsonSchema
 from hyperscribe.handlers.limited_cache import LimitedCache
+from hyperscribe.handlers.memory_log import MemoryLog
 from hyperscribe.handlers.structures.instruction import Instruction
 from hyperscribe.handlers.structures.json_extract import JsonExtract
 from hyperscribe.handlers.structures.line import Line
@@ -49,7 +50,7 @@ class AudioInterpreter:
         }
 
     def combine_and_speaker_detection(self, audio_chunks: list[bytes]) -> JsonExtract:
-        conversation = Helper.audio2texter(self.settings)
+        conversation = Helper.audio2texter(self.settings, MemoryLog(self.note_uuid, "audio2transcript"))
         conversation.set_system_prompt([
             "The conversation is in the medical context, and related to a visit of a patient with a healthcare provider.",
             "",
@@ -94,10 +95,7 @@ class AudioInterpreter:
         for audio in audio_chunks:
             conversation.add_audio(audio, extension)
 
-        response = conversation.chat(
-            JsonSchema.get(["voice_split", "voice_identification"]),
-            True,
-        )
+        response = conversation.chat(JsonSchema.get(["voice_split", "voice_identification"]))
         if response.has_error:
             return response
         if len(response.content) < 2:
@@ -172,7 +170,9 @@ class AudioInterpreter:
                 "```",
                 "Include them in your response, with any necessary additional information.",
             ])
-        result = Helper.chatter(self.settings).single_conversation(system_prompt, user_prompt, [schema])
+        log_label = "transcript2instructions"
+        chatter = Helper.chatter(self.settings, MemoryLog(self.note_uuid, log_label))
+        result = chatter.single_conversation(system_prompt, user_prompt, [schema])
         if result and (constraints := self.instruction_constraints()):
             user_prompt = [
                 "Here is your last response:",
@@ -187,7 +187,7 @@ class AudioInterpreter:
             user_prompt.append("")
             user_prompt.append("Return the original JSON if valid, or provide a corrected version to follow the constraints if needed.")
             user_prompt.append("")
-            result = Helper.chatter(self.settings).single_conversation(system_prompt, user_prompt, [schema])
+            result = chatter.single_conversation(system_prompt, user_prompt, [schema])
         return result
 
     def create_sdk_command_parameters(self, instruction: Instruction) -> tuple[Instruction, dict | None]:
@@ -218,7 +218,9 @@ class AudioInterpreter:
             "```",
             "",
         ]
-        response = Helper.chatter(self.settings).single_conversation(system_prompt, user_prompt, [])
+        log_label = f"{instruction.instruction}_{instruction.uuid}_instruction2parameters"
+        chatter = Helper.chatter(self.settings, MemoryLog(self.note_uuid, log_label))
+        response = chatter.single_conversation(system_prompt, user_prompt, [])
         if response:
             result = instruction, response[0]
         return result
@@ -226,7 +228,9 @@ class AudioInterpreter:
     def create_sdk_command_from(self, instruction: Instruction, parameters: dict) -> BaseCommand | None:
         for instance in self._command_context:
             if instruction.instruction == instance.class_name():
-                return instance.command_from_json(parameters)
+                log_label = f"{instruction.instruction}_{instruction.uuid}_parameters2command"
+                chatter = Helper.chatter(self.settings, MemoryLog(self.note_uuid, log_label))
+                return instance.command_from_json(chatter, parameters)
         return None
 
     @classmethod

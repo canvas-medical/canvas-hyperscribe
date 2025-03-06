@@ -1,4 +1,4 @@
-from unittest.mock import patch, call
+from unittest.mock import patch, call, MagicMock
 
 from canvas_sdk.commands.commands.questionnaire import QuestionnaireCommand
 
@@ -74,8 +74,11 @@ def test_staged_command_extract():
 
 @patch.object(LimitedCache, "existing_questionnaires")
 def test_command_from_json(current_goals):
+    chatter = MagicMock()
+
     def reset_mocks():
         current_goals.reset_mock()
+        chatter.reset_mock()
 
     tested = helper_instance()
     goals = [
@@ -95,7 +98,7 @@ def test_command_from_json(current_goals):
             'questionnaireIndex': idx,
             "result": "theResult",
         }
-        result = tested.command_from_json(params)
+        result = tested.command_from_json(chatter, params)
         expected = QuestionnaireCommand(
             questionnaire_id=exp_uuid,
             result="theResult",
@@ -104,6 +107,7 @@ def test_command_from_json(current_goals):
         assert result == expected
         calls = [call()]
         assert current_goals.mock_calls == calls
+        assert chatter.mock_calls == []
         reset_mocks()
 
 

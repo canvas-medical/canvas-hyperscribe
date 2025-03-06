@@ -2,6 +2,7 @@ from canvas_sdk.commands.commands.perform import PerformCommand
 
 from hyperscribe.handlers.commands.base import Base
 from hyperscribe.handlers.constants import Constants
+from hyperscribe.handlers.llms.llm_base import LlmBase
 from hyperscribe.handlers.structures.coded_item import CodedItem
 
 
@@ -14,7 +15,7 @@ class Perform(Base):
     def staged_command_extract(cls, data: dict) -> None | CodedItem:
         return None
 
-    def command_from_json(self, parameters: dict) -> None | PerformCommand:
+    def command_from_json(self, chatter: LlmBase, parameters: dict) -> None | PerformCommand:
         return None
 
     def command_parameters(self) -> dict:

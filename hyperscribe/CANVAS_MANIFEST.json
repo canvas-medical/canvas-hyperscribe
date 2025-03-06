@@ -1,6 +1,6 @@
 {
   "sdk_version": "0.25.0",
-  "plugin_version": "0.0.35",
+  "plugin_version": "0.0.36",
   "name": "hyperscribe",
   "description": "Create commands based on the content of an audio discussion between a patient and a provider.",
   "url_permissions": [
@@ -57,7 +57,11 @@
     "PreSharedKey",
     "AudioHost",
     "AudioIntervalSeconds",
-    "StructuredReasonForVisit"
+    "StructuredReasonForVisit",
+    "AwsKey",
+    "AwsSecret",
+    "AwsRegion",
+    "AwsBucket"
   ],
   "tags": {},
   "references": [],

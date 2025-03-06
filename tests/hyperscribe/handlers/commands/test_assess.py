@@ -1,4 +1,4 @@
-from unittest.mock import patch, call
+from unittest.mock import patch, call, MagicMock
 
 from canvas_sdk.commands.commands.assess import AssessCommand
 
@@ -71,7 +71,10 @@ def test_staged_command_extract():
 
 @patch.object(LimitedCache, "current_conditions")
 def test_command_from_json(current_conditions):
+    chatter = MagicMock()
+
     def reset_mocks():
+        chatter.reset_mock()
         current_conditions.reset_mock()
 
     tested = helper_instance()
@@ -94,7 +97,7 @@ def test_command_from_json(current_conditions):
             'rationale': 'theRationale',
             'status': 'stable',
         }
-        result = tested.command_from_json(params)
+        result = tested.command_from_json(chatter, params)
         expected = AssessCommand(
             condition_id=exp_uuid,
             background="theRationale",
@@ -105,6 +108,7 @@ def test_command_from_json(current_conditions):
         assert result == expected
         calls = [call()]
         assert current_conditions.mock_calls == calls
+        assert chatter.mock_calls == []
         reset_mocks()
 
 

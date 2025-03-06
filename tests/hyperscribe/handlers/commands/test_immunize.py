@@ -1,3 +1,5 @@
+from unittest.mock import MagicMock
+
 from canvas_sdk.commands.commands.instruct import InstructCommand
 
 from hyperscribe.handlers.commands.base import Base
@@ -67,18 +69,20 @@ def test_staged_command_extract():
 
 
 def test_command_from_json():
+    chatter = MagicMock()
     tested = helper_instance()
     parameters = {
         "immunize": "theImmunization",
         "sig": "theSig",
     }
-    result = tested.command_from_json(parameters)
+    result = tested.command_from_json(chatter, parameters)
     expected = InstructCommand(
         instruction="Advice to read information",
         comment='theSig - theImmunization',
         note_uuid="noteUuid",
     )
     assert result == expected
+    assert chatter.mock_calls == []
 
 
 def test_command_parameters():

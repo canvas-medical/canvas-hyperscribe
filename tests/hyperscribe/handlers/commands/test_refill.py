@@ -1,4 +1,4 @@
-from unittest.mock import patch, call
+from unittest.mock import patch, call, MagicMock
 
 from canvas_sdk.commands.commands.prescribe import PrescribeCommand
 from canvas_sdk.commands.commands.refill import RefillCommand
@@ -106,10 +106,13 @@ def test_staged_command_extract():
 @patch('hyperscribe.handlers.commands.refill.Medication.objects')
 @patch.object(LimitedCache, "current_medications")
 def test_command_from_json(current_medications, medication, codings):
+    chatter = MagicMock()
+
     def reset_mocks():
         current_medications.reset_mock()
         medication.reset_mock()
         codings.reset_mock()
+        chatter.reset_mock()
 
     tested = helper_instance()
     medications = [
@@ -134,7 +137,7 @@ def test_command_from_json(current_medications, medication, codings):
             'substitution': 'not_allowed',
             'suppliedDays': 7,
         }
-        result = tested.command_from_json(params)
+        result = tested.command_from_json(chatter, params)
         expected = RefillCommand(
             fdb_code="theCode",
             sig="theSig",
@@ -157,6 +160,7 @@ def test_command_from_json(current_medications, medication, codings):
             call.filter().first(),
         ]
         assert codings.mock_calls == calls
+        assert chatter.mock_calls == []
         reset_mocks()
     #
     current_medications.side_effect = [medications]
@@ -168,7 +172,7 @@ def test_command_from_json(current_medications, medication, codings):
         'substitution': 'allowed',
         'suppliedDays': 7,
     }
-    result = tested.command_from_json(params)
+    result = tested.command_from_json(chatter, params)
     assert result is None
     calls = [call()]
     assert current_medications.mock_calls == calls

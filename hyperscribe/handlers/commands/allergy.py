@@ -7,6 +7,7 @@ from hyperscribe.handlers.commands.base import Base
 from hyperscribe.handlers.constants import Constants
 from hyperscribe.handlers.helper import Helper
 from hyperscribe.handlers.json_schema import JsonSchema
+from hyperscribe.handlers.llms.llm_base import LlmBase
 from hyperscribe.handlers.structures.coded_item import CodedItem
 
 
@@ -22,7 +23,7 @@ class Allergy(Base):
             return CodedItem(label=allergy["text"], code=str(allergy["value"]), uuid="")
         return None
 
-    def command_from_json(self, parameters: dict) -> None | AllergyCommand:
+    def command_from_json(self, chatter: LlmBase, parameters: dict) -> None | AllergyCommand:
         concept_types = [AllergenType(1)]  # <-- always include the Allergy Group
         if parameters["type"] == "medication":
             concept_types.append(AllergenType(2))
@@ -72,7 +73,7 @@ class Allergy(Base):
                 '',
             ]
             schemas = JsonSchema.get(["selector_concept"])
-            if response := Helper.chatter(self.settings).single_conversation(system_prompt, user_prompt, schemas):
+            if response := chatter.single_conversation(system_prompt, user_prompt, schemas):
                 concept_id = int(response[0]["conceptId"])
                 allergy = [
                     allergy

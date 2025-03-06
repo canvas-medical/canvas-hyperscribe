@@ -51,6 +51,42 @@ def test_settings(monkeypatch):
         assert result == expected
 
 
+@patch("integrations.helper_settings.MemoryLog")
+@patch("integrations.helper_settings.AwsS3")
+def test_flush_log(aws_s3, memory_log, monkeypatch):
+    def reset_mocks():
+        aws_s3.reset_mock()
+        memory_log.reset_mock()
+
+    tests = [
+        ({}, False),
+        ({"AwsKey": "theAwsKey", "AwsSecret": "theAwsSecret", "AwsRegion": "theAwsRegion", "AwsBucket": "theAwsBucket"}, True),
+        ({"AwsKey": "theAwsKey", "AwsSecret": "theAwsSecret", "AwsRegion": "theAwsRegion"}, False),
+        ({"AwsKey": "theAwsKey", "AwsSecret": "theAwsSecret", "AwsBucket": "theAwsBucket"}, False),
+        ({"AwsKey": "theAwsKey", "AwsRegion": "theAwsRegion", "AwsBucket": "theAwsBucket"}, False),
+        ({"AwsSecret": "theAwsSecret", "AwsRegion": "theAwsRegion", "AwsBucket": "theAwsBucket"}, False),
+    ]
+    for secrets, expected in tests:
+        monkeypatch.delenv('AwsKey', raising=False)
+        monkeypatch.delenv('AwsSecret', raising=False)
+        monkeypatch.delenv('AwsRegion', raising=False)
+        monkeypatch.delenv('AwsBucket', raising=False)
+        for env_variable, env_value in secrets.items():
+            monkeypatch.setenv(env_variable, env_value)
+
+        memory_log.end_session.side_effect = ["theLogText"]
+        tested = HelperSettings
+        tested.flush_log("theNoteUuid", "theLogPath")
+        calls = [
+            call("theAwsKey", "theAwsSecret", "theAwsRegion", "theAwsBucket"),
+            call().upload_text_to_s3("theLogPath", "theLogText"),
+        ] if expected else []
+        assert aws_s3.mock_calls == calls
+        calls = [call.end_session("theNoteUuid")] if expected else []
+        assert memory_log.mock_calls == calls
+        reset_mocks()
+
+
 @patch.object(Note, "objects")
 def test_get_note_uuid(note_db):
     mock_note = MagicMock()
@@ -136,11 +172,16 @@ def test_json_nuanced_differences(nuanced_differences):
 
     nuanced_differences.side_effect = [(True, "some text")]
     tested = HelperSettings
-    result = tested.json_nuanced_differences(["level1", "level2"], "theResultJson", "theExpectedJson")
+    result = tested.json_nuanced_differences(
+        "theCase",
+        ["level1", "level2"],
+        "theResultJson",
+        "theExpectedJson",
+    )
     expected = (True, "some text")
     assert result == expected
 
-    calls = [call(accepted_levels, system_prompt, user_prompt)]
+    calls = [call("theCase", accepted_levels, system_prompt, user_prompt)]
     assert nuanced_differences.mock_calls == calls
     reset_mocks()
 
@@ -174,22 +215,29 @@ def test_text_nuanced_differences(nuanced_differences):
 
     nuanced_differences.side_effect = [(True, "some text")]
     tested = HelperSettings
-    result = tested.text_nuanced_differences(["level1", "level2"], "theResultText", "theExpectedText")
+    result = tested.text_nuanced_differences(
+        "theCase",
+        ["level1", "level2"],
+        "theResultText",
+        "theExpectedText",
+    )
     expected = (True, "some text")
     assert result == expected
 
-    calls = [call(accepted_levels, system_prompt, user_prompt)]
+    calls = [call("theCase", accepted_levels, system_prompt, user_prompt)]
     assert nuanced_differences.mock_calls == calls
     reset_mocks()
 
 
+@patch("integrations.helper_settings.MemoryLog")
 @patch.object(Helper, "chatter")
 @patch.object(HelperSettings, "settings")
-def test_nuanced_differences(settings, chatter):
+def test_nuanced_differences(settings, chatter, memory_log):
     conversation = MagicMock()
 
     def reset_mocks():
         settings.reset_mock()
+        memory_log.reset_mock()
         chatter.reset_mock()
         conversation.reset_mock()
 
@@ -225,15 +273,18 @@ def test_nuanced_differences(settings, chatter):
 
     # errors
     settings.side_effect = ["theSettings"]
+    memory_log.side_effect = ["MemoryLogInstance"]
     chatter.side_effect = [conversation]
     conversation.chat.side_effect = [JsonExtract(has_error=True, error="theError", content=content)]
-    result = tested.nuanced_differences(["level1", "level2"], system_prompt, user_prompt)
+    result = tested.nuanced_differences("theCase", ["level1", "level2"], system_prompt, user_prompt)
     expected = (False, "encountered error: theError")
     assert result == expected
 
     calls = [call()]
     assert settings.mock_calls == calls
-    calls = [call("theSettings")]
+    calls = [call("note_uuid", "theCase")]
+    assert memory_log.mock_calls == calls
+    calls = [call("theSettings", "MemoryLogInstance")]
     assert chatter.mock_calls == calls
     calls = [
         call.set_system_prompt(system_prompt),
@@ -246,15 +297,18 @@ def test_nuanced_differences(settings, chatter):
     # no error
     # -- differences within the accepted levels
     settings.side_effect = ["theSettings"]
+    memory_log.side_effect = ["MemoryLogInstance"]
     chatter.side_effect = [conversation]
     conversation.chat.side_effect = [JsonExtract(has_error=False, error="theError", content=content)]
-    result = tested.nuanced_differences(["level1", "level2", "level3", "level4"], system_prompt, user_prompt)
+    result = tested.nuanced_differences("theCase", ["level1", "level2", "level3", "level4"], system_prompt, user_prompt)
     expected = (True, json_content)
     assert result == expected
 
     calls = [call()]
     assert settings.mock_calls == calls
-    calls = [call("theSettings")]
+    calls = [call("note_uuid", "theCase")]
+    assert memory_log.mock_calls == calls
+    calls = [call("theSettings", "MemoryLogInstance")]
     assert chatter.mock_calls == calls
     calls = [
         call.set_system_prompt(system_prompt),
@@ -265,15 +319,18 @@ def test_nuanced_differences(settings, chatter):
     reset_mocks()
     # -- differences out of the accepted levels
     settings.side_effect = ["theSettings"]
+    memory_log.side_effect = ["MemoryLogInstance"]
     chatter.side_effect = [conversation]
     conversation.chat.side_effect = [JsonExtract(has_error=False, error="theError", content=content)]
-    result = tested.nuanced_differences(["level2", "level3"], system_prompt, user_prompt)
+    result = tested.nuanced_differences("theCase", ["level2", "level3"], system_prompt, user_prompt)
     expected = (False, json_content)
     assert result == expected
 
     calls = [call()]
     assert settings.mock_calls == calls
-    calls = [call("theSettings")]
+    calls = [call("note_uuid", "theCase")]
+    assert memory_log.mock_calls == calls
+    calls = [call("theSettings", "MemoryLogInstance")]
     assert chatter.mock_calls == calls
     calls = [
         call.set_system_prompt(system_prompt),

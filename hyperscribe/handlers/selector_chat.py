@@ -8,13 +8,21 @@ from django.db.models import Q
 from hyperscribe.handlers.canvas_science import CanvasScience
 from hyperscribe.handlers.helper import Helper
 from hyperscribe.handlers.json_schema import JsonSchema
+from hyperscribe.handlers.llms.llm_base import LlmBase
 from hyperscribe.handlers.structures.coded_item import CodedItem
 from hyperscribe.handlers.structures.settings import Settings
 
 
 class SelectorChat:
     @classmethod
-    def condition_from(cls, settings: Settings, keywords: list[str], icd10s: list[str], comment: str) -> CodedItem:
+    def condition_from(
+            cls,
+            chatter: LlmBase,
+            settings: Settings,
+            keywords: list[str],
+            icd10s: list[str],
+            comment: str,
+    ) -> CodedItem:
         result = CodedItem(code="", label="", uuid="")
         # retrieve existing conditions defined in Canvas Science
         if conditions := CanvasScience.search_conditions(settings.science_host, keywords + icd10s):
@@ -44,7 +52,7 @@ class SelectorChat:
                 '',
             ]
             schemas = JsonSchema.get(["selector_condition"])
-            if response := Helper.chatter(settings).single_conversation(system_prompt, user_prompt, schemas):
+            if response := chatter.single_conversation(system_prompt, user_prompt, schemas):
                 result = CodedItem(
                     label=response[0]['label'],
                     code=Helper.icd10_strip_dot(response[0]["ICD10"]),
@@ -53,7 +61,15 @@ class SelectorChat:
         return result
 
     @classmethod
-    def lab_test_from(cls, settings: Settings, lab_partner: str, expressions: list[str], comment: str, conditions: list[str]) -> CodedItem:
+    def lab_test_from(
+            cls,
+            chatter: LlmBase,
+            settings: Settings,
+            lab_partner: str,
+            expressions: list[str],
+            comment: str,
+            conditions: list[str],
+    ) -> CodedItem:
         result = CodedItem(code="", label="", uuid="")
         lab_tests = []
         for expression in expressions:
@@ -95,7 +111,7 @@ class SelectorChat:
                 '',
             ]
             schemas = JsonSchema.get(["selector_lab_test"])
-            if response := Helper.chatter(settings).single_conversation(system_prompt, user_prompt, schemas):
+            if response := chatter.single_conversation(system_prompt, user_prompt, schemas):
                 result = CodedItem(
                     label=response[0]['label'],
                     code=response[0]["code"],
