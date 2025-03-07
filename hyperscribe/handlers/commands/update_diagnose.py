@@ -74,7 +74,7 @@ class UpdateDiagnose(Base):
             "keywords": "comma separated keywords of up to 5 synonyms of the new diagnosed condition",
             "ICD10": "comma separated keywords of up to 5 ICD-10 codes of the new diagnosed condition",
             "previousCondition": f"one of: {conditions}",
-            "previousConditionIndex": "index of the previous Condition, as integer",
+            "previousConditionIndex": "index of the previous Condition, or -1, as integer",
             "rationale": "rationale about the current assessment, as free text",
             "assessment": "today's assessment of the new condition, as free text",
         }

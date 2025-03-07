@@ -117,7 +117,7 @@ def test_command_parameters(current_allergies):
     result = tested.command_parameters()
     expected = {
         'allergies': 'one of: display1a (index: 0)/display2a (index: 1)/display3a (index: 2)',
-        "allergyIndex": "Index of the allergy to remove, as integer",
+        "allergyIndex": "Index of the allergy to remove, or -1, as integer",
         "narrative": "explanation of why the allergy is removed, as free text",
     }
     assert result == expected

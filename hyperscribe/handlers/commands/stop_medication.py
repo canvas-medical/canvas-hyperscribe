@@ -1,3 +1,4 @@
+from logger import log
 from canvas_sdk.commands.commands.stop_medication import StopMedicationCommand
 
 from hyperscribe.handlers.commands.base import Base
@@ -32,7 +33,7 @@ class StopMedication(Base):
         medications = "/".join([f'{medication.label} (index: {idx})' for idx, medication in enumerate(self.cache.current_medications())])
         return {
             "medication": f"one of: {medications}",
-            "medicationIndex": "index of the medication to stop, as integer",
+            "medicationIndex": "index of the medication to stop, or -1, as integer",
             "rationale": "explanation of why the medication is stopped, as free text",
         }
 
@@ -45,6 +46,4 @@ class StopMedication(Base):
         return f"'{self.class_name()}' has to be related to one of the following medications: {text}."
 
     def is_available(self) -> bool:
-        # TODO wait for https://github.com/canvas-medical/canvas-plugins/issues/321
-        #  return bool(self.cache.current_medications())
-        return False
+        return bool(self.cache.current_medications())

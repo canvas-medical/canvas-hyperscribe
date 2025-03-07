@@ -122,7 +122,7 @@ def test_command_parameters(current_goals):
     result = tested.command_parameters()
     expected = {
         'goal': 'one of: display1a (index: 0)/display2a (index: 1)/display3a (index: 2)',
-        'goalIndex': 'index of the Goal to close, as integer',
+        'goalIndex': 'index of the Goal to close, or -1, as integer',
         'progressAndBarriers': 'progress and barriers, as free text',
         'status': 'one of: in-progress/improving/worsening/no-change/achieved/sustaining/not-achieved/no-progress/not-attainable',
     }

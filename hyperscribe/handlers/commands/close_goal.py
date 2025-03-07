@@ -38,7 +38,7 @@ class CloseGoal(Base):
         statuses = "/".join([status.value for status in GoalCommand.AchievementStatus])
         return {
             "goal": f"one of: {goals}",
-            "goalIndex": "index of the Goal to close, as integer",
+            "goalIndex": "index of the Goal to close, or -1, as integer",
             "status": f"one of: {statuses}",
             "progressAndBarriers": "progress and barriers, as free text",
         }

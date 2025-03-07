@@ -128,7 +128,7 @@ def test_command_parameters(current_conditions):
     expected = {
         'assessment': "today's assessment of the condition, as free text",
         'condition': 'one of: display1a (index: 0)/display2a (index: 1)/display3a (index: 2)',
-        'conditionIndex': 'index of the Condition to assess, as integer',
+        'conditionIndex': 'index of the Condition to assess, or -1, as integer',
         'rationale': 'rationale about the current assessment, as free text',
         'status': 'one of: improved/stable/deteriorated',
     }

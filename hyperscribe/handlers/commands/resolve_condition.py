@@ -32,7 +32,7 @@ class ResolveCondition(Base):
         conditions = "/".join([f'{condition.label} (index: {idx})' for idx, condition in enumerate(self.cache.current_conditions())])
         return {
             "condition": f"one of: {conditions}",
-            "conditionIndex": "index of the Condition to set as resolved, as integer",
+            "conditionIndex": "index of the Condition to set as resolved, or -1, as integer",
             "rationale": "rationale to set the condition as resolved, as free text",
         }
 

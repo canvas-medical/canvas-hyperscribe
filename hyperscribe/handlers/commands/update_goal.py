@@ -38,7 +38,7 @@ class UpdateGoal(Base):
         priorities = "/".join([status.value for status in UpdateGoalCommand.Priority])
         return {
             "goal": f"one of: {goals}",
-            "goalIndex": "index of the Goal to update, as integer",
+            "goalIndex": "index of the Goal to update, or -1, as integer",
             "dueDate": "YYYY-MM-DD",
             "status": f"one of: {statuses}",
             "priority": f"one of: {priorities}",

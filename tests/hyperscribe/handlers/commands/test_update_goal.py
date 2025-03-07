@@ -130,7 +130,7 @@ def test_command_parameters(current_goals):
     result = tested.command_parameters()
     expected = {
         'goal': 'one of: display1a (index: 0)/display2a (index: 1)/display3a (index: 2)',
-        'goalIndex': 'index of the Goal to update, as integer',
+        'goalIndex': 'index of the Goal to update, or -1, as integer',
         "dueDate": "YYYY-MM-DD",
         "status": "one of: in-progress/improving/worsening/no-change/achieved/sustaining/not-achieved/no-progress/not-attainable",
         "priority": "one of: high-priority/medium-priority/low-priority",

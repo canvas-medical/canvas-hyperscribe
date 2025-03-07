@@ -35,7 +35,7 @@ class Assess(Base):
         conditions = "/".join([f'{condition.label} (index: {idx})' for idx, condition in enumerate(self.cache.current_conditions())])
         return {
             "condition": f"one of: {conditions}",
-            "conditionIndex": "index of the Condition to assess, as integer",
+            "conditionIndex": "index of the Condition to assess, or -1, as integer",
             "rationale": "rationale about the current assessment, as free text",
             "status": f"one of: {statuses}",
             "assessment": "today's assessment of the condition, as free text",

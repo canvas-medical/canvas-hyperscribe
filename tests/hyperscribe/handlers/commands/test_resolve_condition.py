@@ -123,7 +123,7 @@ def test_command_parameters(current_conditions):
     result = tested.command_parameters()
     expected = {
         'condition': 'one of: display1a (index: 0)/display2a (index: 1)/display3a (index: 2)',
-        "conditionIndex": "index of the Condition to set as resolved, as integer",
+        "conditionIndex": "index of the Condition to set as resolved, or -1, as integer",
         "rationale": "rationale to set the condition as resolved, as free text",
     }
     assert result == expected

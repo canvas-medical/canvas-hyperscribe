@@ -32,7 +32,7 @@ class RemoveAllergy(Base):
         allergies = "/".join([f'{allergy.label} (index: {idx})' for idx, allergy in enumerate(self.cache.current_allergies())])
         return {
             "allergies": f"one of: {allergies}",
-            "allergyIndex": "Index of the allergy to remove, as integer",
+            "allergyIndex": "Index of the allergy to remove, or -1, as integer",
             "narrative": "explanation of why the allergy is removed, as free text",
         }
 

@@ -63,7 +63,7 @@ class Refill(Base):
         medications = "/".join([f'{medication.label} (index: {idx})' for idx, medication in enumerate(self.cache.current_medications())])
         return {
             "medication": f"one of: {medications}",
-            "medicationIndex": "index of the medication to refill, as integer",
+            "medicationIndex": "index of the medication to refill, or -1, as integer",
             "sig": "directions, as free text",
             "suppliedDays": "duration of the treatment in days, as integer",
             "substitution": f"one of: {substitutions}",

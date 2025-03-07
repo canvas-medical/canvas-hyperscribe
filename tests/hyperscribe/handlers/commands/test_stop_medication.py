@@ -117,7 +117,7 @@ def test_command_parameters(current_medications):
     result = tested.command_parameters()
     expected = {
         'medication': 'one of: display1a (index: 0)/display2a (index: 1)/display3a (index: 2)',
-        "medicationIndex": "index of the medication to stop, as integer",
+        "medicationIndex": "index of the medication to stop, or -1, as integer",
         "rationale": "explanation of why the medication is stopped, as free text",
     }
     assert result == expected
