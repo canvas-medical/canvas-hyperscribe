@@ -37,3 +37,6 @@ class MemoryLog:
     def output(self, message: str) -> None:
         self.log(message)
         log.info(message)
+
+    def logs(self) -> str:
+        return "\n".join(self.ENTRIES[self.note_uuid][self.label])

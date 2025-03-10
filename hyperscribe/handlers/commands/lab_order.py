@@ -68,7 +68,7 @@ class LabOrder(Base):
                     chatter,
                     self.settings,
                     lab_partner.name,
-                    lab_order["labOrderKeyword"].split(","),
+                    lab_order["labOrderKeywords"].split(","),
                     parameters["comment"],
                     [c.label for c in conditions],
                 )
@@ -81,7 +81,7 @@ class LabOrder(Base):
         return {
             "labOrders": [
                 {
-                    "labOrderKeyword": "comma separated keywords of up to 5 synonyms of each lab test to order",
+                    "labOrderKeywords": "comma separated keywords of up to 5 synonyms of each lab test to order",
                 },
             ],
             "conditions": [

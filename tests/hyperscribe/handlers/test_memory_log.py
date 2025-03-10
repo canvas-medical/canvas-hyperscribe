@@ -159,3 +159,38 @@ def test_output(mock_datetime, log):
     assert log.mock_calls == calls
     reset_mocks()
     MemoryLog.end_session("note_uuid")
+
+
+@patch("hyperscribe.handlers.memory_log.datetime", wraps=datetime)
+def test_logs(mock_datetime):
+    def reset_mocks():
+        mock_datetime.reset_mock()
+
+    tested = MemoryLog("note_uuid", "theLabel")
+    result = tested.logs()
+    expected = ""
+    assert result == expected
+
+    mock_datetime.now.side_effect = [
+        datetime(2025, 3, 6, 7, 53, 21, tzinfo=timezone.utc),
+        datetime(2025, 3, 6, 11, 53, 37, tzinfo=timezone.utc),
+        datetime(2025, 3, 6, 19, 11, 51, tzinfo=timezone.utc),
+    ]
+
+    tested.log("message1")
+    tested.log("message2")
+    tested.log("message3")
+    result = tested.logs()
+    expected = ('2025-03-06T07:53:21+00:00: message1'
+                '\n2025-03-06T11:53:37+00:00: message2'
+                '\n2025-03-06T19:11:51+00:00: message3')
+    assert result == expected
+
+    calls = [
+        call.now(timezone.utc),
+        call.now(timezone.utc),
+        call.now(timezone.utc),
+    ]
+    assert mock_datetime.mock_calls == calls
+    reset_mocks()
+    MemoryLog.end_session("note_uuid")

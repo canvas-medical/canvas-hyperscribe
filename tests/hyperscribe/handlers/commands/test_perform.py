@@ -1,8 +1,12 @@
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch, call
+
+from canvas_sdk.commands import PerformCommand
 
 from hyperscribe.handlers.commands.base import Base
 from hyperscribe.handlers.commands.perform import Perform
 from hyperscribe.handlers.limited_cache import LimitedCache
+from hyperscribe.handlers.selector_chat import SelectorChat
+from hyperscribe.handlers.structures.coded_item import CodedItem
 from hyperscribe.handlers.structures.settings import Settings
 from hyperscribe.handlers.structures.vendor_key import VendorKey
 
@@ -36,6 +40,18 @@ def test_staged_command_extract():
     tested = Perform
     tests = [
         ({}, None),
+        ({
+             "notes": "theNotes",
+             "perform": {"text": "theProcedure"}
+         }, CodedItem(label="theProcedure: theNotes", code="", uuid="")),
+        ({
+             "notes": "theNotes",
+             "perform": {"text": ""}
+         }, None),
+        ({
+             "notes": "",
+             "perform": {"text": "theProcedure"}
+         }, CodedItem(label="theProcedure: n/a", code="", uuid="")),
     ]
     for data, expected in tests:
         result = tested.staged_command_extract(data)
@@ -45,25 +61,51 @@ def test_staged_command_extract():
             assert result == expected
 
 
-def test_command_from_json():
+@patch.object(SelectorChat, "procedure_from")
+def test_command_from_json(procedure_from):
     chatter = MagicMock()
+
+    def reset_mocks():
+        procedure_from.reset_mock()
+        chatter.reset_mock()
+
+    parameters = {
+        "comment": "theComment",
+        "procedureKeywords": "procedure1,procedure2,procedure3",
+    }
     tested = helper_instance()
-    result = tested.command_from_json(chatter, {})
-    assert result is None
-    assert chatter.mock_calls == []
+    tests = [
+        ("theCode", PerformCommand(cpt_code="theCode", notes="theComment", note_uuid="noteUuid")),
+        ("", PerformCommand(cpt_code="", notes="theComment", note_uuid="noteUuid")),
+    ]
+    for code, expected in tests:
+        procedure_from.side_effect = [CodedItem(uuid="theUuid", label="theLabel", code=code)]
+        result = tested.command_from_json(chatter, parameters)
+        assert result == expected
+
+        calls = [
+            call(chatter, tested.settings, ["procedure1", "procedure2", "procedure3"], "theComment"),
+        ]
+        assert procedure_from.mock_calls == calls
+        assert chatter.mock_calls == []
+        reset_mocks()
 
 
 def test_command_parameters():
     tested = helper_instance()
     result = tested.command_parameters()
-    expected = {}
+    expected = {
+        "procedureKeywords": "comma separated keywords of up to 5 synonyms of the procedure or action performed",
+        "comment": "information related to the procedure or action performed, as free text",
+    }
     assert result == expected
 
 
 def test_instruction_description():
     tested = helper_instance()
     result = tested.instruction_description()
-    expected = ""
+    expected = ("Procedure or action performed during the encounter. "
+                "There can be only one procedure or action performed per instruction, and no instruction in the lack of.")
     assert result == expected
 
 
@@ -77,4 +119,4 @@ def test_instruction_constraints():
 def test_is_available():
     tested = helper_instance()
     result = tested.is_available()
-    assert result is False
+    assert result is True

@@ -107,9 +107,9 @@ def test_command_from_json(condition_from, lab_test_from, lab_partner_db):
                "That is to go over the 127 characters, just in the middle of the sentence.")
     parameters = {
         "labOrders": [
-            {"labOrderKeyword": "lab1,lab2"},
-            {"labOrderKeyword": "lab3"},
-            {"labOrderKeyword": "lab4"},
+            {"labOrderKeywords": "lab1,lab2"},
+            {"labOrderKeywords": "lab3"},
+            {"labOrderKeywords": "lab4"},
         ],
         "conditions": [
             {"conditionKeywords": "condition1,condition2", "ICD10": "icd1,icd2"},
@@ -195,7 +195,7 @@ def test_command_parameters():
     expected = {
         "labOrders": [
             {
-                "labOrderKeyword": "comma separated keywords of up to 5 synonyms of each lab test to order",
+                "labOrderKeywords": "comma separated keywords of up to 5 synonyms of each lab test to order",
             },
         ],
         "conditions": [

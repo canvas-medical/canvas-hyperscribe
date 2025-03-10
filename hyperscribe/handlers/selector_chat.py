@@ -11,6 +11,7 @@ from hyperscribe.handlers.json_schema import JsonSchema
 from hyperscribe.handlers.llms.llm_base import LlmBase
 from hyperscribe.handlers.structures.coded_item import CodedItem
 from hyperscribe.handlers.structures.settings import Settings
+from hyperscribe.handlers.temporary_data import ChargeDescriptionMaster
 
 
 class SelectorChat:
@@ -107,6 +108,58 @@ class SelectorChat:
                 'Please, present your findings in a JSON format within a Markdown code block like:',
                 '```json',
                 json.dumps([{"code": "the lab test code", "label": "the lab test label"}]),
+                '```',
+                '',
+            ]
+            schemas = JsonSchema.get(["selector_lab_test"])
+            if response := chatter.single_conversation(system_prompt, user_prompt, schemas):
+                result = CodedItem(
+                    label=response[0]['label'],
+                    code=response[0]["code"],
+                    uuid="",
+                )
+        return result
+
+    @classmethod
+    def procedure_from(
+            cls,
+            chatter: LlmBase,
+            settings: Settings,
+            expressions: list[str],
+            comment: str,
+    ) -> CodedItem:
+        result = CodedItem(code="", label="", uuid="")
+        charges = []
+        for expression in expressions:
+            # expression can have several words: look for records that have all of them, regardless of their order
+            keywords = expression.strip().split()
+            query = ChargeDescriptionMaster.objects.filter(reduce(and_, (Q(name__icontains=kw) for kw in keywords)))
+            for test in query:
+                charges.append(test)
+
+        if charges:
+            # ask the LLM to pick the most relevant charge
+            system_prompt = [
+                "The conversation is in the medical context.",
+                "",
+                "Your task is to select the most relevant procedure performed on a patient out of a list of procedures.",
+                "",
+            ]
+            user_prompt = [
+                'Here is the comment provided by the healthcare provider in regards to the procedure performed on the patient:',
+                '```text',
+                f"keywords: {', '.join(expressions)}",
+                " -- ",
+                comment,
+                '```',
+                "",
+                'Among the following procedures, select the most relevant one:',
+                '',
+                "\n".join(f' * {concept.name} (code: {concept.cpt_code})' for concept in charges),
+                '',
+                'Please, present your findings in a JSON format within a Markdown code block like:',
+                '```json',
+                json.dumps([{"code": "the procedure code", "label": "the procedure label"}]),
                 '```',
                 '',
             ]
