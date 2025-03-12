@@ -36,9 +36,26 @@ def test_set_system_prompt():
     memory_log = MagicMock()
     tested = LlmBase(memory_log, "apiKey", "theModel")
     assert tested.prompts == []
+    #
     tested.set_system_prompt(["line 1", "line 2"])
     result = tested.prompts
     expected = [LlmTurn(role="system", text=["line 1", "line 2"])]
+    assert result == expected
+    assert memory_log.mock_calls == []
+    #
+    tested.set_system_prompt(["line 3"])
+    result = tested.prompts
+    expected = [LlmTurn(role="system", text=["line 3"])]
+    assert result == expected
+    assert memory_log.mock_calls == []
+    #
+    tested.prompts = [LlmTurn(role="user", text=["line 1", "line 2"])]
+    tested.set_system_prompt(["line 3"])
+    result = tested.prompts
+    expected = [
+        LlmTurn(role="system", text=["line 3"]),
+        LlmTurn(role="user", text=["line 1", "line 2"]),
+    ]
     assert result == expected
     assert memory_log.mock_calls == []
 
@@ -151,6 +168,7 @@ def test_chat(attempt_requests, extract_json_from):
     calls = [
         call.log('-- CHAT BEGINS --'),
         call.log('--- CHAT ENDS ---'),
+        call.store_so_far(),
     ]
     assert memory_log.mock_calls == calls
     reset_mocks()
@@ -193,14 +211,17 @@ def test_chat(attempt_requests, extract_json_from):
         call('response2:\nline3\nline4', []),
     ]
     assert extract_json_from.mock_calls == calls
-    calls = [call.log('-- CHAT BEGINS --'),
-             call.log('--- CHAT ENDS ---'),
-             call.log('-- CHAT BEGINS --'),
-             call.log('result->>'),
-             call.log('[\n  "line1",\n  "line2"\n]'),
-             call.log('<<-'),
-             call.log('--- CHAT ENDS ---'),
-             ]
+    calls = [
+        call.log('-- CHAT BEGINS --'),
+        call.log('--- CHAT ENDS ---'),
+        call.store_so_far(),
+        call.log('-- CHAT BEGINS --'),
+        call.log('result->>'),
+        call.log('[\n  "line1",\n  "line2"\n]'),
+        call.log('<<-'),
+        call.log('--- CHAT ENDS ---'),
+        call.store_so_far(),
+    ]
     assert memory_log.mock_calls == calls
     reset_mocks()
     # -- too many json error
@@ -266,14 +287,17 @@ def test_chat(attempt_requests, extract_json_from):
     calls = [
         call.log('-- CHAT BEGINS --'),
         call.log('--- CHAT ENDS ---'),
+        call.store_so_far(),
         call.log('-- CHAT BEGINS --'),
         call.log('result->>'),
         call.log('[\n  "line1",\n  "line2"\n]'),
         call.log('<<-'),
         call.log('--- CHAT ENDS ---'),
+        call.store_so_far(),
         call.log('-- CHAT BEGINS --'),
         call.log('error: JSON incorrect: max attempts (3) exceeded'),
         call.log('--- CHAT ENDS ---'),
+        call.store_so_far(),
     ]
     assert memory_log.mock_calls == calls
     reset_mocks()

@@ -7,16 +7,18 @@ from urllib.parse import quote
 
 from requests import get as requests_get, put as requests_put, Response
 
+from hyperscribe.handlers.structures.aws_s3_credentials import AwsS3Credentials
+
 
 class AwsS3:
-    def __init__(self, aws_key_id: str, aws_secret: str, region: str, bucket: str) -> None:
-        self.aws_key_id = aws_key_id
-        self.aws_secret = aws_secret
-        self.region = region
-        self.bucket = bucket
+    def __init__(self, credentials: AwsS3Credentials) -> None:
+        self.aws_key = credentials.aws_key
+        self.aws_secret = credentials.aws_secret
+        self.region = credentials.region
+        self.bucket = credentials.bucket
 
     def is_ready(self) -> bool:
-        return bool(self.aws_key_id and self.aws_secret and self.region and self.bucket)
+        return bool(self.aws_key and self.aws_secret and self.region and self.bucket)
 
     def headers(self, object_key: str, data: tuple[bytes, str] | None = None) -> dict:
         host = f"{self.bucket}.s3.{self.region}.amazonaws.com"
@@ -58,7 +60,7 @@ class AwsS3:
         signature = hmac_new(k_signing, string_to_sign.encode('utf-8'), sha256).hexdigest()  # type: ignore
 
         # build authorization header
-        authorization_header = f"{algorithm} Credential={self.aws_key_id}/{credential_scope}, SignedHeaders={signed_headers}, Signature={signature}"
+        authorization_header = f"{algorithm} Credential={self.aws_key}/{credential_scope}, SignedHeaders={signed_headers}, Signature={signature}"
         return {
             'Host': host,
             'x-amz-date': amz_date,

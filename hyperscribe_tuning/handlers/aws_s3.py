@@ -1,8 +1,8 @@
-from re import compile as re_compile, DOTALL, search as re_search
 from datetime import datetime, timezone
 from hashlib import sha256
 from hmac import new as hmac_new
 from http import HTTPStatus
+from re import compile as re_compile, DOTALL, search as re_search
 from urllib.parse import quote
 
 from requests import get as requests_get, put as requests_put, Response

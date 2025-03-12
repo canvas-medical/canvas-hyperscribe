@@ -1,4 +1,5 @@
-# from __future__ import annotations
+from __future__ import annotations
+
 import json
 from datetime import datetime, timedelta
 from http import HTTPStatus
@@ -26,16 +27,16 @@ from hyperscribe.handlers.constants import Constants
 from hyperscribe.handlers.implemented_commands import ImplementedCommands
 from hyperscribe.handlers.limited_cache import LimitedCache
 from hyperscribe.handlers.memory_log import MemoryLog
+from hyperscribe.handlers.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.handlers.structures.coded_item import CodedItem
 from hyperscribe.handlers.structures.instruction import Instruction
 from hyperscribe.handlers.structures.line import Line
 from hyperscribe.handlers.structures.settings import Settings
-from hyperscribe.handlers.structures.vendor_key import VendorKey
 
 
 # ATTENTION temporary structure while waiting for a better solution
 class CachedDiscussion:
-    CACHED: dict[str, "CachedDiscussion"] = {}
+    CACHED: dict[str, CachedDiscussion] = {}
 
     def __init__(self, note_uuid: str) -> None:
         self.updated: datetime = datetime.now()
@@ -48,7 +49,7 @@ class CachedDiscussion:
         self.count = self.count + 1
 
     @classmethod
-    def get_discussion(cls, note_uuid: str) -> "CachedDiscussion":
+    def get_discussion(cls, note_uuid: str) -> CachedDiscussion:
         if note_uuid not in cls.CACHED:
             cls.CACHED[note_uuid] = CachedDiscussion(note_uuid)
         return cls.CACHED[note_uuid]
@@ -76,19 +77,6 @@ class Audio:
 
 
 class Commander(BaseProtocol):
-    SECRET_TEXT_VENDOR = "VendorTextLLM"
-    SECRET_TEXT_KEY = "KeyTextLLM"
-    SECRET_AUDIO_VENDOR = "VendorAudioLLM"
-    SECRET_AUDIO_KEY = "KeyAudioLLM"
-    SECRET_SCIENCE_HOST = "ScienceHost"
-    SECRET_ONTOLOGIES_HOST = "OntologiesHost"
-    SECRET_PRE_SHARED_KEY = "PreSharedKey"
-    SECRET_AUDIO_HOST = "AudioHost"
-    SECRET_AWS_KEY = "AwsKey"
-    SECRET_AWS_SECRET = "AwsSecret"
-    SECRET_AWS_REGION = "AwsRegion"
-    SECRET_AWS_BUCKET = "AwsBucket"
-    SECRET_STRUCTURED_RFV = "StructuredReasonForVisit"
     LABEL_ENCOUNTER_COPILOT = "Encounter Copilot"
     MAX_AUDIOS = 1
     MEMORY_LOG_LABEL = "main"
@@ -96,16 +84,6 @@ class Commander(BaseProtocol):
     RESPONDS_TO = [
         EventType.Name(EventType.TASK_COMMENT_CREATED),
     ]
-
-    def flush_log(self, note_uuid: str, log_path: str) -> None:
-        aws_key = self.secrets.get(self.SECRET_AWS_KEY)
-        aws_secret = self.secrets.get(self.SECRET_AWS_SECRET)
-        region = self.secrets.get(self.SECRET_AWS_REGION)
-        bucket = self.secrets.get(self.SECRET_AWS_BUCKET)
-        if aws_key and aws_secret and region and bucket:
-            log.info(f"--> log path: {log_path}")
-            client_s3 = AwsS3(aws_key, aws_secret, region, bucket)
-            client_s3.upload_text_to_s3(log_path, MemoryLog.end_session(note_uuid))
 
     def compute(self) -> list[Effect]:
         comment = TaskComment.objects.get(id=self.target)
@@ -122,10 +100,10 @@ class Commander(BaseProtocol):
         patient_uuid = note.patient.id
 
         memory_log = MemoryLog(note_uuid, self.MEMORY_LOG_LABEL)
-        memory_log.output(f"Text: {self.secrets[self.SECRET_TEXT_VENDOR]} - Audio: {self.secrets[self.SECRET_AUDIO_VENDOR]}")
+        memory_log.output(f"Text: {self.secrets[Constants.SECRET_TEXT_VENDOR]} - Audio: {self.secrets[Constants.SECRET_AUDIO_VENDOR]}")
         had_audio, effects = self.compute_audio(patient_uuid, note_uuid, provider_uuid, chunk_index)
         if had_audio:
-            memory_log.output(f"audio was present => go to next iteration ({chunk_index + 1})")
+            log.info(f"audio was present => go to next iteration ({chunk_index + 1})")
             effects.append(AddTaskComment(
                 task_id=str(comment.task.id),
                 body=json.dumps({
@@ -134,15 +112,13 @@ class Commander(BaseProtocol):
                     "chunk_index": chunk_index + 1,
                 })
             ).apply())
-            remote_path = f"{datetime.now().date().isoformat()}/{patient_uuid}-{note_uuid}/{chunk_index:03}.log"
-            self.flush_log(note_uuid, remote_path)
         else:
-            memory_log.output("audio was NOT present => stop the task")
+            log.info("audio was NOT present => stop the task")
             effects.append(UpdateTask(
                 id=str(comment.task.id),
                 status=TaskStatus.COMPLETED,
             ).apply())
-            MemoryLog.end_session(note_uuid)
+        MemoryLog.end_session(note_uuid)
         return effects
 
     @classmethod
@@ -161,12 +137,6 @@ class Commander(BaseProtocol):
         result.append(initial)
         return result
 
-    def structured_rfv(self) -> bool:
-        result = self.secrets.get(self.SECRET_STRUCTURED_RFV)
-        if isinstance(result, str) and result.lower() in ["yes", "y", "1"]:
-            return True
-        return False
-
     def compute_audio(
             self,
             patient_uuid: str,
@@ -177,7 +147,7 @@ class Commander(BaseProtocol):
         memory_log = MemoryLog(note_uuid, self.MEMORY_LOG_LABEL)
         CachedDiscussion.clear_cache()
         # retrieve the last two audio chunks
-        audios = self.retrieve_audios(self.secrets[self.SECRET_AUDIO_HOST], patient_uuid, note_uuid, chunk_index)
+        audios = self.retrieve_audios(self.secrets[Constants.SECRET_AUDIO_HOST], patient_uuid, note_uuid, chunk_index)
         memory_log.output(f"--> audio chunks: {len(audios)}")
         if not audios:
             return False, []
@@ -185,20 +155,8 @@ class Commander(BaseProtocol):
         discussion = CachedDiscussion.get_discussion(note_uuid)
         discussion.add_one()
         # request the transcript of the audio (provider + patient...)
-        settings = Settings(
-            llm_text=VendorKey(
-                vendor=self.secrets[self.SECRET_TEXT_VENDOR],
-                api_key=self.secrets[self.SECRET_TEXT_KEY],
-            ),
-            llm_audio=VendorKey(
-                vendor=self.secrets[self.SECRET_AUDIO_VENDOR],
-                api_key=self.secrets[self.SECRET_AUDIO_KEY],
-            ),
-            science_host=self.secrets[self.SECRET_SCIENCE_HOST],
-            ontologies_host=self.secrets[self.SECRET_ONTOLOGIES_HOST],
-            pre_shared_key=self.secrets[self.SECRET_PRE_SHARED_KEY],
-            structured_rfv=self.structured_rfv(),
-        )
+        settings = Settings.from_dictionary(self.secrets)
+        aws_s3 = AwsS3Credentials.from_dictionary(self.secrets)
 
         current_commands = Command.objects.filter(
             patient__id=patient_uuid,
@@ -212,6 +170,7 @@ class Commander(BaseProtocol):
         )
         chatter = AudioInterpreter(
             settings,
+            aws_s3,
             cache,
             patient_uuid,
             note_uuid,
@@ -237,6 +196,10 @@ class Commander(BaseProtocol):
             memory_log.output(result.payload)
         memory_log.output("<=== END ===>")
 
+        if (client_s3 := AwsS3(aws_s3)) and client_s3.is_ready():
+            remote_path = f"{datetime.now().date().isoformat()}/{patient_uuid}-{note_uuid}/{chunk_index:03}.log"
+            memory_log.output(f"--> log path: {remote_path}")
+            client_s3.upload_text_to_s3(remote_path, MemoryLog.end_session(note_uuid))
         return True, results
 
     @classmethod

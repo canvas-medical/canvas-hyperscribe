@@ -4,12 +4,10 @@ from pathlib import Path
 
 from canvas_sdk.v1.data import Note
 
-from hyperscribe.handlers.aws_s3 import AwsS3
-from hyperscribe.handlers.commander import Commander
 from hyperscribe.handlers.helper import Helper
 from hyperscribe.handlers.memory_log import MemoryLog
+from hyperscribe.handlers.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.handlers.structures.settings import Settings
-from hyperscribe.handlers.structures.vendor_key import VendorKey
 
 
 class HelperSettings:
@@ -17,30 +15,11 @@ class HelperSettings:
 
     @classmethod
     def settings(cls) -> Settings:
-        return Settings(
-            llm_text=VendorKey(
-                vendor=environ[Commander.SECRET_TEXT_VENDOR],
-                api_key=environ[Commander.SECRET_TEXT_KEY],
-            ),
-            llm_audio=VendorKey(
-                vendor=environ[Commander.SECRET_AUDIO_VENDOR],
-                api_key=environ[Commander.SECRET_AUDIO_KEY],
-            ),
-            science_host=environ[Commander.SECRET_SCIENCE_HOST],
-            ontologies_host=environ[Commander.SECRET_ONTOLOGIES_HOST],
-            pre_shared_key=environ[Commander.SECRET_PRE_SHARED_KEY],
-            structured_rfv=bool(environ[Commander.SECRET_STRUCTURED_RFV].lower() in ["yes", "y", "1"]),
-        )
+        return Settings.from_dictionary(dict(environ))
 
     @classmethod
-    def flush_log(cls, note_uuid: str, log_path: str) -> None:
-        aws_key = environ.get(Commander.SECRET_AWS_KEY)
-        aws_secret = environ.get(Commander.SECRET_AWS_SECRET)
-        region = environ.get(Commander.SECRET_AWS_REGION)
-        bucket = environ.get(Commander.SECRET_AWS_BUCKET)
-        if aws_key and aws_secret and region and bucket:
-            client_s3 = AwsS3(aws_key, aws_secret, region, bucket)
-            client_s3.upload_text_to_s3(log_path, MemoryLog.end_session(note_uuid))
+    def aws_s3_credentials(cls) -> AwsS3Credentials:
+        return AwsS3Credentials.from_dictionary(dict(environ))
 
     @classmethod
     def get_note_uuid(cls, patient_uuid: str) -> str:

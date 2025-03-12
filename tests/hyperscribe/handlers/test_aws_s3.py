@@ -3,11 +3,13 @@ from pathlib import Path
 from unittest.mock import patch, call
 
 from hyperscribe.handlers.aws_s3 import AwsS3
+from hyperscribe.handlers.structures.aws_s3_credentials import AwsS3Credentials
 
 
 def test___init__():
-    test = AwsS3("theKey", "theSecret", "theRegion", "theBucket")
-    assert test.aws_key_id == "theKey"
+    credentials = AwsS3Credentials(aws_key="theKey", aws_secret="theSecret", region="theRegion", bucket="theBucket")
+    test = AwsS3(credentials)
+    assert test.aws_key == "theKey"
     assert test.aws_secret == "theSecret"
     assert test.region == "theRegion"
     assert test.bucket == "theBucket"
@@ -21,8 +23,9 @@ def test_is_ready():
         ("theKey", "", "theRegion", "theBucket", False),
         ("", "theSecret", "theRegion", "theBucket", False),
     ]
-    for aws_key_id, aws_secret, region, bucket, expected in tests:
-        test = AwsS3(aws_key_id, aws_secret, region, bucket)
+    for aws_key, aws_secret, region, bucket, expected in tests:
+        credentials = AwsS3Credentials(aws_key=aws_key, aws_secret=aws_secret, region=region, bucket=bucket)
+        test = AwsS3(credentials)
         result = test.is_ready()
         assert result is expected
 
@@ -32,7 +35,8 @@ def test_headers(mock_datetime):
     def reset_mocks():
         mock_datetime.reset_mock()
 
-    test = AwsS3("theKey", "theSecret", "theRegion", "theBucket")
+    credentials = AwsS3Credentials(aws_key="theKey", aws_secret="theSecret", region="theRegion", bucket="theBucket")
+    test = AwsS3(credentials)
 
     tests = [
         ("theObjectKey", None, {
@@ -72,7 +76,8 @@ def test_access_s3_object(is_ready, headers, requests_get):
         headers.reset_mock()
         requests_get.reset_mock()
 
-    test = AwsS3("theKey", "theSecret", "theRegion", "theBucket")
+    credentials = AwsS3Credentials(aws_key="theKey", aws_secret="theSecret", region="theRegion", bucket="theBucket")
+    test = AwsS3(credentials)
     # ready
     is_ready.side_effect = [True]
     headers.side_effect = [{"Host": "theHost", "someKey": "someValue"}]
@@ -113,7 +118,8 @@ def test_upload_text_to_s3(is_ready, headers, requests_put):
         headers.reset_mock()
         requests_put.reset_mock()
 
-    test = AwsS3("theKey", "theSecret", "theRegion", "theBucket")
+    credentials = AwsS3Credentials(aws_key="theKey", aws_secret="theSecret", region="theRegion", bucket="theBucket")
+    test = AwsS3(credentials)
     # ready
     is_ready.side_effect = [True]
     headers.side_effect = [{"Host": "theHost", "someKey": "someValue"}]
@@ -160,7 +166,8 @@ def test_list_s3_objects(is_ready, headers, requests_get):
         headers.reset_mock()
         requests_get.reset_mock()
 
-    test = AwsS3("theKey", "theSecret", "theRegion", "theBucket")
+    credentials = AwsS3Credentials(aws_key="theKey", aws_secret="theSecret", region="theRegion", bucket="theBucket")
+    test = AwsS3(credentials)
     tests = [
         (500, []),
         (200, [

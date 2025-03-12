@@ -6,6 +6,7 @@ from sys import argv
 from canvas_sdk.v1.data import Note, Patient
 
 from hyperscribe.handlers.audio_interpreter import AudioInterpreter
+from hyperscribe.handlers.aws_s3 import AwsS3
 from hyperscribe.handlers.commander import Commander
 from hyperscribe.handlers.limited_cache import LimitedCache
 from hyperscribe.handlers.memory_log import MemoryLog
@@ -69,6 +70,7 @@ class CaseBuilder:
         note_uuid = str(note.id)
         chatter = AudioInterpreter(
             HelperSettings.settings(),
+            HelperSettings.aws_s3_credentials(),
             LimitedCache(parameters.patient, {}),
             parameters.patient,
             note_uuid,
@@ -82,8 +84,11 @@ class CaseBuilder:
 
         MemoryLog.begin_session(note_uuid)
         Commander.audio2commands(recorder, audios, chatter, [])
-        remote_path = f"{datetime.now().date().isoformat()}/case-builder-{parameters.label}.log"
-        HelperSettings.flush_log(note_uuid, remote_path)
+
+        if (client_s3 := AwsS3(HelperSettings.aws_s3_credentials())) and client_s3.is_ready():
+            remote_path = f"{datetime.now().date().isoformat()}/case-builder-{parameters.label}.log"
+            client_s3.upload_text_to_s3(remote_path, MemoryLog.end_session(note_uuid))
+            print(f"Logs saved in: {remote_path}")
 
 
 if __name__ == "__main__":

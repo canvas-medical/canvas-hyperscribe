@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import patch, call, MagicMock
 
@@ -7,6 +8,7 @@ from canvas_sdk.v1.data import Patient, Note
 
 from case_builder import CaseBuilder
 from hyperscribe.handlers.audio_interpreter import AudioInterpreter
+from hyperscribe.handlers.aws_s3 import AwsS3
 from hyperscribe.handlers.commander import Commander
 from hyperscribe.handlers.limited_cache import LimitedCache
 from integrations.auditor_file import AuditorFile
@@ -109,15 +111,33 @@ def test_reset(argument_parser):
         reset_mocks()
 
 
+@patch("case_builder.datetime", wraps=datetime)
+@patch("case_builder.MemoryLog")
 @patch.object(Note, "objects")
 @patch.object(Commander, "audio2commands")
 @patch.object(LimitedCache, "__new__")
+@patch.object(HelperSettings, "aws_s3_credentials")
 @patch.object(HelperSettings, "settings")
+@patch.object(AwsS3, "__new__")
 @patch.object(AudioInterpreter, "__new__")
 @patch.object(AuditorFile, "__new__")
 @patch.object(CaseBuilder, "parameters")
 @patch.object(CaseBuilder, "reset")
-def test_run(reset, parameters, auditor_file, audio_interpreter, settings, limited_cache, audio2commands, note_db, capsys):
+def test_run(
+        reset,
+        parameters,
+        auditor_file,
+        audio_interpreter,
+        aws_s3,
+        settings,
+        aws_s3_credentials,
+        limited_cache,
+        audio2commands,
+        note_db,
+        memory_log,
+        mock_datetime,
+        capsys,
+):
     mock_arguments = MagicMock()
     mock_files = [MagicMock(), MagicMock()]
     mock_note = MagicMock()
@@ -128,10 +148,14 @@ def test_run(reset, parameters, auditor_file, audio_interpreter, settings, limit
         parameters.reset_mock()
         auditor_file.reset_mock()
         audio_interpreter.reset_mock()
+        aws_s3.reset_mock()
         settings.reset_mock()
+        aws_s3_credentials.reset_mock()
         limited_cache.reset_mock()
         audio2commands.reset_mock()
         note_db.reset_mock()
+        memory_log.reset_mock()
+        mock_datetime.reset_mock()
         mock_arguments.reset_mock()
         for mock_file in mock_files:
             mock_file.reset_mock()
@@ -157,68 +181,108 @@ def test_run(reset, parameters, auditor_file, audio_interpreter, settings, limit
     calls = [call(AuditorFile, "theLabel")]
     assert auditor_file.mock_calls == calls
     assert audio_interpreter.mock_calls == []
+    assert aws_s3.mock_calls == []
     assert settings.mock_calls == []
+    assert aws_s3_credentials.mock_calls == []
     assert limited_cache.mock_calls == []
     assert audio2commands.mock_calls == []
     assert note_db.mock_calls == []
+    assert memory_log.mock_calls == []
+    assert mock_datetime.mock_calls == []
     assert mock_note.mock_calls == []
     for mock_file in mock_files:
         assert mock_file.mock_calls == []
     reset_mocks()
 
     # creation
-    reset.side_effect = [None]
-    parameters.side_effect = [mock_arguments]
-    mock_arguments.patient = "patientUuid"
-    mock_arguments.label = "theLabel"
-    mock_arguments.mp3 = mock_files
-    for idx, mock_file in enumerate(mock_files):
-        mock_file.__str__.side_effect = [f"audio file {idx}"]
-        mock_file.open.return_value.__enter__.return_value.read.side_effect = [f"audio content {idx}".encode('utf-8')]
+    for is_ready in [True, False]:
+        reset.side_effect = [None]
+        parameters.side_effect = [mock_arguments]
+        mock_arguments.patient = "patientUuid"
+        mock_arguments.label = "theLabel"
+        mock_arguments.mp3 = mock_files
+        for idx, mock_file in enumerate(mock_files):
+            mock_file.__str__.side_effect = [f"audio file {idx}"]
+            mock_file.open.return_value.__enter__.return_value.read.side_effect = [f"audio content {idx}".encode('utf-8')]
 
-    auditor_file.side_effect = ["auditorFileInstance"]
-    audio_interpreter.side_effect = ["audioInterpreterInstance"]
-    note_db.filter.return_value.order_by.return_value.first.side_effect = [mock_note]
-    mock_note.provider.id = "providerUuid"
-    mock_note.id = "noteUuid"
-    settings.side_effect = ["settingsInstance"]
-    limited_cache.side_effect = ["limitedCacheInstance"]
+        auditor_file.side_effect = ["auditorFileInstance"]
+        audio_interpreter.side_effect = ["audioInterpreterInstance"]
+        note_db.filter.return_value.order_by.return_value.first.side_effect = [mock_note]
+        mock_note.provider.id = "providerUuid"
+        mock_note.id = "noteUuid"
+        settings.side_effect = ["settingsInstance"]
+        aws_s3_credentials.side_effect = ["awsS3CredentialsInstance1", "awsS3CredentialsInstance2"]
+        limited_cache.side_effect = ["limitedCacheInstance"]
+        aws_s3.return_value.is_ready.side_effect = [is_ready]
+        memory_log.end_session.side_effect = ["flushedMemoryLog"]
+        mock_datetime.now.side_effect = [datetime(2025, 3, 10, 7, 48, 21, tzinfo=timezone.utc)]
 
-    result = tested.run()
-    assert result is None
+        result = tested.run()
+        assert result is None
 
-    exp_out = CaptureResult(
-        out='Patient UUID: patientUuid\n'
-            'Integration Label: theLabel\n'
-            'MP3 Files:\n'
-            '- audio file 0\n'
-            '- audio file 1\n',
-        err='',
-    )
-    assert capsys.readouterr() == exp_out
-    calls = [call()]
-    assert reset.mock_calls == calls
-    assert parameters.mock_calls == calls
-    calls = [call(AuditorFile, "theLabel")]
-    assert auditor_file.mock_calls == calls
-    calls = [call(AudioInterpreter, "settingsInstance", "limitedCacheInstance", "patientUuid", "noteUuid", "providerUuid")]
-    assert audio_interpreter.mock_calls == calls
-    calls = [call()]
-    assert settings.mock_calls == calls
-    calls = [call(LimitedCache, "patientUuid", {})]
-    assert limited_cache.mock_calls == calls
-    calls = [call(
-        "auditorFileInstance",
-        [b'audio content 0', b'audio content 1'],
-        "audioInterpreterInstance",
-        [],
-    )]
-    assert audio2commands.mock_calls == calls
-    calls = [
-        call.filter(patient__id='patientUuid'),
-        call.filter().order_by('-dbid'),
-        call.filter().order_by().first()
-    ]
-    assert note_db.mock_calls == calls
-    assert mock_note.mock_calls == []
-    reset_mocks()
+        exp_out = [
+            'Patient UUID: patientUuid',
+            'Integration Label: theLabel',
+            'MP3 Files:',
+            '- audio file 0',
+            '- audio file 1',
+        ]
+        if is_ready:
+            exp_out.append('Logs saved in: 2025-03-10/case-builder-theLabel.log')
+        exp_out.append('')
+        assert capsys.readouterr().out == "\n".join(exp_out)
+        calls = [call()]
+        assert reset.mock_calls == calls
+        assert parameters.mock_calls == calls
+        calls = [call(AuditorFile, "theLabel")]
+        assert auditor_file.mock_calls == calls
+        calls = [call(
+            AudioInterpreter,
+            "settingsInstance",
+            "awsS3CredentialsInstance1",
+            "limitedCacheInstance",
+            "patientUuid",
+            "noteUuid",
+            "providerUuid",
+        )]
+        assert audio_interpreter.mock_calls == calls
+        calls = [
+            call(AwsS3, "awsS3CredentialsInstance2"),
+            call().__bool__(),
+            call().is_ready(),
+        ]
+        if is_ready:
+            calls.append(call().upload_text_to_s3(
+                '2025-03-10/case-builder-theLabel.log',
+                "flushedMemoryLog"),
+            )
+        assert aws_s3.mock_calls == calls
+        calls = [call()]
+        assert settings.mock_calls == calls
+        calls = [call(), call()]
+        assert aws_s3_credentials.mock_calls == calls
+        calls = [call(LimitedCache, "patientUuid", {})]
+        assert limited_cache.mock_calls == calls
+        calls = [call(
+            "auditorFileInstance",
+            [b'audio content 0', b'audio content 1'],
+            "audioInterpreterInstance",
+            [],
+        )]
+        assert audio2commands.mock_calls == calls
+        calls = [
+            call.filter(patient__id='patientUuid'),
+            call.filter().order_by('-dbid'),
+            call.filter().order_by().first()
+        ]
+        assert note_db.mock_calls == calls
+        calls = [call.begin_session('noteUuid')]
+        if is_ready:
+            calls.append(call.end_session('noteUuid'))
+        assert memory_log.mock_calls == calls
+        calls = []
+        if is_ready:
+            calls.append(call.now())
+        assert mock_datetime.mock_calls == calls
+        assert mock_note.mock_calls == []
+        reset_mocks()

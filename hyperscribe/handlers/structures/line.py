@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import NamedTuple
 
 
@@ -6,7 +8,7 @@ class Line(NamedTuple):
     text: str
 
     @classmethod
-    def load_from_json(cls, json_list: list) -> list["Line"]:
+    def load_from_json(cls, json_list: list) -> list[Line]:
         return [
             Line(
                 speaker=json_object.get("speaker", ""),

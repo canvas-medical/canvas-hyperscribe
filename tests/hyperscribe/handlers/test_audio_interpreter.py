@@ -5,6 +5,8 @@ from hyperscribe.handlers.audio_interpreter import AudioInterpreter
 from hyperscribe.handlers.helper import Helper
 from hyperscribe.handlers.implemented_commands import ImplementedCommands
 from hyperscribe.handlers.limited_cache import LimitedCache
+from hyperscribe.handlers.memory_log import MemoryLog
+from hyperscribe.handlers.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.handlers.structures.instruction import Instruction
 from hyperscribe.handlers.structures.json_extract import JsonExtract
 from hyperscribe.handlers.structures.line import Line
@@ -12,7 +14,7 @@ from hyperscribe.handlers.structures.settings import Settings
 from hyperscribe.handlers.structures.vendor_key import VendorKey
 
 
-def helper_instance(mocks) -> tuple[AudioInterpreter, Settings, LimitedCache]:
+def helper_instance(mocks) -> tuple[AudioInterpreter, Settings, AwsS3Credentials, LimitedCache]:
     def reset_mocks():
         command_list.reset_mocks()
 
@@ -25,6 +27,7 @@ def helper_instance(mocks) -> tuple[AudioInterpreter, Settings, LimitedCache]:
             pre_shared_key="preSharedKey",
             structured_rfv=False,
         )
+        aws_s3 = AwsS3Credentials(aws_key="theKey", aws_secret="theSecret", region="theRegion", bucket="theBucket")
         if mocks:
             mocks[0].return_value.is_available.side_effect = [True]
             mocks[1].return_value.is_available.side_effect = [True]
@@ -34,12 +37,12 @@ def helper_instance(mocks) -> tuple[AudioInterpreter, Settings, LimitedCache]:
         command_list.side_effect = [mocks]
 
         cache = LimitedCache("patientUuid", {})
-        instance = AudioInterpreter(settings, cache, "patientUuid", "noteUuid", "providerUuid")
+        instance = AudioInterpreter(settings, aws_s3, cache, "patientUuid", "noteUuid", "providerUuid")
         calls = [call()]
         assert command_list.mock_calls == calls
         reset_mocks()
 
-        return instance, settings, cache
+        return instance, settings, aws_s3, cache
 
 
 @patch.object(ImplementedCommands, 'command_list')
@@ -64,6 +67,8 @@ def test___init__(command_list):
         pre_shared_key="preSharedKey",
         structured_rfv=False,
     )
+    aws_s3 = AwsS3Credentials(aws_key="theKey", aws_secret="theSecret", region="theRegion", bucket="theBucket")
+
     mocks[0].return_value.is_available.side_effect = [True]
     mocks[1].return_value.is_available.side_effect = [True]
     mocks[2].return_value.is_available.side_effect = [False]
@@ -72,8 +77,9 @@ def test___init__(command_list):
 
     cache = LimitedCache("patientUuid", {})
 
-    instance = AudioInterpreter(settings, cache, "patientUuid", "noteUuid", "providerUuid")
+    instance = AudioInterpreter(settings, aws_s3, cache, "patientUuid", "noteUuid", "providerUuid")
     assert instance.settings == settings
+    assert instance.aws_s3 == aws_s3
     assert instance.patient_id == "patientUuid"
     assert instance.note_uuid == "noteUuid"
 
@@ -110,7 +116,7 @@ def test_instruction_definitions():
     mocks[2].return_value.instruction_description.side_effect = ["Description3"]
     mocks[3].return_value.instruction_description.side_effect = ["Description4"]
 
-    tested, settings, cache = helper_instance(mocks)
+    tested, settings, aws_credentials, cache = helper_instance(mocks)
     result = tested.instruction_definitions()
     expected = [
         {'information': 'Description1', 'instruction': 'First'},
@@ -150,7 +156,7 @@ def test_instruction_constraints():
     mocks[2].return_value.instruction_constraints.side_effect = ["Constraints3"]
     mocks[3].return_value.instruction_constraints.side_effect = ["Constraints4"]
 
-    tested, settings, cache = helper_instance(mocks)
+    tested, settings, aws_credentials, cache = helper_instance(mocks)
     result = tested.instruction_constraints()
     expected = ["Constraints1", "Constraints4"]
     assert result == expected
@@ -189,7 +195,7 @@ def test_command_structures():
     mocks[2].return_value.command_parameters.side_effect = ["Parameters3"]
     mocks[3].return_value.command_parameters.side_effect = ["Parameters4"]
 
-    tested, settings, cache = helper_instance(mocks)
+    tested, settings, aws_credentials, cache = helper_instance(mocks)
     result = tested.command_structures()
     expected = {
         'First': 'Parameters1',
@@ -212,7 +218,7 @@ def test_command_structures():
     reset_mocks()
 
 
-@patch("hyperscribe.handlers.audio_interpreter.MemoryLog")
+@patch.object(MemoryLog, "instance")
 @patch.object(Helper, "audio2texter")
 def test_combine_and_speaker_detection(audio2texter, memory_log):
     def reset_mocks():
@@ -306,7 +312,7 @@ def test_combine_and_speaker_detection(audio2texter, memory_log):
     ]
     audio_chunks = [b"chunk1", b"chunk2"]
 
-    tested, settings, cache = helper_instance([])
+    tested, settings, aws_credentials, cache = helper_instance([])
     # no error
     # -- all JSON
     audio2texter.return_value.chat.side_effect = [JsonExtract(error="theError", has_error=False, content=[discussion, speakers])]
@@ -323,7 +329,7 @@ def test_combine_and_speaker_detection(audio2texter, memory_log):
         call().chat(schemas),
     ]
     assert audio2texter.mock_calls == calls
-    calls = [call("noteUuid", "audio2transcript")]
+    calls = [call("noteUuid", "audio2transcript", aws_credentials)]
     assert memory_log.mock_calls == calls
     reset_mocks()
     # -- only one JSON
@@ -341,7 +347,7 @@ def test_combine_and_speaker_detection(audio2texter, memory_log):
         call().chat(schemas),
     ]
     assert audio2texter.mock_calls == calls
-    calls = [call("noteUuid", "audio2transcript")]
+    calls = [call("noteUuid", "audio2transcript", aws_credentials)]
     assert memory_log.mock_calls == calls
     reset_mocks()
 
@@ -360,12 +366,12 @@ def test_combine_and_speaker_detection(audio2texter, memory_log):
         call().chat(schemas),
     ]
     assert audio2texter.mock_calls == calls
-    calls = [call("noteUuid", "audio2transcript")]
+    calls = [call("noteUuid", "audio2transcript", aws_credentials)]
     assert memory_log.mock_calls == calls
     reset_mocks()
 
 
-@patch("hyperscribe.handlers.audio_interpreter.MemoryLog")
+@patch.object(MemoryLog, "instance")
 @patch.object(Helper, "chatter")
 @patch.object(AudioInterpreter, 'instruction_constraints')
 @patch.object(AudioInterpreter, 'json_schema')
@@ -496,7 +502,7 @@ def test_detect_instructions(
     reset_mocks()
 
     # allow updates
-    tested, settings, cache = helper_instance(mocks)
+    tested, settings, aws_credentials, cache = helper_instance(mocks)
     # -- no known instruction
     instruction_definitions.side_effect = ["theInstructionDefinition"]
     json_schema.side_effect = ["theJsonSchema"]
@@ -518,7 +524,7 @@ def test_detect_instructions(
         call().single_conversation(system_prompts, user_prompts["constraints"], ['theJsonSchema']),
     ]
     assert chatter.mock_calls == calls
-    calls = [call("noteUuid", "transcript2instructions")]
+    calls = [call("noteUuid", "transcript2instructions", aws_credentials)]
     assert memory_log.mock_calls == calls
     for idx, mock in enumerate(mocks):
         calls = [
@@ -550,7 +556,7 @@ def test_detect_instructions(
         call().single_conversation(system_prompts, user_prompts["noKnownInstructions"], ['theJsonSchema']),
     ]
     assert chatter.mock_calls == calls
-    calls = [call("noteUuid", "transcript2instructions")]
+    calls = [call("noteUuid", "transcript2instructions", aws_credentials)]
     assert memory_log.mock_calls == calls
     for idx, mock in enumerate(mocks):
         calls = []
@@ -580,7 +586,7 @@ def test_detect_instructions(
         call().single_conversation(system_prompts, user_prompts["constraints"], ['theJsonSchema']),
     ]
     assert chatter.mock_calls == calls
-    calls = [call("noteUuid", "transcript2instructions")]
+    calls = [call("noteUuid", "transcript2instructions", aws_credentials)]
     assert memory_log.mock_calls == calls
     for idx, mock in enumerate(mocks):
         calls = []
@@ -591,7 +597,7 @@ def test_detect_instructions(
 
 
 @patch("hyperscribe.handlers.audio_interpreter.datetime", wraps=datetime)
-@patch("hyperscribe.handlers.audio_interpreter.MemoryLog")
+@patch.object(MemoryLog, "instance")
 @patch.object(Helper, "chatter")
 def test_create_sdk_command_parameters(chatter, memory_log, mock_datetime):
     mocks = [
@@ -643,7 +649,7 @@ def test_create_sdk_command_parameters(chatter, memory_log, mock_datetime):
     schemas = []
     reset_mocks()
 
-    tested, settings, cache = helper_instance(mocks)
+    tested, settings, aws_credentials, cache = helper_instance(mocks)
     # with response
     mock_datetime.now.side_effect = [datetime(2025, 2, 4, 7, 48, 21, tzinfo=timezone.utc)]
     chatter.return_value.single_conversation.side_effect = [["response1", "response2"]]
@@ -656,7 +662,7 @@ def test_create_sdk_command_parameters(chatter, memory_log, mock_datetime):
         call().single_conversation(system_prompt, user_prompt, schemas),
     ]
     assert chatter.mock_calls == calls
-    calls = [call("noteUuid", "Second_theUuid_instruction2parameters")]
+    calls = [call("noteUuid", "Second_theUuid_instruction2parameters", aws_credentials)]
     assert memory_log.mock_calls == calls
     calls = [call.now()]
     assert mock_datetime.mock_calls == calls
@@ -685,7 +691,7 @@ def test_create_sdk_command_parameters(chatter, memory_log, mock_datetime):
         call().single_conversation(system_prompt, user_prompt, schemas),
     ]
     assert chatter.mock_calls == calls
-    calls = [call("noteUuid", "Second_theUuid_instruction2parameters")]
+    calls = [call("noteUuid", "Second_theUuid_instruction2parameters", aws_credentials)]
     assert memory_log.mock_calls == calls
     calls = [call.now()]
     assert mock_datetime.mock_calls == calls
@@ -700,7 +706,7 @@ def test_create_sdk_command_parameters(chatter, memory_log, mock_datetime):
     reset_mocks()
 
 
-@patch("hyperscribe.handlers.audio_interpreter.MemoryLog")
+@patch.object(MemoryLog, "instance")
 @patch.object(Helper, "chatter")
 def test_create_sdk_command_from(chatter, memory_log):
     mocks = [
@@ -737,13 +743,13 @@ def test_create_sdk_command_from(chatter, memory_log):
         memory_log.side_effect = ["MemoryLogInstance"]
         instruction = Instruction(uuid="theUuid", instruction=instruction, information="theInformation", is_new=False, is_updated=True)
         parameters = {"theKey": "theValue"}
-        tested, settings, cache = helper_instance(mocks)
+        tested, settings, aws_credentials, cache = helper_instance(mocks)
         result = tested.create_sdk_command_from(instruction, parameters)
         assert result == expected
 
         calls = [call(settings, "MemoryLogInstance")] if exp_log_label else []
         assert chatter.mock_calls == calls
-        calls = [call("noteUuid", exp_log_label)] if exp_log_label else []
+        calls = [call("noteUuid", exp_log_label, aws_credentials)] if exp_log_label else []
         assert memory_log.mock_calls == calls
         for idx, mock in enumerate(mocks):
             calls = [

@@ -1,4 +1,3 @@
-from logger import log
 from canvas_sdk.commands.commands.stop_medication import StopMedicationCommand
 
 from hyperscribe.handlers.commands.base import Base

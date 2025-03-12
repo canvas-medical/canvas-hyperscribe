@@ -11,6 +11,7 @@ from logger import log
 
 from hyperscribe.handlers.commander import CachedDiscussion, Audio, Commander
 from hyperscribe.handlers.implemented_commands import ImplementedCommands
+from hyperscribe.handlers.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.handlers.structures.coded_item import CodedItem
 from hyperscribe.handlers.structures.instruction import Instruction
 from hyperscribe.handlers.structures.json_extract import JsonExtract
@@ -179,60 +180,12 @@ def test_get_audio(get, info):
 def test_constants():
     tested = Commander
     constants = {
-        "SECRET_TEXT_VENDOR": "VendorTextLLM",
-        "SECRET_TEXT_KEY": "KeyTextLLM",
-        "SECRET_AUDIO_VENDOR": "VendorAudioLLM",
-        "SECRET_AUDIO_KEY": "KeyAudioLLM",
-        "SECRET_SCIENCE_HOST": "ScienceHost",
-        "SECRET_ONTOLOGIES_HOST": "OntologiesHost",
-        "SECRET_PRE_SHARED_KEY": "PreSharedKey",
-        "SECRET_AUDIO_HOST": "AudioHost",
-        "SECRET_AWS_KEY": "AwsKey",
-        "SECRET_AWS_SECRET": "AwsSecret",
-        "SECRET_AWS_REGION": "AwsRegion",
-        "SECRET_AWS_BUCKET": "AwsBucket",
-        "SECRET_STRUCTURED_RFV": "StructuredReasonForVisit",
         "LABEL_ENCOUNTER_COPILOT": "Encounter Copilot",
         "MAX_AUDIOS": 1,
         "MEMORY_LOG_LABEL": "main",
         "RESPONDS_TO": ["TASK_COMMENT_CREATED"],
     }
     assert is_constant(tested, constants)
-
-
-@patch("hyperscribe.handlers.commander.MemoryLog")
-@patch("hyperscribe.handlers.commander.AwsS3")
-@patch.object(log, "info")
-def test_flush_log(info, aws_s3, memory_log):
-    def reset_mocks():
-        info.reset_mock()
-        aws_s3.reset_mock()
-        memory_log.reset_mock()
-
-    event = Event(EventRequest())
-
-    tests = [
-        ({}, False),
-        ({"AwsKey": "theAwsKey", "AwsSecret": "theAwsSecret", "AwsRegion": "theAwsRegion", "AwsBucket": "theAwsBucket"}, True),
-        ({"AwsKey": "theAwsKey", "AwsSecret": "theAwsSecret", "AwsRegion": "theAwsRegion"}, False),
-        ({"AwsKey": "theAwsKey", "AwsSecret": "theAwsSecret", "AwsBucket": "theAwsBucket"}, False),
-        ({"AwsKey": "theAwsKey", "AwsRegion": "theAwsRegion", "AwsBucket": "theAwsBucket"}, False),
-        ({"AwsSecret": "theAwsSecret", "AwsRegion": "theAwsRegion", "AwsBucket": "theAwsBucket"}, False),
-    ]
-    for secrets, expected in tests:
-        memory_log.end_session.side_effect = ["theLogText"]
-        tested = Commander(event, secrets)
-        tested.flush_log("theNoteUuid", "theLogPath")
-        calls = [call("--> log path: theLogPath")] if expected else []
-        assert info.mock_calls == calls
-        calls = [
-            call("theAwsKey", "theAwsSecret", "theAwsRegion", "theAwsBucket"),
-            call().upload_text_to_s3("theLogPath", "theLogText"),
-        ] if expected else []
-        assert aws_s3.mock_calls == calls
-        calls = [call.end_session("theNoteUuid")] if expected else []
-        assert memory_log.mock_calls == calls
-        reset_mocks()
 
 
 @patch("hyperscribe.handlers.commander.MemoryLog")
@@ -322,12 +275,13 @@ def test_compute(compute_audio, task_comment_db, note_db, info, memory_log):
     assert task_comment_db.mock_calls == calls
     calls = [
         call("--> comment: commentUuid (task: taskUuid, labels: ['label1', 'label2'])"),
+        call("audio was present => go to next iteration (2)"),
     ]
     assert info.mock_calls == calls
     calls = [
         call('noteUuid', 'main'),
         call().output('Text: theTextVendor - Audio: theAudioVendor'),
-        call().output('audio was present => go to next iteration (2)'),
+        call.end_session('noteUuid'),
     ]
     assert memory_log.mock_calls == calls
     calls = [
@@ -366,12 +320,12 @@ def test_compute(compute_audio, task_comment_db, note_db, info, memory_log):
     assert task_comment_db.mock_calls == calls
     calls = [
         call("--> comment: commentUuid (task: taskUuid, labels: ['label1', 'label2'])"),
+        call("audio was NOT present => stop the task"),
     ]
     assert info.mock_calls == calls
     calls = [
         call('noteUuid', 'main'),
         call().output('Text: theTextVendor - Audio: theAudioVendor'),
-        call().output('audio was NOT present => stop the task'),
         call.end_session('noteUuid'),
     ]
     assert memory_log.mock_calls == calls
@@ -418,25 +372,8 @@ def test_retrieve_audios(get_audio):
         reset_mocks()
 
 
-def test_structured_rfv():
-    event = Event(EventRequest())
-
-    tests = [
-        ({}, False),
-        ({"StructuredReasonForVisit": "yes"}, True),
-        ({"StructuredReasonForVisit": "YES"}, True),
-        ({"StructuredReasonForVisit": "y"}, True),
-        ({"StructuredReasonForVisit": "Y"}, True),
-        ({"StructuredReasonForVisit": "1"}, True),
-        ({"StructuredReasonForVisit": "0"}, False),
-        ({"StructuredReasonForVisit": "anything"}, False),
-    ]
-    for secrets, expected in tests:
-        tested = Commander(event, secrets)
-        result = tested.structured_rfv()
-        assert result is expected
-
-
+@patch("hyperscribe.handlers.commander.datetime", wraps=datetime)
+@patch('hyperscribe.handlers.commander.AwsS3')
 @patch('hyperscribe.handlers.commander.MemoryLog')
 @patch('hyperscribe.handlers.commander.LimitedCache')
 @patch('hyperscribe.handlers.commander.AudioInterpreter')
@@ -458,6 +395,8 @@ def test_compute_audio(
         audio_interpreter,
         limited_cache,
         memory_log,
+        aws_s3,
+        mock_datetime,
 ):
     def reset_mocks():
         retrieve_audios.reset_mock()
@@ -470,6 +409,8 @@ def test_compute_audio(
         audio_interpreter.reset_mock()
         limited_cache.reset_mock()
         memory_log.reset_mock()
+        aws_s3.reset_mock()
+        mock_datetime.reset_mock()
 
     secrets = {
         "AudioHost": "theAudioHost",
@@ -481,6 +422,10 @@ def test_compute_audio(
         "OntologiesHost": "theOntologiesHost",
         "PreSharedKey": "thePreSharedKey",
         "StructuredReasonForVisit": "yes",
+        "AwsKey": "theKey",
+        "AwsSecret": "theSecret",
+        "AwsRegion": "theRegion",
+        "AwsBucket": "theBucket",
     }
     event = Event(EventRequest(target="taskUuid"))
 
@@ -494,6 +439,8 @@ def test_compute_audio(
     cached_discussion.side_effect = []
     audio_interpreter.side_effect = []
     limited_cache.side_effect = []
+    aws_s3.return_value.is_ready.side_effect = []
+    mock_datetime.now.side_effect = []
 
     tested = Commander(event, secrets)
     result = tested.compute_audio("patientUuid", "noteUuid", "providerUuid", 3)
@@ -516,109 +463,135 @@ def test_compute_audio(
     assert cached_discussion.mock_calls == calls
     assert audio_interpreter.mock_calls == []
     assert limited_cache.mock_calls == []
+    assert aws_s3.mock_calls == []
+    assert mock_datetime.mock_calls == []
     reset_mocks()
 
     # audios retrieved
-    instructions = [
-        Instruction(uuid='uuidA', instruction='theInstructionA', information='theInformationA', is_new=False, is_updated=False),
-        Instruction(uuid='uuidB', instruction='theInstructionB', information='theInformationB', is_new=False, is_updated=False),
-        Instruction(uuid='uuidC', instruction='theInstructionC', information='theInformationC', is_new=True, is_updated=False),
-    ]
-    exp_settings = Settings(
-        llm_text=VendorKey(vendor="theVendorTextLLM", api_key="theKeyTextLLM"),
-        llm_audio=VendorKey(vendor="theVendorAudioLLM", api_key="theKeyAudioLLM"),
-        science_host='theScienceHost',
-        ontologies_host='theOntologiesHost',
-        pre_shared_key='thePreSharedKey',
-        structured_rfv=True,
-    )
-    discussion = CachedDiscussion("noteUuid")
-    discussion.count = 2
-    discussion.previous_instructions = instructions[2:]
-    retrieve_audios.side_effect = [[b"audio1", b"audio2"]]
-    audio2commands.side_effect = [
-        (
-            [
-                Instruction(uuid='uuidA', instruction='theInstructionA', information='theInformationA', is_new=False, is_updated=True),
-                Instruction(uuid='uuidB', instruction='theInstructionB', information='theInformationB', is_new=True, is_updated=False),
-                Instruction(uuid='uuidC', instruction='theInstructionC', information='theInformationC', is_new=True, is_updated=False),
-            ],
-            [
+    for is_ready in [True, False]:
+        instructions = [
+            Instruction(uuid='uuidA', instruction='theInstructionA', information='theInformationA', is_new=False, is_updated=False),
+            Instruction(uuid='uuidB', instruction='theInstructionB', information='theInformationB', is_new=False, is_updated=False),
+            Instruction(uuid='uuidC', instruction='theInstructionC', information='theInformationC', is_new=True, is_updated=False),
+        ]
+        exp_settings = Settings(
+            llm_text=VendorKey(vendor="theVendorTextLLM", api_key="theKeyTextLLM"),
+            llm_audio=VendorKey(vendor="theVendorAudioLLM", api_key="theKeyAudioLLM"),
+            science_host='theScienceHost',
+            ontologies_host='theOntologiesHost',
+            pre_shared_key='thePreSharedKey',
+            structured_rfv=True,
+        )
+        exp_aws_s3_credentials = AwsS3Credentials(aws_key='theKey', aws_secret='theSecret', region='theRegion', bucket='theBucket')
+        mock_datetime.now.side_effect = [
+            datetime(2025, 3, 10, 22, 56, 17, tzinfo=timezone.utc),
+            datetime(2025, 3, 10, 22, 56, 21, tzinfo=timezone.utc),
+            datetime(2025, 3, 10, 22, 56, 23, tzinfo=timezone.utc),
+        ]
+        discussion = CachedDiscussion("noteUuid")
+        discussion.count = 2
+        discussion.previous_instructions = instructions[2:]
+        retrieve_audios.side_effect = [[b"audio1", b"audio2"]]
+        audio2commands.side_effect = [
+            (
+                [
+                    Instruction(uuid='uuidA', instruction='theInstructionA', information='theInformationA', is_new=False, is_updated=True),
+                    Instruction(uuid='uuidB', instruction='theInstructionB', information='theInformationB', is_new=True, is_updated=False),
+                    Instruction(uuid='uuidC', instruction='theInstructionC', information='theInformationC', is_new=True, is_updated=False),
+                ],
+                [
+                    Effect(type="LOG", payload="Log1"),
+                    Effect(type="LOG", payload="Log2"),
+                    Effect(type="LOG", payload="Log3"),
+                ],
+            )
+        ]
+        existing_commands_to_instructions.side_effect = [instructions]
+        existing_commands_to_coded_items.side_effect = ["stagedCommands"]
+        command_db.filter.return_value.order_by.side_effect = ["QuerySetCommands"]
+        auditor.side_effect = ["AuditorInstance"]
+        cached_discussion.get_discussion.side_effect = [discussion]
+        audio_interpreter.side_effect = ["AudioInterpreterInstance"]
+        limited_cache.side_effect = ["LimitedCacheInstance"]
+        aws_s3.return_value.is_ready.side_effect = [is_ready]
+        memory_log.end_session.side_effect = ["flushedMemoryLog"]
+        tested = Commander(event, secrets)
+        result = tested.compute_audio("patientUuid", "noteUuid", "providerUuid", 3)
+        expected = (
+            True, [
                 Effect(type="LOG", payload="Log1"),
                 Effect(type="LOG", payload="Log2"),
                 Effect(type="LOG", payload="Log3"),
-            ],
-        )
-    ]
-    existing_commands_to_instructions.side_effect = [instructions]
-    existing_commands_to_coded_items.side_effect = ["stagedCommands"]
-    command_db.filter.return_value.order_by.side_effect = ["QuerySetCommands"]
-    auditor.side_effect = ["AuditorInstance"]
-    cached_discussion.get_discussion.side_effect = [discussion]
-    audio_interpreter.side_effect = ["AudioInterpreterInstance"]
-    limited_cache.side_effect = ["LimitedCacheInstance"]
-    tested = Commander(event, secrets)
-    result = tested.compute_audio("patientUuid", "noteUuid", "providerUuid", 3)
-    expected = (
-        True, [
-            Effect(type="LOG", payload="Log1"),
-            Effect(type="LOG", payload="Log2"),
-            Effect(type="LOG", payload="Log3"),
-        ])
-    assert result == expected
+            ])
+        assert result == expected
 
-    assert discussion.count == 3
-    previous = [
-        Instruction(uuid='uuidA', instruction='theInstructionA', information='theInformationA', is_new=False, is_updated=True),
-        Instruction(uuid='uuidB', instruction='theInstructionB', information='theInformationB', is_new=True, is_updated=False),
-        Instruction(uuid='uuidC', instruction='theInstructionC', information='theInformationC', is_new=True, is_updated=False),
-    ]
-    assert discussion.previous_instructions == previous
+        assert discussion.count == 3
+        previous = [
+            Instruction(uuid='uuidA', instruction='theInstructionA', information='theInformationA', is_new=False, is_updated=True),
+            Instruction(uuid='uuidB', instruction='theInstructionB', information='theInformationB', is_new=True, is_updated=False),
+            Instruction(uuid='uuidC', instruction='theInstructionC', information='theInformationC', is_new=True, is_updated=False),
+        ]
+        assert discussion.previous_instructions == previous
 
-    calls = [
-        call('noteUuid', 'main'),
-        call().output('--> audio chunks: 2'),
-        call().output('<===  note: noteUuid ===>'),
-        call().output('Structured RfV: True'),
-        call().output("instructions: ["
-                      "Instruction(uuid='uuidA', instruction='theInstructionA', information='theInformationA', is_new=False, is_updated=True), "
-                      "Instruction(uuid='uuidB', instruction='theInstructionB', information='theInformationB', is_new=True, is_updated=False), "
-                      "Instruction(uuid='uuidC', instruction='theInstructionC', information='theInformationC', is_new=True, is_updated=False)]"),
-        call().output('<-------->'),
-        call().output('command: LOG'),
-        call().output('Log1'),
-        call().output('command: LOG'),
-        call().output('Log2'),
-        call().output('command: LOG'),
-        call().output('Log3'),
-        call().output('<=== END ===>'),
-    ]
-    assert memory_log.mock_calls == calls
-    calls = [call('theAudioHost', 'patientUuid', 'noteUuid', 3)]
-    assert retrieve_audios.mock_calls == calls
-    calls = [call('AuditorInstance', [b'audio1', b'audio2'], 'AudioInterpreterInstance', instructions)]
-    assert audio2commands.mock_calls == calls
-    calls = [call('QuerySetCommands', instructions[2:])]
-    assert existing_commands_to_instructions.mock_calls == calls
-    calls = [call('QuerySetCommands')]
-    assert existing_commands_to_coded_items.mock_calls == calls
-    calls = [
-        call.filter(patient__id='patientUuid', note__id='noteUuid', state='staged'),
-        call.filter().order_by("dbid"),
-    ]
-    assert command_db.mock_calls == calls
-    calls = [call()]
-    assert auditor.mock_calls == calls
-    calls = [
-        call.clear_cache(),
-        call.get_discussion('noteUuid'),
-    ]
-    assert cached_discussion.mock_calls == calls
-    calls = [call(exp_settings, "LimitedCacheInstance", "patientUuid", "noteUuid", "providerUuid")]
-    assert audio_interpreter.mock_calls == calls
-    calls = [call("patientUuid", "stagedCommands")]
-    assert limited_cache.mock_calls == calls
-    reset_mocks()
+        calls = [
+            call('noteUuid', 'main'),
+            call().output('--> audio chunks: 2'),
+            call().output('<===  note: noteUuid ===>'),
+            call().output('Structured RfV: True'),
+            call().output("instructions: ["
+                          "Instruction(uuid='uuidA', instruction='theInstructionA', information='theInformationA', is_new=False, is_updated=True), "
+                          "Instruction(uuid='uuidB', instruction='theInstructionB', information='theInformationB', is_new=True, is_updated=False), "
+                          "Instruction(uuid='uuidC', instruction='theInstructionC', information='theInformationC', is_new=True, is_updated=False)]"),
+            call().output('<-------->'),
+            call().output('command: LOG'),
+            call().output('Log1'),
+            call().output('command: LOG'),
+            call().output('Log2'),
+            call().output('command: LOG'),
+            call().output('Log3'),
+            call().output('<=== END ===>'),
+        ]
+        if is_ready:
+            calls.append(call().output('--> log path: 2025-03-10/patientUuid-noteUuid/003.log'))
+            calls.append(call.end_session('noteUuid'))
+        assert memory_log.mock_calls == calls
+        calls = [call('theAudioHost', 'patientUuid', 'noteUuid', 3)]
+        assert retrieve_audios.mock_calls == calls
+        calls = [call('AuditorInstance', [b'audio1', b'audio2'], 'AudioInterpreterInstance', instructions)]
+        assert audio2commands.mock_calls == calls
+        calls = [call('QuerySetCommands', instructions[2:])]
+        assert existing_commands_to_instructions.mock_calls == calls
+        calls = [call('QuerySetCommands')]
+        assert existing_commands_to_coded_items.mock_calls == calls
+        calls = [
+            call.filter(patient__id='patientUuid', note__id='noteUuid', state='staged'),
+            call.filter().order_by("dbid"),
+        ]
+        assert command_db.mock_calls == calls
+        calls = [call()]
+        assert auditor.mock_calls == calls
+        calls = [
+            call.clear_cache(),
+            call.get_discussion('noteUuid'),
+        ]
+        assert cached_discussion.mock_calls == calls
+        calls = [call(exp_settings, exp_aws_s3_credentials, "LimitedCacheInstance", "patientUuid", "noteUuid", "providerUuid")]
+        assert audio_interpreter.mock_calls == calls
+        calls = [call("patientUuid", "stagedCommands")]
+        assert limited_cache.mock_calls == calls
+        calls = [
+            call(AwsS3Credentials(aws_key='theKey', aws_secret='theSecret', region='theRegion', bucket='theBucket')),
+            call().__bool__(),
+            call().is_ready(),
+        ]
+        if is_ready:
+            calls.append(call().upload_text_to_s3('2025-03-10/patientUuid-noteUuid/003.log', "flushedMemoryLog"))
+        assert aws_s3.mock_calls == calls
+        calls = [call.now(), call.now()]
+        if is_ready:
+            calls.append(call.now())
+        assert mock_datetime.mock_calls == calls
+        reset_mocks()
 
 
 @patch('hyperscribe.handlers.commander.MemoryLog')

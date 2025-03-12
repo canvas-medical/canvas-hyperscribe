@@ -27,14 +27,18 @@ class LlmBase:
         self.prompts: list[LlmTurn] = []
         self.audios: list[dict] = []
 
-    def set_system_prompt(self, prompt: list[str]) -> None:
-        self.prompts.append(LlmTurn(role=self.ROLE_SYSTEM, text=prompt))
+    def set_system_prompt(self, text: list[str]) -> None:
+        prompt = LlmTurn(role=self.ROLE_SYSTEM, text=text)
+        if self.prompts and self.prompts[0].role == LlmBase.ROLE_SYSTEM:
+            self.prompts[0] = prompt
+        else:
+            self.prompts.insert(0, prompt)
 
-    def set_user_prompt(self, prompt: list[str]) -> None:
-        self.prompts.append(LlmTurn(role=self.ROLE_USER, text=prompt))
+    def set_user_prompt(self, text: list[str]) -> None:
+        self.prompts.append(LlmTurn(role=self.ROLE_USER, text=text))
 
-    def set_model_prompt(self, prompt: list[str]) -> None:
-        self.prompts.append(LlmTurn(role=self.ROLE_MODEL, text=prompt))
+    def set_model_prompt(self, text: list[str]) -> None:
+        self.prompts.append(LlmTurn(role=self.ROLE_MODEL, text=text))
 
     def add_audio(self, audio: bytes, audio_format: str) -> None:
         raise NotImplementedError()
@@ -90,6 +94,7 @@ class LlmBase:
             self.memory_log.log(f"error: {result.error}")
 
         self.memory_log.log("--- CHAT ENDS ---")
+        self.memory_log.store_so_far()
         return result
 
     def single_conversation(self, system_prompt: list[str], user_prompt: list[str], schemas: list) -> list:

@@ -4,6 +4,7 @@ from unittest.mock import patch, MagicMock, call
 from canvas_sdk.v1.data import Note
 
 from hyperscribe.handlers.helper import Helper
+from hyperscribe.handlers.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.handlers.structures.json_extract import JsonExtract
 from hyperscribe.handlers.structures.settings import Settings
 from hyperscribe.handlers.structures.vendor_key import VendorKey
@@ -51,40 +52,21 @@ def test_settings(monkeypatch):
         assert result == expected
 
 
-@patch("integrations.helper_settings.MemoryLog")
-@patch("integrations.helper_settings.AwsS3")
-def test_flush_log(aws_s3, memory_log, monkeypatch):
-    def reset_mocks():
-        aws_s3.reset_mock()
-        memory_log.reset_mock()
+def test_aws_s3_credentials(monkeypatch):
+    monkeypatch.setenv("AwsKey", "theKey")
+    monkeypatch.setenv("AwsSecret", "theSecret")
+    monkeypatch.setenv("AwsRegion", "theRegion")
+    monkeypatch.setenv("AwsBucket", "theBucket")
 
-    tests = [
-        ({}, False),
-        ({"AwsKey": "theAwsKey", "AwsSecret": "theAwsSecret", "AwsRegion": "theAwsRegion", "AwsBucket": "theAwsBucket"}, True),
-        ({"AwsKey": "theAwsKey", "AwsSecret": "theAwsSecret", "AwsRegion": "theAwsRegion"}, False),
-        ({"AwsKey": "theAwsKey", "AwsSecret": "theAwsSecret", "AwsBucket": "theAwsBucket"}, False),
-        ({"AwsKey": "theAwsKey", "AwsRegion": "theAwsRegion", "AwsBucket": "theAwsBucket"}, False),
-        ({"AwsSecret": "theAwsSecret", "AwsRegion": "theAwsRegion", "AwsBucket": "theAwsBucket"}, False),
-    ]
-    for secrets, expected in tests:
-        monkeypatch.delenv('AwsKey', raising=False)
-        monkeypatch.delenv('AwsSecret', raising=False)
-        monkeypatch.delenv('AwsRegion', raising=False)
-        monkeypatch.delenv('AwsBucket', raising=False)
-        for env_variable, env_value in secrets.items():
-            monkeypatch.setenv(env_variable, env_value)
-
-        memory_log.end_session.side_effect = ["theLogText"]
-        tested = HelperSettings
-        tested.flush_log("theNoteUuid", "theLogPath")
-        calls = [
-            call("theAwsKey", "theAwsSecret", "theAwsRegion", "theAwsBucket"),
-            call().upload_text_to_s3("theLogPath", "theLogText"),
-        ] if expected else []
-        assert aws_s3.mock_calls == calls
-        calls = [call.end_session("theNoteUuid")] if expected else []
-        assert memory_log.mock_calls == calls
-        reset_mocks()
+    tested = HelperSettings
+    result = tested.aws_s3_credentials()
+    expected = AwsS3Credentials(
+        aws_key="theKey",
+        aws_secret="theSecret",
+        region="theRegion",
+        bucket="theBucket",
+    )
+    assert result == expected
 
 
 @patch.object(Note, "objects")

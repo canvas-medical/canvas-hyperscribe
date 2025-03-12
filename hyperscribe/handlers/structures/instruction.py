@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import NamedTuple
 
 
@@ -9,7 +11,7 @@ class Instruction(NamedTuple):
     is_updated: bool
 
     @classmethod
-    def load_from_json(cls, json_list: list) -> list["Instruction"]:
+    def load_from_json(cls, json_list: list) -> list[Instruction]:
         return [
             Instruction(
                 uuid=json_object.get("uuid", ""),
