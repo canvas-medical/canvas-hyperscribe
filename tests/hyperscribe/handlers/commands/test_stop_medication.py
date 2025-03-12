@@ -155,7 +155,25 @@ def test_instruction_constraints(current_medications):
     reset_mocks()
 
 
-def test_is_available():
+@patch.object(LimitedCache, "current_medications")
+def test_is_available(current_medications):
+    def reset_mocks():
+        current_medications.reset_mock()
+
     tested = helper_instance()
-    result = tested.is_available()
-    assert result is False
+    medications = [
+        CodedItem(uuid="theUuid1", label="display1a", code="CODE123"),
+        CodedItem(uuid="theUuid2", label="display2a", code="CODE45"),
+        CodedItem(uuid="theUuid3", label="display3a", code="CODE9876"),
+    ]
+    tests = [
+        (medications, True),
+        ([], False),
+    ]
+    for side_effect, expected in tests:
+        current_medications.side_effect = [side_effect]
+        result = tested.is_available()
+        assert result is expected
+        calls = [call()]
+        assert current_medications.mock_calls == calls
+        reset_mocks()
