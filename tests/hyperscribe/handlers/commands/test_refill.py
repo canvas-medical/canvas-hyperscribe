@@ -197,7 +197,7 @@ def test_command_parameters(current_medications):
     expected = {
         'comment': 'rational of the prescription, as free text',
         'medication': 'one of: display1a (index: 0)/display2a (index: 1)/display3a (index: 2)',
-        'medicationIndex': 'index of the medication to refill, or -1, as integer',
+        'medicationIndex': 'index of the medication to refill, as integer',
         'sig': 'directions, as free text',
         'substitution': 'one of: allowed/not_allowed',
         'suppliedDays': 'duration of the treatment in days, as integer',
