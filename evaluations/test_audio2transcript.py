@@ -2,12 +2,12 @@ import json
 from pathlib import Path
 from re import match
 
-from integrations.helper_settings import HelperSettings
+from evaluations.helper_settings import HelperSettings
 
 
 def pytest_generate_tests(metafunc):
     if 'audio2transcript_files' in metafunc.fixturenames:
-        # run all integration tests in the audio2transcript directory:
+        # run all evaluation tests in the audio2transcript directory:
         # for each MP3 file in the inputs_mp3 directory, there should be a
         # JSON file in the expected_json directory with the same name and the expected transcript
         input_dir = Path(__file__).parent / 'audio2transcript/inputs_mp3'

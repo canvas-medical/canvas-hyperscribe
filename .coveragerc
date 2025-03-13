@@ -2,7 +2,7 @@
 branch = True
 omit =
    tests/*
-   integrations/test*
+   evaluations/test*
    debug*.py
    conftest.py
 

@@ -8,7 +8,7 @@ from hyperscribe.handlers.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.handlers.structures.json_extract import JsonExtract
 from hyperscribe.handlers.structures.settings import Settings
 from hyperscribe.handlers.structures.vendor_key import VendorKey
-from integrations.helper_settings import HelperSettings
+from evaluations.helper_settings import HelperSettings
 from tests.helper import is_constant
 
 
@@ -211,7 +211,7 @@ def test_text_nuanced_differences(nuanced_differences):
     reset_mocks()
 
 
-@patch("integrations.helper_settings.MemoryLog")
+@patch("evaluations.helper_settings.MemoryLog")
 @patch.object(Helper, "chatter")
 @patch.object(HelperSettings, "settings")
 def test_nuanced_differences(settings, chatter, memory_log):

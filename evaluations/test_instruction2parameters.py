@@ -2,12 +2,12 @@ import json
 from pathlib import Path
 
 from hyperscribe.handlers.structures.instruction import Instruction
-from integrations.helper_settings import HelperSettings
+from evaluations.helper_settings import HelperSettings
 
 
 def pytest_generate_tests(metafunc):
     if 'instruction2parameters' in metafunc.fixturenames:
-        # run all integration tests in the instruction2parameters directory
+        # run all evaluation tests in the instruction2parameters directory
         # in each JSON file, there should be:
         # - a set of instructions
         # - a set of parameters

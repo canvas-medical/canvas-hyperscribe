@@ -10,8 +10,8 @@ from hyperscribe.handlers.aws_s3 import AwsS3
 from hyperscribe.handlers.commander import Commander
 from hyperscribe.handlers.limited_cache import LimitedCache
 from hyperscribe.handlers.memory_log import MemoryLog
-from integrations.auditor_file import AuditorFile
-from integrations.helper_settings import HelperSettings
+from evaluations.auditor_file import AuditorFile
+from evaluations.helper_settings import HelperSettings
 
 
 class CaseBuilder:
@@ -31,9 +31,9 @@ class CaseBuilder:
 
     @classmethod
     def parameters(cls) -> Namespace:
-        parser = ArgumentParser(description="Build all the files of the integration tests against a patient and the provided mp3 files")
+        parser = ArgumentParser(description="Build all the files of the evaluation tests against a patient and the provided mp3 files")
         parser.add_argument("--patient", type=cls.validate_patient, required=True, help="Patient UUID")
-        parser.add_argument("--label", type=str, required=True, help="Integration label")
+        parser.add_argument("--label", type=str, required=True, help="Evaluation label")
         parser.add_argument("--mp3", nargs='+', type=cls.validate_files, required=True, help="List of MP3 files")
         return parser.parse_args()
 
@@ -48,17 +48,17 @@ class CaseBuilder:
 
     @classmethod
     def run(cls) -> None:
-        # deletion of the integration files
+        # deletion of the evaluation files
         parameters = cls.reset()
         if parameters and parameters.delete:
             AuditorFile(parameters.label)
-            print(f"Integration Label '{parameters.label}' deleted")
+            print(f"Evaluation Label '{parameters.label}' deleted")
             return
 
-        # creation of the integrations files
+        # creation of the evaluations files
         parameters = cls.parameters()
         print(f"Patient UUID: {parameters.patient}")
-        print(f"Integration Label: {parameters.label}")
+        print(f"Evaluation Label: {parameters.label}")
         print("MP3 Files:")
         for file in parameters.mp3:
             print(f"- {file}")

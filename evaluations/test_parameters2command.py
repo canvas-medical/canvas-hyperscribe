@@ -4,12 +4,12 @@ from pathlib import Path
 from canvas_sdk.commands.base import _BaseCommand as BaseCommand
 
 from hyperscribe.handlers.structures.instruction import Instruction
-from integrations.helper_settings import HelperSettings
+from evaluations.helper_settings import HelperSettings
 
 
 def pytest_generate_tests(metafunc):
     if 'parameters2command' in metafunc.fixturenames:
-        # run all integration tests in the parameters2command directory
+        # run all evaluation tests in the parameters2command directory
         # in each JSON file, there should be:
         # - a set of instructions, and the related
         # - set of parameters

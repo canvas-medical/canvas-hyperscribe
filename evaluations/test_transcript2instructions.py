@@ -3,12 +3,12 @@ from pathlib import Path
 
 from hyperscribe.handlers.structures.instruction import Instruction
 from hyperscribe.handlers.structures.line import Line
-from integrations.helper_settings import HelperSettings
+from evaluations.helper_settings import HelperSettings
 
 
 def pytest_generate_tests(metafunc):
     if 'transcript2instructions' in metafunc.fixturenames:
-        # run all integration tests in the transcript2instructions directory
+        # run all evaluation tests in the transcript2instructions directory
         # in each JSON file, there should be:
         # - a transcript
         # - a set of initial instructions

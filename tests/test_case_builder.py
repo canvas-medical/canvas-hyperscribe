@@ -11,8 +11,8 @@ from hyperscribe.handlers.audio_interpreter import AudioInterpreter
 from hyperscribe.handlers.aws_s3 import AwsS3
 from hyperscribe.handlers.commander import Commander
 from hyperscribe.handlers.limited_cache import LimitedCache
-from integrations.auditor_file import AuditorFile
-from integrations.helper_settings import HelperSettings
+from evaluations.auditor_file import AuditorFile
+from evaluations.helper_settings import HelperSettings
 
 
 def test_validate_files():
@@ -73,9 +73,9 @@ def test_parameters(argument_parser):
     assert result == expected
 
     calls = [
-        call(description='Build all the files of the integration tests against a patient and the provided mp3 files'),
+        call(description='Build all the files of the evaluation tests against a patient and the provided mp3 files'),
         call().add_argument('--patient', type=CaseBuilder.validate_patient, required=True, help='Patient UUID'),
-        call().add_argument('--label', type=str, required=True, help='Integration label'),
+        call().add_argument('--label', type=str, required=True, help='Evaluation label'),
         call().add_argument('--mp3', nargs='+', type=CaseBuilder.validate_files, required=True, help='List of MP3 files'),
         call().parse_args(),
     ]
@@ -171,7 +171,7 @@ def test_run(
     result = tested.run()
     assert result is None
 
-    exp_out = CaptureResult("Integration Label 'theLabel' deleted\n", "")
+    exp_out = CaptureResult("Evaluation Label 'theLabel' deleted\n", "")
     assert capsys.readouterr() == exp_out
     calls = [call()]
     assert reset.mock_calls == calls
@@ -222,7 +222,7 @@ def test_run(
 
         exp_out = [
             'Patient UUID: patientUuid',
-            'Integration Label: theLabel',
+            'Evaluation Label: theLabel',
             'MP3 Files:',
             '- audio file 0',
             '- audio file 1',

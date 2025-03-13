@@ -7,7 +7,7 @@ from unittest.mock import patch, call, MagicMock
 from hyperscribe.handlers.auditor import Auditor
 from hyperscribe.handlers.structures.instruction import Instruction
 from hyperscribe.handlers.structures.line import Line
-from integrations.auditor_file import AuditorFile
+from evaluations.auditor_file import AuditorFile
 
 
 def test_auditor_file():
@@ -27,7 +27,7 @@ def test___init__(reset):
     reset_mocks()
 
 
-@patch("integrations.auditor_file.Path")
+@patch("evaluations.auditor_file.Path")
 def test_reset(path):
     def reset_mocks():
         path.reset_mock()
@@ -61,7 +61,7 @@ def test_reset(path):
     reset_mocks()
 
 
-@patch("integrations.auditor_file.Path")
+@patch("evaluations.auditor_file.Path")
 @patch.object(AuditorFile, "reset")
 def test_identified_transcript(reset, path):
     written_text = []
@@ -131,7 +131,7 @@ def test_identified_transcript(reset, path):
         reset_mocks()
 
 
-@patch("integrations.auditor_file.Path")
+@patch("evaluations.auditor_file.Path")
 @patch.object(AuditorFile, "reset")
 def test_found_instructions(reset, path):
     written_text = []
@@ -208,7 +208,7 @@ def test_found_instructions(reset, path):
         reset_mocks()
 
 
-@patch("integrations.auditor_file.Path")
+@patch("evaluations.auditor_file.Path")
 @patch.object(AuditorFile, "reset")
 def test_computed_parameters(reset, path):
     def write(line: str):
@@ -364,7 +364,7 @@ def test_computed_parameters(reset, path):
         reset_mocks()
 
 
-@patch("integrations.auditor_file.Path")
+@patch("evaluations.auditor_file.Path")
 @patch.object(AuditorFile, "reset")
 def test_computed_commands(reset, path):
     def write(line: str):
