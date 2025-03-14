@@ -11,7 +11,7 @@ from canvas_sdk.handlers.simple_api import Credentials, SimpleAPIRoute
 from hyperscribe_tuning.handlers.aws_s3 import AwsS3
 
 
-class HyperscribeTuningAPI(SimpleAPIRoute):
+class Archiver(SimpleAPIRoute):
     PATH = "/capture-case"
 
     def authenticate(self, credentials: Credentials) -> bool:
@@ -59,7 +59,8 @@ class HyperscribeTuningAPI(SimpleAPIRoute):
         audio_form_part = form_data.get('audio')
         file_name = (audio_form_part.filename
                      .replace('_note', '/note')
-                     .replace('_chunk', '/chunk'))
+                     .replace('_chunk', '/chunk')
+                     .replace('.webm', f'_{int(time.time())}.webm'))
         subdomain = self.request.headers['host'].split('.')[0]
         object_key = f"{subdomain}/{file_name}"
         resp = client_s3.upload_binary_to_s3(
@@ -67,7 +68,8 @@ class HyperscribeTuningAPI(SimpleAPIRoute):
         
         return [
             JSONResponse({
-                "s3_status": resp.status_code,
-                "s3_txt": resp.text
+                "s3status": resp.status_code,
+                "s3text": resp.text,
+                "s3key": object_key
             })
         ]

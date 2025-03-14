@@ -16,6 +16,7 @@
             flex-direction: column;
             align-items: center;
             padding-top: 40px;
+            font-family: Arial, Helvetica, sans-serif;
         }
 
         .logo {
@@ -54,14 +55,25 @@
         onclick="toggleRecording('{{ patient_id }}', '{{ note_id}}')">
         Start
     </button>
+    <p>SECURE TUNING CASE ARCHIVER</p>
+    <div id="log"></div>
 
     <script>
         let mediaRecorder = null; // To hold the MediaRecorder instance
         let isRecording = false; // State of recording
         let intervalId = null; // Interval ID for periodic uploads
         let chunkId = 0;
+        const logDiv = document.getElementById("log");
 
-        console.log('CAPTURE.JS')
+        function getAmericanTimestamp() {
+            return new Intl.DateTimeFormat('en-US', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: true,
+                timeZoneName: 'short' // Abbreviated timezone (e.g., "PDT")
+            }).format(new Date());
+        }
 
         async function toggleRecording(patientId, noteId) {
             const button = document.querySelector("#captureButton");
@@ -106,8 +118,13 @@
                                 method: "POST",
                                 body: formData,
                             })
-                            .then(response => response.text())
-                            .then(result => console.log(result))
+                            .then(response => response.json())
+                            .then(data => {
+                                console.log(data);
+                                const p = document.createElement("p");
+                                p.textContent = `${getAmericanTimestamp()}: ${data.s3key} archived with status ${data.s3status}`;
+                                logDiv.prepend(p);
+                            })
                             .catch(error => console.error(`Error uploading audio for patient ${patientId}:`, error));
                         }
                     };
