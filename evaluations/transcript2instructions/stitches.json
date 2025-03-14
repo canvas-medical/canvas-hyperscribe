@@ -1,0 +1,132 @@
+{
+  "transcript": [
+    {
+      "speaker": "Clinician",
+      "text": "Alright, let's take a look at that finger. How did this happen?"
+    },
+    {
+      "speaker": "Patient",
+      "text": "I was cutting some vegetables, and the knife slipped."
+    },
+    {
+      "speaker": "Clinician",
+      "text": "Ah, that happens more often than you'd think. Let's see. Hmm, the cut is deep but clean. You're lucky, you missed the tendon. But you'll need a few stitches to help it heal properly."
+    },
+    {
+      "speaker": "Patient",
+      "text": "Oh, stitches? How many?"
+    },
+    {
+      "speaker": "Clinician",
+      "text": "Probably about three or four. Nothing too bad. It should heal well, and I'll make sure you're numb before we start. Do you have any allergies to anesthetics or lidocaine?"
+    },
+    {
+      "speaker": "Patient",
+      "text": "No, not that I know of."
+    },
+    {
+      "speaker": "Clinician",
+      "text": "Good. Alright, let me clean the wound first. This might sting a little."
+    },
+    {
+      "speaker": "Patient",
+      "text": "Oof, yeah, that burns."
+    },
+    {
+      "speaker": "Clinician",
+      "text": "I know, I know. Almost done. Okay, now I'm going to inject the anesthetic. Small pinch."
+    },
+    {
+      "speaker": "Patient",
+      "text": "Ouch."
+    },
+    {
+      "speaker": "Clinician",
+      "text": "That's the worst part, I promise. Give it a minute to work. So today's March 10th, 2025. We'll want to remove the stitches in about 10 days, so that would be March 20th. Try not to get it too wet in the meantime."
+    },
+    {
+      "speaker": "Patient",
+      "text": "Got it. No washing dishes then?"
+    },
+    {
+      "speaker": "Clinician",
+      "text": "Right, or if you must, wear a waterproof bandage or a glove. Alright, let's check if you're numb. Can you feel this?"
+    },
+    {
+      "speaker": "Patient",
+      "text": "No, nothing."
+    },
+    {
+      "speaker": "Clinician",
+      "text": "Perfect. Let's do the stitches. First one, and second, you're doing great. Third one, and there, last one. All done."
+    },
+    {
+      "speaker": "Patient",
+      "text": "That was faster than I expected."
+    },
+    {
+      "speaker": "Clinician",
+      "text": "I try my best. Now I'll put a dressing on it. Change it daily and keep an eye out for redness, swelling, or pus. Those could be signs of infection. If that happens, call me right away."
+    },
+    {
+      "speaker": "Patient",
+      "text": "Alright, thanks, doc."
+    },
+    {
+      "speaker": "Clinician",
+      "text": "Before you go, let's do your vitals. Standard checkup. Alright, pulse, 72 beats per minute. Blood pressure, 122 over 78, that's solid. Oxygen saturation, 98%. Temperature, 98.6. Everything looks great."
+    },
+    {
+      "speaker": "Patient",
+      "text": "Good to hear."
+    },
+    {
+      "speaker": "Clinician",
+      "text": "Alright, you're all set. I'll see you in 10 days for stitch removal. Take care."
+    },
+    {
+      "speaker": "Patient",
+      "text": "Will do. Thanks again."
+    }
+  ],
+  "instructions": {
+    "initial": [],
+    "result": [
+      {
+        "uuid": "",
+        "instruction": "Perform",
+        "information": "Stitches were performed on the patient's finger, with three or four stitches applied to help the cut heal properly.",
+        "isNew": true,
+        "isUpdated": false
+      },
+      {
+        "uuid": "",
+        "instruction": "Allergy",
+        "information": "The patient has no known allergies to anesthetics or lidocaine.",
+        "isNew": true,
+        "isUpdated": false
+      },
+      {
+        "uuid": "",
+        "instruction": "Instruct",
+        "information": "Change the dressing daily and keep an eye out for redness, swelling, or pus as these could be signs of infection. If signs of infection occur, call the clinician right away.",
+        "isNew": true,
+        "isUpdated": false
+      },
+      {
+        "uuid": "",
+        "instruction": "FollowUp",
+        "information": "Follow-up appointment scheduled for March 20th, 2025, for stitch removal.",
+        "isNew": true,
+        "isUpdated": false
+      },
+      {
+        "uuid": "",
+        "instruction": "Vitals",
+        "information": "Pulse: 72 beats per minute, Blood pressure: 122 over 78, Oxygen saturation: 98%, Temperature: 98.6\u00b0F.",
+        "isNew": true,
+        "isUpdated": false
+      }
+    ]
+  }
+}

@@ -118,7 +118,7 @@ def test_reset(argument_parser):
 @patch.object(LimitedCache, "__new__")
 @patch.object(HelperSettings, "aws_s3_credentials")
 @patch.object(HelperSettings, "settings")
-@patch.object(AwsS3, "__new__")
+@patch("case_builder.AwsS3")
 @patch.object(AudioInterpreter, "__new__")
 @patch.object(AuditorFile, "__new__")
 @patch.object(CaseBuilder, "parameters")
@@ -247,7 +247,7 @@ def test_run(
         )]
         assert audio_interpreter.mock_calls == calls
         calls = [
-            call(AwsS3, "awsS3CredentialsInstance2"),
+            call("awsS3CredentialsInstance2"),
             call().__bool__(),
             call().is_ready(),
         ]

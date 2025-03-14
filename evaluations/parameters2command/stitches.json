@@ -1,0 +1,152 @@
+{
+  "instructions": [
+    {
+      "uuid": "1",
+      "instruction": "Perform",
+      "information": "Stitches were performed on the patient's finger, with three or four stitches applied to help the cut heal properly.",
+      "isNew": false,
+      "isUpdated": false
+    },
+    {
+      "uuid": "2",
+      "instruction": "Allergy",
+      "information": "The patient has no known allergies to anesthetics or lidocaine.",
+      "isNew": false,
+      "isUpdated": false
+    },
+    {
+      "uuid": "3",
+      "instruction": "Instruct",
+      "information": "Change the dressing daily and keep an eye out for redness, swelling, or pus as these could be signs of infection. If signs of infection occur, call the clinician right away.",
+      "isNew": false,
+      "isUpdated": false
+    },
+    {
+      "uuid": "4",
+      "instruction": "FollowUp",
+      "information": "Follow-up appointment scheduled for March 20th, 2025, for stitch removal.",
+      "isNew": false,
+      "isUpdated": false
+    },
+    {
+      "uuid": "5",
+      "instruction": "Vitals",
+      "information": "Pulse: 72 beats per minute, Blood pressure: 122 over 78, Oxygen saturation: 98%, Temperature: 98.6\u00b0F.",
+      "isNew": false,
+      "isUpdated": false
+    }
+  ],
+  "parameters": [
+    {
+      "procedureKeywords": "sutures, stitches, sewing, stitching, closing",
+      "comment": "Stitches were performed on the patient's finger, with three or four stitches applied to help the cut heal properly."
+    },
+    {
+      "keywords": "NKDA",
+      "type": "allergy group",
+      "severity": "",
+      "reaction": "",
+      "approximateDateOfOnset": ""
+    },
+    {
+      "keywords": "dressing, change, daily, infection, signs",
+      "comment": "Change the dressing daily and keep an eye out for redness, swelling, or pus as these could be signs of infection. If signs of infection occur, call the clinician right away."
+    },
+    {
+      "visitType": "Office visit",
+      "visitTypeIndex": 5,
+      "date": "2025-03-20",
+      "reasonForVisit": "stitch removal",
+      "comment": "Follow-up appointment scheduled"
+    },
+    {
+      "height": {
+        "inches": 0
+      },
+      "weight": {
+        "pounds": 0
+      },
+      "waistCircumference": {
+        "centimeters": 0
+      },
+      "temperature": {
+        "fahrenheit": 98.6
+      },
+      "bloodPressure": {
+        "systolicPressure": 122,
+        "diastolicPressure": 78
+      },
+      "pulseRate": {
+        "beatPerMinute": 72
+      },
+      "respirationRate": {
+        "beatPerMinute": 0
+      }
+    }
+  ],
+  "commands": [
+    {
+      "module": "canvas_sdk.commands.commands.perform",
+      "class": "PerformCommand",
+      "attributes": {
+        "cpt_code": "ABC_120",
+        "notes": "Stitches were performed on the patient's finger, with three or four stitches applied to help the cut heal properly.",
+        "note_uuid": "5e8831f8-b930-4eff-9820-a4159c354d44"
+      }
+    },
+    {
+      "module": "canvas_sdk.commands.commands.allergy",
+      "class": "AllergyCommand",
+      "attributes": {
+        "approximate_date": null,
+        "note_uuid": "5e8831f8-b930-4eff-9820-a4159c354d44",
+        "allergy": {
+          "concept_id": 900590,
+          "concept_type": 1
+        },
+        "severity": null,
+        "narrative": ""
+      }
+    },
+    {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "coding": {
+          "system": "http://snomed.info/sct",
+          "code": "410285007",
+          "display": "Dressing change/wound care teaching, guidance, and counseling"
+        },
+        "comment": "Change the dressing daily and keep an eye out for redness, swelling, or pus as these could be signs of infection. If signs of infection occur, call the clinician right away.",
+        "note_uuid": "5e8831f8-b930-4eff-9820-a4159c354d44"
+      }
+    },
+    {
+      "module": "canvas_sdk.commands.commands.follow_up",
+      "class": "FollowUpCommand",
+      "attributes": {
+        "requested_date": "2025-03-20",
+        "comment": "Follow-up appointment scheduled",
+        "structured": false,
+        "reason_for_visit": "stitch removal",
+        "note_uuid": "5e8831f8-b930-4eff-9820-a4159c354d44",
+        "note_type_id": "e7fd7cce-598c-4d39-af46-63247df37344"
+      }
+    },
+    {
+      "module": "canvas_sdk.commands.commands.vitals",
+      "class": "VitalsCommand",
+      "attributes": {
+        "waist_circumference": null,
+        "body_temperature": null,
+        "pulse": 72,
+        "respiration_rate": null,
+        "weight_lbs": null,
+        "blood_pressure_systole": 122,
+        "height": null,
+        "blood_pressure_diastole": 78,
+        "note_uuid": "5e8831f8-b930-4eff-9820-a4159c354d44"
+      }
+    }
+  ]
+}

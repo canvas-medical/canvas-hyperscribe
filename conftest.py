@@ -1,10 +1,49 @@
+import json
+from datetime import datetime, timezone
+
 import pytest
 
 from evaluations.helper_settings import HelperSettings
 from hyperscribe.handlers.audio_interpreter import AudioInterpreter
+from hyperscribe.handlers.aws_s3 import AwsS3
 from hyperscribe.handlers.limited_cache import LimitedCache
 from hyperscribe.handlers.memory_log import MemoryLog
 from hyperscribe.handlers.structures.aws_s3_credentials import AwsS3Credentials
+
+test_results: list[dict] = []
+
+
+@pytest.hookimpl(tryfirst=True, hookwrapper=True)
+def pytest_runtest_makereport(item, call):
+    outcome = yield
+    report = outcome.get_result()
+    if report.when == "call":
+        item.test_result = report.outcome  # store the outcome on test item
+    return report
+
+
+@pytest.fixture
+def collect_test_data(request):
+    yield  # wait for test run
+    if hasattr(request.node, "test_result"):
+        test_data = {
+            "name": request.node.nodeid,
+            "result": request.node.test_result
+        }
+        test_results.append(test_data)
+
+
+@pytest.fixture(scope="session", autouse=True)
+def write_results_file(request):
+    def save_results():
+        aws_s3 = HelperSettings.aws_s3_credentials()
+        s3_client = AwsS3(aws_s3)
+        if test_results and s3_client.is_ready():
+            now = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+            s3_client.upload_text_to_s3(f"running_cases_{now}.json", json.dumps(test_results, indent=4))
+
+    request.addfinalizer(save_results)
+    yield  # session setup completes here
 
 
 def pytest_addoption(parser):

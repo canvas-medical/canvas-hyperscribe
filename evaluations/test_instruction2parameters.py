@@ -15,7 +15,7 @@ def pytest_generate_tests(metafunc):
         metafunc.parametrize('instruction2parameters', json_dir.glob('*.json'), ids=lambda path: path.stem)
 
 
-def test_instruction2parameters(instruction2parameters, allowed_levels, audio_interpreter, capsys):
+def test_instruction2parameters(instruction2parameters, allowed_levels, audio_interpreter, capsys, collect_test_data):
     with instruction2parameters.open("r") as f:
         content = json.load(f)
 

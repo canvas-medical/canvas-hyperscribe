@@ -1,0 +1,87 @@
+{
+  "instructions": [
+    {
+      "uuid": "1",
+      "instruction": "Perform",
+      "information": "Stitches were performed on the patient's finger, with three or four stitches applied to help the cut heal properly.",
+      "isNew": false,
+      "isUpdated": false
+    },
+    {
+      "uuid": "2",
+      "instruction": "Allergy",
+      "information": "The patient has no known allergies to anesthetics or lidocaine.",
+      "isNew": false,
+      "isUpdated": false
+    },
+    {
+      "uuid": "3",
+      "instruction": "Instruct",
+      "information": "Change the dressing daily and keep an eye out for redness, swelling, or pus as these could be signs of infection. If signs of infection occur, call the clinician right away.",
+      "isNew": false,
+      "isUpdated": false
+    },
+    {
+      "uuid": "4",
+      "instruction": "FollowUp",
+      "information": "Follow-up appointment scheduled for March 20th, 2025, for stitch removal.",
+      "isNew": false,
+      "isUpdated": false
+    },
+    {
+      "uuid": "5",
+      "instruction": "Vitals",
+      "information": "Pulse: 72 beats per minute, Blood pressure: 122 over 78, Oxygen saturation: 98%, Temperature: 98.6\u00b0F.",
+      "isNew": false,
+      "isUpdated": false
+    }
+  ],
+  "parameters": [
+    {
+      "procedureKeywords": "sutures, stitches, sewing, stitching, closing",
+      "comment": "Stitches were performed on the patient's finger, with three or four stitches applied to help the cut heal properly."
+    },
+    {
+      "keywords": "NKDA",
+      "type": "allergy group",
+      "severity": "",
+      "reaction": "",
+      "approximateDateOfOnset": ""
+    },
+    {
+      "keywords": "dressing, change, daily, infection, signs",
+      "comment": "Change the dressing daily and keep an eye out for redness, swelling, or pus as these could be signs of infection. If signs of infection occur, call the clinician right away."
+    },
+    {
+      "visitType": "Office visit",
+      "visitTypeIndex": 5,
+      "date": "2025-03-20",
+      "reasonForVisit": "stitch removal",
+      "comment": "Follow-up appointment scheduled"
+    },
+    {
+      "height": {
+        "inches": 0
+      },
+      "weight": {
+        "pounds": 0
+      },
+      "waistCircumference": {
+        "centimeters": 0
+      },
+      "temperature": {
+        "fahrenheit": 98.6
+      },
+      "bloodPressure": {
+        "systolicPressure": 122,
+        "diastolicPressure": 78
+      },
+      "pulseRate": {
+        "beatPerMinute": 72
+      },
+      "respirationRate": {
+        "beatPerMinute": 0
+      }
+    }
+  ]
+}

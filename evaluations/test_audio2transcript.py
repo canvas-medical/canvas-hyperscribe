@@ -29,7 +29,7 @@ def pytest_generate_tests(metafunc):
         metafunc.parametrize('audio2transcript_files', files, ids=lambda path: path[0][0].stem)
 
 
-def test_audio2transcript(audio2transcript_files, allowed_levels, audio_interpreter, capsys):
+def test_audio2transcript(audio2transcript_files, allowed_levels, audio_interpreter, capsys, collect_test_data):
     mp3_files, json_file = audio2transcript_files
 
     content: list[bytes] = []
