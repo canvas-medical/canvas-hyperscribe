@@ -7,7 +7,7 @@ def test_constants():
     constants = {
         "ANTHROPIC_CHAT_TEXT": "claude-3-5-sonnet-20241022",
         "DISCUSSION_CACHED_DURATION": 90,
-        "GOOGLE_CHAT_ALL": "models/gemini-1.5-flash",
+        "GOOGLE_CHAT_ALL": "models/gemini-2.0-flash",
         "MAX_ATTEMPTS_LLM_HTTP": 3,
         "MAX_ATTEMPTS_LLM_JSON": 3,
         "MAX_WORKERS": 10,
