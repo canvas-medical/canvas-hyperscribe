@@ -1,11 +1,13 @@
+import time
+from hashlib import sha256
+from logger import log
+
 from canvas_sdk.effects import Effect
 from canvas_sdk.effects.launch_modal import LaunchModalEffect
 from canvas_sdk.events import EventType
 from canvas_sdk.handlers.action_button import ActionButton
 from canvas_sdk.v1.data.note import Note
-from canvas_sdk.templates import render_to_string
 
-from logger import log
 
 class Launcher(ActionButton):
     BUTTON_TITLE = "🧪 Hyperscribe Tuning"
@@ -23,18 +25,15 @@ class Launcher(ActionButton):
         note_id = str(Note.objects.get(dbid=self.event.context['note_id']).id)
         patient_id = self.target
 
-        # TODO Decide whether to serve this from custom API
-        template_context = {
-            'note_id': note_id,
-            'patient_id': patient_id,
-            'interval': interval
-        }
-        hyperscribe_pane = LaunchModalEffect(
-            content=render_to_string(
-                'templates/capture_tuning_case.html', template_context),
-            target=LaunchModalEffect.TargetType.RIGHT_CHART_PANE
+        ts = str(int(time.time()))
+        hash_arg = ts + self.secrets['APISigningKey']
+        sig = sha256(hash_arg.encode('utf-8')).hexdigest()
+        params = f"note_id={note_id}&patient_id={patient_id}&interval={interval}&ts={ts}&sig={sig}"
+        tuning_ui = LaunchModalEffect(
+            url=f"/plugin-io/api/hyperscribe_tuning/capture-case?{params}",
+            target=LaunchModalEffect.TargetType.NEW_WINDOW
         )
-        return [hyperscribe_pane.apply()]
+        return [tuning_ui.apply()]
 
     def visible(self) -> bool:
         return True
