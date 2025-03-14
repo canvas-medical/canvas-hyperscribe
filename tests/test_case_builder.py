@@ -7,12 +7,12 @@ from _pytest.capture import CaptureResult
 from canvas_sdk.v1.data import Patient, Note
 
 from case_builder import CaseBuilder
+from evaluations.auditor_file import AuditorFile
+from evaluations.helper_settings import HelperSettings
 from hyperscribe.handlers.audio_interpreter import AudioInterpreter
 from hyperscribe.handlers.aws_s3 import AwsS3
 from hyperscribe.handlers.commander import Commander
 from hyperscribe.handlers.limited_cache import LimitedCache
-from evaluations.auditor_file import AuditorFile
-from evaluations.helper_settings import HelperSettings
 
 
 def test_validate_files():

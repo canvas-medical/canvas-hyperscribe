@@ -76,7 +76,7 @@ class BasePrescription(Base):
 
         if isinstance(command, AdjustPrescriptionCommand):
             command.new_fdb_code = medication.fdb_code
-        else: # if isinstance(command, PrescribeCommand):
+        else:  # if isinstance(command, PrescribeCommand):
             command.fdb_code = medication.fdb_code
 
         command.type_to_dispense = ClinicalQuantity(

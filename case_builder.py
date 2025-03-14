@@ -5,13 +5,13 @@ from sys import argv
 
 from canvas_sdk.v1.data import Note, Patient
 
+from evaluations.auditor_file import AuditorFile
+from evaluations.helper_settings import HelperSettings
 from hyperscribe.handlers.audio_interpreter import AudioInterpreter
 from hyperscribe.handlers.aws_s3 import AwsS3
 from hyperscribe.handlers.commander import Commander
 from hyperscribe.handlers.limited_cache import LimitedCache
 from hyperscribe.handlers.memory_log import MemoryLog
-from evaluations.auditor_file import AuditorFile
-from evaluations.helper_settings import HelperSettings
 
 
 class CaseBuilder:

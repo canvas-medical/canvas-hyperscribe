@@ -29,7 +29,7 @@ class ImagingOrder(Base):
             if (indication := item.get("text"))
         ]) or "n/a"
         if imaging:
-            return CodedItem(label=f"{imaging}: {comment} (priority: {priority}, indications: {indications})", code="", uuid="")
+            return CodedItem(label=f"{imaging}: {comment} (priority: {priority}, related conditions: {indications})", code="", uuid="")
         return None
 
     def command_from_json(self, chatter: LlmBase, parameters: dict) -> None | ImagingOrderCommand:

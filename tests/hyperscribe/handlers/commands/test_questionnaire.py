@@ -2,7 +2,7 @@ from unittest.mock import patch, call, MagicMock
 
 from canvas_sdk.commands.commands.questionnaire import QuestionnaireCommand
 
-from hyperscribe.handlers.commands.base import Base
+from hyperscribe.handlers.commands.base_questionnaire import BaseQuestionnaire
 from hyperscribe.handlers.commands.questionnaire import Questionnaire
 from hyperscribe.handlers.limited_cache import LimitedCache
 from hyperscribe.handlers.structures.coded_item import CodedItem
@@ -25,7 +25,7 @@ def helper_instance() -> Questionnaire:
 
 def test_class():
     tested = Questionnaire
-    assert issubclass(tested, Base)
+    assert issubclass(tested, BaseQuestionnaire)
 
 
 def test_schema_key():
@@ -33,43 +33,6 @@ def test_schema_key():
     result = tested.schema_key()
     expected = "questionnaire"
     assert result == expected
-
-
-def test_staged_command_extract():
-    tested = Questionnaire
-    tests = [
-        ({}, None),
-        ({
-             "questionnaire": {
-                 "text": "theQuestionnaire",
-                 "extra": {
-                     "questions": [
-                         {"label": "theQuestion1"},
-                         {"label": "theQuestion2"},
-                         {"label": "theQuestion3"},
-                     ],
-                 },
-             }
-         }, CodedItem(label="theQuestionnaire: theQuestion1 \n theQuestion2 \n theQuestion3", code="", uuid="")),
-        ({
-             "questionnaire": {
-                 "text": "",
-                 "extra": {
-                     "questions": [
-                         {"label": "theQuestion1"},
-                         {"label": "theQuestion2"},
-                         {"label": "theQuestion3"},
-                     ],
-                 },
-             }
-         }, None),
-    ]
-    for data, expected in tests:
-        result = tested.staged_command_extract(data)
-        if expected is None:
-            assert result is None
-        else:
-            assert result == expected
 
 
 @patch.object(LimitedCache, "existing_questionnaires")

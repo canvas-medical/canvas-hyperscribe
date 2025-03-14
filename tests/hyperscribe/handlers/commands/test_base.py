@@ -1,6 +1,7 @@
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch, call
 
 import pytest
+from canvas_sdk.v1.data import PracticeLocation, PracticeLocationSetting
 
 from hyperscribe.handlers.commands.base import Base
 from hyperscribe.handlers.limited_cache import LimitedCache
@@ -102,3 +103,69 @@ def test_is_available():
         _ = tested.is_available()
     expected = "NotImplementedError"
     assert e.typename == expected
+
+
+@patch.object(PracticeLocation, 'settings')
+@patch.object(PracticeLocation, 'objects')
+def test_practice_setting(practice_location_db, practice_settings_db):
+    def reset_mocks():
+        practice_location_db.reset_mock()
+        practice_settings_db.reset_mock()
+
+    tested = helper_instance()
+
+    # all good
+    practice_location_db.order_by.return_value.first.side_effect = [PracticeLocation(full_name="theLocation")]
+    practice_settings_db.filter.return_value.order_by.return_value.first.side_effect = [PracticeLocationSetting(value="theValue")]
+
+    result = tested.practice_setting("theSetting")
+    expected = "theValue"
+    assert result == expected
+
+    calls = [
+        call.order_by('dbid'),
+        call.order_by().first(),
+    ]
+    assert practice_location_db.mock_calls == calls
+    calls = [
+        call.filter(name='theSetting'),
+        call.filter().order_by('dbid'),
+        call.filter().order_by().first(),
+    ]
+    assert practice_settings_db.mock_calls == calls
+    reset_mocks()
+
+    # no setting found
+    practice_location_db.order_by.return_value.first.side_effect = [PracticeLocation(full_name="theLocation")]
+    practice_settings_db.filter.return_value.order_by.return_value.first.side_effect = [None]
+
+    result = tested.practice_setting("theSetting")
+    assert result is None
+
+    calls = [
+        call.order_by('dbid'),
+        call.order_by().first(),
+    ]
+    assert practice_location_db.mock_calls == calls
+    calls = [
+        call.filter(name='theSetting'),
+        call.filter().order_by('dbid'),
+        call.filter().order_by().first(),
+    ]
+    assert practice_settings_db.mock_calls == calls
+    reset_mocks()
+
+    # no practice found
+    practice_location_db.order_by.return_value.first.side_effect = [None]
+    practice_settings_db.filter.return_value.order_by.return_value.first.side_effect = []
+
+    result = tested.practice_setting("theSetting")
+    assert result is None
+
+    calls = [
+        call.order_by('dbid'),
+        call.order_by().first(),
+    ]
+    assert practice_location_db.mock_calls == calls
+    assert practice_settings_db.mock_calls == []
+    reset_mocks()

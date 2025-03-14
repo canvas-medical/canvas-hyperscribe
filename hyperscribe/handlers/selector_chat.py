@@ -2,6 +2,7 @@ import json
 from functools import reduce
 from operator import and_
 
+from canvas_sdk.commands.constants import ServiceProvider
 from canvas_sdk.v1.data.lab import LabPartnerTest
 from django.db.models import Q
 
@@ -171,3 +172,74 @@ class SelectorChat:
                     uuid="",
                 )
         return result
+
+    @classmethod
+    def contact_from(
+            cls,
+            chatter: LlmBase,
+            settings: Settings,
+            free_text_information: str,
+            zip_codes: list[str],
+    ) -> ServiceProvider:
+        result = ServiceProvider(
+            first_name="",
+            last_name="",
+            specialty="",
+            practice_name="",
+        )
+        if contacts := CanvasScience.search_contacts(settings.science_host, free_text_information, zip_codes):
+            system_prompt = [
+                "The conversation is in the medical context.",
+                "",
+                "Your task is to identify the most relevant contact in regards of a search specialist out of a list of contacts.",
+                "",
+            ]
+            user_prompt = [
+                'Here is the comment provided by the healthcare provider in regards to the searched specialist:',
+                '```text',
+                free_text_information,
+                '```',
+                "",
+                'Among the following contacts, identify the most relevant one:',
+                '',
+                "\n".join(f' * {cls.summary_of(contact)} (index: {idx})' for idx, contact in enumerate(contacts)),
+                '',
+                'Please, present your findings in a JSON format within a Markdown code block like:',
+                '```json',
+                json.dumps([{"index": "the index, as integer", "contact": "the contact information"}]),
+                '```',
+                '',
+            ]
+            if response := chatter.single_conversation(system_prompt, user_prompt, []):
+                if 0 <= (idx := response[0]['index']) < len(contacts):
+                    result = contacts[idx]
+
+        if not result.first_name:
+            result.first_name = "TBD"
+        if not result.specialty:
+            result.specialty = "TBD"
+
+        return result
+
+    @classmethod
+    def summary_of(cls, service_provider: ServiceProvider) -> str:
+        result = []
+        if service_provider.first_name:
+            result.append(service_provider.first_name)
+
+        if service_provider.last_name:
+            result.append(service_provider.last_name)
+
+        if service_provider.specialty:
+            specialty = service_provider.specialty
+            if result:
+                result.append("/")
+            result.append(specialty)
+
+        if service_provider.business_address:
+            address = service_provider.business_address
+            if result:
+                address = f"({address})"
+            result.append(address)
+
+        return " ".join(result)

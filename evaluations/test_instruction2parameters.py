@@ -1,8 +1,8 @@
 import json
 from pathlib import Path
 
-from hyperscribe.handlers.structures.instruction import Instruction
 from evaluations.helper_settings import HelperSettings
+from hyperscribe.handlers.structures.instruction import Instruction
 
 
 def pytest_generate_tests(metafunc):

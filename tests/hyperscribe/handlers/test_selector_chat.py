@@ -1,5 +1,6 @@
 from unittest.mock import patch, call, MagicMock
 
+from canvas_sdk.commands.constants import ServiceProvider
 from canvas_sdk.v1.data.lab import LabPartnerTest
 from django.db.models import Q
 
@@ -407,3 +408,187 @@ def test_procedure_from(charge_description):
     assert charge_description.mock_calls == calls
     assert chatter.mock_calls == []
     reset_mocks()
+
+
+@patch.object(SelectorChat, "summary_of")
+@patch.object(CanvasScience, "search_contacts")
+def test_contact_from(search_contacts, summary_of):
+    chatter = MagicMock()
+
+    def reset_mocks():
+        search_contacts.reset_mock()
+        summary_of.reset_mock()
+        chatter.reset_mock()
+
+    tested = SelectorChat
+
+    settings = Settings(
+        llm_text=VendorKey(vendor="textVendor", api_key="textKey"),
+        llm_audio=VendorKey(vendor="audioVendor", api_key="audioKey"),
+        science_host="scienceHost",
+        ontologies_host="ontologiesHost",
+        pre_shared_key="preSharedKey",
+        structured_rfv=False,
+    )
+    system_prompt = [
+        "The conversation is in the medical context.",
+        "",
+        "Your task is to identify the most relevant contact in regards of a search specialist out of a list of contacts.",
+        "",
+    ]
+    user_prompt = [
+        'Here is the comment provided by the healthcare provider in regards to the searched specialist:',
+        '```text', 'theFreeTextInformation',
+        '```',
+        '',
+        'Among the following contacts, identify the most relevant one:',
+        '',
+        ' * theSummary1 (index: 0)\n * theSummary2 (index: 1)\n * theSummary3 (index: 2)',
+        '',
+        'Please, present your findings in a JSON format within a Markdown code block like:',
+        '```json',
+        '[{"index": "the index, as integer", "contact": "the contact information"}]',
+        '```',
+        '',
+    ]
+
+    search = [
+        ServiceProvider(
+            first_name="theFirstName1",
+            last_name="theLastName1",
+            specialty="theSpecialty1",
+            practice_name="thePracticeName1",
+            business_address="theBusinessAddress1",
+        ),
+        ServiceProvider(
+            first_name="theFirstName2",
+            last_name="theLastName2",
+            specialty="theSpecialty2",
+            practice_name="thePracticeName2",
+            business_address="theBusinessAddress2",
+        ),
+        ServiceProvider(
+            first_name="theFirstName3",
+            last_name="theLastName3",
+            specialty="theSpecialty3",
+            practice_name="thePracticeName3",
+            business_address="theBusinessAddress3",
+        ),
+    ]
+    summaries = [
+        "theSummary1",
+        "theSummary2",
+        "theSummary3",
+    ]
+
+    # all good
+    search_contacts.side_effect = [search]
+    summary_of.side_effect = summaries
+    chatter.single_conversation.side_effect = [[{"index": 1, "label": "theLabel"}]]
+
+    result = tested.contact_from(chatter, settings, "theFreeTextInformation", ["zip1", "zip2"])
+    expected = ServiceProvider(
+        first_name="theFirstName2",
+        last_name="theLastName2",
+        specialty="theSpecialty2",
+        practice_name="thePracticeName2",
+        business_address="theBusinessAddress2",
+    )
+    assert result == expected
+    calls = [call('scienceHost', "theFreeTextInformation", ["zip1", "zip2"])]
+    assert search_contacts.mock_calls == calls
+    calls = [call.single_conversation(system_prompt, user_prompt, [])]
+    assert chatter.mock_calls == calls
+    reset_mocks()
+
+    # incorrect index
+    search_contacts.side_effect = [search]
+    summary_of.side_effect = summaries
+    chatter.single_conversation.side_effect = [[{"index": -1, "label": "theLabel"}]]
+
+    result = tested.contact_from(chatter, settings, "theFreeTextInformation", ["zip1", "zip2"])
+    expected = ServiceProvider(first_name="TBD", last_name="", specialty="TBD", practice_name="")
+    assert result == expected
+    calls = [call('scienceHost', "theFreeTextInformation", ["zip1", "zip2"])]
+    assert search_contacts.mock_calls == calls
+    calls = [call.single_conversation(system_prompt, user_prompt, [])]
+    assert chatter.mock_calls == calls
+    reset_mocks()
+
+    # no condition found
+    search_contacts.side_effect = [[]]
+    summary_of.side_effect = []
+    chatter.single_conversation.side_effect = []
+
+    result = tested.contact_from(chatter, settings, "theFreeTextInformation", ["zip1", "zip2"])
+    expected = ServiceProvider(first_name="TBD", last_name="", specialty="TBD", practice_name="")
+    assert result == expected
+    calls = [call('scienceHost', "theFreeTextInformation", ["zip1", "zip2"])]
+    assert search_contacts.mock_calls == calls
+    assert chatter.mock_calls == []
+    reset_mocks()
+
+    # no response
+    search_contacts.side_effect = [search]
+    summary_of.side_effect = summaries
+    chatter.single_conversation.side_effect = [[]]
+
+    result = tested.contact_from(chatter, settings, "theFreeTextInformation", ["zip1", "zip2"])
+    expected = ServiceProvider(first_name="TBD", last_name="", specialty="TBD", practice_name="")
+    assert result == expected
+    calls = [call('scienceHost', "theFreeTextInformation", ["zip1", "zip2"])]
+    assert search_contacts.mock_calls == calls
+    calls = [call.single_conversation(system_prompt, user_prompt, [])]
+    assert chatter.mock_calls == calls
+    reset_mocks()
+
+
+def test_summary_of():
+    tests = [
+        (ServiceProvider(
+            first_name="theFirstName1",
+            last_name="theLastName1",
+            specialty="theSpecialty1",
+            practice_name="thePracticeName1",
+            business_address="theBusinessAddress1",
+        ), "theFirstName1 theLastName1 / theSpecialty1 (theBusinessAddress1)"),
+        (ServiceProvider(
+            first_name="theFirstName1",
+            last_name="",
+            specialty="theSpecialty1",
+            practice_name="thePracticeName1",
+            business_address="theBusinessAddress1",
+        ), "theFirstName1 / theSpecialty1 (theBusinessAddress1)"),
+        (ServiceProvider(
+            first_name="",
+            last_name="theLastName1",
+            specialty="theSpecialty1",
+            practice_name="thePracticeName1",
+            business_address="theBusinessAddress1",
+        ), "theLastName1 / theSpecialty1 (theBusinessAddress1)"),
+        (ServiceProvider(
+            first_name="",
+            last_name="",
+            specialty="theSpecialty1",
+            practice_name="thePracticeName1",
+            business_address="theBusinessAddress1",
+        ), "theSpecialty1 (theBusinessAddress1)"),
+        (ServiceProvider(
+            first_name="theFirstName1",
+            last_name="theLastName1",
+            specialty="",
+            practice_name="",
+            business_address="",
+        ), "theFirstName1 theLastName1"),
+        (ServiceProvider(
+            first_name="",
+            last_name="",
+            specialty="",
+            practice_name="",
+            business_address="theBusinessAddress1",
+        ), "theBusinessAddress1"),
+    ]
+    tested = SelectorChat
+    for service_provider, expected in tests:
+        result = tested.summary_of(service_provider)
+        assert result == expected, f"--> {service_provider}"

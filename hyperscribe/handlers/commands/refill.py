@@ -30,7 +30,7 @@ class Refill(Base):
             ]) or "n/a"
             return CodedItem(
                 label=f"{text}: {sig} (dispense: {quantity_to_dispense}, supply days: {days_supply}, "
-                      f"refills: {refills}, substitution: {substitution}, indications: {indications})",
+                      f"refills: {refills}, substitution: {substitution}, related conditions: {indications})",
                 code="",
                 uuid="",
             )

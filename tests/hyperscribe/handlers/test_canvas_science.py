@@ -1,6 +1,7 @@
 from unittest.mock import patch, call, MagicMock
 
 from canvas_sdk.commands.commands.allergy import AllergenType
+from canvas_sdk.commands.constants import ServiceProvider
 
 from hyperscribe.handlers.canvas_science import CanvasScience
 from hyperscribe.handlers.structures.allergy_detail import AllergyDetail
@@ -436,6 +437,131 @@ def test_search_allergy(get_attempts):
         ]
         assert get_attempts.mock_calls == calls
         reset_mocks()
+
+
+@patch.object(CanvasScience, 'get_attempts')
+def test_search_contacts(get_attempts):
+    def reset_mocks():
+        get_attempts.reset_mock()
+
+    tested = CanvasScience
+    host = "theHost"
+    headers = {"Content-Type": "application/json"}
+    side_effect = [
+        {
+            "firstName": "theFirstName1",
+            "lastName": "theLastName1",
+            "specialty": "theSpecialty1",
+            "practiceName": "thePracticeName1",
+            "businessAddress": "theBusinessAddress1",
+        },
+        {
+            "firstName": "theFirstName2",
+            "lastName": "theLastName2",
+            "specialty": "theSpecialty2",
+            "practiceName": "thePracticeName2",
+            "businessAddress": "theBusinessAddress2",
+        },
+        {
+            "firstName": "theFirstName3",
+            "lastName": "theLastName3",
+            "specialty": "theSpecialty3",
+            "practiceName": "thePracticeName3",
+            "businessAddress": "theBusinessAddress3",
+        },
+    ]
+    expected = [
+        ServiceProvider(
+            first_name="theFirstName1",
+            last_name="theLastName1",
+            specialty="theSpecialty1",
+            practice_name="thePracticeName1",
+            business_address="theBusinessAddress1",
+        ),
+        ServiceProvider(
+            first_name="theFirstName2",
+            last_name="theLastName2",
+            specialty="theSpecialty2",
+            practice_name="thePracticeName2",
+            business_address="theBusinessAddress2",
+        ),
+        ServiceProvider(
+            first_name="theFirstName3",
+            last_name="theLastName3",
+            specialty="theSpecialty3",
+            practice_name="thePracticeName3",
+            business_address="theBusinessAddress3",
+        ),
+    ]
+    # no zip codes
+    get_attempts.side_effect = [[], side_effect]
+    result = tested.search_contacts(host, "theFree Text Information", [])
+    assert result == expected
+    calls = [
+        call(
+            "theHost/contacts/",
+            headers=headers,
+            params={"search": "theFree Text Information", "format": "json", "limit": 10},
+        ),
+        call(
+            "theHost/contacts/",
+            headers=headers,
+            params={"search": "theFree Text", "format": "json", "limit": 10},
+        ),
+    ]
+    assert get_attempts.mock_calls == calls
+    reset_mocks()
+    # with zip codes
+    get_attempts.side_effect = [[], side_effect]
+    result = tested.search_contacts(host, "theFree Text Information", ["zip1", "zip2"])
+    assert result == expected
+    calls = [
+        call(
+            "theHost/contacts/",
+            headers=headers,
+            params={
+                "search": "theFree Text Information",
+                "business_postal_code__in": "zip1,zip2",
+                "format": "json",
+                "limit": 10,
+            },
+        ),
+        call(
+            "theHost/contacts/",
+            headers=headers,
+            params={
+                "search": "theFree Text",
+                "business_postal_code__in": "zip1,zip2",
+                "format": "json",
+                "limit": 10,
+            },
+        ),
+    ]
+    assert get_attempts.mock_calls == calls
+    reset_mocks()
+    # no results
+    get_attempts.side_effect = [[], [], []]
+    result = tested.search_contacts(host, "theFree Text Information", [])
+    assert result == []
+    calls = [
+        call(
+            "theHost/contacts/",
+            headers=headers,
+            params={"search": "theFree Text Information", "format": "json", "limit": 10},
+        ),
+        call(
+            "theHost/contacts/",
+            headers=headers,
+            params={"search": "theFree Text", "format": "json", "limit": 10},
+        ),
+        call(
+            "theHost/contacts/",
+            headers=headers,
+            params={"search": "theFree", "format": "json", "limit": 10},
+        ),
+    ]
+    assert get_attempts.mock_calls == calls
+    reset_mocks()
 
 
 @patch('hyperscribe.handlers.canvas_science.log')

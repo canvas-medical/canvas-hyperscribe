@@ -1,26 +1,14 @@
 from canvas_sdk.commands.commands.questionnaire import QuestionnaireCommand
 
-from hyperscribe.handlers.commands.base import Base
+from hyperscribe.handlers.commands.base_questionnaire import BaseQuestionnaire
 from hyperscribe.handlers.constants import Constants
 from hyperscribe.handlers.llms.llm_base import LlmBase
-from hyperscribe.handlers.structures.coded_item import CodedItem
 
 
-class Questionnaire(Base):
+class Questionnaire(BaseQuestionnaire):
     @classmethod
     def schema_key(cls) -> str:
         return Constants.SCHEMA_KEY_QUESTIONNAIRE
-
-    @classmethod
-    def staged_command_extract(cls, data: dict) -> None | CodedItem:
-        if text := (data.get("questionnaire") or {}).get("text"):
-            questions = " \n ".join([
-                label
-                for question in (data.get("questionnaire") or {}).get("extra", {}).get("questions", [])
-                if (label := question.get("label"))
-            ])
-            return CodedItem(label=f"{text}: {questions}", code="", uuid="")
-        return None
 
     def command_from_json(self, chatter: LlmBase, parameters: dict) -> None | QuestionnaireCommand:
         questionnaire_uuid = ""

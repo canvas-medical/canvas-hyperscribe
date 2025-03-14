@@ -58,8 +58,8 @@ class LabOrder(Base):
                 conditions.append(item)
                 result.diagnosis_codes.append(item.code)
 
-        # ATTENTION: We need to determine the lab vendor in a smarter, dynamic way
-        lab_partner = LabPartner.objects.filter(name="Generic Lab").first()
+        preferred_lab = self.practice_setting("preferredLabPartner")
+        lab_partner = LabPartner.objects.filter(name=preferred_lab).first()
         if lab_partner is not None:
             result.lab_partner = str(lab_partner.id)
             # retrieve the tests based on the keywords
@@ -95,7 +95,7 @@ class LabOrder(Base):
         }
 
     def instruction_description(self) -> str:
-        return ("Lab tests ordered, including the directions and the targeted condition. "
+        return ("Lab tests ordered, including the directions and the targeted conditions. "
                 "There can be several lab orders in an instruction with the fasting requirement for the whole instruction "
                 "and all necessary information for each lab order, "
                 "and no instruction in the lack of.")

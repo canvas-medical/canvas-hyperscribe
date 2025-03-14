@@ -1,10 +1,7 @@
-from decimal import Decimal
 from unittest.mock import patch, call, MagicMock
 
 from canvas_sdk.commands.commands.prescribe import PrescribeCommand
 
-from hyperscribe.handlers.canvas_science import CanvasScience
-from hyperscribe.handlers.commands.base import Base
 from hyperscribe.handlers.commands.base_prescription import BasePrescription
 from hyperscribe.handlers.commands.prescription import Prescription
 from hyperscribe.handlers.limited_cache import LimitedCache
@@ -61,7 +58,7 @@ def test_staged_command_extract():
              "note_to_pharmacist": "theNoteToPharmacist",
              "quantity_to_dispense": "3"
          }, CodedItem(
-            label="theMedication: theSig (dispense: 3, supply days: 7, refills: 2, substitution: allowed, indications: theIndication1/theIndication2/theIndication3)",
+            label="theMedication: theSig (dispense: 3, supply days: 7, refills: 2, substitution: allowed, related conditions: theIndication1/theIndication2/theIndication3)",
             code="292907", uuid="")),
         ({
              "sig": "theSig",
@@ -97,7 +94,7 @@ def test_staged_command_extract():
              "note_to_pharmacist": "theNoteToPharmacist",
              "quantity_to_dispense": None
          }, CodedItem(
-            label="theMedication: n/a (dispense: n/a, supply days: n/a, refills: n/a, substitution: n/a, indications: theIndication1/theIndication2/theIndication3)",
+            label="theMedication: n/a (dispense: n/a, supply days: n/a, refills: n/a, substitution: n/a, related conditions: theIndication1/theIndication2/theIndication3)",
             code="", uuid="")),
         ({
              "sig": "",
@@ -111,7 +108,7 @@ def test_staged_command_extract():
              "substitutions": None,
              "note_to_pharmacist": "theNoteToPharmacist",
              "quantity_to_dispense": None
-         }, CodedItem(label="theMedication: n/a (dispense: n/a, supply days: n/a, refills: n/a, substitution: n/a, indications: n/a)", code="",
+         }, CodedItem(label="theMedication: n/a (dispense: n/a, supply days: n/a, refills: n/a, substitution: n/a, related conditions: n/a)", code="",
                       uuid="")),
     ]
     for data, expected in tests:
@@ -120,7 +117,6 @@ def test_staged_command_extract():
             assert result is None
         else:
             assert result == expected
-
 
 
 @patch.object(Prescription, "set_medication_dosage")

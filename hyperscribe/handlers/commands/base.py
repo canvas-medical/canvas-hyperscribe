@@ -1,4 +1,7 @@
+from typing import Any
+
 from canvas_sdk.commands.base import _BaseCommand
+from canvas_sdk.v1.data import PracticeLocation
 
 from hyperscribe.handlers.limited_cache import LimitedCache
 from hyperscribe.handlers.llms.llm_base import LlmBase
@@ -41,3 +44,11 @@ class Base:
 
     def is_available(self) -> bool:
         raise NotImplementedError
+
+    def practice_setting(self, setting: str) -> Any:
+        # TODO use the Staff.objects.get(self.provider_uuid) to retrieve the primary location when ready
+        #  for now use the first location
+        if practice := PracticeLocation.objects.order_by("dbid").first():
+            if setting := practice.settings.filter(name=setting).order_by("dbid").first():
+                return setting.value
+        return None

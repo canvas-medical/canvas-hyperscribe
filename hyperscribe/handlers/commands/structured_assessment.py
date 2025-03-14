@@ -1,16 +1,16 @@
-from canvas_sdk.commands.commands.exam import PhysicalExamCommand
+from canvas_sdk.commands import StructuredAssessmentCommand
 
 from hyperscribe.handlers.commands.base_questionnaire import BaseQuestionnaire
 from hyperscribe.handlers.constants import Constants
 from hyperscribe.handlers.llms.llm_base import LlmBase
 
 
-class PhysicalExam(BaseQuestionnaire):
+class StructuredAssessment(BaseQuestionnaire):
     @classmethod
     def schema_key(cls) -> str:
-        return Constants.SCHEMA_KEY_PHYSICAL_EXAM
+        return Constants.SCHEMA_KEY_STRUCTURED_ASSESSMENT
 
-    def command_from_json(self, chatter: LlmBase, parameters: dict) -> None | PhysicalExamCommand:
+    def command_from_json(self, chatter: LlmBase, parameters: dict) -> None | StructuredAssessmentCommand:
         return None
 
     def command_parameters(self) -> dict:

@@ -22,11 +22,13 @@ from hyperscribe.handlers.commands.plan import Plan
 from hyperscribe.handlers.commands.prescription import Prescription
 from hyperscribe.handlers.commands.questionnaire import Questionnaire
 from hyperscribe.handlers.commands.reason_for_visit import ReasonForVisit
+from hyperscribe.handlers.commands.refer import Refer
 from hyperscribe.handlers.commands.refill import Refill
 from hyperscribe.handlers.commands.remove_allergy import RemoveAllergy
 from hyperscribe.handlers.commands.resolve_condition import ResolveCondition
 from hyperscribe.handlers.commands.review_of_system import ReviewOfSystem
 from hyperscribe.handlers.commands.stop_medication import StopMedication
+from hyperscribe.handlers.commands.structured_assessment import StructuredAssessment
 from hyperscribe.handlers.commands.surgery_history import SurgeryHistory
 from hyperscribe.handlers.commands.task import Task
 from hyperscribe.handlers.commands.update_diagnose import UpdateDiagnose
@@ -60,11 +62,13 @@ class ImplementedCommands:
             Prescription,
             Questionnaire,
             ReasonForVisit,
+            Refer,
             Refill,
             RemoveAllergy,
             ResolveCondition,
             ReviewOfSystem,
             StopMedication,
+            StructuredAssessment,
             SurgeryHistory,
             Task,
             UpdateDiagnose,

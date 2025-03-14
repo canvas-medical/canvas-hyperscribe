@@ -1,9 +1,9 @@
 import pytest
 
+from evaluations.helper_settings import HelperSettings
 from hyperscribe.handlers.audio_interpreter import AudioInterpreter
 from hyperscribe.handlers.limited_cache import LimitedCache
 from hyperscribe.handlers.memory_log import MemoryLog
-from evaluations.helper_settings import HelperSettings
 
 
 def pytest_addoption(parser):
@@ -58,7 +58,7 @@ def allowed_levels(request):
 @pytest.fixture
 def audio_interpreter(request):
     settings = HelperSettings.settings()
-    aws_s3 =HelperSettings.aws_s3_credentials()
+    aws_s3 = HelperSettings.aws_s3_credentials()
     patient_uuid = request.config.getoption("--patient-uuid")
     cache = LimitedCache(patient_uuid, {})
     note_uuid = HelperSettings.get_note_uuid(patient_uuid) if patient_uuid else "noteUuid"

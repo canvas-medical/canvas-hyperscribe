@@ -2,6 +2,7 @@ from http import HTTPStatus
 from typing import Type
 
 from canvas_sdk.commands.commands.allergy import AllergenType
+from canvas_sdk.commands.constants import ServiceProvider
 from logger import log
 from requests import get as requests_get
 
@@ -124,6 +125,35 @@ class CanvasScience:
                             concept_id_type=concept["dam_allergen_concept_id_type"],
                         )
                     )
+        return result
+
+    @classmethod
+    def search_contacts(cls, host: str, free_text_information: str, zip_codes: list[str]) -> list[ServiceProvider]:
+        result: list = []
+        url = f"{host}/contacts/"
+        headers = {
+            "Content-Type": "application/json",
+        }
+
+        while free_text_information.strip() and not result:
+            params = {
+                "search": free_text_information,
+                "format": "json",
+                "limit": 10,
+            }
+            if zip_codes:
+                params["business_postal_code__in"] = ",".join(zip_codes)
+
+            for contact in cls.get_attempts(url, headers=headers, params=params):
+                result.append(ServiceProvider(
+                    first_name=contact["firstName"] or "",
+                    last_name=contact["lastName"] or "",
+                    specialty=contact["specialty"] or "",
+                    practice_name=contact["practiceName"] or "",
+                    business_address=contact["businessAddress"] or "",
+                ))
+            free_text_information = ' '.join(free_text_information.rsplit(' ', 1)[:-1])
+
         return result
 
     @classmethod

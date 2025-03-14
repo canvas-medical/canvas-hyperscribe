@@ -1,13 +1,13 @@
 from unittest.mock import MagicMock
 
 from hyperscribe.handlers.commands.base_questionnaire import BaseQuestionnaire
-from hyperscribe.handlers.commands.physical_exam import PhysicalExam
+from hyperscribe.handlers.commands.structured_assessment import StructuredAssessment
 from hyperscribe.handlers.limited_cache import LimitedCache
 from hyperscribe.handlers.structures.settings import Settings
 from hyperscribe.handlers.structures.vendor_key import VendorKey
 
 
-def helper_instance() -> PhysicalExam:
+def helper_instance() -> StructuredAssessment:
     settings = Settings(
         llm_text=VendorKey(vendor="textVendor", api_key="textKey"),
         llm_audio=VendorKey(vendor="audioVendor", api_key="audioKey"),
@@ -17,18 +17,18 @@ def helper_instance() -> PhysicalExam:
         structured_rfv=False,
     )
     cache = LimitedCache("patientUuid", {})
-    return PhysicalExam(settings, cache, "patientUuid", "noteUuid", "providerUuid")
+    return StructuredAssessment(settings, cache, "patientUuid", "noteUuid", "providerUuid")
 
 
 def test_class():
-    tested = PhysicalExam
+    tested = StructuredAssessment
     assert issubclass(tested, BaseQuestionnaire)
 
 
 def test_schema_key():
-    tested = PhysicalExam
+    tested = StructuredAssessment
     result = tested.schema_key()
-    expected = "exam"
+    expected = "structuredAssessment"
     assert result == expected
 
 

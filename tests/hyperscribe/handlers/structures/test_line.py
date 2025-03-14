@@ -1,5 +1,3 @@
-from typing import ForwardRef
-
 from hyperscribe.handlers.structures.line import Line
 from tests.helper import is_namedtuple
 
