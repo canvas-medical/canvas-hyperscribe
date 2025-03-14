@@ -1,0 +1,9 @@
+class Constants:
+    MAX_AUDIO_INTERVAL_SECONDS = '15'
+    MAX_AUTHENTICATION_TIME = 3600
+    SECRET_API_SIGNING_KEY = "APISigningKey"
+    SECRET_AUDIO_INTERVAL_SECONDS = "AudioIntervalSeconds"
+    SECRET_AWS_KEY = "AwsKey"
+    SECRET_AWS_SECRET = "AwsSecret"
+    SECRET_AWS_REGION = "AwsRegion"
+    SECRET_AWS_BUCKET = "AwsBucket"
