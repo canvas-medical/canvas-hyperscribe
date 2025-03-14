@@ -5,6 +5,7 @@ from datetime import datetime, UTC
 from logger import log
 
 from hyperscribe.handlers.aws_s3 import AwsS3
+from hyperscribe.handlers.cached_discussion import CachedDiscussion
 from hyperscribe.handlers.structures.aws_s3_credentials import AwsS3Credentials
 
 
@@ -56,5 +57,6 @@ class MemoryLog:
     def store_so_far(self) -> None:
         client_s3 = AwsS3(self.aws_s3)
         if client_s3.is_ready():
-            log_path = f"{datetime.now().date().isoformat()}/partials/{self.note_uuid}/{self.label}.log"
+            cached = CachedDiscussion.get_discussion(self.note_uuid)
+            log_path = f"{cached.creation_day()}/partials/{self.note_uuid}/{cached.count:02d}/{self.label}.log"
             client_s3.upload_text_to_s3(log_path, self.logs())

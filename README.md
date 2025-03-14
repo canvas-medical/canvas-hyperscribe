@@ -106,6 +106,8 @@ The following parameters can be used to configure the evaluation test:
 - `--evaluation-difference-levels` – Specifies the expected level of accuracy for any text value (`minor`, `moderate`, `severe`, `critical` as
   defined [here](evaluations/helper_settings.py) as `DIFFERENCE_LEVELS`).
 - `--patient-uuid` – Identifies the patient to run the evaluation test against, it is __mandatory__ for most tests.
+- `--print-logs` – Print the logs on the standard output at the end of the tests.
+- `--store-logs` – Store the logs in the configured AWS S3 bucket.
 
 Among standard `pytest` parameters, `-k` is useful as it allows to target a specific test.
 

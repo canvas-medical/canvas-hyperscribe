@@ -4,6 +4,7 @@ from evaluations.helper_settings import HelperSettings
 from hyperscribe.handlers.audio_interpreter import AudioInterpreter
 from hyperscribe.handlers.limited_cache import LimitedCache
 from hyperscribe.handlers.memory_log import MemoryLog
+from hyperscribe.handlers.structures.aws_s3_credentials import AwsS3Credentials
 
 
 def pytest_addoption(parser):
@@ -24,6 +25,12 @@ def pytest_addoption(parser):
         action="store_true",
         default=False,
         help="Print the logs at the end of the test",
+    )
+    parser.addoption(
+        "--store-logs",
+        action="store_true",
+        default=False,
+        help="Store the logs in the configured AWS S3 bucket",
     )
 
 
@@ -58,7 +65,9 @@ def allowed_levels(request):
 @pytest.fixture
 def audio_interpreter(request):
     settings = HelperSettings.settings()
-    aws_s3 = HelperSettings.aws_s3_credentials()
+    aws_s3 = AwsS3Credentials(aws_secret="", aws_key="", region="", bucket="")
+    if request.config.getoption("--store-logs", default=False):
+        aws_s3 = HelperSettings.aws_s3_credentials()
     patient_uuid = request.config.getoption("--patient-uuid")
     cache = LimitedCache(patient_uuid, {})
     note_uuid = HelperSettings.get_note_uuid(patient_uuid) if patient_uuid else "noteUuid"

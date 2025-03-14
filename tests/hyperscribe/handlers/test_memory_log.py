@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 from unittest.mock import patch, call
 
+from hyperscribe.handlers.cached_discussion import CachedDiscussion
 from hyperscribe.handlers.memory_log import MemoryLog
 from hyperscribe.handlers.structures.aws_s3_credentials import AwsS3Credentials
 from tests.helper import is_constant
@@ -207,36 +208,40 @@ def test_logs(mock_datetime):
     MemoryLog.end_session("note_uuid")
 
 
-@patch("hyperscribe.handlers.memory_log.datetime", wraps=datetime)
+@patch.object(CachedDiscussion, "get_discussion")
 @patch("hyperscribe.handlers.memory_log.AwsS3")
-def test_store_so_far(aws_s3, mock_datetime):
+def test_store_so_far(aws_s3, get_discussion):
     def reset_mocks():
         aws_s3.reset_mock()
-        mock_datetime.reset_mock()
+        get_discussion.reset_mock()
 
     tested = MemoryLog("note_uuid", "theLabel")
     #
     aws_s3.return_value.is_ready.side_effect = [False]
-    mock_datetime.now.side_effect = []
+    get_discussion.side_effect = []
     tested.store_so_far()
     calls = [
         call(AwsS3Credentials(aws_key='', aws_secret='', region='', bucket='')),
         call().is_ready(),
     ]
     assert aws_s3.mock_calls == calls
-    assert mock_datetime.mock_calls == []
+    assert get_discussion.mock_calls == []
     reset_mocks()
     #
-    now = datetime(2025, 3, 11, 15, 38, 37, tzinfo=timezone.utc)
+    cached = CachedDiscussion("theNoteUuid")
+    cached.created = datetime(2025, 3, 11, 23, 59, 37, tzinfo=timezone.utc)
+    cached.updated = datetime(2025, 3, 12, 0, 38, 21, tzinfo=timezone.utc)
+    cached.count = 7
+
     aws_s3.return_value.is_ready.side_effect = [True]
-    mock_datetime.now.side_effect = [now]
+    get_discussion.side_effect = [cached]
     tested.store_so_far()
     calls = [
         call(AwsS3Credentials(aws_key='', aws_secret='', region='', bucket='')),
         call().is_ready(),
-        call().upload_text_to_s3('2025-03-11/partials/note_uuid/theLabel.log', ''),
+        call().upload_text_to_s3('2025-03-11/partials/note_uuid/07/theLabel.log', ''),
     ]
     assert aws_s3.mock_calls == calls
-    calls = [call.now()]
-    assert mock_datetime.mock_calls == calls
+    calls = [call('note_uuid')]
+    assert get_discussion.mock_calls == calls
     reset_mocks()

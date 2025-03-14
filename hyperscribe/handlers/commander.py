@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timedelta
 from http import HTTPStatus
 from time import time
 from typing import Iterable
@@ -21,6 +20,7 @@ from logger import log
 from hyperscribe.handlers.audio_interpreter import AudioInterpreter
 from hyperscribe.handlers.auditor import Auditor
 from hyperscribe.handlers.aws_s3 import AwsS3
+from hyperscribe.handlers.cached_discussion import CachedDiscussion
 from hyperscribe.handlers.commands.history_of_present_illness import HistoryOfPresentIllness
 from hyperscribe.handlers.commands.reason_for_visit import ReasonForVisit
 from hyperscribe.handlers.constants import Constants
@@ -32,35 +32,6 @@ from hyperscribe.handlers.structures.coded_item import CodedItem
 from hyperscribe.handlers.structures.instruction import Instruction
 from hyperscribe.handlers.structures.line import Line
 from hyperscribe.handlers.structures.settings import Settings
-
-
-# ATTENTION temporary structure while waiting for a better solution
-class CachedDiscussion:
-    CACHED: dict[str, CachedDiscussion] = {}
-
-    def __init__(self, note_uuid: str) -> None:
-        self.updated: datetime = datetime.now()
-        self.count: int = 1
-        self.note_uuid = note_uuid
-        self.previous_instructions: list[Instruction] = []
-
-    def add_one(self) -> None:
-        self.updated = datetime.now()
-        self.count = self.count + 1
-
-    @classmethod
-    def get_discussion(cls, note_uuid: str) -> CachedDiscussion:
-        if note_uuid not in cls.CACHED:
-            cls.CACHED[note_uuid] = CachedDiscussion(note_uuid)
-        return cls.CACHED[note_uuid]
-
-    @classmethod
-    def clear_cache(cls) -> None:
-        oldest = datetime.now() - timedelta(minutes=30)
-        keys = list(cls.CACHED.keys())
-        for note_uuid in keys:
-            if cls.CACHED[note_uuid].updated < oldest:
-                del cls.CACHED[note_uuid]
 
 
 class Audio:
@@ -197,7 +168,7 @@ class Commander(BaseProtocol):
         memory_log.output("<=== END ===>")
 
         if (client_s3 := AwsS3(aws_s3)) and client_s3.is_ready():
-            remote_path = f"{datetime.now().date().isoformat()}/{patient_uuid}-{note_uuid}/{chunk_index:03}.log"
+            remote_path = f"{discussion.creation_day()}/{patient_uuid}-{note_uuid}/{discussion.count - 1:02}.log"
             memory_log.output(f"--> log path: {remote_path}")
             client_s3.upload_text_to_s3(remote_path, MemoryLog.end_session(note_uuid))
         return True, results

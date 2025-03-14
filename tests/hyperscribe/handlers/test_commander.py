@@ -9,7 +9,8 @@ from canvas_sdk.events import Event
 from canvas_sdk.v1.data import TaskComment, Note, Command
 from logger import log
 
-from hyperscribe.handlers.commander import CachedDiscussion, Audio, Commander
+from hyperscribe.handlers.cached_discussion import CachedDiscussion
+from hyperscribe.handlers.commander import Audio, Commander
 from hyperscribe.handlers.implemented_commands import ImplementedCommands
 from hyperscribe.handlers.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.handlers.structures.coded_item import CodedItem
@@ -19,124 +20,6 @@ from hyperscribe.handlers.structures.line import Line
 from hyperscribe.handlers.structures.settings import Settings
 from hyperscribe.handlers.structures.vendor_key import VendorKey
 from tests.helper import is_constant
-
-
-@patch("hyperscribe.handlers.commander.datetime", wraps=datetime)
-def test___init__(mock_datetime):
-    def reset_mocks():
-        mock_datetime.reset_mock()
-
-    now = datetime(2025, 2, 4, 7, 48, 21, tzinfo=timezone.utc)
-    mock_datetime.now.side_effect = [now]
-
-    tested = CachedDiscussion("noteUuid")
-    assert tested.updated == now
-    assert tested.count == 1
-    assert tested.note_uuid == "noteUuid"
-    assert tested.previous_instructions == []
-    calls = [call.now()]
-    assert mock_datetime.mock_calls == calls
-    reset_mocks()
-
-    CachedDiscussion.CACHED = {}
-
-
-@patch("hyperscribe.handlers.commander.datetime", wraps=datetime)
-def test_add_one(mock_datetime):
-    def reset_mocks():
-        mock_datetime.reset_mock()
-
-    date_0 = datetime(2025, 2, 4, 7, 48, 21, tzinfo=timezone.utc)
-    date_1 = datetime(2025, 2, 4, 7, 48, 33, tzinfo=timezone.utc)
-    mock_datetime.now.side_effect = [date_0, date_1]
-
-    tested = CachedDiscussion("noteUuid")
-    assert tested.updated == date_0
-    assert tested.count == 1
-    assert tested.note_uuid == "noteUuid"
-    assert tested.previous_instructions == []
-    calls = [call.now()]
-    assert mock_datetime.mock_calls == calls
-    reset_mocks()
-
-    tested.add_one()
-    assert tested.updated == date_1
-    assert tested.count == 2
-    assert tested.note_uuid == "noteUuid"
-    assert tested.previous_instructions == []
-    calls = [call.now()]
-    assert mock_datetime.mock_calls == calls
-    reset_mocks()
-
-    CachedDiscussion.CACHED = {}
-
-
-def test_get_discussion():
-    tested = CachedDiscussion
-    assert CachedDiscussion.CACHED == {}
-
-    result = tested.get_discussion("noteUuid")
-    assert isinstance(result, CachedDiscussion)
-    assert CachedDiscussion.CACHED == {"noteUuid": result}
-
-    result2 = tested.get_discussion("noteUuid")
-    assert result == result2
-    assert CachedDiscussion.CACHED == {"noteUuid": result}
-
-    CachedDiscussion.CACHED = {}
-
-
-@patch("hyperscribe.handlers.commander.datetime", wraps=datetime)
-def test_clear_cache(mock_datetime):
-    date_0 = datetime(2025, 2, 4, 7, 18, 21, tzinfo=timezone.utc)
-    date_1 = datetime(2025, 2, 4, 7, 18, 33, tzinfo=timezone.utc)
-    date_2 = datetime(2025, 2, 4, 7, 28, 21, tzinfo=timezone.utc)
-    date_3 = datetime(2025, 2, 4, 7, 48, 27, tzinfo=timezone.utc)
-    date_4 = datetime(2025, 2, 4, 7, 48, 37, tzinfo=timezone.utc)
-    date_5 = datetime(2025, 2, 4, 7, 58, 37, tzinfo=timezone.utc)
-
-    tested = CachedDiscussion
-
-    mock_datetime.now.side_effect = [date_0]
-    result0 = tested.get_discussion("noteUuid0")
-    mock_datetime.now.side_effect = [date_1]
-    result1 = tested.get_discussion("noteUuid1")
-    mock_datetime.now.side_effect = [date_2]
-    result2 = tested.get_discussion("noteUuid2")
-
-    print("-------")
-    print({k: i.updated for k, i in tested.CACHED.items()})
-    print("-------")
-
-    mock_datetime.now.side_effect = [date_2]
-    tested.clear_cache()
-    expected = {
-        "noteUuid0": result0,
-        "noteUuid1": result1,
-        "noteUuid2": result2,
-    }
-    assert CachedDiscussion.CACHED == expected
-
-    mock_datetime.now.side_effect = [date_3]
-    tested.clear_cache()
-    expected = {
-        "noteUuid1": result1,
-        "noteUuid2": result2,
-    }
-    assert CachedDiscussion.CACHED == expected
-
-    mock_datetime.now.side_effect = [date_4]
-    tested.clear_cache()
-    expected = {
-        "noteUuid2": result2,
-    }
-    assert CachedDiscussion.CACHED == expected
-
-    mock_datetime.now.side_effect = [date_5]
-    tested.clear_cache()
-    assert CachedDiscussion.CACHED == {}
-
-    CachedDiscussion.CACHED = {}
 
 
 @patch.object(log, "info")
@@ -372,7 +255,6 @@ def test_retrieve_audios(get_audio):
         reset_mocks()
 
 
-@patch("hyperscribe.handlers.commander.datetime", wraps=datetime)
 @patch('hyperscribe.handlers.commander.AwsS3')
 @patch('hyperscribe.handlers.commander.MemoryLog')
 @patch('hyperscribe.handlers.commander.LimitedCache')
@@ -396,7 +278,6 @@ def test_compute_audio(
         limited_cache,
         memory_log,
         aws_s3,
-        mock_datetime,
 ):
     def reset_mocks():
         retrieve_audios.reset_mock()
@@ -410,7 +291,6 @@ def test_compute_audio(
         limited_cache.reset_mock()
         memory_log.reset_mock()
         aws_s3.reset_mock()
-        mock_datetime.reset_mock()
 
     secrets = {
         "AudioHost": "theAudioHost",
@@ -440,7 +320,6 @@ def test_compute_audio(
     audio_interpreter.side_effect = []
     limited_cache.side_effect = []
     aws_s3.return_value.is_ready.side_effect = []
-    mock_datetime.now.side_effect = []
 
     tested = Commander(event, secrets)
     result = tested.compute_audio("patientUuid", "noteUuid", "providerUuid", 3)
@@ -464,7 +343,6 @@ def test_compute_audio(
     assert audio_interpreter.mock_calls == []
     assert limited_cache.mock_calls == []
     assert aws_s3.mock_calls == []
-    assert mock_datetime.mock_calls == []
     reset_mocks()
 
     # audios retrieved
@@ -483,13 +361,10 @@ def test_compute_audio(
             structured_rfv=True,
         )
         exp_aws_s3_credentials = AwsS3Credentials(aws_key='theKey', aws_secret='theSecret', region='theRegion', bucket='theBucket')
-        mock_datetime.now.side_effect = [
-            datetime(2025, 3, 10, 22, 56, 17, tzinfo=timezone.utc),
-            datetime(2025, 3, 10, 22, 56, 21, tzinfo=timezone.utc),
-            datetime(2025, 3, 10, 22, 56, 23, tzinfo=timezone.utc),
-        ]
         discussion = CachedDiscussion("noteUuid")
-        discussion.count = 2
+        discussion.created = datetime(2025, 3, 10, 23, 59, 7, tzinfo=timezone.utc)
+        discussion.updated = datetime(2025, 3, 11, 0, 3, 17, tzinfo=timezone.utc)
+        discussion.count = 7
         discussion.previous_instructions = instructions[2:]
         retrieve_audios.side_effect = [[b"audio1", b"audio2"]]
         audio2commands.side_effect = [
@@ -525,7 +400,7 @@ def test_compute_audio(
             ])
         assert result == expected
 
-        assert discussion.count == 3
+        assert discussion.count == 8
         previous = [
             Instruction(uuid='uuidA', instruction='theInstructionA', information='theInformationA', is_new=False, is_updated=True),
             Instruction(uuid='uuidB', instruction='theInstructionB', information='theInformationB', is_new=True, is_updated=False),
@@ -552,7 +427,7 @@ def test_compute_audio(
             call().output('<=== END ===>'),
         ]
         if is_ready:
-            calls.append(call().output('--> log path: 2025-03-10/patientUuid-noteUuid/003.log'))
+            calls.append(call().output('--> log path: 2025-03-10/patientUuid-noteUuid/07.log'))
             calls.append(call.end_session('noteUuid'))
         assert memory_log.mock_calls == calls
         calls = [call('theAudioHost', 'patientUuid', 'noteUuid', 3)]
@@ -585,12 +460,8 @@ def test_compute_audio(
             call().is_ready(),
         ]
         if is_ready:
-            calls.append(call().upload_text_to_s3('2025-03-10/patientUuid-noteUuid/003.log', "flushedMemoryLog"))
+            calls.append(call().upload_text_to_s3('2025-03-10/patientUuid-noteUuid/07.log', "flushedMemoryLog"))
         assert aws_s3.mock_calls == calls
-        calls = [call.now(), call.now()]
-        if is_ready:
-            calls.append(call.now())
-        assert mock_datetime.mock_calls == calls
         reset_mocks()
 
 
