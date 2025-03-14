@@ -32,7 +32,7 @@ class Launcher(ActionButton):
         sig = sha256(hash_arg.encode('utf-8')).hexdigest()
         params = f"note_id={note_id}&patient_id={patient_id}&interval={interval}&ts={ts}&sig={sig}"
         tuning_ui = LaunchModalEffect(
-            url=f"/plugin-io/api/hyperscribe_tuning/capture-case?{params}",
+            url=f"/plugin-io/api/hyperscribe_tuning/archive?{params}",
             target=LaunchModalEffect.TargetType.NEW_WINDOW,
         )
         return [tuning_ui.apply()]

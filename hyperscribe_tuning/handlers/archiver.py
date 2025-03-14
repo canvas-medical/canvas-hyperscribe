@@ -12,7 +12,7 @@ from hyperscribe_tuning.handlers.constants import Constants
 
 
 class Archiver(SimpleAPIRoute):
-    PATH = "/capture-case"
+    PATH = "/archive"
 
     def authenticate(self, credentials: Credentials) -> bool:
         query_params = self.request.query_params
