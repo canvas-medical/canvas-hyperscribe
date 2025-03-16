@@ -62,7 +62,14 @@ class Archiver(SimpleAPIRoute):
         )
 
         form_data = self.request.form_data()
-        audio_form_part = form_data.get('audio')  # <-- if present?
+
+        audio_form_part = form_data.get('audio')
+        if audio_form_part is None:
+            return JSONResponse(
+                {"message": "Form data must include 'audio' part"}, 
+                HTTPStatus.BAD_REQUEST,
+            )
+
         file_name = (audio_form_part.filename
                      .replace('_note', '/note')
                      .replace('_chunk', '/chunk')
