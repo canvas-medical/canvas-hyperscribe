@@ -6,7 +6,6 @@ from canvas_sdk.effects.launch_modal import LaunchModalEffect
 from canvas_sdk.events import EventType
 from canvas_sdk.handlers.action_button import ActionButton
 from canvas_sdk.v1.data.note import Note
-from logger import log
 
 from hyperscribe_tuning.handlers.constants import Constants
 
@@ -22,7 +21,6 @@ class Launcher(ActionButton):
     ]
 
     def handle(self) -> list[Effect]:
-        log.info('Handling button click')
         interval = self.secrets[Constants.SECRET_AUDIO_INTERVAL_SECONDS]
         note_id = str(Note.objects.get(dbid=self.event.context['note_id']).id)
         patient_id = self.target
