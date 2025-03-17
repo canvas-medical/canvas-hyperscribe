@@ -1,4 +1,5 @@
 import json
+from http import HTTPStatus
 from io import BytesIO
 from time import time
 from typing import NamedTuple
@@ -44,7 +45,7 @@ def test_class():
 def test_constants():
     tested = Archiver
     constants = {
-        "PATH": "/capture-case",
+        "PATH": "/archive",
         "RESPONDS_TO": ['SIMPLE_API_AUTHENTICATE', 'SIMPLE_API_REQUEST'],  # <--- SimpleAPIBase class
     }
     assert is_constant(tested, constants)
@@ -173,6 +174,7 @@ def test_post(aws_s3, mock_time):
 
     tested = helper_instance()
 
+    # all good
     response = Response()
     response.status_code = 1234
     response.raw = BytesIO(b"theResponseText")
@@ -203,6 +205,29 @@ def test_post(aws_s3, mock_time):
     assert aws_s3.mock_calls == calls
     calls = [call()]
     assert mock_time.mock_calls == calls
+    calls = [call.get('audio')]
+    assert mock_form.mock_calls == calls
+    reset_mocks()
+
+    # no audio
+    aws_s3.return_value.upload_binary_to_s3.side_effect = []
+    mock_time.side_effect = []
+    mock_form.get.side_effect = [None]
+    tested.request.form_data = form_data
+
+    result = tested.post()
+    expected = [
+        JSONResponse(
+            {"message": "Form data must include 'audio' part"},
+            HTTPStatus.BAD_REQUEST,
+        ),
+    ]
+    assert result == expected
+    calls = [
+        call('theKey', 'theSecret', 'theRegion', 'theBucket'),
+    ]
+    assert aws_s3.mock_calls == calls
+    assert mock_time.mock_calls == []
     calls = [call.get('audio')]
     assert mock_form.mock_calls == calls
     reset_mocks()

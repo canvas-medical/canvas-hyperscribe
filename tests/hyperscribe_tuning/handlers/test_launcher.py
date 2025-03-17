@@ -56,7 +56,7 @@ def test_handle(launch_model_effect, note_db, mock_time):
 
     calls = [
         call(
-            url='/plugin-io/api/hyperscribe_tuning/capture-case'
+            url='/plugin-io/api/hyperscribe_tuning/archive'
                 '?note_id=uuidNote'
                 '&patient_id=targetId'
                 '&interval=7'
