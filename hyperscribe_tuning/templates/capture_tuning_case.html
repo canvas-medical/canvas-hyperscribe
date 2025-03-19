@@ -123,13 +123,32 @@
                                 console.log(data);
                                 const p = document.createElement("p");
                                 p.textContent = `${getAmericanTimestamp()}: ${data.s3key} archived with status ${data.s3status}`;
+                                if (data.s3status != 200) {
+                                    p.style.color = "red";
+                                }
                                 logDiv.prepend(p);
                             })
                             .catch(error => console.error(`Error uploading audio for patient ${patientId}:`, error));
                         }
                     };
 
-                    // Start the MediaRecorder and request data at 5-second intervals
+                    // Instruct the server to archive a subset of chart data
+                    const archiveDataUrl = new URL(window.location.href);
+                    archiveDataUrl.searchParams.set('archive_limited_chart', 'true');
+                    fetch(archiveDataUrl.toString(), {method: "POST"})
+                    .then(response => response.json())
+                    .then(data => {console.log(data)
+                        const p = document.createElement("p");
+                        p.style.color = "blue";
+                        p.textContent = `${getAmericanTimestamp()}: ${data.s3key} archived with status ${data.s3status}`;
+                        if (data.s3status != 200) {
+                            p.style.color = "red";
+                        }
+                        logDiv.prepend(p);
+                    })
+                    .catch(error => console.error(`Error saving limited chart for patient ${patientId}:`, error));
+
+                    // Start the MediaRecorder and request data at regular intervals
                     mediaRecorder.start();
                     intervalId = setInterval(() => {
                         mediaRecorder.requestData(); // Request current chunk for upload
