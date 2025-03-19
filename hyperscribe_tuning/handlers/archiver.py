@@ -6,7 +6,6 @@ from canvas_sdk.effects import Effect
 from canvas_sdk.effects.simple_api import HTMLResponse, JSONResponse, Response
 from canvas_sdk.handlers.simple_api import Credentials, SimpleAPIRoute
 from canvas_sdk.templates import render_to_string
-from canvas_sdk.v1.data import Command
 
 from hyperscribe_tuning.handlers.aws_s3 import AwsS3
 from hyperscribe_tuning.handlers.constants import Constants
