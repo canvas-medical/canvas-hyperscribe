@@ -1,7 +1,7 @@
 from unittest.mock import MagicMock, patch, call
 
 import pytest
-from canvas_sdk.v1.data import PracticeLocation, PracticeLocationSetting
+from canvas_sdk.v1.data import PracticeLocation, PracticeLocationSetting, Staff
 
 from hyperscribe.handlers.commands.base import Base
 from hyperscribe.handlers.limited_cache import LimitedCache
@@ -107,14 +107,18 @@ def test_is_available():
 
 @patch.object(PracticeLocation, 'settings')
 @patch.object(PracticeLocation, 'objects')
-def test_practice_setting(practice_location_db, practice_settings_db):
+@patch.object(Staff, 'objects')
+def test_practice_setting(staff_db, practice_location_db, practice_settings_db):
     def reset_mocks():
+        staff_db.reset_mock()
         practice_location_db.reset_mock()
         practice_settings_db.reset_mock()
 
     tested = helper_instance()
 
     # all good
+    # -- provider has no primary practice
+    staff_db.get.side_effect = [Staff(primary_practice_location=None)]
     practice_location_db.order_by.return_value.first.side_effect = [PracticeLocation(full_name="theLocation")]
     practice_settings_db.filter.return_value.order_by.return_value.first.side_effect = [PracticeLocationSetting(value="theValue")]
 
@@ -122,6 +126,8 @@ def test_practice_setting(practice_location_db, practice_settings_db):
     expected = "theValue"
     assert result == expected
 
+    calls = [call.get(id='providerUuid')]
+    assert staff_db.mock_calls == calls
     calls = [
         call.order_by('dbid'),
         call.order_by().first(),
@@ -134,14 +140,36 @@ def test_practice_setting(practice_location_db, practice_settings_db):
     ]
     assert practice_settings_db.mock_calls == calls
     reset_mocks()
+    # -- provider has one primary practice
+    staff_db.get.side_effect = [Staff(primary_practice_location=PracticeLocation(full_name="theLocation"))]
+    practice_location_db.order_by.return_value.first.side_effect = []
+    practice_settings_db.filter.return_value.order_by.return_value.first.side_effect = [PracticeLocationSetting(value="theValue")]
+
+    result = tested.practice_setting("theSetting")
+    expected = "theValue"
+    assert result == expected
+
+    calls = [call.get(id='providerUuid')]
+    assert staff_db.mock_calls == calls
+    assert practice_location_db.mock_calls == []
+    calls = [
+        call.filter(name='theSetting'),
+        call.filter().order_by('dbid'),
+        call.filter().order_by().first(),
+    ]
+    assert practice_settings_db.mock_calls == calls
+    reset_mocks()
 
     # no setting found
+    staff_db.get.side_effect = [Staff(primary_practice_location=None)]
     practice_location_db.order_by.return_value.first.side_effect = [PracticeLocation(full_name="theLocation")]
     practice_settings_db.filter.return_value.order_by.return_value.first.side_effect = [None]
 
     result = tested.practice_setting("theSetting")
     assert result is None
 
+    calls = [call.get(id='providerUuid')]
+    assert staff_db.mock_calls == calls
     calls = [
         call.order_by('dbid'),
         call.order_by().first(),
@@ -156,12 +184,15 @@ def test_practice_setting(practice_location_db, practice_settings_db):
     reset_mocks()
 
     # no practice found
+    staff_db.get.side_effect = [Staff(primary_practice_location=None)]
     practice_location_db.order_by.return_value.first.side_effect = [None]
     practice_settings_db.filter.return_value.order_by.return_value.first.side_effect = []
 
     result = tested.practice_setting("theSetting")
     assert result is None
 
+    calls = [call.get(id='providerUuid')]
+    assert staff_db.mock_calls == calls
     calls = [
         call.order_by('dbid'),
         call.order_by().first(),
