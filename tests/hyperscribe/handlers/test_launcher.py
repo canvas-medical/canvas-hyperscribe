@@ -23,6 +23,7 @@ def test_constants():
         "BUTTON_KEY": "HYPERSCRIBE_LAUNCHER",
         "BUTTON_LOCATION": "note_header",
         "RESPONDS_TO": ["SHOW_NOTE_HEADER_BUTTON", "ACTION_BUTTON_CLICKED"],
+        "PRIORITY" : 0,
     }
     assert is_constant(tested, constants)
 

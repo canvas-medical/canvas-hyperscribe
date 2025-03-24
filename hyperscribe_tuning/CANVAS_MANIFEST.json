@@ -1,6 +1,6 @@
 {
-  "sdk_version": "0.26.0",
-  "plugin_version": "0.7.0",
+  "sdk_version": "0.28.0",
+  "plugin_version": "0.7.1",
   "name": "hyperscribe_tuning",
   "description": "Store audios in a S3 bucket",
   "components": {
