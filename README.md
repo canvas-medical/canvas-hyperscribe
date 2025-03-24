@@ -63,7 +63,7 @@ The `secrets` are stored in the Canvas instance database and can be upsert in `h
 | `AwsRegion`                |                                 | AWS region of the S3 service                  |
 | `AwsBucket`                |                                 | AWS bucket of the S3 service                  |
 
-The logs, mainly the communication with the LLMs, are stored in a `AWS S3 bucket` if credentials are provided as listed above. 
+The logs, mainly the communication with the LLMs, are stored in a `AWS S3 bucket` if credentials are provided as listed above.
 
 ## Unit tests
 
@@ -150,6 +150,7 @@ export OntologiesHost="...."
 export PreSharedKey="...."
 export StructuredReasonForVisit="y" or "n"
 ```
+
 The logs will be sent to the `AWS S3 bucket` if the following environment variables are set:
 
 ```shell
@@ -158,6 +159,8 @@ export AwsSecret="..."
 export AwsRegion="..."
 export AwsBucket="..."
 ```
+
+#### From Audio to commands
 
 Based on a set of `mp3` files, a set (i.e. covering all steps) of evaluation tests can be created using:
 
@@ -176,6 +179,22 @@ Note that on the first step (`audio2transcript`):
   have the same name with an added number,
 
 On the second step (`transcript2instructions`):
+
+- the `uuid` of the instructions is by default set empty
+- the order of the instructions of different type is ignored
+
+#### From Transcript to commands
+
+Based on a `json` file, transcript of the conversation, a set (i.e. covering all steps except the first one) of evaluation tests can be created using:
+
+```shell
+uv  run python case_builder.py \
+  --patient patient_uuid \
+  --label the_case \
+  --transcript "file/path/to/file.json"
+```
+
+Like previously, on the step `transcript2instructions`:
 
 - the `uuid` of the instructions is by default set empty
 - the order of the instructions of different type is ignored

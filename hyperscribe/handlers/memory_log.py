@@ -58,5 +58,5 @@ class MemoryLog:
         client_s3 = AwsS3(self.aws_s3)
         if client_s3.is_ready():
             cached = CachedDiscussion.get_discussion(self.note_uuid)
-            log_path = f"{cached.creation_day()}/partials/{self.note_uuid}/{cached.count:02d}/{self.label}.log"
+            log_path = f"{cached.creation_day()}/partials/{self.note_uuid}/{cached.count - 1:02d}/{self.label}.log"
             client_s3.upload_text_to_s3(log_path, self.logs())

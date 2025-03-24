@@ -1,3 +1,4 @@
+import json
 from argparse import ArgumentParser, ArgumentTypeError, Namespace
 from datetime import datetime
 from pathlib import Path
@@ -12,6 +13,7 @@ from hyperscribe.handlers.aws_s3 import AwsS3
 from hyperscribe.handlers.commander import Commander
 from hyperscribe.handlers.limited_cache import LimitedCache
 from hyperscribe.handlers.memory_log import MemoryLog
+from hyperscribe.handlers.structures.line import Line
 
 
 class CaseBuilder:
@@ -31,10 +33,12 @@ class CaseBuilder:
 
     @classmethod
     def parameters(cls) -> Namespace:
-        parser = ArgumentParser(description="Build all the files of the evaluation tests against a patient and the provided mp3 files")
+        parser = ArgumentParser(description="Build the files of the evaluation tests against a patient based on the provided files")
         parser.add_argument("--patient", type=cls.validate_patient, required=True, help="Patient UUID")
         parser.add_argument("--label", type=str, required=True, help="Evaluation label")
-        parser.add_argument("--mp3", nargs='+', type=cls.validate_files, required=True, help="List of MP3 files")
+        group = parser.add_mutually_exclusive_group(required=True)
+        group.add_argument("--mp3", nargs='+', type=cls.validate_files, help="List of MP3 files")
+        group.add_argument("--transcript", type=cls.validate_files, help="JSON file with transcript")
         return parser.parse_args()
 
     @classmethod
@@ -59,9 +63,12 @@ class CaseBuilder:
         parameters = cls.parameters()
         print(f"Patient UUID: {parameters.patient}")
         print(f"Evaluation Label: {parameters.label}")
-        print("MP3 Files:")
-        for file in parameters.mp3:
-            print(f"- {file}")
+        if parameters.mp3:
+            print("MP3 Files:")
+            for file in parameters.mp3:
+                print(f"- {file}")
+        if parameters.transcript:
+            print(f"JSON file: {parameters.transcript}")
 
         # auditor
         recorder = AuditorFile(parameters.label)
@@ -76,14 +83,19 @@ class CaseBuilder:
             note_uuid,
             str(note.provider.id),
         )
-        # audio
-        audios: list[bytes] = []
-        for file in parameters.mp3:
-            with file.open("rb") as f:
-                audios.append(f.read())
-
         MemoryLog.begin_session(note_uuid)
-        Commander.audio2commands(recorder, audios, chatter, [])
+        # audio
+        if parameters.mp3:
+            audios: list[bytes] = []
+            for file in parameters.mp3:
+                with file.open("rb") as f:
+                    audios.append(f.read())
+            Commander.audio2commands(recorder, audios, chatter, [])
+        # json
+        if parameters.transcript:
+            with parameters.transcript.open("r") as f:
+                transcript = Line.load_from_json(json.load(f))
+            Commander.transcript2commands(recorder, transcript, chatter, [])
 
         if (client_s3 := AwsS3(HelperSettings.aws_s3_credentials())) and client_s3.is_ready():
             remote_path = f"{datetime.now().date().isoformat()}/case-builder-{parameters.label}.log"

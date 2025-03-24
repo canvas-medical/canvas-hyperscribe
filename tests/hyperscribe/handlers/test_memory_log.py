@@ -239,7 +239,7 @@ def test_store_so_far(aws_s3, get_discussion):
     calls = [
         call(AwsS3Credentials(aws_key='', aws_secret='', region='', bucket='')),
         call().is_ready(),
-        call().upload_text_to_s3('2025-03-11/partials/note_uuid/07/theLabel.log', ''),
+        call().upload_text_to_s3('2025-03-11/partials/note_uuid/06/theLabel.log', ''),
     ]
     assert aws_s3.mock_calls == calls
     calls = [call('note_uuid')]

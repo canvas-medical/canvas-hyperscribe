@@ -191,6 +191,18 @@ class Commander(BaseProtocol):
         auditor.identified_transcript(audios, transcript)
         memory_log.output(f"--> transcript back and forth: {len(transcript)}")
 
+        return cls.transcript2commands(auditor, transcript, chatter, previous_instructions)
+
+    @classmethod
+    def transcript2commands(
+            cls,
+            auditor: Auditor,
+            transcript: list[Line],
+            chatter: AudioInterpreter,
+            previous_instructions: list[Instruction],
+    ) -> tuple[list[Instruction], list[Effect]]:
+        memory_log = MemoryLog(chatter.note_uuid, cls.MEMORY_LOG_LABEL)
+
         # detect the instructions based on the transcript and the existing commands
         response = chatter.detect_instructions(transcript, previous_instructions)
         cumulated_instructions = Instruction.load_from_json(response)
