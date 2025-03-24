@@ -19,14 +19,13 @@ class StopMedication(Base):
         return None
 
     def command_from_json(self, chatter: LlmBase, parameters: dict) -> None | StopMedicationCommand:
-        medication_uuid = ""
-        if 0 <= (idx := parameters["medicationIndex"]) < len(current := self.cache.current_medications()):
-            medication_uuid = current[idx].uuid
-        return StopMedicationCommand(
-            medication_id=medication_uuid,
+        result = StopMedicationCommand(
             rationale=parameters["rationale"],
             note_uuid=self.note_uuid,
         )
+        if 0 <= (idx := parameters["medicationIndex"]) < len(current := self.cache.current_medications()):
+            result.medication_id = current[idx].uuid
+        return result
 
     def command_parameters(self) -> dict:
         medications = "/".join([f'{medication.label} (index: {idx})' for idx, medication in enumerate(self.cache.current_medications())])

@@ -19,7 +19,7 @@ class LlmBase:
     ROLE_USER = "user"
     ROLE_MODEL = "model"
 
-    def __init__(self, memory_log: MemoryLog, api_key: str, model: str, ):
+    def __init__(self, memory_log: MemoryLog, api_key: str, model: str):
         self.memory_log = memory_log
         self.api_key = api_key
         self.model = model

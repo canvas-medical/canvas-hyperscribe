@@ -18,7 +18,8 @@ from hyperscribe.handlers.structures.settings import Settings
 class AudioInterpreter:
 
     def __init__(
-            self, settings: Settings,
+            self,
+            settings: Settings,
             aws_s3: AwsS3Credentials,
             cache: LimitedCache,
             patient_id: str,
@@ -83,7 +84,7 @@ class AudioInterpreter:
             "```json",
             json.dumps([
                 {
-                    "voice": "voice_X/voice_Y/.../voice_N",
+                    "voice": "voice_1/voice_2/.../voice_N",
                     "text": "the verbatim transcription of what the speaker said",
                 }
             ], indent=1),
@@ -96,7 +97,7 @@ class AudioInterpreter:
             json.dumps([
                 {
                     "speaker": "Patient/Clinician/Nurse/...",
-                    "voice": "voice_A/voice_B/.../voice_N",
+                    "voice": "voice_1/voice_2/.../voice_N",
                 }
             ], indent=1),
             "```",

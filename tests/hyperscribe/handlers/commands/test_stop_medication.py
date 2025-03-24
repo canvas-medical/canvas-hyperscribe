@@ -80,7 +80,7 @@ def test_command_from_json(current_medications):
     tests = [
         (1, "theUuid2"),
         (2, "theUuid3"),
-        (4, ""),
+        (4, None),
     ]
     for idx, exp_uuid in tests:
         current_medications.side_effect = [medications, medications]
@@ -91,10 +91,12 @@ def test_command_from_json(current_medications):
         }
         result = tested.command_from_json(chatter, params)
         expected = StopMedicationCommand(
-            medication_id=exp_uuid,
             rationale="theRationale",
             note_uuid="noteUuid",
         )
+        if exp_uuid is not None:
+            expected.medication_id = exp_uuid
+
         assert result == expected
         calls = [call()]
         assert current_medications.mock_calls == calls
