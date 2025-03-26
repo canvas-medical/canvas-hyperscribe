@@ -1,3 +1,4 @@
+from dataclasses import fields as dataclass_fields, is_dataclass as dataclass_is_dataclass
 from typing import ForwardRef
 
 
@@ -8,6 +9,14 @@ def is_namedtuple(cls, fields: dict) -> bool:
             and isinstance(cls._fields, tuple)
             and len([field for field in cls._fields if field in fields]) == len(fields.keys())
             and all(the_type in [fields[field], ForwardRef(fields[field].__name__)] for field, the_type in cls.__annotations__.items())
+    )
+
+
+def is_dataclass(cls, fields: dict) -> bool:
+    return (
+            dataclass_is_dataclass(cls)
+            and len([field for field in dataclass_fields(cls) if field.name in fields]) == len(fields.keys())
+            and all(fields[field.name] == field.type for field in dataclass_fields(cls))
     )
 
 

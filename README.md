@@ -79,10 +79,10 @@ uv  run pytest tests/ --cov=. # run all tests and report the coverage
 
 The `hyperscribe` plugin has four essential steps:
 
-1. transcript the audio into a discussion, identifying the speakers and what they say
-1. extract from the discussion a set of instructions, a plain english description of a Canvas command
-1. transform an instruction into a data structure close to a Canvas command parameters
-1. create the Canvas command based on the parameters
+* transcript the audio into a discussion, identifying the speakers and what they say
+* extract from the discussion a set of instructions, a plain english description of a Canvas command
+* transform an instruction into a data structure close to a Canvas command parameters
+* create the Canvas command based on the parameters
 
 The evaluation tests are designed to test each of these steps.
 
@@ -105,7 +105,7 @@ The following parameters can be used to configure the evaluation test:
 
 - `--evaluation-difference-levels` – Specifies the expected level of accuracy for any text value (`minor`, `moderate`, `severe`, `critical` as
   defined [here](evaluations/helper_settings.py) as `DIFFERENCE_LEVELS`).
-- `--patient-uuid` – Identifies the patient to run the evaluation test against, it is __mandatory__ for most tests.
+- `--patient-uuid` – Identifies the patient to run the evaluation test against, it is __mandatory__ for most tests (see the `case_builder` for more information).
 - `--print-logs` – Print the logs on the standard output at the end of the tests.
 - `--store-logs` – Store the logs in the configured AWS S3 bucket.
 
@@ -162,12 +162,14 @@ export AwsBucket="..."
 
 #### From Audio to commands
 
-Based on a set of `mp3` files, a set (i.e. covering all steps) of evaluation tests can be created using:
+Based on a set of `mp3` files, a set (i.e. covering all steps) of evaluation tests (also called `case`) can be created using:
 
 ```shell
-uv  run python case_builder.py \
+uv run python case_builder.py \
   --patient patient_uuid \
-  --label the_case \
+  --case the_case \
+  --group common \
+  --type general \
   --mp3 "file/path/to/file_01.mp3" \
   "file/path/to/file_02.mp3" \
   "file/path/to/file_03.mp3"
@@ -175,7 +177,7 @@ uv  run python case_builder.py \
 
 Note that on the first step (`audio2transcript`):
 
-- all `mp3` files are saved in the `evaluations/audio2transcript/inputs_mp3/` folder, the first one using the `--label` as name, the subsequent files
+- all `mp3` files are saved in the `evaluations/audio2transcript/inputs_mp3/` folder, the first one using the `--case` as name, the subsequent files
   have the same name with an added number,
 
 On the second step (`transcript2instructions`):
@@ -188,9 +190,11 @@ On the second step (`transcript2instructions`):
 Based on a `json` file, transcript of the conversation, a set (i.e. covering all steps except the first one) of evaluation tests can be created using:
 
 ```shell
-uv  run python case_builder.py \
+uv run python case_builder.py \
   --patient patient_uuid \
-  --label the_case \
+  --case the_case \
+  --group common \
+  --type general \
   --transcript "file/path/to/file.json"
 ```
 
@@ -199,10 +203,29 @@ Like previously, on the step `transcript2instructions`:
 - the `uuid` of the instructions is by default set empty
 - the order of the instructions of different type is ignored
 
+#### Storing the cases and the run results
+
+When creating a `case` by running the `case_builder.py` script, a record is inserted/updated in the `cases` table of 
+the [evaluation_cases.db](evaluations/evaluation_cases.db) local SQLLite database, part of the repository. 
+
+This table stores the meta information related to the `case` - namely: the group, the type, the environment, the patient uuid - that 
+will be used when running the tests (patient uuid if not provided then), and storing the results.
+
+When a test is run, its result is saved in the `results` table of the `evaluation_results.db` local SQLLite database, 
+which is *not* part of the repository: it is located in the parent directory of the local repository 
+(soon the results will be stored in a shared Postgres database).   
+
+Some statistics about the results can be displayed by running:
+```shell
+uv run python case_statistics.py
+```
+
 ### Delete evaluation tests
 
 A set of evaluation tests can be deleted using:
 
 ```shell
-uv  run python case_builder.py --label the_case --delete
+uv  run python case_builder.py --case the_case --delete
 ```
+
+The record related in the `cases` table of the [evaluation_cases.db](evaluations/evaluation_cases.db) local SQLLite database will be removed.
