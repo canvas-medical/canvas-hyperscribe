@@ -15,6 +15,7 @@ def test_class():
 
 def test_from_dictionary():
     tested = AwsS3Credentials
+    #
     result = tested.from_dictionary({
         "AwsKey": "theKey",
         "AwsSecret": "theSecret",
@@ -26,5 +27,14 @@ def test_from_dictionary():
         aws_secret="theSecret",
         region="theRegion",
         bucket="theBucket",
+    )
+    assert result == expected
+    #
+    result = tested.from_dictionary({})
+    expected = AwsS3Credentials(
+        aws_key="",
+        aws_secret="",
+        region="",
+        bucket="",
     )
     assert result == expected

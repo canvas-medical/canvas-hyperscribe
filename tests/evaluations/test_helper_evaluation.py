@@ -3,7 +3,8 @@ from unittest.mock import patch, MagicMock, call
 
 from canvas_sdk.v1.data import Note
 
-from evaluations.helper_settings import HelperSettings
+from evaluations.helper_evaluation import HelperEvaluation
+from evaluations.structures.postgres_credentials import PostgresCredentials
 from hyperscribe.handlers.helper import Helper
 from hyperscribe.handlers.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.handlers.structures.json_extract import JsonExtract
@@ -12,8 +13,8 @@ from hyperscribe.handlers.structures.vendor_key import VendorKey
 from tests.helper import is_constant
 
 
-def test_helper_settings():
-    tested = HelperSettings
+def test_helper_evaluation():
+    tested = HelperEvaluation
     constants = {
         "DIFFERENCE_LEVELS": ["minor", "moderate", "severe", "critical"],
     }
@@ -39,7 +40,7 @@ def test_settings(monkeypatch):
     for env_variable, exp_structured in tests:
         monkeypatch.setenv("StructuredReasonForVisit", env_variable)
 
-        tested = HelperSettings
+        tested = HelperEvaluation
         result = tested.settings()
         expected = Settings(
             llm_text=VendorKey(vendor="textVendor", api_key="textAPIKey"),
@@ -58,13 +59,32 @@ def test_aws_s3_credentials(monkeypatch):
     monkeypatch.setenv("AwsRegion", "theRegion")
     monkeypatch.setenv("AwsBucket", "theBucket")
 
-    tested = HelperSettings
+    tested = HelperEvaluation
     result = tested.aws_s3_credentials()
     expected = AwsS3Credentials(
         aws_key="theKey",
         aws_secret="theSecret",
         region="theRegion",
         bucket="theBucket",
+    )
+    assert result == expected
+
+
+def test_postgres_credentials(monkeypatch):
+    monkeypatch.setenv("EVALUATIONS_DB_NAME", "theDatabase")
+    monkeypatch.setenv("EVALUATIONS_DB_USERNAME", "theUser")
+    monkeypatch.setenv("EVALUATIONS_DB_PASSWORD", "thePassword")
+    monkeypatch.setenv("EVALUATIONS_DB_HOST", "theHost")
+    monkeypatch.setenv("EVALUATIONS_DB_PORT", "1234")
+
+    tested = HelperEvaluation
+    result = tested.postgres_credentials()
+    expected = PostgresCredentials(
+        database="theDatabase",
+        user="theUser",
+        password="thePassword",
+        host="theHost",
+        port=1234,
     )
     assert result == expected
 
@@ -80,7 +100,7 @@ def test_get_note_uuid(note_db):
     note_db.filter.return_value.order_by.return_value.first.side_effect = [mock_note]
     mock_note.id = "noteUuid"
 
-    tested = HelperSettings
+    tested = HelperEvaluation
     result = tested.get_note_uuid("patientUuid")
     expected = "noteUuid"
     assert result == expected
@@ -106,7 +126,7 @@ def test_get_provider_uuid(note_db):
     note_db.filter.return_value.order_by.return_value.first.side_effect = [mock_note]
     mock_note.provider.id = "providerUuid"
 
-    tested = HelperSettings
+    tested = HelperEvaluation
     result = tested.get_provider_uuid("patientUuid")
     expected = "providerUuid"
     assert result == expected
@@ -121,7 +141,7 @@ def test_get_provider_uuid(note_db):
     reset_mocks()
 
 
-@patch.object(HelperSettings, "nuanced_differences")
+@patch.object(HelperEvaluation, "nuanced_differences")
 def test_json_nuanced_differences(nuanced_differences):
     def reset_mocks():
         nuanced_differences.reset_mock()
@@ -153,7 +173,7 @@ def test_json_nuanced_differences(nuanced_differences):
     ]
 
     nuanced_differences.side_effect = [(True, "some text")]
-    tested = HelperSettings
+    tested = HelperEvaluation
     result = tested.json_nuanced_differences(
         "theCase",
         ["level1", "level2"],
@@ -168,7 +188,7 @@ def test_json_nuanced_differences(nuanced_differences):
     reset_mocks()
 
 
-@patch.object(HelperSettings, "nuanced_differences")
+@patch.object(HelperEvaluation, "nuanced_differences")
 def test_text_nuanced_differences(nuanced_differences):
     def reset_mocks():
         nuanced_differences.reset_mock()
@@ -196,7 +216,7 @@ def test_text_nuanced_differences(nuanced_differences):
     ]
 
     nuanced_differences.side_effect = [(True, "some text")]
-    tested = HelperSettings
+    tested = HelperEvaluation
     result = tested.text_nuanced_differences(
         "theCase",
         ["level1", "level2"],
@@ -211,9 +231,9 @@ def test_text_nuanced_differences(nuanced_differences):
     reset_mocks()
 
 
-@patch("evaluations.helper_settings.MemoryLog")
+@patch("evaluations.helper_evaluation.MemoryLog")
 @patch.object(Helper, "chatter")
-@patch.object(HelperSettings, "settings")
+@patch.object(HelperEvaluation, "settings")
 def test_nuanced_differences(settings, chatter, memory_log):
     conversation = MagicMock()
 
@@ -239,7 +259,7 @@ def test_nuanced_differences(settings, chatter, memory_log):
         }
     }
 
-    tested = HelperSettings
+    tested = HelperEvaluation
 
     system_prompt = ["systemLine1", "systemLine2"]
     user_prompt = ["userLine1", "userLine2"]

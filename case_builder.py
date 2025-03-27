@@ -9,8 +9,8 @@ from canvas_sdk.v1.data import Note, Patient
 
 from evaluations.auditor_file import AuditorFile
 from evaluations.constants import Constants
-from evaluations.datastores.store_cases import StoreCases
-from evaluations.helper_settings import HelperSettings
+from evaluations.datastores.sqllite.store_cases import StoreCases
+from evaluations.helper_evaluation import HelperEvaluation
 from evaluations.structures.evaluation_case import EvaluationCase
 from hyperscribe.handlers.audio_interpreter import AudioInterpreter
 from hyperscribe.handlers.aws_s3 import AwsS3
@@ -92,8 +92,8 @@ class CaseBuilder:
         note = Note.objects.filter(patient__id=parameters.patient).order_by("-dbid").first()  # the last note
         note_uuid = str(note.id)
         chatter = AudioInterpreter(
-            HelperSettings.settings(),
-            HelperSettings.aws_s3_credentials(),
+            HelperEvaluation.settings(),
+            HelperEvaluation.aws_s3_credentials(),
             LimitedCache(parameters.patient, {}),
             parameters.patient,
             note_uuid,
@@ -113,7 +113,7 @@ class CaseBuilder:
                 transcript = Line.load_from_json(json.load(f))
             Commander.transcript2commands(recorder, transcript, chatter, [])
 
-        if (client_s3 := AwsS3(HelperSettings.aws_s3_credentials())) and client_s3.is_ready():
+        if (client_s3 := AwsS3(HelperEvaluation.aws_s3_credentials())) and client_s3.is_ready():
             remote_path = f"{datetime.now().date().isoformat()}/case-builder-{parameters.case}.log"
             client_s3.upload_text_to_s3(remote_path, MemoryLog.end_session(note_uuid))
             print(f"Logs saved in: {remote_path}")

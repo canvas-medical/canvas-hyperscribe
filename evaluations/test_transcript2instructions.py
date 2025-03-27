@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from evaluations.helper_settings import HelperSettings
+from evaluations.helper_evaluation import HelperEvaluation
 from hyperscribe.handlers.structures.instruction import Instruction
 from hyperscribe.handlers.structures.line import Line
 
@@ -41,7 +41,7 @@ def test_transcript2instructions(transcript2instructions, allowed_levels, audio_
         assert actual.is_new == instruction.is_new
         assert actual.is_updated == instruction.is_updated
 
-        valid, differences = HelperSettings.text_nuanced_differences(
+        valid, differences = HelperEvaluation.text_nuanced_differences(
             f"{transcript2instructions.stem}-transcript2instructions",
             allowed_levels,
             actual.information,

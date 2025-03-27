@@ -10,4 +10,3 @@ class StatisticCaseTest:
     instruction2parameters: int = -1
     parameters2command: int = -1
     end2end: int = 0
-

@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 from re import match
 
-from evaluations.helper_settings import HelperSettings
+from evaluations.helper_evaluation import HelperEvaluation
 
 
 def pytest_generate_tests(metafunc):
@@ -44,7 +44,7 @@ def test_audio2transcript(audio2transcript_files, allowed_levels, audio_interpre
     with json_file.open('r') as f:
         expected = json.load(f)
 
-    valid, differences = HelperSettings.json_nuanced_differences(
+    valid, differences = HelperEvaluation.json_nuanced_differences(
         f"{case}-audio2transcript",
         allowed_levels,
         json.dumps(transcript.content, indent=1),

@@ -85,20 +85,16 @@ def test_set_model_prompt():
 def test_add_audio():
     memory_log = MagicMock()
     tested = LlmBase(memory_log, "apiKey", "theModel")
-    with pytest.raises(Exception) as e:
+    with pytest.raises(NotImplementedError):
         _ = tested.add_audio(b"audio", "format")
-    expected = "NotImplementedError"
-    assert e.typename == expected
     assert memory_log.mock_calls == []
 
 
 def test_request():
     memory_log = MagicMock()
     tested = LlmBase(memory_log, "apiKey", "theModel")
-    with pytest.raises(Exception) as e:
+    with pytest.raises(NotImplementedError):
         _ = tested.request()
-    expected = "NotImplementedError"
-    assert e.typename == expected
     assert memory_log.mock_calls == []
 
 

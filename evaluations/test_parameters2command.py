@@ -3,7 +3,7 @@ from pathlib import Path
 
 from canvas_sdk.commands.base import _BaseCommand as BaseCommand
 
-from evaluations.helper_settings import HelperSettings
+from evaluations.helper_evaluation import HelperEvaluation
 from hyperscribe.handlers.structures.instruction import Instruction
 
 
@@ -42,7 +42,7 @@ def test_parameters2command(parameters2command, allowed_levels, audio_interprete
         reviewed = expected[idx]["attributes"] | forced
 
         if automated != reviewed:
-            valid, differences = HelperSettings.json_nuanced_differences(
+            valid, differences = HelperEvaluation.json_nuanced_differences(
                 f"{parameters2command.stem}-parameters2command",
                 allowed_levels,
                 json.dumps(automated, indent=1),

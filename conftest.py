@@ -4,8 +4,9 @@ from subprocess import check_output
 
 import pytest
 
-from evaluations.datastores.store_results import StoreCases, StoreResults
-from evaluations.helper_settings import HelperSettings
+from evaluations.datastores.sqllite.store_cases import StoreCases
+from evaluations.datastores.store_results import StoreResults
+from evaluations.helper_evaluation import HelperEvaluation
 from evaluations.structures.evaluation_result import EvaluationResult
 from hyperscribe.handlers.audio_interpreter import AudioInterpreter
 from hyperscribe.handlers.limited_cache import LimitedCache
@@ -35,9 +36,9 @@ def pytest_runtest_makereport(item, call):
         plugin_commit = check_output(['git', 'rev-parse', '--short', 'HEAD']).decode('ascii').strip()
 
         StoreResults.insert(
-            item.config.unique_session_id,
-            plugin_commit,
             EvaluationResult(
+                run_uuid=item.config.unique_session_id,
+                commit_uuid=plugin_commit,
                 milliseconds=report.duration * 1000,
                 passed=report.passed,
                 test_file=test_file,
@@ -80,7 +81,7 @@ def pytest_addoption(parser):
 def pytest_configure(config):
     config.unique_session_id = str(uuid.uuid4())
 
-    settings = HelperSettings().settings()
+    settings = HelperEvaluation().settings()
     parameters = {
         "evaluation-difference-levels": config.getoption("--evaluation-difference-levels", default=""),
         "patient-uuid": get_patient_uuid(config),
@@ -118,12 +119,12 @@ def allowed_levels(request):
 
 @pytest.fixture
 def audio_interpreter(request):
-    settings = HelperSettings.settings()
+    settings = HelperEvaluation.settings()
     aws_s3 = AwsS3Credentials(aws_secret="", aws_key="", region="", bucket="")
     if request.config.getoption("--store-logs", default=False):
-        aws_s3 = HelperSettings.aws_s3_credentials()
+        aws_s3 = HelperEvaluation.aws_s3_credentials()
     patient_uuid = get_patient_uuid(request.config)
     cache = LimitedCache(patient_uuid, {})
-    note_uuid = HelperSettings.get_note_uuid(patient_uuid) if patient_uuid else "noteUuid"
-    provider_uuid = HelperSettings.get_provider_uuid(patient_uuid) if patient_uuid else "providerUuid"
+    note_uuid = HelperEvaluation.get_note_uuid(patient_uuid) if patient_uuid else "noteUuid"
+    provider_uuid = HelperEvaluation.get_provider_uuid(patient_uuid) if patient_uuid else "providerUuid"
     return AudioInterpreter(settings, aws_s3, cache, patient_uuid, note_uuid, provider_uuid)

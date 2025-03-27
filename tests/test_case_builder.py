@@ -8,7 +8,7 @@ from _pytest.capture import CaptureResult
 from canvas_sdk.v1.data import Patient, Note
 
 from case_builder import CaseBuilder
-from evaluations.helper_settings import HelperSettings
+from evaluations.helper_evaluation import HelperEvaluation
 from evaluations.structures.evaluation_case import EvaluationCase
 from hyperscribe.handlers.structures.line import Line
 
@@ -122,8 +122,8 @@ def test_reset(argument_parser):
 @patch("case_builder.AuditorFile")
 @patch("case_builder.Commander")
 @patch.object(Note, "objects")
-@patch.object(HelperSettings, "aws_s3_credentials")
-@patch.object(HelperSettings, "settings")
+@patch.object(HelperEvaluation, "aws_s3_credentials")
+@patch.object(HelperEvaluation, "settings")
 @patch.object(CaseBuilder, "parameters")
 @patch.object(CaseBuilder, "reset")
 def test_run(

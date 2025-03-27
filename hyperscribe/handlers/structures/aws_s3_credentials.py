@@ -14,8 +14,8 @@ class AwsS3Credentials(NamedTuple):
     @classmethod
     def from_dictionary(cls, dictionary: dict) -> AwsS3Credentials:
         return AwsS3Credentials(
-            aws_key=dictionary[Constants.SECRET_AWS_KEY],
-            aws_secret=dictionary[Constants.SECRET_AWS_SECRET],
-            region=dictionary[Constants.SECRET_AWS_REGION],
-            bucket=dictionary[Constants.SECRET_AWS_BUCKET],
+            aws_key=dictionary.get(Constants.SECRET_AWS_KEY, ""),
+            aws_secret=dictionary.get(Constants.SECRET_AWS_SECRET, ""),
+            region=dictionary.get(Constants.SECRET_AWS_REGION, ""),
+            bucket=dictionary.get(Constants.SECRET_AWS_BUCKET, ""),
         )

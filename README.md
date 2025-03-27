@@ -206,18 +206,47 @@ Like previously, on the step `transcript2instructions`:
 #### Storing the cases and the run results
 
 When creating a `case` by running the `case_builder.py` script, a record is inserted/updated in the `cases` table of 
-the [evaluation_cases.db](evaluations/evaluation_cases.db) local SQLLite database, part of the repository. 
+the [evaluation_cases.db](evaluations/evaluation_cases.db) local SQLLite database, part of the repository.
 
-This table stores the meta information related to the `case` - namely: the group, the type, the environment, the patient uuid - that 
+This table stores the meta information related to the `case` - namely: the group, the type, the environment, the patient uuid - that
 will be used when running the tests (patient uuid if not provided then), and storing the results.
 
-When a test is run, its result is saved in the `results` table of the `evaluation_results.db` local SQLLite database, 
-which is *not* part of the repository: it is located in the parent directory of the local repository 
-(soon the results will be stored in a shared Postgres database).   
+When a test is run, its result is saved in the `results` table of the `evaluation_results.db` local SQLLite database,
+which is *not* part of the repository: it is located in the parent directory of the local repository.
 
 Some statistics about the results can be displayed by running:
+
 ```shell
 uv run python case_statistics.py
+```
+
+To store the results in a PostGreSQL database, add to the environment the variables:
+
+```shell
+export EVALUATIONS_DB_NAME="..."
+export EVALUATIONS_DB_USERNAME="..."
+export EVALUATIONS_DB_PASSWORD="..."
+export EVALUATIONS_DB_HOST="..."
+export EVALUATIONS_DB_PORT=000
+```
+
+The table `results` should already exist in the database:
+
+```postgresql
+CREATE TABLE IF NOT EXISTS "results"
+(
+    "id"            SERIAL PRIMARY KEY,
+    "created"       TIMESTAMP NOT NULL,
+    "run_uuid"      TEXT      NOT NULL,
+    "plugin_commit" TEXT      NOT NULL,
+    "case_type"     TEXT      NOT NULL,
+    "case_group"    TEXT      NOT NULL,
+    "case_name"     TEXT      NOT NULL,
+    "test_name"     TEXT      NOT NULL,
+    "milliseconds"  REAL      NOT NULL,
+    "passed"        BOOLEAN   NOT NULL,
+    "errors"        TEXT      NOT NULL
+);
 ```
 
 ### Delete evaluation tests

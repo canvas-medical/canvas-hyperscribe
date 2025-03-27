@@ -4,13 +4,14 @@ from pathlib import Path
 
 from canvas_sdk.v1.data import Note
 
+from evaluations.structures.postgres_credentials import PostgresCredentials
 from hyperscribe.handlers.helper import Helper
 from hyperscribe.handlers.memory_log import MemoryLog
 from hyperscribe.handlers.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.handlers.structures.settings import Settings
 
 
-class HelperSettings:
+class HelperEvaluation:
     DIFFERENCE_LEVELS = ["minor", "moderate", "severe", "critical"]
 
     @classmethod
@@ -20,6 +21,10 @@ class HelperSettings:
     @classmethod
     def aws_s3_credentials(cls) -> AwsS3Credentials:
         return AwsS3Credentials.from_dictionary(dict(environ))
+
+    @classmethod
+    def postgres_credentials(cls) -> PostgresCredentials:
+        return PostgresCredentials.from_dictionary(dict(environ))
 
     @classmethod
     def get_note_uuid(cls, patient_uuid: str) -> str:

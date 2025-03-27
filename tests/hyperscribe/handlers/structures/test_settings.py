@@ -1,3 +1,5 @@
+import pytest
+
 from hyperscribe.handlers.structures.settings import Settings
 from hyperscribe.handlers.structures.vendor_key import VendorKey
 from tests.helper import is_namedtuple
@@ -48,3 +50,7 @@ def test_from_dictionary():
             structured_rfv=exp_rfv,
         )
         assert result == expected
+
+    # missing key
+    with pytest.raises(KeyError):
+        _ = tested.from_dictionary({})

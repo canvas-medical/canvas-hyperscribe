@@ -49,60 +49,46 @@ def test_class_name():
 
 def test_schema_key():
     tested = helper_instance()
-    with pytest.raises(Exception) as e:
+    with pytest.raises(NotImplementedError):
         _ = tested.schema_key()
-    expected = "NotImplementedError"
-    assert e.typename == expected
 
 
 def test_staged_command_extract():
     tested = helper_instance()
-    with pytest.raises(Exception) as e:
+    with pytest.raises(NotImplementedError):
         _ = tested.staged_command_extract({})
-    expected = "NotImplementedError"
-    assert e.typename == expected
 
 
 def test_command_from_json():
     chatter = MagicMock()
     tested = helper_instance()
-    with pytest.raises(Exception) as e:
+    with pytest.raises(NotImplementedError):
         _ = tested.command_from_json(chatter, {})
-    expected = "NotImplementedError"
-    assert e.typename == expected
     assert chatter.mock_calls == []
 
 
 def test_command_parameters():
     tested = helper_instance()
-    with pytest.raises(Exception) as e:
+    with pytest.raises(NotImplementedError):
         _ = tested.command_parameters()
-    expected = "NotImplementedError"
-    assert e.typename == expected
 
 
 def test_instruction_description():
     tested = helper_instance()
-    with pytest.raises(Exception) as e:
+    with pytest.raises(NotImplementedError):
         _ = tested.instruction_description()
-    expected = "NotImplementedError"
-    assert e.typename == expected
 
 
 def test_instruction_constraints():
     tested = helper_instance()
-    with pytest.raises(Exception) as e:
+    with pytest.raises(NotImplementedError):
         _ = tested.instruction_constraints()
-    expected = "NotImplementedError"
-    assert e.typename == expected
 
 
 def test_is_available():
     tested = helper_instance()
-    with pytest.raises(Exception) as e:
+    with pytest.raises(NotImplementedError):
         _ = tested.is_available()
-    expected = "NotImplementedError"
-    assert e.typename == expected
 
 
 @patch.object(PracticeLocation, 'settings')

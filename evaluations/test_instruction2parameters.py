@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from evaluations.helper_settings import HelperSettings
+from evaluations.helper_evaluation import HelperEvaluation
 from hyperscribe.handlers.structures.instruction import Instruction
 
 
@@ -24,7 +24,7 @@ def test_instruction2parameters(instruction2parameters, allowed_levels, audio_in
     for idx, instruction in enumerate(instructions):
         _, response = audio_interpreter.create_sdk_command_parameters(instruction)
         if (automated := response) != (reviewed := expected[idx]):
-            valid, differences = HelperSettings.json_nuanced_differences(
+            valid, differences = HelperEvaluation.json_nuanced_differences(
                 f"{instruction2parameters.stem}-instruction2parameters",
                 allowed_levels,
                 json.dumps(automated, indent=1),
