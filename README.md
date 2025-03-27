@@ -65,6 +65,20 @@ The `secrets` are stored in the Canvas instance database and can be upsert in `h
 
 The logs, mainly the communication with the LLMs, are stored in a `AWS S3 bucket` if credentials are provided as listed above.
 
+### Temporary set up
+
+The _Perform_ command needs `CPT` codes provide through the model [`ChargeDescriptionMaster`](hyperscribe/handlers/temporary_data.py).
+
+The underlying view is not exposed to the SDK yet, and it can be created with the following SQL script run on the CANVAS instance:
+
+```postgresql
+CREATE OR REPLACE VIEW canvas_sdk_data_charge_description_master_001 AS
+SELECT id, cpt_code, name, short_name
+FROM quality_and_revenue_chargedescriptionmaster;
+
+GRANT SELECT ON canvas_sdk_data_charge_description_master_001 TO canvas_sdk_read_only;
+```
+
 ## Unit tests
 
 The `hyperscribe` code is tested with `pytest`.
@@ -99,13 +113,14 @@ The evaluation tests are run as `pytest` tests.
 
 The basic idea is that all figures or dates should be exactly the same from one run to another one.
 It is possible to ignore the value of a key when comparing the expected output and the actual output by setting it to `>?<` (
-see [here](evaluations/helper_settings.py) the method `json_nuanced_differences`).
+see [here](evaluations/helper_evaluation.py) the method `json_nuanced_differences`).
 
 The following parameters can be used to configure the evaluation test:
 
 - `--evaluation-difference-levels` – Specifies the expected level of accuracy for any text value (`minor`, `moderate`, `severe`, `critical` as
-  defined [here](evaluations/helper_settings.py) as `DIFFERENCE_LEVELS`).
-- `--patient-uuid` – Identifies the patient to run the evaluation test against, it is __mandatory__ for most tests (see the `case_builder` for more information).
+  defined [here](evaluations/helper_evaluation.py) as `DIFFERENCE_LEVELS`).
+- `--patient-uuid` – Identifies the patient to run the evaluation test against, it is __mandatory__ for most tests (see the `case_builder` for more
+  information).
 - `--print-logs` – Print the logs on the standard output at the end of the tests.
 - `--store-logs` – Store the logs in the configured AWS S3 bucket.
 
@@ -205,7 +220,7 @@ Like previously, on the step `transcript2instructions`:
 
 #### Storing the cases and the run results
 
-When creating a `case` by running the `case_builder.py` script, a record is inserted/updated in the `cases` table of 
+When creating a `case` by running the `case_builder.py` script, a record is inserted/updated in the `cases` table of
 the [evaluation_cases.db](evaluations/evaluation_cases.db) local SQLLite database, part of the repository.
 
 This table stores the meta information related to the `case` - namely: the group, the type, the environment, the patient uuid - that
