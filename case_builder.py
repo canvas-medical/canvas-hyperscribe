@@ -62,13 +62,19 @@ class CaseBuilder:
         # deletion of the evaluation files
         parameters = cls.reset()
         if parameters and parameters.delete:
-            AuditorFile(parameters.case)
+            AuditorFile(parameters.case).reset()
             StoreCases.delete(parameters.case)
             print(f"Evaluation Case '{parameters.case}' deleted (files and record)")
             return
 
-        # creation of the evaluations files
         parameters = cls.parameters()
+        # auditor
+        recorder = AuditorFile(parameters.case)
+        if not recorder.is_ready():
+            print(f"Case '{parameters.case}': some files exist already")
+            return
+
+        # creation of the evaluations files
         StoreCases.upsert(EvaluationCase(
             environment=environ.get(Constants.CANVAS_SDK_DB_HOST),
             patient_uuid=parameters.patient,
@@ -86,8 +92,6 @@ class CaseBuilder:
         if parameters.transcript:
             print(f"JSON file: {parameters.transcript}")
 
-        # auditor
-        recorder = AuditorFile(parameters.case)
         # chatter
         note = Note.objects.filter(patient__id=parameters.patient).order_by("-dbid").first()  # the last note
         note_uuid = str(note.id)

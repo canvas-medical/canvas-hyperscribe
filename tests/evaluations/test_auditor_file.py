@@ -15,55 +15,115 @@ def test_auditor_file():
     assert issubclass(tested, Auditor)
 
 
-@patch.object(AuditorFile, "reset")
-def test___init__(reset):
-    def reset_mocks():
-        reset.reset_mock()
-
+def test___init__():
     tested = AuditorFile("theCase")
     assert tested.case == "theCase"
-    calls = [call()]
-    assert reset.mock_calls == calls
-    reset_mocks()
 
 
-@patch("evaluations.auditor_file.Path")
-def test_reset(path):
+@patch("evaluations.auditor_file.Path.__truediv__")
+def test__case_files(concat):
+    mock_files = [MagicMock(), MagicMock(), MagicMock(), MagicMock(), MagicMock()]
+
     def reset_mocks():
-        path.reset_mock()
+        concat.reset_mock()
+        for mock_file in mock_files:
+            mock_file.reset_mock()
 
-    directory = Path(__file__).parent.as_posix().replace("/tests", "")
-    path.return_value.parent.__truediv__.return_value.glob.side_effect = [["file1", "file2"]]
+    concat.side_effect = mock_files
 
-    _ = AuditorFile("theCase")
-    calls = [
-        call(f'{directory}/auditor_file.py'),
-        call().parent.__truediv__('audio2transcript/inputs_mp3'),
-        call().parent.__truediv__().glob('theCase*.mp3'),
-        call('file1'),
-        call().unlink(True),
-        call('file2'),
-        call().unlink(True),
-        call(f'{directory}/auditor_file.py'),
-        call().parent.__truediv__('audio2transcript/expected_json/theCase.json'),
-        call().parent.__truediv__().unlink(True),
-        call(f'{directory}/auditor_file.py'),
-        call().parent.__truediv__('transcript2instructions/theCase.json'),
-        call().parent.__truediv__().unlink(True),
-        call(f'{directory}/auditor_file.py'),
-        call().parent.__truediv__('instruction2parameters/theCase.json'),
-        call().parent.__truediv__().unlink(True),
-        call(f'{directory}/auditor_file.py'),
-        call().parent.__truediv__('parameters2command/theCase.json'),
-        call().parent.__truediv__().unlink(True),
+    mock_files[0].glob.side_effect = [["file1", "file2"]]
+    mock_files[1].is_file.side_effect = [True]
+    mock_files[2].is_file.side_effect = [False]
+    mock_files[3].is_file.side_effect = [True]
+    mock_files[4].is_file.side_effect = [True]
+
+    tested = AuditorFile("theCase")
+    result = [p for p in tested._case_files()]
+    expected = [
+        Path("file1"),
+        Path("file2"),
+        mock_files[1],
+        mock_files[3],
+        mock_files[4],
     ]
-    assert path.mock_calls == calls
+    assert result == expected
+
+    calls = [
+        call('audio2transcript/inputs_mp3'),
+        call('audio2transcript/expected_json/theCase.json'),
+        call('transcript2instructions/theCase.json'),
+        call('instruction2parameters/theCase.json'),
+        call('parameters2command/theCase.json'),
+    ]
+    assert concat.mock_calls == calls
+    calls = [call.glob('theCase*.mp3')]
+    assert mock_files[0].mock_calls == calls
+    calls = [
+        call.__bool__(),
+        call.is_file(),
+    ]
+    assert mock_files[1].mock_calls == calls
+    assert mock_files[2].mock_calls == calls
+    assert mock_files[3].mock_calls == calls
+    assert mock_files[4].mock_calls == calls
+    reset_mocks()
+
+
+@patch.object(AuditorFile, '_case_files')
+def test_is_ready(case_files):
+    def reset_mocks():
+        case_files.reset_mock()
+
+    tested = AuditorFile("theCase")
+    # there is no file
+    case_files.side_effect = [[]]
+    result = tested.is_ready()
+    assert result is True
+    calls = [call()]
+    assert case_files.mock_calls == calls
+    reset_mocks()
+    # there is one file
+    case_files.side_effect = [["file"]]
+    result = tested.is_ready()
+    assert result is False
+    calls = [call()]
+    assert case_files.mock_calls == calls
+    reset_mocks()
+
+
+@patch.object(AuditorFile, '_case_files')
+def test_reset(case_files):
+    mock_files = [MagicMock(), MagicMock()]
+
+    def reset_mocks():
+        case_files.reset_mock()
+        for mock_file in mock_files:
+            mock_file.reset_mock()
+
+    tested = AuditorFile("theCase")
+
+    # there is no file
+    case_files.side_effect = [[]]
+    tested.reset()
+    calls = [call()]
+    assert case_files.mock_calls == calls
+    for mock_file in mock_files:
+        assert mock_file.mock_calls == []
+    reset_mocks()
+
+    # there is one file
+    case_files.side_effect = [mock_files]
+    tested.reset()
+    calls = [call()]
+    assert case_files.mock_calls == calls
+    calls = [call.unlink(True)]
+    for mock_file in mock_files:
+        assert mock_file.mock_calls == calls
     reset_mocks()
 
 
 @patch("evaluations.auditor_file.Path")
-@patch.object(AuditorFile, "reset")
-def test_identified_transcript(reset, path):
+def test_identified_transcript(path):
     written_text = []
     written_bytes = []
 
@@ -75,7 +135,6 @@ def test_identified_transcript(reset, path):
 
     def reset_mocks():
         path.reset_mock()
-        reset.reset_mock()
 
     directory = Path(__file__).parent.as_posix().replace("/tests", "")
 
@@ -107,8 +166,6 @@ def test_identified_transcript(reset, path):
         assert json.loads("".join(written_text)) == expected
         assert written_bytes == [b'audio1', b'audio2']
 
-        calls = [call()]
-        assert reset.mock_calls == calls
         calls = [
             call(f'{directory}/auditor_file.py'),
             call().parent.__truediv__('audio2transcript/inputs_mp3/theCase.mp3'),
@@ -132,8 +189,7 @@ def test_identified_transcript(reset, path):
 
 
 @patch("evaluations.auditor_file.Path")
-@patch.object(AuditorFile, "reset")
-def test_found_instructions(reset, path):
+def test_found_instructions(path):
     written_text = []
 
     def write(line: str):
@@ -141,7 +197,6 @@ def test_found_instructions(reset, path):
 
     def reset_mocks():
         path.reset_mock()
-        reset.reset_mock()
 
     directory = Path(__file__).parent.as_posix().replace("/tests", "")
 
@@ -194,8 +249,6 @@ def test_found_instructions(reset, path):
         }
         assert json.loads("".join(written_text)) == expected
 
-        calls = [call()]
-        assert reset.mock_calls == calls
         calls = [
             call(f'{directory}/auditor_file.py'),
             call().parent.__truediv__('transcript2instructions/theCase.json'),
@@ -209,14 +262,12 @@ def test_found_instructions(reset, path):
 
 
 @patch("evaluations.auditor_file.Path")
-@patch.object(AuditorFile, "reset")
-def test_computed_parameters(reset, path):
+def test_computed_parameters(path):
     def write(line: str):
         written_text.append(line)
 
     def reset_mocks():
         path.reset_mock()
-        reset.reset_mock()
 
     directory = Path(__file__).parent.as_posix().replace("/tests", "")
 
@@ -274,8 +325,6 @@ def test_computed_parameters(reset, path):
         }
         assert json.loads("".join(written_text)) == expected
 
-        calls = [call()]
-        assert reset.mock_calls == calls
         calls = [
             call(f'{directory}/auditor_file.py'),
             call().parent.__truediv__('instruction2parameters/theCase.json'),
@@ -345,8 +394,6 @@ def test_computed_parameters(reset, path):
         }
         assert json.loads("".join(written_text)) == expected
 
-        calls = [call()]
-        assert reset.mock_calls == calls
         calls = [
             call(f'{directory}/auditor_file.py'),
             call().parent.__truediv__('instruction2parameters/theCase.json'),
@@ -365,8 +412,7 @@ def test_computed_parameters(reset, path):
 
 
 @patch("evaluations.auditor_file.Path")
-@patch.object(AuditorFile, "reset")
-def test_computed_commands(reset, path):
+def test_computed_commands(path):
     def write(line: str):
         written_text.append(line)
 
@@ -376,7 +422,6 @@ def test_computed_commands(reset, path):
         for cmd in commands:
             cmd.reset_mock()
         path.reset_mock()
-        reset.reset_mock()
 
     directory = Path(__file__).parent.as_posix().replace("/tests", "")
 
@@ -443,8 +488,6 @@ def test_computed_commands(reset, path):
         }
         assert json.loads("".join(written_text)) == expected
 
-        calls = [call()]
-        assert reset.mock_calls == calls
         calls = [
             call(f'{directory}/auditor_file.py'),
             call().parent.__truediv__('parameters2command/theCase.json'),
@@ -524,8 +567,6 @@ def test_computed_commands(reset, path):
         }
         assert json.loads("".join(written_text)) == expected
 
-        calls = [call()]
-        assert reset.mock_calls == calls
         calls = [
             call(f'{directory}/auditor_file.py'),
             call().parent.__truediv__('parameters2command/theCase.json'),

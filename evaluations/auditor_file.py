@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+from typing import Generator
 
 from canvas_sdk.commands.base import _BaseCommand as BaseCommand
 
@@ -12,12 +13,11 @@ class AuditorFile(Auditor):
     def __init__(self, case: str):
         super().__init__()
         self.case = case
-        self.reset()
 
-    def reset(self):
+    def _case_files(self) -> Generator[Path, None, None]:
         mp3_dir = Path(__file__).parent / 'audio2transcript/inputs_mp3'
         for file in mp3_dir.glob(f"{self.case}*.mp3"):
-            Path(file).unlink(True)
+            yield Path(file)
 
         files = [
             f"audio2transcript/expected_json/{self.case}.json",
@@ -26,7 +26,17 @@ class AuditorFile(Auditor):
             f"parameters2command/{self.case}.json",
         ]
         for file_path in files:
-            (Path(__file__).parent / file_path).unlink(True)
+            if (file := Path(__file__).parent / file_path) and file.is_file():
+                yield file
+
+    def is_ready(self) -> bool:
+        for _ in self._case_files():
+            return False
+        return True
+
+    def reset(self) -> None:
+        for case_file in self._case_files():
+            case_file.unlink(True)
 
     def identified_transcript(self, audios: list[bytes], transcript: list[Line]) -> bool:
         for idx, audio in enumerate(audios):
