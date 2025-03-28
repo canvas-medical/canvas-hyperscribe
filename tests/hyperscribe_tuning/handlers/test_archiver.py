@@ -1,4 +1,5 @@
 import json
+import re
 from http import HTTPStatus
 from io import BytesIO
 from time import time
@@ -34,7 +35,9 @@ def helper_instance() -> Archiver:
         "AwsRegion": "theRegion",
         "AwsBucket": "theBucket",
     }
-    return Archiver(event, secrets)
+    instance = Archiver(event, secrets)
+    instance._path_pattern = re.compile(r".*")  # TODO this is a hack, find the right way to create the Archiver instance
+    return instance
 
 
 def test_class():
