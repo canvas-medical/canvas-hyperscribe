@@ -1,0 +1,39 @@
+{
+  "transcript": [
+    {
+      "speaker": "Clinician",
+      "text": "Well, I can see why your ear is hurting. It's very red around the eardrum. You definitely have an ear infection."
+    },
+    {
+      "speaker": "Parent",
+      "text": "Ugh, I thought so."
+    },
+    {
+      "speaker": "Clinician",
+      "text": "I'll go ahead and prescribe an antibiotic to help Rio feel better. Sending to the pharmacy right now."
+    },
+    {
+      "speaker": "Parent",
+      "text": "Ok great, thank you."
+    }
+  ],
+  "instructions": {
+    "initial": [],
+    "result": [
+      {
+        "uuid": "",
+        "instruction": "Diagnose",
+        "information": "Ear infection, identified by redness around the eardrum.",
+        "isNew": true,
+        "isUpdated": false
+      },
+      {
+        "uuid": "",
+        "instruction": "Prescription",
+        "information": "Antibiotic prescribed to help Rio feel better, sent to the pharmacy.",
+        "isNew": true,
+        "isUpdated": false
+      }
+    ]
+  }
+}

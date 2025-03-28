@@ -1,0 +1,66 @@
+{
+  "instructions": [
+    {
+      "uuid": "1",
+      "instruction": "Diagnose",
+      "information": "Ear infection, identified by redness around the eardrum.",
+      "isNew": false,
+      "isUpdated": false
+    },
+    {
+      "uuid": "2",
+      "instruction": "Prescription",
+      "information": "Antibiotic prescribed to help Rio feel better, sent to the pharmacy.",
+      "isNew": false,
+      "isUpdated": false
+    }
+  ],
+  "parameters": [
+    {
+      "keywords": "ear infection, otitis media, middle ear infection, tympanitis, ear inflammation",
+      "ICD10": "H66.9, H66.90, H66.91, H66.92, H66.93",
+      "rationale": "The diagnosis of an ear infection is supported by the observation of redness around the eardrum, which is a common sign of inflammation or infection in the ear.",
+      "onsetDate": "2025-03-28",
+      "assessment": "The patient presents with an ear infection, as indicated by redness around the eardrum. Further evaluation and treatment are necessary to address the condition."
+    },
+    {
+      "keywords": "antibiotic",
+      "sig": "Take as directed by the healthcare provider.",
+      "suppliedDays": "7",
+      "substitution": "allowed",
+      "comment": "Prescribed to help Rio feel better."
+    }
+  ],
+  "commands": [
+    {
+      "module": "canvas_sdk.commands.commands.diagnose",
+      "class": "DiagnoseCommand",
+      "attributes": {
+        "background": "The diagnosis of an ear infection is supported by the observation of redness around the eardrum, which is a common sign of inflammation or infection in the ear.",
+        "today_assessment": "The patient presents with an ear infection, as indicated by redness around the eardrum. Further evaluation and treatment are necessary to address the condition.",
+        "icd10_code": "H6690",
+        "approximate_date_of_onset": "2025-03-28",
+        "note_uuid": "225ae84f-5c17-4a8a-bf58-b94a8f507f8c"
+      }
+    },
+    {
+      "module": "canvas_sdk.commands.commands.prescribe",
+      "class": "PrescribeCommand",
+      "attributes": {
+        "type_to_dispense": {
+          "representative_ndc": "00081079888",
+          "ncpdp_quantity_qualifier_code": "C48155"
+        },
+        "prescriber_id": "4150cd20de8a470aa570a852859ac87e",
+        "fdb_code": "601546",
+        "substitutions": "allowed",
+        "days_supply": 7,
+        "note_to_pharmacist": "Dispense the full 14.2 grams for a 7-day supply. No refills are necessary.",
+        "note_uuid": "225ae84f-5c17-4a8a-bf58-b94a8f507f8c",
+        "sig": "Apply a small amount of the ointment to the affected area 1-3 times daily as needed. Use for 7 days. Apply to skin only.",
+        "quantity_to_dispense": "14.20",
+        "refills": 0
+      }
+    }
+  ]
+}

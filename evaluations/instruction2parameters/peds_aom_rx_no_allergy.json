@@ -1,0 +1,34 @@
+{
+  "instructions": [
+    {
+      "uuid": "1",
+      "instruction": "Diagnose",
+      "information": "Ear infection",
+      "isNew": false,
+      "isUpdated": false
+    },
+    {
+      "uuid": "2",
+      "instruction": "Prescription",
+      "information": "Antibiotic prescribed for ear infection, sent to the pharmacy.",
+      "isNew": false,
+      "isUpdated": false
+    }
+  ],
+  "parameters": [
+    {
+      "keywords": "ear infection, otitis, ear inflammation, middle ear infection, earache",
+      "ICD10": "H66.9, H65.9, H60.9, H62.9, H61.9",
+      "rationale": "The diagnosis of an ear infection is typically based on symptoms such as ear pain, fever, and hearing difficulties, along with a physical examination of the ear.",
+      "onsetDate": "2025-03-28",
+      "assessment": "The patient presents with symptoms consistent with an ear infection, including ear pain and possible hearing difficulties. Further examination and possibly an otoscopic evaluation are needed to confirm the diagnosis and determine the appropriate treatment."
+    },
+    {
+      "keywords": "antibiotic, ear infection treatment, ear infection medication",
+      "sig": "Take as directed by the healthcare provider.",
+      "suppliedDays": 10,
+      "substitution": "allowed",
+      "comment": "Prescribed to treat ear infection."
+    }
+  ]
+}

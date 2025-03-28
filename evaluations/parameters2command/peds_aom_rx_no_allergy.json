@@ -1,0 +1,66 @@
+{
+  "instructions": [
+    {
+      "uuid": "1",
+      "instruction": "Diagnose",
+      "information": "Ear infection",
+      "isNew": false,
+      "isUpdated": false
+    },
+    {
+      "uuid": "2",
+      "instruction": "Prescription",
+      "information": "Antibiotic prescribed for ear infection, sent to the pharmacy.",
+      "isNew": false,
+      "isUpdated": false
+    }
+  ],
+  "parameters": [
+    {
+      "keywords": "ear infection, otitis, ear inflammation, middle ear infection, earache",
+      "ICD10": "H66.9, H65.9, H60.9, H62.9, H61.9",
+      "rationale": "The diagnosis of an ear infection is typically based on symptoms such as ear pain, fever, and hearing difficulties, along with a physical examination of the ear.",
+      "onsetDate": "2025-03-28",
+      "assessment": "The patient presents with symptoms consistent with an ear infection, including ear pain and possible hearing difficulties. Further examination and possibly an otoscopic evaluation are needed to confirm the diagnosis and determine the appropriate treatment."
+    },
+    {
+      "keywords": "antibiotic, ear infection treatment, ear infection medication",
+      "sig": "Take as directed by the healthcare provider.",
+      "suppliedDays": 10,
+      "substitution": "allowed",
+      "comment": "Prescribed to treat ear infection."
+    }
+  ],
+  "commands": [
+    {
+      "module": "canvas_sdk.commands.commands.diagnose",
+      "class": "DiagnoseCommand",
+      "attributes": {
+        "icd10_code": "H6690",
+        "today_assessment": "The patient presents with symptoms consistent with an ear infection, including ear pain and possible hearing difficulties. Further examination and possibly an otoscopic evaluation are needed to confirm the diagnosis and determine the appropriate treatment.",
+        "background": "The diagnosis of an ear infection is typically based on symptoms such as ear pain, fever, and hearing difficulties, along with a physical examination of the ear.",
+        "note_uuid": "1ffdbb0a-efce-41ca-9add-dfe5cbfc09a3",
+        "approximate_date_of_onset": "2025-03-28"
+      }
+    },
+    {
+      "module": "canvas_sdk.commands.commands.prescribe",
+      "class": "PrescribeCommand",
+      "attributes": {
+        "quantity_to_dispense": "14.00",
+        "fdb_code": "202663",
+        "note_to_pharmacist": "Ensure the patient understands this is for topical use only.",
+        "type_to_dispense": {
+          "representative_ndc": "14428000888",
+          "ncpdp_quantity_qualifier_code": "C48155"
+        },
+        "note_uuid": "1ffdbb0a-efce-41ca-9add-dfe5cbfc09a3",
+        "refills": 0,
+        "sig": "Apply a small amount of ointment to the affected area twice daily for 10 days. Do not ingest or apply inside the ear canal.",
+        "substitutions": "allowed",
+        "days_supply": 10,
+        "prescriber_id": "4150cd20de8a470aa570a852859ac87e"
+      }
+    }
+  ]
+}

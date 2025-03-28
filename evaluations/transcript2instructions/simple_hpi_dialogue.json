@@ -1,0 +1,83 @@
+{
+  "transcript": [
+    {
+      "speaker": "Patient",
+      "text": "Uh hi doc, hi. Yeah. So yeah. I'm worried about some stuff with my hands."
+    },
+    {
+      "speaker": "Clinician",
+      "text": "Say more about your hands."
+    },
+    {
+      "speaker": "Patient",
+      "text": "Well they're numb all the time. Well not all the time. A lot of the time. Mostly on the left hand but some on the right."
+    },
+    {
+      "speaker": "Clinician",
+      "text": "I'm sorry to hear that. Is it just numbness or also pain?"
+    },
+    {
+      "speaker": "Patient",
+      "text": "Yeah some pain too."
+    },
+    {
+      "speaker": "Clinician",
+      "text": "How long ago did this start?"
+    },
+    {
+      "speaker": "Patient",
+      "text": "Probably a year or so, I don't know, a long time. I've ignored it mostly. But I dropped a boiling pot of pasta the other day and it freaked me out so I figured I should get help."
+    },
+    {
+      "speaker": "Clinician",
+      "text": "Definitely a good idea to check in with us, I'm glad you came in. Have you noticed any other changes recently? Change in weight? Other numbness or tingling in other parts of your body? Anything out of the ordinary?"
+    },
+    {
+      "speaker": "Patient",
+      "text": "No, this is really it. Just my damn hands."
+    },
+    {
+      "speaker": "Clinician",
+      "text": "Have you started or stopped any physical activity or other postural activity, like sitting more at the computer, spending time on your phone, etc?"
+    },
+    {
+      "speaker": "Patient",
+      "text": "I've been using my phone a bunch more, yeah. I'm doing well in online poker. I play it a lot now."
+    },
+    {
+      "speaker": "Clinician",
+      "text": "I see. And you play on your phone?"
+    },
+    {
+      "speaker": "Patient",
+      "text": "Yeah."
+    },
+    {
+      "speaker": "Clinician",
+      "text": "Can you show me how you hold it?"
+    },
+    {
+      "speaker": "Patient",
+      "text": "Uh well I lay down a lot and just hold it over my chest."
+    }
+  ],
+  "instructions": {
+    "initial": [],
+    "result": [
+      {
+        "uuid": "",
+        "instruction": "ReasonForVisit",
+        "information": "Worried about numbness and pain in hands.",
+        "isNew": true,
+        "isUpdated": false
+      },
+      {
+        "uuid": "",
+        "instruction": "HistoryOfPresentIllness",
+        "information": "Numbness and some pain in hands, mostly on the left hand but some on the right. Started probably a year ago. Dropped a boiling pot of pasta recently due to numbness. Increased phone usage, playing online poker a lot, holding phone over chest while lying down.",
+        "isNew": true,
+        "isUpdated": false
+      }
+    ]
+  }
+}

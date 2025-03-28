@@ -1,0 +1,34 @@
+{
+  "instructions": [
+    {
+      "uuid": "1",
+      "instruction": "Diagnose",
+      "information": "Ear infection, identified by redness around the eardrum.",
+      "isNew": false,
+      "isUpdated": false
+    },
+    {
+      "uuid": "2",
+      "instruction": "Prescription",
+      "information": "Antibiotic prescribed to help Rio feel better, sent to the pharmacy.",
+      "isNew": false,
+      "isUpdated": false
+    }
+  ],
+  "parameters": [
+    {
+      "keywords": "ear infection, otitis media, middle ear infection, tympanitis, ear inflammation",
+      "ICD10": "H66.9, H66.90, H66.91, H66.92, H66.93",
+      "rationale": "The diagnosis of an ear infection is supported by the observation of redness around the eardrum, which is a common sign of inflammation or infection in the ear.",
+      "onsetDate": "2025-03-28",
+      "assessment": "The patient presents with an ear infection, as indicated by redness around the eardrum. Further evaluation and treatment are necessary to address the condition."
+    },
+    {
+      "keywords": "antibiotic",
+      "sig": "Take as directed by the healthcare provider.",
+      "suppliedDays": "7",
+      "substitution": "allowed",
+      "comment": "Prescribed to help Rio feel better."
+    }
+  ]
+}

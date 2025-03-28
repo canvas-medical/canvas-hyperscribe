@@ -1,0 +1,26 @@
+{
+  "instructions": [
+    {
+      "uuid": "1",
+      "instruction": "ReasonForVisit",
+      "information": "Worried about numbness and pain in hands.",
+      "isNew": false,
+      "isUpdated": false
+    },
+    {
+      "uuid": "2",
+      "instruction": "HistoryOfPresentIllness",
+      "information": "Numbness and some pain in hands, mostly on the left hand but some on the right. Started probably a year ago. Dropped a boiling pot of pasta recently due to numbness. Increased phone usage, playing online poker a lot, holding phone over chest while lying down.",
+      "isNew": false,
+      "isUpdated": false
+    }
+  ],
+  "parameters": [
+    {
+      "reasonForVisit": "numbness and pain in hands"
+    },
+    {
+      "narrative": "The patient experiences numbness and some pain in the hands, mostly on the left hand but also on the right. Symptoms started approximately a year ago. The patient recently dropped a boiling pot of pasta due to numbness. There is increased phone usage, including playing online poker frequently and holding the phone over the chest while lying down."
+    }
+  ]
+}
