@@ -1,6 +1,5 @@
 from datetime import datetime, timezone
 from pathlib import Path
-from tempfile import NamedTemporaryFile
 from unittest.mock import patch, call
 
 from evaluations.datastores.sqllite.store_cases import StoreCases
@@ -38,15 +37,6 @@ def test__insert_sql():
     result = tested._insert_sql()
     expected = ("INSERT INTO `cases` (`created`,`updated`,`environment`,`patient_uuid`,`case_type`,`case_group`,`case_name`,`description`) "
                 "VALUES (:now, :now, :environment, :patient, :type, :group, :name, :description)")
-    assert result == expected
-
-
-def test__select_sql():
-    tested = StoreCases
-    result = tested._select_sql()
-    expected = ("SELECT `environment`,`patient_uuid`,`case_type`,`case_group`,`case_name`,`description` "
-                "FROM `cases` "
-                "WHERE `case_name`=:name")
     assert result == expected
 
 
@@ -110,52 +100,131 @@ def test_delete(delete):
     reset_mocks()
 
 
-@patch.object(StoreCases, "_db_path")
-def test_get(db_path):
+@patch.object(StoreCases, "_select")
+def test_get(select):
     def reset_mocks():
-        db_path.reset_mock()
+        select.reset_mock()
 
-    cases = [
+    calls = [
+        call("SELECT `environment`,`patient_uuid`,`case_type`,`case_group`,`case_name`,`description` "
+             "FROM `cases` "
+             "WHERE `case_name`=:name",
+             {'name': 'theCaseName'})
+    ]
+
+    tested = StoreCases
+    # no record matching the case name
+    select.side_effect = [[]]
+    result = tested.get("theCaseName")
+    expected = EvaluationCase(
+        environment="",
+        patient_uuid="",
+        case_type="general",
+        case_group="common",
+        case_name="theCaseName",
+        description="",
+    )
+    assert result == expected
+    assert select.mock_calls == calls
+    reset_mocks()
+
+    # record matching the case name
+    select.side_effect = [[{
+        "environment": "theEnvironment",
+        "patient_uuid": "thePatientUuid",
+        "case_type": "theType",
+        "case_group": "theGroup",
+        "case_name": "theCaseName",
+        "description": "theDescription",
+    }]]
+    result = tested.get("theCaseName")
+    expected = EvaluationCase(
+        environment="theEnvironment",
+        patient_uuid="thePatientUuid",
+        case_type="theType",
+        case_group="theGroup",
+        case_name="theCaseName",
+        description="theDescription",
+    )
+    assert result == expected
+    assert select.mock_calls == calls
+    reset_mocks()
+
+
+@patch.object(StoreCases, "_select")
+def test_all(select):
+    def reset_mocks():
+        select.reset_mock()
+
+    calls = [
+        call("SELECT `environment`,`patient_uuid`,`case_type`,`case_group`,`case_name`,`description` "
+             "FROM `cases` "
+             "ORDER BY 3",
+             {})
+    ]
+
+    tested = StoreCases
+    # no record matching the case name
+    select.side_effect = [[]]
+    result = tested.all()
+    assert result == []
+    assert select.mock_calls == calls
+    reset_mocks()
+
+    # record matching the case name
+    select.side_effect = [[
+        {
+            "environment": "theEnvironment1",
+            "patient_uuid": "thePatientUuid1",
+            "case_type": "theType1",
+            "case_group": "theGroup1",
+            "case_name": "theCaseName1",
+            "description": "theDescription1",
+        },
+        {
+            "environment": "theEnvironment2",
+            "patient_uuid": "thePatientUuid2",
+            "case_type": "theType2",
+            "case_group": "theGroup2",
+            "case_name": "theCaseName2",
+            "description": "theDescription2",
+        },
+        {
+            "environment": "theEnvironment3",
+            "patient_uuid": "thePatientUuid3",
+            "case_type": "theType3",
+            "case_group": "theGroup3",
+            "case_name": "theCaseName3",
+            "description": "theDescription3",
+        },
+    ]]
+    result = tested.all()
+    expected = [
         EvaluationCase(
-            environment="theEnvironment",
-            patient_uuid="thePatientUuid",
-            case_type="theType",
-            case_group="theGroup",
-            case_name="theCaseName",
-            description="theDescription",
+            environment="theEnvironment1",
+            patient_uuid="thePatientUuid1",
+            case_type="theType1",
+            case_group="theGroup1",
+            case_name="theCaseName1",
+            description="theDescription1",
         ),
         EvaluationCase(
-            environment="",
-            patient_uuid="",
-            case_type="general",
-            case_group="common",
-            case_name="theCaseName",
-            description="",
+            environment="theEnvironment2",
+            patient_uuid="thePatientUuid2",
+            case_type="theType2",
+            case_group="theGroup2",
+            case_name="theCaseName2",
+            description="theDescription2",
+        ),
+        EvaluationCase(
+            environment="theEnvironment3",
+            patient_uuid="thePatientUuid3",
+            case_type="theType3",
+            case_group="theGroup3",
+            case_name="theCaseName3",
+            description="theDescription3",
         ),
     ]
-    tested = StoreCases
-    with NamedTemporaryFile(delete=True) as temp_file:
-        db_path.return_value = Path(temp_file.name)
-
-        # record does not exist yet
-        case_db = tested.get("theCaseName")
-        assert case_db == cases[1]
-        reset_mocks()
-        # create record
-        tested.upsert(cases[0])
-        reset_mocks()
-        # retrieve the record
-        case_db = tested.get("theCaseName")
-        assert case_db == cases[0]
-        calls = [call()]
-        assert db_path.mock_calls == calls
-        reset_mocks()
-        # delete record
-        tested.delete("theCaseName")
-        reset_mocks()
-        # retrieve the record
-        case_db = tested.get("theCaseName")
-        assert case_db == cases[1]
-        calls = [call()]
-        assert db_path.mock_calls == calls
-        reset_mocks()
+    assert result == expected
+    assert select.mock_calls == calls
+    reset_mocks()

@@ -12,7 +12,7 @@ class CaseStatistics:
             "-> instructions",
             "-> parameters",
             "-> command",
-            "end to end"
+            "end to end",
         ]
         records = StoreResults.case_test_statistics()
         widths = [len(h) for h in headers]

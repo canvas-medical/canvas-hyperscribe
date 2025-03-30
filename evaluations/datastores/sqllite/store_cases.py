@@ -34,12 +34,6 @@ class StoreCases(StoreBase):
                 "VALUES (:now, :now, :environment, :patient, :type, :group, :name, :description)")
 
     @classmethod
-    def _select_sql(cls) -> str:
-        return ("SELECT `environment`,`patient_uuid`,`case_type`,`case_group`,`case_name`,`description` "
-                "FROM `cases` "
-                "WHERE `case_name`=:name")
-
-    @classmethod
     def _delete_sql(cls) -> str:
         return "DELETE FROM `cases` WHERE `case_name`=:name"
 
@@ -72,13 +66,19 @@ class StoreCases(StoreBase):
             case_group=Constants.GROUP_COMMON,
             case_name=case_name,
         )
-        for row in cls._select(cls._select_sql(), {"name": case_name}):
-            result = EvaluationCase(
-                environment=row['environment'],
-                patient_uuid=row['patient_uuid'],
-                case_type=row['case_type'],
-                case_group=row['case_group'],
-                case_name=row['case_name'],
-                description=row['description'],
-            )
+        sql = ("SELECT `environment`,`patient_uuid`,`case_type`,`case_group`,`case_name`,`description` "
+               "FROM `cases` "
+               "WHERE `case_name`=:name")
+        for row in cls._select(sql, {"name": case_name}):
+            result = EvaluationCase(**dict(row))
         return result
+
+    @classmethod
+    def all(cls) -> list[EvaluationCase]:
+        sql = ("SELECT `environment`,`patient_uuid`,`case_type`,`case_group`,`case_name`,`description` "
+               "FROM `cases` "
+               "ORDER BY 3")
+        return [
+            EvaluationCase(**dict(row))
+            for row in cls._select(sql, {})
+        ]
