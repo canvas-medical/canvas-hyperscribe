@@ -4,12 +4,12 @@ from re import match
 from typing import Type
 
 from hyperscribe.handlers.constants import Constants
-from hyperscribe.handlers.llms.llm_anthropic import LlmAnthropic
-from hyperscribe.handlers.llms.llm_base import LlmBase
-from hyperscribe.handlers.llms.llm_google import LlmGoogle
-from hyperscribe.handlers.llms.llm_openai import LlmOpenai
+from hyperscribe.llms.llm_anthropic import LlmAnthropic
+from hyperscribe.llms.llm_base import LlmBase
+from hyperscribe.llms.llm_google import LlmGoogle
+from hyperscribe.llms.llm_openai import LlmOpenai
 from hyperscribe.handlers.memory_log import MemoryLog
-from hyperscribe.handlers.structures.settings import Settings
+from hyperscribe.structures.settings import Settings
 
 
 class Helper:

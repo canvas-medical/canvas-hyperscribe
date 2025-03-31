@@ -9,9 +9,9 @@ from django.db.models import Q
 from hyperscribe.handlers.canvas_science import CanvasScience
 from hyperscribe.handlers.helper import Helper
 from hyperscribe.handlers.json_schema import JsonSchema
-from hyperscribe.handlers.llms.llm_base import LlmBase
-from hyperscribe.handlers.structures.coded_item import CodedItem
-from hyperscribe.handlers.structures.settings import Settings
+from hyperscribe.llms.llm_base import LlmBase
+from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.settings import Settings
 from hyperscribe.handlers.temporary_data import ChargeDescriptionMaster
 
 

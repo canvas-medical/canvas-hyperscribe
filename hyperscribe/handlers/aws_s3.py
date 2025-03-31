@@ -7,7 +7,7 @@ from urllib.parse import quote
 
 from requests import get as requests_get, put as requests_put, Response
 
-from hyperscribe.handlers.structures.aws_s3_credentials import AwsS3Credentials
+from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 
 
 class AwsS3:

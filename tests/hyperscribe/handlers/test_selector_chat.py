@@ -6,10 +6,10 @@ from django.db.models import Q
 
 from hyperscribe.handlers.canvas_science import CanvasScience
 from hyperscribe.handlers.selector_chat import SelectorChat
-from hyperscribe.handlers.structures.coded_item import CodedItem
-from hyperscribe.handlers.structures.icd10_condition import Icd10Condition
-from hyperscribe.handlers.structures.settings import Settings
-from hyperscribe.handlers.structures.vendor_key import VendorKey
+from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.icd10_condition import Icd10Condition
+from hyperscribe.structures.settings import Settings
+from hyperscribe.structures.vendor_key import VendorKey
 from hyperscribe.handlers.temporary_data import ChargeDescriptionMaster
 
 

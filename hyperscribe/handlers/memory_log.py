@@ -6,7 +6,7 @@ from logger import log
 
 from hyperscribe.handlers.aws_s3 import AwsS3
 from hyperscribe.handlers.cached_discussion import CachedDiscussion
-from hyperscribe.handlers.structures.aws_s3_credentials import AwsS3Credentials
+from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 
 
 class MemoryLog:

@@ -12,13 +12,13 @@ from logger import log
 from hyperscribe.handlers.cached_discussion import CachedDiscussion
 from hyperscribe.handlers.commander import Audio, Commander
 from hyperscribe.handlers.implemented_commands import ImplementedCommands
-from hyperscribe.handlers.structures.aws_s3_credentials import AwsS3Credentials
-from hyperscribe.handlers.structures.coded_item import CodedItem
-from hyperscribe.handlers.structures.instruction import Instruction
-from hyperscribe.handlers.structures.json_extract import JsonExtract
-from hyperscribe.handlers.structures.line import Line
-from hyperscribe.handlers.structures.settings import Settings
-from hyperscribe.handlers.structures.vendor_key import VendorKey
+from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
+from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.instruction import Instruction
+from hyperscribe.structures.json_extract import JsonExtract
+from hyperscribe.structures.line import Line
+from hyperscribe.structures.settings import Settings
+from hyperscribe.structures.vendor_key import VendorKey
 from tests.helper import is_constant
 
 

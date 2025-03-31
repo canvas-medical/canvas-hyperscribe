@@ -1,4 +1,4 @@
-from hyperscribe.handlers.commands.base import Base
+from hyperscribe.commands.base import Base
 from hyperscribe.handlers.implemented_commands import ImplementedCommands
 
 

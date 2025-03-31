@@ -5,8 +5,8 @@ from typing import Generator
 from canvas_sdk.commands.base import _BaseCommand as BaseCommand
 
 from hyperscribe.handlers.auditor import Auditor
-from hyperscribe.handlers.structures.instruction import Instruction
-from hyperscribe.handlers.structures.line import Line
+from hyperscribe.structures.instruction import Instruction
+from hyperscribe.structures.line import Line
 
 
 class AuditorFile(Auditor):

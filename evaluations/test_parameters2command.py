@@ -4,7 +4,7 @@ from pathlib import Path
 from canvas_sdk.commands.base import _BaseCommand as BaseCommand
 
 from evaluations.helper_evaluation import HelperEvaluation
-from hyperscribe.handlers.structures.instruction import Instruction
+from hyperscribe.structures.instruction import Instruction
 
 
 def pytest_generate_tests(metafunc):

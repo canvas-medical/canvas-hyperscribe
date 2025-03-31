@@ -3,7 +3,7 @@ from hyperscribe.handlers.auditor import Auditor
 
 def test_identified_transcript():
     tested = Auditor()
-    result = tested.identified_transcript(b"", [])
+    result = tested.identified_transcript([b""], [])
     assert result is True
 
 

@@ -3,7 +3,7 @@ from unittest.mock import patch, call
 
 from hyperscribe.handlers.cached_discussion import CachedDiscussion
 from hyperscribe.handlers.memory_log import MemoryLog
-from hyperscribe.handlers.structures.aws_s3_credentials import AwsS3Credentials
+from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from tests.helper import is_constant
 
 

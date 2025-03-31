@@ -17,7 +17,7 @@ from hyperscribe.handlers.aws_s3 import AwsS3
 from hyperscribe.handlers.commander import Commander
 from hyperscribe.handlers.limited_cache import LimitedCache
 from hyperscribe.handlers.memory_log import MemoryLog
-from hyperscribe.handlers.structures.line import Line
+from hyperscribe.structures.line import Line
 
 
 class CaseBuilder:

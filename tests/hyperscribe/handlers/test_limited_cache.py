@@ -10,7 +10,7 @@ from canvas_sdk.v1.data import (
 from django.db.models.expressions import When, Value, Case
 
 from hyperscribe.handlers.limited_cache import LimitedCache
-from hyperscribe.handlers.structures.coded_item import CodedItem
+from hyperscribe.structures.coded_item import CodedItem
 
 
 def test___init__():

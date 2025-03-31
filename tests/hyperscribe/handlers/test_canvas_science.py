@@ -4,12 +4,12 @@ from canvas_sdk.commands.commands.allergy import AllergenType
 from canvas_sdk.commands.constants import ServiceProvider
 
 from hyperscribe.handlers.canvas_science import CanvasScience
-from hyperscribe.handlers.structures.allergy_detail import AllergyDetail
-from hyperscribe.handlers.structures.icd10_condition import Icd10Condition
-from hyperscribe.handlers.structures.imaging_report import ImagingReport
-from hyperscribe.handlers.structures.medical_concept import MedicalConcept
-from hyperscribe.handlers.structures.medication_detail import MedicationDetail
-from hyperscribe.handlers.structures.medication_detail_quantity import MedicationDetailQuantity
+from hyperscribe.structures.allergy_detail import AllergyDetail
+from hyperscribe.structures.icd10_condition import Icd10Condition
+from hyperscribe.structures.imaging_report import ImagingReport
+from hyperscribe.structures.medical_concept import MedicalConcept
+from hyperscribe.structures.medication_detail import MedicationDetail
+from hyperscribe.structures.medication_detail_quantity import MedicationDetailQuantity
 
 
 @patch.object(CanvasScience, 'medical_concept')

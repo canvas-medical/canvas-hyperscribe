@@ -3,11 +3,11 @@ from enum import Enum
 from unittest.mock import patch, call, MagicMock
 
 from hyperscribe.handlers.helper import Helper
-from hyperscribe.handlers.llms.llm_anthropic import LlmAnthropic
-from hyperscribe.handlers.llms.llm_google import LlmGoogle
-from hyperscribe.handlers.llms.llm_openai import LlmOpenai
-from hyperscribe.handlers.structures.settings import Settings
-from hyperscribe.handlers.structures.vendor_key import VendorKey
+from hyperscribe.llms.llm_anthropic import LlmAnthropic
+from hyperscribe.llms.llm_google import LlmGoogle
+from hyperscribe.llms.llm_openai import LlmOpenai
+from hyperscribe.structures.settings import Settings
+from hyperscribe.structures.vendor_key import VendorKey
 
 
 def test_str2datetime():

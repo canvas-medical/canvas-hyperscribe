@@ -6,10 +6,10 @@ from canvas_sdk.v1.data import Note
 from evaluations.helper_evaluation import HelperEvaluation
 from evaluations.structures.postgres_credentials import PostgresCredentials
 from hyperscribe.handlers.helper import Helper
-from hyperscribe.handlers.structures.aws_s3_credentials import AwsS3Credentials
-from hyperscribe.handlers.structures.json_extract import JsonExtract
-from hyperscribe.handlers.structures.settings import Settings
-from hyperscribe.handlers.structures.vendor_key import VendorKey
+from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
+from hyperscribe.structures.json_extract import JsonExtract
+from hyperscribe.structures.settings import Settings
+from hyperscribe.structures.vendor_key import VendorKey
 from tests.helper import is_constant
 
 

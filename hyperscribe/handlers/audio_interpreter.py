@@ -8,11 +8,11 @@ from hyperscribe.handlers.implemented_commands import ImplementedCommands
 from hyperscribe.handlers.json_schema import JsonSchema
 from hyperscribe.handlers.limited_cache import LimitedCache
 from hyperscribe.handlers.memory_log import MemoryLog
-from hyperscribe.handlers.structures.aws_s3_credentials import AwsS3Credentials
-from hyperscribe.handlers.structures.instruction import Instruction
-from hyperscribe.handlers.structures.json_extract import JsonExtract
-from hyperscribe.handlers.structures.line import Line
-from hyperscribe.handlers.structures.settings import Settings
+from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
+from hyperscribe.structures.instruction import Instruction
+from hyperscribe.structures.json_extract import JsonExtract
+from hyperscribe.structures.line import Line
+from hyperscribe.structures.settings import Settings
 
 
 class AudioInterpreter:

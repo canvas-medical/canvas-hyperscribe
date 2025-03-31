@@ -10,7 +10,7 @@ from canvas_sdk.v1.data import Patient, Note
 from case_builder import CaseBuilder
 from evaluations.helper_evaluation import HelperEvaluation
 from evaluations.structures.evaluation_case import EvaluationCase
-from hyperscribe.handlers.structures.line import Line
+from hyperscribe.structures.line import Line
 
 
 def test_validate_files():

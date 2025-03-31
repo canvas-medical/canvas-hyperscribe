@@ -10,7 +10,7 @@ from canvas_sdk.v1.data.patient import SexAtBirth
 from django.db.models.expressions import When, Value, Case
 
 from hyperscribe.handlers.helper import Helper
-from hyperscribe.handlers.structures.coded_item import CodedItem
+from hyperscribe.structures.coded_item import CodedItem
 
 
 class LimitedCache:

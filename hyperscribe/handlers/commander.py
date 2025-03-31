@@ -21,17 +21,17 @@ from hyperscribe.handlers.audio_interpreter import AudioInterpreter
 from hyperscribe.handlers.auditor import Auditor
 from hyperscribe.handlers.aws_s3 import AwsS3
 from hyperscribe.handlers.cached_discussion import CachedDiscussion
-from hyperscribe.handlers.commands.history_of_present_illness import HistoryOfPresentIllness
-from hyperscribe.handlers.commands.reason_for_visit import ReasonForVisit
+from hyperscribe.commands.history_of_present_illness import HistoryOfPresentIllness
+from hyperscribe.commands.reason_for_visit import ReasonForVisit
 from hyperscribe.handlers.constants import Constants
 from hyperscribe.handlers.implemented_commands import ImplementedCommands
 from hyperscribe.handlers.limited_cache import LimitedCache
 from hyperscribe.handlers.memory_log import MemoryLog
-from hyperscribe.handlers.structures.aws_s3_credentials import AwsS3Credentials
-from hyperscribe.handlers.structures.coded_item import CodedItem
-from hyperscribe.handlers.structures.instruction import Instruction
-from hyperscribe.handlers.structures.line import Line
-from hyperscribe.handlers.structures.settings import Settings
+from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
+from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.instruction import Instruction
+from hyperscribe.structures.line import Line
+from hyperscribe.structures.settings import Settings
 
 
 class Audio:

@@ -11,7 +11,7 @@ from evaluations.structures.evaluation_result import EvaluationResult
 from hyperscribe.handlers.audio_interpreter import AudioInterpreter
 from hyperscribe.handlers.limited_cache import LimitedCache
 from hyperscribe.handlers.memory_log import MemoryLog
-from hyperscribe.handlers.structures.aws_s3_credentials import AwsS3Credentials
+from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 
 
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
