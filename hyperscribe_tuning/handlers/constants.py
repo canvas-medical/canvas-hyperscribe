@@ -7,6 +7,8 @@ class Constants:
     SECRET_AWS_SECRET = "AwsSecret"
     SECRET_AWS_REGION = "AwsRegion"
     SECRET_AWS_BUCKET = "AwsBucket"
+    #
+    FAUX_PATIENT_UUID = "_PatientUuid"
     # Command Schema Keys
     SCHEMA_KEY_ADJUST_PRESCRIPTION = "adjustPrescription"
     SCHEMA_KEY_ALLERGY = "allergy"

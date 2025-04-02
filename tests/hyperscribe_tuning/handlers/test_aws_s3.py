@@ -74,6 +74,36 @@ def test_access_s3_object(headers, requests_get):
 
 @patch("hyperscribe_tuning.handlers.aws_s3.requests_put")
 @patch.object(AwsS3, "headers")
+def test_upload_text_to_s3(headers, requests_put):
+    def rest_mocks():
+        headers.reset_mock()
+        requests_put.reset_mock()
+
+    test = AwsS3("theKey", "theSecret", "theRegion", "theBucket")
+
+    headers.side_effect = [{"Host": "theHost", "someKey": "someValue"}]
+    requests_put.side_effect = ["theResponse"]
+    result = test.upload_text_to_s3("theObjectKey", "someData")
+    assert result == "theResponse"
+
+    calls = [call('theObjectKey', (b'someData', "text/plain"))]
+    assert headers.mock_calls == calls
+    calls = [call(
+        'https://theHost/theObjectKey',
+        headers={
+            'Host': 'theHost',
+            'someKey': 'someValue',
+            'Content-Type': "text/plain",
+            'Content-Length': '8',
+        },
+        data='someData',
+    )]
+    assert requests_put.mock_calls == calls
+    rest_mocks()
+
+
+@patch("hyperscribe_tuning.handlers.aws_s3.requests_put")
+@patch.object(AwsS3, "headers")
 def test_upload_binary_to_s3(headers, requests_put):
     def rest_mocks():
         headers.reset_mock()
