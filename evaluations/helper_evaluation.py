@@ -4,7 +4,9 @@ from pathlib import Path
 
 from canvas_sdk.v1.data import Note
 
+from evaluations.constants import Constants
 from evaluations.structures.postgres_credentials import PostgresCredentials
+from hyperscribe.handlers.constants import Constants as HyperscribeConstants
 from hyperscribe.handlers.helper import Helper
 from hyperscribe.handlers.memory_log import MemoryLog
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
@@ -12,7 +14,6 @@ from hyperscribe.structures.settings import Settings
 
 
 class HelperEvaluation:
-    DIFFERENCE_LEVELS = ["minor", "moderate", "severe", "critical"]
 
     @classmethod
     def settings(cls) -> Settings:
@@ -44,7 +45,7 @@ class HelperEvaluation:
             "```json",
             json.dumps([
                 {
-                    "level": "/".join(cls.DIFFERENCE_LEVELS),
+                    "level": "/".join(Constants.DIFFERENCE_LEVELS),
                     "difference": "description of the difference between the JSONs",
                 }
             ]),
@@ -78,7 +79,7 @@ class HelperEvaluation:
             "```json",
             json.dumps([
                 {
-                    "level": "/".join(cls.DIFFERENCE_LEVELS),
+                    "level": "/".join(Constants.DIFFERENCE_LEVELS),
                     "difference": "description of the difference between the texts",
                 }
             ]),
@@ -101,7 +102,7 @@ class HelperEvaluation:
 
     @classmethod
     def nuanced_differences(cls, case: str, accepted_levels: list[str], system_prompt: list[str], user_prompt: list[str]) -> tuple[bool, str]:
-        conversation = Helper.chatter(cls.settings(), MemoryLog("theNoteUuid", case))
+        conversation = Helper.chatter(cls.settings(), MemoryLog(HyperscribeConstants.FAUX_NOTE_UUID, case))
         conversation.set_system_prompt(system_prompt)
         conversation.set_user_prompt(user_prompt)
         with (Path(__file__).parent / "schema_differences.json").open("r") as f:

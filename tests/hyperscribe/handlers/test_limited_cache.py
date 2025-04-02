@@ -588,3 +588,275 @@ def test_demographic__str__(patient_db, observation_db, mock_date):
     calls = [call.today()]
     assert mock_date.mock_calls == calls
     reset_mocks()
+
+
+@patch.object(LimitedCache, 'surgery_history')
+@patch.object(LimitedCache, 'family_history')
+@patch.object(LimitedCache, 'existing_reason_for_visits')
+@patch.object(LimitedCache, 'existing_note_types')
+@patch.object(LimitedCache, 'existing_questionnaires')
+@patch.object(LimitedCache, 'current_medications')
+@patch.object(LimitedCache, 'current_goals')
+@patch.object(LimitedCache, 'current_conditions')
+@patch.object(LimitedCache, 'current_allergies')
+@patch.object(LimitedCache, 'condition_history')
+@patch.object(LimitedCache, 'demographic__str__')
+def test_to_json(
+        demographic,
+        condition_history,
+        current_allergies,
+        current_conditions,
+        current_goals,
+        current_medications,
+        existing_note_types,
+        existing_questionnaires,
+        existing_reason_for_visits,
+        family_history,
+        surgery_history,
+):
+    def reset_mocks():
+        demographic.reset_mock()
+        condition_history.reset_mock()
+        current_allergies.reset_mock()
+        current_conditions.reset_mock()
+        current_goals.reset_mock()
+        current_medications.reset_mock()
+        existing_note_types.reset_mock()
+        existing_questionnaires.reset_mock()
+        existing_reason_for_visits.reset_mock()
+        family_history.reset_mock()
+        surgery_history.reset_mock()
+
+    tested = LimitedCache(
+        "patientUuid",
+        {
+            "keyX": [CodedItem(code="code1", label="label1", uuid="uuid1")],
+            "keyY": [],
+            "keyZ": [
+                CodedItem(code="code3", label="label3", uuid="uuid3"),
+                CodedItem(code="code2", label="label2", uuid="uuid2"),
+            ],
+        },
+    )
+
+    demographic.side_effect = ["theDemographic"]
+    condition_history.side_effect = [[
+        CodedItem(uuid="uuid002", label="label002", code="code002"),
+        CodedItem(uuid="uuid102", label="label102", code="code102"),
+    ]]
+    current_allergies.side_effect = [[
+        CodedItem(uuid="uuid003", label="label003", code="code003"),
+        CodedItem(uuid="uuid103", label="label103", code="code103"),
+    ]]
+    current_conditions.side_effect = [[
+        CodedItem(uuid="uuid004", label="label004", code="code004"),
+        CodedItem(uuid="uuid104", label="label104", code="code104"),
+    ]]
+    current_goals.side_effect = [[
+        CodedItem(uuid="uuid005", label="label005", code="code005"),
+        CodedItem(uuid="uuid105", label="label105", code="code105"),
+    ]]
+    current_medications.side_effect = [[
+        CodedItem(uuid="uuid006", label="label006", code="code006"),
+        CodedItem(uuid="uuid106", label="label106", code="code106"),
+    ]]
+    existing_note_types.side_effect = [[
+        CodedItem(uuid="uuid007", label="label007", code="code007"),
+        CodedItem(uuid="uuid107", label="label107", code="code107"),
+    ]]
+    existing_questionnaires.side_effect = [[
+        CodedItem(uuid="uuid008", label="label008", code="code008"),
+        CodedItem(uuid="uuid108", label="label108", code="code108"),
+    ]]
+    existing_reason_for_visits.side_effect = [[
+        CodedItem(uuid="uuid009", label="label009", code="code009"),
+        CodedItem(uuid="uuid109", label="label109", code="code109"),
+    ]]
+    family_history.side_effect = [[
+        CodedItem(uuid="uuid010", label="label010", code="code010"),
+        CodedItem(uuid="uuid110", label="label110", code="code110"),
+    ]]
+    surgery_history.side_effect = [[
+        CodedItem(uuid="uuid011", label="label011", code="code011"),
+        CodedItem(uuid="uuid111", label="label111", code="code111"),
+    ]]
+
+    result = tested.to_json()
+    expected = {
+        'conditionHistory': [
+            {'code': 'code002', 'label': 'label002', 'uuid': 'uuid002'},
+            {'code': 'code102', 'label': 'label102', 'uuid': 'uuid102'},
+        ],
+        'currentAllergies': [
+            {'code': 'code003', 'label': 'label003', 'uuid': 'uuid003'},
+            {'code': 'code103', 'label': 'label103', 'uuid': 'uuid103'},
+        ],
+        'currentConditions': [
+            {'code': 'code004', 'label': 'label004', 'uuid': 'uuid004'},
+            {'code': 'code104', 'label': 'label104', 'uuid': 'uuid104'},
+        ],
+        'currentGoals': [
+            {'code': 'code005', 'label': 'label005', 'uuid': 'uuid005'},
+            {'code': 'code105', 'label': 'label105', 'uuid': 'uuid105'},
+        ],
+        'currentMedications': [
+            {'code': 'code006', 'label': 'label006', 'uuid': 'uuid006'},
+            {'code': 'code106', 'label': 'label106', 'uuid': 'uuid106'},
+        ],
+        'demographicStr': 'theDemographic',
+        'existingNoteTypes': [
+            {'code': 'code008', 'label': 'label008', 'uuid': 'uuid008'},
+            {'code': 'code108', 'label': 'label108', 'uuid': 'uuid108'},
+        ],
+        'existingQuestionnaires': [
+            {'code': 'code007', 'label': 'label007', 'uuid': 'uuid007'},
+            {'code': 'code107', 'label': 'label107', 'uuid': 'uuid107'},
+        ],
+        'existingReasonForVisit': [
+            {'code': 'code009', 'label': 'label009', 'uuid': 'uuid009'},
+            {'code': 'code109', 'label': 'label109', 'uuid': 'uuid109'},
+        ],
+        'familyHistory': [
+            {'code': 'code010', 'label': 'label010', 'uuid': 'uuid010'},
+            {'code': 'code110', 'label': 'label110', 'uuid': 'uuid110'},
+        ],
+        'stagedCommands': {
+            'keyX': [
+                {'code': 'code1', 'label': 'label1', 'uuid': 'uuid1'},
+            ],
+            'keyY': [],
+            'keyZ': [
+                {'code': 'code3', 'label': 'label3', 'uuid': 'uuid3'},
+                {'code': 'code2', 'label': 'label2', 'uuid': 'uuid2'},
+            ],
+        },
+        'surgeryHistory': [
+            {'code': 'code011', 'label': 'label011', 'uuid': 'uuid011'},
+            {'code': 'code111', 'label': 'label111', 'uuid': 'uuid111'},
+        ],
+    }
+
+    assert result == expected
+
+    calls = [call()]
+    assert demographic.mock_calls == calls
+    assert condition_history.mock_calls == calls
+    assert current_allergies.mock_calls == calls
+    assert current_conditions.mock_calls == calls
+    assert current_goals.mock_calls == calls
+    assert current_medications.mock_calls == calls
+    assert existing_note_types.mock_calls == calls
+    assert existing_questionnaires.mock_calls == calls
+    assert existing_reason_for_visits.mock_calls == calls
+    assert family_history.mock_calls == calls
+    assert surgery_history.mock_calls == calls
+    reset_mocks()
+
+
+def test_load_from_json():
+    tested = LimitedCache
+    result = tested.load_from_json({
+        'conditionHistory': [
+            {'code': 'code002', 'label': 'label002', 'uuid': 'uuid002'},
+            {'code': 'code102', 'label': 'label102', 'uuid': 'uuid102'},
+        ],
+        'currentAllergies': [
+            {'code': 'code003', 'label': 'label003', 'uuid': 'uuid003'},
+            {'code': 'code103', 'label': 'label103', 'uuid': 'uuid103'},
+        ],
+        'currentConditions': [
+            {'code': 'code004', 'label': 'label004', 'uuid': 'uuid004'},
+            {'code': 'code104', 'label': 'label104', 'uuid': 'uuid104'},
+        ],
+        'currentGoals': [
+            {'code': 'code005', 'label': 'label005', 'uuid': 'uuid005'},
+            {'code': 'code105', 'label': 'label105', 'uuid': 'uuid105'},
+        ],
+        'currentMedications': [
+            {'code': 'code006', 'label': 'label006', 'uuid': 'uuid006'},
+            {'code': 'code106', 'label': 'label106', 'uuid': 'uuid106'},
+        ],
+        'demographicStr': 'theDemographic',
+        'existingNoteTypes': [
+            {'code': 'code008', 'label': 'label008', 'uuid': 'uuid008'},
+            {'code': 'code108', 'label': 'label108', 'uuid': 'uuid108'},
+        ],
+        'existingQuestionnaires': [
+            {'code': 'code007', 'label': 'label007', 'uuid': 'uuid007'},
+            {'code': 'code107', 'label': 'label107', 'uuid': 'uuid107'},
+        ],
+        'existingReasonForVisit': [
+            {'code': 'code009', 'label': 'label009', 'uuid': 'uuid009'},
+            {'code': 'code109', 'label': 'label109', 'uuid': 'uuid109'},
+        ],
+        'familyHistory': [
+            {'code': 'code010', 'label': 'label010', 'uuid': 'uuid010'},
+            {'code': 'code110', 'label': 'label110', 'uuid': 'uuid110'},
+        ],
+        'stagedCommands': {
+            'keyX': [
+                {'code': 'code1', 'label': 'label1', 'uuid': 'uuid1'},
+            ],
+            'keyY': [],
+            'keyZ': [
+                {'code': 'code3', 'label': 'label3', 'uuid': 'uuid3'},
+                {'code': 'code2', 'label': 'label2', 'uuid': 'uuid2'},
+            ],
+        },
+        'surgeryHistory': [
+            {'code': 'code011', 'label': 'label011', 'uuid': 'uuid011'},
+            {'code': 'code111', 'label': 'label111', 'uuid': 'uuid111'},
+        ],
+    })
+
+    assert result.patient_uuid == "_PatientUuid"
+    assert result._staged_commands == {
+        "keyX": [CodedItem(code="code1", label="label1", uuid="uuid1")],
+        "keyY": [],
+        "keyZ": [
+            CodedItem(code="code3", label="label3", uuid="uuid3"),
+            CodedItem(code="code2", label="label2", uuid="uuid2"),
+        ],
+    }
+    assert result.demographic__str__() == "theDemographic"
+
+    assert result.current_allergies() == [
+        CodedItem(uuid="uuid003", label="label003", code="code003"),
+        CodedItem(uuid="uuid103", label="label103", code="code103"),
+    ]
+    assert result.condition_history() == [
+        CodedItem(uuid="uuid002", label="label002", code="code002"),
+        CodedItem(uuid="uuid102", label="label102", code="code102"),
+    ]
+    assert result.current_conditions() == [
+        CodedItem(uuid="uuid004", label="label004", code="code004"),
+        CodedItem(uuid="uuid104", label="label104", code="code104"),
+    ]
+    assert result.family_history() == [
+        CodedItem(uuid="uuid010", label="label010", code="code010"),
+        CodedItem(uuid="uuid110", label="label110", code="code110"),
+    ]
+    assert result.current_goals() == [
+        CodedItem(uuid="uuid005", label="label005", code="code005"),
+        CodedItem(uuid="uuid105", label="label105", code="code105"),
+    ]
+    assert result.current_medications() == [
+        CodedItem(uuid="uuid006", label="label006", code="code006"),
+        CodedItem(uuid="uuid106", label="label106", code="code106"),
+    ]
+    assert result.existing_note_types() == [
+        CodedItem(uuid="uuid008", label="label008", code="code008"),
+        CodedItem(uuid="uuid108", label="label108", code="code108"),
+    ]
+    assert result.existing_questionnaires() == [
+        CodedItem(uuid="uuid007", label="label007", code="code007"),
+        CodedItem(uuid="uuid107", label="label107", code="code107"),
+    ]
+    assert result.existing_reason_for_visits() == [
+        CodedItem(uuid="uuid009", label="label009", code="code009"),
+        CodedItem(uuid="uuid109", label="label109", code="code109"),
+    ]
+    assert result.surgery_history() == [
+        CodedItem(uuid="uuid011", label="label011", code="code011"),
+        CodedItem(uuid="uuid111", label="label111", code="code111"),
+    ]

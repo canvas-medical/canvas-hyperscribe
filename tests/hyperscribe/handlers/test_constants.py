@@ -16,6 +16,11 @@ def test_constants():
         "VENDOR_ANTHROPIC": "Anthropic",
         "VENDOR_GOOGLE": "Google",
         "VENDOR_OPENAI": "OpenAI",
+        #
+        "FAUX_NOTE_UUID": "_NoteUuid",
+        "FAUX_PATIENT_UUID": "_PatientUuid",
+        "FAUX_PROVIDER_UUID": "_ProviderUuid",
+        #
         "SCHEMA_KEY_ADJUST_PRESCRIPTION": "adjustPrescription",
         "SCHEMA_KEY_ALLERGY": "allergy",
         "SCHEMA_KEY_ASSESS": "assess",

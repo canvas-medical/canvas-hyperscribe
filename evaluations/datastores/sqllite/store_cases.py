@@ -16,6 +16,7 @@ class StoreCases(StoreBase):
                 "`updated` DATETIME NOT NULL,"
                 "`environment` TEXT NOT NULL,"
                 "`patient_uuid` TEXT NOT NULL,"
+                "`limited_cache` TEXT NOT NULL,"
                 "`case_type` TEXT NOT NULL,"
                 "`case_group` TEXT NOT NULL,"
                 "`case_name` TEXT NOT NULL,"
@@ -24,14 +25,15 @@ class StoreCases(StoreBase):
     @classmethod
     def _update_sql(cls) -> str:
         return ("UPDATE `cases` "
-                "SET `updated`=:now,`environment`=:environment,`patient_uuid`=:patient,"
+                "SET `updated`=:now,`environment`=:environment,`patient_uuid`=:patient,`limited_cache`=:cache,"
                 "`case_type`=:type,`case_group`=:group,`description`=:description "
                 "WHERE `case_name`=:name")
 
     @classmethod
     def _insert_sql(cls) -> str:
-        return ("INSERT INTO `cases` (`created`,`updated`,`environment`,`patient_uuid`,`case_type`,`case_group`,`case_name`,`description`) "
-                "VALUES (:now, :now, :environment, :patient, :type, :group, :name, :description)")
+        return (
+            "INSERT INTO `cases` (`created`,`updated`,`environment`,`patient_uuid`,`limited_cache`,`case_type`,`case_group`,`case_name`,`description`) "
+            "VALUES (:now,:now,:environment,:patient,:cache,:type,:group,:name,:description)")
 
     @classmethod
     def _delete_sql(cls) -> str:
@@ -48,6 +50,7 @@ class StoreCases(StoreBase):
             "now": now,
             "environment": case.environment,
             "patient": case.patient_uuid,
+            "cache": case.limited_cache,
             "type": case.case_type,
             "group": case.case_group,
             "description": case.description,
@@ -66,7 +69,7 @@ class StoreCases(StoreBase):
             case_group=Constants.GROUP_COMMON,
             case_name=case_name,
         )
-        sql = ("SELECT `environment`,`patient_uuid`,`case_type`,`case_group`,`case_name`,`description` "
+        sql = ("SELECT `environment`,`patient_uuid`,`limited_cache`,`case_type`,`case_group`,`case_name`,`description` "
                "FROM `cases` "
                "WHERE `case_name`=:name")
         for row in cls._select(sql, {"name": case_name}):

@@ -30,9 +30,8 @@ see [here](./helper_evaluation.py) the method `json_nuanced_differences`).
 The following parameters can be used to configure the evaluation test:
 
 - `--evaluation-difference-levels` – Specifies the expected level of accuracy for any text value (`minor`, `moderate`, `severe`, `critical` as
-  defined in [`helper_evaluation.py`](./helper_evaluation.py) as `DIFFERENCE_LEVELS`).
-- `--patient-uuid` – Identifies the patient to run the evaluation test against, it is __mandatory__ for most tests (see the `case_builder` for more
-  information).
+  defined in [`constants.py`](./constants.py) as `DIFFERENCE_LEVELS`).
+- `--patient-uuid` – Identifies the patient to run the evaluation test against.
 - `--print-logs` – Print the logs on the standard output at the end of the tests.
 - `--store-logs` – Store the logs in the configured AWS S3 bucket.
 
@@ -59,8 +58,7 @@ uv  run pytest -v evaluations/test_parameters2command.py --patient-uuid patient_
 uv  run pytest -v evaluations/test_transcript2instructions.py --patient-uuid patient_uuid
 
 # run all steps for a specific case the_case
-# for the patient patient_uuid
-uv  run pytest -v evaluations  -k the_case --patient-uuid patient_uuid
+uv  run pytest -v evaluations -k the_case
 ```
 
 ### Create evaluation tests
@@ -131,19 +129,39 @@ Like previously, on the step `transcript2instructions`:
 - the `uuid` of the instructions is by default set empty
 - the order of the instructions of different type is ignored
 
-The list of the cases can be printed out with:
+#### From Tuning data to commands
+
+Based on a `mp3`, recording of a discussion through the `hyperscribe-tuning` plugin and its `json` file, limited cache of the patient data at the
+start of the recording, a set of evaluation tests can be created using:
 
 ```shell
-uv run python case_list.py
+uv run python case_builder.py \
+  --case the_case \
+  --group common \
+  --type general \
+  --tuning-json "file/path/to/file.json" \
+  --tuning-mp3 "file/path/to/file.mp3"
 ```
+
+Like previously, on the step `transcript2instructions`:
+
+- the `uuid` of the instructions is by default set empty
+- the order of the instructions of different type is ignored
 
 #### Storing the cases and the run results
 
 When creating a `case` by running the [`case_builder.py`](../case_builder.py) script, a record is inserted/updated in the `cases` table of
 the [evaluation_cases.db](./evaluation_cases.db) local SQLite database, part of the repository.
 
-This table stores the meta information related to the `case` - namely: the group, the type, the environment, the patient uuid - that
-will be used when running the tests (patient uuid if not provided then), and storing the results.
+This table stores the meta information related to the `case`, namely: the group, the type, the environment, the patient uuid, the limited cache.
+
+*ATTENTION* The limited cache will be used when running the tests if the `--patient-uuid` is not provided.
+
+The list of the cases can be printed out with:
+
+```shell
+uv run python case_list.py
+```
 
 When a test is run, its result is saved in the `results` table of the `evaluation_results.db` local SQLite database,
 which is *not* part of the repository: it is located in the parent directory of the local repository.

@@ -15,6 +15,7 @@ def test__create_table_sql():
                 "`updated` DATETIME NOT NULL,"
                 "`environment` TEXT NOT NULL,"
                 "`patient_uuid` TEXT NOT NULL,"
+                "`limited_cache` TEXT NOT NULL,"
                 "`case_type` TEXT NOT NULL,"
                 "`case_group` TEXT NOT NULL,"
                 "`case_name` TEXT NOT NULL,"
@@ -26,7 +27,7 @@ def test__update_sql():
     tested = StoreCases
     result = tested._update_sql()
     expected = ("UPDATE `cases` "
-                "SET `updated`=:now,`environment`=:environment,`patient_uuid`=:patient,"
+                "SET `updated`=:now,`environment`=:environment,`patient_uuid`=:patient,`limited_cache`=:cache,"
                 "`case_type`=:type,`case_group`=:group,`description`=:description "
                 "WHERE `case_name`=:name")
     assert result == expected
@@ -35,8 +36,8 @@ def test__update_sql():
 def test__insert_sql():
     tested = StoreCases
     result = tested._insert_sql()
-    expected = ("INSERT INTO `cases` (`created`,`updated`,`environment`,`patient_uuid`,`case_type`,`case_group`,`case_name`,`description`) "
-                "VALUES (:now, :now, :environment, :patient, :type, :group, :name, :description)")
+    expected = ("INSERT INTO `cases` (`created`,`updated`,`environment`,`patient_uuid`,`limited_cache`,`case_type`,`case_group`,`case_name`,`description`) "
+                "VALUES (:now,:now,:environment,:patient,:cache,:type,:group,:name,:description)")
     assert result == expected
 
 
@@ -68,6 +69,7 @@ def test_upsert(upsert, mock_datetime):
     tested.upsert(EvaluationCase(
         environment="theEnvironment",
         patient_uuid="thePatientUuid",
+        limited_cache="theLimitedCache",
         case_type="theType",
         case_group="theGroup",
         case_name="theCaseName",
@@ -79,6 +81,7 @@ def test_upsert(upsert, mock_datetime):
         "now": date_0,
         "environment": "theEnvironment",
         "patient": "thePatientUuid",
+        "cache": "theLimitedCache",
         "type": "theType",
         "group": "theGroup",
         "description": "theDescription",
@@ -106,7 +109,7 @@ def test_get(select):
         select.reset_mock()
 
     calls = [
-        call("SELECT `environment`,`patient_uuid`,`case_type`,`case_group`,`case_name`,`description` "
+        call("SELECT `environment`,`patient_uuid`,`limited_cache`,`case_type`,`case_group`,`case_name`,`description` "
              "FROM `cases` "
              "WHERE `case_name`=:name",
              {'name': 'theCaseName'})
@@ -119,6 +122,7 @@ def test_get(select):
     expected = EvaluationCase(
         environment="",
         patient_uuid="",
+        limited_cache="{}",
         case_type="general",
         case_group="common",
         case_name="theCaseName",
@@ -132,6 +136,7 @@ def test_get(select):
     select.side_effect = [[{
         "environment": "theEnvironment",
         "patient_uuid": "thePatientUuid",
+        "limited_cache": "theLimitedCache",
         "case_type": "theType",
         "case_group": "theGroup",
         "case_name": "theCaseName",
@@ -141,6 +146,7 @@ def test_get(select):
     expected = EvaluationCase(
         environment="theEnvironment",
         patient_uuid="thePatientUuid",
+        limited_cache="theLimitedCache",
         case_type="theType",
         case_group="theGroup",
         case_name="theCaseName",

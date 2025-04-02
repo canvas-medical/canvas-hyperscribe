@@ -17,12 +17,12 @@ from canvas_sdk.v1.data.command import Command
 from canvas_sdk.v1.data.note import Note
 from logger import log
 
+from hyperscribe.commands.history_of_present_illness import HistoryOfPresentIllness
+from hyperscribe.commands.reason_for_visit import ReasonForVisit
 from hyperscribe.handlers.audio_interpreter import AudioInterpreter
 from hyperscribe.handlers.auditor import Auditor
 from hyperscribe.handlers.aws_s3 import AwsS3
 from hyperscribe.handlers.cached_discussion import CachedDiscussion
-from hyperscribe.commands.history_of_present_illness import HistoryOfPresentIllness
-from hyperscribe.commands.reason_for_visit import ReasonForVisit
 from hyperscribe.handlers.constants import Constants
 from hyperscribe.handlers.implemented_commands import ImplementedCommands
 from hyperscribe.handlers.limited_cache import LimitedCache
@@ -248,6 +248,12 @@ class Commander(BaseProtocol):
             ]
         memory_log.output(f"DURATION NEW: {int((time() - start) * 1000)}")
         auditor.computed_commands(sdk_parameters, sdk_commands)
+
+        if chatter.note_uuid == Constants.FAUX_NOTE_UUID:
+            # this is the case when running an evaluation against a recorded 'limited cache',
+            # i.e. the patient and/or her data don't exist, something that may be checked
+            # when originating the commands
+            return []
         return [command.originate() for command in sdk_commands]
 
     @classmethod
@@ -286,10 +292,17 @@ class Commander(BaseProtocol):
         memory_log.output(f"DURATION UPDATE: {int((time() - start) * 1000)}")
 
         auditor.computed_commands(sdk_parameters, sdk_commands)
+        if chatter.note_uuid == Constants.FAUX_NOTE_UUID:
+            # this is the case when running an evaluation against a recorded 'limited cache',
+            # i.e. the patient and/or her data don't exist, something that may be checked
+            # when editing the commands
+            return []
         return [command.edit() for command in sdk_commands]
 
     @classmethod
     def existing_commands_to_instructions(cls, current_commands: Iterable[Command], instructions: list[Instruction]) -> list[Instruction]:
+        # convert the current commands of the note to instructions
+        # then, try to match them to previously identified instructions
         result: dict[str, Instruction] = {}
         consumed_indexes: list[int] = []
         mapping = ImplementedCommands.schema_key2instruction()

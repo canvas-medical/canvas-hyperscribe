@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from datetime import date
 
 from canvas_sdk.commands.constants import CodeSystems
@@ -9,6 +11,7 @@ from canvas_sdk.v1.data.medication import Status
 from canvas_sdk.v1.data.patient import SexAtBirth
 from django.db.models.expressions import When, Value, Case
 
+from hyperscribe.handlers.constants import Constants
 from hyperscribe.handlers.helper import Helper
 from hyperscribe.structures.coded_item import CodedItem
 
@@ -195,3 +198,47 @@ class LimitedCache:
                 self._demographic = f"{self._demographic} and weight {int(weight.value) * ratio:1.2f} pounds"
 
         return self._demographic
+
+    def to_json(self) -> dict:
+        result = {
+            "stagedCommands": {
+                key: [i._asdict() for i in commands]
+                for key, commands in self._staged_commands.items()
+            },
+            "demographicStr": self.demographic__str__(),
+            #
+            "conditionHistory": [i._asdict() for i in self.condition_history()],
+            "currentAllergies": [i._asdict() for i in self.current_allergies()],
+            "currentConditions": [i._asdict() for i in self.current_conditions()],
+            "currentGoals": [i._asdict() for i in self.current_goals()],
+            "currentMedications": [i._asdict() for i in self.current_medications()],
+            "existingQuestionnaires": [i._asdict() for i in self.existing_questionnaires()],
+            "existingNoteTypes": [i._asdict() for i in self.existing_note_types()],
+            "existingReasonForVisit": [i._asdict() for i in self.existing_reason_for_visits()],
+            "familyHistory": [i._asdict() for i in self.family_history()],
+            "surgeryHistory": [i._asdict() for i in self.surgery_history()],
+        }
+        return result
+
+    @classmethod
+    def load_from_json(cls, cache: dict) -> LimitedCache:
+        staged_commands = {
+            key: [CodedItem(**i) for i in commands]
+            for key, commands in cache.get("stagedCommands", {}).items()
+        }
+
+        result = LimitedCache(Constants.FAUX_PATIENT_UUID, staged_commands)
+        result._demographic = cache.get("demographicStr", "")
+
+        result._condition_history = [CodedItem(**i) for i in cache.get("conditionHistory", [])]
+        result._allergies = [CodedItem(**i) for i in cache.get("currentAllergies", [])]
+        result._conditions = [CodedItem(**i) for i in cache.get("currentConditions", [])]
+        result._goals = [CodedItem(**i) for i in cache.get("currentGoals", [])]
+        result._medications = [CodedItem(**i) for i in cache.get("currentMedications", [])]
+        result._questionnaires = [CodedItem(**i) for i in cache.get("existingQuestionnaires", [])]
+        result._note_type = [CodedItem(**i) for i in cache.get("existingNoteTypes", [])]
+        result._reason_for_visit = [CodedItem(**i) for i in cache.get("existingReasonForVisit", [])]
+        result._family_history = [CodedItem(**i) for i in cache.get("familyHistory", [])]
+        result._surgery_history = [CodedItem(**i) for i in cache.get("surgeryHistory", [])]
+
+        return result

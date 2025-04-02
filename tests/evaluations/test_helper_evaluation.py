@@ -10,15 +10,6 @@ from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.json_extract import JsonExtract
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
-from tests.helper import is_constant
-
-
-def test_helper_evaluation():
-    tested = HelperEvaluation
-    constants = {
-        "DIFFERENCE_LEVELS": ["minor", "moderate", "severe", "critical"],
-    }
-    assert is_constant(tested, constants)
 
 
 def test_settings(monkeypatch):
@@ -284,7 +275,7 @@ def test_nuanced_differences(settings, chatter, memory_log):
 
     calls = [call()]
     assert settings.mock_calls == calls
-    calls = [call("theNoteUuid", "theCase")]
+    calls = [call("_NoteUuid", "theCase")]
     assert memory_log.mock_calls == calls
     calls = [call("theSettings", "MemoryLogInstance")]
     assert chatter.mock_calls == calls
@@ -308,7 +299,7 @@ def test_nuanced_differences(settings, chatter, memory_log):
 
     calls = [call()]
     assert settings.mock_calls == calls
-    calls = [call("theNoteUuid", "theCase")]
+    calls = [call("_NoteUuid", "theCase")]
     assert memory_log.mock_calls == calls
     calls = [call("theSettings", "MemoryLogInstance")]
     assert chatter.mock_calls == calls
@@ -330,7 +321,7 @@ def test_nuanced_differences(settings, chatter, memory_log):
 
     calls = [call()]
     assert settings.mock_calls == calls
-    calls = [call("theNoteUuid", "theCase")]
+    calls = [call("_NoteUuid", "theCase")]
     assert memory_log.mock_calls == calls
     calls = [call("theSettings", "MemoryLogInstance")]
     assert chatter.mock_calls == calls

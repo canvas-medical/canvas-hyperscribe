@@ -7,6 +7,7 @@ def test_class():
     fields = {
         "environment": str,
         "patient_uuid": str,
+        "limited_cache": str,
         "case_type": str,
         "case_group": str,
         "case_name": str,

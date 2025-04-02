@@ -1,14 +1,17 @@
+import json
 import uuid
 from re import search
 from subprocess import check_output
 
 import pytest
 
+from evaluations.constants import Constants
 from evaluations.datastores.sqllite.store_cases import StoreCases
 from evaluations.datastores.store_results import StoreResults
 from evaluations.helper_evaluation import HelperEvaluation
 from evaluations.structures.evaluation_result import EvaluationResult
 from hyperscribe.handlers.audio_interpreter import AudioInterpreter
+from hyperscribe.handlers.constants import Constants as HyperscribeConstants
 from hyperscribe.handlers.limited_cache import LimitedCache
 from hyperscribe.handlers.memory_log import MemoryLog
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
@@ -53,25 +56,25 @@ def pytest_runtest_makereport(item, call):
 
 def pytest_addoption(parser):
     parser.addoption(
-        "--evaluation-difference-levels",
+        Constants.OPTION_DIFFERENCE_LEVELS,
         action="store",
-        default="minor,moderate",
+        default=",".join([Constants.DIFFERENCE_LEVEL_MINOR, Constants.DIFFERENCE_LEVEL_MODERATE]),
         help="Coma seperated list of the levels of meaning difference that are accepted",
     )
     parser.addoption(
-        "--patient-uuid",
+        Constants.OPTION_PATIENT_UUID,
         action="store",
         default="",
         help="patient uuid to consider",
     )
     parser.addoption(
-        "--print-logs",
+        Constants.OPTION_PRINT_LOGS,
         action="store_true",
         default=False,
         help="Print the logs at the end of the test",
     )
     parser.addoption(
-        "--store-logs",
+        Constants.OPTION_STORE_LOGS,
         action="store_true",
         default=False,
         help="Store the logs in the configured AWS S3 bucket",
@@ -83,8 +86,8 @@ def pytest_configure(config):
 
     settings = HelperEvaluation().settings()
     parameters = {
-        "evaluation-difference-levels": config.getoption("--evaluation-difference-levels", default=""),
-        "patient-uuid": get_patient_uuid(config),
+        "evaluation-difference-levels": config.getoption(Constants.OPTION_DIFFERENCE_LEVELS),
+        "patient-uuid": config.getoption(Constants.OPTION_PATIENT_UUID) or "defined at the case level",
         "llm-audio": settings.llm_audio.vendor,
         "llm-text": settings.llm_text.vendor,
         "structured-RfV": settings.structured_rfv,
@@ -94,37 +97,41 @@ def pytest_configure(config):
 
 
 def pytest_unconfigure(config):
-    if config.getoption("--print-logs", default=False):
+    if config.getoption(Constants.OPTION_PRINT_LOGS, default=False):
         note_uuid_list = list(MemoryLog.ENTRIES.keys())
         for note_uuid in note_uuid_list:
             print(MemoryLog.end_session(note_uuid))
-
-
-def get_patient_uuid(config) -> str:
-    if result := config.getoption("--patient-uuid"):
-        return result
-    result = ""
-    if (case_name := config.getoption("-k")) and (case := StoreCases.get(case_name)):
-        result = case.patient_uuid
-    return result
 
 
 @pytest.fixture
 def allowed_levels(request):
     return [
         level.strip()
-        for level in request.config.getoption("--evaluation-difference-levels").split(",")
+        for level in request.config.getoption(Constants.OPTION_DIFFERENCE_LEVELS).split(",")
     ]
 
 
 @pytest.fixture
 def audio_interpreter(request):
     settings = HelperEvaluation.settings()
-    aws_s3 = AwsS3Credentials(aws_secret="", aws_key="", region="", bucket="")
-    if request.config.getoption("--store-logs", default=False):
+    aws_s3 = AwsS3Credentials.from_dictionary({})
+    if request.config.getoption(Constants.OPTION_STORE_LOGS, default=False):
         aws_s3 = HelperEvaluation.aws_s3_credentials()
-    patient_uuid = get_patient_uuid(request.config)
+
+    patient_uuid = HyperscribeConstants.FAUX_PATIENT_UUID
+    note_uuid = HyperscribeConstants.FAUX_NOTE_UUID
+    provider_uuid = HyperscribeConstants.FAUX_PROVIDER_UUID
     cache = LimitedCache(patient_uuid, {})
-    note_uuid = HelperEvaluation.get_note_uuid(patient_uuid) if patient_uuid else "noteUuid"
-    provider_uuid = HelperEvaluation.get_provider_uuid(patient_uuid) if patient_uuid else "providerUuid"
+
+    if forced_patient_uuid := request.config.getoption(Constants.OPTION_PATIENT_UUID):
+        patient_uuid = forced_patient_uuid
+        cache.patient_uuid = forced_patient_uuid
+
+    if patient_uuid and patient_uuid != HyperscribeConstants.FAUX_PATIENT_UUID:
+        note_uuid = HelperEvaluation.get_note_uuid(patient_uuid)
+        provider_uuid = HelperEvaluation.get_provider_uuid(patient_uuid)
+    elif case := StoreCases.get(request.node.callspec.id):
+        # ^ if there is no provided patient uuid and this is a built case
+        cache = LimitedCache.load_from_json(json.loads(case.limited_cache))
+
     return AudioInterpreter(settings, aws_s3, cache, patient_uuid, note_uuid, provider_uuid)

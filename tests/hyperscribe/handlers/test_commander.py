@@ -758,73 +758,74 @@ def test_new_commands_from(time, memory_log):
     reset_mocks()
 
     # with new instructions
-    past_uuids = {
-        "uuidA": instructions[0],
-    }
-    time.side_effect = [111.110, 111.357]
-    chatter.create_sdk_command_parameters.side_effect = [
-        (instructions[1], {"params": "instruction1"}),
-        (instructions[2], None),
-        (instructions[3], {"params": "instruction3"}),
-        (instructions[4], {"params": "instruction4"}),
+    tests = [
+        # -- simulated note
+        ("_NoteUuid", [], []),  # -- simulated note
+        # -- 'real' note
+        ("noteUuid", [Effect(type="LOG", payload="Log0"), Effect(type="LOG", payload="Log1")], [call.originate()]),
     ]
-    chatter.create_sdk_command_from.side_effect = [
-        mock_commands[0],
-        mock_commands[1],
-        None,
-    ]
-    for idx, mock_command in enumerate(mock_commands):
-        mock_command.originate.side_effect = [Effect(type="LOG", payload=f"Log{idx}")]
+    for note_uuid, expected, command_calls in tests:
+        chatter.note_uuid = note_uuid
+        past_uuids = {
+            "uuidA": instructions[0],
+        }
+        time.side_effect = [111.110, 111.357]
+        chatter.create_sdk_command_parameters.side_effect = [
+            (instructions[1], {"params": "instruction1"}),
+            (instructions[2], None),
+            (instructions[3], {"params": "instruction3"}),
+            (instructions[4], {"params": "instruction4"}),
+        ]
+        chatter.create_sdk_command_from.side_effect = [
+            mock_commands[0],
+            mock_commands[1],
+            None,
+        ]
+        for idx, mock_command in enumerate(mock_commands):
+            mock_command.originate.side_effect = [Effect(type="LOG", payload=f"Log{idx}")]
 
-    result = tested.new_commands_from(auditor, chatter, instructions, past_uuids)
-    expected = [
-        Effect(type="LOG", payload="Log0"),
-        Effect(type="LOG", payload="Log1"),
-    ]
-    assert result == expected
-    calls = [
-        call('noteUuid', 'main'),
-        call().output('--> new instructions: 4'),
-        call().output('--> new commands: 3'),
-        call().output('DURATION NEW: 246'),
-    ]
-    assert memory_log.mock_calls == calls
-    calls = [call(), call()]
-    assert time.mock_calls == calls
-    calls = [
-        call.computed_parameters(
-            [
-                (instructions[1], {'params': 'instruction1'}),
-                (instructions[3], {'params': 'instruction3'}),
-                (instructions[4], {'params': 'instruction4'}),
-            ]
-        ),
-        call.computed_commands(
-            [
-                (instructions[1], {'params': 'instruction1'}),
-                (instructions[3], {'params': 'instruction3'}),
-                (instructions[4], {'params': 'instruction4'}),
-            ],
-            mock_commands,
-        ),
-    ]
-    assert auditor.mock_calls == calls
-    calls = [
-        call.create_sdk_command_parameters(instructions[1]),
-        call.create_sdk_command_parameters(instructions[2]),
-        call.create_sdk_command_parameters(instructions[3]),
-        call.create_sdk_command_parameters(instructions[4]),
-        call.create_sdk_command_from(instructions[1], {'params': 'instruction1'}),
-        call.create_sdk_command_from(instructions[3], {'params': 'instruction3'}),
-        call.create_sdk_command_from(instructions[4], {'params': 'instruction4'}),
-    ]
-    assert chatter.mock_calls == calls
-    calls = [
-        call.originate(),
-    ]
-    for mock_command in mock_commands:
-        assert mock_command.mock_calls == calls
-    reset_mocks()
+        result = tested.new_commands_from(auditor, chatter, instructions, past_uuids)
+        assert result == expected
+        calls = [
+            call(note_uuid, 'main'),
+            call().output('--> new instructions: 4'),
+            call().output('--> new commands: 3'),
+            call().output('DURATION NEW: 246'),
+        ]
+        assert memory_log.mock_calls == calls
+        calls = [call(), call()]
+        assert time.mock_calls == calls
+        calls = [
+            call.computed_parameters(
+                [
+                    (instructions[1], {'params': 'instruction1'}),
+                    (instructions[3], {'params': 'instruction3'}),
+                    (instructions[4], {'params': 'instruction4'}),
+                ]
+            ),
+            call.computed_commands(
+                [
+                    (instructions[1], {'params': 'instruction1'}),
+                    (instructions[3], {'params': 'instruction3'}),
+                    (instructions[4], {'params': 'instruction4'}),
+                ],
+                mock_commands,
+            ),
+        ]
+        assert auditor.mock_calls == calls
+        calls = [
+            call.create_sdk_command_parameters(instructions[1]),
+            call.create_sdk_command_parameters(instructions[2]),
+            call.create_sdk_command_parameters(instructions[3]),
+            call.create_sdk_command_parameters(instructions[4]),
+            call.create_sdk_command_from(instructions[1], {'params': 'instruction1'}),
+            call.create_sdk_command_from(instructions[3], {'params': 'instruction3'}),
+            call.create_sdk_command_from(instructions[4], {'params': 'instruction4'}),
+        ]
+        assert chatter.mock_calls == calls
+        for mock_command in mock_commands:
+            assert mock_command.mock_calls == command_calls
+        reset_mocks()
 
 
 @patch('hyperscribe.handlers.commander.MemoryLog')
@@ -887,78 +888,79 @@ def test_update_commands_from(time, memory_log):
     reset_mocks()
 
     # updated instructions
-    past_uuids = {
-        "uuidA": Instruction(uuid='uuidA', instruction='theInstructionX', information='changedA', is_new=False, is_updated=True),
-        "uuidB": instructions[1],
-        "uuidC": instructions[2],
-        "uuidD": Instruction(uuid='uuidD', instruction='theInstructionY', information='changedD', is_new=False, is_updated=True),
-        "uuidE": Instruction(uuid='uuidE', instruction='theInstructionY', information='changedE', is_new=True, is_updated=False),
-        "uuidF": Instruction(uuid='uuidF', instruction='theInstructionY', information='changedE', is_new=True, is_updated=False),
-    }
-    time.side_effect = [111.110, 111.451]
-    chatter.create_sdk_command_parameters.side_effect = [
-        (instructions[0], {"params": "instruction0"}),
-        (instructions[3], {"params": "instruction3"}),
-        (instructions[4], None),
-        (instructions[5], {"params": "instruction5"}),
+    tests = [
+        # -- simulated note
+        ("_NoteUuid", [], []),  # -- simulated note
+        # -- 'real' note
+        ("noteUuid", [Effect(type="LOG", payload="Log0"), Effect(type="LOG", payload="Log1")], [call.edit()]),
     ]
-    chatter.create_sdk_command_from.side_effect = [
-        mock_commands[0],
-        mock_commands[1],
-        None,
-    ]
-    for idx, mock_command in enumerate(mock_commands):
-        mock_command.edit.side_effect = [Effect(type="LOG", payload=f"Log{idx}")]
+    for note_uuid, expected, command_calls in tests:
+        chatter.note_uuid = note_uuid
+        past_uuids = {
+            "uuidA": Instruction(uuid='uuidA', instruction='theInstructionX', information='changedA', is_new=False, is_updated=True),
+            "uuidB": instructions[1],
+            "uuidC": instructions[2],
+            "uuidD": Instruction(uuid='uuidD', instruction='theInstructionY', information='changedD', is_new=False, is_updated=True),
+            "uuidE": Instruction(uuid='uuidE', instruction='theInstructionY', information='changedE', is_new=True, is_updated=False),
+            "uuidF": Instruction(uuid='uuidF', instruction='theInstructionY', information='changedE', is_new=True, is_updated=False),
+        }
+        time.side_effect = [111.110, 111.451]
+        chatter.create_sdk_command_parameters.side_effect = [
+            (instructions[0], {"params": "instruction0"}),
+            (instructions[3], {"params": "instruction3"}),
+            (instructions[4], None),
+            (instructions[5], {"params": "instruction5"}),
+        ]
+        chatter.create_sdk_command_from.side_effect = [
+            mock_commands[0],
+            mock_commands[1],
+            None,
+        ]
+        for idx, mock_command in enumerate(mock_commands):
+            mock_command.edit.side_effect = [Effect(type="LOG", payload=f"Log{idx}")]
 
-    result = tested.update_commands_from(auditor, chatter, instructions, past_uuids)
-    expected = [
-        Effect(type="LOG", payload="Log0"),
-        Effect(type="LOG", payload="Log1"),
-    ]
-    assert result == expected
-    calls = [
-        call('noteUuid', 'main'),
-        call().output('--> updated instructions: 4'),
-        call().output('--> updated commands: 3'),
-        call().output('DURATION UPDATE: 340'),
-    ]
-    assert memory_log.mock_calls == calls
-    calls = [call(), call()]
-    assert time.mock_calls == calls
-    calls = [
-        call.computed_parameters(
-            [
-                (instructions[0], {'params': 'instruction0'}),
-                (instructions[3], {'params': 'instruction3'}),
-                (instructions[5], {'params': 'instruction5'}),
-            ]
-        ),
-        call.computed_commands(
-            [
-                (instructions[0], {'params': 'instruction0'}),
-                (instructions[3], {'params': 'instruction3'}),
-                (instructions[5], {'params': 'instruction5'}),
-            ],
-            mock_commands,
-        ),
-    ]
-    assert auditor.mock_calls == calls
-    calls = [
-        call.create_sdk_command_parameters(instructions[0]),
-        call.create_sdk_command_parameters(instructions[3]),
-        call.create_sdk_command_parameters(instructions[4]),
-        call.create_sdk_command_parameters(instructions[5]),
-        call.create_sdk_command_from(instructions[0], {'params': 'instruction0'}),
-        call.create_sdk_command_from(instructions[3], {'params': 'instruction3'}),
-        call.create_sdk_command_from(instructions[5], {'params': 'instruction5'}),
-    ]
-    assert chatter.mock_calls == calls
-    calls = [
-        call.edit(),
-    ]
-    for mock_command in mock_commands:
-        assert mock_command.mock_calls == calls
-    reset_mocks()
+        result = tested.update_commands_from(auditor, chatter, instructions, past_uuids)
+        assert result == expected
+        calls = [
+            call(note_uuid, 'main'),
+            call().output('--> updated instructions: 4'),
+            call().output('--> updated commands: 3'),
+            call().output('DURATION UPDATE: 340'),
+        ]
+        assert memory_log.mock_calls == calls
+        calls = [call(), call()]
+        assert time.mock_calls == calls
+        calls = [
+            call.computed_parameters(
+                [
+                    (instructions[0], {'params': 'instruction0'}),
+                    (instructions[3], {'params': 'instruction3'}),
+                    (instructions[5], {'params': 'instruction5'}),
+                ]
+            ),
+            call.computed_commands(
+                [
+                    (instructions[0], {'params': 'instruction0'}),
+                    (instructions[3], {'params': 'instruction3'}),
+                    (instructions[5], {'params': 'instruction5'}),
+                ],
+                mock_commands,
+            ),
+        ]
+        assert auditor.mock_calls == calls
+        calls = [
+            call.create_sdk_command_parameters(instructions[0]),
+            call.create_sdk_command_parameters(instructions[3]),
+            call.create_sdk_command_parameters(instructions[4]),
+            call.create_sdk_command_parameters(instructions[5]),
+            call.create_sdk_command_from(instructions[0], {'params': 'instruction0'}),
+            call.create_sdk_command_from(instructions[3], {'params': 'instruction3'}),
+            call.create_sdk_command_from(instructions[5], {'params': 'instruction5'}),
+        ]
+        assert chatter.mock_calls == calls
+        for mock_command in mock_commands:
+            assert mock_command.mock_calls == command_calls
+        reset_mocks()
 
 
 @patch.object(ImplementedCommands, "schema_key2instruction")
