@@ -200,7 +200,7 @@ class LimitedCache:
         return self._demographic
 
     def to_json(self) -> dict:
-        result = {
+        return {
             "stagedCommands": {
                 key: [i._asdict() for i in commands]
                 for key, commands in self._staged_commands.items()
@@ -218,7 +218,6 @@ class LimitedCache:
             "familyHistory": [i._asdict() for i in self.family_history()],
             "surgeryHistory": [i._asdict() for i in self.surgery_history()],
         }
-        return result
 
     @classmethod
     def load_from_json(cls, cache: dict) -> LimitedCache:
@@ -227,7 +226,7 @@ class LimitedCache:
             for key, commands in cache.get("stagedCommands", {}).items()
         }
 
-        result = LimitedCache(Constants.FAUX_PATIENT_UUID, staged_commands)
+        result = cls(Constants.FAUX_PATIENT_UUID, staged_commands)
         result._demographic = cache.get("demographicStr", "")
 
         result._condition_history = [CodedItem(**i) for i in cache.get("conditionHistory", [])]
