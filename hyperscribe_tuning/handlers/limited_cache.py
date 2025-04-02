@@ -1,7 +1,8 @@
-import json
+from __future__ import annotations
+
 from datetime import date
-from typing import NamedTuple
 from re import match
+from typing import NamedTuple, Iterable
 
 from canvas_sdk.commands.constants import CodeSystems
 from canvas_sdk.v1.data import (
@@ -13,12 +14,7 @@ from canvas_sdk.v1.data.patient import SexAtBirth
 from django.db.models.expressions import When, Value, Case
 
 from hyperscribe_tuning.handlers.constants import Constants
-
-
-def icd10_add_dot(code: str) -> str:
-    if result := match(r"([A-Za-z]+\d{2})(\d+)", code):
-        return f"{result.group(1)}.{result.group(2)}"
-    return code
+from hyperscribe_tuning.handlers.implemented_commands import ImplementedCommands
 
 
 class CodedItem(NamedTuple):
@@ -28,9 +24,28 @@ class CodedItem(NamedTuple):
 
 
 class LimitedCache:
-    def __init__(self, patient_uuid: str, note_id: str):
+    @classmethod
+    def icd10_add_dot(cls, code: str) -> str:
+        if result := match(r"([A-Za-z]+\d{2})(\d+)", code):
+            return f"{result.group(1)}.{result.group(2)}"
+        return code
+
+    @classmethod
+    def existing_commands_to_coded_items(cls, current_commands: Iterable[Command]) -> dict[str, list[CodedItem]]:
+        result: dict[str, list[CodedItem]] = {}
+        for command in current_commands:
+            for command_class in ImplementedCommands.command_list():
+                if command_class.schema_key() == command.schema_key:
+                    if coded_item := command_class.staged_command_extract(command.data):
+                        key = command.schema_key
+                        if key not in result:
+                            result[key] = []
+                        result[key].append(coded_item)
+                    break
+        return result
+
+    def __init__(self, patient_uuid: str, staged_commands_to_coded_items: dict[str, list[CodedItem]]):
         self.patient_uuid = patient_uuid
-        self.note_id = note_id
         self._allergies: list[CodedItem] | None = None
         self._condition_history: list[CodedItem] | None = None
         self._conditions: list[CodedItem] | None = None
@@ -42,6 +57,7 @@ class LimitedCache:
         self._questionnaires: list[CodedItem] | None = None
         self._reason_for_visit: list[CodedItem] | None = None
         self._surgery_history: list[CodedItem] | None = None
+        self._staged_commands: dict[str, list[CodedItem]] = staged_commands_to_coded_items
 
     def retrieve_conditions(self) -> None:
         self._conditions = []
@@ -58,7 +74,7 @@ class LimitedCache:
                 item = CodedItem(
                     uuid=str(condition.id),
                     label=coding.display,
-                    code=icd10_add_dot(coding.code),
+                    code=self.icd10_add_dot(coding.code),
                 )
                 if condition.clinical_status == ClinicalStatus.ACTIVE:
                     self._conditions.append(item)
@@ -69,14 +85,12 @@ class LimitedCache:
                     # TODO ^ should be: elif condition.clinical_status == ClinicalStatus.RESOLVED and condition.surgical == True:
                     self._surgery_history.append(item)
 
-    def staged_commands(self) -> list[CodedItem]:
-        current_commands = Command.objects.filter(
-            patient__id=self.patient_uuid,
-            note__id=self.note_id,
-            state="staged",  # <--- TODO use an Enum when provided
-        ).order_by("dbid")
-
-        return [{'schema_key': cmd.schema_key, 'data': cmd.data} for cmd in current_commands]
+    def staged_commands_of(self, schema_keys: list[str]) -> list[CodedItem]:
+        return [
+            command
+            for key, commands in self._staged_commands.items() if key in schema_keys
+            for command in commands
+        ]
 
     def current_goals(self) -> list[CodedItem]:
         if self._goals is None:
@@ -213,19 +227,45 @@ class LimitedCache:
 
         return self._demographic
 
-    def to_json(self) -> str:
-        schema_keys = [attr for attr in dir(Constants) 
-                       if attr.startswith("SCHEMA_KEY_") 
-                       and not callable(getattr(Constants, attr))]
-        result = {
-            'demographic__str__': self.demographic__str__(),
-            'surgery_history': [i._asdict() for i in self.surgery_history()],
-            'condition_history': [i._asdict() for i in self.condition_history()],
-            'family_history': [i._asdict() for i in self.family_history()],
-            'current_allergies': [i._asdict() for i in self.current_allergies()],
-            'current_medications': [i._asdict() for i in self.current_medications()],
-            'current_conditions': [i._asdict() for i in self.current_conditions()],
-            'current_goals': [i._asdict() for i in self.current_goals()],
-            'staged_commands': self.staged_commands(),
+    def to_json(self) -> dict:
+        return {
+            "stagedCommands": {
+                key: [i._asdict() for i in commands]
+                for key, commands in self._staged_commands.items()
+            },
+            "demographicStr": self.demographic__str__(),
+            #
+            "conditionHistory": [i._asdict() for i in self.condition_history()],
+            "currentAllergies": [i._asdict() for i in self.current_allergies()],
+            "currentConditions": [i._asdict() for i in self.current_conditions()],
+            "currentGoals": [i._asdict() for i in self.current_goals()],
+            "currentMedications": [i._asdict() for i in self.current_medications()],
+            "existingQuestionnaires": [i._asdict() for i in self.existing_questionnaires()],
+            "existingNoteTypes": [i._asdict() for i in self.existing_note_types()],
+            "existingReasonForVisit": [i._asdict() for i in self.existing_reason_for_visits()],
+            "familyHistory": [i._asdict() for i in self.family_history()],
+            "surgeryHistory": [i._asdict() for i in self.surgery_history()],
         }
-        return json.dumps(result, indent=2)
+
+    @classmethod
+    def load_from_json(cls, cache: dict) -> LimitedCache:
+        staged_commands = {
+            key: [CodedItem(**i) for i in commands]
+            for key, commands in cache.get("stagedCommands", {}).items()
+        }
+
+        result = cls(Constants.FAUX_PATIENT_UUID, staged_commands)
+        result._demographic = cache.get("demographicStr", "")
+
+        result._condition_history = [CodedItem(**i) for i in cache.get("conditionHistory", [])]
+        result._allergies = [CodedItem(**i) for i in cache.get("currentAllergies", [])]
+        result._conditions = [CodedItem(**i) for i in cache.get("currentConditions", [])]
+        result._goals = [CodedItem(**i) for i in cache.get("currentGoals", [])]
+        result._medications = [CodedItem(**i) for i in cache.get("currentMedications", [])]
+        result._questionnaires = [CodedItem(**i) for i in cache.get("existingQuestionnaires", [])]
+        result._note_type = [CodedItem(**i) for i in cache.get("existingNoteTypes", [])]
+        result._reason_for_visit = [CodedItem(**i) for i in cache.get("existingReasonForVisit", [])]
+        result._family_history = [CodedItem(**i) for i in cache.get("familyHistory", [])]
+        result._surgery_history = [CodedItem(**i) for i in cache.get("surgeryHistory", [])]
+
+        return result
