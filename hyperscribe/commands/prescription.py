@@ -5,6 +5,7 @@ from hyperscribe.handlers.constants import Constants
 from hyperscribe.handlers.helper import Helper
 from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.medication_search import MedicationSearch
 
 
 class Prescription(BasePrescription):
@@ -52,12 +53,13 @@ class Prescription(BasePrescription):
             condition = targeted_condition.label
 
         # retrieve existing medications defined in Canvas Science
-        choose_medications = self.medications_from(
-            chatter,
-            parameters["comment"],
-            parameters["keywords"].split(","),
-            condition,
+        search = MedicationSearch(
+            comment=parameters["comment"],
+            keywords=parameters["keywords"].split(","),
+            brand_names=parameters["medicationNames"].split(","),
+            related_condition=condition,
         )
+        choose_medications = self.medications_from(chatter, search)
         # find the correct quantity to dispense and refill values
         if choose_medications and (medication := choose_medications[0]):
             self.set_medication_dosage(
@@ -81,13 +83,14 @@ class Prescription(BasePrescription):
             }
 
         return {
-            "keywords": "comma separated keywords of up to 5 synonyms of the medication to prescribe",
+            "keywords": "comma separated keywords of up to 5 synonyms of the medication to prescribe, ordered by similarity decreasing",
+            "medicationNames": "comma separated of known medication names related to the keywords",
             "sig": "directions, as free text",
             "suppliedDays": "mandatory, duration of the treatment in days either as mentioned, or following the standard practices, as integer",
             # "quantityToDispense": 0,
             # "refills": 0,
             "substitution": f"one of: {substitutions}",
-            "comment": "rational of the prescription, as free text",
+            "comment": "rational of the prescription including all important words, as free text",
             # "noteToPharmacist": "note to the pharmacist, as free text",
         } | condition_dict
 

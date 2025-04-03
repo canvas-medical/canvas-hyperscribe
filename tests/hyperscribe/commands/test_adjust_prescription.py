@@ -11,6 +11,7 @@ from hyperscribe.handlers.limited_cache import LimitedCache
 from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.medication_detail import MedicationDetail
 from hyperscribe.structures.medication_detail_quantity import MedicationDetailQuantity
+from hyperscribe.structures.medication_search import MedicationSearch
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
 
@@ -171,6 +172,7 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
         CodedItem(uuid="theUuid3", label="display3a", code="CODE9876"),
     ]
     keywords = ["keyword1", "keyword2", "keyword3"]
+    brands = ["brand1", "brand2", "brand3", "brand4"]
 
     # incorrect index
     current_conditions.side_effect = [conditions, conditions]
@@ -182,7 +184,11 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
     parameters = {
         'oldMedication': 'display2a',
         'oldMedicationIndex': -1,
-        'keywordsNewMedication': 'keyword1,keyword2,keyword3',
+        "newMedication": {
+            "keywords": "keyword1,keyword2,keyword3",
+            "brandNames": "brand1,brand2,brand3,brand4",
+            "sameAsCurrent": False,
+        },
         'sig': 'theSig',
         "suppliedDays": 11,
         "substitution": "not_allowed",
@@ -198,7 +204,7 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
     )
     assert result == expected
     assert current_conditions.mock_calls == []
-    calls = [call(chatter, "theComment", keywords, "")]
+    calls = [call(chatter, MedicationSearch(comment='theComment', keywords=keywords, brand_names=brands, related_condition=''))]
     assert medications_from.mock_calls == calls
     calls = [call(chatter, "theComment", expected, medication_record)]
     assert set_medication_dosage.mock_calls == calls
@@ -218,7 +224,11 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
     parameters = {
         'oldMedication': 'display2a',
         'oldMedicationIndex': 1,
-        'keywordsNewMedication': 'keyword1,keyword2,keyword3',
+        "newMedication": {
+            "keywords": "keyword1,keyword2,keyword3",
+            "brandNames": "brand1,brand2,brand3,brand4",
+            "sameAsCurrent": False,
+        },
         'sig': 'theSig',
         "suppliedDays": 11,
         "substitution": "not_allowed",
@@ -240,7 +250,7 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
     )
     assert result == expected
     assert current_conditions.mock_calls == []
-    calls = [call(chatter, "theComment", keywords, "")]
+    calls = [call(chatter, MedicationSearch(comment='theComment', keywords=keywords, brand_names=brands, related_condition=''))]
     assert medications_from.mock_calls == calls
     calls = [call(chatter, "theComment", expected, medication_record)]
     assert set_medication_dosage.mock_calls == calls
@@ -266,7 +276,11 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
     parameters = {
         'oldMedication': 'display2a',
         'oldMedicationIndex': 1,
-        'keywordsNewMedication': 'SAME',
+        "newMedication": {
+            "keywords": "keyword1,keyword2,keyword3",
+            "brandNames": "brand1,brand2,brand3,brand4",
+            "sameAsCurrent": True,
+        },
         'sig': 'theSig',
         "suppliedDays": 11,
         "substitution": "not_allowed",
@@ -312,7 +326,11 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
     parameters = {
         'oldMedication': 'display2a',
         'oldMedicationIndex': 1,
-        'keywordsNewMedication': 'keyword1,keyword2,keyword3',
+        "newMedication": {
+            "keywords": "keyword1,keyword2,keyword3",
+            "brandNames": "brand1,brand2,brand3,brand4",
+            "sameAsCurrent": False,
+        },
         'sig': 'theSig',
         "suppliedDays": 11,
         "substitution": "not_allowed",
@@ -334,7 +352,7 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
     )
     assert result == expected
     assert current_conditions.mock_calls == []
-    calls = [call(chatter, "theComment", keywords, "")]
+    calls = [call(chatter, MedicationSearch(comment='theComment', keywords=keywords, brand_names=brands, related_condition=''))]
     assert medications_from.mock_calls == calls
     assert set_medication_dosage.mock_calls == []
     calls = [call()]
@@ -366,11 +384,15 @@ def test_command_parameters(current_medications):
     expected = {
         'oldMedication': 'one of: display1a (index: 0)/display2a (index: 1)/display3a (index: 2)',
         "oldMedicationIndex": "index of the medication to change, or -1, as integer",
-        "keywordsNewMedication": "comma separated keywords of up to 5 synonyms of the new medication to prescribe, or 'SAME' if there is no change of medication",
+        "newMedication": {
+            "keywords": "comma separated keywords of up to 5 synonyms of the new medication to prescribe",
+            "brandNames": "comma separated of known medication names related to the keywords",
+            "sameAsCurrent": "same medication as current one, mandatory, True or False, as boolean"
+        },
         "sig": "directions, as free text",
         "suppliedDays": "duration of the treatment in days, as integer",
-        'substitution': 'one of: allowed/not_allowed',
-        "comment": "rational of the change of prescription, as free text",
+        "substitution": "one of: allowed/not_allowed",
+        "comment": "rational of the change of prescription including all important words, as free text",
     }
     assert result == expected
     calls = [call()]

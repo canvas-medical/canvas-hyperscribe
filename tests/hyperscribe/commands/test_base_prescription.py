@@ -11,6 +11,7 @@ from hyperscribe.handlers.limited_cache import LimitedCache
 from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.medication_detail import MedicationDetail
 from hyperscribe.structures.medication_detail_quantity import MedicationDetailQuantity
+from hyperscribe.structures.medication_search import MedicationSearch
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
 
@@ -143,6 +144,7 @@ def test_medications_from(demographic, current_allergies, staged_commands_of, me
         'maxItems': 1,
     }]
     keywords = ['keyword1', 'keyword2', 'keyword3']
+    brands = ['brand1', 'brand2', 'brand3', 'brand4']
     medications = [
         MedicationDetail(fdb_code="code123", description="labelA", quantities=[]),
         MedicationDetail(fdb_code="code369", description="labelB", quantities=[]),
@@ -162,7 +164,13 @@ def test_medications_from(demographic, current_allergies, staged_commands_of, me
     staged_commands_of.side_effect = [[]]
     medication_details.side_effect = [medications]
     chatter.single_conversation.side_effect = [[{"fdbCode": "code369", "description": "labelB"}]]
-    result = tested.medications_from(chatter, "theComment", keywords, "theCondition")
+    search = MedicationSearch(
+        comment="theComment",
+        keywords=keywords,
+        brand_names=brands,
+        related_condition="theCondition",
+    )
+    result = tested.medications_from(chatter, search)
     expected = [MedicationDetail(fdb_code="code369", description="labelB", quantities=[])]
     assert result == expected
 
@@ -171,7 +179,7 @@ def test_medications_from(demographic, current_allergies, staged_commands_of, me
     assert current_allergies.mock_calls == calls
     calls = [call(["allergy"])]
     assert staged_commands_of.mock_calls == calls
-    calls = [call('scienceHost', keywords)]
+    calls = [call('scienceHost', brands)]
     assert medication_details.mock_calls == calls
     calls = [call.single_conversation(system_prompt, user_prompts["with_conditions"], schemas)]
     assert chatter.mock_calls == calls
@@ -183,7 +191,13 @@ def test_medications_from(demographic, current_allergies, staged_commands_of, me
     staged_commands_of.side_effect = [[]]
     medication_details.side_effect = [medications]
     chatter.single_conversation.side_effect = [[{"fdbCode": "code369", "description": "labelB"}]]
-    result = tested.medications_from(chatter, "theComment", keywords, "")
+    search = MedicationSearch(
+        comment="theComment",
+        keywords=keywords,
+        brand_names=brands,
+        related_condition="",
+    )
+    result = tested.medications_from(chatter, search)
     expected = [MedicationDetail(fdb_code="code369", description="labelB", quantities=[])]
     assert result == expected
 
@@ -192,7 +206,7 @@ def test_medications_from(demographic, current_allergies, staged_commands_of, me
     assert current_allergies.mock_calls == calls
     calls = [call(["allergy"])]
     assert staged_commands_of.mock_calls == calls
-    calls = [call('scienceHost', keywords)]
+    calls = [call('scienceHost', brands)]
     assert medication_details.mock_calls == calls
     calls = [call.single_conversation(system_prompt, user_prompts["no_condition"], schemas)]
     assert chatter.mock_calls == calls
@@ -204,7 +218,13 @@ def test_medications_from(demographic, current_allergies, staged_commands_of, me
     staged_commands_of.side_effect = [allergies[2:]]
     medication_details.side_effect = [medications]
     chatter.single_conversation.side_effect = [[{"fdbCode": "code369", "description": "labelB"}]]
-    result = tested.medications_from(chatter, "theComment", keywords, "")
+    search = MedicationSearch(
+        comment="theComment",
+        keywords=keywords,
+        brand_names=brands,
+        related_condition="",
+    )
+    result = tested.medications_from(chatter, search)
     expected = [MedicationDetail(fdb_code="code369", description="labelB", quantities=[])]
     assert result == expected
 
@@ -213,7 +233,7 @@ def test_medications_from(demographic, current_allergies, staged_commands_of, me
     assert current_allergies.mock_calls == calls
     calls = [call(["allergy"])]
     assert staged_commands_of.mock_calls == calls
-    calls = [call('scienceHost', keywords)]
+    calls = [call('scienceHost', brands)]
     assert medication_details.mock_calls == calls
     calls = [call.single_conversation(system_prompt, user_prompts["with_allergies"], schemas)]
     assert chatter.mock_calls == calls
@@ -225,7 +245,13 @@ def test_medications_from(demographic, current_allergies, staged_commands_of, me
     staged_commands_of.side_effect = [[]]
     medication_details.side_effect = [medications]
     chatter.single_conversation.side_effect = [[]]
-    result = tested.medications_from(chatter, "theComment", keywords, "")
+    search = MedicationSearch(
+        comment="theComment",
+        keywords=keywords,
+        brand_names=brands,
+        related_condition="",
+    )
+    result = tested.medications_from(chatter, search)
     assert result == []
 
     calls = [call()]
@@ -233,7 +259,7 @@ def test_medications_from(demographic, current_allergies, staged_commands_of, me
     assert current_allergies.mock_calls == calls
     calls = [call(["allergy"])]
     assert staged_commands_of.mock_calls == calls
-    calls = [call('scienceHost', keywords)]
+    calls = [call('scienceHost', brands)]
     assert medication_details.mock_calls == calls
     calls = [call.single_conversation(system_prompt, user_prompts["no_condition"], schemas)]
     assert chatter.mock_calls == calls
@@ -245,13 +271,19 @@ def test_medications_from(demographic, current_allergies, staged_commands_of, me
     staged_commands_of.side_effect = [[]]
     medication_details.side_effect = [[]]
     chatter.single_conversation.side_effect = []
-    result = tested.medications_from(chatter, "theComment", keywords, "theCondition")
+    search = MedicationSearch(
+        comment="theComment",
+        keywords=keywords,
+        brand_names=brands,
+        related_condition="theCondition",
+    )
+    result = tested.medications_from(chatter, search)
     assert result == []
 
     assert demographic.mock_calls == []
     assert current_allergies.mock_calls == []
     assert staged_commands_of.mock_calls == []
-    calls = [call('scienceHost', keywords)]
+    calls = [call('scienceHost', brands)]
     assert medication_details.mock_calls == calls
     assert chatter.mock_calls == []
     reset_mocks()
@@ -285,7 +317,7 @@ def test_set_medication_dosage(demographic):
         '',
         'Please, present your findings in a JSON format within a Markdown code block like:',
         '```json',
-        '[{"quantityToDispense": "mandatory, quantity to dispense, as decimal", '
+        '[{"quantityToDispense": "mandatory, quantity to dispense, as float", '
         '"refills": "mandatory, refills allowed, as integer", '
         '"noteToPharmacist": "note to the pharmacist, as free text", '
         '"informationToPatient": "directions to the patient on how to use the medication, specifying the quantity, '

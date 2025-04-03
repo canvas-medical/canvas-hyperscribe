@@ -28,11 +28,12 @@
   ],
   "parameters": [
     {
-      "keywords": "Clotrimazole, antifungal, cream, topical, Lotrimin",
-      "sig": "Apply to the affected area twice daily",
+      "keywords": "clotrimazole, antifungal, azole, cream, topical",
+      "medicationNames": "Clotrimazole",
+      "sig": "Apply the cream on the affected area.",
       "suppliedDays": 14,
       "substitution": "allowed",
-      "comment": "Prescribed for treating ringworm"
+      "comment": "Prescribed for treating fungal skin infections."
     }
   ]
 }

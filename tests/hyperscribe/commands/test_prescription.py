@@ -8,6 +8,7 @@ from hyperscribe.handlers.limited_cache import LimitedCache
 from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.medication_detail import MedicationDetail
 from hyperscribe.structures.medication_detail_quantity import MedicationDetailQuantity
+from hyperscribe.structures.medication_search import MedicationSearch
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
 
@@ -153,6 +154,7 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
         CodedItem(uuid="theUuid3", label="display3a", code="CODE98.76"),
     ]
     keywords = ["keyword1", "keyword2", "keyword3"]
+    brands = ["brand1", "brand2", "brand3", "brand4"]
 
     # with condition
     tests = [
@@ -166,6 +168,7 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
 
         parameters = {
             'keywords': 'keyword1,keyword2,keyword3',
+            "medicationNames": "brand1,brand2,brand3,brand4",
             'sig': 'theSig',
             "suppliedDays": 11,
             "substitution": "not_allowed",
@@ -185,7 +188,15 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
             expected.icd10_codes = condition_icd10
         assert result == expected, f"----> {idx}"
         assert current_conditions.mock_calls == condition_calls
-        calls = [call(chatter, "theComment", keywords, condition_label)]
+        calls = [call(
+            chatter,
+            MedicationSearch(
+                comment="theComment",
+                keywords=keywords,
+                brand_names=brands,
+                related_condition=condition_label,
+            ),
+        )]
         assert medications_from.mock_calls == calls
         calls = [call(chatter, "theComment", expected, medication)]
         assert set_medication_dosage.mock_calls == calls
@@ -198,6 +209,7 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
 
     parameters = {
         'keywords': 'keyword1,keyword2,keyword3',
+        "medicationNames": "brand1,brand2,brand3,brand4",
         'sig': 'theSig',
         "suppliedDays": 11,
         "substitution": "not_allowed",
@@ -213,7 +225,15 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
     )
     assert result == expected
     assert current_conditions.mock_calls == []
-    calls = [call(chatter, "theComment", keywords, "")]
+    calls = [call(
+            chatter,
+            MedicationSearch(
+                comment="theComment",
+                keywords=keywords,
+                brand_names=brands,
+                related_condition="",
+            ),
+        )]
     assert medications_from.mock_calls == calls
     calls = [call(chatter, "theComment", expected, medication)]
     assert set_medication_dosage.mock_calls == calls
@@ -226,6 +246,7 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
 
     parameters = {
         'keywords': 'keyword1,keyword2,keyword3',
+        "medicationNames": "brand1,brand2,brand3,brand4",
         'sig': 'theSig',
         "suppliedDays": 11,
         "substitution": "not_allowed",
@@ -241,7 +262,15 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
     )
     assert result == expected
     assert current_conditions.mock_calls == []
-    calls = [call(chatter, "theComment", keywords, "")]
+    calls = [call(
+            chatter,
+            MedicationSearch(
+                comment="theComment",
+                keywords=keywords,
+                brand_names=brands,
+                related_condition="",
+            ),
+        )]
     assert medications_from.mock_calls == calls
     assert set_medication_dosage.mock_calls == []
     assert chatter.mock_calls == []
@@ -262,20 +291,22 @@ def test_command_parameters(current_conditions):
     ]
     tests = [
         (conditions, {
-            "keywords": "comma separated keywords of up to 5 synonyms of the medication to prescribe",
+            "keywords": "comma separated keywords of up to 5 synonyms of the medication to prescribe, ordered by similarity decreasing",
+            "medicationNames": "comma separated of known medication names related to the keywords",
             "sig": "directions, as free text",
             "suppliedDays": "mandatory, duration of the treatment in days either as mentioned, or following the standard practices, as integer",
             "substitution": "one of: allowed/not_allowed",
-            "comment": "rational of the prescription, as free text",
+            "comment": "rational of the prescription including all important words, as free text",
             "condition": "None or, one of: display1a (index: 0)/display2a (index: 1)/display3a (index: 2)",
             "conditionIndex": "index of the condition for which the medication is prescribed, as integer or -1 if the prescription is not related to any listed condition",
         }),
         ([], {
-            "keywords": "comma separated keywords of up to 5 synonyms of the medication to prescribe",
+            "keywords": "comma separated keywords of up to 5 synonyms of the medication to prescribe, ordered by similarity decreasing",
+            "medicationNames": "comma separated of known medication names related to the keywords",
             "sig": "directions, as free text",
             "suppliedDays": "mandatory, duration of the treatment in days either as mentioned, or following the standard practices, as integer",
             "substitution": "one of: allowed/not_allowed",
-            "comment": "rational of the prescription, as free text",
+            "comment": "rational of the prescription including all important words, as free text",
         }),
     ]
     for side_effect, expected in tests:

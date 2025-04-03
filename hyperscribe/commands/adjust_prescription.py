@@ -7,6 +7,7 @@ from hyperscribe.handlers.constants import Constants
 from hyperscribe.handlers.helper import Helper
 from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.medication_search import MedicationSearch
 
 
 class AdjustPrescription(BasePrescription):
@@ -64,17 +65,19 @@ class AdjustPrescription(BasePrescription):
             )
             result.new_fdb_code = result.fdb_code
 
-        if (keywords := parameters["keywordsNewMedication"]) not in ["", "SAME"]:
+        new_medication = parameters["newMedication"]
+        if bool(new_medication["sameAsCurrent"]) is False:
             # retrieve the conditions linked to the prescription
             # TODO when it is provided
             condition = ""
             # retrieve existing medications defined in Canvas Science
-            choose_medications = self.medications_from(
-                chatter,
-                parameters["comment"],
-                keywords.split(","),
-                condition,
+            search = MedicationSearch(
+                comment=parameters["comment"],
+                keywords=new_medication["keywords"].split(","),
+                brand_names=new_medication["brandNames"].split(","),
+                related_condition=condition,
             )
+            choose_medications = self.medications_from(chatter, search)
             # find the correct quantity to dispense and refill values
             if choose_medications and (medication := choose_medications[0]):
                 self.set_medication_dosage(
@@ -91,11 +94,15 @@ class AdjustPrescription(BasePrescription):
         return {
             "oldMedication": f"one of: {medications}",
             "oldMedicationIndex": "index of the medication to change, or -1, as integer",
-            "keywordsNewMedication": "comma separated keywords of up to 5 synonyms of the new medication to prescribe, or 'SAME' if there is no change of medication",
+            "newMedication": {
+                "keywords": "comma separated keywords of up to 5 synonyms of the new medication to prescribe",
+                "brandNames": "comma separated of known medication names related to the keywords",
+                "sameAsCurrent": "same medication as current one, mandatory, True or False, as boolean"
+            },
             "sig": "directions, as free text",
             "suppliedDays": "duration of the treatment in days, as integer",
             "substitution": f"one of: {substitutions}",
-            "comment": "rational of the change of prescription, as free text",
+            "comment": "rational of the change of prescription including all important words, as free text",
         }
 
     def instruction_description(self) -> str:

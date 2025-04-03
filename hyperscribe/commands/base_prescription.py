@@ -4,22 +4,23 @@ from canvas_sdk.commands import AdjustPrescriptionCommand
 from canvas_sdk.commands.commands.prescribe import PrescribeCommand, Decimal
 from canvas_sdk.commands.constants import ClinicalQuantity
 
-from hyperscribe.handlers.canvas_science import CanvasScience
 from hyperscribe.commands.base import Base
+from hyperscribe.handlers.canvas_science import CanvasScience
 from hyperscribe.handlers.constants import Constants
 from hyperscribe.handlers.json_schema import JsonSchema
 from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.medication_detail import MedicationDetail
+from hyperscribe.structures.medication_search import MedicationSearch
 
 
 class BasePrescription(Base):
 
-    def medications_from(self, chatter: LlmBase, comment: str, keywords: list[str], condition: str) -> list[MedicationDetail]:
+    def medications_from(self, chatter: LlmBase, search: MedicationSearch) -> list[MedicationDetail]:
         result: list[MedicationDetail] = []
-        if medications := CanvasScience.medication_details(self.settings.science_host, keywords):
+        if medications := CanvasScience.medication_details(self.settings.science_host, search.brand_names):
             prompt_condition = ""
-            if condition:
-                prompt_condition = f'The prescription is intended to the patient\'s condition: {condition}.'
+            if search.related_condition:
+                prompt_condition = f'The prescription is intended to the patient\'s condition: {search.related_condition}.'
 
             allergies = '\n * '.join([
                 a.label
@@ -42,9 +43,9 @@ class BasePrescription(Base):
             user_prompt = [
                 "Here is the comment provided by the healthcare provider in regards to the prescription:",
                 "```text",
-                f"keywords: {', '.join(keywords)}",
+                f"keywords: {', '.join(search.keywords)}",
                 " -- ",
-                comment,
+                search.comment,
                 "```",
                 "",
                 prompt_condition,
@@ -107,7 +108,7 @@ class BasePrescription(Base):
             "Please, present your findings in a JSON format within a Markdown code block like:",
             "```json",
             json.dumps([{
-                "quantityToDispense": "mandatory, quantity to dispense, as decimal",
+                "quantityToDispense": "mandatory, quantity to dispense, as float",
                 "refills": "mandatory, refills allowed, as integer",
                 "noteToPharmacist": "note to the pharmacist, as free text",
                 "informationToPatient": "directions to the patient on how to use the medication, specifying the quantity, "
