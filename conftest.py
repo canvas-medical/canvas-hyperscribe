@@ -34,7 +34,10 @@ def pytest_runtest_makereport(item, call):
 
         errors = ""
         if report.failed and call.excinfo is not None:
-            errors = str(call.excinfo.value)
+            errors = "\n".join(
+                [str(call.excinfo.value), "---"] +
+                [value for name, value in item.user_properties if name == "llmExplanation"]
+            )
 
         plugin_commit = check_output(['git', 'rev-parse', '--short', 'HEAD']).decode('ascii').strip()
 

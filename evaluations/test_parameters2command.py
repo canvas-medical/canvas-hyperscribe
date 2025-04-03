@@ -18,7 +18,7 @@ def pytest_generate_tests(metafunc):
         metafunc.parametrize('parameters2command', json_dir.glob('*.json'), ids=lambda path: path.stem)
 
 
-def test_parameters2command(parameters2command, allowed_levels, audio_interpreter, capsys):
+def test_parameters2command(parameters2command, allowed_levels, audio_interpreter, capsys, request):
     with parameters2command.open("r") as f:
         content = json.load(f)
 
@@ -49,6 +49,7 @@ def test_parameters2command(parameters2command, allowed_levels, audio_interprete
                 json.dumps(reviewed, indent=1),
             )
             if not valid:
+                request.node.user_properties.append(("llmExplanation", differences))
                 with capsys.disabled():
                     print(differences)
             assert valid, f"{parameters2command.stem} {instruction.instruction} - {idx:02d}"

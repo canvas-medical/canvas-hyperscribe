@@ -29,7 +29,7 @@ def pytest_generate_tests(metafunc):
         metafunc.parametrize('audio2transcript_files', files, ids=lambda path: path[0][0].stem)
 
 
-def test_audio2transcript(audio2transcript_files, allowed_levels, audio_interpreter, capsys):
+def test_audio2transcript(audio2transcript_files, allowed_levels, audio_interpreter, capsys, request):
     mp3_files, json_file = audio2transcript_files
 
     content: list[bytes] = []
@@ -51,6 +51,7 @@ def test_audio2transcript(audio2transcript_files, allowed_levels, audio_interpre
         json.dumps(expected, indent=1),
     )
     if not valid:
+        request.node.user_properties.append(("llmExplanation", differences))
         with capsys.disabled():
             print(differences)
     assert valid, f"{case}: transcript incorrect"

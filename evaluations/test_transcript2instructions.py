@@ -17,7 +17,7 @@ def pytest_generate_tests(metafunc):
         metafunc.parametrize('transcript2instructions', json_dir.glob('*.json'), ids=lambda path: path.stem)
 
 
-def test_transcript2instructions(transcript2instructions, allowed_levels, audio_interpreter, capsys):
+def test_transcript2instructions(transcript2instructions, allowed_levels, audio_interpreter, capsys, request):
     with transcript2instructions.open("r") as f:
         content = json.load(f)
 
@@ -48,6 +48,7 @@ def test_transcript2instructions(transcript2instructions, allowed_levels, audio_
             instruction.information,
         )
         if not valid:
+            request.node.user_properties.append(("llmExplanation", differences))
             with capsys.disabled():
                 print(differences)
         assert valid, f"{transcript2instructions.stem} {instruction.instruction}: information incorrect\n=>{instruction.information}<="
