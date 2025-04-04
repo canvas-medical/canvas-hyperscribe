@@ -240,14 +240,16 @@ class Commander(BaseProtocol):
             ]
         auditor.computed_parameters(sdk_parameters)
         memory_log.output(f"--> new commands: {len(sdk_parameters)}")
+        sdk_commands: list[BaseCommand] = []
+        used_parameters: list[tuple[Instruction, dict]] = []
         with ThreadPoolExecutor(max_workers=max_workers) as command_builder:
-            sdk_commands = [
-                command
-                for command in command_builder.map(lambda params: chatter.create_sdk_command_from(*params), sdk_parameters)
-                if command is not None
-            ]
+            for idx, command in enumerate(command_builder.map(lambda params: chatter.create_sdk_command_from(*params), sdk_parameters)):
+                if command is not None:
+                    sdk_commands.append(command)
+                    used_parameters.append(sdk_parameters[idx])
+
         memory_log.output(f"DURATION NEW: {int((time() - start) * 1000)}")
-        auditor.computed_commands(sdk_parameters, sdk_commands)
+        auditor.computed_commands(used_parameters, sdk_commands)
 
         if chatter.note_uuid == Constants.FAUX_NOTE_UUID:
             # this is the case when running an evaluation against a recorded 'limited cache',
@@ -283,15 +285,17 @@ class Commander(BaseProtocol):
         auditor.computed_parameters(sdk_parameters)
         memory_log.output(f"--> updated commands: {len(sdk_parameters)}")
         sdk_commands: list[BaseCommand] = []
+        used_parameters: list[tuple[Instruction, dict]] = []
         with ThreadPoolExecutor(max_workers=max_workers) as command_builder:
             for idx, command in enumerate(command_builder.map(lambda params: chatter.create_sdk_command_from(*params), sdk_parameters)):
                 if command is not None:
                     command.command_uuid = changed[idx].uuid
                     sdk_commands.append(command)
+                    used_parameters.append(sdk_parameters[idx])
 
-        memory_log.output(f"DURATION UPDATE: {int((time() - start) * 1000)}")
+            memory_log.output(f"DURATION UPDATE: {int((time() - start) * 1000)}")
 
-        auditor.computed_commands(sdk_parameters, sdk_commands)
+        auditor.computed_commands(used_parameters, sdk_commands)
         if chatter.note_uuid == Constants.FAUX_NOTE_UUID:
             # this is the case when running an evaluation against a recorded 'limited cache',
             # i.e. the patient and/or her data don't exist, something that may be checked

@@ -807,7 +807,6 @@ def test_new_commands_from(time, memory_log):
                 [
                     (instructions[1], {'params': 'instruction1'}),
                     (instructions[3], {'params': 'instruction3'}),
-                    (instructions[4], {'params': 'instruction4'}),
                 ],
                 mock_commands,
             ),
@@ -942,7 +941,6 @@ def test_update_commands_from(time, memory_log):
                 [
                     (instructions[0], {'params': 'instruction0'}),
                     (instructions[3], {'params': 'instruction3'}),
-                    (instructions[5], {'params': 'instruction5'}),
                 ],
                 mock_commands,
             ),
