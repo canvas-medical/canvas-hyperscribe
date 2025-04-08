@@ -99,10 +99,11 @@ class Prescription(BasePrescription):
 
     def instruction_description(self) -> str:
         return ("Medication prescription, including the directions, the duration, the targeted condition and the dosage. "
-                "There can be only one prescription per instruction, and no instruction in the lack of.")
+                "Create as many instructions as necessary as there can be only one prescribed item per instruction, "
+                "and no instruction in the lack of.")
 
     def instruction_constraints(self) -> str:
-        return ""
+        return f'"{self.class_name()}" supports only one prescribed item per instruction.'
 
     def is_available(self) -> bool:
         return True

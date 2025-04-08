@@ -357,14 +357,15 @@ def test_instruction_description():
     tested = helper_instance()
     result = tested.instruction_description()
     expected = ("Medication prescription, including the directions, the duration, the targeted condition and the dosage. "
-                "There can be only one prescription per instruction, and no instruction in the lack of.")
+                "Create as many instructions as necessary as there can be only one prescribed item per instruction, "
+                "and no instruction in the lack of.")
     assert result == expected
 
 
 def test_instruction_constraints():
     tested = helper_instance()
     result = tested.instruction_constraints()
-    expected = ""
+    expected = '"Prescription" supports only one prescribed item per instruction.'
     assert result == expected
 
 
