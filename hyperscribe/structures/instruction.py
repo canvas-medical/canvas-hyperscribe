@@ -1,16 +1,14 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 
-
-@dataclass(frozen=True)
 class Instruction:
-    uuid: str
-    instruction: str
-    information: str
-    is_new: bool
-    is_updated: bool
-    audits: list[str]  # is not affected by the frozen when using append
+    def __init__(self, uuid: str, instruction: str, information: str, is_new: bool, is_updated: bool, audits: list[str]):
+        self.uuid: str = uuid
+        self.instruction: str = instruction
+        self.information: str = information
+        self.is_new: bool = is_new
+        self.is_updated: bool = is_updated
+        self.audits: list[str] = audits  # is not affected by the frozen when using append
 
     @classmethod
     def load_from_json(cls, json_list: list) -> list[Instruction]:
@@ -37,3 +35,10 @@ class Instruction:
 
     def limited_str(self) -> str:
         return f"{self.instruction} ({self.uuid}, new/updated: {self.is_new}/{self.is_updated}): {self.information}"
+
+    def __eq__(self, other: Instruction) -> bool:
+        return (self.uuid == other.uuid and
+                self.instruction == other.instruction and
+                self.information == other.information and
+                self.is_new == other.is_new and
+                self.is_updated == other.is_updated)

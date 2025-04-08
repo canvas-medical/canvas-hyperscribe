@@ -1,15 +1,24 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-
 from canvas_sdk.commands.base import _BaseCommand
 
 from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 
 
-@dataclass(frozen=True)
 class InstructionWithCommand(InstructionWithParameters):
-    command: _BaseCommand
+    def __init__(
+            self,
+            uuid: str,
+            instruction: str,
+            information: str,
+            is_new: bool,
+            is_updated: bool,
+            audits: list[str],
+            parameters: dict,
+            command: _BaseCommand,
+    ):
+        super().__init__(uuid, instruction, information, is_new, is_updated, audits, parameters)
+        self.command: _BaseCommand = command
 
     @classmethod
     def add_command(cls, instruction: InstructionWithParameters, command: _BaseCommand) -> InstructionWithCommand:
@@ -23,3 +32,6 @@ class InstructionWithCommand(InstructionWithParameters):
             parameters=instruction.parameters,
             command=command
         )
+
+    def __eq__(self, other: InstructionWithCommand) -> bool:
+        return super().__eq__(other) and self.command == other.command
