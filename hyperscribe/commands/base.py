@@ -1,11 +1,12 @@
 from typing import Any
 
-from canvas_sdk.commands.base import _BaseCommand
 from canvas_sdk.v1.data import PracticeLocation, Staff
 
 from hyperscribe.handlers.limited_cache import LimitedCache
 from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.instruction_with_command import InstructionWithCommand
+from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.settings import Settings
 
 
@@ -27,10 +28,10 @@ class Base:
         raise NotImplementedError
 
     @classmethod
-    def staged_command_extract(cls, data: dict) -> None | CodedItem:
+    def staged_command_extract(cls, data: dict) -> CodedItem | None:
         raise NotImplementedError
 
-    def command_from_json(self, chatter: LlmBase, parameters: dict) -> None | _BaseCommand:
+    def command_from_json(self, instruction: InstructionWithParameters, chatter: LlmBase) -> InstructionWithCommand | None:
         raise NotImplementedError
 
     def command_parameters(self) -> dict:

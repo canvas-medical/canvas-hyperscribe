@@ -2,13 +2,15 @@ import json
 
 from canvas_sdk.commands.commands.update_diagnosis import UpdateDiagnosisCommand
 
-from hyperscribe.handlers.canvas_science import CanvasScience
 from hyperscribe.commands.base import Base
+from hyperscribe.handlers.canvas_science import CanvasScience
 from hyperscribe.handlers.constants import Constants
 from hyperscribe.handlers.helper import Helper
 from hyperscribe.handlers.json_schema import JsonSchema
 from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.instruction_with_command import InstructionWithCommand
+from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 
 
 class UpdateDiagnose(Base):
@@ -24,17 +26,17 @@ class UpdateDiagnose(Base):
             return CodedItem(label=f"{condition} to {new_condition}: {narrative}", code="", uuid="")
         return None
 
-    def command_from_json(self, chatter: LlmBase, parameters: dict) -> None | UpdateDiagnosisCommand:
+    def command_from_json(self, instruction: InstructionWithParameters, chatter: LlmBase) -> InstructionWithCommand | None:
         result = UpdateDiagnosisCommand(
-            background=parameters["rationale"],
-            narrative=parameters["assessment"],
+            background=instruction.parameters["rationale"],
+            narrative=instruction.parameters["assessment"],
             note_uuid=self.note_uuid,
         )
-        if 0 <= (idx := parameters["previousConditionIndex"]) < len(current := self.cache.current_conditions()):
+        if 0 <= (idx := instruction.parameters["previousConditionIndex"]) < len(current := self.cache.current_conditions()):
             result.condition_code = current[idx].code
 
         # retrieve existing conditions defined in Canvas Science
-        expressions = parameters["keywords"].split(",") + parameters["ICD10"].split(",")
+        expressions = instruction.parameters["keywords"].split(",") + instruction.parameters["ICD10"].split(",")
         if conditions := CanvasScience.search_conditions(self.settings.science_host, expressions):
             # retrieve the correct condition
             system_prompt = [
@@ -46,11 +48,11 @@ class UpdateDiagnose(Base):
             user_prompt = [
                 'Here is the comment provided by the healthcare provider in regards to the diagnosis:',
                 '```text',
-                f"keywords: {parameters['keywords']}",
+                f"keywords: {instruction.parameters['keywords']}",
                 " -- ",
-                parameters["rationale"],
+                instruction.parameters["rationale"],
                 "",
-                parameters["assessment"],
+                instruction.parameters["assessment"],
                 '```',
                 "",
                 'Among the following conditions, identify the most relevant one:',
@@ -64,9 +66,9 @@ class UpdateDiagnose(Base):
                 '',
             ]
             schemas = JsonSchema.get(["selector_condition"])
-            if response := chatter.single_conversation(system_prompt, user_prompt, schemas):
+            if response := chatter.single_conversation(system_prompt, user_prompt, schemas, instruction):
                 result.new_condition_code = Helper.icd10_strip_dot(response[0]["ICD10"])
-        return result
+        return InstructionWithCommand.add_command(instruction, result)
 
     def command_parameters(self) -> dict:
         conditions = "/".join([f'{condition.label} (index: {idx})' for idx, condition in enumerate(self.cache.current_conditions())])

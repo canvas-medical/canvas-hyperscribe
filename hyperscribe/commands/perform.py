@@ -2,9 +2,11 @@ from canvas_sdk.commands.commands.perform import PerformCommand
 
 from hyperscribe.commands.base import Base
 from hyperscribe.handlers.constants import Constants
-from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.handlers.selector_chat import SelectorChat
+from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.instruction_with_command import InstructionWithCommand
+from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 
 
 class Perform(Base):
@@ -19,23 +21,24 @@ class Perform(Base):
             return CodedItem(label=f"{text}: {notes}", code="", uuid="")
         return None
 
-    def command_from_json(self, chatter: LlmBase, parameters: dict) -> None | PerformCommand:
+    def command_from_json(self, instruction: InstructionWithParameters, chatter: LlmBase) -> InstructionWithCommand | None:
         result = PerformCommand(
             cpt_code="",
-            notes=parameters["comment"],
+            notes=instruction.parameters["comment"],
             note_uuid=self.note_uuid,
         )
         # retrieve the procedure, or action, based on the keywords
         item = SelectorChat.procedure_from(
+            instruction,
             chatter,
             self.settings,
-            parameters["procedureKeywords"].split(","),
-            parameters["comment"],
+            instruction.parameters["procedureKeywords"].split(","),
+            instruction.parameters["comment"],
         )
         if item.code:
             result.cpt_code = item.code
 
-        return result
+        return InstructionWithCommand.add_command(instruction, result)
 
     def command_parameters(self) -> dict:
         return {

@@ -5,6 +5,7 @@ import pytest
 
 from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.http_response import HttpResponse
+from hyperscribe.structures.instruction import Instruction
 from hyperscribe.structures.json_extract import JsonExtract
 from hyperscribe.structures.llm_turn import LlmTurn
 from tests.helper import is_constant
@@ -310,21 +311,74 @@ def test_single_conversation(chat):
     system_prompt = ["theSystemPrompt"]
     user_prompt = ["theUserPrompt"]
     schemas = ["schema1", "schema2"]
+    audit_schema = {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "array",
+        "items": {
+            "type": "object",
+            "properties": {
+                "key": {
+                    "type": "string",
+                    "description": "the referenced key",
+                },
+                "keyPath": {
+                    "type": "string",
+                    "description": "the JSON path of the referenced key from the root if there is more than one object",
+                },
+                "rational": {
+                    "type": "string",
+                    "description": "the rational of the provided value",
+                },
+            },
+            "required": ["key", "rational"],
+            "additionalProperties": False,
+        }
+    }
     tested = LlmBase(memory_log, "theApiKey", "theModel")
 
     # without error
-    chat.side_effect = [JsonExtract(error="theError", has_error=False, content=["theContent"])]
-    result = tested.single_conversation(system_prompt, user_prompt, schemas)
+    # -- no instruction, list
+    chat.side_effect = [JsonExtract(error="theError", has_error=False, content=[["theContent"]])]
+    result = tested.single_conversation(system_prompt, user_prompt, schemas, None)
     assert result == ["theContent"]
 
     calls = [call(["schema1", "schema2"])]
     assert chat.mock_calls == calls
     assert memory_log.mock_calls == []
     reset_mocks()
+    # -- no instruction, not list
+    chat.side_effect = [JsonExtract(error="theError", has_error=False, content=["one", "two"])]
+    result = tested.single_conversation(system_prompt, user_prompt, schemas, None)
+    assert result == ["one", "two"]
+
+    calls = [call(["schema1", "schema2"])]
+    assert chat.mock_calls == calls
+    assert memory_log.mock_calls == []
+    reset_mocks()
+    # -- with instruction
+    instruction = Instruction(uuid="theUuid", instruction="Second", information="theInformation", is_new=False, is_updated=True, audits=[])
+    chat.side_effect = [JsonExtract(error="theError", has_error=False, content=[["theContent"], ["theAudit"]])]
+    result = tested.single_conversation(system_prompt, user_prompt, schemas, instruction)
+    assert result == ["theContent"]
+    assert instruction.audits == [
+        '-------------',
+        '[\n'
+        ' [\n'
+        '  "theContent"\n'
+        ' ],\n'
+        ' [\n'
+        '  "theAudit"\n'
+        ' ]\n'
+        ']',
+    ]
+    calls = [call(["schema1", "schema2", audit_schema])]
+    assert chat.mock_calls == calls
+    assert memory_log.mock_calls == []
+    reset_mocks()
 
     # with error
-    chat.side_effect = [JsonExtract(error="theError", has_error=True, content=["theContent"])]
-    result = tested.single_conversation(system_prompt, user_prompt, schemas)
+    chat.side_effect = [JsonExtract(error="theError", has_error=True, content=[["theContent"]])]
+    result = tested.single_conversation(system_prompt, user_prompt, schemas, None)
     assert result == []
 
     calls = [call(["schema1", "schema2"])]
@@ -398,23 +452,6 @@ def test_extract_json_from(json_validator):
             ["item3"],
             ["item4"],
         ],
-    )
-    assert result == expected
-    assert json_validator.mock_calls == []
-    # -- one JSON
-    content = "\n".join([
-        "response:",
-        "```json",
-        json.dumps(["item1", "item2"]),
-        "```",
-        "",
-        "end.",
-    ])
-    result = tested.extract_json_from(content, [])
-    expected = JsonExtract(
-        error="",
-        has_error=False,
-        content=["item1", "item2"],
     )
     assert result == expected
     assert json_validator.mock_calls == []

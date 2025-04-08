@@ -3,6 +3,8 @@ from canvas_sdk.commands.commands.questionnaire import QuestionnaireCommand
 from hyperscribe.commands.base_questionnaire import BaseQuestionnaire
 from hyperscribe.handlers.constants import Constants
 from hyperscribe.llms.llm_base import LlmBase
+from hyperscribe.structures.instruction_with_command import InstructionWithCommand
+from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 
 
 class Questionnaire(BaseQuestionnaire):
@@ -10,16 +12,16 @@ class Questionnaire(BaseQuestionnaire):
     def schema_key(cls) -> str:
         return Constants.SCHEMA_KEY_QUESTIONNAIRE
 
-    def command_from_json(self, chatter: LlmBase, parameters: dict) -> None | QuestionnaireCommand:
+    def command_from_json(self, instruction: InstructionWithParameters, chatter: LlmBase) -> InstructionWithCommand | None:
         questionnaire_uuid = ""
-        if 0 <= (idx := parameters["questionnaireIndex"]) < len(current := self.cache.existing_questionnaires()):
+        if 0 <= (idx := instruction.parameters["questionnaireIndex"]) < len(current := self.cache.existing_questionnaires()):
             questionnaire_uuid = current[idx].uuid
 
-        return QuestionnaireCommand(
+        return InstructionWithCommand.add_command(instruction, QuestionnaireCommand(
             questionnaire_id=questionnaire_uuid,
-            result=parameters["result"],
+            result=instruction.parameters["result"],
             note_uuid=self.note_uuid,
-        )
+        ))
 
     def command_parameters(self) -> dict:
         questionnaires = "/".join([f'{questionnaire.label} (index: {idx})' for idx, questionnaire in enumerate(self.cache.existing_questionnaires())])

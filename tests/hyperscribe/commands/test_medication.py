@@ -2,11 +2,13 @@ from unittest.mock import patch, call, MagicMock
 
 from canvas_sdk.commands.commands.medication_statement import MedicationStatementCommand
 
-from hyperscribe.handlers.canvas_science import CanvasScience
 from hyperscribe.commands.base import Base
 from hyperscribe.commands.medication import Medication
+from hyperscribe.handlers.canvas_science import CanvasScience
 from hyperscribe.handlers.limited_cache import LimitedCache
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.instruction_with_command import InstructionWithCommand
+from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.medication_detail import MedicationDetail
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
@@ -111,9 +113,17 @@ def test_command_from_json(medication_details):
     keywords = ['keyword1', 'keyword2', 'keyword3']
     tested = helper_instance()
 
-    parameters = {
-        'keywords': 'keyword1,keyword2,keyword3',
-        'sig': 'theSig',
+    arguments = {
+        "uuid": "theUuid",
+        "instruction": "theInstruction",
+        "information": "theInformation",
+        "is_new": False,
+        "is_updated": True,
+        "audits": ["theAudit"],
+        "parameters": {
+            'keywords': 'keyword1,keyword2,keyword3',
+            'sig': 'theSig',
+        },
     }
     medications = [
         MedicationDetail(fdb_code="code123", description="labelA", quantities=[]),
@@ -125,16 +135,18 @@ def test_command_from_json(medication_details):
     medication_details.side_effect = [medications]
     chatter.single_conversation.side_effect = [[{"fdbCode": "code369", "description": "labelB"}]]
 
-    result = tested.command_from_json(chatter, parameters)
-    expected = MedicationStatementCommand(
+    instruction = InstructionWithParameters(**arguments)
+    result = tested.command_from_json(instruction, chatter)
+    command = MedicationStatementCommand(
         sig="theSig",
         fdb_code="code369",
         note_uuid="noteUuid",
     )
+    expected = InstructionWithCommand(**(arguments | {"command": command}))
     assert result == expected
     calls = [call('scienceHost', keywords)]
     assert medication_details.mock_calls == calls
-    calls = [call.single_conversation(system_prompt, user_prompt, schemas)]
+    calls = [call.single_conversation(system_prompt, user_prompt, schemas, instruction)]
     assert chatter.mock_calls == calls
     reset_mocks()
 
@@ -142,15 +154,16 @@ def test_command_from_json(medication_details):
     medication_details.side_effect = [medications]
     chatter.single_conversation.side_effect = [[]]
 
-    result = tested.command_from_json(chatter, parameters)
-    expected = MedicationStatementCommand(
+    result = tested.command_from_json(instruction, chatter)
+    command = MedicationStatementCommand(
         sig="theSig",
         note_uuid="noteUuid",
     )
+    expected = InstructionWithCommand(**(arguments | {"command": command}))
     assert result == expected
     calls = [call('scienceHost', keywords)]
     assert medication_details.mock_calls == calls
-    calls = [call.single_conversation(system_prompt, user_prompt, schemas)]
+    calls = [call.single_conversation(system_prompt, user_prompt, schemas, instruction)]
     assert chatter.mock_calls == calls
     reset_mocks()
 
@@ -158,11 +171,12 @@ def test_command_from_json(medication_details):
     medication_details.side_effect = [[]]
     chatter.single_conversation.side_effect = [[]]
 
-    result = tested.command_from_json(chatter, parameters)
-    expected = MedicationStatementCommand(
+    result = tested.command_from_json(instruction, chatter)
+    command = MedicationStatementCommand(
         sig="theSig",
         note_uuid="noteUuid",
     )
+    expected = InstructionWithCommand(**(arguments | {"command": command}))
     assert result == expected
     calls = [call('scienceHost', keywords)]
     assert medication_details.mock_calls == calls

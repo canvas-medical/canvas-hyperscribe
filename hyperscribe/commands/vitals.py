@@ -6,6 +6,8 @@ from hyperscribe.commands.base import Base
 from hyperscribe.handlers.constants import Constants
 from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.instruction_with_command import InstructionWithCommand
+from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 
 
 class Vitals(Base):
@@ -19,18 +21,51 @@ class Vitals(Base):
             return CodedItem(label=text, code="", uuid="")
         return None
 
-    def command_from_json(self, chatter: LlmBase, parameters: dict) -> None | VitalsCommand:
-        return VitalsCommand(
-            height=self.valid_or_none(VitalsCommand, "height", parameters["height"]["inches"]),
-            weight_lbs=self.valid_or_none(VitalsCommand, "weight_lbs", parameters["weight"]["pounds"]),
-            waist_circumference=self.valid_or_none(VitalsCommand, "waist_circumference", parameters["waistCircumference"]["centimeters"]),
-            body_temperature=self.valid_or_none(VitalsCommand, "body_temperature", parameters["temperature"]["fahrenheit"]),
-            blood_pressure_systole=self.valid_or_none(VitalsCommand, "blood_pressure_systole", parameters["bloodPressure"]["systolicPressure"]),
-            blood_pressure_diastole=self.valid_or_none(VitalsCommand, "blood_pressure_diastole", parameters["bloodPressure"]["diastolicPressure"]),
-            pulse=self.valid_or_none(VitalsCommand, "pulse", parameters["pulseRate"]["beatPerMinute"]),
-            respiration_rate=self.valid_or_none(VitalsCommand, "respiration_rate", parameters["respirationRate"]["beatPerMinute"]),
+    def command_from_json(self, instruction: InstructionWithParameters, chatter: LlmBase) -> InstructionWithCommand | None:
+
+        return InstructionWithCommand.add_command(instruction, VitalsCommand(
+            height=self.valid_or_none(
+                VitalsCommand,
+                "height",
+                instruction.parameters["height"]["inches"],
+            ),
+            weight_lbs=self.valid_or_none(
+                VitalsCommand,
+                "weight_lbs",
+                instruction.parameters["weight"]["pounds"],
+            ),
+            waist_circumference=self.valid_or_none(
+                VitalsCommand,
+                "waist_circumference",
+                instruction.parameters["waistCircumference"]["centimeters"],
+            ),
+            body_temperature=self.valid_or_none(
+                VitalsCommand,
+                "body_temperature",
+                instruction.parameters["temperature"]["fahrenheit"],
+            ),
+            blood_pressure_systole=self.valid_or_none(
+                VitalsCommand,
+                "blood_pressure_systole",
+                instruction.parameters["bloodPressure"]["systolicPressure"],
+            ),
+            blood_pressure_diastole=self.valid_or_none(
+                VitalsCommand,
+                "blood_pressure_diastole",
+                instruction.parameters["bloodPressure"]["diastolicPressure"],
+            ),
+            pulse=self.valid_or_none(
+                VitalsCommand,
+                "pulse",
+                instruction.parameters["pulseRate"]["beatPerMinute"],
+            ),
+            respiration_rate=self.valid_or_none(
+                VitalsCommand,
+                "respiration_rate",
+                instruction.parameters["respirationRate"]["beatPerMinute"],
+            ),
             note_uuid=self.note_uuid,
-        )
+        ))
 
     def command_parameters(self) -> dict:
         return {

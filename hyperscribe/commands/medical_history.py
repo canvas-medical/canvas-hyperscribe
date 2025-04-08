@@ -2,13 +2,15 @@ import json
 
 from canvas_sdk.commands.commands.medical_history import MedicalHistoryCommand
 
-from hyperscribe.handlers.canvas_science import CanvasScience
 from hyperscribe.commands.base import Base
+from hyperscribe.handlers.canvas_science import CanvasScience
 from hyperscribe.handlers.constants import Constants
 from hyperscribe.handlers.helper import Helper
 from hyperscribe.handlers.json_schema import JsonSchema
 from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.instruction_with_command import InstructionWithCommand
+from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 
 
 class MedicalHistory(Base):
@@ -25,16 +27,16 @@ class MedicalHistory(Base):
             return CodedItem(label=f"{text}: from {start_date} to {end_date} ({comment})", code="", uuid="")
         return None
 
-    def command_from_json(self, chatter: LlmBase, parameters: dict) -> None | MedicalHistoryCommand:
+    def command_from_json(self, instruction: InstructionWithParameters, chatter: LlmBase) -> InstructionWithCommand | None:
         result = MedicalHistoryCommand(
-            approximate_start_date=Helper.str2date(parameters["approximateStartDate"]),
-            approximate_end_date=Helper.str2date(parameters["approximateEndDate"]),
+            approximate_start_date=Helper.str2date(instruction.parameters["approximateStartDate"]),
+            approximate_end_date=Helper.str2date(instruction.parameters["approximateEndDate"]),
             show_on_condition_list=True,
-            comments=parameters["comments"],
+            comments=instruction.parameters["comments"],
             note_uuid=self.note_uuid,
         )
         # retrieve existing medical history conditions defined in Canvas Science
-        expressions = parameters["keywords"].split(",")
+        expressions = instruction.parameters["keywords"].split(",")
         if concepts := CanvasScience.medical_histories(self.settings.science_host, expressions):
             # ask the LLM to pick the most relevant condition
             system_prompt = [
@@ -46,9 +48,9 @@ class MedicalHistory(Base):
             user_prompt = [
                 'Here is the comment provided by the healthcare provider in regards to the condition of a patient:',
                 '```text',
-                f"keywords: {parameters['keywords']}",
+                f"keywords: {instruction.parameters['keywords']}",
                 " -- ",
-                parameters["comments"],
+                instruction.parameters["comments"],
                 '```',
                 'Among the following conditions, identify the most relevant one:',
                 '',
@@ -61,9 +63,9 @@ class MedicalHistory(Base):
                 '',
             ]
             schemas = JsonSchema.get(["selector_condition"])
-            if response := chatter.single_conversation(system_prompt, user_prompt, schemas):
+            if response := chatter.single_conversation(system_prompt, user_prompt, schemas, instruction):
                 result.past_medical_history = response[0]["label"]
-        return result
+        return InstructionWithCommand.add_command(instruction, result)
 
     def command_parameters(self) -> dict:
         return {

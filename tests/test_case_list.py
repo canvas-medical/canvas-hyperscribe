@@ -6,17 +6,17 @@ from evaluations.structures.evaluation_case import EvaluationCase
 
 
 @patch.object(StoreCases, "all")
-def test_run(all, capsys):
+def test_run(mock_all, capsys):
     def reset_mocks():
-        all.reset_mock()
+        mock_all.reset_mock()
 
     tested = CaseList()
     # no records
-    all.side_effect = [[]]
+    mock_all.side_effect = [[]]
     tested.run()
 
     calls = [call()]
-    assert all.mock_calls == calls
+    assert mock_all.mock_calls == calls
     exp_out = "\n".join([
         "------------------------------------------------------------------",
         "| environment | group | type | case | patient UUID | description |",
@@ -28,7 +28,7 @@ def test_run(all, capsys):
     reset_mocks()
 
     # with records
-    all.side_effect = [
+    mock_all.side_effect = [
         [
             EvaluationCase(
                 environment="theEnvironment1",
@@ -59,7 +59,7 @@ def test_run(all, capsys):
     tested.run()
 
     calls = [call()]
-    assert all.mock_calls == calls
+    assert mock_all.mock_calls == calls
     exp_out = "\n".join([
         "---------------------------------------------------------------------------------------------",
         "| environment     | group     | type     | case         | patient UUID    | description     |",

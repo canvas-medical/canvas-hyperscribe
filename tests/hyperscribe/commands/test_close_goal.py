@@ -7,6 +7,8 @@ from hyperscribe.commands.base import Base
 from hyperscribe.commands.close_goal import CloseGoal
 from hyperscribe.handlers.limited_cache import LimitedCache
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.instruction_with_command import InstructionWithCommand
+from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
 
@@ -87,19 +89,29 @@ def test_command_from_json(current_goals):
     ]
     for idx, exp_uuid in tests:
         current_goals.side_effect = [goals, goals]
-        params = {
-            'goal': 'display2a',
-            'goalIndex': idx,
-            'progressAndBarriers': 'theProgressAndBarriers',
-            'status': 'improving',
+        arguments = {
+            "uuid": "theUuid",
+            "instruction": "theInstruction",
+            "information": "theInformation",
+            "is_new": False,
+            "is_updated": True,
+            "audits": ["theAudit"],
+            "parameters": {
+                'goal': 'display2a',
+                'goalIndex': idx,
+                'progressAndBarriers': 'theProgressAndBarriers',
+                'status': 'improving',
+            },
         }
-        result = tested.command_from_json(chatter, params)
-        expected = CloseGoalCommand(
+        instruction = InstructionWithParameters(**arguments)
+        result = tested.command_from_json(instruction, chatter)
+        command = CloseGoalCommand(
             goal_id=exp_uuid,
             achievement_status=GoalCommand.AchievementStatus.IMPROVING,
             progress="theProgressAndBarriers",
             note_uuid="noteUuid",
         )
+        expected = InstructionWithCommand(**(arguments | {"command": command}))
         assert result == expected
         calls = [call()]
         assert current_goals.mock_calls == calls

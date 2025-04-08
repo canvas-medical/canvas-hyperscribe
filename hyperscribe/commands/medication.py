@@ -2,12 +2,14 @@ import json
 
 from canvas_sdk.commands.commands.medication_statement import MedicationStatementCommand
 
-from hyperscribe.handlers.canvas_science import CanvasScience
 from hyperscribe.commands.base import Base
+from hyperscribe.handlers.canvas_science import CanvasScience
 from hyperscribe.handlers.constants import Constants
 from hyperscribe.handlers.json_schema import JsonSchema
 from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.instruction_with_command import InstructionWithCommand
+from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 
 
 class Medication(Base):
@@ -22,13 +24,13 @@ class Medication(Base):
             return CodedItem(label=f"{text}: {sig}", code="", uuid="")
         return None
 
-    def command_from_json(self, chatter: LlmBase, parameters: dict) -> None | MedicationStatementCommand:
+    def command_from_json(self, instruction: InstructionWithParameters, chatter: LlmBase) -> InstructionWithCommand | None:
         result = MedicationStatementCommand(
-            sig=parameters["sig"],
+            sig=instruction.parameters["sig"],
             note_uuid=self.note_uuid,
         )
         # retrieve existing medications defined in Canvas Science
-        expressions = parameters["keywords"].split(",")
+        expressions = instruction.parameters["keywords"].split(",")
         if medications := CanvasScience.medication_details(self.settings.science_host, expressions):
             # retrieve the correct medication
             system_prompt = [
@@ -40,9 +42,9 @@ class Medication(Base):
             user_prompt = [
                 'Here is the comment provided by the healthcare provider in regards to the prescription:',
                 '```text',
-                f"keywords: {parameters['keywords']}",
+                f"keywords: {instruction.parameters['keywords']}",
                 " -- ",
-                parameters["sig"],
+                instruction.parameters["sig"],
                 '```',
                 "",
                 'Among the following medications, identify the most relevant one:',
@@ -56,9 +58,9 @@ class Medication(Base):
                 '',
             ]
             schemas = JsonSchema.get(["selector_fdb_code"])
-            if response := chatter.single_conversation(system_prompt, user_prompt, schemas):
+            if response := chatter.single_conversation(system_prompt, user_prompt, schemas, instruction):
                 result.fdb_code = str(response[0]["fdbCode"])
-        return result
+        return InstructionWithCommand.add_command(instruction, result)
 
     def command_parameters(self) -> dict:
         return {

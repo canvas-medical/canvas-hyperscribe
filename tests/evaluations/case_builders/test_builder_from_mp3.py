@@ -59,8 +59,8 @@ def test__run(
         helper.reset_mock()
         audio_interpreter.reset_mock()
         commander.reset_mock()
-        for mock_file in mock_files:
-            mock_file.reset_mock()
+        for item in mock_files:
+            item.reset_mock()
 
     tested = BuilderFromMp3
 

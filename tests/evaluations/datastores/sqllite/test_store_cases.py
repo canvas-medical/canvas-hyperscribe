@@ -36,8 +36,9 @@ def test__update_sql():
 def test__insert_sql():
     tested = StoreCases
     result = tested._insert_sql()
-    expected = ("INSERT INTO `cases` (`created`,`updated`,`environment`,`patient_uuid`,`limited_cache`,`case_type`,`case_group`,`case_name`,`description`) "
-                "VALUES (:now,:now,:environment,:patient,:cache,:type,:group,:name,:description)")
+    expected = (
+        "INSERT INTO `cases` (`created`,`updated`,`environment`,`patient_uuid`,`limited_cache`,`case_type`,`case_group`,`case_name`,`description`) "
+        "VALUES (:now,:now,:environment,:patient,:cache,:type,:group,:name,:description)")
     assert result == expected
 
 

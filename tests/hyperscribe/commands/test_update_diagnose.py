@@ -2,12 +2,14 @@ from unittest.mock import patch, call, MagicMock
 
 from canvas_sdk.commands.commands.update_diagnosis import UpdateDiagnosisCommand
 
-from hyperscribe.handlers.canvas_science import CanvasScience
 from hyperscribe.commands.base import Base
 from hyperscribe.commands.update_diagnose import UpdateDiagnose
+from hyperscribe.handlers.canvas_science import CanvasScience
 from hyperscribe.handlers.limited_cache import LimitedCache
 from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.icd10_condition import Icd10Condition
+from hyperscribe.structures.instruction_with_command import InstructionWithCommand
+from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
 
@@ -134,13 +136,21 @@ def test_command_from_json(current_conditions, search_conditions):
         (4, None),
     ]
     for idx, exp_current_icd10 in tests:
-        parameters = {
-            'keywords': 'keyword1,keyword2,keyword3',
-            "ICD10": "ICD01,ICD02,ICD03",
-            "previousCondition": "theCondition",
-            "previousConditionIndex": idx,
-            "rationale": "theRationale",
-            "assessment": "theAssessment",
+        arguments = {
+            "uuid": "theUuid",
+            "instruction": "theInstruction",
+            "information": "theInformation",
+            "is_new": False,
+            "is_updated": True,
+            "audits": ["theAudit"],
+            "parameters": {
+                'keywords': 'keyword1,keyword2,keyword3',
+                "ICD10": "ICD01,ICD02,ICD03",
+                "previousCondition": "theCondition",
+                "previousConditionIndex": idx,
+                "rationale": "theRationale",
+                "assessment": "theAssessment",
+            },
         }
         conditions = [
             CodedItem(uuid="theUuid1", label="display1a", code="CODE12.3"),
@@ -158,21 +168,23 @@ def test_command_from_json(current_conditions, search_conditions):
         search_conditions.side_effect = [search]
         chatter.single_conversation.side_effect = [[{"ICD10": "code369", "description": "labelB"}]]
 
-        result = tested.command_from_json(chatter, parameters)
-        expected = UpdateDiagnosisCommand(
+        instruction = InstructionWithParameters(**arguments)
+        result = tested.command_from_json(instruction, chatter)
+        command = UpdateDiagnosisCommand(
             background="theRationale",
             narrative="theAssessment",
             note_uuid="noteUuid",
             new_condition_code='code369',
         )
         if exp_current_icd10:
-            expected.condition_code = exp_current_icd10
+            command.condition_code = exp_current_icd10
+        expected = InstructionWithCommand(**(arguments | {"command": command}))
         assert result == expected, f"---> {idx}"
         calls = [call()]
         assert current_conditions.mock_calls == calls
         calls = [call('scienceHost', keywords)]
         assert search_conditions.mock_calls == calls
-        calls = [call.single_conversation(system_prompt, user_prompt, schemas)]
+        calls = [call.single_conversation(system_prompt, user_prompt, schemas, instruction)]
         assert chatter.mock_calls == calls
         reset_mocks()
 
@@ -181,14 +193,15 @@ def test_command_from_json(current_conditions, search_conditions):
         search_conditions.side_effect = [[]]
         chatter.single_conversation.side_effect = []
 
-        result = tested.command_from_json(chatter, parameters)
-        expected = UpdateDiagnosisCommand(
+        result = tested.command_from_json(instruction, chatter)
+        command = UpdateDiagnosisCommand(
             background="theRationale",
             narrative="theAssessment",
             note_uuid="noteUuid",
         )
         if exp_current_icd10:
-            expected.condition_code = exp_current_icd10
+            command.condition_code = exp_current_icd10
+        expected = InstructionWithCommand(**(arguments | {"command": command}))
         assert result == expected, f"---> {idx}"
         calls = [call()]
         assert current_conditions.mock_calls == calls
@@ -202,20 +215,21 @@ def test_command_from_json(current_conditions, search_conditions):
         search_conditions.side_effect = [search]
         chatter.single_conversation.side_effect = [[]]
 
-        result = tested.command_from_json(chatter, parameters)
-        expected = UpdateDiagnosisCommand(
+        result = tested.command_from_json(instruction, chatter)
+        command = UpdateDiagnosisCommand(
             background="theRationale",
             narrative="theAssessment",
             note_uuid="noteUuid",
         )
         if exp_current_icd10:
-            expected.condition_code = exp_current_icd10
+            command.condition_code = exp_current_icd10
+        expected = InstructionWithCommand(**(arguments | {"command": command}))
         assert result == expected, f"---> {idx}"
         calls = [call()]
         assert current_conditions.mock_calls == calls
         calls = [call('scienceHost', keywords)]
         assert search_conditions.mock_calls == calls
-        calls = [call.single_conversation(system_prompt, user_prompt, schemas)]
+        calls = [call.single_conversation(system_prompt, user_prompt, schemas, instruction)]
         assert chatter.mock_calls == calls
         reset_mocks()
 

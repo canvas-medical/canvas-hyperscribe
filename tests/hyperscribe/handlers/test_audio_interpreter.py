@@ -8,6 +8,7 @@ from hyperscribe.handlers.limited_cache import LimitedCache
 from hyperscribe.handlers.memory_log import MemoryLog
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.instruction import Instruction
+from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.json_extract import JsonExtract
 from hyperscribe.structures.line import Line
 from hyperscribe.structures.settings import Settings
@@ -56,8 +57,8 @@ def test___init__(command_list):
 
     def reset_mocks():
         command_list.reset_mocks()
-        for mock in mocks:
-            mock.reset_mock()
+        for item in mocks:
+            item.reset_mock()
 
     settings = Settings(
         llm_text=VendorKey(vendor="textVendor", api_key="textKey"),
@@ -104,8 +105,8 @@ def test_instruction_definitions():
     ]
 
     def reset_mocks():
-        for mock in mocks:
-            mock.reset_mock()
+        for item in mocks:
+            item.reset_mock()
 
     mocks[0].return_value.class_name.side_effect = ["First"]
     mocks[1].return_value.class_name.side_effect = ["Second"]
@@ -148,8 +149,8 @@ def test_instruction_constraints():
     ]
 
     def reset_mocks():
-        for mock in mocks:
-            mock.reset_mock()
+        for item in mocks:
+            item.reset_mock()
 
     mocks[0].return_value.instruction_constraints.side_effect = ["Constraints1"]
     mocks[1].return_value.instruction_constraints.side_effect = [""]
@@ -183,8 +184,8 @@ def test_command_structures():
     ]
 
     def reset_mocks():
-        for mock in mocks:
-            mock.reset_mock()
+        for item in mocks:
+            item.reset_mock()
 
     mocks[0].return_value.class_name.side_effect = ["First"]
     mocks[1].return_value.class_name.side_effect = ["Second"]
@@ -396,8 +397,8 @@ def test_detect_instructions(
         instruction_constraints.reset_mock()
         chatter.reset_mock()
         memory_log.reset_mock()
-        for mock in mocks:
-            mock.reset_mock()
+        for item in mocks:
+            item.reset_mock()
         mocks[0].return_value.class_name.side_effect = ["First"]
         mocks[1].return_value.class_name.side_effect = ["Second"]
         mocks[2].return_value.class_name.side_effect = ["Third"]
@@ -425,7 +426,8 @@ def test_detect_instructions(
         '"instruction": "the instruction", '
         '"information": "the information associated with the instruction, grounded in the transcript with no embellishment or omission", '
         '"isNew": "the instruction is new for the discussion, as boolean", '
-        '"isUpdated": "the instruction is an update of one already identified in the discussion, as boolean"'
+        '"isUpdated": "the instruction is an update of one already identified in the discussion, as boolean", '
+        '"audits": "the reasoning behind identifying this instruction, including relevant excerpts from supporting discussions, as a list"'
         '}',
         '', 'The JSON will be validated with the schema:',
         '```json',
@@ -496,8 +498,22 @@ def test_detect_instructions(
         Line(speaker="personA", text="the text 3"),
     ]
     known_instructions = [
-        Instruction(uuid="uuid1", instruction="the instruction 1", information="the information 1", is_new=True, is_updated=False),
-        Instruction(uuid="uuid2", instruction="the instruction 2", information="the information 2", is_new=False, is_updated=True),
+        Instruction(
+            uuid="uuid1",
+            instruction="the instruction 1",
+            information="the information 1",
+            is_new=True,
+            is_updated=False,
+            audits=["line1", "line2"],
+        ),
+        Instruction(
+            uuid="uuid2",
+            instruction="the instruction 2",
+            information="the information 2",
+            is_new=False,
+            is_updated=True,
+            audits=["line1", "line2"],
+        ),
     ]
     reset_mocks()
 
@@ -520,8 +536,8 @@ def test_detect_instructions(
     assert instruction_constraints.mock_calls == calls
     calls = [
         call(settings, "MemoryLogInstance"),
-        call().single_conversation(system_prompts, user_prompts["noKnownInstructions"], ['theJsonSchema']),
-        call().single_conversation(system_prompts, user_prompts["constraints"], ['theJsonSchema']),
+        call().single_conversation(system_prompts, user_prompts["noKnownInstructions"], ['theJsonSchema'], None),
+        call().single_conversation(system_prompts, user_prompts["constraints"], ['theJsonSchema'], None),
     ]
     assert chatter.mock_calls == calls
     calls = [call("noteUuid", "transcript2instructions", aws_credentials)]
@@ -553,7 +569,7 @@ def test_detect_instructions(
     assert instruction_constraints.mock_calls == calls
     calls = [
         call(settings, "MemoryLogInstance"),
-        call().single_conversation(system_prompts, user_prompts["noKnownInstructions"], ['theJsonSchema']),
+        call().single_conversation(system_prompts, user_prompts["noKnownInstructions"], ['theJsonSchema'], None),
     ]
     assert chatter.mock_calls == calls
     calls = [call("noteUuid", "transcript2instructions", aws_credentials)]
@@ -582,8 +598,8 @@ def test_detect_instructions(
     assert instruction_constraints.mock_calls == calls
     calls = [
         call(settings, "MemoryLogInstance"),
-        call().single_conversation(system_prompts, user_prompts["withKnownInstructions"], ['theJsonSchema']),
-        call().single_conversation(system_prompts, user_prompts["constraints"], ['theJsonSchema']),
+        call().single_conversation(system_prompts, user_prompts["withKnownInstructions"], ['theJsonSchema'], None),
+        call().single_conversation(system_prompts, user_prompts["constraints"], ['theJsonSchema'], None),
     ]
     assert chatter.mock_calls == calls
     calls = [call("noteUuid", "transcript2instructions", aws_credentials)]
@@ -611,8 +627,8 @@ def test_create_sdk_command_parameters(chatter, memory_log, mock_datetime):
         chatter.reset_mock()
         memory_log.reset_mock()
         mock_datetime.reset_mock()
-        for mock in mocks:
-            mock.reset_mock()
+        for item in mocks:
+            item.reset_mock()
         mocks[0].return_value.class_name.side_effect = ["First"]
         mocks[1].return_value.class_name.side_effect = ["Second"]
         mocks[2].return_value.class_name.side_effect = ["Third"]
@@ -622,7 +638,14 @@ def test_create_sdk_command_parameters(chatter, memory_log, mock_datetime):
         mocks[2].return_value.command_parameters.side_effect = [{"Command": "Parameters3"}]
         mocks[3].return_value.command_parameters.side_effect = [{"Command": "Parameters4"}]
 
-    instruction = Instruction(uuid="theUuid", instruction="Second", information="theInformation", is_new=False, is_updated=True)
+    instruction = Instruction(
+        uuid="theUuid",
+        instruction="Second",
+        information="theInformation",
+        is_new=False,
+        is_updated=True,
+        audits=["line1", "line2"],
+    )
     system_prompt = [
         "The conversation is in the context of a clinical encounter between patient and licensed healthcare provider.",
         "During the encounter, the user has identified instructions with key information to record in its software.",
@@ -646,20 +669,34 @@ def test_create_sdk_command_parameters(chatter, memory_log, mock_datetime):
         '```',
         '',
     ]
-    schemas = []
+    schemas = [
+        {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "array",
+            "items": {"type": "object", "additionalProperties": True},
+        },
+    ]
     reset_mocks()
 
     tested, settings, aws_credentials, cache = helper_instance(mocks)
     # with response
     mock_datetime.now.side_effect = [datetime(2025, 2, 4, 7, 48, 21, tzinfo=timezone.utc)]
-    chatter.return_value.single_conversation.side_effect = [["response1", "response2"]]
+    chatter.return_value.single_conversation.side_effect = [[{"key": "response1"}, {"key": "response2"}]]
     memory_log.side_effect = ["MemoryLogInstance"]
     result = tested.create_sdk_command_parameters(instruction)
-    expected = instruction, "response1"
+    expected = InstructionWithParameters(
+        uuid="theUuid",
+        instruction="Second",
+        information="theInformation",
+        is_new=False,
+        is_updated=True,
+        audits=["line1", "line2"],
+        parameters={"key": "response1"},
+    )
     assert result == expected
     calls = [
         call(settings, "MemoryLogInstance"),
-        call().single_conversation(system_prompt, user_prompt, schemas),
+        call().single_conversation(system_prompt, user_prompt, schemas, instruction),
     ]
     assert chatter.mock_calls == calls
     calls = [call("noteUuid", "Second_theUuid_instruction2parameters", aws_credentials)]
@@ -684,11 +721,10 @@ def test_create_sdk_command_parameters(chatter, memory_log, mock_datetime):
     chatter.return_value.single_conversation.side_effect = [[]]
     memory_log.side_effect = ["MemoryLogInstance"]
     result = tested.create_sdk_command_parameters(instruction)
-    expected = instruction, None
-    assert result == expected
+    assert result is None
     calls = [
         call(settings, "MemoryLogInstance"),
-        call().single_conversation(system_prompt, user_prompt, schemas),
+        call().single_conversation(system_prompt, user_prompt, schemas, instruction),
     ]
     assert chatter.mock_calls == calls
     calls = [call("noteUuid", "Second_theUuid_instruction2parameters", aws_credentials)]
@@ -719,8 +755,8 @@ def test_create_sdk_command_from(chatter, memory_log):
     def reset_mocks():
         chatter.reset_mock()
         memory_log.reset_mock()
-        for mock in mocks:
-            mock.reset_mock()
+        for item in mocks:
+            item.reset_mock()
         mocks[0].return_value.class_name.side_effect = ["First"]
         mocks[1].return_value.class_name.side_effect = ["Second"]
         mocks[2].return_value.class_name.side_effect = ["Third"]
@@ -741,10 +777,17 @@ def test_create_sdk_command_from(chatter, memory_log):
     for instruction, number, expected, exp_log_label in tests:
         chatter.side_effect = ["LlmBaseInstance"]
         memory_log.side_effect = ["MemoryLogInstance"]
-        instruction = Instruction(uuid="theUuid", instruction=instruction, information="theInformation", is_new=False, is_updated=True)
-        parameters = {"theKey": "theValue"}
+        instruction = InstructionWithParameters(
+            uuid="theUuid",
+            instruction=instruction,
+            information="theInformation",
+            is_new=False,
+            is_updated=True,
+            audits=["line1", "line2"],
+            parameters={"theKey": "theValue"},
+        )
         tested, settings, aws_credentials, cache = helper_instance(mocks)
-        result = tested.create_sdk_command_from(instruction, parameters)
+        result = tested.create_sdk_command_from(instruction)
         assert result == expected
 
         calls = [call(settings, "MemoryLogInstance")] if exp_log_label else []
@@ -760,7 +803,7 @@ def test_create_sdk_command_from(chatter, memory_log):
             if idx < number + 1 and idx != 2:
                 calls.extend([call().class_name()])
             if idx == number and idx != 2:
-                calls.extend([call().command_from_json("LlmBaseInstance", {'theKey': 'theValue'})])
+                calls.extend([call().command_from_json(instruction, "LlmBaseInstance")])
             assert mock.mock_calls == calls, f"---> {idx}"
         reset_mocks()
 
@@ -794,8 +837,17 @@ def test_json_schema():
                     'description': 'a unique identifier in this discussion',
                     'type': 'string',
                 },
+                'audits': {
+                    'description': 'breakdown of the decision-making process used to detect this '
+                                   'instruction, incorporating direct quotes from key exchanges '
+                                   'where necessary',
+                    'items': {
+                        'type': 'string',
+                    },
+                    'type': 'array',
+                },
             },
-            'required': ['uuid', 'instruction', 'information', 'isNew', 'isUpdated'],
+            'required': ['uuid', 'instruction', 'information', 'isNew', 'isUpdated', 'audits'],
             'type': 'object',
         },
         'type': 'array',

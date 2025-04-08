@@ -8,8 +8,10 @@ from canvas_sdk.questionnaires.utils import Draft7Validator
 from logger import log
 
 from hyperscribe.handlers.constants import Constants
+from hyperscribe.handlers.json_schema import JsonSchema
 from hyperscribe.handlers.memory_log import MemoryLog
 from hyperscribe.structures.http_response import HttpResponse
+from hyperscribe.structures.instruction import Instruction
 from hyperscribe.structures.json_extract import JsonExtract
 from hyperscribe.structures.llm_turn import LlmTurn
 
@@ -97,12 +99,33 @@ class LlmBase:
         self.memory_log.store_so_far()
         return result
 
-    def single_conversation(self, system_prompt: list[str], user_prompt: list[str], schemas: list) -> list:
+    def single_conversation(self, system_prompt: list[str], user_prompt: list[str], schemas: list, instruction: Instruction | None) -> list:
+        used_schemas = [s for s in schemas]
+        used_prompt = [s for s in user_prompt]
+        if instruction is not None:
+            audit_schema = JsonSchema.get(["audit"])[0]
+            used_prompt.extend([
+                "As a following step, provide the rational of each and every value you have provided.",
+                "Provide the reasoning behind each and every value you provided, your response has to follow this JSON Schema:",
+                "```json",
+                json.dumps(audit_schema, indent=1),
+                "```",
+                "",
+            ])
+            used_schemas.append(audit_schema)
+
         self.set_system_prompt(system_prompt)
-        self.set_user_prompt(user_prompt)
-        response = self.chat(schemas)
+        self.set_user_prompt(used_prompt)
+        response = self.chat(used_schemas)
         if response.has_error is False and response.content:
-            return response.content
+            result = response.content
+            if instruction is not None:
+                instruction.audits.append("-------------")
+                instruction.audits.append(json.dumps(response.content, indent=1))
+                result = response.content[:-1]
+            if isinstance(result, list) and len(result) == 1:
+                return result[0]
+            return result
         return []
 
     @classmethod
@@ -143,6 +166,4 @@ class LlmBase:
                 return JsonExtract(error=f"in the JSON #{idx + 1}:{problems}", has_error=True, content=[])
 
         # all good
-        if len(result) == 1:
-            return JsonExtract(error="", has_error=False, content=result[0])
         return JsonExtract(error="", has_error=False, content=result)

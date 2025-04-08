@@ -2,13 +2,15 @@ from unittest.mock import patch, call, MagicMock
 
 from canvas_sdk.commands.commands.imaging_order import ImagingOrderCommand
 
-from hyperscribe.handlers.canvas_science import CanvasScience
 from hyperscribe.commands.base import Base
 from hyperscribe.commands.imaging_order import ImagingOrder
+from hyperscribe.handlers.canvas_science import CanvasScience
 from hyperscribe.handlers.limited_cache import LimitedCache
 from hyperscribe.handlers.selector_chat import SelectorChat
 from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.imaging_report import ImagingReport
+from hyperscribe.structures.instruction_with_command import InstructionWithCommand
+from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
 
@@ -163,16 +165,24 @@ def test_command_from_json(condition_from, search_imagings):
     tested = helper_instance()
 
     # all good
-    parameters = {
-        "imagingKeywords": "keyword1,keyword2,keyword3",
-        "conditions": [
-            {"conditionKeywords": "condition1,condition2", "ICD10": "icd1,icd2"},
-            {"conditionKeywords": "condition3", "ICD10": "icd3"},
-            {"conditionKeywords": "condition4", "ICD10": "icd4"},
-        ],
-        "comment": "theComment",
-        "noteToRadiologist": "theNoteToTheRadiologist",
-        "priority": "Urgent",
+    arguments = {
+        "uuid": "theUuid",
+        "instruction": "theInstruction",
+        "information": "theInformation",
+        "is_new": False,
+        "is_updated": True,
+        "audits": ["theAudit"],
+        "parameters": {
+            "imagingKeywords": "keyword1,keyword2,keyword3",
+            "conditions": [
+                {"conditionKeywords": "condition1,condition2", "ICD10": "icd1,icd2"},
+                {"conditionKeywords": "condition3", "ICD10": "icd3"},
+                {"conditionKeywords": "condition4", "ICD10": "icd4"},
+            ],
+            "comment": "theComment",
+            "noteToRadiologist": "theNoteToTheRadiologist",
+            "priority": "Urgent",
+        },
     }
     condition_from.side_effect = [
         CodedItem(uuid="uuid1", label="condition1", code="icd1"),
@@ -182,8 +192,9 @@ def test_command_from_json(condition_from, search_imagings):
     search_imagings.side_effect = [imaging_orders]
     chatter.single_conversation.side_effect = [[{"conceptId": "theCode", "name": "theName"}]]
 
-    result = tested.command_from_json(chatter, parameters)
-    expected = ImagingOrderCommand(
+    instruction = InstructionWithParameters(**arguments)
+    result = tested.command_from_json(instruction, chatter)
+    command = ImagingOrderCommand(
         note_uuid="noteUuid",
         image_code='theCode',
         ordering_provider_key="providerUuid",
@@ -193,34 +204,44 @@ def test_command_from_json(condition_from, search_imagings):
         priority=ImagingOrderCommand.Priority.URGENT,
         linked_items_urns=[],
     )
+    expected = InstructionWithCommand(**(arguments | {"command": command}))
     assert result == expected
 
     calls = [
-        call(chatter, tested.settings, ['condition1', 'condition2'], ['icd1', 'icd2'], "theComment"),
-        call(chatter, tested.settings, ['condition3'], ['icd3'], "theComment"),
-        call(chatter, tested.settings, ['condition4'], ['icd4'], "theComment"),
+        call(instruction, chatter, tested.settings, ['condition1', 'condition2'], ['icd1', 'icd2'], "theComment"),
+        call(instruction, chatter, tested.settings, ['condition3'], ['icd3'], "theComment"),
+        call(instruction, chatter, tested.settings, ['condition4'], ['icd4'], "theComment"),
     ]
     assert condition_from.mock_calls == calls
     calls = [call('scienceHost', keywords)]
     assert search_imagings.mock_calls == calls
-    calls = [call.single_conversation(system_prompt, user_prompt, schemas)]
+    calls = [call.single_conversation(system_prompt, user_prompt, schemas, instruction)]
     assert chatter.mock_calls == calls
     reset_mocks()
 
     # no condition + no code found
-    parameters = {
-        "imagingKeywords": "keyword1,keyword2,keyword3",
-        "conditions": [],
-        "comment": "theComment",
-        "noteToRadiologist": "theNoteToTheRadiologist",
-        "priority": "Urgent",
+    arguments = {
+        "uuid": "theUuid",
+        "instruction": "theInstruction",
+        "information": "theInformation",
+        "is_new": False,
+        "is_updated": True,
+        "audits": ["theAudit"],
+        "parameters": {
+            "imagingKeywords": "keyword1,keyword2,keyword3",
+            "conditions": [],
+            "comment": "theComment",
+            "noteToRadiologist": "theNoteToTheRadiologist",
+            "priority": "Urgent",
+        },
     }
     condition_from.side_effect = []
     search_imagings.side_effect = [imaging_orders]
     chatter.single_conversation.side_effect = [[]]
 
-    result = tested.command_from_json(chatter, parameters)
-    expected = ImagingOrderCommand(
+    instruction = InstructionWithParameters(**arguments)
+    result = tested.command_from_json(instruction, chatter)
+    command = ImagingOrderCommand(
         note_uuid="noteUuid",
         ordering_provider_key="providerUuid",
         diagnosis_codes=[],
@@ -229,29 +250,39 @@ def test_command_from_json(condition_from, search_imagings):
         priority=ImagingOrderCommand.Priority.URGENT,
         linked_items_urns=[],
     )
+    expected = InstructionWithCommand(**(arguments | {"command": command}))
     assert result == expected
 
     assert condition_from.mock_calls == []
     calls = [call('scienceHost', keywords)]
     assert search_imagings.mock_calls == calls
-    calls = [call.single_conversation(system_prompt, user_prompt, schemas)]
+    calls = [call.single_conversation(system_prompt, user_prompt, schemas, instruction)]
     assert chatter.mock_calls == calls
     reset_mocks()
 
     # no condition + no imaging from Science
-    parameters = {
-        "imagingKeywords": "keyword1,keyword2,keyword3",
-        "conditions": [],
-        "comment": "theComment",
-        "noteToRadiologist": "theNoteToTheRadiologist",
-        "priority": "Urgent",
+    arguments = {
+        "uuid": "theUuid",
+        "instruction": "theInstruction",
+        "information": "theInformation",
+        "is_new": False,
+        "is_updated": True,
+        "audits": ["theAudit"],
+        "parameters": {
+            "imagingKeywords": "keyword1,keyword2,keyword3",
+            "conditions": [],
+            "comment": "theComment",
+            "noteToRadiologist": "theNoteToTheRadiologist",
+            "priority": "Urgent",
+        },
     }
     condition_from.side_effect = []
     search_imagings.side_effect = [[]]
     chatter.single_conversation.side_effect = []
 
-    result = tested.command_from_json(chatter, parameters)
-    expected = ImagingOrderCommand(
+    instruction = InstructionWithParameters(**arguments)
+    result = tested.command_from_json(instruction, chatter)
+    command = ImagingOrderCommand(
         note_uuid="noteUuid",
         ordering_provider_key="providerUuid",
         diagnosis_codes=[],
@@ -260,6 +291,7 @@ def test_command_from_json(condition_from, search_imagings):
         priority=ImagingOrderCommand.Priority.URGENT,
         linked_items_urns=[],
     )
+    expected = InstructionWithCommand(**(arguments | {"command": command}))
     assert result == expected
 
     assert condition_from.mock_calls == []

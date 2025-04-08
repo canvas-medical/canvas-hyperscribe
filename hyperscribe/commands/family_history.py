@@ -2,12 +2,14 @@ import json
 
 from canvas_sdk.commands.commands.family_history import FamilyHistoryCommand
 
-from hyperscribe.handlers.canvas_science import CanvasScience
 from hyperscribe.commands.base import Base
+from hyperscribe.handlers.canvas_science import CanvasScience
 from hyperscribe.handlers.constants import Constants
 from hyperscribe.handlers.json_schema import JsonSchema
 from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.instruction_with_command import InstructionWithCommand
+from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 
 
 class FamilyHistory(Base):
@@ -23,14 +25,14 @@ class FamilyHistory(Base):
             return CodedItem(label=f"{relative}: {label}", code="", uuid="")
         return None
 
-    def command_from_json(self, chatter: LlmBase, parameters: dict) -> None | FamilyHistoryCommand:
+    def command_from_json(self, instruction: InstructionWithParameters, chatter: LlmBase) -> InstructionWithCommand | None:
         result = FamilyHistoryCommand(
-            relative=parameters["relative"],
-            note=parameters["note"],
+            relative=instruction.parameters["relative"],
+            note=instruction.parameters["note"],
             note_uuid=self.note_uuid,
         )
         # retrieve existing family history conditions defined in Canvas Science
-        expressions = parameters["keywords"].split(",")
+        expressions = instruction.parameters["keywords"].split(",")
         if concepts := CanvasScience.family_histories(self.settings.science_host, expressions):
             # ask the LLM to pick the most relevant condition
             system_prompt = [
@@ -42,9 +44,9 @@ class FamilyHistory(Base):
             user_prompt = [
                 'Here is the note provided by the healthcare provider in regards to the condition of a patient:',
                 '```text',
-                f"keywords: {parameters['keywords']}",
+                f"keywords: {instruction.parameters['keywords']}",
                 " -- ",
-                parameters["note"],
+                instruction.parameters["note"],
                 '```',
                 'Among the following conditions, identify the most relevant one:',
                 '',
@@ -57,9 +59,9 @@ class FamilyHistory(Base):
                 '',
             ]
             schemas = JsonSchema.get(["selector_concept"])
-            if response := chatter.single_conversation(system_prompt, user_prompt, schemas):
+            if response := chatter.single_conversation(system_prompt, user_prompt, schemas, instruction):
                 result.family_history = response[0]["term"]
-        return result
+        return InstructionWithCommand.add_command(instruction, result)
 
     def command_parameters(self) -> dict:
         return {

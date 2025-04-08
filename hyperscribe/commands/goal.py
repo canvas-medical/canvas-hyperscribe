@@ -5,6 +5,8 @@ from hyperscribe.handlers.constants import Constants
 from hyperscribe.handlers.helper import Helper
 from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.instruction_with_command import InstructionWithCommand
+from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 
 
 class Goal(Base):
@@ -18,16 +20,16 @@ class Goal(Base):
             return CodedItem(label=goal, code="", uuid="")
         return None
 
-    def command_from_json(self, chatter: LlmBase, parameters: dict) -> None | GoalCommand:
-        return GoalCommand(
-            goal_statement=parameters["goal"],
-            start_date=Helper.str2datetime(parameters["startDate"]),
-            due_date=Helper.str2datetime(parameters["dueDate"]),
-            achievement_status=Helper.enum_or_none(parameters["status"], GoalCommand.AchievementStatus),
-            priority=Helper.enum_or_none(parameters["priority"], GoalCommand.Priority),
-            progress=parameters["progressAndBarriers"],
+    def command_from_json(self, instruction: InstructionWithParameters, chatter: LlmBase) -> InstructionWithCommand | None:
+        return InstructionWithCommand.add_command(instruction, GoalCommand(
+            goal_statement=instruction.parameters["goal"],
+            start_date=Helper.str2datetime(instruction.parameters["startDate"]),
+            due_date=Helper.str2datetime(instruction.parameters["dueDate"]),
+            achievement_status=Helper.enum_or_none(instruction.parameters["status"], GoalCommand.AchievementStatus),
+            priority=Helper.enum_or_none(instruction.parameters["priority"], GoalCommand.Priority),
+            progress=instruction.parameters["progressAndBarriers"],
             note_uuid=self.note_uuid,
-        )
+        ))
 
     def command_parameters(self) -> dict:
         statuses = "/".join([status.value for status in GoalCommand.AchievementStatus])

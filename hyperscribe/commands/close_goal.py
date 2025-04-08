@@ -6,6 +6,8 @@ from hyperscribe.handlers.constants import Constants
 from hyperscribe.handlers.helper import Helper
 from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.instruction_with_command import InstructionWithCommand
+from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 
 
 class CloseGoal(Base):
@@ -19,19 +21,19 @@ class CloseGoal(Base):
             return CodedItem(label=f'{text} ({data.get("progress") or "n/a"})', code="", uuid="")
         return None
 
-    def command_from_json(self, chatter: LlmBase, parameters: dict) -> None | CloseGoalCommand:
+    def command_from_json(self, instruction: InstructionWithParameters, chatter: LlmBase) -> InstructionWithCommand | None:
         goal_uuid = "0"
-        if 0 <= (idx := parameters["goalIndex"]) < len(current := self.cache.current_goals()):
+        if 0 <= (idx := instruction.parameters["goalIndex"]) < len(current := self.cache.current_goals()):
             # TODO should be  goal_uuid = current[idx].uuid, waiting for https://github.com/canvas-medical/canvas-plugins/issues/338
             goal_uuid = current[idx].code
 
-        return CloseGoalCommand(
+        return InstructionWithCommand.add_command(instruction, CloseGoalCommand(
             # TODO should be goal_id=goal_uuid, waiting for https://github.com/canvas-medical/canvas-plugins/issues/338
             goal_id=int(goal_uuid),
-            achievement_status=Helper.enum_or_none(parameters["status"], GoalCommand.AchievementStatus),
-            progress=parameters["progressAndBarriers"],
+            achievement_status=Helper.enum_or_none(instruction.parameters["status"], GoalCommand.AchievementStatus),
+            progress=instruction.parameters["progressAndBarriers"],
             note_uuid=self.note_uuid,
-        )
+        ))
 
     def command_parameters(self) -> dict:
         goals = "/".join([f'{goal.label} (index: {idx})' for idx, goal in enumerate(self.cache.current_goals())])

@@ -7,6 +7,8 @@ from hyperscribe.commands.perform import Perform
 from hyperscribe.handlers.limited_cache import LimitedCache
 from hyperscribe.handlers.selector_chat import SelectorChat
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.instruction_with_command import InstructionWithCommand
+from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
 
@@ -69,22 +71,32 @@ def test_command_from_json(procedure_from):
         procedure_from.reset_mock()
         chatter.reset_mock()
 
-    parameters = {
-        "comment": "theComment",
-        "procedureKeywords": "procedure1,procedure2,procedure3",
+    arguments = {
+        "uuid": "theUuid",
+        "instruction": "theInstruction",
+        "information": "theInformation",
+        "is_new": False,
+        "is_updated": True,
+        "audits": ["theAudit"],
+        "parameters": {
+            "comment": "theComment",
+            "procedureKeywords": "procedure1,procedure2,procedure3",
+        },
     }
     tested = helper_instance()
     tests = [
         ("theCode", PerformCommand(cpt_code="theCode", notes="theComment", note_uuid="noteUuid")),
         ("", PerformCommand(cpt_code="", notes="theComment", note_uuid="noteUuid")),
     ]
-    for code, expected in tests:
+    for code, command in tests:
         procedure_from.side_effect = [CodedItem(uuid="theUuid", label="theLabel", code=code)]
-        result = tested.command_from_json(chatter, parameters)
+        instruction = InstructionWithParameters(**arguments)
+        result = tested.command_from_json(instruction, chatter)
+        expected = InstructionWithCommand(**(arguments | {"command": command}))
         assert result == expected
 
         calls = [
-            call(chatter, tested.settings, ["procedure1", "procedure2", "procedure3"], "theComment"),
+            call(instruction, chatter, tested.settings, ["procedure1", "procedure2", "procedure3"], "theComment"),
         ]
         assert procedure_from.mock_calls == calls
         assert chatter.mock_calls == []

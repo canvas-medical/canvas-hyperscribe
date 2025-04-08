@@ -8,6 +8,8 @@ from hyperscribe.commands.base import Base
 from hyperscribe.commands.task import Task
 from hyperscribe.handlers.limited_cache import LimitedCache
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.instruction_with_command import InstructionWithCommand
+from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
 
@@ -131,12 +133,22 @@ def test_select_staff(staff):
         'maxItems': 1,
     }]
 
+    instruction = InstructionWithParameters(
+        uuid="theUuid",
+        instruction="theInstruction",
+        information="theInformation",
+        is_new=False,
+        is_updated=True,
+        audits=["theAudit"],
+        parameters={'key': "value"},
+    )
+
     tested = helper_instance()
 
     # no staff (just theoretical)
     staff.filter.return_value.order_by.side_effect = [[]]
     chatter.single_conversation.side_effect = []
-    result = tested.select_staff(chatter, "assignedTo", "theComment")
+    result = tested.select_staff(instruction, chatter, "assignedTo", "theComment")
     assert result is None
     calls = [call.filter(active=True), call.filter().order_by('last_name')]
     assert staff.mock_calls == calls
@@ -152,22 +164,22 @@ def test_select_staff(staff):
     # -- response
     staff.filter.return_value.order_by.side_effect = [staffers]
     chatter.single_conversation.side_effect = [[{"staffId": 596, "name": "Jane Doe"}]]
-    result = tested.select_staff(chatter, "assignedTo", "theComment")
+    result = tested.select_staff(instruction, chatter, "assignedTo", "theComment")
     expected = TaskAssigner(to=AssigneeType.STAFF, id=596)
     assert result == expected
     calls = [call.filter(active=True), call.filter().order_by('last_name')]
     assert staff.mock_calls == calls
-    calls = [call.single_conversation(system_prompt, user_prompt, schemas)]
+    calls = [call.single_conversation(system_prompt, user_prompt, schemas, instruction)]
     assert chatter.mock_calls == calls
     reset_mocks()
     # -- no response
     staff.filter.return_value.order_by.side_effect = [staffers]
     chatter.single_conversation.side_effect = [[]]
-    result = tested.select_staff(chatter, "assignedTo", "theComment")
+    result = tested.select_staff(instruction, chatter, "assignedTo", "theComment")
     assert result is None
     calls = [call.filter(active=True), call.filter().order_by('last_name')]
     assert staff.mock_calls == calls
-    calls = [call.single_conversation(system_prompt, user_prompt, schemas)]
+    calls = [call.single_conversation(system_prompt, user_prompt, schemas, instruction)]
     assert chatter.mock_calls == calls
     reset_mocks()
 
@@ -222,10 +234,20 @@ def test_select_labels(task_labels):
     }]
     tested = helper_instance()
 
+    instruction = InstructionWithParameters(
+        uuid="theUuid",
+        instruction="theInstruction",
+        information="theInformation",
+        is_new=False,
+        is_updated=True,
+        audits=["theAudit"],
+        parameters={'key': "value"},
+    )
+
     # no labels
     task_labels.filter.return_value.order_by.side_effect = [[]]
     chatter.single_conversation.side_effect = []
-    result = tested.select_labels(chatter, "theLabels", "theComment")
+    result = tested.select_labels(instruction, chatter, "theLabels", "theComment")
     assert result is None
     calls = [call.filter(active=True), call.filter().order_by('name')]
     assert task_labels.mock_calls == calls
@@ -241,22 +263,22 @@ def test_select_labels(task_labels):
     # -- response
     task_labels.filter.return_value.order_by.side_effect = [labels]
     chatter.single_conversation.side_effect = [[{"labelId": 596, "name": "Label2"}, {"labelId": 963, "name": "Label3"}]]
-    result = tested.select_labels(chatter, "theLabels", "theComment")
+    result = tested.select_labels(instruction, chatter, "theLabels", "theComment")
     expected = ["Label2", "Label3"]
     assert result == expected
     calls = [call.filter(active=True), call.filter().order_by('name')]
     assert task_labels.mock_calls == calls
-    calls = [call.single_conversation(system_prompt, user_prompt, schemas)]
+    calls = [call.single_conversation(system_prompt, user_prompt, schemas, instruction)]
     assert chatter.mock_calls == calls
     reset_mocks()
     # -- no response
     task_labels.filter.return_value.order_by.side_effect = [labels]
     chatter.single_conversation.side_effect = [[]]
-    result = tested.select_labels(chatter, "theLabels", "theComment")
+    result = tested.select_labels(instruction, chatter, "theLabels", "theComment")
     assert result is None
     calls = [call.filter(active=True), call.filter().order_by('name')]
     assert task_labels.mock_calls == calls
-    calls = [call.single_conversation(system_prompt, user_prompt, schemas)]
+    calls = [call.single_conversation(system_prompt, user_prompt, schemas, instruction)]
     assert chatter.mock_calls == calls
     reset_mocks()
 
@@ -283,17 +305,26 @@ def test_command_from_json(select_staff, select_labels):
     ]
     for side_effect_staff, side_effect_labels in tests:
         # all parameters
-        parameters = {
-            "title": "theTitle",
-            "dueDate": "2025-02-04",
-            "assignTo": "theAssignTo",
-            "labels": "theLabels",
-            "comment": "theComment",
+        arguments = {
+            "uuid": "theUuid",
+            "instruction": "theInstruction",
+            "information": "theInformation",
+            "is_new": False,
+            "is_updated": True,
+            "audits": ["theAudit"],
+            "parameters": {
+                "title": "theTitle",
+                "dueDate": "2025-02-04",
+                "assignTo": "theAssignTo",
+                "labels": "theLabels",
+                "comment": "theComment",
+            },
         }
         select_staff.side_effect = [side_effect_staff]
         select_labels.side_effect = [side_effect_labels]
-        result = tested.command_from_json(chatter, parameters)
-        expected = TaskCommand(
+        instruction = InstructionWithParameters(**arguments)
+        result = tested.command_from_json(instruction, chatter)
+        command = TaskCommand(
             title="theTitle",
             due_date=date(2025, 2, 4),
             comment="theComment",
@@ -301,59 +332,80 @@ def test_command_from_json(select_staff, select_labels):
             labels=side_effect_labels,
             note_uuid="noteUuid",
         )
+        expected = InstructionWithCommand(**(arguments | {"command": command}))
         assert result == expected
-        calls = [call(chatter, "theAssignTo", 'theComment')]
+        calls = [call(instruction, chatter, "theAssignTo", 'theComment')]
         assert select_staff.mock_calls == calls
-        calls = [call(chatter, "theLabels", 'theComment')]
+        calls = [call(instruction, chatter, "theLabels", 'theComment')]
         assert select_labels.mock_calls == calls
         assert chatter.mock_calls == []
         reset_mocks()
 
         # no assignee
-        parameters = {
-            "title": "theTitle",
-            "dueDate": "2025-02-04",
-            "assignTo": "",
-            "labels": "theLabels",
-            "comment": "theComment",
+        arguments = {
+            "uuid": "theUuid",
+            "instruction": "theInstruction",
+            "information": "theInformation",
+            "is_new": False,
+            "is_updated": True,
+            "audits": ["theAudit"],
+            "parameters": {
+                "title": "theTitle",
+                "dueDate": "2025-02-04",
+                "assignTo": "",
+                "labels": "theLabels",
+                "comment": "theComment",
+            },
         }
         select_staff.side_effect = []
         select_labels.side_effect = [side_effect_labels]
-        result = tested.command_from_json(chatter, parameters)
-        expected = TaskCommand(
+        instruction = InstructionWithParameters(**arguments)
+        result = tested.command_from_json(instruction, chatter)
+        command = TaskCommand(
             title="theTitle",
             due_date=date(2025, 2, 4),
             comment="theComment",
             labels=side_effect_labels,
             note_uuid="noteUuid",
         )
+        expected = InstructionWithCommand(**(arguments | {"command": command}))
         assert result == expected
         assert select_staff.mock_calls == []
-        calls = [call(chatter, "theLabels", 'theComment')]
+        calls = [call(instruction, chatter, "theLabels", 'theComment')]
         assert select_labels.mock_calls == calls
         assert chatter.mock_calls == []
         reset_mocks()
 
         # no labels
-        parameters = {
-            "title": "theTitle",
-            "dueDate": "2025-02-04",
-            "assignTo": "theAssignTo",
-            "labels": "",
-            "comment": "theComment",
+        arguments = {
+            "uuid": "theUuid",
+            "instruction": "theInstruction",
+            "information": "theInformation",
+            "is_new": False,
+            "is_updated": True,
+            "audits": ["theAudit"],
+            "parameters": {
+                "title": "theTitle",
+                "dueDate": "2025-02-04",
+                "assignTo": "theAssignTo",
+                "labels": "",
+                "comment": "theComment",
+            },
         }
         select_staff.side_effect = [side_effect_staff]
         select_labels.side_effect = []
-        result = tested.command_from_json(chatter, parameters)
-        expected = TaskCommand(
+        instruction = InstructionWithParameters(**arguments)
+        result = tested.command_from_json(instruction, chatter)
+        command = TaskCommand(
             title="theTitle",
             due_date=date(2025, 2, 4),
             comment="theComment",
             assign_to=side_effect_staff,
             note_uuid="noteUuid",
         )
+        expected = InstructionWithCommand(**(arguments | {"command": command}))
         assert result == expected
-        calls = [call(chatter, "theAssignTo", 'theComment')]
+        calls = [call(instruction, chatter, "theAssignTo", 'theComment')]
         assert select_staff.mock_calls == calls
         assert select_labels.mock_calls == []
         assert chatter.mock_calls == []

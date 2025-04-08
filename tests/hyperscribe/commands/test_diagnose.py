@@ -8,6 +8,8 @@ from hyperscribe.commands.diagnose import Diagnose
 from hyperscribe.handlers.limited_cache import LimitedCache
 from hyperscribe.handlers.selector_chat import SelectorChat
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.instruction_with_command import InstructionWithCommand
+from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
 
@@ -80,25 +82,36 @@ def test_command_from_json(condition_from):
 
     tested = helper_instance()
     condition_from.side_effect = [CodedItem(uuid="theUuid1", label="display1a", code="CODE12.3")]
-    parameters = {
-        "keywords": "keyword1,keyword2,keyword3",
-        "ICD10": "ICD01,ICD02,ICD03",
-        "rationale": "theRationale",
-        "onsetDate": "2025-02-03",
-        "assessment": "theAssessment",
+    arguments = {
+        "uuid": "theUuid",
+        "instruction": "theInstruction",
+        "information": "theInformation",
+        "is_new": False,
+        "is_updated": True,
+        "audits": ["theAudit"],
+        "parameters": {
+            "keywords": "keyword1,keyword2,keyword3",
+            "ICD10": "ICD01,ICD02,ICD03",
+            "rationale": "theRationale",
+            "onsetDate": "2025-02-03",
+            "assessment": "theAssessment",
+        },
     }
-    result = tested.command_from_json(chatter, parameters)
-    expected = DiagnoseCommand(
+    instruction = InstructionWithParameters(**arguments)
+    result = tested.command_from_json(instruction, chatter)
+    command = DiagnoseCommand(
         icd10_code="CODE12.3",
         background="theRationale",
         approximate_date_of_onset=date(2025, 2, 3),
         today_assessment="theAssessment",
         note_uuid="noteUuid",
     )
+    expected = InstructionWithCommand(**(arguments | {"command": command}))
     assert result == expected
 
     calls = [
         call(
+            instruction,
             chatter,
             tested.settings,
             ["keyword1", "keyword2", "keyword3"],

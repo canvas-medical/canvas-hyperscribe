@@ -7,6 +7,8 @@ from hyperscribe.commands.base import Base
 from hyperscribe.commands.goal import Goal
 from hyperscribe.handlers.limited_cache import LimitedCache
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.instruction_with_command import InstructionWithCommand
+from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
 
@@ -68,16 +70,25 @@ def test_staged_command_extract():
 def test_command_from_json():
     chatter = MagicMock()
     tested = helper_instance()
-    parameters = {
-        "goal": "theGoal",
-        "startDate": "2023-11-12",
-        "dueDate": "2025-02-04",
-        "status": "improving",
-        "priority": "medium-priority",
-        "progressAndBarriers": "theProgressAndBarriers",
+    arguments = {
+        "uuid": "theUuid",
+        "instruction": "theInstruction",
+        "information": "theInformation",
+        "is_new": False,
+        "is_updated": True,
+        "audits": ["theAudit"],
+        "parameters": {
+            "goal": "theGoal",
+            "startDate": "2023-11-12",
+            "dueDate": "2025-02-04",
+            "status": "improving",
+            "priority": "medium-priority",
+            "progressAndBarriers": "theProgressAndBarriers",
+        },
     }
-    result = tested.command_from_json(chatter, parameters)
-    expected = GoalCommand(
+    instruction = InstructionWithParameters(**arguments)
+    result = tested.command_from_json(instruction, chatter)
+    command = GoalCommand(
         goal_statement="theGoal",
         start_date=datetime(2023, 11, 12),
         due_date=datetime(2025, 2, 4),
@@ -86,6 +97,7 @@ def test_command_from_json():
         progress="theProgressAndBarriers",
         note_uuid="noteUuid",
     )
+    expected = InstructionWithCommand(**(arguments | {"command": command}))
     assert result == expected
     assert chatter.mock_calls == []
 

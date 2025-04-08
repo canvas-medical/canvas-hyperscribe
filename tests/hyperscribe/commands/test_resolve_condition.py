@@ -6,6 +6,8 @@ from hyperscribe.commands.base import Base
 from hyperscribe.commands.resolve_condition import ResolveCondition
 from hyperscribe.handlers.limited_cache import LimitedCache
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.instruction_with_command import InstructionWithCommand
+from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
 
@@ -90,17 +92,27 @@ def test_command_from_json(current_conditions):
     ]
     for idx, exp_uuid in tests:
         current_conditions.side_effect = [conditions, conditions]
-        params = {
-            'condition': 'display2a',
-            'conditionIndex': idx,
-            'rationale': 'theRationale',
+        arguments = {
+            "uuid": "theUuid",
+            "instruction": "theInstruction",
+            "information": "theInformation",
+            "is_new": False,
+            "is_updated": True,
+            "audits": ["theAudit"],
+            "parameters": {
+                'condition': 'display2a',
+                'conditionIndex': idx,
+                'rationale': 'theRationale',
+            },
         }
-        result = tested.command_from_json(chatter, params)
-        expected = ResolveConditionCommand(
+        instruction = InstructionWithParameters(**arguments)
+        result = tested.command_from_json(instruction, chatter)
+        command = ResolveConditionCommand(
             condition_id=exp_uuid,
             rationale="theRationale",
             note_uuid="noteUuid",
         )
+        expected = InstructionWithCommand(**(arguments | {"command": command}))
         assert result == expected
         calls = [call()]
         assert current_conditions.mock_calls == calls

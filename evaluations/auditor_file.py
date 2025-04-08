@@ -2,10 +2,10 @@ import json
 from pathlib import Path
 from typing import Generator
 
-from canvas_sdk.commands.base import _BaseCommand as BaseCommand
-
 from hyperscribe.handlers.auditor import Auditor
 from hyperscribe.structures.instruction import Instruction
+from hyperscribe.structures.instruction_with_command import InstructionWithCommand
+from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.line import Line
 
 
@@ -68,7 +68,7 @@ class AuditorFile(Auditor):
             }, fp, indent=2)  # type: ignore
         return file.exists()
 
-    def computed_parameters(self, sdk_parameters: list[tuple[Instruction, dict]]) -> bool:
+    def computed_parameters(self, instructions: list[InstructionWithParameters]) -> bool:
         file = Path(__file__).parent / f"instruction2parameters/{self.case}.json"
         content = {
             "instructions": [],
@@ -78,15 +78,15 @@ class AuditorFile(Auditor):
             with file.open("r") as fp:
                 content = json.load(fp)
 
-        for instruction, parameters in sdk_parameters:
+        for instruction in instructions:
             content["instructions"].append(instruction.to_json())
-            content["parameters"].append(parameters)
+            content["parameters"].append(instruction.parameters)
 
         with file.open("w") as fp:
             json.dump(content, fp, indent=2)  # type: ignore
         return file.exists()
 
-    def computed_commands(self, sdk_parameters: list[tuple[Instruction, dict]], sdk_commands: list[BaseCommand]) -> bool:
+    def computed_commands(self, instructions: list[InstructionWithCommand]) -> bool:
         file = Path(__file__).parent / f"parameters2command/{self.case}.json"
         content = {
             "instructions": [],
@@ -97,13 +97,13 @@ class AuditorFile(Auditor):
             with file.open("r") as fp:
                 content = json.load(fp)
 
-        for (instruction, parameters), command in zip(sdk_parameters, sdk_commands):
+        for instruction in instructions:
             content["instructions"].append(instruction.to_json())
-            content["parameters"].append(parameters)
+            content["parameters"].append(instruction.parameters)
             content["commands"].append({
-                "module": command.__module__,
-                "class": command.__class__.__name__,
-                "attributes": command.values,
+                "module": instruction.command.__module__,
+                "class": instruction.command.__class__.__name__,
+                "attributes": instruction.command.values,
             })
 
         with file.open("w") as fp:

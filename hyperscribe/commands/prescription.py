@@ -5,6 +5,8 @@ from hyperscribe.handlers.constants import Constants
 from hyperscribe.handlers.helper import Helper
 from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.instruction_with_command import InstructionWithCommand
+from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.medication_search import MedicationSearch
 
 
@@ -35,41 +37,42 @@ class Prescription(BasePrescription):
             )
         return None
 
-    def command_from_json(self, chatter: LlmBase, parameters: dict) -> None | PrescribeCommand:
+    def command_from_json(self, instruction: InstructionWithParameters, chatter: LlmBase) -> InstructionWithCommand | None:
         result = PrescribeCommand(
-            sig=parameters["sig"],
-            days_supply=int(parameters["suppliedDays"]),
-            substitutions=Helper.enum_or_none(parameters["substitution"], PrescribeCommand.Substitutions),
+            sig=instruction.parameters["sig"],
+            days_supply=int(instruction.parameters["suppliedDays"]),
+            substitutions=Helper.enum_or_none(instruction.parameters["substitution"], PrescribeCommand.Substitutions),
             prescriber_id=self.provider_uuid,
             note_uuid=self.note_uuid,
         )
         # identified the condition, if any
         condition = ""
-        if ("conditionIndex" in parameters
-                and isinstance(parameters["conditionIndex"], int)
-                and 0 <= (idx := parameters["conditionIndex"]) < len(self.cache.current_conditions())):
+        if ("conditionIndex" in instruction.parameters
+                and isinstance(instruction.parameters["conditionIndex"], int)
+                and 0 <= (idx := instruction.parameters["conditionIndex"]) < len(self.cache.current_conditions())):
             targeted_condition = self.cache.current_conditions()[idx]
             result.icd10_codes = [Helper.icd10_strip_dot(targeted_condition.code)]
             condition = targeted_condition.label
 
         # retrieve existing medications defined in Canvas Science
         search = MedicationSearch(
-            comment=parameters["comment"],
-            keywords=parameters["keywords"].split(","),
-            brand_names=parameters["medicationNames"].split(","),
+            comment=instruction.parameters["comment"],
+            keywords=instruction.parameters["keywords"].split(","),
+            brand_names=instruction.parameters["medicationNames"].split(","),
             related_condition=condition,
         )
-        choose_medications = self.medications_from(chatter, search)
+        choose_medications = self.medications_from(instruction, chatter, search)
         # find the correct quantity to dispense and refill values
         if choose_medications and (medication := choose_medications[0]):
             self.set_medication_dosage(
+                instruction,
                 chatter,
-                parameters["comment"],
+                instruction.parameters["comment"],
                 result,
                 medication,
             )
 
-        return result
+        return InstructionWithCommand.add_command(instruction, result)
 
     def command_parameters(self) -> dict:
         substitutions = "/".join([status.value for status in PrescribeCommand.Substitutions])

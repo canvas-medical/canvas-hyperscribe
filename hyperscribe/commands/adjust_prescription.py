@@ -7,6 +7,8 @@ from hyperscribe.handlers.constants import Constants
 from hyperscribe.handlers.helper import Helper
 from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.instruction_with_command import InstructionWithCommand
+from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.medication_search import MedicationSearch
 
 
@@ -45,15 +47,15 @@ class AdjustPrescription(BasePrescription):
             )
         return None
 
-    def command_from_json(self, chatter: LlmBase, parameters: dict) -> None | AdjustPrescriptionCommand:
+    def command_from_json(self, instruction: InstructionWithParameters, chatter: LlmBase) -> InstructionWithCommand | None:
         result = AdjustPrescriptionCommand(
-            sig=parameters["sig"],
-            days_supply=int(parameters["suppliedDays"]),
-            substitutions=Helper.enum_or_none(parameters["substitution"], AdjustPrescriptionCommand.Substitutions),
+            sig=instruction.parameters["sig"],
+            days_supply=int(instruction.parameters["suppliedDays"]),
+            substitutions=Helper.enum_or_none(instruction.parameters["substitution"], AdjustPrescriptionCommand.Substitutions),
             prescriber_id=self.provider_uuid,
             note_uuid=self.note_uuid,
         )
-        if 0 <= (idx := parameters["oldMedicationIndex"]) < len(current := self.cache.current_medications()):
+        if 0 <= (idx := instruction.parameters["oldMedicationIndex"]) < len(current := self.cache.current_medications()):
             medication_uuid = current[idx].uuid
             medication = Medication.objects.get(id=medication_uuid)
             coding = medication.codings.filter(system=CodeSystems.FDB).first()
@@ -65,28 +67,29 @@ class AdjustPrescription(BasePrescription):
             )
             result.new_fdb_code = result.fdb_code
 
-        new_medication = parameters["newMedication"]
+        new_medication = instruction.parameters["newMedication"]
         if bool(new_medication["sameAsCurrent"]) is False:
             # retrieve the conditions linked to the prescription
             # TODO when it is provided
             condition = ""
             # retrieve existing medications defined in Canvas Science
             search = MedicationSearch(
-                comment=parameters["comment"],
+                comment=instruction.parameters["comment"],
                 keywords=new_medication["keywords"].split(","),
                 brand_names=new_medication["brandNames"].split(","),
                 related_condition=condition,
             )
-            choose_medications = self.medications_from(chatter, search)
+            choose_medications = self.medications_from(instruction, chatter, search)
             # find the correct quantity to dispense and refill values
             if choose_medications and (medication := choose_medications[0]):
                 self.set_medication_dosage(
+                    instruction,
                     chatter,
-                    parameters["comment"],
+                    instruction.parameters["comment"],
                     result,
                     medication,
                 )
-        return result
+        return InstructionWithCommand.add_command(instruction, result)
 
     def command_parameters(self) -> dict:
         substitutions = "/".join([status.value for status in AdjustPrescriptionCommand.Substitutions])

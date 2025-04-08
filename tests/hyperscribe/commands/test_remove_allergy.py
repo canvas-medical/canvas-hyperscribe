@@ -6,6 +6,8 @@ from hyperscribe.commands.base import Base
 from hyperscribe.commands.remove_allergy import RemoveAllergy
 from hyperscribe.handlers.limited_cache import LimitedCache
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.instruction_with_command import InstructionWithCommand
+from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
 
@@ -84,17 +86,27 @@ def test_command_from_json(current_allergies):
     ]
     for idx, exp_uuid in tests:
         current_allergies.side_effect = [allergies, allergies]
-        params = {
-            'allergies': 'display2a',
-            'allergyIndex': idx,
-            'narrative': 'theNarrative',
+        arguments = {
+            "uuid": "theUuid",
+            "instruction": "theInstruction",
+            "information": "theInformation",
+            "is_new": False,
+            "is_updated": True,
+            "audits": ["theAudit"],
+            "parameters": {
+                'allergies': 'display2a',
+                'allergyIndex': idx,
+                'narrative': 'theNarrative',
+            },
         }
-        result = tested.command_from_json(chatter, params)
-        expected = RemoveAllergyCommand(
+        instruction = InstructionWithParameters(**arguments)
+        result = tested.command_from_json(instruction, chatter)
+        command = RemoveAllergyCommand(
             allergy_id=exp_uuid,
             narrative="theNarrative",
             note_uuid="noteUuid",
         )
+        expected = InstructionWithCommand(**(arguments | {"command": command}))
         assert result == expected
         calls = [call()]
         assert current_allergies.mock_calls == calls

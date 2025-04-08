@@ -3,12 +3,14 @@ from unittest.mock import patch, call, MagicMock
 
 from canvas_sdk.commands.commands.allergy import AllergyCommand, Allergen, AllergenType
 
-from hyperscribe.handlers.canvas_science import CanvasScience
 from hyperscribe.commands.allergy import Allergy
 from hyperscribe.commands.base import Base
+from hyperscribe.handlers.canvas_science import CanvasScience
 from hyperscribe.handlers.limited_cache import LimitedCache
 from hyperscribe.structures.allergy_detail import AllergyDetail
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.instruction_with_command import InstructionWithCommand
+from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
 
@@ -117,12 +119,20 @@ def test_command_from_json(search_allergy):
         ('ingredient', 6, 6),
     ]
     for concept_type, exp_concept_id_type, selected_concept_id_type in tests:
-        parameters = {
-            'approximateDateOfOnset': '2025-02-04',
-            'keywords': 'keyword1,keyword2,keyword3',
-            'reaction': 'theReaction',
-            'severity': 'moderate',
-            'type': concept_type,
+        arguments = {
+            "uuid": "theUuid",
+            "instruction": "theInstruction",
+            "information": "theInformation",
+            "is_new": False,
+            "is_updated": True,
+            "audits": ["theAudit"],
+            "parameters": {
+                'approximateDateOfOnset': '2025-02-04',
+                'keywords': 'keyword1,keyword2,keyword3',
+                'reaction': 'theReaction',
+                'severity': 'moderate',
+                'type': concept_type,
+            },
         }
         allergy_details = [
             AllergyDetail(
@@ -148,14 +158,16 @@ def test_command_from_json(search_allergy):
         search_allergy.side_effect = [allergy_details]
         chatter.single_conversation.side_effect = [[{"conceptId": 167, "description": "descriptionB"}]]
 
-        result = tested.command_from_json(chatter, parameters)
-        expected = AllergyCommand(
+        instruction = InstructionWithParameters(**arguments)
+        result = tested.command_from_json(instruction, chatter)
+        command = AllergyCommand(
             severity=AllergyCommand.Severity.MODERATE,
             narrative="theReaction",
             approximate_date=date(2025, 2, 4),
             allergy=Allergen(concept_id=167, concept_type=AllergenType(selected_concept_id_type)),
             note_uuid="noteUuid",
         )
+        expected = InstructionWithCommand(**(arguments | {"command": command}))
         assert result == expected
 
         allergen_types = [AllergenType(1)]
@@ -164,7 +176,7 @@ def test_command_from_json(search_allergy):
 
         calls = [call('ontologiesHost', 'preSharedKey', keywords, allergen_types)]
         assert search_allergy.mock_calls == calls
-        calls = [call.single_conversation(system_prompt, user_prompt, schemas)]
+        calls = [call.single_conversation(system_prompt, user_prompt, schemas, instruction)]
         assert chatter.mock_calls == calls
         reset_mocks()
 
@@ -172,13 +184,14 @@ def test_command_from_json(search_allergy):
         search_allergy.side_effect = [allergy_details]
         chatter.single_conversation.side_effect = [[]]
 
-        result = tested.command_from_json(chatter, parameters)
-        expected = AllergyCommand(
+        result = tested.command_from_json(instruction, chatter)
+        command = AllergyCommand(
             severity=AllergyCommand.Severity.MODERATE,
             narrative="theReaction",
             approximate_date=date(2025, 2, 4),
             note_uuid="noteUuid",
         )
+        expected = InstructionWithCommand(**(arguments | {"command": command}))
         assert result == expected
 
         allergen_types = [AllergenType(1)]
@@ -187,7 +200,7 @@ def test_command_from_json(search_allergy):
 
         calls = [call('ontologiesHost', 'preSharedKey', keywords, allergen_types)]
         assert search_allergy.mock_calls == calls
-        calls = [call.single_conversation(system_prompt, user_prompt, schemas)]
+        calls = [call.single_conversation(system_prompt, user_prompt, schemas, instruction)]
         assert chatter.mock_calls == calls
         reset_mocks()
 
@@ -195,13 +208,14 @@ def test_command_from_json(search_allergy):
         search_allergy.side_effect = [[]]
         chatter.single_conversation.side_effect = [[]]
 
-        result = tested.command_from_json(chatter, parameters)
-        expected = AllergyCommand(
+        result = tested.command_from_json(instruction, chatter)
+        command = AllergyCommand(
             severity=AllergyCommand.Severity.MODERATE,
             narrative="theReaction",
             approximate_date=date(2025, 2, 4),
             note_uuid="noteUuid",
         )
+        expected = InstructionWithCommand(**(arguments | {"command": command}))
         assert result == expected
 
         allergen_types = [AllergenType(1)]

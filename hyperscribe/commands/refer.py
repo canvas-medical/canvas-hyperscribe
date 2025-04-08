@@ -3,9 +3,11 @@ from canvas_sdk.commands import ReferCommand
 from hyperscribe.commands.base import Base
 from hyperscribe.handlers.constants import Constants
 from hyperscribe.handlers.helper import Helper
-from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.handlers.selector_chat import SelectorChat
+from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.instruction_with_command import InstructionWithCommand
+from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 
 
 class Refer(Base):
@@ -37,37 +39,38 @@ class Refer(Base):
             )
         return None
 
-    def command_from_json(self, chatter: LlmBase, parameters: dict) -> None | ReferCommand:
+    def command_from_json(self, instruction: InstructionWithParameters, chatter: LlmBase) -> InstructionWithCommand | None:
         zip_codes = self.practice_setting("serviceAreaZipCodes")
-        information = parameters["referredServiceProvider"]["specialty"]
-        if names := parameters["referredServiceProvider"]["names"]:
+        information = instruction.parameters["referredServiceProvider"]["specialty"]
+        if names := instruction.parameters["referredServiceProvider"]["names"]:
             information = f"{information} {names}"  # <-- the order is important for the search in the Canvas Science service
 
-        provider = SelectorChat.contact_from(chatter, self.settings, information, zip_codes)
+        provider = SelectorChat.contact_from(instruction, chatter, self.settings, information, zip_codes)
         result = ReferCommand(
             service_provider=provider,
-            clinical_question=Helper.enum_or_none(parameters["clinicalQuestions"], ReferCommand.ClinicalQuestion),
-            priority=Helper.enum_or_none(parameters["priority"], ReferCommand.Priority),
-            notes_to_specialist=parameters["notesToSpecialist"],
-            comment=parameters["comment"],
+            clinical_question=Helper.enum_or_none(instruction.parameters["clinicalQuestions"], ReferCommand.ClinicalQuestion),
+            priority=Helper.enum_or_none(instruction.parameters["priority"], ReferCommand.Priority),
+            notes_to_specialist=instruction.parameters["notesToSpecialist"],
+            comment=instruction.parameters["comment"],
             note_uuid=self.note_uuid,
             diagnosis_codes=[],
         )
         # retrieve the linked conditions
         conditions = []
-        for condition in parameters["conditions"]:
+        for condition in instruction.parameters["conditions"]:
             item = SelectorChat.condition_from(
+                instruction,
                 chatter,
                 self.settings,
                 condition["conditionKeywords"].split(","),
                 condition["ICD10"].split(","),
-                parameters["comment"],
+                instruction.parameters["comment"],
             )
             if item.code:
                 conditions.append(item)
                 result.diagnosis_codes.append(item.code)
 
-        return result
+        return InstructionWithCommand.add_command(instruction, result)
 
     def command_parameters(self) -> dict:
         questions = ", ".join([f"'{item.value}'" for item in ReferCommand.ClinicalQuestion])

@@ -5,6 +5,8 @@ from hyperscribe.handlers.constants import Constants
 from hyperscribe.handlers.helper import Helper
 from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.instruction_with_command import InstructionWithCommand
+from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 
 
 class FollowUp(Base):
@@ -24,26 +26,26 @@ class FollowUp(Base):
             return CodedItem(label=f"{on_date}: {reason_for_visit} ({encounter})", code="", uuid="")
         return None
 
-    def command_from_json(self, chatter: LlmBase, parameters: dict) -> None | FollowUpCommand:
+    def command_from_json(self, instruction: InstructionWithParameters, chatter: LlmBase) -> InstructionWithCommand | None:
         result = FollowUpCommand(
             note_uuid=self.note_uuid,
             structured=False,
-            requested_date=Helper.str2date(parameters["date"]),
-            reason_for_visit=parameters["reasonForVisit"],
-            comment=parameters["comment"],
+            requested_date=Helper.str2date(instruction.parameters["date"]),
+            reason_for_visit=instruction.parameters["reasonForVisit"],
+            comment=instruction.parameters["comment"],
         )
         #
-        idx = parameters["visitTypeIndex"]
+        idx = instruction.parameters["visitTypeIndex"]
         if not (0 <= idx < len(self.cache.existing_note_types())):
             idx = 0
         result.note_type_id = self.cache.existing_note_types()[idx].uuid
         #
-        if "reasonForVisitIndex" in parameters:
-            if 0 <= (idx := parameters["reasonForVisitIndex"]) < len(existing := self.cache.existing_reason_for_visits()):
+        if "reasonForVisitIndex" in instruction.parameters:
+            if 0 <= (idx := instruction.parameters["reasonForVisitIndex"]) < len(existing := self.cache.existing_reason_for_visits()):
                 result.structured = True
                 result.reason_for_visit = existing[idx].uuid
 
-        return result
+        return InstructionWithCommand.add_command(instruction, result)
 
     def command_parameters(self) -> dict:
         reason_for_visit = {}

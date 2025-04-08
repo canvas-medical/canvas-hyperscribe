@@ -1,4 +1,35 @@
 JSON_SCHEMAS = {
+    "audit": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "array",
+        "items": {
+            "type": "object",
+            "properties": {
+                "key": {
+                    "type": "string",
+                    "description": "the referenced key",
+                },
+                "keyPath": {
+                    "type": "string",
+                    "description": "the JSON path of the referenced key from the root if there is more than one object",
+                },
+                "rational": {
+                    "type": "string",
+                    "description": "the rational of the provided value",
+                },
+            },
+            "required": ["key", "rational"],
+            "additionalProperties": False,
+        }
+    },
+    "generic_parameters": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "array",
+        "items": {
+            "type": "object",
+            "additionalProperties": True,
+        }
+    },
     "prescription_dosage": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "array",
@@ -45,6 +76,25 @@ JSON_SCHEMAS = {
         },
         "minItems": 1,
         "maxItems": 1,
+    },
+    "selector_contact": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "array",
+        "items": {
+            "type": "object",
+            "properties": {
+                "index": {
+                    "type": "integer",
+                    "description": "the index as provided in the list",
+                },
+                "contact": {
+                    "type": "string",
+                    "description": "the contact information as provided in the list",
+                },
+            },
+            "required": ["index", "contact"],
+            "additionalProperties": False,
+        }
     },
     "selector_fdb_code": {
         "$schema": "http://json-schema.org/draft-07/schema#",

@@ -1,8 +1,6 @@
 import json
 from datetime import datetime
 
-from canvas_sdk.commands.base import _BaseCommand as BaseCommand
-
 from hyperscribe.handlers.helper import Helper
 from hyperscribe.handlers.implemented_commands import ImplementedCommands
 from hyperscribe.handlers.json_schema import JsonSchema
@@ -10,6 +8,8 @@ from hyperscribe.handlers.limited_cache import LimitedCache
 from hyperscribe.handlers.memory_log import MemoryLog
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.instruction import Instruction
+from hyperscribe.structures.instruction_with_command import InstructionWithCommand
+from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.json_extract import JsonExtract
 from hyperscribe.structures.line import Line
 from hyperscribe.structures.settings import Settings
@@ -142,6 +142,7 @@ class AudioInterpreter:
             "information": "the information associated with the instruction, grounded in the transcript with no embellishment or omission",
             "isNew": "the instruction is new for the discussion, as boolean",
             "isUpdated": "the instruction is an update of one already identified in the discussion, as boolean",
+            "audits": "the reasoning behind identifying this instruction, including relevant excerpts from supporting discussions, as a list",
         }
         schema = self.json_schema([instance.class_name() for instance in self._command_context])
         system_prompt = [
@@ -187,7 +188,7 @@ class AudioInterpreter:
             self.settings,
             MemoryLog.instance(self.note_uuid, "transcript2instructions", self.aws_s3),
         )
-        result = chatter.single_conversation(system_prompt, user_prompt, [schema])
+        result = chatter.single_conversation(system_prompt, user_prompt, [schema], None)
         if result and (constraints := self.instruction_constraints()):
             user_prompt = [
                 "Here is your last response:",
@@ -202,11 +203,11 @@ class AudioInterpreter:
             user_prompt.append("")
             user_prompt.append("Return the original JSON if valid, or provide a corrected version to follow the constraints if needed.")
             user_prompt.append("")
-            result = chatter.single_conversation(system_prompt, user_prompt, [schema])
+            result = chatter.single_conversation(system_prompt, user_prompt, [schema], None)
         return result
 
-    def create_sdk_command_parameters(self, instruction: Instruction) -> tuple[Instruction, dict | None]:
-        result: tuple[Instruction, dict | None] = instruction, None
+    def create_sdk_command_parameters(self, instruction: Instruction) -> InstructionWithParameters | None:
+        result: InstructionWithParameters | None = None
 
         structures = self.command_structures()
 
@@ -238,12 +239,13 @@ class AudioInterpreter:
             self.settings,
             MemoryLog.instance(self.note_uuid, log_label, self.aws_s3),
         )
-        response = chatter.single_conversation(system_prompt, user_prompt, [])
+        schemas = JsonSchema.get(["generic_parameters"])
+        response = chatter.single_conversation(system_prompt, user_prompt, schemas, instruction)
         if response:
-            result = instruction, response[0]
+            result = InstructionWithParameters.add_parameters(instruction, response[0])
         return result
 
-    def create_sdk_command_from(self, instruction: Instruction, parameters: dict) -> BaseCommand | None:
+    def create_sdk_command_from(self, instruction: InstructionWithParameters) -> InstructionWithCommand | None:
         for instance in self._command_context:
             if instruction.instruction == instance.class_name():
                 log_label = f"{instruction.instruction}_{instruction.uuid}_parameters2command"
@@ -251,7 +253,7 @@ class AudioInterpreter:
                     self.settings,
                     MemoryLog.instance(self.note_uuid, log_label, self.aws_s3),
                 )
-                return instance.command_from_json(chatter, parameters)
+                return instance.command_from_json(instruction, chatter)
         return None
 
     @classmethod
@@ -277,8 +279,14 @@ class AudioInterpreter:
                 "type": "boolean",
                 "description": "the instruction is an update of an instruction previously identified in the discussion",
             },
+            "audits": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "breakdown of the decision-making process used to detect this instruction, "
+                               "incorporating direct quotes from key exchanges where necessary",
+            },
         }
-        required = ["uuid", "instruction", "information", "isNew", "isUpdated"]
+        required = ["uuid", "instruction", "information", "isNew", "isUpdated", "audits"]
         return {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "type": "array",

@@ -5,6 +5,8 @@ from hyperscribe.handlers.constants import Constants
 from hyperscribe.handlers.helper import Helper
 from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.instruction_with_command import InstructionWithCommand
+from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 
 
 class UpdateGoal(Base):
@@ -18,19 +20,19 @@ class UpdateGoal(Base):
             return CodedItem(label=f'{goal}: {progress}', code="", uuid="")
         return None
 
-    def command_from_json(self, chatter: LlmBase, parameters: dict) -> None | UpdateGoalCommand:
+    def command_from_json(self, instruction: InstructionWithParameters, chatter: LlmBase) -> InstructionWithCommand | None:
         goal_uuid = ""
-        if 0 <= (idx := parameters["goalIndex"]) < len(current := self.cache.current_goals()):
+        if 0 <= (idx := instruction.parameters["goalIndex"]) < len(current := self.cache.current_goals()):
             goal_uuid = current[idx].uuid
 
-        return UpdateGoalCommand(
+        return InstructionWithCommand.add_command(instruction, UpdateGoalCommand(
             goal_id=goal_uuid,
-            due_date=Helper.str2datetime(parameters["dueDate"]),
-            achievement_status=Helper.enum_or_none(parameters["status"], UpdateGoalCommand.AchievementStatus),
-            priority=Helper.enum_or_none(parameters["priority"], UpdateGoalCommand.Priority),
-            progress=parameters["progressAndBarriers"],
+            due_date=Helper.str2datetime(instruction.parameters["dueDate"]),
+            achievement_status=Helper.enum_or_none(instruction.parameters["status"], UpdateGoalCommand.AchievementStatus),
+            priority=Helper.enum_or_none(instruction.parameters["priority"], UpdateGoalCommand.Priority),
+            progress=instruction.parameters["progressAndBarriers"],
             note_uuid=self.note_uuid,
-        )
+        ))
 
     def command_parameters(self) -> dict:
         goals = "/".join([f'{goal.label} (index: {idx})' for idx, goal in enumerate(self.cache.current_goals())])

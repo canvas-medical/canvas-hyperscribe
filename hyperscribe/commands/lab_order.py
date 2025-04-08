@@ -3,9 +3,11 @@ from canvas_sdk.v1.data.lab import LabPartner
 
 from hyperscribe.commands.base import Base
 from hyperscribe.handlers.constants import Constants
-from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.handlers.selector_chat import SelectorChat
+from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.instruction_with_command import InstructionWithCommand
+from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 
 
 class LabOrder(Base):
@@ -35,24 +37,25 @@ class LabOrder(Base):
             return CodedItem(label=f"{tests}: {comment} (fasting: {fasting}, diagnosis: {diagnosis})", code="", uuid="")
         return None
 
-    def command_from_json(self, chatter: LlmBase, parameters: dict) -> None | LabOrderCommand:
+    def command_from_json(self, instruction: InstructionWithParameters, chatter: LlmBase) -> InstructionWithCommand | None:
         result = LabOrderCommand(
             ordering_provider_key=self.provider_uuid,
-            fasting_required=parameters["fastingRequired"],
-            comment=parameters["comment"][:127],  # <-- no more than 128 characters
+            fasting_required=instruction.parameters["fastingRequired"],
+            comment=instruction.parameters["comment"][:127],  # <-- no more than 128 characters
             note_uuid=self.note_uuid,
             diagnosis_codes=[],
             tests_order_codes=[],
         )
         # retrieve the linked conditions
         conditions = []
-        for condition in parameters["conditions"]:
+        for condition in instruction.parameters["conditions"]:
             item = SelectorChat.condition_from(
+                instruction,
                 chatter,
                 self.settings,
                 condition["conditionKeywords"].split(","),
                 condition["ICD10"].split(","),
-                parameters["comment"],
+                instruction.parameters["comment"],
             )
             if item.code:
                 conditions.append(item)
@@ -63,19 +66,20 @@ class LabOrder(Base):
         if lab_partner is not None:
             result.lab_partner = str(lab_partner.id)
             # retrieve the tests based on the keywords
-            for lab_order in parameters["labOrders"]:
+            for lab_order in instruction.parameters["labOrders"]:
                 item = SelectorChat.lab_test_from(
+                    instruction,
                     chatter,
                     self.settings,
                     lab_partner.name,
                     lab_order["labOrderKeywords"].split(","),
-                    parameters["comment"],
+                    instruction.parameters["comment"],
                     [c.label for c in conditions],
                 )
                 if item.code:
                     result.tests_order_codes.append(item.code)
 
-        return result
+        return InstructionWithCommand.add_command(instruction, result)
 
     def command_parameters(self) -> dict:
         return {

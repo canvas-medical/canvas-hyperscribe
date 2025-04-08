@@ -6,7 +6,6 @@ from time import time
 from typing import Iterable
 
 import requests
-from canvas_sdk.commands.base import _BaseCommand as BaseCommand
 from canvas_sdk.effects import Effect, EffectType
 from canvas_sdk.effects.task.task import AddTaskComment, UpdateTask, TaskStatus
 from canvas_sdk.events import EventType
@@ -30,6 +29,7 @@ from hyperscribe.handlers.memory_log import MemoryLog
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.instruction import Instruction
+from hyperscribe.structures.instruction_with_command import InstructionWithCommand
 from hyperscribe.structures.line import Line
 from hyperscribe.structures.settings import Settings
 
@@ -160,7 +160,9 @@ class Commander(BaseProtocol):
         # summary
         memory_log.output(f"<===  note: {note_uuid} ===>")
         memory_log.output(f"Structured RfV: {settings.structured_rfv}")
-        memory_log.output(f"instructions: {discussion.previous_instructions}")
+        memory_log.output("instructions:")
+        for instruction in discussion.previous_instructions:
+            memory_log.output(f"- {instruction.limited_str()}")
         memory_log.output("<-------->")
         for result in results:
             memory_log.output(f"command: {EffectType.Name(result.type)}")
@@ -216,7 +218,9 @@ class Commander(BaseProtocol):
         results.extend(cls.new_commands_from(auditor, chatter, cumulated_instructions, past_uuids))
         # -- updated commands
         results.extend(cls.update_commands_from(auditor, chatter, cumulated_instructions, past_uuids))
-
+        # reset the audit fields
+        for instruction in cumulated_instructions:
+            instruction.audits.clear()
         return cumulated_instructions, results
 
     @classmethod
@@ -232,31 +236,32 @@ class Commander(BaseProtocol):
         memory_log.output(f"--> new instructions: {len(new_instructions)}")
         start = time()
         max_workers = max(1, Constants.MAX_WORKERS)
-        with ThreadPoolExecutor(max_workers=max_workers) as parameters_builder:
-            sdk_parameters = [
-                parameters
-                for parameters in parameters_builder.map(chatter.create_sdk_command_parameters, new_instructions)
-                if parameters[1] is not None
+        with ThreadPoolExecutor(max_workers=max_workers) as builder:
+            instructions_with_parameter = [
+                instruction
+                for instruction in builder.map(chatter.create_sdk_command_parameters, new_instructions)
+                if instruction is not None
             ]
-        auditor.computed_parameters(sdk_parameters)
-        memory_log.output(f"--> new commands: {len(sdk_parameters)}")
-        sdk_commands: list[BaseCommand] = []
-        used_parameters: list[tuple[Instruction, dict]] = []
-        with ThreadPoolExecutor(max_workers=max_workers) as command_builder:
-            for idx, command in enumerate(command_builder.map(lambda params: chatter.create_sdk_command_from(*params), sdk_parameters)):
-                if command is not None:
-                    sdk_commands.append(command)
-                    used_parameters.append(sdk_parameters[idx])
+        auditor.computed_parameters(instructions_with_parameter)
+        memory_log.output(f"--> new commands: {len(instructions_with_parameter)}")
+        with ThreadPoolExecutor(max_workers=max_workers) as builder:
+            instructions_with_command = [
+                instruction
+                for instruction in builder.map(chatter.create_sdk_command_from, instructions_with_parameter)
+                if instruction is not None
+            ]
 
         memory_log.output(f"DURATION NEW: {int((time() - start) * 1000)}")
-        auditor.computed_commands(used_parameters, sdk_commands)
+        auditor.computed_commands(instructions_with_command)
+
+        cls.store_audits(chatter.aws_s3, chatter.note_uuid, "audit_new_commands", instructions_with_command)
 
         if chatter.note_uuid == Constants.FAUX_NOTE_UUID:
             # this is the case when running an evaluation against a recorded 'limited cache',
             # i.e. the patient and/or her data don't exist, something that may be checked
             # when originating the commands
             return []
-        return [command.originate() for command in sdk_commands]
+        return [command.command.originate() for command in instructions_with_command]
 
     @classmethod
     def update_commands_from(
@@ -267,41 +272,41 @@ class Commander(BaseProtocol):
             past_uuids: dict[str, Instruction],
     ) -> list[Effect]:
         memory_log = MemoryLog(chatter.note_uuid, cls.MEMORY_LOG_LABEL)
-        changed = [
+        changed_instructions = [
             instruction
             for instruction in instructions
             if instruction.uuid in past_uuids
                and past_uuids[instruction.uuid].information != instruction.information
         ]
-        memory_log.output(f"--> updated instructions: {len(changed)}")
+        memory_log.output(f"--> updated instructions: {len(changed_instructions)}")
         start = time()
         max_workers = max(1, Constants.MAX_WORKERS)
-        with ThreadPoolExecutor(max_workers=max_workers) as parameters_builder:
-            sdk_parameters = [
-                parameters
-                for parameters in parameters_builder.map(chatter.create_sdk_command_parameters, changed)
-                if parameters[1] is not None
+        with ThreadPoolExecutor(max_workers=max_workers) as builder:
+            instructions_with_parameter = [
+                instruction
+                for instruction in builder.map(chatter.create_sdk_command_parameters, changed_instructions)
+                if instruction is not None
             ]
-        auditor.computed_parameters(sdk_parameters)
-        memory_log.output(f"--> updated commands: {len(sdk_parameters)}")
-        sdk_commands: list[BaseCommand] = []
-        used_parameters: list[tuple[Instruction, dict]] = []
-        with ThreadPoolExecutor(max_workers=max_workers) as command_builder:
-            for idx, command in enumerate(command_builder.map(lambda params: chatter.create_sdk_command_from(*params), sdk_parameters)):
-                if command is not None:
-                    command.command_uuid = changed[idx].uuid
-                    sdk_commands.append(command)
-                    used_parameters.append(sdk_parameters[idx])
+        auditor.computed_parameters(instructions_with_parameter)
+        memory_log.output(f"--> updated commands: {len(instructions_with_parameter)}")
+        instructions_with_command: list[InstructionWithCommand] = []
+        with ThreadPoolExecutor(max_workers=max_workers) as builder:
+            for instruction in builder.map(chatter.create_sdk_command_from, instructions_with_parameter):
+                if instruction is not None:
+                    instruction.command.command_uuid = instruction.uuid
+                    instructions_with_command.append(instruction)
 
-            memory_log.output(f"DURATION UPDATE: {int((time() - start) * 1000)}")
+        memory_log.output(f"DURATION UPDATE: {int((time() - start) * 1000)}")
+        auditor.computed_commands(instructions_with_command)
 
-        auditor.computed_commands(used_parameters, sdk_commands)
+        cls.store_audits(chatter.aws_s3, chatter.note_uuid, "audit_updated_commands", instructions_with_command)
+
         if chatter.note_uuid == Constants.FAUX_NOTE_UUID:
             # this is the case when running an evaluation against a recorded 'limited cache',
             # i.e. the patient and/or her data don't exist, something that may be checked
             # when editing the commands
             return []
-        return [command.edit() for command in sdk_commands]
+        return [command.command.edit() for command in instructions_with_command]
 
     @classmethod
     def existing_commands_to_instructions(cls, current_commands: Iterable[Command], instructions: list[Instruction]) -> list[Instruction]:
@@ -331,6 +336,7 @@ class Commander(BaseProtocol):
                 information=information,
                 is_new=False,
                 is_updated=False,
+                audits=[],
             )
         return list(result.values())
 
@@ -347,3 +353,16 @@ class Commander(BaseProtocol):
                         result[key].append(coded_item)
                     break
         return result
+
+    @classmethod
+    def store_audits(cls, aws_s3: AwsS3Credentials, note_uuid: str, label: str, instructions: list[Instruction]) -> None:
+        client_s3 = AwsS3(aws_s3)
+        if client_s3.is_ready():
+            cached = CachedDiscussion.get_discussion(note_uuid)
+            log_path = f"{cached.creation_day()}/partials/{note_uuid}/{cached.count - 1:02d}/{label}.log"
+            content = []
+            for instruction in instructions:
+                content.append(f"--- {instruction.instruction} ({instruction.uuid}) ---")
+                content.append("\n".join(instruction.audits))
+            content.append("-- EOF ---")
+            client_s3.upload_text_to_s3(log_path, "\n".join(content))

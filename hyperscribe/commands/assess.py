@@ -5,6 +5,8 @@ from hyperscribe.handlers.constants import Constants
 from hyperscribe.handlers.helper import Helper
 from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.instruction_with_command import InstructionWithCommand
+from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 
 
 class Assess(Base):
@@ -18,17 +20,17 @@ class Assess(Base):
             return CodedItem(label=f'{condition}: {narrative}', code="", uuid="")
         return None
 
-    def command_from_json(self, chatter: LlmBase, parameters: dict) -> None | AssessCommand:
+    def command_from_json(self, instruction: InstructionWithParameters, chatter: LlmBase) -> InstructionWithCommand | None:
         condition_id = ""
-        if 0 <= (idx := parameters["conditionIndex"]) < len(current := self.cache.current_conditions()):
+        if 0 <= (idx := instruction.parameters["conditionIndex"]) < len(current := self.cache.current_conditions()):
             condition_id = current[idx].uuid
-        return AssessCommand(
+        return InstructionWithCommand.add_command(instruction, AssessCommand(
             condition_id=condition_id,
-            background=parameters["rationale"],
-            status=Helper.enum_or_none(parameters["status"], AssessCommand.Status),
-            narrative=parameters["assessment"],
+            background=instruction.parameters["rationale"],
+            status=Helper.enum_or_none(instruction.parameters["status"], AssessCommand.Status),
+            narrative=instruction.parameters["assessment"],
             note_uuid=self.note_uuid,
-        )
+        ))
 
     def command_parameters(self) -> dict:
         statuses = "/".join([status.value for status in AssessCommand.Status])

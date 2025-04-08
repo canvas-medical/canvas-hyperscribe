@@ -2,14 +2,16 @@ import json
 
 from canvas_sdk.commands.commands.imaging_order import ImagingOrderCommand
 
-from hyperscribe.handlers.canvas_science import CanvasScience
 from hyperscribe.commands.base import Base
+from hyperscribe.handlers.canvas_science import CanvasScience
 from hyperscribe.handlers.constants import Constants
 from hyperscribe.handlers.helper import Helper
 from hyperscribe.handlers.json_schema import JsonSchema
-from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.handlers.selector_chat import SelectorChat
+from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.instruction_with_command import InstructionWithCommand
+from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 
 
 class ImagingOrder(Base):
@@ -32,30 +34,31 @@ class ImagingOrder(Base):
             return CodedItem(label=f"{imaging}: {comment} (priority: {priority}, related conditions: {indications})", code="", uuid="")
         return None
 
-    def command_from_json(self, chatter: LlmBase, parameters: dict) -> None | ImagingOrderCommand:
+    def command_from_json(self, instruction: InstructionWithParameters, chatter: LlmBase) -> InstructionWithCommand | None:
         result = ImagingOrderCommand(
             note_uuid=self.note_uuid,
             ordering_provider_key=self.provider_uuid,
             diagnosis_codes=[],
-            comment=parameters["comment"],
-            additional_details=parameters["noteToRadiologist"],
-            priority=Helper.enum_or_none(parameters["priority"], ImagingOrderCommand.Priority),
+            comment=instruction.parameters["comment"],
+            additional_details=instruction.parameters["noteToRadiologist"],
+            priority=Helper.enum_or_none(instruction.parameters["priority"], ImagingOrderCommand.Priority),
             linked_items_urns=[],
         )
         # retrieve the linked conditions
-        for condition in parameters["conditions"]:
+        for condition in instruction.parameters["conditions"]:
             item = SelectorChat.condition_from(
+                instruction,
                 chatter,
                 self.settings,
                 condition["conditionKeywords"].split(","),
                 condition["ICD10"].split(","),
-                parameters["comment"],
+                instruction.parameters["comment"],
             )
             if item.code:
                 result.diagnosis_codes.append(item.code)
 
         # retrieve existing imaging orders defined in Canvas Science
-        expressions = parameters["imagingKeywords"].split(",")
+        expressions = instruction.parameters["imagingKeywords"].split(",")
         if concepts := CanvasScience.search_imagings(self.settings.science_host, expressions):
             # ask the LLM to pick the most relevant imaging
             system_prompt = [
@@ -67,11 +70,11 @@ class ImagingOrder(Base):
             user_prompt = [
                 'Here is the comments provided by the healthcare provider in regards to the imaging to order for a patient:',
                 '```text',
-                f"keywords: {parameters['imagingKeywords']}",
+                f"keywords: {instruction.parameters['imagingKeywords']}",
                 " -- ",
-                f"note: {parameters['comment']}",
+                f"note: {instruction.parameters['comment']}",
                 " -- ",
-                f"note to the radiologist: {parameters['imagingKeywords']}",
+                f"note to the radiologist: {instruction.parameters['imagingKeywords']}",
                 '```',
                 'Among the following imaging orders, identify the most relevant one:',
                 '',
@@ -84,10 +87,10 @@ class ImagingOrder(Base):
                 '',
             ]
             schemas = JsonSchema.get(["selector_concept"])
-            if response := chatter.single_conversation(system_prompt, user_prompt, schemas):
+            if response := chatter.single_conversation(system_prompt, user_prompt, schemas, instruction):
                 result.image_code = response[0]["conceptId"]
 
-        return result
+        return InstructionWithCommand.add_command(instruction, result)
 
     def command_parameters(self) -> dict:
         priorities = "/".join([priority.value for priority in ImagingOrderCommand.Priority])

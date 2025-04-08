@@ -6,6 +6,8 @@ from hyperscribe.commands.base_questionnaire import BaseQuestionnaire
 from hyperscribe.commands.questionnaire import Questionnaire
 from hyperscribe.handlers.limited_cache import LimitedCache
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.instruction_with_command import InstructionWithCommand
+from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
 
@@ -56,17 +58,27 @@ def test_command_from_json(current_goals):
     ]
     for idx, exp_uuid in tests:
         current_goals.side_effect = [goals, goals]
-        params = {
-            'questionnaire': 'questionnaire2',
-            'questionnaireIndex': idx,
-            "result": "theResult",
+        arguments = {
+            "uuid": "theUuid",
+            "instruction": "theInstruction",
+            "information": "theInformation",
+            "is_new": False,
+            "is_updated": True,
+            "audits": ["theAudit"],
+            "parameters": {
+                'questionnaire': 'questionnaire2',
+                'questionnaireIndex': idx,
+                "result": "theResult",
+            },
         }
-        result = tested.command_from_json(chatter, params)
-        expected = QuestionnaireCommand(
+        instruction = InstructionWithParameters(**arguments)
+        result = tested.command_from_json(instruction, chatter)
+        command = QuestionnaireCommand(
             questionnaire_id=exp_uuid,
             result="theResult",
             note_uuid="noteUuid",
         )
+        expected = InstructionWithCommand(**(arguments | {"command": command}))
         assert result == expected
         calls = [call()]
         assert current_goals.mock_calls == calls

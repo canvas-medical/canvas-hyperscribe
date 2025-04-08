@@ -9,6 +9,8 @@ from hyperscribe.commands.base import Base
 from hyperscribe.commands.refill import Refill
 from hyperscribe.handlers.limited_cache import LimitedCache
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.instruction_with_command import InstructionWithCommand
+from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
 
@@ -129,16 +131,25 @@ def test_command_from_json(current_medications, medication, codings):
         current_medications.side_effect = [medications, medications]
         medication.get.side_effect = [Medication(national_drug_code="theNdc", potency_unit_code="thePuc")]
         codings.filter.return_value.first.side_effect = [MedicationCoding(system="theSystem", display="theDisplay", code="theCode"), ]
-        params = {
-            'comment': 'theComment',
-            'medication': 'display2a',
-            'medicationIndex': idx,
-            'sig': 'theSig',
-            'substitution': 'not_allowed',
-            'suppliedDays': 7,
+        arguments = {
+            "uuid": "theUuid",
+            "instruction": "theInstruction",
+            "information": "theInformation",
+            "is_new": False,
+            "is_updated": True,
+            "audits": ["theAudit"],
+            "parameters": {
+                'comment': 'theComment',
+                'medication': 'display2a',
+                'medicationIndex': idx,
+                'sig': 'theSig',
+                'substitution': 'not_allowed',
+                'suppliedDays': 7,
+            },
         }
-        result = tested.command_from_json(chatter, params)
-        expected = RefillCommand(
+        instruction = InstructionWithParameters(**arguments)
+        result = tested.command_from_json(instruction, chatter)
+        command = RefillCommand(
             fdb_code="theCode",
             sig="theSig",
             days_supply=7,
@@ -150,6 +161,7 @@ def test_command_from_json(current_medications, medication, codings):
             prescriber_id="providerUuid",
             note_uuid="noteUuid",
         )
+        expected = InstructionWithCommand(**(arguments | {"command": command}))
         assert result == expected
         calls = [call()]
         assert current_medications.mock_calls == calls
@@ -164,16 +176,33 @@ def test_command_from_json(current_medications, medication, codings):
         reset_mocks()
     #
     current_medications.side_effect = [medications]
-    params = {
-        'comment': 'theComment',
-        'medication': 'display2a',
-        'medicationIndex': 4,
-        'sig': 'theSig',
-        'substitution': 'allowed',
-        'suppliedDays': 7,
+    arguments = {
+        "uuid": "theUuid",
+        "instruction": "theInstruction",
+        "information": "theInformation",
+        "is_new": False,
+        "is_updated": True,
+        "audits": ["theAudit"],
+        "parameters": {
+            'comment': 'theComment',
+            'medication': 'display2a',
+            'medicationIndex': 4,
+            'sig': 'theSig',
+            'substitution': 'allowed',
+            'suppliedDays': 7,
+        },
     }
-    result = tested.command_from_json(chatter, params)
-    assert result is None
+    instruction = InstructionWithParameters(**arguments)
+    result = tested.command_from_json(instruction, chatter)
+    command = RefillCommand(
+        sig="theSig",
+        days_supply=7,
+        substitutions=PrescribeCommand.Substitutions.ALLOWED,
+        prescriber_id="providerUuid",
+        note_uuid="noteUuid",
+    )
+    expected = InstructionWithCommand(**(arguments | {"command": command}))
+    assert result == expected
     calls = [call()]
     assert current_medications.mock_calls == calls
     assert medication.mock_calls == []

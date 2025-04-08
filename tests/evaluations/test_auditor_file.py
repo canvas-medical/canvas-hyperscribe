@@ -7,6 +7,8 @@ from unittest.mock import patch, call, MagicMock
 from evaluations.auditor_file import AuditorFile
 from hyperscribe.handlers.auditor import Auditor
 from hyperscribe.structures.instruction import Instruction
+from hyperscribe.structures.instruction_with_command import InstructionWithCommand
+from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.line import Line
 
 
@@ -97,8 +99,8 @@ def test_reset(case_files):
 
     def reset_mocks():
         case_files.reset_mock()
-        for mock_file in mock_files:
-            mock_file.reset_mock()
+        for item in mock_files:
+            item.reset_mock()
 
     tested = AuditorFile("theCase")
 
@@ -215,8 +217,8 @@ def test_found_instructions(path):
                 Line(speaker="voiceA", text="theText4"),
             ],
             [
-                Instruction(uuid="uuid1", instruction="theInstruction1", information="theInformation1", is_new=False, is_updated=False),
-                Instruction(uuid="uuid2", instruction="theInstruction2", information="theInformation2", is_new=False, is_updated=False),
+                Instruction(uuid="uuid1", instruction="theInstruction1", information="theInformation1", is_new=False, is_updated=False, audits=[]),
+                Instruction(uuid="uuid2", instruction="theInstruction2", information="theInformation2", is_new=False, is_updated=False, audits=[]),
             ],
         )
         assert result is test
@@ -272,22 +274,24 @@ def test_computed_parameters(path):
     directory = Path(__file__).parent.as_posix().replace("/tests", "")
 
     sdk_parameters = [
-        (Instruction(
+        InstructionWithParameters(
             uuid="uuid1",
             instruction="theInstruction1",
             information="theInformation1",
             is_new=False,
             is_updated=True,
+            audits=[],
+            parameters={"key1": "parameter1"},
         ),
-         {"key1": "parameter1"}),
-        (Instruction(
+        InstructionWithParameters(
             uuid="uuid2",
             instruction="theInstruction2",
             information="theInformation2",
             is_new=True,
             is_updated=False,
+            audits=[],
+            parameters={"key2": "parameter2"},
         ),
-         {"key2": "parameter2"}),
     ]
 
     # file does not exist yet
@@ -431,22 +435,26 @@ def test_computed_commands(path):
         command.values = {f"key{idx + 1}": f"value{idx + 1}"}
 
     sdk_parameters = [
-        (Instruction(
+        InstructionWithCommand(
             uuid="uuid1",
             instruction="theInstruction1",
             information="theInformation1",
             is_new=False,
             is_updated=True,
+            audits=[],
+            parameters={"key1": "parameter1"},
+            command=commands[0],
         ),
-         {"key1": "parameter1"}),
-        (Instruction(
+        InstructionWithCommand(
             uuid="uuid2",
             instruction="theInstruction2",
             information="theInformation2",
             is_new=True,
             is_updated=False,
+            audits=[],
+            parameters={"key2": "parameter2"},
+            command=commands[1],
         ),
-         {"key2": "parameter2"}),
     ]
 
     # file does not exist yet
@@ -457,7 +465,7 @@ def test_computed_commands(path):
         path.return_value.parent.__truediv__.return_value.open.return_value.__enter__.return_value.write = write
 
         tested = AuditorFile("theCase")
-        result = tested.computed_commands(sdk_parameters, commands)
+        result = tested.computed_commands(sdk_parameters)
         assert result is test
 
         expected = {
@@ -527,7 +535,7 @@ def test_computed_commands(path):
         ]
 
         tested = AuditorFile("theCase")
-        result = tested.computed_commands(sdk_parameters, commands)
+        result = tested.computed_commands(sdk_parameters)
         assert result is test
 
         expected = {

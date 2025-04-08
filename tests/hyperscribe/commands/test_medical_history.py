@@ -3,12 +3,14 @@ from unittest.mock import patch, call, MagicMock
 
 from canvas_sdk.commands.commands.medical_history import MedicalHistoryCommand
 
-from hyperscribe.handlers.canvas_science import CanvasScience
 from hyperscribe.commands.base import Base
 from hyperscribe.commands.medical_history import MedicalHistory
+from hyperscribe.handlers.canvas_science import CanvasScience
 from hyperscribe.handlers.limited_cache import LimitedCache
 from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.icd10_condition import Icd10Condition
+from hyperscribe.structures.instruction_with_command import InstructionWithCommand
+from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
 
@@ -130,11 +132,19 @@ def test_command_from_json(medical_histories):
     keywords = ['keyword1', 'keyword2', 'keyword3']
     tested = helper_instance()
 
-    parameters = {
-        'keywords': 'keyword1,keyword2,keyword3',
-        "approximateStartDate": "2018-03-15",
-        "approximateEndDate": "2021-07-19",
-        'comments': 'theComment',
+    arguments = {
+        "uuid": "theUuid",
+        "instruction": "theInstruction",
+        "information": "theInformation",
+        "is_new": False,
+        "is_updated": True,
+        "audits": ["theAudit"],
+        "parameters": {
+            'keywords': 'keyword1,keyword2,keyword3',
+            "approximateStartDate": "2018-03-15",
+            "approximateEndDate": "2021-07-19",
+            'comments': 'theComment',
+        },
     }
     conditions = [
         Icd10Condition(code="code123", label="labelA"),
@@ -146,8 +156,9 @@ def test_command_from_json(medical_histories):
     medical_histories.side_effect = [conditions]
     chatter.single_conversation.side_effect = [[{"ICD10": "code369", "label": "labelB"}]]
 
-    result = tested.command_from_json(chatter, parameters)
-    expected = MedicalHistoryCommand(
+    instruction = InstructionWithParameters(**arguments)
+    result = tested.command_from_json(instruction, chatter)
+    command = MedicalHistoryCommand(
         approximate_start_date=date(2018, 3, 15),
         approximate_end_date=date(2021, 7, 19),
         show_on_condition_list=True,
@@ -155,10 +166,11 @@ def test_command_from_json(medical_histories):
         past_medical_history="labelB",
         note_uuid="noteUuid",
     )
+    expected = InstructionWithCommand(**(arguments | {"command": command}))
     assert result == expected
     calls = [call('scienceHost', keywords)]
     assert medical_histories.mock_calls == calls
-    calls = [call.single_conversation(system_prompt, user_prompt, schemas)]
+    calls = [call.single_conversation(system_prompt, user_prompt, schemas, instruction)]
     assert chatter.mock_calls == calls
     reset_mocks()
 
@@ -166,18 +178,19 @@ def test_command_from_json(medical_histories):
     medical_histories.side_effect = [conditions]
     chatter.single_conversation.side_effect = [[]]
 
-    result = tested.command_from_json(chatter, parameters)
-    expected = MedicalHistoryCommand(
+    result = tested.command_from_json(instruction, chatter)
+    command = MedicalHistoryCommand(
         approximate_start_date=date(2018, 3, 15),
         approximate_end_date=date(2021, 7, 19),
         show_on_condition_list=True,
         comments="theComment",
         note_uuid="noteUuid",
     )
+    expected = InstructionWithCommand(**(arguments | {"command": command}))
     assert result == expected
     calls = [call('scienceHost', keywords)]
     assert medical_histories.mock_calls == calls
-    calls = [call.single_conversation(system_prompt, user_prompt, schemas)]
+    calls = [call.single_conversation(system_prompt, user_prompt, schemas, instruction)]
     assert chatter.mock_calls == calls
     reset_mocks()
 
@@ -185,14 +198,15 @@ def test_command_from_json(medical_histories):
     medical_histories.side_effect = [[]]
     chatter.single_conversation.side_effect = [[]]
 
-    result = tested.command_from_json(chatter, parameters)
-    expected = MedicalHistoryCommand(
+    result = tested.command_from_json(instruction, chatter)
+    command = MedicalHistoryCommand(
         approximate_start_date=date(2018, 3, 15),
         approximate_end_date=date(2021, 7, 19),
         show_on_condition_list=True,
         comments="theComment",
         note_uuid="noteUuid",
     )
+    expected = InstructionWithCommand(**(arguments | {"command": command}))
     assert result == expected
     calls = [call('scienceHost', keywords)]
     assert medical_histories.mock_calls == calls

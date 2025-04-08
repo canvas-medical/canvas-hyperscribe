@@ -1,8 +1,8 @@
-from canvas_sdk.commands.commands.exam import PhysicalExamCommand
-
 from hyperscribe.commands.base_questionnaire import BaseQuestionnaire
 from hyperscribe.handlers.constants import Constants
 from hyperscribe.llms.llm_base import LlmBase
+from hyperscribe.structures.instruction_with_command import InstructionWithCommand
+from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 
 
 class PhysicalExam(BaseQuestionnaire):
@@ -10,7 +10,7 @@ class PhysicalExam(BaseQuestionnaire):
     def schema_key(cls) -> str:
         return Constants.SCHEMA_KEY_PHYSICAL_EXAM
 
-    def command_from_json(self, chatter: LlmBase, parameters: dict) -> None | PhysicalExamCommand:
+    def command_from_json(self, instruction: InstructionWithParameters, chatter: LlmBase) -> InstructionWithCommand | None:
         return None
 
     def command_parameters(self) -> dict:

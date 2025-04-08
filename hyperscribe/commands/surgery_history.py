@@ -2,13 +2,15 @@ import json
 
 from canvas_sdk.commands.commands.past_surgical_history import PastSurgicalHistoryCommand
 
-from hyperscribe.handlers.canvas_science import CanvasScience
 from hyperscribe.commands.base import Base
+from hyperscribe.handlers.canvas_science import CanvasScience
 from hyperscribe.handlers.constants import Constants
 from hyperscribe.handlers.helper import Helper
 from hyperscribe.handlers.json_schema import JsonSchema
 from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.instruction_with_command import InstructionWithCommand
+from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 
 
 class SurgeryHistory(Base):
@@ -25,14 +27,14 @@ class SurgeryHistory(Base):
             return CodedItem(label=f"{surgery}: {comment} (on: {on_date})", code=code, uuid="")
         return None
 
-    def command_from_json(self, chatter: LlmBase, parameters: dict) -> None | PastSurgicalHistoryCommand:
+    def command_from_json(self, instruction: InstructionWithParameters, chatter: LlmBase) -> InstructionWithCommand | None:
         result = PastSurgicalHistoryCommand(
-            approximate_date=Helper.str2date(parameters["approximateDate"]),
-            comment=parameters["comment"],
+            approximate_date=Helper.str2date(instruction.parameters["approximateDate"]),
+            comment=instruction.parameters["comment"],
             note_uuid=self.note_uuid,
         )
         # retrieve existing family history conditions defined in Canvas Science
-        expressions = parameters["keywords"].split(",")
+        expressions = instruction.parameters["keywords"].split(",")
         if concepts := CanvasScience.surgical_histories(self.settings.science_host, expressions):
             # ask the LLM to pick the most relevant condition
             system_prompt = [
@@ -44,9 +46,9 @@ class SurgeryHistory(Base):
             user_prompt = [
                 'Here is the comment provided by the healthcare provider in regards to the surgery of a patient:',
                 '```text',
-                f"keywords: {parameters['keywords']}",
+                f"keywords: {instruction.parameters['keywords']}",
                 " -- ",
-                parameters["comment"],
+                instruction.parameters["comment"],
                 '```',
                 'Among the following surgeries, identify the most relevant one:',
                 '',
@@ -59,10 +61,10 @@ class SurgeryHistory(Base):
                 '',
             ]
             schemas = JsonSchema.get(["selector_concept"])
-            if response := chatter.single_conversation(system_prompt, user_prompt, schemas):
+            if response := chatter.single_conversation(system_prompt, user_prompt, schemas, instruction):
                 result.past_surgical_history = response[0]["term"]
 
-        return result
+        return InstructionWithCommand.add_command(instruction, result)
 
     def command_parameters(self) -> dict:
         return {

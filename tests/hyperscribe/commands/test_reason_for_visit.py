@@ -6,6 +6,8 @@ from hyperscribe.commands.base import Base
 from hyperscribe.commands.reason_for_visit import ReasonForVisit
 from hyperscribe.handlers.limited_cache import LimitedCache
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.instruction_with_command import InstructionWithCommand
+from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
 
@@ -77,14 +79,24 @@ def test_command_from_json(existing_reason_for_visits):
     # no structured RfV
     tested = helper_instance(structured_rfv=False)
     existing_reason_for_visits.side_effect = []
-    parameters = {
-        "reasonForVisit": "theReasonForVisit",
+    arguments = {
+        "uuid": "theUuid",
+        "instruction": "theInstruction",
+        "information": "theInformation",
+        "is_new": False,
+        "is_updated": True,
+        "audits": ["theAudit"],
+        "parameters": {
+            "reasonForVisit": "theReasonForVisit",
+        },
     }
-    result = tested.command_from_json(chatter, parameters)
-    expected = ReasonForVisitCommand(
+    instruction = InstructionWithParameters(**arguments)
+    result = tested.command_from_json(instruction, chatter)
+    command = ReasonForVisitCommand(
         comment="theReasonForVisit",
         note_uuid="noteUuid",
     )
+    expected = InstructionWithCommand(**(arguments | {"command": command}))
     assert result == expected
     assert existing_reason_for_visits.mock_calls == []
     assert chatter.mock_calls == []
@@ -99,19 +111,29 @@ def test_command_from_json(existing_reason_for_visits):
     ]
     for idx, exp_uuid, exp_structured in tests:
         existing_reason_for_visits.side_effect = [reason_for_visits]
-        parameters = {
-            "reasonForVisit": "theReasonForVisit",
-            "reasonForVisitIndex": idx,
+        arguments = {
+            "uuid": "theUuid",
+            "instruction": "theInstruction",
+            "information": "theInformation",
+            "is_new": False,
+            "is_updated": True,
+            "audits": ["theAudit"],
+            "parameters": {
+                "reasonForVisit": "theReasonForVisit",
+                "reasonForVisitIndex": idx,
+            },
         }
-        result = tested.command_from_json(chatter, parameters)
-        expected = ReasonForVisitCommand(
+        instruction = InstructionWithParameters(**arguments)
+        result = tested.command_from_json(instruction, chatter)
+        command = ReasonForVisitCommand(
             comment="theReasonForVisit",
             note_uuid="noteUuid",
         )
         if exp_structured:
-            expected.structured = exp_structured
+            command.structured = exp_structured
         if exp_uuid:
-            expected.coding = exp_uuid
+            command.coding = exp_uuid
+        expected = InstructionWithCommand(**(arguments | {"command": command}))
         assert result == expected
         calls = [call()]
         assert existing_reason_for_visits.mock_calls == calls

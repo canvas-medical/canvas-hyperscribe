@@ -1,9 +1,9 @@
-from canvas_sdk.commands.commands.review_of_systems import ReviewOfSystemsCommand
-
 from hyperscribe.commands.base import Base
 from hyperscribe.handlers.constants import Constants
 from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.instruction_with_command import InstructionWithCommand
+from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 
 
 class ReviewOfSystem(Base):
@@ -15,7 +15,7 @@ class ReviewOfSystem(Base):
     def staged_command_extract(cls, data: dict) -> None | CodedItem:
         return None
 
-    def command_from_json(self, chatter: LlmBase, parameters: dict) -> None | ReviewOfSystemsCommand:
+    def command_from_json(self, instruction: InstructionWithParameters, chatter: LlmBase) -> InstructionWithCommand | None:
         return None
 
     def command_parameters(self) -> dict:

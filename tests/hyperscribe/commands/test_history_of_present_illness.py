@@ -6,6 +6,8 @@ from hyperscribe.commands.base import Base
 from hyperscribe.commands.history_of_present_illness import HistoryOfPresentIllness
 from hyperscribe.handlers.limited_cache import LimitedCache
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.instruction_with_command import InstructionWithCommand
+from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
 
@@ -52,14 +54,24 @@ def test_staged_command_extract():
 def test_command_from_json():
     chatter = MagicMock()
     tested = helper_instance()
-    parameters = {
-        "narrative": "theNarrative",
+    arguments = {
+        "uuid": "theUuid",
+        "instruction": "theInstruction",
+        "information": "theInformation",
+        "is_new": False,
+        "is_updated": True,
+        "audits": ["theAudit"],
+        "parameters": {
+            "narrative": "theNarrative",
+        },
     }
-    result = tested.command_from_json(chatter, parameters)
-    expected = HistoryOfPresentIllnessCommand(
+    instruction = InstructionWithParameters(**arguments)
+    result = tested.command_from_json(instruction, chatter)
+    command = HistoryOfPresentIllnessCommand(
         narrative="theNarrative",
         note_uuid="noteUuid",
     )
+    expected = InstructionWithCommand(**(arguments | {"command": command}))
     assert result == expected
     assert chatter.mock_calls == []
 

@@ -9,16 +9,18 @@ from django.db.models import Q
 from hyperscribe.handlers.canvas_science import CanvasScience
 from hyperscribe.handlers.helper import Helper
 from hyperscribe.handlers.json_schema import JsonSchema
+from hyperscribe.handlers.temporary_data import ChargeDescriptionMaster
 from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.instruction import Instruction
 from hyperscribe.structures.settings import Settings
-from hyperscribe.handlers.temporary_data import ChargeDescriptionMaster
 
 
 class SelectorChat:
     @classmethod
     def condition_from(
             cls,
+            instruction: Instruction,
             chatter: LlmBase,
             settings: Settings,
             keywords: list[str],
@@ -54,7 +56,7 @@ class SelectorChat:
                 '',
             ]
             schemas = JsonSchema.get(["selector_condition"])
-            if response := chatter.single_conversation(system_prompt, user_prompt, schemas):
+            if response := chatter.single_conversation(system_prompt, user_prompt, schemas, instruction):
                 result = CodedItem(
                     label=response[0]['label'],
                     code=Helper.icd10_strip_dot(response[0]["ICD10"]),
@@ -65,6 +67,7 @@ class SelectorChat:
     @classmethod
     def lab_test_from(
             cls,
+            instruction: Instruction,
             chatter: LlmBase,
             settings: Settings,
             lab_partner: str,
@@ -113,7 +116,7 @@ class SelectorChat:
                 '',
             ]
             schemas = JsonSchema.get(["selector_lab_test"])
-            if response := chatter.single_conversation(system_prompt, user_prompt, schemas):
+            if response := chatter.single_conversation(system_prompt, user_prompt, schemas, instruction):
                 result = CodedItem(
                     label=response[0]['label'],
                     code=response[0]["code"],
@@ -124,6 +127,7 @@ class SelectorChat:
     @classmethod
     def procedure_from(
             cls,
+            instruction: Instruction,
             chatter: LlmBase,
             settings: Settings,
             expressions: list[str],
@@ -165,7 +169,7 @@ class SelectorChat:
                 '',
             ]
             schemas = JsonSchema.get(["selector_lab_test"])
-            if response := chatter.single_conversation(system_prompt, user_prompt, schemas):
+            if response := chatter.single_conversation(system_prompt, user_prompt, schemas, instruction):
                 result = CodedItem(
                     label=response[0]['label'],
                     code=response[0]["code"],
@@ -176,6 +180,7 @@ class SelectorChat:
     @classmethod
     def contact_from(
             cls,
+            instruction: Instruction,
             chatter: LlmBase,
             settings: Settings,
             free_text_information: str,
@@ -210,7 +215,8 @@ class SelectorChat:
                 '```',
                 '',
             ]
-            if response := chatter.single_conversation(system_prompt, user_prompt, []):
+            schemas = JsonSchema.get(["selector_contact"])
+            if response := chatter.single_conversation(system_prompt, user_prompt, schemas, instruction):
                 if 0 <= (idx := response[0]['index']) < len(contacts):
                     result = contacts[idx]
 

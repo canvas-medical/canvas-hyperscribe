@@ -4,6 +4,8 @@ from hyperscribe.commands.base import Base
 from hyperscribe.handlers.constants import Constants
 from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.instruction_with_command import InstructionWithCommand
+from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 
 
 class ReasonForVisit(Base):
@@ -20,17 +22,17 @@ class ReasonForVisit(Base):
             return CodedItem(label=reason_for_visit, code="", uuid="")
         return None
 
-    def command_from_json(self, chatter: LlmBase, parameters: dict) -> None | ReasonForVisitCommand:
+    def command_from_json(self, instruction: InstructionWithParameters, chatter: LlmBase) -> InstructionWithCommand | None:
         result = ReasonForVisitCommand(
-            comment=parameters["reasonForVisit"],
+            comment=instruction.parameters["reasonForVisit"],
             note_uuid=self.note_uuid,
         )
-        if "reasonForVisitIndex" in parameters:
-            if 0 <= (idx := parameters["reasonForVisitIndex"]) < len(existing := self.cache.existing_reason_for_visits()):
+        if "reasonForVisitIndex" in instruction.parameters:
+            if 0 <= (idx := instruction.parameters["reasonForVisitIndex"]) < len(existing := self.cache.existing_reason_for_visits()):
                 result.structured = True
                 result.coding = existing[idx].uuid
 
-        return result
+        return InstructionWithCommand.add_command(instruction, result)
 
     def command_parameters(self) -> dict:
         if self.settings.structured_rfv:

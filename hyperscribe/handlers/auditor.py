@@ -1,6 +1,6 @@
-from canvas_sdk.commands.base import _BaseCommand as BaseCommand
-
 from hyperscribe.structures.instruction import Instruction
+from hyperscribe.structures.instruction_with_command import InstructionWithCommand
+from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.line import Line
 
 
@@ -11,8 +11,8 @@ class Auditor:
     def found_instructions(self, transcript: list[Line], instructions: list[Instruction]) -> bool:
         return True
 
-    def computed_parameters(self, sdk_parameters: list[tuple[Instruction, dict]]) -> bool:
+    def computed_parameters(self, instructions: list[InstructionWithParameters]) -> bool:
         return True
 
-    def computed_commands(self, sdk_parameters: list[tuple[Instruction, dict]], sdk_commands: list[BaseCommand]) -> bool:
+    def computed_commands(self, instructions: list[InstructionWithCommand]) -> bool:
         return True

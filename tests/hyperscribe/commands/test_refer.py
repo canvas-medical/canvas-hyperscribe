@@ -8,6 +8,8 @@ from hyperscribe.commands.refer import Refer
 from hyperscribe.handlers.limited_cache import LimitedCache
 from hyperscribe.handlers.selector_chat import SelectorChat
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.instruction_with_command import InstructionWithCommand
+from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
 
@@ -125,22 +127,30 @@ def test_command_from_json(condition_from, contact_from, practice_setting):
         ("some names", "theSpecialty some names"),
     ]
     for names, exp_contact_call in tests:
-        parameters = {
-            "referredServiceProvider": {
-                "names": names,
-                "specialty": "theSpecialty",
+        arguments = {
+            "uuid": "theUuid",
+            "instruction": "theInstruction",
+            "information": "theInformation",
+            "is_new": False,
+            "is_updated": True,
+            "audits": ["theAudit"],
+            "parameters": {
+                "referredServiceProvider": {
+                    "names": names,
+                    "specialty": "theSpecialty",
+                },
+                "clinicalQuestions": "Diagnostic Uncertainty",
+                "priority": "Routine",
+                "notesToSpecialist": "theNoteToTheSpecialist",
+                "comment": "theComment",
+                "conditions": [
+                    {"conditionKeywords": "condition1,condition2", "ICD10": "icd1,icd2"},
+                    {"conditionKeywords": "condition3", "ICD10": "icd3"},
+                    {"conditionKeywords": "condition4", "ICD10": "icd4"},
+                ],
             },
-            "clinicalQuestions": "Diagnostic Uncertainty",
-            "priority": "Routine",
-            "notesToSpecialist": "theNoteToTheSpecialist",
-            "comment": "theComment",
-            "conditions": [
-                {"conditionKeywords": "condition1,condition2", "ICD10": "icd1,icd2"},
-                {"conditionKeywords": "condition3", "ICD10": "icd3"},
-                {"conditionKeywords": "condition4", "ICD10": "icd4"},
-            ],
         }
-        expected = ReferCommand(
+        command = ReferCommand(
             service_provider=service_provider,
             clinical_question=ReferCommand.ClinicalQuestion.DIAGNOSTIC_UNCERTAINTY,
             priority=ReferCommand.Priority.ROUTINE,
@@ -157,17 +167,19 @@ def test_command_from_json(condition_from, contact_from, practice_setting):
         contact_from.side_effect = [service_provider]
         practice_setting.side_effect = ["thePreferredLab"]
 
-        result = tested.command_from_json(chatter, parameters)
+        instruction = InstructionWithParameters(**arguments)
+        result = tested.command_from_json(instruction, chatter)
+        expected = InstructionWithCommand(**(arguments | {"command": command}))
         assert result == expected
 
         calls = [
-            call(chatter, tested.settings, ['condition1', 'condition2'], ['icd1', 'icd2'], "theComment"),
-            call(chatter, tested.settings, ['condition3'], ['icd3'], "theComment"),
-            call(chatter, tested.settings, ['condition4'], ['icd4'], "theComment"),
+            call(instruction, chatter, tested.settings, ['condition1', 'condition2'], ['icd1', 'icd2'], "theComment"),
+            call(instruction, chatter, tested.settings, ['condition3'], ['icd3'], "theComment"),
+            call(instruction, chatter, tested.settings, ['condition4'], ['icd4'], "theComment"),
         ]
         assert condition_from.mock_calls == calls
         calls = [
-            call(chatter, tested.settings, exp_contact_call, 'thePreferredLab'),
+            call(instruction, chatter, tested.settings, exp_contact_call, 'thePreferredLab'),
         ]
         assert contact_from.mock_calls == calls
         calls = [

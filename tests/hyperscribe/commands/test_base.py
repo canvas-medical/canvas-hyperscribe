@@ -5,6 +5,7 @@ from canvas_sdk.v1.data import PracticeLocation, PracticeLocationSetting, Staff
 
 from hyperscribe.commands.base import Base
 from hyperscribe.handlers.limited_cache import LimitedCache
+from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
 
@@ -63,7 +64,16 @@ def test_command_from_json():
     chatter = MagicMock()
     tested = helper_instance()
     with pytest.raises(NotImplementedError):
-        _ = tested.command_from_json(chatter, {})
+        instruction = InstructionWithParameters(
+            uuid="theUuid",
+            instruction="theInstruction",
+            information="theInformation",
+            is_new=False,
+            is_updated=True,
+            audits=["theAudit"],
+            parameters={'key': "value"},
+        )
+        _ = tested.command_from_json(instruction, chatter)
     assert chatter.mock_calls == []
 
 

@@ -3,6 +3,7 @@ from unittest.mock import MagicMock
 from hyperscribe.commands.base import Base
 from hyperscribe.commands.review_of_system import ReviewOfSystem
 from hyperscribe.handlers.limited_cache import LimitedCache
+from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
 
@@ -48,7 +49,16 @@ def test_staged_command_extract():
 def test_command_from_json():
     chatter = MagicMock()
     tested = helper_instance()
-    result = tested.command_from_json(chatter, {})
+    instruction = InstructionWithParameters(
+        uuid="theUuid",
+        instruction="theInstruction",
+        information="theInformation",
+        is_new=False,
+        is_updated=True,
+        audits=["theAudit"],
+        parameters={'key': "value"},
+    )
+    result = tested.command_from_json(instruction, chatter)
     assert result is None
     assert chatter.mock_calls == []
 

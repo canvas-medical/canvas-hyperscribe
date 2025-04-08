@@ -3,11 +3,13 @@ from unittest.mock import patch, call, MagicMock
 from canvas_sdk.commands.commands.instruct import InstructCommand
 from canvas_sdk.commands.constants import Coding
 
-from hyperscribe.handlers.canvas_science import CanvasScience
 from hyperscribe.commands.base import Base
 from hyperscribe.commands.instruct import Instruct
+from hyperscribe.handlers.canvas_science import CanvasScience
 from hyperscribe.handlers.limited_cache import LimitedCache
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.instruction_with_command import InstructionWithCommand
+from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.medical_concept import MedicalConcept
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
@@ -112,9 +114,17 @@ def test_command_from_json(instructions):
     keywords = ['keyword1', 'keyword2', 'keyword3']
     tested = helper_instance()
 
-    parameters = {
-        'keywords': 'keyword1,keyword2,keyword3',
-        'comment': 'theComment',
+    arguments = {
+        "uuid": "theUuid",
+        "instruction": "theInstruction",
+        "information": "theInformation",
+        "is_new": False,
+        "is_updated": True,
+        "audits": ["theAudit"],
+        "parameters": {
+            'keywords': 'keyword1,keyword2,keyword3',
+            'comment': 'theComment',
+        },
     }
     medical_concepts = [
         MedicalConcept(concept_id=123, term="termA"),
@@ -126,8 +136,9 @@ def test_command_from_json(instructions):
     instructions.side_effect = [medical_concepts]
     chatter.single_conversation.side_effect = [[{"conceptId": 369, "term": "termB"}]]
 
-    result = tested.command_from_json(chatter, parameters)
-    expected = InstructCommand(
+    instruction = InstructionWithParameters(**arguments)
+    result = tested.command_from_json(instruction, chatter)
+    command = InstructCommand(
         coding=Coding(
             code="369",
             system="http://snomed.info/sct",
@@ -136,10 +147,11 @@ def test_command_from_json(instructions):
         comment="theComment",
         note_uuid="noteUuid",
     )
+    expected = InstructionWithCommand(**(arguments | {"command": command}))
     assert result == expected
     calls = [call('scienceHost', keywords)]
     assert instructions.mock_calls == calls
-    calls = [call.single_conversation(system_prompt, user_prompt, schemas)]
+    calls = [call.single_conversation(system_prompt, user_prompt, schemas, instruction)]
     assert chatter.mock_calls == calls
     reset_mocks()
 
@@ -147,15 +159,16 @@ def test_command_from_json(instructions):
     instructions.side_effect = [medical_concepts]
     chatter.single_conversation.side_effect = [[]]
 
-    result = tested.command_from_json(chatter, parameters)
-    expected = InstructCommand(
+    result = tested.command_from_json(instruction, chatter)
+    command = InstructCommand(
         comment="theComment",
         note_uuid="noteUuid",
     )
+    expected = InstructionWithCommand(**(arguments | {"command": command}))
     assert result == expected
     calls = [call('scienceHost', keywords)]
     assert instructions.mock_calls == calls
-    calls = [call.single_conversation(system_prompt, user_prompt, schemas)]
+    calls = [call.single_conversation(system_prompt, user_prompt, schemas, instruction)]
     assert chatter.mock_calls == calls
     reset_mocks()
 
@@ -163,11 +176,12 @@ def test_command_from_json(instructions):
     instructions.side_effect = [[]]
     chatter.single_conversation.side_effect = [[]]
 
-    result = tested.command_from_json(chatter, parameters)
-    expected = InstructCommand(
+    result = tested.command_from_json(instruction, chatter)
+    command = InstructCommand(
         comment="theComment",
         note_uuid="noteUuid",
     )
+    expected = InstructionWithCommand(**(arguments | {"command": command}))
     assert result == expected
     calls = [call('scienceHost', keywords)]
     assert instructions.mock_calls == calls

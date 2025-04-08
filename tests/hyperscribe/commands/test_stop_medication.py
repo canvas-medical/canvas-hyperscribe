@@ -6,6 +6,8 @@ from hyperscribe.commands.base import Base
 from hyperscribe.commands.stop_medication import StopMedication
 from hyperscribe.handlers.limited_cache import LimitedCache
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.instruction_with_command import InstructionWithCommand
+from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
 
@@ -84,19 +86,28 @@ def test_command_from_json(current_medications):
     ]
     for idx, exp_uuid in tests:
         current_medications.side_effect = [medications, medications]
-        params = {
-            'medications': 'display2a',
-            'medicationIndex': idx,
-            'rationale': 'theRationale',
+        arguments = {
+            "uuid": "theUuid",
+            "instruction": "theInstruction",
+            "information": "theInformation",
+            "is_new": False,
+            "is_updated": True,
+            "audits": ["theAudit"],
+            "parameters": {
+                'medications': 'display2a',
+                'medicationIndex': idx,
+                'rationale': 'theRationale',
+            },
         }
-        result = tested.command_from_json(chatter, params)
-        expected = StopMedicationCommand(
+        instruction = InstructionWithParameters(**arguments)
+        result = tested.command_from_json(instruction, chatter)
+        command = StopMedicationCommand(
             rationale="theRationale",
             note_uuid="noteUuid",
         )
         if exp_uuid is not None:
-            expected.medication_id = exp_uuid
-
+            command.medication_id = exp_uuid
+        expected = InstructionWithCommand(**(arguments | {"command": command}))
         assert result == expected
         calls = [call()]
         assert current_medications.mock_calls == calls

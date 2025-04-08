@@ -4,6 +4,8 @@ from hyperscribe.commands.base import Base
 from hyperscribe.handlers.constants import Constants
 from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.instruction_with_command import InstructionWithCommand
+from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 
 
 class RemoveAllergy(Base):
@@ -18,15 +20,15 @@ class RemoveAllergy(Base):
             return CodedItem(label=f"{allergy}: {narrative}", code="", uuid="")
         return None
 
-    def command_from_json(self, chatter: LlmBase, parameters: dict) -> None | RemoveAllergyCommand:
+    def command_from_json(self, instruction: InstructionWithParameters, chatter: LlmBase) -> InstructionWithCommand | None:
         allergy_uuid = ""
-        if 0 <= (idx := parameters["allergyIndex"]) < len(current := self.cache.current_allergies()):
+        if 0 <= (idx := instruction.parameters["allergyIndex"]) < len(current := self.cache.current_allergies()):
             allergy_uuid = current[idx].uuid
-        return RemoveAllergyCommand(
+        return InstructionWithCommand.add_command(instruction, RemoveAllergyCommand(
             allergy_id=allergy_uuid,
-            narrative=parameters["narrative"],
+            narrative=instruction.parameters["narrative"],
             note_uuid=self.note_uuid,
-        )
+        ))
 
     def command_parameters(self) -> dict:
         allergies = "/".join([f'{allergy.label} (index: {idx})' for idx, allergy in enumerate(self.cache.current_allergies())])

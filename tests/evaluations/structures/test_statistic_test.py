@@ -1,5 +1,5 @@
 from evaluations.structures.statistic_test import StatisticTest
-from tests.helper import is_dataclass, is_namedtuple
+from tests.helper import is_namedtuple
 
 
 def test_class():

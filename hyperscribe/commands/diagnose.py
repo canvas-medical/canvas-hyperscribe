@@ -2,9 +2,11 @@ from canvas_sdk.commands.commands.diagnose import DiagnoseCommand
 
 from hyperscribe.commands.base import Base
 from hyperscribe.handlers.helper import Helper
-from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.handlers.selector_chat import SelectorChat
+from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.instruction_with_command import InstructionWithCommand
+from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 
 
 class Diagnose(Base):
@@ -20,26 +22,26 @@ class Diagnose(Base):
             return CodedItem(label=f"{label} ({assessment})", code=code, uuid="")
         return None
 
-    def command_from_json(self, chatter: LlmBase, parameters: dict) -> None | DiagnoseCommand:
+    def command_from_json(self, instruction: InstructionWithParameters, chatter: LlmBase) -> InstructionWithCommand | None:
         icd10_code = SelectorChat.condition_from(
+            instruction,
             chatter,
             self.settings,
-            parameters["keywords"].split(","),
-            parameters["ICD10"].split(","),
+            instruction.parameters["keywords"].split(","),
+            instruction.parameters["ICD10"].split(","),
             "\n".join([
-                parameters["rationale"],
+                instruction.parameters["rationale"],
                 "",
-                parameters["assessment"],
+                instruction.parameters["assessment"],
             ]),
         )
-        result = DiagnoseCommand(
+        return InstructionWithCommand.add_command(instruction, DiagnoseCommand(
             icd10_code=icd10_code.code,
-            background=parameters["rationale"],
-            approximate_date_of_onset=Helper.str2date(parameters["onsetDate"]),
-            today_assessment=parameters["assessment"],
+            background=instruction.parameters["rationale"],
+            approximate_date_of_onset=Helper.str2date(instruction.parameters["onsetDate"]),
+            today_assessment=instruction.parameters["assessment"],
             note_uuid=self.note_uuid,
-        )
-        return result
+        ))
 
     def command_parameters(self) -> dict:
         return {

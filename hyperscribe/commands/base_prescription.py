@@ -9,13 +9,14 @@ from hyperscribe.handlers.canvas_science import CanvasScience
 from hyperscribe.handlers.constants import Constants
 from hyperscribe.handlers.json_schema import JsonSchema
 from hyperscribe.llms.llm_base import LlmBase
+from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.medication_detail import MedicationDetail
 from hyperscribe.structures.medication_search import MedicationSearch
 
 
 class BasePrescription(Base):
 
-    def medications_from(self, chatter: LlmBase, search: MedicationSearch) -> list[MedicationDetail]:
+    def medications_from(self, instruction: InstructionWithParameters, chatter: LlmBase, search: MedicationSearch) -> list[MedicationDetail]:
         result: list[MedicationDetail] = []
         if medications := CanvasScience.medication_details(self.settings.science_host, search.brand_names):
             prompt_condition = ""
@@ -65,14 +66,20 @@ class BasePrescription(Base):
                 "",
             ]
             schemas = JsonSchema.get(["selector_fdb_code"])
-            if response := chatter.single_conversation(system_prompt, user_prompt, schemas):
+            if response := chatter.single_conversation(system_prompt, user_prompt, schemas, instruction):
                 fdb_code = str(response[0]["fdbCode"])
                 result = [m for m in medications if m.fdb_code == fdb_code]
 
         return result
 
-    def set_medication_dosage(self, chatter: LlmBase, comment: str, command: PrescribeCommand | AdjustPrescriptionCommand,
-                              medication: MedicationDetail) -> None:
+    def set_medication_dosage(
+            self,
+            instruction: InstructionWithParameters,
+            chatter: LlmBase,
+            comment: str,
+            command: PrescribeCommand | AdjustPrescriptionCommand,
+            medication: MedicationDetail,
+    ) -> None:
         quantity = medication.quantities[0]  # ATTENTION forced to the first option (only for simplicity 2025-01-14)
 
         if isinstance(command, AdjustPrescriptionCommand):
@@ -119,7 +126,7 @@ class BasePrescription(Base):
             "",
         ]
         schemas = JsonSchema.get(["prescription_dosage"])
-        if response := chatter.single_conversation(system_prompt, user_prompt, schemas):
+        if response := chatter.single_conversation(system_prompt, user_prompt, schemas, instruction):
             command.quantity_to_dispense = Decimal(response[0]["quantityToDispense"]).quantize(Decimal('0.01'))
             command.refills = int(response[0]["refills"])
             command.note_to_pharmacist = response[0]["noteToPharmacist"]

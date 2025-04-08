@@ -6,6 +6,8 @@ from hyperscribe.commands.base_prescription import BasePrescription
 from hyperscribe.commands.prescription import Prescription
 from hyperscribe.handlers.limited_cache import LimitedCache
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.instruction_with_command import InstructionWithCommand
+from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.medication_detail import MedicationDetail
 from hyperscribe.structures.medication_detail_quantity import MedicationDetailQuantity
 from hyperscribe.structures.medication_search import MedicationSearch
@@ -166,18 +168,27 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
         current_conditions.side_effect = [conditions, conditions]
         medications_from.side_effect = [[medication]]
 
-        parameters = {
-            'keywords': 'keyword1,keyword2,keyword3',
-            "medicationNames": "brand1,brand2,brand3,brand4",
-            'sig': 'theSig',
-            "suppliedDays": 11,
-            "substitution": "not_allowed",
-            "comment": "theComment",
-            "condition": "theCondition",
-            "conditionIndex": idx,
+        arguments = {
+            "uuid": "theUuid",
+            "instruction": "theInstruction",
+            "information": "theInformation",
+            "is_new": False,
+            "is_updated": True,
+            "audits": ["theAudit"],
+            "parameters": {
+                'keywords': 'keyword1,keyword2,keyword3',
+                "medicationNames": "brand1,brand2,brand3,brand4",
+                'sig': 'theSig',
+                "suppliedDays": 11,
+                "substitution": "not_allowed",
+                "comment": "theComment",
+                "condition": "theCondition",
+                "conditionIndex": idx,
+            },
         }
-        result = tested.command_from_json(chatter, parameters)
-        expected = PrescribeCommand(
+        instruction = InstructionWithParameters(**arguments)
+        result = tested.command_from_json(instruction, chatter)
+        command = PrescribeCommand(
             sig="theSig",
             days_supply=11,
             substitutions=PrescribeCommand.Substitutions.NOT_ALLOWED,
@@ -185,10 +196,12 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
             note_uuid="noteUuid",
         )
         if condition_icd10:
-            expected.icd10_codes = condition_icd10
+            command.icd10_codes = condition_icd10
+        expected = InstructionWithCommand(**(arguments | {"command": command}))
         assert result == expected, f"----> {idx}"
         assert current_conditions.mock_calls == condition_calls
         calls = [call(
+            instruction,
             chatter,
             MedicationSearch(
                 comment="theComment",
@@ -198,7 +211,7 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
             ),
         )]
         assert medications_from.mock_calls == calls
-        calls = [call(chatter, "theComment", expected, medication)]
+        calls = [call(instruction, chatter, "theComment", command, medication)]
         assert set_medication_dosage.mock_calls == calls
         assert chatter.mock_calls == []
         reset_mocks()
@@ -207,35 +220,46 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
     current_conditions.side_effect = [conditions, conditions]
     medications_from.side_effect = [[medication]]
 
-    parameters = {
-        'keywords': 'keyword1,keyword2,keyword3',
-        "medicationNames": "brand1,brand2,brand3,brand4",
-        'sig': 'theSig',
-        "suppliedDays": 11,
-        "substitution": "not_allowed",
-        "comment": "theComment",
+    arguments = {
+        "uuid": "theUuid",
+        "instruction": "theInstruction",
+        "information": "theInformation",
+        "is_new": False,
+        "is_updated": True,
+        "audits": ["theAudit"],
+        "parameters": {
+            'keywords': 'keyword1,keyword2,keyword3',
+            "medicationNames": "brand1,brand2,brand3,brand4",
+            'sig': 'theSig',
+            "suppliedDays": 11,
+            "substitution": "not_allowed",
+            "comment": "theComment",
+        },
     }
-    result = tested.command_from_json(chatter, parameters)
-    expected = PrescribeCommand(
+    instruction = InstructionWithParameters(**arguments)
+    result = tested.command_from_json(instruction, chatter)
+    command = PrescribeCommand(
         sig="theSig",
         days_supply=11,
         substitutions=PrescribeCommand.Substitutions.NOT_ALLOWED,
         prescriber_id="providerUuid",
         note_uuid="noteUuid",
     )
+    expected = InstructionWithCommand(**(arguments | {"command": command}))
     assert result == expected
     assert current_conditions.mock_calls == []
     calls = [call(
-            chatter,
-            MedicationSearch(
-                comment="theComment",
-                keywords=keywords,
-                brand_names=brands,
-                related_condition="",
-            ),
-        )]
+        instruction,
+        chatter,
+        MedicationSearch(
+            comment="theComment",
+            keywords=keywords,
+            brand_names=brands,
+            related_condition="",
+        ),
+    )]
     assert medications_from.mock_calls == calls
-    calls = [call(chatter, "theComment", expected, medication)]
+    calls = [call(instruction, chatter, "theComment", command, medication)]
     assert set_medication_dosage.mock_calls == calls
     assert chatter.mock_calls == []
     reset_mocks()
@@ -244,33 +268,44 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
     current_conditions.side_effect = [conditions, conditions]
     medications_from.side_effect = [[]]
 
-    parameters = {
-        'keywords': 'keyword1,keyword2,keyword3',
-        "medicationNames": "brand1,brand2,brand3,brand4",
-        'sig': 'theSig',
-        "suppliedDays": 11,
-        "substitution": "not_allowed",
-        "comment": "theComment",
+    arguments = {
+        "uuid": "theUuid",
+        "instruction": "theInstruction",
+        "information": "theInformation",
+        "is_new": False,
+        "is_updated": True,
+        "audits": ["theAudit"],
+        "parameters": {
+            'keywords': 'keyword1,keyword2,keyword3',
+            "medicationNames": "brand1,brand2,brand3,brand4",
+            'sig': 'theSig',
+            "suppliedDays": 11,
+            "substitution": "not_allowed",
+            "comment": "theComment",
+        },
     }
-    result = tested.command_from_json(chatter, parameters)
-    expected = PrescribeCommand(
+    instruction = InstructionWithParameters(**arguments)
+    result = tested.command_from_json(instruction, chatter)
+    command = PrescribeCommand(
         sig="theSig",
         days_supply=11,
         substitutions=PrescribeCommand.Substitutions.NOT_ALLOWED,
         prescriber_id="providerUuid",
         note_uuid="noteUuid",
     )
+    expected = InstructionWithCommand(**(arguments | {"command": command}))
     assert result == expected
     assert current_conditions.mock_calls == []
     calls = [call(
-            chatter,
-            MedicationSearch(
-                comment="theComment",
-                keywords=keywords,
-                brand_names=brands,
-                related_condition="",
-            ),
-        )]
+        instruction,
+        chatter,
+        MedicationSearch(
+            comment="theComment",
+            keywords=keywords,
+            brand_names=brands,
+            related_condition="",
+        ),
+    )]
     assert medications_from.mock_calls == calls
     assert set_medication_dosage.mock_calls == []
     assert chatter.mock_calls == []

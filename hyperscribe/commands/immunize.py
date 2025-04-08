@@ -4,6 +4,8 @@ from hyperscribe.commands.base import Base
 from hyperscribe.handlers.constants import Constants
 from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.instruction_with_command import InstructionWithCommand
+from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 
 
 class Immunize(Base):
@@ -19,13 +21,13 @@ class Immunize(Base):
             return CodedItem(label=f"{immunization}: {sig_original} ({manufacturer})", code="", uuid="")
         return None
 
-    def command_from_json(self, chatter: LlmBase, parameters: dict) -> None | InstructCommand:
+    def command_from_json(self, instruction: InstructionWithParameters, chatter: LlmBase) -> InstructionWithCommand | None:
         # TODO change to ImmunizeCommand when implemented
-        return InstructCommand(
+        return InstructionWithCommand.add_command(instruction, InstructCommand(
             instruction="Advice to read information",
-            comment=f'{parameters["sig"]} - {parameters["immunize"]}',
+            comment=f'{instruction.parameters["sig"]} - {instruction.parameters["immunize"]}',
             note_uuid=self.note_uuid,
-        )
+        ))
 
     def command_parameters(self) -> dict:
         return {

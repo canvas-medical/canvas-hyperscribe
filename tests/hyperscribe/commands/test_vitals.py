@@ -6,6 +6,8 @@ from hyperscribe.commands.base import Base
 from hyperscribe.commands.vitals import Vitals
 from hyperscribe.handlers.limited_cache import LimitedCache
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.instruction_with_command import InstructionWithCommand
+from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
 
@@ -122,17 +124,26 @@ def test_command_from_json(valid_or_none):
         33,  # respiration_rate
     ]
 
-    parameters = {
-        "height": {"inches": 1},
-        "weight": {"pounds": 2},
-        "waistCircumference": {"centimeters": 3},
-        "temperature": {"fahrenheit": 4.0},
-        "bloodPressure": {"systolicPressure": 5, "diastolicPressure": 6},
-        "pulseRate": {"beatPerMinute": 7},
-        "respirationRate": {"beatPerMinute": 8},
+    arguments = {
+        "uuid": "theUuid",
+        "instruction": "theInstruction",
+        "information": "theInformation",
+        "is_new": False,
+        "is_updated": True,
+        "audits": ["theAudit"],
+        "parameters": {
+            "height": {"inches": 1},
+            "weight": {"pounds": 2},
+            "waistCircumference": {"centimeters": 3},
+            "temperature": {"fahrenheit": 4.0},
+            "bloodPressure": {"systolicPressure": 5, "diastolicPressure": 6},
+            "pulseRate": {"beatPerMinute": 7},
+            "respirationRate": {"beatPerMinute": 8},
+        },
     }
-    result = tested.command_from_json(chatter, parameters)
-    expected = VitalsCommand(
+    instruction = InstructionWithParameters(**arguments)
+    result = tested.command_from_json(instruction, chatter)
+    command = VitalsCommand(
         height=50,
         weight_lbs=750,
         waist_circumference=110,
@@ -143,6 +154,7 @@ def test_command_from_json(valid_or_none):
         respiration_rate=33,
         note_uuid="noteUuid",
     )
+    expected = InstructionWithCommand(**(arguments | {"command": command}))
     assert result == expected
     calls = [
         call(VitalsCommand, "height", 1),

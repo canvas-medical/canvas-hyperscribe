@@ -4,6 +4,8 @@ from hyperscribe.commands.base import Base
 from hyperscribe.handlers.constants import Constants
 from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.instruction_with_command import InstructionWithCommand
+from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 
 
 class ResolveCondition(Base):
@@ -18,15 +20,15 @@ class ResolveCondition(Base):
             return CodedItem(label=f'{condition}: {narrative}', code="", uuid="")
         return None
 
-    def command_from_json(self, chatter: LlmBase, parameters: dict) -> None | ResolveConditionCommand:
+    def command_from_json(self, instruction: InstructionWithParameters, chatter: LlmBase) -> InstructionWithCommand | None:
         condition_id = ""
-        if 0 <= (idx := parameters["conditionIndex"]) < len(current := self.cache.current_conditions()):
+        if 0 <= (idx := instruction.parameters["conditionIndex"]) < len(current := self.cache.current_conditions()):
             condition_id = current[idx].uuid
-        return ResolveConditionCommand(
+        return InstructionWithCommand.add_command(instruction, ResolveConditionCommand(
             condition_id=condition_id,
-            rationale=parameters["rationale"],
+            rationale=instruction.parameters["rationale"],
             note_uuid=self.note_uuid,
-        )
+        ))
 
     def command_parameters(self) -> dict:
         conditions = "/".join([f'{condition.label} (index: {idx})' for idx, condition in enumerate(self.cache.current_conditions())])

@@ -6,11 +6,12 @@ from django.db.models import Q
 
 from hyperscribe.handlers.canvas_science import CanvasScience
 from hyperscribe.handlers.selector_chat import SelectorChat
+from hyperscribe.handlers.temporary_data import ChargeDescriptionMaster
 from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.icd10_condition import Icd10Condition
+from hyperscribe.structures.instruction import Instruction
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
-from hyperscribe.handlers.temporary_data import ChargeDescriptionMaster
 
 
 @patch.object(CanvasScience, "search_conditions")
@@ -76,17 +77,24 @@ def test_condition_from(search_conditions):
         Icd10Condition(code="code369", label="labelB"),
         Icd10Condition(code="code752", label="labelC"),
     ]
-
+    instruction = Instruction(
+        uuid="theUuid",
+        instruction="theInstruction",
+        information="theInformation",
+        is_new=True,
+        is_updated=True,
+        audits=["theAudit"],
+    )
     # all good
     search_conditions.side_effect = [search]
     chatter.single_conversation.side_effect = [[{"ICD10": "CODE98.76", "label": "theCondition"}]]
 
-    result = tested.condition_from(chatter, settings, keywords[:3], keywords[3:], "theComment")
+    result = tested.condition_from(instruction, chatter, settings, keywords[:3], keywords[3:], "theComment")
     expected = CodedItem(label="theCondition", code="CODE9876", uuid="")
     assert result == expected
     calls = [call('scienceHost', keywords)]
     assert search_conditions.mock_calls == calls
-    calls = [call.single_conversation(system_prompt, user_prompt, schemas)]
+    calls = [call.single_conversation(system_prompt, user_prompt, schemas, instruction)]
     assert chatter.mock_calls == calls
     reset_mocks()
 
@@ -94,7 +102,7 @@ def test_condition_from(search_conditions):
     search_conditions.side_effect = [[]]
     chatter.single_conversation.side_effect = []
 
-    result = tested.condition_from(chatter, settings, keywords[:3], keywords[3:], "theComment")
+    result = tested.condition_from(instruction, chatter, settings, keywords[:3], keywords[3:], "theComment")
     expected = CodedItem(label="", code="", uuid="")
     assert result == expected
     calls = [call('scienceHost', keywords)]
@@ -106,12 +114,12 @@ def test_condition_from(search_conditions):
     search_conditions.side_effect = [search]
     chatter.single_conversation.side_effect = [[]]
 
-    result = tested.condition_from(chatter, settings, keywords[:3], keywords[3:], "theComment")
+    result = tested.condition_from(instruction, chatter, settings, keywords[:3], keywords[3:], "theComment")
     expected = CodedItem(label="", code="", uuid="")
     assert result == expected
     calls = [call('scienceHost', keywords)]
     assert search_conditions.mock_calls == calls
-    calls = [call.single_conversation(system_prompt, user_prompt, schemas)]
+    calls = [call.single_conversation(system_prompt, user_prompt, schemas, instruction)]
     assert chatter.mock_calls == calls
     reset_mocks()
 
@@ -217,13 +225,21 @@ def test_lab_test_from(lab_test_db):
         " word4  ",
     ]
     conditions = ["theCondition1", "theCondition2"]
+    instruction = Instruction(
+        uuid="theUuid",
+        instruction="theInstruction",
+        information="theInformation",
+        is_new=True,
+        is_updated=True,
+        audits=["theAudit"],
+    )
 
     # all good
     # -- with conditions
     lab_test_db.filter.return_value.filter.side_effect = [lab_tests, lab_tests]
     chatter.single_conversation.side_effect = [[{"code": "CODE9876", "label": "theLabTest"}]]
 
-    result = tested.lab_test_from(chatter, settings, "theLabPartner", expressions, "theComment", conditions)
+    result = tested.lab_test_from(instruction, chatter, settings, "theLabPartner", expressions, "theComment", conditions)
     expected = CodedItem(label="theLabTest", code="CODE9876", uuid="")
     assert result == expected
     calls = [
@@ -233,14 +249,14 @@ def test_lab_test_from(lab_test_db):
         call.filter().filter(Q(('keywords__icontains', 'word4'))),
     ]
     assert lab_test_db.mock_calls == calls
-    calls = [call.single_conversation(system_prompt, user_prompts[0], schemas)]
+    calls = [call.single_conversation(system_prompt, user_prompts[0], schemas, instruction)]
     assert chatter.mock_calls == calls
     reset_mocks()
     # -- without conditions
     lab_test_db.filter.return_value.filter.side_effect = [lab_tests, lab_tests]
     chatter.single_conversation.side_effect = [[{"code": "CODE9876", "label": "theLabTest"}]]
 
-    result = tested.lab_test_from(chatter, settings, "theLabPartner", expressions, "theComment", [])
+    result = tested.lab_test_from(instruction, chatter, settings, "theLabPartner", expressions, "theComment", [])
     expected = CodedItem(label="theLabTest", code="CODE9876", uuid="")
     assert result == expected
     calls = [
@@ -250,7 +266,7 @@ def test_lab_test_from(lab_test_db):
         call.filter().filter(Q(('keywords__icontains', 'word4'))),
     ]
     assert lab_test_db.mock_calls == calls
-    calls = [call.single_conversation(system_prompt, user_prompts[1], schemas)]
+    calls = [call.single_conversation(system_prompt, user_prompts[1], schemas, instruction)]
     assert chatter.mock_calls == calls
     reset_mocks()
 
@@ -258,7 +274,7 @@ def test_lab_test_from(lab_test_db):
     lab_test_db.filter.return_value.filter.side_effect = [lab_tests, lab_tests]
     chatter.single_conversation.side_effect = [[]]
 
-    result = tested.lab_test_from(chatter, settings, "theLabPartner", expressions, "theComment", conditions)
+    result = tested.lab_test_from(instruction, chatter, settings, "theLabPartner", expressions, "theComment", conditions)
     expected = CodedItem(label="", code="", uuid="")
     assert result == expected
     calls = [
@@ -268,7 +284,7 @@ def test_lab_test_from(lab_test_db):
         call.filter().filter(Q(('keywords__icontains', 'word4'))),
     ]
     assert lab_test_db.mock_calls == calls
-    calls = [call.single_conversation(system_prompt, user_prompts[0], schemas)]
+    calls = [call.single_conversation(system_prompt, user_prompts[0], schemas, instruction)]
     assert chatter.mock_calls == calls
     reset_mocks()
 
@@ -276,7 +292,7 @@ def test_lab_test_from(lab_test_db):
     lab_test_db.filter.return_value.filter.side_effect = [[], []]
     chatter.single_conversation.side_effect = []
 
-    result = tested.lab_test_from(chatter, settings, "theLabPartner", expressions, "theComment", conditions)
+    result = tested.lab_test_from(instruction, chatter, settings, "theLabPartner", expressions, "theComment", conditions)
     expected = CodedItem(label="", code="", uuid="")
     assert result == expected
     calls = [
@@ -361,12 +377,20 @@ def test_procedure_from(charge_description):
         "word1 word2 word3",
         " word4  ",
     ]
+    instruction = Instruction(
+        uuid="theUuid",
+        instruction="theInstruction",
+        information="theInformation",
+        is_new=True,
+        is_updated=True,
+        audits=["theAudit"],
+    )
 
     # all good
     charge_description.filter.side_effect = [charge_descriptions, charge_descriptions]
     chatter.single_conversation.side_effect = [[{"code": "CODE9876", "label": "theLabel"}]]
 
-    result = tested.procedure_from(chatter, settings, expressions, "theComment")
+    result = tested.procedure_from(instruction, chatter, settings, expressions, "theComment")
     expected = CodedItem(label="theLabel", code="CODE9876", uuid="")
     assert result == expected
     calls = [
@@ -374,7 +398,7 @@ def test_procedure_from(charge_description):
         call.filter(Q(('name__icontains', 'word4'))),
     ]
     assert charge_description.mock_calls == calls
-    calls = [call.single_conversation(system_prompt, user_prompt, schemas)]
+    calls = [call.single_conversation(system_prompt, user_prompt, schemas, instruction)]
     assert chatter.mock_calls == calls
     reset_mocks()
 
@@ -382,7 +406,7 @@ def test_procedure_from(charge_description):
     charge_description.filter.side_effect = [charge_descriptions, charge_descriptions]
     chatter.single_conversation.side_effect = [[]]
 
-    result = tested.procedure_from(chatter, settings, expressions, "theComment")
+    result = tested.procedure_from(instruction, chatter, settings, expressions, "theComment")
     expected = CodedItem(label="", code="", uuid="")
     assert result == expected
     calls = [
@@ -390,7 +414,7 @@ def test_procedure_from(charge_description):
         call.filter(Q(('name__icontains', 'word4'))),
     ]
     assert charge_description.mock_calls == calls
-    calls = [call.single_conversation(system_prompt, user_prompt, schemas)]
+    calls = [call.single_conversation(system_prompt, user_prompt, schemas, instruction)]
     assert chatter.mock_calls == calls
     reset_mocks()
 
@@ -398,7 +422,7 @@ def test_procedure_from(charge_description):
     charge_description.filter.side_effect = [[], []]
     chatter.single_conversation.side_effect = []
 
-    result = tested.procedure_from(chatter, settings, expressions, "theComment")
+    result = tested.procedure_from(instruction, chatter, settings, expressions, "theComment")
     expected = CodedItem(label="", code="", uuid="")
     assert result == expected
     calls = [
@@ -480,13 +504,40 @@ def test_contact_from(search_contacts, summary_of):
         "theSummary2",
         "theSummary3",
     ]
+    instruction = Instruction(
+        uuid="theUuid",
+        instruction="theInstruction",
+        information="theInformation",
+        is_new=True,
+        is_updated=True,
+        audits=["theAudit"],
+    )
+    schemas = [{
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "array",
+        "items": {
+            "type": "object",
+            "properties": {
+                "index": {
+                    "type": "integer",
+                    "description": "the index as provided in the list",
+                },
+                "contact": {
+                    "type": "string",
+                    "description": "the contact information as provided in the list",
+                },
+            },
+            "required": ["index", "contact"],
+            "additionalProperties": False,
+        }
+    }]
 
     # all good
     search_contacts.side_effect = [search]
     summary_of.side_effect = summaries
     chatter.single_conversation.side_effect = [[{"index": 1, "label": "theLabel"}]]
 
-    result = tested.contact_from(chatter, settings, "theFreeTextInformation", ["zip1", "zip2"])
+    result = tested.contact_from(instruction, chatter, settings, "theFreeTextInformation", ["zip1", "zip2"])
     expected = ServiceProvider(
         first_name="theFirstName2",
         last_name="theLastName2",
@@ -497,7 +548,7 @@ def test_contact_from(search_contacts, summary_of):
     assert result == expected
     calls = [call('scienceHost', "theFreeTextInformation", ["zip1", "zip2"])]
     assert search_contacts.mock_calls == calls
-    calls = [call.single_conversation(system_prompt, user_prompt, [])]
+    calls = [call.single_conversation(system_prompt, user_prompt, schemas, instruction)]
     assert chatter.mock_calls == calls
     reset_mocks()
 
@@ -506,12 +557,12 @@ def test_contact_from(search_contacts, summary_of):
     summary_of.side_effect = summaries
     chatter.single_conversation.side_effect = [[{"index": -1, "label": "theLabel"}]]
 
-    result = tested.contact_from(chatter, settings, "theFreeTextInformation", ["zip1", "zip2"])
+    result = tested.contact_from(instruction, chatter, settings, "theFreeTextInformation", ["zip1", "zip2"])
     expected = ServiceProvider(first_name="TBD", last_name="", specialty="TBD", practice_name="")
     assert result == expected
     calls = [call('scienceHost', "theFreeTextInformation", ["zip1", "zip2"])]
     assert search_contacts.mock_calls == calls
-    calls = [call.single_conversation(system_prompt, user_prompt, [])]
+    calls = [call.single_conversation(system_prompt, user_prompt, schemas, instruction)]
     assert chatter.mock_calls == calls
     reset_mocks()
 
@@ -520,7 +571,7 @@ def test_contact_from(search_contacts, summary_of):
     summary_of.side_effect = []
     chatter.single_conversation.side_effect = []
 
-    result = tested.contact_from(chatter, settings, "theFreeTextInformation", ["zip1", "zip2"])
+    result = tested.contact_from(instruction, chatter, settings, "theFreeTextInformation", ["zip1", "zip2"])
     expected = ServiceProvider(first_name="TBD", last_name="", specialty="TBD", practice_name="")
     assert result == expected
     calls = [call('scienceHost', "theFreeTextInformation", ["zip1", "zip2"])]
@@ -533,12 +584,12 @@ def test_contact_from(search_contacts, summary_of):
     summary_of.side_effect = summaries
     chatter.single_conversation.side_effect = [[]]
 
-    result = tested.contact_from(chatter, settings, "theFreeTextInformation", ["zip1", "zip2"])
+    result = tested.contact_from(instruction, chatter, settings, "theFreeTextInformation", ["zip1", "zip2"])
     expected = ServiceProvider(first_name="TBD", last_name="", specialty="TBD", practice_name="")
     assert result == expected
     calls = [call('scienceHost', "theFreeTextInformation", ["zip1", "zip2"])]
     assert search_contacts.mock_calls == calls
-    calls = [call.single_conversation(system_prompt, user_prompt, [])]
+    calls = [call.single_conversation(system_prompt, user_prompt, schemas, instruction)]
     assert chatter.mock_calls == calls
     reset_mocks()
 

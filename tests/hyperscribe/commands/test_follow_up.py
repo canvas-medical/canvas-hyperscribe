@@ -7,6 +7,8 @@ from hyperscribe.commands.base import Base
 from hyperscribe.commands.follow_up import FollowUp
 from hyperscribe.handlers.limited_cache import LimitedCache
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.instruction_with_command import InstructionWithCommand
+from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
 
@@ -116,15 +118,24 @@ def test_command_from_json(existing_note_types, existing_reason_for_visits):
     for idx, exp_uuid, calls in tests:
         existing_note_types.side_effect = [visit_types, visit_types]
         existing_reason_for_visits.side_effect = []
-        parameters = {
-            "visitType": "theVisit",
-            "visitTypeIndex": idx,
-            "date": "2025-02-04",
-            "reasonForVisit": "theReasonForVisit",
-            "comment": "theComment",
+        arguments = {
+            "uuid": "theUuid",
+            "instruction": "theInstruction",
+            "information": "theInformation",
+            "is_new": False,
+            "is_updated": True,
+            "audits": ["theAudit"],
+            "parameters": {
+                "visitType": "theVisit",
+                "visitTypeIndex": idx,
+                "date": "2025-02-04",
+                "reasonForVisit": "theReasonForVisit",
+                "comment": "theComment",
+            },
         }
-        result = tested.command_from_json(chatter, parameters)
-        expected = FollowUpCommand(
+        instruction = InstructionWithParameters(**arguments)
+        result = tested.command_from_json(instruction, chatter)
+        command = FollowUpCommand(
             note_uuid="noteUuid",
             structured=False,
             requested_date=date(2025, 2, 4),
@@ -132,6 +143,7 @@ def test_command_from_json(existing_note_types, existing_reason_for_visits):
             reason_for_visit="theReasonForVisit",
             comment="theComment",
         )
+        expected = InstructionWithCommand(**(arguments | {"command": command}))
         assert result == expected
         assert existing_note_types.mock_calls == calls
         assert existing_reason_for_visits.mock_calls == []
@@ -148,16 +160,25 @@ def test_command_from_json(existing_note_types, existing_reason_for_visits):
     for idx, exp_uuid, exp_structured in tests:
         existing_note_types.side_effect = [visit_types, visit_types]
         existing_reason_for_visits.side_effect = [reason_for_visits]
-        parameters = {
-            "visitType": "theVisit",
-            "visitTypeIndex": 2,
-            "date": "2025-02-04",
-            "reasonForVisit": "theReasonForVisit",
-            "reasonForVisitIndex": idx,
-            "comment": "theComment",
+        arguments = {
+            "uuid": "theUuid",
+            "instruction": "theInstruction",
+            "information": "theInformation",
+            "is_new": False,
+            "is_updated": True,
+            "audits": ["theAudit"],
+            "parameters": {
+                "visitType": "theVisit",
+                "visitTypeIndex": 2,
+                "date": "2025-02-04",
+                "reasonForVisit": "theReasonForVisit",
+                "reasonForVisitIndex": idx,
+                "comment": "theComment",
+            },
         }
-        result = tested.command_from_json(chatter, parameters)
-        expected = FollowUpCommand(
+        instruction = InstructionWithParameters(**arguments)
+        result = tested.command_from_json(instruction, chatter)
+        command = FollowUpCommand(
             note_uuid="noteUuid",
             structured=exp_structured,
             requested_date=date(2025, 2, 4),
@@ -166,8 +187,8 @@ def test_command_from_json(existing_note_types, existing_reason_for_visits):
             comment="theComment",
         )
         if exp_uuid:
-            expected.reason_for_visit = exp_uuid
-
+            command.reason_for_visit = exp_uuid
+        expected = InstructionWithCommand(**(arguments | {"command": command}))
         assert result == expected
         calls = [call(), call()]
         assert existing_note_types.mock_calls == calls

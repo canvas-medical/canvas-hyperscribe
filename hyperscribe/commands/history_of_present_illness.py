@@ -4,6 +4,8 @@ from hyperscribe.commands.base import Base
 from hyperscribe.handlers.constants import Constants
 from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.instruction_with_command import InstructionWithCommand
+from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 
 
 class HistoryOfPresentIllness(Base):
@@ -17,11 +19,11 @@ class HistoryOfPresentIllness(Base):
             return CodedItem(label=narrative, code="", uuid="")
         return None
 
-    def command_from_json(self, chatter: LlmBase, parameters: dict) -> None | HistoryOfPresentIllnessCommand:
-        return HistoryOfPresentIllnessCommand(
-            narrative=parameters["narrative"],
+    def command_from_json(self, instruction: InstructionWithParameters, chatter: LlmBase) -> InstructionWithCommand | None:
+        return InstructionWithCommand.add_command(instruction, HistoryOfPresentIllnessCommand(
+            narrative=instruction.parameters["narrative"],
             note_uuid=self.note_uuid,
-        )
+        ))
 
     def command_parameters(self) -> dict:
         return {

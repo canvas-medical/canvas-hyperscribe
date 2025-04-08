@@ -4,6 +4,8 @@ from hyperscribe.commands.base import Base
 from hyperscribe.handlers.constants import Constants
 from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.instruction_with_command import InstructionWithCommand
+from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 
 
 class StopMedication(Base):
@@ -18,14 +20,14 @@ class StopMedication(Base):
             return CodedItem(label=f"{medication}: {rationale}", code="", uuid="")
         return None
 
-    def command_from_json(self, chatter: LlmBase, parameters: dict) -> None | StopMedicationCommand:
+    def command_from_json(self, instruction: InstructionWithParameters, chatter: LlmBase) -> InstructionWithCommand | None:
         result = StopMedicationCommand(
-            rationale=parameters["rationale"],
+            rationale=instruction.parameters["rationale"],
             note_uuid=self.note_uuid,
         )
-        if 0 <= (idx := parameters["medicationIndex"]) < len(current := self.cache.current_medications()):
+        if 0 <= (idx := instruction.parameters["medicationIndex"]) < len(current := self.cache.current_medications()):
             result.medication_id = current[idx].uuid
-        return result
+        return InstructionWithCommand.add_command(instruction, result)
 
     def command_parameters(self) -> dict:
         medications = "/".join([f'{medication.label} (index: {idx})' for idx, medication in enumerate(self.cache.current_medications())])

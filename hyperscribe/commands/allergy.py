@@ -2,13 +2,15 @@ import json
 
 from canvas_sdk.commands.commands.allergy import AllergyCommand, Allergen, AllergenType
 
-from hyperscribe.handlers.canvas_science import CanvasScience
 from hyperscribe.commands.base import Base
+from hyperscribe.handlers.canvas_science import CanvasScience
 from hyperscribe.handlers.constants import Constants
 from hyperscribe.handlers.helper import Helper
 from hyperscribe.handlers.json_schema import JsonSchema
 from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.instruction_with_command import InstructionWithCommand
+from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 
 
 class Allergy(Base):
@@ -23,15 +25,15 @@ class Allergy(Base):
             return CodedItem(label=allergy["text"], code=str(allergy["value"]), uuid="")
         return None
 
-    def command_from_json(self, chatter: LlmBase, parameters: dict) -> None | AllergyCommand:
+    def command_from_json(self, instruction: InstructionWithParameters, chatter: LlmBase) -> InstructionWithCommand | None:
         concept_types = [AllergenType(1)]  # <-- always include the Allergy Group
-        if parameters["type"] == "medication":
+        if instruction.parameters["type"] == "medication":
             concept_types.append(AllergenType(2))
-        elif parameters["type"] == "ingredient":
+        elif instruction.parameters["type"] == "ingredient":
             concept_types.append(AllergenType(6))
 
         # retrieve existing allergies defined in Canvas Ontologies
-        expressions = parameters["keywords"].split(",")
+        expressions = instruction.parameters["keywords"].split(",")
         allergies = CanvasScience.search_allergy(
             self.settings.ontologies_host,
             self.settings.pre_shared_key,
@@ -39,9 +41,9 @@ class Allergy(Base):
             concept_types,
         )
         result = AllergyCommand(
-            severity=Helper.enum_or_none(parameters["severity"], AllergyCommand.Severity),
-            narrative=parameters["reaction"],
-            approximate_date=Helper.str2date(parameters["approximateDateOfOnset"]),
+            severity=Helper.enum_or_none(instruction.parameters["severity"], AllergyCommand.Severity),
+            narrative=instruction.parameters["reaction"],
+            approximate_date=Helper.str2date(instruction.parameters["approximateDateOfOnset"]),
             note_uuid=self.note_uuid,
         )
         if allergies:
@@ -55,11 +57,11 @@ class Allergy(Base):
             user_prompt = [
                 'Here is the comment provided by the healthcare provider in regards to the allergy:',
                 '```text',
-                f"keywords: {parameters['keywords']}",
+                f"keywords: {instruction.parameters['keywords']}",
                 " -- ",
-                f'severity: {parameters["severity"]}',
+                f'severity: {instruction.parameters["severity"]}',
                 "",
-                parameters["reaction"],
+                instruction.parameters["reaction"],
                 '```',
                 "",
                 'Among the following allergies, identify the most relevant one:',
@@ -73,7 +75,7 @@ class Allergy(Base):
                 '',
             ]
             schemas = JsonSchema.get(["selector_concept"])
-            if response := chatter.single_conversation(system_prompt, user_prompt, schemas):
+            if response := chatter.single_conversation(system_prompt, user_prompt, schemas, instruction):
                 concept_id = int(response[0]["conceptId"])
                 allergy = [
                     allergy
@@ -84,7 +86,7 @@ class Allergy(Base):
                     concept_id=concept_id,
                     concept_type=AllergenType(allergy.concept_id_type),
                 )
-        return result
+        return InstructionWithCommand.add_command(instruction, result)
 
     def command_parameters(self) -> dict:
         severity = "/".join([status.value for status in AllergyCommand.Severity])

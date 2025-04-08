@@ -21,5 +21,5 @@ def test_computed_parameters():
 
 def test_computed_commands():
     tested = Auditor()
-    result = tested.computed_commands([], [])
+    result = tested.computed_commands([])
     assert result is True

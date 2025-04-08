@@ -6,6 +6,8 @@ from hyperscribe.commands.assess import Assess
 from hyperscribe.commands.base import Base
 from hyperscribe.handlers.limited_cache import LimitedCache
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.instruction_with_command import InstructionWithCommand
+from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
 
@@ -90,21 +92,31 @@ def test_command_from_json(current_conditions):
     ]
     for idx, exp_uuid in tests:
         current_conditions.side_effect = [conditions, conditions]
-        params = {
-            'assessment': "theAssessment",
-            'condition': 'display2a',
-            'conditionIndex': idx,
-            'rationale': 'theRationale',
-            'status': 'stable',
+        arguments = {
+            "uuid": "theUuid",
+            "instruction": "theInstruction",
+            "information": "theInformation",
+            "is_new": False,
+            "is_updated": True,
+            "audits": ["theAudit"],
+            "parameters": {
+                'assessment': "theAssessment",
+                'condition': 'display2a',
+                'conditionIndex': idx,
+                'rationale': 'theRationale',
+                'status': 'stable',
+            },
         }
-        result = tested.command_from_json(chatter, params)
-        expected = AssessCommand(
+        instruction = InstructionWithParameters(**arguments)
+        result = tested.command_from_json(instruction, chatter)
+        command = AssessCommand(
             condition_id=exp_uuid,
             background="theRationale",
             status=AssessCommand.Status.STABLE,
             narrative="theAssessment",
             note_uuid="noteUuid",
         )
+        expected = InstructionWithCommand(**(arguments | {"command": command}))
         assert result == expected
         calls = [call()]
         assert current_conditions.mock_calls == calls

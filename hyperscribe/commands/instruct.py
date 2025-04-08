@@ -3,12 +3,14 @@ import json
 from canvas_sdk.commands.commands.instruct import InstructCommand
 from canvas_sdk.commands.constants import CodeSystems, Coding
 
-from hyperscribe.handlers.canvas_science import CanvasScience
 from hyperscribe.commands.base import Base
+from hyperscribe.handlers.canvas_science import CanvasScience
 from hyperscribe.handlers.constants import Constants
 from hyperscribe.handlers.json_schema import JsonSchema
 from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.instruction_with_command import InstructionWithCommand
+from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 
 
 class Instruct(Base):
@@ -23,13 +25,13 @@ class Instruct(Base):
             return CodedItem(label=f"{instruct} ({narrative})", code="", uuid="")
         return None
 
-    def command_from_json(self, chatter: LlmBase, parameters: dict) -> None | InstructCommand:
+    def command_from_json(self, instruction: InstructionWithParameters, chatter: LlmBase) -> InstructionWithCommand | None:
         result = InstructCommand(
-            comment=parameters["comment"],
+            comment=instruction.parameters["comment"],
             note_uuid=self.note_uuid,
         )
         # retrieve existing instructions defined in Canvas Science
-        expressions = parameters["keywords"].split(",")
+        expressions = instruction.parameters["keywords"].split(",")
         if concepts := CanvasScience.instructions(self.settings.science_host, expressions):
             # ask the LLM to pick the most relevant instruction
             system_prompt = [
@@ -41,9 +43,9 @@ class Instruct(Base):
             user_prompt = [
                 'Here is the description of a direction instructed by a healthcare provider to a patient:',
                 '```text',
-                f"keywords: {parameters['keywords']}",
+                f"keywords: {instruction.parameters['keywords']}",
                 " -- ",
-                parameters["comment"],
+                instruction.parameters["comment"],
                 '```',
                 'Among the following expressions, identify the most relevant one:',
                 '',
@@ -56,14 +58,14 @@ class Instruct(Base):
                 '',
             ]
             schemas = JsonSchema.get(["selector_concept"])
-            if response := chatter.single_conversation(system_prompt, user_prompt, schemas):
+            if response := chatter.single_conversation(system_prompt, user_prompt, schemas, instruction):
                 result.coding = Coding(
                     code=str(response[0]["conceptId"]),
                     system=CodeSystems.SNOMED,
                     display=response[0]["term"],
                 )
 
-        return result
+        return InstructionWithCommand.add_command(instruction, result)
 
     def command_parameters(self) -> dict:
         return {

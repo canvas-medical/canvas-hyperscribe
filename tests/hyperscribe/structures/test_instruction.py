@@ -1,32 +1,82 @@
 from hyperscribe.structures.instruction import Instruction
-from tests.helper import is_namedtuple
+from tests.helper import is_dataclass
 
 
 def test_class():
     tested = Instruction
     fields = {
-        "uuid": str,
-        "instruction": str,
-        "information": str,
-        "is_new": bool,
-        "is_updated": bool,
+        "uuid": "str",
+        "instruction": "str",
+        "information": "str",
+        "is_new": "bool",
+        "is_updated": "bool",
+        "audits": "list[str]",
     }
-    assert is_namedtuple(tested, fields)
+    assert is_dataclass(tested, fields)
 
 
 def test_load_from_json():
     tested = Instruction
     result = tested.load_from_json([
-        {"uuid": "theUuid1", "instruction": "theInstruction1", "information": "theInformation1", "isNew": False, "isUpdated": True},
-        {"uuid": "theUuid2", "instruction": "theInstruction2", "information": "theInformation2", "isNew": True, "isUpdated": False},
+        {
+            "uuid": "theUuid1",
+            "instruction": "theInstruction1",
+            "information": "theInformation1",
+            "isNew": False,
+            "isUpdated": True,
+            "audits": ["line1", "line2"],
+        },
+        {
+            "uuid": "theUuid2",
+            "instruction": "theInstruction2",
+            "information": "theInformation2",
+            "isNew": True,
+            "isUpdated": False,
+            "audits": ["line3"],
+        },
         {},
-        {"uuid": "theUuid3", "instruction": "theInstruction3", "information": "theInformation3", "isNew": False, "isUpdated": True},
+        {
+            "uuid": "theUuid3",
+            "instruction": "theInstruction3",
+            "information": "theInformation3",
+            "isNew": False,
+            "isUpdated": True,
+            "audits": [],
+        },
     ])
     expected = [
-        Instruction(uuid="theUuid1", instruction="theInstruction1", information="theInformation1", is_new=False, is_updated=True),
-        Instruction(uuid="theUuid2", instruction="theInstruction2", information="theInformation2", is_new=True, is_updated=False),
-        Instruction(uuid="", instruction="", information="", is_new=True, is_updated=False),
-        Instruction(uuid="theUuid3", instruction="theInstruction3", information="theInformation3", is_new=False, is_updated=True),
+        Instruction(
+            uuid="theUuid1",
+            instruction="theInstruction1",
+            information="theInformation1",
+            is_new=False,
+            is_updated=True,
+            audits=["line1", "line2"],
+        ),
+        Instruction(
+            uuid="theUuid2",
+            instruction="theInstruction2",
+            information="theInformation2",
+            is_new=True,
+            is_updated=False,
+            audits=["line3"],
+        ),
+        Instruction(
+            uuid="",
+            instruction="",
+            information="",
+            is_new=True,
+            is_updated=False,
+            audits=[],
+        ),
+        Instruction(
+            uuid="theUuid3",
+            instruction="theInstruction3",
+            information="theInformation3",
+            is_new=False,
+            is_updated=True,
+            audits=[],
+        ),
     ]
     assert result == expected
 
@@ -38,6 +88,7 @@ def test_to_json():
         information="theInformation",
         is_new=True,
         is_updated=True,
+        audits=["line1", "line2"],
     )
     result = tested.to_json()
     expected = {
@@ -47,4 +98,18 @@ def test_to_json():
         "isNew": False,
         "isUpdated": False,
     }
+    assert expected == result
+
+
+def test_limited_str():
+    tested = Instruction(
+        uuid="theUuid",
+        instruction="theInstruction",
+        information="theInformation",
+        is_new=True,
+        is_updated=True,
+        audits=["line1", "line2"],
+    )
+    result = tested.limited_str()
+    expected = "theInstruction (theUuid, new/updated: True/True): theInformation"
     assert expected == result

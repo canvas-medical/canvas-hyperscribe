@@ -8,6 +8,7 @@ from hyperscribe.commands.lab_order import LabOrder
 from hyperscribe.handlers.limited_cache import LimitedCache
 from hyperscribe.handlers.selector_chat import SelectorChat
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
 
@@ -112,19 +113,27 @@ def test_command_from_json(
 
     comment = ("A very long comment to see that it is truncated after 127 characters. "
                "That is to go over the 127 characters, just in the middle of the sentence.")
-    parameters = {
-        "labOrders": [
-            {"labOrderKeywords": "lab1,lab2"},
-            {"labOrderKeywords": "lab3"},
-            {"labOrderKeywords": "lab4"},
-        ],
-        "conditions": [
-            {"conditionKeywords": "condition1,condition2", "ICD10": "icd1,icd2"},
-            {"conditionKeywords": "condition3", "ICD10": "icd3"},
-            {"conditionKeywords": "condition4", "ICD10": "icd4"},
-        ],
-        "fastingRequired": True,
-        "comment": comment,
+    arguments = {
+        "uuid": "theUuid",
+        "instruction": "theInstruction",
+        "information": "theInformation",
+        "is_new": False,
+        "is_updated": True,
+        "audits": ["theAudit"],
+        "parameters": {
+            "labOrders": [
+                {"labOrderKeywords": "lab1,lab2"},
+                {"labOrderKeywords": "lab3"},
+                {"labOrderKeywords": "lab4"},
+            ],
+            "conditions": [
+                {"conditionKeywords": "condition1,condition2", "ICD10": "icd1,icd2"},
+                {"conditionKeywords": "condition3", "ICD10": "icd3"},
+                {"conditionKeywords": "condition4", "ICD10": "icd4"},
+            ],
+            "fastingRequired": True,
+            "comment": comment,
+        },
     }
 
     tests = [
@@ -167,28 +176,29 @@ def test_command_from_json(
         ]
         lab_partner_db.filter.return_value.first.side_effect = [lab_partner]
         practice_setting.side_effect = ["thePreferredLab"]
-        result = tested.command_from_json(chatter, parameters)
+        instruction = InstructionWithParameters(**arguments)
+        result = tested.command_from_json(instruction, chatter)
         # ATTENTION the LabOrderCommand._get_error_details method checks the codes directly in the DB
-        assert result.lab_partner == expected.lab_partner
-        assert result.ordering_provider_key == expected.ordering_provider_key
-        assert result.fasting_required == expected.fasting_required
-        assert result.comment == expected.comment
-        assert result.note_uuid == expected.note_uuid
-        assert result.tests_order_codes == expected.tests_order_codes
-        assert result.diagnosis_codes == expected.diagnosis_codes
+        assert result.command.lab_partner == expected.lab_partner
+        assert result.command.ordering_provider_key == expected.ordering_provider_key
+        assert result.command.fasting_required == expected.fasting_required
+        assert result.command.comment == expected.comment
+        assert result.command.note_uuid == expected.note_uuid
+        assert result.command.tests_order_codes == expected.tests_order_codes
+        assert result.command.diagnosis_codes == expected.diagnosis_codes
 
         calls = [
-            call(chatter, tested.settings, ['condition1', 'condition2'], ['icd1', 'icd2'], comment),
-            call(chatter, tested.settings, ['condition3'], ['icd3'], comment),
-            call(chatter, tested.settings, ['condition4'], ['icd4'], comment),
+            call(instruction, chatter, tested.settings, ['condition1', 'condition2'], ['icd1', 'icd2'], comment),
+            call(instruction, chatter, tested.settings, ['condition3'], ['icd3'], comment),
+            call(instruction, chatter, tested.settings, ['condition4'], ['icd4'], comment),
         ]
         assert condition_from.mock_calls == calls
         calls = []
         if lab_partner is not None:
             calls = [
-                call(chatter, tested.settings, 'theLabPartner', ['lab1', 'lab2'], comment, ['condition1', 'condition4']),
-                call(chatter, tested.settings, 'theLabPartner', ['lab3'], comment, ['condition1', 'condition4']),
-                call(chatter, tested.settings, 'theLabPartner', ['lab4'], comment, ['condition1', 'condition4']),
+                call(instruction, chatter, tested.settings, 'theLabPartner', ['lab1', 'lab2'], comment, ['condition1', 'condition4']),
+                call(instruction, chatter, tested.settings, 'theLabPartner', ['lab3'], comment, ['condition1', 'condition4']),
+                call(instruction, chatter, tested.settings, 'theLabPartner', ['lab4'], comment, ['condition1', 'condition4']),
             ]
         assert lab_test_from.mock_calls == calls
         calls = [
