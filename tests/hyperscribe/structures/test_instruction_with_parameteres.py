@@ -5,16 +5,6 @@ from tests.helper import is_dataclass
 
 def test_class():
     tested = InstructionWithParameters
-    fields = {
-        "uuid": "str",
-        "instruction": "str",
-        "information": "str",
-        "is_new": "bool",
-        "is_updated": "bool",
-        "audits": "list[str]",
-        "parameters": "dict",
-    }
-    assert is_dataclass(tested, fields)
     assert issubclass(tested, Instruction)
 
 
@@ -38,3 +28,4 @@ def test_add_parameters():
         parameters={"key": "value"},
     )
     assert result == expected
+

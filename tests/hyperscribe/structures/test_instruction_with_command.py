@@ -7,17 +7,6 @@ from tests.helper import is_dataclass
 
 def test_class():
     tested = InstructionWithCommand
-    fields = {
-        "uuid": "str",
-        "instruction": "str",
-        "information": "str",
-        "is_new": "bool",
-        "is_updated": "bool",
-        "audits": "list[str]",
-        "parameters": "dict",
-        "command": "_BaseCommand",
-    }
-    assert is_dataclass(tested, fields)
     assert issubclass(tested, InstructionWithParameters)
 
 

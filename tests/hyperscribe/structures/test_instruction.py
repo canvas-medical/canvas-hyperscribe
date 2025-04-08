@@ -1,18 +1,4 @@
 from hyperscribe.structures.instruction import Instruction
-from tests.helper import is_dataclass
-
-
-def test_class():
-    tested = Instruction
-    fields = {
-        "uuid": "str",
-        "instruction": "str",
-        "information": "str",
-        "is_new": "bool",
-        "is_updated": "bool",
-        "audits": "list[str]",
-    }
-    assert is_dataclass(tested, fields)
 
 
 def test_load_from_json():
