@@ -4,6 +4,7 @@ class Constants:
     GOOGLE_CHAT_ALL = "models/gemini-2.0-flash"  # LLM model used for speech to text and text completion
     MAX_ATTEMPTS_LLM_HTTP = 3
     MAX_ATTEMPTS_LLM_JSON = 3
+    MAX_ATTEMPTS_CANVAS_SERVICES = 3
     MAX_WORKERS = 10  # max parallel executions
     OPENAI_CHAT_AUDIO = "gpt-4o-audio-preview"  # LLM model used for speech to text
     OPENAI_CHAT_TEXT = "gpt-4o"  # LLM model used for text completion

@@ -24,7 +24,8 @@ def test_instructions(medical_concept):
     expected = "medical_concept was called"
     assert result == expected
     calls = [call(
-        "theHost/search/instruction",
+        "theHost",
+        "/search/instruction",
         ["expression 1", "expression 2"],
         MedicalConcept,
     )]
@@ -44,7 +45,8 @@ def test_family_histories(medical_concept):
     expected = "medical_concept was called"
     assert result == expected
     calls = [call(
-        "theHost/search/family-history",
+        "theHost",
+        "/search/family-history",
         ["expression 1", "expression 2"],
         MedicalConcept,
     )]
@@ -64,7 +66,8 @@ def test_surgical_histories(medical_concept):
     expected = "medical_concept was called"
     assert result == expected
     calls = [call(
-        "theHost/search/surgical-history-procedure",
+        "theHost",
+        "/search/surgical-history-procedure",
         ["expression 1", "expression 2"],
         MedicalConcept,
     )]
@@ -84,7 +87,8 @@ def test_medical_histories(medical_concept):
     expected = "medical_concept was called"
     assert result == expected
     calls = [call(
-        "theHost/search/medical-history-condition",
+        "theHost",
+        "/search/medical-history-condition",
         ["expression 1", "expression 2"],
         Icd10Condition,
     )]
@@ -104,7 +108,8 @@ def test_medication_details(medical_concept):
     expected = "medical_concept was called"
     assert result == expected
     calls = [call(
-        "theHost/search/grouped-medication",
+        "theHost",
+        "/search/grouped-medication",
         ["expression 1", "expression 2"],
         MedicationDetail,
     )]
@@ -124,7 +129,8 @@ def test_search_conditions(medical_concept):
     expected = "medical_concept was called"
     assert result == expected
     calls = [call(
-        "theHost/search/condition",
+        "theHost",
+        "/search/condition",
         ["expression 1", "expression 2"],
         Icd10Condition,
     )]
@@ -144,7 +150,8 @@ def test_search_imagings(medical_concept):
     expected = "medical_concept was called"
     assert result == expected
     calls = [call(
-        "theHost/parse-templates/imaging-reports",
+        "theHost",
+        "/parse-templates/imaging-reports",
         ["expression 1", "expression 2"],
         ImagingReport,
     )]
@@ -158,8 +165,8 @@ def test_medical_concept(get_attempts):
         get_attempts.reset_mock()
 
     tested = CanvasScience
+    host = "theHost"
     url = "theUrl"
-    headers = {"Content-Type": "application/json"}
     params = {"format": "json", "limit": 10}
     expressions = ["expression1", "expression2", "expression3"]
 
@@ -345,13 +352,13 @@ def test_medical_concept(get_attempts):
     ]
     for returned_class, side_effects, expected in tests:
         get_attempts.side_effect = side_effects
-        result = tested.medical_concept(url, expressions, returned_class)
+        result = tested.medical_concept(host, url, expressions, returned_class)
         assert result == expected
 
         calls = [
-            call(url, headers=headers, params=params | {"query": "expression1"}),
-            call(url, headers=headers, params=params | {"query": "expression2"}),
-            call(url, headers=headers, params=params | {"query": "expression3"}),
+            call(host, "", url, params | {"query": "expression1"}, False),
+            call(host, "", url, params | {"query": "expression2"}, False),
+            call(host, "", url, params | {"query": "expression3"}, False),
         ]
         assert get_attempts.mock_calls == calls
         reset_mocks()
@@ -365,7 +372,6 @@ def test_search_allergy(get_attempts):
     tested = CanvasScience
     host = "theHost"
     shared_key = "theSharedKey"
-    headers = {"Authorization": "theSharedKey"}
     expressions = ["expression1", "expression2", "expression3"]
 
     concepts = [
@@ -431,9 +437,9 @@ def test_search_allergy(get_attempts):
         assert result == expected
 
         calls = [
-            call("theHost/fdb/allergy/", headers=headers, params={"dam_allergen_concept_id_description__fts": "expression1"}),
-            call("theHost/fdb/allergy/", headers=headers, params={"dam_allergen_concept_id_description__fts": "expression2"}),
-            call("theHost/fdb/allergy/", headers=headers, params={"dam_allergen_concept_id_description__fts": "expression3"}),
+            call("theHost", "theSharedKey", "/fdb/allergy/", {"dam_allergen_concept_id_description__fts": "expression1"}, True),
+            call("theHost", "theSharedKey", "/fdb/allergy/", {"dam_allergen_concept_id_description__fts": "expression2"}, True),
+            call("theHost", "theSharedKey", "/fdb/allergy/", {"dam_allergen_concept_id_description__fts": "expression3"}, True),
         ]
         assert get_attempts.mock_calls == calls
         reset_mocks()
@@ -446,7 +452,6 @@ def test_search_contacts(get_attempts):
 
     tested = CanvasScience
     host = "theHost"
-    headers = {"Content-Type": "application/json"}
     side_effect = [
         {
             "firstName": "theFirstName1",
@@ -499,14 +504,18 @@ def test_search_contacts(get_attempts):
     assert result == expected
     calls = [
         call(
-            "theHost/contacts/",
-            headers=headers,
-            params={"search": "theFree Text Information", "format": "json", "limit": 10},
+            "theHost",
+            "",
+            "/contacts/",
+            {"search": "theFree Text Information", "format": "json", "limit": 10},
+            False,
         ),
         call(
-            "theHost/contacts/",
-            headers=headers,
-            params={"search": "theFree Text", "format": "json", "limit": 10},
+            "theHost",
+            "",
+            "/contacts/",
+            {"search": "theFree Text", "format": "json", "limit": 10},
+            False,
         ),
     ]
     assert get_attempts.mock_calls == calls
@@ -517,24 +526,28 @@ def test_search_contacts(get_attempts):
     assert result == expected
     calls = [
         call(
-            "theHost/contacts/",
-            headers=headers,
-            params={
+            "theHost",
+            "",
+            "/contacts/",
+            {
                 "search": "theFree Text Information",
                 "business_postal_code__in": "zip1,zip2",
                 "format": "json",
                 "limit": 10,
             },
+            False,
         ),
         call(
-            "theHost/contacts/",
-            headers=headers,
-            params={
+            "theHost",
+            "",
+            "/contacts/",
+            {
                 "search": "theFree Text",
                 "business_postal_code__in": "zip1,zip2",
                 "format": "json",
                 "limit": 10,
             },
+            False,
         ),
     ]
     assert get_attempts.mock_calls == calls
@@ -545,35 +558,46 @@ def test_search_contacts(get_attempts):
     assert result == []
     calls = [
         call(
-            "theHost/contacts/",
-            headers=headers,
-            params={"search": "theFree Text Information", "format": "json", "limit": 10},
+            "theHost",
+            "",
+            "/contacts/",
+            {"search": "theFree Text Information", "format": "json", "limit": 10},
+            False,
         ),
         call(
-            "theHost/contacts/",
-            headers=headers,
-            params={"search": "theFree Text", "format": "json", "limit": 10},
+            "theHost",
+            "",
+            "/contacts/",
+            {"search": "theFree Text", "format": "json", "limit": 10},
+            False,
         ),
         call(
-            "theHost/contacts/",
-            headers=headers,
-            params={"search": "theFree", "format": "json", "limit": 10},
+            "theHost",
+            "",
+            "/contacts/",
+            {"search": "theFree", "format": "json", "limit": 10},
+            False,
         ),
     ]
     assert get_attempts.mock_calls == calls
     reset_mocks()
 
 
+@patch('hyperscribe.handlers.canvas_science.OntologiesHttp')
+@patch('hyperscribe.handlers.canvas_science.ScienceHttp')
 @patch('hyperscribe.handlers.canvas_science.log')
 @patch('hyperscribe.handlers.canvas_science.requests_get')
-def test_get_attempts(requests_get, log):
+def test_get_attempts(requests_get, log, science, ontologies):
     def reset_mocks():
         requests_get.reset_mock()
         log.reset_mock()
+        science.reset_mock()
+        ontologies.reset_mock()
 
     tested = CanvasScience
 
-    headers = {"header": "value"}
+    headers_no_key = {'Content-Type': 'application/json'}
+    headers_with_key = {'Content-Type': 'application/json', 'Authorization': 'thePreSharedKey'}
     params = {"param": "value"}
 
     # too many attempts
@@ -591,20 +615,24 @@ def test_get_attempts(requests_get, log):
     mock_4.json.return_value = {"results": ["mock list 4"]}
 
     requests_get.side_effect = [mock_1, mock_2, mock_3, mock_4]
-    result = tested.get_attempts("theUrl", headers, params)
+    science.return_value.get.side_effect = []
+    ontologies.return_value.get.side_effect = []
+    result = tested.get_attempts("theHost", "thePreSharedKey", "/theUrl", params, False)
     assert result == []
     calls = [
-        call("theUrl", headers=headers, params=params, verify=True),
-        call("theUrl", headers=headers, params=params, verify=True),
-        call("theUrl", headers=headers, params=params, verify=True),
+        call("theHost/theUrl", headers=headers_with_key, params=params, verify=True),
+        call("theHost/theUrl", headers=headers_with_key, params=params, verify=True),
+        call("theHost/theUrl", headers=headers_with_key, params=params, verify=True),
     ]
     assert requests_get.mock_calls == calls
     calls = [
-        call.info("get response code: 401 - theUrl"),
-        call.info("get response code: 402 - theUrl"),
-        call.info("get response code: 403 - theUrl"),
+        call.info("get response code: 401 - /theUrl"),
+        call.info("get response code: 402 - /theUrl"),
+        call.info("get response code: 403 - /theUrl"),
     ]
     assert log.mock_calls == calls
+    assert science.mock_calls == []
+    assert ontologies.mock_calls == []
     reset_mocks()
 
     # enough attempts
@@ -612,15 +640,90 @@ def test_get_attempts(requests_get, log):
     mock_2.json.return_value = {"results": ["mock list 2"]}
 
     requests_get.side_effect = [mock_1, mock_2, mock_3, mock_4]
-    result = tested.get_attempts("theUrl", headers, params)
+    science.return_value.get.side_effect = []
+    ontologies.return_value.get.side_effect = []
+    result = tested.get_attempts("theHost", "thePreSharedKey", "/theUrl", params, False)
     assert result == ["mock list 2"]
     calls = [
-        call("theUrl", headers=headers, params=params, verify=True),
-        call("theUrl", headers=headers, params=params, verify=True),
+        call("theHost/theUrl", headers=headers_with_key, params=params, verify=True),
+        call("theHost/theUrl", headers=headers_with_key, params=params, verify=True),
     ]
     assert requests_get.mock_calls == calls
     calls = [
-        call.info("get response code: 401 - theUrl"),
+        call.info("get response code: 401 - /theUrl"),
     ]
     assert log.mock_calls == calls
+    assert science.mock_calls == []
+    assert ontologies.mock_calls == []
+    reset_mocks()
+
+    # using SDK Ontologies
+    mock_2.status_code = 200
+    mock_2.json.return_value = {"results": ["mock list 2"]}
+
+    requests_get.side_effect = []
+    science.return_value.get.side_effect = []
+    ontologies.return_value.get.side_effect = [mock_1, mock_2, mock_3, mock_4]
+    result = tested.get_attempts("", "thePreSharedKey", "/theUrl", params, True)
+    assert result == ["mock list 2"]
+    assert requests_get.mock_calls == []
+    calls = [
+        call.info("get response code: 401 - /theUrl?param=value"),
+    ]
+    assert log.mock_calls == calls
+    assert science.mock_calls == []
+    calls = [
+        call(),
+        call().get("/theUrl?param=value", headers_with_key),
+        call(),
+        call().get("/theUrl?param=value", headers_with_key),
+    ]
+    assert ontologies.mock_calls == calls
+    reset_mocks()
+
+    # using SDK Sciences
+    mock_2.status_code = 200
+    mock_2.json.return_value = {"results": ["mock list 2"]}
+
+    requests_get.side_effect = []
+    science.return_value.get.side_effect = [mock_1, mock_2, mock_3, mock_4]
+    ontologies.return_value.get.side_effect = []
+    result = tested.get_attempts("", "thePreSharedKey", "/theUrl", params, False)
+    assert result == ["mock list 2"]
+    assert requests_get.mock_calls == []
+    calls = [
+        call.info("get response code: 401 - /theUrl?param=value"),
+    ]
+    assert log.mock_calls == calls
+    calls = [
+        call(),
+        call().get("/theUrl?param=value", headers_with_key),
+        call(),
+        call().get("/theUrl?param=value", headers_with_key),
+    ]
+    assert science.mock_calls == calls
+    assert ontologies.mock_calls == []
+    reset_mocks()
+    # -- no key, no params
+    mock_2.status_code = 200
+    mock_2.json.return_value = {"results": ["mock list 2"]}
+
+    requests_get.side_effect = []
+    science.return_value.get.side_effect = [mock_1, mock_2, mock_3, mock_4]
+    ontologies.return_value.get.side_effect = []
+    result = tested.get_attempts("", "", "/theUrl", {}, False)
+    assert result == ["mock list 2"]
+    assert requests_get.mock_calls == []
+    calls = [
+        call.info("get response code: 401 - /theUrl"),
+    ]
+    assert log.mock_calls == calls
+    calls = [
+        call(),
+        call().get("/theUrl", headers_no_key),
+        call(),
+        call().get("/theUrl", headers_no_key),
+    ]
+    assert science.mock_calls == calls
+    assert ontologies.mock_calls == []
     reset_mocks()

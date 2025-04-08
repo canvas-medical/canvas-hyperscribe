@@ -74,11 +74,15 @@ The `secrets` are stored in the Canvas instance database and can be upsert in `h
 
 The logs, mainly the communication with the LLMs, are stored in a `AWS S3 bucket` if credentials are provided as listed above.
 
+To use the Canvas services provided by the SDK (`OntologiesHttp` and `ScienceHttp` from `canvas_sdk.utils.http`), set to empty the related secrets (
+`OntologiesHost` and `ScienceHost`).
+
 ### Temporary set up
 
 The _Perform_ command needs `CPT` codes provided through the model [`ChargeDescriptionMaster`](./handlers/temporary_data.py).
 
-The underlying view is not exposed to the SDK yet (see [issue #463](https://github.com/canvas-medical/canvas-plugins/issues/463)), and it can be created with the following SQL script run on the CANVAS instance:
+The underlying view is not exposed to the SDK yet (see [issue #463](https://github.com/canvas-medical/canvas-plugins/issues/463)), and it can be
+created with the following SQL script run on the CANVAS instance:
 
 ```postgresql
 CREATE OR REPLACE VIEW canvas_sdk_data_charge_description_master_001 AS

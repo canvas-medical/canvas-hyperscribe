@@ -1,11 +1,14 @@
 from http import HTTPStatus
 from typing import Type
+from urllib.parse import urlencode
 
 from canvas_sdk.commands.commands.allergy import AllergenType
 from canvas_sdk.commands.constants import ServiceProvider
+from canvas_sdk.utils.http import ScienceHttp, OntologiesHttp
 from logger import log
 from requests import get as requests_get
 
+from hyperscribe.handlers.constants import Constants
 from hyperscribe.structures.allergy_detail import AllergyDetail
 from hyperscribe.structures.icd10_condition import Icd10Condition
 from hyperscribe.structures.imaging_report import ImagingReport
@@ -17,43 +20,41 @@ from hyperscribe.structures.medication_detail_quantity import MedicationDetailQu
 class CanvasScience:
     @classmethod
     def instructions(cls, host: str, expressions: list[str]) -> list[MedicalConcept]:
-        return cls.medical_concept(f"{host}/search/instruction", expressions, MedicalConcept)
+        return cls.medical_concept(host, "/search/instruction", expressions, MedicalConcept)
 
     @classmethod
     def family_histories(cls, host: str, expressions: list[str]) -> list[MedicalConcept]:
-        return cls.medical_concept(f"{host}/search/family-history", expressions, MedicalConcept)
+        return cls.medical_concept(host, "/search/family-history", expressions, MedicalConcept)
 
     @classmethod
     def surgical_histories(cls, host: str, expressions: list[str]) -> list[MedicalConcept]:
-        return cls.medical_concept(f"{host}/search/surgical-history-procedure", expressions, MedicalConcept)
+        return cls.medical_concept(host, "/search/surgical-history-procedure", expressions, MedicalConcept)
 
     @classmethod
     def medical_histories(cls, host: str, expressions: list[str]) -> list[Icd10Condition]:
-        return cls.medical_concept(f"{host}/search/medical-history-condition", expressions, Icd10Condition)
+        return cls.medical_concept(host, "/search/medical-history-condition", expressions, Icd10Condition)
 
     @classmethod
     def medication_details(cls, host: str, expressions: list[str]) -> list[MedicationDetail]:
-        return cls.medical_concept(f"{host}/search/grouped-medication", expressions, MedicationDetail)
+        return cls.medical_concept(host, "/search/grouped-medication", expressions, MedicationDetail)
 
     @classmethod
     def search_conditions(cls, host: str, expressions: list[str]) -> list[Icd10Condition]:
-        return cls.medical_concept(f"{host}/search/condition", expressions, Icd10Condition)
+        return cls.medical_concept(host, "/search/condition", expressions, Icd10Condition)
 
     @classmethod
     def search_imagings(cls, host: str, expressions: list[str]) -> list[ImagingReport]:
-        return cls.medical_concept(f"{host}/parse-templates/imaging-reports", expressions, ImagingReport)
+        return cls.medical_concept(host, "/parse-templates/imaging-reports", expressions, ImagingReport)
 
     @classmethod
     def medical_concept(
             cls,
+            host: str,
             url: str,
             expressions: list[str],
             returned_class: Type[MedicalConcept | Icd10Condition | MedicationDetail | ImagingReport],
     ) -> list[MedicalConcept | Icd10Condition | MedicationDetail | ImagingReport]:
         result: list[MedicalConcept | Icd10Condition | MedicationDetail | ImagingReport] = []
-        headers = {
-            "Content-Type": "application/json",
-        }
 
         # from canvas_sdk.utils.http import ThreadPoolExecutor
         # with ThreadPoolExecutor(max_workers=10) as get_runner:
@@ -63,12 +64,9 @@ class CanvasScience:
         #         "limit": 10,
         #     }), expressions))
 
+        params = {"format": "json", "limit": 10}
         all_concepts: list = [
-            cls.get_attempts(
-                url,
-                headers=headers,
-                params={"query": expression, "format": "json", "limit": 10},
-            )
+            cls.get_attempts(host, "", url, params | {"query": expression}, False)
             for expression in expressions
         ]
         for concepts in all_concepts:
@@ -107,14 +105,11 @@ class CanvasScience:
     @classmethod
     def search_allergy(cls, host: str, pre_shared_key: str, expressions: list[str], concept_types: list[AllergenType]) -> list[AllergyDetail]:
         result: list = []
-        url = f"{host}/fdb/allergy/"
-        headers = {
-            "Authorization": pre_shared_key,
-        }
+        url = "/fdb/allergy/"
         type_values = [t.value for t in concept_types]
         for expression in expressions:
             params = {"dam_allergen_concept_id_description__fts": expression}
-            concepts = cls.get_attempts(url, headers=headers, params=params)
+            concepts = cls.get_attempts(host, pre_shared_key, url, params, True)
             for concept in concepts:
                 if concept["dam_allergen_concept_id_type"] in type_values:
                     result.append(
@@ -130,10 +125,7 @@ class CanvasScience:
     @classmethod
     def search_contacts(cls, host: str, free_text_information: str, zip_codes: list[str]) -> list[ServiceProvider]:
         result: list = []
-        url = f"{host}/contacts/"
-        headers = {
-            "Content-Type": "application/json",
-        }
+        url = "/contacts/"
 
         while free_text_information.strip() and not result:
             params = {
@@ -144,7 +136,7 @@ class CanvasScience:
             if zip_codes:
                 params["business_postal_code__in"] = ",".join(zip_codes)
 
-            for contact in cls.get_attempts(url, headers=headers, params=params):
+            for contact in cls.get_attempts(host, "", url, params, False):
                 result.append(ServiceProvider(
                     first_name=contact["firstName"] or "",
                     last_name=contact["lastName"] or "",
@@ -157,10 +149,29 @@ class CanvasScience:
         return result
 
     @classmethod
-    def get_attempts(cls, url: str, headers: dict, params: dict) -> list:
-        max_attempts = 3
-        for _ in range(max_attempts):
-            request = requests_get(url, headers=headers, params=params, verify=True)
+    def get_attempts(
+            cls,
+            host: str,
+            pre_shared_key: str,
+            url: str,
+            params: dict,
+            is_ontologies: bool,
+    ) -> list:
+        headers = {"Content-Type": "application/json"}
+        if pre_shared_key:
+            headers["Authorization"] = pre_shared_key
+
+        if params and not host:
+            url = f"{url}?{urlencode(params)}"
+
+        for _ in range(Constants.MAX_ATTEMPTS_CANVAS_SERVICES):
+            if host:
+                request = requests_get(f"{host}{url}", headers=headers, params=params, verify=True)
+            elif is_ontologies:
+                request = OntologiesHttp().get(url, headers)
+            else:
+                request = ScienceHttp().get(url, headers)
+
             if request.status_code == HTTPStatus.OK.value:
                 return request.json().get("results", [])
             log.info(f"get response code: {request.status_code} - {url}")

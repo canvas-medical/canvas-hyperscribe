@@ -10,6 +10,7 @@ def test_constants():
         "GOOGLE_CHAT_ALL": "models/gemini-2.0-flash",
         "MAX_ATTEMPTS_LLM_HTTP": 3,
         "MAX_ATTEMPTS_LLM_JSON": 3,
+        "MAX_ATTEMPTS_CANVAS_SERVICES": 3,
         "MAX_WORKERS": 10,
         "OPENAI_CHAT_AUDIO": "gpt-4o-audio-preview",
         "OPENAI_CHAT_TEXT": "gpt-4o",
