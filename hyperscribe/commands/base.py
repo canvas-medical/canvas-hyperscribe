@@ -5,6 +5,7 @@ from canvas_sdk.v1.data import PracticeLocation, Staff
 from hyperscribe.handlers.limited_cache import LimitedCache
 from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.instruction_with_command import InstructionWithCommand
 from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.settings import Settings
@@ -12,11 +13,9 @@ from hyperscribe.structures.settings import Settings
 
 class Base:
 
-    def __init__(self, settings: Settings, cache: LimitedCache, patient_uuid: str, note_uuid: str, provider_uuid: str):
+    def __init__(self, settings: Settings, cache: LimitedCache, identification: IdentificationParameters):
         self.settings = settings
-        self.patient_uuid = patient_uuid
-        self.note_uuid = note_uuid
-        self.provider_uuid = provider_uuid
+        self.identification = identification
         self.cache = cache
 
     @classmethod
@@ -47,7 +46,7 @@ class Base:
         raise NotImplementedError
 
     def practice_setting(self, setting: str) -> Any:
-        practice = Staff.objects.get(id=self.provider_uuid).primary_practice_location
+        practice = Staff.objects.get(id=self.identification.provider_uuid).primary_practice_location
         if practice is None:
             practice = PracticeLocation.objects.order_by("dbid").first()
         if practice and (setting := practice.settings.filter(name=setting).order_by("dbid").first()):

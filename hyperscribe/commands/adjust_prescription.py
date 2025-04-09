@@ -52,8 +52,8 @@ class AdjustPrescription(BasePrescription):
             sig=instruction.parameters["sig"],
             days_supply=int(instruction.parameters["suppliedDays"]),
             substitutions=Helper.enum_or_none(instruction.parameters["substitution"], AdjustPrescriptionCommand.Substitutions),
-            prescriber_id=self.provider_uuid,
-            note_uuid=self.note_uuid,
+            prescriber_id=self.identification.provider_uuid,
+            note_uuid=self.identification.note_uuid,
         )
         if 0 <= (idx := instruction.parameters["oldMedicationIndex"]) < len(current := self.cache.current_medications()):
             medication_uuid = current[idx].uuid

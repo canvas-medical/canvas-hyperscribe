@@ -32,7 +32,7 @@ class CloseGoal(Base):
             goal_id=int(goal_uuid),
             achievement_status=Helper.enum_or_none(instruction.parameters["status"], GoalCommand.AchievementStatus),
             progress=instruction.parameters["progressAndBarriers"],
-            note_uuid=self.note_uuid,
+            note_uuid=self.identification.note_uuid,
         ))
 
     def command_parameters(self) -> dict:

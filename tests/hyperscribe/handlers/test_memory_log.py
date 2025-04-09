@@ -4,6 +4,7 @@ from unittest.mock import patch, call
 from hyperscribe.handlers.cached_discussion import CachedDiscussion
 from hyperscribe.handlers.memory_log import MemoryLog
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
+from hyperscribe.structures.identification_parameters import IdentificationParameters
 from tests.helper import is_constant
 
 
@@ -17,52 +18,52 @@ def test_constants():
 
 def test_begin_session():
     tested = MemoryLog
-    assert "note_uuid" not in tested.ENTRIES
-    tested.begin_session("note_uuid")
-    assert tested.ENTRIES["note_uuid"] == {}
+    assert "noteUuid" not in tested.ENTRIES
+    tested.begin_session("noteUuid")
+    assert tested.ENTRIES["noteUuid"] == {}
     #
-    tested.ENTRIES["note_uuid"] = {"theLabel": []}
-    tested.begin_session("note_uuid")
-    assert tested.ENTRIES["note_uuid"] == {"theLabel": []}
+    tested.ENTRIES["noteUuid"] = {"theLabel": []}
+    tested.begin_session("noteUuid")
+    assert tested.ENTRIES["noteUuid"] == {"theLabel": []}
 
 
 def test_end_session():
     tested = MemoryLog
 
     #
-    result = tested.end_session("note_uuid_2")
+    result = tested.end_session("noteUuid_2")
     expected = ""
     assert result == expected
 
     #
     tested.ENTRIES = {
-        "note_uuid_1": {
+        "noteUuid_1": {
             "label3": ["r", "s"],
             "label2": ["x", "y"],
             "label1": ["m", "n"],
         },
-        "note_uuid_2": {
+        "noteUuid_2": {
             "label1": ["m", "n"],
             "label2": ["x", "y"],
             "label3": ["r", "s"],
         },
-        "note_uuid_3": {
+        "noteUuid_3": {
             "label2": ["x", "y"],
             "label1": ["m", "n"],
             "label3": [],
         },
-        "note_uuid_4": {},
+        "noteUuid_4": {},
     }
-    result = tested.end_session("note_uuid_2")
+    result = tested.end_session("noteUuid_2")
     expected = "m\nn\nr\ns\nx\ny"
     assert result == expected
-    result = tested.end_session("note_uuid_1")
+    result = tested.end_session("noteUuid_1")
     expected = "m\nn\nr\ns\nx\ny"
     assert result == expected
-    result = tested.end_session("note_uuid_3")
+    result = tested.end_session("noteUuid_3")
     expected = "m\nn\nx\ny"
     assert result == expected
-    result = tested.end_session("note_uuid_4")
+    result = tested.end_session("noteUuid_4")
     expected = ""
     assert result == expected
     #
@@ -71,17 +72,29 @@ def test_end_session():
 
 def test_instance():
     aws_s3 = AwsS3Credentials(aws_key="theAwsKey", aws_secret="theAwsSecret", region="theRegion", bucket="theBucket")
+    identification = IdentificationParameters(
+        patient_uuid="patientUuid",
+        note_uuid="noteUuid",
+        provider_uuid="providerUuid",
+        canvas_instance="canvasInstance",
+    )
     tested = MemoryLog
-    result = tested.instance("note_uuid", "theLabel", aws_s3)
+    result = tested.instance(identification, "theLabel", aws_s3)
     assert isinstance(result, MemoryLog)
-    assert result.note_uuid == "note_uuid"
+    assert result.identification == identification
     assert result.label == "theLabel"
     assert result.aws_s3 == aws_s3
 
 
 def test___init__():
-    tested = MemoryLog("note_uuid", "theLabel")
-    expected = {"note_uuid": {"theLabel": []}}
+    identification = IdentificationParameters(
+        patient_uuid="patientUuid",
+        note_uuid="noteUuid",
+        provider_uuid="providerUuid",
+        canvas_instance="canvasInstance",
+    )
+    tested = MemoryLog(identification, "theLabel")
+    expected = {"noteUuid": {"theLabel": []}}
     assert tested.ENTRIES == expected
 
 
@@ -90,8 +103,14 @@ def test_log(mock_datetime):
     def reset_mocks():
         mock_datetime.reset_mock()
 
-    tested = MemoryLog("note_uuid", "theLabel")
-    expected = {"note_uuid": {"theLabel": []}}
+    identification = IdentificationParameters(
+        patient_uuid="patientUuid",
+        note_uuid="noteUuid",
+        provider_uuid="providerUuid",
+        canvas_instance="canvasInstance",
+    )
+    tested = MemoryLog(identification, "theLabel")
+    expected = {"noteUuid": {"theLabel": []}}
     assert tested.ENTRIES == expected
 
     mock_datetime.now.side_effect = [
@@ -104,7 +123,7 @@ def test_log(mock_datetime):
     tested.log("message2")
     tested.log("message3")
     expected = {
-        "note_uuid": {
+        "noteUuid": {
             "theLabel": [
                 '2025-03-06T07:53:21+00:00: message1',
                 '2025-03-06T11:53:37+00:00: message2',
@@ -122,7 +141,7 @@ def test_log(mock_datetime):
     ]
     assert mock_datetime.mock_calls == calls
     reset_mocks()
-    MemoryLog.end_session("note_uuid")
+    MemoryLog.end_session("noteUuid")
 
 
 @patch("hyperscribe.handlers.memory_log.log")
@@ -132,8 +151,14 @@ def test_output(mock_datetime, log):
         mock_datetime.reset_mock()
         log.reset_mock()
 
-    tested = MemoryLog("note_uuid", "theLabel")
-    expected = {"note_uuid": {"theLabel": []}}
+    identification = IdentificationParameters(
+        patient_uuid="patientUuid",
+        note_uuid="noteUuid",
+        provider_uuid="providerUuid",
+        canvas_instance="canvasInstance",
+    )
+    tested = MemoryLog(identification, "theLabel")
+    expected = {"noteUuid": {"theLabel": []}}
     assert tested.ENTRIES == expected
 
     mock_datetime.now.side_effect = [
@@ -146,7 +171,7 @@ def test_output(mock_datetime, log):
     tested.output("message2")
     tested.output("message3")
     expected = {
-        "note_uuid": {
+        "noteUuid": {
             "theLabel": [
                 '2025-03-06T07:53:21+00:00: message1',
                 '2025-03-06T11:53:37+00:00: message2',
@@ -170,7 +195,7 @@ def test_output(mock_datetime, log):
     ]
     assert log.mock_calls == calls
     reset_mocks()
-    MemoryLog.end_session("note_uuid")
+    MemoryLog.end_session("noteUuid")
 
 
 @patch("hyperscribe.handlers.memory_log.datetime", wraps=datetime)
@@ -178,7 +203,13 @@ def test_logs(mock_datetime):
     def reset_mocks():
         mock_datetime.reset_mock()
 
-    tested = MemoryLog("note_uuid", "theLabel")
+    identification = IdentificationParameters(
+        patient_uuid="patientUuid",
+        note_uuid="noteUuid",
+        provider_uuid="providerUuid",
+        canvas_instance="canvasInstance",
+    )
+    tested = MemoryLog(identification, "theLabel")
     result = tested.logs()
     expected = ""
     assert result == expected
@@ -205,7 +236,7 @@ def test_logs(mock_datetime):
     ]
     assert mock_datetime.mock_calls == calls
     reset_mocks()
-    MemoryLog.end_session("note_uuid")
+    MemoryLog.end_session("noteUuid")
 
 
 @patch.object(CachedDiscussion, "get_discussion")
@@ -215,7 +246,13 @@ def test_store_so_far(aws_s3, get_discussion):
         aws_s3.reset_mock()
         get_discussion.reset_mock()
 
-    tested = MemoryLog("note_uuid", "theLabel")
+    identification = IdentificationParameters(
+        patient_uuid="patientUuid",
+        note_uuid="noteUuid",
+        provider_uuid="providerUuid",
+        canvas_instance="canvasInstance",
+    )
+    tested = MemoryLog(identification, "theLabel")
     #
     aws_s3.return_value.is_ready.side_effect = [False]
     get_discussion.side_effect = []
@@ -239,9 +276,9 @@ def test_store_so_far(aws_s3, get_discussion):
     calls = [
         call(AwsS3Credentials(aws_key='', aws_secret='', region='', bucket='')),
         call().is_ready(),
-        call().upload_text_to_s3('2025-03-11/partials/note_uuid/06/theLabel.log', ''),
+        call().upload_text_to_s3("canvasInstance/2025-03-11/partials/noteUuid/06/theLabel.log", ""),
     ]
     assert aws_s3.mock_calls == calls
-    calls = [call('note_uuid')]
+    calls = [call("noteUuid")]
     assert get_discussion.mock_calls == calls
     reset_mocks()

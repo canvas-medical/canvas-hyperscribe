@@ -25,7 +25,7 @@ def test_constants():
         "OPTION_PRINT_LOGS": "--print-logs",
         "OPTION_STORE_LOGS": "--store-logs",
         #
-        "CANVAS_SDK_DB_HOST": "CANVAS_SDK_DB_HOST",
+        "CUSTOMER_IDENTIFIER": "CUSTOMER_IDENTIFIER",
         #
         "EVALUATIONS_DB_NAME": "EVALUATIONS_DB_NAME",
         "EVALUATIONS_DB_USERNAME": "EVALUATIONS_DB_USERNAME",

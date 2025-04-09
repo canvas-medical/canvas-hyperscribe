@@ -55,6 +55,7 @@ def test_constants():
         "SCHEMA_KEY_UPDATE_DIAGNOSE": "updateDiagnosis",
         "SCHEMA_KEY_UPDATE_GOAL": "updateGoal",
         "SCHEMA_KEY_VITALS": "vitals",
+        "CUSTOMER_IDENTIFIER": "CUSTOMER_IDENTIFIER",
         "SECRET_TEXT_VENDOR": "VendorTextLLM",
         "SECRET_TEXT_KEY": "KeyTextLLM",
         "SECRET_AUDIO_VENDOR": "VendorAudioLLM",

@@ -3,6 +3,7 @@ from unittest.mock import MagicMock
 from hyperscribe.commands.base_questionnaire import BaseQuestionnaire
 from hyperscribe.commands.physical_exam import PhysicalExam
 from hyperscribe.handlers.limited_cache import LimitedCache
+from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
@@ -18,7 +19,13 @@ def helper_instance() -> PhysicalExam:
         structured_rfv=False,
     )
     cache = LimitedCache("patientUuid", {})
-    return PhysicalExam(settings, cache, "patientUuid", "noteUuid", "providerUuid")
+    identification = IdentificationParameters(
+        patient_uuid="patientUuid",
+        note_uuid="noteUuid",
+        provider_uuid="providerUuid",
+        canvas_instance="canvasInstance",
+    )
+    return PhysicalExam(settings, cache, identification)
 
 
 def test_class():

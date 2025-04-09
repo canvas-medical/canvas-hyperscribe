@@ -7,6 +7,7 @@ from evaluations.helper_evaluation import HelperEvaluation
 from evaluations.structures.postgres_credentials import PostgresCredentials
 from hyperscribe.handlers.helper import Helper
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
+from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.json_extract import JsonExtract
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
@@ -132,6 +133,38 @@ def test_get_provider_uuid(note_db):
     reset_mocks()
 
 
+def test_get_canvas_instance(monkeypatch):
+    monkeypatch.setenv("CUSTOMER_IDENTIFIER", "theCanvasInstance")
+    tested = HelperEvaluation
+    result = tested.get_canvas_instance()
+    expected = "theCanvasInstance"
+    assert result == expected
+
+    monkeypatch.delenv("CUSTOMER_IDENTIFIER")
+    tested = HelperEvaluation
+    result = tested.get_canvas_instance()
+    expected = "CanvasInstance"
+    assert result == expected
+
+
+def test_json_schema_differences():
+    tested = HelperEvaluation
+    result = tested.json_schema_differences()
+    expected = {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "array",
+        "items": {
+            "type": "object",
+            "properties": {
+                "level": {"type": "string", "enum": ["minor", "moderate", "severe", "critical"]},
+                "difference": {"type": "string", "description": "description of the difference between the JSONs"},
+            },
+            "required": ["level", "difference"],
+        }
+    }
+    assert result == expected
+
+
 @patch.object(HelperEvaluation, "nuanced_differences")
 def test_json_nuanced_differences(nuanced_differences):
     def reset_mocks():
@@ -142,7 +175,7 @@ def test_json_nuanced_differences(nuanced_differences):
         "The user will provides two JSON objects.",
         "Your task is compare them and report the discrepancies as a JSON list in a Markdown block like:",
         "```json",
-        '[{"level": "minor/moderate/severe/critical", "difference": "description of the difference between the JSONs"}]',
+        '[{"level": "one of: minor,moderate,severe,critical", "difference": "description of the difference between the JSONs"}]',
         "```",
         "",
         "All text values should be evaluated together and on the level scale to effectively convey the impact of the changes in meaning from a medical point of view.",
@@ -189,7 +222,7 @@ def test_text_nuanced_differences(nuanced_differences):
         "The user will provides two texts.",
         "Your task is compare them *solely* from a medical meaning point of view and report the discrepancies as a JSON list in a Markdown block like:",
         "```json",
-        '[{"level": "minor/moderate/severe/critical", "difference": "description of the difference between the texts"}]',
+        '[{"level": "one of: minor,moderate,severe,critical", "difference": "description of the difference between the texts"}]',
         "```",
     ]
     user_prompt = [
@@ -224,12 +257,14 @@ def test_text_nuanced_differences(nuanced_differences):
 
 @patch("evaluations.helper_evaluation.MemoryLog")
 @patch.object(Helper, "chatter")
+@patch.object(HelperEvaluation, "get_canvas_instance")
 @patch.object(HelperEvaluation, "settings")
-def test_nuanced_differences(settings, chatter, memory_log):
+def test_nuanced_differences(settings, get_canvas_instance, chatter, memory_log):
     conversation = MagicMock()
 
     def reset_mocks():
         settings.reset_mock()
+        get_canvas_instance.reset_mock()
         memory_log.reset_mock()
         chatter.reset_mock()
         conversation.reset_mock()
@@ -240,15 +275,18 @@ def test_nuanced_differences(settings, chatter, memory_log):
         "items": {
             "type": "object",
             "properties": {
-                "level": {
-                    "type": "string",
-                    "enum": ["minor", "moderate", "severe", "critical"]
-                },
-                "difference": {"type": "string"},
+                "level": {"type": "string", "enum": ["minor", "moderate", "severe", "critical"]},
+                "difference": {"type": "string", "description": "description of the difference between the JSONs"},
             },
             "required": ["level", "difference"],
         }
     }
+    identification = IdentificationParameters(
+        patient_uuid="_PatientUuid",
+        note_uuid="_NoteUuid",
+        provider_uuid="_ProviderUuid",
+        canvas_instance="theCanvasInstance",
+    )
 
     tested = HelperEvaluation
 
@@ -262,10 +300,11 @@ def test_nuanced_differences(settings, chatter, memory_log):
         {"level": "level3", "difference": "theDifferenceE"},
         {"level": "level4", "difference": "theDifferenceF"},
     ]
-    json_content = json.dumps(content, indent=1)
+    json_content = json.dumps([content], indent=1)
 
     # errors
     settings.side_effect = ["theSettings"]
+    get_canvas_instance.side_effect = ["theCanvasInstance"]
     memory_log.side_effect = ["MemoryLogInstance"]
     chatter.side_effect = [conversation]
     conversation.chat.side_effect = [JsonExtract(has_error=True, error="theError", content=content)]
@@ -275,7 +314,8 @@ def test_nuanced_differences(settings, chatter, memory_log):
 
     calls = [call()]
     assert settings.mock_calls == calls
-    calls = [call("_NoteUuid", "theCase")]
+    assert get_canvas_instance.mock_calls == calls
+    calls = [call(identification, "theCase")]
     assert memory_log.mock_calls == calls
     calls = [call("theSettings", "MemoryLogInstance")]
     assert chatter.mock_calls == calls
@@ -290,16 +330,18 @@ def test_nuanced_differences(settings, chatter, memory_log):
     # no error
     # -- differences within the accepted levels
     settings.side_effect = ["theSettings"]
+    get_canvas_instance.side_effect = ["theCanvasInstance"]
     memory_log.side_effect = ["MemoryLogInstance"]
     chatter.side_effect = [conversation]
-    conversation.chat.side_effect = [JsonExtract(has_error=False, error="theError", content=content)]
+    conversation.chat.side_effect = [JsonExtract(has_error=False, error="theError", content=[content])]
     result = tested.nuanced_differences("theCase", ["level1", "level2", "level3", "level4"], system_prompt, user_prompt)
     expected = (True, json_content)
     assert result == expected
 
     calls = [call()]
     assert settings.mock_calls == calls
-    calls = [call("_NoteUuid", "theCase")]
+    assert get_canvas_instance.mock_calls == calls
+    calls = [call(identification, "theCase")]
     assert memory_log.mock_calls == calls
     calls = [call("theSettings", "MemoryLogInstance")]
     assert chatter.mock_calls == calls
@@ -312,16 +354,18 @@ def test_nuanced_differences(settings, chatter, memory_log):
     reset_mocks()
     # -- differences out of the accepted levels
     settings.side_effect = ["theSettings"]
+    get_canvas_instance.side_effect = ["theCanvasInstance"]
     memory_log.side_effect = ["MemoryLogInstance"]
     chatter.side_effect = [conversation]
-    conversation.chat.side_effect = [JsonExtract(has_error=False, error="theError", content=content)]
+    conversation.chat.side_effect = [JsonExtract(has_error=False, error="theError", content=[content])]
     result = tested.nuanced_differences("theCase", ["level2", "level3"], system_prompt, user_prompt)
     expected = (False, json_content)
     assert result == expected
 
     calls = [call()]
     assert settings.mock_calls == calls
-    calls = [call("_NoteUuid", "theCase")]
+    assert get_canvas_instance.mock_calls == calls
+    calls = [call(identification, "theCase")]
     assert memory_log.mock_calls == calls
     calls = [call("theSettings", "MemoryLogInstance")]
     assert chatter.mock_calls == calls

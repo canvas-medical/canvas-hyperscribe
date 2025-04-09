@@ -1,16 +1,16 @@
 import json
 from argparse import ArgumentParser, Namespace
-from os import environ
 
 from evaluations.auditor_file import AuditorFile
 from evaluations.case_builders.builder_base import BuilderBase
 from evaluations.constants import Constants
-from evaluations.datastores.sqllite.store_cases import StoreCases
+from evaluations.datastores.store_cases import StoreCases
 from evaluations.helper_evaluation import HelperEvaluation
 from evaluations.structures.evaluation_case import EvaluationCase
 from hyperscribe.handlers.audio_interpreter import AudioInterpreter
 from hyperscribe.handlers.commander import Commander
 from hyperscribe.handlers.limited_cache import LimitedCache
+from hyperscribe.structures.identification_parameters import IdentificationParameters
 
 
 class BuilderFromTuning(BuilderBase):
@@ -27,12 +27,12 @@ class BuilderFromTuning(BuilderBase):
         return parser.parse_args()
 
     @classmethod
-    def _run(cls, parameters: Namespace, recorder: AuditorFile, note_uuid: str, provider_uuid: str) -> None:
+    def _run(cls, parameters: Namespace, recorder: AuditorFile, identification: IdentificationParameters) -> None:
         with parameters.tuning_json.open("r") as f:
-            limited_cache = f.read()
+            limited_cache = json.load(f)
 
         StoreCases.upsert(EvaluationCase(
-            environment=environ.get(Constants.CANVAS_SDK_DB_HOST),
+            environment=identification.canvas_instance,
             patient_uuid=parameters.patient,
             limited_cache=limited_cache,
             case_name=parameters.case,
@@ -48,10 +48,8 @@ class BuilderFromTuning(BuilderBase):
         chatter = AudioInterpreter(
             HelperEvaluation.settings(),
             HelperEvaluation.aws_s3_credentials(),
-            LimitedCache.load_from_json(json.loads(limited_cache)),
-            parameters.patient,
-            note_uuid,
-            provider_uuid,
+            LimitedCache.load_from_json(limited_cache),
+            identification,
         )
 
         audios: list[bytes] = []

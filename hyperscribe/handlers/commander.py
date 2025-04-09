@@ -28,6 +28,7 @@ from hyperscribe.handlers.limited_cache import LimitedCache
 from hyperscribe.handlers.memory_log import MemoryLog
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.instruction import Instruction
 from hyperscribe.structures.instruction_with_command import InstructionWithCommand
 from hyperscribe.structures.line import Line
@@ -58,7 +59,7 @@ class Commander(BaseProtocol):
 
     def compute(self) -> list[Effect]:
         comment = TaskComment.objects.get(id=self.target)
-        log.info(f"--> comment: {comment.id} (task: {comment.task.id}, labels: {[r for r in comment.task.labels.all()]})")
+        log.info(f"--> comment: {comment.id} (task: {comment.task.id}, labels: {'/'.join([r.name for r in comment.task.labels.all()])})")
         # if comment.task.title != self.LABEL_ENCOUNTER_COPILOT:
         if not comment.task.labels.filter(name=self.LABEL_ENCOUNTER_COPILOT).first():
             return []
@@ -67,19 +68,22 @@ class Commander(BaseProtocol):
         chunk_index = information["chunk_index"]  # <--- starts with 1
         note_uuid = information["note_id"]
         note = Note.objects.get(id=note_uuid)
-        provider_uuid = note.provider.id
-        patient_uuid = note.patient.id
-
-        memory_log = MemoryLog(note_uuid, self.MEMORY_LOG_LABEL)
+        identification = IdentificationParameters(
+            patient_uuid=note.patient.id,
+            note_uuid=note_uuid,
+            provider_uuid=note.provider.id,
+            canvas_instance="canvas-instance",  # self.environment[Constants.CUSTOMER_IDENTIFIER],
+        )
+        memory_log = MemoryLog(identification, self.MEMORY_LOG_LABEL)
         memory_log.output(f"Text: {self.secrets[Constants.SECRET_TEXT_VENDOR]} - Audio: {self.secrets[Constants.SECRET_AUDIO_VENDOR]}")
-        had_audio, effects = self.compute_audio(patient_uuid, note_uuid, provider_uuid, chunk_index)
+        had_audio, effects = self.compute_audio(identification, chunk_index)
         if had_audio:
             log.info(f"audio was present => go to next iteration ({chunk_index + 1})")
             effects.append(AddTaskComment(
                 task_id=str(comment.task.id),
                 body=json.dumps({
                     "note_id": note_uuid,
-                    "patient_id": patient_uuid,
+                    "patient_id": identification.patient_uuid,
                     "chunk_index": chunk_index + 1,
                 })
             ).apply())
@@ -108,45 +112,37 @@ class Commander(BaseProtocol):
         result.append(initial)
         return result
 
-    def compute_audio(
-            self,
-            patient_uuid: str,
-            note_uuid: str,
-            provider_uuid: str,
-            chunk_index: int,
-    ) -> tuple[bool, list[Effect]]:
-        memory_log = MemoryLog(note_uuid, self.MEMORY_LOG_LABEL)
+    def compute_audio(self, identification: IdentificationParameters, chunk_index: int) -> tuple[bool, list[Effect]]:
+        memory_log = MemoryLog(identification, self.MEMORY_LOG_LABEL)
         CachedDiscussion.clear_cache()
         # retrieve the last two audio chunks
-        audios = self.retrieve_audios(self.secrets[Constants.SECRET_AUDIO_HOST], patient_uuid, note_uuid, chunk_index)
+        audios = self.retrieve_audios(
+            self.secrets[Constants.SECRET_AUDIO_HOST],
+            identification.patient_uuid,
+            identification.note_uuid,
+            chunk_index,
+        )
         memory_log.output(f"--> audio chunks: {len(audios)}")
         if not audios:
             return False, []
 
-        discussion = CachedDiscussion.get_discussion(note_uuid)
+        discussion = CachedDiscussion.get_discussion(identification.note_uuid)
         discussion.add_one()
         # request the transcript of the audio (provider + patient...)
         settings = Settings.from_dictionary(self.secrets)
         aws_s3 = AwsS3Credentials.from_dictionary(self.secrets)
 
         current_commands = Command.objects.filter(
-            patient__id=patient_uuid,
-            note__id=note_uuid,
+            patient__id=identification.patient_uuid,
+            note__id=identification.note_uuid,
             state="staged",  # <--- TODO use an Enum when provided
         ).order_by("dbid")
 
         cache = LimitedCache(
-            patient_uuid,
+            identification.patient_uuid,
             self.existing_commands_to_coded_items(current_commands),
         )
-        chatter = AudioInterpreter(
-            settings,
-            aws_s3,
-            cache,
-            patient_uuid,
-            note_uuid,
-            provider_uuid,
-        )
+        chatter = AudioInterpreter(settings, aws_s3, cache, identification)
         previous_instructions = self.existing_commands_to_instructions(
             current_commands,
             discussion.previous_instructions,
@@ -158,7 +154,7 @@ class Commander(BaseProtocol):
             previous_instructions,
         )
         # summary
-        memory_log.output(f"<===  note: {note_uuid} ===>")
+        memory_log.output(f"<===  note: {identification.note_uuid} ===>")
         memory_log.output(f"Structured RfV: {settings.structured_rfv}")
         memory_log.output("instructions:")
         for instruction in discussion.previous_instructions:
@@ -170,9 +166,12 @@ class Commander(BaseProtocol):
         memory_log.output("<=== END ===>")
 
         if (client_s3 := AwsS3(aws_s3)) and client_s3.is_ready():
-            remote_path = f"{discussion.creation_day()}/{patient_uuid}-{note_uuid}/{discussion.count - 1:02}.log"
+            remote_path = (f"{identification.canvas_instance}/"
+                           f"{discussion.creation_day()}/"
+                           f"{identification.patient_uuid}-{identification.note_uuid}/"
+                           f"{discussion.count - 1:02}.log")
             memory_log.output(f"--> log path: {remote_path}")
-            client_s3.upload_text_to_s3(remote_path, MemoryLog.end_session(note_uuid))
+            client_s3.upload_text_to_s3(remote_path, MemoryLog.end_session(identification.note_uuid))
         return True, results
 
     @classmethod
@@ -183,7 +182,7 @@ class Commander(BaseProtocol):
             chatter: AudioInterpreter,
             previous_instructions: list[Instruction],
     ) -> tuple[list[Instruction], list[Effect]]:
-        memory_log = MemoryLog(chatter.note_uuid, cls.MEMORY_LOG_LABEL)
+        memory_log = MemoryLog(chatter.identification, cls.MEMORY_LOG_LABEL)
         response = chatter.combine_and_speaker_detection(audios)
         if response.has_error is True:
             memory_log.output(f"--> transcript encountered: {response.error}")
@@ -203,7 +202,7 @@ class Commander(BaseProtocol):
             chatter: AudioInterpreter,
             previous_instructions: list[Instruction],
     ) -> tuple[list[Instruction], list[Effect]]:
-        memory_log = MemoryLog(chatter.note_uuid, cls.MEMORY_LOG_LABEL)
+        memory_log = MemoryLog(chatter.identification, cls.MEMORY_LOG_LABEL)
 
         # detect the instructions based on the transcript and the existing commands
         response = chatter.detect_instructions(transcript, previous_instructions)
@@ -231,7 +230,7 @@ class Commander(BaseProtocol):
             instructions: list[Instruction],
             past_uuids: dict[str, Instruction],
     ) -> list[Effect]:
-        memory_log = MemoryLog(chatter.note_uuid, cls.MEMORY_LOG_LABEL)
+        memory_log = MemoryLog(chatter.identification, cls.MEMORY_LOG_LABEL)
         new_instructions = [instruction for instruction in instructions if instruction.uuid not in past_uuids]
         memory_log.output(f"--> new instructions: {len(new_instructions)}")
         start = time()
@@ -254,9 +253,9 @@ class Commander(BaseProtocol):
         memory_log.output(f"DURATION NEW: {int((time() - start) * 1000)}")
         auditor.computed_commands(instructions_with_command)
 
-        cls.store_audits(chatter.aws_s3, chatter.note_uuid, "audit_new_commands", instructions_with_command)
+        cls.store_audits(chatter.aws_s3, chatter.identification, "audit_new_commands", instructions_with_command)
 
-        if chatter.note_uuid == Constants.FAUX_NOTE_UUID:
+        if chatter.identification.note_uuid == Constants.FAUX_NOTE_UUID:
             # this is the case when running an evaluation against a recorded 'limited cache',
             # i.e. the patient and/or her data don't exist, something that may be checked
             # when originating the commands
@@ -271,7 +270,7 @@ class Commander(BaseProtocol):
             instructions: list[Instruction],
             past_uuids: dict[str, Instruction],
     ) -> list[Effect]:
-        memory_log = MemoryLog(chatter.note_uuid, cls.MEMORY_LOG_LABEL)
+        memory_log = MemoryLog(chatter.identification, cls.MEMORY_LOG_LABEL)
         changed_instructions = [
             instruction
             for instruction in instructions
@@ -299,9 +298,9 @@ class Commander(BaseProtocol):
         memory_log.output(f"DURATION UPDATE: {int((time() - start) * 1000)}")
         auditor.computed_commands(instructions_with_command)
 
-        cls.store_audits(chatter.aws_s3, chatter.note_uuid, "audit_updated_commands", instructions_with_command)
+        cls.store_audits(chatter.aws_s3, chatter.identification, "audit_updated_commands", instructions_with_command)
 
-        if chatter.note_uuid == Constants.FAUX_NOTE_UUID:
+        if chatter.identification.note_uuid == Constants.FAUX_NOTE_UUID:
             # this is the case when running an evaluation against a recorded 'limited cache',
             # i.e. the patient and/or her data don't exist, something that may be checked
             # when editing the commands
@@ -355,11 +354,16 @@ class Commander(BaseProtocol):
         return result
 
     @classmethod
-    def store_audits(cls, aws_s3: AwsS3Credentials, note_uuid: str, label: str, instructions: list[Instruction]) -> None:
+    def store_audits(cls, aws_s3: AwsS3Credentials, identification: IdentificationParameters, label: str, instructions: list[Instruction]) -> None:
         client_s3 = AwsS3(aws_s3)
         if client_s3.is_ready():
-            cached = CachedDiscussion.get_discussion(note_uuid)
-            log_path = f"{cached.creation_day()}/partials/{note_uuid}/{cached.count - 1:02d}/{label}.log"
+            cached = CachedDiscussion.get_discussion(identification.note_uuid)
+            log_path = (f"{identification.canvas_instance}/"
+                        f"{cached.creation_day()}/"
+                        f"partials/"
+                        f"{identification.note_uuid}/"
+                        f"{cached.count - 1:02d}/"
+                        f"{label}.log")
             content = []
             for instruction in instructions:
                 content.append(f"--- {instruction.instruction} ({instruction.uuid}) ---")

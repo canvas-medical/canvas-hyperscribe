@@ -6,6 +6,7 @@ from hyperscribe.commands.base import Base
 from hyperscribe.commands.reason_for_visit import ReasonForVisit
 from hyperscribe.handlers.limited_cache import LimitedCache
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.instruction_with_command import InstructionWithCommand
 from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.settings import Settings
@@ -22,7 +23,13 @@ def helper_instance(structured_rfv: bool = False) -> ReasonForVisit:
         structured_rfv=structured_rfv,
     )
     cache = LimitedCache("patientUuid", {})
-    return ReasonForVisit(settings, cache, "patientUuid", "noteUuid", "providerUuid")
+    identification = IdentificationParameters(
+        patient_uuid="patientUuid",
+        note_uuid="noteUuid",
+        provider_uuid="providerUuid",
+        canvas_instance="canvasInstance",
+    )
+    return ReasonForVisit(settings, cache, identification)
 
 
 def test_class():

@@ -22,7 +22,7 @@ class HistoryOfPresentIllness(Base):
     def command_from_json(self, instruction: InstructionWithParameters, chatter: LlmBase) -> InstructionWithCommand | None:
         return InstructionWithCommand.add_command(instruction, HistoryOfPresentIllnessCommand(
             narrative=instruction.parameters["narrative"],
-            note_uuid=self.note_uuid,
+            note_uuid=self.identification.note_uuid,
         ))
 
     def command_parameters(self) -> dict:

@@ -5,6 +5,7 @@ from canvas_sdk.v1.data import PracticeLocation, PracticeLocationSetting, Staff
 
 from hyperscribe.commands.base import Base
 from hyperscribe.handlers.limited_cache import LimitedCache
+from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
@@ -20,7 +21,13 @@ def helper_instance() -> Base:
         structured_rfv=False,
     )
     cache = LimitedCache("patientUuid", {})
-    return Base(settings, cache, "patientUuid", "noteUuid", "providerUuid")
+    identification = IdentificationParameters(
+        patient_uuid="patientUuid",
+        note_uuid="noteUuid",
+        provider_uuid="providerUuid",
+        canvas_instance="canvasInstance",
+    )
+    return Base(settings, cache, identification)
 
 
 def test___init__():
@@ -33,11 +40,15 @@ def test___init__():
         structured_rfv=False,
     )
     cache = LimitedCache("patientUuid", {})
-    tested = Base(settings, cache, "patientUuid", "noteUuid", "providerUuid")
+    identification = IdentificationParameters(
+        patient_uuid="patientUuid",
+        note_uuid="noteUuid",
+        provider_uuid="providerUuid",
+        canvas_instance="canvasInstance",
+    )
+    tested = Base(settings, cache, identification)
     assert tested.settings == settings
-    assert tested.patient_uuid == "patientUuid"
-    assert tested.note_uuid == "noteUuid"
-    assert tested.provider_uuid == "providerUuid"
+    assert tested.identification == identification
     assert tested.cache == cache
 
 

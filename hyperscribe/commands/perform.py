@@ -25,7 +25,7 @@ class Perform(Base):
         result = PerformCommand(
             cpt_code="",
             notes=instruction.parameters["comment"],
-            note_uuid=self.note_uuid,
+            note_uuid=self.identification.note_uuid,
         )
         # retrieve the procedure, or action, based on the keywords
         item = SelectorChat.procedure_from(

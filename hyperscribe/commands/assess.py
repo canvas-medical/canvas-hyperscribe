@@ -29,7 +29,7 @@ class Assess(Base):
             background=instruction.parameters["rationale"],
             status=Helper.enum_or_none(instruction.parameters["status"], AssessCommand.Status),
             narrative=instruction.parameters["assessment"],
-            note_uuid=self.note_uuid,
+            note_uuid=self.identification.note_uuid,
         ))
 
     def command_parameters(self) -> dict:

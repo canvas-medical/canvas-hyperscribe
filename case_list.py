@@ -1,4 +1,4 @@
-from evaluations.datastores.sqllite.store_cases import StoreCases
+from evaluations.datastores.store_cases import StoreCases
 
 
 class CaseList:

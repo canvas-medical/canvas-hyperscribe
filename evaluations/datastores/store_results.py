@@ -1,6 +1,6 @@
 from evaluations.datastores.postgres.store_results import StoreResults as StoreResultPostgres
-from evaluations.datastores.sqllite.store_cases import StoreCases
 from evaluations.datastores.sqllite.store_results import StoreResults as StoreResultsLite
+from evaluations.datastores.store_cases import StoreCases
 from evaluations.helper_evaluation import HelperEvaluation
 from evaluations.structures.evaluation_result import EvaluationResult
 from evaluations.structures.statistic_case_test import StatisticCaseTest

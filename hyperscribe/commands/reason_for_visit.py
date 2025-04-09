@@ -25,7 +25,7 @@ class ReasonForVisit(Base):
     def command_from_json(self, instruction: InstructionWithParameters, chatter: LlmBase) -> InstructionWithCommand | None:
         result = ReasonForVisitCommand(
             comment=instruction.parameters["reasonForVisit"],
-            note_uuid=self.note_uuid,
+            note_uuid=self.identification.note_uuid,
         )
         if "reasonForVisitIndex" in instruction.parameters:
             if 0 <= (idx := instruction.parameters["reasonForVisitIndex"]) < len(existing := self.cache.existing_reason_for_visits()):

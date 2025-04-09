@@ -70,7 +70,7 @@ def test_upsert(upsert, mock_datetime):
     tested.upsert(EvaluationCase(
         environment="theEnvironment",
         patient_uuid="thePatientUuid",
-        limited_cache="theLimitedCache",
+        limited_cache={"key": "theLimitedCache"},
         case_type="theType",
         case_group="theGroup",
         case_name="theCaseName",
@@ -82,7 +82,7 @@ def test_upsert(upsert, mock_datetime):
         "now": date_0,
         "environment": "theEnvironment",
         "patient": "thePatientUuid",
-        "cache": "theLimitedCache",
+        "cache": {"key": "theLimitedCache"},
         "type": "theType",
         "group": "theGroup",
         "description": "theDescription",
@@ -123,7 +123,7 @@ def test_get(select):
     expected = EvaluationCase(
         environment="",
         patient_uuid="",
-        limited_cache="{}",
+        limited_cache={},
         case_type="general",
         case_group="common",
         case_name="theCaseName",
@@ -137,7 +137,7 @@ def test_get(select):
     select.side_effect = [[{
         "environment": "theEnvironment",
         "patient_uuid": "thePatientUuid",
-        "limited_cache": "theLimitedCache",
+        "limited_cache": {"key": "theLimitedCache"},
         "case_type": "theType",
         "case_group": "theGroup",
         "case_name": "theCaseName",
@@ -147,7 +147,7 @@ def test_get(select):
     expected = EvaluationCase(
         environment="theEnvironment",
         patient_uuid="thePatientUuid",
-        limited_cache="theLimitedCache",
+        limited_cache={"key": "theLimitedCache"},
         case_type="theType",
         case_group="theGroup",
         case_name="theCaseName",

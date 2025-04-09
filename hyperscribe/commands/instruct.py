@@ -28,7 +28,7 @@ class Instruct(Base):
     def command_from_json(self, instruction: InstructionWithParameters, chatter: LlmBase) -> InstructionWithCommand | None:
         result = InstructCommand(
             comment=instruction.parameters["comment"],
-            note_uuid=self.note_uuid,
+            note_uuid=self.identification.note_uuid,
         )
         # retrieve existing instructions defined in Canvas Science
         expressions = instruction.parameters["keywords"].split(",")

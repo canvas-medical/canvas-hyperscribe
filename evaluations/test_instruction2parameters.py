@@ -22,8 +22,10 @@ def test_instruction2parameters(instruction2parameters, allowed_levels, audio_in
     instructions = Instruction.load_from_json(content["instructions"])
     expected = content["parameters"]
     for idx, instruction in enumerate(instructions):
-        _, response = audio_interpreter.create_sdk_command_parameters(instruction)
-        if (automated := response) != (reviewed := expected[idx]):
+        error_label = f"{instruction2parameters.stem} {instruction.instruction} - {idx:02d}"
+        response = audio_interpreter.create_sdk_command_parameters(instruction)
+        assert response is not None, error_label
+        if (automated := response.parameters) != (reviewed := expected[idx]):
             valid, differences = HelperEvaluation.json_nuanced_differences(
                 f"{instruction2parameters.stem}-instruction2parameters",
                 allowed_levels,
@@ -34,4 +36,4 @@ def test_instruction2parameters(instruction2parameters, allowed_levels, audio_in
                 request.node.user_properties.append(("llmExplanation", differences))
                 with capsys.disabled():
                     print(differences)
-            assert valid, f"{instruction2parameters.stem} {instruction.instruction} - {idx:02d}"
+            assert valid, error_label

@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Generator
 
-from psycopg2 import connect
+from psycopg import connect, sql as sqlist
 
 from evaluations.structures.evaluation_case import EvaluationCase
 from evaluations.structures.evaluation_result import EvaluationResult
@@ -18,10 +18,11 @@ class StoreResults:
     def __init__(self, credentials: PostgresCredentials):
         self.credentials = credentials
 
-    def insert(self, case: EvaluationCase, result: EvaluationResult) -> int:
-        sql = ('INSERT INTO "results" ("created","run_uuid","plugin_commit","case_type","case_group","case_name",'
-               '"test_name","milliseconds","passed","errors") '
-               "VALUES (%(now)s,%(uuid)s,%(commit)s,%(type)s,%(group)s,%(name)s,%(test)s,%(duration)s,%(passed)s,%(errors)s)")
+    def insert(self, case: EvaluationCase, result: EvaluationResult) -> None:
+        sql = sqlist.SQL("""
+INSERT INTO "results" ("created","run_uuid","plugin_commit","case_type","case_group","case_name","test_name","milliseconds","passed","errors")
+VALUES (%(now)s,%(uuid)s,%(commit)s,%(type)s,%(group)s,%(name)s,%(test)s,%(duration)s,%(passed)s,%(errors)s)
+""")
         values = {
             "now": datetime.now(),
             "uuid": result.run_uuid,
@@ -43,11 +44,9 @@ class StoreResults:
         ) as connection:
             with connection.cursor() as cursor:
                 cursor.execute(sql, values)
-                result = cursor.lastrowid or 0
                 connection.commit()
-        return result
 
-    def _select(self, sql: str, params: dict) -> Generator[dict, None, None]:
+    def _select(self, sql: sqlist.SQL, params: dict) -> Generator[dict, None, None]:
         with connect(
                 dbname=self.credentials.database,
                 host=self.credentials.host,
@@ -63,10 +62,12 @@ class StoreResults:
                 connection.commit()
 
     def statistics_per_test(self) -> list[StatisticTest]:
-        sql = ('SELECT "case_name","test_name",'
-               'SUM(CASE WHEN "passed"=True THEN 1 ELSE 0 END) AS "passed_count" '
-               'FROM "results" '
-               'GROUP BY "case_name","test_name"')
+        sql = sqlist.SQL("""
+SELECT "case_name","test_name",SUM(CASE WHEN "passed"=True THEN 1 ELSE 0 END) AS "passed_count"
+FROM "results"
+GROUP BY "case_name","test_name"
+ORDER BY 1, 2
+""")
         return [
             StatisticTest(
                 case_name=record['case_name'],
@@ -77,14 +78,17 @@ class StoreResults:
         ]
 
     def statistics_end2end(self) -> list[StatisticEnd2End]:
-        sql = ('SELECT "case_name",SUM("full_passed") AS "end2end",COUNT(distinct "run_uuid") AS "run_count" '
-               'FROM (SELECT '
-               ' "case_name", '
-               ' "run_uuid", '
-               ' (CASE WHEN SUM(CASE WHEN "passed"=True THEN 1 ELSE 0 END)=COUNT(1) THEN 1 ELSE 0 END) AS "full_passed" '
-               ' FROM "results" '
-               ' GROUP BY "case_name","run_uuid") '
-               'GROUP BY "case_name"')
+        sql = sqlist.SQL("""
+SELECT "case_name",SUM("full_passed") AS "end2end",COUNT(distinct "run_uuid") AS "run_count" 
+FROM (SELECT 
+ "case_name", 
+ "run_uuid", 
+ (CASE WHEN SUM(CASE WHEN "passed"=True THEN 1 ELSE 0 END)=COUNT(1) THEN 1 ELSE 0 END) AS "full_passed" 
+ FROM "results" 
+ GROUP BY "case_name","run_uuid") 
+GROUP BY "case_name"
+ORDER BY 1
+""")
         return [
             StatisticEnd2End(
                 case_name=record["case_name"],

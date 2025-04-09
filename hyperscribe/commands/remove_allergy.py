@@ -27,7 +27,7 @@ class RemoveAllergy(Base):
         return InstructionWithCommand.add_command(instruction, RemoveAllergyCommand(
             allergy_id=allergy_uuid,
             narrative=instruction.parameters["narrative"],
-            note_uuid=self.note_uuid,
+            note_uuid=self.identification.note_uuid,
         ))
 
     def command_parameters(self) -> dict:

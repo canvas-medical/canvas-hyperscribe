@@ -1,6 +1,5 @@
 import json
 from os import environ
-from pathlib import Path
 
 from canvas_sdk.v1.data import Note
 
@@ -10,6 +9,7 @@ from hyperscribe.handlers.constants import Constants as HyperscribeConstants
 from hyperscribe.handlers.helper import Helper
 from hyperscribe.handlers.memory_log import MemoryLog
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
+from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.settings import Settings
 
 
@@ -38,6 +38,25 @@ class HelperEvaluation:
         return str(note.provider.id)
 
     @classmethod
+    def get_canvas_instance(cls) -> str:
+        return environ.get(HyperscribeConstants.CUSTOMER_IDENTIFIER) or "CanvasInstance"
+
+    @classmethod
+    def json_schema_differences(cls) -> dict:
+        return {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "level": {"type": "string", "enum": Constants.DIFFERENCE_LEVELS},
+                    "difference": {"type": "string", "description": "description of the difference between the JSONs"},
+                },
+                "required": ["level", "difference"],
+            }
+        }
+
+    @classmethod
     def json_nuanced_differences(cls, case: str, accepted_levels: list[str], result_json: str, expected_json: str) -> tuple[bool, str]:
         system_prompt = [
             "The user will provides two JSON objects.",
@@ -45,7 +64,7 @@ class HelperEvaluation:
             "```json",
             json.dumps([
                 {
-                    "level": "/".join(Constants.DIFFERENCE_LEVELS),
+                    "level": f'one of: {",".join(Constants.DIFFERENCE_LEVELS)}',
                     "difference": "description of the difference between the JSONs",
                 }
             ]),
@@ -79,7 +98,7 @@ class HelperEvaluation:
             "```json",
             json.dumps([
                 {
-                    "level": "/".join(Constants.DIFFERENCE_LEVELS),
+                    "level": f'one of: {",".join(Constants.DIFFERENCE_LEVELS)}',
                     "difference": "description of the difference between the texts",
                 }
             ]),
@@ -102,16 +121,22 @@ class HelperEvaluation:
 
     @classmethod
     def nuanced_differences(cls, case: str, accepted_levels: list[str], system_prompt: list[str], user_prompt: list[str]) -> tuple[bool, str]:
-        conversation = Helper.chatter(cls.settings(), MemoryLog(HyperscribeConstants.FAUX_NOTE_UUID, case))
+        identification = IdentificationParameters(
+            patient_uuid=HyperscribeConstants.FAUX_PATIENT_UUID,
+            note_uuid=HyperscribeConstants.FAUX_NOTE_UUID,
+            provider_uuid=HyperscribeConstants.FAUX_PROVIDER_UUID,
+            canvas_instance=cls.get_canvas_instance(),
+        )
+        conversation = Helper.chatter(cls.settings(), MemoryLog(identification, case))
         conversation.set_system_prompt(system_prompt)
         conversation.set_user_prompt(user_prompt)
-        with (Path(__file__).parent / "schema_differences.json").open("r") as f:
-            chat = conversation.chat([json.load(f)])
-            if chat.has_error:
-                return False, f"encountered error: {chat.error}"
-            excluded_minor_differences = [
-                difference
-                for difference in chat.content
-                if difference["level"] not in accepted_levels
-            ]
-            return bool(excluded_minor_differences == []), json.dumps(chat.content, indent=1)
+        chat = conversation.chat([cls.json_schema_differences()])
+        if chat.has_error:
+            return False, f"encountered error: {chat.error}"
+
+        excluded_minor_differences = [
+            difference
+            for difference in chat.content[0]
+            if difference["level"] not in accepted_levels
+        ]
+        return bool(excluded_minor_differences == []), json.dumps(chat.content, indent=1)

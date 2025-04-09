@@ -1,15 +1,15 @@
 import json
 from argparse import ArgumentParser, Namespace
-from os import environ
 
 from evaluations.auditor_file import AuditorFile
 from evaluations.case_builders.builder_base import BuilderBase
 from evaluations.constants import Constants
-from evaluations.datastores.sqllite.store_cases import StoreCases
+from evaluations.datastores.store_cases import StoreCases
 from evaluations.helper_evaluation import HelperEvaluation
 from evaluations.structures.evaluation_case import EvaluationCase
 from hyperscribe.handlers.audio_interpreter import AudioInterpreter
 from hyperscribe.handlers.commander import Commander
+from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.line import Line
 
 
@@ -27,13 +27,13 @@ class BuilderFromTranscript(BuilderBase):
         return parser.parse_args()
 
     @classmethod
-    def _run(cls, parameters: Namespace, recorder: AuditorFile, note_uuid: str, provider_uuid: str) -> None:
-        limited_cache = cls._limited_cache_from(parameters, note_uuid)
+    def _run(cls, parameters: Namespace, recorder: AuditorFile, identification: IdentificationParameters) -> None:
+        limited_cache = cls._limited_cache_from(identification)
 
         StoreCases.upsert(EvaluationCase(
-            environment=environ.get(Constants.CANVAS_SDK_DB_HOST),
+            environment=identification.canvas_instance,
             patient_uuid=parameters.patient,
-            limited_cache=json.dumps(limited_cache.to_json()),
+            limited_cache=limited_cache.to_json(),
             case_name=parameters.case,
             case_group=parameters.group,
             case_type=parameters.type,
@@ -48,9 +48,7 @@ class BuilderFromTranscript(BuilderBase):
             HelperEvaluation.settings(),
             HelperEvaluation.aws_s3_credentials(),
             limited_cache,
-            parameters.patient,
-            note_uuid,
-            provider_uuid,
+            identification,
         )
 
         with parameters.transcript.open("r") as f:

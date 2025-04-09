@@ -35,11 +35,12 @@ def test_transcript2instructions(transcript2instructions, allowed_levels, audio_
     result.sort(key=lambda x: x.instruction)
 
     for actual, instruction in zip(result, expected):
+        error_label = f"{transcript2instructions.stem} {instruction.instruction}: information incorrect\n=>{instruction.information}<="
         if instruction.uuid:
-            assert actual.uuid == instruction.uuid
-        assert actual.instruction == instruction.instruction
-        assert actual.is_new == instruction.is_new
-        assert actual.is_updated == instruction.is_updated
+            assert actual.uuid == instruction.uuid, error_label
+        assert actual.instruction == instruction.instruction, error_label
+        assert actual.is_new == instruction.is_new, error_label
+        assert actual.is_updated == instruction.is_updated, error_label
 
         valid, differences = HelperEvaluation.text_nuanced_differences(
             f"{transcript2instructions.stem}-transcript2instructions",
@@ -51,4 +52,4 @@ def test_transcript2instructions(transcript2instructions, allowed_levels, audio_
             request.node.user_properties.append(("llmExplanation", differences))
             with capsys.disabled():
                 print(differences)
-        assert valid, f"{transcript2instructions.stem} {instruction.instruction}: information incorrect\n=>{instruction.information}<="
+        assert valid, error_label

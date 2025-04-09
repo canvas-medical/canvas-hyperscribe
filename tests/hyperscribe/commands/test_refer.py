@@ -8,6 +8,7 @@ from hyperscribe.commands.refer import Refer
 from hyperscribe.handlers.limited_cache import LimitedCache
 from hyperscribe.handlers.selector_chat import SelectorChat
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.instruction_with_command import InstructionWithCommand
 from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.settings import Settings
@@ -24,7 +25,13 @@ def helper_instance() -> Refer:
         structured_rfv=False,
     )
     cache = LimitedCache("patientUuid", {})
-    return Refer(settings, cache, "patientUuid", "noteUuid", "providerUuid")
+    identification = IdentificationParameters(
+        patient_uuid="patientUuid",
+        note_uuid="noteUuid",
+        provider_uuid="providerUuid",
+        canvas_instance="canvasInstance",
+    )
+    return Refer(settings, cache, identification)
 
 
 def test_class():

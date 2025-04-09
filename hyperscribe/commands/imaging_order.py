@@ -36,8 +36,8 @@ class ImagingOrder(Base):
 
     def command_from_json(self, instruction: InstructionWithParameters, chatter: LlmBase) -> InstructionWithCommand | None:
         result = ImagingOrderCommand(
-            note_uuid=self.note_uuid,
-            ordering_provider_key=self.provider_uuid,
+            note_uuid=self.identification.note_uuid,
+            ordering_provider_key=self.identification.provider_uuid,
             diagnosis_codes=[],
             comment=instruction.parameters["comment"],
             additional_details=instruction.parameters["noteToRadiologist"],

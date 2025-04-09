@@ -7,6 +7,7 @@ from hyperscribe.commands.base import Base
 from hyperscribe.commands.update_goal import UpdateGoal
 from hyperscribe.handlers.limited_cache import LimitedCache
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.instruction_with_command import InstructionWithCommand
 from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.settings import Settings
@@ -23,7 +24,13 @@ def helper_instance() -> UpdateGoal:
         structured_rfv=False,
     )
     cache = LimitedCache("patientUuid", {})
-    return UpdateGoal(settings, cache, "patientUuid", "noteUuid", "providerUuid")
+    identification = IdentificationParameters(
+        patient_uuid="patientUuid",
+        note_uuid="noteUuid",
+        provider_uuid="providerUuid",
+        canvas_instance="canvasInstance",
+    )
+    return UpdateGoal(settings, cache, identification)
 
 
 def test_class():

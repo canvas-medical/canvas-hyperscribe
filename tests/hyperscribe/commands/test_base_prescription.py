@@ -9,6 +9,7 @@ from hyperscribe.commands.base_prescription import BasePrescription
 from hyperscribe.handlers.canvas_science import CanvasScience
 from hyperscribe.handlers.limited_cache import LimitedCache
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.medication_detail import MedicationDetail
 from hyperscribe.structures.medication_detail_quantity import MedicationDetailQuantity
@@ -27,7 +28,13 @@ def helper_instance() -> BasePrescription:
         structured_rfv=False,
     )
     cache = LimitedCache("patientUuid", {})
-    return BasePrescription(settings, cache, "patientUuid", "noteUuid", "providerUuid")
+    identification = IdentificationParameters(
+        patient_uuid="patientUuid",
+        note_uuid="noteUuid",
+        provider_uuid="providerUuid",
+        canvas_instance="canvasInstance",
+    )
+    return BasePrescription(settings, cache, identification)
 
 
 def test_class():

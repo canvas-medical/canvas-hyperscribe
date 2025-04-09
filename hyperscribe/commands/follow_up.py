@@ -28,7 +28,7 @@ class FollowUp(Base):
 
     def command_from_json(self, instruction: InstructionWithParameters, chatter: LlmBase) -> InstructionWithCommand | None:
         result = FollowUpCommand(
-            note_uuid=self.note_uuid,
+            note_uuid=self.identification.note_uuid,
             structured=False,
             requested_date=Helper.str2date(instruction.parameters["date"]),
             reason_for_visit=instruction.parameters["reasonForVisit"],

@@ -2,7 +2,6 @@ from canvas_sdk.commands.base import _BaseCommand
 
 from hyperscribe.structures.instruction_with_command import InstructionWithCommand
 from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
-from tests.helper import is_dataclass
 
 
 def test_class():

@@ -31,7 +31,7 @@ class SurgeryHistory(Base):
         result = PastSurgicalHistoryCommand(
             approximate_date=Helper.str2date(instruction.parameters["approximateDate"]),
             comment=instruction.parameters["comment"],
-            note_uuid=self.note_uuid,
+            note_uuid=self.identification.note_uuid,
         )
         # retrieve existing family history conditions defined in Canvas Science
         expressions = instruction.parameters["keywords"].split(",")

@@ -150,10 +150,11 @@ Like previously, on the step `transcript2instructions`:
 
 #### Storing the cases and the run results
 
-When creating a `case` by running the [`case_builder.py`](../case_builder.py) script, a record is inserted/updated in the `cases` table of
-the [evaluation_cases.db](./evaluation_cases.db) local SQLite database, part of the repository.
+When creating a `case` by running the [`case_builder.py`](../case_builder.py) script, a file created/updated in the [cases](datastores/cases)
+directory, part of the repository.
 
-This table stores the meta information related to the `case`, namely: the group, the type, the environment, the patient uuid, the limited cache.
+This directory stores the meta information related to the `case`, namely: the group, the type, the environment, the patient uuid.
+The limited cache in stored in the subdirectory [limited_caches](datastores/cases/limited_caches).
 
 *ATTENTION* The limited cache will be used when running the tests if the `--patient-uuid` is not provided.
 
@@ -209,4 +210,4 @@ A set of evaluation tests (or `case`) can be deleted using:
 uv  run python case_builder.py --case the_case --delete
 ```
 
-The record related in the `cases` table of the [evaluation_cases.db](./evaluation_cases.db) local SQLite database will be removed.
+The files related to the `case` in the directory [cases](datastores/cases) will be removed.

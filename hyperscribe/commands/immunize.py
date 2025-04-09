@@ -26,7 +26,7 @@ class Immunize(Base):
         return InstructionWithCommand.add_command(instruction, InstructCommand(
             instruction="Advice to read information",
             comment=f'{instruction.parameters["sig"]} - {instruction.parameters["immunize"]}',
-            note_uuid=self.note_uuid,
+            note_uuid=self.identification.note_uuid,
         ))
 
     def command_parameters(self) -> dict:

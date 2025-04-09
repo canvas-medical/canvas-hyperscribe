@@ -1,6 +1,6 @@
 from unittest.mock import patch, call
 
-from evaluations.datastores.sqllite.store_cases import StoreCases
+from evaluations.datastores.store_cases import StoreCases
 from evaluations.datastores.store_results import StoreResults
 from evaluations.helper_evaluation import HelperEvaluation
 from evaluations.structures.evaluation_result import EvaluationResult

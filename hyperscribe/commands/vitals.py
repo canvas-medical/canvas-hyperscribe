@@ -64,7 +64,7 @@ class Vitals(Base):
                 "respiration_rate",
                 instruction.parameters["respirationRate"]["beatPerMinute"],
             ),
-            note_uuid=self.note_uuid,
+            note_uuid=self.identification.note_uuid,
         ))
 
     def command_parameters(self) -> dict:

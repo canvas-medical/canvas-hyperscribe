@@ -1,6 +1,5 @@
 from hyperscribe.structures.instruction import Instruction
 from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
-from tests.helper import is_dataclass
 
 
 def test_class():
@@ -28,4 +27,3 @@ def test_add_parameters():
         parameters={"key": "value"},
     )
     assert result == expected
-

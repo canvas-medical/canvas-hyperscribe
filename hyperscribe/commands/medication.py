@@ -27,7 +27,7 @@ class Medication(Base):
     def command_from_json(self, instruction: InstructionWithParameters, chatter: LlmBase) -> InstructionWithCommand | None:
         result = MedicationStatementCommand(
             sig=instruction.parameters["sig"],
-            note_uuid=self.note_uuid,
+            note_uuid=self.identification.note_uuid,
         )
         # retrieve existing medications defined in Canvas Science
         expressions = instruction.parameters["keywords"].split(",")

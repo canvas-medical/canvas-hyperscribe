@@ -1,6 +1,8 @@
 from datetime import datetime, timezone
 from unittest.mock import patch, MagicMock, call
 
+from psycopg import sql as sqlist
+
 from evaluations.datastores.postgres.store_results import StoreResults
 from evaluations.structures.evaluation_case import EvaluationCase
 from evaluations.structures.evaluation_result import EvaluationResult
@@ -37,7 +39,6 @@ def test_insert(connect, mock_datetime):
     mock_datetime.now.side_effect = [date_0]
     connect.return_value.__enter__.side_effect = [mock_connection]
     mock_connection.cursor.return_value.__enter__.side_effect = [mock_cursor]
-    mock_cursor.lastrowid = 77
 
     credentials = PostgresCredentials(
         database="theDatabase",
@@ -47,7 +48,7 @@ def test_insert(connect, mock_datetime):
         port=1234,
     )
     tested = StoreResults(credentials)
-    result = tested.insert(
+    tested.insert(
         EvaluationCase(
             environment="theEnvironment",
             patient_uuid="thePatientUuid",
@@ -67,8 +68,6 @@ def test_insert(connect, mock_datetime):
             errors="theErrors",
         ),
     )
-    expected = 77
-    assert result == expected
     calls = [
         call(dbname='theDatabase', host='theHost', user='theUser', password='thePassword', port=1234),
         call().__enter__(),
@@ -84,11 +83,13 @@ def test_insert(connect, mock_datetime):
         call.cursor().__exit__(None, None, None),
     ]
     assert mock_connection.mock_calls == calls
+    sql = sqlist.SQL("""
+INSERT INTO "results" ("created","run_uuid","plugin_commit","case_type","case_group","case_name","test_name","milliseconds","passed","errors")
+VALUES (%(now)s,%(uuid)s,%(commit)s,%(type)s,%(group)s,%(name)s,%(test)s,%(duration)s,%(passed)s,%(errors)s)
+""")
     calls = [
         call.execute(
-            'INSERT INTO "results" ("created","run_uuid","plugin_commit","case_type","case_group","case_name","test_name",'
-            '"milliseconds","passed","errors") '
-            'VALUES (%(now)s,%(uuid)s,%(commit)s,%(type)s,%(group)s,%(name)s,%(test)s,%(duration)s,%(passed)s,%(errors)s)',
+            sql,
             {
                 'now': date_0,
                 'uuid': 'theRunUuid',
@@ -195,14 +196,13 @@ def test_statistics_per_test(select):
         StatisticTest(case_name='caseName3', test_name='testName3', passed_count=1),
     ]
     assert result == expected
-    calls = [
-        call(
-            'SELECT "case_name","test_name",SUM(CASE WHEN "passed"=True THEN 1 ELSE 0 END) AS "passed_count" '
-            'FROM "results" '
-            'GROUP BY "case_name","test_name"',
-            {},
-        ),
-    ]
+    sql = sqlist.SQL("""
+SELECT "case_name","test_name",SUM(CASE WHEN "passed"=True THEN 1 ELSE 0 END) AS "passed_count"
+FROM "results"
+GROUP BY "case_name","test_name"
+ORDER BY 1, 2
+""")
+    calls = [call(sql, {})]
     assert select.mock_calls == calls
     reset_mocks()
 
@@ -233,16 +233,17 @@ def test_statistics_end2end(select):
         StatisticEnd2End(case_name='caseName3', run_count=1, end2end=0),
     ]
     assert result == expected
-    calls = [
-        call(
-            'SELECT "case_name",SUM("full_passed") AS "end2end",COUNT(distinct "run_uuid") AS "run_count" '
-            'FROM (SELECT  "case_name",  "run_uuid",  '
-            '(CASE WHEN SUM(CASE WHEN "passed"=True THEN 1 ELSE 0 END)=COUNT(1) THEN 1 ELSE 0 END) AS "full_passed"  '
-            'FROM "results"  '
-            'GROUP BY "case_name","run_uuid") '
-            'GROUP BY "case_name"',
-            {},
-        ),
-    ]
+    sql = sqlist.SQL("""
+SELECT "case_name",SUM("full_passed") AS "end2end",COUNT(distinct "run_uuid") AS "run_count" 
+FROM (SELECT 
+ "case_name", 
+ "run_uuid", 
+ (CASE WHEN SUM(CASE WHEN "passed"=True THEN 1 ELSE 0 END)=COUNT(1) THEN 1 ELSE 0 END) AS "full_passed" 
+ FROM "results" 
+ GROUP BY "case_name","run_uuid") 
+GROUP BY "case_name"
+ORDER BY 1
+""")
+    calls = [call(sql, {})]
     assert select.mock_calls == calls
     reset_mocks()

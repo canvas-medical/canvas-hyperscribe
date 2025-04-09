@@ -42,8 +42,8 @@ class Prescription(BasePrescription):
             sig=instruction.parameters["sig"],
             days_supply=int(instruction.parameters["suppliedDays"]),
             substitutions=Helper.enum_or_none(instruction.parameters["substitution"], PrescribeCommand.Substitutions),
-            prescriber_id=self.provider_uuid,
-            note_uuid=self.note_uuid,
+            prescriber_id=self.identification.provider_uuid,
+            note_uuid=self.identification.note_uuid,
         )
         # identified the condition, if any
         condition = ""

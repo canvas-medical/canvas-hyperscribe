@@ -33,7 +33,7 @@ class MedicalHistory(Base):
             approximate_end_date=Helper.str2date(instruction.parameters["approximateEndDate"]),
             show_on_condition_list=True,
             comments=instruction.parameters["comments"],
-            note_uuid=self.note_uuid,
+            note_uuid=self.identification.note_uuid,
         )
         # retrieve existing medical history conditions defined in Canvas Science
         expressions = instruction.parameters["keywords"].split(",")

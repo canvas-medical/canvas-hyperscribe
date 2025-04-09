@@ -39,10 +39,10 @@ class LabOrder(Base):
 
     def command_from_json(self, instruction: InstructionWithParameters, chatter: LlmBase) -> InstructionWithCommand | None:
         result = LabOrderCommand(
-            ordering_provider_key=self.provider_uuid,
+            ordering_provider_key=self.identification.provider_uuid,
             fasting_required=instruction.parameters["fastingRequired"],
             comment=instruction.parameters["comment"][:127],  # <-- no more than 128 characters
-            note_uuid=self.note_uuid,
+            note_uuid=self.identification.note_uuid,
             diagnosis_codes=[],
             tests_order_codes=[],
         )

@@ -109,7 +109,7 @@ class Task(Base):
             title=instruction.parameters["title"],
             due_date=Helper.str2date(instruction.parameters["dueDate"]),
             comment=instruction.parameters["comment"],
-            note_uuid=self.note_uuid,
+            note_uuid=self.identification.note_uuid,
         )
         if instruction.parameters["assignTo"]:
             result.assign_to = self.select_staff(instruction, chatter, instruction.parameters["assignTo"], instruction.parameters["comment"])

@@ -1,7 +1,7 @@
 from argparse import ArgumentParser, Namespace
 
 from evaluations.auditor_file import AuditorFile
-from evaluations.datastores.sqllite.store_cases import StoreCases
+from evaluations.datastores.store_cases import StoreCases
 
 
 class BuilderDelete:

@@ -44,7 +44,7 @@ class Allergy(Base):
             severity=Helper.enum_or_none(instruction.parameters["severity"], AllergyCommand.Severity),
             narrative=instruction.parameters["reaction"],
             approximate_date=Helper.str2date(instruction.parameters["approximateDateOfOnset"]),
-            note_uuid=self.note_uuid,
+            note_uuid=self.identification.note_uuid,
         )
         if allergies:
             # retrieve the correct allergy

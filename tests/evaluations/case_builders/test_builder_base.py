@@ -10,6 +10,7 @@ from evaluations.auditor_file import AuditorFile
 from evaluations.case_builders.builder_base import BuilderBase
 from hyperscribe.handlers.commander import Commander
 from hyperscribe.handlers.limited_cache import LimitedCache
+from hyperscribe.structures.identification_parameters import IdentificationParameters
 
 
 def test_validate_files():
@@ -66,7 +67,15 @@ def test__parameters():
 def test__run():
     tested = BuilderBase
     with pytest.raises(NotImplementedError):
-        _ = tested._run(Namespace(), AuditorFile("theCase"), "noteUuid", "providerUuid")
+        _ = tested._run(
+            Namespace(),
+            AuditorFile("theCase"),
+            IdentificationParameters(
+                patient_uuid="patientUuid",
+                note_uuid="noteUuid",
+                provider_uuid="providerUuid",
+                canvas_instance="canvasInstance",
+            ))
 
 
 @patch("evaluations.case_builders.builder_base.datetime", wraps=datetime)
@@ -139,6 +148,7 @@ def test_run(
         helper.aws_s3_credentials.side_effect = ["awsS3CredentialsInstance1"]
         helper.get_note_uuid.side_effect = ["noteUuid"]
         helper.get_provider_uuid.side_effect = ["providerUuid"]
+        helper.get_canvas_instance.side_effect = ["canvasInstance"]
         auditor_file.return_value.is_ready.side_effect = [True]
         aws_s3.return_value.is_ready.side_effect = [aws_is_ready]
         memory_log.end_session.side_effect = ["flushedMemoryLog"]
@@ -149,17 +159,25 @@ def test_run(
 
         exp_out = []
         if aws_is_ready:
-            exp_out.append('Logs saved in: 2025-03-10/case-builder-theCase.log')
+            exp_out.append('Logs saved in: case-builder/2025-03-10/theCase.log')
         exp_out.append('')
         assert capsys.readouterr().out == "\n".join(exp_out)
-
-        calls = [call(arguments, auditor_file.return_value, "noteUuid", "providerUuid")]
+        calls = [call(
+            arguments,
+            auditor_file.return_value,
+            IdentificationParameters(
+                patient_uuid='patientUuid',
+                note_uuid='noteUuid',
+                provider_uuid='providerUuid',
+                canvas_instance="canvasInstance",
+            ))]
         assert run.mock_calls == calls
         calls = [call()]
         assert parameters.mock_calls == calls
         calls = [
             call.get_note_uuid('patientUuid'),
             call.get_provider_uuid('patientUuid'),
+            call.get_canvas_instance(),
             call.aws_s3_credentials(),
         ]
         assert helper.mock_calls == calls
@@ -175,7 +193,7 @@ def test_run(
         ]
         if aws_is_ready:
             calls.append(call().upload_text_to_s3(
-                '2025-03-10/case-builder-theCase.log',
+                'case-builder/2025-03-10/theCase.log',
                 "flushedMemoryLog"),
             )
         assert aws_s3.mock_calls == calls
@@ -197,6 +215,7 @@ def test_run(
         helper.aws_s3_credentials.side_effect = ["awsS3CredentialsInstance1"]
         helper.get_note_uuid.side_effect = ["noteUuid"]
         helper.get_provider_uuid.side_effect = ["providerUuid"]
+        helper.get_canvas_instance.side_effect = ["canvasInstance"]
         auditor_file.return_value.is_ready.side_effect = [True]
         aws_s3.return_value.is_ready.side_effect = [aws_is_ready]
         memory_log.end_session.side_effect = ["flushedMemoryLog"]
@@ -207,15 +226,25 @@ def test_run(
 
         exp_out = []
         if aws_is_ready:
-            exp_out.append('Logs saved in: 2025-03-10/case-builder-theCase.log')
+            exp_out.append('Logs saved in: case-builder/2025-03-10/theCase.log')
         exp_out.append('')
         assert capsys.readouterr().out == "\n".join(exp_out)
 
-        calls = [call(arguments, auditor_file.return_value, "_NoteUuid", "_ProviderUuid")]
+        calls = [call(
+            arguments,
+            auditor_file.return_value,
+            IdentificationParameters(
+                patient_uuid='_PatientUuid',
+                note_uuid='_NoteUuid',
+                provider_uuid='_ProviderUuid',
+                canvas_instance="canvasInstance",
+            ),
+        )]
         assert run.mock_calls == calls
         calls = [call()]
         assert parameters.mock_calls == calls
         calls = [
+            call.get_canvas_instance(),
             call.aws_s3_credentials(),
         ]
         assert helper.mock_calls == calls
@@ -231,7 +260,7 @@ def test_run(
         ]
         if aws_is_ready:
             calls.append(call().upload_text_to_s3(
-                '2025-03-10/case-builder-theCase.log',
+                'case-builder/2025-03-10/theCase.log',
                 "flushedMemoryLog"),
             )
         assert aws_s3.mock_calls == calls
@@ -256,7 +285,12 @@ def test__limited_cache_from(command_db, existing_commands_to_coded_items):
     tested = BuilderBase
     command_db.filter.return_value.order_by.side_effect = ["QuerySetCommands"]
     existing_commands_to_coded_items.side_effect = [{}]
-    result = tested._limited_cache_from(Namespace(patient="thePatient"), "theNoteUuid")
+    result = tested._limited_cache_from(IdentificationParameters(
+        patient_uuid="thePatient",
+        note_uuid="theNoteUuid",
+        provider_uuid="theProviderUuid",
+        canvas_instance="theCanvasInstance",
+    ))
     assert isinstance(result, LimitedCache)
     assert result.patient_uuid == "thePatient"
     assert result._staged_commands == {}

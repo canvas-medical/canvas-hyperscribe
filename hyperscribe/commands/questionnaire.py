@@ -20,7 +20,7 @@ class Questionnaire(BaseQuestionnaire):
         return InstructionWithCommand.add_command(instruction, QuestionnaireCommand(
             questionnaire_id=questionnaire_uuid,
             result=instruction.parameters["result"],
-            note_uuid=self.note_uuid,
+            note_uuid=self.identification.note_uuid,
         ))
 
     def command_parameters(self) -> dict:

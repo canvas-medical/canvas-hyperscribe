@@ -6,7 +6,7 @@ import requests
 from canvas_generated.messages.effects_pb2 import Effect
 from canvas_generated.messages.events_pb2 import Event as EventRequest
 from canvas_sdk.events import Event
-from canvas_sdk.v1.data import TaskComment, Note, Command
+from canvas_sdk.v1.data import TaskComment, Note, Command, TaskLabel
 from logger import log
 
 from hyperscribe.handlers.cached_discussion import CachedDiscussion
@@ -14,6 +14,7 @@ from hyperscribe.handlers.commander import Audio, Commander
 from hyperscribe.handlers.implemented_commands import ImplementedCommands
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.instruction import Instruction
 from hyperscribe.structures.instruction_with_command import InstructionWithCommand
 from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
@@ -91,6 +92,16 @@ def test_compute(compute_audio, task_comment_db, note_db, info, memory_log):
         mock_comment.reset_mock()
         mock_note.reset_mock()
 
+    task_labels = [
+        TaskLabel(name="label1"),
+        TaskLabel(name="label2"),
+    ]
+    identification = IdentificationParameters(
+        patient_uuid='patientUuid',
+        note_uuid='noteUuid',
+        provider_uuid='providerUuid',
+        canvas_instance='canvas-instance',
+    )
     secrets = {
         "VendorTextLLM": "theTextVendor",
         "VendorAudioLLM": "theAudioVendor",
@@ -102,7 +113,7 @@ def test_compute(compute_audio, task_comment_db, note_db, info, memory_log):
     compute_audio.side_effect = []
     mock_comment.id = "commentUuid"
     mock_comment.task.id = "taskUuid"
-    mock_comment.task.labels.all.side_effect = [["label1", "label2"]]
+    mock_comment.task.labels.all.side_effect = [task_labels]
     mock_comment.task.labels.filter.return_value.first.side_effect = [""]
     task_comment_db.get.side_effect = [mock_comment]
 
@@ -113,7 +124,7 @@ def test_compute(compute_audio, task_comment_db, note_db, info, memory_log):
     calls = [call.get(id='taskUuid')]
     assert task_comment_db.mock_calls == calls
     assert note_db.mock_calls == []
-    calls = [call("--> comment: commentUuid (task: taskUuid, labels: ['label1', 'label2'])")]
+    calls = [call("--> comment: commentUuid (task: taskUuid, labels: label1/label2)")]
     assert info.mock_calls == calls
     assert memory_log.mock_calls == []
     calls = [
@@ -131,7 +142,7 @@ def test_compute(compute_audio, task_comment_db, note_db, info, memory_log):
     mock_comment.id = "commentUuid"
     mock_comment.body = json.dumps({"chunk_index": 1, "note_id": "noteUuid"})
     mock_comment.task.id = "taskUuid"
-    mock_comment.task.labels.all.side_effect = [["label1", "label2"]]
+    mock_comment.task.labels.all.side_effect = [task_labels]
     mock_comment.task.labels.filter.return_value.first.side_effect = ["aTask"]
     task_comment_db.get.side_effect = [mock_comment]
 
@@ -154,17 +165,17 @@ def test_compute(compute_audio, task_comment_db, note_db, info, memory_log):
     ]
     assert result == expected
 
-    calls = [call('patientUuid', 'noteUuid', 'providerUuid', 1)]
+    calls = [call(identification, 1)]
     assert compute_audio.mock_calls == calls
     calls = [call.get(id='taskUuid')]
     assert task_comment_db.mock_calls == calls
     calls = [
-        call("--> comment: commentUuid (task: taskUuid, labels: ['label1', 'label2'])"),
+        call("--> comment: commentUuid (task: taskUuid, labels: label1/label2)"),
         call("audio was present => go to next iteration (2)"),
     ]
     assert info.mock_calls == calls
     calls = [
-        call('noteUuid', 'main'),
+        call(identification, 'main'),
         call().output('Text: theTextVendor - Audio: theAudioVendor'),
         call.end_session('noteUuid'),
     ]
@@ -182,7 +193,7 @@ def test_compute(compute_audio, task_comment_db, note_db, info, memory_log):
     mock_comment.id = "commentUuid"
     mock_comment.body = json.dumps({"chunk_index": 1, "note_id": "noteUuid"})
     mock_comment.task.id = "taskUuid"
-    mock_comment.task.labels.all.side_effect = [["label1", "label2"]]
+    mock_comment.task.labels.all.side_effect = [task_labels]
     mock_comment.task.labels.filter.return_value.first.side_effect = ["aTask"]
     task_comment_db.get.side_effect = [mock_comment]
 
@@ -199,17 +210,17 @@ def test_compute(compute_audio, task_comment_db, note_db, info, memory_log):
     ]
     assert result == expected
 
-    calls = [call('patientUuid', 'noteUuid', 'providerUuid', 1)]
+    calls = [call(identification, 1)]
     assert compute_audio.mock_calls == calls
     calls = [call.get(id='taskUuid')]
     assert task_comment_db.mock_calls == calls
     calls = [
-        call("--> comment: commentUuid (task: taskUuid, labels: ['label1', 'label2'])"),
+        call("--> comment: commentUuid (task: taskUuid, labels: label1/label2)"),
         call("audio was NOT present => stop the task"),
     ]
     assert info.mock_calls == calls
     calls = [
-        call('noteUuid', 'main'),
+        call(identification, 'main'),
         call().output('Text: theTextVendor - Audio: theAudioVendor'),
         call.end_session('noteUuid'),
     ]
@@ -310,7 +321,12 @@ def test_compute_audio(
         "AwsBucket": "theBucket",
     }
     event = Event(EventRequest(target="taskUuid"))
-
+    identification = IdentificationParameters(
+        patient_uuid="patientUuid",
+        note_uuid="noteUuid",
+        provider_uuid="providerUuid",
+        canvas_instance="canvasInstance",
+    )
     # no more audio
     retrieve_audios.side_effect = [[]]
     audio2commands.side_effect = []
@@ -324,12 +340,12 @@ def test_compute_audio(
     aws_s3.return_value.is_ready.side_effect = []
 
     tested = Commander(event, secrets)
-    result = tested.compute_audio("patientUuid", "noteUuid", "providerUuid", 3)
+    result = tested.compute_audio(identification, 3)
     expected = (False, [])
     assert result == expected
 
     calls = [
-        call('noteUuid', 'main'),
+        call(identification, 'main'),
         call().output('--> audio chunks: 0'),
     ]
     assert memory_log.mock_calls == calls
@@ -432,7 +448,7 @@ def test_compute_audio(
         aws_s3.return_value.is_ready.side_effect = [is_ready]
         memory_log.end_session.side_effect = ["flushedMemoryLog"]
         tested = Commander(event, secrets)
-        result = tested.compute_audio("patientUuid", "noteUuid", "providerUuid", 3)
+        result = tested.compute_audio(identification, 3)
         expected = (True, exp_effects)
         assert result == expected
 
@@ -440,7 +456,7 @@ def test_compute_audio(
         assert discussion.previous_instructions == exp_instructions
 
         calls = [
-            call('noteUuid', 'main'),
+            call(identification, 'main'),
             call().output('--> audio chunks: 2'),
             call().output('<===  note: noteUuid ===>'),
             call().output('Structured RfV: True'),
@@ -458,7 +474,7 @@ def test_compute_audio(
             call().output('<=== END ===>'),
         ]
         if is_ready:
-            calls.append(call().output('--> log path: 2025-03-10/patientUuid-noteUuid/07.log'))
+            calls.append(call().output('--> log path: canvasInstance/2025-03-10/patientUuid-noteUuid/07.log'))
             calls.append(call.end_session('noteUuid'))
         assert memory_log.mock_calls == calls
         calls = [call('theAudioHost', 'patientUuid', 'noteUuid', 3)]
@@ -481,7 +497,7 @@ def test_compute_audio(
             call.get_discussion('noteUuid'),
         ]
         assert cached_discussion.mock_calls == calls
-        calls = [call(exp_settings, exp_aws_s3_credentials, "LimitedCacheInstance", "patientUuid", "noteUuid", "providerUuid")]
+        calls = [call(exp_settings, exp_aws_s3_credentials, "LimitedCacheInstance", identification)]
         assert audio_interpreter.mock_calls == calls
         calls = [call("patientUuid", "stagedCommands")]
         assert limited_cache.mock_calls == calls
@@ -491,7 +507,7 @@ def test_compute_audio(
             call().is_ready(),
         ]
         if is_ready:
-            calls.append(call().upload_text_to_s3('2025-03-10/patientUuid-noteUuid/07.log', "flushedMemoryLog"))
+            calls.append(call().upload_text_to_s3('canvasInstance/2025-03-10/patientUuid-noteUuid/07.log', "flushedMemoryLog"))
         assert aws_s3.mock_calls == calls
         reset_mocks()
 
@@ -526,19 +542,25 @@ def test_audio2commands(transcript2commands, memory_log):
             audits=["lineA"],
         ),
     ]
+    identification = IdentificationParameters(
+        patient_uuid="patientUuid",
+        note_uuid="noteUuid",
+        provider_uuid="providerUuid",
+        canvas_instance="canvasInstance",
+    )
     # all good
     transcript2commands.side_effect = ["resultTranscript2commands"]
     mock_chatter.combine_and_speaker_detection.side_effect = [
         JsonExtract(has_error=False, error="", content=transcript),
     ]
-    mock_chatter.note_uuid = "theNoteUuid"
+    mock_chatter.identification = identification
 
     result = tested.audio2commands(mock_auditor, audios, mock_chatter, previous)
     expected = "resultTranscript2commands"
     assert result == expected
 
     calls = [
-        call('theNoteUuid', 'main'),
+        call(identification, 'main'),
         call().output('--> transcript back and forth: 3'),
     ]
     assert memory_log.mock_calls == calls
@@ -591,7 +613,7 @@ def test_audio2commands(transcript2commands, memory_log):
     assert result == expected
 
     calls = [
-        call('theNoteUuid', 'main'),
+        call(identification, 'main'),
         call().output('--> transcript encountered: theError'),
     ]
     assert memory_log.mock_calls == calls
@@ -634,6 +656,12 @@ def test_transcript2commands(new_commands_from, update_commands_from, memory_log
             audits=["lineA"],
         ),
     ]
+    identification = IdentificationParameters(
+        patient_uuid="patientUuid",
+        note_uuid="noteUuid",
+        provider_uuid="providerUuid",
+        canvas_instance="canvasInstance",
+    )
     # all good
     new_commands_from.side_effect = [[Effect(type="LOG", payload="Log1"), Effect(type="LOG", payload="Log2")]]
     update_commands_from.side_effect = [[Effect(type="LOG", payload="Log3")]]
@@ -647,7 +675,7 @@ def test_transcript2commands(new_commands_from, update_commands_from, memory_log
              "audits": ["lineC"]},
         ],
     ]
-    mock_chatter.note_uuid = "theNoteUuid"
+    mock_chatter.identification = identification
 
     result = tested.transcript2commands(mock_auditor, transcript, mock_chatter, previous)
     expected = (
@@ -685,7 +713,7 @@ def test_transcript2commands(new_commands_from, update_commands_from, memory_log
     assert result == expected
 
     calls = [
-        call('theNoteUuid', 'main'),
+        call(identification, 'main'),
         call().output('--> instructions: 3'),
     ]
     assert memory_log.mock_calls == calls
@@ -753,6 +781,12 @@ def test_new_commands_from(time, memory_log, store_audits):
         for a_command in mock_commands:
             a_command.reset_mock()
 
+    identification = IdentificationParameters(
+        patient_uuid="patientUuid",
+        note_uuid="noteUuid",
+        provider_uuid="providerUuid",
+        canvas_instance="canvasInstance",
+    )
     instructions = [
         Instruction(uuid='uuidA', instruction='theInstructionA', information='theInformationA', is_new=False, is_updated=True, audits=["lineA"]),
         Instruction(uuid='uuidB', instruction='theInstructionB', information='theInformationB', is_new=True, is_updated=False, audits=["lineB"]),
@@ -826,7 +860,7 @@ def test_new_commands_from(time, memory_log, store_audits):
     time.side_effect = [111.110, 111.219]
     chatter.create_sdk_command_parameters.side_effect = []
     chatter.create_sdk_command_from.side_effect = []
-    chatter.note_uuid = "noteUuid"
+    chatter.identification = identification
     chatter.aws_s3 = "awsS3"
     for mock_command in mock_commands:
         mock_command.originate.side_effect = []
@@ -834,13 +868,13 @@ def test_new_commands_from(time, memory_log, store_audits):
     result = tested.new_commands_from(auditor, chatter, instructions, past_uuids)
     assert result == []
     calls = [
-        call('noteUuid', 'main'),
+        call(identification, 'main'),
         call().output('--> new instructions: 0'),
         call().output('--> new commands: 0'),
         call().output('DURATION NEW: 108'),
     ]
     assert memory_log.mock_calls == calls
-    calls = [call("awsS3", "noteUuid", "audit_new_commands", [])]
+    calls = [call("awsS3", identification, "audit_new_commands", [])]
     assert store_audits.mock_calls == calls
     calls = [call(), call()]
     assert time.mock_calls == calls
@@ -862,7 +896,13 @@ def test_new_commands_from(time, memory_log, store_audits):
         ("noteUuid", [Effect(type="LOG", payload="Log0"), Effect(type="LOG", payload="Log1")], [call.originate()]),
     ]
     for note_uuid, expected, command_calls in tests:
-        chatter.note_uuid = note_uuid
+        identification = IdentificationParameters(
+            patient_uuid="patientUuid",
+            note_uuid=note_uuid,
+            provider_uuid="providerUuid",
+            canvas_instance="canvasInstance",
+        )
+        chatter.identification = identification
         past_uuids = {
             "uuidA": instructions[0],
         }
@@ -875,7 +915,7 @@ def test_new_commands_from(time, memory_log, store_audits):
         result = tested.new_commands_from(auditor, chatter, instructions, past_uuids)
         assert result == expected
         calls = [
-            call(note_uuid, 'main'),
+            call(identification, 'main'),
             call().output('--> new instructions: 4'),
             call().output('--> new commands: 3'),
             call().output('DURATION NEW: 246'),
@@ -883,7 +923,7 @@ def test_new_commands_from(time, memory_log, store_audits):
         assert memory_log.mock_calls == calls
         calls = [call(
             "awsS3",
-            note_uuid,
+            identification,
             "audit_new_commands",
             [
                 instructions_with_commands[0],
@@ -944,6 +984,12 @@ def test_update_commands_from(time, memory_log, store_audits):
         for a_command in mock_commands:
             a_command.reset_mock()
 
+    identification = IdentificationParameters(
+        patient_uuid="patientUuid",
+        note_uuid="noteUuid",
+        provider_uuid="providerUuid",
+        canvas_instance="canvasInstance",
+    )
     instructions = [
         Instruction(uuid='uuidA', instruction='theInstructionX', information='theInformationA', is_new=False, is_updated=True, audits=["lineA"]),
         Instruction(uuid='uuidB', instruction='theInstructionX', information='theInformationB', is_new=False, is_updated=True, audits=["lineB"]),
@@ -1005,8 +1051,7 @@ def test_update_commands_from(time, memory_log, store_audits):
         ),
         None,
     ]
-    chatter.note_uuid = "noteUuid"
-    chatter.patient_id = "patientUuid"
+    chatter.identification = identification
     chatter.aws_s3 = "awsS3"
 
     tested = Commander
@@ -1021,13 +1066,13 @@ def test_update_commands_from(time, memory_log, store_audits):
     result = tested.update_commands_from(auditor, chatter, instructions, past_uuids)
     assert result == []
     calls = [
-        call('noteUuid', 'main'),
+        call(identification, 'main'),
         call().output('--> updated instructions: 0'),
         call().output('--> updated commands: 0'),
         call().output('DURATION UPDATE: 246'),
     ]
     assert memory_log.mock_calls == calls
-    calls = [call("awsS3", "noteUuid", "audit_updated_commands", [])]
+    calls = [call("awsS3", identification, "audit_updated_commands", [])]
     assert store_audits.mock_calls == calls
     calls = [call(), call()]
     assert time.mock_calls == calls
@@ -1049,7 +1094,13 @@ def test_update_commands_from(time, memory_log, store_audits):
         ("noteUuid", [Effect(type="LOG", payload="Log0"), Effect(type="LOG", payload="Log1")], [call.edit()]),
     ]
     for note_uuid, expected, command_calls in tests:
-        chatter.note_uuid = note_uuid
+        identification = IdentificationParameters(
+            patient_uuid="patientUuid",
+            note_uuid=note_uuid,
+            provider_uuid="providerUuid",
+            canvas_instance="canvasInstance",
+        )
+        chatter.identification = identification
         past_uuids = {
             "uuidA": Instruction(uuid='uuidA', instruction='theInstructionX', information='changedA', is_new=False, is_updated=True,
                                  audits=["lineA"]),
@@ -1071,7 +1122,7 @@ def test_update_commands_from(time, memory_log, store_audits):
         result = tested.update_commands_from(auditor, chatter, instructions, past_uuids)
         assert result == expected
         calls = [
-            call(note_uuid, 'main'),
+            call(identification, 'main'),
             call().output('--> updated instructions: 4'),
             call().output('--> updated commands: 3'),
             call().output('DURATION UPDATE: 340'),
@@ -1079,7 +1130,7 @@ def test_update_commands_from(time, memory_log, store_audits):
         assert memory_log.mock_calls == calls
         calls = [call(
             "awsS3",
-            note_uuid,
+            identification,
             "audit_updated_commands",
             [
                 instructions_with_commands[0],
@@ -1306,12 +1357,17 @@ def test_store_audits(aws_s3, get_discussion):
             audits=["lineD", "lineE", "lineF"],
         ),
     ]
-
+    identification = IdentificationParameters(
+        patient_uuid="thePatientUuid",
+        note_uuid="theNoteUuid",
+        provider_uuid="theProviderUuid",
+        canvas_instance="theCanvasInstance",
+    )
     tested = Commander
     #
     aws_s3.return_value.is_ready.side_effect = [False]
     get_discussion.side_effect = []
-    tested.store_audits(credentials, "theNoteUuid", "theLabel", instructions)
+    tested.store_audits(credentials, identification, "theLabel", instructions)
     calls = [
         call(credentials),
         call().is_ready(),
@@ -1327,12 +1383,12 @@ def test_store_audits(aws_s3, get_discussion):
 
     aws_s3.return_value.is_ready.side_effect = [True]
     get_discussion.side_effect = [cached]
-    tested.store_audits(credentials, "theNoteUuid", "theLabel", instructions)
+    tested.store_audits(credentials, identification, "theLabel", instructions)
     calls = [
         call(credentials),
         call().is_ready(),
         call().upload_text_to_s3(
-            '2025-04-11/partials/theNoteUuid/06/theLabel.log',
+            'theCanvasInstance/2025-04-11/partials/theNoteUuid/06/theLabel.log',
             '--- theInstructionA (uuidA) ---\n'
             'lineA\n'
             'lineB\n'

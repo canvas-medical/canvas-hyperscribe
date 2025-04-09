@@ -7,6 +7,7 @@ from hyperscribe.handlers.implemented_commands import ImplementedCommands
 from hyperscribe.handlers.limited_cache import LimitedCache
 from hyperscribe.handlers.memory_log import MemoryLog
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
+from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.instruction import Instruction
 from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.json_extract import JsonExtract
@@ -38,7 +39,13 @@ def helper_instance(mocks) -> tuple[AudioInterpreter, Settings, AwsS3Credentials
         command_list.side_effect = [mocks]
 
         cache = LimitedCache("patientUuid", {})
-        instance = AudioInterpreter(settings, aws_s3, cache, "patientUuid", "noteUuid", "providerUuid")
+        identification = IdentificationParameters(
+            patient_uuid="patientUuid",
+            note_uuid="noteUuid",
+            provider_uuid="providerUuid",
+            canvas_instance="canvasInstance",
+        )
+        instance = AudioInterpreter(settings, aws_s3, cache, identification)
         calls = [call()]
         assert command_list.mock_calls == calls
         reset_mocks()
@@ -77,18 +84,22 @@ def test___init__(command_list):
     command_list.side_effect = [mocks]
 
     cache = LimitedCache("patientUuid", {})
-
-    instance = AudioInterpreter(settings, aws_s3, cache, "patientUuid", "noteUuid", "providerUuid")
+    identification = IdentificationParameters(
+        patient_uuid="patientUuid",
+        note_uuid="noteUuid",
+        provider_uuid="providerUuid",
+        canvas_instance="canvasInstance",
+    )
+    instance = AudioInterpreter(settings, aws_s3, cache, identification)
     assert instance.settings == settings
     assert instance.aws_s3 == aws_s3
-    assert instance.patient_id == "patientUuid"
-    assert instance.note_uuid == "noteUuid"
+    assert instance.identification == identification
 
     calls = [call()]
     assert command_list.mock_calls == calls
     for mock in mocks:
         calls = [
-            call(settings, cache, 'patientUuid', 'noteUuid', 'providerUuid'),
+            call(settings, cache, identification),
             call().__bool__(),
             call().is_available(),
         ]
@@ -127,7 +138,7 @@ def test_instruction_definitions():
     assert result == expected
     for idx, mock in enumerate(mocks):
         calls = [
-            call(settings, cache, 'patientUuid', 'noteUuid', 'providerUuid'),
+            call(settings, cache, tested.identification),
             call().__bool__(),
             call().is_available(),
         ]
@@ -163,7 +174,7 @@ def test_instruction_constraints():
     assert result == expected
     for idx, mock in enumerate(mocks):
         calls = [
-            call(settings, cache, 'patientUuid', 'noteUuid', 'providerUuid'),
+            call(settings, cache, tested.identification),
             call().__bool__(),
             call().is_available(),
         ]
@@ -206,7 +217,7 @@ def test_command_structures():
     assert result == expected
     for idx, mock in enumerate(mocks):
         calls = [
-            call(settings, cache, 'patientUuid', 'noteUuid', 'providerUuid'),
+            call(settings, cache, tested.identification),
             call().__bool__(),
             call().is_available(),
         ]
@@ -330,7 +341,7 @@ def test_combine_and_speaker_detection(audio2texter, memory_log):
         call().chat(schemas),
     ]
     assert audio2texter.mock_calls == calls
-    calls = [call("noteUuid", "audio2transcript", aws_credentials)]
+    calls = [call(tested.identification, "audio2transcript", aws_credentials)]
     assert memory_log.mock_calls == calls
     reset_mocks()
     # -- only one JSON
@@ -348,7 +359,7 @@ def test_combine_and_speaker_detection(audio2texter, memory_log):
         call().chat(schemas),
     ]
     assert audio2texter.mock_calls == calls
-    calls = [call("noteUuid", "audio2transcript", aws_credentials)]
+    calls = [call(tested.identification, "audio2transcript", aws_credentials)]
     assert memory_log.mock_calls == calls
     reset_mocks()
 
@@ -367,7 +378,7 @@ def test_combine_and_speaker_detection(audio2texter, memory_log):
         call().chat(schemas),
     ]
     assert audio2texter.mock_calls == calls
-    calls = [call("noteUuid", "audio2transcript", aws_credentials)]
+    calls = [call(tested.identification, "audio2transcript", aws_credentials)]
     assert memory_log.mock_calls == calls
     reset_mocks()
 
@@ -540,11 +551,11 @@ def test_detect_instructions(
         call().single_conversation(system_prompts, user_prompts["constraints"], ['theJsonSchema'], None),
     ]
     assert chatter.mock_calls == calls
-    calls = [call("noteUuid", "transcript2instructions", aws_credentials)]
+    calls = [call(tested.identification, "transcript2instructions", aws_credentials)]
     assert memory_log.mock_calls == calls
     for idx, mock in enumerate(mocks):
         calls = [
-            call(settings, cache, 'patientUuid', 'noteUuid', 'providerUuid'),
+            call(settings, cache, tested.identification),
             call().__bool__(),
             call().is_available(),
         ]
@@ -572,7 +583,7 @@ def test_detect_instructions(
         call().single_conversation(system_prompts, user_prompts["noKnownInstructions"], ['theJsonSchema'], None),
     ]
     assert chatter.mock_calls == calls
-    calls = [call("noteUuid", "transcript2instructions", aws_credentials)]
+    calls = [call(tested.identification, "transcript2instructions", aws_credentials)]
     assert memory_log.mock_calls == calls
     for idx, mock in enumerate(mocks):
         calls = []
@@ -602,7 +613,7 @@ def test_detect_instructions(
         call().single_conversation(system_prompts, user_prompts["constraints"], ['theJsonSchema'], None),
     ]
     assert chatter.mock_calls == calls
-    calls = [call("noteUuid", "transcript2instructions", aws_credentials)]
+    calls = [call(tested.identification, "transcript2instructions", aws_credentials)]
     assert memory_log.mock_calls == calls
     for idx, mock in enumerate(mocks):
         calls = []
@@ -699,13 +710,13 @@ def test_create_sdk_command_parameters(chatter, memory_log, mock_datetime):
         call().single_conversation(system_prompt, user_prompt, schemas, instruction),
     ]
     assert chatter.mock_calls == calls
-    calls = [call("noteUuid", "Second_theUuid_instruction2parameters", aws_credentials)]
+    calls = [call(tested.identification, "Second_theUuid_instruction2parameters", aws_credentials)]
     assert memory_log.mock_calls == calls
     calls = [call.now()]
     assert mock_datetime.mock_calls == calls
     for idx, mock in enumerate(mocks):
         calls = [
-            call(settings, cache, 'patientUuid', 'noteUuid', 'providerUuid'),
+            call(settings, cache, tested.identification),
             call().__bool__(),
             call().is_available(),
         ]
@@ -727,7 +738,7 @@ def test_create_sdk_command_parameters(chatter, memory_log, mock_datetime):
         call().single_conversation(system_prompt, user_prompt, schemas, instruction),
     ]
     assert chatter.mock_calls == calls
-    calls = [call("noteUuid", "Second_theUuid_instruction2parameters", aws_credentials)]
+    calls = [call(tested.identification, "Second_theUuid_instruction2parameters", aws_credentials)]
     assert memory_log.mock_calls == calls
     calls = [call.now()]
     assert mock_datetime.mock_calls == calls
@@ -792,11 +803,11 @@ def test_create_sdk_command_from(chatter, memory_log):
 
         calls = [call(settings, "MemoryLogInstance")] if exp_log_label else []
         assert chatter.mock_calls == calls
-        calls = [call("noteUuid", exp_log_label, aws_credentials)] if exp_log_label else []
+        calls = [call(tested.identification, exp_log_label, aws_credentials)] if exp_log_label else []
         assert memory_log.mock_calls == calls
         for idx, mock in enumerate(mocks):
             calls = [
-                call(settings, cache, 'patientUuid', 'noteUuid', 'providerUuid'),
+                call(settings, cache, tested.identification),
                 call().__bool__(),
                 call().is_available(),
             ]

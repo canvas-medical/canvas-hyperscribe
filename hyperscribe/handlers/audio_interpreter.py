@@ -7,6 +7,7 @@ from hyperscribe.handlers.json_schema import JsonSchema
 from hyperscribe.handlers.limited_cache import LimitedCache
 from hyperscribe.handlers.memory_log import MemoryLog
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
+from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.instruction import Instruction
 from hyperscribe.structures.instruction_with_command import InstructionWithCommand
 from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
@@ -22,18 +23,15 @@ class AudioInterpreter:
             settings: Settings,
             aws_s3: AwsS3Credentials,
             cache: LimitedCache,
-            patient_id: str,
-            note_uuid: str,
-            provider_uuid: str,
+            identification: IdentificationParameters,
     ) -> None:
         self.settings = settings
         self.aws_s3 = aws_s3
-        self.patient_id = patient_id
-        self.note_uuid = note_uuid
+        self.identification = identification
         self._command_context = [
             instance
             for command_class in ImplementedCommands.command_list()
-            if (instance := command_class(settings, cache, patient_id, note_uuid, provider_uuid))
+            if (instance := command_class(settings, cache, identification))
                and instance.is_available()
         ]
 
@@ -62,7 +60,7 @@ class AudioInterpreter:
     def combine_and_speaker_detection(self, audio_chunks: list[bytes]) -> JsonExtract:
         conversation = Helper.audio2texter(
             self.settings,
-            MemoryLog.instance(self.note_uuid, "audio2transcript", self.aws_s3),
+            MemoryLog.instance(self.identification, "audio2transcript", self.aws_s3),
         )
         conversation.set_system_prompt([
             "The conversation is in the medical context, and related to a visit of a patient with a healthcare provider.",
@@ -186,7 +184,7 @@ class AudioInterpreter:
             ])
         chatter = Helper.chatter(
             self.settings,
-            MemoryLog.instance(self.note_uuid, "transcript2instructions", self.aws_s3),
+            MemoryLog.instance(self.identification, "transcript2instructions", self.aws_s3),
         )
         result = chatter.single_conversation(system_prompt, user_prompt, [schema], None)
         if result and (constraints := self.instruction_constraints()):
@@ -237,7 +235,7 @@ class AudioInterpreter:
         log_label = f"{instruction.instruction}_{instruction.uuid}_instruction2parameters"
         chatter = Helper.chatter(
             self.settings,
-            MemoryLog.instance(self.note_uuid, log_label, self.aws_s3),
+            MemoryLog.instance(self.identification, log_label, self.aws_s3),
         )
         schemas = JsonSchema.get(["generic_parameters"])
         response = chatter.single_conversation(system_prompt, user_prompt, schemas, instruction)
@@ -251,7 +249,7 @@ class AudioInterpreter:
                 log_label = f"{instruction.instruction}_{instruction.uuid}_parameters2command"
                 chatter = Helper.chatter(
                     self.settings,
-                    MemoryLog.instance(self.note_uuid, log_label, self.aws_s3),
+                    MemoryLog.instance(self.identification, log_label, self.aws_s3),
                 )
                 return instance.command_from_json(instruction, chatter)
         return None

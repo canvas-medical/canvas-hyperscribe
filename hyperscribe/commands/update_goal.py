@@ -31,7 +31,7 @@ class UpdateGoal(Base):
             achievement_status=Helper.enum_or_none(instruction.parameters["status"], UpdateGoalCommand.AchievementStatus),
             priority=Helper.enum_or_none(instruction.parameters["priority"], UpdateGoalCommand.Priority),
             progress=instruction.parameters["progressAndBarriers"],
-            note_uuid=self.note_uuid,
+            note_uuid=self.identification.note_uuid,
         ))
 
     def command_parameters(self) -> dict:

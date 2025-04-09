@@ -5,6 +5,7 @@ from canvas_sdk.commands.base import _BaseCommand as BaseCommand
 
 from evaluations.helper_evaluation import HelperEvaluation
 from hyperscribe.structures.instruction import Instruction
+from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 
 
 def pytest_generate_tests(metafunc):
@@ -26,19 +27,21 @@ def test_parameters2command(parameters2command, allowed_levels, audio_interprete
     parameters = content["parameters"]
     expected = content["commands"]
     for idx, instruction in enumerate(instructions):
-        response = audio_interpreter.create_sdk_command_from(instruction, parameters[idx])
+        response = audio_interpreter.create_sdk_command_from(InstructionWithParameters.add_parameters(instruction, parameters[idx]))
 
-        assert response is not None
-        assert response.__class__.__module__ == expected[idx]["module"]
-        assert response.__class__.__name__ == expected[idx]["class"]
-        assert isinstance(response, BaseCommand)
+        error_label = f"{parameters2command.stem} {instruction.instruction} - {idx:02d}"
+        assert response is not None, error_label
+        command = response.command
+        assert command.__class__.__module__ == expected[idx]["module"], error_label
+        assert command.__class__.__name__ == expected[idx]["class"], error_label
+        assert isinstance(command, BaseCommand), error_label
 
         forced = {
             "note_uuid": "theNoteUuid",
             "command_uuid": "theCommandUuid",
         }
 
-        automated = response.values | forced
+        automated = command.values | forced
         reviewed = expected[idx]["attributes"] | forced
 
         if automated != reviewed:
@@ -52,4 +55,4 @@ def test_parameters2command(parameters2command, allowed_levels, audio_interprete
                 request.node.user_properties.append(("llmExplanation", differences))
                 with capsys.disabled():
                     print(differences)
-            assert valid, f"{parameters2command.stem} {instruction.instruction} - {idx:02d}"
+            assert valid, error_label

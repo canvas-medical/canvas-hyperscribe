@@ -5,6 +5,7 @@ from evaluations.auditor_file import AuditorFile
 from evaluations.case_builders.builder_base import BuilderBase
 from evaluations.case_builders.builder_from_mp3 import BuilderFromMp3
 from evaluations.structures.evaluation_case import EvaluationCase
+from hyperscribe.structures.identification_parameters import IdentificationParameters
 
 
 def test_class():
@@ -48,7 +49,6 @@ def test__run(
         helper,
         audio_interpreter,
         commander,
-        monkeypatch,
         capsys,
 ):
     mock_files = [MagicMock(), MagicMock()]
@@ -64,7 +64,6 @@ def test__run(
 
     tested = BuilderFromMp3
 
-    monkeypatch.setenv("CANVAS_SDK_DB_HOST", "theSDKDbHost")
     limited_cache_from.return_value.to_json.side_effect = [{"key": "value"}]
     helper.settings.side_effect = ["theSettings"]
     helper.aws_s3_credentials.side_effect = ["theAwsS3Credentials"]
@@ -80,7 +79,13 @@ def test__run(
         mp3=mock_files,
     )
     recorder = AuditorFile("theCase")
-    tested._run(parameters, recorder, "theNoteUuid", "theProviderUuid")
+    identification = IdentificationParameters(
+        patient_uuid="thePatient",
+        note_uuid="theNoteUuid",
+        provider_uuid="theProviderUuid",
+        canvas_instance="theCanvasInstance",
+    )
+    tested._run(parameters, recorder, identification)
 
     exp_out = [
         'Patient UUID: thePatientUuid',
@@ -93,14 +98,14 @@ def test__run(
     assert capsys.readouterr().out == "\n".join(exp_out)
 
     calls = [
-        call(parameters, "theNoteUuid"),
+        call(identification),
         call().to_json(),
     ]
     assert limited_cache_from.mock_calls == calls
     calls = [call.upsert(EvaluationCase(
-        environment="theSDKDbHost",
+        environment="theCanvasInstance",
         patient_uuid="thePatientUuid",
-        limited_cache='{"key": "value"}',
+        limited_cache={"key": "value"},
         case_name="theCase",
         case_group="theGroup",
         case_type="theType",
@@ -116,9 +121,7 @@ def test__run(
         "theSettings",
         "theAwsS3Credentials",
         limited_cache_from.return_value,
-        "thePatientUuid",
-        "theNoteUuid",
-        "theProviderUuid",
+        identification,
     )]
     assert audio_interpreter.mock_calls == calls
     calls = [call.audio2commands(

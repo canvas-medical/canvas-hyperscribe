@@ -7,6 +7,7 @@ from hyperscribe.commands.medication import Medication
 from hyperscribe.handlers.canvas_science import CanvasScience
 from hyperscribe.handlers.limited_cache import LimitedCache
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.instruction_with_command import InstructionWithCommand
 from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.medication_detail import MedicationDetail
@@ -24,7 +25,13 @@ def helper_instance() -> Medication:
         structured_rfv=False,
     )
     cache = LimitedCache("patientUuid", {})
-    return Medication(settings, cache, "patientUuid", "noteUuid", "providerUuid")
+    identification = IdentificationParameters(
+        patient_uuid="patientUuid",
+        note_uuid="noteUuid",
+        provider_uuid="providerUuid",
+        canvas_instance="canvasInstance",
+    )
+    return Medication(settings, cache, identification)
 
 
 def test_class():

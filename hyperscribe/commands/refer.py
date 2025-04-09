@@ -52,7 +52,7 @@ class Refer(Base):
             priority=Helper.enum_or_none(instruction.parameters["priority"], ReferCommand.Priority),
             notes_to_specialist=instruction.parameters["notesToSpecialist"],
             comment=instruction.parameters["comment"],
-            note_uuid=self.note_uuid,
+            note_uuid=self.identification.note_uuid,
             diagnosis_codes=[],
         )
         # retrieve the linked conditions

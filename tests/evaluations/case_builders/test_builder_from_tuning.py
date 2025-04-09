@@ -5,6 +5,7 @@ from evaluations.auditor_file import AuditorFile
 from evaluations.case_builders.builder_base import BuilderBase
 from evaluations.case_builders.builder_from_tuning import BuilderFromTuning
 from evaluations.structures.evaluation_case import EvaluationCase
+from hyperscribe.structures.identification_parameters import IdentificationParameters
 
 
 def test_class():
@@ -48,7 +49,6 @@ def test__run(
         helper,
         audio_interpreter,
         commander,
-        monkeypatch,
         capsys,
 ):
     mock_json_file = MagicMock()
@@ -65,7 +65,6 @@ def test__run(
 
     tested = BuilderFromTuning
 
-    monkeypatch.setenv("CANVAS_SDK_DB_HOST", "theSDKDbHost")
     limited_cache.load_from_json.side_effect = ["theLimitedCacheInstance"]
     helper.settings.side_effect = ["theSettings"]
     helper.aws_s3_credentials.side_effect = ["theAwsS3Credentials"]
@@ -83,7 +82,13 @@ def test__run(
         tuning_mp3=mock_mp3_file,
     )
     recorder = AuditorFile("theCase")
-    tested._run(parameters, recorder, "theNoteUuid", "theProviderUuid")
+    identification = IdentificationParameters(
+        patient_uuid="thePatient",
+        note_uuid="theNoteUuid",
+        provider_uuid="theProviderUuid",
+        canvas_instance="theCanvasInstance",
+    )
+    tested._run(parameters, recorder, identification)
 
     exp_out = [
         'Evaluation Case: theCase',
@@ -96,9 +101,9 @@ def test__run(
     calls = [call.load_from_json({"key": "value"})]
     assert limited_cache.mock_calls == calls
     calls = [call.upsert(EvaluationCase(
-        environment="theSDKDbHost",
+        environment="theCanvasInstance",
         patient_uuid="thePatientUuid",
-        limited_cache='{"key": "value"}',
+        limited_cache={"key": "value"},
         case_name="theCase",
         case_group="theGroup",
         case_type="theType",
@@ -114,9 +119,7 @@ def test__run(
         "theSettings",
         "theAwsS3Credentials",
         "theLimitedCacheInstance",
-        "thePatientUuid",
-        "theNoteUuid",
-        "theProviderUuid",
+        identification,
     )]
     assert audio_interpreter.mock_calls == calls
     calls = [call.audio2commands(

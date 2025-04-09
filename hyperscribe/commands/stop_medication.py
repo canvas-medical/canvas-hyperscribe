@@ -23,7 +23,7 @@ class StopMedication(Base):
     def command_from_json(self, instruction: InstructionWithParameters, chatter: LlmBase) -> InstructionWithCommand | None:
         result = StopMedicationCommand(
             rationale=instruction.parameters["rationale"],
-            note_uuid=self.note_uuid,
+            note_uuid=self.identification.note_uuid,
         )
         if 0 <= (idx := instruction.parameters["medicationIndex"]) < len(current := self.cache.current_medications()):
             result.medication_id = current[idx].uuid

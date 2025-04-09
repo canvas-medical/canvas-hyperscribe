@@ -11,6 +11,7 @@ from hyperscribe.handlers.commander import Commander
 from hyperscribe.handlers.constants import Constants as HyperscribeConstants
 from hyperscribe.handlers.limited_cache import LimitedCache
 from hyperscribe.handlers.memory_log import MemoryLog
+from hyperscribe.structures.identification_parameters import IdentificationParameters
 
 
 class BuilderBase:
@@ -33,7 +34,7 @@ class BuilderBase:
         raise NotImplementedError
 
     @classmethod
-    def _run(cls, parameters: Namespace, recorder: AuditorFile, note_uuid: str, provider_uuid: str) -> None:
+    def _run(cls, parameters: Namespace, recorder: AuditorFile, identification: IdentificationParameters) -> None:
         raise NotImplementedError
 
     @classmethod
@@ -53,24 +54,29 @@ class BuilderBase:
             note_uuid = HyperscribeConstants.FAUX_NOTE_UUID
             provider_uuid = HyperscribeConstants.FAUX_PROVIDER_UUID
 
-        MemoryLog.begin_session(note_uuid)
+        identification = IdentificationParameters(
+            patient_uuid=parameters.patient,
+            note_uuid=note_uuid,
+            provider_uuid=provider_uuid,
+            canvas_instance=HelperEvaluation.get_canvas_instance(),
+        )
 
-        cls._run(parameters, recorder, note_uuid, provider_uuid)
-
+        MemoryLog.begin_session(identification.note_uuid)
+        cls._run(parameters, recorder, identification)
         if (client_s3 := AwsS3(HelperEvaluation.aws_s3_credentials())) and client_s3.is_ready():
-            remote_path = f"{datetime.now().date().isoformat()}/case-builder-{parameters.case}.log"
-            client_s3.upload_text_to_s3(remote_path, MemoryLog.end_session(note_uuid))
+            remote_path = f"case-builder/{datetime.now().date().isoformat()}/{parameters.case}.log"
+            client_s3.upload_text_to_s3(remote_path, MemoryLog.end_session(identification.note_uuid))
             print(f"Logs saved in: {remote_path}")
 
     @classmethod
-    def _limited_cache_from(cls, parameters: Namespace, note_uuid: str) -> LimitedCache:
+    def _limited_cache_from(cls, identification: IdentificationParameters) -> LimitedCache:
         current_commands = Command.objects.filter(
-            patient__id=parameters.patient,
-            note__id=note_uuid,
+            patient__id=identification.patient_uuid,
+            note__id=identification.note_uuid,
             state="staged",  # <--- TODO use an Enum when provided
         ).order_by("dbid")
 
         return LimitedCache(
-            parameters.patient,
+            identification.patient_uuid,
             Commander.existing_commands_to_coded_items(current_commands),
         )

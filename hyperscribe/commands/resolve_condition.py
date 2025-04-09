@@ -27,7 +27,7 @@ class ResolveCondition(Base):
         return InstructionWithCommand.add_command(instruction, ResolveConditionCommand(
             condition_id=condition_id,
             rationale=instruction.parameters["rationale"],
-            note_uuid=self.note_uuid,
+            note_uuid=self.identification.note_uuid,
         ))
 
     def command_parameters(self) -> dict:

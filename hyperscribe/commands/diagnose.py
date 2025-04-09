@@ -40,7 +40,7 @@ class Diagnose(Base):
             background=instruction.parameters["rationale"],
             approximate_date_of_onset=Helper.str2date(instruction.parameters["onsetDate"]),
             today_assessment=instruction.parameters["assessment"],
-            note_uuid=self.note_uuid,
+            note_uuid=self.identification.note_uuid,
         ))
 
     def command_parameters(self) -> dict:

@@ -29,7 +29,7 @@ class FamilyHistory(Base):
         result = FamilyHistoryCommand(
             relative=instruction.parameters["relative"],
             note=instruction.parameters["note"],
-            note_uuid=self.note_uuid,
+            note_uuid=self.identification.note_uuid,
         )
         # retrieve existing family history conditions defined in Canvas Science
         expressions = instruction.parameters["keywords"].split(",")

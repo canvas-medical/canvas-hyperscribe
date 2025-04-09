@@ -1,4 +1,3 @@
-import json
 import uuid
 from re import search
 from subprocess import check_output
@@ -6,7 +5,7 @@ from subprocess import check_output
 import pytest
 
 from evaluations.constants import Constants
-from evaluations.datastores.sqllite.store_cases import StoreCases
+from evaluations.datastores.store_cases import StoreCases
 from evaluations.datastores.store_results import StoreResults
 from evaluations.helper_evaluation import HelperEvaluation
 from evaluations.structures.evaluation_result import EvaluationResult
@@ -15,6 +14,7 @@ from hyperscribe.handlers.constants import Constants as HyperscribeConstants
 from hyperscribe.handlers.limited_cache import LimitedCache
 from hyperscribe.handlers.memory_log import MemoryLog
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
+from hyperscribe.structures.identification_parameters import IdentificationParameters
 
 
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
@@ -135,6 +135,12 @@ def audio_interpreter(request):
         provider_uuid = HelperEvaluation.get_provider_uuid(patient_uuid)
     elif case := StoreCases.get(request.node.callspec.id):
         # ^ if there is no provided patient uuid and this is a built case
-        cache = LimitedCache.load_from_json(json.loads(case.limited_cache))
+        cache = LimitedCache.load_from_json(case.limited_cache)
 
-    return AudioInterpreter(settings, aws_s3, cache, patient_uuid, note_uuid, provider_uuid)
+    identification = IdentificationParameters(
+        patient_uuid=patient_uuid,
+        note_uuid=note_uuid,
+        provider_uuid=provider_uuid,
+        canvas_instance=HelperEvaluation.get_canvas_instance(),
+    )
+    return AudioInterpreter(settings, aws_s3, cache, identification)

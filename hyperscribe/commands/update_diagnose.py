@@ -30,7 +30,7 @@ class UpdateDiagnose(Base):
         result = UpdateDiagnosisCommand(
             background=instruction.parameters["rationale"],
             narrative=instruction.parameters["assessment"],
-            note_uuid=self.note_uuid,
+            note_uuid=self.identification.note_uuid,
         )
         if 0 <= (idx := instruction.parameters["previousConditionIndex"]) < len(current := self.cache.current_conditions()):
             result.condition_code = current[idx].code
