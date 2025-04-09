@@ -100,14 +100,15 @@ def test_compute(compute_audio, task_comment_db, note_db, info, memory_log):
         patient_uuid='patientUuid',
         note_uuid='noteUuid',
         provider_uuid='providerUuid',
-        canvas_instance='canvas-instance',
+        canvas_instance='theTestEnv',
     )
     secrets = {
         "VendorTextLLM": "theTextVendor",
         "VendorAudioLLM": "theAudioVendor",
     }
     event = Event(EventRequest(target="taskUuid"))
-    tested = Commander(event, secrets)
+    environment = {"CUSTOMER_IDENTIFIER": "theTestEnv"}
+    tested = Commander(event, secrets, environment)
 
     # the task comment is not related to the Audio plugin
     compute_audio.side_effect = []

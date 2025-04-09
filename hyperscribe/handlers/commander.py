@@ -72,7 +72,7 @@ class Commander(BaseProtocol):
             patient_uuid=note.patient.id,
             note_uuid=note_uuid,
             provider_uuid=note.provider.id,
-            canvas_instance="canvas-instance",  # self.environment[Constants.CUSTOMER_IDENTIFIER],
+            canvas_instance=self.environment[Constants.CUSTOMER_IDENTIFIER],
         )
         memory_log = MemoryLog(identification, self.MEMORY_LOG_LABEL)
         memory_log.output(f"Text: {self.secrets[Constants.SECRET_TEXT_VENDOR]} - Audio: {self.secrets[Constants.SECRET_AUDIO_VENDOR]}")
