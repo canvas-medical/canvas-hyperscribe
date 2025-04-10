@@ -22,53 +22,82 @@ def test___init__():
     assert tested.case == "theCase"
 
 
+@patch.object(AuditorFile, "_case_files_from")
+def test__case_files(case_files_from):
+    def reset_mocks():
+        case_files_from.reset_mock()
+
+    tested = AuditorFile("theCase")
+    case_files_from.side_effect = [
+        ["file01", "file02"],
+        ["file03", "file04", "file05"],
+        ["file06", "file07", "file08", "file09"],
+        ["file10"],
+        ["file11", "file12"],
+    ]
+    result = [f for f in tested._case_files()]
+    expected = [
+        "file01",
+        "file02",
+        "file03",
+        "file04",
+        "file05",
+        "file06",
+        "file07",
+        "file08",
+        "file09",
+        "file10",
+        "file11",
+        "file12",
+    ]
+    assert result == expected
+    calls = [
+        call('audio2transcript/inputs_mp3', 'mp3'),
+        call('audio2transcript/expected_json', 'json'),
+        call('transcript2instructions', 'json'),
+        call('instruction2parameters', 'json'),
+        call('parameters2command', 'json'),
+    ]
+    assert case_files_from.mock_calls == calls
+    reset_mocks()
+
+
 @patch("evaluations.auditor_file.Path.__truediv__")
-def test__case_files(concat):
-    mock_files = [MagicMock(), MagicMock(), MagicMock(), MagicMock(), MagicMock()]
+def test__case_files_from(concat):
+    mock_file = MagicMock()
 
     def reset_mocks():
         concat.reset_mock()
-        for mock_file in mock_files:
-            mock_file.reset_mock()
+        mock_file.reset_mock()
 
-    concat.side_effect = mock_files
-
-    mock_files[0].glob.side_effect = [["file1", "file2"]]
-    mock_files[1].is_file.side_effect = [True]
-    mock_files[2].is_file.side_effect = [False]
-    mock_files[3].is_file.side_effect = [True]
-    mock_files[4].is_file.side_effect = [True]
-
-    tested = AuditorFile("theCase")
-    result = [p for p in tested._case_files()]
-    expected = [
-        Path("file1"),
-        Path("file2"),
-        mock_files[1],
-        mock_files[3],
-        mock_files[4],
+    files = [
+        Path("theCase.ext"),
+        Path("theCase.txt"),
+        Path("theCaseA.ext"),
+        Path("theCase1.ext"),
+        Path("theCase_cycle01.ext"),
+        Path("theCase_cycle02.ext"),
+        Path("theCase.01.txt"),
     ]
-    assert result == expected
 
-    calls = [
-        call('audio2transcript/inputs_mp3'),
-        call('audio2transcript/expected_json/theCase.json'),
-        call('transcript2instructions/theCase.json'),
-        call('instruction2parameters/theCase.json'),
-        call('parameters2command/theCase.json'),
+    tests = [
+        ("theCase", "ext", "theCase*.ext", [Path("theCase.ext"), Path("theCase_cycle01.ext"), Path("theCase_cycle02.ext")]),
+        ("theCase", "txt", "theCase*.txt", [Path("theCase.txt"), Path("theCase.01.txt")]),
+        ("theCaseA", "txt", "theCaseA*.txt", []),
+        ("theCaseA", "ext", "theCaseA*.ext", [Path("theCaseA.ext")]),
     ]
-    assert concat.mock_calls == calls
-    calls = [call.glob('theCase*.mp3')]
-    assert mock_files[0].mock_calls == calls
-    calls = [
-        call.__bool__(),
-        call.is_file(),
-    ]
-    assert mock_files[1].mock_calls == calls
-    assert mock_files[2].mock_calls == calls
-    assert mock_files[3].mock_calls == calls
-    assert mock_files[4].mock_calls == calls
-    reset_mocks()
+    for case, extension, exp_glob, exp_files in tests:
+        concat.side_effect = [mock_file]
+        mock_file.glob.side_effect = [files]
+        tested = AuditorFile(case)
+        result = [p for p in tested._case_files_from("the/folder", extension)]
+        assert result == exp_files
+
+        calls = [call('the/folder')]
+        assert concat.mock_calls == calls
+        calls = [call.glob(exp_glob)]
+        assert mock_file.mock_calls == calls
+        reset_mocks()
 
 
 @patch.object(AuditorFile, '_case_files')
@@ -217,28 +246,47 @@ def test_found_instructions(path):
                 Line(speaker="voiceA", text="theText4"),
             ],
             [
-                Instruction(uuid="uuid1", instruction="theInstruction1", information="theInformation1", is_new=False, is_updated=False, audits=[]),
-                Instruction(uuid="uuid2", instruction="theInstruction2", information="theInformation2", is_new=False, is_updated=False, audits=[]),
+                Instruction(uuid="uuid1", instruction="theInstruction1", information="theInformation1", is_new=False, is_updated=True, audits=[]),
+                Instruction(uuid="uuid2", instruction="theInstruction2", information="theInformation2", is_new=True, is_updated=False, audits=[]),
+                Instruction(uuid="uuid3", instruction="theInstruction3", information="theInformation3", is_new=True, is_updated=False, audits=[]),
+            ],
+            [
+                Instruction(uuid="uuid1", instruction="theInstruction1", information="theInformation0", is_new=False, is_updated=False, audits=[]),
             ],
         )
         assert result is test
 
         expected = {'instructions': {
-            'initial': [],
+            'initial': [
+                {
+                    'information': 'theInformation0',
+                    'instruction': 'theInstruction1',
+                    'isNew': False,
+                    'isUpdated': False,
+                    'uuid': '>?<',
+                },
+            ],
             'result': [
                 {
                     'information': 'theInformation1',
                     'instruction': 'theInstruction1',
-                    'isNew': True,
-                    'isUpdated': False,
-                    'uuid': '',
+                    'isNew': False,
+                    'isUpdated': True,
+                    'uuid': '>?<',
                 },
                 {
                     'information': 'theInformation2',
                     'instruction': 'theInstruction2',
                     'isNew': True,
                     'isUpdated': False,
-                    'uuid': '',
+                    'uuid': '>?<',
+                },
+                {
+                    'information': 'theInformation3',
+                    'instruction': 'theInstruction3',
+                    'isNew': True,
+                    'isUpdated': False,
+                    'uuid': '>?<',
                 },
             ],
         },
@@ -311,13 +359,13 @@ def test_computed_parameters(path):
                     'information': 'theInformation1',
                     'instruction': 'theInstruction1',
                     'isNew': False,
-                    'isUpdated': False,
+                    'isUpdated': True,
                     'uuid': 'uuid1',
                 },
                 {
                     'information': 'theInformation2',
                     'instruction': 'theInstruction2',
-                    'isNew': False,
+                    'isNew': True,
                     'isUpdated': False,
                     'uuid': 'uuid2',
                 },
@@ -379,13 +427,13 @@ def test_computed_parameters(path):
                     'information': 'theInformation1',
                     'instruction': 'theInstruction1',
                     'isNew': False,
-                    'isUpdated': False,
+                    'isUpdated': True,
                     'uuid': 'uuid1',
                 },
                 {
                     'information': 'theInformation2',
                     'instruction': 'theInstruction2',
-                    'isNew': False,
+                    'isNew': True,
                     'isUpdated': False,
                     'uuid': 'uuid2',
                 },
@@ -474,13 +522,13 @@ def test_computed_commands(path):
                     'information': 'theInformation1',
                     'instruction': 'theInstruction1',
                     'isNew': False,
-                    'isUpdated': False,
+                    'isUpdated': True,
                     'uuid': 'uuid1',
                 },
                 {
                     'information': 'theInformation2',
                     'instruction': 'theInstruction2',
-                    'isNew': False,
+                    'isNew': True,
                     'isUpdated': False,
                     'uuid': 'uuid2',
                 },
@@ -551,13 +599,13 @@ def test_computed_commands(path):
                     'information': 'theInformation1',
                     'instruction': 'theInstruction1',
                     'isNew': False,
-                    'isUpdated': False,
+                    'isUpdated': True,
                     'uuid': 'uuid1',
                 },
                 {
                     'information': 'theInformation2',
                     'instruction': 'theInstruction2',
-                    'isNew': False,
+                    'isNew': True,
                     'isUpdated': False,
                     'uuid': 'uuid2',
                 },

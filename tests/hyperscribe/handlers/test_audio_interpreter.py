@@ -163,27 +163,43 @@ def test_instruction_constraints():
         for item in mocks:
             item.reset_mock()
 
-    mocks[0].return_value.instruction_constraints.side_effect = ["Constraints1"]
-    mocks[1].return_value.instruction_constraints.side_effect = [""]
-    mocks[2].return_value.instruction_constraints.side_effect = ["Constraints3"]
-    mocks[3].return_value.instruction_constraints.side_effect = ["Constraints4"]
+    instructions = Instruction.load_from_json([
+        {"instruction": "Command1"},
+        {"instruction": "Command2"},
+        {"instruction": "Command3"},
+        {"instruction": "Command4"},
+    ])
 
-    tested, settings, aws_credentials, cache = helper_instance(mocks)
-    result = tested.instruction_constraints()
-    expected = ["Constraints1", "Constraints4"]
-    assert result == expected
-    for idx, mock in enumerate(mocks):
-        calls = [
-            call(settings, cache, tested.identification),
-            call().__bool__(),
-            call().is_available(),
-        ]
-        if idx != 2:
-            calls.extend([
-                call().instruction_constraints(),
-            ])
-        assert mock.mock_calls == calls, f"---> {idx}"
-    reset_mocks()
+    tests = [
+        ([0, 1, 2, 3], ["Constraints1", "Constraints4"]),
+        ([0], ["Constraints1"]),
+        ([2, 3], ["Constraints4"]),
+    ]
+    for list_idx, expected in tests:
+        mocks[0].return_value.class_name.side_effect = ["Command1"]
+        mocks[1].return_value.class_name.side_effect = ["Command2"]
+        mocks[2].return_value.class_name.side_effect = ["Command3"]
+        mocks[3].return_value.class_name.side_effect = ["Command4"]
+        mocks[0].return_value.instruction_constraints.side_effect = ["Constraints1"]
+        mocks[1].return_value.instruction_constraints.side_effect = [""]
+        mocks[2].return_value.instruction_constraints.side_effect = ["Constraints3"]
+        mocks[3].return_value.instruction_constraints.side_effect = ["Constraints4"]
+
+        tested, settings, aws_credentials, cache = helper_instance(mocks)
+        result = tested.instruction_constraints([instructions[i] for i in list_idx])
+        assert result == expected
+        for idx, mock in enumerate(mocks):
+            calls = [
+                call(settings, cache, tested.identification),
+                call().__bool__(),
+                call().is_available(),
+            ]
+            if idx != 2:
+                calls.append(call().class_name())
+                if idx in list_idx:
+                    calls.append(call().instruction_constraints())
+            assert mock.mock_calls == calls, f"---> {idx}"
+        reset_mocks()
 
 
 def test_command_structures():
@@ -470,7 +486,7 @@ def test_detect_instructions(
             '\n]',
             '```',
             '',
-            "From among all previous segments of the transcript, the following instructions were identified",
+            "From among all previous segments of the transcript, the following instructions were identified:",
             '```json',
             '[\n {'
             '\n  "uuid": "uuid1",'
@@ -486,12 +502,12 @@ def test_detect_instructions(
             '\n  "isUpdated": false'
             '\n }\n]',
             '```',
-            'Include them in your response, with any necessary additional information.',
+            'It is important to include them in your response, with any necessary additional information mentioned in the transcript.',
         ],
         "constraints": [
             'Here is your last response:',
             '```json',
-            '[\n "response1"\n]',
+            '[\n {\n  "information": "response1"\n }\n]',
             '```',
             '',
             'Review your response and be sure to follow these constraints:',
@@ -534,16 +550,16 @@ def test_detect_instructions(
     instruction_definitions.side_effect = ["theInstructionDefinition"]
     json_schema.side_effect = ["theJsonSchema"]
     instruction_constraints.side_effect = [["theConstraint1", "theConstraint2"]]
-    chatter.return_value.single_conversation.side_effect = [["response1"], ["response2"]]
+    chatter.return_value.single_conversation.side_effect = [[{"information": "response1"}], [{"information": "response2"}]]
     memory_log.side_effect = ["MemoryLogInstance"]
     result = tested.detect_instructions(discussion, [])
-    expected = ["response2"]
+    expected = [{"information": "response2"}]
     assert result == expected
     calls = [call()]
     assert instruction_definitions.mock_calls == calls
     calls = [call(['First', 'Second', 'Fourth'])]
     assert json_schema.mock_calls == calls
-    calls = [call()]
+    calls = [call([Instruction(uuid='', instruction='', information='response1', is_new=True, is_updated=False, audits=[])])]
     assert instruction_constraints.mock_calls == calls
     calls = [
         call(settings, "MemoryLogInstance"),
@@ -567,16 +583,16 @@ def test_detect_instructions(
     instruction_definitions.side_effect = ["theInstructionDefinition"]
     json_schema.side_effect = ["theJsonSchema"]
     instruction_constraints.side_effect = [[]]
-    chatter.return_value.single_conversation.side_effect = [["response1"], ["response2"]]
+    chatter.return_value.single_conversation.side_effect = [[{"information": "response1"}], [{"information": "response2"}]]
     memory_log.side_effect = ["MemoryLogInstance"]
     result = tested.detect_instructions(discussion, [])
-    expected = ["response1"]
+    expected = [{"information": "response1"}]
     assert result == expected
     calls = [call()]
     assert instruction_definitions.mock_calls == calls
     calls = [call(['First', 'Second', 'Fourth'])]
     assert json_schema.mock_calls == calls
-    calls = [call()]
+    calls = [call([Instruction(uuid='', instruction='', information='response1', is_new=True, is_updated=False, audits=[])])]
     assert instruction_constraints.mock_calls == calls
     calls = [
         call(settings, "MemoryLogInstance"),
@@ -596,16 +612,16 @@ def test_detect_instructions(
     instruction_definitions.side_effect = ["theInstructionDefinition"]
     json_schema.side_effect = ["theJsonSchema"]
     instruction_constraints.side_effect = [["theConstraint1", "theConstraint2"]]
-    chatter.return_value.single_conversation.side_effect = [["response1"], ["response2"]]
+    chatter.return_value.single_conversation.side_effect = [[{"information": "response1"}], [{"information": "response2"}]]
     memory_log.side_effect = ["MemoryLogInstance"]
     result = tested.detect_instructions(discussion, known_instructions)
-    expected = ["response2"]
+    expected = [{"information": "response2"}]
     assert result == expected
     calls = [call()]
     assert instruction_definitions.mock_calls == calls
     calls = [call(['First', 'Second', 'Fourth'])]
     assert json_schema.mock_calls == calls
-    calls = [call()]
+    calls = [call([Instruction(uuid='', instruction='', information='response1', is_new=True, is_updated=False, audits=[])])]
     assert instruction_constraints.mock_calls == calls
     calls = [
         call(settings, "MemoryLogInstance"),

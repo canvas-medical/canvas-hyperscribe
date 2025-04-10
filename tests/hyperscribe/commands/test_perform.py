@@ -123,15 +123,15 @@ def test_command_parameters():
 def test_instruction_description():
     tested = helper_instance()
     result = tested.instruction_description()
-    expected = ("Procedure or action performed during the encounter. "
-                "There can be only one procedure or action performed per instruction, and no instruction in the lack of.")
+    expected = ("Medical procedure, which is not an auscultation, performed during the encounter. "
+                "There can be only one procedure performed per instruction, and no instruction in the lack of.")
     assert result == expected
 
 
 def test_instruction_constraints():
     tested = helper_instance()
     result = tested.instruction_constraints()
-    expected = ""
+    expected = '"Perform" supports only one procedure per instruction, auscultation are prohibited.'
     assert result == expected
 
 

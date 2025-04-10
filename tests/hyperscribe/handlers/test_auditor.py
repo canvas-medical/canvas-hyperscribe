@@ -9,7 +9,7 @@ def test_identified_transcript():
 
 def test_found_instructions():
     tested = Auditor()
-    result = tested.found_instructions([], [])
+    result = tested.found_instructions([], [], [])
     assert result is True
 
 

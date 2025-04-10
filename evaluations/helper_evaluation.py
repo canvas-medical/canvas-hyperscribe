@@ -72,7 +72,7 @@ class HelperEvaluation:
             "",
             # "All text values should be considered on the levels scale in order to solely express the meaning differences.",
             "All text values should be evaluated together and on the level scale to effectively convey the impact of the changes in meaning from a medical point of view.",
-            "Any key with the value '>?<' should be ignored.",
+            f"Any key with the value '{Constants.IGNORED_KEY_VALUE}' should be ignored.",
             "Unless otherwise specified, dates and numbers must be presented identically.",
         ]
         user_prompt = [

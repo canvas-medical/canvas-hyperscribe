@@ -44,10 +44,11 @@ class AudioInterpreter:
             for instance in self._command_context
         ]
 
-    def instruction_constraints(self) -> list[str]:
+    def instruction_constraints(self, instructions: list[Instruction]) -> list[str]:
         result: list[str] = []
+        names = [i.instruction for i in instructions]
         for instance in self._command_context:
-            if constraint := instance.instruction_constraints():
+            if instance.class_name() in names and (constraint := instance.instruction_constraints()):
                 result.append(constraint)
         return result
 
@@ -174,20 +175,23 @@ class AudioInterpreter:
             "",
         ]
         if known_instructions:
-            content = json.dumps([instruction.to_json() for instruction in known_instructions], indent=1)
+            content = [instruction.to_json(True) for instruction in known_instructions]
             user_prompt.extend([
-                "From among all previous segments of the transcript, the following instructions were identified",
+                "From among all previous segments of the transcript, the following instructions were identified:",
                 "```json",
-                content,
+                json.dumps(content, indent=1),
                 "```",
-                "Include them in your response, with any necessary additional information.",
+                "It is important to include them in your response, with any necessary additional information mentioned in the transcript.",
             ])
         chatter = Helper.chatter(
             self.settings,
             MemoryLog.instance(self.identification, "transcript2instructions", self.aws_s3),
         )
         result = chatter.single_conversation(system_prompt, user_prompt, [schema], None)
-        if result and (constraints := self.instruction_constraints()):
+
+        # limit the constraints to the reported instructions only
+        instructions = Instruction.load_from_json(result)
+        if result and (constraints := self.instruction_constraints(instructions)):
             user_prompt = [
                 "Here is your last response:",
                 "```json",

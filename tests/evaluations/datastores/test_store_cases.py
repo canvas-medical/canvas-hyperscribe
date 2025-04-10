@@ -138,9 +138,9 @@ def test_get(db_path):
     cache = json.dumps({"key": "theLimitedCache"})
 
     tests = [
-        (False, False, [], [], EvaluationCase()),
-        (False, True, [], [cache], EvaluationCase()),
-        (True, True, [data], [cache], EvaluationCase(
+        ("theCaseName", False, False, [], [], EvaluationCase()),
+        ("theCaseName", False, True, [], [cache], EvaluationCase()),
+        ("theCaseName", True, True, [data], [cache], EvaluationCase(
             environment="theEnvironment",
             patient_uuid="thePatientUuid",
             case_type="theCaseType",
@@ -149,7 +149,7 @@ def test_get(db_path):
             description="theDescription",
             limited_cache={"key": "theLimitedCache"},
         )),
-        (True, False, [data], [], EvaluationCase(
+        ("theCaseName", True, False, [data], [], EvaluationCase(
             environment="theEnvironment",
             patient_uuid="thePatientUuid",
             case_type="theCaseType",
@@ -158,15 +158,24 @@ def test_get(db_path):
             description="theDescription",
             limited_cache={},
         )),
+        ("theCaseName_cycle02", True, False, [data], [], EvaluationCase(
+            environment="theEnvironment",
+            patient_uuid="thePatientUuid",
+            case_type="theCaseType",
+            case_group="theCaseGroup",
+            case_name="theCaseName_cycle02",
+            description="theDescription",
+            limited_cache={},
+        )),
     ]
-    for case_exists, cache_exists, side_effect_case, side_effect_cache, expected in tests:
+    for case_name, case_exists, cache_exists, side_effect_case, side_effect_cache, expected in tests:
         db_path.return_value.__truediv__.side_effect = mock_files
         mock_files[0].exists.side_effect = [case_exists]
         mock_files[1].exists.side_effect = [cache_exists]
         mock_files[0].read_text.side_effect = side_effect_case
         mock_files[1].read_text.side_effect = side_effect_cache
 
-        result = tested.get("theCaseName")
+        result = tested.get(case_name)
         assert result == expected
 
         calls = [

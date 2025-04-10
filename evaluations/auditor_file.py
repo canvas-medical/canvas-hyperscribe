@@ -1,7 +1,9 @@
 import json
+import re
 from pathlib import Path
 from typing import Generator
 
+from evaluations.constants import Constants
 from hyperscribe.handlers.auditor import Auditor
 from hyperscribe.structures.instruction import Instruction
 from hyperscribe.structures.instruction_with_command import InstructionWithCommand
@@ -15,18 +17,21 @@ class AuditorFile(Auditor):
         self.case = case
 
     def _case_files(self) -> Generator[Path, None, None]:
-        mp3_dir = Path(__file__).parent / 'audio2transcript/inputs_mp3'
-        for file in mp3_dir.glob(f"{self.case}*.mp3"):
-            yield Path(file)
-
-        files = [
-            f"audio2transcript/expected_json/{self.case}.json",
-            f"transcript2instructions/{self.case}.json",
-            f"instruction2parameters/{self.case}.json",
-            f"parameters2command/{self.case}.json",
+        paths = [
+            ('audio2transcript/inputs_mp3', 'mp3'),
+            ('audio2transcript/expected_json', 'json'),
+            ('transcript2instructions', 'json'),
+            ('instruction2parameters', 'json'),
+            ('parameters2command', 'json'),
         ]
-        for file_path in files:
-            if (file := Path(__file__).parent / file_path) and file.is_file():
+        for folder, extension in paths:
+            yield from self._case_files_from(folder, extension)
+
+    def _case_files_from(self, folder: str, extension: str) -> Generator[Path, None, None]:
+        pattern = re.compile(rf'^{self.case}(({Constants.CASE_CYCLE_SUFFIX}|\.)\d\d)?\.{extension}$')
+        file_dir = Path(__file__).parent / folder
+        for file in file_dir.glob(f"{self.case}*.{extension}"):
+            if pattern.match(file.name):
                 yield file
 
     def is_ready(self) -> bool:
@@ -53,16 +58,24 @@ class AuditorFile(Auditor):
 
         return file.exists()
 
-    def found_instructions(self, transcript: list[Line], instructions: list[Instruction]) -> bool:
+    def found_instructions(
+            self,
+            transcript: list[Line],
+            cumulated_instructions: list[Instruction],
+            previous_instructions: list[Instruction],
+    ) -> bool:
         file = Path(__file__).parent / f"transcript2instructions/{self.case}.json"
         with file.open("w") as fp:
             json.dump({
                 "transcript": [line.to_json() for line in transcript],
                 "instructions": {
-                    "initial": [],
+                    "initial": [
+                        instruction.to_json(True) | {"uuid": Constants.IGNORED_KEY_VALUE}
+                        for instruction in previous_instructions
+                    ],
                     "result": [
-                        instruction.to_json() | {"uuid": "", "isNew": True}
-                        for instruction in instructions
+                        instruction.to_json(False) | {"uuid": Constants.IGNORED_KEY_VALUE}
+                        for instruction in cumulated_instructions
                     ],
                 },
             }, fp, indent=2)  # type: ignore
@@ -79,7 +92,7 @@ class AuditorFile(Auditor):
                 content = json.load(fp)
 
         for instruction in instructions:
-            content["instructions"].append(instruction.to_json())
+            content["instructions"].append(instruction.to_json(False))
             content["parameters"].append(instruction.parameters)
 
         with file.open("w") as fp:
@@ -98,7 +111,7 @@ class AuditorFile(Auditor):
                 content = json.load(fp)
 
         for instruction in instructions:
-            content["instructions"].append(instruction.to_json())
+            content["instructions"].append(instruction.to_json(False))
             content["parameters"].append(instruction.parameters)
             content["commands"].append({
                 "module": instruction.command.__module__,

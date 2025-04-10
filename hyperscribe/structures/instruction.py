@@ -24,13 +24,13 @@ class Instruction:
             for json_object in json_list
         ]
 
-    def to_json(self) -> dict:
+    def to_json(self, reset_flags: bool) -> dict:
         return {
             "uuid": self.uuid,
             "instruction": self.instruction,
             "information": self.information,
-            "isNew": False,
-            "isUpdated": False,
+            "isNew": False if reset_flags else self.is_new,
+            "isUpdated": False if reset_flags else self.is_updated,
         }
 
     def limited_str(self) -> str:

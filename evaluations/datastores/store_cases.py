@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 
+from evaluations.constants import Constants
 from evaluations.structures.evaluation_case import EvaluationCase
 
 
@@ -37,9 +38,13 @@ class StoreCases:
 
     @classmethod
     def get(cls, case_name: str) -> EvaluationCase:
+        search = case_name
+        if case_name[-8:].startswith(Constants.CASE_CYCLE_SUFFIX):
+            search = case_name[:-8]
+
         result = EvaluationCase()
-        file_path = cls._db_path() / f"{case_name}.json"
-        cache_path = cls._db_path() / f"limited_caches/{case_name}.json"
+        file_path = cls._db_path() / f"{search}.json"
+        cache_path = cls._db_path() / f"limited_caches/{search}.json"
         cache = {}
 
         if cache_path.exists():
@@ -53,7 +58,7 @@ class StoreCases:
                 limited_cache=cache,
                 case_type=data["caseType"],
                 case_group=data["caseGroup"],
-                case_name=data["caseName"],
+                case_name=case_name,
                 description=data["description"],
             )
         return result

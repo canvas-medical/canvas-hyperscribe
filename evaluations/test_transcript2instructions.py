@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 
+from evaluations.constants import Constants
 from evaluations.helper_evaluation import HelperEvaluation
 from hyperscribe.structures.instruction import Instruction
 from hyperscribe.structures.line import Line
@@ -36,7 +37,7 @@ def test_transcript2instructions(transcript2instructions, allowed_levels, audio_
 
     for actual, instruction in zip(result, expected):
         error_label = f"{transcript2instructions.stem} {instruction.instruction}: information incorrect\n=>{instruction.information}<="
-        if instruction.uuid:
+        if instruction.uuid not in ["", Constants.IGNORED_KEY_VALUE]:
             assert actual.uuid == instruction.uuid, error_label
         assert actual.instruction == instruction.instruction, error_label
         assert actual.is_new == instruction.is_new, error_label

@@ -68,23 +68,33 @@ def test_load_from_json():
 
 
 def test_to_json():
-    tested = Instruction(
-        uuid="theUuid",
-        instruction="theInstruction",
-        information="theInformation",
-        is_new=True,
-        is_updated=True,
-        audits=["line1", "line2"],
-    )
-    result = tested.to_json()
-    expected = {
-        "uuid": "theUuid",
-        "instruction": "theInstruction",
-        "information": "theInformation",
-        "isNew": False,
-        "isUpdated": False,
-    }
-    assert expected == result
+    for flag in [True, False]:
+        tested = Instruction(
+            uuid="theUuid",
+            instruction="theInstruction",
+            information="theInformation",
+            is_new=flag,
+            is_updated=flag,
+            audits=["line1", "line2"],
+        )
+        result = tested.to_json(True)
+        expected = {
+            "uuid": "theUuid",
+            "instruction": "theInstruction",
+            "information": "theInformation",
+            "isNew": False,
+            "isUpdated": False,
+        }
+        assert expected == result
+        result = tested.to_json(False)
+        expected = {
+            "uuid": "theUuid",
+            "instruction": "theInstruction",
+            "information": "theInformation",
+            "isNew": flag,
+            "isUpdated": flag,
+        }
+        assert expected == result
 
 
 def test_limited_str():

@@ -8,7 +8,12 @@ class Auditor:
     def identified_transcript(self, audios: list[bytes], transcript: list[Line]) -> bool:
         return True
 
-    def found_instructions(self, transcript: list[Line], instructions: list[Instruction]) -> bool:
+    def found_instructions(
+            self,
+            transcript: list[Line],
+            cumulated_instructions: list[Instruction],
+            previous_instructions: list[Instruction],
+    ) -> bool:
         return True
 
     def computed_parameters(self, instructions: list[InstructionWithParameters]) -> bool:

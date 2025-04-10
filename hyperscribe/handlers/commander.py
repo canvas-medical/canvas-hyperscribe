@@ -207,7 +207,7 @@ class Commander(BaseProtocol):
         # detect the instructions based on the transcript and the existing commands
         response = chatter.detect_instructions(transcript, previous_instructions)
         cumulated_instructions = Instruction.load_from_json(response)
-        auditor.found_instructions(transcript, cumulated_instructions)
+        auditor.found_instructions(transcript, cumulated_instructions, previous_instructions)
         memory_log.output(f"--> instructions: {len(cumulated_instructions)}")
         past_uuids = {instruction.uuid: instruction for instruction in previous_instructions}
 

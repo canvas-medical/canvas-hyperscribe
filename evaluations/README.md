@@ -24,8 +24,9 @@ The tests are JSON files with the input and the expected output for the consider
 The evaluation tests are run as `pytest` tests.
 
 The basic idea is that all figures or dates should be exactly the same from one run to another one.
-It is possible to ignore the value of a key when comparing the expected output and the actual output by setting it to `>?<` (
-see [here](./helper_evaluation.py) the method `json_nuanced_differences`).
+It is possible to ignore the value of a key when comparing the expected output and the actual output by setting it to `>?<`
+(see [here](./helper_evaluation.py) the method `json_nuanced_differences` using the constant `IGNORED_KEY_VALUE` defined in
+[`constants.py`](./constants.py)).
 
 The following parameters can be used to configure the evaluation test:
 
@@ -96,15 +97,30 @@ uv run python case_builder.py \
   --case the_case \
   --group common \
   --type general \
+  --combined \
   --mp3 "file/path/to/file_01.mp3" \
   "file/path/to/file_02.mp3" \
   "file/path/to/file_03.mp3"
 ```
 
-Note that on the first step (`audio2transcript`):
+The `combined` flag instructs the case builder to first combine the mp3 files in one audio first.
+
+Without it, the case builder will perform as many cycles as files, using the result of each cycle to the next, mimicking the real behavior.
+
+The generated files of each step will have a suffix `_cycle\d{2}` corresponding to the cycle (starting from 0). 
+
+```shell
+# run the tests for the_case, regardless of the --combined flag 
+uv  run pytest -v evaluations/ -k the_case
+
+# run the tests for cycle 3 of the_case, assuming it was built using at least 3 mp3 files and without the --combined flag
+uv  run pytest -v evaluations/ -k the_case_cycle02
+```
+
+Note also that on the first step (`audio2transcript`):
 
 - all `mp3` files are saved in the [`evaluations/audio2transcript/inputs_mp3/`](audio2transcript/inputs_mp3) folder, the first one using the `--case`
-  as name, the subsequent files have the same name with an added number,
+  as name, the subsequent files have the same name with an added number (suffix `\.\d{2}`, starting from 1),
 
 On the second step (`transcript2instructions`):
 

@@ -9,6 +9,7 @@ from evaluations.structures.evaluation_case import EvaluationCase
 from hyperscribe.handlers.audio_interpreter import AudioInterpreter
 from hyperscribe.handlers.commander import Commander
 from hyperscribe.structures.identification_parameters import IdentificationParameters
+from hyperscribe.structures.instruction import Instruction
 
 
 class BuilderFromMp3(BuilderBase):
@@ -22,6 +23,7 @@ class BuilderFromMp3(BuilderBase):
         parser.add_argument("--group", type=str, help="Group of the case", default=Constants.GROUP_COMMON)
         parser.add_argument("--type", type=str, choices=types, help=f"Type of the case: {', '.join(types)}", default=types[1])
         parser.add_argument("--mp3", required=True, nargs='+', type=cls.validate_files, help="List of MP3 files")
+        parser.add_argument('--combined', action='store_true', default=False, help="Combine the audio files into a single audio")
         return parser.parse_args()
 
     @classmethod
@@ -50,9 +52,28 @@ class BuilderFromMp3(BuilderBase):
             limited_cache,
             identification,
         )
-
         audios: list[bytes] = []
         for file in parameters.mp3:
             with file.open("rb") as f:
                 audios.append(f.read())
+
+        if parameters.combined or (len(parameters.mp3) == 1):
+            cls._run_combined(recorder, chatter, audios)
+        else:
+            cls._run_chunked(parameters, chatter, audios)
+
+    @classmethod
+    def _run_combined(cls, recorder: AuditorFile, chatter: AudioInterpreter, audios: list[bytes]) -> None:
         Commander.audio2commands(recorder, audios, chatter, [])
+
+    @classmethod
+    def _run_chunked(cls, parameters: Namespace, chatter: AudioInterpreter, audios: list[bytes]) -> None:
+        previous: list[Instruction] = []
+
+        for chunk_index in range(len(audios)):
+            combined: list[bytes] = []
+            for chunk in range(chunk_index, max(-1, chunk_index - Commander.MAX_AUDIOS), -1):
+                combined.insert(0, audios[chunk])
+
+            recorder = AuditorFile(f"{parameters.case}{Constants.CASE_CYCLE_SUFFIX}{chunk_index:02d}")
+            previous, _ = Commander.audio2commands(recorder, combined, chatter, previous)

@@ -47,11 +47,11 @@ class Perform(Base):
         }
 
     def instruction_description(self) -> str:
-        return ("Procedure or action performed during the encounter. "
-                "There can be only one procedure or action performed per instruction, and no instruction in the lack of.")
+        return ("Medical procedure, which is not an auscultation, performed during the encounter. "
+                "There can be only one procedure performed per instruction, and no instruction in the lack of.")
 
     def instruction_constraints(self) -> str:
-        return ""
+        return f'"{self.class_name()}" supports only one procedure per instruction, auscultation are prohibited.'
 
     def is_available(self) -> bool:
         return True

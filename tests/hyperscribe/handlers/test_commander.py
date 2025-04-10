@@ -745,6 +745,7 @@ def test_transcript2commands(new_commands_from, update_commands_from, memory_log
                 Line(speaker='speaker1', text='textC'),
             ],
             expected[0],
+            previous,
         )
     ]
     assert mock_auditor.mock_calls == calls

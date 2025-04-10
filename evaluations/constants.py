@@ -14,6 +14,8 @@ class Constants:
         DIFFERENCE_LEVEL_SEVERE,
         DIFFERENCE_LEVEL_CRITICAL,
     ]
+    IGNORED_KEY_VALUE = ">?<"
+    CASE_CYCLE_SUFFIX = "_cycle"
     #
     OPTION_DIFFERENCE_LEVELS = "--evaluation-difference-levels"
     OPTION_PATIENT_UUID = "--patient-uuid"
