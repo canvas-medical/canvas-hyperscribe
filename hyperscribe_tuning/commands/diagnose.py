@@ -1,4 +1,4 @@
-from hyperscribe.handlers.structures.coded_item import CodedItem
+from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe_tuning.commands.base import Base
 
 
