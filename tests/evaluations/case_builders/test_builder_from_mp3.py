@@ -209,12 +209,12 @@ def test__run_combined(commander):
 
 @patch("evaluations.case_builders.builder_from_mp3.AuditorFile")
 @patch("evaluations.case_builders.builder_from_mp3.Commander")
-def test__run_chunked(commander, recorder):
+def test__run_chunked(commander, auditor):
     mock_chatter = MagicMock()
 
     def reset_mocks():
         commander.reset_mock()
-        recorder.reset_mock()
+        auditor.reset_mock()
         mock_chatter.reset_mock()
 
     tested = BuilderFromMp3
@@ -252,13 +252,13 @@ def test__run_chunked(commander, recorder):
         call('theCase_cycle03'),
         call('theCase_cycle04'),
     ]
-    assert recorder.mock_calls == calls
+    assert auditor.mock_calls == calls
     calls = [
-        call.audio2commands(recorder.return_value, [b'audio content 0'], mock_chatter, []),
-        call.audio2commands(recorder.return_value, [b'audio content 0', b'audio content 1'], mock_chatter, ['previous1']),
-        call.audio2commands(recorder.return_value, [b'audio content 0', b'audio content 1', b'audio content 2'], mock_chatter, ['previous2']),
-        call.audio2commands(recorder.return_value, [b'audio content 1', b'audio content 2', b'audio content 3'], mock_chatter, ['previous3']),
-        call.audio2commands(recorder.return_value, [b'audio content 2', b'audio content 3', b'audio content 4'], mock_chatter, ['previous4']),
+        call.audio2commands(auditor.return_value, [b'audio content 0'], mock_chatter, []),
+        call.audio2commands(auditor.return_value, [b'audio content 0', b'audio content 1'], mock_chatter, ['previous1']),
+        call.audio2commands(auditor.return_value, [b'audio content 0', b'audio content 1', b'audio content 2'], mock_chatter, ['previous2']),
+        call.audio2commands(auditor.return_value, [b'audio content 1', b'audio content 2', b'audio content 3'], mock_chatter, ['previous3']),
+        call.audio2commands(auditor.return_value, [b'audio content 2', b'audio content 3', b'audio content 4'], mock_chatter, ['previous4']),
     ]
     assert commander.mock_calls == calls
 

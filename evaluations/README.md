@@ -124,7 +124,7 @@ Note also that on the first step (`audio2transcript`):
 
 On the second step (`transcript2instructions`):
 
-- the `uuid` of the instructions is by default set empty
+- the `uuid` of the instructions is by default set to `>?<`
 - the order of the instructions of different type is ignored
 
 #### From Transcript to commands
@@ -137,12 +137,15 @@ uv run python case_builder.py \
   --case the_case \
   --group common \
   --type general \
+  --cycles 3 \
   --transcript "file/path/to/file.json"
 ```
 
+The flag `cycles` instructs the case builder to perform as many cycles, using the result of each cycle to the next, mimicking the real behavior.
+
 Like previously, on the step `transcript2instructions`:
 
-- the `uuid` of the instructions is by default set empty
+- the `uuid` of the instructions is by default set to `>?<`
 - the order of the instructions of different type is ignored
 
 #### From Tuning data to commands

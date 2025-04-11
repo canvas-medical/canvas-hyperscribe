@@ -70,10 +70,10 @@ class BuilderFromMp3(BuilderBase):
     def _run_chunked(cls, parameters: Namespace, chatter: AudioInterpreter, audios: list[bytes]) -> None:
         previous: list[Instruction] = []
 
-        for chunk_index in range(len(audios)):
+        for cycle in range(len(audios)):
             combined: list[bytes] = []
-            for chunk in range(chunk_index, max(-1, chunk_index - Commander.MAX_AUDIOS), -1):
+            for chunk in range(cycle, max(-1, cycle - Commander.MAX_AUDIOS), -1):
                 combined.insert(0, audios[chunk])
 
-            recorder = AuditorFile(f"{parameters.case}{Constants.CASE_CYCLE_SUFFIX}{chunk_index:02d}")
+            recorder = AuditorFile(f"{parameters.case}{Constants.CASE_CYCLE_SUFFIX}{cycle:02d}")
             previous, _ = Commander.audio2commands(recorder, combined, chatter, previous)

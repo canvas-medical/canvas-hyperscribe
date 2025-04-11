@@ -10,6 +10,7 @@ from evaluations.structures.evaluation_case import EvaluationCase
 from hyperscribe.handlers.audio_interpreter import AudioInterpreter
 from hyperscribe.handlers.commander import Commander
 from hyperscribe.structures.identification_parameters import IdentificationParameters
+from hyperscribe.structures.instruction import Instruction
 from hyperscribe.structures.line import Line
 
 
@@ -24,6 +25,7 @@ class BuilderFromTranscript(BuilderBase):
         parser.add_argument("--group", type=str, help="Group of the case", default=Constants.GROUP_COMMON)
         parser.add_argument("--type", type=str, choices=types, help=f"Type of the case: {', '.join(types)}", default=types[1])
         parser.add_argument("--transcript", type=cls.validate_files, help="JSON file with transcript")
+        parser.add_argument("--cycles", type=int, help="Split the transcript in as many cycles", default=1)
         return parser.parse_args()
 
     @classmethod
@@ -53,4 +55,19 @@ class BuilderFromTranscript(BuilderBase):
 
         with parameters.transcript.open("r") as f:
             transcript = Line.load_from_json(json.load(f))
-        Commander.transcript2commands(recorder, transcript, chatter, [])
+
+        if parameters.cycles < 2:
+            Commander.transcript2commands(recorder, transcript, chatter, [])
+        else:
+            previous: list[Instruction] = []
+            length, extra = divmod(len(transcript), parameters.cycles)
+            length += (1 if extra else 0)
+            for cycle in range(0, parameters.cycles):
+                idx = cycle * length
+                recorder = AuditorFile(f"{parameters.case}{Constants.CASE_CYCLE_SUFFIX}{cycle:02d}")
+                previous, _ = Commander.transcript2commands(
+                    recorder,
+                    transcript[idx:idx + length],
+                    chatter,
+                    previous,
+                )

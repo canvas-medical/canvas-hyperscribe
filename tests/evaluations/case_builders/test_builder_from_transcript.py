@@ -34,12 +34,14 @@ def test__parameters(argument_parser):
         call().add_argument("--group", type=str, help="Group of the case", default="common"),
         call().add_argument("--type", type=str, choices=["situational", "general"], help="Type of the case: situational, general", default="general"),
         call().add_argument("--transcript", type=BuilderFromTranscript.validate_files, help="JSON file with transcript"),
+        call().add_argument("--cycles", type=int, help="Split the transcript in as many cycles", default=1),
         call().parse_args(),
     ]
     assert argument_parser.mock_calls == calls
     reset_mocks()
 
 
+@patch("evaluations.case_builders.builder_from_transcript.AuditorFile")
 @patch("evaluations.case_builders.builder_from_transcript.Commander")
 @patch("evaluations.case_builders.builder_from_transcript.AudioInterpreter")
 @patch("evaluations.case_builders.builder_from_transcript.HelperEvaluation")
@@ -51,6 +53,7 @@ def test__run(
         helper,
         audio_interpreter,
         commander,
+        auditor,
         capsys,
 ):
     mock_file = MagicMock()
@@ -61,6 +64,7 @@ def test__run(
         helper.reset_mock()
         audio_interpreter.reset_mock()
         commander.reset_mock()
+        auditor.reset_mock()
         mock_file.reset_mock()
 
     tested = BuilderFromTranscript
@@ -69,23 +73,13 @@ def test__run(
         Line(speaker="speakerA", text="text1"),
         Line(speaker="speakerB", text="text2"),
         Line(speaker="speakerA", text="text3"),
+        Line(speaker="speakerA", text="text4"),
+        Line(speaker="speakerB", text="text5"),
+        Line(speaker="speakerB", text="text6"),
+        Line(speaker="speakerB", text="text7"),
+        Line(speaker="speakerA", text="text8"),
+        Line(speaker="speakerA", text="text9"),
     ]
-
-    limited_cache_from.return_value.to_json.side_effect = [{"key": "value"}]
-    helper.settings.side_effect = ["theSettings"]
-    helper.aws_s3_credentials.side_effect = ["theAwsS3Credentials"]
-    mock_file.name = "theFile"
-    mock_file.open.return_value.__enter__.return_value.read.side_effect = [
-        json.dumps([l.to_json() for l in lines]),
-    ]
-
-    parameters = Namespace(
-        patient="thePatientUuid",
-        case="theCase",
-        group="theGroup",
-        type="theType",
-        transcript=mock_file,
-    )
     recorder = AuditorFile("theCase")
     identification = IdentificationParameters(
         patient_uuid="thePatient",
@@ -93,22 +87,17 @@ def test__run(
         provider_uuid="theProviderUuid",
         canvas_instance="theCanvasInstance",
     )
-    tested._run(parameters, recorder, identification)
-
     exp_out = [
         'Patient UUID: thePatientUuid',
         'Evaluation Case: theCase',
         'JSON file: theFile',
         '',
     ]
-    assert capsys.readouterr().out == "\n".join(exp_out)
-
-    calls = [
+    exp_limited_cache = [
         call(identification),
         call().to_json(),
     ]
-    assert limited_cache_from.mock_calls == calls
-    calls = [call.upsert(EvaluationCase(
+    exp_store_cases = [call.upsert(EvaluationCase(
         environment="theCanvasInstance",
         patient_uuid="thePatientUuid",
         limited_cache={"key": "value"},
@@ -117,19 +106,48 @@ def test__run(
         case_type="theType",
         description="theCase",
     ))]
-    assert store_cases.mock_calls == calls
-    calls = [
+    exp_helper = [
         call.settings(),
         call.aws_s3_credentials(),
     ]
-    assert helper.mock_calls == calls
-    calls = [call(
+    exp_audio_interpreter = [call(
         "theSettings",
         "theAwsS3Credentials",
         limited_cache_from.return_value,
         identification,
     )]
-    assert audio_interpreter.mock_calls == calls
+    exp_mock_file = [
+        call.open('r'),
+        call.open().__enter__(),
+        call.open().__enter__().read(),
+        call.open().__exit__(None, None, None),
+    ]
+
+    # cycle 1
+    limited_cache_from.return_value.to_json.side_effect = [{"key": "value"}]
+    helper.settings.side_effect = ["theSettings"]
+    helper.aws_s3_credentials.side_effect = ["theAwsS3Credentials"]
+    mock_file.name = "theFile"
+    mock_file.open.return_value.__enter__.return_value.read.side_effect = [
+        json.dumps([l.to_json() for l in lines]),
+    ]
+    commander.transcript2commands.side_effect = [(["previous1"], ["effects1"])]
+    auditor.side_effect = []
+    parameters = Namespace(
+        patient="thePatientUuid",
+        case="theCase",
+        group="theGroup",
+        type="theType",
+        transcript=mock_file,
+        cycles=1,
+    )
+    tested._run(parameters, recorder, identification)
+
+    assert capsys.readouterr().out == "\n".join(exp_out)
+    assert limited_cache_from.mock_calls == exp_limited_cache
+    assert store_cases.mock_calls == exp_store_cases
+    assert helper.mock_calls == exp_helper
+    assert audio_interpreter.mock_calls == exp_audio_interpreter
     calls = [call.transcript2commands(
         recorder,
         lines,
@@ -137,12 +155,119 @@ def test__run(
         [],
     )]
     assert commander.mock_calls == calls
-    calls = [
-        call.open('r'),
-        call.open().__enter__(),
-        call.open().__enter__().read(),
-        call.open().__exit__(None, None, None),
+    assert auditor.mock_calls == []
+    assert mock_file.mock_calls == exp_mock_file
+
+    reset_mocks()
+
+    # cycle 2
+    limited_cache_from.return_value.to_json.side_effect = [{"key": "value"}]
+    helper.settings.side_effect = ["theSettings"]
+    helper.aws_s3_credentials.side_effect = ["theAwsS3Credentials"]
+    mock_file.name = "theFile"
+    mock_file.open.return_value.__enter__.return_value.read.side_effect = [
+        json.dumps([l.to_json() for l in lines]),
     ]
-    assert mock_file.mock_calls == calls
+    commander.transcript2commands.side_effect = [
+        (["previous1"], ["effects1"]),
+        (["previous2"], ["effects2"]),
+    ]
+    auditor.side_effect = ["auditor1", "auditor2"]
+    parameters = Namespace(
+        patient="thePatientUuid",
+        case="theCase",
+        group="theGroup",
+        type="theType",
+        transcript=mock_file,
+        cycles=2,
+    )
+    tested._run(parameters, recorder, identification)
+
+    assert capsys.readouterr().out == "\n".join(exp_out)
+    assert limited_cache_from.mock_calls == exp_limited_cache
+    assert store_cases.mock_calls == exp_store_cases
+    assert helper.mock_calls == exp_helper
+    assert audio_interpreter.mock_calls == exp_audio_interpreter
+    calls = [
+        call.transcript2commands(
+            "auditor1",
+            lines[:5],
+            audio_interpreter.return_value,
+            [],
+        ),
+        call.transcript2commands(
+            "auditor2",
+            lines[5:],
+            audio_interpreter.return_value,
+            ["previous1"],
+        ),
+    ]
+    assert commander.mock_calls == calls
+    calls = [
+        call("theCase_cycle00"),
+        call("theCase_cycle01"),
+    ]
+    assert auditor.mock_calls == calls
+    assert mock_file.mock_calls == exp_mock_file
+
+    reset_mocks()
+
+    # cycle 3
+    limited_cache_from.return_value.to_json.side_effect = [{"key": "value"}]
+    helper.settings.side_effect = ["theSettings"]
+    helper.aws_s3_credentials.side_effect = ["theAwsS3Credentials"]
+    mock_file.name = "theFile"
+    mock_file.open.return_value.__enter__.return_value.read.side_effect = [
+        json.dumps([l.to_json() for l in lines]),
+    ]
+    commander.transcript2commands.side_effect = [
+        (["previous1"], ["effects1"]),
+        (["previous2"], ["effects2"]),
+        (["previous3"], ["effects3"]),
+    ]
+    auditor.side_effect = ["auditor1", "auditor2", "auditor3"]
+    parameters = Namespace(
+        patient="thePatientUuid",
+        case="theCase",
+        group="theGroup",
+        type="theType",
+        transcript=mock_file,
+        cycles=3,
+    )
+    tested._run(parameters, recorder, identification)
+
+    assert capsys.readouterr().out == "\n".join(exp_out)
+    assert limited_cache_from.mock_calls == exp_limited_cache
+    assert store_cases.mock_calls == exp_store_cases
+    assert helper.mock_calls == exp_helper
+    assert audio_interpreter.mock_calls == exp_audio_interpreter
+    calls = [
+        call.transcript2commands(
+            "auditor1",
+            lines[:3],
+            audio_interpreter.return_value,
+            [],
+        ),
+        call.transcript2commands(
+            "auditor2",
+            lines[3:6],
+            audio_interpreter.return_value,
+            ["previous1"],
+        ),
+        call.transcript2commands(
+            "auditor3",
+            lines[6:],
+            audio_interpreter.return_value,
+            ["previous2"],
+        ),
+    ]
+    assert commander.mock_calls == calls
+    calls = [
+        call("theCase_cycle00"),
+        call("theCase_cycle01"),
+        call("theCase_cycle02"),
+    ]
+    assert auditor.mock_calls == calls
+    assert mock_file.mock_calls == exp_mock_file
 
     reset_mocks()
