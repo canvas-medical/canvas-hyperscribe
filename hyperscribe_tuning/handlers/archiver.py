@@ -6,9 +6,11 @@ from canvas_sdk.effects import Effect
 from canvas_sdk.effects.simple_api import HTMLResponse, JSONResponse, Response
 from canvas_sdk.handlers.simple_api import Credentials, SimpleAPIRoute
 from canvas_sdk.templates import render_to_string
+from canvas_sdk.v1.data import Command
 
 from hyperscribe_tuning.handlers.aws_s3 import AwsS3
 from hyperscribe_tuning.handlers.constants import Constants
+from hyperscribe_tuning.handlers.limited_cache import LimitedCache
 
 
 class Archiver(SimpleAPIRoute):
@@ -38,7 +40,7 @@ class Archiver(SimpleAPIRoute):
 
         # force the interval to 15s or more
         interval = self.secrets[Constants.SECRET_AUDIO_INTERVAL_SECONDS]
-        if not interval or not interval.isdigit() or int(interval) < int(Constants.MAX_AUDIO_INTERVAL_SECONDS):
+        if not interval or not interval.isdigit() or int(interval)  < int(Constants.MAX_AUDIO_INTERVAL_SECONDS):
             interval = Constants.MAX_AUDIO_INTERVAL_SECONDS
 
         context = {
@@ -61,6 +63,25 @@ class Archiver(SimpleAPIRoute):
             self.secrets[Constants.SECRET_AWS_BUCKET],
         )
 
+        subdomain = self.request.headers['host'].split('.')[0]
+
+        archive_limited_chart = self.request.query_params.get('archive_limited_chart')
+        if bool(archive_limited_chart):
+            qp = self.request.query_params
+            patient_id = qp['patient_id']
+            note_id = qp['note_id']
+            limited_chart = LimitedCache(patient_id, note_id).to_json()
+            object_key = f"{subdomain}/patient_{patient_id}/note_{note_id}/limited_chart.json"
+            resp = client_s3.upload_binary_to_s3(object_key, limited_chart.encode('utf-8'), 'application/json')
+            
+            return [
+                JSONResponse({
+                    "s3status": resp.status_code,
+                    "s3text": resp.text,
+                    "s3key": object_key,
+                })
+            ]
+        
         form_data = self.request.form_data()
 
         audio_form_part = form_data.get('audio')
@@ -74,7 +95,6 @@ class Archiver(SimpleAPIRoute):
                      .replace('_note', '/note')
                      .replace('_chunk', '/chunk')
                      .replace('.webm', f'_{int(time())}.webm'))
-        subdomain = self.request.headers['host'].split('.')[0]
         object_key = f"{subdomain}/{file_name}"
         resp = client_s3.upload_binary_to_s3(
             object_key,
