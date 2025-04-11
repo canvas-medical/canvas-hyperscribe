@@ -68,6 +68,15 @@ class AwsS3:
         endpoint = f"https://{headers['Host']}/{object_key}"
         return requests_get(endpoint, headers=headers)
 
+    def upload_text_to_s3(self, object_key: str, data: str) -> Response:
+        content_type = "text/plain"
+        headers = self.headers(object_key, (data.encode(), content_type)) | {
+            'Content-Type': content_type,
+            'Content-Length': str(len(data)),
+        }
+        endpoint = f"https://{headers['Host']}/{object_key}"
+        return requests_put(endpoint, headers=headers, data=data)
+
     def upload_binary_to_s3(self, object_key: str, binary_data: bytes, content_type: str):
         headers = self.headers(object_key, (binary_data, content_type)) | {
             'Content-Type': content_type,

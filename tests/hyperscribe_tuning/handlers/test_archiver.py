@@ -11,10 +11,10 @@ from canvas_sdk.effects.simple_api import HTMLResponse, JSONResponse
 from canvas_sdk.events import Event
 from canvas_sdk.events.base import TargetType
 from canvas_sdk.handlers.simple_api import SimpleAPIRoute, Credentials
-from canvas_sdk.v1.data import Patient
+from canvas_sdk.v1.data import Patient, Command
 from requests import Response
 
-from hyperscribe_tuning.handlers.archiver import Archiver
+from hyperscribe_tuning.handlers.archiver import Archiver, ArchiverHelper
 from tests.helper import is_constant
 
 
@@ -157,25 +157,142 @@ def test_get(render_to_string):
         reset_mocks()
 
 
+@patch.object(ArchiverHelper, "store_audio")
+@patch.object(ArchiverHelper, "store_chart")
+@patch("hyperscribe_tuning.handlers.archiver.AwsS3")
+def test_post(aws_s3, post_chart, post_audio):
+    def reset_mocks():
+        aws_s3.reset_mock()
+        post_chart.reset_mock()
+        post_audio.reset_mock()
+
+    tested = helper_instance()
+
+    # save chart
+    response = Response()
+    response.status_code = 1234
+    response.raw = BytesIO(b"theResponseText")
+    response.encoding = "utf-8"
+
+    aws_s3.side_effect = ["awsS3Instance"]
+    post_chart.side_effect = ["thePostChart"]
+    post_audio.side_effect = []
+    tested.request.query_params = {
+        "archive_limited_chart": True,
+    }
+
+    result = tested.post()
+    expected = ["thePostChart"]
+    assert result == expected
+    calls = [
+        call('theKey', 'theSecret', 'theRegion', 'theBucket'),
+    ]
+    assert aws_s3.mock_calls == calls
+    calls = [call("awsS3Instance", "theHost", tested.request)]
+    assert post_chart.mock_calls == calls
+    assert post_audio.mock_calls == []
+    reset_mocks()
+
+    # save audio
+    response = Response()
+    response.status_code = 1234
+    response.raw = BytesIO(b"theResponseText")
+    response.encoding = "utf-8"
+
+    aws_s3.side_effect = ["awsS3Instance"]
+    post_chart.side_effect = []
+    post_audio.side_effect = ["thePostAudio"]
+    tested.request.query_params = {
+        "archive_limited_chart": False,
+    }
+
+    result = tested.post()
+    expected = ["thePostAudio"]
+    assert result == expected
+    calls = [
+        call('theKey', 'theSecret', 'theRegion', 'theBucket'),
+    ]
+    assert aws_s3.mock_calls == calls
+    assert post_chart.mock_calls == []
+    calls = [call("awsS3Instance", "theHost", tested.request)]
+    assert post_audio.mock_calls == calls
+    reset_mocks()
+
+
+@patch.object(Command, "objects")
+@patch("hyperscribe_tuning.handlers.archiver.LimitedCache")
+@patch("hyperscribe_tuning.handlers.archiver.AwsS3")
+def test_store_chart(aws_s3, limited_cache, command_db):
+    mock_request = MagicMock()
+
+    def reset_mocks():
+        aws_s3.reset_mock()
+        limited_cache.reset_mock()
+        command_db.reset_mock()
+        mock_request.reset_mock()
+
+    tested = ArchiverHelper
+
+    response = Response()
+    response.status_code = 1234
+    response.raw = BytesIO(b"theResponseText")
+    response.encoding = "utf-8"
+
+    aws_s3.upload_text_to_s3.side_effect = [response]
+    limited_cache.existing_commands_to_coded_items.side_effect = ["existingCommandsToCodedItems"]
+    limited_cache.return_value.to_json.side_effect = [{"key": "theLimitedCache"}]
+    command_db.filter.return_value.order_by.side_effect = ["QuerySetCommands"]
+    mock_request.query_params = {
+        "patient_id": "thePatientId",
+        "note_id": "theNoteId",
+    }
+
+    result = tested.store_chart(aws_s3, "theHost", mock_request)
+    expected = JSONResponse({
+        "s3status": 1234,
+        "s3text": "theResponseText",
+        "s3key": "theHost/patient_thePatientId/note_theNoteId/limited_chart.json",
+    })
+    assert result == expected
+
+    calls = [
+        call.upload_text_to_s3(
+            'theHost/patient_thePatientId/note_theNoteId/limited_chart.json',
+            '{"key": "theLimitedCache"}',
+        ),
+    ]
+    assert aws_s3.mock_calls == calls
+    calls = [
+        call.filter(patient__id='thePatientId', note__id='theNoteId', state='staged'),
+        call.filter().order_by('dbid'),
+    ]
+    assert command_db.mock_calls == calls
+    calls = [
+        call.existing_commands_to_coded_items("QuerySetCommands"),
+        call("thePatientId", "existingCommandsToCodedItems"),
+        call().to_json()
+    ]
+    assert limited_cache.mock_calls == calls
+    assert mock_request.mock_calls == []
+    reset_mocks()
+
+
 @patch("hyperscribe_tuning.handlers.archiver.time", wraps=time)
 @patch("hyperscribe_tuning.handlers.archiver.AwsS3")
-def test_post(aws_s3, mock_time):
-    mock_form = MagicMock()
+def test_store_audio(aws_s3, mock_time):
+    mock_request = MagicMock()
 
     def reset_mocks():
         aws_s3.reset_mock()
         mock_time.reset_mock()
-        mock_form.reset_mock()
+        mock_request.reset_mock()
 
     class FormFile(NamedTuple):
         filename: str
         content: str
         content_type: str
 
-    def form_data():
-        return mock_form
-
-    tested = helper_instance()
+    tested = ArchiverHelper
 
     # all good
     response = Response()
@@ -183,54 +300,52 @@ def test_post(aws_s3, mock_time):
     response.raw = BytesIO(b"theResponseText")
     response.encoding = "utf-8"
 
-    aws_s3.return_value.upload_binary_to_s3.side_effect = [response]
+    aws_s3.upload_binary_to_s3.side_effect = [response]
     mock_time.side_effect = [1741964291.775192]
-    mock_form.get.side_effect = [FormFile(
+    mock_request.form_data.return_value.get.side_effect = [FormFile(
         filename="theFileName",
         content="theContent",
         content_type="theContentType",
     )]
-    tested.request.form_data = form_data
 
-    result = tested.post()
-    expected = [
-        JSONResponse({
-            "s3status": 1234,
-            "s3text": "theResponseText",
-            "s3key": "theHost/theFileName",
-        }),
-    ]
+    result = tested.store_audio(aws_s3, "theHost", mock_request)
+    expected = JSONResponse({
+        "s3status": 1234,
+        "s3text": "theResponseText",
+        "s3key": "theHost/theFileName",
+    })
     assert result == expected
+
     calls = [
-        call('theKey', 'theSecret', 'theRegion', 'theBucket'),
-        call().upload_binary_to_s3('theHost/theFileName', 'theContent', 'theContentType'),
+        call.upload_binary_to_s3('theHost/theFileName', 'theContent', 'theContentType'),
     ]
     assert aws_s3.mock_calls == calls
     calls = [call()]
     assert mock_time.mock_calls == calls
-    calls = [call.get('audio')]
-    assert mock_form.mock_calls == calls
+    calls = [
+        call.form_data(),
+        call.form_data().get('audio'),
+    ]
+    assert mock_request.mock_calls == calls
     reset_mocks()
 
     # no audio
     aws_s3.return_value.upload_binary_to_s3.side_effect = []
     mock_time.side_effect = []
-    mock_form.get.side_effect = [None]
-    tested.request.form_data = form_data
+    mock_request.form_data.return_value.get.side_effect = [None]
 
-    result = tested.post()
-    expected = [
-        JSONResponse(
-            {"message": "Form data must include 'audio' part"},
-            HTTPStatus.BAD_REQUEST,
-        ),
-    ]
+    result = tested.store_audio(aws_s3, "theHost", mock_request)
+    expected = JSONResponse(
+        {"message": "Form data must include 'audio' part"},
+        HTTPStatus.BAD_REQUEST,
+    )
     assert result == expected
-    calls = [
-        call('theKey', 'theSecret', 'theRegion', 'theBucket'),
-    ]
-    assert aws_s3.mock_calls == calls
+
+    assert aws_s3.mock_calls == []
     assert mock_time.mock_calls == []
-    calls = [call.get('audio')]
-    assert mock_form.mock_calls == calls
+    calls = [
+        call.form_data(),
+        call.form_data().get('audio'),
+    ]
+    assert mock_request.mock_calls == calls
     reset_mocks()
