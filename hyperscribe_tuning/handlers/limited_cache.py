@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date
 from re import match
-from typing import NamedTuple, Iterable
+from typing import Iterable
 
 from canvas_sdk.commands.constants import CodeSystems
 from canvas_sdk.v1.data import (
@@ -15,12 +15,7 @@ from django.db.models.expressions import When, Value, Case
 
 from hyperscribe_tuning.handlers.constants import Constants
 from hyperscribe_tuning.handlers.implemented_commands import ImplementedCommands
-
-
-class CodedItem(NamedTuple):
-    uuid: str
-    label: str
-    code: str
+from hyperscribe_tuning.structures.coded_item import CodedItem
 
 
 class LimitedCache:

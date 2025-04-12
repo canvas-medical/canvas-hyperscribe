@@ -1,4 +1,4 @@
-from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe_tuning.structures.coded_item import CodedItem
 
 
 class Base:
