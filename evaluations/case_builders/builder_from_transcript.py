@@ -9,8 +9,8 @@ from evaluations.helper_evaluation import HelperEvaluation
 from evaluations.structures.evaluation_case import EvaluationCase
 from hyperscribe.handlers.audio_interpreter import AudioInterpreter
 from hyperscribe.handlers.commander import Commander
+from hyperscribe.handlers.implemented_commands import ImplementedCommands
 from hyperscribe.structures.identification_parameters import IdentificationParameters
-from hyperscribe.structures.instruction import Instruction
 from hyperscribe.structures.line import Line
 
 
@@ -35,7 +35,7 @@ class BuilderFromTranscript(BuilderBase):
         StoreCases.upsert(EvaluationCase(
             environment=identification.canvas_instance,
             patient_uuid=parameters.patient,
-            limited_cache=limited_cache.to_json(),
+            limited_cache=limited_cache.to_json(True),
             case_name=parameters.case,
             case_group=parameters.group,
             case_type=parameters.type,
@@ -45,6 +45,7 @@ class BuilderFromTranscript(BuilderBase):
         print(f"Patient UUID: {parameters.patient}")
         print(f"Evaluation Case: {parameters.case}")
         print(f"JSON file: {parameters.transcript.name}")
+        print(f"Cycles: {parameters.cycles}")
 
         chatter = AudioInterpreter(
             HelperEvaluation.settings(),
@@ -56,10 +57,11 @@ class BuilderFromTranscript(BuilderBase):
         with parameters.transcript.open("r") as f:
             transcript = Line.load_from_json(json.load(f))
 
+        previous = limited_cache.staged_commands_as_instructions(ImplementedCommands.schema_key2instruction())
+
         if parameters.cycles < 2:
-            Commander.transcript2commands(recorder, transcript, chatter, [])
+            Commander.transcript2commands(recorder, transcript, chatter, previous)
         else:
-            previous: list[Instruction] = []
             length, extra = divmod(len(transcript), parameters.cycles)
             length += (1 if extra else 0)
             for cycle in range(0, parameters.cycles):

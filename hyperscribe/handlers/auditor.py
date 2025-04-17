@@ -11,8 +11,8 @@ class Auditor:
     def found_instructions(
             self,
             transcript: list[Line],
+            initial_instructions: list[Instruction],
             cumulated_instructions: list[Instruction],
-            previous_instructions: list[Instruction],
     ) -> bool:
         return True
 
@@ -20,4 +20,12 @@ class Auditor:
         return True
 
     def computed_commands(self, instructions: list[InstructionWithCommand]) -> bool:
+        return True
+
+    def computed_questionnaires(
+            self,
+            transcript: list[Line],
+            initial_instructions: list[Instruction],
+            instructions_with_command: list[InstructionWithCommand],
+    ) -> bool:
         return True

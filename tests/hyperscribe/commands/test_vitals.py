@@ -65,7 +65,9 @@ def test_staged_command_extract():
              "blood_pressure_position_and_site": "1"
          }, CodedItem(
             label="note: theNote, pulse: 67, height: 100, weight_oz: 4, weight_lbs: 180, pulse_rhythm: 0, body_temperature: 99, respiration_rate: 36, oxygen_saturation: 78, waist_circumference: 112, body_temperature_site: 1, blood_pressure_systole: 120, blood_pressure_diastole: 80, blood_pressure_position_and_site: 1",
-            code="", uuid="")),
+            code="",
+            uuid="",
+        )),
         ({
              "note": "theNote",
              "pulse": None,
@@ -83,7 +85,9 @@ def test_staged_command_extract():
              "blood_pressure_position_and_site": "1"
          }, CodedItem(
             label="note: theNote, height: 100, weight_oz: 4, weight_lbs: 180, pulse_rhythm: 0, body_temperature: 99, waist_circumference: 112, body_temperature_site: 1, blood_pressure_position_and_site: 1",
-            code="", uuid="")),
+            code="",
+            uuid="",
+        )),
         ({
              "note": "",
              "pulse": None,

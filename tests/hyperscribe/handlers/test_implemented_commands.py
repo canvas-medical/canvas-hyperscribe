@@ -2,6 +2,35 @@ from hyperscribe.commands.base import Base
 from hyperscribe.handlers.implemented_commands import ImplementedCommands
 
 
+def test_pre_initialized():
+    tested = ImplementedCommands
+    result = tested.pre_initialized()
+    for command in result:
+        assert issubclass(command, Base)
+    commands = [c.class_name() for c in result]
+    expected = [
+        'HistoryOfPresentIllness',
+        'ReasonForVisit',
+        'PhysicalExam',
+        'Questionnaire',
+        'ReviewOfSystem',
+        'StructuredAssessment',
+    ]
+    assert commands == expected
+
+
+def test_questionnaire_command_list():
+    tested = ImplementedCommands
+    result = tested.questionnaire_command_name_list()
+    expected = [
+        'PhysicalExam',
+        'Questionnaire',
+        'ReviewOfSystem',
+        'StructuredAssessment',
+    ]
+    assert result == expected
+
+
 def test_implemented_commands():
     tested = ImplementedCommands
     result = tested.command_list()

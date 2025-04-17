@@ -37,6 +37,26 @@ from hyperscribe.commands.vitals import Vitals
 
 
 class ImplementedCommands:
+    @classmethod
+    def pre_initialized(cls) -> list[Type[Base]]:
+        return [
+            HistoryOfPresentIllness,
+            ReasonForVisit,
+            PhysicalExam,
+            Questionnaire,
+            ReviewOfSystem,
+            StructuredAssessment,
+        ]
+
+    @classmethod
+    def questionnaire_command_name_list(cls) -> list[str]:
+        return [
+            c.class_name() for c in [
+                PhysicalExam,
+                Questionnaire,
+                ReviewOfSystem,
+                StructuredAssessment,
+            ]]
 
     @classmethod
     def command_list(cls) -> list[Type[Base]]:

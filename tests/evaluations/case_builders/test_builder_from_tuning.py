@@ -42,9 +42,11 @@ def test__parameters(argument_parser):
 @patch("evaluations.case_builders.builder_from_tuning.AudioInterpreter")
 @patch("evaluations.case_builders.builder_from_tuning.HelperEvaluation")
 @patch("evaluations.case_builders.builder_from_tuning.StoreCases")
+@patch("evaluations.case_builders.builder_from_tuning.ImplementedCommands")
 @patch("evaluations.case_builders.builder_from_tuning.LimitedCache")
 def test__run(
         limited_cache,
+        implemented_commands,
         store_cases,
         helper,
         audio_interpreter,
@@ -53,19 +55,24 @@ def test__run(
 ):
     mock_json_file = MagicMock()
     mock_mp3_file = MagicMock()
+    mock_limited_cache = MagicMock()
 
     def reset_mocks():
         limited_cache.reset_mock()
+        implemented_commands.reset_mock()
         store_cases.reset_mock()
         helper.reset_mock()
         audio_interpreter.reset_mock()
         commander.reset_mock()
         mock_json_file.reset_mock()
         mock_mp3_file.reset_mock()
+        mock_limited_cache.reset_mock()
 
     tested = BuilderFromTuning
 
-    limited_cache.load_from_json.side_effect = ["theLimitedCacheInstance"]
+    limited_cache.load_from_json.side_effect = [mock_limited_cache]
+    mock_limited_cache.staged_commands_as_instructions.side_effect = [["theInitialInstructions"]]
+    implemented_commands.schema_key2instruction.side_effect = ["schemaKey2instruction"]
     helper.settings.side_effect = ["theSettings"]
     helper.aws_s3_credentials.side_effect = ["theAwsS3Credentials"]
     mock_json_file.name = "theJsonFile"
@@ -100,6 +107,10 @@ def test__run(
 
     calls = [call.load_from_json({"key": "value"})]
     assert limited_cache.mock_calls == calls
+    calls = [call.staged_commands_as_instructions("schemaKey2instruction")]
+    assert mock_limited_cache.mock_calls == calls
+    calls = [call.schema_key2instruction()]
+    assert implemented_commands.mock_calls == calls
     calls = [call.upsert(EvaluationCase(
         environment="theCanvasInstance",
         patient_uuid="thePatientUuid",
@@ -118,7 +129,7 @@ def test__run(
     calls = [call(
         "theSettings",
         "theAwsS3Credentials",
-        "theLimitedCacheInstance",
+        mock_limited_cache,
         identification,
     )]
     assert audio_interpreter.mock_calls == calls
@@ -126,7 +137,7 @@ def test__run(
         recorder,
         [b'audio content'],
         audio_interpreter.return_value,
-        [],
+        ["theInitialInstructions"],
     )]
     assert commander.mock_calls == calls
     calls = [

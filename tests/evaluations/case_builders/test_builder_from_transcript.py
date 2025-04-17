@@ -6,7 +6,9 @@ from evaluations.auditor_file import AuditorFile
 from evaluations.case_builders.builder_base import BuilderBase
 from evaluations.case_builders.builder_from_transcript import BuilderFromTranscript
 from evaluations.structures.evaluation_case import EvaluationCase
+from hyperscribe.handlers.implemented_commands import ImplementedCommands
 from hyperscribe.structures.identification_parameters import IdentificationParameters
+from hyperscribe.structures.instruction import Instruction
 from hyperscribe.structures.line import Line
 
 
@@ -46,9 +48,11 @@ def test__parameters(argument_parser):
 @patch("evaluations.case_builders.builder_from_transcript.AudioInterpreter")
 @patch("evaluations.case_builders.builder_from_transcript.HelperEvaluation")
 @patch("evaluations.case_builders.builder_from_transcript.StoreCases")
+@patch.object(ImplementedCommands, "schema_key2instruction")
 @patch.object(BuilderFromTranscript, "_limited_cache_from")
 def test__run(
         limited_cache_from,
+        schema_key2instruction,
         store_cases,
         helper,
         audio_interpreter,
@@ -60,6 +64,7 @@ def test__run(
 
     def reset_mocks():
         limited_cache_from.reset_mock()
+        schema_key2instruction.reset_mock()
         store_cases.reset_mock()
         helper.reset_mock()
         audio_interpreter.reset_mock()
@@ -80,6 +85,24 @@ def test__run(
         Line(speaker="speakerA", text="text8"),
         Line(speaker="speakerA", text="text9"),
     ]
+    instructions = [
+        Instruction(
+            uuid="uuid1",
+            instruction="theInstruction1",
+            information="theInformation1",
+            is_new=False,
+            is_updated=True,
+            audits=[],
+        ),
+        Instruction(
+            uuid="uuid2",
+            instruction="theInstruction2",
+            information="theInformation2",
+            is_new=False,
+            is_updated=True,
+            audits=[],
+        )
+    ]
     recorder = AuditorFile("theCase")
     identification = IdentificationParameters(
         patient_uuid="thePatient",
@@ -91,12 +114,13 @@ def test__run(
         'Patient UUID: thePatientUuid',
         'Evaluation Case: theCase',
         'JSON file: theFile',
-        '',
     ]
     exp_limited_cache = [
         call(identification),
-        call().to_json(),
+        call().to_json(True),
+        call().staged_commands_as_instructions('schemaKey2instruction'),
     ]
+    exp_schema_key2instruction = [call()]
     exp_store_cases = [call.upsert(EvaluationCase(
         environment="theCanvasInstance",
         patient_uuid="thePatientUuid",
@@ -125,6 +149,8 @@ def test__run(
 
     # cycle 1
     limited_cache_from.return_value.to_json.side_effect = [{"key": "value"}]
+    limited_cache_from.return_value.staged_commands_as_instructions.side_effect = [instructions]
+    schema_key2instruction.side_effect = ["schemaKey2instruction"]
     helper.settings.side_effect = ["theSettings"]
     helper.aws_s3_credentials.side_effect = ["theAwsS3Credentials"]
     mock_file.name = "theFile"
@@ -143,8 +169,9 @@ def test__run(
     )
     tested._run(parameters, recorder, identification)
 
-    assert capsys.readouterr().out == "\n".join(exp_out)
+    assert capsys.readouterr().out == "\n".join(exp_out + ["Cycles: 1", ""])
     assert limited_cache_from.mock_calls == exp_limited_cache
+    assert schema_key2instruction.mock_calls == exp_schema_key2instruction
     assert store_cases.mock_calls == exp_store_cases
     assert helper.mock_calls == exp_helper
     assert audio_interpreter.mock_calls == exp_audio_interpreter
@@ -152,7 +179,7 @@ def test__run(
         recorder,
         lines,
         audio_interpreter.return_value,
-        [],
+        instructions,
     )]
     assert commander.mock_calls == calls
     assert auditor.mock_calls == []
@@ -162,6 +189,8 @@ def test__run(
 
     # cycle 2
     limited_cache_from.return_value.to_json.side_effect = [{"key": "value"}]
+    limited_cache_from.return_value.staged_commands_as_instructions.side_effect = [instructions]
+    schema_key2instruction.side_effect = ["schemaKey2instruction"]
     helper.settings.side_effect = ["theSettings"]
     helper.aws_s3_credentials.side_effect = ["theAwsS3Credentials"]
     mock_file.name = "theFile"
@@ -183,8 +212,9 @@ def test__run(
     )
     tested._run(parameters, recorder, identification)
 
-    assert capsys.readouterr().out == "\n".join(exp_out)
+    assert capsys.readouterr().out == "\n".join(exp_out + ["Cycles: 2", ""])
     assert limited_cache_from.mock_calls == exp_limited_cache
+    assert schema_key2instruction.mock_calls == exp_schema_key2instruction
     assert store_cases.mock_calls == exp_store_cases
     assert helper.mock_calls == exp_helper
     assert audio_interpreter.mock_calls == exp_audio_interpreter
@@ -193,7 +223,7 @@ def test__run(
             "auditor1",
             lines[:5],
             audio_interpreter.return_value,
-            [],
+            instructions,
         ),
         call.transcript2commands(
             "auditor2",
@@ -214,6 +244,8 @@ def test__run(
 
     # cycle 3
     limited_cache_from.return_value.to_json.side_effect = [{"key": "value"}]
+    limited_cache_from.return_value.staged_commands_as_instructions.side_effect = [instructions]
+    schema_key2instruction.side_effect = ["schemaKey2instruction"]
     helper.settings.side_effect = ["theSettings"]
     helper.aws_s3_credentials.side_effect = ["theAwsS3Credentials"]
     mock_file.name = "theFile"
@@ -236,8 +268,9 @@ def test__run(
     )
     tested._run(parameters, recorder, identification)
 
-    assert capsys.readouterr().out == "\n".join(exp_out)
+    assert capsys.readouterr().out == "\n".join(exp_out + ["Cycles: 3", ""])
     assert limited_cache_from.mock_calls == exp_limited_cache
+    assert schema_key2instruction.mock_calls == exp_schema_key2instruction
     assert store_cases.mock_calls == exp_store_cases
     assert helper.mock_calls == exp_helper
     assert audio_interpreter.mock_calls == exp_audio_interpreter
@@ -246,7 +279,7 @@ def test__run(
             "auditor1",
             lines[:3],
             audio_interpreter.return_value,
-            [],
+            instructions,
         ),
         call.transcript2commands(
             "auditor2",

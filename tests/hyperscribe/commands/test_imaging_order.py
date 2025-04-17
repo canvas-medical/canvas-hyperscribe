@@ -61,15 +61,22 @@ def test_staged_command_extract():
                  {"text": "indication3"},
              ],
              "additional_details": "additionalOrderDetails"
-         }, CodedItem(label="theImaging: theComment (priority: thePriority, related conditions: indication1/indication2/indication3)", code="",
-                      uuid="")),
+         }, CodedItem(
+            label="theImaging: theComment (priority: thePriority, related conditions: indication1/indication2/indication3)",
+            code="",
+            uuid="",
+        )),
         ({
              "image": {"text": "theImaging"},
              "comment": "theComment",
              "priority": "thePriority",
              "indications": [],
              "additional_details": "additionalOrderDetails"
-         }, CodedItem(label="theImaging: theComment (priority: thePriority, related conditions: n/a)", code="", uuid="")),
+         }, CodedItem(
+            label="theImaging: theComment (priority: thePriority, related conditions: n/a)",
+            code="",
+            uuid="",
+        )),
         ({
              "image": {"text": "theImaging"},
              "comment": "theComment",
@@ -80,7 +87,11 @@ def test_staged_command_extract():
                  {"text": "indication3"},
              ],
              "additional_details": "additionalOrderDetails"
-         }, CodedItem(label="theImaging: theComment (priority: n/a, related conditions: indication1/indication2/indication3)", code="", uuid="")),
+         }, CodedItem(
+            label="theImaging: theComment (priority: n/a, related conditions: indication1/indication2/indication3)",
+            code="",
+            uuid="",
+        )),
         ({
              "image": {"text": "theImaging"},
              "comment": "",
@@ -91,7 +102,11 @@ def test_staged_command_extract():
                  {"text": "indication3"},
              ],
              "additional_details": "additionalOrderDetails"
-         }, CodedItem(label="theImaging: n/a (priority: thePriority, related conditions: indication1/indication2/indication3)", code="", uuid="")),
+         }, CodedItem(
+            label="theImaging: n/a (priority: thePriority, related conditions: indication1/indication2/indication3)",
+            code="",
+            uuid="",
+        )),
         ({
              "image": {"text": ""},
              "comment": "theComment",

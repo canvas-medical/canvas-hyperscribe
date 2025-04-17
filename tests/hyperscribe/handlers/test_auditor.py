@@ -23,3 +23,9 @@ def test_computed_commands():
     tested = Auditor()
     result = tested.computed_commands([])
     assert result is True
+
+
+def test_computed_questionnaires():
+    tested = Auditor()
+    result = tested.computed_questionnaires([], [], [])
+    assert result is True

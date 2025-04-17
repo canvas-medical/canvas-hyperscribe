@@ -8,6 +8,7 @@ from evaluations.helper_evaluation import HelperEvaluation
 from evaluations.structures.evaluation_case import EvaluationCase
 from hyperscribe.handlers.audio_interpreter import AudioInterpreter
 from hyperscribe.handlers.commander import Commander
+from hyperscribe.handlers.implemented_commands import ImplementedCommands
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.instruction import Instruction
 
@@ -33,7 +34,7 @@ class BuilderFromMp3(BuilderBase):
         StoreCases.upsert(EvaluationCase(
             environment=identification.canvas_instance,
             patient_uuid=parameters.patient,
-            limited_cache=limited_cache.to_json(),
+            limited_cache=limited_cache.to_json(True),
             case_name=parameters.case,
             case_group=parameters.group,
             case_type=parameters.type,
@@ -57,19 +58,18 @@ class BuilderFromMp3(BuilderBase):
             with file.open("rb") as f:
                 audios.append(f.read())
 
+        previous = limited_cache.staged_commands_as_instructions(ImplementedCommands.schema_key2instruction())
         if parameters.combined or (len(parameters.mp3) == 1):
-            cls._run_combined(recorder, chatter, audios)
+            cls._run_combined(recorder, chatter, audios, previous)
         else:
-            cls._run_chunked(parameters, chatter, audios)
+            cls._run_chunked(parameters, chatter, audios, previous)
 
     @classmethod
-    def _run_combined(cls, recorder: AuditorFile, chatter: AudioInterpreter, audios: list[bytes]) -> None:
-        Commander.audio2commands(recorder, audios, chatter, [])
+    def _run_combined(cls, recorder: AuditorFile, chatter: AudioInterpreter, audios: list[bytes], previous: list[Instruction]) -> None:
+        Commander.audio2commands(recorder, audios, chatter, previous)
 
     @classmethod
-    def _run_chunked(cls, parameters: Namespace, chatter: AudioInterpreter, audios: list[bytes]) -> None:
-        previous: list[Instruction] = []
-
+    def _run_chunked(cls, parameters: Namespace, chatter: AudioInterpreter, audios: list[bytes], previous: list[Instruction]) -> None:
         for cycle in range(len(audios)):
             combined: list[bytes] = []
             for chunk in range(cycle, max(-1, cycle - Commander.MAX_AUDIOS), -1):

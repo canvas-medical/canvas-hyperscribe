@@ -42,6 +42,7 @@ class AudioInterpreter:
                 "information": instance.instruction_description(),
             }
             for instance in self._command_context
+            if instance.class_name() not in ImplementedCommands.questionnaire_command_name_list()
         ]
 
     def instruction_constraints(self, instructions: list[Instruction]) -> list[str]:
@@ -56,6 +57,7 @@ class AudioInterpreter:
         return {
             instance.class_name(): instance.command_parameters()
             for instance in self._command_context
+            if instance.class_name() not in ImplementedCommands.questionnaire_command_name_list()
         }
 
     def combine_and_speaker_detection(self, audio_chunks: list[bytes]) -> JsonExtract:
@@ -256,6 +258,29 @@ class AudioInterpreter:
                     MemoryLog.instance(self.identification, log_label, self.aws_s3),
                 )
                 return instance.command_from_json(instruction, chatter)
+        return None
+
+    def update_questionnaire(self, discussion: list[Line], instruction: Instruction) -> InstructionWithCommand | None:
+        for instance in self._command_context:
+            if instruction.instruction == instance.class_name():
+                # assert isinstance(instance, BaseQuestionnaire)
+                log_label = f"{instruction.instruction}_{instruction.uuid}_questionnaire_update"
+                chatter = Helper.chatter(
+                    self.settings,
+                    MemoryLog.instance(self.identification, log_label, self.aws_s3),
+                )
+                questionnaire = instance.update_from_transcript(discussion, instruction, chatter)
+                command = instance.command_from_questionnaire(instruction.uuid, questionnaire)
+                return InstructionWithCommand(
+                    uuid=instruction.uuid,
+                    instruction=instruction.instruction,
+                    information=json.dumps(questionnaire.to_json()),
+                    is_new=False,
+                    is_updated=True,
+                    audits=instruction.audits,
+                    parameters={},
+                    command=command,
+                )
         return None
 
     @classmethod

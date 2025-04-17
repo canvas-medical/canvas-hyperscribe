@@ -34,6 +34,7 @@ def test__case_files(case_files_from):
         ["file06", "file07", "file08", "file09"],
         ["file10"],
         ["file11", "file12"],
+        ["file13", "file14", "file15"],
     ]
     result = [f for f in tested._case_files()]
     expected = [
@@ -49,6 +50,9 @@ def test__case_files(case_files_from):
         "file10",
         "file11",
         "file12",
+        "file13",
+        "file14",
+        "file15",
     ]
     assert result == expected
     calls = [
@@ -57,6 +61,7 @@ def test__case_files(case_files_from):
         call('transcript2instructions', 'json'),
         call('instruction2parameters', 'json'),
         call('parameters2command', 'json'),
+        call('questionnaires', 'json'),
     ]
     assert case_files_from.mock_calls == calls
     reset_mocks()
@@ -246,12 +251,12 @@ def test_found_instructions(path):
                 Line(speaker="voiceA", text="theText4"),
             ],
             [
+                Instruction(uuid="uuid1", instruction="theInstruction1", information="theInformation0", is_new=False, is_updated=False, audits=[]),
+            ],
+            [
                 Instruction(uuid="uuid1", instruction="theInstruction1", information="theInformation1", is_new=False, is_updated=True, audits=[]),
                 Instruction(uuid="uuid2", instruction="theInstruction2", information="theInformation2", is_new=True, is_updated=False, audits=[]),
                 Instruction(uuid="uuid3", instruction="theInstruction3", information="theInformation3", is_new=True, is_updated=False, audits=[]),
-            ],
-            [
-                Instruction(uuid="uuid1", instruction="theInstruction1", information="theInformation0", is_new=False, is_updated=False, audits=[]),
             ],
         )
         assert result is test
@@ -631,6 +636,157 @@ def test_computed_commands(path):
             call().parent.__truediv__().open().__enter__(),
             call().parent.__truediv__().open().__enter__().read(),
             call().parent.__truediv__().open().__exit__(None, None, None),
+            call().parent.__truediv__().open('w'),
+            call().parent.__truediv__().open().__enter__(),
+            call().parent.__truediv__().open().__exit__(None, None, None),
+            call().parent.__truediv__().exists(),
+        ]
+        assert path.mock_calls == calls
+        reset_mocks()
+
+
+@patch("evaluations.auditor_file.Path")
+def test_computed_questionnaires(path):
+    written_text = []
+
+    def write(line: str):
+        written_text.append(line)
+
+    commands = [MagicMock(), MagicMock(), MagicMock()]
+
+    def reset_mocks():
+        for cmd in commands:
+            cmd.reset_mock()
+        path.reset_mock()
+
+    directory = Path(__file__).parent.as_posix().replace("/tests", "")
+
+    for idx, command in enumerate(commands):
+        command.__module__ = f"module{idx + 1}"
+        command.__class__.__name__ = f"Class{idx + 1}"
+        command.values = {
+            f"key{idx + 1}": f"value{idx + 1}",
+            "command_uuid": f"commandUuid{idx + 1}",
+            "note_uuid": f"noteUuid{idx + 1}",
+        }
+
+    transcript = [
+        Line(speaker="voiceA", text="theText1"),
+        Line(speaker="voiceB", text="theText2"),
+        Line(speaker="voiceB", text="theText3"),
+        Line(speaker="voiceA", text="theText4"),
+    ]
+    initial_instructions = [
+        Instruction(
+            uuid="uuid1",
+            instruction="theInstruction1",
+            information="theInformation1",
+            is_new=False,
+            is_updated=True,
+            audits=[],
+        ),
+        Instruction(
+            uuid="uuid2",
+            instruction="theInstruction2",
+            information="theInformation2",
+            is_new=False,
+            is_updated=True,
+            audits=[],
+        ),
+        Instruction(
+            uuid="uuid3",
+            instruction="theInstruction3",
+            information="theInformation3",
+            is_new=False,
+            is_updated=True,
+            audits=[],
+        ),
+    ]
+    instructions_with_command = [
+        InstructionWithCommand(
+            uuid="uuid1",
+            instruction="theInstruction1",
+            information="changedInformation1",
+            is_new=False,
+            is_updated=True,
+            audits=[],
+            parameters={},
+            command=commands[0],
+        ),
+        InstructionWithCommand(
+            uuid="uuid2",
+            instruction="theInstruction2",
+            information="changedInformation2",
+            is_new=False,
+            is_updated=True,
+            audits=[],
+            parameters={},
+            command=commands[1],
+        ),
+        InstructionWithCommand(
+            uuid="uuid3",
+            instruction="theInstruction3",
+            information="changedInformation3",
+            is_new=False,
+            is_updated=True,
+            audits=[],
+            parameters={},
+            command=commands[2],
+        ),
+    ]
+    tests = [True, False]
+    for test in tests:
+        written_text = []
+        path.return_value.parent.__truediv__.return_value.exists.side_effect = [test]
+        path.return_value.parent.__truediv__.return_value.open.return_value.__enter__.return_value.write = write
+
+        tested = AuditorFile("theCase")
+        result = tested.computed_questionnaires(transcript, initial_instructions, instructions_with_command)
+        assert result is test
+
+        expected = {
+            "instructions": {
+                "initial": [
+                    {
+                        'information': 'theInformation1',
+                        'instruction': 'theInstruction1',
+                        'isNew': False,
+                        'isUpdated': False,
+                        'uuid': '>?<',
+                    },
+                    {
+                        'information': 'theInformation2',
+                        'instruction': 'theInstruction2',
+                        'isNew': False,
+                        'isUpdated': False,
+                        'uuid': '>?<',
+                    },
+                    {
+                        'information': 'theInformation3',
+                        'instruction': 'theInstruction3',
+                        'isNew': False,
+                        'isUpdated': False,
+                        'uuid': '>?<',
+                    },
+                ],
+                "commands": [
+                    {"class": "Class1", "module": "module1", "attributes": {"key1": "value1", "command_uuid": ">?<", "note_uuid": ">?<"}},
+                    {"class": "Class2", "module": "module2", "attributes": {"key2": "value2", "command_uuid": ">?<", "note_uuid": ">?<"}},
+                    {"class": "Class3", "module": "module3", "attributes": {"key3": "value3", "command_uuid": ">?<", "note_uuid": ">?<"}},
+                ],
+            },
+            "transcript": [
+                {"speaker": "voiceA", "text": "theText1"},
+                {"speaker": "voiceB", "text": "theText2"},
+                {"speaker": "voiceB", "text": "theText3"},
+                {"speaker": "voiceA", "text": "theText4"},
+            ],
+        }
+        assert json.loads("".join(written_text)) == expected
+
+        calls = [
+            call(f'{directory}/auditor_file.py'),
+            call().parent.__truediv__('questionnaires/theCase.json'),
             call().parent.__truediv__().open('w'),
             call().parent.__truediv__().open().__enter__(),
             call().parent.__truediv__().open().__exit__(None, None, None),

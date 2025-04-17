@@ -16,8 +16,6 @@ from canvas_sdk.v1.data.command import Command
 from canvas_sdk.v1.data.note import Note
 from logger import log
 
-from hyperscribe.commands.history_of_present_illness import HistoryOfPresentIllness
-from hyperscribe.commands.reason_for_visit import ReasonForVisit
 from hyperscribe.handlers.audio_interpreter import AudioInterpreter
 from hyperscribe.handlers.auditor import Auditor
 from hyperscribe.handlers.aws_s3 import AwsS3
@@ -200,27 +198,115 @@ class Commander(BaseProtocol):
             auditor: Auditor,
             transcript: list[Line],
             chatter: AudioInterpreter,
-            previous_instructions: list[Instruction],
+            instructions: list[Instruction],
+    ) -> tuple[list[Instruction], list[Effect]]:
+        questionnaire_classes = ImplementedCommands.questionnaire_command_name_list()
+        common_instructions = [i for i in instructions if i.instruction not in questionnaire_classes]
+        questionnaire_instructions = [i for i in instructions if i.instruction in questionnaire_classes]
+
+        with (ThreadPoolExecutor(max_workers=2) as builder):
+            # -- common instructions
+            future_common = builder.submit(
+                cls.transcript2commands_common,
+                auditor,
+                transcript,
+                chatter,
+                common_instructions,
+            )
+            # -- questionnaires
+            future_questionnaire = builder.submit(
+                cls.transcript2commands_questionnaires,
+                auditor,
+                transcript,
+                chatter,
+                questionnaire_instructions,
+            )
+            common_commands = future_common.result()
+            questionnaire_commands = future_questionnaire.result()
+
+        common_commands[0].extend(questionnaire_commands[0])
+        common_commands[1].extend(questionnaire_commands[1])
+        return common_commands
+
+    @classmethod
+    def transcript2commands_common(
+            cls,
+            auditor: Auditor,
+            transcript: list[Line],
+            chatter: AudioInterpreter,
+            instructions: list[Instruction],
     ) -> tuple[list[Instruction], list[Effect]]:
         memory_log = MemoryLog(chatter.identification, cls.MEMORY_LOG_LABEL)
 
         # detect the instructions based on the transcript and the existing commands
-        response = chatter.detect_instructions(transcript, previous_instructions)
-        cumulated_instructions = Instruction.load_from_json(response)
-        auditor.found_instructions(transcript, cumulated_instructions, previous_instructions)
-        memory_log.output(f"--> instructions: {len(cumulated_instructions)}")
-        past_uuids = {instruction.uuid: instruction for instruction in previous_instructions}
+        response = chatter.detect_instructions(transcript, instructions)
+        updated_instructions = Instruction.load_from_json(response)
+        auditor.found_instructions(transcript, instructions, updated_instructions)
+        memory_log.output(f"--> instructions: {len(updated_instructions)}")
+        past_uuids = {instruction.uuid: instruction for instruction in instructions}
 
         # identify the commands
         results: list[Effect] = []
         # -- new commands
-        results.extend(cls.new_commands_from(auditor, chatter, cumulated_instructions, past_uuids))
+        results.extend(cls.new_commands_from(auditor, chatter, updated_instructions, past_uuids))
         # -- updated commands
-        results.extend(cls.update_commands_from(auditor, chatter, cumulated_instructions, past_uuids))
+        results.extend(cls.update_commands_from(auditor, chatter, updated_instructions, past_uuids))
         # reset the audit fields
-        for instruction in cumulated_instructions:
+        for instruction in updated_instructions:
             instruction.audits.clear()
-        return cumulated_instructions, results
+        return updated_instructions, results
+
+    @classmethod
+    def transcript2commands_questionnaires(
+            cls,
+            auditor: Auditor,
+            transcript: list[Line],
+            chatter: AudioInterpreter,
+            instructions: list[Instruction],
+    ) -> tuple[list[Instruction], list[Effect]]:
+        if not instructions:
+            return [], []
+
+        memory_log = MemoryLog(chatter.identification, cls.MEMORY_LOG_LABEL)
+        start = time()
+
+        max_workers = max(1, Constants.MAX_WORKERS)
+        with ThreadPoolExecutor(max_workers=max_workers) as builder:
+            instructions_with_command = [
+                instruction
+                for instruction in builder.map(
+                    chatter.update_questionnaire,
+                    [transcript] * len(instructions),
+                    instructions,
+                )
+                if instruction is not None
+            ]
+
+        updated_instructions = [
+            Instruction(
+                uuid=result.uuid,
+                instruction=result.instruction,
+                information=result.information,
+                is_new=result.is_new,
+                is_updated=result.is_updated,
+                audits=result.audits,
+            )
+            for result in instructions_with_command
+        ]
+
+        memory_log.output(f"DURATION QUESTIONNAIRES: {int((time() - start) * 1000)}")
+        auditor.computed_questionnaires(transcript, instructions, instructions_with_command)
+
+        cls.store_audits(chatter.aws_s3, chatter.identification, "audit_update_questionnaires", updated_instructions)
+
+        if chatter.identification.note_uuid == Constants.FAUX_NOTE_UUID:
+            # this is the case when running an evaluation against a recorded 'limited cache',
+            # i.e. the patient and/or her data don't exist, something that may be checked
+            # when editing the commands
+            return updated_instructions, []
+
+        effects = [result.command.edit() for result in instructions_with_command]
+        return updated_instructions, effects
 
     @classmethod
     def new_commands_from(
@@ -312,19 +398,31 @@ class Commander(BaseProtocol):
         # convert the current commands of the note to instructions
         # then, try to match them to previously identified instructions
         result: dict[str, Instruction] = {}
-        consumed_indexes: list[int] = []
         mapping = ImplementedCommands.schema_key2instruction()
+        consumed_indexes: list[int] = [
+            # questionnaire instructions are marked as consumed as we use the current status of the command
+            # vvv - uncomment below to keep the current state of the questionnaire in the UI note
+            # idx
+            # for idx, instruction in enumerate(instructions)
+            # if instruction.instruction in ImplementedCommands.questionnaire_command_name_list()
+            # ^^^
+        ]
+
+        pre_initialized = ImplementedCommands.pre_initialized()
+
         for command in current_commands:
             instruction_type = mapping[command.schema_key]
             instruction_uuid = str(command.id)
             information = ""
-            if command.schema_key == HistoryOfPresentIllness.schema_key():
-                information = command.data.get("narrative", "")
-            elif command.schema_key == ReasonForVisit.schema_key():
-                information = command.data.get("comment", "")
+
+            for initialized in pre_initialized:
+                if instruction_type == initialized.class_name():
+                    information = initialized.staged_command_extract(command.data).label
 
             for idx, instruction in enumerate(instructions):
-                if idx not in consumed_indexes and instruction_type == instruction.instruction:
+                if idx in consumed_indexes:
+                    continue
+                if instruction_type == instruction.instruction:
                     consumed_indexes.append(idx)
                     information = instruction.information
                     break

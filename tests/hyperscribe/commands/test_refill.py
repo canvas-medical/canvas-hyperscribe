@@ -69,7 +69,9 @@ def test_staged_command_extract():
              "quantity_to_dispense": "30",
          }, CodedItem(
             label="theMedication: theSig (dispense: 30, supply days: 90, refills: 2, substitution: allowed, related conditions: theIndication1/theIndication2/theIndication3)",
-            code="", uuid="")),
+            code="",
+            uuid="",
+        )),
         ({
              "sig": "theSig",
              "refills": 2,
@@ -101,7 +103,9 @@ def test_staged_command_extract():
              "quantity_to_dispense": None,
          }, CodedItem(
             label="theMedication: n/a (dispense: n/a, supply days: n/a, refills: n/a, substitution: n/a, related conditions: n/a)",
-            code="", uuid="")),
+            code="",
+            uuid="",
+        )),
     ]
     for data, expected in tests:
         result = tested.staged_command_extract(data)

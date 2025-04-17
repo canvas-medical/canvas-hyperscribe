@@ -9,6 +9,7 @@ from hyperscribe.handlers.memory_log import MemoryLog
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.instruction import Instruction
+from hyperscribe.structures.instruction_with_command import InstructionWithCommand
 from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.json_extract import JsonExtract
 from hyperscribe.structures.line import Line
@@ -119,36 +120,80 @@ def test_instruction_definitions():
         for item in mocks:
             item.reset_mock()
 
-    mocks[0].return_value.class_name.side_effect = ["First"]
-    mocks[1].return_value.class_name.side_effect = ["Second"]
-    mocks[2].return_value.class_name.side_effect = ["Third"]
-    mocks[3].return_value.class_name.side_effect = ["Fourth"]
-    mocks[0].return_value.instruction_description.side_effect = ["Description1"]
-    mocks[1].return_value.instruction_description.side_effect = ["Description2"]
-    mocks[2].return_value.instruction_description.side_effect = ["Description3"]
-    mocks[3].return_value.instruction_description.side_effect = ["Description4"]
-
-    tested, settings, aws_credentials, cache = helper_instance(mocks)
-    result = tested.instruction_definitions()
-    expected = [
-        {'information': 'Description1', 'instruction': 'First'},
-        {'information': 'Description2', 'instruction': 'Second'},
-        {'information': 'Description4', 'instruction': 'Fourth'},
+    tests = [
+        ("AdjustPrescription", True),
+        ("Allergy", True),
+        ("Assess", True),
+        ("CloseGoal", True),
+        ("Diagnose", True),
+        ("FamilyHistory", True),
+        ("FollowUp", True),
+        ("Goal", True),
+        ("HistoryOfPresentIllness", True),
+        ("ImagingOrder", True),
+        ("Immunize", True),
+        ("Instruct", True),
+        ("LabOrder", True),
+        ("MedicalHistory", True),
+        ("Medication", True),
+        ("Perform", True),
+        ("PhysicalExam", False),
+        ("Plan", True),
+        ("Prescription", True),
+        ("Questionnaire", False),
+        ("ReasonForVisit", True),
+        ("Refer", True),
+        ("Refill", True),
+        ("RemoveAllergy", True),
+        ("ResolveCondition", True),
+        ("ReviewOfSystem", False),
+        ("StopMedication", True),
+        ("StructuredAssessment", False),
+        ("SurgeryHistory", True),
+        ("Task", True),
+        ("UpdateDiagnose", True),
+        ("UpdateGoal", True),
+        ("Vitals", True),
     ]
-    assert result == expected
-    for idx, mock in enumerate(mocks):
-        calls = [
-            call(settings, cache, tested.identification),
-            call().__bool__(),
-            call().is_available(),
+    for class_name, expected_present in tests:
+        mocks[0].return_value.class_name.side_effect = [class_name, class_name]
+        mocks[1].return_value.class_name.side_effect = ["Second", "Second"]
+        mocks[2].return_value.class_name.side_effect = ["Third", "Third"]
+        mocks[3].return_value.class_name.side_effect = ["Fourth", "Fourth"]
+        mocks[0].return_value.instruction_description.side_effect = ["Description1"]
+        mocks[1].return_value.instruction_description.side_effect = ["Description2"]
+        mocks[2].return_value.instruction_description.side_effect = ["Description3"]
+        mocks[3].return_value.instruction_description.side_effect = ["Description4"]
+
+        tested, settings, aws_credentials, cache = helper_instance(mocks)
+        result = tested.instruction_definitions()
+        expected = [
+            {'information': 'Description2', 'instruction': 'Second'},
+            {'information': 'Description4', 'instruction': 'Fourth'},
         ]
-        if idx != 2:
-            calls.extend([
-                call().class_name(),
-                call().instruction_description(),
-            ])
-        assert mock.mock_calls == calls, f"---> {idx}"
-    reset_mocks()
+
+        absent_idx = [2]
+        if expected_present:
+            expected.insert(0, {'information': 'Description1', 'instruction': class_name})
+        else:
+            absent_idx.append(0)
+
+        assert result == expected
+        for idx, mock in enumerate(mocks):
+            calls = [
+                call(settings, cache, tested.identification),
+                call().__bool__(),
+                call().is_available(),
+            ]
+            if idx != 2:
+                calls.append(call().class_name())
+            if idx not in absent_idx:
+                calls.extend([
+                    call().class_name(),
+                    call().instruction_description(),
+                ])
+            assert mock.mock_calls == calls, f"---> {idx}"
+        reset_mocks()
 
 
 def test_instruction_constraints():
@@ -214,36 +259,79 @@ def test_command_structures():
         for item in mocks:
             item.reset_mock()
 
-    mocks[0].return_value.class_name.side_effect = ["First"]
-    mocks[1].return_value.class_name.side_effect = ["Second"]
-    mocks[2].return_value.class_name.side_effect = ["Third"]
-    mocks[3].return_value.class_name.side_effect = ["Fourth"]
-    mocks[0].return_value.command_parameters.side_effect = ["Parameters1"]
-    mocks[1].return_value.command_parameters.side_effect = ["Parameters2"]
-    mocks[2].return_value.command_parameters.side_effect = ["Parameters3"]
-    mocks[3].return_value.command_parameters.side_effect = ["Parameters4"]
+    tests = [
+        ("AdjustPrescription", True),
+        ("Allergy", True),
+        ("Assess", True),
+        ("CloseGoal", True),
+        ("Diagnose", True),
+        ("FamilyHistory", True),
+        ("FollowUp", True),
+        ("Goal", True),
+        ("HistoryOfPresentIllness", True),
+        ("ImagingOrder", True),
+        ("Immunize", True),
+        ("Instruct", True),
+        ("LabOrder", True),
+        ("MedicalHistory", True),
+        ("Medication", True),
+        ("Perform", True),
+        ("PhysicalExam", False),
+        ("Plan", True),
+        ("Prescription", True),
+        ("Questionnaire", False),
+        ("ReasonForVisit", True),
+        ("Refer", True),
+        ("Refill", True),
+        ("RemoveAllergy", True),
+        ("ResolveCondition", True),
+        ("ReviewOfSystem", False),
+        ("StopMedication", True),
+        ("StructuredAssessment", False),
+        ("SurgeryHistory", True),
+        ("Task", True),
+        ("UpdateDiagnose", True),
+        ("UpdateGoal", True),
+        ("Vitals", True),
+    ]
+    for class_name, expected_present in tests:
+        mocks[0].return_value.class_name.side_effect = [class_name, class_name]
+        mocks[1].return_value.class_name.side_effect = ["Second", "Second"]
+        mocks[2].return_value.class_name.side_effect = ["Third", "Third"]
+        mocks[3].return_value.class_name.side_effect = ["Fourth", "Fourth"]
+        mocks[0].return_value.command_parameters.side_effect = ["Parameters1"]
+        mocks[1].return_value.command_parameters.side_effect = ["Parameters2"]
+        mocks[2].return_value.command_parameters.side_effect = ["Parameters3"]
+        mocks[3].return_value.command_parameters.side_effect = ["Parameters4"]
 
-    tested, settings, aws_credentials, cache = helper_instance(mocks)
-    result = tested.command_structures()
-    expected = {
-        'First': 'Parameters1',
-        'Fourth': 'Parameters4',
-        'Second': 'Parameters2',
-    }
-    assert result == expected
-    for idx, mock in enumerate(mocks):
-        calls = [
-            call(settings, cache, tested.identification),
-            call().__bool__(),
-            call().is_available(),
-        ]
-        if idx != 2:
-            calls.extend([
-                call().class_name(),
-                call().command_parameters(),
-            ])
-        assert mock.mock_calls == calls, f"---> {idx}"
-    reset_mocks()
+        tested, settings, aws_credentials, cache = helper_instance(mocks)
+        result = tested.command_structures()
+        expected = {
+            'Fourth': 'Parameters4',
+            'Second': 'Parameters2',
+        }
+        absent_idx = [2]
+        if expected_present:
+            expected[class_name] = 'Parameters1'
+        else:
+            absent_idx.append(0)
+
+        assert result == expected
+        for idx, mock in enumerate(mocks):
+            calls = [
+                call(settings, cache, tested.identification),
+                call().__bool__(),
+                call().is_available(),
+            ]
+            if idx != 2:
+                calls.append(call().class_name())
+            if idx not in absent_idx:
+                calls.extend([
+                    call().class_name(),
+                    call().command_parameters(),
+                ])
+            assert mock.mock_calls == calls, f"---> {idx}"
+        reset_mocks()
 
 
 @patch.object(MemoryLog, "instance")
@@ -656,10 +744,10 @@ def test_create_sdk_command_parameters(chatter, memory_log, mock_datetime):
         mock_datetime.reset_mock()
         for item in mocks:
             item.reset_mock()
-        mocks[0].return_value.class_name.side_effect = ["First"]
-        mocks[1].return_value.class_name.side_effect = ["Second"]
-        mocks[2].return_value.class_name.side_effect = ["Third"]
-        mocks[3].return_value.class_name.side_effect = ["Fourth"]
+        mocks[0].return_value.class_name.side_effect = ["First", "First"]
+        mocks[1].return_value.class_name.side_effect = ["Second", "Second"]
+        mocks[2].return_value.class_name.side_effect = ["Third", "Third"]
+        mocks[3].return_value.class_name.side_effect = ["Fourth", "Fourth"]
         mocks[0].return_value.command_parameters.side_effect = [{"Command": "Parameters1"}]
         mocks[1].return_value.command_parameters.side_effect = [{"Command": "Parameters2"}]
         mocks[2].return_value.command_parameters.side_effect = [{"Command": "Parameters3"}]
@@ -739,6 +827,7 @@ def test_create_sdk_command_parameters(chatter, memory_log, mock_datetime):
         if idx != 2:
             calls.extend([
                 call().class_name(),
+                call().class_name(),
                 call().command_parameters(),
             ])
         assert mock.mock_calls == calls, f"---> {idx}"
@@ -762,6 +851,7 @@ def test_create_sdk_command_parameters(chatter, memory_log, mock_datetime):
         calls = []
         if idx != 2:
             calls.extend([
+                call().class_name(),
                 call().class_name(),
                 call().command_parameters(),
             ])
@@ -801,12 +891,12 @@ def test_create_sdk_command_from(chatter, memory_log):
         ("Fourth", 3, "theCommand4", "Fourth_theUuid_parameters2command"),
         ("Third", 4, None, None),
     ]
-    for instruction, number, expected, exp_log_label in tests:
+    for name, rank, expected, exp_log_label in tests:
         chatter.side_effect = ["LlmBaseInstance"]
         memory_log.side_effect = ["MemoryLogInstance"]
         instruction = InstructionWithParameters(
             uuid="theUuid",
-            instruction=instruction,
+            instruction=name,
             information="theInformation",
             is_new=False,
             is_updated=True,
@@ -827,10 +917,114 @@ def test_create_sdk_command_from(chatter, memory_log):
                 call().__bool__(),
                 call().is_available(),
             ]
-            if idx < number + 1 and idx != 2:
+            if idx < rank + 1 and idx != 2:
                 calls.extend([call().class_name()])
-            if idx == number and idx != 2:
+            if idx == rank and idx != 2:
                 calls.extend([call().command_from_json(instruction, "LlmBaseInstance")])
+            assert mock.mock_calls == calls, f"---> {idx}"
+        reset_mocks()
+
+
+@patch.object(MemoryLog, "instance")
+@patch.object(Helper, "chatter")
+def test_update_questionnaire(chatter, memory_log):
+    command_mocks = [
+        MagicMock(),
+        MagicMock(),
+        MagicMock(),
+        MagicMock(),
+    ]
+    questionnaire_mocks = [
+        MagicMock(),
+        MagicMock(),
+        MagicMock(),
+        MagicMock(),
+    ]
+
+    def reset_mocks():
+        chatter.reset_mock()
+        memory_log.reset_mock()
+        for item in command_mocks:
+            item.reset_mock()
+        for item in questionnaire_mocks:
+            item.reset_mock()
+
+        command_mocks[0].return_value.class_name.side_effect = ["First"]
+        command_mocks[1].return_value.class_name.side_effect = ["Second"]
+        command_mocks[2].return_value.class_name.side_effect = ["Third"]
+        command_mocks[3].return_value.class_name.side_effect = ["Fourth"]
+        command_mocks[0].return_value.update_from_transcript.side_effect = [questionnaire_mocks[0]]
+        command_mocks[1].return_value.update_from_transcript.side_effect = [questionnaire_mocks[1]]
+        command_mocks[2].return_value.update_from_transcript.side_effect = [questionnaire_mocks[2]]
+        command_mocks[3].return_value.update_from_transcript.side_effect = [questionnaire_mocks[3]]
+        command_mocks[0].return_value.command_from_questionnaire.side_effect = ["theCommand1"]
+        command_mocks[1].return_value.command_from_questionnaire.side_effect = ["theCommand2"]
+        command_mocks[2].return_value.command_from_questionnaire.side_effect = ["theCommand3"]
+        command_mocks[3].return_value.command_from_questionnaire.side_effect = ["theCommand4"]
+        questionnaire_mocks[0].to_json.side_effect = [{"key": "questionnaire1"}]
+        questionnaire_mocks[1].to_json.side_effect = [{"key": "questionnaire2"}]
+        questionnaire_mocks[2].to_json.side_effect = [{"key": "questionnaire3"}]
+        questionnaire_mocks[3].to_json.side_effect = [{"key": "questionnaire4"}]
+
+    reset_mocks()
+
+    discussion = [
+        Line(speaker="personA", text="the text 1"),
+        Line(speaker="personB", text="the text 2"),
+        Line(speaker="personA", text="the text 3"),
+    ]
+
+    tests = [
+        ("First", 0, '{"key": "questionnaire1"}', "theCommand1", "First_theUuid_questionnaire_update"),
+        ("Second", 1, '{"key": "questionnaire2"}', "theCommand2", "Second_theUuid_questionnaire_update"),
+        ("Fourth", 3, '{"key": "questionnaire4"}', "theCommand4", "Fourth_theUuid_questionnaire_update"),
+        ("Third", 4, None, None, None),
+    ]
+    for name, rank, exp_information, exp_command, exp_log_label in tests:
+        chatter.side_effect = ["LlmBaseInstance"]
+        memory_log.side_effect = ["MemoryLogInstance"]
+        instruction = Instruction(
+            uuid="theUuid",
+            instruction=name,
+            information="theInformation",
+            is_new=False,
+            is_updated=True,
+            audits=["line1", "line2"],
+        )
+        tested, settings, aws_credentials, cache = helper_instance(command_mocks)
+        result = tested.update_questionnaire(discussion, instruction)
+        if exp_information is not None:
+            expected = InstructionWithCommand(
+                uuid="theUuid",
+                instruction=name,
+                information=exp_information,
+                is_new=False,
+                is_updated=True,
+                audits=["line1", "line2"],
+                parameters={},
+                command=exp_command,
+            )
+            assert result == expected
+        else:
+            assert result is None
+
+        calls = [call(settings, "MemoryLogInstance")] if exp_log_label else []
+        assert chatter.mock_calls == calls
+        calls = [call(tested.identification, exp_log_label, aws_credentials)] if exp_log_label else []
+        assert memory_log.mock_calls == calls
+        for idx, mock in enumerate(command_mocks):
+            calls = [
+                call(settings, cache, tested.identification),
+                call().__bool__(),
+                call().is_available(),
+            ]
+            if idx < rank + 1 and idx != 2:
+                calls.extend([call().class_name()])
+            if idx == rank and idx != 2:
+                calls.extend([
+                    call().update_from_transcript(discussion, instruction, "LlmBaseInstance"),
+                    call().command_from_questionnaire('theUuid', questionnaire_mocks[rank]),
+                ])
             assert mock.mock_calls == calls, f"---> {idx}"
         reset_mocks()
 

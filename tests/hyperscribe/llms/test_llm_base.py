@@ -300,12 +300,16 @@ def test_chat(attempt_requests, extract_json_from):
     reset_mocks()
 
 
+@patch.object(LlmBase, "set_user_prompt")
+@patch.object(LlmBase, "set_system_prompt")
 @patch.object(LlmBase, "chat")
-def test_single_conversation(chat):
+def test_single_conversation(chat, set_system_prompt, set_user_prompt):
     memory_log = MagicMock()
 
     def reset_mocks():
         chat.reset_mock()
+        set_system_prompt.reset_mock()
+        set_user_prompt.reset_mock()
         memory_log.reset_mock()
 
     system_prompt = ["theSystemPrompt"]
@@ -344,6 +348,10 @@ def test_single_conversation(chat):
 
     calls = [call(["schema1", "schema2"])]
     assert chat.mock_calls == calls
+    calls = [call(system_prompt)]
+    assert set_system_prompt.mock_calls == calls
+    calls = [call(user_prompt)]
+    assert set_user_prompt.mock_calls == calls
     assert memory_log.mock_calls == []
     reset_mocks()
     # -- no instruction, not list
@@ -353,6 +361,10 @@ def test_single_conversation(chat):
 
     calls = [call(["schema1", "schema2"])]
     assert chat.mock_calls == calls
+    calls = [call(system_prompt)]
+    assert set_system_prompt.mock_calls == calls
+    calls = [call(user_prompt)]
+    assert set_user_prompt.mock_calls == calls
     assert memory_log.mock_calls == []
     reset_mocks()
     # -- with instruction
@@ -373,6 +385,32 @@ def test_single_conversation(chat):
     ]
     calls = [call(["schema1", "schema2", audit_schema])]
     assert chat.mock_calls == calls
+    calls = [call(system_prompt)]
+    assert set_system_prompt.mock_calls == calls
+    calls = [call([
+        'theUserPrompt',
+        'As a following step, provide the rational of each and every value you have provided.',
+        'Provide the reasoning behind each and every value you provided, your response  in an additional JSON has to follow this JSON Schema:',
+        '```json',
+        '{\n "$schema": "http://json-schema.org/draft-07/schema#",\n'
+        ' "type": "array",\n'
+        ' "items": {\n'
+        '  "type": "object",\n'
+        '  "properties": {\n'
+        '   "key": {\n    "type": "string",\n    "description": "the referenced key"\n   },\n'
+        '   "keyPath": {\n'
+        '    "type": "string",\n'
+        '    "description": "the JSON path of the referenced key from the root if there is more than one object"\n'
+        '   },\n'
+        '   "rational": {\n    "type": "string",\n    "description": "the rational of the provided value"\n   }\n'
+        '  },\n'
+        '  "required": [\n   "key",\n   "rational"\n  ],\n'
+        '  "additionalProperties": false\n'
+        ' }\n}',
+        '```',
+        '',
+    ])]
+    assert set_user_prompt.mock_calls == calls
     assert memory_log.mock_calls == []
     reset_mocks()
 
@@ -383,6 +421,10 @@ def test_single_conversation(chat):
 
     calls = [call(["schema1", "schema2"])]
     assert chat.mock_calls == calls
+    calls = [call(system_prompt)]
+    assert set_system_prompt.mock_calls == calls
+    calls = [call(user_prompt)]
+    assert set_user_prompt.mock_calls == calls
     assert memory_log.mock_calls == []
     reset_mocks()
 

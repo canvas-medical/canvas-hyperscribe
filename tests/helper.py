@@ -1,5 +1,5 @@
 from dataclasses import fields as dataclass_fields, is_dataclass as dataclass_is_dataclass
-from typing import ForwardRef
+from typing import get_type_hints
 
 
 def is_namedtuple(cls, fields: dict) -> bool:
@@ -8,7 +8,7 @@ def is_namedtuple(cls, fields: dict) -> bool:
             and hasattr(cls, '_fields')
             and isinstance(cls._fields, tuple)
             and len([field for field in cls._fields if field in fields]) == len(fields.keys())
-            and all(the_type in [fields[field], ForwardRef(fields[field].__name__)] for field, the_type in cls.__annotations__.items())
+            and get_type_hints(cls) == fields
     )
 
 

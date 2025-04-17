@@ -626,10 +626,132 @@ def test_audio2commands(transcript2commands, memory_log):
     reset_mocks()
 
 
+@patch.object(Commander, 'transcript2commands_questionnaires')
+@patch.object(Commander, 'transcript2commands_common')
+def test_transcript2command(transcript2commands_common, transcript2commands_questionnaires):
+    mock_auditor = MagicMock()
+    mock_chatter = MagicMock()
+
+    def reset_mocks():
+        transcript2commands_common.reset_mock()
+        transcript2commands_questionnaires.reset_mock()
+        mock_auditor.reset_mock()
+        mock_chatter.reset_mock()
+
+    tested = Commander
+
+    transcript = [
+        Line(speaker="speaker1", text="textA"),
+        Line(speaker="speaker2", text="textB"),
+        Line(speaker="speaker1", text="textC"),
+    ]
+    # only common instructions
+    instructions = [
+        Instruction(
+            uuid="uuidA",
+            instruction="theInstructionA",
+            information="theInformationA",
+            is_new=True,
+            is_updated=False,
+            audits=["lineA"],
+        ),
+        Instruction(
+            uuid="uuidB",
+            instruction="theInstructionB",
+            information="theInformationB",
+            is_new=False,
+            is_updated=True,
+            audits=["lineB"],
+        ),
+    ]
+    transcript2commands_common.side_effect = [(["instruction1", "instruction2"], ["effect1", "effect2"])]
+    transcript2commands_questionnaires.side_effect = [([], [])]
+
+    result = tested.transcript2commands(mock_auditor, transcript, mock_chatter, instructions)
+    expected = (["instruction1", "instruction2"], ["effect1", "effect2"])
+    assert result == expected
+
+    calls = [call(mock_auditor, transcript, mock_chatter, instructions)]
+    assert transcript2commands_common.mock_calls == calls
+    calls = [call(mock_auditor, transcript, mock_chatter, [])]
+    assert transcript2commands_questionnaires.mock_calls == calls
+    assert mock_auditor.mock_calls == []
+    assert mock_chatter.mock_calls == []
+    reset_mocks()
+
+    # only questionnaire instructions
+    instructions = [
+        Instruction(
+            uuid="uuidA",
+            instruction="ReviewOfSystem",
+            information="theInformationA",
+            is_new=True,
+            is_updated=False,
+            audits=["lineA"],
+        ),
+        Instruction(
+            uuid="uuidB",
+            instruction="Questionnaire",
+            information="theInformationB",
+            is_new=False,
+            is_updated=True,
+            audits=["lineB"],
+        ),
+    ]
+    transcript2commands_common.side_effect = [([], [])]
+    transcript2commands_questionnaires.side_effect = [(["instruction1", "instruction2"], ["effect1", "effect2"])]
+
+    result = tested.transcript2commands(mock_auditor, transcript, mock_chatter, instructions)
+    expected = (["instruction1", "instruction2"], ["effect1", "effect2"])
+    assert result == expected
+
+    calls = [call(mock_auditor, transcript, mock_chatter, [])]
+    assert transcript2commands_common.mock_calls == calls
+    calls = [call(mock_auditor, transcript, mock_chatter, instructions)]
+    assert transcript2commands_questionnaires.mock_calls == calls
+    assert mock_auditor.mock_calls == []
+    assert mock_chatter.mock_calls == []
+    reset_mocks()
+
+    # one common instruction and one questionnaire instruction
+    instructions = [
+        Instruction(
+            uuid="uuidA",
+            instruction="theInstructionA",
+            information="theInformationA",
+            is_new=True,
+            is_updated=False,
+            audits=["lineA"],
+        ),
+        Instruction(
+            uuid="uuidB",
+            instruction="Questionnaire",
+            information="theInformationB",
+            is_new=False,
+            is_updated=True,
+            audits=["lineB"],
+        ),
+    ]
+    transcript2commands_common.side_effect = [(["instruction1"], ["effect1"])]
+    transcript2commands_questionnaires.side_effect = [(["instruction2"], ["effect2"])]
+
+    result = tested.transcript2commands(mock_auditor, transcript, mock_chatter, instructions)
+    expected = (["instruction1", "instruction2"], ["effect1", "effect2"])
+    assert result == expected
+
+    calls = [call(mock_auditor, transcript, mock_chatter, instructions[:1])]
+    assert transcript2commands_common.mock_calls == calls
+    calls = [call(mock_auditor, transcript, mock_chatter, instructions[1:])]
+    assert transcript2commands_questionnaires.mock_calls == calls
+    assert mock_auditor.mock_calls == []
+    assert mock_chatter.mock_calls == []
+    reset_mocks()
+
+
 @patch('hyperscribe.handlers.commander.MemoryLog')
 @patch.object(Commander, 'update_commands_from')
 @patch.object(Commander, 'new_commands_from')
-def test_transcript2commands(new_commands_from, update_commands_from, memory_log):
+def test_transcript2commands_common(new_commands_from, update_commands_from, memory_log):
     mock_auditor = MagicMock()
     mock_chatter = MagicMock()
 
@@ -647,7 +769,7 @@ def test_transcript2commands(new_commands_from, update_commands_from, memory_log
         Line(speaker="speaker2", text="textB"),
         Line(speaker="speaker1", text="textC"),
     ]
-    previous = [
+    instructions = [
         Instruction(
             uuid="uuidA",
             instruction="theInstructionA",
@@ -663,22 +785,40 @@ def test_transcript2commands(new_commands_from, update_commands_from, memory_log
         provider_uuid="providerUuid",
         canvas_instance="canvasInstance",
     )
-    # all good
+    mock_chatter.identification = identification
+
     new_commands_from.side_effect = [[Effect(type="LOG", payload="Log1"), Effect(type="LOG", payload="Log2")]]
     update_commands_from.side_effect = [[Effect(type="LOG", payload="Log3")]]
     mock_chatter.detect_instructions.side_effect = [
         [
-            {"uuid": "uuidA", "instruction": "theInstructionA", "information": "theInformationA", "isNew": False, "isUpdated": True,
-             "audits": ["lineA"]},
-            {"uuid": "uuidB", "instruction": "theInstructionB", "information": "theInformationB", "isNew": True, "isUpdated": False,
-             "audits": ["lineB"]},
-            {"uuid": "uuidC", "instruction": "theInstructionC", "information": "theInformationC", "isNew": True, "isUpdated": False,
-             "audits": ["lineC"]},
+            {
+                "uuid": "uuidA",
+                "instruction": "theInstructionA",
+                "information": "theInformationA",
+                "isNew": False,
+                "isUpdated": True,
+                "audits": ["lineA"],
+            },
+            {
+                "uuid": "uuidB",
+                "instruction": "theInstructionB",
+                "information": "theInformationB",
+                "isNew": True,
+                "isUpdated": False,
+                "audits": ["lineB"],
+            },
+            {
+                "uuid": "uuidC",
+                "instruction": "theInstructionC",
+                "information": "theInformationC",
+                "isNew": True,
+                "isUpdated": False,
+                "audits": ["lineC"],
+            },
         ],
     ]
-    mock_chatter.identification = identification
 
-    result = tested.transcript2commands(mock_auditor, transcript, mock_chatter, previous)
+    result = tested.transcript2commands_common(mock_auditor, transcript, mock_chatter, instructions)
     expected = (
         [
             Instruction(
@@ -744,8 +884,8 @@ def test_transcript2commands(new_commands_from, update_commands_from, memory_log
                 Line(speaker='speaker2', text='textB'),
                 Line(speaker='speaker1', text='textC'),
             ],
+            instructions,
             expected[0],
-            previous,
         )
     ]
     assert mock_auditor.mock_calls == calls
@@ -756,11 +896,159 @@ def test_transcript2commands(new_commands_from, update_commands_from, memory_log
                 Line(speaker='speaker2', text='textB'),
                 Line(speaker='speaker1', text='textC'),
             ],
-            previous,
+            instructions,
         ),
     ]
     assert mock_chatter.mock_calls == calls
     reset_mocks()
+
+
+@patch.object(Commander, 'store_audits')
+@patch('hyperscribe.handlers.commander.MemoryLog')
+@patch("hyperscribe.handlers.commander.time")
+def test_transcript2commands_questionnaires(time, memory_log, store_audits):
+    auditor = MagicMock()
+    chatter = MagicMock()
+    mock_commands = [
+        MagicMock(),
+        MagicMock(),
+    ]
+
+    def reset_mocks():
+        time.reset_mock()
+        memory_log.reset_mock()
+        store_audits.reset_mock()
+        auditor.reset_mock()
+        chatter.reset_mock()
+        for a_command in mock_commands:
+            a_command.reset_mock()
+
+    transcript = [
+        Line(speaker="speaker1", text="textA"),
+        Line(speaker="speaker2", text="textB"),
+        Line(speaker="speaker1", text="textC"),
+    ]
+
+    instructions = [
+        Instruction(uuid='uuidA', instruction='theInstructionA', information='theInformationA', is_new=False, is_updated=True, audits=["lineA"]),
+        Instruction(uuid='uuidB', instruction='theInstructionB', information='theInformationB', is_new=True, is_updated=False, audits=["lineB"]),
+        Instruction(uuid='uuidC', instruction='theInstructionC', information='theInformationC', is_new=False, is_updated=False, audits=["lineC"]),
+        Instruction(uuid='uuidD', instruction='theInstructionD', information='theInformationD', is_new=True, is_updated=True, audits=["lineD"]),
+        Instruction(uuid='uuidE', instruction='theInstructionE', information='theInformationE', is_new=True, is_updated=True, audits=["lineE"]),
+    ]
+    instructions_with_commands = [
+        None,
+        InstructionWithCommand(
+            uuid='uuidB',
+            instruction='theInstructionB',
+            information='theInformationB',
+            is_new=False,
+            is_updated=False,
+            audits=["lineB1", "lineB2"],
+            parameters={},
+            command=mock_commands[0],
+        ),
+        InstructionWithCommand(
+            uuid='uuidC',
+            instruction='theInstructionC',
+            information='theInformationC',
+            is_new=False,
+            is_updated=True,
+            audits=["lineC1", "lineC2"],
+            parameters={},
+            command=mock_commands[1],
+        ),
+        None,
+        None,
+    ]
+
+    updated = [
+        Instruction(
+            uuid='uuidB',
+            instruction='theInstructionB',
+            information='theInformationB',
+            is_new=False,
+            is_updated=False,
+            audits=["lineB1", "lineB2"],
+        ),
+        Instruction(
+            uuid='uuidC',
+            instruction='theInstructionC',
+            information='theInformationC',
+            is_new=False,
+            is_updated=True,
+            audits=["lineC1", "lineC2"],
+        ),
+    ]
+    effects = [
+        Effect(type="LOG", payload="Log0"),
+        Effect(type="LOG", payload="Log1"),
+    ]
+
+    tested = Commander
+    # no instruction
+    result = tested.transcript2commands_questionnaires(auditor, transcript, chatter, [])
+    expected = ([], [])
+    assert result == expected
+    assert memory_log.mock_calls == []
+    assert store_audits.mock_calls == []
+    assert time.mock_calls == []
+    assert auditor.mock_calls == []
+    assert chatter.mock_calls == []
+    for mock_command in mock_commands:
+        assert mock_command.mock_calls == []
+    reset_mocks()
+
+    # with instructions
+    tests = [
+        # -- simulated note
+        ("_NoteUuid", (updated, []), []),  # -- simulated note
+        # -- 'real' note
+        ("noteUuid", (updated, effects), [call.edit()]),
+    ]
+    for note_uuid, expected, command_calls in tests:
+        identification = IdentificationParameters(
+            patient_uuid="patientUuid",
+            note_uuid=note_uuid,
+            provider_uuid="providerUuid",
+            canvas_instance="canvasInstance",
+        )
+        chatter.identification = identification
+        chatter.aws_s3 = "awsS3"
+        time.side_effect = [111.110, 111.357]
+        chatter.update_questionnaire.side_effect = instructions_with_commands
+        for idx, mock_command in enumerate(mock_commands):
+            mock_command.edit.side_effect = [Effect(type="LOG", payload=f"Log{idx}")]
+
+        result = tested.transcript2commands_questionnaires(auditor, transcript, chatter, instructions)
+        assert result == expected
+        calls = [
+            call(identification, 'main'),
+            call().output('DURATION QUESTIONNAIRES: 246'),
+        ]
+        assert memory_log.mock_calls == calls
+        calls = [call(
+            "awsS3",
+            identification,
+            "audit_update_questionnaires",
+            updated,
+        )]
+        assert store_audits.mock_calls == calls
+        calls = [call(), call()]
+        assert time.mock_calls == calls
+        calls = [call.computed_questionnaires(transcript, instructions, instructions_with_commands[1:3])]
+        assert auditor.mock_calls == calls
+        calls = [
+            call.update_questionnaire(transcript, instructions[0]),
+            call.update_questionnaire(transcript, instructions[1]),
+            call.update_questionnaire(transcript, instructions[2]),
+            call.update_questionnaire(transcript, instructions[3]),
+            call.update_questionnaire(transcript, instructions[4]),
+        ]
+        assert chatter.mock_calls == calls
+        for mock_command in mock_commands:
+            assert mock_command.mock_calls == command_calls
+        reset_mocks()
 
 
 @patch.object(Commander, 'store_audits')
@@ -1209,6 +1497,7 @@ def test_existing_commands_to_instructions(schema_key2instruction):
 
     # updated instructions
     current_commands = [
+        Command(id="uuid0", schema_key="canvas_command_Z", data={"narrative": "theNarrative0", "comment": "theComment0"}),
         Command(id="uuid1", schema_key="canvas_command_X", data={"narrative": "theNarrative1", "comment": "theComment1"}),
         Command(id="uuid3", schema_key="canvas_command_Y", data={"narrative": "theNarrative3", "comment": "theComment3"}),
         Command(id="uuid4", schema_key="canvas_command_Y", data={"narrative": "theNarrative4", "comment": "theComment4"}),
@@ -1216,13 +1505,23 @@ def test_existing_commands_to_instructions(schema_key2instruction):
         Command(id="uuid5", schema_key="canvas_command_Y", data={"narrative": "theNarrative5", "comment": "theComment5"}),
         Command(id="uuid6", schema_key="hpi", data={"narrative": "theNarrative6", "comment": "theComment6"}),
         Command(id="uuid7", schema_key="reasonForVisit", data={"narrative": "theNarrative7", "comment": "theComment7"}),
+        Command(id="uuid8", schema_key="exam", data={"questionnaire": {"extra": {"pk": 123, "name": "thePhysicalExam", "questions": []}}}),
+        Command(id="uuid9", schema_key="questionnaire", data={"questionnaire": {"extra": {"pk": 234, "name": "theQuestionnaire", "questions": []}}}),
+        Command(id="uuid10", schema_key="ros", data={"questionnaire": {"extra": {"pk": 125, "name": "theReviewOfSystem", "questions": []}}}),
+        Command(id="uuid11", schema_key="structuredAssessment",
+                data={"questionnaire": {"extra": {"pk": 222, "name": "theStructuredAssessment", "questions": []}}}),
     ]
     schema_key2instruction.side_effect = [
         {
+            "canvas_command_Z": "theInstructionZ",
             "canvas_command_X": "theInstructionX",
             "canvas_command_Y": "theInstructionY",
             "hpi": "HistoryOfPresentIllness",
             "reasonForVisit": "ReasonForVisit",
+            "exam": "PhysicalExam",
+            "questionnaire": "Questionnaire",
+            "ros": "ReviewOfSystem",
+            "structuredAssessment": "StructuredAssessment",
         },
     ]
     instructions = [
@@ -1233,13 +1532,102 @@ def test_existing_commands_to_instructions(schema_key2instruction):
 
     result = tested.existing_commands_to_instructions(current_commands, instructions)
     expected = [
-        Instruction(uuid='uuid1', instruction='theInstructionX', information='theInformationA', is_new=False, is_updated=False, audits=[]),
-        Instruction(uuid='uuid3', instruction='theInstructionY', information='theInformationD', is_new=False, is_updated=False, audits=[]),
-        Instruction(uuid='uuid4', instruction='theInstructionY', information='theInformationE', is_new=False, is_updated=False, audits=[]),
-        Instruction(uuid='uuid2', instruction='theInstructionX', information='', is_new=False, is_updated=False, audits=[]),
-        Instruction(uuid='uuid5', instruction='theInstructionY', information='', is_new=False, is_updated=False, audits=[]),
-        Instruction(uuid='uuid6', instruction='HistoryOfPresentIllness', information='theNarrative6', is_new=False, is_updated=False, audits=[]),
-        Instruction(uuid='uuid7', instruction='ReasonForVisit', information='theComment7', is_new=False, is_updated=False, audits=[]),
+        Instruction(
+            uuid='uuid0',
+            instruction='theInstructionZ',
+            information='',
+            is_new=False,
+            is_updated=False,
+            audits=[],
+        ),
+        Instruction(
+            uuid='uuid1',
+            instruction='theInstructionX',
+            information='theInformationA',
+            is_new=False,
+            is_updated=False,
+            audits=[],
+        ),
+        Instruction(
+            uuid='uuid3',
+            instruction='theInstructionY',
+            information='theInformationD',
+            is_new=False,
+            is_updated=False,
+            audits=[],
+        ),
+        Instruction(
+            uuid='uuid4',
+            instruction='theInstructionY',
+            information='theInformationE',
+            is_new=False,
+            is_updated=False,
+            audits=[],
+        ),
+        Instruction(
+            uuid='uuid2',
+            instruction='theInstructionX',
+            information='',
+            is_new=False,
+            is_updated=False,
+            audits=[],
+        ),
+        Instruction(
+            uuid='uuid5',
+            instruction='theInstructionY',
+            information='',
+            is_new=False,
+            is_updated=False,
+            audits=[],
+        ),
+        Instruction(
+            uuid='uuid6',
+            instruction='HistoryOfPresentIllness',
+            information='theNarrative6',
+            is_new=False,
+            is_updated=False,
+            audits=[],
+        ),
+        Instruction(
+            uuid='uuid7',
+            instruction='ReasonForVisit',
+            information='theComment7',
+            is_new=False,
+            is_updated=False,
+            audits=[],
+        ),
+        Instruction(
+            uuid='uuid8',
+            instruction='PhysicalExam',
+            information='{"name": "thePhysicalExam", "dbid": 123, "questions": []}',
+            is_new=False,
+            is_updated=False,
+            audits=[],
+        ),
+        Instruction(
+            uuid='uuid9',
+            instruction='Questionnaire',
+            information='{"name": "theQuestionnaire", "dbid": 234, "questions": []}',
+            is_new=False,
+            is_updated=False,
+            audits=[],
+        ),
+        Instruction(
+            uuid='uuid10',
+            instruction='ReviewOfSystem',
+            information='{"name": "theReviewOfSystem", "dbid": 125, "questions": []}',
+            is_new=False,
+            is_updated=False,
+            audits=[],
+        ),
+        Instruction(
+            uuid='uuid11',
+            instruction='StructuredAssessment',
+            information='{"name": "theStructuredAssessment", "dbid": 222, "questions": []}',
+            is_new=False,
+            is_updated=False,
+            audits=[],
+        ),
     ]
     assert result == expected
     calls = [call()]

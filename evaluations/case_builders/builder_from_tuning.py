@@ -9,6 +9,7 @@ from evaluations.helper_evaluation import HelperEvaluation
 from evaluations.structures.evaluation_case import EvaluationCase
 from hyperscribe.handlers.audio_interpreter import AudioInterpreter
 from hyperscribe.handlers.commander import Commander
+from hyperscribe.handlers.implemented_commands import ImplementedCommands
 from hyperscribe.handlers.limited_cache import LimitedCache
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 
@@ -29,12 +30,12 @@ class BuilderFromTuning(BuilderBase):
     @classmethod
     def _run(cls, parameters: Namespace, recorder: AuditorFile, identification: IdentificationParameters) -> None:
         with parameters.tuning_json.open("r") as f:
-            limited_cache = json.load(f)
+            limited_cache_data = json.load(f)
 
         StoreCases.upsert(EvaluationCase(
             environment=identification.canvas_instance,
             patient_uuid=parameters.patient,
-            limited_cache=limited_cache,
+            limited_cache=limited_cache_data,
             case_name=parameters.case,
             case_group=parameters.group,
             case_type=parameters.type,
@@ -45,14 +46,15 @@ class BuilderFromTuning(BuilderBase):
         print(f"JSON file: {parameters.tuning_json.name}")
         print(f"MP3 file: {parameters.tuning_mp3.name}")
 
+        limited_cache = LimitedCache.load_from_json(limited_cache_data)
         chatter = AudioInterpreter(
             HelperEvaluation.settings(),
             HelperEvaluation.aws_s3_credentials(),
-            LimitedCache.load_from_json(limited_cache),
+            limited_cache,
             identification,
         )
-
+        previous = limited_cache.staged_commands_as_instructions(ImplementedCommands.schema_key2instruction())
         audios: list[bytes] = []
         with parameters.tuning_mp3.open("rb") as f:
             audios.append(f.read())
-        Commander.audio2commands(recorder, audios, chatter, [])
+        Commander.audio2commands(recorder, audios, chatter, previous)

@@ -5,7 +5,9 @@ from evaluations.auditor_file import AuditorFile
 from evaluations.case_builders.builder_base import BuilderBase
 from evaluations.case_builders.builder_from_mp3 import BuilderFromMp3
 from evaluations.structures.evaluation_case import EvaluationCase
+from hyperscribe.handlers.implemented_commands import ImplementedCommands
 from hyperscribe.structures.identification_parameters import IdentificationParameters
+from hyperscribe.structures.instruction import Instruction
 
 
 def test_class():
@@ -42,6 +44,7 @@ def test__parameters(argument_parser):
 @patch("evaluations.case_builders.builder_from_mp3.AudioInterpreter")
 @patch("evaluations.case_builders.builder_from_mp3.HelperEvaluation")
 @patch("evaluations.case_builders.builder_from_mp3.StoreCases")
+@patch.object(ImplementedCommands, "schema_key2instruction")
 @patch.object(BuilderFromMp3, "_run_chunked")
 @patch.object(BuilderFromMp3, "_run_combined")
 @patch.object(BuilderFromMp3, "_limited_cache_from")
@@ -49,6 +52,7 @@ def test__run(
         limited_cache_from,
         run_combined,
         run_chunked,
+        schema_key2instruction,
         store_cases,
         helper,
         audio_interpreter,
@@ -60,6 +64,7 @@ def test__run(
         limited_cache_from.reset_mock()
         run_combined.reset_mock()
         run_chunked.reset_mock()
+        schema_key2instruction.reset_mock()
         store_cases.reset_mock()
         helper.reset_mock()
         audio_interpreter.reset_mock()
@@ -75,6 +80,24 @@ def test__run(
         provider_uuid="theProviderUuid",
         canvas_instance="theCanvasInstance",
     )
+    instructions = [
+        Instruction(
+            uuid="uuid1",
+            instruction="theInstruction1",
+            information="theInformation1",
+            is_new=False,
+            is_updated=True,
+            audits=[],
+        ),
+        Instruction(
+            uuid="uuid2",
+            instruction="theInstruction2",
+            information="theInformation2",
+            is_new=False,
+            is_updated=True,
+            audits=[],
+        )
+    ]
     tests = [
         (
             True,
@@ -111,6 +134,8 @@ def test__run(
     ]
     for is_combined, files, exp_file_out, exp_file_content, is_run_combined, is_run_chunked in tests:
         limited_cache_from.return_value.to_json.side_effect = [{"key": "value"}]
+        limited_cache_from.return_value.staged_commands_as_instructions.side_effect = [instructions]
+        schema_key2instruction.side_effect = ["schemaKey2instruction"]
         helper.settings.side_effect = ["theSettings"]
         helper.aws_s3_credentials.side_effect = ["theAwsS3Credentials"]
 
@@ -139,9 +164,12 @@ def test__run(
 
         calls = [
             call(identification),
-            call().to_json(),
+            call().to_json(True),
+            call().staged_commands_as_instructions("schemaKey2instruction"),
         ]
         assert limited_cache_from.mock_calls == calls
+        calls = [call()]
+        assert schema_key2instruction.mock_calls == calls
         calls = [call.upsert(EvaluationCase(
             environment="theCanvasInstance",
             patient_uuid="thePatientUuid",
@@ -167,11 +195,11 @@ def test__run(
 
         calls = []
         if is_run_combined:
-            calls = [call(recorder, audio_interpreter.return_value, exp_file_content)]
+            calls = [call(recorder, audio_interpreter.return_value, exp_file_content, instructions)]
         assert run_combined.mock_calls == calls
         calls = []
         if is_run_chunked:
-            calls = [call(parameters, audio_interpreter.return_value, exp_file_content)]
+            calls = [call(parameters, audio_interpreter.return_value, exp_file_content, instructions)]
         assert run_chunked.mock_calls == calls
         for idx, mock_file in enumerate(mock_files):
             calls = []
@@ -198,10 +226,28 @@ def test__run_combined(commander):
     tested = BuilderFromMp3
 
     audios = [b'audio content 0', b'audio content 1']
+    instructions = [
+        Instruction(
+            uuid="uuid1",
+            instruction="theInstruction1",
+            information="theInformation1",
+            is_new=False,
+            is_updated=True,
+            audits=[],
+        ),
+        Instruction(
+            uuid="uuid2",
+            instruction="theInstruction2",
+            information="theInformation2",
+            is_new=False,
+            is_updated=True,
+            audits=[],
+        )
+    ]
 
     recorder = AuditorFile("theCase")
-    tested._run_combined(recorder, mock_chatter, audios)
-    calls = [call.audio2commands(recorder, audios, mock_chatter, [])]
+    tested._run_combined(recorder, mock_chatter, audios, instructions)
+    calls = [call.audio2commands(recorder, audios, mock_chatter, instructions)]
     assert commander.mock_calls == calls
 
     reset_mocks()
@@ -226,7 +272,24 @@ def test__run_chunked(commander, auditor):
         b'audio content 3',
         b'audio content 4',
     ]
-
+    instructions = [
+        Instruction(
+            uuid="uuid1",
+            instruction="theInstruction1",
+            information="theInformation1",
+            is_new=False,
+            is_updated=True,
+            audits=[],
+        ),
+        Instruction(
+            uuid="uuid2",
+            instruction="theInstruction2",
+            information="theInformation2",
+            is_new=False,
+            is_updated=True,
+            audits=[],
+        )
+    ]
     parameters = Namespace(
         patient="thePatientUuid",
         case="theCase",
@@ -244,7 +307,7 @@ def test__run_chunked(commander, auditor):
         (["previous9"], ["effects9"]),
     ]
 
-    tested._run_chunked(parameters, mock_chatter, audios)
+    tested._run_chunked(parameters, mock_chatter, audios, instructions)
     calls = [
         call('theCase_cycle00'),
         call('theCase_cycle01'),
@@ -254,7 +317,7 @@ def test__run_chunked(commander, auditor):
     ]
     assert auditor.mock_calls == calls
     calls = [
-        call.audio2commands(auditor.return_value, [b'audio content 0'], mock_chatter, []),
+        call.audio2commands(auditor.return_value, [b'audio content 0'], mock_chatter, instructions),
         call.audio2commands(auditor.return_value, [b'audio content 0', b'audio content 1'], mock_chatter, ['previous1']),
         call.audio2commands(auditor.return_value, [b'audio content 0', b'audio content 1', b'audio content 2'], mock_chatter, ['previous2']),
         call.audio2commands(auditor.return_value, [b'audio content 1', b'audio content 2', b'audio content 3'], mock_chatter, ['previous3']),

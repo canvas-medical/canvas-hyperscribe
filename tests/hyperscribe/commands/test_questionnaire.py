@@ -1,13 +1,12 @@
-from unittest.mock import patch, call, MagicMock
+from unittest.mock import MagicMock
 
-from canvas_sdk.commands.commands.questionnaire import QuestionnaireCommand
+import pytest
+from canvas_sdk.commands import QuestionnaireCommand
 
 from hyperscribe.commands.base_questionnaire import BaseQuestionnaire
 from hyperscribe.commands.questionnaire import Questionnaire
 from hyperscribe.handlers.limited_cache import LimitedCache
-from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.identification_parameters import IdentificationParameters
-from hyperscribe.structures.instruction_with_command import InstructionWithCommand
 from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
@@ -44,128 +43,49 @@ def test_schema_key():
     assert result == expected
 
 
-@patch.object(LimitedCache, "existing_questionnaires")
-def test_command_from_json(current_goals):
+def test_command_from_json():
     chatter = MagicMock()
-
-    def reset_mocks():
-        current_goals.reset_mock()
-        chatter.reset_mock()
-
     tested = helper_instance()
-    goals = [
-        CodedItem(uuid="theUuid1", label="questionnaire1", code=""),
-        CodedItem(uuid="theUuid2", label="questionnaire2", code=""),
-        CodedItem(uuid="theUuid3", label="questionnaire3", code=""),
-    ]
-    tests = [
-        (1, "theUuid2"),
-        (2, "theUuid3"),
-        (4, ""),
-    ]
-    for idx, exp_uuid in tests:
-        current_goals.side_effect = [goals, goals]
-        arguments = {
-            "uuid": "theUuid",
-            "instruction": "theInstruction",
-            "information": "theInformation",
-            "is_new": False,
-            "is_updated": True,
-            "audits": ["theAudit"],
-            "parameters": {
-                'questionnaire': 'questionnaire2',
-                'questionnaireIndex': idx,
-                "result": "theResult",
-            },
-        }
-        instruction = InstructionWithParameters(**arguments)
-        result = tested.command_from_json(instruction, chatter)
-        command = QuestionnaireCommand(
-            questionnaire_id=exp_uuid,
-            result="theResult",
-            note_uuid="noteUuid",
+    with pytest.raises(NotImplementedError):
+        instruction = InstructionWithParameters(
+            uuid="theUuid",
+            instruction="theInstruction",
+            information="theInformation",
+            is_new=False,
+            is_updated=True,
+            audits=["theAudit"],
+            parameters={'key': "value"},
         )
-        expected = InstructionWithCommand(**(arguments | {"command": command}))
-        assert result == expected
-        calls = [call()]
-        assert current_goals.mock_calls == calls
-        assert chatter.mock_calls == []
-        reset_mocks()
+        _ = tested.command_from_json(instruction, chatter)
+    assert chatter.mock_calls == []
 
 
-@patch.object(LimitedCache, "existing_questionnaires")
-def test_command_parameters(current_goals):
-    def reset_mocks():
-        current_goals.reset_mock()
-
+def test_command_parameters():
     tested = helper_instance()
-    goals = [
-        CodedItem(uuid="theUuid1", label="questionnaire1", code=""),
-        CodedItem(uuid="theUuid2", label="questionnaire2", code=""),
-        CodedItem(uuid="theUuid3", label="questionnaire3", code=""),
-    ]
-    current_goals.side_effect = [goals]
-    result = tested.command_parameters()
-    expected = {
-        "questionnaire": "one of: questionnaire1 (index: 0)/questionnaire2 (index: 1)/questionnaire3 (index: 2), mandatory",
-        "questionnaireIndex": "index of the questionnaire, as integer",
-        "result": "the conclusion of the clinician based on the patient's answers, as free text",
-    }
-    assert result == expected
-    calls = [call()]
-    assert current_goals.mock_calls == calls
-    reset_mocks()
+    with pytest.raises(NotImplementedError):
+        _ = tested.command_parameters()
 
 
 def test_instruction_description():
     tested = helper_instance()
-    result = tested.instruction_description()
-    expected = ("Questionnaire submitted by the clinician, including the questions and patient's responses. "
-                "There can be only one questionnaire per instruction, and no instruction in the lack of. "
-                "Each type of questionnaire can be submitted only once per discussion.")
-    assert result == expected
+    with pytest.raises(NotImplementedError):
+        _ = tested.instruction_description()
 
 
-@patch.object(LimitedCache, "existing_questionnaires")
-def test_instruction_constraints(current_goals):
-    def reset_mocks():
-        current_goals.reset_mock()
-
+def test_instruction_constraints():
     tested = helper_instance()
-    goals = [
-        CodedItem(uuid="theUuid1", label="questionnaire1", code=""),
-        CodedItem(uuid="theUuid2", label="questionnaire2", code=""),
-        CodedItem(uuid="theUuid3", label="questionnaire3", code=""),
-    ]
-    current_goals.side_effect = [goals]
-    result = tested.instruction_constraints()
-    expected = ('"Questionnaire" has to be related to one of the following questionnaires: '
-                '"questionnaire1", "questionnaire2", "questionnaire3"')
-    assert result == expected
-    calls = [call()]
-    assert current_goals.mock_calls == calls
-    reset_mocks()
+    with pytest.raises(NotImplementedError):
+        _ = tested.instruction_constraints()
 
 
-@patch.object(LimitedCache, "existing_questionnaires")
-def test_is_available(current_goals):
-    def reset_mocks():
-        current_goals.reset_mock()
-
+def test_include_skipped():
     tested = helper_instance()
-    goals = [
-        CodedItem(uuid="theUuid1", label="questionnaire1", code=""),
-        CodedItem(uuid="theUuid2", label="questionnaire2", code=""),
-        CodedItem(uuid="theUuid3", label="questionnaire3", code=""),
-    ]
-    tests = [
-        (goals, True),
-        ([], False),
-    ]
-    for side_effect, expected in tests:
-        current_goals.side_effect = [side_effect]
-        result = tested.is_available()
-        assert result is expected
-        calls = [call()]
-        assert current_goals.mock_calls == calls
-        reset_mocks()
+    result = tested.include_skipped()
+    assert result is False
+
+
+def test_sdk_command():
+    tested = helper_instance()
+    result = tested.sdk_command()
+    expected = QuestionnaireCommand
+    assert result == expected

@@ -6,11 +6,12 @@ from canvas_sdk.commands.constants import CodeSystems
 from canvas_sdk.v1.data import (
     Command, Condition, ConditionCoding, MedicationCoding,
     Medication, AllergyIntolerance, AllergyIntoleranceCoding,
-    Questionnaire, Patient, Observation, NoteType, ReasonForVisitSettingCoding)
+    Patient, Observation, NoteType, ReasonForVisitSettingCoding)
 from django.db.models.expressions import When, Value, Case
 
 from hyperscribe.handlers.limited_cache import LimitedCache
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.instruction import Instruction
 
 
 def test___init__():
@@ -32,7 +33,6 @@ def test___init__():
     assert tested._goals is None
     assert tested._medications is None
     assert tested._note_type is None
-    assert tested._questionnaires is None
     assert tested._reason_for_visit is None
     assert tested._surgery_history is None
     assert tested._staged_commands == staged_commands_to_coded_items
@@ -128,6 +128,35 @@ def test_staged_commands_of():
     for keys, expected in tests:
         result = tested.staged_commands_of(keys)
         assert result == expected
+
+
+def test_staged_commands_as_instructions():
+    coded_items = [
+        CodedItem(code="code1", label="label1", uuid="uuid1"),
+        CodedItem(code="code3", label="label3", uuid="uuid3"),
+        CodedItem(code="code2", label="label2", uuid="uuid2"),
+    ]
+
+    staged_commands_to_coded_items = {
+        "keyX": [coded_items[0]],
+        "keyY": [],
+        "keyZ": [coded_items[1], coded_items[2]],
+    }
+    tested = LimitedCache("patientUuid", staged_commands_to_coded_items)
+
+    schema_key2instruction = {
+        "keyX": "Instruction1",
+        "keyY": "Instruction2",
+        "keyZ": "Instruction3",
+    }
+    result = tested.staged_commands_as_instructions(schema_key2instruction)
+    expected = Instruction.load_from_json([
+        {'uuid': 'uuid1', 'instruction': 'Instruction1', 'information': 'label1', 'isNew': True, 'isUpdated': False},
+        {'uuid': 'uuid3', 'instruction': 'Instruction3', 'information': 'label3', 'isNew': True, 'isUpdated': False},
+        {'uuid': 'uuid2', 'instruction': 'Instruction3', 'information': 'label2', 'isNew': True, 'isUpdated': False},
+
+    ])
+    assert result == expected
 
 
 @patch.object(Command, 'objects')
@@ -350,41 +379,6 @@ def test_surgery_history(retrieve_conditions):
     reset_mocks()
 
 
-@patch.object(Questionnaire, 'objects')
-def test_existing_questionnaires(questionnaire_db):
-    def reset_mocks():
-        questionnaire_db.reset_mock()
-
-    questionnaire_db.filter.return_value.order_by.side_effect = [
-        [
-            Questionnaire(id=uuid5(NAMESPACE_DNS, "1"), name="questionnaire1"),
-            Questionnaire(id=uuid5(NAMESPACE_DNS, "2"), name="questionnaire2"),
-            Questionnaire(id=uuid5(NAMESPACE_DNS, "3"), name="questionnaire3"),
-        ],
-    ]
-    tested = LimitedCache("patientUuid", {})
-    expected = [
-        CodedItem(uuid="b04965e6-a9bb-591f-8f8a-1adcb2c8dc39", label="questionnaire1", code=""),
-        CodedItem(uuid="4b166dbe-d99d-5091-abdd-95b83330ed3a", label="questionnaire2", code=""),
-        CodedItem(uuid="98123fde-012f-5ff3-8b50-881449dac91a", label="questionnaire3", code=""),
-    ]
-    result = tested.existing_questionnaires()
-    assert result == expected
-    assert tested._questionnaires == expected
-    calls = [
-        call.filter(status="AC", can_originate_in_charting=True, use_case_in_charting="QUES"),
-        call.filter().order_by('-dbid'),
-    ]
-    assert questionnaire_db.mock_calls == calls
-    reset_mocks()
-
-    result = tested.existing_questionnaires()
-    assert result == expected
-    assert tested._questionnaires == expected
-    assert questionnaire_db.mock_calls == []
-    reset_mocks()
-
-
 @patch.object(NoteType, 'objects')
 def test_existing_note_types(note_type_db):
     def reset_mocks():
@@ -467,46 +461,66 @@ def test_demographic__str__(patient_db, observation_db, mock_date):
         (
             "F",
             date(1941, 2, 7),
+            False,
             "the patient is a elderly woman, born on February 07, 1941 (age 83) and weight 124.38 pounds"
         ),
         (
             "F",
+            date(1941, 2, 7),
+            True,
+            "the patient is a elderly woman, born on <DOB REDACTED> (age 83) and weight 124.38 pounds"
+        ),
+        (
+            "F",
             date(2000, 2, 7),
+            False,
             "the patient is a woman, born on February 07, 2000 (age 24) and weight 124.38 pounds"
         ),
         (
             "F",
             date(2020, 2, 7),
+            False,
             "the patient is a girl, born on February 07, 2020 (age 4) and weight 124.38 pounds"
         ),
         (
             "F",
             date(2024, 7, 2),
+            False,
             "the patient is a baby girl, born on July 02, 2024 (age 7 months) and weight 124.38 pounds"
         ),
         (
             "O",
             date(1941, 2, 7),
+            False,
             "the patient is a elderly man, born on February 07, 1941 (age 83) and weight 124.38 pounds"
         ),
         (
             "O",
             date(2000, 2, 7),
+            False,
             "the patient is a man, born on February 07, 2000 (age 24) and weight 124.38 pounds"
         ),
         (
             "O",
             date(2020, 2, 7),
+            False,
             "the patient is a boy, born on February 07, 2020 (age 4) and weight 124.38 pounds"
         ),
         (
             "O",
             date(2024, 7, 2),
+            False,
             "the patient is a baby boy, born on July 02, 2024 (age 7 months) and weight 124.38 pounds"
+        ),
+        (
+            "O",
+            date(2024, 7, 2),
+            True,
+            "the patient is a baby boy, born on <DOB REDACTED> (age 7 months) and weight 124.38 pounds"
         ),
     ]
 
-    for sex_at_birth, birth_date, expected in tests:
+    for sex_at_birth, birth_date, obfuscate, expected in tests:
         patient_db.get.side_effect = [
             Patient(sex_at_birth=sex_at_birth, birth_date=birth_date)
         ]
@@ -515,7 +529,7 @@ def test_demographic__str__(patient_db, observation_db, mock_date):
         ]
         tested = LimitedCache("patientUuid", {})
 
-        result = tested.demographic__str__()
+        result = tested.demographic__str__(obfuscate)
         assert result == expected, f" ---> {sex_at_birth} - {birth_date}"
         assert tested._demographic == expected
         calls = [call.get(id="patientUuid")]
@@ -531,7 +545,7 @@ def test_demographic__str__(patient_db, observation_db, mock_date):
         assert mock_date.mock_calls == calls
         reset_mocks()
 
-        result = tested.demographic__str__()
+        result = tested.demographic__str__(obfuscate)
         assert result == expected, f" ---> {sex_at_birth} - {birth_date}"
         assert tested._demographic == expected
         assert patient_db.mock_calls == []
@@ -547,7 +561,7 @@ def test_demographic__str__(patient_db, observation_db, mock_date):
         None
     ]
     tested = LimitedCache("patientUuid", {})
-    result = tested.demographic__str__()
+    result = tested.demographic__str__(False)
     expected = "the patient is a woman, born on February 07, 2000 (age 24)"
     assert result == expected
     assert tested._demographic == expected
@@ -572,7 +586,7 @@ def test_demographic__str__(patient_db, observation_db, mock_date):
         Observation(units="any", value="125"),
     ]
     tested = LimitedCache("patientUuid", {})
-    result = tested.demographic__str__()
+    result = tested.demographic__str__(False)
     expected = "the patient is a woman, born on February 07, 2000 (age 24) and weight 125.00 pounds"
     assert result == expected
     assert tested._demographic == expected
@@ -594,7 +608,6 @@ def test_demographic__str__(patient_db, observation_db, mock_date):
 @patch.object(LimitedCache, 'family_history')
 @patch.object(LimitedCache, 'existing_reason_for_visits')
 @patch.object(LimitedCache, 'existing_note_types')
-@patch.object(LimitedCache, 'existing_questionnaires')
 @patch.object(LimitedCache, 'current_medications')
 @patch.object(LimitedCache, 'current_goals')
 @patch.object(LimitedCache, 'current_conditions')
@@ -609,7 +622,6 @@ def test_to_json(
         current_goals,
         current_medications,
         existing_note_types,
-        existing_questionnaires,
         existing_reason_for_visits,
         family_history,
         surgery_history,
@@ -622,7 +634,6 @@ def test_to_json(
         current_goals.reset_mock()
         current_medications.reset_mock()
         existing_note_types.reset_mock()
-        existing_questionnaires.reset_mock()
         existing_reason_for_visits.reset_mock()
         family_history.reset_mock()
         surgery_history.reset_mock()
@@ -639,118 +650,111 @@ def test_to_json(
         },
     )
 
-    demographic.side_effect = ["theDemographic"]
-    condition_history.side_effect = [[
-        CodedItem(uuid="uuid002", label="label002", code="code002"),
-        CodedItem(uuid="uuid102", label="label102", code="code102"),
-    ]]
-    current_allergies.side_effect = [[
-        CodedItem(uuid="uuid003", label="label003", code="code003"),
-        CodedItem(uuid="uuid103", label="label103", code="code103"),
-    ]]
-    current_conditions.side_effect = [[
-        CodedItem(uuid="uuid004", label="label004", code="code004"),
-        CodedItem(uuid="uuid104", label="label104", code="code104"),
-    ]]
-    current_goals.side_effect = [[
-        CodedItem(uuid="uuid005", label="label005", code="code005"),
-        CodedItem(uuid="uuid105", label="label105", code="code105"),
-    ]]
-    current_medications.side_effect = [[
-        CodedItem(uuid="uuid006", label="label006", code="code006"),
-        CodedItem(uuid="uuid106", label="label106", code="code106"),
-    ]]
-    existing_note_types.side_effect = [[
-        CodedItem(uuid="uuid007", label="label007", code="code007"),
-        CodedItem(uuid="uuid107", label="label107", code="code107"),
-    ]]
-    existing_questionnaires.side_effect = [[
-        CodedItem(uuid="uuid008", label="label008", code="code008"),
-        CodedItem(uuid="uuid108", label="label108", code="code108"),
-    ]]
-    existing_reason_for_visits.side_effect = [[
-        CodedItem(uuid="uuid009", label="label009", code="code009"),
-        CodedItem(uuid="uuid109", label="label109", code="code109"),
-    ]]
-    family_history.side_effect = [[
-        CodedItem(uuid="uuid010", label="label010", code="code010"),
-        CodedItem(uuid="uuid110", label="label110", code="code110"),
-    ]]
-    surgery_history.side_effect = [[
-        CodedItem(uuid="uuid011", label="label011", code="code011"),
-        CodedItem(uuid="uuid111", label="label111", code="code111"),
-    ]]
+    for obfuscate in [True, False]:
+        demographic.side_effect = ["theDemographic"]
+        condition_history.side_effect = [[
+            CodedItem(uuid="uuid002", label="label002", code="code002"),
+            CodedItem(uuid="uuid102", label="label102", code="code102"),
+        ]]
+        current_allergies.side_effect = [[
+            CodedItem(uuid="uuid003", label="label003", code="code003"),
+            CodedItem(uuid="uuid103", label="label103", code="code103"),
+        ]]
+        current_conditions.side_effect = [[
+            CodedItem(uuid="uuid004", label="label004", code="code004"),
+            CodedItem(uuid="uuid104", label="label104", code="code104"),
+        ]]
+        current_goals.side_effect = [[
+            CodedItem(uuid="uuid005", label="label005", code="code005"),
+            CodedItem(uuid="uuid105", label="label105", code="code105"),
+        ]]
+        current_medications.side_effect = [[
+            CodedItem(uuid="uuid006", label="label006", code="code006"),
+            CodedItem(uuid="uuid106", label="label106", code="code106"),
+        ]]
+        existing_note_types.side_effect = [[
+            CodedItem(uuid="uuid007", label="label007", code="code007"),
+            CodedItem(uuid="uuid107", label="label107", code="code107"),
+        ]]
+        existing_reason_for_visits.side_effect = [[
+            CodedItem(uuid="uuid009", label="label009", code="code009"),
+            CodedItem(uuid="uuid109", label="label109", code="code109"),
+        ]]
+        family_history.side_effect = [[
+            CodedItem(uuid="uuid010", label="label010", code="code010"),
+            CodedItem(uuid="uuid110", label="label110", code="code110"),
+        ]]
+        surgery_history.side_effect = [[
+            CodedItem(uuid="uuid011", label="label011", code="code011"),
+            CodedItem(uuid="uuid111", label="label111", code="code111"),
+        ]]
 
-    result = tested.to_json()
-    expected = {
-        'conditionHistory': [
-            {'code': 'code002', 'label': 'label002', 'uuid': 'uuid002'},
-            {'code': 'code102', 'label': 'label102', 'uuid': 'uuid102'},
-        ],
-        'currentAllergies': [
-            {'code': 'code003', 'label': 'label003', 'uuid': 'uuid003'},
-            {'code': 'code103', 'label': 'label103', 'uuid': 'uuid103'},
-        ],
-        'currentConditions': [
-            {'code': 'code004', 'label': 'label004', 'uuid': 'uuid004'},
-            {'code': 'code104', 'label': 'label104', 'uuid': 'uuid104'},
-        ],
-        'currentGoals': [
-            {'code': 'code005', 'label': 'label005', 'uuid': 'uuid005'},
-            {'code': 'code105', 'label': 'label105', 'uuid': 'uuid105'},
-        ],
-        'currentMedications': [
-            {'code': 'code006', 'label': 'label006', 'uuid': 'uuid006'},
-            {'code': 'code106', 'label': 'label106', 'uuid': 'uuid106'},
-        ],
-        'demographicStr': 'theDemographic',
-        'existingNoteTypes': [
-            {'code': 'code008', 'label': 'label008', 'uuid': 'uuid008'},
-            {'code': 'code108', 'label': 'label108', 'uuid': 'uuid108'},
-        ],
-        'existingQuestionnaires': [
-            {'code': 'code007', 'label': 'label007', 'uuid': 'uuid007'},
-            {'code': 'code107', 'label': 'label107', 'uuid': 'uuid107'},
-        ],
-        'existingReasonForVisit': [
-            {'code': 'code009', 'label': 'label009', 'uuid': 'uuid009'},
-            {'code': 'code109', 'label': 'label109', 'uuid': 'uuid109'},
-        ],
-        'familyHistory': [
-            {'code': 'code010', 'label': 'label010', 'uuid': 'uuid010'},
-            {'code': 'code110', 'label': 'label110', 'uuid': 'uuid110'},
-        ],
-        'stagedCommands': {
-            'keyX': [
-                {'code': 'code1', 'label': 'label1', 'uuid': 'uuid1'},
+        result = tested.to_json(obfuscate)
+        expected = {
+            'conditionHistory': [
+                {'code': 'code002', 'label': 'label002', 'uuid': 'uuid002'},
+                {'code': 'code102', 'label': 'label102', 'uuid': 'uuid102'},
             ],
-            'keyY': [],
-            'keyZ': [
-                {'code': 'code3', 'label': 'label3', 'uuid': 'uuid3'},
-                {'code': 'code2', 'label': 'label2', 'uuid': 'uuid2'},
+            'currentAllergies': [
+                {'code': 'code003', 'label': 'label003', 'uuid': 'uuid003'},
+                {'code': 'code103', 'label': 'label103', 'uuid': 'uuid103'},
             ],
-        },
-        'surgeryHistory': [
-            {'code': 'code011', 'label': 'label011', 'uuid': 'uuid011'},
-            {'code': 'code111', 'label': 'label111', 'uuid': 'uuid111'},
-        ],
-    }
+            'currentConditions': [
+                {'code': 'code004', 'label': 'label004', 'uuid': 'uuid004'},
+                {'code': 'code104', 'label': 'label104', 'uuid': 'uuid104'},
+            ],
+            'currentGoals': [
+                {'code': 'code005', 'label': 'label005', 'uuid': 'uuid005'},
+                {'code': 'code105', 'label': 'label105', 'uuid': 'uuid105'},
+            ],
+            'currentMedications': [
+                {'code': 'code006', 'label': 'label006', 'uuid': 'uuid006'},
+                {'code': 'code106', 'label': 'label106', 'uuid': 'uuid106'},
+            ],
+            'demographicStr': 'theDemographic',
+            'existingNoteTypes': [
+                {'code': 'code007', 'label': 'label007', 'uuid': 'uuid007'},
+                {'code': 'code107', 'label': 'label107', 'uuid': 'uuid107'},
+            ],
+            'existingReasonForVisit': [
+                {'code': 'code009', 'label': 'label009', 'uuid': 'uuid009'},
+                {'code': 'code109', 'label': 'label109', 'uuid': 'uuid109'},
+            ],
+            'familyHistory': [
+                {'code': 'code010', 'label': 'label010', 'uuid': 'uuid010'},
+                {'code': 'code110', 'label': 'label110', 'uuid': 'uuid110'},
+            ],
+            'stagedCommands': {
+                'keyX': [
+                    {'code': 'code1', 'label': 'label1', 'uuid': 'uuid1'},
+                ],
+                'keyY': [],
+                'keyZ': [
+                    {'code': 'code3', 'label': 'label3', 'uuid': 'uuid3'},
+                    {'code': 'code2', 'label': 'label2', 'uuid': 'uuid2'},
+                ],
+            },
+            'surgeryHistory': [
+                {'code': 'code011', 'label': 'label011', 'uuid': 'uuid011'},
+                {'code': 'code111', 'label': 'label111', 'uuid': 'uuid111'},
+            ],
+        }
 
-    assert result == expected
+        assert result == expected
 
-    calls = [call()]
-    assert demographic.mock_calls == calls
-    assert condition_history.mock_calls == calls
-    assert current_allergies.mock_calls == calls
-    assert current_conditions.mock_calls == calls
-    assert current_goals.mock_calls == calls
-    assert current_medications.mock_calls == calls
-    assert existing_note_types.mock_calls == calls
-    assert existing_questionnaires.mock_calls == calls
-    assert existing_reason_for_visits.mock_calls == calls
-    assert family_history.mock_calls == calls
-    assert surgery_history.mock_calls == calls
-    reset_mocks()
+        calls = [call(obfuscate)]
+        assert demographic.mock_calls == calls
+        calls = [call()]
+        assert condition_history.mock_calls == calls
+        assert current_allergies.mock_calls == calls
+        assert current_conditions.mock_calls == calls
+        assert current_goals.mock_calls == calls
+        assert current_medications.mock_calls == calls
+        assert existing_note_types.mock_calls == calls
+        assert existing_reason_for_visits.mock_calls == calls
+        assert family_history.mock_calls == calls
+        assert surgery_history.mock_calls == calls
+        reset_mocks()
 
 
 def test_load_from_json():
@@ -780,10 +784,6 @@ def test_load_from_json():
         'existingNoteTypes': [
             {'code': 'code008', 'label': 'label008', 'uuid': 'uuid008'},
             {'code': 'code108', 'label': 'label108', 'uuid': 'uuid108'},
-        ],
-        'existingQuestionnaires': [
-            {'code': 'code007', 'label': 'label007', 'uuid': 'uuid007'},
-            {'code': 'code107', 'label': 'label107', 'uuid': 'uuid107'},
         ],
         'existingReasonForVisit': [
             {'code': 'code009', 'label': 'label009', 'uuid': 'uuid009'},
@@ -818,7 +818,7 @@ def test_load_from_json():
             CodedItem(code="code2", label="label2", uuid="uuid2"),
         ],
     }
-    assert result.demographic__str__() == "theDemographic"
+    assert result.demographic__str__(True) == "theDemographic"
 
     assert result.current_allergies() == [
         CodedItem(uuid="uuid003", label="label003", code="code003"),
@@ -847,10 +847,6 @@ def test_load_from_json():
     assert result.existing_note_types() == [
         CodedItem(uuid="uuid008", label="label008", code="code008"),
         CodedItem(uuid="uuid108", label="label108", code="code108"),
-    ]
-    assert result.existing_questionnaires() == [
-        CodedItem(uuid="uuid007", label="label007", code="code007"),
-        CodedItem(uuid="uuid107", label="label107", code="code107"),
     ]
     assert result.existing_reason_for_visits() == [
         CodedItem(uuid="uuid009", label="label009", code="code009"),

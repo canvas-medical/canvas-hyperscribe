@@ -1,31 +1,18 @@
-from hyperscribe.commands.base import Base
+from typing import Type
+
+from canvas_sdk.commands import ReviewOfSystemsCommand
+
+from hyperscribe.commands.base_questionnaire import BaseQuestionnaire
 from hyperscribe.handlers.constants import Constants
-from hyperscribe.llms.llm_base import LlmBase
-from hyperscribe.structures.coded_item import CodedItem
-from hyperscribe.structures.instruction_with_command import InstructionWithCommand
-from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 
 
-class ReviewOfSystem(Base):
+class ReviewOfSystem(BaseQuestionnaire):
     @classmethod
     def schema_key(cls) -> str:
         return Constants.SCHEMA_KEY_REVIEW_OF_SYSTEM
 
-    @classmethod
-    def staged_command_extract(cls, data: dict) -> None | CodedItem:
-        return None
+    def include_skipped(self) -> bool:
+        return True
 
-    def command_from_json(self, instruction: InstructionWithParameters, chatter: LlmBase) -> InstructionWithCommand | None:
-        return None
-
-    def command_parameters(self) -> dict:
-        return {}
-
-    def instruction_description(self) -> str:
-        return ""
-
-    def instruction_constraints(self) -> str:
-        return ""
-
-    def is_available(self) -> bool:
-        return False
+    def sdk_command(self) -> Type[ReviewOfSystemsCommand]:
+        return ReviewOfSystemsCommand
