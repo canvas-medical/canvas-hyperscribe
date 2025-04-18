@@ -61,7 +61,7 @@ def test__case_files(case_files_from):
         call('transcript2instructions', 'json'),
         call('instruction2parameters', 'json'),
         call('parameters2command', 'json'),
-        call('questionnaires', 'json'),
+        call('staged_questionnaires', 'json'),
     ]
     assert case_files_from.mock_calls == calls
     reset_mocks()
@@ -543,8 +543,8 @@ def test_computed_commands(path):
                 {"key2": "parameter2"},
             ],
             "commands": [
-                {"attributes": {"key1": "value1"}, "class": "Class1", "module": "module1"},
-                {"attributes": {"key2": "value2"}, "class": "Class2", "module": "module2"},
+                {"attributes": {"key1": "value1", "command_uuid": ">?<", "note_uuid": ">?<"}, "class": "Class1", "module": "module1"},
+                {"attributes": {"key2": "value2", "command_uuid": ">?<", "note_uuid": ">?<"}, "class": "Class2", "module": "module2"},
             ],
         }
         assert json.loads("".join(written_text)) == expected
@@ -622,8 +622,8 @@ def test_computed_commands(path):
             ],
             "commands": [
                 {"attributes": {"key0": "value0"}, "class": "Class0", "module": "module0"},
-                {"attributes": {"key1": "value1"}, "class": "Class1", "module": "module1"},
-                {"attributes": {"key2": "value2"}, "class": "Class2", "module": "module2"},
+                {"attributes": {"key1": "value1", "command_uuid": ">?<", "note_uuid": ">?<"}, "class": "Class1", "module": "module1"},
+                {"attributes": {"key2": "value2", "command_uuid": ">?<", "note_uuid": ">?<"}, "class": "Class2", "module": "module2"},
             ],
         }
         assert json.loads("".join(written_text)) == expected
@@ -745,36 +745,34 @@ def test_computed_questionnaires(path):
         assert result is test
 
         expected = {
-            "instructions": {
-                "initial": [
-                    {
-                        'information': 'theInformation1',
-                        'instruction': 'theInstruction1',
-                        'isNew': False,
-                        'isUpdated': False,
-                        'uuid': '>?<',
-                    },
-                    {
-                        'information': 'theInformation2',
-                        'instruction': 'theInstruction2',
-                        'isNew': False,
-                        'isUpdated': False,
-                        'uuid': '>?<',
-                    },
-                    {
-                        'information': 'theInformation3',
-                        'instruction': 'theInstruction3',
-                        'isNew': False,
-                        'isUpdated': False,
-                        'uuid': '>?<',
-                    },
-                ],
-                "commands": [
-                    {"class": "Class1", "module": "module1", "attributes": {"key1": "value1", "command_uuid": ">?<", "note_uuid": ">?<"}},
-                    {"class": "Class2", "module": "module2", "attributes": {"key2": "value2", "command_uuid": ">?<", "note_uuid": ">?<"}},
-                    {"class": "Class3", "module": "module3", "attributes": {"key3": "value3", "command_uuid": ">?<", "note_uuid": ">?<"}},
-                ],
-            },
+            "instructions": [
+                {
+                    'information': 'theInformation1',
+                    'instruction': 'theInstruction1',
+                    'isNew': False,
+                    'isUpdated': False,
+                    'uuid': '>?<',
+                },
+                {
+                    'information': 'theInformation2',
+                    'instruction': 'theInstruction2',
+                    'isNew': False,
+                    'isUpdated': False,
+                    'uuid': '>?<',
+                },
+                {
+                    'information': 'theInformation3',
+                    'instruction': 'theInstruction3',
+                    'isNew': False,
+                    'isUpdated': False,
+                    'uuid': '>?<',
+                },
+            ],
+            "commands": [
+                {"class": "Class1", "module": "module1", "attributes": {"key1": "value1", "command_uuid": ">?<", "note_uuid": ">?<"}},
+                {"class": "Class2", "module": "module2", "attributes": {"key2": "value2", "command_uuid": ">?<", "note_uuid": ">?<"}},
+                {"class": "Class3", "module": "module3", "attributes": {"key3": "value3", "command_uuid": ">?<", "note_uuid": ">?<"}},
+            ],
             "transcript": [
                 {"speaker": "voiceA", "text": "theText1"},
                 {"speaker": "voiceB", "text": "theText2"},
@@ -786,7 +784,7 @@ def test_computed_questionnaires(path):
 
         calls = [
             call(f'{directory}/auditor_file.py'),
-            call().parent.__truediv__('questionnaires/theCase.json'),
+            call().parent.__truediv__('staged_questionnaires/theCase.json'),
             call().parent.__truediv__().open('w'),
             call().parent.__truediv__().open().__enter__(),
             call().parent.__truediv__().open().__exit__(None, None, None),

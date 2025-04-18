@@ -1,6 +1,7 @@
 import json
 from datetime import datetime
 
+from hyperscribe.commands.base_questionnaire import BaseQuestionnaire
 from hyperscribe.handlers.helper import Helper
 from hyperscribe.handlers.implemented_commands import ImplementedCommands
 from hyperscribe.handlers.json_schema import JsonSchema
@@ -263,7 +264,7 @@ class AudioInterpreter:
     def update_questionnaire(self, discussion: list[Line], instruction: Instruction) -> InstructionWithCommand | None:
         for instance in self._command_context:
             if instruction.instruction == instance.class_name():
-                # assert isinstance(instance, BaseQuestionnaire)
+                assert isinstance(instance, BaseQuestionnaire)
                 log_label = f"{instruction.instruction}_{instruction.uuid}_questionnaire_update"
                 chatter = Helper.chatter(
                     self.settings,

@@ -23,7 +23,7 @@ class AuditorFile(Auditor):
             ('transcript2instructions', 'json'),
             ('instruction2parameters', 'json'),
             ('parameters2command', 'json'),
-            ('questionnaires', 'json'),
+            ('staged_questionnaires', 'json'),
         ]
         for folder, extension in paths:
             yield from self._case_files_from(folder, extension)
@@ -117,7 +117,10 @@ class AuditorFile(Auditor):
             content["commands"].append({
                 "module": instruction.command.__module__,
                 "class": instruction.command.__class__.__name__,
-                "attributes": instruction.command.values,
+                "attributes": instruction.command.values | {
+                    "command_uuid": Constants.IGNORED_KEY_VALUE,
+                    "note_uuid": Constants.IGNORED_KEY_VALUE,
+                },
             })
 
         with file.open("w") as fp:
@@ -130,26 +133,24 @@ class AuditorFile(Auditor):
             initial_instructions: list[Instruction],
             instructions_with_command: list[InstructionWithCommand],
     ) -> bool:
-        file = Path(__file__).parent / f"questionnaires/{self.case}.json"
+        file = Path(__file__).parent / f"staged_questionnaires/{self.case}.json"
         with file.open("w") as fp:
             json.dump({
                 "transcript": [line.to_json() for line in transcript],
-                "instructions": {
-                    "initial": [
-                        instruction.to_json(True) | {"uuid": Constants.IGNORED_KEY_VALUE}
-                        for instruction in initial_instructions
-                    ],
-                    "commands": [
-                        {
-                            "module": instruction.command.__module__,
-                            "class": instruction.command.__class__.__name__,
-                            "attributes": instruction.command.values | {
-                                "command_uuid": Constants.IGNORED_KEY_VALUE,
-                                "note_uuid": Constants.IGNORED_KEY_VALUE,
-                            },
-                        }
-                        for instruction in instructions_with_command
-                    ],
-                },
+                "instructions": [
+                    instruction.to_json(True) | {"uuid": Constants.IGNORED_KEY_VALUE}
+                    for instruction in initial_instructions
+                ],
+                "commands": [
+                    {
+                        "module": instruction.command.__module__,
+                        "class": instruction.command.__class__.__name__,
+                        "attributes": instruction.command.values | {
+                            "command_uuid": Constants.IGNORED_KEY_VALUE,
+                            "note_uuid": Constants.IGNORED_KEY_VALUE,
+                        },
+                    }
+                    for instruction in instructions_with_command
+                ],
             }, fp, indent=2)  # type: ignore
         return file.exists()

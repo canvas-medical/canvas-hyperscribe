@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 from unittest.mock import patch, MagicMock, call
 
+from hyperscribe.commands.base_questionnaire import BaseQuestionnaire
 from hyperscribe.handlers.audio_interpreter import AudioInterpreter
 from hyperscribe.handlers.helper import Helper
 from hyperscribe.handlers.implemented_commands import ImplementedCommands
@@ -946,6 +947,7 @@ def test_update_questionnaire(chatter, memory_log):
         memory_log.reset_mock()
         for item in command_mocks:
             item.reset_mock()
+            item.return_value.__class__ = BaseQuestionnaire
         for item in questionnaire_mocks:
             item.reset_mock()
 

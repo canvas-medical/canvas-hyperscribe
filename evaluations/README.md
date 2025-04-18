@@ -1,12 +1,13 @@
 Hyperscribe Evaluations
 =======================
 
-The [hyperscribe](../hyperscribe) plugin has four essential steps:
+The [hyperscribe](../hyperscribe) plugin has five essential steps:
 
 * transcript the audio into a discussion, identifying the speakers and what they say
 * extract from the discussion a set of instructions, a plain english description of a Canvas command
 * transform an instruction into a data structure close to a Canvas command parameters
 * create the Canvas command based on the parameters
+* update the staged questionnaires in the considered note based on the discussion
 
 The evaluation tests are designed to validate each of these steps.
 
@@ -57,6 +58,9 @@ uv  run pytest -v evaluations/test_parameters2command.py --patient-uuid patient_
 # run all tests for the step transcript2instructions 
 # for the patient patient_uuid
 uv  run pytest -v evaluations/test_transcript2instructions.py --patient-uuid patient_uuid
+
+# run the test the_case for the step staged_questionnaires 
+uv  run pytest -v evaluations/test_staged_questionnaires.py -k the_case
 
 # run all steps for a specific case the_case
 uv  run pytest -v evaluations -k the_case

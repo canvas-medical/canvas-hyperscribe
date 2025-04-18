@@ -39,7 +39,7 @@ class HelperEvaluation:
 
     @classmethod
     def get_canvas_instance(cls) -> str:
-        return environ.get(HyperscribeConstants.CUSTOMER_IDENTIFIER) or "CanvasInstance"
+        return environ.get(HyperscribeConstants.CUSTOMER_IDENTIFIER) or "EvaluationBuilderInstance"
 
     @classmethod
     def json_schema_differences(cls) -> dict:

@@ -143,7 +143,7 @@ def test_get_canvas_instance(monkeypatch):
     monkeypatch.delenv("CUSTOMER_IDENTIFIER")
     tested = HelperEvaluation
     result = tested.get_canvas_instance()
-    expected = "CanvasInstance"
+    expected = "EvaluationBuilderInstance"
     assert result == expected
 
 
