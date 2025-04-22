@@ -240,21 +240,55 @@ class Commander(BaseProtocol):
 
         # detect the instructions based on the transcript and the existing commands
         response = chatter.detect_instructions(transcript, instructions)
-        updated_instructions = Instruction.load_from_json(response)
-        auditor.found_instructions(transcript, instructions, updated_instructions)
-        memory_log.output(f"--> instructions: {len(updated_instructions)}")
+        cumulated_instructions = Instruction.load_from_json(response)
+        auditor.found_instructions(transcript, instructions, cumulated_instructions)
+        memory_log.output(f"--> instructions: {len(cumulated_instructions)}")
         past_uuids = {instruction.uuid: instruction for instruction in instructions}
 
-        # identify the commands
-        results: list[Effect] = []
-        # -- new commands
-        results.extend(cls.new_commands_from(auditor, chatter, updated_instructions, past_uuids))
-        # -- updated commands
-        results.extend(cls.update_commands_from(auditor, chatter, updated_instructions, past_uuids))
+        computed_instructions = [
+            instruction
+            for instruction in cumulated_instructions
+            if instruction.uuid not in past_uuids
+               or past_uuids[instruction.uuid].information != instruction.information
+        ]
+        memory_log.output(f"--> computed instructions: {len(computed_instructions)}")
+        start = time()
+        max_workers = max(1, Constants.MAX_WORKERS)
+        with ThreadPoolExecutor(max_workers=max_workers) as builder:
+            instructions_with_parameter = [
+                instruction
+                for instruction in builder.map(chatter.create_sdk_command_parameters, computed_instructions)
+                if instruction is not None
+            ]
+        auditor.computed_parameters(instructions_with_parameter)
+        memory_log.output(f"--> computed commands: {len(instructions_with_parameter)}")
+        instructions_with_command: list[InstructionWithCommand] = []
+        with ThreadPoolExecutor(max_workers=max_workers) as builder:
+            for instruction in builder.map(chatter.create_sdk_command_from, instructions_with_parameter):
+                if instruction is not None:
+                    if instruction.uuid in past_uuids:
+                        instruction.command.command_uuid = instruction.uuid
+                    instructions_with_command.append(instruction)
+
+        memory_log.output(f"DURATION COMMONS: {int((time() - start) * 1000)}")
+        auditor.computed_commands(instructions_with_command)
+
+        cls.store_audits(chatter.aws_s3, chatter.identification, "audit_common_commands", instructions_with_command)
+
         # reset the audit fields
-        for instruction in updated_instructions:
+        for instruction in cumulated_instructions:
             instruction.audits.clear()
-        return updated_instructions, results
+
+        if chatter.identification.note_uuid == Constants.FAUX_NOTE_UUID:
+            # this is the case when running an evaluation against a recorded 'limited cache',
+            # i.e. the patient and/or her data don't exist, something that may be checked
+            # when editing/originating the commands
+            return cumulated_instructions, []
+
+        return cumulated_instructions, [
+            i.command.edit() if i.uuid in past_uuids else i.command.originate()
+            for i in instructions_with_command
+        ]
 
     @classmethod
     def transcript2commands_questionnaires(
@@ -447,7 +481,11 @@ class Commander(BaseProtocol):
                         key = command.schema_key
                         if key not in result:
                             result[key] = []
-                        result[key].append(coded_item)
+                        result[key].append(CodedItem(
+                            uuid=str(command.id),
+                            label=coded_item.label,
+                            code=coded_item.code,
+                        ))
                     break
         return result
 
