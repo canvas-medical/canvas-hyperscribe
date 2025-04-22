@@ -208,7 +208,7 @@ def test_command_parameters():
         "clinicalQuestions": "one of: 'Cognitive Assistance (Advice/Guidance)', 'Assistance with Ongoing Management', 'Specialized intervention', 'Diagnostic Uncertainty'",
         "priority": "one of: Routine/Urgent",
         "notesToSpecialist": "note or question to be sent to the referred specialist, required, as concise free text",
-        "comment": "rational of the referral, as free text",
+        "comment": "rationale of the referral, as free text",
         "conditions": [
             {
                 "conditionKeywords": "comma separated keywords of up to 5 synonyms of each condition related to the referral",
@@ -222,7 +222,7 @@ def test_command_parameters():
 def test_instruction_description():
     tested = helper_instance()
     result = tested.instruction_description()
-    expected = ("Referral to a specialist, including the rational and the targeted conditions. "
+    expected = ("Referral to a specialist, including the rationale and the targeted conditions. "
                 "There can be only one referral in an instruction with all necessary information, "
                 "and no instruction in the lack of.")
     assert result == expected

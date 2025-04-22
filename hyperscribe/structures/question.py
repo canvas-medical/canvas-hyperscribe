@@ -23,13 +23,17 @@ class Question(NamedTuple):
         }
 
     def for_llm(self, include_skipped: bool) -> dict:
-        responses = [
-            response.for_llm()
-            for response in self.responses
-        ]
+        include_comment = bool(self.type == QuestionType.TYPE_CHECKBOX)
         if self.type in [QuestionType.TYPE_INTEGER, QuestionType.TYPE_TEXT]:
-            for response in self.responses[:1]:
-                responses = [response.for_llm() | {"selected": True}]
+            responses = [
+                response.for_llm(include_comment) | {"selected": True}
+                for response in self.responses[:1]
+            ]
+        else:
+            responses = [
+                response.for_llm(include_comment)
+                for response in self.responses
+            ]
 
         skipped = {}
         if include_skipped:

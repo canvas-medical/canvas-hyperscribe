@@ -345,7 +345,7 @@ def test_command_parameters(current_conditions):
             "sig": "directions, as free text",
             "suppliedDays": "mandatory, duration of the treatment in days either as mentioned, or following the standard practices, as integer",
             "substitution": "one of: allowed/not_allowed",
-            "comment": "rational of the prescription including all important words, as free text",
+            "comment": "rationale of the prescription including all important words, as free text",
             "condition": "None or, one of: display1a (index: 0)/display2a (index: 1)/display3a (index: 2)",
             "conditionIndex": "index of the condition for which the medication is prescribed, as integer or -1 if the prescription is not related to any listed condition",
         }),
@@ -355,7 +355,7 @@ def test_command_parameters(current_conditions):
             "sig": "directions, as free text",
             "suppliedDays": "mandatory, duration of the treatment in days either as mentioned, or following the standard practices, as integer",
             "substitution": "one of: allowed/not_allowed",
-            "comment": "rational of the prescription including all important words, as free text",
+            "comment": "rationale of the prescription including all important words, as free text",
         }),
     ]
     for side_effect, expected in tests:

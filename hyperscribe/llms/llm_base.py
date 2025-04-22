@@ -105,7 +105,7 @@ class LlmBase:
         if instruction is not None:
             audit_schema = JsonSchema.get(["audit"])[0]
             used_prompt.extend([
-                "As a following step, provide the rational of each and every value you have provided.",
+                "As a following step, provide the rationale of each and every value you have provided.",
                 "Provide the reasoning behind each and every value you provided, your response  in an additional JSON has to follow this JSON Schema:",
                 "```json",
                 json.dumps(audit_schema, indent=1),

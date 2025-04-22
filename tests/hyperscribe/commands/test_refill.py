@@ -235,7 +235,7 @@ def test_command_parameters(current_medications):
     current_medications.side_effect = [medications]
     result = tested.command_parameters()
     expected = {
-        'comment': 'rational of the prescription, as free text',
+        'comment': 'rationale of the prescription, as free text',
         'medication': 'one of: display1a (index: 0)/display2a (index: 1)/display3a (index: 2)',
         'medicationIndex': 'index of the medication to refill, as integer',
         'sig': 'directions, as free text',

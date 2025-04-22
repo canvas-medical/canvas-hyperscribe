@@ -237,7 +237,7 @@ def test_command_parameters():
             },
         ],
         "fastingRequired": "mandatory, True or False, as boolean",
-        "comment": "rational of the prescription, as free text limited to 128 characters",
+        "comment": "rationale of the prescription, as free text limited to 128 characters",
     }
     assert result == expected
 

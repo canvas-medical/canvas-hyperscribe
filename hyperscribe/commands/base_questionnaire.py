@@ -30,22 +30,28 @@ class BaseQuestionnaire(Base):
 
         questions: list[Question] = []
         for question in questionnaire.get("questions", []):
+            question_type = QuestionType(question["type"])
+
+            comment = {}
+            if question_type == QuestionType.TYPE_CHECKBOX:
+                comment = {"comment": ""}
+
             options = {
                 str(o["pk"]): {
-                    "dbid": o["pk"],
-                    "value": o["label"],
-                    "selected": False,
-                }
+                                  "dbid": o["pk"],
+                                  "value": o["label"],
+                                  "selected": False,
+                              } | comment
                 for o in question["options"]
             }
 
-            question_type = QuestionType(question["type"])
             answers = data.get(question["name"])  # should be data.get(f'question-{question["pk"]}')
             if isinstance(answers, list):
                 for response in answers:
                     for key in options.keys():
                         if options[key]["value"] == response["text"]:
                             options[key]["selected"] = response["selected"]
+                            options[key]["comment"] = response["comment"]
                             break
             elif isinstance(answers, int) and question_type == QuestionType.TYPE_RADIO:
                 options[str(answers)]["selected"] = True
@@ -87,6 +93,10 @@ class BaseQuestionnaire(Base):
                         "responseId": {"type": "integer"},
                         "value": {"type": "string"},
                         "selected": {"type": "boolean"},
+                        "comment": {
+                            "type": "string",
+                            "description": "any relevant information expanding the answer",
+                        },
                     },
                     "required": ["responseId", "value", "selected"],
                 }
@@ -178,7 +188,11 @@ class BaseQuestionnaire(Base):
             elif question.type == QuestionType.TYPE_CHECKBOX:
                 cmd_question = CheckboxQuestion(question_name, question.label, {}, options)
                 for idx, response in enumerate(question.responses):
-                    cmd_question.add_response(option=options[idx], selected=response.selected)
+                    cmd_question.add_response(
+                        option=options[idx],
+                        selected=response.selected,
+                        comment=response.comment,
+                    )
             elif question.type == QuestionType.TYPE_RADIO:
                 cmd_question = RadioQuestion(question_name, question.label, {}, options)
                 for idx, response in enumerate(question.responses):

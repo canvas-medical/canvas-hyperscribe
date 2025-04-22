@@ -93,7 +93,7 @@ class Prescription(BasePrescription):
             # "quantityToDispense": 0,
             # "refills": 0,
             "substitution": f"one of: {substitutions}",
-            "comment": "rational of the prescription including all important words, as free text",
+            "comment": "rationale of the prescription including all important words, as free text",
             # "noteToPharmacist": "note to the pharmacist, as free text",
         } | condition_dict
 

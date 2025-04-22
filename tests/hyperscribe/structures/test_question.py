@@ -23,8 +23,8 @@ def test_to_json():
         type=QuestionType.TYPE_RADIO,
         skipped=False,
         responses=[
-            Response(dbid=234, value="456", selected=False),
-            Response(dbid=456, value=789, selected=True),
+            Response(dbid=234, value="456", selected=False, comment="theComment"),
+            Response(dbid=456, value=789, selected=True, comment="aComment"),
         ]
     )
     result = tested.to_json()
@@ -32,8 +32,8 @@ def test_to_json():
         'dbid': 123,
         'label': 'theQuestion',
         'responses': [
-            {'dbid': 234, 'selected': False, 'value': '456'},
-            {'dbid': 456, 'selected': True, 'value': 789},
+            {'dbid': 234, 'selected': False, 'value': '456', 'comment': 'theComment'},
+            {'dbid': 456, 'selected': True, 'value': 789, 'comment': 'aComment'},
         ],
         'skipped': False,
         'type': 'SING',
@@ -77,8 +77,20 @@ def test_for_llm():
                 'questionId': 123,
                 'question': 'theQuestion',
                 'responses': [
-                    {'responseId': 234, 'selected': False, 'value': '456'},
-                    {'responseId': 456, 'selected': True, 'value': 789},
+                    {
+                        'responseId': 234,
+                        'selected': False,
+                        'value': '456',
+                        'comment': 'theComment',
+                        "description": "add in the comment key any relevant information expanding the answer",
+                    },
+                    {
+                        'responseId': 456,
+                        'selected': True,
+                        'value': 789,
+                        'comment': 'aComment',
+                        "description": "add in the comment key any relevant information expanding the answer",
+                    },
                 ],
                 'questionType': 'multiple choice',
             }
@@ -116,8 +128,8 @@ def test_for_llm():
             type=question_type,
             skipped=False,
             responses=[
-                Response(dbid=234, value="456", selected=False),
-                Response(dbid=456, value=789, selected=True),
+                Response(dbid=234, value="456", selected=False, comment="theComment"),
+                Response(dbid=456, value=789, selected=True, comment="aComment"),
             ]
         )
         result = tested.for_llm(include_skipped)
@@ -130,8 +142,8 @@ def test_load_from():
         'dbid': 123,
         'label': 'theQuestion',
         'responses': [
-            {'dbid': 234, 'selected': False, 'value': '456'},
-            {'dbid': 456, 'selected': True, 'value': 789},
+            {'dbid': 234, 'selected': False, 'value': '456', 'comment': 'theComment'},
+            {'dbid': 456, 'selected': True, 'value': 789, 'comment': 'aComment'},
         ],
         'skipped': False,
         'type': 'SING',
@@ -142,24 +154,28 @@ def test_load_from():
         type=QuestionType.TYPE_RADIO,
         skipped=False,
         responses=[
-            Response(dbid=234, value="456", selected=False),
-            Response(dbid=456, value=789, selected=True),
+            Response(dbid=234, value="456", selected=False, comment="theComment"),
+            Response(dbid=456, value=789, selected=True, comment="aComment"),
         ]
     )
     assert result == expected
 
 
 def test_load_from_llm():
-    responses = [
-        Response(dbid=234, value="456", selected=False),
-        Response(dbid=456, value=789, selected=True),
+    responses_with_comment = [
+        Response(dbid=234, value="456", selected=False, comment="theComment"),
+        Response(dbid=456, value=789, selected=True, comment="aComment"),
+    ]
+    responses_no_comment = [
+        Response(dbid=234, value="456", selected=False, comment=None),
+        Response(dbid=456, value=789, selected=True, comment=None),
     ]
 
     tests = [
         (
             QuestionType.TYPE_RADIO,
             True,
-            responses,
+            responses_no_comment,
             {
                 'questionId': 123,
                 'question': 'theQuestion',
@@ -174,7 +190,7 @@ def test_load_from_llm():
         (
             QuestionType.TYPE_RADIO,
             None,
-            responses,
+            responses_no_comment,
             {
                 'questionId': 123,
                 'question': 'theQuestion',
@@ -188,13 +204,13 @@ def test_load_from_llm():
         (
             QuestionType.TYPE_CHECKBOX,
             None,
-            responses,
+            responses_with_comment,
             {
                 'questionId': 123,
                 'question': 'theQuestion',
                 'responses': [
-                    {'responseId': 234, 'selected': False, 'value': '456'},
-                    {'responseId': 456, 'selected': True, 'value': 789},
+                    {'responseId': 234, 'selected': False, 'value': '456', 'comment': 'theComment'},
+                    {'responseId': 456, 'selected': True, 'value': 789, 'comment': 'aComment'},
                 ],
                 'questionType': 'multiple choice',
             }
@@ -202,7 +218,7 @@ def test_load_from_llm():
         (
             QuestionType.TYPE_TEXT,
             None,
-            responses[:1],
+            responses_no_comment[:1],
             {
                 'questionId': 123,
                 'question': 'theQuestion',
@@ -215,7 +231,7 @@ def test_load_from_llm():
         (
             QuestionType.TYPE_INTEGER,
             False,
-            responses[:1],
+            responses_no_comment[:1],
             {
                 'questionId': 123,
                 'question': 'theQuestion',

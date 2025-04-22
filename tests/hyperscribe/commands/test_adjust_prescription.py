@@ -448,7 +448,7 @@ def test_command_parameters(current_medications):
         "sig": "directions, as free text",
         "suppliedDays": "duration of the treatment in days, as integer",
         "substitution": "one of: allowed/not_allowed",
-        "comment": "rational of the change of prescription including all important words, as free text",
+        "comment": "rationale of the change of prescription including all important words, as free text",
     }
     assert result == expected
     calls = [call()]

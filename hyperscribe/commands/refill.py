@@ -67,7 +67,7 @@ class Refill(Base):
             "sig": "directions, as free text",
             "suppliedDays": "duration of the treatment in days, as integer",
             "substitution": f"one of: {substitutions}",
-            "comment": "rational of the prescription, as free text",
+            "comment": "rationale of the prescription, as free text",
         }
 
     def instruction_description(self) -> str:

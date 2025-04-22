@@ -329,12 +329,12 @@ def test_single_conversation(chat, set_system_prompt, set_user_prompt):
                     "type": "string",
                     "description": "the JSON path of the referenced key from the root if there is more than one object",
                 },
-                "rational": {
+                "rationale": {
                     "type": "string",
-                    "description": "the rational of the provided value",
+                    "description": "the rationale of the provided value",
                 },
             },
-            "required": ["key", "rational"],
+            "required": ["key", "rationale"],
             "additionalProperties": False,
         }
     }
@@ -389,7 +389,7 @@ def test_single_conversation(chat, set_system_prompt, set_user_prompt):
     assert set_system_prompt.mock_calls == calls
     calls = [call([
         'theUserPrompt',
-        'As a following step, provide the rational of each and every value you have provided.',
+        'As a following step, provide the rationale of each and every value you have provided.',
         'Provide the reasoning behind each and every value you provided, your response  in an additional JSON has to follow this JSON Schema:',
         '```json',
         '{\n "$schema": "http://json-schema.org/draft-07/schema#",\n'
@@ -402,9 +402,9 @@ def test_single_conversation(chat, set_system_prompt, set_user_prompt):
         '    "type": "string",\n'
         '    "description": "the JSON path of the referenced key from the root if there is more than one object"\n'
         '   },\n'
-        '   "rational": {\n    "type": "string",\n    "description": "the rational of the provided value"\n   }\n'
+        '   "rationale": {\n    "type": "string",\n    "description": "the rationale of the provided value"\n   }\n'
         '  },\n'
-        '  "required": [\n   "key",\n   "rational"\n  ],\n'
+        '  "required": [\n   "key",\n   "rationale"\n  ],\n'
         '  "additionalProperties": false\n'
         ' }\n}',
         '```',

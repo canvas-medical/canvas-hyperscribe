@@ -83,7 +83,7 @@ class Refer(Base):
             "clinicalQuestions": f"one of: {questions}",
             "priority": f"one of: {priorities}",
             "notesToSpecialist": "note or question to be sent to the referred specialist, required, as concise free text",
-            "comment": "rational of the referral, as free text",
+            "comment": "rationale of the referral, as free text",
             "conditions": [
                 {
                     "conditionKeywords": "comma separated keywords of up to 5 synonyms of each condition related to the referral",
@@ -93,7 +93,7 @@ class Refer(Base):
         }
 
     def instruction_description(self) -> str:
-        return ("Referral to a specialist, including the rational and the targeted conditions. "
+        return ("Referral to a specialist, including the rationale and the targeted conditions. "
                 "There can be only one referral in an instruction with all necessary information, "
                 "and no instruction in the lack of.")
 

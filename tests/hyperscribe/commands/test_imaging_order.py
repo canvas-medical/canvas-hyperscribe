@@ -334,7 +334,7 @@ def test_command_parameters():
                 "ICD10": "comma separated keywords of up to 5 ICD-10 codes of each condition targeted by the imaging",
             },
         ],
-        "comment": "rational of the imaging order, as free text",
+        "comment": "rationale of the imaging order, as free text",
         "noteToRadiologist": "information to be sent to the radiologist, as free text",
         "priority": "mandatory, one of: Routine/Urgent",
     }

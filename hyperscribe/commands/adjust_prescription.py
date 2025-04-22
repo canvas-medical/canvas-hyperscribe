@@ -105,7 +105,7 @@ class AdjustPrescription(BasePrescription):
             "sig": "directions, as free text",
             "suppliedDays": "duration of the treatment in days, as integer",
             "substitution": f"one of: {substitutions}",
-            "comment": "rational of the change of prescription including all important words, as free text",
+            "comment": "rationale of the change of prescription including all important words, as free text",
         }
 
     def instruction_description(self) -> str:

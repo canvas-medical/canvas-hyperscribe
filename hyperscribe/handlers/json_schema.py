@@ -13,12 +13,12 @@ JSON_SCHEMAS = {
                     "type": "string",
                     "description": "the JSON path of the referenced key from the root if there is more than one object",
                 },
-                "rational": {
+                "rationale": {
                     "type": "string",
-                    "description": "the rational of the provided value",
+                    "description": "the rationale of the provided value",
                 },
             },
-            "required": ["key", "rational"],
+            "required": ["key", "rationale"],
             "additionalProperties": False,
         }
     },

@@ -68,7 +68,7 @@ def test_staged_command_extract():
              "question-62": "theResponse62",
              "question-63": 777,
              "question-64": [
-                 {"text": "option10", "comment": "", "selected": False},
+                 {"text": "option10", "comment": "comment10", "selected": False},
                  {"text": "option11", "comment": "", "selected": False},
                  {"text": "option12", "comment": "", "selected": False},  # <-- this additional option should never happen
              ],
@@ -144,10 +144,10 @@ def test_staged_command_extract():
                      "type": "MULT",
                      "skipped": True,
                      "responses": [
-                         {"dbid": 177, "value": "option1", "selected": False},
-                         {"dbid": 179, "value": "option2", "selected": True},
-                         {"dbid": 180, "value": "option3", "selected": True},
-                         {"dbid": 181, "value": "option4", "selected": False},
+                         {"dbid": 177, "value": "option1", "selected": False, "comment": ""},
+                         {"dbid": 179, "value": "option2", "selected": True, "comment": "comment2"},
+                         {"dbid": 180, "value": "option3", "selected": True, "comment": ""},
+                         {"dbid": 181, "value": "option4", "selected": False, "comment": "comment4"},
                      ],
                  },
                  {
@@ -156,9 +156,9 @@ def test_staged_command_extract():
                      "type": "SING",
                      "skipped": False,
                      "responses": [
-                         {"dbid": 182, "value": "option5", "selected": False},
-                         {"dbid": 183, "value": "option6", "selected": True},
-                         {"dbid": 187, "value": "option7", "selected": False},
+                         {"dbid": 182, "value": "option5", "selected": False, "comment": None},
+                         {"dbid": 183, "value": "option6", "selected": True, "comment": None},
+                         {"dbid": 187, "value": "option7", "selected": False, "comment": None},
                      ],
                  },
                  {
@@ -166,14 +166,14 @@ def test_staged_command_extract():
                      "label": "theQuestion3",
                      "type": "TXT",
                      "skipped": True,
-                     "responses": [{"dbid": 191, "value": "theResponse62", "selected": False}],
+                     "responses": [{"dbid": 191, "value": "theResponse62", "selected": False, "comment": None}],
                  },
                  {
                      "dbid": 63,
                      "label": "theQuestion4",
                      "type": "INT",
                      "skipped": True,
-                     "responses": [{"dbid": 192, "value": 777, "selected": False}],
+                     "responses": [{"dbid": 192, "value": 777, "selected": False, "comment": None}],
                  },
                  {
                      "dbid": 64,
@@ -181,8 +181,8 @@ def test_staged_command_extract():
                      "type": "MULT",
                      "skipped": None,
                      "responses": [
-                         {"dbid": 193, "value": "option10", "selected": False},
-                         {"dbid": 197, "value": "option11", "selected": False},
+                         {"dbid": 193, "value": "option10", "selected": False, "comment": "comment10"},
+                         {"dbid": 197, "value": "option11", "selected": False, "comment": ""},
                      ],
                  },
                  {
@@ -190,7 +190,7 @@ def test_staged_command_extract():
                      "label": "theQuestion6",
                      "type": "TXT",
                      "skipped": None,
-                     "responses": [{"dbid": 201, "value": "option12", "selected": False}],
+                     "responses": [{"dbid": 201, "value": "option12", "selected": False, "comment": None}],
                  },
              ],
          }),
@@ -198,13 +198,13 @@ def test_staged_command_extract():
     ]
     for data, expected in tests:
         result = tested.staged_command_extract(data)
-    if expected is None:
-        assert result is None
-    else:
-        assert isinstance(result, CodedItem)
-    assert result.code == ""
-    assert result.uuid == ""
-    assert json.loads(result.label) == expected
+        if expected is None:
+            assert result is None
+        else:
+            assert isinstance(result, CodedItem)
+            assert result.code == ""
+            assert result.uuid == ""
+            assert json.loads(result.label) == expected
 
 
 def test_json_schema():
@@ -226,6 +226,10 @@ def test_json_schema():
                             'responseId': {'type': 'integer'},
                             'selected': {'type': 'boolean'},
                             'value': {'type': 'string'},
+                            'comment': {
+                                'description': 'any relevant information expanding the answer',
+                                'type': 'string',
+                            },
                         },
                         'required': ['responseId', 'value', 'selected'],
                         'type': 'object',
@@ -258,6 +262,10 @@ def test_json_schema():
                             'responseId': {'type': 'integer'},
                             'selected': {'type': 'boolean'},
                             'value': {'type': 'string'},
+                            'comment': {
+                                'description': 'any relevant information expanding the answer',
+                                'type': 'string',
+                            },
                         },
                         'required': ['responseId', 'value', 'selected'],
                         'type': 'object',
@@ -297,8 +305,8 @@ def test_update_from_transcript(include_skipped):
                 type=QuestionType.TYPE_RADIO,
                 skipped=False,
                 responses=[
-                    Response(dbid=142, value="theResponse1", selected=False),
-                    Response(dbid=143, value="theResponse2", selected=False),
+                    Response(dbid=142, value="theResponse1", selected=True, comment=None),
+                    Response(dbid=143, value="theResponse2", selected=False, comment=None),
                 ],
             ),
             Question(
@@ -306,9 +314,27 @@ def test_update_from_transcript(include_skipped):
                 label="theQuestion2",
                 type=QuestionType.TYPE_TEXT,
                 skipped=True,
-                responses=[Response(dbid=144, value="theResponse3", selected=False)],
+                responses=[Response(dbid=144, value="theResponse3", selected=True, comment=None)],
             ),
-        ]
+            Question(
+                dbid=369,
+                label="theQuestion3",
+                type=QuestionType.TYPE_INTEGER,
+                skipped=True,
+                responses=[Response(dbid=145, value=444, selected=True, comment=None)],
+            ),
+            Question(
+                dbid=371,
+                label="theQuestion4",
+                type=QuestionType.TYPE_CHECKBOX,
+                skipped=False,
+                responses=[
+                    Response(dbid=146, value="theResponse5", selected=True, comment="theComment5"),
+                    Response(dbid=147, value="theResponse6", selected=True, comment="theComment6"),
+                    Response(dbid=148, value="theResponse7", selected=False, comment="theComment7"),
+                ],
+            ),
+        ],
     )
 
     instruction = Instruction(
@@ -346,12 +372,47 @@ def test_update_from_transcript(include_skipped):
         "",
         "The questionnaire 'theQuestionnaire' is currently as follow,:",
         "```json",
-        '[{"questionId": 234, "question": "theQuestion1", "questionType": "single choice", '
+        '[{'
+        '"questionId": 234, '
+        '"question": "theQuestion1", '
+        '"questionType": "single choice", '
         '"responses": ['
-        '{"responseId": 142, "value": "theResponse1", "selected": false}, '
-        '{"responseId": 143, "value": "theResponse2", "selected": false}], "skipped": false}, '
-        '{"questionId": 345, "question": "theQuestion2", "questionType": "free text", '
-        '"responses": [{"responseId": 144, "value": "theResponse3", "selected": true}], "skipped": true}]',
+        '{"responseId": 142, "value": "theResponse1", "selected": true}, '
+        '{"responseId": 143, "value": "theResponse2", "selected": false}], '
+        '"skipped": false}, '
+        '{'
+        '"questionId": 345, '
+        '"question": "theQuestion2", '
+        '"questionType": "free text", '
+        '"responses": [{"responseId": 144, "value": "theResponse3", "selected": true}], '
+        '"skipped": true}, '
+        '{'
+        '"questionId": 369, '
+        '"question": "theQuestion3", '
+        '"questionType": "integer", '
+        '"responses": [{"responseId": 145, "value": 444, "selected": true}], '
+        '"skipped": true}, '
+        '{'
+        '"questionId": 371, '
+        '"question": "theQuestion4", '
+        '"questionType": "multiple choice", '
+        '"responses": ['
+        '{"responseId": 146, '
+        '"value": "theResponse5", '
+        '"selected": true, '
+        '"comment": "theComment5", '
+        '"description": "add in the comment key any relevant information expanding the answer"}, '
+        '{"responseId": 147, '
+        '"value": "theResponse6", '
+        '"selected": true, '
+        '"comment": "theComment6", '
+        '"description": "add in the comment key any relevant information expanding the answer"}, '
+        '{"responseId": 148, '
+        '"value": "theResponse7", '
+        '"selected": false, '
+        '"comment": "theComment7", '
+        '"description": "add in the comment key any relevant information expanding the answer"}], '
+        '"skipped": false}]',
         "```",
         "",
         "Your task is to replace the values of the JSON object as necessary.",
@@ -375,6 +436,10 @@ def test_update_from_transcript(include_skipped):
                             'responseId': {'type': 'integer'},
                             'value': {'type': 'string'},
                             'selected': {'type': 'boolean'},
+                            'comment': {
+                                'type': 'string',
+                                'description': 'any relevant information expanding the answer',
+                            },
                         },
                         'required': ['responseId', 'value', 'selected'],
                     },
@@ -391,49 +456,48 @@ def test_update_from_transcript(include_skipped):
     mock_chatter.single_conversation.side_effect = [
         [
             {
-                'questionId': 234,
                 'question': 'theQuestion1',
+                'questionId': 234,
                 'questionType': 'single choice',
                 'responses': [
-                    {'responseId': 142, 'value': 'theResponse1', 'selected': False},
-                    {'responseId': 143, 'value': 'theResponse2', 'selected': True},
+                    {'responseId': 142, 'selected': True, 'value': 'theResponse1'},
+                    {'responseId': 143, 'selected': False, 'value': 'theResponse2'},
                 ],
                 'skipped': False,
             },
             {
-                'questionId': 345,
                 'question': 'theQuestion2',
+                'questionId': 345,
                 'questionType': 'free text',
-                'responses': [{'responseId': 144, 'value': 'changedResponse3', 'selected': True}],
+                'responses': [
+                    {'responseId': 144, 'selected': True, 'value': 'theResponse3'},
+                ],
+                'skipped': True,
+            },
+            {
+                'question': 'theQuestion3',
+                'questionId': 369,
+                'questionType': 'integer',
+                'responses': [
+                    {'responseId': 145, 'selected': True, 'value': 444},
+                ],
+                'skipped': True,
+            },
+            {
+                'question': 'theQuestion4',
+                'questionId': 371,
+                'questionType': 'multiple choice',
+                'responses': [
+                    {'responseId': 146, 'selected': True, 'value': 'theResponse5', 'comment': 'theComment5'},
+                    {'responseId': 147, 'selected': True, 'value': 'theResponse6', 'comment': 'theComment6'},
+                    {'responseId': 148, 'selected': False, 'value': 'theResponse7', 'comment': 'theComment7'},
+                ],
                 'skipped': False,
             },
         ]
     ]
     result = tested.update_from_transcript(discussion, instruction, mock_chatter, )
-    expected = Questionnaire(
-        dbid=123,
-        name="theQuestionnaire",
-        questions=[
-            Question(
-                dbid=234,
-                label="theQuestion1",
-                type=QuestionType.TYPE_RADIO,
-                skipped=False,
-                responses=[
-                    Response(dbid=142, value="theResponse1", selected=False),
-                    Response(dbid=143, value="theResponse2", selected=True),
-                ],
-            ),
-            Question(
-                dbid=345,
-                label="theQuestion2",
-                type=QuestionType.TYPE_TEXT,
-                skipped=False,
-                responses=[Response(dbid=144, value="changedResponse3", selected=True)],
-            ),
-        ]
-    )
-    assert result == expected
+    assert result == questionnaire
     calls = [call(), call()]
     assert include_skipped.mock_calls == calls
     calls = [call.single_conversation(system_prompt, user_prompt, [schema], instruction)]
@@ -469,8 +533,8 @@ def test_command_from_questionnaire(sdk_command):
                 type=QuestionType.TYPE_RADIO,
                 skipped=False,
                 responses=[
-                    Response(dbid=142, value="theResponse1", selected=False),
-                    Response(dbid=143, value="theResponse2", selected=True),
+                    Response(dbid=142, value="theResponse1", selected=False, comment=None),
+                    Response(dbid=143, value="theResponse2", selected=True, comment=None),
                 ],
             ),
             Question(
@@ -479,10 +543,10 @@ def test_command_from_questionnaire(sdk_command):
                 type=QuestionType.TYPE_CHECKBOX,
                 skipped=False,
                 responses=[
-                    Response(dbid=145, value="theResponse4", selected=False),
-                    Response(dbid=146, value="theResponse5", selected=True),
-                    Response(dbid=147, value="theResponse6", selected=True),
-                    Response(dbid=148, value="theResponse7", selected=False),
+                    Response(dbid=145, value="theResponse4", selected=False, comment="theComment4"),
+                    Response(dbid=146, value="theResponse5", selected=True, comment=""),
+                    Response(dbid=147, value="theResponse6", selected=True, comment="theComment6"),
+                    Response(dbid=148, value="theResponse7", selected=False, comment="theComment7"),
                 ],
             ),
             Question(
@@ -490,14 +554,14 @@ def test_command_from_questionnaire(sdk_command):
                 label="theQuestion2",
                 type=QuestionType.TYPE_TEXT,
                 skipped=False,
-                responses=[Response(dbid=144, value="changedResponse3", selected=True)],
+                responses=[Response(dbid=144, value="changedResponse3", selected=True, comment=None)],
             ),
             Question(
                 dbid=236,
                 label="theQuestion4",
                 type=QuestionType.TYPE_INTEGER,
                 skipped=False,
-                responses=[Response(dbid=144, value=777, selected=True)],
+                responses=[Response(dbid=144, value=777, selected=True, comment=None)],
             ),
         ]
     )
@@ -512,16 +576,17 @@ def test_command_from_questionnaire(sdk_command):
     assert len(result.questions) == 4
     assert result.questions[0].response == 143
     assert result.questions[1].response == [
-        {'text': 'theResponse4', 'value': 145, 'comment': '', 'selected': False},
+        {'text': 'theResponse4', 'value': 145, 'comment': 'theComment4', 'selected': False},
         {'text': 'theResponse5', 'value': 146, 'comment': '', 'selected': True},
-        {'text': 'theResponse6', 'value': 147, 'comment': '', 'selected': True},
-        {'text': 'theResponse7', 'value': 148, 'comment': '', 'selected': False},
+        {'text': 'theResponse6', 'value': 147, 'comment': 'theComment6', 'selected': True},
+        {'text': 'theResponse7', 'value': 148, 'comment': 'theComment7', 'selected': False},
     ]
     assert result.questions[2].response == "changedResponse3"
     assert result.questions[3].response == 777
 
     calls = [call()]
     assert sdk_command.mock_calls == calls
+    reset_mocks()
 
 
 def test_is_available():

@@ -17,9 +17,9 @@ def test_class():
 
 def test_to_json():
     responses = [
-        Response(dbid=142, value="theResponse1", selected=True),
-        Response(dbid=143, value="theResponse2", selected=False),
-        Response(dbid=144, value="theResponse3", selected=True),
+        Response(dbid=142, value="theResponse1", selected=True, comment="theComment1"),
+        Response(dbid=143, value="theResponse2", selected=False, comment="theComment2"),
+        Response(dbid=144, value="theResponse3", selected=True, comment="theComment3"),
     ]
     tested = Questionnaire(
         dbid=123,
@@ -50,8 +50,8 @@ def test_to_json():
                 'dbid': 234,
                 'label': 'theQuestion1',
                 'responses': [
-                    {'dbid': 142, 'selected': True, 'value': 'theResponse1'},
-                    {'dbid': 143, 'selected': False, 'value': 'theResponse2'},
+                    {'dbid': 142, 'selected': True, 'value': 'theResponse1', 'comment': 'theComment1'},
+                    {'dbid': 143, 'selected': False, 'value': 'theResponse2', 'comment': 'theComment2'},
                 ],
                 'skipped': False,
                 'type': 'SING',
@@ -59,7 +59,7 @@ def test_to_json():
             {
                 'dbid': 345,
                 'label': 'theQuestion2',
-                'responses': [{'dbid': 144, 'selected': True, 'value': 'theResponse3'}],
+                'responses': [{'dbid': 144, 'selected': True, 'value': 'theResponse3', 'comment': 'theComment3'}],
                 'skipped': True,
                 'type': 'TXT',
             },
@@ -70,9 +70,13 @@ def test_to_json():
 
 def test_for_llm():
     responses = [
-        Response(dbid=142, value="theResponse1", selected=True),
-        Response(dbid=143, value="theResponse2", selected=False),
-        Response(dbid=144, value="theResponse3", selected=True),
+        Response(dbid=142, value="theResponse1", selected=True, comment="theComment1"),
+        Response(dbid=143, value="theResponse2", selected=False, comment="theComment2"),
+        Response(dbid=144, value="theResponse3", selected=True, comment="theComment3"),
+        Response(dbid=145, value=444, selected=True, comment="theComment4"),
+        Response(dbid=146, value="theResponse5", selected=True, comment="theComment5"),
+        Response(dbid=147, value="theResponse6", selected=True, comment="theComment6"),
+        Response(dbid=148, value="theResponse7", selected=False, comment="theComment7"),
     ]
     tested = Questionnaire(
         dbid=123,
@@ -91,6 +95,20 @@ def test_for_llm():
                 type=QuestionType.TYPE_TEXT,
                 skipped=True,
                 responses=responses[2:3],
+            ),
+            Question(
+                dbid=369,
+                label="theQuestion3",
+                type=QuestionType.TYPE_INTEGER,
+                skipped=True,
+                responses=responses[3:4],
+            ),
+            Question(
+                dbid=371,
+                label="theQuestion4",
+                type=QuestionType.TYPE_CHECKBOX,
+                skipped=False,
+                responses=responses[4:7],
             ),
         ]
     )
@@ -115,6 +133,44 @@ def test_for_llm():
             ],
             'skipped': True,
         },
+        {
+            'question': 'theQuestion3',
+            'questionId': 369,
+            'questionType': 'integer',
+            'responses': [
+                {'responseId': 145, 'selected': True, 'value': 444},
+            ],
+            'skipped': True,
+        },
+        {
+            'question': 'theQuestion4',
+            'questionId': 371,
+            'questionType': 'multiple choice',
+            'responses': [
+                {
+                    'responseId': 146,
+                    'selected': True,
+                    'value': 'theResponse5',
+                    'comment': 'theComment5',
+                    'description': 'add in the comment key any relevant information expanding the answer',
+                },
+                {
+                    'responseId': 147,
+                    'selected': True,
+                    'value': 'theResponse6',
+                    'comment': 'theComment6',
+                    'description': 'add in the comment key any relevant information expanding the answer',
+                },
+                {
+                    'responseId': 148,
+                    'selected': False,
+                    'value': 'theResponse7',
+                    'comment': 'theComment7',
+                    'description': 'add in the comment key any relevant information expanding the answer',
+                },
+            ],
+            'skipped': False,
+        },
     ]
     assert result == expected
     #
@@ -137,15 +193,51 @@ def test_for_llm():
                 {'responseId': 144, 'selected': True, 'value': 'theResponse3'},
             ],
         },
+        {
+            'question': 'theQuestion3',
+            'questionId': 369,
+            'questionType': 'integer',
+            'responses': [
+                {'responseId': 145, 'selected': True, 'value': 444},
+            ],
+        },
+        {
+            'question': 'theQuestion4',
+            'questionId': 371,
+            'questionType': 'multiple choice',
+            'responses': [
+                {
+                    'responseId': 146,
+                    'selected': True,
+                    'value': 'theResponse5',
+                    'comment': 'theComment5',
+                    'description': 'add in the comment key any relevant information expanding the answer',
+                },
+                {
+                    'responseId': 147,
+                    'selected': True,
+                    'value': 'theResponse6',
+                    'comment': 'theComment6',
+                    'description': 'add in the comment key any relevant information expanding the answer',
+                },
+                {
+                    'responseId': 148,
+                    'selected': False,
+                    'value': 'theResponse7',
+                    'comment': 'theComment7',
+                    'description': 'add in the comment key any relevant information expanding the answer',
+                },
+            ],
+        },
     ]
     assert result == expected
 
 
 def test_load_from():
     responses = [
-        Response(dbid=142, value="theResponse1", selected=True),
-        Response(dbid=143, value="theResponse2", selected=False),
-        Response(dbid=144, value="theResponse3", selected=True),
+        Response(dbid=142, value="theResponse1", selected=True, comment="theComment1"),
+        Response(dbid=143, value="theResponse2", selected=False, comment="theComment2"),
+        Response(dbid=144, value="theResponse3", selected=True, comment="theComment3"),
     ]
     tested = Questionnaire
     result = tested.load_from({
@@ -156,8 +248,8 @@ def test_load_from():
                 'dbid': 234,
                 'label': 'theQuestion1',
                 'responses': [
-                    {'dbid': 142, 'selected': True, 'value': 'theResponse1'},
-                    {'dbid': 143, 'selected': False, 'value': 'theResponse2'},
+                    {'dbid': 142, 'selected': True, 'value': 'theResponse1', 'comment': 'theComment1'},
+                    {'dbid': 143, 'selected': False, 'value': 'theResponse2', 'comment': 'theComment2'},
                 ],
                 'skipped': False,
                 'type': 'SING',
@@ -165,7 +257,7 @@ def test_load_from():
             {
                 'dbid': 345,
                 'label': 'theQuestion2',
-                'responses': [{'dbid': 144, 'selected': True, 'value': 'theResponse3'}],
+                'responses': [{'dbid': 144, 'selected': True, 'value': 'theResponse3', 'comment': 'theComment3'}],
                 'skipped': True,
                 'type': 'TXT',
             },
@@ -196,9 +288,13 @@ def test_load_from():
 
 def test_load_from_llm():
     responses = [
-        Response(dbid=142, value="theResponse1", selected=True),
-        Response(dbid=143, value="theResponse2", selected=False),
-        Response(dbid=144, value="theResponse3", selected=True),
+        Response(dbid=142, value="theResponse1", selected=True, comment=None),
+        Response(dbid=143, value="theResponse2", selected=False, comment=None),
+        Response(dbid=144, value="theResponse3", selected=True, comment=None),
+        Response(dbid=145, value=444, selected=True, comment=None),
+        Response(dbid=146, value="theResponse5", selected=True, comment="theComment5"),
+        Response(dbid=147, value="theResponse6", selected=True, comment="theComment6"),
+        Response(dbid=148, value="theResponse7", selected=False, comment="theComment7"),
     ]
     tested = Questionnaire
     data = [
@@ -220,7 +316,27 @@ def test_load_from_llm():
                 {'responseId': 144, 'selected': True, 'value': 'theResponse3'},
             ],
             'skipped': True,
-        }
+        },
+        {
+            'question': 'theQuestion3',
+            'questionId': 369,
+            'questionType': 'integer',
+            'responses': [
+                {'responseId': 145, 'selected': True, 'value': 444},
+            ],
+            'skipped': True,
+        },
+        {
+            'question': 'theQuestion4',
+            'questionId': 371,
+            'questionType': 'multiple choice',
+            'responses': [
+                {'responseId': 146, 'selected': True, 'value': 'theResponse5', 'comment': 'theComment5'},
+                {'responseId': 147, 'selected': True, 'value': 'theResponse6', 'comment': 'theComment6'},
+                {'responseId': 148, 'selected': False, 'value': 'theResponse7', 'comment': 'theComment7'},
+            ],
+            'skipped': False,
+        },
     ]
     result = tested.load_from_llm(123, "theQuestionnaire", data)
     expected = Questionnaire(
@@ -240,6 +356,20 @@ def test_load_from_llm():
                 type=QuestionType.TYPE_TEXT,
                 skipped=True,
                 responses=responses[2:3],
+            ),
+            Question(
+                dbid=369,
+                label="theQuestion3",
+                type=QuestionType.TYPE_INTEGER,
+                skipped=True,
+                responses=responses[3:4],
+            ),
+            Question(
+                dbid=371,
+                label="theQuestion4",
+                type=QuestionType.TYPE_CHECKBOX,
+                skipped=False,
+                responses=responses[4:7],
             ),
         ]
     )
