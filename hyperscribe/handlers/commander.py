@@ -48,7 +48,7 @@ class Audio:
 
 class Commander(BaseProtocol):
     LABEL_ENCOUNTER_COPILOT = "Encounter Copilot"
-    MAX_AUDIOS = 1
+    MAX_PREVIOUS_AUDIOS = 0
     MEMORY_LOG_LABEL = "main"
 
     RESPONDS_TO = [
@@ -104,7 +104,7 @@ class Commander(BaseProtocol):
         # retrieve the previous segments only if the last one is provided
         result = [
             audio
-            for chunk in range(max(1, chunk_index - cls.MAX_AUDIOS), chunk_index)
+            for chunk in range(max(0, chunk_index - cls.MAX_PREVIOUS_AUDIOS), chunk_index)
             if (audio := Audio.get_audio(f"{audio_url}/{chunk}")) and len(audio) > 0
         ]
         result.append(initial)
@@ -145,11 +145,12 @@ class Commander(BaseProtocol):
             current_commands,
             discussion.previous_instructions,
         )
-        discussion.previous_instructions, results = self.audio2commands(
+        discussion.previous_instructions, results, discussion.previous_transcript = self.audio2commands(
             Auditor(),
             audios,
             chatter,
             previous_instructions,
+            discussion.previous_transcript
         )
         # summary
         memory_log.output(f"<===  note: {identification.note_uuid} ===>")
@@ -180,18 +181,23 @@ class Commander(BaseProtocol):
             audios: list[bytes],
             chatter: AudioInterpreter,
             previous_instructions: list[Instruction],
-    ) -> tuple[list[Instruction], list[Effect]]:
+            previous_transcript: str,
+    ) -> tuple[list[Instruction], list[Effect], str]:
         memory_log = MemoryLog(chatter.identification, cls.MEMORY_LOG_LABEL)
-        response = chatter.combine_and_speaker_detection(audios)
+        response = chatter.combine_and_speaker_detection(audios, previous_transcript)
         if response.has_error is True:
             memory_log.output(f"--> transcript encountered: {response.error}")
-            return previous_instructions, []  # <--- let's continue even if we were not able to get a transcript
+            return previous_instructions, [], ""  # <--- let's continue even if we were not able to get a transcript
 
         transcript = Line.load_from_json(response.content)
         auditor.identified_transcript(audios, transcript)
         memory_log.output(f"--> transcript back and forth: {len(transcript)}")
 
-        return cls.transcript2commands(auditor, transcript, chatter, previous_instructions)
+        last_words = transcript[-1].text.split()
+        if len(last_words) > 30:
+            last_words = last_words[-30:]
+
+        return cls.transcript2commands(auditor, transcript, chatter, previous_instructions) + (" ".join(last_words),)
 
     @classmethod
     def transcript2commands(

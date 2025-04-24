@@ -350,29 +350,54 @@ def test_combine_and_speaker_detection(audio2texter, memory_log):
         "Your task is to transcribe what was said, regardless of whether the audio recordings were of dialogue during the visit or monologue after the visit.",
         "",
     ]
-    user_prompt = [
-        "The recording takes place in a medical setting, specifically related to a patient's visit with a clinician.",
-        "",
-        "These audio files contain recordings of a single visit.",
-        "There is no overlap between the segments, so they should be regarded as a continuous flow and analyzed at once.",
-        "",
-        "Your task is to:",
-        "1. label each voice if multiple voices are present.",
-        "2. transcribe each speaker's words with maximum accuracy.",
-        "",
-        "Present your findings in a JSON format within a Markdown code block:",
-        "```json",
-        '[\n {\n  "voice": "voice_1/voice_2/.../voice_N",\n  "text": "the verbatim transcription of what the speaker said"\n }\n]',
-        "```",
-        "",
-        "Then, review the discussion from the top and distinguish the role of the voices (patient, clinician, nurse, parents...) in the conversation, if there is only voice, assume this is the clinician",
-        "",
-        "Present your findings in a JSON format within a Markdown code block:",
-        "```json",
-        '[\n {\n  "speaker": "Patient/Clinician/Nurse/...",\n  "voice": "voice_1/voice_2/.../voice_N"\n }\n]',
-        "```",
-        "",
-    ]
+    user_prompt = {
+        "noTailedTranscript": [
+            "The recording takes place in a medical setting, specifically related to a patient's visit with a clinician.",
+            "",
+            "These audio files contain recordings of a single visit.",
+            "There is no overlap between the segments, so they should be regarded as a continuous flow and analyzed at once.",
+            "",
+            "Your task is to:",
+            "1. label each voice if multiple voices are present.",
+            "2. transcribe each speaker's words with maximum accuracy.",
+            "",
+            "Present your findings in a JSON format within a Markdown code block:",
+            "```json",
+            '[\n {\n  "voice": "voice_1/voice_2/.../voice_N",\n  "text": "the verbatim transcription of what the speaker said"\n }\n]',
+            "```",
+            "",
+            "Then, review the discussion from the top and distinguish the role of the voices (patient, clinician, nurse, parents...) in the conversation, if there is only voice, assume this is the clinician",
+            "",
+            "Present your findings in a JSON format within a Markdown code block:",
+            "```json",
+            '[\n {\n  "speaker": "Patient/Clinician/Nurse/...",\n  "voice": "voice_1/voice_2/.../voice_N"\n }\n]',
+            "```",
+            "",
+        ],
+        "withTailedTranscript": [
+            "The recording takes place in a medical setting, specifically related to a patient's visit with a clinician.",
+            "",
+            "These audio files contain recordings of a single visit.",
+            "There is no overlap between the segments, so they should be regarded as a continuous flow and analyzed at once.",
+            "\nThe previous segment finished with: 'the last words.'.\n",
+            "Your task is to:",
+            "1. label each voice if multiple voices are present.",
+            "2. transcribe each speaker's words with maximum accuracy.",
+            "",
+            "Present your findings in a JSON format within a Markdown code block:",
+            "```json",
+            '[\n {\n  "voice": "voice_1/voice_2/.../voice_N",\n  "text": "the verbatim transcription of what the speaker said"\n }\n]',
+            "```",
+            "",
+            "Then, review the discussion from the top and distinguish the role of the voices (patient, clinician, nurse, parents...) in the conversation, if there is only voice, assume this is the clinician",
+            "",
+            "Present your findings in a JSON format within a Markdown code block:",
+            "```json",
+            '[\n {\n  "speaker": "Patient/Clinician/Nurse/...",\n  "voice": "voice_1/voice_2/.../voice_N"\n }\n]',
+            "```",
+            "",
+        ],
+    }
     schemas = [
         {
             '$schema': 'http://json-schema.org/draft-07/schema#',
@@ -436,13 +461,13 @@ def test_combine_and_speaker_detection(audio2texter, memory_log):
     # -- all JSON
     audio2texter.return_value.chat.side_effect = [JsonExtract(error="theError", has_error=False, content=[discussion, speakers])]
     memory_log.side_effect = ["MemoryLogInstance"]
-    result = tested.combine_and_speaker_detection(audio_chunks)
+    result = tested.combine_and_speaker_detection(audio_chunks, "")
     expected = JsonExtract(error="", has_error=False, content=conversation)
     assert result == expected
     calls = [
         call(settings, "MemoryLogInstance"),
         call().set_system_prompt(system_prompt),
-        call().set_user_prompt(user_prompt),
+        call().set_user_prompt(user_prompt["noTailedTranscript"]),
         call().add_audio(b'chunk1', 'mp3'),
         call().add_audio(b'chunk2', 'mp3'),
         call().chat(schemas),
@@ -454,13 +479,31 @@ def test_combine_and_speaker_detection(audio2texter, memory_log):
     # -- only one JSON
     audio2texter.return_value.chat.side_effect = [JsonExtract(error="theError", has_error=False, content=[discussion])]
     memory_log.side_effect = ["MemoryLogInstance"]
-    result = tested.combine_and_speaker_detection(audio_chunks)
+    result = tested.combine_and_speaker_detection(audio_chunks, "")
     expected = JsonExtract(error="partial response", has_error=True, content=[discussion])
     assert result == expected
     calls = [
         call(settings, "MemoryLogInstance"),
         call().set_system_prompt(system_prompt),
-        call().set_user_prompt(user_prompt),
+        call().set_user_prompt(user_prompt["noTailedTranscript"]),
+        call().add_audio(b'chunk1', 'mp3'),
+        call().add_audio(b'chunk2', 'mp3'),
+        call().chat(schemas),
+    ]
+    assert audio2texter.mock_calls == calls
+    calls = [call(tested.identification, "audio2transcript", aws_credentials)]
+    assert memory_log.mock_calls == calls
+    reset_mocks()
+    # -- with some previous transcript
+    audio2texter.return_value.chat.side_effect = [JsonExtract(error="theError", has_error=False, content=[discussion, speakers])]
+    memory_log.side_effect = ["MemoryLogInstance"]
+    result = tested.combine_and_speaker_detection(audio_chunks, "the last words.")
+    expected = JsonExtract(error="", has_error=False, content=conversation)
+    assert result == expected
+    calls = [
+        call(settings, "MemoryLogInstance"),
+        call().set_system_prompt(system_prompt),
+        call().set_user_prompt(user_prompt["withTailedTranscript"]),
         call().add_audio(b'chunk1', 'mp3'),
         call().add_audio(b'chunk2', 'mp3'),
         call().chat(schemas),
@@ -473,13 +516,13 @@ def test_combine_and_speaker_detection(audio2texter, memory_log):
     # with error
     audio2texter.return_value.chat.side_effect = [JsonExtract(error="theError", has_error=True, content=[discussion, speakers])]
     memory_log.side_effect = ["MemoryLogInstance"]
-    result = tested.combine_and_speaker_detection(audio_chunks)
+    result = tested.combine_and_speaker_detection(audio_chunks, "")
     expected = JsonExtract(error="theError", has_error=True, content=[discussion, speakers])
     assert result == expected
     calls = [
         call(settings, "MemoryLogInstance"),
         call().set_system_prompt(system_prompt),
-        call().set_user_prompt(user_prompt),
+        call().set_user_prompt(user_prompt["noTailedTranscript"]),
         call().add_audio(b'chunk1', 'mp3'),
         call().add_audio(b'chunk2', 'mp3'),
         call().chat(schemas),

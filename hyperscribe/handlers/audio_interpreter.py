@@ -61,7 +61,7 @@ class AudioInterpreter:
             if instance.class_name() not in ImplementedCommands.questionnaire_command_name_list()
         }
 
-    def combine_and_speaker_detection(self, audio_chunks: list[bytes]) -> JsonExtract:
+    def combine_and_speaker_detection(self, audio_chunks: list[bytes], transcript_tail: str) -> JsonExtract:
         conversation = Helper.audio2texter(
             self.settings,
             MemoryLog.instance(self.identification, "audio2transcript", self.aws_s3),
@@ -72,12 +72,15 @@ class AudioInterpreter:
             "Your task is to transcribe what was said, regardless of whether the audio recordings were of dialogue during the visit or monologue after the visit.",
             "",
         ])
+        previous_transcript = ""
+        if transcript_tail:
+            previous_transcript = f"\nThe previous segment finished with: '{transcript_tail}'.\n"
         conversation.set_user_prompt([
             "The recording takes place in a medical setting, specifically related to a patient's visit with a clinician.",
             "",
             "These audio files contain recordings of a single visit.",
             "There is no overlap between the segments, so they should be regarded as a continuous flow and analyzed at once.",
-            "",
+            previous_transcript,
             'Your task is to:',
             "1. label each voice if multiple voices are present.",
             "2. transcribe each speaker's words with maximum accuracy.",
@@ -322,7 +325,6 @@ class AudioInterpreter:
                                "incorporating direct quotes from key exchanges where necessary",
             }
             required.append("audits")
-
 
         return {
             "$schema": "http://json-schema.org/draft-07/schema#",

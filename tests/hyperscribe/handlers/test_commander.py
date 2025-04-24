@@ -67,7 +67,7 @@ def test_constants():
     tested = Commander
     constants = {
         "LABEL_ENCOUNTER_COPILOT": "Encounter Copilot",
-        "MAX_AUDIOS": 1,
+        "MAX_PREVIOUS_AUDIOS": 0,
         "MEMORY_LOG_LABEL": "main",
         "RESPONDS_TO": ["TASK_COMMENT_CREATED"],
     }
@@ -252,7 +252,7 @@ def test_retrieve_audios(get_audio):
     reset_mocks()
 
     # some audio
-    with patch.object(Commander, "MAX_AUDIOS", 3):
+    with patch.object(Commander, "MAX_PREVIOUS_AUDIOS", 2):
         get_audio.side_effect = [b"call 1", b"call 2", b"call 3", b"call 4"]
         result = tested.retrieve_audios("theHost", "patientUuid", "noteUuid", 3)
         assert result == [
@@ -438,8 +438,9 @@ def test_compute_audio(
         discussion.updated = datetime(2025, 3, 11, 0, 3, 17, tzinfo=timezone.utc)
         discussion.count = 7
         discussion.previous_instructions = instructions[2:]
+        discussion.previous_transcript = "the last words."
         retrieve_audios.side_effect = [[b"audio1", b"audio2"]]
-        audio2commands.side_effect = [(exp_instructions, exp_effects)]
+        audio2commands.side_effect = [(exp_instructions, exp_effects, "other last words.")]
         existing_commands_to_instructions.side_effect = [instructions]
         existing_commands_to_coded_items.side_effect = ["stagedCommands"]
         command_db.filter.return_value.order_by.side_effect = ["QuerySetCommands"]
@@ -456,6 +457,7 @@ def test_compute_audio(
 
         assert discussion.count == 8
         assert discussion.previous_instructions == exp_instructions
+        assert discussion.previous_transcript == "other last words."
 
         calls = [
             call(identification, 'main'),
@@ -482,7 +484,13 @@ def test_compute_audio(
         assert memory_log.mock_calls == calls
         calls = [call('theAudioHost', 'patientUuid', 'noteUuid', 3)]
         assert retrieve_audios.mock_calls == calls
-        calls = [call('AuditorInstance', [b'audio1', b'audio2'], 'AudioInterpreterInstance', instructions)]
+        calls = [call(
+            'AuditorInstance',
+            [b'audio1', b'audio2'],
+            'AudioInterpreterInstance',
+            instructions,
+            "the last words.",
+        )]
         assert audio2commands.mock_calls == calls
         calls = [call('QuerySetCommands', instructions[2:])]
         assert existing_commands_to_instructions.mock_calls == calls
@@ -529,11 +537,6 @@ def test_audio2commands(transcript2commands, memory_log):
 
     tested = Commander
 
-    transcript = [
-        {"speaker": "speaker1", "text": "textA"},
-        {"speaker": "speaker2", "text": "textB"},
-        {"speaker": "speaker1", "text": "textC"},
-    ]
     audios = [b"audio1", b"audio2"]
     previous = [
         Instruction(
@@ -551,81 +554,95 @@ def test_audio2commands(transcript2commands, memory_log):
         provider_uuid="providerUuid",
         canvas_instance="canvasInstance",
     )
-    # all good
-    transcript2commands.side_effect = ["resultTranscript2commands"]
-    mock_chatter.combine_and_speaker_detection.side_effect = [
-        JsonExtract(has_error=False, error="", content=transcript),
+    tests = [
+        (25, 0),
+        (40, 11),
     ]
-    mock_chatter.identification = identification
+    for words, exp_idx in tests:
+        text = " ".join([f"word{i:02d}" for i in range(words)])
+        exp_text = " ".join([f"word{i:02d}" for i in range(exp_idx, words)])
 
-    result = tested.audio2commands(mock_auditor, audios, mock_chatter, previous)
-    expected = "resultTranscript2commands"
-    assert result == expected
+        transcript = [
+            {"speaker": "speaker1", "text": f"{text} textA."},
+            {"speaker": "speaker2", "text": f"{text} textB."},
+            {"speaker": "speaker1", "text": f"{text} textC."},
+        ]
+        # all good
+        transcript2commands.side_effect = [("instructions", "effects")]
+        mock_chatter.combine_and_speaker_detection.side_effect = [
+            JsonExtract(has_error=False, error="", content=transcript),
+        ]
+        mock_chatter.identification = identification
 
-    calls = [
-        call(identification, 'main'),
-        call().output('--> transcript back and forth: 3'),
-    ]
-    assert memory_log.mock_calls == calls
-    calls = [
-        call(
-            mock_auditor,
-            [
-                Line(speaker='speaker1', text='textA'),
-                Line(speaker='speaker2', text='textB'),
-                Line(speaker='speaker1', text='textC'),
-            ],
-            mock_chatter,
-            [
-                Instruction(
-                    uuid='uuidA',
-                    instruction='theInstructionA',
-                    information='theInformationA',
-                    audits=["lineA"],
-                    is_new=True,
-                    is_updated=False,
-                ),
-            ],
-        ),
-    ]
-    assert transcript2commands.mock_calls == calls
-    calls = [
-        call.identified_transcript(
-            [b'audio1', b'audio2'],
-            [
-                Line(speaker='speaker1', text='textA'),
-                Line(speaker='speaker2', text='textB'),
-                Line(speaker='speaker1', text='textC'),
-            ],
-        ),
-    ]
-    assert mock_auditor.mock_calls == calls
-    calls = [
-        call.combine_and_speaker_detection([b'audio1', b'audio2']),
-    ]
-    assert mock_chatter.mock_calls == calls
-    reset_mocks()
-    # --- transcript has error
-    transcript2commands.side_effect = []
-    mock_chatter.combine_and_speaker_detection.side_effect = [
-        JsonExtract(has_error=True, error="theError", content=transcript),
-    ]
+        result = tested.audio2commands(mock_auditor, audios, mock_chatter, previous, "the last words.")
+        expected = ("instructions", "effects", f"{exp_text} textC.")
+        assert result == expected
 
-    result = tested.audio2commands(mock_auditor, audios, mock_chatter, previous)
-    expected = (previous, [])
-    assert result == expected
+        calls = [
+            call(identification, 'main'),
+            call().output('--> transcript back and forth: 3'),
+        ]
+        assert memory_log.mock_calls == calls
+        calls = [
+            call(
+                mock_auditor,
+                [
+                    Line(speaker="speaker1", text=f"{text} textA."),
+                    Line(speaker="speaker2", text=f"{text} textB."),
+                    Line(speaker="speaker1", text=f"{text} textC."),
+                ],
+                mock_chatter,
+                [
+                    Instruction(
+                        uuid='uuidA',
+                        instruction='theInstructionA',
+                        information='theInformationA',
+                        audits=["lineA"],
+                        is_new=True,
+                        is_updated=False,
+                    ),
+                ],
+            ),
+        ]
+        assert transcript2commands.mock_calls == calls
+        calls = [
+            call.identified_transcript(
+                [b'audio1', b'audio2'],
+                [
+                    Line(speaker="speaker1", text=f"{text} textA."),
+                    Line(speaker="speaker2", text=f"{text} textB."),
+                    Line(speaker="speaker1", text=f"{text} textC."),
+                ],
+            ),
+        ]
+        assert mock_auditor.mock_calls == calls
+        calls = [
+            call.combine_and_speaker_detection([b'audio1', b'audio2'], "the last words."),
+        ]
+        assert mock_chatter.mock_calls == calls
+        reset_mocks()
 
-    calls = [
-        call(identification, 'main'),
-        call().output('--> transcript encountered: theError'),
-    ]
-    assert memory_log.mock_calls == calls
-    assert transcript2commands.mock_calls == []
-    calls = [
-        call.combine_and_speaker_detection([b'audio1', b'audio2']),
-    ]
-    assert mock_chatter.mock_calls == calls
-    reset_mocks()
+        # --- transcript has error
+        transcript2commands.side_effect = []
+        mock_chatter.combine_and_speaker_detection.side_effect = [
+            JsonExtract(has_error=True, error="theError", content=transcript),
+        ]
+
+        result = tested.audio2commands(mock_auditor, audios, mock_chatter, previous, "the last words.")
+        expected = (previous, [], "")
+        assert result == expected
+
+        calls = [
+            call(identification, 'main'),
+            call().output('--> transcript encountered: theError'),
+        ]
+        assert memory_log.mock_calls == calls
+        assert transcript2commands.mock_calls == []
+        calls = [
+            call.combine_and_speaker_detection([b'audio1', b'audio2'], "the last words."),
+        ]
+        assert mock_chatter.mock_calls == calls
+        reset_mocks()
 
 
 @patch.object(Commander, 'transcript2commands_questionnaires')

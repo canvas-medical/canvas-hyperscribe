@@ -16,6 +16,7 @@ class CachedDiscussion:
         self.count: int = 1
         self.note_uuid = note_uuid
         self.previous_instructions: list[Instruction] = []
+        self.previous_transcript: str = ""
 
     def add_one(self) -> None:
         self.updated = datetime.now()

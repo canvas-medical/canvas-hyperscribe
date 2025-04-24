@@ -298,13 +298,13 @@ def test__run_chunked(commander, auditor):
         mp3=[],
         combined=True,
     )
-    commander.MAX_AUDIOS = 3
+    commander.MAX_PREVIOUS_AUDIOS = 3
     commander.audio2commands.side_effect = [
-        (["previous1"], ["effects1"]),
-        (["previous2"], ["effects2"]),
-        (["previous3"], ["effects3"]),
-        (["previous4"], ["effects4"]),
-        (["previous9"], ["effects9"]),
+        (["previous1"], ["effects1"], "the last words 1"),
+        (["previous2"], ["effects2"], "the last words 2"),
+        (["previous3"], ["effects3"], "the last words 3"),
+        (["previous4"], ["effects4"], "the last words 4"),
+        (["previous9"], ["effects9"], "the last words 9"),
     ]
 
     tested._run_chunked(parameters, mock_chatter, audios, instructions)
@@ -317,11 +317,11 @@ def test__run_chunked(commander, auditor):
     ]
     assert auditor.mock_calls == calls
     calls = [
-        call.audio2commands(auditor.return_value, [b'audio content 0'], mock_chatter, instructions),
-        call.audio2commands(auditor.return_value, [b'audio content 0', b'audio content 1'], mock_chatter, ['previous1']),
-        call.audio2commands(auditor.return_value, [b'audio content 0', b'audio content 1', b'audio content 2'], mock_chatter, ['previous2']),
-        call.audio2commands(auditor.return_value, [b'audio content 1', b'audio content 2', b'audio content 3'], mock_chatter, ['previous3']),
-        call.audio2commands(auditor.return_value, [b'audio content 2', b'audio content 3', b'audio content 4'], mock_chatter, ['previous4']),
+        call.audio2commands(auditor.return_value, [b'audio content 0'], mock_chatter, instructions, ""),
+        call.audio2commands(auditor.return_value, [b'audio content 0', b'audio content 1'], mock_chatter, ['previous1'], "the last words 1"),
+        call.audio2commands(auditor.return_value, [b'audio content 0', b'audio content 1', b'audio content 2'], mock_chatter, ['previous2'], "the last words 2"),
+        call.audio2commands(auditor.return_value, [b'audio content 1', b'audio content 2', b'audio content 3'], mock_chatter, ['previous3'], "the last words 3"),
+        call.audio2commands(auditor.return_value, [b'audio content 2', b'audio content 3', b'audio content 4'], mock_chatter, ['previous4'], "the last words 4"),
     ]
     assert commander.mock_calls == calls
 
