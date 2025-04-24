@@ -65,3 +65,4 @@ class Constants:
     SECRET_AWS_REGION = "AwsRegion"
     SECRET_AWS_BUCKET = "AwsBucket"
     SECRET_STRUCTURED_RFV = "StructuredReasonForVisit"
+    SECRET_AUDIT_LLM = "AuditLLMDecisions"

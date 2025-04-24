@@ -20,6 +20,7 @@ def helper_instance() -> PhysicalExam:
         ontologies_host="ontologiesHost",
         pre_shared_key="preSharedKey",
         structured_rfv=False,
+        audit_llm=False,
     )
     cache = LimitedCache("patientUuid", {})
     identification = IdentificationParameters(

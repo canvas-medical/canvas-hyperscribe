@@ -29,8 +29,9 @@ def test_settings(monkeypatch):
         ("n", False),
         ("", False),
     ]
-    for env_variable, exp_structured in tests:
+    for env_variable, exp_bool in tests:
         monkeypatch.setenv("StructuredReasonForVisit", env_variable)
+        monkeypatch.setenv("AuditLLMDecisions", env_variable)
 
         tested = HelperEvaluation
         result = tested.settings()
@@ -40,7 +41,8 @@ def test_settings(monkeypatch):
             science_host="theScienceHost",
             ontologies_host="theOntologiesHost",
             pre_shared_key="thePreSharedKey",
-            structured_rfv=exp_structured,
+            structured_rfv=exp_bool,
+            audit_llm=exp_bool,
         )
         assert result == expected
 

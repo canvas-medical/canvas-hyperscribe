@@ -154,6 +154,7 @@ class Commander(BaseProtocol):
         # summary
         memory_log.output(f"<===  note: {identification.note_uuid} ===>")
         memory_log.output(f"Structured RfV: {settings.structured_rfv}")
+        memory_log.output(f"Audit LLM Decisions: {settings.audit_llm}")
         memory_log.output("instructions:")
         for instruction in discussion.previous_instructions:
             memory_log.output(f"- {instruction.limited_str()}")
@@ -238,6 +239,7 @@ class Commander(BaseProtocol):
     ) -> tuple[list[Instruction], list[Effect]]:
         memory_log = MemoryLog(chatter.identification, cls.MEMORY_LOG_LABEL)
 
+        start = time()
         # detect the instructions based on the transcript and the existing commands
         response = chatter.detect_instructions(transcript, instructions)
         cumulated_instructions = Instruction.load_from_json(response)
@@ -252,7 +254,6 @@ class Commander(BaseProtocol):
                or past_uuids[instruction.uuid].information != instruction.information
         ]
         memory_log.output(f"--> computed instructions: {len(computed_instructions)}")
-        start = time()
         max_workers = max(1, Constants.MAX_WORKERS)
         with ThreadPoolExecutor(max_workers=max_workers) as builder:
             instructions_with_parameter = [
@@ -273,7 +274,8 @@ class Commander(BaseProtocol):
         memory_log.output(f"DURATION COMMONS: {int((time() - start) * 1000)}")
         auditor.computed_commands(instructions_with_command)
 
-        cls.store_audits(chatter.aws_s3, chatter.identification, "audit_common_commands", instructions_with_command)
+        if chatter.settings.audit_llm:
+            cls.store_audits(chatter.aws_s3, chatter.identification, "audit_common_commands", instructions_with_command)
 
         # reset the audit fields
         for instruction in cumulated_instructions:
@@ -331,7 +333,8 @@ class Commander(BaseProtocol):
         memory_log.output(f"DURATION QUESTIONNAIRES: {int((time() - start) * 1000)}")
         auditor.computed_questionnaires(transcript, instructions, instructions_with_command)
 
-        cls.store_audits(chatter.aws_s3, chatter.identification, "audit_update_questionnaires", updated_instructions)
+        if chatter.settings.audit_llm:
+            cls.store_audits(chatter.aws_s3, chatter.identification, "audit_update_questionnaires", updated_instructions)
 
         if chatter.identification.note_uuid == Constants.FAUX_NOTE_UUID:
             # this is the case when running an evaluation against a recorded 'limited cache',

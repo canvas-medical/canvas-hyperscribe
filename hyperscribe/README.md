@@ -67,6 +67,7 @@ The `secrets` are stored in the Canvas instance database and can be upsert in `h
 | `OntologiesHost`           |                                 | `ontologies` Canvas service                   |
 | `PreSharedKey`             |                                 | key provided by Canvas to access `ontologies` |
 | `StructuredReasonForVisit` | `y`, `yes` or `1`               | any other value means `no`/`false`            |
+| `AuditLLMDecisions`        | `y`, `yes` or `1`               | any other value means `no`/`false`            |
 | `AwsKey`                   |                                 | AWS key to access the S3 service              |
 | `AwsSecret`                |                                 | AWS secret to access the S3 service           |
 | `AwsRegion`                |                                 | AWS region of the S3 service                  |
@@ -76,6 +77,9 @@ The logs, mainly the communication with the LLMs, are stored in a `AWS S3 bucket
 
 To use the Canvas services provided by the SDK (`OntologiesHttp` and `ScienceHttp` from `canvas_sdk.utils.http`), set to empty the related secrets (
 `OntologiesHost` and `ScienceHost`).
+
+The `AuditLLMDecisions` secret directs the LLM to provide, or not, the rationale used at each step, giving a better understanding of the command
+generation. It has a significant impact on the performance that can add 50% more time.
 
 ### Temporary set up
 

@@ -22,6 +22,7 @@ def helper_instance(structured_rfv: bool = False) -> FollowUp:
         ontologies_host="ontologiesHost",
         pre_shared_key="preSharedKey",
         structured_rfv=structured_rfv,
+        audit_llm=False,
     )
     cache = LimitedCache("patientUuid", {})
     identification = IdentificationParameters(

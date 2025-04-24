@@ -9,7 +9,7 @@ from hyperscribe.structures.http_response import HttpResponse
 
 def test_add_audio():
     memory_log = MagicMock()
-    tested = LlmAnthropic(memory_log, "anthropicKey", "theModel")
+    tested = LlmAnthropic(memory_log, "anthropicKey", "theModel", False)
     with pytest.raises(Exception) as e:
         _ = tested.add_audio(b"audio", "format")
     expected = "NotImplementedError"
@@ -19,7 +19,7 @@ def test_add_audio():
 
 def test_to_dict():
     memory_log = MagicMock()
-    tested = LlmAnthropic(memory_log, "anthropicKey", "theModel")
+    tested = LlmAnthropic(memory_log, "anthropicKey", "theModel", False)
     tested.set_system_prompt(["line 1", "line 2", "line 3"])
     tested.set_user_prompt(["line 4", "line 5", "line 6"])
 
@@ -104,7 +104,7 @@ def test_request(to_dict, requests_post):
     to_dict.side_effect = [{"key": "valueX"}, {"key": "valueY"}]
     requests_post.side_effect = [response]
 
-    tested = LlmAnthropic(memory_log, "apiKey", "theModel")
+    tested = LlmAnthropic(memory_log, "apiKey", "theModel", False)
     result = tested.request()
     expected = HttpResponse(
         code=202,
@@ -142,7 +142,7 @@ def test_request(to_dict, requests_post):
     to_dict.side_effect = [{"key": "valueA"}, {"key": "valueB"}]
     requests_post.side_effect = [response]
 
-    tested = LlmAnthropic(memory_log, "apiKey", "theModel")
+    tested = LlmAnthropic(memory_log, "apiKey", "theModel", False)
     result = tested.request()
     expected = HttpResponse(code=200, response='```json\n["line 1","line 2","line 3"]\n```\n')
     assert result == expected

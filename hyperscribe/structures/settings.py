@@ -13,10 +13,10 @@ class Settings(NamedTuple):
     ontologies_host: str
     pre_shared_key: str
     structured_rfv: bool
+    audit_llm: bool
 
     @classmethod
     def from_dictionary(cls, dictionary: dict) -> Settings:
-        structured_rfv = dictionary.get(Constants.SECRET_STRUCTURED_RFV)
         return Settings(
             llm_text=VendorKey(
                 vendor=dictionary[Constants.SECRET_TEXT_VENDOR],
@@ -29,5 +29,10 @@ class Settings(NamedTuple):
             science_host=dictionary[Constants.SECRET_SCIENCE_HOST],
             ontologies_host=dictionary[Constants.SECRET_ONTOLOGIES_HOST],
             pre_shared_key=dictionary[Constants.SECRET_PRE_SHARED_KEY],
-            structured_rfv=bool(isinstance(structured_rfv, str) and structured_rfv.lower() in ["yes", "y", "1"]),
+            structured_rfv=cls.is_true(dictionary.get(Constants.SECRET_STRUCTURED_RFV)),
+            audit_llm=cls.is_true(dictionary.get(Constants.SECRET_AUDIT_LLM)),
         )
+
+    @classmethod
+    def is_true(cls, string: str) -> bool:
+        return bool(isinstance(string, str) and string.lower() in ["yes", "y", "1"])

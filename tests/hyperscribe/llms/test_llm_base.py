@@ -23,11 +23,12 @@ def test_constants():
 
 def test___init__():
     memory_log = MagicMock()
-    tested = LlmBase(memory_log, "apiKey", "theModel")
+    tested = LlmBase(memory_log, "apiKey", "theModel", False)
     assert memory_log.mock_calls == []
     assert tested.memory_log == memory_log
     assert tested.api_key == "apiKey"
     assert tested.model == "theModel"
+    assert tested.with_audit == False
     assert tested.temperature == 0.0
     assert tested.prompts == []
     assert tested.audios == []
@@ -35,7 +36,7 @@ def test___init__():
 
 def test_set_system_prompt():
     memory_log = MagicMock()
-    tested = LlmBase(memory_log, "apiKey", "theModel")
+    tested = LlmBase(memory_log, "apiKey", "theModel", False)
     assert tested.prompts == []
     #
     tested.set_system_prompt(["line 1", "line 2"])
@@ -63,7 +64,7 @@ def test_set_system_prompt():
 
 def test_set_user_prompt():
     memory_log = MagicMock()
-    tested = LlmBase(memory_log, "apiKey", "theModel")
+    tested = LlmBase(memory_log, "apiKey", "theModel", False)
     assert tested.prompts == []
     tested.set_user_prompt(["line 1", "line 2"])
     result = tested.prompts
@@ -74,7 +75,7 @@ def test_set_user_prompt():
 
 def test_set_model_prompt():
     memory_log = MagicMock()
-    tested = LlmBase(memory_log, "apiKey", "theModel")
+    tested = LlmBase(memory_log, "apiKey", "theModel", False)
     assert tested.prompts == []
     tested.set_model_prompt(["line 1", "line 2"])
     result = tested.prompts
@@ -85,7 +86,7 @@ def test_set_model_prompt():
 
 def test_add_audio():
     memory_log = MagicMock()
-    tested = LlmBase(memory_log, "apiKey", "theModel")
+    tested = LlmBase(memory_log, "apiKey", "theModel", False)
     with pytest.raises(NotImplementedError):
         _ = tested.add_audio(b"audio", "format")
     assert memory_log.mock_calls == []
@@ -93,7 +94,7 @@ def test_add_audio():
 
 def test_request():
     memory_log = MagicMock()
-    tested = LlmBase(memory_log, "apiKey", "theModel")
+    tested = LlmBase(memory_log, "apiKey", "theModel", False)
     with pytest.raises(NotImplementedError):
         _ = tested.request()
     assert memory_log.mock_calls == []
@@ -106,7 +107,7 @@ def test_attempt_requests(request):
     def reset_mocks():
         request.reset_mock()
 
-    tested = LlmBase(memory_log, "apiKey", "theModel")
+    tested = LlmBase(memory_log, "apiKey", "theModel", False)
 
     # one error
     request.side_effect = [
@@ -147,7 +148,7 @@ def test_chat(attempt_requests, extract_json_from):
         attempt_requests.reset_mock()
         extract_json_from.reset_mock()
 
-    tested = LlmBase(memory_log, "apiKey", "theModel")
+    tested = LlmBase(memory_log, "apiKey", "theModel", False)
     assert tested.prompts == []
 
     # http error
@@ -338,7 +339,7 @@ def test_single_conversation(chat, set_system_prompt, set_user_prompt):
             "additionalProperties": False,
         }
     }
-    tested = LlmBase(memory_log, "theApiKey", "theModel")
+    tested = LlmBase(memory_log, "theApiKey", "theModel", True)
 
     # without error
     # -- no instruction, list
@@ -368,6 +369,8 @@ def test_single_conversation(chat, set_system_prompt, set_user_prompt):
     assert memory_log.mock_calls == []
     reset_mocks()
     # -- with instruction
+    # -- -- with audit
+    tested = LlmBase(memory_log, "theApiKey", "theModel", True)
     instruction = Instruction(uuid="theUuid", instruction="Second", information="theInformation", is_new=False, is_updated=True, audits=[])
     chat.side_effect = [JsonExtract(error="theError", has_error=False, content=[["theContent"], ["theAudit"]])]
     result = tested.single_conversation(system_prompt, user_prompt, schemas, instruction)
@@ -410,6 +413,21 @@ def test_single_conversation(chat, set_system_prompt, set_user_prompt):
         '```',
         '',
     ])]
+    assert set_user_prompt.mock_calls == calls
+    assert memory_log.mock_calls == []
+    reset_mocks()
+    # -- -- with no audit
+    tested = LlmBase(memory_log, "theApiKey", "theModel", False)
+    instruction = Instruction(uuid="theUuid", instruction="Second", information="theInformation", is_new=False, is_updated=True, audits=[])
+    chat.side_effect = [JsonExtract(error="theError", has_error=False, content=[["theContent"], ["theAudit"]])]
+    result = tested.single_conversation(system_prompt, user_prompt, schemas, instruction)
+    assert result == [["theContent"], ["theAudit"]]
+    assert instruction.audits == []
+    calls = [call(["schema1", "schema2"])]
+    assert chat.mock_calls == calls
+    calls = [call(system_prompt)]
+    assert set_system_prompt.mock_calls == calls
+    calls = [call(['theUserPrompt'])]
     assert set_user_prompt.mock_calls == calls
     assert memory_log.mock_calls == []
     reset_mocks()

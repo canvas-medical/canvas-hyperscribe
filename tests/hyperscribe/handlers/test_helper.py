@@ -107,6 +107,7 @@ def test_chatter():
             ontologies_host="ontologiesHost",
             pre_shared_key="preSharedKey",
             structured_rfv=False,
+            audit_llm=False,
         ), memory_log)
         assert memory_log.mock_calls == []
         assert isinstance(result, exp_class)
@@ -131,6 +132,7 @@ def test_audio2texter():
             ontologies_host="ontologiesHost",
             pre_shared_key="preSharedKey",
             structured_rfv=False,
+            audit_llm=False,
         ), memory_log)
         assert memory_log.mock_calls == []
         assert isinstance(result, exp_class)

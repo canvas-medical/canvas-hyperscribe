@@ -21,10 +21,11 @@ class LlmBase:
     ROLE_USER = "user"
     ROLE_MODEL = "model"
 
-    def __init__(self, memory_log: MemoryLog, api_key: str, model: str):
+    def __init__(self, memory_log: MemoryLog, api_key: str, model: str, with_audit: bool):
         self.memory_log = memory_log
         self.api_key = api_key
         self.model = model
+        self.with_audit = with_audit
         self.temperature = 0.0
         self.prompts: list[LlmTurn] = []
         self.audios: list[dict] = []
@@ -102,7 +103,7 @@ class LlmBase:
     def single_conversation(self, system_prompt: list[str], user_prompt: list[str], schemas: list, instruction: Instruction | None) -> list:
         used_schemas = [s for s in schemas]
         used_prompt = [s for s in user_prompt]
-        if instruction is not None:
+        if instruction is not None and self.with_audit:
             audit_schema = JsonSchema.get(["audit"])[0]
             used_prompt.extend([
                 "As a following step, provide the rationale of each and every value you have provided.",
@@ -119,7 +120,7 @@ class LlmBase:
         response = self.chat(used_schemas)
         if response.has_error is False and response.content:
             result = response.content
-            if instruction is not None:
+            if instruction is not None and self.with_audit:
                 instruction.audits.append("-------------")
                 instruction.audits.append(json.dumps(response.content, indent=1))
                 result = response.content[:-1]

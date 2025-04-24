@@ -7,7 +7,7 @@ from hyperscribe.structures.http_response import HttpResponse
 
 def test_add_audio():
     memory_log = MagicMock()
-    tested = LlmOpenai(memory_log, "openaiKey", "theModel")
+    tested = LlmOpenai(memory_log, "openaiKey", "theModel", False)
     tested.add_audio(b"", "mp3")
     assert tested.audios == []
     tested.add_audio(b"abc", "mp3")
@@ -18,7 +18,7 @@ def test_add_audio():
 
 def test_to_dict():
     memory_log = MagicMock()
-    tested = LlmOpenai(memory_log, "openaiKey", "theModel")
+    tested = LlmOpenai(memory_log, "openaiKey", "theModel", False)
     tested.add_audio(b"abc", "mp3")
     tested.add_audio(b"def", "mp3")
     tested.set_system_prompt(["line 1", "line 2", "line 3"])
@@ -137,7 +137,7 @@ def test_request(requests_post):
             ],
         }),
     })()
-    tested = LlmOpenai(memory_log, "openaiKey", "theModel")
+    tested = LlmOpenai(memory_log, "openaiKey", "theModel", False)
     # all good
     response.status_code = 200
     expected = HttpResponse(
@@ -214,7 +214,7 @@ def test_audio_to_text(requests_post):
     requests_post.return_value.status_code = 202
     requests_post.return_value.text = "theResponse"
 
-    tested = LlmOpenai(memory_log, "openaiKey", "theModel")
+    tested = LlmOpenai(memory_log, "openaiKey", "theModel", False)
     result = tested.audio_to_text(b"abc")
     expected = HttpResponse(code=202, response="theResponse")
     assert result == expected

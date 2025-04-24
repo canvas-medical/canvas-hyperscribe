@@ -7,7 +7,7 @@ from hyperscribe.structures.http_response import HttpResponse
 
 def test_add_audio():
     memory_log = MagicMock()
-    tested = LlmGoogle(memory_log, "googleKey", "theModel")
+    tested = LlmGoogle(memory_log, "googleKey", "theModel", False)
 
     result = tested.audios
     assert result == []
@@ -28,7 +28,7 @@ def test_add_audio():
 
 def test_to_dict():
     memory_log = MagicMock()
-    tested = LlmGoogle(memory_log, "googleKey", "theModel")
+    tested = LlmGoogle(memory_log, "googleKey", "theModel", False)
     tested.set_system_prompt(["line 1", "line 2", "line 3"])
     tested.set_user_prompt(["line 4", "line 5", "line 6"])
 
@@ -114,7 +114,7 @@ def test_upload_audio(requests_post):
         requests_post.reset_mock()
         memory_log.reset_mock()
 
-    tested = LlmGoogle(memory_log, "googleKey", "theModel")
+    tested = LlmGoogle(memory_log, "googleKey", "theModel", False)
 
     # all good
     requests_post.side_effect = [
@@ -258,7 +258,7 @@ def test_request(upload_audio, to_dict, requests_post):
     to_dict.side_effect = [{"key": "valueX"}, {"key": "valueY"}]
     requests_post.side_effect = [response]
 
-    tested = LlmGoogle(memory_log, "apiKey", "theModel")
+    tested = LlmGoogle(memory_log, "apiKey", "theModel", False)
     tested.add_audio(b"the audio1", "mp3")
     tested.add_audio(b"the audio2", "wav")
     tested.add_audio(b"the audio3", "mp3")
@@ -305,7 +305,7 @@ def test_request(upload_audio, to_dict, requests_post):
     to_dict.side_effect = [{"key": "valueX"}, {"key": "valueY"}]
     requests_post.side_effect = [response]
 
-    tested = LlmGoogle(memory_log, "apiKey", "theModel")
+    tested = LlmGoogle(memory_log, "apiKey", "theModel", False)
     tested.add_audio(b"the audio1", "mp3")
     tested.add_audio(b"the audio2", "wav")
     result = tested.request()
@@ -345,7 +345,7 @@ def test_request(upload_audio, to_dict, requests_post):
     to_dict.side_effect = [{"key": "valueX"}, {"key": "valueY"}]
     requests_post.side_effect = [response]
 
-    tested = LlmGoogle(memory_log, "apiKey", "theModel")
+    tested = LlmGoogle(memory_log, "apiKey", "theModel", False)
     result = tested.request()
     expected = HttpResponse(code=200, response='```json\n["line 1","line 2","line 3"]\n```\n')
     assert result == expected

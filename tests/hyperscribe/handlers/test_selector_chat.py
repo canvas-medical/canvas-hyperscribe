@@ -31,6 +31,7 @@ def test_condition_from(search_conditions):
         ontologies_host="ontologiesHost",
         pre_shared_key="preSharedKey",
         structured_rfv=False,
+        audit_llm=False,
     )
     system_prompt = [
         "The conversation is in the medical context.",
@@ -141,6 +142,7 @@ def test_lab_test_from(lab_test_db):
         ontologies_host="ontologiesHost",
         pre_shared_key="preSharedKey",
         structured_rfv=False,
+        audit_llm=False,
     )
     system_prompt = [
         "The conversation is in the medical context.",
@@ -323,6 +325,7 @@ def test_procedure_from(charge_description):
         ontologies_host="ontologiesHost",
         pre_shared_key="preSharedKey",
         structured_rfv=False,
+        audit_llm=False,
     )
     system_prompt = [
         "The conversation is in the medical context.",
@@ -453,6 +456,7 @@ def test_contact_from(search_contacts, summary_of):
         ontologies_host="ontologiesHost",
         pre_shared_key="preSharedKey",
         structured_rfv=False,
+        audit_llm=False,
     )
     system_prompt = [
         "The conversation is in the medical context.",

@@ -430,6 +430,7 @@ def test_compute_audio(
             ontologies_host='theOntologiesHost',
             pre_shared_key='thePreSharedKey',
             structured_rfv=True,
+            audit_llm=False,
         )
         exp_aws_s3_credentials = AwsS3Credentials(aws_key='theKey', aws_secret='theSecret', region='theRegion', bucket='theBucket')
         discussion = CachedDiscussion("noteUuid")
@@ -461,6 +462,7 @@ def test_compute_audio(
             call().output('--> audio chunks: 2'),
             call().output('<===  note: noteUuid ===>'),
             call().output('Structured RfV: True'),
+            call().output('Audit LLM Decisions: False'),
             call().output('instructions:'),
             call().output('- theInstructionA (uuidA, new/updated: False/True): theInformationA'),
             call().output('- theInstructionB (uuidB, new/updated: True/False): theInformationB'),
@@ -861,28 +863,43 @@ def test_transcript2commands_common(time, memory_log, store_audits):
             command=mock_commands[2],
         ),
     ]
+
+    effects = [
+        Effect(type="LOG", payload="Log1"),
+        Effect(type="LOG", payload="Log2"),
+        Effect(type="LOG", payload="Log3"),
+    ]
+    command_calls = [
+        call.edit(),
+        call.originate(),
+        call.originate(),
+    ]
     tests = [
         # -- simulated note
-        ("_NoteUuid", [], []),  # -- simulated note
+        ("_NoteUuid", True, [], []),
+        ("_NoteUuid", False, [], []),
         # -- 'real' note
-        ("noteUuid", [
-            Effect(type="LOG", payload="Log1"),
-            Effect(type="LOG", payload="Log2"),
-            Effect(type="LOG", payload="Log3"),
-        ], [
-             call.edit(),
-             call.originate(),
-             call.originate(),
-         ]),
+        ("noteUuid", True, effects, command_calls),
+        ("noteUuid", False, effects, command_calls),
     ]
-    for note_uuid, exp_effects, command_calls in tests:
+    for note_uuid, with_audit, exp_effects, exp_command_calls in tests:
         identification = IdentificationParameters(
             patient_uuid="patientUuid",
             note_uuid=note_uuid,
             provider_uuid="providerUuid",
             canvas_instance="canvasInstance",
         )
+        settings = Settings(
+            llm_text=VendorKey(vendor="textVendor", api_key="textAPIKey"),
+            llm_audio=VendorKey(vendor="audioVendor", api_key="audioAPIKey"),
+            science_host="theScienceHost",
+            ontologies_host="theOntologiesHost",
+            pre_shared_key="thePreSharedKey",
+            structured_rfv=True,
+            audit_llm=with_audit,
+        )
         mock_chatter.identification = identification
+        mock_chatter.settings = settings
         mock_chatter.aws_s3 = "awsS3"
 
         mock_chatter.detect_instructions.side_effect = [
@@ -963,7 +980,9 @@ def test_transcript2commands_common(time, memory_log, store_audits):
             call().output('DURATION COMMONS: 108'),
         ]
         assert memory_log.mock_calls == calls
-        calls = [call("awsS3", identification, "audit_common_commands", exp_instructions_w_commands)]
+        calls = []
+        if with_audit:
+            calls = [call("awsS3", identification, "audit_common_commands", exp_instructions_w_commands)]
         assert store_audits.mock_calls == calls
         calls = [call(), call()]
         assert time.mock_calls == calls
@@ -986,7 +1005,7 @@ def test_transcript2commands_common(time, memory_log, store_audits):
             call.create_sdk_command_from(exp_instructions_w_parameters[3]),
         ]
         assert mock_chatter.mock_calls == calls
-        for idx, command_call in enumerate(command_calls):
+        for idx, command_call in enumerate(exp_command_calls):
             calls = [command_call]
             assert mock_commands[idx].mock_calls == calls
 
@@ -1092,18 +1111,30 @@ def test_transcript2commands_questionnaires(time, memory_log, store_audits):
     # with instructions
     tests = [
         # -- simulated note
-        ("_NoteUuid", (updated, []), []),  # -- simulated note
+        ("_NoteUuid", True, (updated, []), []),
+        ("_NoteUuid", False, (updated, []), []),
         # -- 'real' note
-        ("noteUuid", (updated, effects), [call.edit()]),
+        ("noteUuid", True, (updated, effects), [call.edit()]),
+        ("noteUuid", False, (updated, effects), [call.edit()]),
     ]
-    for note_uuid, expected, command_calls in tests:
+    for note_uuid, with_audit, expected, command_calls in tests:
         identification = IdentificationParameters(
             patient_uuid="patientUuid",
             note_uuid=note_uuid,
             provider_uuid="providerUuid",
             canvas_instance="canvasInstance",
         )
+        settings = Settings(
+            llm_text=VendorKey(vendor="textVendor", api_key="textAPIKey"),
+            llm_audio=VendorKey(vendor="audioVendor", api_key="audioAPIKey"),
+            science_host="theScienceHost",
+            ontologies_host="theOntologiesHost",
+            pre_shared_key="thePreSharedKey",
+            structured_rfv=True,
+            audit_llm=with_audit,
+        )
         chatter.identification = identification
+        chatter.settings = settings
         chatter.aws_s3 = "awsS3"
         time.side_effect = [111.110, 111.357]
         chatter.update_questionnaire.side_effect = instructions_with_commands
@@ -1117,12 +1148,14 @@ def test_transcript2commands_questionnaires(time, memory_log, store_audits):
             call().output('DURATION QUESTIONNAIRES: 246'),
         ]
         assert memory_log.mock_calls == calls
-        calls = [call(
-            "awsS3",
-            identification,
-            "audit_update_questionnaires",
-            updated,
-        )]
+        calls = []
+        if with_audit:
+            calls = [call(
+                "awsS3",
+                identification,
+                "audit_update_questionnaires",
+                updated,
+            )]
         assert store_audits.mock_calls == calls
         calls = [call(), call()]
         assert time.mock_calls == calls

@@ -30,6 +30,7 @@ def helper_instance(mocks) -> tuple[AudioInterpreter, Settings, AwsS3Credentials
             ontologies_host="ontologiesHost",
             pre_shared_key="preSharedKey",
             structured_rfv=False,
+            audit_llm=False,
         )
         aws_s3 = AwsS3Credentials(aws_key="theKey", aws_secret="theSecret", region="theRegion", bucket="theBucket")
         if mocks:
@@ -76,6 +77,7 @@ def test___init__(command_list):
         ontologies_host="ontologiesHost",
         pre_shared_key="preSharedKey",
         structured_rfv=False,
+        audit_llm=False,
     )
     aws_s3 = AwsS3Credentials(aws_key="theKey", aws_secret="theSecret", region="theRegion", bucket="theBucket")
 

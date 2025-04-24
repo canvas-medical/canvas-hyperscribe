@@ -8,7 +8,7 @@ class Instruction:
         self.information: str = information
         self.is_new: bool = is_new
         self.is_updated: bool = is_updated
-        self.audits: list[str] = audits  # is not affected by the frozen when using append
+        self.audits: list[str] = audits
 
     @classmethod
     def load_from_json(cls, json_list: list) -> list[Instruction]:
