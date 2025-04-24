@@ -18,7 +18,7 @@ from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
 
 
-def helper_instance(mocks) -> tuple[AudioInterpreter, Settings, AwsS3Credentials, LimitedCache]:
+def helper_instance(mocks, with_audit) -> tuple[AudioInterpreter, Settings, AwsS3Credentials, LimitedCache]:
     def reset_mocks():
         command_list.reset_mocks()
 
@@ -30,7 +30,7 @@ def helper_instance(mocks) -> tuple[AudioInterpreter, Settings, AwsS3Credentials
             ontologies_host="ontologiesHost",
             pre_shared_key="preSharedKey",
             structured_rfv=False,
-            audit_llm=False,
+            audit_llm=with_audit,
         )
         aws_s3 = AwsS3Credentials(aws_key="theKey", aws_secret="theSecret", region="theRegion", bucket="theBucket")
         if mocks:
@@ -168,7 +168,7 @@ def test_instruction_definitions():
         mocks[2].return_value.instruction_description.side_effect = ["Description3"]
         mocks[3].return_value.instruction_description.side_effect = ["Description4"]
 
-        tested, settings, aws_credentials, cache = helper_instance(mocks)
+        tested, settings, aws_credentials, cache = helper_instance(mocks, True)
         result = tested.instruction_definitions()
         expected = [
             {'information': 'Description2', 'instruction': 'Second'},
@@ -233,7 +233,7 @@ def test_instruction_constraints():
         mocks[2].return_value.instruction_constraints.side_effect = ["Constraints3"]
         mocks[3].return_value.instruction_constraints.side_effect = ["Constraints4"]
 
-        tested, settings, aws_credentials, cache = helper_instance(mocks)
+        tested, settings, aws_credentials, cache = helper_instance(mocks, True)
         result = tested.instruction_constraints([instructions[i] for i in list_idx])
         assert result == expected
         for idx, mock in enumerate(mocks):
@@ -307,7 +307,7 @@ def test_command_structures():
         mocks[2].return_value.command_parameters.side_effect = ["Parameters3"]
         mocks[3].return_value.command_parameters.side_effect = ["Parameters4"]
 
-        tested, settings, aws_credentials, cache = helper_instance(mocks)
+        tested, settings, aws_credentials, cache = helper_instance(mocks, True)
         result = tested.command_structures()
         expected = {
             'Fourth': 'Parameters4',
@@ -358,7 +358,7 @@ def test_combine_and_speaker_detection(audio2texter, memory_log):
         "",
         "Your task is to:",
         "1. label each voice if multiple voices are present.",
-        "2. transcribe each speaker's words with maximum accuracy",
+        "2. transcribe each speaker's words with maximum accuracy.",
         "",
         "Present your findings in a JSON format within a Markdown code block:",
         "```json",
@@ -431,7 +431,7 @@ def test_combine_and_speaker_detection(audio2texter, memory_log):
     ]
     audio_chunks = [b"chunk1", b"chunk2"]
 
-    tested, settings, aws_credentials, cache = helper_instance([])
+    tested, settings, aws_credentials, cache = helper_instance([], True)
     # no error
     # -- all JSON
     audio2texter.return_value.chat.side_effect = [JsonExtract(error="theError", has_error=False, content=[discussion, speakers])]
@@ -526,33 +526,61 @@ def test_detect_instructions(
         mocks[2].return_value.instruction_description.side_effect = ["Description3"]
         mocks[3].return_value.instruction_description.side_effect = ["Description4"]
 
-    system_prompts = [
-        "The conversation is in the context of a clinical encounter between patient and licensed healthcare provider.",
-        "The user will submit the transcript of the visit of a patient with the healthcare provider.",
-        "The user needs to extract and store the relevant information in their software using structured commands as described below.",
-        "Your task is to help the user by identifying the relevant instructions and their linked information, regardless of their location in the transcript.",
-        "If any portion of the transcript is small talk, chit chat, or side bar with no discernible connection to health concerns, then it should be ignored."
-        "",
-        "The instructions are limited to the following:",
-        '```json',
-        '"theInstructionDefinition"',
-        '```',
-        '',
-        'Your response must be a JSON Markdown block with a list of objects: ',
-        '{'
-        '"uuid": "a unique identifier in this discussion", '
-        '"instruction": "the instruction", '
-        '"information": "the information associated with the instruction, grounded in the transcript with no embellishment or omission", '
-        '"isNew": "the instruction is new for the discussion, as boolean", '
-        '"isUpdated": "the instruction is an update of one already identified in the discussion, as boolean", '
-        '"audits": "the reasoning behind identifying this instruction, including relevant excerpts from supporting discussions, as a list"'
-        '}',
-        '', 'The JSON will be validated with the schema:',
-        '```json',
-        '"theJsonSchema"',
-        '```',
-        '',
-    ]
+    system_prompts = {
+        "noAudit": [
+            "The conversation is in the context of a clinical encounter between patient and licensed healthcare provider.",
+            "The user will submit the transcript of the visit of a patient with the healthcare provider.",
+            "The user needs to extract and store the relevant information in their software using structured commands as described below.",
+            "Your task is to help the user by identifying the relevant instructions and their linked information, regardless of their location in the transcript.",
+            "If any portion of the transcript is small talk, chit chat, or side bar with no discernible connection to health concerns, then it should be ignored."
+            "",
+            "The instructions are limited to the following:",
+            '```json',
+            '"theInstructionDefinition"',
+            '```',
+            '',
+            'Your response must be a JSON Markdown block with a list of objects: ',
+            '{'
+            '"uuid": "a unique identifier in this discussion", '
+            '"instruction": "the instruction", '
+            '"information": "the information associated with the instruction, grounded in the transcript with no embellishment or omission", '
+            '"isNew": "the instruction is new for the discussion, as boolean", '
+            '"isUpdated": "the instruction is an update of one already identified in the discussion, as boolean"'
+            '}',
+            '', 'The JSON will be validated with the schema:',
+            '```json',
+            '"theJsonSchema"',
+            '```',
+            '',
+        ],
+        "withAudit": [
+            "The conversation is in the context of a clinical encounter between patient and licensed healthcare provider.",
+            "The user will submit the transcript of the visit of a patient with the healthcare provider.",
+            "The user needs to extract and store the relevant information in their software using structured commands as described below.",
+            "Your task is to help the user by identifying the relevant instructions and their linked information, regardless of their location in the transcript.",
+            "If any portion of the transcript is small talk, chit chat, or side bar with no discernible connection to health concerns, then it should be ignored."
+            "",
+            "The instructions are limited to the following:",
+            '```json',
+            '"theInstructionDefinition"',
+            '```',
+            '',
+            'Your response must be a JSON Markdown block with a list of objects: ',
+            '{'
+            '"uuid": "a unique identifier in this discussion", '
+            '"instruction": "the instruction", '
+            '"information": "the information associated with the instruction, grounded in the transcript with no embellishment or omission", '
+            '"isNew": "the instruction is new for the discussion, as boolean", '
+            '"isUpdated": "the instruction is an update of one already identified in the discussion, as boolean", '
+            '"audits": "the reasoning behind identifying this instruction, including relevant excerpts from supporting discussions, as a list"'
+            '}',
+            '', 'The JSON will be validated with the schema:',
+            '```json',
+            '"theJsonSchema"',
+            '```',
+            '',
+        ]
+    }
     user_prompts = {
         "noKnownInstructions": [
             "Below is the most recent segment of the transcript of the visit of a patient with a healthcare provider.",
@@ -635,8 +663,43 @@ def test_detect_instructions(
     ]
     reset_mocks()
 
-    # allow updates
-    tested, settings, aws_credentials, cache = helper_instance(mocks)
+    # no audit
+    tested, settings, aws_credentials, cache = helper_instance(mocks, False)
+    instruction_definitions.side_effect = ["theInstructionDefinition"]
+    json_schema.side_effect = ["theJsonSchema"]
+    instruction_constraints.side_effect = [["theConstraint1", "theConstraint2"]]
+    chatter.return_value.single_conversation.side_effect = [[{"information": "response1"}], [{"information": "response2"}]]
+    memory_log.side_effect = ["MemoryLogInstance"]
+    result = tested.detect_instructions(discussion, [])
+    expected = [{"information": "response2"}]
+    assert result == expected
+    calls = [call()]
+    assert instruction_definitions.mock_calls == calls
+    calls = [call(False, ['First', 'Second', 'Fourth'])]
+    assert json_schema.mock_calls == calls
+    calls = [call([Instruction(uuid='', instruction='', information='response1', is_new=True, is_updated=False, audits=[])])]
+    assert instruction_constraints.mock_calls == calls
+    calls = [
+        call(settings, "MemoryLogInstance"),
+        call().single_conversation(system_prompts["noAudit"], user_prompts["noKnownInstructions"], ['theJsonSchema'], None),
+        call().single_conversation(system_prompts["noAudit"], user_prompts["constraints"], ['theJsonSchema'], None),
+    ]
+    assert chatter.mock_calls == calls
+    calls = [call(tested.identification, "transcript2instructions", aws_credentials)]
+    assert memory_log.mock_calls == calls
+    for idx, mock in enumerate(mocks):
+        calls = [
+            call(settings, cache, tested.identification),
+            call().__bool__(),
+            call().is_available(),
+        ]
+        if idx != 2:
+            calls.extend([call().class_name()])
+        assert mock.mock_calls == calls, f"---> {idx}"
+    reset_mocks()
+
+    # with audit
+    tested, settings, aws_credentials, cache = helper_instance(mocks, True)
     # -- no known instruction
     instruction_definitions.side_effect = ["theInstructionDefinition"]
     json_schema.side_effect = ["theJsonSchema"]
@@ -648,14 +711,14 @@ def test_detect_instructions(
     assert result == expected
     calls = [call()]
     assert instruction_definitions.mock_calls == calls
-    calls = [call(['First', 'Second', 'Fourth'])]
+    calls = [call(True, ['First', 'Second', 'Fourth'])]
     assert json_schema.mock_calls == calls
     calls = [call([Instruction(uuid='', instruction='', information='response1', is_new=True, is_updated=False, audits=[])])]
     assert instruction_constraints.mock_calls == calls
     calls = [
         call(settings, "MemoryLogInstance"),
-        call().single_conversation(system_prompts, user_prompts["noKnownInstructions"], ['theJsonSchema'], None),
-        call().single_conversation(system_prompts, user_prompts["constraints"], ['theJsonSchema'], None),
+        call().single_conversation(system_prompts["withAudit"], user_prompts["noKnownInstructions"], ['theJsonSchema'], None),
+        call().single_conversation(system_prompts["withAudit"], user_prompts["constraints"], ['theJsonSchema'], None),
     ]
     assert chatter.mock_calls == calls
     calls = [call(tested.identification, "transcript2instructions", aws_credentials)]
@@ -681,13 +744,13 @@ def test_detect_instructions(
     assert result == expected
     calls = [call()]
     assert instruction_definitions.mock_calls == calls
-    calls = [call(['First', 'Second', 'Fourth'])]
+    calls = [call(True, ['First', 'Second', 'Fourth'])]
     assert json_schema.mock_calls == calls
     calls = [call([Instruction(uuid='', instruction='', information='response1', is_new=True, is_updated=False, audits=[])])]
     assert instruction_constraints.mock_calls == calls
     calls = [
         call(settings, "MemoryLogInstance"),
-        call().single_conversation(system_prompts, user_prompts["noKnownInstructions"], ['theJsonSchema'], None),
+        call().single_conversation(system_prompts["withAudit"], user_prompts["noKnownInstructions"], ['theJsonSchema'], None),
     ]
     assert chatter.mock_calls == calls
     calls = [call(tested.identification, "transcript2instructions", aws_credentials)]
@@ -710,14 +773,14 @@ def test_detect_instructions(
     assert result == expected
     calls = [call()]
     assert instruction_definitions.mock_calls == calls
-    calls = [call(['First', 'Second', 'Fourth'])]
+    calls = [call(True, ['First', 'Second', 'Fourth'])]
     assert json_schema.mock_calls == calls
     calls = [call([Instruction(uuid='', instruction='', information='response1', is_new=True, is_updated=False, audits=[])])]
     assert instruction_constraints.mock_calls == calls
     calls = [
         call(settings, "MemoryLogInstance"),
-        call().single_conversation(system_prompts, user_prompts["withKnownInstructions"], ['theJsonSchema'], None),
-        call().single_conversation(system_prompts, user_prompts["constraints"], ['theJsonSchema'], None),
+        call().single_conversation(system_prompts["withAudit"], user_prompts["withKnownInstructions"], ['theJsonSchema'], None),
+        call().single_conversation(system_prompts["withAudit"], user_prompts["constraints"], ['theJsonSchema'], None),
     ]
     assert chatter.mock_calls == calls
     calls = [call(tested.identification, "transcript2instructions", aws_credentials)]
@@ -796,7 +859,7 @@ def test_create_sdk_command_parameters(chatter, memory_log, mock_datetime):
     ]
     reset_mocks()
 
-    tested, settings, aws_credentials, cache = helper_instance(mocks)
+    tested, settings, aws_credentials, cache = helper_instance(mocks, True)
     # with response
     mock_datetime.now.side_effect = [datetime(2025, 2, 4, 7, 48, 21, tzinfo=timezone.utc)]
     chatter.return_value.single_conversation.side_effect = [[{"key": "response1"}, {"key": "response2"}]]
@@ -906,7 +969,7 @@ def test_create_sdk_command_from(chatter, memory_log):
             audits=["line1", "line2"],
             parameters={"theKey": "theValue"},
         )
-        tested, settings, aws_credentials, cache = helper_instance(mocks)
+        tested, settings, aws_credentials, cache = helper_instance(mocks, True)
         result = tested.create_sdk_command_from(instruction)
         assert result == expected
 
@@ -995,7 +1058,7 @@ def test_update_questionnaire(chatter, memory_log):
             is_updated=True,
             audits=["line1", "line2"],
         )
-        tested, settings, aws_credentials, cache = helper_instance(command_mocks)
+        tested, settings, aws_credentials, cache = helper_instance(command_mocks, True)
         result = tested.update_questionnaire(discussion, instruction)
         if exp_information is not None:
             expected = InstructionWithCommand(
@@ -1036,46 +1099,79 @@ def test_update_questionnaire(chatter, memory_log):
 def test_json_schema():
     tested = AudioInterpreter
 
-    result = tested.json_schema(["Command1", "Command2"])
-    expected = {
-        '$schema': 'http://json-schema.org/draft-07/schema#',
-        'items': {
-            'additionalProperties': False,
-            'properties': {
-                'information': {
-                    'description': 'all relevant information extracted from the discussion explaining and/or defining the instruction',
-                    'type': 'string',
-                },
-                'instruction': {
-                    'enum': ['Command1', 'Command2'],
-                    'type': 'string',
-                },
-                'isNew': {
-                    'description': 'the instruction is new to the discussion',
-                    'type': 'boolean',
-                },
-                'isUpdated': {
-                    'description': 'the instruction is an update of an instruction previously identified in the discussion',
-                    'type': 'boolean',
-                },
-                'uuid': {
-                    'description': 'a unique identifier in this discussion',
-                    'type': 'string',
-                },
-                'audits': {
-                    'description': 'breakdown of the decision-making process used to detect this '
-                                   'instruction, incorporating direct quotes from key exchanges '
-                                   'where necessary',
-                    'items': {
+    tests = [
+        (True, {
+            '$schema': 'http://json-schema.org/draft-07/schema#',
+            'items': {
+                'additionalProperties': False,
+                'properties': {
+                    'information': {
+                        'description': 'all relevant information extracted from the discussion explaining and/or defining the instruction',
                         'type': 'string',
                     },
-                    'type': 'array',
+                    'instruction': {
+                        'enum': ['Command1', 'Command2'],
+                        'type': 'string',
+                    },
+                    'isNew': {
+                        'description': 'the instruction is new to the discussion',
+                        'type': 'boolean',
+                    },
+                    'isUpdated': {
+                        'description': 'the instruction is an update of an instruction previously identified in the discussion',
+                        'type': 'boolean',
+                    },
+                    'uuid': {
+                        'description': 'a unique identifier in this discussion',
+                        'type': 'string',
+                    },
+                    'audits': {
+                        'description': 'breakdown of the decision-making process used to detect this '
+                                       'instruction, incorporating direct quotes from key exchanges '
+                                       'where necessary',
+                        'items': {
+                            'type': 'string',
+                        },
+                        'type': 'array',
+                    },
                 },
+                'required': ['uuid', 'instruction', 'information', 'isNew', 'isUpdated', 'audits'],
+                'type': 'object',
             },
-            'required': ['uuid', 'instruction', 'information', 'isNew', 'isUpdated', 'audits'],
-            'type': 'object',
-        },
-        'type': 'array',
-    }
-
-    assert result == expected
+            'type': 'array',
+        }),
+        (False, {
+            '$schema': 'http://json-schema.org/draft-07/schema#',
+            'items': {
+                'additionalProperties': False,
+                'properties': {
+                    'information': {
+                        'description': 'all relevant information extracted from the discussion explaining and/or defining the instruction',
+                        'type': 'string',
+                    },
+                    'instruction': {
+                        'enum': ['Command1', 'Command2'],
+                        'type': 'string',
+                    },
+                    'isNew': {
+                        'description': 'the instruction is new to the discussion',
+                        'type': 'boolean',
+                    },
+                    'isUpdated': {
+                        'description': 'the instruction is an update of an instruction previously identified in the discussion',
+                        'type': 'boolean',
+                    },
+                    'uuid': {
+                        'description': 'a unique identifier in this discussion',
+                        'type': 'string',
+                    },
+                },
+                'required': ['uuid', 'instruction', 'information', 'isNew', 'isUpdated'],
+                'type': 'object',
+            },
+            'type': 'array',
+        }),
+    ]
+    for with_audit, expected in tests:
+        result = tested.json_schema(with_audit, ["Command1", "Command2"])
+        assert result == expected

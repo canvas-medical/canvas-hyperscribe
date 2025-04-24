@@ -80,7 +80,7 @@ class AudioInterpreter:
             "",
             'Your task is to:',
             "1. label each voice if multiple voices are present.",
-            "2. transcribe each speaker's words with maximum accuracy",
+            "2. transcribe each speaker's words with maximum accuracy.",
             "",
             "Present your findings in a JSON format within a Markdown code block:",
             "```json",
@@ -144,9 +144,14 @@ class AudioInterpreter:
             "information": "the information associated with the instruction, grounded in the transcript with no embellishment or omission",
             "isNew": "the instruction is new for the discussion, as boolean",
             "isUpdated": "the instruction is an update of one already identified in the discussion, as boolean",
-            "audits": "the reasoning behind identifying this instruction, including relevant excerpts from supporting discussions, as a list",
         }
-        schema = self.json_schema([instance.class_name() for instance in self._command_context])
+        if self.settings.audit_llm:
+            example["audits"] = ("the reasoning behind identifying this instruction, "
+                                 "including relevant excerpts from supporting discussions, as a list")
+        schema = self.json_schema(
+            self.settings.audit_llm,
+            [instance.class_name() for instance in self._command_context]
+        )
         system_prompt = [
             "The conversation is in the context of a clinical encounter between patient and licensed healthcare provider.",
             "The user will submit the transcript of the visit of a patient with the healthcare provider.",
@@ -285,7 +290,7 @@ class AudioInterpreter:
         return None
 
     @classmethod
-    def json_schema(cls, commands: list[str]) -> dict:
+    def json_schema(cls, with_audit: bool, commands: list[str]) -> dict:
         properties = {
             "uuid": {
                 "type": "string",
@@ -307,14 +312,18 @@ class AudioInterpreter:
                 "type": "boolean",
                 "description": "the instruction is an update of an instruction previously identified in the discussion",
             },
-            "audits": {
+        }
+        required = ["uuid", "instruction", "information", "isNew", "isUpdated"]
+        if with_audit:
+            properties["audits"] = {
                 "type": "array",
                 "items": {"type": "string"},
                 "description": "breakdown of the decision-making process used to detect this instruction, "
                                "incorporating direct quotes from key exchanges where necessary",
-            },
-        }
-        required = ["uuid", "instruction", "information", "isNew", "isUpdated", "audits"]
+            }
+            required.append("audits")
+
+
         return {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "type": "array",
