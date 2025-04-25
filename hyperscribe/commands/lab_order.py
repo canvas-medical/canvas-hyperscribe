@@ -21,9 +21,14 @@ class LabOrder(Base):
         fasting = "n/a"
         if "fasting_status" in data:
             fasting = "yes" if data["fasting_status"] is True else "no"
+
+        list_diagnosis = data.get("diagnosis") or []
+        if isinstance(list_diagnosis, str):
+            list_diagnosis = []
+
         diagnosis = "/".join([
             diagnose
-            for item in (data.get("diagnosis") or [])
+            for item in list_diagnosis
             if (diagnose := item.get("text"))
         ]) or "n/a"
         comment = data.get("comment") or "n/a"

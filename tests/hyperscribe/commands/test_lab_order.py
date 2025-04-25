@@ -89,6 +89,11 @@ def test_staged_command_extract():
              "comment": "",
              "diagnosis": [{"text": "diagnose1"}],
          }, CodedItem(label="test1: n/a (fasting: n/a, diagnosis: diagnose1)", code="", uuid="")),
+        ({
+             "tests": [{"text": "test1"}],
+             "comment": "",
+             "diagnosis": "[]",
+         }, CodedItem(label="test1: n/a (fasting: n/a, diagnosis: n/a)", code="", uuid="")),
     ]
     for data, expected in tests:
         result = tested.staged_command_extract(data)
