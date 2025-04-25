@@ -83,7 +83,7 @@ wheels = [
 
 [[package]]
 name = "canvas"
-version = "0.33.0"
+version = "0.33.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cookiecutter" },
@@ -93,6 +93,7 @@ dependencies = [
     { name = "django-stubs", extra = ["compatible-mypy"] },
     { name = "django-timezone-utils" },
     { name = "env-tools" },
+    { name = "frozendict" },
     { name = "grpcio" },
     { name = "ipython" },
     { name = "jsonschema" },
@@ -112,9 +113,9 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "websocket-client" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/64/6d/e1e534758ccf31a7e95579da975900cd1baa78ba34262beb441a4303977f/canvas-0.33.0.tar.gz", hash = "sha256:f6460f3a4ee71d95aa84cedbe03a768c9058c7048e6d2753cee535924db985c9", size = 934271 }
+sdist = { url = "https://files.pythonhosted.org/packages/c8/fd/15d7cfcb84eecc01e271eb3a979f0f0ded3665ad87a9b749934563c1a51e/canvas-0.33.1.tar.gz", hash = "sha256:b81ddfc8cd3f839a0333d8afe16e3171f7a2cd7c3237b2ddd3c763d8b53ab037", size = 865931 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/65/0d/b55e7138306f933fafa76d28b2178bb40238a05a850e57ddb31a4eb1f966/canvas-0.33.0-py3-none-any.whl", hash = "sha256:24188670f3f067305a211800a589fdcc4a6fc40cbf8188a2c433db1a82c4211f", size = 1084901 },
+    { url = "https://files.pythonhosted.org/packages/ce/ad/1d9a2d728e3a934783c60abed328823cc074f3025e7cc074a275091eef07/canvas-0.33.1-py3-none-any.whl", hash = "sha256:6e723a55ffc42e6b2bd38a934ec70174070ace75b1fc43e8e0da1864a9f04405", size = 987220 },
 ]
 
 [[package]]
@@ -450,6 +451,16 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/91/50/a9d80c47ff289c611ff12e63f7c5d13942c65d68125160cefd768c73e6e4/executing-2.2.0.tar.gz", hash = "sha256:5d108c028108fe2551d1a7b2e8b713341e2cb4fc0aa7dcf966fa4327a5226755", size = 978693 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/7b/8f/c4d9bafc34ad7ad5d8dc16dd1347ee0e507a52c3adb6bfa8887e1c6a26ba/executing-2.2.0-py2.py3-none-any.whl", hash = "sha256:11387150cad388d62750327a53d3339fad4888b39a6fe233c3afbb54ecffd3aa", size = 26702 },
+]
+
+[[package]]
+name = "frozendict"
+version = "2.4.6"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/bb/59/19eb300ba28e7547538bdf603f1c6c34793240a90e1a7b61b65d8517e35e/frozendict-2.4.6.tar.gz", hash = "sha256:df7cd16470fbd26fc4969a208efadc46319334eb97def1ddf48919b351192b8e", size = 316416 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/04/13/d9839089b900fa7b479cce495d62110cddc4bd5630a04d8469916c0e79c5/frozendict-2.4.6-py311-none-any.whl", hash = "sha256:d065db6a44db2e2375c23eac816f1a022feb2fa98cbb50df44a9e83700accbea", size = 16148 },
+    { url = "https://files.pythonhosted.org/packages/ba/d0/d482c39cee2ab2978a892558cf130681d4574ea208e162da8958b31e9250/frozendict-2.4.6-py312-none-any.whl", hash = "sha256:49344abe90fb75f0f9fdefe6d4ef6d4894e640fadab71f11009d52ad97f370b9", size = 16146 },
 ]
 
 [[package]]
