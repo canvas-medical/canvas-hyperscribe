@@ -168,9 +168,9 @@ class CanvasScience:
             if host:
                 request = requests_get(f"{host}{url}", headers=headers, params=params, verify=True)
             elif is_ontologies:
-                request = ontologies_http.get_json(url, headers)
+                return ontologies_http.get_json(url, headers)
             else:
-                request = science_http.get_json(url, headers)
+                return science_http.get_json(url, headers)
 
             if request.status_code == HTTPStatus.OK.value:
                 return request.json().get("results", [])
