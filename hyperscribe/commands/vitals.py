@@ -69,10 +69,11 @@ class Vitals(Base):
 
     def command_parameters(self) -> dict:
         return {
+            "important": "all values are integers or null",
             "height": {"inches": 0},
             "weight": {"pounds": 0},
             "waistCircumference": {"centimeters": 0},
-            "temperature": {"fahrenheit": 0.0},
+            "temperature": {"fahrenheit": 0},
             "bloodPressure": {"systolicPressure": 0, "diastolicPressure": 0},
             "pulseRate": {"beatPerMinute": 0},
             "respirationRate": {"beatPerMinute": 0},

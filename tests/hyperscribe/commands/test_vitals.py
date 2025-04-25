@@ -187,10 +187,11 @@ def test_command_parameters():
     tested = helper_instance()
     result = tested.command_parameters()
     expected = {
+        "important": "all values are integers or null",
         "height": {"inches": 0},
         "weight": {"pounds": 0},
         "waistCircumference": {"centimeters": 0},
-        "temperature": {"fahrenheit": 0.0},
+        "temperature": {"fahrenheit": 0},
         "bloodPressure": {"systolicPressure": 0, "diastolicPressure": 0},
         "pulseRate": {"beatPerMinute": 0},
         "respirationRate": {"beatPerMinute": 0},

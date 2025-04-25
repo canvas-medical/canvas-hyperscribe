@@ -32,16 +32,18 @@ class BaseQuestionnaire(Base):
         for question in questionnaire.get("questions", []):
             question_type = QuestionType(question["type"])
 
-            comment = {}
+            default = {}
             if question_type == QuestionType.TYPE_CHECKBOX:
-                comment = {"comment": ""}
+                default = {"comment": ""}
+            elif question_type == QuestionType.TYPE_TEXT:
+                default = {"value": ""}
 
             options = {
                 str(o["pk"]): {
                                   "dbid": o["pk"],
                                   "value": o["label"],
                                   "selected": False,
-                              } | comment
+                              } | default
                 for o in question["options"]
             }
 

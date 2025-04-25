@@ -191,7 +191,7 @@ def test_staged_command_extract():
                      "label": "theQuestion6",
                      "type": "TXT",
                      "skipped": None,
-                     "responses": [{"dbid": 201, "value": "option12", "selected": False, "comment": None}],
+                     "responses": [{"dbid": 201, "value": "", "selected": False, "comment": None}],
                  },
              ],
          }),
