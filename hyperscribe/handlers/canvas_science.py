@@ -4,7 +4,7 @@ from urllib.parse import urlencode
 
 from canvas_sdk.commands.commands.allergy import AllergenType
 from canvas_sdk.commands.constants import ServiceProvider
-from canvas_sdk.utils.http import ScienceHttp, OntologiesHttp
+from canvas_sdk.utils.http import science_http, ontologies_http
 from logger import log
 from requests import get as requests_get
 
@@ -168,9 +168,9 @@ class CanvasScience:
             if host:
                 request = requests_get(f"{host}{url}", headers=headers, params=params, verify=True)
             elif is_ontologies:
-                request = OntologiesHttp().get(url, headers)
+                request = ontologies_http.get_json(url, headers)
             else:
-                request = ScienceHttp().get(url, headers)
+                request = science_http.get_json(url, headers)
 
             if request.status_code == HTTPStatus.OK.value:
                 return request.json().get("results", [])
