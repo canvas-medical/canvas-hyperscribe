@@ -1,4 +1,5 @@
 import uuid
+from pathlib import Path
 from re import search
 from subprocess import check_output
 
@@ -84,19 +85,31 @@ def pytest_addoption(parser):
     )
 
 
-def pytest_configure(config):
-    config.unique_session_id = str(uuid.uuid4())
-
-    settings = HelperEvaluation().settings()
-    parameters = {
-        "evaluation-difference-levels": config.getoption(Constants.OPTION_DIFFERENCE_LEVELS),
-        "patient-uuid": config.getoption(Constants.OPTION_PATIENT_UUID) or "defined at the case level",
-        "llm-audio": settings.llm_audio.vendor,
-        "llm-text": settings.llm_text.vendor,
-        "structured-RfV": settings.structured_rfv,
+def pytest_collection_modifyitems(session, config, items):
+    list_evaluation_tests = {
+        'test_transcript2instructions.py',
+        'test_instruction2parameters.py',
+        'test_parameters2command.py',
+        'test_audio2transcript.py',
+        'test_staged_questionnaires.py',
     }
-    for key, value in parameters.items():
-        print(f"{key}: {value}")
+    test_files = {
+        filename
+        for item in items
+        if (filename := Path(item.location[0]).name) and filename in list_evaluation_tests
+    }
+    if test_files:
+        config.unique_session_id = str(uuid.uuid4())
+        settings = HelperEvaluation().settings()
+        parameters = {
+            "evaluation-difference-levels": config.getoption(Constants.OPTION_DIFFERENCE_LEVELS),
+            "patient-uuid": config.getoption(Constants.OPTION_PATIENT_UUID) or "defined at the case level",
+            "llm-audio": settings.llm_audio.vendor,
+            "llm-text": settings.llm_text.vendor,
+            "structured-RfV": settings.structured_rfv,
+        }
+        for key, value in parameters.items():
+            print(f"{key}: {value}")
 
 
 def pytest_unconfigure(config):
