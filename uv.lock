@@ -234,7 +234,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "canvas", specifier = ">=0.22.0" },
+    { name = "canvas", specifier = ">=0.33.1" },
     { name = "pytest", specifier = ">=8.3.4,<9.0.0" },
 ]
 
