@@ -11,8 +11,10 @@ def pytest_generate_tests(metafunc):
         # in each JSON file, there should be:
         # - a set of instructions
         # - a set of parameters
-        json_dir = Path(__file__).parent / 'instruction2parameters'
-        metafunc.parametrize('instruction2parameters', json_dir.glob('*.json'), ids=lambda path: path.stem)
+        files = list((Path(__file__).parent / 'instruction2parameters').glob('*.json'))
+        if not files:
+            return
+        metafunc.parametrize('instruction2parameters', files, ids=lambda path: path.stem)
 
 
 def test_instruction2parameters(instruction2parameters, allowed_levels, audio_interpreter, capsys, request):

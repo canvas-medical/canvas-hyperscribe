@@ -1,17 +1,20 @@
 from __future__ import annotations
 
+import json
 from datetime import datetime, UTC
 
 from logger import log
 
 from hyperscribe.handlers.aws_s3 import AwsS3
 from hyperscribe.handlers.cached_discussion import CachedDiscussion
+from hyperscribe.handlers.constants import Constants
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 
 
 class MemoryLog:
-    ENTRIES: dict[str, dict[str, list[str]]] = {}
+    ENTRIES: dict[str, dict[str, list[str]]] = {}  # store the logs sent to AWS S3
+    PROGRESS: dict[str, list[dict]] = {}  # store the messages sent to the UI
 
     @classmethod
     def begin_session(cls, note_uuid: str) -> None:
@@ -45,12 +48,55 @@ class MemoryLog:
         if label not in self.ENTRIES[self.identification.note_uuid]:
             self.ENTRIES[self.identification.note_uuid][self.label] = []
 
+        if (
+                self.identification.note_uuid not in self.PROGRESS or
+                [
+                    message
+                    for message in self.PROGRESS[self.identification.note_uuid]
+                    if Constants.INFORMANT_END_OF_MESSAGES == message["message"]
+                ]
+        ):
+            self.PROGRESS[self.identification.note_uuid] = []
+
     def log(self, message: str) -> None:
         self.ENTRIES[self.identification.note_uuid][self.label].append(f"{datetime.now(UTC).isoformat()}: {message}")
 
     def output(self, message: str) -> None:
         self.log(message)
         log.info(message)
+
+    def send_to_user(self, message: str):
+        now = datetime.now(UTC).isoformat()
+        self.PROGRESS[self.identification.note_uuid].insert(0, {
+            "time": now,
+            "message": message,
+        })
+        aws_s3 = AwsS3Credentials(
+            aws_key=self.aws_s3.aws_key,
+            aws_secret=self.aws_s3.aws_secret,
+            region=self.aws_s3.region,
+            bucket=Constants.INFORMANT_AWS_BUCKET,
+        )
+        client_s3 = AwsS3(aws_s3)
+        if client_s3.is_ready():
+            log_path = (f"{self.identification.canvas_instance}/"
+                        f"progresses/"
+                        f"{self.identification.patient_uuid}.log")
+            client_s3.upload_text_to_s3(log_path, json.dumps({
+                "time": now,
+                "messages": self.PROGRESS[self.identification.note_uuid],
+            }))
+
+    # def send_to_user(self, message: str) -> None:
+    #     from requests import post as requests_post
+    #     requests_post(
+    #         f"http://home-app-web:8000/plugin-io/api/hyperscribe_informant/progress?patient_id={self.identification.patient_uuid}",
+    #         headers={"Content-Type": "application/json"},
+    #         params={},
+    #         json={"time": datetime.now(UTC).isoformat(), "text": message},
+    #         # verify=True,
+    #         timeout=None,
+    #     )
 
     def logs(self) -> str:
         return "\n".join(self.ENTRIES[self.identification.note_uuid][self.label])

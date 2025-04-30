@@ -38,7 +38,7 @@ def test_audio2transcript(audio2transcript_files, allowed_levels, audio_interpre
             content.append(f.read())
 
     case = mp3_files[0].stem
-    transcript = audio_interpreter.combine_and_speaker_detection(content)
+    transcript = audio_interpreter.combine_and_speaker_detection(content, "")
     assert transcript.has_error is False, f"{case}: transcript failed"
 
     with json_file.open('r') as f:

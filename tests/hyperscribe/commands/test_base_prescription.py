@@ -192,8 +192,9 @@ def test_medications_from(demographic, current_allergies, staged_commands_of, me
     expected = [MedicationDetail(fdb_code="code369", description="labelB", quantities=[])]
     assert result == expected
 
-    calls = [call()]
+    calls = [call(False)]
     assert demographic.mock_calls == calls
+    calls = [call()]
     assert current_allergies.mock_calls == calls
     calls = [call(["allergy"])]
     assert staged_commands_of.mock_calls == calls
@@ -219,8 +220,9 @@ def test_medications_from(demographic, current_allergies, staged_commands_of, me
     expected = [MedicationDetail(fdb_code="code369", description="labelB", quantities=[])]
     assert result == expected
 
-    calls = [call()]
+    calls = [call(False)]
     assert demographic.mock_calls == calls
+    calls = [call()]
     assert current_allergies.mock_calls == calls
     calls = [call(["allergy"])]
     assert staged_commands_of.mock_calls == calls
@@ -246,8 +248,9 @@ def test_medications_from(demographic, current_allergies, staged_commands_of, me
     expected = [MedicationDetail(fdb_code="code369", description="labelB", quantities=[])]
     assert result == expected
 
-    calls = [call()]
+    calls = [call(False)]
     assert demographic.mock_calls == calls
+    calls = [call()]
     assert current_allergies.mock_calls == calls
     calls = [call(["allergy"])]
     assert staged_commands_of.mock_calls == calls
@@ -272,8 +275,9 @@ def test_medications_from(demographic, current_allergies, staged_commands_of, me
     result = tested.medications_from(instruction, chatter, search)
     assert result == []
 
-    calls = [call()]
+    calls = [call(False)]
     assert demographic.mock_calls == calls
+    calls = [call()]
     assert current_allergies.mock_calls == calls
     calls = [call(["allergy"])]
     assert staged_commands_of.mock_calls == calls
@@ -437,7 +441,7 @@ def test_set_medication_dosage(demographic):
         tested.set_medication_dosage(instruction, chatter, "theComment", command, medication)
         assert command == expected
 
-        calls = [call()]
+        calls = [call(False)]
         assert demographic.mock_calls == calls
         calls = [call.single_conversation(system_prompt, user_prompt, schemas, instruction)]
         assert chatter.mock_calls == calls
@@ -458,7 +462,7 @@ def test_set_medication_dosage(demographic):
     )
     assert command == expected
 
-    calls = [call()]
+    calls = [call(False)]
     assert demographic.mock_calls == calls
     calls = [call.single_conversation(system_prompt, user_prompt, schemas, instruction)]
     assert chatter.mock_calls == calls

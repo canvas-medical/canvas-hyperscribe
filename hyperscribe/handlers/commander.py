@@ -72,11 +72,13 @@ class Commander(BaseProtocol):
             provider_uuid=note.provider.id,
             canvas_instance=self.environment[Constants.CUSTOMER_IDENTIFIER],
         )
-        memory_log = MemoryLog(identification, self.MEMORY_LOG_LABEL)
+        aws_s3 = AwsS3Credentials.from_dictionary(self.secrets)
+        memory_log = MemoryLog.instance(identification, self.MEMORY_LOG_LABEL, aws_s3)
         memory_log.output(f"Text: {self.secrets[Constants.SECRET_TEXT_VENDOR]} - Audio: {self.secrets[Constants.SECRET_AUDIO_VENDOR]}")
         had_audio, effects = self.compute_audio(identification, chunk_index)
         if had_audio:
             log.info(f"audio was present => go to next iteration ({chunk_index + 1})")
+            memory_log.send_to_user(f"waiting for the next step {chunk_index + 1}...")
             effects.append(AddTaskComment(
                 task_id=str(comment.task.id),
                 body=json.dumps({
@@ -87,6 +89,8 @@ class Commander(BaseProtocol):
             ).apply())
         else:
             log.info("audio was NOT present => stop the task")
+            memory_log.send_to_user("transcribe ended")
+            memory_log.send_to_user(Constants.INFORMANT_END_OF_MESSAGES)
             effects.append(UpdateTask(
                 id=str(comment.task.id),
                 status=TaskStatus.COMPLETED,
@@ -111,9 +115,12 @@ class Commander(BaseProtocol):
         return result
 
     def compute_audio(self, identification: IdentificationParameters, chunk_index: int) -> tuple[bool, list[Effect]]:
-        memory_log = MemoryLog(identification, self.MEMORY_LOG_LABEL)
+        settings = Settings.from_dictionary(self.secrets)
+        aws_s3 = AwsS3Credentials.from_dictionary(self.secrets)
+
+        memory_log = MemoryLog.instance(identification, self.MEMORY_LOG_LABEL, aws_s3)
         CachedDiscussion.clear_cache()
-        # retrieve the last two audio chunks
+        # retrieve the last audio chunks
         audios = self.retrieve_audios(
             self.secrets[Constants.SECRET_AUDIO_HOST],
             identification.patient_uuid,
@@ -124,12 +131,10 @@ class Commander(BaseProtocol):
         if not audios:
             return False, []
 
+        memory_log.send_to_user(f"starting the step {chunk_index}...")
         discussion = CachedDiscussion.get_discussion(identification.note_uuid)
         discussion.add_one()
         # request the transcript of the audio (provider + patient...)
-        settings = Settings.from_dictionary(self.secrets)
-        aws_s3 = AwsS3Credentials.from_dictionary(self.secrets)
-
         current_commands = Command.objects.filter(
             patient__id=identification.patient_uuid,
             note__id=identification.note_uuid,
@@ -183,7 +188,7 @@ class Commander(BaseProtocol):
             previous_instructions: list[Instruction],
             previous_transcript: str,
     ) -> tuple[list[Instruction], list[Effect], str]:
-        memory_log = MemoryLog(chatter.identification, cls.MEMORY_LOG_LABEL)
+        memory_log = MemoryLog.instance(chatter.identification, cls.MEMORY_LOG_LABEL, chatter.aws_s3)
         response = chatter.combine_and_speaker_detection(audios, previous_transcript)
         if response.has_error is True:
             memory_log.output(f"--> transcript encountered: {response.error}")
@@ -192,6 +197,7 @@ class Commander(BaseProtocol):
         transcript = Line.load_from_json(response.content)
         auditor.identified_transcript(audios, transcript)
         memory_log.output(f"--> transcript back and forth: {len(transcript)}")
+        memory_log.send_to_user("audio to text and speakers detection done")
 
         last_words = transcript[-1].text.split()
         if len(last_words) > 30:
@@ -243,7 +249,7 @@ class Commander(BaseProtocol):
             chatter: AudioInterpreter,
             instructions: list[Instruction],
     ) -> tuple[list[Instruction], list[Effect]]:
-        memory_log = MemoryLog(chatter.identification, cls.MEMORY_LOG_LABEL)
+        memory_log = MemoryLog.instance(chatter.identification, cls.MEMORY_LOG_LABEL, chatter.aws_s3)
 
         start = time()
         # detect the instructions based on the transcript and the existing commands
@@ -260,6 +266,8 @@ class Commander(BaseProtocol):
                or past_uuids[instruction.uuid].information != instruction.information
         ]
         memory_log.output(f"--> computed instructions: {len(computed_instructions)}")
+        memory_log.send_to_user(f"instructions detection done ({len(computed_instructions)})")
+
         max_workers = max(1, Constants.MAX_WORKERS)
         with ThreadPoolExecutor(max_workers=max_workers) as builder:
             instructions_with_parameter = [
@@ -267,8 +275,10 @@ class Commander(BaseProtocol):
                 for instruction in builder.map(chatter.create_sdk_command_parameters, computed_instructions)
                 if instruction is not None
             ]
-        auditor.computed_parameters(instructions_with_parameter)
         memory_log.output(f"--> computed commands: {len(instructions_with_parameter)}")
+        memory_log.send_to_user(f"parameters computation done ({len(instructions_with_parameter)})")
+        auditor.computed_parameters(instructions_with_parameter)
+
         instructions_with_command: list[InstructionWithCommand] = []
         with ThreadPoolExecutor(max_workers=max_workers) as builder:
             for instruction in builder.map(chatter.create_sdk_command_from, instructions_with_parameter):
@@ -278,6 +288,7 @@ class Commander(BaseProtocol):
                     instructions_with_command.append(instruction)
 
         memory_log.output(f"DURATION COMMONS: {int((time() - start) * 1000)}")
+        memory_log.send_to_user(f"commands generation done ({len(instructions_with_command)})")
         auditor.computed_commands(instructions_with_command)
 
         if chatter.settings.audit_llm:
@@ -309,7 +320,7 @@ class Commander(BaseProtocol):
         if not instructions:
             return [], []
 
-        memory_log = MemoryLog(chatter.identification, cls.MEMORY_LOG_LABEL)
+        memory_log = MemoryLog.instance(chatter.identification, cls.MEMORY_LOG_LABEL, chatter.aws_s3)
         start = time()
 
         max_workers = max(1, Constants.MAX_WORKERS)
@@ -337,6 +348,7 @@ class Commander(BaseProtocol):
         ]
 
         memory_log.output(f"DURATION QUESTIONNAIRES: {int((time() - start) * 1000)}")
+        memory_log.send_to_user(f"questionnaires update done ({len(instructions_with_command)})")
         auditor.computed_questionnaires(transcript, instructions, instructions_with_command)
 
         if chatter.settings.audit_llm:

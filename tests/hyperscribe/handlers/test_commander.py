@@ -102,9 +102,19 @@ def test_compute(compute_audio, task_comment_db, note_db, info, memory_log):
         provider_uuid='providerUuid',
         canvas_instance='theTestEnv',
     )
+    aws_s3_credentials = AwsS3Credentials(
+        aws_key='theKey',
+        aws_secret='theSecret',
+        region='theRegion',
+        bucket='theBucket',
+    )
     secrets = {
         "VendorTextLLM": "theTextVendor",
         "VendorAudioLLM": "theAudioVendor",
+        "AwsKey": "theKey",
+        "AwsSecret": "theSecret",
+        "AwsRegion": "theRegion",
+        "AwsBucket": "theBucket",
     }
     event = Event(EventRequest(target="taskUuid"))
     environment = {"CUSTOMER_IDENTIFIER": "theTestEnv"}
@@ -176,9 +186,10 @@ def test_compute(compute_audio, task_comment_db, note_db, info, memory_log):
     ]
     assert info.mock_calls == calls
     calls = [
-        call(identification, 'main'),
-        call().output('Text: theTextVendor - Audio: theAudioVendor'),
-        call.end_session('noteUuid'),
+        call.instance(identification, "main", aws_s3_credentials),
+        call.instance().output("Text: theTextVendor - Audio: theAudioVendor"),
+        call.instance().send_to_user("waiting for the next step 2..."),
+        call.end_session("noteUuid"),
     ]
     assert memory_log.mock_calls == calls
     calls = [
@@ -221,9 +232,11 @@ def test_compute(compute_audio, task_comment_db, note_db, info, memory_log):
     ]
     assert info.mock_calls == calls
     calls = [
-        call(identification, 'main'),
-        call().output('Text: theTextVendor - Audio: theAudioVendor'),
-        call.end_session('noteUuid'),
+        call.instance(identification, "main", aws_s3_credentials),
+        call.instance().output("Text: theTextVendor - Audio: theAudioVendor"),
+        call.instance().send_to_user("transcribe ended"),
+        call.instance().send_to_user("EOF"),
+        call.end_session("noteUuid"),
     ]
     assert memory_log.mock_calls == calls
     calls = [
@@ -328,6 +341,12 @@ def test_compute_audio(
         provider_uuid="providerUuid",
         canvas_instance="canvasInstance",
     )
+    aws_s3_credentials = AwsS3Credentials(
+        aws_key='theKey',
+        aws_secret='theSecret',
+        region='theRegion',
+        bucket='theBucket',
+    )
     # no more audio
     retrieve_audios.side_effect = [[]]
     audio2commands.side_effect = []
@@ -346,8 +365,8 @@ def test_compute_audio(
     assert result == expected
 
     calls = [
-        call(identification, 'main'),
-        call().output('--> audio chunks: 0'),
+        call.instance(identification, 'main', aws_s3_credentials),
+        call.instance().output('--> audio chunks: 0'),
     ]
     assert memory_log.mock_calls == calls
     calls = [call('theAudioHost', 'patientUuid', 'noteUuid', 3)]
@@ -432,7 +451,6 @@ def test_compute_audio(
             structured_rfv=True,
             audit_llm=False,
         )
-        exp_aws_s3_credentials = AwsS3Credentials(aws_key='theKey', aws_secret='theSecret', region='theRegion', bucket='theBucket')
         discussion = CachedDiscussion("noteUuid")
         discussion.created = datetime(2025, 3, 10, 23, 59, 7, tzinfo=timezone.utc)
         discussion.updated = datetime(2025, 3, 11, 0, 3, 17, tzinfo=timezone.utc)
@@ -460,27 +478,28 @@ def test_compute_audio(
         assert discussion.previous_transcript == "other last words."
 
         calls = [
-            call(identification, 'main'),
-            call().output('--> audio chunks: 2'),
-            call().output('<===  note: noteUuid ===>'),
-            call().output('Structured RfV: True'),
-            call().output('Audit LLM Decisions: False'),
-            call().output('instructions:'),
-            call().output('- theInstructionA (uuidA, new/updated: False/True): theInformationA'),
-            call().output('- theInstructionB (uuidB, new/updated: True/False): theInformationB'),
-            call().output('- theInstructionC (uuidC, new/updated: True/False): theInformationC'),
-            call().output('<-------->'),
-            call().output('command: LOG'),
-            call().output('Log1'),
-            call().output('command: LOG'),
-            call().output('Log2'),
-            call().output('command: LOG'),
-            call().output('Log3'),
-            call().output('<=== END ===>'),
+            call.instance(identification, "main", aws_s3_credentials),
+            call.instance().output("--> audio chunks: 2"),
+            call.instance().send_to_user("starting the step 3..."),
+            call.instance().output("<===  note: noteUuid ===>"),
+            call.instance().output("Structured RfV: True"),
+            call.instance().output("Audit LLM Decisions: False"),
+            call.instance().output("instructions:"),
+            call.instance().output("- theInstructionA (uuidA, new/updated: False/True): theInformationA"),
+            call.instance().output("- theInstructionB (uuidB, new/updated: True/False): theInformationB"),
+            call.instance().output("- theInstructionC (uuidC, new/updated: True/False): theInformationC"),
+            call.instance().output("<-------->"),
+            call.instance().output("command: LOG"),
+            call.instance().output("Log1"),
+            call.instance().output("command: LOG"),
+            call.instance().output("Log2"),
+            call.instance().output("command: LOG"),
+            call.instance().output("Log3"),
+            call.instance().output("<=== END ===>"),
         ]
         if is_ready:
-            calls.append(call().output('--> log path: canvasInstance/2025-03-10/patientUuid-noteUuid/07.log'))
-            calls.append(call.end_session('noteUuid'))
+            calls.append(call.instance().output("--> log path: canvasInstance/2025-03-10/patientUuid-noteUuid/07.log"))
+            calls.append(call.end_session("noteUuid"))
         assert memory_log.mock_calls == calls
         calls = [call('theAudioHost', 'patientUuid', 'noteUuid', 3)]
         assert retrieve_audios.mock_calls == calls
@@ -508,7 +527,7 @@ def test_compute_audio(
             call.get_discussion('noteUuid'),
         ]
         assert cached_discussion.mock_calls == calls
-        calls = [call(exp_settings, exp_aws_s3_credentials, "LimitedCacheInstance", identification)]
+        calls = [call(exp_settings, aws_s3_credentials, "LimitedCacheInstance", identification)]
         assert audio_interpreter.mock_calls == calls
         calls = [call("patientUuid", "stagedCommands")]
         assert limited_cache.mock_calls == calls
@@ -573,14 +592,16 @@ def test_audio2commands(transcript2commands, memory_log):
             JsonExtract(has_error=False, error="", content=transcript),
         ]
         mock_chatter.identification = identification
+        mock_chatter.aws_s3 = "aws_s3"
 
         result = tested.audio2commands(mock_auditor, audios, mock_chatter, previous, "the last words.")
         expected = ("instructions", "effects", f"{exp_text} textC.")
         assert result == expected
 
         calls = [
-            call(identification, 'main'),
-            call().output('--> transcript back and forth: 3'),
+            call.instance(identification, "main", "aws_s3"),
+            call.instance().output("--> transcript back and forth: 3"),
+            call.instance().send_to_user("audio to text and speakers detection done"),
         ]
         assert memory_log.mock_calls == calls
         calls = [
@@ -633,8 +654,8 @@ def test_audio2commands(transcript2commands, memory_log):
         assert result == expected
 
         calls = [
-            call(identification, 'main'),
-            call().output('--> transcript encountered: theError'),
+            call.instance(identification, "main", "aws_s3"),
+            call.instance().output("--> transcript encountered: theError"),
         ]
         assert memory_log.mock_calls == calls
         assert transcript2commands.mock_calls == []
@@ -990,11 +1011,14 @@ def test_transcript2commands_common(time, memory_log, store_audits):
         exp_instructions_w_parameters = [instructions_with_parameters[i] for i in [0, 2, 3, 4]]
         exp_instructions_w_commands = [instructions_with_commands[i] for i in [0, 1, 3]]
         calls = [
-            call(identification, 'main'),
-            call().output('--> instructions: 6'),
-            call().output('--> computed instructions: 5'),
-            call().output('--> computed commands: 4'),
-            call().output('DURATION COMMONS: 108'),
+            call.instance(identification, 'main', 'awsS3'),
+            call.instance().output('--> instructions: 6'),
+            call.instance().output('--> computed instructions: 5'),
+            call.instance().send_to_user('instructions detection done (5)'),
+            call.instance().output('--> computed commands: 4'),
+            call.instance().send_to_user('parameters computation done (4)'),
+            call.instance().output('DURATION COMMONS: 108'),
+            call.instance().send_to_user('commands generation done (3)'),
         ]
         assert memory_log.mock_calls == calls
         calls = []
@@ -1161,8 +1185,9 @@ def test_transcript2commands_questionnaires(time, memory_log, store_audits):
         result = tested.transcript2commands_questionnaires(auditor, transcript, chatter, instructions)
         assert result == expected
         calls = [
-            call(identification, 'main'),
-            call().output('DURATION QUESTIONNAIRES: 246'),
+            call.instance(identification, 'main', 'awsS3'),
+            call.instance().output('DURATION QUESTIONNAIRES: 246'),
+            call.instance().send_to_user('questionnaires update done (2)'),
         ]
         assert memory_log.mock_calls == calls
         calls = []

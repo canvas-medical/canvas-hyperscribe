@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from unittest.mock import patch, call
 
 from hyperscribe.handlers.cached_discussion import CachedDiscussion
@@ -12,6 +12,7 @@ def test_constants():
     tested = MemoryLog
     constants = {
         "ENTRIES": {},
+        "PROGRESS": {},
     }
     assert is_constant(tested, constants)
 
@@ -93,9 +94,40 @@ def test___init__():
         provider_uuid="providerUuid",
         canvas_instance="canvasInstance",
     )
+
+    # all empty
+    MemoryLog.ENTRIES = {}
+    MemoryLog.PROGRESS = {}
+
     tested = MemoryLog(identification, "theLabel")
     expected = {"noteUuid": {"theLabel": []}}
     assert tested.ENTRIES == expected
+    expected = {"noteUuid": []}
+    assert tested.PROGRESS == expected
+
+    # nothing empty
+    MemoryLog.ENTRIES = {"noteUuid": {"theLabel": []}}
+    # -- progress without EOF
+    MemoryLog.PROGRESS = {"noteUuid": [
+        {"message": "the first", "time": "2025-04-30T18:19:07.343114+00:00"},
+    ]}
+
+    tested = MemoryLog(identification, "theLabel")
+    expected = {"noteUuid": {"theLabel": []}}
+    assert tested.ENTRIES == expected
+    expected = {"noteUuid": [{"message": "the first", "time": "2025-04-30T18:19:07.343114+00:00"}]}
+    assert tested.PROGRESS == expected
+    # -- progress with EOF
+    MemoryLog.PROGRESS = {"noteUuid": [
+        {"message": "EOF", "time": "2025-04-30T18:19:11.123456+00:00"},
+        {"message": "the first", "time": "2025-04-30T18:19:07.123456+00:00"},
+    ]}
+
+    tested = MemoryLog(identification, "theLabel")
+    expected = {"noteUuid": {"theLabel": []}}
+    assert tested.ENTRIES == expected
+    expected = {"noteUuid": []}
+    assert tested.PROGRESS == expected
 
 
 @patch("hyperscribe.handlers.memory_log.datetime", wraps=datetime)
@@ -199,6 +231,89 @@ def test_output(mock_datetime, log):
 
 
 @patch("hyperscribe.handlers.memory_log.datetime", wraps=datetime)
+@patch("hyperscribe.handlers.memory_log.AwsS3")
+def test_send_to_user(aws_s3, mock_datetime):
+    def reset_mocks():
+        aws_s3.reset_mock()
+        mock_datetime.reset_mock()
+
+    dates = [
+        datetime(2025, 4, 30, 14, 11, 21, tzinfo=timezone.utc),
+        datetime(2025, 4, 30, 14, 11, 23, tzinfo=timezone.utc),
+        datetime(2025, 4, 30, 14, 11, 31, tzinfo=timezone.utc),
+    ]
+    identification = IdentificationParameters(
+        patient_uuid="patientUuid",
+        note_uuid="noteUuid",
+        provider_uuid="providerUuid",
+        canvas_instance="canvasInstance",
+    )
+    aws_s3_credentials = AwsS3Credentials(
+        aws_key='theKey',
+        aws_secret='theSecret',
+        region='theRegion',
+        bucket='theBucket',
+    )
+    exp_credentials = AwsS3Credentials(
+        aws_key='theKey',
+        aws_secret='theSecret',
+        region='theRegion',
+        bucket='hyperscribe',
+    )
+
+    tested = MemoryLog(identification, "theLabel")
+    tested.aws_s3 = aws_s3_credentials
+    mock_datetime.now.side_effect = dates
+    # S3 not ready
+    aws_s3.return_value.is_ready.side_effect = [False]
+    tested.send_to_user("theMessage0")
+    calls = [
+        call(exp_credentials),
+        call().is_ready(),
+    ]
+    assert aws_s3.mock_calls == calls
+    calls = [call.now(UTC)]
+    assert mock_datetime.mock_calls == calls
+    reset_mocks()
+    # S3 ready
+    # -- adding a message
+    aws_s3.return_value.is_ready.side_effect = [True]
+    tested.send_to_user("theMessage1")
+    calls = [
+        call(exp_credentials),
+        call().is_ready(),
+        call().upload_text_to_s3(
+            "canvasInstance/progresses/patientUuid.log",
+            '{"time": "2025-04-30T14:11:23+00:00", "messages": ['
+            '{"time": "2025-04-30T14:11:23+00:00", "message": "theMessage1"}, '
+            '{"time": "2025-04-30T14:11:21+00:00", "message": "theMessage0"}]}',
+        ),
+    ]
+    assert aws_s3.mock_calls == calls
+    calls = [call.now(UTC)]
+    assert mock_datetime.mock_calls == calls
+    reset_mocks()
+    # -- adding a message
+    aws_s3.return_value.is_ready.side_effect = [True]
+    tested.send_to_user("theMessage2")
+    calls = [
+        call(exp_credentials),
+        call().is_ready(),
+        call().upload_text_to_s3(
+            "canvasInstance/progresses/patientUuid.log",
+            '{"time": "2025-04-30T14:11:31+00:00", "messages": ['
+            '{"time": "2025-04-30T14:11:31+00:00", "message": "theMessage2"}, '
+            '{"time": "2025-04-30T14:11:23+00:00", "message": "theMessage1"}, '
+            '{"time": "2025-04-30T14:11:21+00:00", "message": "theMessage0"}]}',
+        ),
+    ]
+    assert aws_s3.mock_calls == calls
+    calls = [call.now(UTC)]
+    assert mock_datetime.mock_calls == calls
+    reset_mocks()
+
+
+@patch("hyperscribe.handlers.memory_log.datetime", wraps=datetime)
 def test_logs(mock_datetime):
     def reset_mocks():
         mock_datetime.reset_mock()
@@ -252,13 +367,20 @@ def test_store_so_far(aws_s3, get_discussion):
         provider_uuid="providerUuid",
         canvas_instance="canvasInstance",
     )
+    aws_s3_credentials = AwsS3Credentials(
+        aws_key='theKey',
+        aws_secret='theSecret',
+        region='theRegion',
+        bucket='theBucket',
+    )
     tested = MemoryLog(identification, "theLabel")
+    tested.aws_s3 = aws_s3_credentials
     #
     aws_s3.return_value.is_ready.side_effect = [False]
     get_discussion.side_effect = []
     tested.store_so_far()
     calls = [
-        call(AwsS3Credentials(aws_key='', aws_secret='', region='', bucket='')),
+        call(aws_s3_credentials),
         call().is_ready(),
     ]
     assert aws_s3.mock_calls == calls
@@ -274,7 +396,7 @@ def test_store_so_far(aws_s3, get_discussion):
     get_discussion.side_effect = [cached]
     tested.store_so_far()
     calls = [
-        call(AwsS3Credentials(aws_key='', aws_secret='', region='', bucket='')),
+        call(aws_s3_credentials),
         call().is_ready(),
         call().upload_text_to_s3("canvasInstance/2025-03-11/partials/noteUuid/06/theLabel.log", ""),
     ]

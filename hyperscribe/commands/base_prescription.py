@@ -52,7 +52,7 @@ class BasePrescription(Base):
                 prompt_condition,
                 "",
                 "The choice of the medication has to also take into account that:",
-                f" - {self.cache.demographic__str__()},",
+                f" - {self.cache.demographic__str__(False)},",
                 f" - {prompt_allergy}.",
                 "",
                 "Among the following medications, identify the most appropriate option:",
@@ -110,7 +110,7 @@ class BasePrescription(Base):
             "Based on this information, what are the quantity to dispense and the number of refills in order to "
             f"fulfill the {command.days_supply} supply days?",
             "",
-            f"The exact quantities and refill have to also take into account that {self.cache.demographic__str__()}.",
+            f"The exact quantities and refill have to also take into account that {self.cache.demographic__str__(False)}.",
             "",
             "Please, present your findings in a JSON format within a Markdown code block like:",
             "```json",

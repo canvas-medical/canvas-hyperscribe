@@ -15,8 +15,10 @@ def pytest_generate_tests(metafunc):
         # - a transcript
         # - a set of instructions, and the expected
         # - set of commands
-        json_dir = Path(__file__).parent / 'staged_questionnaires'
-        metafunc.parametrize('staged_questionnaires', json_dir.glob('*.json'), ids=lambda path: path.stem)
+        files = list((Path(__file__).parent / 'staged_questionnaires').glob('*.json'))
+        if not files:
+            return
+        metafunc.parametrize('staged_questionnaires', files, ids=lambda path: path.stem)
 
 
 def test_staged_questionnaires(staged_questionnaires, allowed_levels, audio_interpreter, capsys, request):

@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Hyperscribe Informant Messages</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 2em;
+            font-size: 0.7em;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 80%;
+            margin-top: 1em;
+        }
+
+        th, td {
+            border: 1px solid #333;
+            padding: 8px 12px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f2f2f2;
+        }
+
+        #error {
+            color: red;
+            margin-top: 1em;
+        }
+
+
+    </style>
+</head>
+<body>
+<table>
+    <thead>
+    <tr>
+        <th colspan="2">Progress <span id="duration"></span></th>
+    </tr>
+    </thead>
+    <tbody id="message-table-body">
+    <tr>
+        <td colspan="2">Waiting...</td>
+    </tr>
+    </tbody>
+</table>
+<div id="error"></div>
+<script>
+    let logRefreshId = null;
+    let cellRefreshId = null;
+    let previousMessage = new Date('{{ message_after_date }}');
+    const timeLogRefresh = 1.7;
+    const timeCellRefresh = 2.3;
+
+    function updateTimeCells() {
+        const duration = document.getElementById('duration');
+        if (duration.hasOwnProperty('startingTime')) {
+            const now = new Date();
+            const elapsedSeconds = (now.getTime() - duration.startingTime) / 1000;
+            const minutes = Math.floor(elapsedSeconds / 60);
+            const seconds = Math.floor(elapsedSeconds % 60);
+            duration.textContent = `${minutes}m ${String(seconds).padStart(2, '0')}s`;
+        }
+    }
+
+    async function fetchAndDisplay() {
+        const endOfMessage = "{{ message_end_flag }}";
+        const tbody = document.getElementById('message-table-body');
+        const errorDiv = document.getElementById('error');
+        errorDiv.textContent = '';
+
+        try {
+            const response = await fetch(`{{ aws_s3_path }}`, {cache: 'no-store'});
+            if (!response.ok) {
+                errorDiv.textContent = 'HTTP error ' + response.status;
+            } else {
+                const data = await response.json();
+                const currentMessage = new Date(data.time);
+                if (currentMessage.getTime() > previousMessage.getTime() && Array.isArray(data.messages) && data.messages.length > 0) {
+                    previousMessage = currentMessage;
+
+                    tbody.innerHTML = '';
+                    const currentTime = new Date(data.time);
+                    // compute the oldest time
+                    const times = data.messages.map(message => new Date(message.time));
+                    const startingTime = new Date(Math.min(...times));
+                    // set the duration object
+                    const duration = document.getElementById('duration');
+                    if (duration.hasOwnProperty('startingTime') === false) {
+                        duration.startingTime = startingTime;
+                    }
+
+                    data.messages.forEach(msg => {
+                        // end of the messages
+                        if (msg.message === endOfMessage) {
+                            clearInterval(logRefreshId);
+                            clearInterval(cellRefreshId);
+                            duration.textContent = "";
+                            return;
+                        }
+                        // compute the time from the first message
+                        const messageTime = new Date(msg.time);
+                        const elapsedSeconds = Math.floor((messageTime - startingTime) / 1000);
+                        // create the two columns and fill them
+                        const messageCell = document.createElement('td');
+                        const timeCell = document.createElement('td');
+                        messageCell.textContent = msg.message;
+                        if (elapsedSeconds > 0) {
+                            timeCell.textContent = `${elapsedSeconds}s`;
+                        } else {
+                            timeCell.textContent = startingTime.toLocaleTimeString();
+                        }
+                        // create the row and add it to the table
+                        const row = document.createElement('tr');
+                        row.appendChild(messageCell);
+                        row.appendChild(timeCell);
+                        tbody.appendChild(row);
+                    });
+                }
+            }
+        } catch (err) {
+            errorDiv.textContent = 'Error: ' + err.message;
+        }
+        if (tbody.innerHTML === '') {
+            tbody.innerHTML = '<tr><td colspan="2">...</td></tr>';
+        }
+    }
+
+    // when ready, start retrieving the information
+    document.addEventListener('DOMContentLoaded', function () {
+        logRefreshId = setInterval(fetchAndDisplay, timeLogRefresh * 1000);
+        cellRefreshId = setInterval(updateTimeCells, timeCellRefresh * 1000);
+    });
+</script>
+</body>
+</html>

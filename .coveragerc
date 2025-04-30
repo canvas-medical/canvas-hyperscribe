@@ -3,8 +3,9 @@ branch = True
 omit =
    tests/*
    evaluations/test*
-   debug*.py
    conftest.py
+   debug/*
+   debug*.py
 
 
 [report]

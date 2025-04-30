@@ -66,7 +66,7 @@ class BuilderFromMp3(BuilderBase):
 
     @classmethod
     def _run_combined(cls, recorder: AuditorFile, chatter: AudioInterpreter, audios: list[bytes], previous: list[Instruction]) -> None:
-        Commander.audio2commands(recorder, audios, chatter, previous)
+        Commander.audio2commands(recorder, audios, chatter, previous, "")
 
     @classmethod
     def _run_chunked(cls, parameters: Namespace, chatter: AudioInterpreter, audios: list[bytes], previous: list[Instruction]) -> None:
