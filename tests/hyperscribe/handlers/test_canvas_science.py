@@ -583,8 +583,8 @@ def test_search_contacts(get_attempts):
     reset_mocks()
 
 
-@patch('hyperscribe.handlers.canvas_science.OntologiesHttp')
-@patch('hyperscribe.handlers.canvas_science.ScienceHttp')
+@patch('hyperscribe.handlers.canvas_science.ontologies_http')
+@patch('hyperscribe.handlers.canvas_science.science_http')
 @patch('hyperscribe.handlers.canvas_science.log')
 @patch('hyperscribe.handlers.canvas_science.requests_get')
 def test_get_attempts(requests_get, log, science, ontologies):
