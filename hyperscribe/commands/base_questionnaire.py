@@ -1,8 +1,9 @@
 import json
 from typing import Type
 
-from canvas_sdk.commands.commands.questionnaire import QuestionnaireCommand, TextQuestion, IntegerQuestion, CheckboxQuestion, ResponseOption, \
-    RadioQuestion, BaseQuestion
+from canvas_sdk.commands.commands.questionnaire import QuestionnaireCommand
+from canvas_sdk.commands.commands.questionnaire.question import (TextQuestion, IntegerQuestion, CheckboxQuestion, ResponseOption, RadioQuestion,
+                                                                 BaseQuestion)
 
 from hyperscribe.commands.base import Base
 from hyperscribe.llms.llm_base import LlmBase

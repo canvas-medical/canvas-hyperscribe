@@ -1,6 +1,6 @@
 from enum import Enum
 
-from canvas_sdk.commands.commands.questionnaire import ResponseOption
+from canvas_sdk.commands.commands.questionnaire.question import ResponseOption
 
 
 class QuestionType(Enum):
