@@ -583,8 +583,8 @@ def test_search_contacts(get_attempts):
     reset_mocks()
 
 
-@patch('hyperscribe.handlers.canvas_science.OntologiesHttp')
-@patch('hyperscribe.handlers.canvas_science.ScienceHttp')
+@patch('hyperscribe.handlers.canvas_science.ontologies_http')
+@patch('hyperscribe.handlers.canvas_science.science_http')
 @patch('hyperscribe.handlers.canvas_science.log')
 @patch('hyperscribe.handlers.canvas_science.requests_get')
 def test_get_attempts(requests_get, log, science, ontologies):
@@ -615,8 +615,8 @@ def test_get_attempts(requests_get, log, science, ontologies):
     mock_4.json.return_value = {"results": ["mock list 4"]}
 
     requests_get.side_effect = [mock_1, mock_2, mock_3, mock_4]
-    science.return_value.get.side_effect = []
-    ontologies.return_value.get.side_effect = []
+    science.get_json.side_effect = []
+    ontologies.get_json.side_effect = []
     result = tested.get_attempts("theHost", "thePreSharedKey", "/theUrl", params, False)
     assert result == []
     calls = [
@@ -640,8 +640,8 @@ def test_get_attempts(requests_get, log, science, ontologies):
     mock_2.json.return_value = {"results": ["mock list 2"]}
 
     requests_get.side_effect = [mock_1, mock_2, mock_3, mock_4]
-    science.return_value.get.side_effect = []
-    ontologies.return_value.get.side_effect = []
+    science.get_json.side_effect = []
+    ontologies.get_json.side_effect = []
     result = tested.get_attempts("theHost", "thePreSharedKey", "/theUrl", params, False)
     assert result == ["mock list 2"]
     calls = [
@@ -662,8 +662,8 @@ def test_get_attempts(requests_get, log, science, ontologies):
     mock_2.json.return_value = {"results": ["mock list 2"]}
 
     requests_get.side_effect = []
-    science.return_value.get.side_effect = []
-    ontologies.return_value.get.side_effect = [mock_1, mock_2, mock_3, mock_4]
+    science.get_json.side_effect = []
+    ontologies.get_json.side_effect = [mock_1, mock_2, mock_3, mock_4]
     result = tested.get_attempts("", "thePreSharedKey", "/theUrl", params, True)
     assert result == ["mock list 2"]
     assert requests_get.mock_calls == []
@@ -673,10 +673,8 @@ def test_get_attempts(requests_get, log, science, ontologies):
     assert log.mock_calls == calls
     assert science.mock_calls == []
     calls = [
-        call(),
-        call().get("/theUrl?param=value", headers_with_key),
-        call(),
-        call().get("/theUrl?param=value", headers_with_key),
+        call.get_json("/theUrl?param=value", headers_with_key),
+        call.get_json("/theUrl?param=value", headers_with_key),
     ]
     assert ontologies.mock_calls == calls
     reset_mocks()
@@ -686,8 +684,8 @@ def test_get_attempts(requests_get, log, science, ontologies):
     mock_2.json.return_value = {"results": ["mock list 2"]}
 
     requests_get.side_effect = []
-    science.return_value.get.side_effect = [mock_1, mock_2, mock_3, mock_4]
-    ontologies.return_value.get.side_effect = []
+    science.get_json.side_effect = [mock_1, mock_2, mock_3, mock_4]
+    ontologies.get_json.side_effect = []
     result = tested.get_attempts("", "thePreSharedKey", "/theUrl", params, False)
     assert result == ["mock list 2"]
     assert requests_get.mock_calls == []
@@ -696,10 +694,8 @@ def test_get_attempts(requests_get, log, science, ontologies):
     ]
     assert log.mock_calls == calls
     calls = [
-        call(),
-        call().get("/theUrl?param=value", headers_with_key),
-        call(),
-        call().get("/theUrl?param=value", headers_with_key),
+        call.get_json("/theUrl?param=value", headers_with_key),
+        call.get_json("/theUrl?param=value", headers_with_key),
     ]
     assert science.mock_calls == calls
     assert ontologies.mock_calls == []
@@ -709,8 +705,8 @@ def test_get_attempts(requests_get, log, science, ontologies):
     mock_2.json.return_value = {"results": ["mock list 2"]}
 
     requests_get.side_effect = []
-    science.return_value.get.side_effect = [mock_1, mock_2, mock_3, mock_4]
-    ontologies.return_value.get.side_effect = []
+    science.get_json.side_effect = [mock_1, mock_2, mock_3, mock_4]
+    ontologies.get_json.side_effect = []
     result = tested.get_attempts("", "", "/theUrl", {}, False)
     assert result == ["mock list 2"]
     assert requests_get.mock_calls == []
@@ -719,10 +715,8 @@ def test_get_attempts(requests_get, log, science, ontologies):
     ]
     assert log.mock_calls == calls
     calls = [
-        call(),
-        call().get("/theUrl", headers_no_key),
-        call(),
-        call().get("/theUrl", headers_no_key),
+        call.get_json("/theUrl", headers_no_key),
+        call.get_json("/theUrl", headers_no_key),
     ]
     assert science.mock_calls == calls
     assert ontologies.mock_calls == []

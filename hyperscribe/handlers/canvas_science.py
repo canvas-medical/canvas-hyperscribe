@@ -2,9 +2,10 @@ from http import HTTPStatus
 from typing import Type
 from urllib.parse import urlencode
 
+
 from canvas_sdk.commands.commands.allergy import AllergenType
 from canvas_sdk.commands.constants import ServiceProvider
-from canvas_sdk.utils.http import ScienceHttp, OntologiesHttp
+from canvas_sdk.utils.http import science_http, ontologies_http
 from logger import log
 from requests import get as requests_get
 
@@ -166,13 +167,20 @@ class CanvasScience:
 
         for _ in range(Constants.MAX_ATTEMPTS_CANVAS_SERVICES):
             if host:
-                request = requests_get(f"{host}{url}", headers=headers, params=params, verify=True)
+                response = requests_get(
+                    f"{host}{url}",
+                    headers=headers,
+                    params=params,
+                    verify=True,
+                )
             elif is_ontologies:
-                request = OntologiesHttp().get(url, headers)
+                response = ontologies_http.get_json(url, headers)
             else:
-                request = ScienceHttp().get(url, headers)
+                response = science_http.get_json(url, headers)
 
-            if request.status_code == HTTPStatus.OK.value:
-                return request.json().get("results", [])
-            log.info(f"get response code: {request.status_code} - {url}")
+            if response.status_code == HTTPStatus.OK.value:
+                return response.json().get("results", [])
+
+            log.info(f"get response code: {response.status_code} - {url}")
+
         return []
