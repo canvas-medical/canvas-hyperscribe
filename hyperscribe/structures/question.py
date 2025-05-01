@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing_extensions import NamedTuple
+from typing import NamedTuple
 
 from hyperscribe.structures.question_type import QuestionType
 from hyperscribe.structures.response import Response
