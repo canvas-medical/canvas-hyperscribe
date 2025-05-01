@@ -1,1 +1,7 @@
+.gitignore
+.idea/
+__pycache__
+debug/
 .coverage
+.venv
+evaluations.db

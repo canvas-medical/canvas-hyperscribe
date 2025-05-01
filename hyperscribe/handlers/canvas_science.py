@@ -168,7 +168,10 @@ class CanvasScience:
         for _ in range(Constants.MAX_ATTEMPTS_CANVAS_SERVICES):
             if host:
                 response = requests_get(
-                    f"{host}{url}", headers=headers, params=params, verify=True
+                    f"{host}{url}",
+                    headers=headers,
+                    params=params,
+                    verify=True,
                 )
             elif is_ontologies:
                 response = ontologies_http.get_json(url, headers)
