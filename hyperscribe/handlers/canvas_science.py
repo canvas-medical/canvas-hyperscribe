@@ -2,7 +2,6 @@ from http import HTTPStatus
 from typing import Type
 from urllib.parse import urlencode
 
-import requests
 
 from canvas_sdk.commands.commands.allergy import AllergenType
 from canvas_sdk.commands.constants import ServiceProvider
@@ -176,11 +175,8 @@ class CanvasScience:
             else:
                 response = science_http.get_json(url, headers)
 
-                if isinstance(response, requests.Response):
-                    if response.status_code == HTTPStatus.OK.value:
-                        return response.json().get("results", [])
-                else:
-                    return response.get("results", [])
+            if response.status_code == HTTPStatus.OK.value:
+                return response.json().get("results", [])
 
             log.info(f"get response code: {response.status_code} - {url}")
 
