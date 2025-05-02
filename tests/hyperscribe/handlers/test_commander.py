@@ -234,7 +234,7 @@ def test_compute(compute_audio, task_comment_db, note_db, info, memory_log):
     calls = [
         call.instance(identification, "main", aws_s3_credentials),
         call.instance().output("Text: theTextVendor - Audio: theAudioVendor"),
-        call.instance().send_to_user("transcribe ended"),
+        call.instance().send_to_user("finished"),
         call.instance().send_to_user("EOF"),
         call.end_session("noteUuid"),
     ]
@@ -601,7 +601,7 @@ def test_audio2commands(transcript2commands, memory_log):
         calls = [
             call.instance(identification, "main", "aws_s3"),
             call.instance().output("--> transcript back and forth: 3"),
-            call.instance().send_to_user("audio to text and speakers detection done"),
+            call.instance().send_to_user("audio reviewed, speakers detected: speaker1, speaker2"),
         ]
         assert memory_log.mock_calls == calls
         calls = [
@@ -819,14 +819,15 @@ def test_transcript2commands_common(time, memory_log, store_audits):
     previous_instructions = [
         Instruction(uuid='uuidA', instruction='theInstructionA', information='theInformationA', is_new=False, is_updated=True, audits=[]),
         Instruction(uuid='uuidB', instruction='theInstructionB', information='theInformationB', is_new=False, is_updated=False, audits=[]),
+        Instruction(uuid='uuidF', instruction='theInstructionA', information='theInformationF', is_new=False, is_updated=True, audits=[]),
     ]
     exp_instructions = [
         Instruction(uuid='uuidA', instruction='theInstructionA', information='changedInformationA', is_new=False, is_updated=True, audits=[]),
         Instruction(uuid='uuidB', instruction='theInstructionB', information='theInformationB', is_new=False, is_updated=False, audits=[]),
+        Instruction(uuid='uuidF', instruction='theInstructionA', information='changedInformationF', is_new=False, is_updated=True, audits=[]),
         Instruction(uuid='uuidC', instruction='theInstructionC', information='theInformationC', is_new=True, is_updated=False, audits=[]),
         Instruction(uuid='uuidD', instruction='theInstructionD', information='theInformationD', is_new=True, is_updated=False, audits=[]),
-        Instruction(uuid='uuidE', instruction='theInstructionE', information='theInformationE', is_new=True, is_updated=False, audits=[]),
-        Instruction(uuid='uuidF', instruction='theInstructionF', information='theInformationF', is_new=True, is_updated=False, audits=[]),
+        Instruction(uuid='uuidE', instruction='theInstructionD', information='theInformationE', is_new=True, is_updated=False, audits=[]),
     ]
     instructions_with_parameters = [
         InstructionWithParameters(
@@ -839,6 +840,15 @@ def test_transcript2commands_common(time, memory_log, store_audits):
             parameters={"params": "instruction0"},
         ),
         # B is unchanged
+        InstructionWithParameters(
+            uuid='uuidF',
+            instruction='theInstructionA',
+            information='changedInformationF',
+            is_new=False,
+            is_updated=True,
+            audits=["lineF"],
+            parameters={"params": "instruction5"},
+        ),
         None,  # C results with None
         InstructionWithParameters(
             uuid='uuidD',
@@ -851,21 +861,12 @@ def test_transcript2commands_common(time, memory_log, store_audits):
         ),
         InstructionWithParameters(
             uuid='uuidE',
-            instruction='theInstructionE',
+            instruction='theInstructionD',
             information='theInformationE',
             is_new=True,
             is_updated=False,
             audits=["lineE"],
             parameters={"params": "instruction4"},
-        ),
-        InstructionWithParameters(
-            uuid='uuidF',
-            instruction='theInstructionF',
-            information='theInformationF',
-            is_new=True,
-            is_updated=False,
-            audits=["lineF"],
-            parameters={"params": "instruction5"},
         ),
     ]
     instructions_with_commands = [
@@ -880,6 +881,16 @@ def test_transcript2commands_common(time, memory_log, store_audits):
             command=mock_commands[0],
         ),
         InstructionWithCommand(
+            uuid='uuidF',
+            instruction='theInstructionA',
+            information='changedInformationF',
+            is_new=False,
+            is_updated=True,
+            audits=["lineF"],
+            parameters={"params": "instruction5"},
+            command=mock_commands[1],
+        ),
+        InstructionWithCommand(
             uuid='uuidD',
             instruction='theInstructionD',
             information='theInformationD',
@@ -887,19 +898,9 @@ def test_transcript2commands_common(time, memory_log, store_audits):
             is_updated=False,
             audits=["lineD"],
             parameters={"params": "instruction3"},
-            command=mock_commands[1],
-        ),
-        None,  # E
-        InstructionWithCommand(
-            uuid='uuidF',
-            instruction='theInstructionF',
-            information='theInformationF',
-            is_new=True,
-            is_updated=False,
-            audits=["lineF"],
-            parameters={"params": "instruction5"},
             command=mock_commands[2],
         ),
+        None,  # E
     ]
 
     effects = [
@@ -909,7 +910,7 @@ def test_transcript2commands_common(time, memory_log, store_audits):
     ]
     command_calls = [
         call.edit(),
-        call.originate(),
+        call.edit(),
         call.originate(),
     ]
     tests = [
@@ -959,6 +960,14 @@ def test_transcript2commands_common(time, memory_log, store_audits):
                     "audits": ["lineB"],
                 },
                 {
+                    "uuid": "uuidF",
+                    "instruction": "theInstructionA",
+                    "information": "changedInformationF",
+                    "isNew": False,
+                    "isUpdated": True,
+                    "audits": ["lineF"],
+                },
+                {
                     "uuid": "uuidC",
                     "instruction": "theInstructionC",
                     "information": "theInformationC",
@@ -976,19 +985,11 @@ def test_transcript2commands_common(time, memory_log, store_audits):
                 },
                 {
                     "uuid": "uuidE",
-                    "instruction": "theInstructionE",
+                    "instruction": "theInstructionD",
                     "information": "theInformationE",
                     "isNew": True,
                     "isUpdated": False,
                     "audits": ["lineE"],
-                },
-                {
-                    "uuid": "uuidF",
-                    "instruction": "theInstructionF",
-                    "information": "theInformationF",
-                    "isNew": True,
-                    "isUpdated": False,
-                    "audits": ["lineF"],
                 },
             ],
         ]
@@ -996,10 +997,10 @@ def test_transcript2commands_common(time, memory_log, store_audits):
         mock_chatter.create_sdk_command_from.side_effect = instructions_with_commands
 
         mock_commands[0].edit.side_effect = [Effect(type="LOG", payload="Log1")]
-        mock_commands[1].edit.side_effect = []
+        mock_commands[1].edit.side_effect = [Effect(type="LOG", payload="Log2")]
         mock_commands[2].edit.side_effect = []
         mock_commands[0].originate.side_effect = []
-        mock_commands[1].originate.side_effect = [Effect(type="LOG", payload="Log2")]
+        mock_commands[1].originate.side_effect = []
         mock_commands[2].originate.side_effect = [Effect(type="LOG", payload="Log3")]
 
         time.side_effect = [111.110, 111.219]
@@ -1007,14 +1008,18 @@ def test_transcript2commands_common(time, memory_log, store_audits):
         result = tested.transcript2commands_common(mock_auditor, transcript, mock_chatter, previous_instructions)
         expected = (exp_instructions, exp_effects)
         assert result[0] == expected[0]
+        assert result[1] == expected[1]
 
-        exp_instructions_w_parameters = [instructions_with_parameters[i] for i in [0, 2, 3, 4]]
-        exp_instructions_w_commands = [instructions_with_commands[i] for i in [0, 1, 3]]
+        exp_instructions_w_parameters = [instructions_with_parameters[i] for i in [0, 1, 3, 4]]
+        exp_instructions_w_commands = [instructions_with_commands[i] for i in [0, 1, 2]]
         calls = [
             call.instance(identification, 'main', 'awsS3'),
             call.instance().output('--> instructions: 6'),
             call.instance().output('--> computed instructions: 5'),
-            call.instance().send_to_user('instructions detection done (5)'),
+            call.instance().send_to_user('instructions detection: '
+                                         'new: theInstructionC: 1, theInstructionD: 2, '
+                                         'updated: theInstructionA: 2, '
+                                         'total: 6'),
             call.instance().output('--> computed commands: 4'),
             call.instance().send_to_user('parameters computation done (4)'),
             call.instance().output('DURATION COMMONS: 108'),
@@ -1051,6 +1056,109 @@ def test_transcript2commands_common(time, memory_log, store_audits):
             assert mock_commands[idx].mock_calls == calls
 
         reset_mocks()
+
+    # no new instruction, no updates
+    previous_instructions = [
+        Instruction(uuid='uuidA', instruction='theInstructionA', information='theInformationA', is_new=False, is_updated=False, audits=[]),
+        Instruction(uuid='uuidB', instruction='theInstructionB', information='theInformationB', is_new=False, is_updated=False, audits=[]),
+        Instruction(uuid='uuidF', instruction='theInstructionA', information='theInformationF', is_new=False, is_updated=False, audits=[]),
+    ]
+    identification = IdentificationParameters(
+        patient_uuid="patientUuid",
+        note_uuid="noteUuid",
+        provider_uuid="providerUuid",
+        canvas_instance="canvasInstance",
+    )
+    settings = Settings(
+        llm_text=VendorKey(vendor="textVendor", api_key="textAPIKey"),
+        llm_audio=VendorKey(vendor="audioVendor", api_key="audioAPIKey"),
+        science_host="theScienceHost",
+        ontologies_host="theOntologiesHost",
+        pre_shared_key="thePreSharedKey",
+        structured_rfv=True,
+        audit_llm=True,
+    )
+    mock_chatter.identification = identification
+    mock_chatter.settings = settings
+    mock_chatter.aws_s3 = "awsS3"
+
+    mock_chatter.detect_instructions.side_effect = [
+        [
+            {
+                "uuid": "uuidA",
+                "instruction": "theInstructionA",
+                "information": "theInformationA",
+                "isNew": False,
+                "isUpdated": False,
+                "audits": ["lineA"],
+            },
+            {
+                "uuid": "uuidB",
+                "instruction": "theInstructionB",
+                "information": "theInformationB",
+                "isNew": False,
+                "isUpdated": False,
+                "audits": ["lineB"],
+            },
+            {
+                "uuid": "uuidF",
+                "instruction": "theInstructionA",
+                "information": "theInformationF",
+                "isNew": False,
+                "isUpdated": False,
+                "audits": ["lineF"],
+            },
+        ],
+    ]
+    mock_chatter.create_sdk_command_parameters.side_effect = instructions_with_parameters
+    mock_chatter.create_sdk_command_from.side_effect = instructions_with_commands
+
+    mock_commands[0].edit.side_effect = []
+    mock_commands[1].edit.side_effect = []
+    mock_commands[2].edit.side_effect = []
+    mock_commands[0].originate.side_effect = []
+    mock_commands[1].originate.side_effect = []
+    mock_commands[2].originate.side_effect = []
+
+    time.side_effect = [111.110, 111.219]
+
+    result = tested.transcript2commands_common(mock_auditor, transcript, mock_chatter, previous_instructions)
+    expected = (previous_instructions, [])
+    assert result[0] == expected[0]
+    assert result[1] == expected[1]
+
+    exp_instructions_w_parameters = []
+    exp_instructions_w_commands = []
+    calls = [
+        call.instance(identification, 'main', 'awsS3'),
+        call.instance().output('--> instructions: 3'),
+        call.instance().output('--> computed instructions: 0'),
+        call.instance().send_to_user('instructions detection: '
+                                     'total: 3'),
+        call.instance().output('--> computed commands: 0'),
+        call.instance().send_to_user('parameters computation done (0)'),
+        call.instance().output('DURATION COMMONS: 108'),
+        call.instance().send_to_user('commands generation done (0)'),
+    ]
+    assert memory_log.mock_calls == calls
+    calls = [call("awsS3", identification, "audit_common_commands", exp_instructions_w_commands)]
+    assert store_audits.mock_calls == calls
+    calls = [call(), call()]
+    assert time.mock_calls == calls
+    calls = [
+        call.found_instructions(transcript, previous_instructions, expected[0]),
+        call.computed_parameters(exp_instructions_w_parameters),
+        call.computed_commands(exp_instructions_w_commands),
+    ]
+    assert mock_auditor.mock_calls == calls
+    calls = [
+        call.detect_instructions(transcript, previous_instructions),
+    ]
+    assert mock_chatter.mock_calls == calls
+    for mock_command in mock_commands:
+        assert mock_command.mock_calls == []
+
+    reset_mocks()
 
 
 @patch.object(Commander, 'store_audits')

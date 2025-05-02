@@ -83,7 +83,7 @@ wheels = [
 
 [[package]]
 name = "canvas"
-version = "0.34.0"
+version = "0.34.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cookiecutter" },
@@ -113,9 +113,9 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "websocket-client" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/30/69/d38333ab1e6fb41ff4639e86994ede360a948dc5e51bbe5221939da4b38a/canvas-0.34.0.tar.gz", hash = "sha256:fe6d67726460b434f15179f6ea17ddbb83fb6ada569000cfb7019f113d1b7ad3", size = 866164 }
+sdist = { url = "https://files.pythonhosted.org/packages/92/ac/836780af3d317e91de0b4c8ab6485cc9586b83838e407184522912e876d0/canvas-0.34.1.tar.gz", hash = "sha256:afe9659264680f1adffedfd861491a765232a0b12d3c69abcc97d4da6d03ba5f", size = 866721 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/35/11/bd4673620eac8c0e4de02faf000377fb7915b4c8475efd372eb3b1165641/canvas-0.34.0-py3-none-any.whl", hash = "sha256:3d22e122b745ba2c11d63a07514051d886dd90c8eebb9fd9fea475068c512a25", size = 987428 },
+    { url = "https://files.pythonhosted.org/packages/2e/1c/6d381a542da83f427c45ddccccd422451d590ea097c32bd4d8bf7cf8f96c/canvas-0.34.1-py3-none-any.whl", hash = "sha256:574a11d618b286449ee296a40142e282cd1d37687ae4d164c4a6736c612ff6e5", size = 988011 },
 ]
 
 [[package]]

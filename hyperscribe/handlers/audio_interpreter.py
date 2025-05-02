@@ -248,25 +248,26 @@ class AudioInterpreter:
             "",
         ]
         log_label = f"{instruction.instruction}_{instruction.uuid}_instruction2parameters"
-        chatter = Helper.chatter(
-            self.settings,
-            MemoryLog.instance(self.identification, log_label, self.aws_s3),
-        )
+        memory_log = MemoryLog.instance(self.identification, log_label, self.aws_s3)
+        chatter = Helper.chatter(self.settings, memory_log)
         schemas = JsonSchema.get(["generic_parameters"])
         response = chatter.single_conversation(system_prompt, user_prompt, schemas, instruction)
         if response:
             result = InstructionWithParameters.add_parameters(instruction, response[0])
+        if result:
+            memory_log.send_to_user(f"parameters identified for {instruction.instruction}")
         return result
 
     def create_sdk_command_from(self, instruction: InstructionWithParameters) -> InstructionWithCommand | None:
         for instance in self._command_context:
             if instruction.instruction == instance.class_name():
                 log_label = f"{instruction.instruction}_{instruction.uuid}_parameters2command"
-                chatter = Helper.chatter(
-                    self.settings,
-                    MemoryLog.instance(self.identification, log_label, self.aws_s3),
-                )
-                return instance.command_from_json(instruction, chatter)
+                memory_log = MemoryLog.instance(self.identification, log_label, self.aws_s3)
+                chatter = Helper.chatter(self.settings, memory_log)
+                result = instance.command_from_json(instruction, chatter)
+                if result:
+                    memory_log.send_to_user(f"command generated for {instruction.instruction}")
+                return result
         return None
 
     def update_questionnaire(self, discussion: list[Line], instruction: Instruction) -> InstructionWithCommand | None:

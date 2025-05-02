@@ -44,14 +44,24 @@ def test_handle(launch_model_effect, note_db):
     secrets = {
         "AudioHost": "https://the.audio.server/path/to/audios/",
         "AudioIntervalSeconds": 7,
+        "AwsKey": "theKey",
+        "AwsSecret": "theSecret",
+        "AwsRegion": "theRegion",
+        "AwsBucket": "theBucket",
     }
-    tested = Launcher(event, secrets)
+    environment = {"CUSTOMER_IDENTIFIER": "theTestEnv"}
+    tested = Launcher(event, secrets, environment)
     result = tested.handle()
     expected = [Effect(type="LOG", payload="SomePayload")]
     assert result == expected
 
     calls = [
-        call(url='https://the.audio.server/path/to/audios/capture/targetId/uuidNote?interval=7', target='right_chart_pane'),
+        call(
+            url='https://the.audio.server/path/to/audios/capture/targetId/uuidNote?'
+                'interval=7&'
+                'end_flag=EOF&'
+                'progress=https%3A%2F%2Fhyperscribe.s3.theRegion.amazonaws.com%2FtheTestEnv%2Fprogresses%2FtargetId.log',
+            target='right_chart_pane'),
         call().apply(),
     ]
     assert launch_model_effect.mock_calls == calls

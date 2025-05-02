@@ -66,6 +66,7 @@ def test_constants():
         "SECRET_ONTOLOGIES_HOST": "OntologiesHost",
         "SECRET_PRE_SHARED_KEY": "PreSharedKey",
         "SECRET_AUDIO_HOST": "AudioHost",
+        "SECRET_AUDIO_INTERVAL": "AudioIntervalSeconds",
         "SECRET_AWS_KEY": "AwsKey",
         "SECRET_AWS_SECRET": "AwsSecret",
         "SECRET_AWS_REGION": "AwsRegion",

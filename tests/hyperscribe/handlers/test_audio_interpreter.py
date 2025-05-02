@@ -837,7 +837,7 @@ def test_detect_instructions(
 
 
 @patch("hyperscribe.handlers.audio_interpreter.datetime", wraps=datetime)
-@patch.object(MemoryLog, "instance")
+@patch("hyperscribe.handlers.audio_interpreter.MemoryLog")
 @patch.object(Helper, "chatter")
 def test_create_sdk_command_parameters(chatter, memory_log, mock_datetime):
     mocks = [
@@ -846,11 +846,13 @@ def test_create_sdk_command_parameters(chatter, memory_log, mock_datetime):
         MagicMock(),
         MagicMock(),
     ]
+    mock_memory_log_instance = MagicMock()
 
     def reset_mocks():
         chatter.reset_mock()
         memory_log.reset_mock()
         mock_datetime.reset_mock()
+        mock_memory_log_instance.reset_mock()
         for item in mocks:
             item.reset_mock()
         mocks[0].return_value.class_name.side_effect = ["First", "First"]
@@ -906,7 +908,7 @@ def test_create_sdk_command_parameters(chatter, memory_log, mock_datetime):
     # with response
     mock_datetime.now.side_effect = [datetime(2025, 2, 4, 7, 48, 21, tzinfo=timezone.utc)]
     chatter.return_value.single_conversation.side_effect = [[{"key": "response1"}, {"key": "response2"}]]
-    memory_log.side_effect = ["MemoryLogInstance"]
+    memory_log.instance.side_effect = [mock_memory_log_instance]
     result = tested.create_sdk_command_parameters(instruction)
     expected = InstructionWithParameters(
         uuid="theUuid",
@@ -919,12 +921,14 @@ def test_create_sdk_command_parameters(chatter, memory_log, mock_datetime):
     )
     assert result == expected
     calls = [
-        call(settings, "MemoryLogInstance"),
+        call(settings, mock_memory_log_instance),
         call().single_conversation(system_prompt, user_prompt, schemas, instruction),
     ]
     assert chatter.mock_calls == calls
-    calls = [call(tested.identification, "Second_theUuid_instruction2parameters", aws_credentials)]
+    calls = [call.instance(tested.identification, "Second_theUuid_instruction2parameters", aws_credentials)]
     assert memory_log.mock_calls == calls
+    calls = [call.send_to_user('parameters identified for Second')]
+    assert mock_memory_log_instance.mock_calls == calls
     calls = [call.now()]
     assert mock_datetime.mock_calls == calls
     for idx, mock in enumerate(mocks):
@@ -944,16 +948,17 @@ def test_create_sdk_command_parameters(chatter, memory_log, mock_datetime):
     # without response
     mock_datetime.now.side_effect = [datetime(2025, 2, 4, 7, 48, 21, tzinfo=timezone.utc)]
     chatter.return_value.single_conversation.side_effect = [[]]
-    memory_log.side_effect = ["MemoryLogInstance"]
+    memory_log.instance.side_effect = [mock_memory_log_instance]
     result = tested.create_sdk_command_parameters(instruction)
     assert result is None
     calls = [
-        call(settings, "MemoryLogInstance"),
+        call(settings, mock_memory_log_instance),
         call().single_conversation(system_prompt, user_prompt, schemas, instruction),
     ]
     assert chatter.mock_calls == calls
-    calls = [call(tested.identification, "Second_theUuid_instruction2parameters", aws_credentials)]
+    calls = [call.instance(tested.identification, "Second_theUuid_instruction2parameters", aws_credentials)]
     assert memory_log.mock_calls == calls
+    assert mock_memory_log_instance.mock_calls == []
     calls = [call.now()]
     assert mock_datetime.mock_calls == calls
     for idx, mock in enumerate(mocks):
@@ -968,7 +973,7 @@ def test_create_sdk_command_parameters(chatter, memory_log, mock_datetime):
     reset_mocks()
 
 
-@patch.object(MemoryLog, "instance")
+@patch("hyperscribe.handlers.audio_interpreter.MemoryLog")
 @patch.object(Helper, "chatter")
 def test_create_sdk_command_from(chatter, memory_log):
     mocks = [
@@ -977,10 +982,12 @@ def test_create_sdk_command_from(chatter, memory_log):
         MagicMock(),
         MagicMock(),
     ]
+    mock_memory_log_instance = MagicMock()
 
     def reset_mocks():
         chatter.reset_mock()
         memory_log.reset_mock()
+        mock_memory_log_instance.reset_mock()
         for item in mocks:
             item.reset_mock()
         mocks[0].return_value.class_name.side_effect = ["First"]
@@ -990,19 +997,19 @@ def test_create_sdk_command_from(chatter, memory_log):
         mocks[0].return_value.command_from_json.side_effect = ["theCommand1"]
         mocks[1].return_value.command_from_json.side_effect = ["theCommand2"]
         mocks[2].return_value.command_from_json.side_effect = ["theCommand3"]
-        mocks[3].return_value.command_from_json.side_effect = ["theCommand4"]
+        mocks[3].return_value.command_from_json.side_effect = [None]
 
     reset_mocks()
 
     tests = [
-        ("First", 0, "theCommand1", "First_theUuid_parameters2command"),
-        ("Second", 1, "theCommand2", "Second_theUuid_parameters2command"),
-        ("Fourth", 3, "theCommand4", "Fourth_theUuid_parameters2command"),
-        ("Third", 4, None, None),
+        ("First", 0, "theCommand1", "First_theUuid_parameters2command", "command generated for First"),
+        ("Second", 1, "theCommand2", "Second_theUuid_parameters2command", "command generated for Second"),
+        ("Fourth", 3, None, "Fourth_theUuid_parameters2command", None),
+        ("Third", 4, None, None, None),
     ]
-    for name, rank, expected, exp_log_label in tests:
+    for name, rank, expected, exp_log_label, exp_log_ui in tests:
         chatter.side_effect = ["LlmBaseInstance"]
-        memory_log.side_effect = ["MemoryLogInstance"]
+        memory_log.instance.side_effect = [mock_memory_log_instance]
         instruction = InstructionWithParameters(
             uuid="theUuid",
             instruction=name,
@@ -1016,10 +1023,14 @@ def test_create_sdk_command_from(chatter, memory_log):
         result = tested.create_sdk_command_from(instruction)
         assert result == expected
 
-        calls = [call(settings, "MemoryLogInstance")] if exp_log_label else []
+        calls = [call(settings, mock_memory_log_instance)] if exp_log_label else []
         assert chatter.mock_calls == calls
-        calls = [call(tested.identification, exp_log_label, aws_credentials)] if exp_log_label else []
+        calls = [call.instance(tested.identification, exp_log_label, aws_credentials)] if exp_log_label else []
         assert memory_log.mock_calls == calls
+        calls = []
+        if exp_log_ui:
+            calls = [call.send_to_user(exp_log_ui)]
+        assert mock_memory_log_instance.mock_calls == calls
         for idx, mock in enumerate(mocks):
             calls = [
                 call(settings, cache, tested.identification),

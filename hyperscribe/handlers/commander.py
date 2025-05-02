@@ -89,7 +89,7 @@ class Commander(BaseProtocol):
             ).apply())
         else:
             log.info("audio was NOT present => stop the task")
-            memory_log.send_to_user("transcribe ended")
+            memory_log.send_to_user("finished")
             memory_log.send_to_user(Constants.INFORMANT_END_OF_MESSAGES)
             effects.append(UpdateTask(
                 id=str(comment.task.id),
@@ -197,7 +197,8 @@ class Commander(BaseProtocol):
         transcript = Line.load_from_json(response.content)
         auditor.identified_transcript(audios, transcript)
         memory_log.output(f"--> transcript back and forth: {len(transcript)}")
-        memory_log.send_to_user("audio to text and speakers detection done")
+        speakers = ', '.join(sorted({l.speaker for l in transcript}))
+        memory_log.send_to_user(f"audio reviewed, speakers detected: {speakers}")
 
         last_words = transcript[-1].text.split()
         if len(last_words) > 30:
@@ -259,14 +260,31 @@ class Commander(BaseProtocol):
         memory_log.output(f"--> instructions: {len(cumulated_instructions)}")
         past_uuids = {instruction.uuid: instruction for instruction in instructions}
 
-        computed_instructions = [
-            instruction
-            for instruction in cumulated_instructions
-            if instruction.uuid not in past_uuids
-               or past_uuids[instruction.uuid].information != instruction.information
-        ]
+        computed_instructions: list[Instruction] = []
+        detected_new: dict[str, int] = {}
+        detected_updated: dict[str, int] = {}
+        for instruction in cumulated_instructions:
+            label = instruction.instruction
+            if instruction.uuid not in past_uuids:
+                computed_instructions.append(instruction)
+                if label not in detected_new:
+                    detected_new[label] = 0
+                detected_new[label] = detected_new[label] + 1
+            elif past_uuids[instruction.uuid].information != instruction.information:
+                computed_instructions.append(instruction)
+                if label not in detected_updated:
+                    detected_updated[label] = 0
+                detected_updated[label] = detected_updated[label] + 1
+
         memory_log.output(f"--> computed instructions: {len(computed_instructions)}")
-        memory_log.send_to_user(f"instructions detection done ({len(computed_instructions)})")
+
+        detected = []
+        if detected_new:
+            detected.append(f"new: {', '.join([f'{k}: {v}' for k, v in detected_new.items()])}")
+        if detected_updated:
+            detected.append(f"updated: {', '.join([f'{k}: {v}' for k, v in detected_updated.items()])}")
+        detected.append(f"total: {len(cumulated_instructions)}")
+        memory_log.send_to_user(f"instructions detection: {', '.join(detected)}")
 
         max_workers = max(1, Constants.MAX_WORKERS)
         with ThreadPoolExecutor(max_workers=max_workers) as builder:

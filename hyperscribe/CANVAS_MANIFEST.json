@@ -1,6 +1,6 @@
 {
-  "sdk_version": "0.28.0",
-  "plugin_version": "0.0.61",
+  "sdk_version": "0.34.1",
+  "plugin_version": "0.0.62",
   "name": "hyperscribe",
   "description": "Create commands based on the content of an audio discussion between a patient and a provider.",
   "url_permissions": [
@@ -48,15 +48,7 @@
         }
       }
     ],
-    "applications": [
-      {
-        "class": "hyperscribe.handlers.progress.progress:Progress",
-        "name": "Hyperscribe Progress Displayer",
-        "description": "Display the known log of the Hyperscribe",
-        "icon": "handlers/progress/progress.png",
-        "scope": "patient_specific"
-      }
-    ],
+    "applications": [],
     "commands": [],
     "content": [],
     "effects": [],

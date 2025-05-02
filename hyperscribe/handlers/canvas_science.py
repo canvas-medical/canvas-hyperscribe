@@ -2,7 +2,6 @@ from http import HTTPStatus
 from typing import Type
 from urllib.parse import urlencode
 
-
 from canvas_sdk.commands.commands.allergy import AllergenType
 from canvas_sdk.commands.constants import ServiceProvider
 from canvas_sdk.utils.http import science_http, ontologies_http
