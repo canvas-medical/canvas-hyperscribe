@@ -91,13 +91,13 @@ class LimitedCache:
         if self._goals is None:
             self._goals = []
             # ATTENTION below code should not be used since there is no way to know if a goal is already closed
-            commands = Command.objects.filter(patient__id=self.patient_uuid, schema_key="goal").order_by('-dbid')
-            for command in commands:
-                self._goals.append(CodedItem(
-                    uuid=str(command.id),
-                    label=command.data["goal_statement"],
-                    code=str(command.dbid),  # TODO should be "", waiting for https://github.com/canvas-medical/canvas-plugins/issues/338
-                ))
+            # commands = Command.objects.filter(patient__id=self.patient_uuid, schema_key="goal").order_by('-dbid')
+            # for command in commands:
+            #     self._goals.append(CodedItem(
+            #         uuid=str(command.id),
+            #         label=command.data["goal_statement"],
+            #         code=str(command.dbid),  # TODO should be "", waiting for https://github.com/canvas-medical/canvas-plugins/issues/338
+            #     ))
         return self._goals
 
     def current_conditions(self) -> list[CodedItem]:
@@ -213,12 +213,14 @@ class LimitedCache:
                 self.patient_uuid).filter(
                 name="weight", category="vital-signs").order_by(
                 "-effective_datetime").first()
-            if weight:
+            weight_str = "unknown"
+            if weight and weight.value:
                 ratio = 1 / 1
                 if weight.units == "oz":
                     ratio = 1 / 16
+                weight_str = f"{int(weight.value) * ratio:1.2f} pounds"
 
-                self._demographic = f"{self._demographic} and weight {int(weight.value) * ratio:1.2f} pounds"
+                self._demographic = f"{self._demographic} and weight {weight_str}"
 
         return self._demographic
 
