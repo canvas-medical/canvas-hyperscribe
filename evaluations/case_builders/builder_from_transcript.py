@@ -8,6 +8,7 @@ from evaluations.datastores.store_cases import StoreCases
 from evaluations.helper_evaluation import HelperEvaluation
 from evaluations.structures.evaluation_case import EvaluationCase
 from hyperscribe.handlers.audio_interpreter import AudioInterpreter
+from hyperscribe.handlers.cached_discussion import CachedDiscussion
 from hyperscribe.handlers.commander import Commander
 from hyperscribe.handlers.implemented_commands import ImplementedCommands
 from hyperscribe.structures.identification_parameters import IdentificationParameters
@@ -59,13 +60,16 @@ class BuilderFromTranscript(BuilderBase):
 
         previous = limited_cache.staged_commands_as_instructions(ImplementedCommands.schema_key2instruction())
 
+        discussion = CachedDiscussion.get_discussion(chatter.identification.note_uuid)
         if parameters.cycles < 2:
+            discussion.add_one()
             Commander.transcript2commands(recorder, transcript, chatter, previous)
         else:
             length, extra = divmod(len(transcript), parameters.cycles)
             length += (1 if extra else 0)
             for cycle in range(0, parameters.cycles):
                 idx = cycle * length
+                discussion.add_one()
                 recorder = AuditorFile(f"{parameters.case}{Constants.CASE_CYCLE_SUFFIX}{cycle:02d}")
                 previous, _ = Commander.transcript2commands(
                     recorder,

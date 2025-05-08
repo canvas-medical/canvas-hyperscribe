@@ -14,6 +14,7 @@ def test_add_parameters():
     command = _BaseCommand()
     result = tested.add_command(InstructionWithParameters(
         uuid="theUuid",
+        index=7,
         instruction="theInstruction",
         information="theInformation",
         is_new=True,
@@ -23,6 +24,7 @@ def test_add_parameters():
     ), command)
     expected = InstructionWithCommand(
         uuid="theUuid",
+        index=7,
         instruction="theInstruction",
         information="theInformation",
         is_new=True,

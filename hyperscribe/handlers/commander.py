@@ -23,7 +23,9 @@ from hyperscribe.handlers.cached_discussion import CachedDiscussion
 from hyperscribe.handlers.constants import Constants
 from hyperscribe.handlers.implemented_commands import ImplementedCommands
 from hyperscribe.handlers.limited_cache import LimitedCache
+from hyperscribe.handlers.llm_turns_store import LlmTurnsStore
 from hyperscribe.handlers.memory_log import MemoryLog
+from hyperscribe.handlers.llm_decisions_reviewer import LlmDecisionsReviewer
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.identification_parameters import IdentificationParameters
@@ -31,19 +33,6 @@ from hyperscribe.structures.instruction import Instruction
 from hyperscribe.structures.instruction_with_command import InstructionWithCommand
 from hyperscribe.structures.line import Line
 from hyperscribe.structures.settings import Settings
-
-
-class Audio:
-    @classmethod
-    def get_audio(cls, chunk_audio_url: str) -> bytes:
-        log.info(f" ---> audio url: {chunk_audio_url}")
-        response = requests.get(chunk_audio_url, timeout=300)
-        log.info(f"           code: {response.status_code}")
-        log.info(f"        content: {len(response.content)}")
-        # Check if the request was successful
-        if response.status_code == HTTPStatus.OK.value:
-            return response.content
-        return b""
 
 
 class Commander(BaseProtocol):
@@ -69,7 +58,7 @@ class Commander(BaseProtocol):
         identification = IdentificationParameters(
             patient_uuid=note.patient.id,
             note_uuid=note_uuid,
-            provider_uuid=note.provider.id,
+            provider_uuid=str(note.provider.id),
             canvas_instance=self.environment[Constants.CUSTOMER_IDENTIFIER],
         )
         aws_s3 = AwsS3Credentials.from_dictionary(self.secrets)
@@ -88,31 +77,20 @@ class Commander(BaseProtocol):
                 })
             ).apply())
         else:
-            log.info("audio was NOT present => stop the task")
+            log.info("audio was NOT present:")
+            log.info("  => inform the UI")
             memory_log.send_to_user("finished")
-            memory_log.send_to_user(Constants.INFORMANT_END_OF_MESSAGES)
+            log.info("  => create the final audit")
+            self.compute_audit_documents(identification)
+            log.info("  => stop the task")
             effects.append(UpdateTask(
                 id=str(comment.task.id),
                 status=TaskStatus.COMPLETED,
             ).apply())
+            memory_log.send_to_user(Constants.INFORMANT_END_OF_MESSAGES)
         MemoryLog.end_session(note_uuid)
+        LlmTurnsStore.end_session(note_uuid)
         return effects
-
-    @classmethod
-    def retrieve_audios(cls, host_audio: str, patient_uuid: str, note_uuid: str, chunk_index: int) -> list[bytes]:
-        audio_url = f"{host_audio}/audio/{patient_uuid}/{note_uuid}"
-
-        initial = Audio.get_audio(f"{audio_url}/{chunk_index}")
-        if not initial:
-            return []
-        # retrieve the previous segments only if the last one is provided
-        result = [
-            audio
-            for chunk in range(max(0, chunk_index - cls.MAX_PREVIOUS_AUDIOS), chunk_index)
-            if (audio := Audio.get_audio(f"{audio_url}/{chunk}")) and len(audio) > 0
-        ]
-        result.append(initial)
-        return result
 
     def compute_audio(self, identification: IdentificationParameters, chunk_index: int) -> tuple[bool, list[Effect]]:
         settings = Settings.from_dictionary(self.secrets)
@@ -172,12 +150,54 @@ class Commander(BaseProtocol):
 
         if (client_s3 := AwsS3(aws_s3)) and client_s3.is_ready():
             remote_path = (f"{identification.canvas_instance}/"
+                           "finals/"
                            f"{discussion.creation_day()}/"
                            f"{identification.patient_uuid}-{identification.note_uuid}/"
                            f"{discussion.count - 1:02}.log")
             memory_log.output(f"--> log path: {remote_path}")
             client_s3.upload_text_to_s3(remote_path, MemoryLog.end_session(identification.note_uuid))
         return True, results
+
+    def compute_audit_documents(self, identification: IdentificationParameters) -> None:
+        mapping = ImplementedCommands.schema_key2instruction()
+        command2uuid = {
+            LlmTurnsStore.indexed_instruction(
+                mapping[command.schema_key],
+                index,
+            ): str(command.id)
+            for index, command in enumerate(Command.objects.filter(
+                patient__id=identification.patient_uuid,
+                note__id=identification.note_uuid,
+                state="staged",  # <--- TODO use an Enum when provided
+            ).order_by("dbid"))
+        }
+
+        settings = Settings.from_dictionary(self.secrets)
+        credentials = AwsS3Credentials.from_dictionary(self.secrets)
+        memory_log = MemoryLog.instance(identification, self.MEMORY_LOG_LABEL, credentials)
+        LlmDecisionsReviewer.review(
+            identification,
+            settings,
+            credentials,
+            memory_log,
+            command2uuid,
+        )
+
+    @classmethod
+    def retrieve_audios(cls, host_audio: str, patient_uuid: str, note_uuid: str, chunk_index: int) -> list[bytes]:
+        audio_url = f"{host_audio}/audio/{patient_uuid}/{note_uuid}"
+
+        initial = cls.get_audio(f"{audio_url}/{chunk_index}")
+        if not initial:
+            return []
+        # retrieve the previous segments only if the last one is provided
+        result = [
+            audio
+            for chunk in range(max(0, chunk_index - cls.MAX_PREVIOUS_AUDIOS), chunk_index)
+            if (audio := cls.get_audio(f"{audio_url}/{chunk}")) and len(audio) > 0
+        ]
+        result.append(initial)
+        return result
 
     @classmethod
     def audio2commands(
@@ -188,7 +208,7 @@ class Commander(BaseProtocol):
             previous_instructions: list[Instruction],
             previous_transcript: str,
     ) -> tuple[list[Instruction], list[Effect], str]:
-        memory_log = MemoryLog.instance(chatter.identification, cls.MEMORY_LOG_LABEL, chatter.aws_s3)
+        memory_log = MemoryLog.instance(chatter.identification, cls.MEMORY_LOG_LABEL, chatter.s3_credentials)
         response = chatter.combine_and_speaker_detection(audios, previous_transcript)
         if response.has_error is True:
             memory_log.output(f"--> transcript encountered: {response.error}")
@@ -250,7 +270,7 @@ class Commander(BaseProtocol):
             chatter: AudioInterpreter,
             instructions: list[Instruction],
     ) -> tuple[list[Instruction], list[Effect]]:
-        memory_log = MemoryLog.instance(chatter.identification, cls.MEMORY_LOG_LABEL, chatter.aws_s3)
+        memory_log = MemoryLog.instance(chatter.identification, cls.MEMORY_LOG_LABEL, chatter.s3_credentials)
 
         start = time()
         # detect the instructions based on the transcript and the existing commands
@@ -309,9 +329,6 @@ class Commander(BaseProtocol):
         memory_log.send_to_user(f"commands generation done ({len(instructions_with_command)})")
         auditor.computed_commands(instructions_with_command)
 
-        if chatter.settings.audit_llm:
-            cls.store_audits(chatter.aws_s3, chatter.identification, "audit_common_commands", instructions_with_command)
-
         # reset the audit fields
         for instruction in cumulated_instructions:
             instruction.audits.clear()
@@ -338,7 +355,7 @@ class Commander(BaseProtocol):
         if not instructions:
             return [], []
 
-        memory_log = MemoryLog.instance(chatter.identification, cls.MEMORY_LOG_LABEL, chatter.aws_s3)
+        memory_log = MemoryLog.instance(chatter.identification, cls.MEMORY_LOG_LABEL, chatter.s3_credentials)
         start = time()
 
         max_workers = max(1, Constants.MAX_WORKERS)
@@ -356,6 +373,7 @@ class Commander(BaseProtocol):
         updated_instructions = [
             Instruction(
                 uuid=result.uuid,
+                index=result.index,
                 instruction=result.instruction,
                 information=result.information,
                 is_new=result.is_new,
@@ -368,9 +386,6 @@ class Commander(BaseProtocol):
         memory_log.output(f"DURATION QUESTIONNAIRES: {int((time() - start) * 1000)}")
         memory_log.send_to_user(f"questionnaires update done ({len(instructions_with_command)})")
         auditor.computed_questionnaires(transcript, instructions, instructions_with_command)
-
-        if chatter.settings.audit_llm:
-            cls.store_audits(chatter.aws_s3, chatter.identification, "audit_update_questionnaires", updated_instructions)
 
         if chatter.identification.note_uuid == Constants.FAUX_NOTE_UUID:
             # this is the case when running an evaluation against a recorded 'limited cache',
@@ -411,8 +426,6 @@ class Commander(BaseProtocol):
 
         memory_log.output(f"DURATION NEW: {int((time() - start) * 1000)}")
         auditor.computed_commands(instructions_with_command)
-
-        cls.store_audits(chatter.aws_s3, chatter.identification, "audit_new_commands", instructions_with_command)
 
         if chatter.identification.note_uuid == Constants.FAUX_NOTE_UUID:
             # this is the case when running an evaluation against a recorded 'limited cache',
@@ -457,8 +470,6 @@ class Commander(BaseProtocol):
         memory_log.output(f"DURATION UPDATE: {int((time() - start) * 1000)}")
         auditor.computed_commands(instructions_with_command)
 
-        cls.store_audits(chatter.aws_s3, chatter.identification, "audit_updated_commands", instructions_with_command)
-
         if chatter.identification.note_uuid == Constants.FAUX_NOTE_UUID:
             # this is the case when running an evaluation against a recorded 'limited cache',
             # i.e. the patient and/or her data don't exist, something that may be checked
@@ -483,7 +494,7 @@ class Commander(BaseProtocol):
 
         pre_initialized = ImplementedCommands.pre_initialized()
 
-        for command in current_commands:
+        for index, command in enumerate(current_commands):
             instruction_type = mapping[command.schema_key]
             instruction_uuid = str(command.id)
             information = ""
@@ -502,6 +513,7 @@ class Commander(BaseProtocol):
 
             result[instruction_uuid] = Instruction(
                 uuid=instruction_uuid,
+                index=index,
                 instruction=instruction_type,
                 information=information,
                 is_new=False,
@@ -529,19 +541,12 @@ class Commander(BaseProtocol):
         return result
 
     @classmethod
-    def store_audits(cls, aws_s3: AwsS3Credentials, identification: IdentificationParameters, label: str, instructions: list[Instruction]) -> None:
-        client_s3 = AwsS3(aws_s3)
-        if client_s3.is_ready():
-            cached = CachedDiscussion.get_discussion(identification.note_uuid)
-            log_path = (f"{identification.canvas_instance}/"
-                        f"{cached.creation_day()}/"
-                        f"partials/"
-                        f"{identification.note_uuid}/"
-                        f"{cached.count - 1:02d}/"
-                        f"{label}.log")
-            content = []
-            for instruction in instructions:
-                content.append(f"--- {instruction.instruction} ({instruction.uuid}) ---")
-                content.append("\n".join(instruction.audits))
-            content.append("-- EOF ---")
-            client_s3.upload_text_to_s3(log_path, "\n".join(content))
+    def get_audio(cls, chunk_audio_url: str) -> bytes:
+        log.info(f" ---> audio url: {chunk_audio_url}")
+        response = requests.get(chunk_audio_url, timeout=300)
+        log.info(f"           code: {response.status_code}")
+        log.info(f"        content: {len(response.content)}")
+        # Check if the request was successful
+        if response.status_code == HTTPStatus.OK.value:
+            return response.content
+        return b""

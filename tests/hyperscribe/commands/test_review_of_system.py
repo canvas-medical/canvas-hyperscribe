@@ -63,6 +63,7 @@ def test_command_from_json():
     with pytest.raises(NotImplementedError):
         instruction = InstructionWithParameters(
             uuid="theUuid",
+            index=7,
             instruction="theInstruction",
             information="theInformation",
             is_new=False,

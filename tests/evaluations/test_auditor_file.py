@@ -251,12 +251,16 @@ def test_found_instructions(path):
                 Line(speaker="voiceA", text="theText4"),
             ],
             [
-                Instruction(uuid="uuid1", instruction="theInstruction1", information="theInformation0", is_new=False, is_updated=False, audits=[]),
+                Instruction(uuid="uuid1", index=0, instruction="theInstruction1", information="theInformation0", is_new=False, is_updated=False,
+                            audits=[]),
             ],
             [
-                Instruction(uuid="uuid1", instruction="theInstruction1", information="theInformation1", is_new=False, is_updated=True, audits=[]),
-                Instruction(uuid="uuid2", instruction="theInstruction2", information="theInformation2", is_new=True, is_updated=False, audits=[]),
-                Instruction(uuid="uuid3", instruction="theInstruction3", information="theInformation3", is_new=True, is_updated=False, audits=[]),
+                Instruction(uuid="uuid1", index=0, instruction="theInstruction1", information="theInformation1", is_new=False, is_updated=True,
+                            audits=[]),
+                Instruction(uuid="uuid2", index=1, instruction="theInstruction2", information="theInformation2", is_new=True, is_updated=False,
+                            audits=[]),
+                Instruction(uuid="uuid3", index=2, instruction="theInstruction3", information="theInformation3", is_new=True, is_updated=False,
+                            audits=[]),
             ],
         )
         assert result is test
@@ -264,6 +268,7 @@ def test_found_instructions(path):
         expected = {'instructions': {
             'initial': [
                 {
+                    'index': 0,
                     'information': 'theInformation0',
                     'instruction': 'theInstruction1',
                     'isNew': False,
@@ -273,6 +278,7 @@ def test_found_instructions(path):
             ],
             'result': [
                 {
+                    'index': 0,
                     'information': 'theInformation1',
                     'instruction': 'theInstruction1',
                     'isNew': False,
@@ -280,6 +286,7 @@ def test_found_instructions(path):
                     'uuid': '>?<',
                 },
                 {
+                    'index': 1,
                     'information': 'theInformation2',
                     'instruction': 'theInstruction2',
                     'isNew': True,
@@ -287,6 +294,7 @@ def test_found_instructions(path):
                     'uuid': '>?<',
                 },
                 {
+                    'index': 2,
                     'information': 'theInformation3',
                     'instruction': 'theInstruction3',
                     'isNew': True,
@@ -329,6 +337,7 @@ def test_computed_parameters(path):
     sdk_parameters = [
         InstructionWithParameters(
             uuid="uuid1",
+            index=1,
             instruction="theInstruction1",
             information="theInformation1",
             is_new=False,
@@ -338,6 +347,7 @@ def test_computed_parameters(path):
         ),
         InstructionWithParameters(
             uuid="uuid2",
+            index=2,
             instruction="theInstruction2",
             information="theInformation2",
             is_new=True,
@@ -361,6 +371,7 @@ def test_computed_parameters(path):
         expected = {
             'instructions': [
                 {
+                    'index': 1,
                     'information': 'theInformation1',
                     'instruction': 'theInstruction1',
                     'isNew': False,
@@ -368,6 +379,7 @@ def test_computed_parameters(path):
                     'uuid': 'uuid1',
                 },
                 {
+                    'index': 2,
                     'information': 'theInformation2',
                     'instruction': 'theInstruction2',
                     'isNew': True,
@@ -404,6 +416,7 @@ def test_computed_parameters(path):
             json.dumps({
                 'instructions': [
                     {
+                        'index': 0,
                         'information': 'theInformation0',
                         'instruction': 'theInstruction0',
                         'isNew': False,
@@ -422,6 +435,7 @@ def test_computed_parameters(path):
         expected = {
             'instructions': [
                 {
+                    'index': 0,
                     'information': 'theInformation0',
                     'instruction': 'theInstruction0',
                     'isNew': False,
@@ -429,6 +443,7 @@ def test_computed_parameters(path):
                     'uuid': 'uuid0',
                 },
                 {
+                    'index': 1,
                     'information': 'theInformation1',
                     'instruction': 'theInstruction1',
                     'isNew': False,
@@ -436,6 +451,7 @@ def test_computed_parameters(path):
                     'uuid': 'uuid1',
                 },
                 {
+                    'index': 2,
                     'information': 'theInformation2',
                     'instruction': 'theInstruction2',
                     'isNew': True,
@@ -490,6 +506,7 @@ def test_computed_commands(path):
     sdk_parameters = [
         InstructionWithCommand(
             uuid="uuid1",
+            index=1,
             instruction="theInstruction1",
             information="theInformation1",
             is_new=False,
@@ -500,6 +517,7 @@ def test_computed_commands(path):
         ),
         InstructionWithCommand(
             uuid="uuid2",
+            index=2,
             instruction="theInstruction2",
             information="theInformation2",
             is_new=True,
@@ -524,6 +542,7 @@ def test_computed_commands(path):
         expected = {
             'instructions': [
                 {
+                    'index': 1,
                     'information': 'theInformation1',
                     'instruction': 'theInstruction1',
                     'isNew': False,
@@ -531,6 +550,7 @@ def test_computed_commands(path):
                     'uuid': 'uuid1',
                 },
                 {
+                    'index': 2,
                     'information': 'theInformation2',
                     'instruction': 'theInstruction2',
                     'isNew': True,
@@ -573,6 +593,7 @@ def test_computed_commands(path):
             json.dumps({
                 'instructions': [
                     {
+                        'index': 0,
                         'information': 'theInformation0',
                         'instruction': 'theInstruction0',
                         'isNew': False,
@@ -594,6 +615,7 @@ def test_computed_commands(path):
         expected = {
             'instructions': [
                 {
+                    'index': 0,
                     'information': 'theInformation0',
                     'instruction': 'theInstruction0',
                     'isNew': False,
@@ -601,6 +623,7 @@ def test_computed_commands(path):
                     'uuid': 'uuid0',
                 },
                 {
+                    'index': 1,
                     'information': 'theInformation1',
                     'instruction': 'theInstruction1',
                     'isNew': False,
@@ -608,6 +631,7 @@ def test_computed_commands(path):
                     'uuid': 'uuid1',
                 },
                 {
+                    'index': 2,
                     'information': 'theInformation2',
                     'instruction': 'theInstruction2',
                     'isNew': True,
@@ -679,6 +703,7 @@ def test_computed_questionnaires(path):
     initial_instructions = [
         Instruction(
             uuid="uuid1",
+            index=0,
             instruction="theInstruction1",
             information="theInformation1",
             is_new=False,
@@ -687,6 +712,7 @@ def test_computed_questionnaires(path):
         ),
         Instruction(
             uuid="uuid2",
+            index=1,
             instruction="theInstruction2",
             information="theInformation2",
             is_new=False,
@@ -695,6 +721,7 @@ def test_computed_questionnaires(path):
         ),
         Instruction(
             uuid="uuid3",
+            index=2,
             instruction="theInstruction3",
             information="theInformation3",
             is_new=False,
@@ -705,6 +732,7 @@ def test_computed_questionnaires(path):
     instructions_with_command = [
         InstructionWithCommand(
             uuid="uuid1",
+            index=0,
             instruction="theInstruction1",
             information="changedInformation1",
             is_new=False,
@@ -715,6 +743,7 @@ def test_computed_questionnaires(path):
         ),
         InstructionWithCommand(
             uuid="uuid2",
+            index=1,
             instruction="theInstruction2",
             information="changedInformation2",
             is_new=False,
@@ -725,6 +754,7 @@ def test_computed_questionnaires(path):
         ),
         InstructionWithCommand(
             uuid="uuid3",
+            index=2,
             instruction="theInstruction3",
             information="changedInformation3",
             is_new=False,
@@ -747,6 +777,7 @@ def test_computed_questionnaires(path):
         expected = {
             "instructions": [
                 {
+                    'index': 0,
                     'information': 'theInformation1',
                     'instruction': 'theInstruction1',
                     'isNew': False,
@@ -754,6 +785,7 @@ def test_computed_questionnaires(path):
                     'uuid': '>?<',
                 },
                 {
+                    'index': 1,
                     'information': 'theInformation2',
                     'instruction': 'theInstruction2',
                     'isNew': False,
@@ -761,6 +793,7 @@ def test_computed_questionnaires(path):
                     'uuid': '>?<',
                 },
                 {
+                    'index': 2,
                     'information': 'theInformation3',
                     'instruction': 'theInstruction3',
                     'isNew': False,

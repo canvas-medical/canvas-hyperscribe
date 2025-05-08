@@ -64,6 +64,7 @@ def test_command_from_json():
     tested = helper_instance()
     arguments = {
         "uuid": "theUuid",
+        "index": 7,
         "instruction": "theInstruction",
         "information": "theInformation",
         "is_new": False,

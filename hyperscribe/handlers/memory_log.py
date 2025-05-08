@@ -34,15 +34,15 @@ class MemoryLog:
         ])
 
     @classmethod
-    def instance(cls, identification: IdentificationParameters, label: str, aws_s3: AwsS3Credentials) -> MemoryLog:
+    def instance(cls, identification: IdentificationParameters, label: str, s3_credentials: AwsS3Credentials) -> MemoryLog:
         instance = cls(identification, label)
-        instance.aws_s3 = aws_s3
+        instance.s3_credentials = s3_credentials
         return instance
 
     def __init__(self, identification: IdentificationParameters, label: str) -> None:
         self.identification = identification
         self.label = label
-        self.aws_s3 = AwsS3Credentials(aws_key="", aws_secret="", region="", bucket="")
+        self.s3_credentials = AwsS3Credentials(aws_key="", aws_secret="", region="", bucket="")
         if self.identification.note_uuid not in self.ENTRIES:
             self.ENTRIES[self.identification.note_uuid] = {}
         if label not in self.ENTRIES[self.identification.note_uuid]:
@@ -71,13 +71,13 @@ class MemoryLog:
             "time": now,
             "message": message,
         })
-        aws_s3 = AwsS3Credentials(
-            aws_key=self.aws_s3.aws_key,
-            aws_secret=self.aws_s3.aws_secret,
-            region=self.aws_s3.region,
+        s3_credentials = AwsS3Credentials(
+            aws_key=self.s3_credentials.aws_key,
+            aws_secret=self.s3_credentials.aws_secret,
+            region=self.s3_credentials.region,
             bucket=Constants.INFORMANT_AWS_BUCKET,
         )
-        client_s3 = AwsS3(aws_s3)
+        client_s3 = AwsS3(s3_credentials)
         if client_s3.is_ready():
             log_path = (f"{self.identification.canvas_instance}/"
                         f"progresses/"
@@ -102,12 +102,12 @@ class MemoryLog:
         return "\n".join(self.ENTRIES[self.identification.note_uuid][self.label])
 
     def store_so_far(self) -> None:
-        client_s3 = AwsS3(self.aws_s3)
+        client_s3 = AwsS3(self.s3_credentials)
         if client_s3.is_ready():
             cached = CachedDiscussion.get_discussion(self.identification.note_uuid)
             log_path = (f"{self.identification.canvas_instance}/"
+                        "partials/"
                         f"{cached.creation_day()}/"
-                        f"partials/"
                         f"{self.identification.note_uuid}/"
                         f"{cached.count - 1:02d}/"
                         f"{self.label}.log")

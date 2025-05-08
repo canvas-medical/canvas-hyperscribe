@@ -6,6 +6,7 @@ def test_constants():
     tested = Constants
     constants = {
         "ANTHROPIC_CHAT_TEXT": "claude-3-5-sonnet-20241022",
+        "AWS3_LINK_EXPIRATION_SECONDS": 1200,
         "DISCUSSION_CACHED_DURATION": 90,
         "GOOGLE_CHAT_ALL": "models/gemini-2.0-flash",
         "INFORMANT_AWS_BUCKET": "hyperscribe",

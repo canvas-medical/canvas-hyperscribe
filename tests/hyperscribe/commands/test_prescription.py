@@ -185,6 +185,7 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
 
         arguments = {
             "uuid": "theUuid",
+            "index": 7,
             "instruction": "theInstruction",
             "information": "theInformation",
             "is_new": False,
@@ -237,6 +238,7 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
 
     arguments = {
         "uuid": "theUuid",
+        "index": 7,
         "instruction": "theInstruction",
         "information": "theInformation",
         "is_new": False,
@@ -285,6 +287,7 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
 
     arguments = {
         "uuid": "theUuid",
+        "index": 7,
         "instruction": "theInstruction",
         "information": "theInformation",
         "is_new": False,
@@ -342,7 +345,7 @@ def test_command_parameters(current_conditions):
     tests = [
         (conditions, {
             "keywords": "comma separated keywords of up to 5 synonyms of the medication to prescribe, ordered by similarity decreasing",
-            "medicationNames": "comma separated of known medication names related to the keywords",
+            "medicationNames": "comma separated of known medication names, generics then brands, related to the keywords",
             "sig": "directions, as free text",
             "suppliedDays": "mandatory, duration of the treatment in days either as mentioned, or following the standard practices, as integer",
             "substitution": "one of: allowed/not_allowed",
@@ -352,7 +355,7 @@ def test_command_parameters(current_conditions):
         }),
         ([], {
             "keywords": "comma separated keywords of up to 5 synonyms of the medication to prescribe, ordered by similarity decreasing",
-            "medicationNames": "comma separated of known medication names related to the keywords",
+            "medicationNames": "comma separated of known medication names, generics then brands, related to the keywords",
             "sig": "directions, as free text",
             "suppliedDays": "mandatory, duration of the treatment in days either as mentioned, or following the standard practices, as integer",
             "substitution": "one of: allowed/not_allowed",

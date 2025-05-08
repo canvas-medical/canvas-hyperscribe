@@ -1,6 +1,6 @@
 {
   "sdk_version": "0.34.1",
-  "plugin_version": "0.0.62",
+  "plugin_version": "0.0.63",
   "name": "hyperscribe",
   "description": "Create commands based on the content of an audio discussion between a patient and a provider.",
   "url_permissions": [
@@ -41,6 +41,15 @@
       {
         "class": "hyperscribe.handlers.launcher:Launcher",
         "description": "Action button on the note to launch Hyperscribe with note context",
+        "data_access": {
+          "event": "",
+          "read": [],
+          "write": []
+        }
+      },
+      {
+        "class": "hyperscribe.handlers.reviewer:Reviewer",
+        "description": "Action button on the note to display the audit page with note context",
         "data_access": {
           "event": "",
           "read": [],

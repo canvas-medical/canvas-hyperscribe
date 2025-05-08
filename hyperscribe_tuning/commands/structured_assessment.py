@@ -1,5 +1,5 @@
-from hyperscribe_tuning.handlers.constants import Constants
 from hyperscribe_tuning.commands.base_questionnaire import BaseQuestionnaire
+from hyperscribe_tuning.handlers.constants import Constants
 
 
 class StructuredAssessment(BaseQuestionnaire):

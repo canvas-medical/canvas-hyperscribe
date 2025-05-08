@@ -27,7 +27,8 @@ def test_run(
         (['--delete'], [call()], [], [], []),
         (['--transcript'], [], [call()], [], []),
         (['--tuning-json'], [], [], [call()], []),
-        ([], [], [], [], [call()]),
+        (['--mp3'], [], [], [], [call()]),
+        ([], [], [], [], []),
     ]
     tested = CaseBuilder
     for arguments, call_delete, call_transcript, call_tuning, call_mp3 in tests:

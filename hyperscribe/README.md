@@ -3,6 +3,14 @@ hyperscribe
 
 Plugin inserting commands based on the content of an audio, discussion between a patient and a provider.
 
+## Components
+
+The plugin provides these components:
+
+- [launcher](handlers/launcher.py): button in the header of the note (UI) to start the recording
+- [commander](handlers/commander.py): script executed on the server creating the commands based on the audio
+- [reviewer](handlers/reviewer.py): button in the header of the note (UI) to review the LLM decisions
+
 ## Set up
 
 In your home directory, add to `~/.canvas/credentials.ini` the host you have access to:
@@ -73,13 +81,26 @@ The `secrets` are stored in the Canvas instance database and can be upsert in `h
 | `AwsRegion`                |                                 | AWS region of the S3 service                  |
 | `AwsBucket`                |                                 | AWS bucket of the S3 service                  |
 
-The logs, mainly the communication with the LLMs, are stored in a `AWS S3 bucket` if credentials are provided as listed above.
-
 To use the Canvas services provided by the SDK (`OntologiesHttp` and `ScienceHttp` from `canvas_sdk.utils.http`), set to empty the related secrets (
 `OntologiesHost` and `ScienceHost`).
 
+The logs, mainly the communication with the LLMs, are stored in a `AWS S3 bucket` if credentials are provided as listed above.
+
 The `AuditLLMDecisions` secret directs the LLM to provide, or not, the rationale used at each step, giving a better understanding of the command
-generation. It has a significant impact on the performance that can add 50% more time.
+generation. When set, the audit is generated at the end of the session, and it can be viewed through the `Reviewer` button.
+
+The audits are saved in the provided `AWS S3 bucket`.
+
+The logs are saved following the folders structure:
+
+```shell
+AwsBucket
+      |- canvas-instance
+           |- audits - all audit files
+           |- finals - concatenated logs of each cycle
+           |- llm_turns - log of each LLM communication
+           |- partials - logs of each step
+```
 
 ### Temporary set up
 

@@ -96,6 +96,7 @@ def test_command_from_json(current_allergies):
         current_allergies.side_effect = [allergies, allergies]
         arguments = {
             "uuid": "theUuid",
+            "index": 7,
             "instruction": "theInstruction",
             "information": "theInformation",
             "is_new": False,

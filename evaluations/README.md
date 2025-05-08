@@ -80,6 +80,7 @@ export ScienceHost="..."
 export OntologiesHost="...."
 export PreSharedKey="...."
 export StructuredReasonForVisit="y" or "n"
+export AuditLLMDecisions="y" or "n"
 ```
 
 The logs will be sent to the `AWS S3 bucket` if the following environment variables are set:
@@ -89,6 +90,20 @@ export AwsKey="..."
 export AwsSecret="..."
 export AwsRegion="..."
 export AwsBucket="..."
+```
+
+In addition, if the `AuditLLMDecisions` is set, an audit of the LLM decisions is run at the end of the evaluation and saved in the AWS S3 bucket
+provided.
+
+The logs are saved following the folders structure:
+
+```shell
+AwsBucket
+      |- canvas-instance
+           |- audits - all audit files
+           |- finals - concatenated logs of each cycle
+           |- llm_turns - log of each LLM communication
+           |- partials - logs of each step
 ```
 
 #### From Audio to commands
@@ -111,7 +126,7 @@ The `combined` flag instructs the case builder to first combine the mp3 files in
 
 Without it, the case builder will perform as many cycles as files, using the result of each cycle to the next, mimicking the real behavior.
 
-The generated files of each step will have a suffix `_cycle\d{2}` corresponding to the cycle (starting from 0). 
+The generated files of each step will have a suffix `_cycle\d{2}` corresponding to the cycle (starting from 0).
 
 ```shell
 # run the tests for the_case, regardless of the --combined flag 

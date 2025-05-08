@@ -22,6 +22,31 @@ JSON_SCHEMAS = {
             "additionalProperties": False,
         }
     },
+    "audit_with_value": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "array",
+        "items": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "key": {
+                        "type": "string",
+                        "description": "the referenced key"
+                    },
+                    "value": {
+                        "description": "the provided value"
+                    },
+                    "rationale": {
+                        "type": "string",
+                        "description": "the rationale of the provided value"
+                    }
+                },
+                "required": ["key", "value", "rationale"],
+                "additionalProperties": False,
+            }
+        }
+    },
     "generic_parameters": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "array",

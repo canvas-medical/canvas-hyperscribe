@@ -8,6 +8,7 @@ from evaluations.datastores.store_cases import StoreCases
 from evaluations.helper_evaluation import HelperEvaluation
 from evaluations.structures.evaluation_case import EvaluationCase
 from hyperscribe.handlers.audio_interpreter import AudioInterpreter
+from hyperscribe.handlers.cached_discussion import CachedDiscussion
 from hyperscribe.handlers.commander import Commander
 from hyperscribe.handlers.implemented_commands import ImplementedCommands
 from hyperscribe.handlers.limited_cache import LimitedCache
@@ -57,4 +58,5 @@ class BuilderFromTuning(BuilderBase):
         audios: list[bytes] = []
         with parameters.tuning_mp3.open("rb") as f:
             audios.append(f.read())
+        CachedDiscussion.get_discussion(chatter.identification.note_uuid).add_one()
         Commander.audio2commands(recorder, audios, chatter, previous)

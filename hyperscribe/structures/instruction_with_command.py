@@ -9,6 +9,7 @@ class InstructionWithCommand(InstructionWithParameters):
     def __init__(
             self,
             uuid: str,
+            index: int,
             instruction: str,
             information: str,
             is_new: bool,
@@ -17,13 +18,14 @@ class InstructionWithCommand(InstructionWithParameters):
             parameters: dict,
             command: _BaseCommand,
     ):
-        super().__init__(uuid, instruction, information, is_new, is_updated, audits, parameters)
+        super().__init__(uuid, index, instruction, information, is_new, is_updated, audits, parameters)
         self.command: _BaseCommand = command
 
     @classmethod
     def add_command(cls, instruction: InstructionWithParameters, command: _BaseCommand) -> InstructionWithCommand:
         return InstructionWithCommand(
             uuid=instruction.uuid,
+            index=instruction.index,
             instruction=instruction.instruction,
             information=instruction.information,
             is_new=instruction.is_new,

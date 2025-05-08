@@ -7,6 +7,7 @@ from evaluations.datastores.store_cases import StoreCases
 from evaluations.helper_evaluation import HelperEvaluation
 from evaluations.structures.evaluation_case import EvaluationCase
 from hyperscribe.handlers.audio_interpreter import AudioInterpreter
+from hyperscribe.handlers.cached_discussion import CachedDiscussion
 from hyperscribe.handlers.commander import Commander
 from hyperscribe.handlers.implemented_commands import ImplementedCommands
 from hyperscribe.structures.identification_parameters import IdentificationParameters
@@ -66,15 +67,18 @@ class BuilderFromMp3(BuilderBase):
 
     @classmethod
     def _run_combined(cls, recorder: AuditorFile, chatter: AudioInterpreter, audios: list[bytes], previous: list[Instruction]) -> None:
+        CachedDiscussion.get_discussion(chatter.identification.note_uuid).add_one()
         Commander.audio2commands(recorder, audios, chatter, previous, "")
 
     @classmethod
     def _run_chunked(cls, parameters: Namespace, chatter: AudioInterpreter, audios: list[bytes], previous: list[Instruction]) -> None:
         transcript_tail = ""
+        discussion = CachedDiscussion.get_discussion(chatter.identification.note_uuid)
         for cycle in range(len(audios)):
             combined: list[bytes] = []
             for chunk in range(cycle, max(-1, cycle - Commander.MAX_PREVIOUS_AUDIOS), -1):
                 combined.insert(0, audios[chunk])
 
+            discussion.add_one()
             recorder = AuditorFile(f"{parameters.case}{Constants.CASE_CYCLE_SUFFIX}{cycle:02d}")
             previous, _, transcript_tail = Commander.audio2commands(recorder, combined, chatter, previous, transcript_tail)

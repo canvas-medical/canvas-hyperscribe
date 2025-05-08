@@ -166,6 +166,7 @@ def test_medications_from(demographic, current_allergies, staged_commands_of, me
     ]
     instruction = InstructionWithParameters(
         uuid="theUuid",
+        index=7,
         instruction="theInstruction",
         information="theInformation",
         is_new=False,
@@ -423,6 +424,7 @@ def test_set_medication_dosage(demographic):
     ]
     instruction = InstructionWithParameters(
         uuid="theUuid",
+        index=7,
         instruction="theInstruction",
         information="theInformation",
         is_new=False,

@@ -34,6 +34,35 @@ def test___init__():
     assert tested.audios == []
 
 
+def test_add_prompt():
+    prompts = [
+        LlmTurn(role="system", text=["line 0"]),
+        LlmTurn(role="system", text=["line 1"]),
+        LlmTurn(role="user", text=["line 2"]),
+        LlmTurn(role="user", text=["line 3"]),
+        LlmTurn(role="model", text=["line 4"]),
+        LlmTurn(role="model", text=["line 5"]),
+        LlmTurn(role="other", text=["line 6"]),
+    ]
+
+    memory_log = MagicMock()
+    tested = LlmBase(memory_log, "apiKey", "theModel", False)
+    tested.add_prompt(prompts[0])
+    assert tested.prompts == [prompts[i] for i in [0]]
+    tested.add_prompt(prompts[2])
+    assert tested.prompts == [prompts[i] for i in [0, 2]]
+    tested.add_prompt(prompts[4])
+    assert tested.prompts == [prompts[i] for i in [0, 2, 4]]
+    tested.add_prompt(prompts[6])
+    assert tested.prompts == [prompts[i] for i in [0, 2, 4]]
+    tested.add_prompt(prompts[1])
+    assert tested.prompts == [prompts[i] for i in [1, 2, 4]]
+    tested.add_prompt(prompts[3])
+    assert tested.prompts == [prompts[i] for i in [1, 2, 4, 3]]
+    tested.add_prompt(prompts[5])
+    assert tested.prompts == [prompts[i] for i in [1, 2, 4, 3, 5]]
+
+
 def test_set_system_prompt():
     memory_log = MagicMock()
     tested = LlmBase(memory_log, "apiKey", "theModel", False)
@@ -301,139 +330,80 @@ def test_chat(attempt_requests, extract_json_from):
     reset_mocks()
 
 
+@patch.object(LlmBase, "store_llm_turns")
 @patch.object(LlmBase, "set_user_prompt")
 @patch.object(LlmBase, "set_system_prompt")
 @patch.object(LlmBase, "chat")
-def test_single_conversation(chat, set_system_prompt, set_user_prompt):
+def test_single_conversation(chat, set_system_prompt, set_user_prompt, store_llm_turns):
     memory_log = MagicMock()
 
     def reset_mocks():
         chat.reset_mock()
         set_system_prompt.reset_mock()
         set_user_prompt.reset_mock()
+        store_llm_turns.reset_mock()
         memory_log.reset_mock()
 
     system_prompt = ["theSystemPrompt"]
     user_prompt = ["theUserPrompt"]
     schemas = ["schema1", "schema2"]
-    audit_schema = {
-        "$schema": "http://json-schema.org/draft-07/schema#",
-        "type": "array",
-        "items": {
-            "type": "object",
-            "properties": {
-                "key": {
-                    "type": "string",
-                    "description": "the referenced key",
-                },
-                "keyPath": {
-                    "type": "string",
-                    "description": "the JSON path of the referenced key from the root if there is more than one object",
-                },
-                "rationale": {
-                    "type": "string",
-                    "description": "the rationale of the provided value",
-                },
-            },
-            "required": ["key", "rationale"],
-            "additionalProperties": False,
-        }
-    }
+
     tested = LlmBase(memory_log, "theApiKey", "theModel", True)
 
     # without error
-    # -- no instruction, list
+    # -- no instruction, several schemas
+    chat.side_effect = [JsonExtract(error="theError", has_error=False, content=[["theContent1"], ["theContent2"]])]
+    result = tested.single_conversation(system_prompt, user_prompt, schemas, None)
+    assert result == [["theContent1"], ["theContent2"]]
+
+    calls = [call(["schema1", "schema2"])]
+    assert chat.mock_calls == calls
+    calls = [call(system_prompt)]
+    assert set_system_prompt.mock_calls == calls
+    calls = [call(user_prompt)]
+    assert set_user_prompt.mock_calls == calls
+    calls = [call([['theContent1'], ['theContent2']], None)]
+    assert store_llm_turns.mock_calls == calls
+    assert memory_log.mock_calls == []
+    reset_mocks()
+    # -- no instruction, one schema
     chat.side_effect = [JsonExtract(error="theError", has_error=False, content=[["theContent"]])]
-    result = tested.single_conversation(system_prompt, user_prompt, schemas, None)
+    result = tested.single_conversation(system_prompt, user_prompt, schemas[:1], None)
     assert result == ["theContent"]
 
-    calls = [call(["schema1", "schema2"])]
+    calls = [call(["schema1"])]
     assert chat.mock_calls == calls
     calls = [call(system_prompt)]
     assert set_system_prompt.mock_calls == calls
     calls = [call(user_prompt)]
     assert set_user_prompt.mock_calls == calls
+    calls = [call(['theContent'], None)]
+    assert store_llm_turns.mock_calls == calls
     assert memory_log.mock_calls == []
     reset_mocks()
-    # -- no instruction, not list
-    chat.side_effect = [JsonExtract(error="theError", has_error=False, content=["one", "two"])]
-    result = tested.single_conversation(system_prompt, user_prompt, schemas, None)
-    assert result == ["one", "two"]
 
-    calls = [call(["schema1", "schema2"])]
-    assert chat.mock_calls == calls
-    calls = [call(system_prompt)]
-    assert set_system_prompt.mock_calls == calls
-    calls = [call(user_prompt)]
-    assert set_user_prompt.mock_calls == calls
-    assert memory_log.mock_calls == []
-    reset_mocks()
     # -- with instruction
-    # -- -- with audit
-    tested = LlmBase(memory_log, "theApiKey", "theModel", True)
-    instruction = Instruction(uuid="theUuid", instruction="Second", information="theInformation", is_new=False, is_updated=True, audits=[])
-    chat.side_effect = [JsonExtract(error="theError", has_error=False, content=[["theContent"], ["theAudit"]])]
-    result = tested.single_conversation(system_prompt, user_prompt, schemas, instruction)
-    assert result == ["theContent"]
-    assert instruction.audits == [
-        '-------------',
-        '[\n'
-        ' [\n'
-        '  "theContent"\n'
-        ' ],\n'
-        ' [\n'
-        '  "theAudit"\n'
-        ' ]\n'
-        ']',
-    ]
-    calls = [call(["schema1", "schema2", audit_schema])]
-    assert chat.mock_calls == calls
-    calls = [call(system_prompt)]
-    assert set_system_prompt.mock_calls == calls
-    calls = [call([
-        'theUserPrompt',
-        'As a following step, provide the rationale of each and every value you have provided.',
-        'Provide the reasoning behind each and every value you provided, your response  in an additional JSON has to follow this JSON Schema:',
-        '```json',
-        '{\n "$schema": "http://json-schema.org/draft-07/schema#",\n'
-        ' "type": "array",\n'
-        ' "items": {\n'
-        '  "type": "object",\n'
-        '  "properties": {\n'
-        '   "key": {\n    "type": "string",\n    "description": "the referenced key"\n   },\n'
-        '   "keyPath": {\n'
-        '    "type": "string",\n'
-        '    "description": "the JSON path of the referenced key from the root if there is more than one object"\n'
-        '   },\n'
-        '   "rationale": {\n    "type": "string",\n    "description": "the rationale of the provided value"\n   }\n'
-        '  },\n'
-        '  "required": [\n   "key",\n   "rationale"\n  ],\n'
-        '  "additionalProperties": false\n'
-        ' }\n}',
-        '```',
-        '',
-    ])]
-    assert set_user_prompt.mock_calls == calls
-    assert memory_log.mock_calls == []
-    reset_mocks()
-    # -- -- with no audit
-    tested = LlmBase(memory_log, "theApiKey", "theModel", False)
-    instruction = Instruction(uuid="theUuid", instruction="Second", information="theInformation", is_new=False, is_updated=True, audits=[])
-    chat.side_effect = [JsonExtract(error="theError", has_error=False, content=[["theContent"], ["theAudit"]])]
-    result = tested.single_conversation(system_prompt, user_prompt, schemas, instruction)
-    assert result == [["theContent"], ["theAudit"]]
-    assert instruction.audits == []
-    calls = [call(["schema1", "schema2"])]
-    assert chat.mock_calls == calls
-    calls = [call(system_prompt)]
-    assert set_system_prompt.mock_calls == calls
-    calls = [call(['theUserPrompt'])]
-    assert set_user_prompt.mock_calls == calls
-    assert memory_log.mock_calls == []
-    reset_mocks()
+    for with_audit in [True, False]:
+        tested = LlmBase(memory_log, "theApiKey", "theModel", with_audit)
+        instruction = Instruction(uuid="theUuid", index=0, instruction="Second", information="theInformation", is_new=False, is_updated=True,
+                                  audits=[])
+        chat.side_effect = [JsonExtract(error="theError", has_error=False, content=[["theContent1"], ["theAudit"]])]
+        result = tested.single_conversation(system_prompt, user_prompt, schemas[:1], instruction)
+        assert result == ["theContent1"]
+        assert instruction.audits == []
+        calls = [call(["schema1"])]
+        assert chat.mock_calls == calls
+        calls = [call(system_prompt)]
+        assert set_system_prompt.mock_calls == calls
+        calls = [call(['theUserPrompt'])]
+        assert set_user_prompt.mock_calls == calls
+        calls = [call(['theContent1'], instruction)]
+        assert store_llm_turns.mock_calls == calls
+        assert memory_log.mock_calls == []
+        reset_mocks()
 
     # with error
-    chat.side_effect = [JsonExtract(error="theError", has_error=True, content=[["theContent"]])]
+    chat.side_effect = [JsonExtract(error="theError", has_error=True, content=[["theContent1"], ["theContent2"]])]
     result = tested.single_conversation(system_prompt, user_prompt, schemas, None)
     assert result == []
 
@@ -443,6 +413,77 @@ def test_single_conversation(chat, set_system_prompt, set_user_prompt):
     assert set_system_prompt.mock_calls == calls
     calls = [call(user_prompt)]
     assert set_user_prompt.mock_calls == calls
+    assert store_llm_turns.mock_calls == []
+    assert memory_log.mock_calls == []
+    reset_mocks()
+
+
+@patch("hyperscribe.llms.llm_base.LlmTurnsStore")
+def test_store_llm_turns(discussion_store):
+    memory_log = MagicMock()
+
+    def reset_mocks():
+        discussion_store.reset_mock()
+        memory_log.reset_mock()
+
+    memory_log.label = "theLabel"
+    memory_log.s3_credentials = "theAwsS3"
+    memory_log.identification = "theIdentification"
+    instruction = Instruction(
+        uuid="theUuid",
+        index=7,
+        instruction="theInstruction",
+        information="theInformation",
+        is_new=False,
+        is_updated=True,
+        audits=[],
+    )
+    prompts = [
+        LlmTurn(role="system", text=["textSystem"]),
+        LlmTurn(role="user", text=["textUser1"]),
+        LlmTurn(role="model", text=["textModel1"]),
+        LlmTurn(role="user", text=["textUser2"]),
+        LlmTurn(role="model", text=["textModel2"]),
+        LlmTurn(role="user", text=["textUser3"]),
+    ]
+    exp_turns = [
+        LlmTurn(role="system", text=["textSystem"]),
+        LlmTurn(role="user", text=["textUser1"]),
+        LlmTurn(role="model", text=["textModel1"]),
+        LlmTurn(role="user", text=["textUser2"]),
+        LlmTurn(role="model", text=["textModel2"]),
+        LlmTurn(role="user", text=["textUser3"]),
+        LlmTurn(role="model", text=['```json', '["line1", "line2"]', '```']),
+    ]
+
+    # no audit
+    tested = LlmBase(memory_log, "theApiKey", "theModel", False)
+    tested.prompts = prompts
+    tested.store_llm_turns(["line1", "line2"], instruction)
+
+    assert discussion_store.mock_calls == []
+    assert memory_log.mock_calls == []
+    reset_mocks()
+
+    # with audit
+    tested = LlmBase(memory_log, "theApiKey", "theModel", True)
+    tested.prompts = prompts
+    # -- with instruction
+    tested.store_llm_turns(["line1", "line2"], instruction)
+    calls = [
+        call.instance('theAwsS3', 'theIdentification'),
+        call.instance().store('theInstruction', 7, exp_turns),
+    ]
+    assert discussion_store.mock_calls == calls
+    assert memory_log.mock_calls == []
+    reset_mocks()
+    # -- with no instruction
+    tested.store_llm_turns(["line1", "line2"], None)
+    calls = [
+        call.instance('theAwsS3', 'theIdentification'),
+        call.instance().store('theLabel', -1, exp_turns),
+    ]
+    assert discussion_store.mock_calls == calls
     assert memory_log.mock_calls == []
     reset_mocks()
 

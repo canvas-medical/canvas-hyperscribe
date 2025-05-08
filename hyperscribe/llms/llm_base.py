@@ -8,7 +8,7 @@ from canvas_sdk.questionnaires.utils import Draft7Validator
 from logger import log
 
 from hyperscribe.handlers.constants import Constants
-from hyperscribe.handlers.json_schema import JsonSchema
+from hyperscribe.handlers.llm_turns_store import LlmTurnsStore
 from hyperscribe.handlers.memory_log import MemoryLog
 from hyperscribe.structures.http_response import HttpResponse
 from hyperscribe.structures.instruction import Instruction
@@ -29,6 +29,14 @@ class LlmBase:
         self.temperature = 0.0
         self.prompts: list[LlmTurn] = []
         self.audios: list[dict] = []
+
+    def add_prompt(self, prompt: LlmTurn) -> None:
+        if prompt.role == self.ROLE_SYSTEM:
+            self.set_system_prompt(prompt.text)
+        elif prompt.role == self.ROLE_USER:
+            self.set_user_prompt(prompt.text)
+        elif prompt.role == self.ROLE_MODEL:
+            self.set_model_prompt(prompt.text)
 
     def set_system_prompt(self, text: list[str]) -> None:
         prompt = LlmTurn(role=self.ROLE_SYSTEM, text=text)
@@ -103,31 +111,34 @@ class LlmBase:
     def single_conversation(self, system_prompt: list[str], user_prompt: list[str], schemas: list, instruction: Instruction | None) -> list:
         used_schemas = [s for s in schemas]
         used_prompt = [s for s in user_prompt]
-        if instruction is not None and self.with_audit:
-            audit_schema = JsonSchema.get(["audit"])[0]
-            used_prompt.extend([
-                "As a following step, provide the rationale of each and every value you have provided.",
-                "Provide the reasoning behind each and every value you provided, your response  in an additional JSON has to follow this JSON Schema:",
-                "```json",
-                json.dumps(audit_schema, indent=1),
-                "```",
-                "",
-            ])
-            used_schemas.append(audit_schema)
 
         self.set_system_prompt(system_prompt)
         self.set_user_prompt(used_prompt)
         response = self.chat(used_schemas)
         if response.has_error is False and response.content:
             result = response.content
-            if instruction is not None and self.with_audit:
-                instruction.audits.append("-------------")
-                instruction.audits.append(json.dumps(response.content, indent=1))
-                result = response.content[:-1]
-            if isinstance(result, list) and len(result) == 1:
-                return result[0]
+            if len(schemas) == 1:
+                result = result[0]
+            self.store_llm_turns(result, instruction)
             return result
         return []
+
+    def store_llm_turns(self, model_prompt: list[str], instruction: Instruction | None) -> None:
+        if self.with_audit is False:
+            return
+        label = self.memory_log.label
+        index = -1
+        if instruction is not None:
+            label = instruction.instruction
+            index = instruction.index
+
+        turns = [turn for turn in self.prompts]
+        turns.append(LlmTurn(role=self.ROLE_MODEL, text=["```json", json.dumps(model_prompt), "```"]))
+
+        LlmTurnsStore.instance(
+            self.memory_log.s3_credentials,
+            self.memory_log.identification,
+        ).store(label, index, turns)
 
     @classmethod
     def json_validator(cls, response: list, json_schema: dict) -> str:

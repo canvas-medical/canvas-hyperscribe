@@ -80,17 +80,19 @@ def test__run():
 
 @patch("evaluations.case_builders.builder_base.datetime", wraps=datetime)
 @patch("evaluations.case_builders.builder_base.MemoryLog")
+@patch("evaluations.case_builders.builder_base.LlmDecisionsReviewer")
+@patch("evaluations.case_builders.builder_base.HelperEvaluation")
 @patch("evaluations.case_builders.builder_base.AwsS3")
 @patch("evaluations.case_builders.builder_base.AuditorFile")
-@patch("evaluations.case_builders.builder_base.HelperEvaluation")
 @patch.object(BuilderBase, "_parameters")
 @patch.object(BuilderBase, "_run")
 def test_run(
         run,
         parameters,
-        helper,
         auditor_file,
         aws_s3,
+        helper,
+        llm_decisions_reviewer,
         memory_log,
         mock_datetime,
         capsys,
@@ -98,21 +100,37 @@ def test_run(
     def reset_mocks():
         run.reset_mock()
         parameters.reset_mock()
-        helper.reset_mock()
         auditor_file.reset_mock()
         aws_s3.reset_mock()
+        helper.reset_mock()
+        llm_decisions_reviewer.reset_mock()
         memory_log.reset_mock()
         mock_datetime.reset_mock()
+
+    identifications = {
+        "target": IdentificationParameters(
+            patient_uuid='patientUuid',
+            note_uuid='noteUuid',
+            provider_uuid='providerUuid',
+            canvas_instance="canvasInstance",
+        ),
+        "generic": IdentificationParameters(
+            patient_uuid='_PatientUuid',
+            note_uuid='_NoteUuid',
+            provider_uuid='_ProviderUuid',
+            canvas_instance="canvasInstance",
+        ),
+    }
 
     tested = BuilderBase()
 
     # auditor is not ready
     run.side_effect = []
     parameters.side_effect = [Namespace(case="theCase")]
-    helper.side_effect = []
     auditor_file.return_value.is_ready.side_effect = [False]
     aws_s3.return_value.is_ready.side_effect = []
-    memory_log.end_session.side_effect = [""]
+    helper.side_effect = []
+    memory_log.end_session.side_effect = []
     mock_datetime.now.side_effect = []
 
     result = tested.run()
@@ -131,9 +149,10 @@ def test_run(
         call("theCase"),
         call().is_ready(),
     ]
-    assert helper.mock_calls == []
     assert auditor_file.mock_calls == calls
     assert aws_s3.mock_calls == []
+    assert helper.mock_calls == []
+    assert llm_decisions_reviewer.mock_calls == []
     assert memory_log.mock_calls == []
     assert mock_datetime.mock_calls == []
     reset_mocks()
@@ -145,12 +164,13 @@ def test_run(
 
         run.side_effect = [None]
         parameters.side_effect = [arguments]
+        auditor_file.return_value.is_ready.side_effect = [True]
+        aws_s3.return_value.is_ready.side_effect = [aws_is_ready]
         helper.aws_s3_credentials.side_effect = ["awsS3CredentialsInstance1"]
         helper.get_note_uuid.side_effect = ["noteUuid"]
         helper.get_provider_uuid.side_effect = ["providerUuid"]
         helper.get_canvas_instance.side_effect = ["canvasInstance"]
-        auditor_file.return_value.is_ready.side_effect = [True]
-        aws_s3.return_value.is_ready.side_effect = [aws_is_ready]
+        helper.settings.side_effect = ["settingsInstance"]
         memory_log.end_session.side_effect = ["flushedMemoryLog"]
         mock_datetime.now.side_effect = [datetime(2025, 3, 10, 7, 48, 21, tzinfo=timezone.utc)]
 
@@ -159,18 +179,10 @@ def test_run(
 
         exp_out = []
         if aws_is_ready:
-            exp_out.append('Logs saved in: case-builder/2025-03-10/theCase.log')
+            exp_out.append('Logs saved in: canvasInstance/finals/2025-03-10/theCase.log')
         exp_out.append('')
         assert capsys.readouterr().out == "\n".join(exp_out)
-        calls = [call(
-            arguments,
-            auditor_file.return_value,
-            IdentificationParameters(
-                patient_uuid='patientUuid',
-                note_uuid='noteUuid',
-                provider_uuid='providerUuid',
-                canvas_instance="canvasInstance",
-            ))]
+        calls = [call(arguments, auditor_file.return_value, identifications["target"])]
         assert run.mock_calls == calls
         calls = [call()]
         assert parameters.mock_calls == calls
@@ -179,6 +191,7 @@ def test_run(
             call.get_provider_uuid('patientUuid'),
             call.get_canvas_instance(),
             call.aws_s3_credentials(),
+            call.settings(),
         ]
         assert helper.mock_calls == calls
         calls = [
@@ -193,11 +206,21 @@ def test_run(
         ]
         if aws_is_ready:
             calls.append(call().upload_text_to_s3(
-                'case-builder/2025-03-10/theCase.log',
+                'canvasInstance/finals/2025-03-10/theCase.log',
                 "flushedMemoryLog"),
             )
         assert aws_s3.mock_calls == calls
-        calls = [call.begin_session('noteUuid')]
+        calls = [
+            call.review(
+                identifications["target"],
+                'settingsInstance',
+                'awsS3CredentialsInstance1',
+                memory_log.return_value,
+                {},
+            ),
+        ]
+        assert llm_decisions_reviewer.mock_calls == calls
+        calls = [call(identifications["target"], "case_builder")]
         if aws_is_ready:
             calls.append(call.end_session('noteUuid'))
         assert memory_log.mock_calls == calls
@@ -206,18 +229,20 @@ def test_run(
             calls.append(call.now())
         assert mock_datetime.mock_calls == calls
         reset_mocks()
+
     # -- patient is NOT provided
     for aws_is_ready in [True, False]:
         arguments = Namespace(case="theCase")
 
         run.side_effect = [None]
         parameters.side_effect = [arguments]
+        auditor_file.return_value.is_ready.side_effect = [True]
+        aws_s3.return_value.is_ready.side_effect = [aws_is_ready]
         helper.aws_s3_credentials.side_effect = ["awsS3CredentialsInstance1"]
         helper.get_note_uuid.side_effect = ["noteUuid"]
         helper.get_provider_uuid.side_effect = ["providerUuid"]
         helper.get_canvas_instance.side_effect = ["canvasInstance"]
-        auditor_file.return_value.is_ready.side_effect = [True]
-        aws_s3.return_value.is_ready.side_effect = [aws_is_ready]
+        helper.settings.side_effect = ["settingsInstance"]
         memory_log.end_session.side_effect = ["flushedMemoryLog"]
         mock_datetime.now.side_effect = [datetime(2025, 3, 10, 7, 48, 21, tzinfo=timezone.utc)]
 
@@ -226,26 +251,18 @@ def test_run(
 
         exp_out = []
         if aws_is_ready:
-            exp_out.append('Logs saved in: case-builder/2025-03-10/theCase.log')
+            exp_out.append('Logs saved in: canvasInstance/finals/2025-03-10/theCase.log')
         exp_out.append('')
         assert capsys.readouterr().out == "\n".join(exp_out)
 
-        calls = [call(
-            arguments,
-            auditor_file.return_value,
-            IdentificationParameters(
-                patient_uuid='_PatientUuid',
-                note_uuid='_NoteUuid',
-                provider_uuid='_ProviderUuid',
-                canvas_instance="canvasInstance",
-            ),
-        )]
+        calls = [call(arguments, auditor_file.return_value, identifications["generic"])]
         assert run.mock_calls == calls
         calls = [call()]
         assert parameters.mock_calls == calls
         calls = [
             call.get_canvas_instance(),
             call.aws_s3_credentials(),
+            call.settings(),
         ]
         assert helper.mock_calls == calls
         calls = [
@@ -260,11 +277,21 @@ def test_run(
         ]
         if aws_is_ready:
             calls.append(call().upload_text_to_s3(
-                'case-builder/2025-03-10/theCase.log',
+                'canvasInstance/finals/2025-03-10/theCase.log',
                 "flushedMemoryLog"),
             )
         assert aws_s3.mock_calls == calls
-        calls = [call.begin_session('_NoteUuid')]
+        calls = [
+            call.review(
+                identifications["generic"],
+                'settingsInstance',
+                'awsS3CredentialsInstance1',
+                memory_log.return_value,
+                {},
+            ),
+        ]
+        assert llm_decisions_reviewer.mock_calls == calls
+        calls = [call(identifications["generic"], "case_builder")]
         if aws_is_ready:
             calls.append(call.end_session('_NoteUuid'))
         assert memory_log.mock_calls == calls

@@ -200,6 +200,7 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
 
     arguments = {
         "uuid": "theUuid",
+        "index": 7,
         "instruction": "theInstruction",
         "information": "theInformation",
         "is_new": False,
@@ -250,6 +251,7 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
 
     arguments = {
         "uuid": "theUuid",
+        "index": 7,
         "instruction": "theInstruction",
         "information": "theInformation",
         "is_new": False,
@@ -312,6 +314,7 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
 
     arguments = {
         "uuid": "theUuid",
+        "index": 7,
         "instruction": "theInstruction",
         "information": "theInformation",
         "is_new": False,
@@ -372,6 +375,7 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
 
     arguments = {
         "uuid": "theUuid",
+        "index": 7,
         "instruction": "theInstruction",
         "information": "theInformation",
         "is_new": False,

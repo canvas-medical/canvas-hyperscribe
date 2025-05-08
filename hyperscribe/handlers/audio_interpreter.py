@@ -22,12 +22,12 @@ class AudioInterpreter:
     def __init__(
             self,
             settings: Settings,
-            aws_s3: AwsS3Credentials,
+            s3_credentials: AwsS3Credentials,
             cache: LimitedCache,
             identification: IdentificationParameters,
     ) -> None:
         self.settings = settings
-        self.aws_s3 = aws_s3
+        self.s3_credentials = s3_credentials
         self.identification = identification
         self._command_context = [
             instance
@@ -64,7 +64,7 @@ class AudioInterpreter:
     def combine_and_speaker_detection(self, audio_chunks: list[bytes], transcript_tail: str) -> JsonExtract:
         conversation = Helper.audio2texter(
             self.settings,
-            MemoryLog.instance(self.identification, "audio2transcript", self.aws_s3),
+            MemoryLog.instance(self.identification, "audio2transcript", self.s3_credentials),
         )
         conversation.set_system_prompt([
             "The conversation is in the medical context, and related to a visit of a patient with a healthcare provider.",
@@ -141,18 +141,7 @@ class AudioInterpreter:
         )
 
     def detect_instructions(self, discussion: list[Line], known_instructions: list[Instruction]) -> list:
-        example = {
-            "uuid": "a unique identifier in this discussion",
-            "instruction": "the instruction",
-            "information": "the information associated with the instruction, grounded in the transcript with no embellishment or omission",
-            "isNew": "the instruction is new for the discussion, as boolean",
-            "isUpdated": "the instruction is an update of one already identified in the discussion, as boolean",
-        }
-        if self.settings.audit_llm:
-            example["audits"] = ("the reasoning behind identifying this instruction, "
-                                 "including relevant excerpts from supporting discussions, as a list")
         schema = self.json_schema(
-            self.settings.audit_llm,
             [instance.class_name() for instance in self._command_context]
         )
         system_prompt = [
@@ -167,10 +156,7 @@ class AudioInterpreter:
             json.dumps(self.instruction_definitions()),
             "```",
             "",
-            'Your response must be a JSON Markdown block with a list of objects: ',
-            json.dumps(example),
-            "",
-            "The JSON will be validated with the schema:",
+            "Your response must be a JSON Markdown block validated with the schema:",
             "```json",
             json.dumps(schema),
             "```",
@@ -196,19 +182,15 @@ class AudioInterpreter:
             ])
         chatter = Helper.chatter(
             self.settings,
-            MemoryLog.instance(self.identification, "transcript2instructions", self.aws_s3),
+            MemoryLog.instance(self.identification, "transcript2instructions", self.s3_credentials),
         )
         result = chatter.single_conversation(system_prompt, user_prompt, [schema], None)
 
         # limit the constraints to the reported instructions only
         instructions = Instruction.load_from_json(result)
         if result and (constraints := self.instruction_constraints(instructions)):
+            chatter.set_model_prompt(["```json", json.dumps(result), "```"])
             user_prompt = [
-                "Here is your last response:",
-                "```json",
-                json.dumps(result, indent=1),
-                "```",
-                "",
                 "Review your response and be sure to follow these constraints:",
             ]
             for constraint in constraints:
@@ -248,7 +230,7 @@ class AudioInterpreter:
             "",
         ]
         log_label = f"{instruction.instruction}_{instruction.uuid}_instruction2parameters"
-        memory_log = MemoryLog.instance(self.identification, log_label, self.aws_s3)
+        memory_log = MemoryLog.instance(self.identification, log_label, self.s3_credentials)
         chatter = Helper.chatter(self.settings, memory_log)
         schemas = JsonSchema.get(["generic_parameters"])
         response = chatter.single_conversation(system_prompt, user_prompt, schemas, instruction)
@@ -262,7 +244,7 @@ class AudioInterpreter:
         for instance in self._command_context:
             if instruction.instruction == instance.class_name():
                 log_label = f"{instruction.instruction}_{instruction.uuid}_parameters2command"
-                memory_log = MemoryLog.instance(self.identification, log_label, self.aws_s3)
+                memory_log = MemoryLog.instance(self.identification, log_label, self.s3_credentials)
                 chatter = Helper.chatter(self.settings, memory_log)
                 result = instance.command_from_json(instruction, chatter)
                 if result:
@@ -277,12 +259,13 @@ class AudioInterpreter:
                 log_label = f"{instruction.instruction}_{instruction.uuid}_questionnaire_update"
                 chatter = Helper.chatter(
                     self.settings,
-                    MemoryLog.instance(self.identification, log_label, self.aws_s3),
+                    MemoryLog.instance(self.identification, log_label, self.s3_credentials),
                 )
                 questionnaire = instance.update_from_transcript(discussion, instruction, chatter)
                 command = instance.command_from_questionnaire(instruction.uuid, questionnaire)
                 return InstructionWithCommand(
                     uuid=instruction.uuid,
+                    index=instruction.index,
                     instruction=instruction.instruction,
                     information=json.dumps(questionnaire.to_json()),
                     is_new=False,
@@ -294,11 +277,15 @@ class AudioInterpreter:
         return None
 
     @classmethod
-    def json_schema(cls, with_audit: bool, commands: list[str]) -> dict:
+    def json_schema(cls, commands: list[str]) -> dict:
         properties = {
             "uuid": {
                 "type": "string",
                 "description": "a unique identifier in this discussion",
+            },
+            "index": {
+                "type": "integer",
+                "description": "the 0-based appearance order of the instruction in this discussion",
             },
             "instruction": {
                 "type": "string",
@@ -317,15 +304,7 @@ class AudioInterpreter:
                 "description": "the instruction is an update of an instruction previously identified in the discussion",
             },
         }
-        required = ["uuid", "instruction", "information", "isNew", "isUpdated"]
-        if with_audit:
-            properties["audits"] = {
-                "type": "array",
-                "items": {"type": "string"},
-                "description": "breakdown of the decision-making process used to detect this instruction, "
-                               "incorporating direct quotes from key exchanges where necessary",
-            }
-            required.append("audits")
+        required = ["uuid", "index", "instruction", "information", "isNew", "isUpdated"]
 
         return {
             "$schema": "http://json-schema.org/draft-07/schema#",

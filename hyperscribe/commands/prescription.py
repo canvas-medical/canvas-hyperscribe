@@ -87,7 +87,7 @@ class Prescription(BasePrescription):
 
         return {
             "keywords": "comma separated keywords of up to 5 synonyms of the medication to prescribe, ordered by similarity decreasing",
-            "medicationNames": "comma separated of known medication names related to the keywords",
+            "medicationNames": "comma separated of known medication names, generics then brands, related to the keywords",
             "sig": "directions, as free text",
             "suppliedDays": "mandatory, duration of the treatment in days either as mentioned, or following the standard practices, as integer",
             # "quantityToDispense": 0,

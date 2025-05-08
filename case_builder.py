@@ -15,8 +15,10 @@ class CaseBuilder:
             BuilderFromTranscript.run()
         elif "--tuning-json" in arguments:
             BuilderFromTuning.run()
-        else:  # elif "--mp3" in arguments:
+        elif "--mp3" in arguments:
             BuilderFromMp3.run()
+        else:
+            print("no explicit action to perform")
 
 
 if __name__ == "__main__":

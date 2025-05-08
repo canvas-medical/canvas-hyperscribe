@@ -142,6 +142,7 @@ def test_command_from_json(medical_histories):
 
     arguments = {
         "uuid": "theUuid",
+        "index": 7,
         "instruction": "theInstruction",
         "information": "theInformation",
         "is_new": False,

@@ -92,6 +92,7 @@ def test_command_from_json(condition_from):
     condition_from.side_effect = [CodedItem(uuid="theUuid1", label="display1a", code="CODE12.3")]
     arguments = {
         "uuid": "theUuid",
+        "index": 7,
         "instruction": "theInstruction",
         "information": "theInformation",
         "is_new": False,

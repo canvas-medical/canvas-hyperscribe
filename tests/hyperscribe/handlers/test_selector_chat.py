@@ -80,6 +80,7 @@ def test_condition_from(search_conditions):
     ]
     instruction = Instruction(
         uuid="theUuid",
+        index=0,
         instruction="theInstruction",
         information="theInformation",
         is_new=True,
@@ -229,6 +230,7 @@ def test_lab_test_from(lab_test_db):
     conditions = ["theCondition1", "theCondition2"]
     instruction = Instruction(
         uuid="theUuid",
+        index=0,
         instruction="theInstruction",
         information="theInformation",
         is_new=True,
@@ -382,6 +384,7 @@ def test_procedure_from(charge_description):
     ]
     instruction = Instruction(
         uuid="theUuid",
+        index=0,
         instruction="theInstruction",
         information="theInformation",
         is_new=True,
@@ -510,6 +513,7 @@ def test_contact_from(search_contacts, summary_of):
     ]
     instruction = Instruction(
         uuid="theUuid",
+        index=0,
         instruction="theInstruction",
         information="theInformation",
         is_new=True,

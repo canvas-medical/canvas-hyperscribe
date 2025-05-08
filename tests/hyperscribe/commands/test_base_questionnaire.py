@@ -340,6 +340,7 @@ def test_update_from_transcript(include_skipped):
 
     instruction = Instruction(
         uuid="theUuid",
+        index=0,
         instruction="theInstruction",
         information=json.dumps(questionnaire.to_json()),
         is_new=False,

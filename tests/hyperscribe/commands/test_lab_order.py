@@ -128,6 +128,7 @@ def test_command_from_json(
                "That is to go over the 127 characters, just in the middle of the sentence.")
     arguments = {
         "uuid": "theUuid",
+        "index": 7,
         "instruction": "theInstruction",
         "information": "theInformation",
         "is_new": False,

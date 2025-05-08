@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hyperscribe Decisions Reviewer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.1;
+            margin: 0;
+            padding: 10px;
+            color: #333;
+            font-size: 14px;
+        }
+
+        .selector-container {
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        select {
+            padding: 4px 4px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            min-width: 200px;
+        }
+
+        .main-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 10px;
+            box-shadow: 0 0 5px rgba(0,0,0,0.1);
+        }
+
+        .main-row {
+            background-color: #f8f9fa;
+            border-bottom: 2px solid #dee2e6;
+        }
+
+        .main-row td {
+            padding: 7px;
+            font-weight: bold;
+        }
+
+        .sub-table-container {
+            padding: 0 5px 5px 5px;
+        }
+
+        .sub-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 5px;
+            border: 1px solid #dee2e6;
+        }
+
+        .sub-table th {
+            background-color: #e9ecef;
+            padding: 5px;
+            text-align: left;
+            border-bottom: 2px solid #dee2e6;
+        }
+
+        .sub-table td {
+            padding: 6px 5px;
+            border-bottom: 1px solid #dee2e6;
+            vertical-align: top;
+        }
+        .sub-table tr:hover {
+            background-color: #f5f5f5;
+        }
+
+        .key-column {
+            font-weight: bold;
+            width: 15%;
+        }
+
+        .value-column {
+            width: 35%;
+        }
+
+        .rationale {
+            padding-left: 10px;
+            color: #555;
+            font-style: italic;
+        }
+
+        .toggle-btn {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 12px;
+            font-weight: bold;
+            margin: 4px 2px;
+            cursor: pointer;
+            border-radius: 4px;
+            min-width: 30px;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            font-size: 18px;
+            color: #666;
+        }
+
+        .error {
+            color: #d9534f;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #d9534f;
+            border-radius: 4px;
+            background-color: #f9f2f2;
+        }
+    </style>
+</head>
+<body>
+    <div class="selector-container">
+        <label for="dataSetSelector">Cycle: </label>
+        <select id="dataSetSelector" onchange="loadSelectedData()">
+        </select>
+    </div>
+    <div id="loadingIndicator" class="loading hidden">Loading data...</div>
+    <div id="errorMessage" class="error hidden"></div>
+    <table id="mainTable" class="main-table"></table>
+
+    <script>
+        // urls
+        let dataUrls = {{ url_list | safe}};
+        let allJsonData = [];
+
+        // update the dataset dropdown
+        function updateSelector() {
+            const selector = document.getElementById('dataSetSelector');
+            // clear options
+            selector.innerHTML = '';
+            // no dataset
+            if (dataUrls.length === 0) {
+                const option = document.createElement('option');
+                option.value = '';
+                option.textContent = 'no data';
+                option.disabled = true;
+                option.selected = true;
+                selector.appendChild(option);
+                return;
+            }
+            // add options
+            dataUrls.forEach((url, index) => {
+                const option = document.createElement('option');
+                option.value = `${index}`;
+                option.textContent = `cycle ${index + 1}`;
+                selector.appendChild(option);
+            });
+        }
+
+        // fetch data from the selected URL
+        async function loadSelectedData() {
+            const selector = document.getElementById('dataSetSelector');
+            const selectedIndex = parseInt(selector.value);
+
+            if (isNaN(selectedIndex) || selectedIndex < 0 || selectedIndex >= dataUrls.length) {
+                return;
+            }
+
+            const url = dataUrls[selectedIndex];
+            // show loading indicator
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            loadingIndicator.classList.remove('hidden');
+
+            // hide any previous error message
+            const errorMessage = document.getElementById('errorMessage');
+            errorMessage.classList.add('hidden');
+
+            // clear the main table
+            document.getElementById('mainTable').innerHTML = '';
+            let errorEncountered = '';
+            try {
+                // Check if we've already fetched this data
+                if (!allJsonData[selectedIndex]) {
+                    const response = await fetch(url);
+
+                    if (response.ok) {
+                        allJsonData[selectedIndex] = sortJsonData(await response.json());
+                    }else{
+                        errorEncountered = `Failed to fetch data: ${response.status} ${response.statusText}`
+                    }
+                }
+
+                // Display the data
+                displayData(selectedIndex);
+            } catch (error) {
+                errorEncountered = error.message;
+            } finally {
+                loadingIndicator.classList.add('hidden');
+                if (errorEncountered !== ''){
+                    console.error('Error loading data:', errorEncountered);
+                    errorMessage.textContent = `Error loading data: ${errorEncountered}`;
+                    errorMessage.classList.remove('hidden');
+                }
+            }
+        }
+
+        // sort for JSON data
+        function sortJsonData(jsonData) {
+            const transcript2instructions = 'transcript2instructions';
+            return [...jsonData].sort((a, b) => {
+                // 'transcript2instructions' command should always be first
+                if (a.command === transcript2instructions && b.command !== transcript2instructions) return -1;
+                if (a.command !== transcript2instructions && b.command === transcript2instructions) return 1;
+
+                if (a.command === transcript2instructions && b.command === transcript2instructions) {
+                    return a.increment - b.increment;
+                }
+                //sort other commands based on their last 2 digits
+                const aLastTwoDigits = a.command.match(/(\d{2})$/);
+                const bLastTwoDigits = b.command.match(/(\d{2})$/);
+
+                if (aLastTwoDigits && bLastTwoDigits) {
+                    const aDigits = parseInt(aLastTwoDigits[0]);
+                    const bDigits = parseInt(bLastTwoDigits[0]);
+
+                    if (aDigits !== bDigits) {
+                        return aDigits - bDigits;
+                    }
+                }
+                // secondary sorting based on the increment value
+                return a.increment - b.increment;
+            });
+        }
+
+        // display the selected data set
+        function displayData(selectedIndex) {
+            // clear the main table
+            const mainTable = document.getElementById('mainTable');
+            mainTable.innerHTML = '';
+            // add the dat
+            allJsonData[selectedIndex].forEach((item, index) => {
+                // main row
+                const mainRow = document.createElement('tr');
+                mainRow.className = 'main-row';
+                mainRow.innerHTML = `
+                    <td colspan="2">
+                        Command: ${item.command} | Increment: ${item.increment}
+                        <button class="toggle-btn" id="toggle-btn-${index}" onclick="displaySubTable('${index}')">v</button>
+                    </td>
+                `;
+                mainTable.appendChild(mainRow);
+
+                // main sub table row
+                const auditRow = document.createElement('tr');
+                auditRow.id = `audit-row-${index}`;
+                auditRow.className = 'hidden'; // Initially hidden
+
+                const auditCell = document.createElement('td');
+                auditCell.className = 'sub-table-container';
+                auditCell.colSpan = 2;
+
+                // for each sub table
+                item.audit.forEach((auditArray, auditIndex) => {
+                    const subTable = document.createElement('table');
+                    subTable.className = 'sub-table';
+
+                    // header row
+                    const headerRow = document.createElement('tr');
+                    headerRow.innerHTML = `
+                        <th>Key</th>
+                        <th>Value</th>
+                        <th>Rationale</th>
+                    `;
+                    subTable.appendChild(headerRow);
+
+                    // data rows
+                    auditArray.forEach(auditItem => {
+                        const dataRow = document.createElement('tr');
+                        dataRow.innerHTML = `
+                            <td class="key-column">${auditItem.key}</td>
+                            <td class="value-column">${auditItem.value}</td>
+                            <td class="rationale">${auditItem.rationale}</td>
+                        `;
+                        subTable.appendChild(dataRow);
+                    });
+
+                    auditCell.appendChild(subTable);
+
+                    // add some spacing between sub-tables
+                    if (auditIndex < item.audit.length - 1) {
+                        const spacer = document.createElement('div');
+                        spacer.style.height = '20px';
+                        auditCell.appendChild(spacer);
+                    }
+                });
+
+                auditRow.appendChild(auditCell);
+                mainTable.appendChild(auditRow);
+            });
+
+        }
+
+        // toggle the sub table visibility
+        function displaySubTable(id) {
+            const auditRow = document.getElementById(`audit-row-${id}`);
+            const toggleBtn = document.getElementById(`toggle-btn-${id}`);
+            if (auditRow.classList.contains('hidden')) {
+                auditRow.classList.remove('hidden');
+                toggleBtn.textContent = "^"; // Up arrow when expanded
+                toggleBtn.style.backgroundColor = "#8ee091";
+            } else {
+                auditRow.classList.add('hidden');
+                toggleBtn.textContent = "v"; // Down arrow when collapsed
+                toggleBtn.style.backgroundColor = "#4CAF50";
+            }
+        }
+
+        // initialize the page
+        window.onload = function() {
+            updateSelector();
+            loadSelectedData();
+        };
+    </script>
+</body>
+</html>

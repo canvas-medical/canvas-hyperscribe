@@ -83,6 +83,7 @@ def test__run(
     instructions = [
         Instruction(
             uuid="uuid1",
+            index=0,
             instruction="theInstruction1",
             information="theInformation1",
             is_new=False,
@@ -91,6 +92,7 @@ def test__run(
         ),
         Instruction(
             uuid="uuid2",
+            index=1,
             instruction="theInstruction2",
             information="theInformation2",
             is_new=False,
@@ -215,12 +217,14 @@ def test__run(
         reset_mocks()
 
 
+@patch("evaluations.case_builders.builder_from_mp3.CachedDiscussion")
 @patch("evaluations.case_builders.builder_from_mp3.Commander")
-def test__run_combined(commander):
+def test__run_combined(commander, cached_discussion):
     mock_chatter = MagicMock()
 
     def reset_mocks():
         commander.reset_mock()
+        cached_discussion.reset_mock()
         mock_chatter.reset_mock()
 
     tested = BuilderFromMp3
@@ -229,6 +233,7 @@ def test__run_combined(commander):
     instructions = [
         Instruction(
             uuid="uuid1",
+            index=0,
             instruction="theInstruction1",
             information="theInformation1",
             is_new=False,
@@ -237,6 +242,7 @@ def test__run_combined(commander):
         ),
         Instruction(
             uuid="uuid2",
+            index=1,
             instruction="theInstruction2",
             information="theInformation2",
             is_new=False,
@@ -244,22 +250,35 @@ def test__run_combined(commander):
             audits=[],
         )
     ]
+    mock_chatter.identification = IdentificationParameters(
+        patient_uuid="thePatient",
+        note_uuid="theNoteUuid",
+        provider_uuid="theProviderUuid",
+        canvas_instance="theCanvasInstance",
+    )
 
     recorder = AuditorFile("theCase")
     tested._run_combined(recorder, mock_chatter, audios, instructions)
     calls = [call.audio2commands(recorder, audios, mock_chatter, instructions, "")]
     assert commander.mock_calls == calls
+    calls = [
+        call.get_discussion('theNoteUuid'),
+        call.get_discussion().add_one(),
+    ]
+    assert cached_discussion.mock_calls == calls
 
     reset_mocks()
 
 
 @patch("evaluations.case_builders.builder_from_mp3.AuditorFile")
+@patch("evaluations.case_builders.builder_from_mp3.CachedDiscussion")
 @patch("evaluations.case_builders.builder_from_mp3.Commander")
-def test__run_chunked(commander, auditor):
+def test__run_chunked(commander, cached_discussion, auditor):
     mock_chatter = MagicMock()
 
     def reset_mocks():
         commander.reset_mock()
+        cached_discussion.reset_mock()
         auditor.reset_mock()
         mock_chatter.reset_mock()
 
@@ -275,6 +294,7 @@ def test__run_chunked(commander, auditor):
     instructions = [
         Instruction(
             uuid="uuid1",
+            index=0,
             instruction="theInstruction1",
             information="theInformation1",
             is_new=False,
@@ -283,6 +303,7 @@ def test__run_chunked(commander, auditor):
         ),
         Instruction(
             uuid="uuid2",
+            index=1,
             instruction="theInstruction2",
             information="theInformation2",
             is_new=False,
@@ -306,6 +327,12 @@ def test__run_chunked(commander, auditor):
         (["previous4"], ["effects4"], "the last words 4"),
         (["previous9"], ["effects9"], "the last words 9"),
     ]
+    mock_chatter.identification = IdentificationParameters(
+        patient_uuid="thePatient",
+        note_uuid="theNoteUuid",
+        provider_uuid="theProviderUuid",
+        canvas_instance="theCanvasInstance",
+    )
 
     tested._run_chunked(parameters, mock_chatter, audios, instructions)
     calls = [
@@ -350,5 +377,14 @@ def test__run_chunked(commander, auditor):
         ),
     ]
     assert commander.mock_calls == calls
+    calls = [
+        call.get_discussion('theNoteUuid'),
+        call.get_discussion().add_one(),
+        call.get_discussion().add_one(),
+        call.get_discussion().add_one(),
+        call.get_discussion().add_one(),
+        call.get_discussion().add_one()
+    ]
+    assert cached_discussion.mock_calls == calls
 
     reset_mocks()

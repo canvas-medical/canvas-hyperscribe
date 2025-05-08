@@ -1,5 +1,5 @@
-from hyperscribe_tuning.structures.coded_item import CodedItem
 from hyperscribe_tuning.commands.base import Base
+from hyperscribe_tuning.structures.coded_item import CodedItem
 
 
 class BaseQuestionnaire(Base):

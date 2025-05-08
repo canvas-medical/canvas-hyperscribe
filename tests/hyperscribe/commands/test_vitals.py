@@ -138,6 +138,7 @@ def test_command_from_json(valid_or_none):
 
     arguments = {
         "uuid": "theUuid",
+        "index": 7,
         "instruction": "theInstruction",
         "information": "theInformation",
         "is_new": False,

@@ -145,6 +145,7 @@ def test_command_from_json(current_medications, medication, codings):
         codings.filter.return_value.first.side_effect = [MedicationCoding(system="theSystem", display="theDisplay", code="theCode"), ]
         arguments = {
             "uuid": "theUuid",
+            "index": 7,
             "instruction": "theInstruction",
             "information": "theInformation",
             "is_new": False,
@@ -190,6 +191,7 @@ def test_command_from_json(current_medications, medication, codings):
     current_medications.side_effect = [medications]
     arguments = {
         "uuid": "theUuid",
+        "index": 7,
         "instruction": "theInstruction",
         "information": "theInformation",
         "is_new": False,

@@ -40,6 +40,7 @@ def test__parameters(argument_parser):
 
 @patch("evaluations.case_builders.builder_from_tuning.Commander")
 @patch("evaluations.case_builders.builder_from_tuning.AudioInterpreter")
+@patch("evaluations.case_builders.builder_from_tuning.CachedDiscussion")
 @patch("evaluations.case_builders.builder_from_tuning.HelperEvaluation")
 @patch("evaluations.case_builders.builder_from_tuning.StoreCases")
 @patch("evaluations.case_builders.builder_from_tuning.ImplementedCommands")
@@ -49,6 +50,7 @@ def test__run(
         implemented_commands,
         store_cases,
         helper,
+        cached_discussion,
         audio_interpreter,
         commander,
         capsys,
@@ -62,6 +64,7 @@ def test__run(
         implemented_commands.reset_mock()
         store_cases.reset_mock()
         helper.reset_mock()
+        cached_discussion.reset_mock()
         audio_interpreter.reset_mock()
         commander.reset_mock()
         mock_json_file.reset_mock()
@@ -95,6 +98,8 @@ def test__run(
         provider_uuid="theProviderUuid",
         canvas_instance="theCanvasInstance",
     )
+    audio_interpreter.return_value.identification = identification
+
     tested._run(parameters, recorder, identification)
 
     exp_out = [
@@ -126,6 +131,11 @@ def test__run(
         call.aws_s3_credentials(),
     ]
     assert helper.mock_calls == calls
+    calls = [
+        call.get_discussion('theNoteUuid'),
+        call.get_discussion().add_one(),
+    ]
+    assert cached_discussion.mock_calls == calls
     calls = [call(
         "theSettings",
         "theAwsS3Credentials",

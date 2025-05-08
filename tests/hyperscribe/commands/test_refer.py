@@ -137,6 +137,7 @@ def test_command_from_json(condition_from, contact_from, practice_setting):
     for names, exp_contact_call in tests:
         arguments = {
             "uuid": "theUuid",
+            "index": 7,
             "instruction": "theInstruction",
             "information": "theInformation",
             "is_new": False,

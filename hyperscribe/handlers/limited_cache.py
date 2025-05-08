@@ -17,13 +17,6 @@ from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.instruction import Instruction
 
 
-# from canvas_sdk.v1.data import Questionnaire
-# from hyperscribe.structures.question import Question
-# from hyperscribe.structures.question_type import QuestionType
-# from hyperscribe.structures.questionnaire import Questionnaire as QuestionnaireDefinition
-# from hyperscribe.structures.response import Response
-
-
 class LimitedCache:
     def __init__(self, patient_uuid: str, staged_commands_to_coded_items: dict[str, list[CodedItem]]):
         self.patient_uuid = patient_uuid
@@ -35,7 +28,6 @@ class LimitedCache:
         self._goals: list[CodedItem] | None = None
         self._medications: list[CodedItem] | None = None
         self._note_type: list[CodedItem] | None = None
-        # self._questionnaires: list[QuestionnaireDefinition] | None = None
         self._reason_for_visit: list[CodedItem] | None = None
         self._surgery_history: list[CodedItem] | None = None
         self._staged_commands: dict[str, list[CodedItem]] = staged_commands_to_coded_items
@@ -74,18 +66,23 @@ class LimitedCache:
         ]
 
     def staged_commands_as_instructions(self, schema_key2instruction: dict) -> list[Instruction]:
-        return [
-            Instruction(
-                uuid=command.uuid,
-                instruction=schema_key2instruction[key],
-                information=command.label,
-                is_new=True,
-                is_updated=False,
-                audits=[],
-            )
-            for key, commands in self._staged_commands.items()
-            for command in commands
-        ]
+        result: list[Instruction] = []
+        counter = 0
+        for key, commands in self._staged_commands.items():
+            for command in commands:
+                counter = counter + 1
+                result.append(
+                    Instruction(
+                        uuid=command.uuid,
+                        index=counter,
+                        instruction=schema_key2instruction[key],
+                        information=command.label,
+                        is_new=True,
+                        is_updated=False,
+                        audits=[],
+                    )
+                )
+        return result
 
     def current_goals(self) -> list[CodedItem]:
         if self._goals is None:
@@ -147,39 +144,6 @@ class LimitedCache:
         if self._surgery_history is None:
             self.retrieve_conditions()
         return self._surgery_history
-
-    # def existing_questionnaires(self) -> list[QuestionnaireDefinition]:
-    #     if self._questionnaires is None:
-    #         self._questionnaires = []
-    #         questionnaires = Questionnaire.objects.filter(
-    #             status="AC",
-    #             can_originate_in_charting=True,
-    #         ).order_by('-dbid')
-    #         for questionnaire in questionnaires:
-    #             questions: list[Question] = []
-    #             for question in questionnaire.questions.all():
-    #                 options: list[Response] = []
-    #                 for option in question.response_option_set.options.all():
-    #                     options.append(Response(
-    #                         dbid=option.dbid,
-    #                         value=option.value,
-    #                         selected=False,
-    #                     ))
-    #                 questions.append(Question(
-    #                     dbid=question.dbid,
-    #                     label=question.name,
-    #                     type=QuestionType(question.response_option_set.type),
-    #                     skipped=None,
-    #                     responses=options,
-    #                 ))
-    #
-    #             self._questionnaires.append(
-    #                 QuestionnaireDefinition(
-    #                     dbid=questionnaire.dbid,
-    #                     name=questionnaire.name,
-    #                     questions=questions,
-    #                 ))
-    #     return self._questionnaires
 
     def existing_note_types(self) -> list[CodedItem]:
         if self._note_type is None:
@@ -253,7 +217,6 @@ class LimitedCache:
             "currentConditions": [i._asdict() for i in self.current_conditions()],
             "currentGoals": [i._asdict() for i in self.current_goals()],
             "currentMedications": [i._asdict() for i in self.current_medications()],
-            # "existingQuestionnaires": [i.to_json() for i in self.existing_questionnaires()],
             "existingNoteTypes": [i._asdict() for i in self.existing_note_types()],
             "existingReasonForVisit": [i._asdict() for i in self.existing_reason_for_visits()],
             "familyHistory": [i._asdict() for i in self.family_history()],
@@ -275,7 +238,6 @@ class LimitedCache:
         result._conditions = [CodedItem(**i) for i in cache.get("currentConditions", [])]
         result._goals = [CodedItem(**i) for i in cache.get("currentGoals", [])]
         result._medications = [CodedItem(**i) for i in cache.get("currentMedications", [])]
-        # result._questionnaires = [QuestionnaireDefinition.load_from(i) for i in cache.get("existingQuestionnaires", [])]
         result._note_type = [CodedItem(**i) for i in cache.get("existingNoteTypes", [])]
         result._reason_for_visit = [CodedItem(**i) for i in cache.get("existingReasonForVisit", [])]
         result._family_history = [CodedItem(**i) for i in cache.get("familyHistory", [])]

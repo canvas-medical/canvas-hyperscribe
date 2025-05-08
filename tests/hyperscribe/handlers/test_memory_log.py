@@ -84,7 +84,7 @@ def test_instance():
     assert isinstance(result, MemoryLog)
     assert result.identification == identification
     assert result.label == "theLabel"
-    assert result.aws_s3 == aws_s3
+    assert result.s3_credentials == aws_s3
 
 
 def test___init__():
@@ -262,7 +262,7 @@ def test_send_to_user(aws_s3, mock_datetime):
     )
 
     tested = MemoryLog(identification, "theLabel")
-    tested.aws_s3 = aws_s3_credentials
+    tested.s3_credentials = aws_s3_credentials
     mock_datetime.now.side_effect = dates
     # S3 not ready
     aws_s3.return_value.is_ready.side_effect = [False]
@@ -374,7 +374,7 @@ def test_store_so_far(aws_s3, get_discussion):
         bucket='theBucket',
     )
     tested = MemoryLog(identification, "theLabel")
-    tested.aws_s3 = aws_s3_credentials
+    tested.s3_credentials = aws_s3_credentials
     #
     aws_s3.return_value.is_ready.side_effect = [False]
     get_discussion.side_effect = []
@@ -398,7 +398,7 @@ def test_store_so_far(aws_s3, get_discussion):
     calls = [
         call(aws_s3_credentials),
         call().is_ready(),
-        call().upload_text_to_s3("canvasInstance/2025-03-11/partials/noteUuid/06/theLabel.log", ""),
+        call().upload_text_to_s3("canvasInstance/partials/2025-03-11/noteUuid/06/theLabel.log", ""),
     ]
     assert aws_s3.mock_calls == calls
     calls = [call("noteUuid")]

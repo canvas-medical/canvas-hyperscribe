@@ -6,6 +6,7 @@ def test_load_from_json():
     result = tested.load_from_json([
         {
             "uuid": "theUuid1",
+            "index": 0,
             "instruction": "theInstruction1",
             "information": "theInformation1",
             "isNew": False,
@@ -14,6 +15,7 @@ def test_load_from_json():
         },
         {
             "uuid": "theUuid2",
+            "index": 1,
             "instruction": "theInstruction2",
             "information": "theInformation2",
             "isNew": True,
@@ -23,6 +25,7 @@ def test_load_from_json():
         {},
         {
             "uuid": "theUuid3",
+            "index": 2,
             "instruction": "theInstruction3",
             "information": "theInformation3",
             "isNew": False,
@@ -33,6 +36,7 @@ def test_load_from_json():
     expected = [
         Instruction(
             uuid="theUuid1",
+            index=0,
             instruction="theInstruction1",
             information="theInformation1",
             is_new=False,
@@ -41,6 +45,7 @@ def test_load_from_json():
         ),
         Instruction(
             uuid="theUuid2",
+            index=1,
             instruction="theInstruction2",
             information="theInformation2",
             is_new=True,
@@ -49,6 +54,7 @@ def test_load_from_json():
         ),
         Instruction(
             uuid="",
+            index=0,
             instruction="",
             information="",
             is_new=True,
@@ -57,6 +63,7 @@ def test_load_from_json():
         ),
         Instruction(
             uuid="theUuid3",
+            index=3,
             instruction="theInstruction3",
             information="theInformation3",
             is_new=False,
@@ -71,6 +78,7 @@ def test_to_json():
     for flag in [True, False]:
         tested = Instruction(
             uuid="theUuid",
+            index=3,
             instruction="theInstruction",
             information="theInformation",
             is_new=flag,
@@ -80,6 +88,7 @@ def test_to_json():
         result = tested.to_json(True)
         expected = {
             "uuid": "theUuid",
+            "index": 3,
             "instruction": "theInstruction",
             "information": "theInformation",
             "isNew": False,
@@ -89,6 +98,7 @@ def test_to_json():
         result = tested.to_json(False)
         expected = {
             "uuid": "theUuid",
+            "index": 3,
             "instruction": "theInstruction",
             "information": "theInformation",
             "isNew": flag,
@@ -100,6 +110,7 @@ def test_to_json():
 def test_limited_str():
     tested = Instruction(
         uuid="theUuid",
+        index=7,
         instruction="theInstruction",
         information="theInformation",
         is_new=True,
@@ -107,5 +118,5 @@ def test_limited_str():
         audits=["line1", "line2"],
     )
     result = tested.limited_str()
-    expected = "theInstruction (theUuid, new/updated: True/True): theInformation"
+    expected = "theInstruction #07 (theUuid, new/updated: True/True): theInformation"
     assert expected == result

@@ -10,6 +10,7 @@ from hyperscribe.handlers.aws_s3 import AwsS3
 from hyperscribe.handlers.commander import Commander
 from hyperscribe.handlers.constants import Constants as HyperscribeConstants
 from hyperscribe.handlers.limited_cache import LimitedCache
+from hyperscribe.handlers.llm_decisions_reviewer import LlmDecisionsReviewer
 from hyperscribe.handlers.memory_log import MemoryLog
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 
@@ -61,12 +62,23 @@ class BuilderBase:
             canvas_instance=HelperEvaluation.get_canvas_instance(),
         )
 
-        MemoryLog.begin_session(identification.note_uuid)
+        memory_log = MemoryLog(identification, "case_builder")
+
         cls._run(parameters, recorder, identification)
-        if (client_s3 := AwsS3(HelperEvaluation.aws_s3_credentials())) and client_s3.is_ready():
-            remote_path = f"case-builder/{datetime.now().date().isoformat()}/{parameters.case}.log"
+
+        aws_s3_credentials = HelperEvaluation.aws_s3_credentials()
+        if (client_s3 := AwsS3(aws_s3_credentials)) and client_s3.is_ready():
+            remote_path = f"{identification.canvas_instance}/finals/{datetime.now().date().isoformat()}/{parameters.case}.log"
             client_s3.upload_text_to_s3(remote_path, MemoryLog.end_session(identification.note_uuid))
             print(f"Logs saved in: {remote_path}")
+
+        LlmDecisionsReviewer.review(
+            identification,
+            HelperEvaluation.settings(),
+            aws_s3_credentials,
+            memory_log,
+            {},
+        )
 
     @classmethod
     def _limited_cache_from(cls, identification: IdentificationParameters) -> LimitedCache:

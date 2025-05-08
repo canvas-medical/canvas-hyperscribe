@@ -96,6 +96,7 @@ def test_command_from_json(current_medications):
         current_medications.side_effect = [medications, medications]
         arguments = {
             "uuid": "theUuid",
+            "index": 7,
             "instruction": "theInstruction",
             "information": "theInformation",
             "is_new": False,

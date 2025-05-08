@@ -129,6 +129,7 @@ def test_command_from_json(search_allergy):
     for concept_type, exp_concept_id_type, selected_concept_id_type in tests:
         arguments = {
             "uuid": "theUuid",
+            "index": 7,
             "instruction": "theInstruction",
             "information": "theInformation",
             "is_new": False,

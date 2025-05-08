@@ -128,6 +128,7 @@ def test_command_from_json(existing_note_types, existing_reason_for_visits):
         existing_reason_for_visits.side_effect = []
         arguments = {
             "uuid": "theUuid",
+            "index": 7,
             "instruction": "theInstruction",
             "information": "theInformation",
             "is_new": False,
@@ -170,6 +171,7 @@ def test_command_from_json(existing_note_types, existing_reason_for_visits):
         existing_reason_for_visits.side_effect = [reason_for_visits]
         arguments = {
             "uuid": "theUuid",
+            "index": 7,
             "instruction": "theInstruction",
             "information": "theInformation",
             "is_new": False,

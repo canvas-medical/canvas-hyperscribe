@@ -44,6 +44,7 @@ def test__parameters(argument_parser):
 
 
 @patch("evaluations.case_builders.builder_from_transcript.AuditorFile")
+@patch("evaluations.case_builders.builder_from_transcript.CachedDiscussion")
 @patch("evaluations.case_builders.builder_from_transcript.Commander")
 @patch("evaluations.case_builders.builder_from_transcript.AudioInterpreter")
 @patch("evaluations.case_builders.builder_from_transcript.HelperEvaluation")
@@ -57,6 +58,7 @@ def test__run(
         helper,
         audio_interpreter,
         commander,
+        cached_discussion,
         auditor,
         capsys,
 ):
@@ -69,6 +71,7 @@ def test__run(
         helper.reset_mock()
         audio_interpreter.reset_mock()
         commander.reset_mock()
+        cached_discussion.reset_mock()
         auditor.reset_mock()
         mock_file.reset_mock()
 
@@ -88,6 +91,7 @@ def test__run(
     instructions = [
         Instruction(
             uuid="uuid1",
+            index=0,
             instruction="theInstruction1",
             information="theInformation1",
             is_new=False,
@@ -96,6 +100,7 @@ def test__run(
         ),
         Instruction(
             uuid="uuid2",
+            index=1,
             instruction="theInstruction2",
             information="theInformation2",
             is_new=False,
@@ -110,6 +115,7 @@ def test__run(
         provider_uuid="theProviderUuid",
         canvas_instance="theCanvasInstance",
     )
+    audio_interpreter.return_value.identification = identification
     exp_out = [
         'Patient UUID: thePatientUuid',
         'Evaluation Case: theCase',
@@ -182,6 +188,11 @@ def test__run(
         instructions,
     )]
     assert commander.mock_calls == calls
+    calls = [
+        call.get_discussion('theNoteUuid'),
+        call.get_discussion().add_one(),
+    ]
+    assert cached_discussion.mock_calls == calls
     assert auditor.mock_calls == []
     assert mock_file.mock_calls == exp_mock_file
 
@@ -233,6 +244,12 @@ def test__run(
         ),
     ]
     assert commander.mock_calls == calls
+    calls = [
+        call.get_discussion('theNoteUuid'),
+        call.get_discussion().add_one(),
+        call.get_discussion().add_one(),
+    ]
+    assert cached_discussion.mock_calls == calls
     calls = [
         call("theCase_cycle00"),
         call("theCase_cycle01"),
@@ -295,6 +312,13 @@ def test__run(
         ),
     ]
     assert commander.mock_calls == calls
+    calls = [
+        call.get_discussion('theNoteUuid'),
+        call.get_discussion().add_one(),
+        call.get_discussion().add_one(),
+        call.get_discussion().add_one(),
+    ]
+    assert cached_discussion.mock_calls == calls
     calls = [
         call("theCase_cycle00"),
         call("theCase_cycle01"),

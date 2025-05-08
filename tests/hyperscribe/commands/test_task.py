@@ -143,6 +143,7 @@ def test_select_staff(staff):
 
     instruction = InstructionWithParameters(
         uuid="theUuid",
+        index=7,
         instruction="theInstruction",
         information="theInformation",
         is_new=False,
@@ -244,6 +245,7 @@ def test_select_labels(task_labels):
 
     instruction = InstructionWithParameters(
         uuid="theUuid",
+        index=7,
         instruction="theInstruction",
         information="theInformation",
         is_new=False,
@@ -315,6 +317,7 @@ def test_command_from_json(select_staff, select_labels):
         # all parameters
         arguments = {
             "uuid": "theUuid",
+            "index": 7,
             "instruction": "theInstruction",
             "information": "theInformation",
             "is_new": False,
@@ -352,6 +355,7 @@ def test_command_from_json(select_staff, select_labels):
         # no assignee
         arguments = {
             "uuid": "theUuid",
+            "index": 7,
             "instruction": "theInstruction",
             "information": "theInformation",
             "is_new": False,
@@ -387,6 +391,7 @@ def test_command_from_json(select_staff, select_labels):
         # no labels
         arguments = {
             "uuid": "theUuid",
+            "index": 7,
             "instruction": "theInstruction",
             "information": "theInformation",
             "is_new": False,

@@ -91,13 +91,13 @@ class LimitedCache:
         if self._goals is None:
             self._goals = []
             # ATTENTION below code should not be used since there is no way to know if a goal is already closed
-            # commands = Command.objects.filter(patient__id=self.patient_uuid, schema_key="goal").order_by('-dbid')
-            # for command in commands:
-            #     self._goals.append(CodedItem(
-            #         uuid=str(command.id),
-            #         label=command.data["goal_statement"],
-            #         code=str(command.dbid),  # TODO should be "", waiting for https://github.com/canvas-medical/canvas-plugins/issues/338
-            #     ))
+            commands = Command.objects.filter(patient__id=self.patient_uuid, schema_key="goal").order_by('-dbid')
+            for command in commands:
+                self._goals.append(CodedItem(
+                    uuid=str(command.id),
+                    label=command.data["goal_statement"],
+                    code=str(command.dbid),  # TODO should be "", waiting for https://github.com/canvas-medical/canvas-plugins/issues/338
+                ))
         return self._goals
 
     def current_conditions(self) -> list[CodedItem]:
