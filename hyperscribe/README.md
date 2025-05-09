@@ -9,7 +9,7 @@ The plugin provides these components:
 
 - [launcher](handlers/launcher.py): button in the header of the note (UI) to start the recording
 - [commander](handlers/commander.py): script executed on the server creating the commands based on the audio
-- [reviewer](handlers/reviewer.py): button in the header of the note (UI) to review the LLM decisions
+- [reviewer](handlers/reviewer_button.py): button in the header of the note (UI) to review the LLM decisions
 
 ## Set up
 

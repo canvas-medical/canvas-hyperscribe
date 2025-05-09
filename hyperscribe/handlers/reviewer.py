@@ -1,54 +1,61 @@
 import json
+from hashlib import sha256
+from http import HTTPStatus
+from time import time
 
 from canvas_sdk.effects import Effect
-from canvas_sdk.effects.launch_modal import LaunchModalEffect
-from canvas_sdk.events import EventType
-from canvas_sdk.handlers.action_button import ActionButton
+from canvas_sdk.effects.simple_api import HTMLResponse, Response
+from canvas_sdk.handlers.simple_api import Credentials, SimpleAPIRoute
 from canvas_sdk.templates import render_to_string
-from canvas_sdk.v1.data.note import Note
 
 from hyperscribe.libraries.aws_s3 import AwsS3
 from hyperscribe.libraries.constants import Constants
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
-from hyperscribe.structures.identification_parameters import IdentificationParameters
-from hyperscribe.structures.settings import Settings
 
 
-class Reviewer(ActionButton):
-    BUTTON_TITLE = "📖 Reviewer"
-    BUTTON_KEY = "HYPERSCRIBE_REVIEWER"
-    BUTTON_LOCATION = ActionButton.ButtonLocation.NOTE_HEADER
+class Reviewer(SimpleAPIRoute):
+    PATH = "/reviewer"
 
-    RESPONDS_TO = [
-        EventType.Name(EventType.SHOW_NOTE_HEADER_BUTTON),
-        EventType.Name(EventType.ACTION_BUTTON_CLICKED)
-    ]
+    def authenticate(self, credentials: Credentials) -> bool:
+        params = self.request.query_params
 
-    def handle(self) -> list[Effect]:
-        note = Note.objects.get(dbid=self.event.context['note_id'])
+        if not ("ts" in params and "sig" in params):
+            return False
 
-        identification = IdentificationParameters(
-            patient_uuid=note.patient.id,
-            note_uuid=str(note.id),
-            provider_uuid=str(note.provider.id),
-            canvas_instance=self.environment[Constants.CUSTOMER_IDENTIFIER],
-        )
+        timestamp = int(params["ts"])
+        if (time() - timestamp) > Constants.AWS3_LINK_EXPIRATION_SECONDS:
+            return False
+
+        hash_arg = f"{timestamp}{self.secrets[Constants.SECRET_AWS_SECRET]}"
+        internal_sig = sha256(hash_arg.encode('utf-8')).hexdigest()
+        request_sig = params["sig"]
+
+        return bool(request_sig == internal_sig)
+
+    def get(self) -> list[Response | Effect]:
+        url_list: list[str] = []
+
         credentials = AwsS3Credentials.from_dictionary(self.secrets)
         client_s3 = AwsS3(credentials)
-        url_list = []
-        if client_s3.is_ready() is True:
-            store_path = (f"{identification.canvas_instance}/"
+        if client_s3.is_ready() and (note_uuid := self.request.query_params.get("note_id")):
+            canvas_instance = self.environment[Constants.CUSTOMER_IDENTIFIER]
+            store_path = (f"{canvas_instance}/"
                           "audits/"
-                          f"{identification.note_uuid}/")
-            for document in client_s3.list_s3_objects(store_path):
-                url_list.append(client_s3.generate_presigned_url(document.key, Constants.AWS3_LINK_EXPIRATION_SECONDS))
+                          f"{note_uuid}/")
+            url_list = [
+                client_s3.generate_presigned_url(
+                    document.key,
+                    Constants.AWS3_LINK_EXPIRATION_SECONDS,
+                )
+                for document in client_s3.list_s3_objects(store_path)
+            ]
 
-        hyperscribe_pane = LaunchModalEffect(
-            content=render_to_string("handlers/reviewer.html", {"url_list": json.dumps(url_list)}),
-            target=LaunchModalEffect.TargetType.DEFAULT_MODAL,
-        )
-        return [hyperscribe_pane.apply()]
-
-    def visible(self) -> bool:
-        settings = Settings.from_dictionary(self.secrets)
-        return settings.audit_llm
+        context = {
+            "url_list": json.dumps(url_list),
+        }
+        return [
+            HTMLResponse(
+                render_to_string('templates/reviewer.html', context),
+                status_code=HTTPStatus.OK,
+            )
+        ]
