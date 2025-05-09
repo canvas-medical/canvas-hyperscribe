@@ -329,10 +329,6 @@ class Commander(BaseProtocol):
         memory_log.send_to_user(f"commands generation done ({len(instructions_with_command)})")
         auditor.computed_commands(instructions_with_command)
 
-        # reset the audit fields
-        for instruction in cumulated_instructions:
-            instruction.audits.clear()
-
         if chatter.identification.note_uuid == Constants.FAUX_NOTE_UUID:
             # this is the case when running an evaluation against a recorded 'limited cache',
             # i.e. the patient and/or her data don't exist, something that may be checked
@@ -378,7 +374,6 @@ class Commander(BaseProtocol):
                 information=result.information,
                 is_new=result.is_new,
                 is_updated=result.is_updated,
-                audits=result.audits,
             )
             for result in instructions_with_command
         ]
@@ -518,7 +513,6 @@ class Commander(BaseProtocol):
                 information=information,
                 is_new=False,
                 is_updated=False,
-                audits=[],
             )
         return list(result.values())
 

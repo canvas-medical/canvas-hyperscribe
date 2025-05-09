@@ -85,7 +85,6 @@ def test_condition_from(search_conditions):
         information="theInformation",
         is_new=True,
         is_updated=True,
-        audits=["theAudit"],
     )
     # all good
     search_conditions.side_effect = [search]
@@ -235,7 +234,6 @@ def test_lab_test_from(lab_test_db):
         information="theInformation",
         is_new=True,
         is_updated=True,
-        audits=["theAudit"],
     )
 
     # all good
@@ -389,7 +387,6 @@ def test_procedure_from(charge_description):
         information="theInformation",
         is_new=True,
         is_updated=True,
-        audits=["theAudit"],
     )
 
     # all good
@@ -518,7 +515,6 @@ def test_contact_from(search_contacts, summary_of):
         information="theInformation",
         is_new=True,
         is_updated=True,
-        audits=["theAudit"],
     )
     schemas = [{
         "$schema": "http://json-schema.org/draft-07/schema#",

@@ -14,11 +14,10 @@ class InstructionWithCommand(InstructionWithParameters):
             information: str,
             is_new: bool,
             is_updated: bool,
-            audits: list[str],
             parameters: dict,
             command: _BaseCommand,
     ):
-        super().__init__(uuid, index, instruction, information, is_new, is_updated, audits, parameters)
+        super().__init__(uuid, index, instruction, information, is_new, is_updated, parameters)
         self.command: _BaseCommand = command
 
     @classmethod
@@ -30,7 +29,6 @@ class InstructionWithCommand(InstructionWithParameters):
             information=instruction.information,
             is_new=instruction.is_new,
             is_updated=instruction.is_updated,
-            audits=instruction.audits,
             parameters=instruction.parameters,
             command=command
         )

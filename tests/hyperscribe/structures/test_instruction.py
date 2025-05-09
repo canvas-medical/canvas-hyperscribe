@@ -11,7 +11,6 @@ def test_load_from_json():
             "information": "theInformation1",
             "isNew": False,
             "isUpdated": True,
-            "audits": ["line1", "line2"],
         },
         {
             "uuid": "theUuid2",
@@ -20,7 +19,6 @@ def test_load_from_json():
             "information": "theInformation2",
             "isNew": True,
             "isUpdated": False,
-            "audits": ["line3"],
         },
         {},
         {
@@ -30,7 +28,6 @@ def test_load_from_json():
             "information": "theInformation3",
             "isNew": False,
             "isUpdated": True,
-            "audits": [],
         },
     ])
     expected = [
@@ -41,7 +38,6 @@ def test_load_from_json():
             information="theInformation1",
             is_new=False,
             is_updated=True,
-            audits=["line1", "line2"],
         ),
         Instruction(
             uuid="theUuid2",
@@ -50,7 +46,6 @@ def test_load_from_json():
             information="theInformation2",
             is_new=True,
             is_updated=False,
-            audits=["line3"],
         ),
         Instruction(
             uuid="",
@@ -59,7 +54,6 @@ def test_load_from_json():
             information="",
             is_new=True,
             is_updated=False,
-            audits=[],
         ),
         Instruction(
             uuid="theUuid3",
@@ -68,7 +62,6 @@ def test_load_from_json():
             information="theInformation3",
             is_new=False,
             is_updated=True,
-            audits=[],
         ),
     ]
     assert result == expected
@@ -83,7 +76,6 @@ def test_to_json():
             information="theInformation",
             is_new=flag,
             is_updated=flag,
-            audits=["line1", "line2"],
         )
         result = tested.to_json(True)
         expected = {
@@ -115,7 +107,6 @@ def test_limited_str():
         information="theInformation",
         is_new=True,
         is_updated=True,
-        audits=["line1", "line2"],
     )
     result = tested.limited_str()
     expected = "theInstruction #07 (theUuid, new/updated: True/True): theInformation"

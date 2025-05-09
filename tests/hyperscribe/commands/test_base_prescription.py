@@ -171,7 +171,6 @@ def test_medications_from(demographic, current_allergies, staged_commands_of, me
         information="theInformation",
         is_new=False,
         is_updated=True,
-        audits=["theAudit"],
         parameters={'key': "value"},
     )
 
@@ -429,7 +428,6 @@ def test_set_medication_dosage(demographic):
         information="theInformation",
         is_new=False,
         is_updated=True,
-        audits=["theAudit"],
         parameters={'key': "value"},
     )
     for command, expected in tests:

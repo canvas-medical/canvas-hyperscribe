@@ -79,7 +79,6 @@ class LimitedCache:
                         information=command.label,
                         is_new=True,
                         is_updated=False,
-                        audits=[],
                     )
                 )
         return result

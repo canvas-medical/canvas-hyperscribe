@@ -93,9 +93,7 @@ def test_command_from_json(existing_reason_for_visits):
         "instruction": "theInstruction",
         "information": "theInformation",
         "is_new": False,
-        "is_updated": True,
-        "audits": ["theAudit"],
-        "parameters": {
+        "is_updated": True,        "parameters": {
             "reasonForVisit": "theReasonForVisit",
         },
     }
@@ -126,9 +124,7 @@ def test_command_from_json(existing_reason_for_visits):
             "instruction": "theInstruction",
             "information": "theInformation",
             "is_new": False,
-            "is_updated": True,
-            "audits": ["theAudit"],
-            "parameters": {
+            "is_updated": True,            "parameters": {
                 "reasonForVisit": "theReasonForVisit",
                 "reasonForVisitIndex": idx,
             },

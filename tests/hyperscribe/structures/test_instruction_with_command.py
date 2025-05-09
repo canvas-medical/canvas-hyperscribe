@@ -19,7 +19,6 @@ def test_add_parameters():
         information="theInformation",
         is_new=True,
         is_updated=True,
-        audits=["line1", "line2"],
         parameters={"key": "value"},
     ), command)
     expected = InstructionWithCommand(
@@ -29,7 +28,6 @@ def test_add_parameters():
         information="theInformation",
         is_new=True,
         is_updated=True,
-        audits=["line1", "line2"],
         parameters={"key": "value"},
         command=command,
     )

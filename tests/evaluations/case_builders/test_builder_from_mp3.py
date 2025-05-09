@@ -88,7 +88,6 @@ def test__run(
             information="theInformation1",
             is_new=False,
             is_updated=True,
-            audits=[],
         ),
         Instruction(
             uuid="uuid2",
@@ -97,7 +96,6 @@ def test__run(
             information="theInformation2",
             is_new=False,
             is_updated=True,
-            audits=[],
         )
     ]
     tests = [
@@ -238,7 +236,6 @@ def test__run_combined(commander, cached_discussion):
             information="theInformation1",
             is_new=False,
             is_updated=True,
-            audits=[],
         ),
         Instruction(
             uuid="uuid2",
@@ -247,7 +244,6 @@ def test__run_combined(commander, cached_discussion):
             information="theInformation2",
             is_new=False,
             is_updated=True,
-            audits=[],
         )
     ]
     mock_chatter.identification = IdentificationParameters(
@@ -299,7 +295,6 @@ def test__run_chunked(commander, cached_discussion, auditor):
             information="theInformation1",
             is_new=False,
             is_updated=True,
-            audits=[],
         ),
         Instruction(
             uuid="uuid2",
@@ -308,7 +303,6 @@ def test__run_chunked(commander, cached_discussion, auditor):
             information="theInformation2",
             is_new=False,
             is_updated=True,
-            audits=[],
         )
     ]
     parameters = Namespace(

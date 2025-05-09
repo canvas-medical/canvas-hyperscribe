@@ -127,9 +127,7 @@ def test_command_from_json(family_histories):
         "instruction": "theInstruction",
         "information": "theInformation",
         "is_new": False,
-        "is_updated": True,
-        "audits": ["theAudit"],
-        "parameters": {
+        "is_updated": True,        "parameters": {
             'keywords': 'keyword1,keyword2,keyword3',
             'relative': 'sibling',
             'note': 'theNote',

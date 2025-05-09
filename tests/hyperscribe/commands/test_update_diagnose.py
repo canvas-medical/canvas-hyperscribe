@@ -150,9 +150,7 @@ def test_command_from_json(current_conditions, search_conditions):
             "instruction": "theInstruction",
             "information": "theInformation",
             "is_new": False,
-            "is_updated": True,
-            "audits": ["theAudit"],
-            "parameters": {
+            "is_updated": True,            "parameters": {
                 'keywords': 'keyword1,keyword2,keyword3',
                 "ICD10": "ICD01,ICD02,ICD03",
                 "previousCondition": "theCondition",

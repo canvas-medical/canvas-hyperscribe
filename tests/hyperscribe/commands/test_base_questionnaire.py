@@ -345,7 +345,6 @@ def test_update_from_transcript(include_skipped):
         information=json.dumps(questionnaire.to_json()),
         is_new=False,
         is_updated=True,
-        audits=[],
     )
 
     system_prompt = [

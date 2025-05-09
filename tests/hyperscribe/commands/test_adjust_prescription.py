@@ -204,9 +204,7 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
         "instruction": "theInstruction",
         "information": "theInformation",
         "is_new": False,
-        "is_updated": True,
-        "audits": ["theAudit"],
-        "parameters": {
+        "is_updated": True,        "parameters": {
             'oldMedication': 'display2a',
             'oldMedicationIndex': -1,
             "newMedication": {
@@ -255,9 +253,7 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
         "instruction": "theInstruction",
         "information": "theInformation",
         "is_new": False,
-        "is_updated": True,
-        "audits": ["theAudit"],
-        "parameters": {
+        "is_updated": True,        "parameters": {
             'oldMedication': 'display2a',
             'oldMedicationIndex': 1,
             "newMedication": {
@@ -318,9 +314,7 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
         "instruction": "theInstruction",
         "information": "theInformation",
         "is_new": False,
-        "is_updated": True,
-        "audits": ["theAudit"],
-        "parameters": {
+        "is_updated": True,        "parameters": {
             'oldMedication': 'display2a',
             'oldMedicationIndex': 1,
             "newMedication": {
@@ -379,9 +373,7 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
         "instruction": "theInstruction",
         "information": "theInformation",
         "is_new": False,
-        "is_updated": True,
-        "audits": ["theAudit"],
-        "parameters": {
+        "is_updated": True,        "parameters": {
             'oldMedication': 'display2a',
             'oldMedicationIndex': 1,
             "newMedication": {

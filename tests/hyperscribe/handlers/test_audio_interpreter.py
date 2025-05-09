@@ -654,7 +654,6 @@ def test_detect_instructions(
             information="the information 1",
             is_new=True,
             is_updated=False,
-            audits=["line1", "line2"],
         ),
         Instruction(
             uuid="uuid2",
@@ -663,7 +662,6 @@ def test_detect_instructions(
             information="the information 2",
             is_new=False,
             is_updated=True,
-            audits=["line1", "line2"],
         ),
     ]
     reset_mocks()
@@ -682,7 +680,7 @@ def test_detect_instructions(
     assert instruction_definitions.mock_calls == calls
     calls = [call(['First', 'Second', 'Fourth'])]
     assert json_schema.mock_calls == calls
-    calls = [call([Instruction(uuid='', index=0, instruction='', information='response1', is_new=True, is_updated=False, audits=[])])]
+    calls = [call([Instruction(uuid='', index=0, instruction='', information='response1', is_new=True, is_updated=False)])]
     assert instruction_constraints.mock_calls == calls
     calls = [
         call(settings, "MemoryLogInstance"),
@@ -717,7 +715,7 @@ def test_detect_instructions(
     assert instruction_definitions.mock_calls == calls
     calls = [call(['First', 'Second', 'Fourth'])]
     assert json_schema.mock_calls == calls
-    calls = [call([Instruction(uuid='', index=0, instruction='', information='response1', is_new=True, is_updated=False, audits=[])])]
+    calls = [call([Instruction(uuid='', index=0, instruction='', information='response1', is_new=True, is_updated=False)])]
     assert instruction_constraints.mock_calls == calls
     calls = [
         call(settings, "MemoryLogInstance"),
@@ -746,7 +744,7 @@ def test_detect_instructions(
     assert instruction_definitions.mock_calls == calls
     calls = [call(['First', 'Second', 'Fourth'])]
     assert json_schema.mock_calls == calls
-    calls = [call([Instruction(uuid='', index=0, instruction='', information='response1', is_new=True, is_updated=False, audits=[])])]
+    calls = [call([Instruction(uuid='', index=0, instruction='', information='response1', is_new=True, is_updated=False)])]
     assert instruction_constraints.mock_calls == calls
     calls = [
         call(settings, "MemoryLogInstance"),
@@ -800,7 +798,6 @@ def test_create_sdk_command_parameters(chatter, memory_log, mock_datetime):
         information="theInformation",
         is_new=False,
         is_updated=True,
-        audits=["line1", "line2"],
     )
     system_prompt = [
         "The conversation is in the context of a clinical encounter between patient and licensed healthcare provider.",
@@ -847,7 +844,6 @@ def test_create_sdk_command_parameters(chatter, memory_log, mock_datetime):
         information="theInformation",
         is_new=False,
         is_updated=True,
-        audits=["line1", "line2"],
         parameters={"key": "response1"},
     )
     assert result == expected
@@ -948,7 +944,6 @@ def test_create_sdk_command_from(chatter, memory_log):
             information="theInformation",
             is_new=False,
             is_updated=True,
-            audits=["line1", "line2"],
             parameters={"theKey": "theValue"},
         )
         tested, settings, aws_credentials, cache = helper_instance(mocks, True)
@@ -1043,7 +1038,6 @@ def test_update_questionnaire(chatter, memory_log):
             information="theInformation",
             is_new=False,
             is_updated=True,
-            audits=["line1", "line2"],
         )
         tested, settings, aws_credentials, cache = helper_instance(command_mocks, True)
         result = tested.update_questionnaire(discussion, instruction)
@@ -1055,7 +1049,6 @@ def test_update_questionnaire(chatter, memory_log):
                 information=exp_information,
                 is_new=False,
                 is_updated=True,
-                audits=["line1", "line2"],
                 parameters={},
                 command=exp_command,
             )

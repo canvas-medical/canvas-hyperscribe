@@ -96,7 +96,6 @@ def test__run(
             information="theInformation1",
             is_new=False,
             is_updated=True,
-            audits=[],
         ),
         Instruction(
             uuid="uuid2",
@@ -105,7 +104,6 @@ def test__run(
             information="theInformation2",
             is_new=False,
             is_updated=True,
-            audits=[],
         )
     ]
     recorder = AuditorFile("theCase")

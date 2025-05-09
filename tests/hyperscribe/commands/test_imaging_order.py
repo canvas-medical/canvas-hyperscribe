@@ -194,9 +194,7 @@ def test_command_from_json(condition_from, search_imagings):
         "instruction": "theInstruction",
         "information": "theInformation",
         "is_new": False,
-        "is_updated": True,
-        "audits": ["theAudit"],
-        "parameters": {
+        "is_updated": True,        "parameters": {
             "imagingKeywords": "keyword1,keyword2,keyword3",
             "conditions": [
                 {"conditionKeywords": "condition1,condition2", "ICD10": "icd1,icd2"},
@@ -250,9 +248,7 @@ def test_command_from_json(condition_from, search_imagings):
         "instruction": "theInstruction",
         "information": "theInformation",
         "is_new": False,
-        "is_updated": True,
-        "audits": ["theAudit"],
-        "parameters": {
+        "is_updated": True,        "parameters": {
             "imagingKeywords": "keyword1,keyword2,keyword3",
             "conditions": [],
             "comment": "theComment",
@@ -292,9 +288,7 @@ def test_command_from_json(condition_from, search_imagings):
         "instruction": "theInstruction",
         "information": "theInformation",
         "is_new": False,
-        "is_updated": True,
-        "audits": ["theAudit"],
-        "parameters": {
+        "is_updated": True,        "parameters": {
             "imagingKeywords": "keyword1,keyword2,keyword3",
             "conditions": [],
             "comment": "theComment",

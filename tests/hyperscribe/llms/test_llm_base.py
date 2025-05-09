@@ -385,12 +385,10 @@ def test_single_conversation(chat, set_system_prompt, set_user_prompt, store_llm
     # -- with instruction
     for with_audit in [True, False]:
         tested = LlmBase(memory_log, "theApiKey", "theModel", with_audit)
-        instruction = Instruction(uuid="theUuid", index=0, instruction="Second", information="theInformation", is_new=False, is_updated=True,
-                                  audits=[])
+        instruction = Instruction(uuid="theUuid", index=0, instruction="Second", information="theInformation", is_new=False, is_updated=True)
         chat.side_effect = [JsonExtract(error="theError", has_error=False, content=[["theContent1"], ["theAudit"]])]
         result = tested.single_conversation(system_prompt, user_prompt, schemas[:1], instruction)
         assert result == ["theContent1"]
-        assert instruction.audits == []
         calls = [call(["schema1"])]
         assert chat.mock_calls == calls
         calls = [call(system_prompt)]
@@ -436,7 +434,6 @@ def test_store_llm_turns(discussion_store):
         information="theInformation",
         is_new=False,
         is_updated=True,
-        audits=[],
     )
     prompts = [
         LlmTurn(role="system", text=["textSystem"]),

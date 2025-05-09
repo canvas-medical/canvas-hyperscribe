@@ -106,9 +106,7 @@ def test_command_from_json(current_conditions):
             "instruction": "theInstruction",
             "information": "theInformation",
             "is_new": False,
-            "is_updated": True,
-            "audits": ["theAudit"],
-            "parameters": {
+            "is_updated": True,            "parameters": {
                 'condition': 'display2a',
                 'conditionIndex': idx,
                 'rationale': 'theRationale',

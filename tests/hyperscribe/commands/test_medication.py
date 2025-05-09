@@ -128,7 +128,6 @@ def test_command_from_json(medication_details):
         "information": "theInformation",
         "is_new": False,
         "is_updated": True,
-        "audits": ["theAudit"],
         "parameters": {
             'keywords': 'keyword1,keyword2,keyword3',
             'sig': 'theSig',

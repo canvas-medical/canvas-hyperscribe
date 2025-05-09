@@ -142,9 +142,7 @@ def test_command_from_json(valid_or_none):
         "instruction": "theInstruction",
         "information": "theInformation",
         "is_new": False,
-        "is_updated": True,
-        "audits": ["theAudit"],
-        "parameters": {
+        "is_updated": True,        "parameters": {
             "height": {"inches": 1},
             "weight": {"pounds": 2},
             "waistCircumference": {"centimeters": 3},

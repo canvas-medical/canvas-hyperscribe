@@ -2,14 +2,13 @@ from __future__ import annotations
 
 
 class Instruction:
-    def __init__(self, uuid: str, index: int, instruction: str, information: str, is_new: bool, is_updated: bool, audits: list[str]):
+    def __init__(self, uuid: str, index: int, instruction: str, information: str, is_new: bool, is_updated: bool):
         self.uuid: str = uuid
         self.index: int = index
         self.instruction: str = instruction
         self.information: str = information
         self.is_new: bool = is_new
         self.is_updated: bool = is_updated
-        self.audits: list[str] = audits
 
     @classmethod
     def load_from_json(cls, json_list: list) -> list[Instruction]:
@@ -21,7 +20,6 @@ class Instruction:
                 information=json_object.get("information", ""),
                 is_new=json_object.get("isNew", True),
                 is_updated=json_object.get("isUpdated", False),
-                audits=json_object.get("audits", []),
             )
             for json_object in json_list
         ]

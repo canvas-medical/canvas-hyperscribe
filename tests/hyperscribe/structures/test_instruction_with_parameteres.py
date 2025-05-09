@@ -16,7 +16,6 @@ def test_add_parameters():
         information="theInformation",
         is_new=True,
         is_updated=True,
-        audits=["line1", "line2"],
     ), {"key": "value"})
     expected = InstructionWithParameters(
         uuid="theUuid",
@@ -25,7 +24,6 @@ def test_add_parameters():
         information="theInformation",
         is_new=True,
         is_updated=True,
-        audits=["line1", "line2"],
         parameters={"key": "value"},
     )
     assert result == expected

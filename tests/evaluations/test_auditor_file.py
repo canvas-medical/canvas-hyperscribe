@@ -251,16 +251,12 @@ def test_found_instructions(path):
                 Line(speaker="voiceA", text="theText4"),
             ],
             [
-                Instruction(uuid="uuid1", index=0, instruction="theInstruction1", information="theInformation0", is_new=False, is_updated=False,
-                            audits=[]),
+                Instruction(uuid="uuid1", index=0, instruction="theInstruction1", information="theInformation0", is_new=False, is_updated=False),
             ],
             [
-                Instruction(uuid="uuid1", index=0, instruction="theInstruction1", information="theInformation1", is_new=False, is_updated=True,
-                            audits=[]),
-                Instruction(uuid="uuid2", index=1, instruction="theInstruction2", information="theInformation2", is_new=True, is_updated=False,
-                            audits=[]),
-                Instruction(uuid="uuid3", index=2, instruction="theInstruction3", information="theInformation3", is_new=True, is_updated=False,
-                            audits=[]),
+                Instruction(uuid="uuid1", index=0, instruction="theInstruction1", information="theInformation1", is_new=False, is_updated=True),
+                Instruction(uuid="uuid2", index=1, instruction="theInstruction2", information="theInformation2", is_new=True, is_updated=False),
+                Instruction(uuid="uuid3", index=2, instruction="theInstruction3", information="theInformation3", is_new=True, is_updated=False),
             ],
         )
         assert result is test
@@ -342,7 +338,6 @@ def test_computed_parameters(path):
             information="theInformation1",
             is_new=False,
             is_updated=True,
-            audits=[],
             parameters={"key1": "parameter1"},
         ),
         InstructionWithParameters(
@@ -352,7 +347,6 @@ def test_computed_parameters(path):
             information="theInformation2",
             is_new=True,
             is_updated=False,
-            audits=[],
             parameters={"key2": "parameter2"},
         ),
     ]
@@ -511,7 +505,6 @@ def test_computed_commands(path):
             information="theInformation1",
             is_new=False,
             is_updated=True,
-            audits=[],
             parameters={"key1": "parameter1"},
             command=commands[0],
         ),
@@ -522,7 +515,6 @@ def test_computed_commands(path):
             information="theInformation2",
             is_new=True,
             is_updated=False,
-            audits=[],
             parameters={"key2": "parameter2"},
             command=commands[1],
         ),
@@ -708,7 +700,6 @@ def test_computed_questionnaires(path):
             information="theInformation1",
             is_new=False,
             is_updated=True,
-            audits=[],
         ),
         Instruction(
             uuid="uuid2",
@@ -717,7 +708,6 @@ def test_computed_questionnaires(path):
             information="theInformation2",
             is_new=False,
             is_updated=True,
-            audits=[],
         ),
         Instruction(
             uuid="uuid3",
@@ -726,7 +716,6 @@ def test_computed_questionnaires(path):
             information="theInformation3",
             is_new=False,
             is_updated=True,
-            audits=[],
         ),
     ]
     instructions_with_command = [
@@ -737,7 +726,6 @@ def test_computed_questionnaires(path):
             information="changedInformation1",
             is_new=False,
             is_updated=True,
-            audits=[],
             parameters={},
             command=commands[0],
         ),
@@ -748,7 +736,6 @@ def test_computed_questionnaires(path):
             information="changedInformation2",
             is_new=False,
             is_updated=True,
-            audits=[],
             parameters={},
             command=commands[1],
         ),
@@ -759,7 +746,6 @@ def test_computed_questionnaires(path):
             information="changedInformation3",
             is_new=False,
             is_updated=True,
-            audits=[],
             parameters={},
             command=commands[2],
         ),

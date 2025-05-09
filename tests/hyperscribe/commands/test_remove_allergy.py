@@ -100,9 +100,7 @@ def test_command_from_json(current_allergies):
             "instruction": "theInstruction",
             "information": "theInformation",
             "is_new": False,
-            "is_updated": True,
-            "audits": ["theAudit"],
-            "parameters": {
+            "is_updated": True,            "parameters": {
                 'allergies': 'display2a',
                 'allergyIndex': idx,
                 'narrative': 'theNarrative',

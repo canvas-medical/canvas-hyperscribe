@@ -346,7 +346,6 @@ def test_compute_audio(
                 information='theInformationA',
                 is_new=False,
                 is_updated=False,
-                audits=["lineA"],
             ),
             Instruction(
                 uuid='uuidB',
@@ -355,7 +354,6 @@ def test_compute_audio(
                 information='theInformationB',
                 is_new=False,
                 is_updated=False,
-                audits=["lineB"],
             ),
             Instruction(
                 uuid='uuidC',
@@ -364,7 +362,6 @@ def test_compute_audio(
                 information='theInformationC',
                 is_new=True,
                 is_updated=False,
-                audits=["lineC"],
             ),
         ]
         exp_instructions = [
@@ -375,7 +372,6 @@ def test_compute_audio(
                 information='theInformationA',
                 is_new=False,
                 is_updated=True,
-                audits=["lineA"],
             ),
             Instruction(
                 uuid='uuidB',
@@ -384,7 +380,6 @@ def test_compute_audio(
                 information='theInformationB',
                 is_new=True,
                 is_updated=False,
-                audits=["lineB"],
             ),
             Instruction(
                 uuid='uuidC',
@@ -393,7 +388,6 @@ def test_compute_audio(
                 information='theInformationC',
                 is_new=True,
                 is_updated=False,
-                audits=["lineC"],
             ),
         ]
         exp_effects = [
@@ -652,7 +646,6 @@ def test_audio2commands(transcript2commands, memory_log):
             information="theInformationA",
             is_new=True,
             is_updated=False,
-            audits=["lineA"],
         ),
     ]
     identification = IdentificationParameters(
@@ -707,7 +700,6 @@ def test_audio2commands(transcript2commands, memory_log):
                         index=0,
                         instruction='theInstructionA',
                         information='theInformationA',
-                        audits=["lineA"],
                         is_new=True,
                         is_updated=False,
                     ),
@@ -783,7 +775,6 @@ def test_transcript2command(transcript2commands_common, transcript2commands_ques
             information="theInformationA",
             is_new=True,
             is_updated=False,
-            audits=["lineA"],
         ),
         Instruction(
             uuid="uuidB",
@@ -792,7 +783,6 @@ def test_transcript2command(transcript2commands_common, transcript2commands_ques
             information="theInformationB",
             is_new=False,
             is_updated=True,
-            audits=["lineB"],
         ),
     ]
     transcript2commands_common.side_effect = [(["instruction1", "instruction2"], ["effect1", "effect2"])]
@@ -819,7 +809,6 @@ def test_transcript2command(transcript2commands_common, transcript2commands_ques
             information="theInformationA",
             is_new=True,
             is_updated=False,
-            audits=["lineA"],
         ),
         Instruction(
             uuid="uuidB",
@@ -828,7 +817,6 @@ def test_transcript2command(transcript2commands_common, transcript2commands_ques
             information="theInformationB",
             is_new=False,
             is_updated=True,
-            audits=["lineB"],
         ),
     ]
     transcript2commands_common.side_effect = [([], [])]
@@ -855,7 +843,6 @@ def test_transcript2command(transcript2commands_common, transcript2commands_ques
             information="theInformationA",
             is_new=True,
             is_updated=False,
-            audits=["lineA"],
         ),
         Instruction(
             uuid="uuidB",
@@ -864,7 +851,6 @@ def test_transcript2command(transcript2commands_common, transcript2commands_ques
             information="theInformationB",
             is_new=False,
             is_updated=True,
-            audits=["lineB"],
         ),
     ]
     transcript2commands_common.side_effect = [(["instruction1"], ["effect1"])]
@@ -910,19 +896,17 @@ def test_transcript2commands_common(time, memory_log):
         Line(speaker="speaker1", text="textC"),
     ]
     previous_instructions = [
-        Instruction(uuid='uuidA', index=0, instruction='theInstructionA', information='theInformationA', is_new=False, is_updated=True, audits=[]),
-        Instruction(uuid='uuidB', index=1, instruction='theInstructionB', information='theInformationB', is_new=False, is_updated=False, audits=[]),
-        Instruction(uuid='uuidF', index=2, instruction='theInstructionA', information='theInformationF', is_new=False, is_updated=True, audits=[]),
+        Instruction(uuid='uuidA', index=0, instruction='theInstructionA', information='theInformationA', is_new=False, is_updated=True),
+        Instruction(uuid='uuidB', index=1, instruction='theInstructionB', information='theInformationB', is_new=False, is_updated=False),
+        Instruction(uuid='uuidF', index=2, instruction='theInstructionA', information='theInformationF', is_new=False, is_updated=True),
     ]
     exp_instructions = [
-        Instruction(uuid='uuidA', index=1, instruction='theInstructionA', information='changedInformationA', is_new=False, is_updated=True,
-                    audits=[]),
-        Instruction(uuid='uuidB', index=2, instruction='theInstructionB', information='theInformationB', is_new=False, is_updated=False, audits=[]),
-        Instruction(uuid='uuidF', index=3, instruction='theInstructionA', information='changedInformationF', is_new=False, is_updated=True,
-                    audits=[]),
-        Instruction(uuid='uuidC', index=4, instruction='theInstructionC', information='theInformationC', is_new=True, is_updated=False, audits=[]),
-        Instruction(uuid='uuidD', index=5, instruction='theInstructionD', information='theInformationD', is_new=True, is_updated=False, audits=[]),
-        Instruction(uuid='uuidE', index=6, instruction='theInstructionD', information='theInformationE', is_new=True, is_updated=False, audits=[]),
+        Instruction(uuid='uuidA', index=1, instruction='theInstructionA', information='changedInformationA', is_new=False, is_updated=True),
+        Instruction(uuid='uuidB', index=2, instruction='theInstructionB', information='theInformationB', is_new=False, is_updated=False),
+        Instruction(uuid='uuidF', index=3, instruction='theInstructionA', information='changedInformationF', is_new=False, is_updated=True),
+        Instruction(uuid='uuidC', index=4, instruction='theInstructionC', information='theInformationC', is_new=True, is_updated=False),
+        Instruction(uuid='uuidD', index=5, instruction='theInstructionD', information='theInformationD', is_new=True, is_updated=False),
+        Instruction(uuid='uuidE', index=6, instruction='theInstructionD', information='theInformationE', is_new=True, is_updated=False),
     ]
     instructions_with_parameters = [
         InstructionWithParameters(
@@ -932,7 +916,6 @@ def test_transcript2commands_common(time, memory_log):
             information='changedInformationA',
             is_new=False,
             is_updated=True,
-            audits=["lineA"],
             parameters={"params": "instruction0"},
         ),
         # B is unchanged
@@ -943,7 +926,6 @@ def test_transcript2commands_common(time, memory_log):
             information='changedInformationF',
             is_new=False,
             is_updated=True,
-            audits=["lineF"],
             parameters={"params": "instruction5"},
         ),
         None,  # C results with None
@@ -954,7 +936,6 @@ def test_transcript2commands_common(time, memory_log):
             information='theInformationD',
             is_new=True,
             is_updated=False,
-            audits=["lineD"],
             parameters={"params": "instruction3"},
         ),
         InstructionWithParameters(
@@ -964,7 +945,6 @@ def test_transcript2commands_common(time, memory_log):
             information='theInformationE',
             is_new=True,
             is_updated=False,
-            audits=["lineE"],
             parameters={"params": "instruction4"},
         ),
     ]
@@ -976,7 +956,6 @@ def test_transcript2commands_common(time, memory_log):
             information='changedInformationA',
             is_new=False,
             is_updated=True,
-            audits=["lineA"],
             parameters={"params": "instruction0"},
             command=mock_commands[0],
         ),
@@ -987,7 +966,6 @@ def test_transcript2commands_common(time, memory_log):
             information='changedInformationF',
             is_new=False,
             is_updated=True,
-            audits=["lineF"],
             parameters={"params": "instruction5"},
             command=mock_commands[1],
         ),
@@ -998,7 +976,6 @@ def test_transcript2commands_common(time, memory_log):
             information='theInformationD',
             is_new=True,
             is_updated=False,
-            audits=["lineD"],
             parameters={"params": "instruction3"},
             command=mock_commands[2],
         ),
@@ -1049,7 +1026,6 @@ def test_transcript2commands_common(time, memory_log):
                     "information": "changedInformationA",
                     "isNew": False,
                     "isUpdated": True,
-                    "audits": ["lineA"],
                 },
                 {
                     "uuid": "uuidB",
@@ -1057,7 +1033,6 @@ def test_transcript2commands_common(time, memory_log):
                     "information": "theInformationB",
                     "isNew": False,
                     "isUpdated": False,
-                    "audits": ["lineB"],
                 },
                 {
                     "uuid": "uuidF",
@@ -1065,7 +1040,6 @@ def test_transcript2commands_common(time, memory_log):
                     "information": "changedInformationF",
                     "isNew": False,
                     "isUpdated": True,
-                    "audits": ["lineF"],
                 },
                 {
                     "uuid": "uuidC",
@@ -1073,7 +1047,6 @@ def test_transcript2commands_common(time, memory_log):
                     "information": "theInformationC",
                     "isNew": True,
                     "isUpdated": False,
-                    "audits": ["lineC"],
                 },
                 {
                     "uuid": "uuidD",
@@ -1081,7 +1054,6 @@ def test_transcript2commands_common(time, memory_log):
                     "information": "theInformationD",
                     "isNew": True,
                     "isUpdated": False,
-                    "audits": ["lineD"],
                 },
                 {
                     "uuid": "uuidE",
@@ -1089,7 +1061,6 @@ def test_transcript2commands_common(time, memory_log):
                     "information": "theInformationE",
                     "isNew": True,
                     "isUpdated": False,
-                    "audits": ["lineE"],
                 },
             ],
         ]
@@ -1155,9 +1126,9 @@ def test_transcript2commands_common(time, memory_log):
 
     # no new instruction, no updates
     previous_instructions = [
-        Instruction(uuid='uuidA', index=0, instruction='theInstructionA', information='theInformationA', is_new=False, is_updated=False, audits=[]),
-        Instruction(uuid='uuidB', index=1, instruction='theInstructionB', information='theInformationB', is_new=False, is_updated=False, audits=[]),
-        Instruction(uuid='uuidF', index=2, instruction='theInstructionA', information='theInformationF', is_new=False, is_updated=False, audits=[]),
+        Instruction(uuid='uuidA', index=0, instruction='theInstructionA', information='theInformationA', is_new=False, is_updated=False),
+        Instruction(uuid='uuidB', index=1, instruction='theInstructionB', information='theInformationB', is_new=False, is_updated=False),
+        Instruction(uuid='uuidF', index=2, instruction='theInstructionA', information='theInformationF', is_new=False, is_updated=False),
     ]
     identification = IdentificationParameters(
         patient_uuid="patientUuid",
@@ -1186,7 +1157,6 @@ def test_transcript2commands_common(time, memory_log):
                 "information": "theInformationA",
                 "isNew": False,
                 "isUpdated": False,
-                "audits": ["lineA"],
             },
             {
                 "uuid": "uuidB",
@@ -1194,7 +1164,6 @@ def test_transcript2commands_common(time, memory_log):
                 "information": "theInformationB",
                 "isNew": False,
                 "isUpdated": False,
-                "audits": ["lineB"],
             },
             {
                 "uuid": "uuidF",
@@ -1202,7 +1171,6 @@ def test_transcript2commands_common(time, memory_log):
                 "information": "theInformationF",
                 "isNew": False,
                 "isUpdated": False,
-                "audits": ["lineF"],
             },
         ],
     ]
@@ -1280,16 +1248,11 @@ def test_transcript2commands_questionnaires(time, memory_log):
     ]
 
     instructions = [
-        Instruction(uuid='uuidA', index=0, instruction='theInstructionA', information='theInformationA', is_new=False, is_updated=True,
-                    audits=["lineA"]),
-        Instruction(uuid='uuidB', index=1, instruction='theInstructionB', information='theInformationB', is_new=True, is_updated=False,
-                    audits=["lineB"]),
-        Instruction(uuid='uuidC', index=2, instruction='theInstructionC', information='theInformationC', is_new=False, is_updated=False,
-                    audits=["lineC"]),
-        Instruction(uuid='uuidD', index=3, instruction='theInstructionD', information='theInformationD', is_new=True, is_updated=True,
-                    audits=["lineD"]),
-        Instruction(uuid='uuidE', index=4, instruction='theInstructionE', information='theInformationE', is_new=True, is_updated=True,
-                    audits=["lineE"]),
+        Instruction(uuid='uuidA', index=0, instruction='theInstructionA', information='theInformationA', is_new=False, is_updated=True),
+        Instruction(uuid='uuidB', index=1, instruction='theInstructionB', information='theInformationB', is_new=True, is_updated=False),
+        Instruction(uuid='uuidC', index=2, instruction='theInstructionC', information='theInformationC', is_new=False, is_updated=False),
+        Instruction(uuid='uuidD', index=3, instruction='theInstructionD', information='theInformationD', is_new=True, is_updated=True),
+        Instruction(uuid='uuidE', index=4, instruction='theInstructionE', information='theInformationE', is_new=True, is_updated=True),
     ]
     instructions_with_commands = [
         None,
@@ -1300,7 +1263,6 @@ def test_transcript2commands_questionnaires(time, memory_log):
             information='theInformationB',
             is_new=False,
             is_updated=False,
-            audits=["lineB1", "lineB2"],
             parameters={},
             command=mock_commands[0],
         ),
@@ -1311,7 +1273,6 @@ def test_transcript2commands_questionnaires(time, memory_log):
             information='theInformationC',
             is_new=False,
             is_updated=True,
-            audits=["lineC1", "lineC2"],
             parameters={},
             command=mock_commands[1],
         ),
@@ -1327,7 +1288,6 @@ def test_transcript2commands_questionnaires(time, memory_log):
             information='theInformationB',
             is_new=False,
             is_updated=False,
-            audits=["lineB1", "lineB2"],
         ),
         Instruction(
             uuid='uuidC',
@@ -1336,7 +1296,6 @@ def test_transcript2commands_questionnaires(time, memory_log):
             information='theInformationC',
             is_new=False,
             is_updated=True,
-            audits=["lineC1", "lineC2"],
         ),
     ]
     effects = [
@@ -1438,16 +1397,11 @@ def test_new_commands_from(time, memory_log):
         canvas_instance="canvasInstance",
     )
     instructions = [
-        Instruction(uuid='uuidA', index=0, instruction='theInstructionA', information='theInformationA', is_new=False, is_updated=True,
-                    audits=["lineA"]),
-        Instruction(uuid='uuidB', index=1, instruction='theInstructionB', information='theInformationB', is_new=True, is_updated=False,
-                    audits=["lineB"]),
-        Instruction(uuid='uuidC', index=2, instruction='theInstructionC', information='theInformationC', is_new=True, is_updated=False,
-                    audits=["lineC"]),
-        Instruction(uuid='uuidD', index=3, instruction='theInstructionD', information='theInformationD', is_new=True, is_updated=False,
-                    audits=["lineD"]),
-        Instruction(uuid='uuidE', index=4, instruction='theInstructionE', information='theInformationE', is_new=True, is_updated=False,
-                    audits=["lineE"]),
+        Instruction(uuid='uuidA', index=0, instruction='theInstructionA', information='theInformationA', is_new=False, is_updated=True),
+        Instruction(uuid='uuidB', index=1, instruction='theInstructionB', information='theInformationB', is_new=True, is_updated=False),
+        Instruction(uuid='uuidC', index=2, instruction='theInstructionC', information='theInformationC', is_new=True, is_updated=False),
+        Instruction(uuid='uuidD', index=3, instruction='theInstructionD', information='theInformationD', is_new=True, is_updated=False),
+        Instruction(uuid='uuidE', index=4, instruction='theInstructionE', information='theInformationE', is_new=True, is_updated=False),
     ]
     instructions_with_parameters = [
         InstructionWithParameters(
@@ -1457,7 +1411,6 @@ def test_new_commands_from(time, memory_log):
             information='theInformationB',
             is_new=True,
             is_updated=False,
-            audits=["lineB"],
             parameters={"params": "instruction1"},
         ),
         None,
@@ -1468,7 +1421,6 @@ def test_new_commands_from(time, memory_log):
             information='theInformationD',
             is_new=True,
             is_updated=False,
-            audits=["lineD"],
             parameters={"params": "instruction3"},
         ),
         InstructionWithParameters(
@@ -1478,7 +1430,6 @@ def test_new_commands_from(time, memory_log):
             information='theInformationE',
             is_new=True,
             is_updated=False,
-            audits=["lineE"],
             parameters={"params": "instruction4"},
         ),
     ]
@@ -1490,7 +1441,6 @@ def test_new_commands_from(time, memory_log):
             information='theInformationB',
             is_new=True,
             is_updated=False,
-            audits=["lineB"],
             parameters={"params": "instruction1"},
             command=mock_commands[0],
         ),
@@ -1501,7 +1451,6 @@ def test_new_commands_from(time, memory_log):
             information='theInformationD',
             is_new=True,
             is_updated=False,
-            audits=["lineD"],
             parameters={"params": "instruction3"},
             command=mock_commands[1],
         ),
@@ -1637,18 +1586,12 @@ def test_update_commands_from(time, memory_log):
         canvas_instance="canvasInstance",
     )
     instructions = [
-        Instruction(uuid='uuidA', index=0, instruction='theInstructionX', information='theInformationA', is_new=False, is_updated=True,
-                    audits=["lineA"]),
-        Instruction(uuid='uuidB', index=1, instruction='theInstructionX', information='theInformationB', is_new=False, is_updated=True,
-                    audits=["lineB"]),
-        Instruction(uuid='uuidC', index=2, instruction='theInstructionY', information='theInformationC', is_new=False, is_updated=True,
-                    audits=["lineC"]),
-        Instruction(uuid='uuidD', index=3, instruction='theInstructionY', information='theInformationD', is_new=False, is_updated=True,
-                    audits=["lineD"]),
-        Instruction(uuid='uuidE', index=4, instruction='theInstructionY', information='theInformationE', is_new=True, is_updated=False,
-                    audits=["lineE"]),
-        Instruction(uuid='uuidF', index=5, instruction='theInstructionY', information='theInformationF', is_new=True, is_updated=False,
-                    audits=["lineF"]),
+        Instruction(uuid='uuidA', index=0, instruction='theInstructionX', information='theInformationA', is_new=False, is_updated=True),
+        Instruction(uuid='uuidB', index=1, instruction='theInstructionX', information='theInformationB', is_new=False, is_updated=True),
+        Instruction(uuid='uuidC', index=2, instruction='theInstructionY', information='theInformationC', is_new=False, is_updated=True),
+        Instruction(uuid='uuidD', index=3, instruction='theInstructionY', information='theInformationD', is_new=False, is_updated=True),
+        Instruction(uuid='uuidE', index=4, instruction='theInstructionY', information='theInformationE', is_new=True, is_updated=False),
+        Instruction(uuid='uuidF', index=5, instruction='theInstructionY', information='theInformationF', is_new=True, is_updated=False),
     ]
     instructions_with_parameters = [
         InstructionWithParameters(
@@ -1658,7 +1601,6 @@ def test_update_commands_from(time, memory_log):
             information='theInformationB',
             is_new=True,
             is_updated=False,
-            audits=["lineB"],
             parameters={"params": "instruction1"},
         ),
         None,
@@ -1669,7 +1611,6 @@ def test_update_commands_from(time, memory_log):
             information='theInformationD',
             is_new=True,
             is_updated=False,
-            audits=["lineD"],
             parameters={"params": "instruction3"},
         ),
         InstructionWithParameters(
@@ -1679,7 +1620,6 @@ def test_update_commands_from(time, memory_log):
             information='theInformationE',
             is_new=True,
             is_updated=False,
-            audits=["lineE"],
             parameters={"params": "instruction4"},
         ),
     ]
@@ -1691,7 +1631,6 @@ def test_update_commands_from(time, memory_log):
             information='theInformationB',
             is_new=True,
             is_updated=False,
-            audits=["lineB"],
             parameters={"params": "instruction1"},
             command=mock_commands[0],
         ),
@@ -1702,7 +1641,6 @@ def test_update_commands_from(time, memory_log):
             information='theInformationD',
             is_new=True,
             is_updated=False,
-            audits=["lineD"],
             parameters={"params": "instruction3"},
             command=mock_commands[1],
         ),
@@ -1757,16 +1695,12 @@ def test_update_commands_from(time, memory_log):
         )
         chatter.identification = identification
         past_uuids = {
-            "uuidA": Instruction(uuid='uuidA', index=0, instruction='theInstructionX', information='changedA', is_new=False, is_updated=True,
-                                 audits=["lineA"]),
+            "uuidA": Instruction(uuid='uuidA', index=0, instruction='theInstructionX', information='changedA', is_new=False, is_updated=True),
             "uuidB": instructions[1],
             "uuidC": instructions[2],
-            "uuidD": Instruction(uuid='uuidD', index=1, instruction='theInstructionY', information='changedD', is_new=False, is_updated=True,
-                                 audits=["lineD"]),
-            "uuidE": Instruction(uuid='uuidE', index=2, instruction='theInstructionY', information='changedE', is_new=True, is_updated=False,
-                                 audits=["lineE"]),
-            "uuidF": Instruction(uuid='uuidF', index=3, instruction='theInstructionY', information='changedE', is_new=True, is_updated=False,
-                                 audits=["lineF"]),
+            "uuidD": Instruction(uuid='uuidD', index=1, instruction='theInstructionY', information='changedD', is_new=False, is_updated=True),
+            "uuidE": Instruction(uuid='uuidE', index=2, instruction='theInstructionY', information='changedE', is_new=True, is_updated=False),
+            "uuidF": Instruction(uuid='uuidF', index=3, instruction='theInstructionY', information='changedE', is_new=True, is_updated=False),
         }
         time.side_effect = [111.110, 111.451]
         chatter.create_sdk_command_parameters.side_effect = instructions_with_parameters
@@ -1839,11 +1773,11 @@ def test_existing_commands_to_instructions(schema_key2instruction):
 
     result = tested.existing_commands_to_instructions(current_commands, [])
     expected = [
-        Instruction(uuid='uuid1', index=0, instruction='theInstructionX', information='', is_new=False, is_updated=False, audits=[]),
-        Instruction(uuid='uuid2', index=1, instruction='theInstructionX', information='', is_new=False, is_updated=False, audits=[]),
-        Instruction(uuid='uuid3', index=2, instruction='theInstructionY', information='', is_new=False, is_updated=False, audits=[]),
-        Instruction(uuid='uuid4', index=3, instruction='theInstructionY', information='', is_new=False, is_updated=False, audits=[]),
-        Instruction(uuid='uuid5', index=4, instruction='theInstructionY', information='', is_new=False, is_updated=False, audits=[]),
+        Instruction(uuid='uuid1', index=0, instruction='theInstructionX', information='', is_new=False, is_updated=False),
+        Instruction(uuid='uuid2', index=1, instruction='theInstructionX', information='', is_new=False, is_updated=False),
+        Instruction(uuid='uuid3', index=2, instruction='theInstructionY', information='', is_new=False, is_updated=False),
+        Instruction(uuid='uuid4', index=3, instruction='theInstructionY', information='', is_new=False, is_updated=False),
+        Instruction(uuid='uuid5', index=4, instruction='theInstructionY', information='', is_new=False, is_updated=False),
     ]
     assert result == expected
     calls = [call()]
@@ -1880,12 +1814,9 @@ def test_existing_commands_to_instructions(schema_key2instruction):
         },
     ]
     instructions = [
-        Instruction(uuid='uuidA', index=0, instruction='theInstructionX', information='theInformationA', is_new=True, is_updated=True,
-                    audits=["lineA"]),
-        Instruction(uuid='uuidB', index=1, instruction='theInstructionY', information='theInformationD', is_new=True, is_updated=True,
-                    audits=["lineB"]),
-        Instruction(uuid='uuidC', index=2, instruction='theInstructionY', information='theInformationE', is_new=True, is_updated=True,
-                    audits=["lineC"]),
+        Instruction(uuid='uuidA', index=0, instruction='theInstructionX', information='theInformationA', is_new=True, is_updated=True),
+        Instruction(uuid='uuidB', index=1, instruction='theInstructionY', information='theInformationD', is_new=True, is_updated=True),
+        Instruction(uuid='uuidC', index=2, instruction='theInstructionY', information='theInformationE', is_new=True, is_updated=True),
     ]
 
     result = tested.existing_commands_to_instructions(current_commands, instructions)
@@ -1897,7 +1828,6 @@ def test_existing_commands_to_instructions(schema_key2instruction):
             information='',
             is_new=False,
             is_updated=False,
-            audits=[],
         ),
         Instruction(
             uuid='uuid1',
@@ -1906,7 +1836,6 @@ def test_existing_commands_to_instructions(schema_key2instruction):
             information='theInformationA',
             is_new=False,
             is_updated=False,
-            audits=[],
         ),
         Instruction(
             uuid='uuid3',
@@ -1915,7 +1844,6 @@ def test_existing_commands_to_instructions(schema_key2instruction):
             information='theInformationD',
             is_new=False,
             is_updated=False,
-            audits=[],
         ),
         Instruction(
             uuid='uuid4',
@@ -1924,7 +1852,6 @@ def test_existing_commands_to_instructions(schema_key2instruction):
             information='theInformationE',
             is_new=False,
             is_updated=False,
-            audits=[],
         ),
         Instruction(
             uuid='uuid2',
@@ -1933,7 +1860,6 @@ def test_existing_commands_to_instructions(schema_key2instruction):
             information='',
             is_new=False,
             is_updated=False,
-            audits=[],
         ),
         Instruction(
             uuid='uuid5',
@@ -1942,7 +1868,6 @@ def test_existing_commands_to_instructions(schema_key2instruction):
             information='',
             is_new=False,
             is_updated=False,
-            audits=[],
         ),
         Instruction(
             uuid='uuid6',
@@ -1951,7 +1876,6 @@ def test_existing_commands_to_instructions(schema_key2instruction):
             information='theNarrative6',
             is_new=False,
             is_updated=False,
-            audits=[],
         ),
         Instruction(
             uuid='uuid7',
@@ -1960,7 +1884,6 @@ def test_existing_commands_to_instructions(schema_key2instruction):
             information='theComment7',
             is_new=False,
             is_updated=False,
-            audits=[],
         ),
         Instruction(
             uuid='uuid8',
@@ -1969,7 +1892,6 @@ def test_existing_commands_to_instructions(schema_key2instruction):
             information='{"name": "thePhysicalExam", "dbid": 123, "questions": []}',
             is_new=False,
             is_updated=False,
-            audits=[],
         ),
         Instruction(
             uuid='uuid9',
@@ -1978,7 +1900,6 @@ def test_existing_commands_to_instructions(schema_key2instruction):
             information='{"name": "theQuestionnaire", "dbid": 234, "questions": []}',
             is_new=False,
             is_updated=False,
-            audits=[],
         ),
         Instruction(
             uuid='uuid10',
@@ -1987,7 +1908,6 @@ def test_existing_commands_to_instructions(schema_key2instruction):
             information='{"name": "theReviewOfSystem", "dbid": 125, "questions": []}',
             is_new=False,
             is_updated=False,
-            audits=[],
         ),
         Instruction(
             uuid='uuid11',
@@ -1996,7 +1916,6 @@ def test_existing_commands_to_instructions(schema_key2instruction):
             information='{"name": "theStructuredAssessment", "dbid": 222, "questions": []}',
             is_new=False,
             is_updated=False,
-            audits=[],
         ),
     ]
     assert result == expected
