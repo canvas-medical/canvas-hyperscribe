@@ -9,7 +9,7 @@ from canvas_sdk.v1.data import Patient, Command
 from evaluations.auditor_file import AuditorFile
 from evaluations.case_builders.builder_base import BuilderBase
 from hyperscribe.handlers.commander import Commander
-from hyperscribe.handlers.limited_cache import LimitedCache
+from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 
 

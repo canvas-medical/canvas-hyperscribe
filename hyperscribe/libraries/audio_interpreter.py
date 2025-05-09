@@ -2,11 +2,11 @@ import json
 from datetime import datetime
 
 from hyperscribe.commands.base_questionnaire import BaseQuestionnaire
-from hyperscribe.handlers.helper import Helper
-from hyperscribe.handlers.implemented_commands import ImplementedCommands
-from hyperscribe.handlers.json_schema import JsonSchema
-from hyperscribe.handlers.limited_cache import LimitedCache
-from hyperscribe.handlers.memory_log import MemoryLog
+from hyperscribe.libraries.helper import Helper
+from hyperscribe.libraries.implemented_commands import ImplementedCommands
+from hyperscribe.libraries.json_schema import JsonSchema
+from hyperscribe.libraries.limited_cache import LimitedCache
+from hyperscribe.libraries.memory_log import MemoryLog
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.instruction import Instruction

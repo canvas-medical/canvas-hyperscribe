@@ -2,7 +2,7 @@ from datetime import datetime, date
 from enum import Enum
 from unittest.mock import patch, call, MagicMock
 
-from hyperscribe.handlers.helper import Helper
+from hyperscribe.libraries.helper import Helper
 from hyperscribe.llms.llm_anthropic import LlmAnthropic
 from hyperscribe.llms.llm_google import LlmGoogle
 from hyperscribe.llms.llm_openai import LlmOpenai

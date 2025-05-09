@@ -5,7 +5,7 @@ from canvas_sdk.commands import ReviewOfSystemsCommand
 
 from hyperscribe.commands.base import Base
 from hyperscribe.commands.review_of_system import ReviewOfSystem
-from hyperscribe.handlers.limited_cache import LimitedCache
+from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.settings import Settings

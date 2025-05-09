@@ -2,11 +2,11 @@ from datetime import datetime, timezone
 from unittest.mock import patch, MagicMock, call
 
 from hyperscribe.commands.base_questionnaire import BaseQuestionnaire
-from hyperscribe.handlers.audio_interpreter import AudioInterpreter
-from hyperscribe.handlers.helper import Helper
-from hyperscribe.handlers.implemented_commands import ImplementedCommands
-from hyperscribe.handlers.limited_cache import LimitedCache
-from hyperscribe.handlers.memory_log import MemoryLog
+from hyperscribe.libraries.audio_interpreter import AudioInterpreter
+from hyperscribe.libraries.helper import Helper
+from hyperscribe.libraries.implemented_commands import ImplementedCommands
+from hyperscribe.libraries.limited_cache import LimitedCache
+from hyperscribe.libraries.memory_log import MemoryLog
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.instruction import Instruction
@@ -763,8 +763,8 @@ def test_detect_instructions(
     reset_mocks()
 
 
-@patch("hyperscribe.handlers.audio_interpreter.datetime", wraps=datetime)
-@patch("hyperscribe.handlers.audio_interpreter.MemoryLog")
+@patch("hyperscribe.libraries.audio_interpreter.datetime", wraps=datetime)
+@patch("hyperscribe.libraries.audio_interpreter.MemoryLog")
 @patch.object(Helper, "chatter")
 def test_create_sdk_command_parameters(chatter, memory_log, mock_datetime):
     mocks = [
@@ -900,7 +900,7 @@ def test_create_sdk_command_parameters(chatter, memory_log, mock_datetime):
     reset_mocks()
 
 
-@patch("hyperscribe.handlers.audio_interpreter.MemoryLog")
+@patch("hyperscribe.libraries.audio_interpreter.MemoryLog")
 @patch.object(Helper, "chatter")
 def test_create_sdk_command_from(chatter, memory_log):
     mocks = [

@@ -1,4 +1,4 @@
-from hyperscribe.handlers.json_schema import JsonSchema
+from hyperscribe.libraries.json_schema import JsonSchema
 
 
 def test_get():

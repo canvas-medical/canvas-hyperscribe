@@ -2,7 +2,7 @@ from typing import Any
 
 from canvas_sdk.v1.data import PracticeLocation, Staff
 
-from hyperscribe.handlers.limited_cache import LimitedCache
+from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.identification_parameters import IdentificationParameters

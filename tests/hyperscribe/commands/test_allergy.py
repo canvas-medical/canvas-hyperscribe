@@ -5,8 +5,8 @@ from canvas_sdk.commands.commands.allergy import AllergyCommand, Allergen, Aller
 
 from hyperscribe.commands.allergy import Allergy
 from hyperscribe.commands.base import Base
-from hyperscribe.handlers.canvas_science import CanvasScience
-from hyperscribe.handlers.limited_cache import LimitedCache
+from hyperscribe.libraries.canvas_science import CanvasScience
+from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.structures.allergy_detail import AllergyDetail
 from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.identification_parameters import IdentificationParameters

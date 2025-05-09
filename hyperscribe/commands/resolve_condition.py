@@ -1,7 +1,7 @@
 from canvas_sdk.commands.commands.resolve_condition import ResolveConditionCommand
 
 from hyperscribe.commands.base import Base
-from hyperscribe.handlers.constants import Constants
+from hyperscribe.libraries.constants import Constants
 from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.instruction_with_command import InstructionWithCommand

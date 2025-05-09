@@ -3,7 +3,7 @@ from typing import Type
 from canvas_sdk.commands import StructuredAssessmentCommand
 
 from hyperscribe.commands.base_questionnaire import BaseQuestionnaire
-from hyperscribe.handlers.constants import Constants
+from hyperscribe.libraries.constants import Constants
 
 
 class StructuredAssessment(BaseQuestionnaire):

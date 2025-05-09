@@ -9,9 +9,9 @@ from canvas_sdk.events import Event
 from canvas_sdk.v1.data import TaskComment, Note, Command, TaskLabel
 from logger import log
 
-from hyperscribe.handlers.cached_discussion import CachedDiscussion
+from hyperscribe.libraries.cached_discussion import CachedDiscussion
 from hyperscribe.handlers.commander import Commander
-from hyperscribe.handlers.implemented_commands import ImplementedCommands
+from hyperscribe.libraries.implemented_commands import ImplementedCommands
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.identification_parameters import IdentificationParameters

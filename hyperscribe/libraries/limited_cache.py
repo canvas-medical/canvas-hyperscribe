@@ -11,8 +11,8 @@ from canvas_sdk.v1.data.medication import Status
 from canvas_sdk.v1.data.patient import SexAtBirth
 from django.db.models.expressions import When, Value, Case
 
-from hyperscribe.handlers.constants import Constants
-from hyperscribe.handlers.helper import Helper
+from hyperscribe.libraries.constants import Constants
+from hyperscribe.libraries.helper import Helper
 from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.instruction import Instruction
 

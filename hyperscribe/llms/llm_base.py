@@ -7,9 +7,9 @@ from http import HTTPStatus
 from canvas_sdk.questionnaires.utils import Draft7Validator
 from logger import log
 
-from hyperscribe.handlers.constants import Constants
-from hyperscribe.handlers.llm_turns_store import LlmTurnsStore
-from hyperscribe.handlers.memory_log import MemoryLog
+from hyperscribe.libraries.constants import Constants
+from hyperscribe.libraries.llm_turns_store import LlmTurnsStore
+from hyperscribe.libraries.memory_log import MemoryLog
 from hyperscribe.structures.http_response import HttpResponse
 from hyperscribe.structures.instruction import Instruction
 from hyperscribe.structures.json_extract import JsonExtract

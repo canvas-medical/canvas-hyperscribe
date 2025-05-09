@@ -5,7 +5,7 @@ from canvas_sdk.v1.data import Note
 
 from evaluations.helper_evaluation import HelperEvaluation
 from evaluations.structures.postgres_credentials import PostgresCredentials
-from hyperscribe.handlers.helper import Helper
+from hyperscribe.libraries.helper import Helper
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.json_extract import JsonExtract

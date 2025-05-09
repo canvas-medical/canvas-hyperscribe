@@ -5,9 +5,9 @@ from canvas_sdk.v1.data import Note
 
 from evaluations.constants import Constants
 from evaluations.structures.postgres_credentials import PostgresCredentials
-from hyperscribe.handlers.constants import Constants as HyperscribeConstants
-from hyperscribe.handlers.helper import Helper
-from hyperscribe.handlers.memory_log import MemoryLog
+from hyperscribe.libraries.constants import Constants as HyperscribeConstants
+from hyperscribe.libraries.helper import Helper
+from hyperscribe.libraries.memory_log import MemoryLog
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.settings import Settings

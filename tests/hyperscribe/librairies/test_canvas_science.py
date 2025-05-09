@@ -3,7 +3,7 @@ from unittest.mock import patch, call, MagicMock
 from canvas_sdk.commands.commands.allergy import AllergenType
 from canvas_sdk.commands.constants import ServiceProvider
 
-from hyperscribe.handlers.canvas_science import CanvasScience
+from hyperscribe.libraries.canvas_science import CanvasScience
 from hyperscribe.structures.allergy_detail import AllergyDetail
 from hyperscribe.structures.icd10_condition import Icd10Condition
 from hyperscribe.structures.imaging_report import ImagingReport
@@ -583,10 +583,10 @@ def test_search_contacts(get_attempts):
     reset_mocks()
 
 
-@patch('hyperscribe.handlers.canvas_science.ontologies_http')
-@patch('hyperscribe.handlers.canvas_science.science_http')
-@patch('hyperscribe.handlers.canvas_science.log')
-@patch('hyperscribe.handlers.canvas_science.requests_get')
+@patch('hyperscribe.libraries.canvas_science.ontologies_http')
+@patch('hyperscribe.libraries.canvas_science.science_http')
+@patch('hyperscribe.libraries.canvas_science.log')
+@patch('hyperscribe.libraries.canvas_science.requests_get')
 def test_get_attempts(requests_get, log, science, ontologies):
     def reset_mocks():
         requests_get.reset_mock()

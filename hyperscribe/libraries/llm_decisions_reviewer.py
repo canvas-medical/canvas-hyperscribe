@@ -1,11 +1,11 @@
 import json
 
-from hyperscribe.handlers.aws_s3 import AwsS3
-from hyperscribe.handlers.cached_discussion import CachedDiscussion
-from hyperscribe.handlers.helper import Helper
-from hyperscribe.handlers.json_schema import JsonSchema
-from hyperscribe.handlers.llm_turns_store import LlmTurnsStore
-from hyperscribe.handlers.memory_log import MemoryLog
+from hyperscribe.libraries.aws_s3 import AwsS3
+from hyperscribe.libraries.cached_discussion import CachedDiscussion
+from hyperscribe.libraries.helper import Helper
+from hyperscribe.libraries.json_schema import JsonSchema
+from hyperscribe.libraries.llm_turns_store import LlmTurnsStore
+from hyperscribe.libraries.memory_log import MemoryLog
 from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.identification_parameters import IdentificationParameters

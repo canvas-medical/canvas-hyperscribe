@@ -4,9 +4,9 @@ from canvas_sdk.commands.commands.imaging_order import ImagingOrderCommand
 
 from hyperscribe.commands.base import Base
 from hyperscribe.commands.imaging_order import ImagingOrder
-from hyperscribe.handlers.canvas_science import CanvasScience
-from hyperscribe.handlers.limited_cache import LimitedCache
-from hyperscribe.handlers.selector_chat import SelectorChat
+from hyperscribe.libraries.canvas_science import CanvasScience
+from hyperscribe.libraries.limited_cache import LimitedCache
+from hyperscribe.libraries.selector_chat import SelectorChat
 from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.imaging_report import ImagingReport

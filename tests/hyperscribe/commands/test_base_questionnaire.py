@@ -6,7 +6,7 @@ from canvas_sdk.commands.commands.questionnaire import QuestionnaireCommand
 
 from hyperscribe.commands.base import Base
 from hyperscribe.commands.base_questionnaire import BaseQuestionnaire
-from hyperscribe.handlers.limited_cache import LimitedCache
+from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.instruction import Instruction

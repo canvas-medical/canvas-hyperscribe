@@ -6,7 +6,7 @@ from canvas_sdk.v1.data import Staff, TaskLabel
 
 from hyperscribe.commands.base import Base
 from hyperscribe.commands.task import Task
-from hyperscribe.handlers.limited_cache import LimitedCache
+from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.instruction_with_command import InstructionWithCommand

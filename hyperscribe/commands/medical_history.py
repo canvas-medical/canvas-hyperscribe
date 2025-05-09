@@ -3,10 +3,10 @@ import json
 from canvas_sdk.commands.commands.medical_history import MedicalHistoryCommand
 
 from hyperscribe.commands.base import Base
-from hyperscribe.handlers.canvas_science import CanvasScience
-from hyperscribe.handlers.constants import Constants
-from hyperscribe.handlers.helper import Helper
-from hyperscribe.handlers.json_schema import JsonSchema
+from hyperscribe.libraries.canvas_science import CanvasScience
+from hyperscribe.libraries.constants import Constants
+from hyperscribe.libraries.helper import Helper
+from hyperscribe.libraries.json_schema import JsonSchema
 from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.instruction_with_command import InstructionWithCommand

@@ -1,8 +1,8 @@
 from canvas_sdk.commands.commands.prescribe import PrescribeCommand
 
 from hyperscribe.commands.base_prescription import BasePrescription
-from hyperscribe.handlers.constants import Constants
-from hyperscribe.handlers.helper import Helper
+from hyperscribe.libraries.constants import Constants
+from hyperscribe.libraries.helper import Helper
 from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.instruction_with_command import InstructionWithCommand

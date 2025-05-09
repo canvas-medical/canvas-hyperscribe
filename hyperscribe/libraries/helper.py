@@ -3,8 +3,8 @@ from enum import Enum
 from re import match
 from typing import Type
 
-from hyperscribe.handlers.constants import Constants
-from hyperscribe.handlers.memory_log import MemoryLog
+from hyperscribe.libraries.constants import Constants
+from hyperscribe.libraries.memory_log import MemoryLog
 from hyperscribe.llms.llm_anthropic import LlmAnthropic
 from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.llms.llm_google import LlmGoogle

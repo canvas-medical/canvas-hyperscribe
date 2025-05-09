@@ -4,7 +4,7 @@ import pytest
 from canvas_sdk.v1.data import PracticeLocation, PracticeLocationSetting, Staff
 
 from hyperscribe.commands.base import Base
-from hyperscribe.handlers.limited_cache import LimitedCache
+from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.settings import Settings

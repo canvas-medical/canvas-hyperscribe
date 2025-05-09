@@ -7,7 +7,7 @@ from canvas_sdk.v1.data import MedicationCoding, Medication
 
 from hyperscribe.commands.base import Base
 from hyperscribe.commands.refill import Refill
-from hyperscribe.handlers.limited_cache import LimitedCache
+from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.instruction_with_command import InstructionWithCommand

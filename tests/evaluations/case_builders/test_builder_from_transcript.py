@@ -6,7 +6,7 @@ from evaluations.auditor_file import AuditorFile
 from evaluations.case_builders.builder_base import BuilderBase
 from evaluations.case_builders.builder_from_transcript import BuilderFromTranscript
 from evaluations.structures.evaluation_case import EvaluationCase
-from hyperscribe.handlers.implemented_commands import ImplementedCommands
+from hyperscribe.libraries.implemented_commands import ImplementedCommands
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.instruction import Instruction
 from hyperscribe.structures.line import Line

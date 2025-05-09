@@ -4,7 +4,7 @@ from canvas_sdk.commands.commands.stop_medication import StopMedicationCommand
 
 from hyperscribe.commands.base import Base
 from hyperscribe.commands.stop_medication import StopMedication
-from hyperscribe.handlers.limited_cache import LimitedCache
+from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.instruction_with_command import InstructionWithCommand

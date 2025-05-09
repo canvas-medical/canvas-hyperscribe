@@ -16,16 +16,16 @@ from canvas_sdk.v1.data.command import Command
 from canvas_sdk.v1.data.note import Note
 from logger import log
 
-from hyperscribe.handlers.audio_interpreter import AudioInterpreter
-from hyperscribe.handlers.auditor import Auditor
-from hyperscribe.handlers.aws_s3 import AwsS3
-from hyperscribe.handlers.cached_discussion import CachedDiscussion
-from hyperscribe.handlers.constants import Constants
-from hyperscribe.handlers.implemented_commands import ImplementedCommands
-from hyperscribe.handlers.limited_cache import LimitedCache
-from hyperscribe.handlers.llm_turns_store import LlmTurnsStore
-from hyperscribe.handlers.memory_log import MemoryLog
-from hyperscribe.handlers.llm_decisions_reviewer import LlmDecisionsReviewer
+from hyperscribe.libraries.audio_interpreter import AudioInterpreter
+from hyperscribe.libraries.auditor import Auditor
+from hyperscribe.libraries.aws_s3 import AwsS3
+from hyperscribe.libraries.cached_discussion import CachedDiscussion
+from hyperscribe.libraries.constants import Constants
+from hyperscribe.libraries.implemented_commands import ImplementedCommands
+from hyperscribe.libraries.limited_cache import LimitedCache
+from hyperscribe.libraries.llm_turns_store import LlmTurnsStore
+from hyperscribe.libraries.memory_log import MemoryLog
+from hyperscribe.libraries.llm_decisions_reviewer import LlmDecisionsReviewer
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.identification_parameters import IdentificationParameters

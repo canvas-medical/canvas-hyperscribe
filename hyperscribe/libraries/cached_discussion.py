@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 
-from hyperscribe.handlers.constants import Constants
+from hyperscribe.libraries.constants import Constants
 from hyperscribe.structures.instruction import Instruction
 
 

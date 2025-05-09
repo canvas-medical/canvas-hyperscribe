@@ -5,8 +5,8 @@ from http import HTTPStatus
 from re import search
 from typing import Iterable, Tuple
 
-from hyperscribe.handlers.aws_s3 import AwsS3
-from hyperscribe.handlers.cached_discussion import CachedDiscussion
+from hyperscribe.libraries.aws_s3 import AwsS3
+from hyperscribe.libraries.cached_discussion import CachedDiscussion
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.llm_turn import LlmTurn

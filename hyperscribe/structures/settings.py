@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import NamedTuple
 
-from hyperscribe.handlers.constants import Constants
+from hyperscribe.libraries.constants import Constants
 from hyperscribe.structures.vendor_key import VendorKey
 
 

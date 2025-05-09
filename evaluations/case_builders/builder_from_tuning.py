@@ -7,11 +7,11 @@ from evaluations.constants import Constants
 from evaluations.datastores.store_cases import StoreCases
 from evaluations.helper_evaluation import HelperEvaluation
 from evaluations.structures.evaluation_case import EvaluationCase
-from hyperscribe.handlers.audio_interpreter import AudioInterpreter
-from hyperscribe.handlers.cached_discussion import CachedDiscussion
+from hyperscribe.libraries.audio_interpreter import AudioInterpreter
+from hyperscribe.libraries.cached_discussion import CachedDiscussion
 from hyperscribe.handlers.commander import Commander
-from hyperscribe.handlers.implemented_commands import ImplementedCommands
-from hyperscribe.handlers.limited_cache import LimitedCache
+from hyperscribe.libraries.implemented_commands import ImplementedCommands
+from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 
 

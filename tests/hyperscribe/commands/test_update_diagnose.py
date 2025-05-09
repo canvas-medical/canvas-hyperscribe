@@ -4,8 +4,8 @@ from canvas_sdk.commands.commands.update_diagnosis import UpdateDiagnosisCommand
 
 from hyperscribe.commands.base import Base
 from hyperscribe.commands.update_diagnose import UpdateDiagnose
-from hyperscribe.handlers.canvas_science import CanvasScience
-from hyperscribe.handlers.limited_cache import LimitedCache
+from hyperscribe.libraries.canvas_science import CanvasScience
+from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.icd10_condition import Icd10Condition
 from hyperscribe.structures.identification_parameters import IdentificationParameters

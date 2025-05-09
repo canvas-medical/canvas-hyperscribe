@@ -8,7 +8,7 @@ from canvas_sdk.utils.http import science_http, ontologies_http
 from logger import log
 from requests import get as requests_get
 
-from hyperscribe.handlers.constants import Constants
+from hyperscribe.libraries.constants import Constants
 from hyperscribe.structures.allergy_detail import AllergyDetail
 from hyperscribe.structures.icd10_condition import Icd10Condition
 from hyperscribe.structures.imaging_report import ImagingReport

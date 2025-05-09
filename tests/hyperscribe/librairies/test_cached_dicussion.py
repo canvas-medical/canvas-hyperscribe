@@ -1,11 +1,11 @@
 from datetime import datetime, timezone
 from unittest.mock import patch, call
 
-from hyperscribe.handlers.cached_discussion import CachedDiscussion
-from hyperscribe.handlers.constants import Constants
+from hyperscribe.libraries.cached_discussion import CachedDiscussion
+from hyperscribe.libraries.constants import Constants
 
 
-@patch("hyperscribe.handlers.cached_discussion.datetime", wraps=datetime)
+@patch("hyperscribe.libraries.cached_discussion.datetime", wraps=datetime)
 def test___init__(mock_datetime):
     def reset_mocks():
         mock_datetime.reset_mock()
@@ -26,7 +26,7 @@ def test___init__(mock_datetime):
     CachedDiscussion.CACHED = {}
 
 
-@patch("hyperscribe.handlers.cached_discussion.datetime", wraps=datetime)
+@patch("hyperscribe.libraries.cached_discussion.datetime", wraps=datetime)
 def test_add_one(mock_datetime):
     def reset_mocks():
         mock_datetime.reset_mock()
@@ -58,7 +58,7 @@ def test_add_one(mock_datetime):
     CachedDiscussion.CACHED = {}
 
 
-@patch("hyperscribe.handlers.cached_discussion.datetime", wraps=datetime)
+@patch("hyperscribe.libraries.cached_discussion.datetime", wraps=datetime)
 def test_creation_day(mock_datetime):
     def reset_mocks():
         mock_datetime.reset_mock()
@@ -100,7 +100,7 @@ def test_get_discussion():
     CachedDiscussion.CACHED = {}
 
 
-@patch("hyperscribe.handlers.cached_discussion.datetime", wraps=datetime)
+@patch("hyperscribe.libraries.cached_discussion.datetime", wraps=datetime)
 def test_clear_cache(mock_datetime):
     date_0 = datetime(2025, 2, 4, 7, 18, 21, tzinfo=timezone.utc)
     date_1 = datetime(2025, 2, 4, 7, 18, 33, tzinfo=timezone.utc)

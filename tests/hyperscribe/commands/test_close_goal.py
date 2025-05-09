@@ -5,7 +5,7 @@ from canvas_sdk.commands.commands.goal import GoalCommand
 
 from hyperscribe.commands.base import Base
 from hyperscribe.commands.close_goal import CloseGoal
-from hyperscribe.handlers.limited_cache import LimitedCache
+from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.instruction_with_command import InstructionWithCommand

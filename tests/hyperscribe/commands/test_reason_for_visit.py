@@ -4,7 +4,7 @@ from canvas_sdk.commands.commands.reason_for_visit import ReasonForVisitCommand
 
 from hyperscribe.commands.base import Base
 from hyperscribe.commands.reason_for_visit import ReasonForVisit
-from hyperscribe.handlers.limited_cache import LimitedCache
+from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.instruction_with_command import InstructionWithCommand

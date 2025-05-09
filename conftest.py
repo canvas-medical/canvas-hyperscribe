@@ -10,10 +10,10 @@ from evaluations.datastores.store_cases import StoreCases
 from evaluations.datastores.store_results import StoreResults
 from evaluations.helper_evaluation import HelperEvaluation
 from evaluations.structures.evaluation_result import EvaluationResult
-from hyperscribe.handlers.audio_interpreter import AudioInterpreter
-from hyperscribe.handlers.constants import Constants as HyperscribeConstants
-from hyperscribe.handlers.limited_cache import LimitedCache
-from hyperscribe.handlers.memory_log import MemoryLog
+from hyperscribe.libraries.audio_interpreter import AudioInterpreter
+from hyperscribe.libraries.constants import Constants as HyperscribeConstants
+from hyperscribe.libraries.limited_cache import LimitedCache
+from hyperscribe.libraries.memory_log import MemoryLog
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 
@@ -87,11 +87,11 @@ def pytest_addoption(parser):
 
 def pytest_collection_modifyitems(session, config, items):
     list_evaluation_tests = {
-        'test_transcript2instructions.py',
+        'test_audio2transcript.py',
         'test_instruction2parameters.py',
         'test_parameters2command.py',
-        'test_audio2transcript.py',
         'test_staged_questionnaires.py',
+        'test_transcript2instructions.py',
     }
     test_files = {
         filename

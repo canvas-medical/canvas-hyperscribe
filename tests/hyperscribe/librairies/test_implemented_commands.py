@@ -1,5 +1,5 @@
 from hyperscribe.commands.base import Base
-from hyperscribe.handlers.implemented_commands import ImplementedCommands
+from hyperscribe.libraries.implemented_commands import ImplementedCommands
 
 
 def test_pre_initialized():

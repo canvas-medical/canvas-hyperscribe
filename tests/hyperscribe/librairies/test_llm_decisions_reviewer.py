@@ -1,19 +1,19 @@
 import json
 from unittest.mock import MagicMock, patch, call
 
-from hyperscribe.handlers.llm_decisions_reviewer import LlmDecisionsReviewer
-from hyperscribe.handlers.llm_turns_store import LlmTurnsStore
+from hyperscribe.libraries.llm_decisions_reviewer import LlmDecisionsReviewer
+from hyperscribe.libraries.llm_turns_store import LlmTurnsStore
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.llm_turn import LlmTurn
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
 
-@patch('hyperscribe.handlers.llm_decisions_reviewer.MemoryLog')
-@patch('hyperscribe.handlers.llm_decisions_reviewer.LlmTurnsStore')
-@patch('hyperscribe.handlers.llm_decisions_reviewer.Helper')
-@patch('hyperscribe.handlers.llm_decisions_reviewer.CachedDiscussion')
-@patch('hyperscribe.handlers.llm_decisions_reviewer.AwsS3')
+@patch('hyperscribe.libraries.llm_decisions_reviewer.MemoryLog')
+@patch('hyperscribe.libraries.llm_decisions_reviewer.LlmTurnsStore')
+@patch('hyperscribe.libraries.llm_decisions_reviewer.Helper')
+@patch('hyperscribe.libraries.llm_decisions_reviewer.CachedDiscussion')
+@patch('hyperscribe.libraries.llm_decisions_reviewer.AwsS3')
 def test_review(
         aws_s3,
         cached_discussion,

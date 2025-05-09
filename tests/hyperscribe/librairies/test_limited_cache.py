@@ -9,7 +9,7 @@ from canvas_sdk.v1.data import (
     Patient, Observation, NoteType, ReasonForVisitSettingCoding)
 from django.db.models.expressions import When, Value, Case
 
-from hyperscribe.handlers.limited_cache import LimitedCache
+from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.instruction import Instruction
 
@@ -446,7 +446,7 @@ def test_existing_reason_for_visits(rfv_coding_db):
     reset_mocks()
 
 
-@patch('hyperscribe.handlers.limited_cache.date')
+@patch('hyperscribe.libraries.limited_cache.date')
 @patch.object(Observation, 'objects')
 @patch.object(Patient, 'objects')
 def test_demographic__str__(patient_db, observation_db, mock_date):

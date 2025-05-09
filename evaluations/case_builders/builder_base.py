@@ -6,12 +6,12 @@ from canvas_sdk.v1.data import Patient, Command
 
 from evaluations.auditor_file import AuditorFile
 from evaluations.helper_evaluation import HelperEvaluation
-from hyperscribe.handlers.aws_s3 import AwsS3
+from hyperscribe.libraries.aws_s3 import AwsS3
 from hyperscribe.handlers.commander import Commander
-from hyperscribe.handlers.constants import Constants as HyperscribeConstants
-from hyperscribe.handlers.limited_cache import LimitedCache
-from hyperscribe.handlers.llm_decisions_reviewer import LlmDecisionsReviewer
-from hyperscribe.handlers.memory_log import MemoryLog
+from hyperscribe.libraries.constants import Constants as HyperscribeConstants
+from hyperscribe.libraries.limited_cache import LimitedCache
+from hyperscribe.libraries.llm_decisions_reviewer import LlmDecisionsReviewer
+from hyperscribe.libraries.memory_log import MemoryLog
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 
 

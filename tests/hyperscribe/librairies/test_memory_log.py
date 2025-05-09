@@ -1,8 +1,8 @@
 from datetime import datetime, timezone, UTC
 from unittest.mock import patch, call
 
-from hyperscribe.handlers.cached_discussion import CachedDiscussion
-from hyperscribe.handlers.memory_log import MemoryLog
+from hyperscribe.libraries.cached_discussion import CachedDiscussion
+from hyperscribe.libraries.memory_log import MemoryLog
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from tests.helper import is_constant
@@ -130,7 +130,7 @@ def test___init__():
     assert tested.PROGRESS == expected
 
 
-@patch("hyperscribe.handlers.memory_log.datetime", wraps=datetime)
+@patch("hyperscribe.libraries.memory_log.datetime", wraps=datetime)
 def test_log(mock_datetime):
     def reset_mocks():
         mock_datetime.reset_mock()
@@ -176,8 +176,8 @@ def test_log(mock_datetime):
     MemoryLog.end_session("noteUuid")
 
 
-@patch("hyperscribe.handlers.memory_log.log")
-@patch("hyperscribe.handlers.memory_log.datetime", wraps=datetime)
+@patch("hyperscribe.libraries.memory_log.log")
+@patch("hyperscribe.libraries.memory_log.datetime", wraps=datetime)
 def test_output(mock_datetime, log):
     def reset_mocks():
         mock_datetime.reset_mock()
@@ -230,8 +230,8 @@ def test_output(mock_datetime, log):
     MemoryLog.end_session("noteUuid")
 
 
-@patch("hyperscribe.handlers.memory_log.datetime", wraps=datetime)
-@patch("hyperscribe.handlers.memory_log.AwsS3")
+@patch("hyperscribe.libraries.memory_log.datetime", wraps=datetime)
+@patch("hyperscribe.libraries.memory_log.AwsS3")
 def test_send_to_user(aws_s3, mock_datetime):
     def reset_mocks():
         aws_s3.reset_mock()
@@ -313,7 +313,7 @@ def test_send_to_user(aws_s3, mock_datetime):
     reset_mocks()
 
 
-@patch("hyperscribe.handlers.memory_log.datetime", wraps=datetime)
+@patch("hyperscribe.libraries.memory_log.datetime", wraps=datetime)
 def test_logs(mock_datetime):
     def reset_mocks():
         mock_datetime.reset_mock()
@@ -355,7 +355,7 @@ def test_logs(mock_datetime):
 
 
 @patch.object(CachedDiscussion, "get_discussion")
-@patch("hyperscribe.handlers.memory_log.AwsS3")
+@patch("hyperscribe.libraries.memory_log.AwsS3")
 def test_store_so_far(aws_s3, get_discussion):
     def reset_mocks():
         aws_s3.reset_mock()

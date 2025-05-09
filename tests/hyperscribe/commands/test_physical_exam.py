@@ -5,7 +5,7 @@ from canvas_sdk.commands import PhysicalExamCommand
 
 from hyperscribe.commands.base_questionnaire import BaseQuestionnaire
 from hyperscribe.commands.physical_exam import PhysicalExam
-from hyperscribe.handlers.limited_cache import LimitedCache
+from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.settings import Settings

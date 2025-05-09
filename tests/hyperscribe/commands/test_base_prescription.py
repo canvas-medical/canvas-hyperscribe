@@ -6,8 +6,8 @@ from canvas_sdk.commands.commands.prescribe import PrescribeCommand
 
 from hyperscribe.commands.base import Base
 from hyperscribe.commands.base_prescription import BasePrescription
-from hyperscribe.handlers.canvas_science import CanvasScience
-from hyperscribe.handlers.limited_cache import LimitedCache
+from hyperscribe.libraries.canvas_science import CanvasScience
+from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters

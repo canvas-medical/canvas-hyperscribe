@@ -4,7 +4,7 @@ from canvas_sdk.commands.commands.history_present_illness import HistoryOfPresen
 
 from hyperscribe.commands.base import Base
 from hyperscribe.commands.history_of_present_illness import HistoryOfPresentIllness
-from hyperscribe.handlers.limited_cache import LimitedCache
+from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.instruction_with_command import InstructionWithCommand

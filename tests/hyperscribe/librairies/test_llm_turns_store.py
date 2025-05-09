@@ -4,8 +4,8 @@ from unittest.mock import patch, call
 
 from requests import Response
 
-from hyperscribe.handlers.cached_discussion import CachedDiscussion
-from hyperscribe.handlers.llm_turns_store import LlmTurnsStore
+from hyperscribe.libraries.cached_discussion import CachedDiscussion
+from hyperscribe.libraries.llm_turns_store import LlmTurnsStore
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.aws_s3_object import AwsS3Object
 from hyperscribe.structures.identification_parameters import IdentificationParameters
@@ -266,7 +266,7 @@ def test_store(store_document):
         reset_mocks()
 
 
-@patch("hyperscribe.handlers.llm_turns_store.AwsS3")
+@patch("hyperscribe.libraries.llm_turns_store.AwsS3")
 def test_store_document(aws_s3):
     def reset_mocks():
         aws_s3.reset_mock()
@@ -307,7 +307,7 @@ def test_store_document(aws_s3):
     reset_mocks()
 
 
-@patch("hyperscribe.handlers.llm_turns_store.AwsS3")
+@patch("hyperscribe.libraries.llm_turns_store.AwsS3")
 def test_stored_document(aws_s3):
     def reset_mocks():
         aws_s3.reset_mock()
@@ -363,7 +363,7 @@ def test_stored_document(aws_s3):
     reset_mocks()
 
 
-@patch("hyperscribe.handlers.llm_turns_store.AwsS3")
+@patch("hyperscribe.libraries.llm_turns_store.AwsS3")
 def test_stored_documents(aws_s3):
     def reset_mocks():
         aws_s3.reset_mock()

@@ -5,8 +5,8 @@ from canvas_sdk.v1.data.lab import LabPartner
 
 from hyperscribe.commands.base import Base
 from hyperscribe.commands.lab_order import LabOrder
-from hyperscribe.handlers.limited_cache import LimitedCache
-from hyperscribe.handlers.selector_chat import SelectorChat
+from hyperscribe.libraries.limited_cache import LimitedCache
+from hyperscribe.libraries.selector_chat import SelectorChat
 from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters

@@ -1,4 +1,4 @@
-from hyperscribe.handlers.constants import Constants
+from hyperscribe.libraries.constants import Constants
 from tests.helper import is_constant
 
 

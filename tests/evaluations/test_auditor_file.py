@@ -5,7 +5,7 @@ from pathlib import Path
 from unittest.mock import patch, call, MagicMock
 
 from evaluations.auditor_file import AuditorFile
-from hyperscribe.handlers.auditor import Auditor
+from hyperscribe.libraries.auditor import Auditor
 from hyperscribe.structures.instruction import Instruction
 from hyperscribe.structures.instruction_with_command import InstructionWithCommand
 from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters

@@ -1,4 +1,4 @@
-from hyperscribe.handlers.auditor import Auditor
+from hyperscribe.libraries.auditor import Auditor
 
 
 def test_identified_transcript():

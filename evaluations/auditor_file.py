@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Generator
 
 from evaluations.constants import Constants
-from hyperscribe.handlers.auditor import Auditor
+from hyperscribe.libraries.auditor import Auditor
 from hyperscribe.structures.instruction import Instruction
 from hyperscribe.structures.instruction_with_command import InstructionWithCommand
 from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters

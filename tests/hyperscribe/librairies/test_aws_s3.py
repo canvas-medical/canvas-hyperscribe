@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import patch, call
 
-from hyperscribe.handlers.aws_s3 import AwsS3
+from hyperscribe.libraries.aws_s3 import AwsS3
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.aws_s3_object import AwsS3Object
 from tests.helper import is_constant
@@ -74,7 +74,7 @@ def test_get_signature_key():
     assert result == expected
 
 
-@patch("hyperscribe.handlers.aws_s3.datetime", wraps=datetime)
+@patch("hyperscribe.libraries.aws_s3.datetime", wraps=datetime)
 def test_headers(mock_datetime):
     def reset_mocks():
         mock_datetime.reset_mock()
@@ -147,7 +147,7 @@ def test_headers(mock_datetime):
         reset_mocks()
 
 
-@patch("hyperscribe.handlers.aws_s3.requests_get")
+@patch("hyperscribe.libraries.aws_s3.requests_get")
 @patch.object(AwsS3, "headers")
 @patch.object(AwsS3, "is_ready")
 def test_access_s3_object(is_ready, headers, requests_get):
@@ -189,7 +189,7 @@ def test_access_s3_object(is_ready, headers, requests_get):
     rest_mocks()
 
 
-@patch("hyperscribe.handlers.aws_s3.requests_put")
+@patch("hyperscribe.libraries.aws_s3.requests_put")
 @patch.object(AwsS3, "headers")
 @patch.object(AwsS3, "is_ready")
 def test_upload_text_to_s3(is_ready, headers, requests_put):
@@ -237,7 +237,7 @@ def test_upload_text_to_s3(is_ready, headers, requests_put):
     rest_mocks()
 
 
-@patch("hyperscribe.handlers.aws_s3.requests_get")
+@patch("hyperscribe.libraries.aws_s3.requests_get")
 @patch.object(AwsS3, "headers")
 @patch.object(AwsS3, "is_ready")
 def test_list_s3_objects(is_ready, headers, requests_get):
@@ -302,7 +302,7 @@ def test_list_s3_objects(is_ready, headers, requests_get):
         rest_mocks()
 
 
-@patch("hyperscribe.handlers.aws_s3.datetime", wraps=datetime)
+@patch("hyperscribe.libraries.aws_s3.datetime", wraps=datetime)
 @patch.object(AwsS3, "is_ready")
 def test_generate_presigned_url(is_ready, mock_datetime):
     def reset_mocks():

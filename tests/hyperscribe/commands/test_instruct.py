@@ -5,8 +5,8 @@ from canvas_sdk.commands.constants import Coding
 
 from hyperscribe.commands.base import Base
 from hyperscribe.commands.instruct import Instruct
-from hyperscribe.handlers.canvas_science import CanvasScience
-from hyperscribe.handlers.limited_cache import LimitedCache
+from hyperscribe.libraries.canvas_science import CanvasScience
+from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.instruction_with_command import InstructionWithCommand

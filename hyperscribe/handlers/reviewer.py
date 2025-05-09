@@ -7,8 +7,8 @@ from canvas_sdk.handlers.action_button import ActionButton
 from canvas_sdk.templates import render_to_string
 from canvas_sdk.v1.data.note import Note
 
-from hyperscribe.handlers.aws_s3 import AwsS3
-from hyperscribe.handlers.constants import Constants
+from hyperscribe.libraries.aws_s3 import AwsS3
+from hyperscribe.libraries.constants import Constants
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.settings import Settings
