@@ -1,6 +1,8 @@
 import json
+from datetime import timezone, datetime
 from unittest.mock import MagicMock, patch, call
 
+from hyperscribe.libraries.cached_discussion import CachedDiscussion
 from hyperscribe.libraries.llm_decisions_reviewer import LlmDecisionsReviewer
 from hyperscribe.libraries.llm_turns_store import LlmTurnsStore
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
@@ -8,6 +10,7 @@ from hyperscribe.structures.identification_parameters import IdentificationParam
 from hyperscribe.structures.llm_turn import LlmTurn
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
+
 
 @patch('hyperscribe.libraries.llm_decisions_reviewer.MemoryLog')
 @patch('hyperscribe.libraries.llm_decisions_reviewer.LlmTurnsStore')
@@ -44,8 +47,6 @@ def test_review(
         bucket='theBucket',
     )
 
-    cached_discussion.get_discussion.return_value.count = 5
-    cached_discussion.get_discussion.return_value.creation_day.side_effect = ["2025-05-07"]
     llm_turns_store.indexed_instruction = LlmTurnsStore.indexed_instruction
     llm_turns_store.decompose = LlmTurnsStore.decompose
 
@@ -168,7 +169,7 @@ def test_review(
         "canvasCommandY_02": "uuid3",
         "Questionnaire_06": "uuid4",
     }
-
+    date_x = datetime(2025, 5, 7, 12, 40, 21, tzinfo=timezone.utc)
     tested = LlmDecisionsReviewer
 
     # no audit
@@ -182,11 +183,12 @@ def test_review(
         audit_llm=False,
     )
     aws_s3.return_value.is_ready.side_effect = []
+    cached_discussion.get_discussion.side_effect = []
     llm_turns_store.return_value.stored_document.side_effect = []
     helper.chatter.return_value.single_conversation.side_effect = []
     memory_log.instance.side_effect = []
 
-    tested.review(identification, settings, aws_s3_credentials, mock_memory_log, command2uuid)
+    tested.review(identification, settings, aws_s3_credentials, mock_memory_log, command2uuid, date_x, 5)
 
     assert aws_s3.mock_calls == []
     assert cached_discussion.mock_calls == []
@@ -207,11 +209,12 @@ def test_review(
     )
     # -- S3 not ready
     aws_s3.return_value.is_ready.side_effect = [False]
+    cached_discussion.get_discussion.side_effect = [CachedDiscussion("noteUuid")]
     llm_turns_store.return_value.stored_document.side_effect = []
     helper.chatter.return_value.single_conversation.side_effect = []
     memory_log.instance.side_effect = []
 
-    tested.review(identification, settings, aws_s3_credentials, mock_memory_log, command2uuid)
+    tested.review(identification, settings, aws_s3_credentials, mock_memory_log, command2uuid, date_x, 5)
     calls = [
         call(aws_s3_credentials),
         call().is_ready(),
@@ -288,7 +291,7 @@ def test_review(
         "memoryLogInstance6",
         "memoryLogInstance7",
     ]
-    tested.review(identification, settings, aws_s3_credentials, mock_memory_log, command2uuid)
+    tested.review(identification, settings, aws_s3_credentials, mock_memory_log, command2uuid, date_x, 4)
     calls = [
         call(aws_s3_credentials),
         call().is_ready(),
@@ -300,8 +303,6 @@ def test_review(
     assert aws_s3.mock_calls == calls
     calls = [
         call.get_discussion('noteUuid'),
-        call.get_discussion().creation_day(),
-        call.get_discussion().add_one(),
     ]
     assert cached_discussion.mock_calls == calls
     calls = [

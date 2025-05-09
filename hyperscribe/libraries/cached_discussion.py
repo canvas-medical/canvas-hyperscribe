@@ -5,36 +5,37 @@ from datetime import datetime, timedelta
 from hyperscribe.libraries.constants import Constants
 from hyperscribe.structures.instruction import Instruction
 
-
 # ATTENTION temporary structure while waiting for a better solution
+CACHED: dict[str, CachedDiscussion] = {}
+
+
 class CachedDiscussion:
-    CACHED: dict[str, CachedDiscussion] = {}
 
     def __init__(self, note_uuid: str) -> None:
         self.created: datetime = datetime.now()
         self.updated: datetime = self.created
-        self.count: int = 1
+        self.cycle: int = 1
         self.note_uuid = note_uuid
         self.previous_instructions: list[Instruction] = []
         self.previous_transcript: str = ""
 
-    def add_one(self) -> None:
+    def set_cycle(self, cycle: int) -> None:
         self.updated = datetime.now()
-        self.count = self.count + 1
+        self.cycle = cycle
 
     def creation_day(self) -> str:
         return self.created.date().isoformat()
 
     @classmethod
     def get_discussion(cls, note_uuid: str) -> CachedDiscussion:
-        if note_uuid not in cls.CACHED:
-            cls.CACHED[note_uuid] = CachedDiscussion(note_uuid)
-        return cls.CACHED[note_uuid]
+        if note_uuid not in CACHED:
+            CACHED[note_uuid] = CachedDiscussion(note_uuid)
+        return CACHED[note_uuid]
 
     @classmethod
     def clear_cache(cls) -> None:
         oldest = datetime.now() - timedelta(minutes=Constants.DISCUSSION_CACHED_DURATION)
-        keys = list(cls.CACHED.keys())
+        keys = list(CACHED.keys())
         for note_uuid in keys:
-            if cls.CACHED[note_uuid].updated < oldest:
-                del cls.CACHED[note_uuid]
+            if CACHED[note_uuid].updated < oldest:
+                del CACHED[note_uuid]

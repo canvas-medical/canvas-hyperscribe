@@ -11,13 +11,13 @@ from canvas_sdk.events.base import TargetType
 from canvas_sdk.handlers.simple_api import SimpleAPIRoute, Credentials
 from canvas_sdk.v1.data import Patient
 
-from hyperscribe.handlers.reviewer import Reviewer
+from hyperscribe.handlers.reviewer_display import ReviewerDisplay
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.aws_s3_object import AwsS3Object
 from tests.helper import is_constant
 
 
-def helper_instance() -> Reviewer:
+def helper_instance() -> ReviewerDisplay:
     event = Event(EventRequest(context=json.dumps({
         "note_id": "noteId",
         "method": "GET",
@@ -36,18 +36,18 @@ def helper_instance() -> Reviewer:
     environment = {
         "CUSTOMER_IDENTIFIER": "theTestEnv",
     }
-    instance = Reviewer(event, secrets, environment)
+    instance = ReviewerDisplay(event, secrets, environment)
     instance._path_pattern = re.compile(r".*")  # TODO this is a hack, find the right way to create the Archiver instance
     return instance
 
 
 def test_class():
-    tested = Reviewer
+    tested = ReviewerDisplay
     assert issubclass(tested, SimpleAPIRoute)
 
 
 def test_constants():
-    tested = Reviewer
+    tested = ReviewerDisplay
     constants = {
         "PATH": "/reviewer",
         "RESPONDS_TO": ['SIMPLE_API_AUTHENTICATE', 'SIMPLE_API_REQUEST'],  # <--- SimpleAPIBase class
@@ -55,7 +55,7 @@ def test_constants():
     assert is_constant(tested, constants)
 
 
-@patch("hyperscribe.handlers.reviewer.time", wraps=time)
+@patch("hyperscribe.handlers.reviewer_display.time", wraps=time)
 def test_authenticate(mock_time):
     def reset_mocks():
         mock_time.reset_mock()
@@ -119,8 +119,8 @@ def test_authenticate(mock_time):
     reset_mocks()
 
 
-@patch("hyperscribe.handlers.reviewer.render_to_string")
-@patch('hyperscribe.handlers.reviewer.AwsS3')
+@patch("hyperscribe.handlers.reviewer_display.render_to_string")
+@patch('hyperscribe.handlers.reviewer_display.AwsS3')
 def test_get(aws_s3, render_to_string):
     def reset_mocks():
         aws_s3.reset_mock()

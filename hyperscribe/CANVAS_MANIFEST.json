@@ -1,6 +1,6 @@
 {
   "sdk_version": "0.34.1",
-  "plugin_version": "0.0.65",
+  "plugin_version": "0.0.66",
   "name": "hyperscribe",
   "description": "Create commands based on the content of an audio discussion between a patient and a provider.",
   "url_permissions": [
@@ -31,7 +31,7 @@
     "protocols": [
       {
         "class": "hyperscribe.handlers.commander:Commander",
-        "description": "Commander add commands based on vocal instructions",
+        "description": "Add commands based on vocal instructions",
         "data_access": {
           "event": "",
           "read": [],
@@ -57,7 +57,7 @@
         }
       },
       {
-        "class": "hyperscribe.handlers.reviewer:Reviewer",
+        "class": "hyperscribe.handlers.reviewer_display:ReviewerDisplay",
         "description": "Display the audit page",
         "data_access": {
           "event": "",

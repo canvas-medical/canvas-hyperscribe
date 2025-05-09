@@ -8,6 +8,7 @@ from evaluations.auditor_file import AuditorFile
 from evaluations.helper_evaluation import HelperEvaluation
 from hyperscribe.libraries.aws_s3 import AwsS3
 from hyperscribe.handlers.commander import Commander
+from hyperscribe.libraries.cached_discussion import CachedDiscussion
 from hyperscribe.libraries.constants import Constants as HyperscribeConstants
 from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.libraries.llm_decisions_reviewer import LlmDecisionsReviewer
@@ -72,12 +73,15 @@ class BuilderBase:
             client_s3.upload_text_to_s3(remote_path, MemoryLog.end_session(identification.note_uuid))
             print(f"Logs saved in: {remote_path}")
 
+        discussion = CachedDiscussion.get_discussion(note_uuid)
         LlmDecisionsReviewer.review(
             identification,
             HelperEvaluation.settings(),
             aws_s3_credentials,
             memory_log,
             {},
+            discussion.created,
+            discussion.cycle,
         )
 
     @classmethod

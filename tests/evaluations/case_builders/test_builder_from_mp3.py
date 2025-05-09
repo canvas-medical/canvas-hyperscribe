@@ -259,7 +259,7 @@ def test__run_combined(commander, cached_discussion):
     assert commander.mock_calls == calls
     calls = [
         call.get_discussion('theNoteUuid'),
-        call.get_discussion().add_one(),
+        call.get_discussion().set_cycle(1),
     ]
     assert cached_discussion.mock_calls == calls
 
@@ -373,11 +373,11 @@ def test__run_chunked(commander, cached_discussion, auditor):
     assert commander.mock_calls == calls
     calls = [
         call.get_discussion('theNoteUuid'),
-        call.get_discussion().add_one(),
-        call.get_discussion().add_one(),
-        call.get_discussion().add_one(),
-        call.get_discussion().add_one(),
-        call.get_discussion().add_one()
+        call.get_discussion().set_cycle(1),
+        call.get_discussion().set_cycle(2),
+        call.get_discussion().set_cycle(3),
+        call.get_discussion().set_cycle(4),
+        call.get_discussion().set_cycle(5)
     ]
     assert cached_discussion.mock_calls == calls
 

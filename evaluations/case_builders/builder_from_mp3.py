@@ -67,7 +67,7 @@ class BuilderFromMp3(BuilderBase):
 
     @classmethod
     def _run_combined(cls, recorder: AuditorFile, chatter: AudioInterpreter, audios: list[bytes], previous: list[Instruction]) -> None:
-        CachedDiscussion.get_discussion(chatter.identification.note_uuid).add_one()
+        CachedDiscussion.get_discussion(chatter.identification.note_uuid).set_cycle(1)
         Commander.audio2commands(recorder, audios, chatter, previous, "")
 
     @classmethod
@@ -79,6 +79,6 @@ class BuilderFromMp3(BuilderBase):
             for chunk in range(cycle, max(-1, cycle - Commander.MAX_PREVIOUS_AUDIOS), -1):
                 combined.insert(0, audios[chunk])
 
-            discussion.add_one()
+            discussion.set_cycle(cycle + 1)
             recorder = AuditorFile(f"{parameters.case}{Constants.CASE_CYCLE_SUFFIX}{cycle:02d}")
             previous, _, transcript_tail = Commander.audio2commands(recorder, combined, chatter, previous, transcript_tail)

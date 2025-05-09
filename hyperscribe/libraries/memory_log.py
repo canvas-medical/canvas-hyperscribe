@@ -11,24 +11,25 @@ from hyperscribe.libraries.constants import Constants
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 
+ENTRIES: dict[str, dict[str, list[str]]] = {}  # store the logs sent to AWS S3
+PROGRESS: dict[str, list[dict]] = {}  # store the messages sent to the UI
+
 
 class MemoryLog:
-    ENTRIES: dict[str, dict[str, list[str]]] = {}  # store the logs sent to AWS S3
-    PROGRESS: dict[str, list[dict]] = {}  # store the messages sent to the UI
 
     @classmethod
     def begin_session(cls, note_uuid: str) -> None:
-        if note_uuid not in cls.ENTRIES:
-            cls.ENTRIES[note_uuid] = {}
+        if note_uuid not in ENTRIES:
+            ENTRIES[note_uuid] = {}
 
     @classmethod
     def end_session(cls, note_uuid: str) -> str:
-        if note_uuid not in cls.ENTRIES:
+        if note_uuid not in ENTRIES:
             return ""
         return "\n".join([
             "\n".join(l)
             for l in sorted(
-                [e for e in cls.ENTRIES.pop(note_uuid).values() if e],
+                [e for e in ENTRIES.pop(note_uuid).values() if e],
                 key=lambda v: v[0],
             )
         ])
@@ -43,23 +44,23 @@ class MemoryLog:
         self.identification = identification
         self.label = label
         self.s3_credentials = AwsS3Credentials(aws_key="", aws_secret="", region="", bucket="")
-        if self.identification.note_uuid not in self.ENTRIES:
-            self.ENTRIES[self.identification.note_uuid] = {}
-        if label not in self.ENTRIES[self.identification.note_uuid]:
-            self.ENTRIES[self.identification.note_uuid][self.label] = []
+        if self.identification.note_uuid not in ENTRIES:
+            ENTRIES[self.identification.note_uuid] = {}
+        if label not in ENTRIES[self.identification.note_uuid]:
+            ENTRIES[self.identification.note_uuid][self.label] = []
 
         if (
-                self.identification.note_uuid not in self.PROGRESS or
+                self.identification.note_uuid not in PROGRESS or
                 [
                     message
-                    for message in self.PROGRESS[self.identification.note_uuid]
+                    for message in PROGRESS[self.identification.note_uuid]
                     if Constants.INFORMANT_END_OF_MESSAGES == message["message"]
                 ]
         ):
-            self.PROGRESS[self.identification.note_uuid] = []
+            PROGRESS[self.identification.note_uuid] = []
 
     def log(self, message: str) -> None:
-        self.ENTRIES[self.identification.note_uuid][self.label].append(f"{datetime.now(UTC).isoformat()}: {message}")
+        ENTRIES[self.identification.note_uuid][self.label].append(f"{datetime.now(UTC).isoformat()}: {message}")
 
     def output(self, message: str) -> None:
         self.log(message)
@@ -67,7 +68,7 @@ class MemoryLog:
 
     def send_to_user(self, message: str):
         now = datetime.now(UTC).isoformat()
-        self.PROGRESS[self.identification.note_uuid].insert(0, {
+        PROGRESS[self.identification.note_uuid].insert(0, {
             "time": now,
             "message": message,
         })
@@ -84,7 +85,7 @@ class MemoryLog:
                         f"{self.identification.patient_uuid}.log")
             client_s3.upload_text_to_s3(log_path, json.dumps({
                 "time": now,
-                "messages": self.PROGRESS[self.identification.note_uuid],
+                "messages": PROGRESS[self.identification.note_uuid],
             }))
 
     # def send_to_user(self, message: str) -> None:
@@ -99,7 +100,7 @@ class MemoryLog:
     #     )
 
     def logs(self) -> str:
-        return "\n".join(self.ENTRIES[self.identification.note_uuid][self.label])
+        return "\n".join(ENTRIES[self.identification.note_uuid][self.label])
 
     def store_so_far(self) -> None:
         client_s3 = AwsS3(self.s3_credentials)
@@ -109,6 +110,6 @@ class MemoryLog:
                         "partials/"
                         f"{cached.creation_day()}/"
                         f"{self.identification.note_uuid}/"
-                        f"{cached.count - 1:02d}/"
+                        f"{cached.cycle:02d}/"
                         f"{self.label}.log")
             client_s3.upload_text_to_s3(log_path, self.logs())

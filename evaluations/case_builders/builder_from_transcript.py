@@ -62,14 +62,14 @@ class BuilderFromTranscript(BuilderBase):
 
         discussion = CachedDiscussion.get_discussion(chatter.identification.note_uuid)
         if parameters.cycles < 2:
-            discussion.add_one()
+            discussion.set_cycle(1)
             Commander.transcript2commands(recorder, transcript, chatter, previous)
         else:
             length, extra = divmod(len(transcript), parameters.cycles)
             length += (1 if extra else 0)
             for cycle in range(0, parameters.cycles):
                 idx = cycle * length
-                discussion.add_one()
+                discussion.set_cycle(cycle + 1)
                 recorder = AuditorFile(f"{parameters.case}{Constants.CASE_CYCLE_SUFFIX}{cycle:02d}")
                 previous, _ = Commander.transcript2commands(
                     recorder,

@@ -3,7 +3,7 @@ from datetime import timezone, datetime
 from unittest.mock import patch, call
 
 from requests import Response
-
+import hyperscribe.libraries.llm_turns_store as llm_turns_store
 from hyperscribe.libraries.cached_discussion import CachedDiscussion
 from hyperscribe.libraries.llm_turns_store import LlmTurnsStore
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
@@ -29,19 +29,12 @@ def helper_instance() -> LlmTurnsStore:
     return LlmTurnsStore(s3_credentials, identification, "2025-05-08", 7)
 
 
-def test_constants():
-    tested = LlmTurnsStore
-    constants = {
-        "DISCUSSIONS": {},
-    }
-    assert is_constant(tested, constants)
-
 
 def test_end_session():
     tested = LlmTurnsStore
     #
     mock_discussion = {}
-    with patch.object(LlmTurnsStore, "DISCUSSIONS", mock_discussion):
+    with patch.object(llm_turns_store, "DISCUSSIONS", mock_discussion):
         tested.end_session("noteUuid_2")
         assert mock_discussion == {}
 
@@ -61,7 +54,7 @@ def test_end_session():
         },
         "noteUuid_4": {},
     }
-    with patch.object(LlmTurnsStore, "DISCUSSIONS", mock_discussion):
+    with patch.object(llm_turns_store, "DISCUSSIONS", mock_discussion):
         tested.end_session("noteUuid_2")
         assert mock_discussion == {
             "noteUuid_1": {
@@ -96,7 +89,7 @@ def test_instance(get_discussion):
     cached = CachedDiscussion("theNoteUuid")
     cached.created = datetime(2025, 5, 7, 23, 59, 37, tzinfo=timezone.utc)
     cached.updated = datetime(2025, 5, 7, 0, 38, 21, tzinfo=timezone.utc)
-    cached.count = 7
+    cached.cycle = 7
     get_discussion.side_effect = [cached]
 
     tested = LlmTurnsStore
@@ -105,7 +98,7 @@ def test_instance(get_discussion):
     assert result.s3_credentials == s3_credentials
     assert result.identification == identification
     assert result.creation_day == "2025-05-07"
-    assert result.cycle == 6
+    assert result.cycle == 7
 
     calls = [call("noteUuid")]
     assert get_discussion.mock_calls == calls
@@ -139,7 +132,7 @@ def test_store(store_document):
 
     tested = helper_instance()
     mock_discussion = {}
-    with patch.object(LlmTurnsStore, "DISCUSSIONS", mock_discussion):
+    with patch.object(llm_turns_store, "DISCUSSIONS", mock_discussion):
         #
         tested.store(
             "theInstruction",

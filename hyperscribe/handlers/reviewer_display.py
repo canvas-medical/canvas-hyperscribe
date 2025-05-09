@@ -13,7 +13,7 @@ from hyperscribe.libraries.constants import Constants
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 
 
-class Reviewer(SimpleAPIRoute):
+class ReviewerDisplay(SimpleAPIRoute):
     PATH = "/reviewer"
 
     def authenticate(self, credentials: Credentials) -> bool:

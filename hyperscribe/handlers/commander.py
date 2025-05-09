@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime, UTC
 from http import HTTPStatus
 from time import time
 from typing import Iterable
@@ -23,9 +24,9 @@ from hyperscribe.libraries.cached_discussion import CachedDiscussion
 from hyperscribe.libraries.constants import Constants
 from hyperscribe.libraries.implemented_commands import ImplementedCommands
 from hyperscribe.libraries.limited_cache import LimitedCache
+from hyperscribe.libraries.llm_decisions_reviewer import LlmDecisionsReviewer
 from hyperscribe.libraries.llm_turns_store import LlmTurnsStore
 from hyperscribe.libraries.memory_log import MemoryLog
-from hyperscribe.libraries.llm_decisions_reviewer import LlmDecisionsReviewer
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.identification_parameters import IdentificationParameters
@@ -54,6 +55,7 @@ class Commander(BaseProtocol):
         information = json.loads(comment.body)
         chunk_index = information["chunk_index"]  # <--- starts with 1
         note_uuid = information["note_id"]
+        created = information.get("created", datetime.now(UTC).isoformat())
         note = Note.objects.get(id=note_uuid)
         identification = IdentificationParameters(
             patient_uuid=note.patient.id,
@@ -67,13 +69,14 @@ class Commander(BaseProtocol):
         had_audio, effects = self.compute_audio(identification, chunk_index)
         if had_audio:
             log.info(f"audio was present => go to next iteration ({chunk_index + 1})")
-            memory_log.send_to_user(f"waiting for the next step {chunk_index + 1}...")
+            memory_log.send_to_user(f"waiting for the next cycle {chunk_index + 1}...")
             effects.append(AddTaskComment(
                 task_id=str(comment.task.id),
                 body=json.dumps({
                     "note_id": note_uuid,
                     "patient_id": identification.patient_uuid,
                     "chunk_index": chunk_index + 1,
+                    "started": created,
                 })
             ).apply())
         else:
@@ -81,7 +84,7 @@ class Commander(BaseProtocol):
             log.info("  => inform the UI")
             memory_log.send_to_user("finished")
             log.info("  => create the final audit")
-            self.compute_audit_documents(identification)
+            self.compute_audit_documents(identification, datetime.fromisoformat(created), chunk_index - 1)
             log.info("  => stop the task")
             effects.append(UpdateTask(
                 id=str(comment.task.id),
@@ -109,9 +112,10 @@ class Commander(BaseProtocol):
         if not audios:
             return False, []
 
-        memory_log.send_to_user(f"starting the step {chunk_index}...")
+        memory_log.send_to_user(f"starting the cycle {chunk_index}...")
         discussion = CachedDiscussion.get_discussion(identification.note_uuid)
-        discussion.add_one()
+        discussion.set_cycle(chunk_index)
+
         # request the transcript of the audio (provider + patient...)
         current_commands = Command.objects.filter(
             patient__id=identification.patient_uuid,
@@ -153,12 +157,12 @@ class Commander(BaseProtocol):
                            "finals/"
                            f"{discussion.creation_day()}/"
                            f"{identification.patient_uuid}-{identification.note_uuid}/"
-                           f"{discussion.count - 1:02}.log")
+                           f"{discussion.cycle:02}.log")
             memory_log.output(f"--> log path: {remote_path}")
             client_s3.upload_text_to_s3(remote_path, MemoryLog.end_session(identification.note_uuid))
         return True, results
 
-    def compute_audit_documents(self, identification: IdentificationParameters) -> None:
+    def compute_audit_documents(self, identification: IdentificationParameters, created: datetime, cycles: int) -> None:
         mapping = ImplementedCommands.schema_key2instruction()
         command2uuid = {
             LlmTurnsStore.indexed_instruction(
@@ -181,6 +185,8 @@ class Commander(BaseProtocol):
             credentials,
             memory_log,
             command2uuid,
+            created,
+            cycles,
         )
 
     @classmethod

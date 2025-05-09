@@ -133,7 +133,7 @@ def test__run(
     assert helper.mock_calls == calls
     calls = [
         call.get_discussion('theNoteUuid'),
-        call.get_discussion().add_one(),
+        call.get_discussion().set_cycle(1),
     ]
     assert cached_discussion.mock_calls == calls
     calls = [call(

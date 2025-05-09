@@ -213,7 +213,6 @@ class LimitedCache:
                 self.patient_uuid).filter(
                 name="weight", category="vital-signs").order_by(
                 "-effective_datetime").first()
-            weight_str = "unknown"
             if weight and weight.value:
                 ratio = 1 / 1
                 if weight.units == "oz":

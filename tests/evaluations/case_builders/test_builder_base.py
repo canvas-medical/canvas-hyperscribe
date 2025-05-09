@@ -9,6 +9,7 @@ from canvas_sdk.v1.data import Patient, Command
 from evaluations.auditor_file import AuditorFile
 from evaluations.case_builders.builder_base import BuilderBase
 from hyperscribe.handlers.commander import Commander
+from hyperscribe.libraries.cached_discussion import CachedDiscussion
 from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 
@@ -82,6 +83,7 @@ def test__run():
 @patch("evaluations.case_builders.builder_base.MemoryLog")
 @patch("evaluations.case_builders.builder_base.LlmDecisionsReviewer")
 @patch("evaluations.case_builders.builder_base.HelperEvaluation")
+@patch("evaluations.case_builders.builder_base.CachedDiscussion")
 @patch("evaluations.case_builders.builder_base.AwsS3")
 @patch("evaluations.case_builders.builder_base.AuditorFile")
 @patch.object(BuilderBase, "_parameters")
@@ -91,6 +93,7 @@ def test_run(
         parameters,
         auditor_file,
         aws_s3,
+        cached_discussion,
         helper,
         llm_decisions_reviewer,
         memory_log,
@@ -102,6 +105,7 @@ def test_run(
         parameters.reset_mock()
         auditor_file.reset_mock()
         aws_s3.reset_mock()
+        cached_discussion.reset_mock()
         helper.reset_mock()
         llm_decisions_reviewer.reset_mock()
         memory_log.reset_mock()
@@ -121,6 +125,14 @@ def test_run(
             canvas_instance="canvasInstance",
         ),
     }
+    dates = [
+        datetime(2025, 3, 9, 7, 48, 21, tzinfo=timezone.utc),
+        datetime(2025, 3, 10, 7, 55, 37, tzinfo=timezone.utc),
+        datetime(2025, 3, 11, 7, 55, 41, tzinfo=timezone.utc),
+    ]
+    discussion = CachedDiscussion("noteUuid")
+    discussion.cycle = 3
+    discussion.created =dates[0]
 
     tested = BuilderBase()
 
@@ -129,6 +141,7 @@ def test_run(
     parameters.side_effect = [Namespace(case="theCase")]
     auditor_file.return_value.is_ready.side_effect = [False]
     aws_s3.return_value.is_ready.side_effect = []
+    cached_discussion.side_effect = []
     helper.side_effect = []
     memory_log.end_session.side_effect = []
     mock_datetime.now.side_effect = []
@@ -151,6 +164,7 @@ def test_run(
     ]
     assert auditor_file.mock_calls == calls
     assert aws_s3.mock_calls == []
+    assert cached_discussion.mock_calls == []
     assert helper.mock_calls == []
     assert llm_decisions_reviewer.mock_calls == []
     assert memory_log.mock_calls == []
@@ -166,13 +180,14 @@ def test_run(
         parameters.side_effect = [arguments]
         auditor_file.return_value.is_ready.side_effect = [True]
         aws_s3.return_value.is_ready.side_effect = [aws_is_ready]
+        cached_discussion.get_discussion.side_effect = [discussion]
         helper.aws_s3_credentials.side_effect = ["awsS3CredentialsInstance1"]
         helper.get_note_uuid.side_effect = ["noteUuid"]
         helper.get_provider_uuid.side_effect = ["providerUuid"]
         helper.get_canvas_instance.side_effect = ["canvasInstance"]
         helper.settings.side_effect = ["settingsInstance"]
         memory_log.end_session.side_effect = ["flushedMemoryLog"]
-        mock_datetime.now.side_effect = [datetime(2025, 3, 10, 7, 48, 21, tzinfo=timezone.utc)]
+        mock_datetime.now.side_effect = [dates[1]]
 
         result = tested.run()
         assert result is None
@@ -210,6 +225,8 @@ def test_run(
                 "flushedMemoryLog"),
             )
         assert aws_s3.mock_calls == calls
+        calls = [call.get_discussion('noteUuid')]
+        assert cached_discussion.mock_calls == calls
         calls = [
             call.review(
                 identifications["target"],
@@ -217,6 +234,8 @@ def test_run(
                 'awsS3CredentialsInstance1',
                 memory_log.return_value,
                 {},
+                dates[0],
+                3,
             ),
         ]
         assert llm_decisions_reviewer.mock_calls == calls
@@ -238,20 +257,21 @@ def test_run(
         parameters.side_effect = [arguments]
         auditor_file.return_value.is_ready.side_effect = [True]
         aws_s3.return_value.is_ready.side_effect = [aws_is_ready]
+        cached_discussion.get_discussion.side_effect = [discussion]
         helper.aws_s3_credentials.side_effect = ["awsS3CredentialsInstance1"]
         helper.get_note_uuid.side_effect = ["noteUuid"]
         helper.get_provider_uuid.side_effect = ["providerUuid"]
         helper.get_canvas_instance.side_effect = ["canvasInstance"]
         helper.settings.side_effect = ["settingsInstance"]
         memory_log.end_session.side_effect = ["flushedMemoryLog"]
-        mock_datetime.now.side_effect = [datetime(2025, 3, 10, 7, 48, 21, tzinfo=timezone.utc)]
+        mock_datetime.now.side_effect = [dates[2]]
 
         result = tested.run()
         assert result is None
 
         exp_out = []
         if aws_is_ready:
-            exp_out.append('Logs saved in: canvasInstance/finals/2025-03-10/theCase.log')
+            exp_out.append('Logs saved in: canvasInstance/finals/2025-03-11/theCase.log')
         exp_out.append('')
         assert capsys.readouterr().out == "\n".join(exp_out)
 
@@ -277,10 +297,12 @@ def test_run(
         ]
         if aws_is_ready:
             calls.append(call().upload_text_to_s3(
-                'canvasInstance/finals/2025-03-10/theCase.log',
+                'canvasInstance/finals/2025-03-11/theCase.log',
                 "flushedMemoryLog"),
             )
         assert aws_s3.mock_calls == calls
+        calls = [call.get_discussion('_NoteUuid')]
+        assert cached_discussion.mock_calls == calls
         calls = [
             call.review(
                 identifications["generic"],
@@ -288,6 +310,8 @@ def test_run(
                 'awsS3CredentialsInstance1',
                 memory_log.return_value,
                 {},
+                dates[0],
+                3,
             ),
         ]
         assert llm_decisions_reviewer.mock_calls == calls

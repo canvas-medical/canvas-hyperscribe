@@ -11,19 +11,20 @@ from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.llm_turn import LlmTurn
 
+DISCUSSIONS: dict[str, dict[int, dict[str, int]]] = {}
+
 
 class LlmTurnsStore:
-    DISCUSSIONS: dict[str, dict[int, dict[str, int]]] = {}
 
     @classmethod
     def end_session(cls, note_uuid: str) -> None:
-        if note_uuid in cls.DISCUSSIONS:
-            del cls.DISCUSSIONS[note_uuid]
+        if note_uuid in DISCUSSIONS:
+            del DISCUSSIONS[note_uuid]
 
     @classmethod
     def instance(cls, s3_credentials: AwsS3Credentials, identification: IdentificationParameters) -> LlmTurnsStore:
         cached = CachedDiscussion.get_discussion(identification.note_uuid)
-        return LlmTurnsStore(s3_credentials, identification, cached.creation_day(), cached.count - 1)
+        return LlmTurnsStore(s3_credentials, identification, cached.creation_day(), cached.cycle)
 
     def __init__(
             self,
@@ -49,17 +50,17 @@ class LlmTurnsStore:
         if index >= 0:
             key = self.indexed_instruction(instruction, index)
 
-        if note_uuid not in self.DISCUSSIONS:
-            self.DISCUSSIONS[note_uuid] = {}
-        if self.cycle not in self.DISCUSSIONS[note_uuid]:
-            self.DISCUSSIONS[note_uuid][cycle] = {}
-        if key not in self.DISCUSSIONS[note_uuid][cycle]:
-            self.DISCUSSIONS[note_uuid][cycle][key] = 0
+        if note_uuid not in DISCUSSIONS:
+            DISCUSSIONS[note_uuid] = {}
+        if self.cycle not in DISCUSSIONS[note_uuid]:
+            DISCUSSIONS[note_uuid][cycle] = {}
+        if key not in DISCUSSIONS[note_uuid][cycle]:
+            DISCUSSIONS[note_uuid][cycle][key] = 0
 
-        count = self.DISCUSSIONS[note_uuid][cycle][key]
+        count = DISCUSSIONS[note_uuid][cycle][key]
         self.store_document(f"{key}_{count:02d}.json", [turn.to_dict() for turn in llm_turns])
 
-        self.DISCUSSIONS[note_uuid][cycle][key] = count + 1
+        DISCUSSIONS[note_uuid][cycle][key] = count + 1
 
     def store_document(self, name: str, document: dict | list) -> None:
         client_s3 = AwsS3(self.s3_credentials)

@@ -188,7 +188,7 @@ def test__run(
     assert commander.mock_calls == calls
     calls = [
         call.get_discussion('theNoteUuid'),
-        call.get_discussion().add_one(),
+        call.get_discussion().set_cycle(1),
     ]
     assert cached_discussion.mock_calls == calls
     assert auditor.mock_calls == []
@@ -244,8 +244,8 @@ def test__run(
     assert commander.mock_calls == calls
     calls = [
         call.get_discussion('theNoteUuid'),
-        call.get_discussion().add_one(),
-        call.get_discussion().add_one(),
+        call.get_discussion().set_cycle(1),
+        call.get_discussion().set_cycle(2),
     ]
     assert cached_discussion.mock_calls == calls
     calls = [
@@ -312,9 +312,9 @@ def test__run(
     assert commander.mock_calls == calls
     calls = [
         call.get_discussion('theNoteUuid'),
-        call.get_discussion().add_one(),
-        call.get_discussion().add_one(),
-        call.get_discussion().add_one(),
+        call.get_discussion().set_cycle(1),
+        call.get_discussion().set_cycle(2),
+        call.get_discussion().set_cycle(3),
     ]
     assert cached_discussion.mock_calls == calls
     calls = [

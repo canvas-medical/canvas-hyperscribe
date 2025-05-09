@@ -1,5 +1,5 @@
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from unittest.mock import patch, call, MagicMock
 
 import requests
@@ -36,6 +36,7 @@ def test_constants():
     assert is_constant(tested, constants)
 
 
+@patch("hyperscribe.handlers.commander.datetime", wraps=datetime)
 @patch("hyperscribe.handlers.commander.LlmTurnsStore")
 @patch("hyperscribe.handlers.commander.MemoryLog")
 @patch.object(log, "info")
@@ -51,6 +52,7 @@ def test_compute(
         info,
         memory_log,
         llm_turns_store,
+mock_datetime,
 ):
     mock_comment = MagicMock()
     mock_note = MagicMock()
@@ -65,6 +67,7 @@ def test_compute(
         llm_turns_store.reset_mock()
         mock_comment.reset_mock()
         mock_note.reset_mock()
+        mock_datetime.reset_mock()
 
     task_labels = [
         TaskLabel(name="label1"),
@@ -82,6 +85,7 @@ def test_compute(
         region='theRegion',
         bucket='theBucket',
     )
+    date_x = datetime(2025, 5, 9, 12, 34, 21, tzinfo=timezone.utc)
     secrets = {
         "VendorTextLLM": "theTextVendor",
         "VendorAudioLLM": "theAudioVendor",
@@ -127,11 +131,12 @@ def test_compute(
     # -- with more audio
     compute_audio.side_effect = [(True, [Effect(type="LOG", payload="SomePayload")])]
     mock_comment.id = "commentUuid"
-    mock_comment.body = json.dumps({"chunk_index": 1, "note_id": "noteUuid"})
+    mock_comment.body = json.dumps({"chunk_index": 7, "note_id": "noteUuid"})
     mock_comment.task.id = "taskUuid"
     mock_comment.task.labels.all.side_effect = [task_labels]
     mock_comment.task.labels.filter.return_value.first.side_effect = ["aTask"]
     task_comment_db.get.side_effect = [mock_comment]
+    mock_datetime.now.side_effect = [date_x]
 
     mock_note.provider.id = "providerUuid"
     mock_note.patient.id = "patientUuid"
@@ -147,25 +152,30 @@ def test_compute(
             type="CREATE_TASK_COMMENT",
             payload='{"data": {'
                     '"task": {"id": "taskUuid"}, '
-                    '"body": "{\\"note_id\\": \\"noteUuid\\", \\"patient_id\\": \\"patientUuid\\", \\"chunk_index\\": 2}"}}',
+                    '"body": "{'
+                    '\\"note_id\\": \\"noteUuid\\", '
+                    '\\"patient_id\\": \\"patientUuid\\", '
+                    '\\"chunk_index\\": 8, '
+                    '\\"started\\": \\"2025-05-09T12:34:21+00:00\\"'
+                    '}"}}',
         ),
     ]
     assert result == expected
 
-    calls = [call(identification, 1)]
+    calls = [call(identification, 7)]
     assert compute_audio.mock_calls == calls
     assert compute_audit_documents.mock_calls == []
     calls = [call.get(id='taskUuid')]
     assert task_comment_db.mock_calls == calls
     calls = [
         call("--> comment: commentUuid (task: taskUuid, labels: label1/label2)"),
-        call("audio was present => go to next iteration (2)"),
+        call("audio was present => go to next iteration (8)"),
     ]
     assert info.mock_calls == calls
     calls = [
         call.instance(identification, "main", aws_s3_credentials),
         call.instance().output("Text: theTextVendor - Audio: theAudioVendor"),
-        call.instance().send_to_user("waiting for the next step 2..."),
+        call.instance().send_to_user("waiting for the next cycle 8..."),
         call.end_session("noteUuid"),
     ]
     assert memory_log.mock_calls == calls
@@ -178,15 +188,18 @@ def test_compute(
     ]
     assert mock_comment.mock_calls == calls
     assert mock_note.mock_calls == []
+    calls = [call.now(UTC)]
+    assert mock_datetime.mock_calls == calls
     reset_mocks()
     # -- no more audio
     compute_audio.side_effect = [(False, [])]
     mock_comment.id = "commentUuid"
-    mock_comment.body = json.dumps({"chunk_index": 1, "note_id": "noteUuid"})
+    mock_comment.body = json.dumps({"chunk_index": 7, "note_id": "noteUuid"})
     mock_comment.task.id = "taskUuid"
     mock_comment.task.labels.all.side_effect = [task_labels]
     mock_comment.task.labels.filter.return_value.first.side_effect = ["aTask"]
     task_comment_db.get.side_effect = [mock_comment]
+    mock_datetime.now.side_effect = [date_x]
 
     mock_note.provider.id = "providerUuid"
     mock_note.patient.id = "patientUuid"
@@ -201,9 +214,9 @@ def test_compute(
     ]
     assert result == expected
 
-    calls = [call(identification, 1)]
+    calls = [call(identification, 7)]
     assert compute_audio.mock_calls == calls
-    calls = [call(identification)]
+    calls = [call(identification, date_x, 6)]
     assert compute_audit_documents.mock_calls == calls
     calls = [call.get(id='taskUuid')]
     assert task_comment_db.mock_calls == calls
@@ -232,6 +245,11 @@ def test_compute(
     ]
     assert mock_comment.mock_calls == calls
     assert mock_note.mock_calls == []
+    calls = [
+        call.now(UTC),
+        call.fromisoformat('2025-05-09T12:34:21+00:00'),
+    ]
+    assert mock_datetime.mock_calls == calls
     reset_mocks()
 
 
@@ -407,7 +425,7 @@ def test_compute_audio(
         discussion = CachedDiscussion("noteUuid")
         discussion.created = datetime(2025, 3, 10, 23, 59, 7, tzinfo=timezone.utc)
         discussion.updated = datetime(2025, 3, 11, 0, 3, 17, tzinfo=timezone.utc)
-        discussion.count = 7
+        discussion.cycle = 7
         discussion.previous_instructions = instructions[2:]
         discussion.previous_transcript = "the last words."
         retrieve_audios.side_effect = [[b"audio1", b"audio2"]]
@@ -426,14 +444,14 @@ def test_compute_audio(
         expected = (True, exp_effects)
         assert result == expected
 
-        assert discussion.count == 8
+        assert discussion.cycle == 3
         assert discussion.previous_instructions == exp_instructions
         assert discussion.previous_transcript == "other last words."
 
         calls = [
             call.instance(identification, "main", aws_s3_credentials),
             call.instance().output("--> audio chunks: 2"),
-            call.instance().send_to_user("starting the step 3..."),
+            call.instance().send_to_user("starting the cycle 3..."),
             call.instance().output("<===  note: noteUuid ===>"),
             call.instance().output("Structured RfV: True"),
             call.instance().output("Audit LLM Decisions: False"),
@@ -451,7 +469,7 @@ def test_compute_audio(
             call.instance().output("<=== END ===>"),
         ]
         if is_ready:
-            calls.append(call.instance().output("--> log path: canvasInstance/finals/2025-03-10/patientUuid-noteUuid/07.log"))
+            calls.append(call.instance().output("--> log path: canvasInstance/finals/2025-03-10/patientUuid-noteUuid/03.log"))
             calls.append(call.end_session("noteUuid"))
         assert memory_log.mock_calls == calls
         calls = [call('theAudioHost', 'patientUuid', 'noteUuid', 3)]
@@ -490,7 +508,7 @@ def test_compute_audio(
             call().is_ready(),
         ]
         if is_ready:
-            calls.append(call().upload_text_to_s3('canvasInstance/finals/2025-03-10/patientUuid-noteUuid/07.log', "flushedMemoryLog"))
+            calls.append(call().upload_text_to_s3('canvasInstance/finals/2025-03-10/patientUuid-noteUuid/03.log', "flushedMemoryLog"))
         assert aws_s3.mock_calls == calls
         reset_mocks()
 
@@ -549,6 +567,7 @@ def test_compute_audit_documents(
         structured_rfv=True,
         audit_llm=True,
     )
+    date_x = datetime(2025, 5, 9, 12, 29, 21, tzinfo=timezone.utc)
     schema_key2instruction.side_effect = [
         {
             "canvasCommandX": "theInstructionX",
@@ -568,7 +587,7 @@ def test_compute_audit_documents(
     memory_log.instance.side_effect = ["memoryLogInstance"]
 
     tested = Commander(event, secrets)
-    tested.compute_audit_documents(identification)
+    tested.compute_audit_documents(identification, date_x, 4)
 
     calls = [call()]
     assert schema_key2instruction.mock_calls == calls
@@ -585,6 +604,8 @@ def test_compute_audit_documents(
             'theInstructionY_02': 'uuid3',
             'Questionnaire_03': 'uuid4',
         },
+        date_x,
+        4,
     )]
     assert llm_decisions_reviewer.mock_calls == calls
     reset_mocks()

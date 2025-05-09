@@ -1,4 +1,5 @@
 import json
+from datetime import datetime
 
 from hyperscribe.libraries.aws_s3 import AwsS3
 from hyperscribe.libraries.cached_discussion import CachedDiscussion
@@ -22,6 +23,8 @@ class LlmDecisionsReviewer:
             credentials: AwsS3Credentials,
             memory_log: MemoryLog,
             command2uuid: dict,
+            created: datetime,
+            cycles: int,
     ) -> None:
         if settings.audit_llm is False:
             return
@@ -31,12 +34,12 @@ class LlmDecisionsReviewer:
             return
 
         cached = CachedDiscussion.get_discussion(identification.note_uuid)
+        cached.created = created
         creation_day = cached.creation_day()
-        cycles = cached.count
-        cached.add_one()  # to force the new logs in a subsequent folder
+        cached.cycle = cycles + 1  # to force the new logs in a subsequent folder
 
         memory_log.send_to_user("create the audits...")
-        for cycle in range(1, cycles):
+        for cycle in range(1, cycles + 1):
             result: list[dict[str, list[str]]] = []
             store = LlmTurnsStore(credentials, identification, creation_day, cycle)
             for incremented_step, discussion in store.stored_documents():
