@@ -76,7 +76,7 @@ class Commander(BaseProtocol):
                     "note_id": note_uuid,
                     "patient_id": identification.patient_uuid,
                     "chunk_index": chunk_index + 1,
-                    "started": created,
+                    "created": created,
                 })
             ).apply())
         else:

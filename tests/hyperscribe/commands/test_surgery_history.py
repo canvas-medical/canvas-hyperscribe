@@ -159,7 +159,8 @@ def test_command_from_json(surgical_histories):
         "instruction": "theInstruction",
         "information": "theInformation",
         "is_new": False,
-        "is_updated": True,        "parameters": {
+        "is_updated": True,
+        "parameters": {
             'keywords': 'keyword1,keyword2,keyword3',
             "approximateDate": "2017-05-21",
             "comment": "theComment",

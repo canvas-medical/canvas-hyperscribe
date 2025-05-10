@@ -84,7 +84,8 @@ def test_command_from_json():
         "instruction": "theInstruction",
         "information": "theInformation",
         "is_new": False,
-        "is_updated": True,        "parameters": {
+        "is_updated": True,
+        "parameters": {
             "goal": "theGoal",
             "startDate": "2023-11-12",
             "dueDate": "2025-02-04",

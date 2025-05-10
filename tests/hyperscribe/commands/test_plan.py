@@ -69,7 +69,8 @@ def test_command_from_json():
         "instruction": "theInstruction",
         "information": "theInformation",
         "is_new": False,
-        "is_updated": True,        "parameters": {
+        "is_updated": True,
+        "parameters": {
             "plan": "thePlan",
         },
     }

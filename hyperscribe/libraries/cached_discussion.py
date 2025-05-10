@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
+
+import logger
 
 from hyperscribe.libraries.constants import Constants
 from hyperscribe.structures.instruction import Instruction
@@ -12,7 +14,7 @@ CACHED: dict[str, CachedDiscussion] = {}
 class CachedDiscussion:
 
     def __init__(self, note_uuid: str) -> None:
-        self.created: datetime = datetime.now()
+        self.created: datetime = datetime.now(UTC)
         self.updated: datetime = self.created
         self.cycle: int = 1
         self.note_uuid = note_uuid
@@ -20,7 +22,7 @@ class CachedDiscussion:
         self.previous_transcript: str = ""
 
     def set_cycle(self, cycle: int) -> None:
-        self.updated = datetime.now()
+        self.updated = datetime.now(UTC)
         self.cycle = cycle
 
     def creation_day(self) -> str:
@@ -34,7 +36,7 @@ class CachedDiscussion:
 
     @classmethod
     def clear_cache(cls) -> None:
-        oldest = datetime.now() - timedelta(minutes=Constants.DISCUSSION_CACHED_DURATION)
+        oldest = datetime.now(UTC) - timedelta(minutes=Constants.DISCUSSION_CACHED_DURATION)
         keys = list(CACHED.keys())
         for note_uuid in keys:
             if CACHED[note_uuid].updated < oldest:

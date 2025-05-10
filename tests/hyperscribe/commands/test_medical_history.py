@@ -146,7 +146,8 @@ def test_command_from_json(medical_histories):
         "instruction": "theInstruction",
         "information": "theInformation",
         "is_new": False,
-        "is_updated": True,        "parameters": {
+        "is_updated": True,
+        "parameters": {
             'keywords': 'keyword1,keyword2,keyword3',
             "approximateStartDate": "2018-03-15",
             "approximateEndDate": "2021-07-19",

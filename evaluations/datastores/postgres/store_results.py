@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, UTC
 from typing import Generator
 
 from psycopg import connect, sql as sqlist
@@ -24,7 +24,7 @@ INSERT INTO "results" ("created","run_uuid","plugin_commit","case_type","case_gr
 VALUES (%(now)s,%(uuid)s,%(commit)s,%(type)s,%(group)s,%(name)s,%(test)s,%(duration)s,%(passed)s,%(errors)s)
 """)
         values = {
-            "now": datetime.now(),
+            "now": datetime.now(UTC),
             "uuid": result.run_uuid,
             "commit": result.commit_uuid,
             "type": case.case_type,

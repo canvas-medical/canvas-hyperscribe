@@ -103,7 +103,8 @@ def test_command_from_json(current_goals):
             "instruction": "theInstruction",
             "information": "theInformation",
             "is_new": False,
-            "is_updated": True,            "parameters": {
+            "is_updated": True,
+            "parameters": {
                 'goal': 'display2a',
                 'goalIndex': idx,
                 'progressAndBarriers': 'theProgressAndBarriers',

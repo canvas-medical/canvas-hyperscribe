@@ -128,7 +128,8 @@ def test_command_from_json(instructions):
         "instruction": "theInstruction",
         "information": "theInformation",
         "is_new": False,
-        "is_updated": True,        "parameters": {
+        "is_updated": True,
+        "parameters": {
             'keywords': 'keyword1,keyword2,keyword3',
             'comment': 'theComment',
         },

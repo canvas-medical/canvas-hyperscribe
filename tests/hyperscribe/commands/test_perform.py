@@ -85,7 +85,8 @@ def test_command_from_json(procedure_from):
         "instruction": "theInstruction",
         "information": "theInformation",
         "is_new": False,
-        "is_updated": True,        "parameters": {
+        "is_updated": True,
+        "parameters": {
             "comment": "theComment",
             "procedureKeywords": "procedure1,procedure2,procedure3",
         },

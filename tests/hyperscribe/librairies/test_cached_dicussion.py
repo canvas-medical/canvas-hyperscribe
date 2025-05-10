@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from unittest.mock import patch, call
 
 import hyperscribe.libraries.cached_discussion as cached_discussion
@@ -21,13 +21,13 @@ def test___init__(mock_datetime):
         assert tested.cycle == 1
         assert tested.note_uuid == "noteUuid"
         assert tested.previous_instructions == []
-        calls = [call.now()]
+        calls = [call.now(UTC)]
         assert mock_datetime.mock_calls == calls
         reset_mocks()
 
 
 @patch("hyperscribe.libraries.cached_discussion.datetime", wraps=datetime)
-def test_add_one(mock_datetime):
+def test_set_cycle(mock_datetime):
     def reset_mocks():
         mock_datetime.reset_mock()
 
@@ -42,7 +42,7 @@ def test_add_one(mock_datetime):
         assert tested.cycle == 1
         assert tested.note_uuid == "noteUuid"
         assert tested.previous_instructions == []
-        calls = [call.now()]
+        calls = [call.now(UTC)]
         assert mock_datetime.mock_calls == calls
         reset_mocks()
 
@@ -52,7 +52,7 @@ def test_add_one(mock_datetime):
         assert tested.cycle == 7
         assert tested.note_uuid == "noteUuid"
         assert tested.previous_instructions == []
-        calls = [call.now()]
+        calls = [call.now(UTC)]
         assert mock_datetime.mock_calls == calls
         reset_mocks()
 
@@ -70,7 +70,7 @@ def test_creation_day(mock_datetime):
     with patch.object(cached_discussion, "CACHED", {}):
         tested = CachedDiscussion("noteUuid")
         for date in [date_0, date_1, date_2]:
-            calls = [call.now()]
+            calls = [call.now(UTC)]
             assert mock_datetime.mock_calls == calls
             reset_mocks()
             mock_datetime.now.side_effect = [date]
@@ -81,7 +81,6 @@ def test_creation_day(mock_datetime):
             expected = "2025-02-04"
             result = tested.creation_day()
             assert result == expected
-
 
 
 def test_get_discussion():
@@ -96,7 +95,6 @@ def test_get_discussion():
         result2 = tested.get_discussion("noteUuid")
         assert result == result2
         assert cached_discussion.CACHED == {"noteUuid": result}
-
 
 
 @patch("hyperscribe.libraries.cached_discussion.datetime", wraps=datetime)

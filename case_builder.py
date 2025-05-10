@@ -1,5 +1,6 @@
 from sys import argv
 
+from evaluations.case_builders.builder_audit_url import BuilderAuditUrl
 from evaluations.case_builders.builder_delete import BuilderDelete
 from evaluations.case_builders.builder_from_mp3 import BuilderFromMp3
 from evaluations.case_builders.builder_from_transcript import BuilderFromTranscript
@@ -17,6 +18,8 @@ class CaseBuilder:
             BuilderFromTuning.run()
         elif "--mp3" in arguments:
             BuilderFromMp3.run()
+        elif "--audit" in arguments:
+            BuilderAuditUrl.run()
         else:
             print("no explicit action to perform")
 

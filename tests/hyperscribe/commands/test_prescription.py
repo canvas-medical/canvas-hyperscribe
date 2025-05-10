@@ -189,7 +189,8 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
             "instruction": "theInstruction",
             "information": "theInformation",
             "is_new": False,
-            "is_updated": True,            "parameters": {
+            "is_updated": True,
+            "parameters": {
                 'keywords': 'keyword1,keyword2,keyword3',
                 "medicationNames": "brand1,brand2,brand3,brand4",
                 'sig': 'theSig',
@@ -240,7 +241,8 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
         "instruction": "theInstruction",
         "information": "theInformation",
         "is_new": False,
-        "is_updated": True,        "parameters": {
+        "is_updated": True,
+        "parameters": {
             'keywords': 'keyword1,keyword2,keyword3',
             "medicationNames": "brand1,brand2,brand3,brand4",
             'sig': 'theSig',
@@ -287,7 +289,8 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
         "instruction": "theInstruction",
         "information": "theInformation",
         "is_new": False,
-        "is_updated": True,        "parameters": {
+        "is_updated": True,
+        "parameters": {
             'keywords': 'keyword1,keyword2,keyword3',
             "medicationNames": "brand1,brand2,brand3,brand4",
             'sig': 'theSig',

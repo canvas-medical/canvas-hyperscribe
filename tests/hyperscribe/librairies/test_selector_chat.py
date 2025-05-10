@@ -4,9 +4,9 @@ from canvas_sdk.commands.constants import ServiceProvider
 from canvas_sdk.v1.data.lab import LabPartnerTest
 from django.db.models import Q
 
+from hyperscribe.handlers.temporary_data import ChargeDescriptionMaster
 from hyperscribe.libraries.canvas_science import CanvasScience
 from hyperscribe.libraries.selector_chat import SelectorChat
-from hyperscribe.handlers.temporary_data import ChargeDescriptionMaster
 from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.icd10_condition import Icd10Condition
 from hyperscribe.structures.instruction import Instruction

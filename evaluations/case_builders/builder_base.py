@@ -1,13 +1,14 @@
 from argparse import ArgumentTypeError, Namespace
-from datetime import datetime
+from datetime import datetime, UTC
 from pathlib import Path
 
 from canvas_sdk.v1.data import Patient, Command
 
 from evaluations.auditor_file import AuditorFile
+from evaluations.case_builders.builder_audit_url import BuilderAuditUrl
 from evaluations.helper_evaluation import HelperEvaluation
-from hyperscribe.libraries.aws_s3 import AwsS3
 from hyperscribe.handlers.commander import Commander
+from hyperscribe.libraries.aws_s3 import AwsS3
 from hyperscribe.libraries.cached_discussion import CachedDiscussion
 from hyperscribe.libraries.constants import Constants as HyperscribeConstants
 from hyperscribe.libraries.limited_cache import LimitedCache
@@ -69,20 +70,23 @@ class BuilderBase:
 
         aws_s3_credentials = HelperEvaluation.aws_s3_credentials()
         if (client_s3 := AwsS3(aws_s3_credentials)) and client_s3.is_ready():
-            remote_path = f"{identification.canvas_instance}/finals/{datetime.now().date().isoformat()}/{parameters.case}.log"
+            remote_path = f"{identification.canvas_instance}/finals/{datetime.now(UTC).date().isoformat()}/{parameters.case}.log"
             client_s3.upload_text_to_s3(remote_path, MemoryLog.end_session(identification.note_uuid))
             print(f"Logs saved in: {remote_path}")
 
-        discussion = CachedDiscussion.get_discussion(note_uuid)
-        LlmDecisionsReviewer.review(
-            identification,
-            HelperEvaluation.settings(),
-            aws_s3_credentials,
-            memory_log,
-            {},
-            discussion.created,
-            discussion.cycle,
-        )
+            settings = HelperEvaluation.settings()
+            if settings.audit_llm is True:
+                discussion = CachedDiscussion.get_discussion(note_uuid)
+                LlmDecisionsReviewer.review(
+                    identification,
+                    settings,
+                    aws_s3_credentials,
+                    memory_log,
+                    {},
+                    discussion.created,
+                    discussion.cycle,
+                )
+                BuilderAuditUrl.presigned_url(identification.patient_uuid, identification.note_uuid)
 
     @classmethod
     def _limited_cache_from(cls, identification: IdentificationParameters) -> LimitedCache:

@@ -133,7 +133,8 @@ def test_command_from_json(search_allergy):
             "instruction": "theInstruction",
             "information": "theInformation",
             "is_new": False,
-            "is_updated": True,            "parameters": {
+            "is_updated": True,
+            "parameters": {
                 'approximateDateOfOnset': '2025-02-04',
                 'keywords': 'keyword1,keyword2,keyword3',
                 'reaction': 'theReaction',

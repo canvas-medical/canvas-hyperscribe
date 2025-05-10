@@ -3,6 +3,7 @@ from datetime import timezone, datetime
 from unittest.mock import patch, call
 
 from requests import Response
+
 import hyperscribe.libraries.llm_turns_store as llm_turns_store
 from hyperscribe.libraries.cached_discussion import CachedDiscussion
 from hyperscribe.libraries.llm_turns_store import LlmTurnsStore
@@ -10,7 +11,6 @@ from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.aws_s3_object import AwsS3Object
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.llm_turn import LlmTurn
-from tests.helper import is_constant
 
 
 def helper_instance() -> LlmTurnsStore:
@@ -27,7 +27,6 @@ def helper_instance() -> LlmTurnsStore:
         bucket='theBucket',
     )
     return LlmTurnsStore(s3_credentials, identification, "2025-05-08", 7)
-
 
 
 def test_end_session():

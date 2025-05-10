@@ -1,9 +1,6 @@
 import json
 from datetime import datetime
 
-from logger import log
-
-from hyperscribe.commands.base_questionnaire import BaseQuestionnaire
 from hyperscribe.libraries.helper import Helper
 from hyperscribe.libraries.implemented_commands import ImplementedCommands
 from hyperscribe.libraries.json_schema import JsonSchema

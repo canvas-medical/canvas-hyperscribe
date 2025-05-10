@@ -100,7 +100,8 @@ def test_command_from_json(current_medications):
             "instruction": "theInstruction",
             "information": "theInformation",
             "is_new": False,
-            "is_updated": True,            "parameters": {
+            "is_updated": True,
+            "parameters": {
                 'medications': 'display2a',
                 'medicationIndex': idx,
                 'rationale': 'theRationale',

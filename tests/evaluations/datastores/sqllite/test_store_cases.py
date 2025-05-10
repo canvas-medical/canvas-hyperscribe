@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from pathlib import Path
 from unittest.mock import patch, call
 
@@ -76,7 +76,7 @@ def test_upsert(upsert, mock_datetime):
         case_name="theCaseName",
         description="theDescription",
     ))
-    calls = [call.now()]
+    calls = [call.now(UTC)]
     assert mock_datetime.mock_calls == calls
     calls = [call({
         "now": date_0,

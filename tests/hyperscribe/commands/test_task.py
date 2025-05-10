@@ -319,7 +319,8 @@ def test_command_from_json(select_staff, select_labels):
             "instruction": "theInstruction",
             "information": "theInformation",
             "is_new": False,
-            "is_updated": True,            "parameters": {
+            "is_updated": True,
+            "parameters": {
                 "title": "theTitle",
                 "dueDate": "2025-02-04",
                 "assignTo": "theAssignTo",
@@ -355,7 +356,8 @@ def test_command_from_json(select_staff, select_labels):
             "instruction": "theInstruction",
             "information": "theInformation",
             "is_new": False,
-            "is_updated": True,            "parameters": {
+            "is_updated": True,
+            "parameters": {
                 "title": "theTitle",
                 "dueDate": "2025-02-04",
                 "assignTo": "",
@@ -389,7 +391,8 @@ def test_command_from_json(select_staff, select_labels):
             "instruction": "theInstruction",
             "information": "theInformation",
             "is_new": False,
-            "is_updated": True,            "parameters": {
+            "is_updated": True,
+            "parameters": {
                 "title": "theTitle",
                 "dueDate": "2025-02-04",
                 "assignTo": "theAssignTo",

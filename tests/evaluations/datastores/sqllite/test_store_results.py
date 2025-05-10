@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from unittest.mock import patch, call
@@ -75,7 +75,7 @@ def test_insert(insert, mock_datetime):
             errors="theErrors",
         ),
     )
-    calls = [call.now()]
+    calls = [call.now(UTC)]
     assert mock_datetime.mock_calls == calls
     calls = [call({
         "now": date_0,

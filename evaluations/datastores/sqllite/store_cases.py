@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, UTC
 from pathlib import Path
 
 from evaluations.constants import Constants
@@ -45,7 +45,7 @@ class StoreCases(StoreBase):
 
     @classmethod
     def upsert(cls, case: EvaluationCase) -> None:
-        now = datetime.now()
+        now = datetime.now(UTC)
         parameters = {
             "now": now,
             "environment": case.environment,

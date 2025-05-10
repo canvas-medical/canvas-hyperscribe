@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, UTC
 from pathlib import Path
 
 from evaluations.datastores.sqllite.store_base import StoreBase
@@ -37,7 +37,7 @@ class StoreResults(StoreBase):
     @classmethod
     def insert(cls, case: EvaluationCase, result: EvaluationResult) -> None:
         values = {
-            "now": datetime.now(),
+            "now": datetime.now(UTC),
             "uuid": result.run_uuid,
             "commit": result.commit_uuid,
             "type": case.case_type,

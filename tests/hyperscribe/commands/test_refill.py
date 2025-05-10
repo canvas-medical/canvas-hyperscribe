@@ -149,7 +149,8 @@ def test_command_from_json(current_medications, medication, codings):
             "instruction": "theInstruction",
             "information": "theInformation",
             "is_new": False,
-            "is_updated": True,            "parameters": {
+            "is_updated": True,
+            "parameters": {
                 'comment': 'theComment',
                 'medication': 'display2a',
                 'medicationIndex': idx,
@@ -193,7 +194,8 @@ def test_command_from_json(current_medications, medication, codings):
         "instruction": "theInstruction",
         "information": "theInformation",
         "is_new": False,
-        "is_updated": True,        "parameters": {
+        "is_updated": True,
+        "parameters": {
             'comment': 'theComment',
             'medication': 'display2a',
             'medicationIndex': 4,

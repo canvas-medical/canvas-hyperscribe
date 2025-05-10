@@ -109,3 +109,25 @@ def test_visible():
         }
         tested = ReviewerButton(event, secrets)
         assert tested.visible() is expected
+
+
+@patch("hyperscribe.handlers.reviewer_button.time", wraps=time)
+def test_presigned_url(mock_time):
+    def reset_mocks():
+        mock_time.reset_mock()
+
+    tested = ReviewerButton
+
+    mock_time.side_effect = [1746790419.775192]
+
+    result = tested.presigned_url("thePatientUuid", "theNoteUuid", "theSecret")
+    expected = ("/plugin-io/api/hyperscribe/reviewer?"
+                "note_id=theNoteUuid&"
+                "patient_id=thePatientUuid&"
+                "ts=1746790419&"
+                "sig=db6ba533682736ca1937979afa2b461c49f659f73cc565e64e00771c77e8d5be")
+    assert result == expected
+
+    calls = [call()]
+    assert mock_time.mock_calls == calls
+    reset_mocks()

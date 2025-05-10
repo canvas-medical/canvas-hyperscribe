@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from unittest.mock import patch, MagicMock, call
 
 from psycopg import sql as sqlist
@@ -74,7 +74,7 @@ def test_insert(connect, mock_datetime):
         call().__exit__(None, None, None),
     ]
     assert connect.mock_calls == calls
-    calls = [call.now()]
+    calls = [call.now(UTC)]
     assert mock_datetime.mock_calls == calls
     calls = [
         call.cursor(),

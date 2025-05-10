@@ -1,5 +1,5 @@
 from argparse import Namespace
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from pathlib import Path
 from unittest.mock import patch, call
 
@@ -12,6 +12,8 @@ from hyperscribe.handlers.commander import Commander
 from hyperscribe.libraries.cached_discussion import CachedDiscussion
 from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.structures.identification_parameters import IdentificationParameters
+from hyperscribe.structures.settings import Settings
+from hyperscribe.structures.vendor_key import VendorKey
 
 
 def test_validate_files():
@@ -84,6 +86,7 @@ def test__run():
 @patch("evaluations.case_builders.builder_base.LlmDecisionsReviewer")
 @patch("evaluations.case_builders.builder_base.HelperEvaluation")
 @patch("evaluations.case_builders.builder_base.CachedDiscussion")
+@patch("evaluations.case_builders.builder_base.BuilderAuditUrl")
 @patch("evaluations.case_builders.builder_base.AwsS3")
 @patch("evaluations.case_builders.builder_base.AuditorFile")
 @patch.object(BuilderBase, "_parameters")
@@ -93,6 +96,7 @@ def test_run(
         parameters,
         auditor_file,
         aws_s3,
+        builder_audit_url,
         cached_discussion,
         helper,
         llm_decisions_reviewer,
@@ -105,6 +109,7 @@ def test_run(
         parameters.reset_mock()
         auditor_file.reset_mock()
         aws_s3.reset_mock()
+        builder_audit_url.reset_mock()
         cached_discussion.reset_mock()
         helper.reset_mock()
         llm_decisions_reviewer.reset_mock()
@@ -132,7 +137,7 @@ def test_run(
     ]
     discussion = CachedDiscussion("noteUuid")
     discussion.cycle = 3
-    discussion.created =dates[0]
+    discussion.created = dates[0]
 
     tested = BuilderBase()
 
@@ -164,6 +169,7 @@ def test_run(
     ]
     assert auditor_file.mock_calls == calls
     assert aws_s3.mock_calls == []
+    assert builder_audit_url.mock_calls == []
     assert cached_discussion.mock_calls == []
     assert helper.mock_calls == []
     assert llm_decisions_reviewer.mock_calls == []
@@ -172,9 +178,25 @@ def test_run(
     reset_mocks()
 
     # auditor is ready
+    tests = [
+        (True, True),
+        (True, False),
+        (False, True),
+        (False, False),
+    ]
     # -- patient is provided
-    for aws_is_ready in [True, False]:
+    for aws_is_ready, audit_llm in tests:
         arguments = Namespace(case="theCase", patient="patientUuid")
+
+        settings = Settings(
+            llm_text=VendorKey(vendor="theVendorTextLLM", api_key="theKeyTextLLM"),
+            llm_audio=VendorKey(vendor="theVendorAudioLLM", api_key="theKeyAudioLLM"),
+            science_host='theScienceHost',
+            ontologies_host='theOntologiesHost',
+            pre_shared_key='thePreSharedKey',
+            structured_rfv=True,
+            audit_llm=audit_llm,
+        )
 
         run.side_effect = [None]
         parameters.side_effect = [arguments]
@@ -185,7 +207,7 @@ def test_run(
         helper.get_note_uuid.side_effect = ["noteUuid"]
         helper.get_provider_uuid.side_effect = ["providerUuid"]
         helper.get_canvas_instance.side_effect = ["canvasInstance"]
-        helper.settings.side_effect = ["settingsInstance"]
+        helper.settings.side_effect = [settings]
         memory_log.end_session.side_effect = ["flushedMemoryLog"]
         mock_datetime.now.side_effect = [dates[1]]
 
@@ -206,8 +228,9 @@ def test_run(
             call.get_provider_uuid('patientUuid'),
             call.get_canvas_instance(),
             call.aws_s3_credentials(),
-            call.settings(),
         ]
+        if aws_is_ready:
+            calls.append(call.settings())
         assert helper.mock_calls == calls
         calls = [
             call("theCase"),
@@ -225,19 +248,27 @@ def test_run(
                 "flushedMemoryLog"),
             )
         assert aws_s3.mock_calls == calls
-        calls = [call.get_discussion('noteUuid')]
+        calls = []
+        if aws_is_ready and audit_llm:
+            calls = [call.presigned_url('patientUuid', 'noteUuid')]
+        assert builder_audit_url.mock_calls == calls
+        calls = []
+        if aws_is_ready and audit_llm:
+            calls = [call.get_discussion('noteUuid')]
         assert cached_discussion.mock_calls == calls
-        calls = [
-            call.review(
-                identifications["target"],
-                'settingsInstance',
-                'awsS3CredentialsInstance1',
-                memory_log.return_value,
-                {},
-                dates[0],
-                3,
-            ),
-        ]
+        calls = []
+        if aws_is_ready and audit_llm:
+            calls = [
+                call.review(
+                    identifications["target"],
+                    settings,
+                    'awsS3CredentialsInstance1',
+                    memory_log.return_value,
+                    {},
+                    dates[0],
+                    3,
+                ),
+            ]
         assert llm_decisions_reviewer.mock_calls == calls
         calls = [call(identifications["target"], "case_builder")]
         if aws_is_ready:
@@ -245,13 +276,23 @@ def test_run(
         assert memory_log.mock_calls == calls
         calls = []
         if aws_is_ready:
-            calls.append(call.now())
+            calls.append(call.now(UTC))
         assert mock_datetime.mock_calls == calls
         reset_mocks()
 
     # -- patient is NOT provided
-    for aws_is_ready in [True, False]:
+    for aws_is_ready, audit_llm in tests:
         arguments = Namespace(case="theCase")
+
+        settings = Settings(
+            llm_text=VendorKey(vendor="theVendorTextLLM", api_key="theKeyTextLLM"),
+            llm_audio=VendorKey(vendor="theVendorAudioLLM", api_key="theKeyAudioLLM"),
+            science_host='theScienceHost',
+            ontologies_host='theOntologiesHost',
+            pre_shared_key='thePreSharedKey',
+            structured_rfv=True,
+            audit_llm=audit_llm,
+        )
 
         run.side_effect = [None]
         parameters.side_effect = [arguments]
@@ -262,7 +303,7 @@ def test_run(
         helper.get_note_uuid.side_effect = ["noteUuid"]
         helper.get_provider_uuid.side_effect = ["providerUuid"]
         helper.get_canvas_instance.side_effect = ["canvasInstance"]
-        helper.settings.side_effect = ["settingsInstance"]
+        helper.settings.side_effect = [settings]
         memory_log.end_session.side_effect = ["flushedMemoryLog"]
         mock_datetime.now.side_effect = [dates[2]]
 
@@ -282,8 +323,9 @@ def test_run(
         calls = [
             call.get_canvas_instance(),
             call.aws_s3_credentials(),
-            call.settings(),
         ]
+        if aws_is_ready:
+            calls.append(call.settings())
         assert helper.mock_calls == calls
         calls = [
             call("theCase"),
@@ -301,19 +343,27 @@ def test_run(
                 "flushedMemoryLog"),
             )
         assert aws_s3.mock_calls == calls
-        calls = [call.get_discussion('_NoteUuid')]
+        calls = []
+        if aws_is_ready and audit_llm:
+            calls = [call.presigned_url('_PatientUuid', '_NoteUuid')]
+        assert builder_audit_url.mock_calls == calls
+        calls = []
+        if aws_is_ready and audit_llm:
+            calls = [call.get_discussion('_NoteUuid')]
         assert cached_discussion.mock_calls == calls
-        calls = [
-            call.review(
-                identifications["generic"],
-                'settingsInstance',
-                'awsS3CredentialsInstance1',
-                memory_log.return_value,
-                {},
-                dates[0],
-                3,
-            ),
-        ]
+        calls = []
+        if aws_is_ready and audit_llm:
+            calls = [
+                call.review(
+                    identifications["generic"],
+                    settings,
+                    'awsS3CredentialsInstance1',
+                    memory_log.return_value,
+                    {},
+                    dates[0],
+                    3,
+                ),
+            ]
         assert llm_decisions_reviewer.mock_calls == calls
         calls = [call(identifications["generic"], "case_builder")]
         if aws_is_ready:
@@ -321,7 +371,7 @@ def test_run(
         assert memory_log.mock_calls == calls
         calls = []
         if aws_is_ready:
-            calls.append(call.now())
+            calls.append(call.now(UTC))
         assert mock_datetime.mock_calls == calls
         reset_mocks()
 

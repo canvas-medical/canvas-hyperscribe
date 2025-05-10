@@ -141,7 +141,8 @@ def test_command_from_json(condition_from, contact_from, practice_setting):
             "instruction": "theInstruction",
             "information": "theInformation",
             "is_new": False,
-            "is_updated": True,            "parameters": {
+            "is_updated": True,
+            "parameters": {
                 "referredServiceProvider": {
                     "names": names,
                     "specialty": "theSpecialty",

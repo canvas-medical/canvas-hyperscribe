@@ -9,8 +9,8 @@ from canvas_sdk.events import Event
 from canvas_sdk.v1.data import TaskComment, Note, Command, TaskLabel
 from logger import log
 
-from hyperscribe.libraries.cached_discussion import CachedDiscussion
 from hyperscribe.handlers.commander import Commander
+from hyperscribe.libraries.cached_discussion import CachedDiscussion
 from hyperscribe.libraries.implemented_commands import ImplementedCommands
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.coded_item import CodedItem
@@ -52,7 +52,7 @@ def test_compute(
         info,
         memory_log,
         llm_turns_store,
-mock_datetime,
+        mock_datetime,
 ):
     mock_comment = MagicMock()
     mock_note = MagicMock()
@@ -86,6 +86,7 @@ mock_datetime,
         bucket='theBucket',
     )
     date_x = datetime(2025, 5, 9, 12, 34, 21, tzinfo=timezone.utc)
+    date_y = datetime(2025, 5, 9, 12, 34, 44, tzinfo=timezone.utc)
     secrets = {
         "VendorTextLLM": "theTextVendor",
         "VendorAudioLLM": "theAudioVendor",
@@ -131,7 +132,7 @@ mock_datetime,
     # -- with more audio
     compute_audio.side_effect = [(True, [Effect(type="LOG", payload="SomePayload")])]
     mock_comment.id = "commentUuid"
-    mock_comment.body = json.dumps({"chunk_index": 7, "note_id": "noteUuid"})
+    mock_comment.body = json.dumps({"chunk_index": 7, "note_id": "noteUuid", "created" : "2025-05-09T12:34:55+00:00"})
     mock_comment.task.id = "taskUuid"
     mock_comment.task.labels.all.side_effect = [task_labels]
     mock_comment.task.labels.filter.return_value.first.side_effect = ["aTask"]
@@ -156,7 +157,7 @@ mock_datetime,
                     '\\"note_id\\": \\"noteUuid\\", '
                     '\\"patient_id\\": \\"patientUuid\\", '
                     '\\"chunk_index\\": 8, '
-                    '\\"started\\": \\"2025-05-09T12:34:21+00:00\\"'
+                    '\\"created\\": \\"2025-05-09T12:34:55+00:00\\"'
                     '}"}}',
         ),
     ]
@@ -194,7 +195,7 @@ mock_datetime,
     # -- no more audio
     compute_audio.side_effect = [(False, [])]
     mock_comment.id = "commentUuid"
-    mock_comment.body = json.dumps({"chunk_index": 7, "note_id": "noteUuid"})
+    mock_comment.body = json.dumps({"chunk_index": 7, "note_id": "noteUuid", "created" : "2025-05-09T12:34:44+00:00"})
     mock_comment.task.id = "taskUuid"
     mock_comment.task.labels.all.side_effect = [task_labels]
     mock_comment.task.labels.filter.return_value.first.side_effect = ["aTask"]
@@ -216,7 +217,7 @@ mock_datetime,
 
     calls = [call(identification, 7)]
     assert compute_audio.mock_calls == calls
-    calls = [call(identification, date_x, 6)]
+    calls = [call(identification, date_y, 6)]
     assert compute_audit_documents.mock_calls == calls
     calls = [call.get(id='taskUuid')]
     assert task_comment_db.mock_calls == calls
@@ -247,7 +248,7 @@ mock_datetime,
     assert mock_note.mock_calls == []
     calls = [
         call.now(UTC),
-        call.fromisoformat('2025-05-09T12:34:21+00:00'),
+        call.fromisoformat('2025-05-09T12:34:44+00:00'),
     ]
     assert mock_datetime.mock_calls == calls
     reset_mocks()

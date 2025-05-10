@@ -132,7 +132,8 @@ def test_command_from_json(existing_note_types, existing_reason_for_visits):
             "instruction": "theInstruction",
             "information": "theInformation",
             "is_new": False,
-            "is_updated": True,            "parameters": {
+            "is_updated": True,
+            "parameters": {
                 "visitType": "theVisit",
                 "visitTypeIndex": idx,
                 "date": "2025-02-04",
@@ -173,7 +174,8 @@ def test_command_from_json(existing_note_types, existing_reason_for_visits):
             "instruction": "theInstruction",
             "information": "theInformation",
             "is_new": False,
-            "is_updated": True,            "parameters": {
+            "is_updated": True,
+            "parameters": {
                 "visitType": "theVisit",
                 "visitTypeIndex": 2,
                 "date": "2025-02-04",
