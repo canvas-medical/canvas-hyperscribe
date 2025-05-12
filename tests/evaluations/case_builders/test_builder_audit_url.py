@@ -103,7 +103,7 @@ def test_presigned_url(
     # aws is ready
     tests = [
         ("canvasInstance", "https://canvasInstance/presignedUrl"),
-        ("localhost", "http://localhost:8000/presignedUrl"),
+        ("local", "http://local:8000/presignedUrl"),
     ]
     for canvas_instance, exp_presigned_url in tests:
         aws_s3.return_value.is_ready.side_effect = [True]

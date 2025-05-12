@@ -5,10 +5,12 @@ class Constants:
     GOOGLE_CHAT_ALL = "models/gemini-2.0-flash"  # LLM model used for speech to text and text completion
     INFORMANT_AWS_BUCKET = "hyperscribe"
     INFORMANT_END_OF_MESSAGES = "EOF"
+    LABEL_ENCOUNTER_COPILOT = "Encounter Copilot"
     MAX_ATTEMPTS_LLM_HTTP = 3
     MAX_ATTEMPTS_LLM_JSON = 3
     MAX_ATTEMPTS_CANVAS_SERVICES = 3
     MAX_WORKERS = 10  # max parallel executions
+    MEMORY_LOG_LABEL = "main"
     OPENAI_CHAT_AUDIO = "gpt-4o-audio-preview"  # LLM model used for speech to text
     OPENAI_CHAT_TEXT = "gpt-4o"  # LLM model used for text completion
     VENDOR_ANTHROPIC = "Anthropic"

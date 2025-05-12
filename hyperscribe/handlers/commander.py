@@ -24,11 +24,11 @@ from hyperscribe.libraries.cached_discussion import CachedDiscussion
 from hyperscribe.libraries.constants import Constants
 from hyperscribe.libraries.implemented_commands import ImplementedCommands
 from hyperscribe.libraries.limited_cache import LimitedCache
-from hyperscribe.libraries.llm_decisions_reviewer import LlmDecisionsReviewer
 from hyperscribe.libraries.llm_turns_store import LlmTurnsStore
 from hyperscribe.libraries.memory_log import MemoryLog
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.comment_body import CommentBody
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.instruction import Instruction
 from hyperscribe.structures.instruction_with_command import InstructionWithCommand
@@ -37,9 +37,7 @@ from hyperscribe.structures.settings import Settings
 
 
 class Commander(BaseProtocol):
-    LABEL_ENCOUNTER_COPILOT = "Encounter Copilot"
     MAX_PREVIOUS_AUDIOS = 0
-    MEMORY_LOG_LABEL = "main"
 
     RESPONDS_TO = [
         EventType.Name(EventType.TASK_COMMENT_CREATED),
@@ -47,59 +45,68 @@ class Commander(BaseProtocol):
 
     def compute(self) -> list[Effect]:
         comment = TaskComment.objects.get(id=self.target)
-        log.info(f"--> comment: {comment.id} (task: {comment.task.id}, labels: {'/'.join([r.name for r in comment.task.labels.all()])})")
-        # if comment.task.title != self.LABEL_ENCOUNTER_COPILOT:
-        if not comment.task.labels.filter(name=self.LABEL_ENCOUNTER_COPILOT).first():
+        if not comment.task.labels.filter(name=Constants.LABEL_ENCOUNTER_COPILOT).first():
             return []
 
-        information = json.loads(comment.body)
-        chunk_index = information["chunk_index"]  # <--- starts with 1
-        note_uuid = information["note_id"]
-        created = information.get("created", datetime.now(UTC).isoformat())
-        note = Note.objects.get(id=note_uuid)
+        information = CommentBody.load_from_json(json.loads(comment.body))
+        # TODO vvv removed when https://github.com/canvas-medical/canvas-plugins/issues/600 is fixed
+        if information.finished is not None:
+            return []
+        # TODO ^^^ removed when https://github.com/canvas-medical/canvas-plugins/issues/600 is fixed
+        note = Note.objects.get(id=information.note_id)
         identification = IdentificationParameters(
             patient_uuid=note.patient.id,
-            note_uuid=note_uuid,
+            note_uuid=information.note_id,
             provider_uuid=str(note.provider.id),
             canvas_instance=self.environment[Constants.CUSTOMER_IDENTIFIER],
         )
         aws_s3 = AwsS3Credentials.from_dictionary(self.secrets)
-        memory_log = MemoryLog.instance(identification, self.MEMORY_LOG_LABEL, aws_s3)
+        memory_log = MemoryLog.instance(identification, Constants.MEMORY_LOG_LABEL, aws_s3)
         memory_log.output(f"Text: {self.secrets[Constants.SECRET_TEXT_VENDOR]} - Audio: {self.secrets[Constants.SECRET_AUDIO_VENDOR]}")
-        had_audio, effects = self.compute_audio(identification, chunk_index)
+        had_audio, effects = self.compute_audio(identification, information.chunk_index)
         if had_audio:
-            log.info(f"audio was present => go to next iteration ({chunk_index + 1})")
-            memory_log.send_to_user(f"waiting for the next cycle {chunk_index + 1}...")
+            log.info(f"audio was present => go to next iteration ({information.chunk_index + 1})")
+            memory_log.send_to_user(f"waiting for the next cycle {information.chunk_index + 1}...")
             effects.append(AddTaskComment(
                 task_id=str(comment.task.id),
-                body=json.dumps({
-                    "note_id": note_uuid,
-                    "patient_id": identification.patient_uuid,
-                    "chunk_index": chunk_index + 1,
-                    "created": created,
-                })
+                body=json.dumps(CommentBody(
+                    note_id=information.note_id,
+                    patient_id=identification.patient_uuid,
+                    chunk_index=information.chunk_index + 1,
+                    created=information.created,
+                    finished=None,
+                ).to_dict())
             ).apply())
         else:
             log.info("audio was NOT present:")
+            # TODO vvv removed when https://github.com/canvas-medical/canvas-plugins/issues/600 is fixed
+            effects.append(AddTaskComment(
+                task_id=str(comment.task.id),
+                body=json.dumps(CommentBody(
+                    note_id=information.note_id,
+                    patient_id=identification.patient_uuid,
+                    chunk_index=information.chunk_index - 1,
+                    created=information.created,
+                    finished=datetime.now(UTC),
+                ).to_dict())
+            ).apply())
+            # TODO ^^^ removed when https://github.com/canvas-medical/canvas-plugins/issues/600 is fixed
             log.info("  => inform the UI")
             memory_log.send_to_user("finished")
-            log.info("  => create the final audit")
-            self.compute_audit_documents(identification, datetime.fromisoformat(created), chunk_index - 1)
             log.info("  => stop the task")
             effects.append(UpdateTask(
                 id=str(comment.task.id),
                 status=TaskStatus.COMPLETED,
             ).apply())
-            memory_log.send_to_user(Constants.INFORMANT_END_OF_MESSAGES)
-        MemoryLog.end_session(note_uuid)
-        LlmTurnsStore.end_session(note_uuid)
+        MemoryLog.end_session(information.note_id)
+        LlmTurnsStore.end_session(information.note_id)
         return effects
 
     def compute_audio(self, identification: IdentificationParameters, chunk_index: int) -> tuple[bool, list[Effect]]:
         settings = Settings.from_dictionary(self.secrets)
         aws_s3 = AwsS3Credentials.from_dictionary(self.secrets)
 
-        memory_log = MemoryLog.instance(identification, self.MEMORY_LOG_LABEL, aws_s3)
+        memory_log = MemoryLog.instance(identification, Constants.MEMORY_LOG_LABEL, aws_s3)
         CachedDiscussion.clear_cache()
         # retrieve the last audio chunks
         audios = self.retrieve_audios(
@@ -162,33 +169,6 @@ class Commander(BaseProtocol):
             client_s3.upload_text_to_s3(remote_path, MemoryLog.end_session(identification.note_uuid))
         return True, results
 
-    def compute_audit_documents(self, identification: IdentificationParameters, created: datetime, cycles: int) -> None:
-        mapping = ImplementedCommands.schema_key2instruction()
-        command2uuid = {
-            LlmTurnsStore.indexed_instruction(
-                mapping[command.schema_key],
-                index,
-            ): str(command.id)
-            for index, command in enumerate(Command.objects.filter(
-                patient__id=identification.patient_uuid,
-                note__id=identification.note_uuid,
-                state="staged",  # <--- TODO use an Enum when provided
-            ).order_by("dbid"))
-        }
-
-        settings = Settings.from_dictionary(self.secrets)
-        credentials = AwsS3Credentials.from_dictionary(self.secrets)
-        memory_log = MemoryLog.instance(identification, self.MEMORY_LOG_LABEL, credentials)
-        LlmDecisionsReviewer.review(
-            identification,
-            settings,
-            credentials,
-            memory_log,
-            command2uuid,
-            created,
-            cycles,
-        )
-
     @classmethod
     def retrieve_audios(cls, host_audio: str, patient_uuid: str, note_uuid: str, chunk_index: int) -> list[bytes]:
         audio_url = f"{host_audio}/audio/{patient_uuid}/{note_uuid}"
@@ -214,7 +194,7 @@ class Commander(BaseProtocol):
             previous_instructions: list[Instruction],
             previous_transcript: str,
     ) -> tuple[list[Instruction], list[Effect], str]:
-        memory_log = MemoryLog.instance(chatter.identification, cls.MEMORY_LOG_LABEL, chatter.s3_credentials)
+        memory_log = MemoryLog.instance(chatter.identification, Constants.MEMORY_LOG_LABEL, chatter.s3_credentials)
         response = chatter.combine_and_speaker_detection(audios, previous_transcript)
         if response.has_error is True:
             memory_log.output(f"--> transcript encountered: {response.error}")
@@ -276,7 +256,7 @@ class Commander(BaseProtocol):
             chatter: AudioInterpreter,
             instructions: list[Instruction],
     ) -> tuple[list[Instruction], list[Effect]]:
-        memory_log = MemoryLog.instance(chatter.identification, cls.MEMORY_LOG_LABEL, chatter.s3_credentials)
+        memory_log = MemoryLog.instance(chatter.identification, Constants.MEMORY_LOG_LABEL, chatter.s3_credentials)
 
         start = time()
         # detect the instructions based on the transcript and the existing commands
@@ -357,7 +337,7 @@ class Commander(BaseProtocol):
         if not instructions:
             return [], []
 
-        memory_log = MemoryLog.instance(chatter.identification, cls.MEMORY_LOG_LABEL, chatter.s3_credentials)
+        memory_log = MemoryLog.instance(chatter.identification, Constants.MEMORY_LOG_LABEL, chatter.s3_credentials)
         start = time()
 
         max_workers = max(1, Constants.MAX_WORKERS)
@@ -405,7 +385,7 @@ class Commander(BaseProtocol):
             instructions: list[Instruction],
             past_uuids: dict[str, Instruction],
     ) -> list[Effect]:
-        memory_log = MemoryLog(chatter.identification, cls.MEMORY_LOG_LABEL)
+        memory_log = MemoryLog(chatter.identification, Constants.MEMORY_LOG_LABEL)
         new_instructions = [instruction for instruction in instructions if instruction.uuid not in past_uuids]
         memory_log.output(f"--> new instructions: {len(new_instructions)}")
         start = time()
@@ -443,7 +423,7 @@ class Commander(BaseProtocol):
             instructions: list[Instruction],
             past_uuids: dict[str, Instruction],
     ) -> list[Effect]:
-        memory_log = MemoryLog(chatter.identification, cls.MEMORY_LOG_LABEL)
+        memory_log = MemoryLog(chatter.identification, Constants.MEMORY_LOG_LABEL)
         changed_instructions = [
             instruction
             for instruction in instructions

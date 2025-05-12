@@ -17,6 +17,13 @@
         .selector-container {
             margin-bottom: 30px;
             text-align: center;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .selector-container label {
+            margin-right: 5px;
         }
 
         select {
@@ -101,6 +108,21 @@
             min-width: 30px;
         }
 
+        .invert-btn {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 11px;
+            font-weight: bold;
+            margin: 4px 20px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
         .hidden {
             display: none;
         }
@@ -127,6 +149,7 @@
         <label for="dataSetSelector">Cycle: </label>
         <select id="dataSetSelector" onchange="loadSelectedData()">
         </select>
+        <button class="invert-btn" onclick="invertSubTables()">Expand/Collapse</button>
     </div>
     <div id="loadingIndicator" class="loading hidden">Loading data...</div>
     <div id="errorMessage" class="error hidden"></div>
@@ -241,7 +264,7 @@
             // clear the main table
             const mainTable = document.getElementById('mainTable');
             mainTable.innerHTML = '';
-            // add the dat
+            // add the data
             allJsonData[selectedIndex].forEach((item, index) => {
                 // main row
                 const mainRow = document.createElement('tr');
@@ -301,7 +324,6 @@
                 auditRow.appendChild(auditCell);
                 mainTable.appendChild(auditRow);
             });
-
         }
 
         // toggle the sub table visibility
@@ -317,6 +339,17 @@
                 toggleBtn.textContent = "v"; // Down arrow when collapsed
                 toggleBtn.style.backgroundColor = "#4CAF50";
             }
+        }
+
+        // invert sub tables visibility
+        function invertSubTables() {
+            const mainTable = document.getElementById('mainTable');
+            const toggleButtons = mainTable.querySelectorAll('[id^="toggle-btn-"]');
+
+            toggleButtons.forEach(btn => {
+                const id = btn.id.replace('toggle-btn-', '');
+                displaySubTable(id);
+            });
         }
 
         // initialize the page

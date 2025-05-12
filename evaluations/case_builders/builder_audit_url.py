@@ -27,8 +27,8 @@ class BuilderAuditUrl:
         if client_s3.is_ready():
             canvas_instance = HelperEvaluation.get_canvas_instance()
             host = f"https://{canvas_instance}"
-            if canvas_instance == "localhost":
-                host = f"http://{canvas_instance}:8000"
+            if canvas_instance == "local":
+                host = f"http://local:8000"
 
             presigned_url = ReviewerButton.presigned_url(
                 patient_uuid,

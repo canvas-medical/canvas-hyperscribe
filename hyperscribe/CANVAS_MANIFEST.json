@@ -1,6 +1,6 @@
 {
   "sdk_version": "0.34.1",
-  "plugin_version": "0.0.67",
+  "plugin_version": "0.0.68",
   "name": "hyperscribe",
   "description": "Create commands based on the content of an audio discussion between a patient and a provider.",
   "url_permissions": [
@@ -32,6 +32,15 @@
       {
         "class": "hyperscribe.handlers.commander:Commander",
         "description": "Add commands based on vocal instructions",
+        "data_access": {
+          "event": "",
+          "read": [],
+          "write": []
+        }
+      },
+      {
+        "class": "hyperscribe.handlers.reviewer:Reviewer",
+        "description": "Review and audit the LLM decisions",
         "data_access": {
           "event": "",
           "read": [],
