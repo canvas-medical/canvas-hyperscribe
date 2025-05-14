@@ -106,6 +106,7 @@ def test_visible():
             "AwsSecret": "theSecret",
             "AwsRegion": "theRegion",
             "AwsBucket": "theBucket",
+            "APISigningKey": "theApiSigningKey",
         }
         tested = ReviewerButton(event, secrets)
         assert tested.visible() is expected

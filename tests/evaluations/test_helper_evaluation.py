@@ -21,6 +21,7 @@ def test_settings(monkeypatch):
     monkeypatch.setenv("ScienceHost", "theScienceHost")
     monkeypatch.setenv("OntologiesHost", "theOntologiesHost")
     monkeypatch.setenv("PreSharedKey", "thePreSharedKey")
+    monkeypatch.setenv("APISigningKey", "theApiSigningKey")
 
     tests = [
         ("y", True),
@@ -43,6 +44,7 @@ def test_settings(monkeypatch):
             pre_shared_key="thePreSharedKey",
             structured_rfv=exp_bool,
             audit_llm=exp_bool,
+            api_signing_key="theApiSigningKey",
         )
         assert result == expected
 
@@ -146,6 +148,26 @@ def test_get_canvas_instance(monkeypatch):
     tested = HelperEvaluation
     result = tested.get_canvas_instance()
     expected = "EvaluationBuilderInstance"
+    assert result == expected
+
+
+def test_get_canvas_host(monkeypatch):
+    monkeypatch.setenv("CUSTOMER_IDENTIFIER", "theCanvasInstance")
+    tested = HelperEvaluation
+    result = tested.get_canvas_host()
+    expected = "https://theCanvasInstance"
+    assert result == expected
+
+    monkeypatch.setenv("CUSTOMER_IDENTIFIER", "local")
+    tested = HelperEvaluation
+    result = tested.get_canvas_host()
+    expected = "http://local:8000"
+    assert result == expected
+
+    monkeypatch.delenv("CUSTOMER_IDENTIFIER")
+    tested = HelperEvaluation
+    result = tested.get_canvas_host()
+    expected = "https://EvaluationBuilderInstance"
     assert result == expected
 
 

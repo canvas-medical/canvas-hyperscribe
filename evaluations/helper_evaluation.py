@@ -42,6 +42,14 @@ class HelperEvaluation:
         return environ.get(HyperscribeConstants.CUSTOMER_IDENTIFIER) or "EvaluationBuilderInstance"
 
     @classmethod
+    def get_canvas_host(cls) -> str:
+        canvas_instance = cls.get_canvas_instance()
+        result = f"https://{canvas_instance}"
+        if canvas_instance == "local":
+            result = "http://local:8000"
+        return result
+
+    @classmethod
     def json_schema_differences(cls) -> dict:
         return {
             "$schema": "http://json-schema.org/draft-07/schema#",

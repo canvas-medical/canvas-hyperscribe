@@ -5,7 +5,6 @@ from _pytest.capture import CaptureResult
 
 from evaluations.case_builders.builder_audit_url import BuilderAuditUrl
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
-from hyperscribe.structures.identification_parameters import IdentificationParameters
 
 
 @patch("evaluations.case_builders.builder_audit_url.ArgumentParser")
@@ -63,12 +62,6 @@ def test_presigned_url(
         helper.reset_mock()
         reviewer_button.reset_mock()
 
-    identification = IdentificationParameters(
-        patient_uuid="patientUuid",
-        note_uuid="noteUuid",
-        provider_uuid="providerUuid",
-        canvas_instance="canvasInstance",
-    )
     aws_s3_credentials = AwsS3Credentials(
         aws_key='theKey',
         aws_secret='theSecret',
@@ -101,40 +94,35 @@ def test_presigned_url(
     reset_mocks()
 
     # aws is ready
-    tests = [
-        ("canvasInstance", "https://canvasInstance/presignedUrl"),
-        ("local", "http://local:8000/presignedUrl"),
+    aws_s3.return_value.is_ready.side_effect = [True]
+    helper.aws_s3_credentials.side_effect = [aws_s3_credentials]
+    helper.get_canvas_host.side_effect = ["https://canvasInstance"]
+    reviewer_button.presigned_url.side_effect = ["/presignedUrl"]
+
+    tested.presigned_url("thePatient", "theNote")
+
+    exp_out = CaptureResult("\n".join([
+        "audits can be seen with:",
+        "",
+        "https://canvasInstance/presignedUrl",
+        "",
+        "to regenerate the URL, run the command:",
+        " uv run python case_builder.py --audit --patient thePatient --note theNote",
+        "",
+        "",
+    ]), "")
+    assert capsys.readouterr() == exp_out
+
+    calls = [
+        call(aws_s3_credentials),
+        call().is_ready(),
     ]
-    for canvas_instance, exp_presigned_url in tests:
-        aws_s3.return_value.is_ready.side_effect = [True]
-        helper.aws_s3_credentials.side_effect = [aws_s3_credentials]
-        helper.get_canvas_instance.side_effect = [canvas_instance]
-        reviewer_button.presigned_url.side_effect = ["/presignedUrl"]
-
-        tested.presigned_url("thePatient", "theNote")
-
-        exp_out = CaptureResult("\n".join([
-            "audits can be seen with:",
-            "",
-            exp_presigned_url,
-            "",
-            "to regenerate the URL, run the command:",
-            " uv run python case_builders.py --audit --patient thePatient --note theNote",
-            "",
-            "",
-        ]), "")
-        assert capsys.readouterr() == exp_out
-
-        calls = [
-            call(aws_s3_credentials),
-            call().is_ready(),
-        ]
-        assert aws_s3.mock_calls == calls
-        calls = [
-            call.aws_s3_credentials(),
-            call.get_canvas_instance(),
-        ]
-        assert helper.mock_calls == calls
-        calls = [call.presigned_url('thePatient', 'theNote', 'theSecret')]
-        assert reviewer_button.mock_calls == calls
-        reset_mocks()
+    assert aws_s3.mock_calls == calls
+    calls = [
+        call.aws_s3_credentials(),
+        call.get_canvas_host(),
+    ]
+    assert helper.mock_calls == calls
+    calls = [call.presigned_url('thePatient', 'theNote', 'theSecret')]
+    assert reviewer_button.mock_calls == calls
+    reset_mocks()

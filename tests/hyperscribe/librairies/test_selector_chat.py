@@ -32,6 +32,7 @@ def test_condition_from(search_conditions):
         pre_shared_key="preSharedKey",
         structured_rfv=False,
         audit_llm=False,
+        api_signing_key="theApiSigningKey",
     )
     system_prompt = [
         "The conversation is in the medical context.",
@@ -143,6 +144,7 @@ def test_lab_test_from(lab_test_db):
         pre_shared_key="preSharedKey",
         structured_rfv=False,
         audit_llm=False,
+        api_signing_key="theApiSigningKey",
     )
     system_prompt = [
         "The conversation is in the medical context.",
@@ -326,6 +328,7 @@ def test_procedure_from(charge_description):
         pre_shared_key="preSharedKey",
         structured_rfv=False,
         audit_llm=False,
+        api_signing_key="theApiSigningKey",
     )
     system_prompt = [
         "The conversation is in the medical context.",
@@ -457,6 +460,7 @@ def test_contact_from(search_contacts, summary_of):
         pre_shared_key="preSharedKey",
         structured_rfv=False,
         audit_llm=False,
+        api_signing_key="theApiSigningKey",
     )
     system_prompt = [
         "The conversation is in the medical context.",

@@ -37,6 +37,7 @@ def test__parameters(argument_parser):
         call().add_argument("--type", type=str, choices=["situational", "general"], help="Type of the case: situational, general", default="general"),
         call().add_argument("--transcript", type=BuilderFromTranscript.validate_files, help="JSON file with transcript"),
         call().add_argument("--cycles", type=int, help="Split the transcript in as many cycles", default=1),
+        call().add_argument('--publish', action='store_true', default=False, help="Upsert the commands of the last cycle to the patient's last note"),
         call().parse_args(),
     ]
     assert argument_parser.mock_calls == calls
@@ -50,9 +51,11 @@ def test__parameters(argument_parser):
 @patch("evaluations.case_builders.builder_from_transcript.HelperEvaluation")
 @patch("evaluations.case_builders.builder_from_transcript.StoreCases")
 @patch.object(ImplementedCommands, "schema_key2instruction")
+@patch.object(BuilderFromTranscript, "_publish_in_ui")
 @patch.object(BuilderFromTranscript, "_limited_cache_from")
 def test__run(
         limited_cache_from,
+        publish_in_ui,
         schema_key2instruction,
         store_cases,
         helper,
@@ -66,6 +69,7 @@ def test__run(
 
     def reset_mocks():
         limited_cache_from.reset_mock()
+        publish_in_ui.reset_mock()
         schema_key2instruction.reset_mock()
         store_cases.reset_mock()
         helper.reset_mock()
@@ -106,7 +110,12 @@ def test__run(
             is_updated=True,
         )
     ]
-    recorder = AuditorFile("theCase")
+    recorders = [
+        AuditorFile("theCase0"),
+        AuditorFile("theCase1"),
+        AuditorFile("theCase2"),
+        AuditorFile("theCase3"),
+    ]
     identification = IdentificationParameters(
         patient_uuid="thePatient",
         note_uuid="theNoteUuid",
@@ -170,17 +179,20 @@ def test__run(
         type="theType",
         transcript=mock_file,
         cycles=1,
+        publish=True,
     )
-    tested._run(parameters, recorder, identification)
+    tested._run(parameters, recorders[0], identification)
 
     assert capsys.readouterr().out == "\n".join(exp_out + ["Cycles: 1", ""])
     assert limited_cache_from.mock_calls == exp_limited_cache
+    calls = [call("theCase0", identification, limited_cache_from.return_value)]
+    assert publish_in_ui.mock_calls == calls
     assert schema_key2instruction.mock_calls == exp_schema_key2instruction
     assert store_cases.mock_calls == exp_store_cases
     assert helper.mock_calls == exp_helper
     assert audio_interpreter.mock_calls == exp_audio_interpreter
     calls = [call.transcript2commands(
-        recorder,
+        recorders[0],
         lines,
         audio_interpreter.return_value,
         instructions,
@@ -210,7 +222,7 @@ def test__run(
         (["previous1"], ["effects1"]),
         (["previous2"], ["effects2"]),
     ]
-    auditor.side_effect = ["auditor1", "auditor2"]
+    auditor.side_effect = recorders[1:3]
     parameters = Namespace(
         patient="thePatientUuid",
         case="theCase",
@@ -218,24 +230,26 @@ def test__run(
         type="theType",
         transcript=mock_file,
         cycles=2,
+        publish=False,
     )
-    tested._run(parameters, recorder, identification)
+    tested._run(parameters, recorders[0], identification)
 
     assert capsys.readouterr().out == "\n".join(exp_out + ["Cycles: 2", ""])
     assert limited_cache_from.mock_calls == exp_limited_cache
+    assert publish_in_ui.mock_calls == []
     assert schema_key2instruction.mock_calls == exp_schema_key2instruction
     assert store_cases.mock_calls == exp_store_cases
     assert helper.mock_calls == exp_helper
     assert audio_interpreter.mock_calls == exp_audio_interpreter
     calls = [
         call.transcript2commands(
-            "auditor1",
+            recorders[1],
             lines[:5],
             audio_interpreter.return_value,
             instructions,
         ),
         call.transcript2commands(
-            "auditor2",
+            recorders[2],
             lines[5:],
             audio_interpreter.return_value,
             ["previous1"],
@@ -272,7 +286,7 @@ def test__run(
         (["previous2"], ["effects2"]),
         (["previous3"], ["effects3"]),
     ]
-    auditor.side_effect = ["auditor1", "auditor2", "auditor3"]
+    auditor.side_effect = recorders[1:4]
     parameters = Namespace(
         patient="thePatientUuid",
         case="theCase",
@@ -280,30 +294,33 @@ def test__run(
         type="theType",
         transcript=mock_file,
         cycles=3,
+        publish=True,
     )
-    tested._run(parameters, recorder, identification)
+    tested._run(parameters, recorders[0], identification)
 
     assert capsys.readouterr().out == "\n".join(exp_out + ["Cycles: 3", ""])
     assert limited_cache_from.mock_calls == exp_limited_cache
+    calls = [call("theCase3", identification, limited_cache_from.return_value)]
+    assert publish_in_ui.mock_calls == calls
     assert schema_key2instruction.mock_calls == exp_schema_key2instruction
     assert store_cases.mock_calls == exp_store_cases
     assert helper.mock_calls == exp_helper
     assert audio_interpreter.mock_calls == exp_audio_interpreter
     calls = [
         call.transcript2commands(
-            "auditor1",
+            recorders[1],
             lines[:3],
             audio_interpreter.return_value,
             instructions,
         ),
         call.transcript2commands(
-            "auditor2",
+            recorders[2],
             lines[3:6],
             audio_interpreter.return_value,
             ["previous1"],
         ),
         call.transcript2commands(
-            "auditor3",
+            recorders[3],
             lines[6:],
             audio_interpreter.return_value,
             ["previous2"],

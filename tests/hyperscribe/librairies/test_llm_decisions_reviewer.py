@@ -181,6 +181,7 @@ def test_review(
         pre_shared_key='thePreSharedKey',
         structured_rfv=True,
         audit_llm=False,
+        api_signing_key="theApiSigningKey",
     )
     aws_s3.return_value.is_ready.side_effect = []
     cached_discussion.get_discussion.side_effect = []
@@ -206,6 +207,7 @@ def test_review(
         pre_shared_key='thePreSharedKey',
         structured_rfv=True,
         audit_llm=True,
+        api_signing_key="theApiSigningKey",
     )
     # -- S3 not ready
     aws_s3.return_value.is_ready.side_effect = [False]

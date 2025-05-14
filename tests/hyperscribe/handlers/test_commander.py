@@ -335,6 +335,7 @@ def test_compute_audio(
         "AwsSecret": "theSecret",
         "AwsRegion": "theRegion",
         "AwsBucket": "theBucket",
+        "APISigningKey": "theApiSigningKey",
     }
     event = Event(EventRequest(target="taskUuid"))
     identification = IdentificationParameters(
@@ -452,6 +453,7 @@ def test_compute_audio(
             pre_shared_key='thePreSharedKey',
             structured_rfv=True,
             audit_llm=False,
+            api_signing_key="theApiSigningKey",
         )
         discussion = CachedDiscussion("noteUuid")
         discussion.created = datetime(2025, 3, 10, 23, 59, 7, tzinfo=timezone.utc)
@@ -967,6 +969,7 @@ def test_transcript2commands_common(time, memory_log):
             pre_shared_key="thePreSharedKey",
             structured_rfv=True,
             audit_llm=True,
+            api_signing_key="theApiSigningKey",
         )
         mock_chatter.identification = identification
         mock_chatter.settings = settings
@@ -1098,6 +1101,7 @@ def test_transcript2commands_common(time, memory_log):
         pre_shared_key="thePreSharedKey",
         structured_rfv=True,
         audit_llm=True,
+        api_signing_key="theApiSigningKey",
     )
     mock_chatter.identification = identification
     mock_chatter.settings = settings
@@ -1292,6 +1296,7 @@ def test_transcript2commands_questionnaires(time, memory_log):
             pre_shared_key="thePreSharedKey",
             structured_rfv=True,
             audit_llm=True,
+            api_signing_key="theApiSigningKey",
         )
         chatter.identification = identification
         chatter.settings = settings

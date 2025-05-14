@@ -140,11 +140,11 @@ def test_compute(
 
     result = tested.compute()
     assert result == []
-    calls = [call(identification, datetime(2025, 5, 9, 12, 34, 55,tzinfo=UTC), 7)]
+    calls = [call(identification, datetime(2025, 5, 9, 12, 34, 55, tzinfo=UTC), 7)]
     assert compute_audit_documents.mock_calls == calls
     calls = [call.get(id='taskUuid')]
     assert task_comment_db.mock_calls == calls
-    calls =  [call.get(id='noteUuid')]
+    calls = [call.get(id='noteUuid')]
     assert note_db.mock_calls == calls
     calls = [call('  => create the final audit')]
     assert info.mock_calls == calls
@@ -191,6 +191,7 @@ def test_compute_audit_documents(
         "AwsSecret": "theSecret",
         "AwsRegion": "theRegion",
         "AwsBucket": "theBucket",
+        "APISigningKey": "theApiSigningKey",
     }
     event = Event(EventRequest(target="taskUuid"))
     identification = IdentificationParameters(
@@ -213,6 +214,7 @@ def test_compute_audit_documents(
         pre_shared_key='thePreSharedKey',
         structured_rfv=True,
         audit_llm=True,
+        api_signing_key="theApiSigningKey",
     )
     date_x = datetime(2025, 5, 9, 12, 29, 21, tzinfo=timezone.utc)
     schema_key2instruction.side_effect = [

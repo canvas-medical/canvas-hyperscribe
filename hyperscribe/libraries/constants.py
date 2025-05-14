@@ -1,6 +1,7 @@
 class Constants:
     ANTHROPIC_CHAT_TEXT = "claude-3-5-sonnet-20241022"  # LLM model used for text completion
     AWS3_LINK_EXPIRATION_SECONDS = 1200  # duration of an AWS S3 link
+    API_SIGNED_EXPIRATION_SECONDS = 1200
     DISCUSSION_CACHED_DURATION = 90  # minutes before a discussion is cleared
     GOOGLE_CHAT_ALL = "models/gemini-2.0-flash"  # LLM model used for speech to text and text completion
     INFORMANT_AWS_BUCKET = "hyperscribe"
@@ -72,3 +73,4 @@ class Constants:
     SECRET_AWS_BUCKET = "AwsBucket"
     SECRET_STRUCTURED_RFV = "StructuredReasonForVisit"
     SECRET_AUDIT_LLM = "AuditLLMDecisions"
+    SECRET_API_SIGNING_KEY = "APISigningKey"

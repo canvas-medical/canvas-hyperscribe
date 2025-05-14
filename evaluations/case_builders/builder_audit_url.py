@@ -25,11 +25,6 @@ class BuilderAuditUrl:
         aws_s3_credentials = HelperEvaluation.aws_s3_credentials()
         client_s3 = AwsS3(aws_s3_credentials)
         if client_s3.is_ready():
-            canvas_instance = HelperEvaluation.get_canvas_instance()
-            host = f"https://{canvas_instance}"
-            if canvas_instance == "local":
-                host = f"http://local:8000"
-
             presigned_url = ReviewerButton.presigned_url(
                 patient_uuid,
                 note_uuid,
@@ -37,10 +32,10 @@ class BuilderAuditUrl:
             )
             print("audits can be seen with:")
             print("")
-            print(f"{host}{presigned_url}")
+            print(f"{HelperEvaluation.get_canvas_host()}{presigned_url}")
             print("")
             print("to regenerate the URL, run the command:")
-            print(f" uv run python case_builders.py --audit --patient {patient_uuid} --note {note_uuid}")
+            print(f" uv run python case_builder.py --audit --patient {patient_uuid} --note {note_uuid}")
             print("")
         else:
             print("audits cannot be seen with without proper AWS S3 credentials")

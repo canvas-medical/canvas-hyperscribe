@@ -1,6 +1,6 @@
 {
   "sdk_version": "0.34.1",
-  "plugin_version": "0.0.68",
+  "plugin_version": "0.0.69",
   "name": "hyperscribe",
   "description": "Create commands based on the content of an audio discussion between a patient and a provider.",
   "url_permissions": [
@@ -73,6 +73,15 @@
           "read": [],
           "write": []
         }
+      },
+      {
+        "class": "hyperscribe.handlers.case_builder:CaseBuilder",
+        "description": "Create the commands identified by a Case Builder",
+        "data_access": {
+          "event": "",
+          "read": [],
+          "write": []
+        }
       }
     ],
     "applications": [],
@@ -96,7 +105,8 @@
     "AwsKey",
     "AwsSecret",
     "AwsRegion",
-    "AwsBucket"
+    "AwsBucket",
+    "APISigningKey"
   ],
   "tags": {},
   "references": [],

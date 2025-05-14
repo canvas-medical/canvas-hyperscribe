@@ -31,6 +31,7 @@ def helper_instance(mocks, with_audit) -> tuple[AudioInterpreter, Settings, AwsS
             pre_shared_key="preSharedKey",
             structured_rfv=False,
             audit_llm=with_audit,
+            api_signing_key="theApiSigningKey",
         )
         aws_s3 = AwsS3Credentials(aws_key="theKey", aws_secret="theSecret", region="theRegion", bucket="theBucket")
         if mocks:
@@ -78,6 +79,7 @@ def test___init__(command_list):
         pre_shared_key="preSharedKey",
         structured_rfv=False,
         audit_llm=False,
+        api_signing_key="theApiSigningKey",
     )
     aws_s3 = AwsS3Credentials(aws_key="theKey", aws_secret="theSecret", region="theRegion", bucket="theBucket")
 

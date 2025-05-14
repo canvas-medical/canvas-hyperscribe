@@ -1,7 +1,9 @@
+import json
 from argparse import Namespace
 from datetime import datetime, timezone, UTC
 from pathlib import Path
-from unittest.mock import patch, call
+from time import time
+from unittest.mock import patch, call, MagicMock
 
 import pytest
 from canvas_sdk.v1.data import Patient, Command
@@ -12,6 +14,7 @@ from hyperscribe.handlers.commander import Commander
 from hyperscribe.libraries.cached_discussion import CachedDiscussion
 from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.structures.identification_parameters import IdentificationParameters
+from hyperscribe.structures.instruction import Instruction
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
 
@@ -196,6 +199,7 @@ def test_run(
             pre_shared_key='thePreSharedKey',
             structured_rfv=True,
             audit_llm=audit_llm,
+            api_signing_key="theApiSigningKey",
         )
 
         run.side_effect = [None]
@@ -292,6 +296,7 @@ def test_run(
             pre_shared_key='thePreSharedKey',
             structured_rfv=True,
             audit_llm=audit_llm,
+            api_signing_key="theApiSigningKey",
         )
 
         run.side_effect = [None]
@@ -403,4 +408,318 @@ def test__limited_cache_from(command_db, existing_commands_to_coded_items):
     assert command_db.mock_calls == calls
     calls = [call("QuerySetCommands")]
     assert existing_commands_to_coded_items.mock_calls == calls
+    reset_mocks()
+
+
+@patch("evaluations.case_builders.builder_base.ImplementedCommands")
+@patch("evaluations.case_builders.builder_base.import_module")
+@patch("evaluations.case_builders.builder_base.Path")
+@patch.object(BuilderBase, "post_commands")
+def test__publish_in_ui(post_commands, path, import_module, implemented_commands):
+    limited_cache = MagicMock()
+    path_file = MagicMock()
+
+    def reset_mocks():
+        post_commands.reset_mock()
+        path.reset_mock()
+        import_module.reset_mock()
+        implemented_commands.reset_mock()
+        limited_cache.reset_mock()
+        path_file.reset_mock()
+
+    identification = IdentificationParameters(
+        patient_uuid='patientUuid',
+        note_uuid='noteUuid',
+        provider_uuid='providerUuid',
+        canvas_instance="canvasInstance",
+    )
+    instructions = [
+        Instruction(
+            uuid="uuid1",
+            index=1,
+            instruction="pluginClass1",
+            information="theInformation1",
+            is_new=True,
+            is_updated=False,
+        ),
+        Instruction(
+            uuid="uuid4",
+            index=3,
+            instruction="pluginClass4",
+            information="theInformation4",
+            is_new=True,
+            is_updated=False,
+        ),
+    ]
+    schema_key2instruction = {
+        "theClass1Key": "pluginClass1",
+        "theClass2Key": "pluginClass2",
+        "theClass3Key": "pluginClass3",
+        "theClass4Key": "pluginClass4",
+    }
+
+    directory = Path(__file__).parent.as_posix().replace("/tests", "")
+
+    tested = BuilderBase
+
+    # there is no files for the case
+    path.return_value.parent.parent.__truediv__.side_effect = [path_file, path_file]
+    path_file.exists.side_effect = [False, False]
+    limited_cache.staged_commands_as_instructions.side_effect = []
+    implemented_commands.schema_key2instruction.side_effect = []
+    import_module.side_effect = []
+
+    result = tested._publish_in_ui("theCase", identification, limited_cache)
+    assert result is None
+
+    assert post_commands.mock_calls == []
+    calls = [
+        call(f'{directory}/builder_base.py'),
+        call().parent.parent.__truediv__('parameters2command/theCase.json'),
+        call(f'{directory}/builder_base.py'),
+        call().parent.parent.__truediv__('staged_questionnaires/theCase.json'),
+    ]
+    assert path.mock_calls == calls
+    assert import_module.mock_calls == []
+    assert implemented_commands.mock_calls == []
+    assert limited_cache.mock_calls == []
+    calls = [
+        call.exists(),
+        call.exists(),
+    ]
+    assert path_file.mock_calls == calls
+    reset_mocks()
+
+    # there are files for the case
+    # -- no commands in the files (only one file)
+    file_contents = [
+        json.dumps({"commands": []}),
+    ]
+
+    path.return_value.parent.parent.__truediv__.side_effect = [path_file, path_file]
+    path_file.exists.side_effect = [True, False]
+    path_file.open.return_value.__enter__.return_value.read.side_effect = file_contents
+    limited_cache.staged_commands_as_instructions.side_effect = [instructions]
+    implemented_commands.schema_key2instruction.side_effect = [schema_key2instruction]
+    import_module.side_effect = []
+
+    tested._publish_in_ui("theCase", identification, limited_cache)
+
+    assert post_commands.mock_calls == []
+    calls = [
+        call(f'{directory}/builder_base.py'),
+        call().parent.parent.__truediv__('parameters2command/theCase.json'),
+        call(f'{directory}/builder_base.py'),
+        call().parent.parent.__truediv__('staged_questionnaires/theCase.json'),
+    ]
+    assert path.mock_calls == calls
+    assert implemented_commands.mock_calls == []
+    assert import_module.mock_calls == []
+    assert limited_cache.mock_calls == []
+    calls = [
+        call.exists(),
+        call.open('r'),
+        call.open().__enter__(),
+        call.open().__enter__().read(),
+        call.open().__exit__(None, None, None),
+        call.exists(),
+    ]
+    assert path_file.mock_calls == calls
+    reset_mocks()
+    # -- with commands in the files
+    file_contents = [
+        json.dumps({"commands": [
+            {
+                "module": "theModule1",
+                "class": "TheClass1",
+                "attributes": {
+                    "command_uuid": ">?<",
+                    "note_uuid": ">?<",
+                    "attributeX": "valueX",
+                    "attributeY": "valueY",
+                },
+            },
+            {
+                "module": "theModule1",
+                "class": "TheClass1",
+                "attributes": {
+                    "command_uuid": ">?<",
+                    "note_uuid": ">?<",
+                    "attributeZ": "valueZ",
+                },
+            },
+            {
+                "module": "theModule3",
+                "class": "TheClass3",
+                "attributes": {
+                    "command_uuid": ">?<",
+                    "note_uuid": ">?<",
+                },
+            },
+        ]}),
+        json.dumps({"commands": [
+            {
+                "module": "theModule4",
+                "class": "TheClass4",
+                "attributes": {
+                    "command_uuid": ">?<",
+                    "note_uuid": ">?<",
+                    "attributeA": "valueA",
+                    "attributeB": "valueB",
+                    "attributeC": "valueC",
+                },
+            },
+        ]}),
+    ]
+
+    class TheModule:
+        class TheClass1:
+            class Meta:
+                key = "theClass1Key"
+
+        class TheClass2:
+            class Meta:
+                key = "theClass2Key"
+
+        class TheClass3:
+            class Meta:
+                key = "theClass3Key"
+
+        class TheClass4:
+            class Meta:
+                key = "theClass4Key"
+
+    path.return_value.parent.parent.__truediv__.side_effect = [path_file, path_file]
+    path_file.exists.side_effect = [True, True]
+    path_file.open.return_value.__enter__.return_value.read.side_effect = file_contents
+    limited_cache.staged_commands_as_instructions.side_effect = [instructions]
+    implemented_commands.schema_key2instruction.side_effect = [schema_key2instruction]
+    import_module.side_effect = [TheModule, TheModule, TheModule, TheModule]
+
+    result = tested._publish_in_ui("theCase", identification, limited_cache)
+    assert result is None
+
+    calls = [call([
+        {
+            "module": "theModule1",
+            "class": "TheClass1",
+            "attributes": {
+                "command_uuid": "uuid1",
+                "note_uuid": "noteUuid",
+                "attributeX": "valueX",
+                "attributeY": "valueY",
+            },
+        },
+        {
+            "module": "theModule1",
+            "class": "TheClass1",
+            "attributes": {
+                "command_uuid": None,
+                "note_uuid": "noteUuid",
+                "attributeZ": "valueZ",
+            },
+        },
+        {
+            "module": "theModule3",
+            "class": "TheClass3",
+            "attributes": {
+                "command_uuid": None,
+                "note_uuid": "noteUuid",
+            },
+        },
+        {
+            "module": "theModule4",
+            "class": "TheClass4",
+            "attributes": {
+                "command_uuid": "uuid4",
+                "note_uuid": "noteUuid",
+                "attributeA": "valueA",
+                "attributeB": "valueB",
+                "attributeC": "valueC",
+            },
+        },
+    ])]
+    assert post_commands.mock_calls == calls
+    calls = [
+        call(f'{directory}/builder_base.py'),
+        call().parent.parent.__truediv__('parameters2command/theCase.json'),
+        call(f'{directory}/builder_base.py'),
+        call().parent.parent.__truediv__('staged_questionnaires/theCase.json'),
+    ]
+    assert path.mock_calls == calls
+    calls = [call.schema_key2instruction()]
+    assert implemented_commands.mock_calls == calls
+    calls = [
+        call("theModule1"),
+        call("theModule1"),
+        call("theModule3"),
+        call("theModule4"),
+    ]
+    assert import_module.mock_calls == calls
+    calls = [call.staged_commands_as_instructions(schema_key2instruction)]
+    assert limited_cache.mock_calls == calls
+    calls = [
+        call.exists(),
+        call.open('r'),
+        call.open().__enter__(),
+        call.open().__enter__().read(),
+        call.open().__exit__(None, None, None),
+        call.exists(),
+        call.open('r'),
+        call.open().__enter__(),
+        call.open().__enter__().read(),
+        call.open().__exit__(None, None, None),
+    ]
+    assert path_file.mock_calls == calls
+    reset_mocks()
+
+
+@patch("evaluations.case_builders.builder_base.time", wraps=time)
+@patch("evaluations.case_builders.builder_base.requests_post")
+@patch("evaluations.case_builders.builder_base.HelperEvaluation")
+def test_post_commands(helper_evaluation, requests_post, mock_time):
+    def reset_mocks():
+        helper_evaluation.reset_mock()
+        requests_post.reset_mock()
+        mock_time.reset_mock()
+
+    settings = Settings(
+        llm_text=VendorKey(vendor="theVendorTextLLM", api_key="theKeyTextLLM"),
+        llm_audio=VendorKey(vendor="theVendorAudioLLM", api_key="theKeyAudioLLM"),
+        science_host='theScienceHost',
+        ontologies_host='theOntologiesHost',
+        pre_shared_key='thePreSharedKey',
+        structured_rfv=True,
+        audit_llm=True,
+        api_signing_key="theApiSigningKey",
+    )
+
+    tested = BuilderBase
+
+    helper_evaluation.settings.side_effect = [settings]
+    helper_evaluation.get_canvas_host.side_effect = ["https://theHost"]
+    requests_post.side_effect = ["postResponse"]
+    mock_time.side_effect = [1747163653.9470942]
+
+    result = tested.post_commands([{"key1": "value1", "key2": "value2"}])
+    assert result == "postResponse"
+
+    calls = [
+        call.settings(),
+        call.get_canvas_host(),
+    ]
+    assert helper_evaluation.mock_calls == calls
+    calls = [call()]
+    assert mock_time.mock_calls == calls
+    calls = [
+        call(
+            'https://theHost/plugin-io/api/hyperscribe/case_builder',
+            headers={'Content-Type': 'application/json'},
+            params={'ts': '1747163653', 'sig': '10b873fcbeef79834cc483520fbbbdf4ed9bc4f8bd4c1a941c40162da30852d7'},
+            json=[{'key1': 'value1', 'key2': 'value2'}],
+            verify=True,
+            timeout=None,
+        )
+    ]
+    assert requests_post.mock_calls == calls
     reset_mocks()

@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, UTC
 
-import logger
-
 from hyperscribe.libraries.constants import Constants
 from hyperscribe.structures.instruction import Instruction
 

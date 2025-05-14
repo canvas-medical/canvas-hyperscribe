@@ -7,6 +7,7 @@ def test_constants():
     constants = {
         "ANTHROPIC_CHAT_TEXT": "claude-3-5-sonnet-20241022",
         "AWS3_LINK_EXPIRATION_SECONDS": 1200,
+        "API_SIGNED_EXPIRATION_SECONDS": 1200,
         "DISCUSSION_CACHED_DURATION": 90,
         "GOOGLE_CHAT_ALL": "models/gemini-2.0-flash",
         "INFORMANT_AWS_BUCKET": "hyperscribe",
@@ -76,5 +77,6 @@ def test_constants():
         "SECRET_AWS_BUCKET": "AwsBucket",
         "SECRET_STRUCTURED_RFV": "StructuredReasonForVisit",
         "SECRET_AUDIT_LLM": "AuditLLMDecisions",
+        "SECRET_API_SIGNING_KEY": "APISigningKey",
     }
     assert is_constant(tested, constants)

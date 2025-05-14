@@ -81,6 +81,7 @@ export OntologiesHost="...."
 export PreSharedKey="...."
 export StructuredReasonForVisit="y" or "n"
 export AuditLLMDecisions="y" or "n"
+export APISigningKey="..."
 ```
 
 The logs will be sent to the `AWS S3 bucket` if the following environment variables are set:
@@ -116,6 +117,7 @@ uv run python case_builder.py \
   --case the_case \
   --group common \
   --type general \
+  --publish \
   --combined \
   --mp3 "file/path/to/file_01.mp3" \
   "file/path/to/file_02.mp3" \
@@ -146,6 +148,8 @@ On the second step (`transcript2instructions`):
 - the `uuid` of the instructions is by default set to `>?<`
 - the order of the instructions of different type is ignored
 
+If the `publish` flag is set, the effect of the commands of the last cycle will be sent to the UI.
+
 #### From Transcript to commands
 
 Based on a `json` file, transcript of the conversation, a set (i.e. covering all steps except the first one) of evaluation tests can be created using:
@@ -156,6 +160,7 @@ uv run python case_builder.py \
   --case the_case \
   --group common \
   --type general \
+  --publish \
   --cycles 3 \
   --transcript "file/path/to/file.json"
 ```
@@ -166,6 +171,8 @@ Like previously, on the step `transcript2instructions`:
 
 - the `uuid` of the instructions is by default set to `>?<`
 - the order of the instructions of different type is ignored
+
+If the `publish` flag is set, the effect of the commands of the last cycle will be sent to the UI.
 
 #### From Tuning data to commands
 

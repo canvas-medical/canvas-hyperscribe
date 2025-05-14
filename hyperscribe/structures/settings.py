@@ -7,6 +7,7 @@ from hyperscribe.structures.vendor_key import VendorKey
 
 
 class Settings(NamedTuple):
+    api_signing_key: str
     llm_text: VendorKey
     llm_audio: VendorKey
     science_host: str
@@ -18,6 +19,7 @@ class Settings(NamedTuple):
     @classmethod
     def from_dictionary(cls, dictionary: dict) -> Settings:
         return Settings(
+            api_signing_key=dictionary[Constants.SECRET_API_SIGNING_KEY],
             llm_text=VendorKey(
                 vendor=dictionary[Constants.SECRET_TEXT_VENDOR],
                 api_key=dictionary[Constants.SECRET_TEXT_KEY],

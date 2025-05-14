@@ -1,8 +1,13 @@
+import json
 from argparse import ArgumentTypeError, Namespace
 from datetime import datetime, UTC
+from hashlib import sha256
+from importlib import import_module
 from pathlib import Path
+from time import time
 
 from canvas_sdk.v1.data import Patient, Command
+from requests import post as requests_post, Response
 
 from evaluations.auditor_file import AuditorFile
 from evaluations.case_builders.builder_audit_url import BuilderAuditUrl
@@ -11,6 +16,7 @@ from hyperscribe.handlers.commander import Commander
 from hyperscribe.libraries.aws_s3 import AwsS3
 from hyperscribe.libraries.cached_discussion import CachedDiscussion
 from hyperscribe.libraries.constants import Constants as HyperscribeConstants
+from hyperscribe.libraries.implemented_commands import ImplementedCommands
 from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.libraries.llm_decisions_reviewer import LlmDecisionsReviewer
 from hyperscribe.libraries.memory_log import MemoryLog
@@ -99,4 +105,62 @@ class BuilderBase:
         return LimitedCache(
             identification.patient_uuid,
             Commander.existing_commands_to_coded_items(current_commands),
+        )
+
+    @classmethod
+    def _publish_in_ui(cls, case_cycle: str, identification: IdentificationParameters, limited_cache: LimitedCache) -> None:
+        result: list[dict] = []
+        commands: list[dict] = []
+        # retrieve the commands to send
+        for directory in ["parameters2command", "staged_questionnaires"]:
+            file = Path(__file__).parent.parent / f"{directory}/{case_cycle}.json"
+            if file.exists():
+                with file.open("r") as f:
+                    commands.extend(json.load(f)["commands"])
+        if not commands:
+            return
+
+        # define the note and command uuids
+        mapping = ImplementedCommands.schema_key2instruction()
+        initials = limited_cache.staged_commands_as_instructions(mapping)
+        consumed_indexes: list[int] = []
+        for command in commands:
+            # retrieve the current command, if any
+            module_name = command["module"]
+            class_name = command["class"]
+            module_itself = import_module(module_name)
+            class_itself = getattr(module_itself, class_name)
+            # assert issubclass(class_itself, BaseCommand)
+            for idx, initial in enumerate(initials):
+                if initial.instruction == mapping[class_itself.Meta.key] and idx not in consumed_indexes:
+                    command_uuid = initial.uuid
+                    consumed_indexes.append(idx)
+                    break
+            else:
+                command_uuid = None
+
+            # set the command uuid
+            command["attributes"]["command_uuid"] = command_uuid
+            # set the note uuid
+            command["attributes"]["note_uuid"] = identification.note_uuid
+            result.append(command)
+
+        cls.post_commands(result)
+
+    @classmethod
+    def post_commands(cls, commands: list[dict]) -> Response:
+        settings = HelperEvaluation.settings()
+        timestamp = str(int(time()))
+        hash_arg = f"{timestamp}{settings.api_signing_key}"
+        request_sig = sha256(hash_arg.encode('utf-8')).hexdigest()
+
+        url = f"{HelperEvaluation.get_canvas_host()}/plugin-io/api/hyperscribe/case_builder"
+        return requests_post(
+            url,
+            headers={"Content-Type": "application/json"},
+            params={"ts": timestamp, "sig": request_sig},
+            json=commands,
+            verify=True,
+            timeout=
+            None,
         )

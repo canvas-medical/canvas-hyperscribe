@@ -22,6 +22,7 @@ def helper_instance() -> Vitals:
         pre_shared_key="preSharedKey",
         structured_rfv=False,
         audit_llm=False,
+        api_signing_key="theApiSigningKey",
     )
     cache = LimitedCache("patientUuid", {})
     identification = IdentificationParameters(

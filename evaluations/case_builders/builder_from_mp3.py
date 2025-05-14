@@ -26,6 +26,7 @@ class BuilderFromMp3(BuilderBase):
         parser.add_argument("--type", type=str, choices=types, help=f"Type of the case: {', '.join(types)}", default=types[1])
         parser.add_argument("--mp3", required=True, nargs='+', type=cls.validate_files, help="List of MP3 files")
         parser.add_argument('--combined', action='store_true', default=False, help="Combine the audio files into a single audio")
+        parser.add_argument("--publish", action="store_true", default=False, help="Upsert the commands of the last cycle to the patient's last note")
         return parser.parse_args()
 
     @classmethod
@@ -64,6 +65,8 @@ class BuilderFromMp3(BuilderBase):
             cls._run_combined(recorder, chatter, audios, previous)
         else:
             cls._run_chunked(parameters, chatter, audios, previous)
+        if parameters.publish:
+            cls._publish_in_ui(recorder.case, identification, limited_cache)
 
     @classmethod
     def _run_combined(cls, recorder: AuditorFile, chatter: AudioInterpreter, audios: list[bytes], previous: list[Instruction]) -> None:
