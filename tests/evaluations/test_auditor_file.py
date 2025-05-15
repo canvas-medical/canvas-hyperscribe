@@ -767,7 +767,7 @@ def test_computed_questionnaires(path):
                     'information': 'theInformation1',
                     'instruction': 'theInstruction1',
                     'isNew': False,
-                    'isUpdated': False,
+                    'isUpdated': True,
                     'uuid': '>?<',
                 },
                 {
@@ -775,7 +775,7 @@ def test_computed_questionnaires(path):
                     'information': 'theInformation2',
                     'instruction': 'theInstruction2',
                     'isNew': False,
-                    'isUpdated': False,
+                    'isUpdated': True,
                     'uuid': '>?<',
                 },
                 {
@@ -783,7 +783,7 @@ def test_computed_questionnaires(path):
                     'information': 'theInformation3',
                     'instruction': 'theInstruction3',
                     'isNew': False,
-                    'isUpdated': False,
+                    'isUpdated': True,
                     'uuid': '>?<',
                 },
             ],

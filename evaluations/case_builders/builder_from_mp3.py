@@ -66,7 +66,7 @@ class BuilderFromMp3(BuilderBase):
         else:
             cls._run_chunked(parameters, chatter, audios, previous)
         if parameters.publish:
-            cls._publish_in_ui(recorder.case, identification, limited_cache)
+            cls._publish_in_ui(parameters.case, identification, limited_cache)
 
     @classmethod
     def _run_combined(cls, recorder: AuditorFile, chatter: AudioInterpreter, audios: list[bytes], previous: list[Instruction]) -> None:

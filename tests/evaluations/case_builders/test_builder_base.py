@@ -411,21 +411,273 @@ def test__limited_cache_from(command_db, existing_commands_to_coded_items):
     reset_mocks()
 
 
-@patch("evaluations.case_builders.builder_base.ImplementedCommands")
-@patch("evaluations.case_builders.builder_base.import_module")
 @patch("evaluations.case_builders.builder_base.Path")
-@patch.object(BuilderBase, "post_commands")
-def test__publish_in_ui(post_commands, path, import_module, implemented_commands):
-    limited_cache = MagicMock()
-    path_file = MagicMock()
+def test_summary_generated_commands(path):
+    path_files = [
+        MagicMock(),
+        MagicMock(),
+        MagicMock(),
+    ]
+    path_files[0].name = "theCase02.json"
+    path_files[1].name = "theCase03.json"
+    path_files[2].name = "theCase01.json"
 
     def reset_mocks():
-        post_commands.reset_mock()
         path.reset_mock()
+        for path_file in path_files:
+            path_file.reset_mock()
+
+    directory = Path(__file__).parent.as_posix().replace("/tests", "")
+
+    exp_glob_calls = [
+        call(f'{directory}/builder_base.py'),
+        call().parent.parent.__truediv__('parameters2command'),
+        call().parent.parent.__truediv__().glob('theCase*.json'),
+        call(f'{directory}/builder_base.py'),
+        call().parent.parent.__truediv__('staged_questionnaires'),
+        call().parent.parent.__truediv__().glob('theCase*.json'),
+    ]
+
+    tested = BuilderBase
+
+    # there are no files for the case
+    path.return_value.parent.parent.__truediv__.return_value.glob.side_effect = [[], []]
+
+    result = tested.summary_generated_commands("theCase")
+    assert result == []
+
+    assert path.mock_calls == exp_glob_calls
+    for path_file in path_files:
+        assert path_file.mock_calls == []
+    reset_mocks()
+
+    # there are files for the case
+    # -- no commands in the files (only one file)
+    file_contents = [
+        json.dumps({"instructions": [], "commands": []}),
+        json.dumps({"instructions": [], "commands": []}),
+        json.dumps({"instructions": [], "commands": []}),
+    ]
+    path.return_value.parent.parent.__truediv__.return_value.glob.side_effect = [path_files, path_files[1:]]
+    for idx, path_file in enumerate(path_files):
+        path_file.open.return_value.__enter__.return_value.read.side_effect = [file_contents[idx], file_contents[idx]]
+
+    result = tested.summary_generated_commands("theCase")
+    assert result == []
+
+    assert path.mock_calls == exp_glob_calls
+    for idx, path_file in enumerate(path_files):
+        calls = [
+            call.open('r'),
+            call.open().__enter__(),
+            call.open().__enter__().read(),
+            call.open().__exit__(None, None, None),
+        ]
+        if idx == 1:
+            calls.extend([
+                call.open('r'),
+                call.open().__enter__(),
+                call.open().__enter__().read(),
+                call.open().__exit__(None, None, None),
+            ])
+        assert path_file.mock_calls == calls
+    reset_mocks()
+
+    # -- with commands in the files
+    file_contents = [
+        json.dumps({
+            "instructions": [
+                {"uuid": "uuid1", "information": "theInformation1"},
+            ],
+            "commands": [
+                {
+                    "module": "theModule1",
+                    "class": "TheClass1",
+                    "attributes": {
+                        "command_uuid": ">?<",
+                        "note_uuid": ">?<",
+                        "attributeX": "valueX",
+                        "attributeY": "valueY",
+                    },
+                },
+            ]}),
+        json.dumps({
+            "instructions": [
+                {"uuid": "uuid1", "information": "theInformation2"},
+                {"uuid": "uuid3", "information": "theInformation3"},
+            ],
+            "commands": [
+                {
+                    "module": "theModule2",
+                    "class": "TheClass2",
+                    "attributes": {
+                        "command_uuid": ">?<",
+                        "note_uuid": ">?<",
+                        "attributeZ": "valueZ",
+                    },
+                },
+                {
+                    "module": "theModule3",
+                    "class": "TheClass3",
+                    "attributes": {
+                        "command_uuid": ">?<",
+                        "note_uuid": ">?<",
+                    },
+                },
+            ]}),
+        json.dumps({
+            "instructions": [
+                {"uuid": "uuid4", "information": "theInformation4"},
+            ],
+            "commands": [
+                {
+                    "module": "theModule4",
+                    "class": "TheClass4",
+                    "attributes": {
+                        "command_uuid": ">?<",
+                        "note_uuid": ">?<",
+                        "attributeA": "valueA",
+                        "attributeB": "valueB",
+                        "attributeC": "valueC",
+                    },
+                },
+            ]}),
+    ]
+    path.return_value.parent.parent.__truediv__.return_value.glob.side_effect = [path_files, path_files[1:]]
+    for idx, path_file in enumerate(path_files):
+        path_file.open.return_value.__enter__.return_value.read.side_effect = [file_contents[idx], file_contents[idx]]
+
+    result = tested.summary_generated_commands("theCase")
+    expected = [
+        # common
+        {
+            "command": {
+                "attributes": {
+                    "attributeA": "valueA",
+                    "attributeB": "valueB",
+                    "attributeC": "valueC",
+                },
+                "class": "TheClass4",
+                "module": "theModule4",
+            },
+            "instruction": "theInformation4",
+        },
+        # -- theInformation1 is replaced with theInformation2....
+        {
+            "command": {
+                "attributes": {
+                    "attributeZ": "valueZ",
+                },
+                "class": "TheClass2",
+                "module": "theModule2",
+            },
+            "instruction": "theInformation2",
+        },
+        {
+            "command": {
+                "attributes": {},
+                "class": "TheClass3",
+                "module": "theModule3",
+            },
+            "instruction": "theInformation3",
+        },
+        # questionnaires
+        {
+            "command": {
+                "attributes": {
+                    "attributeZ": "valueZ",
+                },
+                "class": "TheClass2",
+                "module": "theModule2",
+            },
+            "instruction": "n/a",
+        },
+        {
+            "command": {
+                "attributes": {},
+                "class": "TheClass3",
+                "module": "theModule3",
+            },
+            "instruction": "n/a",
+        },
+    ]
+    assert result == expected
+
+    assert path.mock_calls == exp_glob_calls
+    for idx, path_file in enumerate(path_files):
+        calls = [
+            call.open('r'),
+            call.open().__enter__(),
+            call.open().__enter__().read(),
+            call.open().__exit__(None, None, None),
+        ]
+        if idx == 1:
+            calls.extend([
+                call.open('r'),
+                call.open().__enter__(),
+                call.open().__enter__().read(),
+                call.open().__exit__(None, None, None),
+            ])
+        assert path_file.mock_calls == calls
+    reset_mocks()
+
+
+def test__remove_uuids():
+    tested = BuilderBase
+    tests = [
+        ({
+             "module": "theModule",
+             "class": "TheClass",
+             "attributes": {
+                 "command_uuid": ">?<",
+                 "note_uuid": ">?<",
+                 "attributeX": "valueX",
+                 "attributeY": "valueY",
+             },
+         },
+         {
+             "module": "theModule",
+             "class": "TheClass",
+             "attributes": {
+                 "attributeX": "valueX",
+                 "attributeY": "valueY",
+             },
+         }),
+        ({
+             "module": "theModule",
+             "class": "TheClass",
+             "attributes": {
+                 "attributeX": "valueX",
+                 "attributeY": "valueY",
+             },
+         },
+         {
+             "module": "theModule",
+             "class": "TheClass",
+             "attributes": {
+                 "attributeX": "valueX",
+                 "attributeY": "valueY",
+             },
+         }),
+    ]
+    for command, expected in tests:
+        result = tested._remove_uuids(command)
+        assert result == expected
+
+
+@patch("evaluations.case_builders.builder_base.ImplementedCommands")
+@patch("evaluations.case_builders.builder_base.import_module")
+@patch.object(BuilderBase, "_post_commands")
+@patch.object(BuilderBase, "summary_generated_commands")
+def test__publish_in_ui(summary_generated_commands, post_commands, import_module, implemented_commands):
+    limited_cache = MagicMock()
+
+    def reset_mocks():
+        summary_generated_commands.reset_mock()
+        post_commands.reset_mock()
         import_module.reset_mock()
         implemented_commands.reset_mock()
         limited_cache.reset_mock()
-        path_file.reset_mock()
 
     identification = IdentificationParameters(
         patient_uuid='patientUuid',
@@ -458,13 +710,10 @@ def test__publish_in_ui(post_commands, path, import_module, implemented_commands
         "theClass4Key": "pluginClass4",
     }
 
-    directory = Path(__file__).parent.as_posix().replace("/tests", "")
-
     tested = BuilderBase
 
-    # there is no files for the case
-    path.return_value.parent.parent.__truediv__.side_effect = [path_file, path_file]
-    path_file.exists.side_effect = [False, False]
+    # there is no command for the case
+    summary_generated_commands.side_effect = [[]]
     limited_cache.staged_commands_as_instructions.side_effect = []
     implemented_commands.schema_key2instruction.side_effect = []
     import_module.side_effect = []
@@ -472,104 +721,58 @@ def test__publish_in_ui(post_commands, path, import_module, implemented_commands
     result = tested._publish_in_ui("theCase", identification, limited_cache)
     assert result is None
 
+    calls = [call("theCase")]
+    assert summary_generated_commands.mock_calls == calls
     assert post_commands.mock_calls == []
-    calls = [
-        call(f'{directory}/builder_base.py'),
-        call().parent.parent.__truediv__('parameters2command/theCase.json'),
-        call(f'{directory}/builder_base.py'),
-        call().parent.parent.__truediv__('staged_questionnaires/theCase.json'),
-    ]
-    assert path.mock_calls == calls
     assert import_module.mock_calls == []
     assert implemented_commands.mock_calls == []
     assert limited_cache.mock_calls == []
-    calls = [
-        call.exists(),
-        call.exists(),
-    ]
-    assert path_file.mock_calls == calls
     reset_mocks()
 
-    # there are files for the case
-    # -- no commands in the files (only one file)
-    file_contents = [
-        json.dumps({"commands": []}),
-    ]
-
-    path.return_value.parent.parent.__truediv__.side_effect = [path_file, path_file]
-    path_file.exists.side_effect = [True, False]
-    path_file.open.return_value.__enter__.return_value.read.side_effect = file_contents
-    limited_cache.staged_commands_as_instructions.side_effect = [instructions]
-    implemented_commands.schema_key2instruction.side_effect = [schema_key2instruction]
-    import_module.side_effect = []
-
-    tested._publish_in_ui("theCase", identification, limited_cache)
-
-    assert post_commands.mock_calls == []
-    calls = [
-        call(f'{directory}/builder_base.py'),
-        call().parent.parent.__truediv__('parameters2command/theCase.json'),
-        call(f'{directory}/builder_base.py'),
-        call().parent.parent.__truediv__('staged_questionnaires/theCase.json'),
-    ]
-    assert path.mock_calls == calls
-    assert implemented_commands.mock_calls == []
-    assert import_module.mock_calls == []
-    assert limited_cache.mock_calls == []
-    calls = [
-        call.exists(),
-        call.open('r'),
-        call.open().__enter__(),
-        call.open().__enter__().read(),
-        call.open().__exit__(None, None, None),
-        call.exists(),
-    ]
-    assert path_file.mock_calls == calls
-    reset_mocks()
-    # -- with commands in the files
-    file_contents = [
-        json.dumps({"commands": [
-            {
+    # there are commands for the case
+    commands = [
+        {
+            "instruction": "instruction1",
+            "command": {
                 "module": "theModule1",
                 "class": "TheClass1",
                 "attributes": {
-                    "command_uuid": ">?<",
-                    "note_uuid": ">?<",
                     "attributeX": "valueX",
                     "attributeY": "valueY",
                 },
             },
-            {
+        },
+        {
+            "instruction": "instruction2",
+            "command": {
                 "module": "theModule1",
                 "class": "TheClass1",
                 "attributes": {
-                    "command_uuid": ">?<",
-                    "note_uuid": ">?<",
                     "attributeZ": "valueZ",
                 },
             },
-            {
+
+        },
+        {
+            "instruction": "instruction3",
+            "command": {
                 "module": "theModule3",
                 "class": "TheClass3",
-                "attributes": {
-                    "command_uuid": ">?<",
-                    "note_uuid": ">?<",
-                },
+                "attributes": {},
             },
-        ]}),
-        json.dumps({"commands": [
-            {
+        },
+        {
+            "instruction": "instruction4",
+            "command": {
                 "module": "theModule4",
                 "class": "TheClass4",
                 "attributes": {
-                    "command_uuid": ">?<",
-                    "note_uuid": ">?<",
                     "attributeA": "valueA",
                     "attributeB": "valueB",
                     "attributeC": "valueC",
                 },
             },
-        ]}),
+        },
     ]
 
     class TheModule:
@@ -589,9 +792,7 @@ def test__publish_in_ui(post_commands, path, import_module, implemented_commands
             class Meta:
                 key = "theClass4Key"
 
-    path.return_value.parent.parent.__truediv__.side_effect = [path_file, path_file]
-    path_file.exists.side_effect = [True, True]
-    path_file.open.return_value.__enter__.return_value.read.side_effect = file_contents
+    summary_generated_commands.side_effect = [commands]
     limited_cache.staged_commands_as_instructions.side_effect = [instructions]
     implemented_commands.schema_key2instruction.side_effect = [schema_key2instruction]
     import_module.side_effect = [TheModule, TheModule, TheModule, TheModule]
@@ -599,6 +800,8 @@ def test__publish_in_ui(post_commands, path, import_module, implemented_commands
     result = tested._publish_in_ui("theCase", identification, limited_cache)
     assert result is None
 
+    calls = [call('theCase')]
+    assert summary_generated_commands.mock_calls == calls
     calls = [call([
         {
             "module": "theModule1",
@@ -640,13 +843,7 @@ def test__publish_in_ui(post_commands, path, import_module, implemented_commands
         },
     ])]
     assert post_commands.mock_calls == calls
-    calls = [
-        call(f'{directory}/builder_base.py'),
-        call().parent.parent.__truediv__('parameters2command/theCase.json'),
-        call(f'{directory}/builder_base.py'),
-        call().parent.parent.__truediv__('staged_questionnaires/theCase.json'),
-    ]
-    assert path.mock_calls == calls
+
     calls = [call.schema_key2instruction()]
     assert implemented_commands.mock_calls == calls
     calls = [
@@ -658,26 +855,13 @@ def test__publish_in_ui(post_commands, path, import_module, implemented_commands
     assert import_module.mock_calls == calls
     calls = [call.staged_commands_as_instructions(schema_key2instruction)]
     assert limited_cache.mock_calls == calls
-    calls = [
-        call.exists(),
-        call.open('r'),
-        call.open().__enter__(),
-        call.open().__enter__().read(),
-        call.open().__exit__(None, None, None),
-        call.exists(),
-        call.open('r'),
-        call.open().__enter__(),
-        call.open().__enter__().read(),
-        call.open().__exit__(None, None, None),
-    ]
-    assert path_file.mock_calls == calls
     reset_mocks()
 
 
 @patch("evaluations.case_builders.builder_base.time", wraps=time)
 @patch("evaluations.case_builders.builder_base.requests_post")
 @patch("evaluations.case_builders.builder_base.HelperEvaluation")
-def test_post_commands(helper_evaluation, requests_post, mock_time):
+def test__post_commands(helper_evaluation, requests_post, mock_time):
     def reset_mocks():
         helper_evaluation.reset_mock()
         requests_post.reset_mock()
@@ -701,7 +885,7 @@ def test_post_commands(helper_evaluation, requests_post, mock_time):
     requests_post.side_effect = ["postResponse"]
     mock_time.side_effect = [1747163653.9470942]
 
-    result = tested.post_commands([{"key1": "value1", "key2": "value2"}])
+    result = tested._post_commands([{"key1": "value1", "key2": "value2"}])
     assert result == "postResponse"
 
     calls = [

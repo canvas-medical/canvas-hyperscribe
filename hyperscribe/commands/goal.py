@@ -23,8 +23,8 @@ class Goal(Base):
     def command_from_json(self, instruction: InstructionWithParameters, chatter: LlmBase) -> InstructionWithCommand | None:
         return InstructionWithCommand.add_command(instruction, GoalCommand(
             goal_statement=instruction.parameters["goal"],
-            start_date=Helper.str2datetime(instruction.parameters["startDate"]),
-            due_date=Helper.str2datetime(instruction.parameters["dueDate"]),
+            start_date=Helper.str2date(instruction.parameters["startDate"]),
+            due_date=Helper.str2date(instruction.parameters["dueDate"]),
             achievement_status=Helper.enum_or_none(instruction.parameters["status"], GoalCommand.AchievementStatus),
             priority=Helper.enum_or_none(instruction.parameters["priority"], GoalCommand.Priority),
             progress=instruction.parameters["progressAndBarriers"],

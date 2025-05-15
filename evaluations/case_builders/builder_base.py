@@ -6,6 +6,7 @@ from importlib import import_module
 from pathlib import Path
 from time import time
 
+from canvas_sdk.commands.commands.questionnaire.question import ResponseOption
 from canvas_sdk.v1.data import Patient, Command
 from requests import post as requests_post, Response
 
@@ -108,15 +109,52 @@ class BuilderBase:
         )
 
     @classmethod
-    def _publish_in_ui(cls, case_cycle: str, identification: IdentificationParameters, limited_cache: LimitedCache) -> None:
+    def summary_generated_commands(cls, case: str) -> list[dict]:
+        result: dict[str, dict] = {}
+
+        # common commands
+        files = sorted((Path(__file__).parent.parent / "parameters2command").glob(f"{case}*.json"), key=lambda item: item.name)
+        for file in files:
+            with file.open("r") as f:
+                content = json.load(f)
+                for instruction, command in zip(content["instructions"], content["commands"]):
+                    result[instruction["uuid"]] = {
+                        "instruction": instruction["information"],
+                        "command": cls._remove_uuids(command),
+                    }
+
+        # questionnaires - command is from the last cycle
+        files = sorted((Path(__file__).parent.parent / "staged_questionnaires").glob(f"{case}*.json"), key=lambda item: item.name)
+        if files:
+            with files[-1].open("r") as f:
+                content = json.load(f)
+                for index, command in enumerate(content["commands"]):
+                    result[f"questionnaire_{index:02d}"] = {
+                        "instruction": "n/a",
+                        "command": cls._remove_uuids(command),
+                    }
+
+        return list(result.values())
+
+    @classmethod
+    def _remove_uuids(cls, command: dict) -> dict:
+        return {
+            "module": command["module"],
+            "class": command["class"],
+            "attributes": {
+                key: value
+                for key, value in command["attributes"].items()
+                if key not in ("note_uuid", "command_uuid")
+            },
+        }
+
+    @classmethod
+    def _publish_in_ui(cls, case: str, identification: IdentificationParameters, limited_cache: LimitedCache) -> None:
         result: list[dict] = []
-        commands: list[dict] = []
-        # retrieve the commands to send
-        for directory in ["parameters2command", "staged_questionnaires"]:
-            file = Path(__file__).parent.parent / f"{directory}/{case_cycle}.json"
-            if file.exists():
-                with file.open("r") as f:
-                    commands.extend(json.load(f)["commands"])
+        commands = [
+            summary["command"]
+            for summary in cls.summary_generated_commands(case)
+        ]
         if not commands:
             return
 
@@ -145,10 +183,10 @@ class BuilderBase:
             command["attributes"]["note_uuid"] = identification.note_uuid
             result.append(command)
 
-        cls.post_commands(result)
+        cls._post_commands(result)
 
     @classmethod
-    def post_commands(cls, commands: list[dict]) -> Response:
+    def _post_commands(cls, commands: list[dict]) -> Response:
         settings = HelperEvaluation.settings()
         timestamp = str(int(time()))
         hash_arg = f"{timestamp}{settings.api_signing_key}"

@@ -247,6 +247,16 @@ CREATE TABLE IF NOT EXISTS "results"
 );
 ```
 
+#### Display a summary of the cases
+
+When creating the cases based on audio files or a transcript, the option `--publish` will generate the commands to see them in the UI. 
+
+The following command will display in the system's default browser a summary of the detected instructions and the generated commands:
+
+```shell
+uv  run python case_builder.py --case the_case --summary
+```
+
 ### Delete evaluation tests
 
 A set of evaluation tests (or `case`) can be deleted using:

@@ -185,7 +185,7 @@ def test__run(
 
     assert capsys.readouterr().out == "\n".join(exp_out + ["Cycles: 1", ""])
     assert limited_cache_from.mock_calls == exp_limited_cache
-    calls = [call("theCase0", identification, limited_cache_from.return_value)]
+    calls = [call("theCase", identification, limited_cache_from.return_value)]
     assert publish_in_ui.mock_calls == calls
     assert schema_key2instruction.mock_calls == exp_schema_key2instruction
     assert store_cases.mock_calls == exp_store_cases
@@ -300,7 +300,7 @@ def test__run(
 
     assert capsys.readouterr().out == "\n".join(exp_out + ["Cycles: 3", ""])
     assert limited_cache_from.mock_calls == exp_limited_cache
-    calls = [call("theCase3", identification, limited_cache_from.return_value)]
+    calls = [call("theCase", identification, limited_cache_from.return_value)]
     assert publish_in_ui.mock_calls == calls
     assert schema_key2instruction.mock_calls == exp_schema_key2instruction
     assert store_cases.mock_calls == exp_store_cases

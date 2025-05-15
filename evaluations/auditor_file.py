@@ -138,7 +138,7 @@ class AuditorFile(Auditor):
             json.dump({
                 "transcript": [line.to_json() for line in transcript],
                 "instructions": [
-                    instruction.to_json(True) | {"uuid": Constants.IGNORED_KEY_VALUE}
+                    instruction.to_json(False) | {"uuid": Constants.IGNORED_KEY_VALUE}
                     for instruction in initial_instructions
                 ],
                 "commands": [

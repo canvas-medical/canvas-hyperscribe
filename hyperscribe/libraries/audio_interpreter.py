@@ -1,6 +1,7 @@
 import json
 from datetime import datetime
 
+from hyperscribe.commands.base_questionnaire import BaseQuestionnaire
 from hyperscribe.libraries.helper import Helper
 from hyperscribe.libraries.implemented_commands import ImplementedCommands
 from hyperscribe.libraries.json_schema import JsonSchema
@@ -239,33 +240,33 @@ class AudioInterpreter:
             memory_log.send_to_user(f"parameters identified for {instruction.instruction}")
         return result
 
-    def create_sdk_command_from(self, instruction: InstructionWithParameters) -> InstructionWithCommand | None:
+    def create_sdk_command_from(self, direction: InstructionWithParameters) -> InstructionWithCommand | None:
         for instance in self._command_context:
-            if instruction.instruction == instance.class_name():
-                log_label = f"{instruction.instruction}_{instruction.uuid}_parameters2command"
+            if direction.instruction == instance.class_name():
+                log_label = f"{direction.instruction}_{direction.uuid}_parameters2command"
                 memory_log = MemoryLog.instance(self.identification, log_label, self.s3_credentials)
                 chatter = Helper.chatter(self.settings, memory_log)
-                result = instance.command_from_json(instruction, chatter)
+                result = instance.command_from_json(direction, chatter)
                 if result:
-                    memory_log.send_to_user(f"command generated for {instruction.instruction}")
+                    memory_log.send_to_user(f"command generated for {direction.instruction}")
                 return result
         return None
 
-    def update_questionnaire(self, discussion: list[Line], instruction: Instruction) -> InstructionWithCommand | None:
+    def update_questionnaire(self, discussion: list[Line], direction: Instruction) -> InstructionWithCommand | None:
         for instance in self._command_context:
-            if instruction.instruction == instance.class_name():
-                # assert isinstance(instance, BaseQuestionnaire)
-                log_label = f"{instruction.instruction}_{instruction.uuid}_questionnaire_update"
+            if direction.instruction == instance.class_name():
+                assert isinstance(instance, BaseQuestionnaire)
+                log_label = f"{direction.instruction}_{direction.uuid}_questionnaire_update"
                 chatter = Helper.chatter(
                     self.settings,
                     MemoryLog.instance(self.identification, log_label, self.s3_credentials),
                 )
-                questionnaire = instance.update_from_transcript(discussion, instruction, chatter)
-                command = instance.command_from_questionnaire(instruction.uuid, questionnaire)
+                questionnaire = instance.update_from_transcript(discussion, direction, chatter)
+                command = instance.command_from_questionnaire(direction.uuid, questionnaire)
                 return InstructionWithCommand(
-                    uuid=instruction.uuid,
-                    index=instruction.index,
-                    instruction=instruction.instruction,
+                    uuid=direction.uuid,
+                    index=direction.index,
+                    instruction=direction.instruction,
                     information=json.dumps(questionnaire.to_json()),
                     is_new=False,
                     is_updated=True,

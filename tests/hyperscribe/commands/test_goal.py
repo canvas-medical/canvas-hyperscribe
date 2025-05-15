@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, date
 from unittest.mock import patch, call, MagicMock
 
 from canvas_sdk.commands.commands.goal import GoalCommand
@@ -99,8 +99,8 @@ def test_command_from_json():
     result = tested.command_from_json(instruction, chatter)
     command = GoalCommand(
         goal_statement="theGoal",
-        start_date=datetime(2023, 11, 12),
-        due_date=datetime(2025, 2, 4),
+        start_date=date(2023, 11, 12),
+        due_date=date(2025, 2, 4),
         achievement_status=GoalCommand.AchievementStatus.IMPROVING,
         priority=GoalCommand.Priority.MEDIUM,
         progress="theProgressAndBarriers",

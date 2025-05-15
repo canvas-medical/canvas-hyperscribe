@@ -79,4 +79,4 @@ class BuilderFromTranscript(BuilderBase):
                     previous,
                 )
         if parameters.publish:
-            cls._publish_in_ui(recorder.case, identification, limited_cache)
+            cls._publish_in_ui(parameters.case, identification, limited_cache)
