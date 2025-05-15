@@ -669,7 +669,7 @@ def test__remove_uuids():
 @patch("evaluations.case_builders.builder_base.import_module")
 @patch.object(BuilderBase, "_post_commands")
 @patch.object(BuilderBase, "summary_generated_commands")
-def test__publish_in_ui(summary_generated_commands, post_commands, import_module, implemented_commands):
+def test__render_in_ui(summary_generated_commands, post_commands, import_module, implemented_commands):
     limited_cache = MagicMock()
 
     def reset_mocks():
@@ -718,7 +718,7 @@ def test__publish_in_ui(summary_generated_commands, post_commands, import_module
     implemented_commands.schema_key2instruction.side_effect = []
     import_module.side_effect = []
 
-    result = tested._publish_in_ui("theCase", identification, limited_cache)
+    result = tested._render_in_ui("theCase", identification, limited_cache)
     assert result is None
 
     calls = [call("theCase")]
@@ -797,7 +797,7 @@ def test__publish_in_ui(summary_generated_commands, post_commands, import_module
     implemented_commands.schema_key2instruction.side_effect = [schema_key2instruction]
     import_module.side_effect = [TheModule, TheModule, TheModule, TheModule]
 
-    result = tested._publish_in_ui("theCase", identification, limited_cache)
+    result = tested._render_in_ui("theCase", identification, limited_cache)
     assert result is None
 
     calls = [call('theCase')]

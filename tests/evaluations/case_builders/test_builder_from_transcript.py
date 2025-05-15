@@ -37,7 +37,7 @@ def test__parameters(argument_parser):
         call().add_argument("--type", type=str, choices=["situational", "general"], help="Type of the case: situational, general", default="general"),
         call().add_argument("--transcript", type=BuilderFromTranscript.validate_files, help="JSON file with transcript"),
         call().add_argument("--cycles", type=int, help="Split the transcript in as many cycles", default=1),
-        call().add_argument('--publish', action='store_true', default=False, help="Upsert the commands of the last cycle to the patient's last note"),
+        call().add_argument('--render', action='store_true', default=False, help="Upsert the commands of the last cycle to the patient's last note"),
         call().parse_args(),
     ]
     assert argument_parser.mock_calls == calls
@@ -51,11 +51,11 @@ def test__parameters(argument_parser):
 @patch("evaluations.case_builders.builder_from_transcript.HelperEvaluation")
 @patch("evaluations.case_builders.builder_from_transcript.StoreCases")
 @patch.object(ImplementedCommands, "schema_key2instruction")
-@patch.object(BuilderFromTranscript, "_publish_in_ui")
+@patch.object(BuilderFromTranscript, "_render_in_ui")
 @patch.object(BuilderFromTranscript, "_limited_cache_from")
 def test__run(
         limited_cache_from,
-        publish_in_ui,
+        render_in_ui,
         schema_key2instruction,
         store_cases,
         helper,
@@ -69,7 +69,7 @@ def test__run(
 
     def reset_mocks():
         limited_cache_from.reset_mock()
-        publish_in_ui.reset_mock()
+        render_in_ui.reset_mock()
         schema_key2instruction.reset_mock()
         store_cases.reset_mock()
         helper.reset_mock()
@@ -179,14 +179,14 @@ def test__run(
         type="theType",
         transcript=mock_file,
         cycles=1,
-        publish=True,
+        render=True,
     )
     tested._run(parameters, recorders[0], identification)
 
     assert capsys.readouterr().out == "\n".join(exp_out + ["Cycles: 1", ""])
     assert limited_cache_from.mock_calls == exp_limited_cache
     calls = [call("theCase", identification, limited_cache_from.return_value)]
-    assert publish_in_ui.mock_calls == calls
+    assert render_in_ui.mock_calls == calls
     assert schema_key2instruction.mock_calls == exp_schema_key2instruction
     assert store_cases.mock_calls == exp_store_cases
     assert helper.mock_calls == exp_helper
@@ -230,13 +230,13 @@ def test__run(
         type="theType",
         transcript=mock_file,
         cycles=2,
-        publish=False,
+        render=False,
     )
     tested._run(parameters, recorders[0], identification)
 
     assert capsys.readouterr().out == "\n".join(exp_out + ["Cycles: 2", ""])
     assert limited_cache_from.mock_calls == exp_limited_cache
-    assert publish_in_ui.mock_calls == []
+    assert render_in_ui.mock_calls == []
     assert schema_key2instruction.mock_calls == exp_schema_key2instruction
     assert store_cases.mock_calls == exp_store_cases
     assert helper.mock_calls == exp_helper
@@ -294,14 +294,14 @@ def test__run(
         type="theType",
         transcript=mock_file,
         cycles=3,
-        publish=True,
+        render=True,
     )
     tested._run(parameters, recorders[0], identification)
 
     assert capsys.readouterr().out == "\n".join(exp_out + ["Cycles: 3", ""])
     assert limited_cache_from.mock_calls == exp_limited_cache
     calls = [call("theCase", identification, limited_cache_from.return_value)]
-    assert publish_in_ui.mock_calls == calls
+    assert render_in_ui.mock_calls == calls
     assert schema_key2instruction.mock_calls == exp_schema_key2instruction
     assert store_cases.mock_calls == exp_store_cases
     assert helper.mock_calls == exp_helper

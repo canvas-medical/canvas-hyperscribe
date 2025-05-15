@@ -117,7 +117,7 @@ uv run python case_builder.py \
   --case the_case \
   --group common \
   --type general \
-  --publish \
+  --render \
   --combined \
   --mp3 "file/path/to/file_01.mp3" \
   "file/path/to/file_02.mp3" \
@@ -148,7 +148,7 @@ On the second step (`transcript2instructions`):
 - the `uuid` of the instructions is by default set to `>?<`
 - the order of the instructions of different type is ignored
 
-If the `publish` flag is set, the effect of the commands of the last cycle will be sent to the UI.
+If the `render` flag is set, the effect of the commands of the last cycle will be sent to the UI.
 
 #### From Transcript to commands
 
@@ -160,7 +160,7 @@ uv run python case_builder.py \
   --case the_case \
   --group common \
   --type general \
-  --publish \
+  --render \
   --cycles 3 \
   --transcript "file/path/to/file.json"
 ```
@@ -172,7 +172,7 @@ Like previously, on the step `transcript2instructions`:
 - the `uuid` of the instructions is by default set to `>?<`
 - the order of the instructions of different type is ignored
 
-If the `publish` flag is set, the effect of the commands of the last cycle will be sent to the UI.
+If the `render` flag is set, the effect of the commands of the last cycle will be sent to the UI.
 
 #### From Tuning data to commands
 
@@ -249,7 +249,7 @@ CREATE TABLE IF NOT EXISTS "results"
 
 #### Display a summary of the cases
 
-When creating the cases based on audio files or a transcript, the option `--publish` will generate the commands to see them in the UI. 
+When creating the cases based on audio files or a transcript, the option `--render` will generate the commands to see them in the UI. 
 
 The following command will display in the system's default browser a summary of the detected instructions and the generated commands:
 

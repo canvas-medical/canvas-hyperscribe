@@ -149,7 +149,7 @@ class BuilderBase:
         }
 
     @classmethod
-    def _publish_in_ui(cls, case: str, identification: IdentificationParameters, limited_cache: LimitedCache) -> None:
+    def _render_in_ui(cls, case: str, identification: IdentificationParameters, limited_cache: LimitedCache) -> None:
         result: list[dict] = []
         commands = [
             summary["command"]

@@ -27,7 +27,7 @@ class BuilderFromTranscript(BuilderBase):
         parser.add_argument("--type", type=str, choices=types, help=f"Type of the case: {', '.join(types)}", default=types[1])
         parser.add_argument("--transcript", type=cls.validate_files, help="JSON file with transcript")
         parser.add_argument("--cycles", type=int, help="Split the transcript in as many cycles", default=1)
-        parser.add_argument("--publish", action="store_true", default=False, help="Upsert the commands of the last cycle to the patient's last note")
+        parser.add_argument("--render", action="store_true", default=False, help="Upsert the commands of the last cycle to the patient's last note")
         return parser.parse_args()
 
     @classmethod
@@ -78,5 +78,5 @@ class BuilderFromTranscript(BuilderBase):
                     chatter,
                     previous,
                 )
-        if parameters.publish:
-            cls._publish_in_ui(parameters.case, identification, limited_cache)
+        if parameters.render:
+            cls._render_in_ui(parameters.case, identification, limited_cache)

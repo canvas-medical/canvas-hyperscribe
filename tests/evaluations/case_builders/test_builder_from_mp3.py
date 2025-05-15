@@ -35,7 +35,7 @@ def test__parameters(argument_parser):
         call().add_argument("--type", type=str, choices=["situational", "general"], help="Type of the case: situational, general", default="general"),
         call().add_argument("--mp3", required=True, nargs="+", type=BuilderFromMp3.validate_files, help="List of MP3 files"),
         call().add_argument('--combined', action='store_true', default=False, help="Combine the audio files into a single audio"),
-        call().add_argument('--publish', action='store_true', default=False, help="Upsert the commands of the last cycle to the patient's last note"),
+        call().add_argument('--render', action='store_true', default=False, help="Upsert the commands of the last cycle to the patient's last note"),
         call().parse_args(),
     ]
     assert argument_parser.mock_calls == calls
@@ -46,7 +46,7 @@ def test__parameters(argument_parser):
 @patch("evaluations.case_builders.builder_from_mp3.HelperEvaluation")
 @patch("evaluations.case_builders.builder_from_mp3.StoreCases")
 @patch.object(ImplementedCommands, "schema_key2instruction")
-@patch.object(BuilderFromMp3, "_publish_in_ui")
+@patch.object(BuilderFromMp3, "_render_in_ui")
 @patch.object(BuilderFromMp3, "_run_chunked")
 @patch.object(BuilderFromMp3, "_run_combined")
 @patch.object(BuilderFromMp3, "_limited_cache_from")
@@ -54,7 +54,7 @@ def test__run(
         limited_cache_from,
         run_combined,
         run_chunked,
-        publish_in_ui,
+        render_in_ui,
         schema_key2instruction,
         store_cases,
         helper,
@@ -67,7 +67,7 @@ def test__run(
         limited_cache_from.reset_mock()
         run_combined.reset_mock()
         run_chunked.reset_mock()
-        publish_in_ui.reset_mock()
+        render_in_ui.reset_mock()
         schema_key2instruction.reset_mock()
         store_cases.reset_mock()
         helper.reset_mock()
@@ -140,7 +140,7 @@ def test__run(
             False,
         ),
     ]
-    for is_combined, files, exp_file_out, exp_file_content, is_run_combined, is_run_chunked, is_publish in tests:
+    for is_combined, files, exp_file_out, exp_file_content, is_run_combined, is_run_chunked, is_render in tests:
         limited_cache_from.return_value.to_json.side_effect = [{"key": "value"}]
         limited_cache_from.return_value.staged_commands_as_instructions.side_effect = [instructions]
         schema_key2instruction.side_effect = ["schemaKey2instruction"]
@@ -158,7 +158,7 @@ def test__run(
             type="theType",
             mp3=[mock_files[idx] for idx in files],
             combined=is_combined,
-            publish=is_publish,
+            render=is_render,
         )
         tested._run(parameters, recorder, identification)
 
@@ -211,9 +211,9 @@ def test__run(
             calls = [call(parameters, audio_interpreter.return_value, exp_file_content, instructions)]
         assert run_chunked.mock_calls == calls
         calls = []
-        if is_publish:
+        if is_render:
             calls = [call("theCase", identification, limited_cache_from.return_value)]
-        assert publish_in_ui.mock_calls == calls
+        assert render_in_ui.mock_calls == calls
         for idx, mock_file in enumerate(mock_files):
             calls = []
             if idx in files:
