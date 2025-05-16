@@ -43,7 +43,6 @@ class Progress(SimpleAPIRoute):
     @classmethod
     def clear(cls, now: datetime) -> None:
         then = now - timedelta(seconds=Constants.PROGRESS_EXPIRATION_SECONDS)
-        print("-------", then.isoformat())
         old_note_ids = [
             note_id
             for note_id, messages in PROGRESS.items()
