@@ -10,8 +10,6 @@ def test_constants():
         "API_SIGNED_EXPIRATION_SECONDS": 1200,
         "DISCUSSION_CACHED_DURATION": 90,
         "GOOGLE_CHAT_ALL": "models/gemini-2.0-flash",
-        "INFORMANT_AWS_BUCKET": "hyperscribe",
-        "INFORMANT_END_OF_MESSAGES": "EOF",
         "LABEL_ENCOUNTER_COPILOT": "Encounter Copilot",
         "MAX_ATTEMPTS_LLM_HTTP": 3,
         "MAX_ATTEMPTS_LLM_JSON": 3,
@@ -78,5 +76,8 @@ def test_constants():
         "SECRET_STRUCTURED_RFV": "StructuredReasonForVisit",
         "SECRET_AUDIT_LLM": "AuditLLMDecisions",
         "SECRET_API_SIGNING_KEY": "APISigningKey",
+        "PROGRESS_END_OF_MESSAGES": "EOF",
+        "PROGRESS_SETTING_KEY": "sendProgress",
+        "PROGRESS_EXPIRATION_SECONDS": 7200,
     }
     assert is_constant(tested, constants)

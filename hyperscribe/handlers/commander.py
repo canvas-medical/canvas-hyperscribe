@@ -17,6 +17,7 @@ from canvas_sdk.v1.data.command import Command
 from canvas_sdk.v1.data.note import Note
 from logger import log
 
+from hyperscribe.handlers.progress import Progress
 from hyperscribe.libraries.audio_interpreter import AudioInterpreter
 from hyperscribe.libraries.auditor import Auditor
 from hyperscribe.libraries.aws_s3 import AwsS3
@@ -60,13 +61,14 @@ class Commander(BaseProtocol):
             provider_uuid=str(note.provider.id),
             canvas_instance=self.environment[Constants.CUSTOMER_IDENTIFIER],
         )
+        settings = Settings.from_dictionary(self.secrets | {Constants.PROGRESS_SETTING_KEY: True})
         aws_s3 = AwsS3Credentials.from_dictionary(self.secrets)
         memory_log = MemoryLog.instance(identification, Constants.MEMORY_LOG_LABEL, aws_s3)
         memory_log.output(f"Text: {self.secrets[Constants.SECRET_TEXT_VENDOR]} - Audio: {self.secrets[Constants.SECRET_AUDIO_VENDOR]}")
-        had_audio, effects = self.compute_audio(identification, information.chunk_index)
+        had_audio, effects = self.compute_audio(identification, settings, aws_s3, self.secrets[Constants.SECRET_AUDIO_HOST], information.chunk_index)
         if had_audio:
             log.info(f"audio was present => go to next iteration ({information.chunk_index + 1})")
-            memory_log.send_to_user(f"waiting for the next cycle {information.chunk_index + 1}...")
+            Progress.send_to_user(identification, settings, f"waiting for the next cycle {information.chunk_index + 1}...")
             effects.append(AddTaskComment(
                 task_id=str(comment.task.id),
                 body=json.dumps(CommentBody(
@@ -92,7 +94,7 @@ class Commander(BaseProtocol):
             ).apply())
             # TODO ^^^ removed when https://github.com/canvas-medical/canvas-plugins/issues/600 is fixed
             log.info("  => inform the UI")
-            memory_log.send_to_user("finished")
+            Progress.send_to_user(identification, settings, "finished")
             log.info("  => stop the task")
             effects.append(UpdateTask(
                 id=str(comment.task.id),
@@ -102,24 +104,29 @@ class Commander(BaseProtocol):
         LlmTurnsStore.end_session(information.note_id)
         return effects
 
-    def compute_audio(self, identification: IdentificationParameters, chunk_index: int) -> tuple[bool, list[Effect]]:
-        settings = Settings.from_dictionary(self.secrets)
-        aws_s3 = AwsS3Credentials.from_dictionary(self.secrets)
-
-        memory_log = MemoryLog.instance(identification, Constants.MEMORY_LOG_LABEL, aws_s3)
+    @classmethod
+    def compute_audio(
+            cls,
+            identification: IdentificationParameters,
+            settings: Settings,
+            aws_s3: AwsS3Credentials,
+            host_audio: str,
+            chunk_index: int,
+    ) -> tuple[bool, list[Effect]]:
         CachedDiscussion.clear_cache()
         # retrieve the last audio chunks
-        audios = self.retrieve_audios(
-            self.secrets[Constants.SECRET_AUDIO_HOST],
+        audios = cls.retrieve_audios(
+            host_audio,
             identification.patient_uuid,
             identification.note_uuid,
             chunk_index,
         )
+        memory_log = MemoryLog.instance(identification, Constants.MEMORY_LOG_LABEL, aws_s3)
         memory_log.output(f"--> audio chunks: {len(audios)}")
         if not audios:
             return False, []
 
-        memory_log.send_to_user(f"starting the cycle {chunk_index}...")
+        Progress.send_to_user(identification, settings, f"starting the cycle {chunk_index}...")
         discussion = CachedDiscussion.get_discussion(identification.note_uuid)
         discussion.set_cycle(chunk_index)
 
@@ -132,14 +139,14 @@ class Commander(BaseProtocol):
 
         cache = LimitedCache(
             identification.patient_uuid,
-            self.existing_commands_to_coded_items(current_commands),
+            cls.existing_commands_to_coded_items(current_commands),
         )
         chatter = AudioInterpreter(settings, aws_s3, cache, identification)
-        previous_instructions = self.existing_commands_to_instructions(
+        previous_instructions = cls.existing_commands_to_instructions(
             current_commands,
             discussion.previous_instructions,
         )
-        discussion.previous_instructions, results, discussion.previous_transcript = self.audio2commands(
+        discussion.previous_instructions, results, discussion.previous_transcript = cls.audio2commands(
             Auditor(),
             audios,
             chatter,
@@ -204,7 +211,7 @@ class Commander(BaseProtocol):
         auditor.identified_transcript(audios, transcript)
         memory_log.output(f"--> transcript back and forth: {len(transcript)}")
         speakers = ', '.join(sorted({l.speaker for l in transcript}))
-        memory_log.send_to_user(f"audio reviewed, speakers detected: {speakers}")
+        Progress.send_to_user(chatter.identification, chatter.settings, f"audio reviewed, speakers detected: {speakers}")
 
         last_words = transcript[-1].text.split()
         if len(last_words) > 30:
@@ -290,7 +297,7 @@ class Commander(BaseProtocol):
         if detected_updated:
             detected.append(f"updated: {', '.join([f'{k}: {v}' for k, v in detected_updated.items()])}")
         detected.append(f"total: {len(cumulated_instructions)}")
-        memory_log.send_to_user(f"instructions detection: {', '.join(detected)}")
+        Progress.send_to_user(chatter.identification, chatter.settings, f"instructions detection: {', '.join(detected)}")
 
         max_workers = max(1, Constants.MAX_WORKERS)
         with ThreadPoolExecutor(max_workers=max_workers) as builder:
@@ -300,7 +307,7 @@ class Commander(BaseProtocol):
                 if instruction is not None
             ]
         memory_log.output(f"--> computed commands: {len(instructions_with_parameter)}")
-        memory_log.send_to_user(f"parameters computation done ({len(instructions_with_parameter)})")
+        Progress.send_to_user(chatter.identification, chatter.settings, f"parameters computation done ({len(instructions_with_parameter)})")
         auditor.computed_parameters(instructions_with_parameter)
 
         instructions_with_command: list[InstructionWithCommand] = []
@@ -312,12 +319,12 @@ class Commander(BaseProtocol):
                     instructions_with_command.append(instruction)
 
         memory_log.output(f"DURATION COMMONS: {int((time() - start) * 1000)}")
-        memory_log.send_to_user(f"commands generation done ({len(instructions_with_command)})")
+        Progress.send_to_user(chatter.identification, chatter.settings, f"commands generation done ({len(instructions_with_command)})")
         auditor.computed_commands(instructions_with_command)
 
         if chatter.identification.note_uuid == Constants.FAUX_NOTE_UUID:
             # this is the case when running an evaluation against a recorded 'limited cache',
-            # i.e. the patient and/or her data don't exist, something that may be checked
+            # i.e., the patient and/or her data don't exist, something that may be checked
             # when editing/originating the commands
             return cumulated_instructions, []
 
@@ -365,12 +372,12 @@ class Commander(BaseProtocol):
         ]
 
         memory_log.output(f"DURATION QUESTIONNAIRES: {int((time() - start) * 1000)}")
-        memory_log.send_to_user(f"questionnaires update done ({len(instructions_with_command)})")
+        Progress.send_to_user(chatter.identification, chatter.settings, f"questionnaires update done ({len(instructions_with_command)})")
         auditor.computed_questionnaires(transcript, instructions, instructions_with_command)
 
         if chatter.identification.note_uuid == Constants.FAUX_NOTE_UUID:
             # this is the case when running an evaluation against a recorded 'limited cache',
-            # i.e. the patient and/or her data don't exist, something that may be checked
+            # i.e., the patient and/or her data don't exist, something that may be checked
             # when editing the commands
             return updated_instructions, []
 

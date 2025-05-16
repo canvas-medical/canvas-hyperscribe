@@ -46,7 +46,7 @@ class HelperEvaluation:
         canvas_instance = cls.get_canvas_instance()
         result = f"https://{canvas_instance}"
         if canvas_instance == "local":
-            result = "http://local:8000"
+            result = "http://localhost:8000"
         return result
 
     @classmethod

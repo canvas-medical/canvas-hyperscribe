@@ -70,8 +70,7 @@ def test_staged_command_extract():
              "blood_pressure_systole": None,
              "blood_pressure_diastole": None,
              "blood_pressure_position_and_site": ""
-         }
-        , None),
+         }, None),
     ]
     for data, expected in tests:
         result = tested.staged_command_extract(data)

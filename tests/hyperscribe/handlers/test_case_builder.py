@@ -1,6 +1,5 @@
 import json
 import re
-from time import time
 from unittest.mock import patch, call, MagicMock
 
 from canvas_generated.messages.effects_pb2 import Effect
@@ -20,6 +19,7 @@ from canvas_sdk.handlers.simple_api import SimpleAPIRoute, Credentials
 from canvas_sdk.v1.data import Patient, Questionnaire, Command, ResponseOption
 
 from hyperscribe.handlers.case_builder import CaseBuilder
+from hyperscribe.libraries.authenticator import Authenticator
 from tests.helper import is_constant
 
 
@@ -95,68 +95,20 @@ def test_constants():
     assert is_constant(tested, constants)
 
 
-@patch("hyperscribe.handlers.case_builder.time", wraps=time)
-def test_authenticate(mock_time):
+@patch.object(Authenticator, "check")
+def test_authenticate(check):
     def reset_mocks():
-        mock_time.reset_mock()
+        check.reset_mock()
 
     tested = helper_instance()
-
-    # all good
-    tested.request.query_params = {
-        "ts": "1746790419",
-        "sig": "9232a22e913439576b75f1096b708a60b2212425e1204e90b83e633d913aa97e",
-    }  # <-- it should be this dictionary
-    mock_time.side_effect = [1746790419.775192]
-    result = tested.authenticate(Credentials(tested.request))
-    assert result is True
-    calls = [call()]
-    assert mock_time.mock_calls == calls
-    reset_mocks()
-
-    # incorrect sig
-    tested.request.query_params = {
-        "ts": "1746790419",
-        "sig": "9232a22e913439576b75f1096b708a60b2212425e1204e90b83e633d913aa97x",
-    }
-    mock_time.side_effect = [1746790419.775192]
-    result = tested.authenticate(Credentials(tested.request))
-    assert result is False
-    calls = [call()]
-    assert mock_time.mock_calls == calls
-    reset_mocks()
-
-    # too old ts
-    tested.request.query_params = {
-        "ts": "1746790419",
-        "sig": "db6ba533682736ca1937979afa2b461c49f659f73cc565e64e00771c77e8d5be",
-    }
-    mock_time.side_effect = [1746790419.775192 + 1201]
-    result = tested.authenticate(Credentials(tested.request))
-    assert result is False
-    calls = [call()]
-    assert mock_time.mock_calls == calls
-    reset_mocks()
-
-    # missing sig
-    tested.request.query_params = {
-        "ts": "1746790419",
-    }
-    mock_time.side_effect = [1746790419.775192]
-    result = tested.authenticate(Credentials(tested.request))
-    assert result is False
-    assert mock_time.mock_calls == []
-    reset_mocks()
-
-    # missing ts
-    tested.request.query_params = {
-        "sig": "db6ba533682736ca1937979afa2b461c49f659f73cc565e64e00771c77e8d5be",
-    }
-    mock_time.side_effect = [1746790419.775192]
-    result = tested.authenticate(Credentials(tested.request))
-    assert result is False
-    assert mock_time.mock_calls == []
-    reset_mocks()
+    tested.request.query_params = {"key": "value"}
+    for test in [True, False]:
+        check.side_effect = [test]
+        result = tested.authenticate(Credentials(tested.request))
+        assert result is test
+        calls = [call('theApiSigningKey', 1200, {'key': 'value'})]
+        assert check.mock_calls == calls
+        reset_mocks()
 
 
 @patch.object(CaseBuilder, "questionnaire_command_from")

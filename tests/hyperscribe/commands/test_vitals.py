@@ -23,6 +23,7 @@ def helper_instance() -> Vitals:
         structured_rfv=False,
         audit_llm=False,
         api_signing_key="theApiSigningKey",
+        send_progress=False,
     )
     cache = LimitedCache("patientUuid", {})
     identification = IdentificationParameters(
@@ -105,8 +106,7 @@ def test_staged_command_extract():
              "blood_pressure_systole": None,
              "blood_pressure_diastole": None,
              "blood_pressure_position_and_site": ""
-         }
-        , None),
+         }, None),
     ]
     for data, expected in tests:
         result = tested.staged_command_extract(data)

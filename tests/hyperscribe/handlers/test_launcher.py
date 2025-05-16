@@ -29,14 +29,17 @@ def test_constants():
 
 
 @patch.object(Note, "objects")
+@patch('hyperscribe.handlers.launcher.Authenticator')
 @patch('hyperscribe.handlers.launcher.LaunchModalEffect')
-def test_handle(launch_model_effect, note_db):
+def test_handle(launch_model_effect, authenticator, note_db):
     def reset_mocks():
         launch_model_effect.reset_mock()
+        authenticator.reset_mock()
         note_db.reset_mock()
 
     launch_model_effect.return_value.apply.side_effect = [Effect(type="LOG", payload="SomePayload")]
     launch_model_effect.TargetType.RIGHT_CHART_PANE = "right_chart_pane"
+    authenticator.presigned_url.side_effect = ["https://the.presigned.url?param1=value1&param2=value2"]
     note_db.get.return_value.id = "uuidNote"
 
     event = Event(EventRequest(context='{"note_id":"noteId"}'))
@@ -44,10 +47,7 @@ def test_handle(launch_model_effect, note_db):
     secrets = {
         "AudioHost": "https://the.audio.server/path/to/audios/",
         "AudioIntervalSeconds": 7,
-        "AwsKey": "theKey",
-        "AwsSecret": "theSecret",
-        "AwsRegion": "theRegion",
-        "AwsBucket": "theBucket",
+        "APISigningKey": "theApiSigningKey",
     }
     environment = {"CUSTOMER_IDENTIFIER": "theTestEnv"}
     tested = Launcher(event, secrets, environment)
@@ -60,11 +60,19 @@ def test_handle(launch_model_effect, note_db):
             url='https://the.audio.server/path/to/audios/capture/targetId/uuidNote?'
                 'interval=7&'
                 'end_flag=EOF&'
-                'progress=https%3A%2F%2Fhyperscribe.s3.theRegion.amazonaws.com%2FtheTestEnv%2Fprogresses%2FtargetId.log',
+                'progress=https%3A%2F%2Fthe.presigned.url%3Fparam1%3Dvalue1%26param2%3Dvalue2',
             target='right_chart_pane'),
         call().apply(),
     ]
     assert launch_model_effect.mock_calls == calls
+    calls = [
+        call.presigned_url(
+            'theApiSigningKey',
+            '/plugin-io/api/hyperscribe/progress',
+            {'note_id': 'uuidNote'},
+        )
+    ]
+    assert authenticator.mock_calls == calls
     calls = [call.get(dbid='noteId')]
     assert note_db.mock_calls == calls
     reset_mocks()

@@ -23,6 +23,7 @@ def helper_instance() -> StopMedication:
         structured_rfv=False,
         audit_llm=False,
         api_signing_key="theApiSigningKey",
+        send_progress=False,
     )
     cache = LimitedCache("patientUuid", {})
     identification = IdentificationParameters(
@@ -53,18 +54,15 @@ def test_staged_command_extract():
         ({
              "medication": {"text": "theMedication"},
              "rationale": "theRationale",
-         }
-        , CodedItem(label="theMedication: theRationale", code="", uuid="")),
+         }, CodedItem(label="theMedication: theRationale", code="", uuid="")),
         ({
              "medication": {"text": ""},
              "rationale": "theRationale",
-         }
-        , None),
+         }, None),
         ({
              "medication": {"text": "theMedication"},
              "rationale": "",
-         }
-        , CodedItem(label="theMedication: n/a", code="", uuid="")),
+         }, CodedItem(label="theMedication: n/a", code="", uuid="")),
     ]
     for data, expected in tests:
         result = tested.staged_command_extract(data)

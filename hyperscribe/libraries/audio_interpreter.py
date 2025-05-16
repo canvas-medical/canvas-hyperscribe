@@ -2,6 +2,7 @@ import json
 from datetime import datetime
 
 from hyperscribe.commands.base_questionnaire import BaseQuestionnaire
+from hyperscribe.handlers.progress import Progress
 from hyperscribe.libraries.helper import Helper
 from hyperscribe.libraries.implemented_commands import ImplementedCommands
 from hyperscribe.libraries.json_schema import JsonSchema
@@ -237,7 +238,7 @@ class AudioInterpreter:
         if response:
             result = InstructionWithParameters.add_parameters(instruction, response[0])
         if result:
-            memory_log.send_to_user(f"parameters identified for {instruction.instruction}")
+            Progress.send_to_user(self.identification, self.settings, f"parameters identified for {instruction.instruction}")
         return result
 
     def create_sdk_command_from(self, direction: InstructionWithParameters) -> InstructionWithCommand | None:
@@ -248,14 +249,14 @@ class AudioInterpreter:
                 chatter = Helper.chatter(self.settings, memory_log)
                 result = instance.command_from_json(direction, chatter)
                 if result:
-                    memory_log.send_to_user(f"command generated for {direction.instruction}")
+                    Progress.send_to_user(self.identification, self.settings, f"command generated for {direction.instruction}")
                 return result
         return None
 
     def update_questionnaire(self, discussion: list[Line], direction: Instruction) -> InstructionWithCommand | None:
         for instance in self._command_context:
             if direction.instruction == instance.class_name():
-                assert isinstance(instance, BaseQuestionnaire)
+                # assert isinstance(instance, BaseQuestionnaire)
                 log_label = f"{direction.instruction}_{direction.uuid}_questionnaire_update"
                 chatter = Helper.chatter(
                     self.settings,

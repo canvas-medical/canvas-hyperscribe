@@ -158,23 +158,20 @@ def test_compute(
 
 
 @patch('hyperscribe.handlers.reviewer.LlmDecisionsReviewer')
-@patch('hyperscribe.handlers.reviewer.MemoryLog')
+@patch('hyperscribe.handlers.reviewer.Progress')
 @patch.object(Command, "objects")
 @patch.object(ImplementedCommands, 'schema_key2instruction')
 def test_compute_audit_documents(
         schema_key2instruction,
         command_db,
-        memory_log,
+        progress,
         llm_decisions_reviewer,
 ):
-    mock_memory_log = MagicMock()
-
     def reset_mocks():
         schema_key2instruction.reset_mock()
         command_db.reset_mock()
-        memory_log.reset_mock()
+        progress.reset_mock()
         llm_decisions_reviewer.reset_mock()
-        mock_memory_log.reset_mock()
 
     secrets = {
         "AudioHost": "theAudioHost",
@@ -215,6 +212,7 @@ def test_compute_audit_documents(
         structured_rfv=True,
         audit_llm=True,
         api_signing_key="theApiSigningKey",
+        send_progress=True,
     )
     date_x = datetime(2025, 5, 9, 12, 29, 21, tzinfo=timezone.utc)
     schema_key2instruction.side_effect = [
@@ -233,20 +231,18 @@ def test_compute_audit_documents(
             Command(schema_key="Questionnaire", id="uuid4"),
         ],
     ]
-    memory_log.instance.side_effect = [mock_memory_log]
 
     tested = Reviewer(event, secrets)
     tested.compute_audit_documents(identification, date_x, 4)
 
     calls = [call()]
     assert schema_key2instruction.mock_calls == calls
-    calls = [call.instance(identification, 'main', aws_s3_credentials)]
-    assert memory_log.mock_calls == calls
+    calls = [call.send_to_user(identification, settings, "EOF")]
+    assert progress.mock_calls == calls
     calls = [call.review(
         identification,
         settings,
         aws_s3_credentials,
-        mock_memory_log,
         {
             'theInstructionX_00': 'uuid1',
             'theInstructionY_01': 'uuid2',
@@ -257,6 +253,4 @@ def test_compute_audit_documents(
         4,
     )]
     assert llm_decisions_reviewer.mock_calls == calls
-    calls = [call.send_to_user('EOF')]
-    assert mock_memory_log.mock_calls == calls
     reset_mocks()

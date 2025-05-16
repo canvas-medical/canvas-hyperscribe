@@ -26,6 +26,7 @@ def helper_instance() -> ImagingOrder:
         structured_rfv=False,
         audit_llm=False,
         api_signing_key="theApiSigningKey",
+        send_progress=False,
     )
     cache = LimitedCache("patientUuid", {})
     identification = IdentificationParameters(

@@ -23,6 +23,7 @@ def helper_instance() -> ResolveCondition:
         structured_rfv=False,
         audit_llm=False,
         api_signing_key="theApiSigningKey",
+        send_progress=False,
     )
     cache = LimitedCache("patientUuid", {})
     identification = IdentificationParameters(

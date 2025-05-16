@@ -2,7 +2,6 @@ import json
 from argparse import Namespace
 from datetime import datetime, timezone, UTC
 from pathlib import Path
-from time import time
 from unittest.mock import patch, call, MagicMock
 
 import pytest
@@ -200,6 +199,7 @@ def test_run(
             structured_rfv=True,
             audit_llm=audit_llm,
             api_signing_key="theApiSigningKey",
+            send_progress=False,
         )
 
         run.side_effect = [None]
@@ -267,7 +267,6 @@ def test_run(
                     identifications["target"],
                     settings,
                     'awsS3CredentialsInstance1',
-                    memory_log.return_value,
                     {},
                     dates[0],
                     3,
@@ -297,6 +296,7 @@ def test_run(
             structured_rfv=True,
             audit_llm=audit_llm,
             api_signing_key="theApiSigningKey",
+            send_progress=False,
         )
 
         run.side_effect = [None]
@@ -363,7 +363,6 @@ def test_run(
                     identifications["generic"],
                     settings,
                     'awsS3CredentialsInstance1',
-                    memory_log.return_value,
                     {},
                     dates[0],
                     3,
@@ -858,14 +857,14 @@ def test__render_in_ui(summary_generated_commands, post_commands, import_module,
     reset_mocks()
 
 
-@patch("evaluations.case_builders.builder_base.time", wraps=time)
+@patch("evaluations.case_builders.builder_base.Authenticator")
 @patch("evaluations.case_builders.builder_base.requests_post")
 @patch("evaluations.case_builders.builder_base.HelperEvaluation")
-def test__post_commands(helper_evaluation, requests_post, mock_time):
+def test__post_commands(helper_evaluation, requests_post, authenticator):
     def reset_mocks():
         helper_evaluation.reset_mock()
         requests_post.reset_mock()
-        mock_time.reset_mock()
+        authenticator.reset_mock()
 
     settings = Settings(
         llm_text=VendorKey(vendor="theVendorTextLLM", api_key="theKeyTextLLM"),
@@ -876,6 +875,7 @@ def test__post_commands(helper_evaluation, requests_post, mock_time):
         structured_rfv=True,
         audit_llm=True,
         api_signing_key="theApiSigningKey",
+        send_progress=False,
     )
 
     tested = BuilderBase
@@ -883,7 +883,7 @@ def test__post_commands(helper_evaluation, requests_post, mock_time):
     helper_evaluation.settings.side_effect = [settings]
     helper_evaluation.get_canvas_host.side_effect = ["https://theHost"]
     requests_post.side_effect = ["postResponse"]
-    mock_time.side_effect = [1747163653.9470942]
+    authenticator.presigned_url.side_effect = ["thePresignedUrl"]
 
     result = tested._post_commands([{"key1": "value1", "key2": "value2"}])
     assert result == "postResponse"
@@ -893,13 +893,16 @@ def test__post_commands(helper_evaluation, requests_post, mock_time):
         call.get_canvas_host(),
     ]
     assert helper_evaluation.mock_calls == calls
-    calls = [call()]
-    assert mock_time.mock_calls == calls
+    calls = [call.presigned_url(
+        'theApiSigningKey',
+        'https://theHost/plugin-io/api/hyperscribe/case_builder',
+        {},
+    )]
+    assert authenticator.mock_calls == calls
     calls = [
         call(
-            'https://theHost/plugin-io/api/hyperscribe/case_builder',
+            'thePresignedUrl',
             headers={'Content-Type': 'application/json'},
-            params={'ts': '1747163653', 'sig': '10b873fcbeef79834cc483520fbbbdf4ed9bc4f8bd4c1a941c40162da30852d7'},
             json=[{'key1': 'value1', 'key2': 'value2'}],
             verify=True,
             timeout=None,

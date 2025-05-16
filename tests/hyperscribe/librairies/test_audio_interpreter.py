@@ -32,6 +32,7 @@ def helper_instance(mocks, with_audit) -> tuple[AudioInterpreter, Settings, AwsS
             structured_rfv=False,
             audit_llm=with_audit,
             api_signing_key="theApiSigningKey",
+            send_progress=False,
         )
         aws_s3 = AwsS3Credentials(aws_key="theKey", aws_secret="theSecret", region="theRegion", bucket="theBucket")
         if mocks:
@@ -80,6 +81,7 @@ def test___init__(command_list):
         structured_rfv=False,
         audit_llm=False,
         api_signing_key="theApiSigningKey",
+        send_progress=False,
     )
     aws_s3 = AwsS3Credentials(aws_key="theKey", aws_secret="theSecret", region="theRegion", bucket="theBucket")
 
@@ -766,22 +768,22 @@ def test_detect_instructions(
 
 
 @patch("hyperscribe.libraries.audio_interpreter.datetime", wraps=datetime)
+@patch("hyperscribe.libraries.audio_interpreter.Progress")
 @patch("hyperscribe.libraries.audio_interpreter.MemoryLog")
 @patch.object(Helper, "chatter")
-def test_create_sdk_command_parameters(chatter, memory_log, mock_datetime):
+def test_create_sdk_command_parameters(chatter, memory_log, progress, mock_datetime):
     mocks = [
         MagicMock(),
         MagicMock(),
         MagicMock(),
         MagicMock(),
     ]
-    mock_memory_log_instance = MagicMock()
 
     def reset_mocks():
         chatter.reset_mock()
         memory_log.reset_mock()
+        progress.reset_mock()
         mock_datetime.reset_mock()
-        mock_memory_log_instance.reset_mock()
         for item in mocks:
             item.reset_mock()
         mocks[0].return_value.class_name.side_effect = ["First", "First"]
@@ -837,7 +839,6 @@ def test_create_sdk_command_parameters(chatter, memory_log, mock_datetime):
     # with response
     mock_datetime.now.side_effect = [datetime(2025, 2, 4, 7, 48, 21, tzinfo=timezone.utc)]
     chatter.return_value.single_conversation.side_effect = [[{"key": "response1"}, {"key": "response2"}]]
-    memory_log.instance.side_effect = [mock_memory_log_instance]
     result = tested.create_sdk_command_parameters(instruction)
     expected = InstructionWithParameters(
         uuid="theUuid",
@@ -850,14 +851,16 @@ def test_create_sdk_command_parameters(chatter, memory_log, mock_datetime):
     )
     assert result == expected
     calls = [
-        call(settings, mock_memory_log_instance),
+        call(settings, memory_log.instance.return_value),
         call().single_conversation(system_prompt, user_prompt, schemas, instruction),
     ]
     assert chatter.mock_calls == calls
     calls = [call.instance(tested.identification, "Second_theUuid_instruction2parameters", aws_credentials)]
     assert memory_log.mock_calls == calls
-    calls = [call.send_to_user('parameters identified for Second')]
-    assert mock_memory_log_instance.mock_calls == calls
+    calls = [
+        call.send_to_user(tested.identification, settings, "parameters identified for Second"),
+    ]
+    assert progress.mock_calls == calls
     calls = [call.now()]
     assert mock_datetime.mock_calls == calls
     for idx, mock in enumerate(mocks):
@@ -877,17 +880,17 @@ def test_create_sdk_command_parameters(chatter, memory_log, mock_datetime):
     # without response
     mock_datetime.now.side_effect = [datetime(2025, 2, 4, 7, 48, 21, tzinfo=timezone.utc)]
     chatter.return_value.single_conversation.side_effect = [[]]
-    memory_log.instance.side_effect = [mock_memory_log_instance]
     result = tested.create_sdk_command_parameters(instruction)
     assert result is None
     calls = [
-        call(settings, mock_memory_log_instance),
+        call(settings, memory_log.instance.return_value),
         call().single_conversation(system_prompt, user_prompt, schemas, instruction),
     ]
     assert chatter.mock_calls == calls
     calls = [call.instance(tested.identification, "Second_theUuid_instruction2parameters", aws_credentials)]
     assert memory_log.mock_calls == calls
-    assert mock_memory_log_instance.mock_calls == []
+    calls = []
+    assert progress.mock_calls == calls
     calls = [call.now()]
     assert mock_datetime.mock_calls == calls
     for idx, mock in enumerate(mocks):
@@ -902,21 +905,21 @@ def test_create_sdk_command_parameters(chatter, memory_log, mock_datetime):
     reset_mocks()
 
 
+@patch("hyperscribe.libraries.audio_interpreter.Progress")
 @patch("hyperscribe.libraries.audio_interpreter.MemoryLog")
 @patch.object(Helper, "chatter")
-def test_create_sdk_command_from(chatter, memory_log):
+def test_create_sdk_command_from(chatter, memory_log, progress):
     mocks = [
         MagicMock(),
         MagicMock(),
         MagicMock(),
         MagicMock(),
     ]
-    mock_memory_log_instance = MagicMock()
 
     def reset_mocks():
         chatter.reset_mock()
         memory_log.reset_mock()
-        mock_memory_log_instance.reset_mock()
+        progress.reset_mock()
         for item in mocks:
             item.reset_mock()
         mocks[0].return_value.class_name.side_effect = ["First"]
@@ -938,7 +941,6 @@ def test_create_sdk_command_from(chatter, memory_log):
     ]
     for name, rank, expected, exp_log_label, exp_log_ui in tests:
         chatter.side_effect = ["LlmBaseInstance"]
-        memory_log.instance.side_effect = [mock_memory_log_instance]
         instruction = InstructionWithParameters(
             uuid="theUuid",
             index=7,
@@ -952,14 +954,14 @@ def test_create_sdk_command_from(chatter, memory_log):
         result = tested.create_sdk_command_from(instruction)
         assert result == expected
 
-        calls = [call(settings, mock_memory_log_instance)] if exp_log_label else []
+        calls = [call(settings, memory_log.instance.return_value)] if exp_log_label else []
         assert chatter.mock_calls == calls
         calls = [call.instance(tested.identification, exp_log_label, aws_credentials)] if exp_log_label else []
         assert memory_log.mock_calls == calls
         calls = []
         if exp_log_ui:
-            calls = [call.send_to_user(exp_log_ui)]
-        assert mock_memory_log_instance.mock_calls == calls
+            calls = [call.send_to_user(tested.identification, settings, exp_log_ui)]
+        assert progress.mock_calls == calls
         for idx, mock in enumerate(mocks):
             calls = [
                 call(settings, cache, tested.identification),

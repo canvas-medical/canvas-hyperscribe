@@ -45,6 +45,7 @@ def test_settings(monkeypatch):
             structured_rfv=exp_bool,
             audit_llm=exp_bool,
             api_signing_key="theApiSigningKey",
+            send_progress=False,
         )
         assert result == expected
 
@@ -161,7 +162,7 @@ def test_get_canvas_host(monkeypatch):
     monkeypatch.setenv("CUSTOMER_IDENTIFIER", "local")
     tested = HelperEvaluation
     result = tested.get_canvas_host()
-    expected = "http://local:8000"
+    expected = "http://localhost:8000"
     assert result == expected
 
     monkeypatch.delenv("CUSTOMER_IDENTIFIER")

@@ -1,6 +1,6 @@
 import json
 from datetime import timezone, datetime
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import patch, call
 
 from hyperscribe.libraries.cached_discussion import CachedDiscussion
 from hyperscribe.libraries.llm_decisions_reviewer import LlmDecisionsReviewer
@@ -12,6 +12,7 @@ from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
 
 
+@patch('hyperscribe.libraries.llm_decisions_reviewer.Progress')
 @patch('hyperscribe.libraries.llm_decisions_reviewer.MemoryLog')
 @patch('hyperscribe.libraries.llm_decisions_reviewer.LlmTurnsStore')
 @patch('hyperscribe.libraries.llm_decisions_reviewer.Helper')
@@ -23,16 +24,15 @@ def test_review(
         helper,
         llm_turns_store,
         memory_log,
+        progress,
 ):
-    mock_memory_log = MagicMock()
-
     def reset_mocks():
         aws_s3.reset_mock()
         cached_discussion.reset_mock()
         helper.reset_mock()
         llm_turns_store.reset_mock()
         memory_log.reset_mock()
-        mock_memory_log.reset_mock()
+        progress.reset_mock()
 
     identification = IdentificationParameters(
         patient_uuid="patientUuid",
@@ -182,20 +182,21 @@ def test_review(
         structured_rfv=True,
         audit_llm=False,
         api_signing_key="theApiSigningKey",
+        send_progress=False,
     )
     aws_s3.return_value.is_ready.side_effect = []
     cached_discussion.get_discussion.side_effect = []
     llm_turns_store.return_value.stored_document.side_effect = []
     helper.chatter.return_value.single_conversation.side_effect = []
-    memory_log.instance.side_effect = []
 
-    tested.review(identification, settings, aws_s3_credentials, mock_memory_log, command2uuid, date_x, 5)
+    tested.review(identification, settings, aws_s3_credentials, command2uuid, date_x, 5)
 
     assert aws_s3.mock_calls == []
     assert cached_discussion.mock_calls == []
     assert helper.mock_calls == []
     assert llm_turns_store.mock_calls == []
-    assert mock_memory_log.mock_calls == []
+    assert memory_log.mock_calls == []
+    assert progress.mock_calls == []
     reset_mocks()
 
     # with audit
@@ -208,6 +209,7 @@ def test_review(
         structured_rfv=True,
         audit_llm=True,
         api_signing_key="theApiSigningKey",
+        send_progress=False,
     )
     # -- S3 not ready
     aws_s3.return_value.is_ready.side_effect = [False]
@@ -216,7 +218,7 @@ def test_review(
     helper.chatter.return_value.single_conversation.side_effect = []
     memory_log.instance.side_effect = []
 
-    tested.review(identification, settings, aws_s3_credentials, mock_memory_log, command2uuid, date_x, 5)
+    tested.review(identification, settings, aws_s3_credentials, command2uuid, date_x, 5)
     calls = [
         call(aws_s3_credentials),
         call().is_ready(),
@@ -225,7 +227,8 @@ def test_review(
     assert cached_discussion.mock_calls == []
     assert helper.mock_calls == []
     assert llm_turns_store.mock_calls == []
-    assert mock_memory_log.mock_calls == []
+    assert memory_log.mock_calls == []
+    assert progress.mock_calls == []
     reset_mocks()
 
     # -- S3 ready + documents
@@ -293,7 +296,7 @@ def test_review(
         "memoryLogInstance6",
         "memoryLogInstance7",
     ]
-    tested.review(identification, settings, aws_s3_credentials, mock_memory_log, command2uuid, date_x, 4)
+    tested.review(identification, settings, aws_s3_credentials, command2uuid, date_x, 4)
     calls = [
         call(aws_s3_credentials),
         call().is_ready(),
@@ -379,16 +382,16 @@ def test_review(
     ]
     assert memory_log.mock_calls == calls
     calls = [
-        call.send_to_user('create the audits...'),
-        call.send_to_user('auditing of transcript2instructions_00 (cycle  1)'),
-        call.send_to_user('auditing of transcript2instructions_01 (cycle  1)'),
-        call.send_to_user('auditing of canvasCommandX_00_00 (cycle  1)'),
-        call.send_to_user('auditing of canvasCommandX_00_01 (cycle  1)'),
-        call.send_to_user('auditing of canvasCommandY_01_00 (cycle  2)'),
-        call.send_to_user('auditing of canvasCommandY_02_00 (cycle  2)'),
-        # no cycle 3 since there are no document
-        call.send_to_user('auditing of Questionnaire_06_00 (cycle  4)'),
-        call.send_to_user('audits done')
+        call.send_to_user(identification, settings, 'create the audits...'),
+        call.send_to_user(identification, settings, 'auditing of transcript2instructions_00 (cycle  1)'),
+        call.send_to_user(identification, settings, 'auditing of transcript2instructions_01 (cycle  1)'),
+        call.send_to_user(identification, settings, 'auditing of canvasCommandX_00_00 (cycle  1)'),
+        call.send_to_user(identification, settings, 'auditing of canvasCommandX_00_01 (cycle  1)'),
+        call.send_to_user(identification, settings, 'auditing of canvasCommandY_01_00 (cycle  2)'),
+        call.send_to_user(identification, settings, 'auditing of canvasCommandY_02_00 (cycle  2)'),
+        # no cycle 3 since there is no document
+        call.send_to_user(identification, settings, 'auditing of Questionnaire_06_00 (cycle  4)'),
+        call.send_to_user(identification, settings, 'audits done')
     ]
-    assert mock_memory_log.mock_calls == calls
+    assert progress.mock_calls == calls
     reset_mocks()

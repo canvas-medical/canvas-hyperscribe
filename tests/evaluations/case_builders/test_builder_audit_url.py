@@ -5,6 +5,8 @@ from _pytest.capture import CaptureResult
 
 from evaluations.case_builders.builder_audit_url import BuilderAuditUrl
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
+from hyperscribe.structures.settings import Settings
+from hyperscribe.structures.vendor_key import VendorKey
 
 
 @patch("evaluations.case_builders.builder_audit_url.ArgumentParser")
@@ -48,19 +50,19 @@ def test_run(parameters, presigned_url):
     reset_mocks()
 
 
-@patch("evaluations.case_builders.builder_audit_url.ReviewerButton")
+@patch("evaluations.case_builders.builder_audit_url.Authenticator")
 @patch("evaluations.case_builders.builder_audit_url.HelperEvaluation")
 @patch("evaluations.case_builders.builder_audit_url.AwsS3")
 def test_presigned_url(
         aws_s3,
         helper,
-        reviewer_button,
+        authenticator,
         capsys,
 ):
     def reset_mocks():
         aws_s3.reset_mock()
         helper.reset_mock()
-        reviewer_button.reset_mock()
+        authenticator.reset_mock()
 
     aws_s3_credentials = AwsS3Credentials(
         aws_key='theKey',
@@ -69,13 +71,25 @@ def test_presigned_url(
         bucket='theBucket',
     )
 
+    settings = Settings(
+        llm_text=VendorKey(vendor="theVendorTextLLM", api_key="theKeyTextLLM"),
+        llm_audio=VendorKey(vendor="theVendorAudioLLM", api_key="theKeyAudioLLM"),
+        science_host='theScienceHost',
+        ontologies_host='theOntologiesHost',
+        pre_shared_key='thePreSharedKey',
+        structured_rfv=True,
+        audit_llm=False,
+        api_signing_key="theApiSigningKey",
+        send_progress=False,
+    )
+
     tested = BuilderAuditUrl()
 
     # aws not ready
     aws_s3.return_value.is_ready.side_effect = [False]
     helper.aws_s3_credentials.side_effect = [aws_s3_credentials]
     helper.get_canvas_instance.side_effect = []
-    reviewer_button.presigned_url.side_effect = []
+    authenticator.presigned_url.side_effect = []
 
     tested.presigned_url("thePatient", "theNote")
 
@@ -90,14 +104,15 @@ def test_presigned_url(
     calls = [call.aws_s3_credentials()]
     assert helper.mock_calls == calls
     calls = []
-    assert reviewer_button.mock_calls == calls
+    assert authenticator.mock_calls == calls
     reset_mocks()
 
     # aws is ready
     aws_s3.return_value.is_ready.side_effect = [True]
     helper.aws_s3_credentials.side_effect = [aws_s3_credentials]
+    helper.settings.side_effect = [settings]
     helper.get_canvas_host.side_effect = ["https://canvasInstance"]
-    reviewer_button.presigned_url.side_effect = ["/presignedUrl"]
+    authenticator.presigned_url.side_effect = ["/presignedUrl"]
 
     tested.presigned_url("thePatient", "theNote")
 
@@ -120,9 +135,14 @@ def test_presigned_url(
     assert aws_s3.mock_calls == calls
     calls = [
         call.aws_s3_credentials(),
+        call.settings(),
         call.get_canvas_host(),
     ]
     assert helper.mock_calls == calls
-    calls = [call.presigned_url('thePatient', 'theNote', 'theSecret')]
-    assert reviewer_button.mock_calls == calls
+    calls = [call.presigned_url(
+        'theApiSigningKey',
+        '/plugin-io/api/hyperscribe/reviewer',
+        {'patient_id': 'thePatient', 'note_id': 'theNote'},
+    )]
+    assert authenticator.mock_calls == calls
     reset_mocks()

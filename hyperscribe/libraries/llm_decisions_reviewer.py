@@ -1,6 +1,7 @@
 import json
 from datetime import datetime
 
+from hyperscribe.handlers.progress import Progress
 from hyperscribe.libraries.aws_s3 import AwsS3
 from hyperscribe.libraries.cached_discussion import CachedDiscussion
 from hyperscribe.libraries.helper import Helper
@@ -21,7 +22,6 @@ class LlmDecisionsReviewer:
             identification: IdentificationParameters,
             settings: Settings,
             credentials: AwsS3Credentials,
-            memory_log: MemoryLog,
             command2uuid: dict,
             created: datetime,
             cycles: int,
@@ -38,12 +38,12 @@ class LlmDecisionsReviewer:
         creation_day = cached.creation_day()
         cached.cycle = cycles + 1  # to force the new logs in a subsequent folder
 
-        memory_log.send_to_user("create the audits...")
+        Progress.send_to_user(identification, settings, "create the audits...")
         for cycle in range(1, cycles + 1):
             result: list[dict[str, list[str]]] = []
             store = LlmTurnsStore(credentials, identification, creation_day, cycle)
             for incremented_step, discussion in store.stored_documents():
-                memory_log.send_to_user(f"auditing of {incremented_step} (cycle {cycle: 02d})")
+                Progress.send_to_user(identification, settings, f"auditing of {incremented_step} (cycle {cycle: 02d})")
                 indexed_command, increment = LlmTurnsStore.decompose(incremented_step)
                 chatter = Helper.chatter(
                     settings,
@@ -94,4 +94,4 @@ class LlmDecisionsReviewer:
                           f"{identification.note_uuid}/"
                           f"final_audit_{cycle:02d}.log")
             client_s3.upload_text_to_s3(store_path, json.dumps(result, indent=2))
-        memory_log.send_to_user("audits done")
+        Progress.send_to_user(identification, settings, "audits done")

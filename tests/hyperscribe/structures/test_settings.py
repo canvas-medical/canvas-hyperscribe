@@ -18,6 +18,7 @@ def test_class():
         "structured_rfv": bool,
         "audit_llm": bool,
         "api_signing_key": str,
+        "send_progress": bool,
     }
     assert is_namedtuple(tested, fields)
 
@@ -30,12 +31,12 @@ def test_from_dictionary(is_true):
     tested = Settings
 
     tests = [
-        (True, True),
-        (True, False),
-        (False, True),
-        (False, False),
+        (True, True, True),
+        (True, False, False),
+        (False, True, False),
+        (False, False, True),
     ]
-    for rfv, audit in tests:
+    for rfv, audit, progress in tests:
         is_true.side_effect = [rfv, audit]
         result = tested.from_dictionary({
             "VendorTextLLM": "textVendor",
@@ -48,6 +49,7 @@ def test_from_dictionary(is_true):
             "StructuredReasonForVisit": "rfv",
             "AuditLLMDecisions": "audit",
             "APISigningKey": "theApiSigningKey",
+            "sendProgress": progress,
         })
         expected = Settings(
             llm_text=VendorKey(vendor="textVendor", api_key="textAPIKey"),
@@ -58,6 +60,7 @@ def test_from_dictionary(is_true):
             structured_rfv=rfv,
             audit_llm=audit,
             api_signing_key="theApiSigningKey",
+            send_progress=progress,
         )
         assert result == expected
         calls = [call("rfv"), call("audit")]

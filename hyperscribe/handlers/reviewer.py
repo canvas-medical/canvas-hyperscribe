@@ -11,11 +11,11 @@ from canvas_sdk.v1.data.command import Command
 from canvas_sdk.v1.data.note import Note
 from logger import log
 
+from hyperscribe.handlers.progress import Progress
 from hyperscribe.libraries.constants import Constants
 from hyperscribe.libraries.implemented_commands import ImplementedCommands
 from hyperscribe.libraries.llm_decisions_reviewer import LlmDecisionsReviewer
 from hyperscribe.libraries.llm_turns_store import LlmTurnsStore
-from hyperscribe.libraries.memory_log import MemoryLog
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.comment_body import CommentBody
 from hyperscribe.structures.identification_parameters import IdentificationParameters
@@ -63,16 +63,14 @@ class Reviewer(BaseProtocol):
             ).order_by("dbid"))
         }
 
-        settings = Settings.from_dictionary(self.secrets)
+        settings = Settings.from_dictionary(self.secrets | {Constants.PROGRESS_SETTING_KEY: True})
         credentials = AwsS3Credentials.from_dictionary(self.secrets)
-        memory_log = MemoryLog.instance(identification, Constants.MEMORY_LOG_LABEL, credentials)
         LlmDecisionsReviewer.review(
             identification,
             settings,
             credentials,
-            memory_log,
             command2uuid,
             created,
             cycles,
         )
-        memory_log.send_to_user(Constants.INFORMANT_END_OF_MESSAGES)
+        Progress.send_to_user(identification, settings, Constants.PROGRESS_END_OF_MESSAGES)

@@ -26,6 +26,7 @@ def helper_instance() -> SurgeryHistory:
         structured_rfv=False,
         audit_llm=False,
         api_signing_key="theApiSigningKey",
+        send_progress=False,
     )
     cache = LimitedCache("patientUuid", {})
     identification = IdentificationParameters(
@@ -60,8 +61,7 @@ def test_staged_command_extract():
                  "text": "theSurgery",
                  "value": 40653006,
              }
-         }
-        , CodedItem(label="theSurgery: theComment (on: theDate)", code="40653006", uuid="")),
+         }, CodedItem(label="theSurgery: theComment (on: theDate)", code="40653006", uuid="")),
         ({
              "comment": "theComment",
              "approximate_date": {"date": "theDate"},
@@ -69,8 +69,7 @@ def test_staged_command_extract():
                  "text": "",
                  "value": 40653006,
              }
-         }
-        , None),
+         }, None),
         ({
              "comment": "theComment",
              "approximate_date": {"date": ""},
@@ -78,8 +77,7 @@ def test_staged_command_extract():
                  "text": "theSurgery",
                  "value": 40653006,
              }
-         }
-        , CodedItem(label="theSurgery: theComment (on: n/a)", code="40653006", uuid="")),
+         }, CodedItem(label="theSurgery: theComment (on: n/a)", code="40653006", uuid="")),
         ({
              "comment": "",
              "approximate_date": {"date": "theDate"},
@@ -87,8 +85,7 @@ def test_staged_command_extract():
                  "text": "theSurgery",
                  "value": 40653006,
              }
-         }
-        , CodedItem(label="theSurgery: n/a (on: theDate)", code="40653006", uuid="")),
+         }, CodedItem(label="theSurgery: n/a (on: theDate)", code="40653006", uuid="")),
         ({
              "comment": "theComment",
              "approximate_date": {"date": "theDate"},
@@ -96,8 +93,7 @@ def test_staged_command_extract():
                  "text": "theSurgery",
                  "value": 40653006,
              }
-         }
-        , CodedItem(label="theSurgery: theComment (on: theDate)", code="40653006", uuid="")),
+         }, CodedItem(label="theSurgery: theComment (on: theDate)", code="40653006", uuid="")),
     ]
     for data, expected in tests:
         result = tested.staged_command_extract(data)

@@ -23,6 +23,7 @@ def helper_instance(structured_rfv: bool = False) -> ReasonForVisit:
         structured_rfv=structured_rfv,
         audit_llm=False,
         api_signing_key="theApiSigningKey",
+        send_progress=False,
     )
     cache = LimitedCache("patientUuid", {})
     identification = IdentificationParameters(

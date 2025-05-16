@@ -109,6 +109,7 @@ def test_chatter():
             structured_rfv=False,
             audit_llm=False,
             api_signing_key="theApiSigningKey",
+            send_progress=False,
         ), memory_log)
         assert memory_log.mock_calls == []
         assert isinstance(result, exp_class)
@@ -135,6 +136,7 @@ def test_audio2texter():
             structured_rfv=False,
             audit_llm=False,
             api_signing_key="theApiSigningKey",
+            send_progress=False,
         ), memory_log)
         assert memory_log.mock_calls == []
         assert isinstance(result, exp_class)

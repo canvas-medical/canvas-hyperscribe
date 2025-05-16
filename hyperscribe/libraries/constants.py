@@ -4,8 +4,6 @@ class Constants:
     API_SIGNED_EXPIRATION_SECONDS = 1200
     DISCUSSION_CACHED_DURATION = 90  # minutes before a discussion is cleared
     GOOGLE_CHAT_ALL = "models/gemini-2.0-flash"  # LLM model used for speech to text and text completion
-    INFORMANT_AWS_BUCKET = "hyperscribe"
-    INFORMANT_END_OF_MESSAGES = "EOF"
     LABEL_ENCOUNTER_COPILOT = "Encounter Copilot"
     MAX_ATTEMPTS_LLM_HTTP = 3
     MAX_ATTEMPTS_LLM_JSON = 3
@@ -74,3 +72,7 @@ class Constants:
     SECRET_STRUCTURED_RFV = "StructuredReasonForVisit"
     SECRET_AUDIT_LLM = "AuditLLMDecisions"
     SECRET_API_SIGNING_KEY = "APISigningKey"
+    #
+    PROGRESS_END_OF_MESSAGES = "EOF"
+    PROGRESS_SETTING_KEY = "sendProgress"
+    PROGRESS_EXPIRATION_SECONDS = 7200

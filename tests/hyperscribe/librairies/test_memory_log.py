@@ -1,4 +1,4 @@
-from datetime import datetime, timezone, UTC
+from datetime import datetime, timezone
 from unittest.mock import patch, call
 
 import hyperscribe.libraries.memory_log as memory_log
@@ -89,36 +89,20 @@ def test___init__():
     )
 
     with patch.object(memory_log, "ENTRIES", {}):
-        with patch.object(memory_log, "PROGRESS", {}):
-            tested = MemoryLog(identification, "theLabel")
-            expected = {"noteUuid": {"theLabel": []}}
-            assert memory_log.ENTRIES == expected
-            expected = {"noteUuid": []}
-            assert memory_log.PROGRESS == expected
+        tested = MemoryLog(identification, "theLabel")
+        expected = {"noteUuid": {"theLabel": []}}
+        assert memory_log.ENTRIES == expected
 
-            # nothing empty
-            memory_log.ENTRIES = {"noteUuid": {"theLabel": []}}
-            # -- progress without EOF
-            memory_log.PROGRESS = {"noteUuid": [
-                {"message": "the first", "time": "2025-04-30T18:19:07.343114+00:00"},
-            ]}
+        # nothing empty
+        memory_log.ENTRIES = {"noteUuid": {"theLabel": []}}
 
-            tested = MemoryLog(identification, "theLabel")
-            expected = {"noteUuid": {"theLabel": []}}
-            assert memory_log.ENTRIES == expected
-            expected = {"noteUuid": [{"message": "the first", "time": "2025-04-30T18:19:07.343114+00:00"}]}
-            assert memory_log.PROGRESS == expected
-            # -- progress with EOF
-            memory_log.PROGRESS = {"noteUuid": [
-                {"message": "EOF", "time": "2025-04-30T18:19:11.123456+00:00"},
-                {"message": "the first", "time": "2025-04-30T18:19:07.123456+00:00"},
-            ]}
+        tested = MemoryLog(identification, "theLabel")
+        expected = {"noteUuid": {"theLabel": []}}
+        assert memory_log.ENTRIES == expected
 
-            tested = MemoryLog(identification, "theLabel")
-            expected = {"noteUuid": {"theLabel": []}}
-            assert memory_log.ENTRIES == expected
-            expected = {"noteUuid": []}
-            assert memory_log.PROGRESS == expected
+        tested = MemoryLog(identification, "theLabel")
+        expected = {"noteUuid": {"theLabel": []}}
+        assert memory_log.ENTRIES == expected
 
 
 @patch("hyperscribe.libraries.memory_log.datetime", wraps=datetime)
@@ -221,89 +205,6 @@ def test_output(mock_datetime, log):
         assert log.mock_calls == calls
         reset_mocks()
         MemoryLog.end_session("noteUuid")
-
-
-@patch("hyperscribe.libraries.memory_log.datetime", wraps=datetime)
-@patch("hyperscribe.libraries.memory_log.AwsS3")
-def test_send_to_user(aws_s3, mock_datetime):
-    def reset_mocks():
-        aws_s3.reset_mock()
-        mock_datetime.reset_mock()
-
-    dates = [
-        datetime(2025, 4, 30, 14, 11, 21, tzinfo=timezone.utc),
-        datetime(2025, 4, 30, 14, 11, 23, tzinfo=timezone.utc),
-        datetime(2025, 4, 30, 14, 11, 31, tzinfo=timezone.utc),
-    ]
-    identification = IdentificationParameters(
-        patient_uuid="patientUuid",
-        note_uuid="noteUuid",
-        provider_uuid="providerUuid",
-        canvas_instance="canvasInstance",
-    )
-    aws_s3_credentials = AwsS3Credentials(
-        aws_key='theKey',
-        aws_secret='theSecret',
-        region='theRegion',
-        bucket='theBucket',
-    )
-    exp_credentials = AwsS3Credentials(
-        aws_key='theKey',
-        aws_secret='theSecret',
-        region='theRegion',
-        bucket='hyperscribe',
-    )
-
-    tested = MemoryLog(identification, "theLabel")
-    tested.s3_credentials = aws_s3_credentials
-    mock_datetime.now.side_effect = dates
-    # S3 not ready
-    aws_s3.return_value.is_ready.side_effect = [False]
-    tested.send_to_user("theMessage0")
-    calls = [
-        call(exp_credentials),
-        call().is_ready(),
-    ]
-    assert aws_s3.mock_calls == calls
-    calls = [call.now(UTC)]
-    assert mock_datetime.mock_calls == calls
-    reset_mocks()
-    # S3 ready
-    # -- adding a message
-    aws_s3.return_value.is_ready.side_effect = [True]
-    tested.send_to_user("theMessage1")
-    calls = [
-        call(exp_credentials),
-        call().is_ready(),
-        call().upload_text_to_s3(
-            "canvasInstance/progresses/patientUuid.log",
-            '{"time": "2025-04-30T14:11:23+00:00", "messages": ['
-            '{"time": "2025-04-30T14:11:23+00:00", "message": "theMessage1"}, '
-            '{"time": "2025-04-30T14:11:21+00:00", "message": "theMessage0"}]}',
-        ),
-    ]
-    assert aws_s3.mock_calls == calls
-    calls = [call.now(UTC)]
-    assert mock_datetime.mock_calls == calls
-    reset_mocks()
-    # -- adding a message
-    aws_s3.return_value.is_ready.side_effect = [True]
-    tested.send_to_user("theMessage2")
-    calls = [
-        call(exp_credentials),
-        call().is_ready(),
-        call().upload_text_to_s3(
-            "canvasInstance/progresses/patientUuid.log",
-            '{"time": "2025-04-30T14:11:31+00:00", "messages": ['
-            '{"time": "2025-04-30T14:11:31+00:00", "message": "theMessage2"}, '
-            '{"time": "2025-04-30T14:11:23+00:00", "message": "theMessage1"}, '
-            '{"time": "2025-04-30T14:11:21+00:00", "message": "theMessage0"}]}',
-        ),
-    ]
-    assert aws_s3.mock_calls == calls
-    calls = [call.now(UTC)]
-    assert mock_datetime.mock_calls == calls
-    reset_mocks()
 
 
 @patch("hyperscribe.libraries.memory_log.datetime", wraps=datetime)

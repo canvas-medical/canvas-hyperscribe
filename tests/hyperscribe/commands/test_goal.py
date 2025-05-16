@@ -1,4 +1,4 @@
-from datetime import datetime, date
+from datetime import date
 from unittest.mock import patch, call, MagicMock
 
 from canvas_sdk.commands.commands.goal import GoalCommand
@@ -24,6 +24,7 @@ def helper_instance() -> Goal:
         structured_rfv=False,
         audit_llm=False,
         api_signing_key="theApiSigningKey",
+        send_progress=False,
     )
     cache = LimitedCache("patientUuid", {})
     identification = IdentificationParameters(

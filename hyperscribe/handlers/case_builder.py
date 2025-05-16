@@ -1,7 +1,5 @@
 import json
 import re
-from hashlib import sha256
-from time import time
 from typing import Type
 
 from canvas_sdk.commands import (
@@ -18,6 +16,7 @@ from canvas_sdk.effects.simple_api import Response
 from canvas_sdk.handlers.simple_api import Credentials, SimpleAPIRoute
 from canvas_sdk.v1.data import Command, Questionnaire
 
+from hyperscribe.libraries.authenticator import Authenticator
 from hyperscribe.libraries.constants import Constants
 
 
@@ -65,20 +64,11 @@ class CaseBuilder(SimpleAPIRoute):
     }
 
     def authenticate(self, credentials: Credentials) -> bool:
-        params = self.request.query_params
-
-        if not ("ts" in params and "sig" in params):
-            return False
-
-        timestamp = int(params["ts"])
-        if (time() - timestamp) > Constants.API_SIGNED_EXPIRATION_SECONDS:
-            return False
-
-        hash_arg = f"{timestamp}{self.secrets[Constants.SECRET_API_SIGNING_KEY]}"
-        internal_sig = sha256(hash_arg.encode('utf-8')).hexdigest()
-        request_sig = params["sig"]
-
-        return bool(request_sig == internal_sig)
+        return Authenticator.check(
+            self.secrets[Constants.SECRET_API_SIGNING_KEY],
+            Constants.API_SIGNED_EXPIRATION_SECONDS,
+            self.request.query_params,
+        )
 
     def post(self) -> list[Response | Effect]:
         result: list[Effect] = []

@@ -1,12 +1,10 @@
-from hashlib import sha256
-from time import time
-
 from canvas_sdk.effects import Effect
 from canvas_sdk.effects.launch_modal import LaunchModalEffect
 from canvas_sdk.events import EventType
 from canvas_sdk.handlers.action_button import ActionButton
 from canvas_sdk.v1.data.note import Note
 
+from hyperscribe.libraries.authenticator import Authenticator
 from hyperscribe.libraries.constants import Constants
 from hyperscribe.structures.settings import Settings
 
@@ -23,7 +21,14 @@ class ReviewerButton(ActionButton):
 
     def handle(self) -> list[Effect]:
         note = Note.objects.get(dbid=self.event.context['note_id'])
-        presigned_url = self.presigned_url(str(note.patient.id), str(note.id), self.secrets[Constants.SECRET_AWS_SECRET])
+        presigned_url = Authenticator.presigned_url(
+            self.secrets[Constants.SECRET_API_SIGNING_KEY],
+            "/plugin-io/api/hyperscribe/reviewer",
+            {
+                "patient_id": str(note.patient.id),
+                "note_id": str(note.id),
+            },
+        )
         hyperscribe_pane = LaunchModalEffect(
             url=presigned_url,
             target=LaunchModalEffect.TargetType.NEW_WINDOW,
@@ -33,12 +38,3 @@ class ReviewerButton(ActionButton):
     def visible(self) -> bool:
         settings = Settings.from_dictionary(self.secrets)
         return settings.audit_llm
-
-    @classmethod
-    def presigned_url(cls, patient_uuid: str, note_uuid: str, secret: str) -> str:
-        timestamp = str(int(time()))
-        hash_arg = f"{timestamp}{secret}"
-        request_sig = sha256(hash_arg.encode('utf-8')).hexdigest()
-
-        params = f"note_id={note_uuid}&patient_id={patient_uuid}&ts={timestamp}&sig={request_sig}"
-        return f"/plugin-io/api/hyperscribe/reviewer?{params}"

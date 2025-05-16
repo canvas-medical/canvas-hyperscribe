@@ -22,18 +22,15 @@ def test_staged_command_extract():
         ({
              "allergy": {"text": "theAllergy"},
              "narrative": "theNarrative",
-         }
-        , CodedItem(label="theAllergy: theNarrative", code="", uuid="")),
+         }, CodedItem(label="theAllergy: theNarrative", code="", uuid="")),
         ({
              "allergy": {"text": ""},
              "narrative": "theNarrative",
-         }
-        , None),
+         }, None),
         ({
              "allergy": {"text": "theAllergy"},
              "narrative": "",
-         }
-        , CodedItem(label="theAllergy: n/a", code="", uuid="")),
+         }, CodedItem(label="theAllergy: n/a", code="", uuid="")),
     ]
     for data, expected in tests:
         result = tested.staged_command_extract(data)

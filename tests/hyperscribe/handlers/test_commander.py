@@ -36,6 +36,7 @@ def test_constants():
 
 @patch("hyperscribe.handlers.commander.datetime", wraps=datetime)
 @patch("hyperscribe.handlers.commander.LlmTurnsStore")
+@patch("hyperscribe.handlers.commander.Progress")
 @patch("hyperscribe.handlers.commander.MemoryLog")
 @patch.object(log, "info")
 @patch.object(Note, "objects")
@@ -47,6 +48,7 @@ def test_compute(
         note_db,
         info,
         memory_log,
+        progress,
         llm_turns_store,
         mock_datetime,
 ):
@@ -59,6 +61,7 @@ def test_compute(
         note_db.reset_mock()
         info.reset_mock()
         memory_log.reset_mock()
+        progress.reset_mock()
         llm_turns_store.reset_mock()
         mock_comment.reset_mock()
         mock_note.reset_mock()
@@ -80,14 +83,35 @@ def test_compute(
         region='theRegion',
         bucket='theBucket',
     )
+    settings = Settings(
+        llm_text=VendorKey(vendor="textVendor", api_key="textAPIKey"),
+        llm_audio=VendorKey(vendor="audioVendor", api_key="audioAPIKey"),
+        science_host='theScienceHost',
+        ontologies_host='theOntologiesHost',
+        pre_shared_key='thePreSharedKey',
+        structured_rfv=True,
+        audit_llm=False,
+        api_signing_key="theApiSigningKey",
+        send_progress=True,  # <-- changed in the code
+    )
     date_x = datetime(2025, 5, 9, 12, 34, 21, tzinfo=timezone.utc)
     secrets = {
-        "VendorTextLLM": "theTextVendor",
-        "VendorAudioLLM": "theAudioVendor",
+        "AudioHost": "theAudioHost",
+        "VendorTextLLM": "textVendor",
+        "KeyTextLLM": "textAPIKey",
+        "VendorAudioLLM": "audioVendor",
+        "KeyAudioLLM": "audioAPIKey",
+        "ScienceHost": "theScienceHost",
+        "OntologiesHost": "theOntologiesHost",
+        "PreSharedKey": "thePreSharedKey",
+        "StructuredReasonForVisit": "y",
+        "AuditLLMDecisions": "n",
         "AwsKey": "theKey",
         "AwsSecret": "theSecret",
         "AwsRegion": "theRegion",
         "AwsBucket": "theBucket",
+        "APISigningKey": "theApiSigningKey",
+        "sendProgress": False,
     }
     event = Event(EventRequest(target="taskUuid"))
     environment = {"CUSTOMER_IDENTIFIER": "theTestEnv"}
@@ -110,6 +134,7 @@ def test_compute(
     assert note_db.mock_calls == []
     assert info.mock_calls == []
     assert memory_log.mock_calls == []
+    assert progress.mock_calls == []
     assert llm_turns_store.mock_calls == []
     calls = [
         call.task.labels.filter(name='Encounter Copilot'),
@@ -144,6 +169,7 @@ def test_compute(
     assert task_comment_db.mock_calls == calls
     assert info.mock_calls == []
     assert memory_log.mock_calls == []
+    assert progress.mock_calls == []
     assert llm_turns_store.mock_calls == []
     calls = [
         call.task.labels.filter(name='Encounter Copilot'),
@@ -190,7 +216,7 @@ def test_compute(
     ]
     assert result == expected
 
-    calls = [call(identification, 7)]
+    calls = [call(identification, settings, aws_s3_credentials, "theAudioHost", 7)]
     assert compute_audio.mock_calls == calls
     calls = [call.get(id='taskUuid')]
     assert task_comment_db.mock_calls == calls
@@ -198,13 +224,17 @@ def test_compute(
         call("audio was present => go to next iteration (8)"),
     ]
     assert info.mock_calls == calls
+    m = call.instance()
     calls = [
         call.instance(identification, "main", aws_s3_credentials),
-        call.instance().output("Text: theTextVendor - Audio: theAudioVendor"),
-        call.instance().send_to_user("waiting for the next cycle 8..."),
+        call.instance().output("Text: textVendor - Audio: audioVendor"),
         call.end_session("noteUuid"),
     ]
     assert memory_log.mock_calls == calls
+    calls = [
+        call.send_to_user(identification, settings, "waiting for the next cycle 8..."),
+    ]
+    assert progress.mock_calls == calls
     calls = [call.end_session('noteUuid')]
     assert llm_turns_store.mock_calls == calls
     calls = [
@@ -252,7 +282,7 @@ def test_compute(
     ]
     assert result == expected
 
-    calls = [call(identification, 7)]
+    calls = [call(identification, settings, aws_s3_credentials, "theAudioHost", 7)]
     assert compute_audio.mock_calls == calls
     calls = [call.get(id='taskUuid')]
     assert task_comment_db.mock_calls == calls
@@ -262,13 +292,17 @@ def test_compute(
         call("  => stop the task"),
     ]
     assert info.mock_calls == calls
+    m1 = call.instance()
     calls = [
         call.instance(identification, "main", aws_s3_credentials),
-        call.instance().output("Text: theTextVendor - Audio: theAudioVendor"),
-        call.instance().send_to_user("finished"),
+        call.instance().output("Text: textVendor - Audio: audioVendor"),
         call.end_session("noteUuid"),
     ]
     assert memory_log.mock_calls == calls
+    calls = [
+        call.send_to_user(identification, settings, "finished"),
+    ]
+    assert progress.mock_calls == calls
     calls = [call.end_session('noteUuid')]
     assert llm_turns_store.mock_calls == calls
     calls = [
@@ -285,6 +319,7 @@ def test_compute(
 
 
 @patch('hyperscribe.handlers.commander.AwsS3')
+@patch('hyperscribe.handlers.commander.Progress')
 @patch('hyperscribe.handlers.commander.MemoryLog')
 @patch('hyperscribe.handlers.commander.LimitedCache')
 @patch('hyperscribe.handlers.commander.AudioInterpreter')
@@ -306,6 +341,7 @@ def test_compute_audio(
         audio_interpreter,
         limited_cache,
         memory_log,
+        progress,
         aws_s3,
 ):
     def reset_mocks():
@@ -319,25 +355,9 @@ def test_compute_audio(
         audio_interpreter.reset_mock()
         limited_cache.reset_mock()
         memory_log.reset_mock()
+        progress.reset_mock()
         aws_s3.reset_mock()
 
-    secrets = {
-        "AudioHost": "theAudioHost",
-        "KeyTextLLM": "theKeyTextLLM",
-        "VendorTextLLM": "theVendorTextLLM",
-        "KeyAudioLLM": "theKeyAudioLLM",
-        "VendorAudioLLM": "theVendorAudioLLM",
-        "ScienceHost": "theScienceHost",
-        "OntologiesHost": "theOntologiesHost",
-        "PreSharedKey": "thePreSharedKey",
-        "StructuredReasonForVisit": "yes",
-        "AwsKey": "theKey",
-        "AwsSecret": "theSecret",
-        "AwsRegion": "theRegion",
-        "AwsBucket": "theBucket",
-        "APISigningKey": "theApiSigningKey",
-    }
-    event = Event(EventRequest(target="taskUuid"))
     identification = IdentificationParameters(
         patient_uuid="patientUuid",
         note_uuid="noteUuid",
@@ -349,6 +369,17 @@ def test_compute_audio(
         aws_secret='theSecret',
         region='theRegion',
         bucket='theBucket',
+    )
+    settings = Settings(
+        llm_text=VendorKey(vendor="theVendorTextLLM", api_key="theKeyTextLLM"),
+        llm_audio=VendorKey(vendor="theVendorAudioLLM", api_key="theKeyAudioLLM"),
+        science_host='theScienceHost',
+        ontologies_host='theOntologiesHost',
+        pre_shared_key='thePreSharedKey',
+        structured_rfv=True,
+        audit_llm=False,
+        api_signing_key="theApiSigningKey",
+        send_progress=False,
     )
     # no more audio
     retrieve_audios.side_effect = [[]]
@@ -362,8 +393,8 @@ def test_compute_audio(
     limited_cache.side_effect = []
     aws_s3.return_value.is_ready.side_effect = []
 
-    tested = Commander(event, secrets)
-    result = tested.compute_audio(identification, 3)
+    tested = Commander
+    result = tested.compute_audio(identification, settings, aws_s3_credentials, "theAudioHost", 3)
     expected = (False, [])
     assert result == expected
 
@@ -383,6 +414,7 @@ def test_compute_audio(
     assert cached_discussion.mock_calls == calls
     assert audio_interpreter.mock_calls == []
     assert limited_cache.mock_calls == []
+    assert progress.mock_calls == []
     assert aws_s3.mock_calls == []
     reset_mocks()
 
@@ -445,16 +477,7 @@ def test_compute_audio(
             Effect(type="LOG", payload="Log2"),
             Effect(type="LOG", payload="Log3"),
         ]
-        exp_settings = Settings(
-            llm_text=VendorKey(vendor="theVendorTextLLM", api_key="theKeyTextLLM"),
-            llm_audio=VendorKey(vendor="theVendorAudioLLM", api_key="theKeyAudioLLM"),
-            science_host='theScienceHost',
-            ontologies_host='theOntologiesHost',
-            pre_shared_key='thePreSharedKey',
-            structured_rfv=True,
-            audit_llm=False,
-            api_signing_key="theApiSigningKey",
-        )
+
         discussion = CachedDiscussion("noteUuid")
         discussion.created = datetime(2025, 3, 10, 23, 59, 7, tzinfo=timezone.utc)
         discussion.updated = datetime(2025, 3, 11, 0, 3, 17, tzinfo=timezone.utc)
@@ -472,8 +495,8 @@ def test_compute_audio(
         limited_cache.side_effect = ["LimitedCacheInstance"]
         aws_s3.return_value.is_ready.side_effect = [is_ready]
         memory_log.end_session.side_effect = ["flushedMemoryLog"]
-        tested = Commander(event, secrets)
-        result = tested.compute_audio(identification, 3)
+        tested = Commander
+        result = tested.compute_audio(identification, settings, aws_s3_credentials, "theAudioHost", 3)
         expected = (True, exp_effects)
         assert result == expected
 
@@ -484,7 +507,6 @@ def test_compute_audio(
         calls = [
             call.instance(identification, "main", aws_s3_credentials),
             call.instance().output("--> audio chunks: 2"),
-            call.instance().send_to_user("starting the cycle 3..."),
             call.instance().output("<===  note: noteUuid ===>"),
             call.instance().output("Structured RfV: True"),
             call.instance().output("Audit LLM Decisions: False"),
@@ -531,10 +553,14 @@ def test_compute_audio(
             call.get_discussion('noteUuid'),
         ]
         assert cached_discussion.mock_calls == calls
-        calls = [call(exp_settings, aws_s3_credentials, "LimitedCacheInstance", identification)]
+        calls = [call(settings, aws_s3_credentials, "LimitedCacheInstance", identification)]
         assert audio_interpreter.mock_calls == calls
         calls = [call("patientUuid", "stagedCommands")]
         assert limited_cache.mock_calls == calls
+        calls = [
+            call.send_to_user(identification, settings, "starting the cycle 3..."),
+        ]
+        assert progress.mock_calls == calls
         calls = [
             call(AwsS3Credentials(aws_key='theKey', aws_secret='theSecret', region='theRegion', bucket='theBucket')),
             call().__bool__(),
@@ -579,9 +605,10 @@ def test_retrieve_audios(get_audio):
         reset_mocks()
 
 
+@patch('hyperscribe.handlers.commander.Progress')
 @patch('hyperscribe.handlers.commander.MemoryLog')
 @patch.object(Commander, 'transcript2commands')
-def test_audio2commands(transcript2commands, memory_log):
+def test_audio2commands(transcript2commands, memory_log, progress):
     mock_auditor = MagicMock()
     mock_chatter = MagicMock()
 
@@ -590,6 +617,7 @@ def test_audio2commands(transcript2commands, memory_log):
         mock_auditor.reset_mock()
         mock_chatter.reset_mock()
         memory_log.reset_mock()
+        progress.reset_mock()
 
     tested = Commander
 
@@ -630,6 +658,7 @@ def test_audio2commands(transcript2commands, memory_log):
         ]
         mock_chatter.identification = identification
         mock_chatter.s3_credentials = "s3Credentials"
+        mock_chatter.settings = "theSettings"
 
         result = tested.audio2commands(mock_auditor, audios, mock_chatter, previous, "the last words.")
         expected = ("instructions", "effects", f"{exp_text} textC.")
@@ -638,9 +667,12 @@ def test_audio2commands(transcript2commands, memory_log):
         calls = [
             call.instance(identification, "main", "s3Credentials"),
             call.instance().output("--> transcript back and forth: 3"),
-            call.instance().send_to_user("audio reviewed, speakers detected: speaker1, speaker2"),
         ]
         assert memory_log.mock_calls == calls
+        calls = [
+            call.send_to_user(identification, "theSettings", "audio reviewed, speakers detected: speaker1, speaker2"),
+        ]
+        assert progress.mock_calls == calls
         calls = [
             call(
                 mock_auditor,
@@ -825,9 +857,10 @@ def test_transcript2command(transcript2commands_common, transcript2commands_ques
     reset_mocks()
 
 
+@patch('hyperscribe.handlers.commander.Progress')
 @patch('hyperscribe.handlers.commander.MemoryLog')
 @patch("hyperscribe.handlers.commander.time")
-def test_transcript2commands_common(time, memory_log):
+def test_transcript2commands_common(time, memory_log, progress):
     mock_auditor = MagicMock()
     mock_chatter = MagicMock()
     mock_commands = [
@@ -839,6 +872,7 @@ def test_transcript2commands_common(time, memory_log):
     def reset_mocks():
         time.reset_mock()
         memory_log.reset_mock()
+        progress.reset_mock()
         mock_auditor.reset_mock()
         mock_chatter.reset_mock()
         for a_command in mock_commands:
@@ -970,6 +1004,7 @@ def test_transcript2commands_common(time, memory_log):
             structured_rfv=True,
             audit_llm=True,
             api_signing_key="theApiSigningKey",
+            send_progress=False,
         )
         mock_chatter.identification = identification
         mock_chatter.settings = settings
@@ -1044,16 +1079,19 @@ def test_transcript2commands_common(time, memory_log):
             call.instance(identification, 'main', 'awsS3'),
             call.instance().output('--> instructions: 6'),
             call.instance().output('--> computed instructions: 5'),
-            call.instance().send_to_user('instructions detection: '
-                                         'new: theInstructionC: 1, theInstructionD: 2, '
-                                         'updated: theInstructionA: 2, '
-                                         'total: 6'),
             call.instance().output('--> computed commands: 4'),
-            call.instance().send_to_user('parameters computation done (4)'),
             call.instance().output('DURATION COMMONS: 108'),
-            call.instance().send_to_user('commands generation done (3)'),
         ]
         assert memory_log.mock_calls == calls
+        calls = [
+            call.send_to_user(identification, settings, 'instructions detection: '
+                                                        'new: theInstructionC: 1, theInstructionD: 2, '
+                                                        'updated: theInstructionA: 2, '
+                                                        'total: 6'),
+            call.send_to_user(identification, settings, 'parameters computation done (4)'),
+            call.send_to_user(identification, settings, 'commands generation done (3)'),
+        ]
+        assert progress.mock_calls == calls
         calls = [call(), call()]
         assert time.mock_calls == calls
         calls = [
@@ -1102,6 +1140,7 @@ def test_transcript2commands_common(time, memory_log):
         structured_rfv=True,
         audit_llm=True,
         api_signing_key="theApiSigningKey",
+        send_progress=False,
     )
     mock_chatter.identification = identification
     mock_chatter.settings = settings
@@ -1155,14 +1194,17 @@ def test_transcript2commands_common(time, memory_log):
         call.instance(identification, 'main', 'awsS3'),
         call.instance().output('--> instructions: 3'),
         call.instance().output('--> computed instructions: 0'),
-        call.instance().send_to_user('instructions detection: '
-                                     'total: 3'),
         call.instance().output('--> computed commands: 0'),
-        call.instance().send_to_user('parameters computation done (0)'),
         call.instance().output('DURATION COMMONS: 108'),
-        call.instance().send_to_user('commands generation done (0)'),
     ]
     assert memory_log.mock_calls == calls
+    calls = [
+        call.send_to_user(identification, settings, 'instructions detection: '
+                                                    'total: 3'),
+        call.send_to_user(identification, settings, 'parameters computation done (0)'),
+        call.send_to_user(identification, settings, 'commands generation done (0)'),
+    ]
+    assert progress.mock_calls == calls
     calls = [call(), call()]
     assert time.mock_calls == calls
     calls = [
@@ -1181,9 +1223,10 @@ def test_transcript2commands_common(time, memory_log):
     reset_mocks()
 
 
+@patch('hyperscribe.handlers.commander.Progress')
 @patch('hyperscribe.handlers.commander.MemoryLog')
 @patch("hyperscribe.handlers.commander.time")
-def test_transcript2commands_questionnaires(time, memory_log):
+def test_transcript2commands_questionnaires(time, memory_log, progress):
     auditor = MagicMock()
     chatter = MagicMock()
     mock_commands = [
@@ -1194,6 +1237,7 @@ def test_transcript2commands_questionnaires(time, memory_log):
     def reset_mocks():
         time.reset_mock()
         memory_log.reset_mock()
+        progress.reset_mock()
         auditor.reset_mock()
         chatter.reset_mock()
         for a_command in mock_commands:
@@ -1297,6 +1341,7 @@ def test_transcript2commands_questionnaires(time, memory_log):
             structured_rfv=True,
             audit_llm=True,
             api_signing_key="theApiSigningKey",
+            send_progress=False,
         )
         chatter.identification = identification
         chatter.settings = settings
@@ -1311,9 +1356,12 @@ def test_transcript2commands_questionnaires(time, memory_log):
         calls = [
             call.instance(identification, 'main', 'awsS3'),
             call.instance().output('DURATION QUESTIONNAIRES: 246'),
-            call.instance().send_to_user('questionnaires update done (2)'),
         ]
         assert memory_log.mock_calls == calls
+        calls = [
+            call.send_to_user(identification, settings, 'questionnaires update done (2)'),
+        ]
+        assert progress.mock_calls == calls
         calls = [call(), call()]
         assert time.mock_calls == calls
         calls = [call.computed_questionnaires(transcript, instructions, instructions_with_commands[1:3])]

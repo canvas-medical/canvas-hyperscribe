@@ -1,4 +1,3 @@
-from time import time
 from unittest.mock import patch, call
 
 from canvas_generated.messages.effects_pb2 import Effect
@@ -29,29 +28,26 @@ def test_constants():
     assert is_constant(tested, constants)
 
 
-@patch("hyperscribe.handlers.reviewer_button.time", wraps=time)
 @patch.object(Note, "objects")
+@patch('hyperscribe.handlers.reviewer_button.Authenticator')
 @patch('hyperscribe.handlers.reviewer_button.LaunchModalEffect')
-def test_handle(launch_model_effect, note_db, mock_time):
+def test_handle(launch_model_effect, authenticator, note_db):
     def reset_mocks():
         launch_model_effect.reset_mock()
+        authenticator.reset_mock()
         note_db.reset_mock()
-        mock_time.reset_mock()
 
     event = Event(EventRequest(context='{"note_id":"noteId"}'))
     event.target = TargetType(id="targetId", type=Patient)
     secrets = {
-        "AwsKey": "theKey",
-        "AwsSecret": "theSecret",
-        "AwsRegion": "theRegion",
-        "AwsBucket": "theBucket",
+        "APISigningKey": "theApiSigningKey",
     }
     environment = {
         "CUSTOMER_IDENTIFIER": "theTestEnv",
     }
     tested = ReviewerButton(event, secrets, environment)
 
-    mock_time.side_effect = [1746790419.775192]
+    authenticator.presigned_url.side_effect = ["preSignedUrl"]
     launch_model_effect.return_value.apply.side_effect = [Effect(type="LOG", payload="SomePayload")]
     launch_model_effect.TargetType.NEW_WINDOW = "new_window"
     note_db.get.side_effect = [Note(
@@ -64,17 +60,14 @@ def test_handle(launch_model_effect, note_db, mock_time):
     expected = [Effect(type="LOG", payload="SomePayload")]
     assert result == expected
 
-    calls = [call()]
-    assert mock_time.mock_calls == calls
+    calls = [call.presigned_url(
+        'theApiSigningKey',
+        '/plugin-io/api/hyperscribe/reviewer',
+        {'patient_id': 'uuidPatient', 'note_id': 'uuidNote'},
+    )]
+    assert authenticator.mock_calls == calls
     calls = [
-        call(
-            url='/plugin-io/api/hyperscribe/reviewer?'
-                'note_id=uuidNote&'
-                'patient_id=uuidPatient&'
-                'ts=1746790419&'
-                'sig=db6ba533682736ca1937979afa2b461c49f659f73cc565e64e00771c77e8d5be',
-            target='new_window',
-        ),
+        call(url='preSignedUrl', target='new_window'),
         call().apply(),
     ]
     assert launch_model_effect.mock_calls == calls
@@ -110,25 +103,3 @@ def test_visible():
         }
         tested = ReviewerButton(event, secrets)
         assert tested.visible() is expected
-
-
-@patch("hyperscribe.handlers.reviewer_button.time", wraps=time)
-def test_presigned_url(mock_time):
-    def reset_mocks():
-        mock_time.reset_mock()
-
-    tested = ReviewerButton
-
-    mock_time.side_effect = [1746790419.775192]
-
-    result = tested.presigned_url("thePatientUuid", "theNoteUuid", "theSecret")
-    expected = ("/plugin-io/api/hyperscribe/reviewer?"
-                "note_id=theNoteUuid&"
-                "patient_id=thePatientUuid&"
-                "ts=1746790419&"
-                "sig=db6ba533682736ca1937979afa2b461c49f659f73cc565e64e00771c77e8d5be")
-    assert result == expected
-
-    calls = [call()]
-    assert mock_time.mock_calls == calls
-    reset_mocks()

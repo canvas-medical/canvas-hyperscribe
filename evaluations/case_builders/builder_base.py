@@ -1,12 +1,9 @@
 import json
 from argparse import ArgumentTypeError, Namespace
 from datetime import datetime, UTC
-from hashlib import sha256
 from importlib import import_module
 from pathlib import Path
-from time import time
 
-from canvas_sdk.commands.commands.questionnaire.question import ResponseOption
 from canvas_sdk.v1.data import Patient, Command
 from requests import post as requests_post, Response
 
@@ -14,6 +11,7 @@ from evaluations.auditor_file import AuditorFile
 from evaluations.case_builders.builder_audit_url import BuilderAuditUrl
 from evaluations.helper_evaluation import HelperEvaluation
 from hyperscribe.handlers.commander import Commander
+from hyperscribe.libraries.authenticator import Authenticator
 from hyperscribe.libraries.aws_s3 import AwsS3
 from hyperscribe.libraries.cached_discussion import CachedDiscussion
 from hyperscribe.libraries.constants import Constants as HyperscribeConstants
@@ -88,7 +86,6 @@ class BuilderBase:
                     identification,
                     settings,
                     aws_s3_credentials,
-                    memory_log,
                     {},
                     discussion.created,
                     discussion.cycle,
@@ -187,16 +184,14 @@ class BuilderBase:
 
     @classmethod
     def _post_commands(cls, commands: list[dict]) -> Response:
-        settings = HelperEvaluation.settings()
-        timestamp = str(int(time()))
-        hash_arg = f"{timestamp}{settings.api_signing_key}"
-        request_sig = sha256(hash_arg.encode('utf-8')).hexdigest()
-
-        url = f"{HelperEvaluation.get_canvas_host()}/plugin-io/api/hyperscribe/case_builder"
+        url = Authenticator.presigned_url(
+            HelperEvaluation.settings().api_signing_key,
+            f"{HelperEvaluation.get_canvas_host()}/plugin-io/api/hyperscribe/case_builder",
+            {},
+        )
         return requests_post(
             url,
             headers={"Content-Type": "application/json"},
-            params={"ts": timestamp, "sig": request_sig},
             json=commands,
             verify=True,
             timeout=
