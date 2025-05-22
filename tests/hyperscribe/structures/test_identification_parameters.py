@@ -15,7 +15,7 @@ def test_class():
 
 def test_canvas_host():
     tests = [
-        ("theCanvasInstance", "https://theCanvasInstance"),
+        ("theCanvasInstance", "https://theCanvasInstance.canvasmedical.com"),
         ("local", "http://localhost:8000"),
     ]
 
