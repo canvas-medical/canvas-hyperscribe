@@ -19,12 +19,6 @@
         "MICROPHONE",
         "SCRIPTS"
       ]
-    },
-    {
-      "url": "https://*.s3.*.amazonaws.com/*",
-      "permissions": [
-        "ALLOW_SAME_ORIGIN"
-      ]
     }
   ],
   "components": {
