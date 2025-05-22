@@ -226,7 +226,7 @@ def test_send_to_user(requests_post, authenticator, mock_datetime):
     calls = [
         call.presigned_url(
             'theApiSigningKey',
-            'https://canvasInstance/plugin-io/api/hyperscribe/progress',
+            'https://canvasInstance.canvasmedical.com/plugin-io/api/hyperscribe/progress',
             {'note_id': 'noteUuid'},
         )
     ]

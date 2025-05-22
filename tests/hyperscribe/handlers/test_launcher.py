@@ -68,7 +68,7 @@ def test_handle(launch_model_effect, authenticator, note_db):
     calls = [
         call.presigned_url(
             'theApiSigningKey',
-            '/plugin-io/api/hyperscribe/progress',
+            'https://theTestEnv.canvasmedical.com/plugin-io/api/hyperscribe/progress',
             {'note_id': 'uuidNote'},
         )
     ]

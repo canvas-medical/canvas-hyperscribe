@@ -343,8 +343,8 @@ def test_command_parameters(current_conditions):
     ]
     tests = [
         (conditions, {
-            "keywords": "comma separated keywords of up to 5 synonyms of the medication to prescribe, ordered by similarity decreasing",
-            "medicationNames": "comma separated of known medication names, generics then brands, related to the keywords",
+            "keywords": "comma separated list of up to 5 relevant drugs to consider prescribing",
+            "medicationNames": "comma separated list of known medication names, generics and brands, related to the keywords",
             "sig": "directions, as free text",
             "suppliedDays": "mandatory, duration of the treatment in days either as mentioned, or following the standard practices, as integer",
             "substitution": "one of: allowed/not_allowed",
@@ -353,8 +353,8 @@ def test_command_parameters(current_conditions):
             "conditionIndex": "index of the condition for which the medication is prescribed, as integer or -1 if the prescription is not related to any listed condition",
         }),
         ([], {
-            "keywords": "comma separated keywords of up to 5 synonyms of the medication to prescribe, ordered by similarity decreasing",
-            "medicationNames": "comma separated of known medication names, generics then brands, related to the keywords",
+            "keywords": "comma separated list of up to 5 relevant drugs to consider prescribing",
+            "medicationNames": "comma separated list of known medication names, generics and brands, related to the keywords",
             "sig": "directions, as free text",
             "suppliedDays": "mandatory, duration of the treatment in days either as mentioned, or following the standard practices, as integer",
             "substitution": "one of: allowed/not_allowed",
