@@ -167,7 +167,7 @@ class Commander(BaseProtocol):
         memory_log.output("<=== END ===>")
 
         if (client_s3 := AwsS3(aws_s3)) and client_s3.is_ready():
-            remote_path = (f"{identification.canvas_instance}/"
+            remote_path = (f"hyperscribe-{identification.canvas_instance}/"
                            "finals/"
                            f"{discussion.creation_day()}/"
                            f"{identification.patient_uuid}-{identification.note_uuid}/"

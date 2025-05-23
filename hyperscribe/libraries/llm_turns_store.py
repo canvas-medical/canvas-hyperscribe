@@ -89,7 +89,7 @@ class LlmTurnsStore:
                     yield step, response.json()
 
     def store_path(self) -> str:
-        return (f"{self.identification.canvas_instance}/"
+        return (f"hyperscribe-{self.identification.canvas_instance}/"
                 f"llm_turns/"
                 f"{self.creation_day}/"
                 f"{self.identification.note_uuid}/"

@@ -89,7 +89,7 @@ class LlmDecisionsReviewer:
                     "decision": model_prompt,
                     "audit": audit,
                 })
-            store_path = (f"{identification.canvas_instance}/"
+            store_path = (f"hyperscribe-{identification.canvas_instance}/"
                           "audits/"
                           f"{identification.note_uuid}/"
                           f"final_audit_{cycle:02d}.log")
