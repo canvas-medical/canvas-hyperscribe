@@ -143,7 +143,7 @@ def test_get(aws_s3, render_to_string):
     calls = [
         call(aws_s3_credentials),
         call().is_ready(),
-        call().list_s3_objects('theTestEnv/audits/theNoteId/'),
+        call().list_s3_objects('hyperscribe-theTestEnv/audits/theNoteId/'),
         call().generate_presigned_url('path01', 1200),
         call().generate_presigned_url('path02', 1200),
         call().generate_presigned_url('path03', 1200),

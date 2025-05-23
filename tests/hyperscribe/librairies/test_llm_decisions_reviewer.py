@@ -300,10 +300,10 @@ def test_review(
     calls = [
         call(aws_s3_credentials),
         call().is_ready(),
-        call().upload_text_to_s3('canvasInstance/audits/noteUuid/final_audit_01.log', json.dumps(expected_uploads[0], indent=2)),
-        call().upload_text_to_s3('canvasInstance/audits/noteUuid/final_audit_02.log', json.dumps(expected_uploads[1], indent=2)),
-        call().upload_text_to_s3('canvasInstance/audits/noteUuid/final_audit_03.log', json.dumps(expected_uploads[2], indent=2)),
-        call().upload_text_to_s3('canvasInstance/audits/noteUuid/final_audit_04.log', json.dumps(expected_uploads[3], indent=2)),
+        call().upload_text_to_s3('hyperscribe-canvasInstance/audits/noteUuid/final_audit_01.log', json.dumps(expected_uploads[0], indent=2)),
+        call().upload_text_to_s3('hyperscribe-canvasInstance/audits/noteUuid/final_audit_02.log', json.dumps(expected_uploads[1], indent=2)),
+        call().upload_text_to_s3('hyperscribe-canvasInstance/audits/noteUuid/final_audit_03.log', json.dumps(expected_uploads[2], indent=2)),
+        call().upload_text_to_s3('hyperscribe-canvasInstance/audits/noteUuid/final_audit_04.log', json.dumps(expected_uploads[3], indent=2)),
     ]
     assert aws_s3.mock_calls == calls
     calls = [
