@@ -96,11 +96,11 @@ export AwsBucket="..."
 In addition, if the `AuditLLMDecisions` is set, an audit of the LLM decisions is run at the end of the evaluation and saved in the AWS S3 bucket
 provided.
 
-The logs are saved following the folders structure:
+The logs are saved following the folders structure, with the top-level `hyperscribe-{canvas_instance}` needing to match exactly the IAM User whose `AwsKey` and `AwsSecret` are set in secrets:
 
 ```shell
 AwsBucket
-      |- canvas-instance
+      |- hyperscribe-{canvas_instance}
            |- audits - all audit files
            |- finals - concatenated logs of each cycle
            |- llm_turns - log of each LLM communication
