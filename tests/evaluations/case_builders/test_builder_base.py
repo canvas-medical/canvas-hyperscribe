@@ -220,7 +220,7 @@ def test_run(
 
         exp_out = []
         if aws_is_ready:
-            exp_out.append('Logs saved in: canvasInstance/finals/2025-03-10/theCase.log')
+            exp_out.append('Logs saved in: hyperscribe-canvasInstance/finals/2025-03-10/theCase.log')
         exp_out.append('')
         assert capsys.readouterr().out == "\n".join(exp_out)
         calls = [call(arguments, auditor_file.return_value, identifications["target"])]
@@ -248,7 +248,7 @@ def test_run(
         ]
         if aws_is_ready:
             calls.append(call().upload_text_to_s3(
-                'canvasInstance/finals/2025-03-10/theCase.log',
+                'hyperscribe-canvasInstance/finals/2025-03-10/theCase.log',
                 "flushedMemoryLog"),
             )
         assert aws_s3.mock_calls == calls
@@ -317,7 +317,7 @@ def test_run(
 
         exp_out = []
         if aws_is_ready:
-            exp_out.append('Logs saved in: canvasInstance/finals/2025-03-11/theCase.log')
+            exp_out.append('Logs saved in: hyperscribe-canvasInstance/finals/2025-03-11/theCase.log')
         exp_out.append('')
         assert capsys.readouterr().out == "\n".join(exp_out)
 
@@ -344,7 +344,7 @@ def test_run(
         ]
         if aws_is_ready:
             calls.append(call().upload_text_to_s3(
-                'canvasInstance/finals/2025-03-11/theCase.log',
+                'hyperscribe-canvasInstance/finals/2025-03-11/theCase.log',
                 "flushedMemoryLog"),
             )
         assert aws_s3.mock_calls == calls

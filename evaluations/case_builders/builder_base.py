@@ -75,7 +75,7 @@ class BuilderBase:
 
         aws_s3_credentials = HelperEvaluation.aws_s3_credentials()
         if (client_s3 := AwsS3(aws_s3_credentials)) and client_s3.is_ready():
-            remote_path = f"{identification.canvas_instance}/finals/{datetime.now(UTC).date().isoformat()}/{parameters.case}.log"
+            remote_path = f"hyperscribe-{identification.canvas_instance}/finals/{datetime.now(UTC).date().isoformat()}/{parameters.case}.log"
             client_s3.upload_text_to_s3(remote_path, MemoryLog.end_session(identification.note_uuid))
             print(f"Logs saved in: {remote_path}")
 
