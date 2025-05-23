@@ -60,7 +60,7 @@ class MemoryLog:
         client_s3 = AwsS3(self.s3_credentials)
         if client_s3.is_ready():
             cached = CachedDiscussion.get_discussion(self.identification.note_uuid)
-            log_path = (f"{self.identification.canvas_instance}/"
+            log_path = (f"hyperscribe-{self.identification.canvas_instance}/"
                         "partials/"
                         f"{cached.creation_day()}/"
                         f"{self.identification.note_uuid}/"

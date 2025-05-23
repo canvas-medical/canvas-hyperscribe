@@ -251,13 +251,13 @@ def test_store_chart(aws_s3, limited_cache, command_db):
     expected = JSONResponse({
         "s3status": 1234,
         "s3text": "theResponseText",
-        "s3key": "theHost/patient_thePatientId/note_theNoteId/limited_chart.json",
+        "s3key": "hyperscribe-theHost/patient_thePatientId/note_theNoteId/limited_chart.json",
     })
     assert result == expected
 
     calls = [
         call.upload_text_to_s3(
-            'theHost/patient_thePatientId/note_theNoteId/limited_chart.json',
+            'hyperscribe-theHost/patient_thePatientId/note_theNoteId/limited_chart.json',
             '{"key": "theLimitedCache"}',
         ),
     ]
@@ -312,12 +312,12 @@ def test_store_audio(aws_s3, mock_time):
     expected = JSONResponse({
         "s3status": 1234,
         "s3text": "theResponseText",
-        "s3key": "theHost/theFileName",
+        "s3key": "hyperscribe-theHost/theFileName",
     })
     assert result == expected
 
     calls = [
-        call.upload_binary_to_s3('theHost/theFileName', 'theContent', 'theContentType'),
+        call.upload_binary_to_s3('hyperscribe-theHost/theFileName', 'theContent', 'theContentType'),
     ]
     assert aws_s3.mock_calls == calls
     calls = [call()]

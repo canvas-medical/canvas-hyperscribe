@@ -524,7 +524,7 @@ def test_compute_audio(
             call.instance().output("<=== END ===>"),
         ]
         if is_ready:
-            calls.append(call.instance().output("--> log path: canvasInstance/finals/2025-03-10/patientUuid-noteUuid/03.log"))
+            calls.append(call.instance().output("--> log path: hyperscribe-canvasInstance/finals/2025-03-10/patientUuid-noteUuid/03.log"))
             calls.append(call.end_session("noteUuid"))
         assert memory_log.mock_calls == calls
         calls = [call('theAudioHost', 'patientUuid', 'noteUuid', 3)]
@@ -567,7 +567,7 @@ def test_compute_audio(
             call().is_ready(),
         ]
         if is_ready:
-            calls.append(call().upload_text_to_s3('canvasInstance/finals/2025-03-10/patientUuid-noteUuid/03.log', "flushedMemoryLog"))
+            calls.append(call().upload_text_to_s3('hyperscribe-canvasInstance/finals/2025-03-10/patientUuid-noteUuid/03.log', "flushedMemoryLog"))
         assert aws_s3.mock_calls == calls
         reset_mocks()
 

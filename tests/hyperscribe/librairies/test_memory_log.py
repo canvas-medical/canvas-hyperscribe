@@ -292,7 +292,7 @@ def test_store_so_far(aws_s3, get_discussion):
     calls = [
         call(aws_s3_credentials),
         call().is_ready(),
-        call().upload_text_to_s3("canvasInstance/partials/2025-03-11/noteUuid/07/theLabel.log", ""),
+        call().upload_text_to_s3("hyperscribe-canvasInstance/partials/2025-03-11/noteUuid/07/theLabel.log", ""),
     ]
     assert aws_s3.mock_calls == calls
     calls = [call("noteUuid")]

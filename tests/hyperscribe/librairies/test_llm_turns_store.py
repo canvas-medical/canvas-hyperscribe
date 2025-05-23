@@ -287,7 +287,7 @@ def test_store_document(aws_s3):
         call(tested.s3_credentials),
         call().is_ready(),
         call().upload_text_to_s3(
-            'canvasInstance/llm_turns/2025-05-08/noteUuid/07/theInstruction',
+            'hyperscribe-canvasInstance/llm_turns/2025-05-08/noteUuid/07/theInstruction',
             '[\n'
             '  {\n    "role": "system",\n    "text": [\n      "line 1"\n    ]\n  },\n'
             '  {\n    "role": "user",\n    "text": [\n      "line 2"\n    ]\n  },\n'
@@ -334,7 +334,7 @@ def test_stored_document(aws_s3):
     calls = [
         call(tested.s3_credentials),
         call().is_ready(),
-        call().access_s3_object('canvasInstance/llm_turns/2025-05-08/noteUuid/07/theName'),
+        call().access_s3_object('hyperscribe-canvasInstance/llm_turns/2025-05-08/noteUuid/07/theName'),
     ]
     assert aws_s3.mock_calls == calls
     reset_mocks()
@@ -349,7 +349,7 @@ def test_stored_document(aws_s3):
     calls = [
         call(tested.s3_credentials),
         call().is_ready(),
-        call().access_s3_object('canvasInstance/llm_turns/2025-05-08/noteUuid/07/theName'),
+        call().access_s3_object('hyperscribe-canvasInstance/llm_turns/2025-05-08/noteUuid/07/theName'),
     ]
     assert aws_s3.mock_calls == calls
     reset_mocks()
@@ -385,7 +385,7 @@ def test_stored_documents(aws_s3):
     calls = [
         call(tested.s3_credentials),
         call().is_ready(),
-        call().list_s3_objects('canvasInstance/llm_turns/2025-05-08/noteUuid/07'),
+        call().list_s3_objects('hyperscribe-canvasInstance/llm_turns/2025-05-08/noteUuid/07'),
     ]
     assert aws_s3.mock_calls == calls
     reset_mocks()
@@ -393,22 +393,22 @@ def test_stored_documents(aws_s3):
     aws_s3.return_value.is_ready.side_effect = [True]
     aws_s3.return_value.list_s3_objects.side_effect = [[
         AwsS3Object(
-            key="canvasInstance/llm_turns/2025-05-08/noteUuid/07/theInstruction_01_01.json",
+            key="hyperscribe-canvasInstance/llm_turns/2025-05-08/noteUuid/07/theInstruction_01_01.json",
             last_modified=a_date,
             size=4785236,
         ),
         AwsS3Object(
-            key="canvasInstance/llm_turns/2025-05-08/noteUuid/07/theInstruction_01_00.json",
+            key="hyperscribe-canvasInstance/llm_turns/2025-05-08/noteUuid/07/theInstruction_01_00.json",
             last_modified=a_date,
             size=4785236,
         ),
         AwsS3Object(
-            key="canvasInstance/llm_turns/2025-05-08/noteUuid/07/theInstruction_00_01.json",
+            key="hyperscribe-canvasInstance/llm_turns/2025-05-08/noteUuid/07/theInstruction_00_01.json",
             last_modified=a_date,
             size=4785236,
         ),
         AwsS3Object(
-            key="canvasInstance/llm_turns/2025-05-08/noteUuid/07/transcript2instructions_01.json",
+            key="hyperscribe-canvasInstance/llm_turns/2025-05-08/noteUuid/07/transcript2instructions_01.json",
             last_modified=a_date,
             size=4785236,
         ),
@@ -434,11 +434,11 @@ def test_stored_documents(aws_s3):
     calls = [
         call(tested.s3_credentials),
         call().is_ready(),
-        call().list_s3_objects('canvasInstance/llm_turns/2025-05-08/noteUuid/07'),
-        call().access_s3_object('canvasInstance/llm_turns/2025-05-08/noteUuid/07/transcript2instructions_01.json'),
-        call().access_s3_object('canvasInstance/llm_turns/2025-05-08/noteUuid/07/theInstruction_00_01.json'),
-        call().access_s3_object('canvasInstance/llm_turns/2025-05-08/noteUuid/07/theInstruction_01_00.json'),
-        call().access_s3_object('canvasInstance/llm_turns/2025-05-08/noteUuid/07/theInstruction_01_01.json'),
+        call().list_s3_objects('hyperscribe-canvasInstance/llm_turns/2025-05-08/noteUuid/07'),
+        call().access_s3_object('hyperscribe-canvasInstance/llm_turns/2025-05-08/noteUuid/07/transcript2instructions_01.json'),
+        call().access_s3_object('hyperscribe-canvasInstance/llm_turns/2025-05-08/noteUuid/07/theInstruction_00_01.json'),
+        call().access_s3_object('hyperscribe-canvasInstance/llm_turns/2025-05-08/noteUuid/07/theInstruction_01_00.json'),
+        call().access_s3_object('hyperscribe-canvasInstance/llm_turns/2025-05-08/noteUuid/07/theInstruction_01_01.json'),
     ]
     assert aws_s3.mock_calls == calls
     reset_mocks()
@@ -447,20 +447,20 @@ def test_stored_documents(aws_s3):
 def test_store_path():
     tested = helper_instance()
     result = tested.store_path()
-    expected = "canvasInstance/llm_turns/2025-05-08/noteUuid/07"
+    expected = "hyperscribe-canvasInstance/llm_turns/2025-05-08/noteUuid/07"
     assert result == expected
 
 
 def test_s3_path_sort():
     tested = LlmTurnsStore
     tests = [
-        ('canvasInstance/llm_turns/2025-05-08/noteUuid/07/transcript2instructions_00.json', (-1, 0)),
-        ('canvasInstance/llm_turns/2025-05-08/noteUuid/07/transcript2instructions_01.json', (-1, 1)),
-        ('canvasInstance/llm_turns/2025-05-08/noteUuid/07/theInstruction_00_00.json', (0, 0)),
-        ('canvasInstance/llm_turns/2025-05-08/noteUuid/07/theInstruction_00_01.json', (0, 1)),
-        ('canvasInstance/llm_turns/2025-05-08/noteUuid/07/theInstruction_01_00.json', (1, 0)),
-        ('canvasInstance/llm_turns/2025-05-08/noteUuid/07/theInstruction_01_01.json', (1, 1)),
-        ('canvasInstance/llm_turns/2025-05-08/noteUuid/07/impossible.json', (999, 999)),
+        ('hyperscribe-canvasInstance/llm_turns/2025-05-08/noteUuid/07/transcript2instructions_00.json', (-1, 0)),
+        ('hyperscribe-canvasInstance/llm_turns/2025-05-08/noteUuid/07/transcript2instructions_01.json', (-1, 1)),
+        ('hyperscribe-canvasInstance/llm_turns/2025-05-08/noteUuid/07/theInstruction_00_00.json', (0, 0)),
+        ('hyperscribe-canvasInstance/llm_turns/2025-05-08/noteUuid/07/theInstruction_00_01.json', (0, 1)),
+        ('hyperscribe-canvasInstance/llm_turns/2025-05-08/noteUuid/07/theInstruction_01_00.json', (1, 0)),
+        ('hyperscribe-canvasInstance/llm_turns/2025-05-08/noteUuid/07/theInstruction_01_01.json', (1, 1)),
+        ('hyperscribe-canvasInstance/llm_turns/2025-05-08/noteUuid/07/impossible.json', (999, 999)),
     ]
     for s3_path, expected in tests:
         result = tested.s3_path_sort(s3_path)

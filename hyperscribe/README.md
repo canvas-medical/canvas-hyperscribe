@@ -85,7 +85,7 @@ The `secrets` are stored in the Canvas instance database and can be upsert in `h
 To use the Canvas services provided by the SDK (`OntologiesHttp` and `ScienceHttp` from `canvas_sdk.utils.http`), set to empty the related secrets (
 `OntologiesHost` and `ScienceHost`).
 
-The logs, mainly the communication with the LLMs, are stored in a `AWS S3 bucket` if credentials are provided as listed above.
+The logs, mainly the communication with the LLMs, are stored in a `AWS S3 bucket` if credentials are provided as listed above. The credentials must belong to an AWS IAM user with username following the format `hyperscribe-{canvas_instance}`.
 
 The `AuditLLMDecisions` secret directs the LLM to provide, or not, the rationale used at each step, giving a better understanding of the command
 generation. When set, the audit is generated at the end of the session, and it can be viewed through the `Reviewer` button.
@@ -96,7 +96,7 @@ The logs are saved following the folders structure:
 
 ```shell
 AwsBucket
-      |- canvas-instance
+      |- hyperscribe-{canvas_instance}
            |- audits - all audit files
            |- finals - concatenated logs of each cycle
            |- llm_turns - log of each LLM communication

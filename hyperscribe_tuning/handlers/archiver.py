@@ -87,7 +87,7 @@ class ArchiverHelper:
             LimitedCache.existing_commands_to_coded_items(current_commands),
         ).to_json()
 
-        object_key = f"{subdomain}/patient_{patient_id}/note_{note_id}/limited_chart.json"
+        object_key = f"hyperscribe-{subdomain}/patient_{patient_id}/note_{note_id}/limited_chart.json"
         response = client_s3.upload_text_to_s3(object_key, json.dumps(limited_chart))
         return JSONResponse({
             "s3status": response.status_code,
@@ -109,7 +109,7 @@ class ArchiverHelper:
                      .replace('_note', '/note')
                      .replace('_chunk', '/chunk')
                      .replace('.webm', f'_{int(time())}.webm'))
-        object_key = f"{subdomain}/{file_name}"
+        object_key = f"hyperscribe-{subdomain}/{file_name}"
         response = client_s3.upload_binary_to_s3(
             object_key,
             audio_form_part.content,
