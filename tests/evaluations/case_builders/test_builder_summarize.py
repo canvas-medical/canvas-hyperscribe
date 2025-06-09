@@ -3,6 +3,7 @@ from argparse import Namespace
 from pathlib import Path
 from unittest.mock import patch, call, MagicMock
 
+from evaluations.auditor_file import AuditorFile
 from evaluations.case_builders.builder_summarize import BuilderSummarize
 
 
@@ -77,8 +78,8 @@ def test_run(parameters, summary_generated_commands, browser_open, path, named_t
     reset_mocks()
 
 
-@patch("evaluations.case_builders.builder_summarize.Path")
-def test_summary_generated_commands(path):
+@patch.object(AuditorFile, "case_files_from")
+def test_summary_generated_commands(case_files_from):
     path_files = [
         MagicMock(),
         MagicMock(),
@@ -89,28 +90,23 @@ def test_summary_generated_commands(path):
     path_files[2].name = "theCase01.json"
 
     def reset_mocks():
-        path.reset_mock()
-        for path_file in path_files:
-            path_file.reset_mock()
+        case_files_from.reset_mock()
+        for pf in path_files:
+            pf.reset_mock()
 
-    directory = Path(__file__).parent.as_posix().replace("/tests", "")
-    exp_glob_calls = [
-        call(f'{directory}/builder_summarize.py'),
-        call().parent.parent.__truediv__('parameters2command'),
-        call().parent.parent.__truediv__().glob('theCase*.json'),
-        call(f'{directory}/builder_summarize.py'),
-        call().parent.parent.__truediv__('staged_questionnaires'),
-        call().parent.parent.__truediv__().glob('theCase*.json'),
+    exp_case_files_from_calls = [
+        call("parameters2command", "json"),
+        call("staged_questionnaires", "json"),
     ]
     tested = BuilderSummarize
 
     # there are no files for the case
-    path.return_value.parent.parent.__truediv__.return_value.glob.side_effect = [[], []]
+    case_files_from.side_effect = [[], []]
 
     result = tested.summary_generated_commands("theCase")
     assert result == []
 
-    assert path.mock_calls == exp_glob_calls
+    assert case_files_from.mock_calls == exp_case_files_from_calls
     for path_file in path_files:
         assert path_file.mock_calls == []
     reset_mocks()
@@ -121,14 +117,14 @@ def test_summary_generated_commands(path):
         json.dumps({"instructions": [], "commands": []}),
         json.dumps({"instructions": [], "commands": []}),
     ]
-    path.return_value.parent.parent.__truediv__.return_value.glob.side_effect = [path_files, path_files[1:]]
+    case_files_from.side_effect = [path_files, path_files[1:]]
     for idx, path_file in enumerate(path_files):
         path_file.open.return_value.__enter__.return_value.read.side_effect = [file_contents[idx], file_contents[idx]]
 
     result = tested.summary_generated_commands("theCase")
     assert result == []
 
-    assert path.mock_calls == exp_glob_calls
+    assert case_files_from.mock_calls == exp_case_files_from_calls
     for idx, path_file in enumerate(path_files):
         calls = [
             call.open('r'),
@@ -206,7 +202,7 @@ def test_summary_generated_commands(path):
                 },
             ]}),
     ]
-    path.return_value.parent.parent.__truediv__.return_value.glob.side_effect = [path_files, []]
+    case_files_from.side_effect = [path_files, []]
     for idx, path_file in enumerate(path_files):
         path_file.open.return_value.__enter__.return_value.read.side_effect = [file_contents[idx]]
 
@@ -246,7 +242,7 @@ def test_summary_generated_commands(path):
     ]
     assert result == expected
 
-    assert path.mock_calls == exp_glob_calls
+    assert case_files_from.mock_calls == exp_case_files_from_calls
     for idx, path_file in enumerate(path_files):
         calls = [
             call.open('r'),
@@ -411,7 +407,7 @@ def test_summary_generated_commands(path):
                 },
             ]}),
     ]
-    path.return_value.parent.parent.__truediv__.return_value.glob.side_effect = [[], path_files]
+    case_files_from.side_effect = [[], path_files]
     for idx, path_file in enumerate(path_files):
         path_file.open.return_value.__enter__.return_value.read.side_effect = [file_contents[idx]]
 
@@ -443,7 +439,7 @@ def test_summary_generated_commands(path):
 
     assert result == expected
 
-    assert path.mock_calls == exp_glob_calls
+    assert case_files_from.mock_calls == exp_case_files_from_calls
     for idx, path_file in enumerate(path_files):
         calls = []
         if idx == 1:

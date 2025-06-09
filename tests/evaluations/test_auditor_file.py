@@ -22,8 +22,8 @@ def test___init__():
     assert tested.case == "theCase"
 
 
-@patch.object(AuditorFile, "_case_files_from")
-def test__case_files(case_files_from):
+@patch.object(AuditorFile, "case_files_from")
+def test_case_files(case_files_from):
     def reset_mocks():
         case_files_from.reset_mock()
 
@@ -36,7 +36,7 @@ def test__case_files(case_files_from):
         ["file11", "file12"],
         ["file13", "file14", "file15"],
     ]
-    result = [f for f in tested._case_files()]
+    result = [f for f in tested.case_files()]
     expected = [
         "file01",
         "file02",
@@ -68,7 +68,7 @@ def test__case_files(case_files_from):
 
 
 @patch("evaluations.auditor_file.Path.__truediv__")
-def test__case_files_from(concat):
+def test_case_files_from(concat):
     mock_file = MagicMock()
 
     def reset_mocks():
@@ -95,7 +95,7 @@ def test__case_files_from(concat):
         concat.side_effect = [mock_file]
         mock_file.glob.side_effect = [files]
         tested = AuditorFile(case)
-        result = [p for p in tested._case_files_from("the/folder", extension)]
+        result = [p for p in tested.case_files_from("the/folder", extension)]
         assert result == exp_files
 
         calls = [call('the/folder')]
@@ -105,7 +105,7 @@ def test__case_files_from(concat):
         reset_mocks()
 
 
-@patch.object(AuditorFile, '_case_files')
+@patch.object(AuditorFile, 'case_files')
 def test_is_ready(case_files):
     def reset_mocks():
         case_files.reset_mock()
@@ -127,7 +127,7 @@ def test_is_ready(case_files):
     reset_mocks()
 
 
-@patch.object(AuditorFile, '_case_files')
+@patch.object(AuditorFile, 'case_files')
 def test_reset(case_files):
     mock_files = [MagicMock(), MagicMock()]
 

@@ -16,7 +16,7 @@ class AuditorFile(Auditor):
         super().__init__()
         self.case = case
 
-    def _case_files(self) -> Generator[Path, None, None]:
+    def case_files(self) -> Generator[Path, None, None]:
         paths = [
             ('audio2transcript/inputs_mp3', 'mp3'),
             ('audio2transcript/expected_json', 'json'),
@@ -26,9 +26,9 @@ class AuditorFile(Auditor):
             ('staged_questionnaires', 'json'),
         ]
         for folder, extension in paths:
-            yield from self._case_files_from(folder, extension)
+            yield from self.case_files_from(folder, extension)
 
-    def _case_files_from(self, folder: str, extension: str) -> Generator[Path, None, None]:
+    def case_files_from(self, folder: str, extension: str) -> Generator[Path, None, None]:
         pattern = re.compile(rf'^{self.case}(({Constants.CASE_CYCLE_SUFFIX}|\.)\d\d)?\.{extension}$')
         file_dir = Path(__file__).parent / folder
         for file in file_dir.glob(f"{self.case}*.{extension}"):
@@ -36,12 +36,12 @@ class AuditorFile(Auditor):
                 yield file
 
     def is_ready(self) -> bool:
-        for _ in self._case_files():
+        for _ in self.case_files():
             return False
         return True
 
     def reset(self) -> None:
-        for case_file in self._case_files():
+        for case_file in self.case_files():
             case_file.unlink(True)
 
     def identified_transcript(self, audios: list[bytes], transcript: list[Line]) -> bool:

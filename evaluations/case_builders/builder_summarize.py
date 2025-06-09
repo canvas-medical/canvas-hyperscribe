@@ -6,6 +6,8 @@ from webbrowser import open as browser_open
 
 from canvas_sdk.commands.commands.questionnaire.question import ResponseOption
 
+from evaluations.auditor_file import AuditorFile
+
 
 class BuilderSummarize:
 
@@ -34,8 +36,12 @@ class BuilderSummarize:
     def summary_generated_commands(cls, case: str) -> list[dict]:
         result: dict[str, dict] = {}
 
+        recorder = AuditorFile(case)
         # common commands
-        files = sorted((Path(__file__).parent.parent / "parameters2command").glob(f"{case}*.json"), key=lambda item: item.name)
+        files = sorted(
+            [f for f in recorder.case_files_from("parameters2command", "json")],
+            key=lambda item: item.name,
+        )
         for file in files:
             with file.open("r") as f:
                 content = json.load(f)
@@ -54,7 +60,10 @@ class BuilderSummarize:
                     }
 
         # questionnaires - command is from the last cycle
-        files = sorted((Path(__file__).parent.parent / "staged_questionnaires").glob(f"{case}*.json"), key=lambda item: item.name)
+        files = sorted(
+            [f for f in recorder.case_files_from("staged_questionnaires", "json")],
+            key=lambda item: item.name,
+        )
         if files:
             with files[-1].open("r") as f:
                 content = json.load(f)
