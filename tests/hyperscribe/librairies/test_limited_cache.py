@@ -9,7 +9,9 @@ from canvas_sdk.v1.data import (
     Patient, Observation, NoteType, ReasonForVisitSettingCoding)
 from django.db.models.expressions import When, Value, Case
 
+from hyperscribe.handlers.temporary_data import ChargeDescriptionMaster
 from hyperscribe.libraries.limited_cache import LimitedCache
+from hyperscribe.structures.charge_description import ChargeDescription
 from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.instruction import Instruction
 
@@ -36,6 +38,46 @@ def test___init__():
     assert tested._reason_for_visit is None
     assert tested._surgery_history is None
     assert tested._staged_commands == staged_commands_to_coded_items
+    assert tested._charge_descriptions is None
+
+
+@patch.object(ChargeDescriptionMaster, "objects")
+def test_charge_descriptions(charge_description_db):
+    def reset_mocks():
+        charge_description_db.reset_mock()
+
+    charge_descriptions = [
+        ChargeDescriptionMaster(cpt_code="code123", name="theFullNameA", short_name="theShortNameA"),
+        ChargeDescriptionMaster(cpt_code="code369", name="theFullNameB", short_name="theShortNameB"),
+        ChargeDescriptionMaster(cpt_code="code486", name="theFullNameG", short_name="theShortNameD"),
+        ChargeDescriptionMaster(cpt_code="code565", name="theFullNameF", short_name="theShortNameB"),
+        ChargeDescriptionMaster(cpt_code="code752", name="theFullNameC", short_name="theShortNameC"),
+        ChargeDescriptionMaster(cpt_code="code753", name="theFullNameE", short_name="theShortNameA"),
+        ChargeDescriptionMaster(cpt_code="code754", name="theFullNameD", short_name="theShortNameA"),
+    ]
+
+    tested = LimitedCache("patientUuid", {})
+
+    charge_description_db.all.return_value.order_by.side_effect = [charge_descriptions]
+    result = tested.charge_descriptions()
+    expected = [
+        ChargeDescription(full_name='theFullNameD', short_name='theShortNameA', cpt_code='code754'),
+        ChargeDescription(full_name='theFullNameF', short_name='theShortNameB', cpt_code='code565'),
+        ChargeDescription(full_name='theFullNameG', short_name='theShortNameD', cpt_code='code486'),
+        ChargeDescription(full_name='theFullNameC', short_name='theShortNameC', cpt_code='code752'),
+    ]
+    assert result == expected
+    calls = [
+        call.all(),
+        call.all().order_by('cpt_code'),
+    ]
+    assert charge_description_db.mock_calls == calls
+    reset_mocks()
+
+    result = tested.charge_descriptions()
+    assert result == expected
+    assert charge_description_db.mock_calls == []
+    reset_mocks()
 
 
 @patch.object(Condition, 'codings')
@@ -613,9 +655,11 @@ def test_demographic__str__(patient_db, observation_db, mock_date):
 @patch.object(LimitedCache, 'current_conditions')
 @patch.object(LimitedCache, 'current_allergies')
 @patch.object(LimitedCache, 'condition_history')
+@patch.object(LimitedCache, 'charge_descriptions')
 @patch.object(LimitedCache, 'demographic__str__')
 def test_to_json(
         demographic,
+        charge_descriptions,
         condition_history,
         current_allergies,
         current_conditions,
@@ -628,6 +672,7 @@ def test_to_json(
 ):
     def reset_mocks():
         demographic.reset_mock()
+        charge_descriptions.reset_mock()
         condition_history.reset_mock()
         current_allergies.reset_mock()
         current_conditions.reset_mock()
@@ -652,6 +697,10 @@ def test_to_json(
 
     for obfuscate in [True, False]:
         demographic.side_effect = ["theDemographic"]
+        charge_descriptions.side_effect = [[
+            ChargeDescription(short_name="shortName1", full_name="fullName1", cpt_code="code1"),
+            ChargeDescription(short_name="shortName2", full_name="fullName2", cpt_code="code2"),
+        ]]
         condition_history.side_effect = [[
             CodedItem(uuid="uuid002", label="label002", code="code002"),
             CodedItem(uuid="uuid102", label="label102", code="code102"),
@@ -738,6 +787,10 @@ def test_to_json(
                 {'code': 'code011', 'label': 'label011', 'uuid': 'uuid011'},
                 {'code': 'code111', 'label': 'label111', 'uuid': 'uuid111'},
             ],
+            'chargeDescriptions': [
+                {'full_name': 'fullName1', 'short_name': 'shortName1', 'cpt_code': 'code1'},
+                {'full_name': 'fullName2', 'short_name': 'shortName2', 'cpt_code': 'code2'},
+            ],
         }
 
         assert result == expected
@@ -807,6 +860,10 @@ def test_load_from_json():
             {'code': 'code011', 'label': 'label011', 'uuid': 'uuid011'},
             {'code': 'code111', 'label': 'label111', 'uuid': 'uuid111'},
         ],
+        'chargeDescriptions': [
+            {'full_name': 'fullName1', 'short_name': 'shortName1', 'cpt_code': 'code1'},
+            {'full_name': 'fullName2', 'short_name': 'shortName2', 'cpt_code': 'code2'},
+        ],
     })
 
     assert result.patient_uuid == "_PatientUuid"
@@ -855,4 +912,8 @@ def test_load_from_json():
     assert result.surgery_history() == [
         CodedItem(uuid="uuid011", label="label011", code="code011"),
         CodedItem(uuid="uuid111", label="label111", code="code111"),
+    ]
+    assert result.charge_descriptions() == [
+        ChargeDescription(short_name="shortName1", full_name="fullName1", cpt_code="code1"),
+        ChargeDescription(short_name="shortName2", full_name="fullName2", cpt_code="code2"),
     ]

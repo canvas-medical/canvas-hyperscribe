@@ -11,8 +11,10 @@ from canvas_sdk.v1.data.medication import Status
 from canvas_sdk.v1.data.patient import SexAtBirth
 from django.db.models.expressions import When, Value, Case
 
+from hyperscribe.handlers.temporary_data import ChargeDescriptionMaster
 from hyperscribe.libraries.constants import Constants
 from hyperscribe.libraries.helper import Helper
+from hyperscribe.structures.charge_description import ChargeDescription
 from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.instruction import Instruction
 
@@ -31,6 +33,21 @@ class LimitedCache:
         self._reason_for_visit: list[CodedItem] | None = None
         self._surgery_history: list[CodedItem] | None = None
         self._staged_commands: dict[str, list[CodedItem]] = staged_commands_to_coded_items
+        self._charge_descriptions: list[ChargeDescription] | None = None
+
+    def charge_descriptions(self) -> list[ChargeDescription]:
+        if self._charge_descriptions is None:
+            # use the last code of any short name duplication
+            records = {
+                record.short_name: ChargeDescription(
+                    short_name=record.short_name,
+                    full_name=record.name,
+                    cpt_code=record.cpt_code,
+                )
+                for record in ChargeDescriptionMaster.objects.all().order_by("cpt_code")
+            }
+            self._charge_descriptions = list(records.values())
+        return self._charge_descriptions
 
     def retrieve_conditions(self) -> None:
         self._conditions = []
@@ -220,6 +237,7 @@ class LimitedCache:
             "existingReasonForVisit": [i._asdict() for i in self.existing_reason_for_visits()],
             "familyHistory": [i._asdict() for i in self.family_history()],
             "surgeryHistory": [i._asdict() for i in self.surgery_history()],
+            "chargeDescriptions": [i._asdict() for i in self.charge_descriptions()],
         }
 
     @classmethod
@@ -241,5 +259,7 @@ class LimitedCache:
         result._reason_for_visit = [CodedItem(**i) for i in cache.get("existingReasonForVisit", [])]
         result._family_history = [CodedItem(**i) for i in cache.get("familyHistory", [])]
         result._surgery_history = [CodedItem(**i) for i in cache.get("surgeryHistory", [])]
+
+        result._charge_descriptions = [ChargeDescription(**i) for i in cache.get("chargeDescriptions", [])]
 
         return result

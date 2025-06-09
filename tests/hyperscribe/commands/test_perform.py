@@ -5,7 +5,7 @@ from canvas_sdk.commands import PerformCommand
 from hyperscribe.commands.base import Base
 from hyperscribe.commands.perform import Perform
 from hyperscribe.libraries.limited_cache import LimitedCache
-from hyperscribe.libraries.selector_chat import SelectorChat
+from hyperscribe.structures.charge_description import ChargeDescription
 from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.instruction_with_command import InstructionWithCommand
@@ -73,12 +73,12 @@ def test_staged_command_extract():
             assert result == expected
 
 
-@patch.object(SelectorChat, "procedure_from")
-def test_command_from_json(procedure_from):
+@patch.object(LimitedCache, "charge_descriptions")
+def test_command_from_json(charge_descriptions):
     chatter = MagicMock()
 
     def reset_mocks():
-        procedure_from.reset_mock()
+        charge_descriptions.reset_mock()
         chatter.reset_mock()
 
     arguments = {
@@ -93,24 +93,101 @@ def test_command_from_json(procedure_from):
             "procedureKeywords": "procedure1,procedure2,procedure3",
         },
     }
-    tested = helper_instance()
-    tests = [
-        ("theCode", PerformCommand(cpt_code="theCode", notes="theComment", note_uuid="noteUuid")),
-        ("", PerformCommand(cpt_code="", notes="theComment", note_uuid="noteUuid")),
+    system_prompt = [
+        'The conversation is in the medical context.',
+        '',
+        'Your task is to select the most relevant procedure performed on a patient out of a list of procedures.',
+        '',
     ]
-    for code, command in tests:
-        procedure_from.side_effect = [CodedItem(uuid="theUuid", label="theLabel", code=code)]
-        instruction = InstructionWithParameters(**arguments)
-        result = tested.command_from_json(instruction, chatter)
-        expected = InstructionWithCommand(**(arguments | {"command": command}))
-        assert result == expected
+    user_prompt = [
+        'Here is the comment provided by the healthcare provider in regards to the procedure performed on the patient:',
+        '```text',
+        'keywords: procedure1,procedure2,procedure3',
+        ' -- ',
+        'theComment',
+        '```',
+        '',
+        'Among the following procedures, select the most relevant one:',
+        '',
+        ' * shortName1 (code: code1)\n * shortName2 (code: code2)\n * shortName3 (code: code3)',
+        '',
+        'Please, present your findings in a JSON format within a Markdown code block like:',
+        '```json',
+        '[{"code": "the procedure code", "label": "the procedure label"}]',
+        '```',
+        '',
+    ]
+    schemas = [
+        {
+            '$schema': 'http://json-schema.org/draft-07/schema#',
+            'type': 'array',
+            'items': {
+                'type': 'object',
+                'properties': {
+                    'code': {'type': 'string', 'minLength': 1},
+                    'label': {'type': 'string', 'minLength': 1},
+                },
+                'required': ['code', 'label'],
+                'additionalProperties': False,
+            },
+            'minItems': 1,
+            'maxItems': 1,
+        },
+    ]
 
-        calls = [
-            call(instruction, chatter, tested.settings, ["procedure1", "procedure2", "procedure3"], "theComment"),
-        ]
-        assert procedure_from.mock_calls == calls
-        assert chatter.mock_calls == []
-        reset_mocks()
+    tested = helper_instance()
+    # no charge
+    charge_descriptions.side_effect = [[]]
+    chatter.single_conversation.side_effect = [[]]
+    instruction = InstructionWithParameters(**arguments)
+    command = PerformCommand(cpt_code="", notes="theComment", note_uuid="noteUuid")
+    result = tested.command_from_json(instruction, chatter)
+    expected = InstructionWithCommand(**(arguments | {"command": command}))
+    assert result == expected
+
+    calls = [call()]
+    assert charge_descriptions.mock_calls == calls
+    assert chatter.mock_calls == []
+    reset_mocks()
+
+    # some charges
+    # -- with response
+    charge_descriptions.side_effect = [[
+        ChargeDescription(short_name="shortName1", full_name="fullName1", cpt_code="code1"),
+        ChargeDescription(short_name="shortName2", full_name="fullName2", cpt_code="code2"),
+        ChargeDescription(short_name="shortName3", full_name="fullName3", cpt_code="code3"),
+    ]]
+    chatter.single_conversation.side_effect = [[{"code": "theCode", "label": "theLabel"}]]
+    instruction = InstructionWithParameters(**arguments)
+    command = PerformCommand(cpt_code="theCode", notes="theComment", note_uuid="noteUuid")
+    result = tested.command_from_json(instruction, chatter)
+    expected = InstructionWithCommand(**(arguments | {"command": command}))
+    assert result == expected
+
+    calls = [call()]
+    assert charge_descriptions.mock_calls == calls
+    calls = [call.single_conversation(system_prompt, user_prompt, schemas, instruction)]
+    assert chatter.mock_calls == calls
+    reset_mocks()
+
+    # -- with no response
+    charge_descriptions.side_effect = [[
+        ChargeDescription(short_name="shortName1", full_name="fullName1", cpt_code="code1"),
+        ChargeDescription(short_name="shortName2", full_name="fullName2", cpt_code="code2"),
+        ChargeDescription(short_name="shortName3", full_name="fullName3", cpt_code="code3"),
+    ]]
+    chatter.single_conversation.side_effect = [[]]
+    instruction = InstructionWithParameters(**arguments)
+    command = PerformCommand(cpt_code="", notes="theComment", note_uuid="noteUuid")
+    result = tested.command_from_json(instruction, chatter)
+    expected = InstructionWithCommand(**(arguments | {"command": command}))
+    assert result == expected
+
+    calls = [call()]
+    assert charge_descriptions.mock_calls == calls
+    calls = [call.single_conversation(system_prompt, user_prompt, schemas, instruction)]
+    assert chatter.mock_calls == calls
+    reset_mocks()
 
 
 def test_command_parameters():

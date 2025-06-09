@@ -1,8 +1,10 @@
+import json
+
 from canvas_sdk.commands.commands.perform import PerformCommand
 
 from hyperscribe.commands.base import Base
 from hyperscribe.libraries.constants import Constants
-from hyperscribe.libraries.selector_chat import SelectorChat
+from hyperscribe.libraries.json_schema import JsonSchema
 from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.instruction_with_command import InstructionWithCommand
@@ -28,15 +30,35 @@ class Perform(Base):
             note_uuid=self.identification.note_uuid,
         )
         # retrieve the procedure, or action, based on the keywords
-        item = SelectorChat.procedure_from(
-            instruction,
-            chatter,
-            self.settings,
-            instruction.parameters["procedureKeywords"].split(","),
-            instruction.parameters["comment"],
-        )
-        if item.code:
-            result.cpt_code = item.code
+        if charges := self.cache.charge_descriptions():
+            # ask the LLM to pick the most relevant charge
+            system_prompt = [
+                "The conversation is in the medical context.",
+                "",
+                "Your task is to select the most relevant procedure performed on a patient out of a list of procedures.",
+                "",
+            ]
+            user_prompt = [
+                'Here is the comment provided by the healthcare provider in regards to the procedure performed on the patient:',
+                '```text',
+                f'keywords: {instruction.parameters["procedureKeywords"]}',
+                " -- ",
+                instruction.parameters["comment"],
+                '```',
+                "",
+                'Among the following procedures, select the most relevant one:',
+                '',
+                "\n".join(f' * {concept.short_name} (code: {concept.cpt_code})' for concept in charges),
+                '',
+                'Please, present your findings in a JSON format within a Markdown code block like:',
+                '```json',
+                json.dumps([{"code": "the procedure code", "label": "the procedure label"}]),
+                '```',
+                '',
+            ]
+            schemas = JsonSchema.get(["selector_lab_test"])
+            if response := chatter.single_conversation(system_prompt, user_prompt, schemas, instruction):
+                result.cpt_code = response[0]["code"]
 
         return InstructionWithCommand.add_command(instruction, result)
 
