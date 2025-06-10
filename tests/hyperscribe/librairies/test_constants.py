@@ -14,6 +14,7 @@ def test_constants():
         "MAX_ATTEMPTS_LLM_HTTP": 3,
         "MAX_ATTEMPTS_LLM_JSON": 3,
         "MAX_ATTEMPTS_CANVAS_SERVICES": 3,
+        "MAX_CHARGE_DESCRIPTIONS": 500,
         "MAX_WORKERS": 10,
         "MEMORY_LOG_LABEL": "main",
         "OPENAI_CHAT_AUDIO": "gpt-4o-audio-preview",

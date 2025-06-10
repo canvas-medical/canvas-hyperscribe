@@ -59,4 +59,5 @@ class BuilderFromTuning(BuilderBase):
         with parameters.tuning_mp3.open("rb") as f:
             audios.append(f.read())
         CachedDiscussion.get_discussion(chatter.identification.note_uuid).set_cycle(1)
-        Commander.audio2commands(recorder, audios, chatter, previous)
+        transcript_tail = ""
+        Commander.audio2commands(recorder, audios, chatter, previous, transcript_tail)

@@ -148,6 +148,7 @@ def test__run(
         [b'audio content'],
         audio_interpreter.return_value,
         ["theInitialInstructions"],
+        "",
     )]
     assert commander.mock_calls == calls
     calls = [

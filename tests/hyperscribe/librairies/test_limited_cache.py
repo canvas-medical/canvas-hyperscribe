@@ -10,6 +10,7 @@ from canvas_sdk.v1.data import (
 from django.db.models.expressions import When, Value, Case
 
 from hyperscribe.handlers.temporary_data import ChargeDescriptionMaster
+from hyperscribe.libraries.constants import Constants
 from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.structures.charge_description import ChargeDescription
 from hyperscribe.structures.coded_item import CodedItem
@@ -56,28 +57,49 @@ def test_charge_descriptions(charge_description_db):
         ChargeDescriptionMaster(cpt_code="code754", name="theFullNameD", short_name="theShortNameA"),
     ]
 
-    tested = LimitedCache("patientUuid", {})
 
-    charge_description_db.all.return_value.order_by.side_effect = [charge_descriptions]
-    result = tested.charge_descriptions()
-    expected = [
-        ChargeDescription(full_name='theFullNameD', short_name='theShortNameA', cpt_code='code754'),
-        ChargeDescription(full_name='theFullNameF', short_name='theShortNameB', cpt_code='code565'),
-        ChargeDescription(full_name='theFullNameG', short_name='theShortNameD', cpt_code='code486'),
-        ChargeDescription(full_name='theFullNameC', short_name='theShortNameC', cpt_code='code752'),
-    ]
-    assert result == expected
-    calls = [
-        call.all(),
-        call.all().order_by('cpt_code'),
-    ]
-    assert charge_description_db.mock_calls == calls
-    reset_mocks()
+    with patch.object(Constants, 'MAX_CHARGE_DESCRIPTIONS', 99):
+        # too many records
+        charge_description_db.count.side_effect = [100]
+        charge_description_db.all.return_value.order_by.side_effect = []
+        tested = LimitedCache("patientUuid", {})
+        result = tested.charge_descriptions()
+        assert result == []
+        calls = [
+            call.count(),
+        ]
+        assert charge_description_db.mock_calls == calls
+        reset_mocks()
 
-    result = tested.charge_descriptions()
-    assert result == expected
-    assert charge_description_db.mock_calls == []
-    reset_mocks()
+        result = tested.charge_descriptions()
+        assert result == []
+        assert charge_description_db.mock_calls == []
+        reset_mocks()
+
+        # not too many records
+        charge_description_db.count.side_effect = [99]
+        charge_description_db.all.return_value.order_by.side_effect = [charge_descriptions]
+        tested = LimitedCache("patientUuid", {})
+        result = tested.charge_descriptions()
+        expected = [
+            ChargeDescription(full_name='theFullNameD', short_name='theShortNameA', cpt_code='code754'),
+            ChargeDescription(full_name='theFullNameF', short_name='theShortNameB', cpt_code='code565'),
+            ChargeDescription(full_name='theFullNameG', short_name='theShortNameD', cpt_code='code486'),
+            ChargeDescription(full_name='theFullNameC', short_name='theShortNameC', cpt_code='code752'),
+        ]
+        assert result == expected
+        calls = [
+            call.count(),
+            call.all(),
+            call.all().order_by('cpt_code'),
+        ]
+        assert charge_description_db.mock_calls == calls
+        reset_mocks()
+
+        result = tested.charge_descriptions()
+        assert result == expected
+        assert charge_description_db.mock_calls == []
+        reset_mocks()
 
 
 @patch.object(Condition, 'codings')

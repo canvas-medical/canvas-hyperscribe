@@ -4,6 +4,7 @@ from canvas_sdk.commands import PerformCommand
 
 from hyperscribe.commands.base import Base
 from hyperscribe.commands.perform import Perform
+from hyperscribe.libraries.constants import Constants
 from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.structures.charge_description import ChargeDescription
 from hyperscribe.structures.coded_item import CodedItem

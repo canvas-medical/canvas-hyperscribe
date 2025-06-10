@@ -37,16 +37,18 @@ class LimitedCache:
 
     def charge_descriptions(self) -> list[ChargeDescription]:
         if self._charge_descriptions is None:
-            # use the last code of any short name duplication
-            records = {
-                record.short_name: ChargeDescription(
-                    short_name=record.short_name,
-                    full_name=record.name,
-                    cpt_code=record.cpt_code,
-                )
-                for record in ChargeDescriptionMaster.objects.all().order_by("cpt_code")
-            }
-            self._charge_descriptions = list(records.values())
+            self._charge_descriptions = []
+            if ChargeDescriptionMaster.objects.count() <= Constants.MAX_CHARGE_DESCRIPTIONS:
+                # use the last code of any short name duplication
+                records = {
+                    record.short_name: ChargeDescription(
+                        short_name=record.short_name,
+                        full_name=record.name,
+                        cpt_code=record.cpt_code,
+                    )
+                    for record in ChargeDescriptionMaster.objects.all().order_by("cpt_code")
+                }
+                self._charge_descriptions = list(records.values())
         return self._charge_descriptions
 
     def retrieve_conditions(self) -> None:
