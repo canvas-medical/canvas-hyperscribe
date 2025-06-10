@@ -25,7 +25,7 @@ class LlmOpenai(LlmBase):
             self.ROLE_USER: "user",
             self.ROLE_MODEL: "assistant",
         }
-        messages = [
+        messages: list[dict] = [
             {
                 "role": roles[prompt.role],
                 "content": [{"type": "text", "text": "\n".join(prompt.text)}],

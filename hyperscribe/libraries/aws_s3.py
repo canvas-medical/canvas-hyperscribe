@@ -45,8 +45,8 @@ class AwsS3:
         k_region = hmac_new(k_date, self.region.encode('utf-8'), sha256).digest()
         k_service = hmac_new(k_region, b's3', sha256).digest()
         k_signing = hmac_new(k_service, b'aws4_request', sha256).digest()
-        string_to_sign = f"{self.ALGORITHM}\n{amz_date}\n{credential_scope}\n{sha256(canonical_request.encode('utf-8')).hexdigest()}"  # type: ignore
-        signature = hmac_new(k_signing, string_to_sign.encode('utf-8'), sha256).hexdigest()  # type: ignore
+        string_to_sign = f"{self.ALGORITHM}\n{amz_date}\n{credential_scope}\n{sha256(canonical_request.encode('utf-8')).hexdigest()}"
+        signature = hmac_new(k_signing, string_to_sign.encode('utf-8'), sha256).hexdigest()
 
         return credential_scope, signature
 
@@ -59,7 +59,7 @@ class AwsS3:
 
         host = self.get_host()
         amz_date = datetime.now(UTC).strftime('%Y%m%dT%H%M%SZ')
-        payload_hash = sha256(binary_data).hexdigest()  # type: ignore
+        payload_hash = sha256(binary_data).hexdigest()
         canonical_uri = f"/{quote(object_key)}"
         canonical_headers = f"host:{host}\nx-amz-content-sha256:{payload_hash}\nx-amz-date:{amz_date}\n"
         signed_headers = 'host;x-amz-content-sha256;x-amz-date'
@@ -101,7 +101,7 @@ class AwsS3:
         result: list[AwsS3Object] = []
         if not self.is_ready():
             return result
-        params = {
+        params: dict[str, int | str] = {
             'list-type': 2,
             'prefix': prefix,
         }
@@ -116,11 +116,12 @@ class AwsS3:
                 size_match = re_search(r'<Size>(.*?)</Size>', content_xml)
                 modified_match = re_search(r'<LastModified>(.*?)</LastModified>', content_xml)
 
-                result.append(AwsS3Object(
-                    key=key_match.group(1),
-                    size=int(size_match.group(1)),
-                    last_modified=datetime.fromisoformat(modified_match.group(1)),
-                ))
+                if key_match and size_match and modified_match:
+                    result.append(AwsS3Object(
+                        key=key_match.group(1),
+                        size=int(size_match.group(1)),
+                        last_modified=datetime.fromisoformat(modified_match.group(1)),
+                    ))
 
         return result
 

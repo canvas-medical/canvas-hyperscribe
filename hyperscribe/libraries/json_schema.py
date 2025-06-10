@@ -1,4 +1,4 @@
-JSON_SCHEMAS = {
+JSON_SCHEMAS: dict[str, dict] = {
     "audit": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "array",

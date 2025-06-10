@@ -15,4 +15,4 @@ class Questionnaire(BaseQuestionnaire):
         return False
 
     def sdk_command(self) -> Type[QuestionnaireCommand]:
-        return QuestionnaireCommand
+        return QuestionnaireCommand  # type: ignore

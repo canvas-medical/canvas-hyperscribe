@@ -55,7 +55,7 @@ class AuditorFile(Auditor):
 
         file = Path(__file__).parent / f"audio2transcript/expected_json/{self.case}.json"
         with file.open("w") as fp:
-            json.dump([t.to_json() for t in transcript], fp, indent=2)  # type: ignore
+            json.dump([t.to_json() for t in transcript], fp, indent=2)
 
         return file.exists()
 
@@ -79,12 +79,12 @@ class AuditorFile(Auditor):
                         for instruction in cumulated_instructions
                     ],
                 },
-            }, fp, indent=2)  # type: ignore
+            }, fp, indent=2)
         return file.exists()
 
     def computed_parameters(self, instructions: list[InstructionWithParameters]) -> bool:
         file = Path(__file__).parent / f"instruction2parameters/{self.case}.json"
-        content = {
+        content: dict[str, list] = {
             "instructions": [],
             "parameters": [],
         }
@@ -97,12 +97,12 @@ class AuditorFile(Auditor):
             content["parameters"].append(instruction.parameters)
 
         with file.open("w") as fp:
-            json.dump(content, fp, indent=2)  # type: ignore
+            json.dump(content, fp, indent=2)
         return file.exists()
 
     def computed_commands(self, instructions: list[InstructionWithCommand]) -> bool:
         file = Path(__file__).parent / f"parameters2command/{self.case}.json"
-        content = {
+        content: dict[str, list] = {
             "instructions": [],
             "parameters": [],
             "commands": [],
@@ -124,7 +124,7 @@ class AuditorFile(Auditor):
             })
 
         with file.open("w") as fp:
-            json.dump(content, fp, indent=2)  # type: ignore
+            json.dump(content, fp, indent=2)
         return file.exists()
 
     def computed_questionnaires(
@@ -152,5 +152,5 @@ class AuditorFile(Auditor):
                     }
                     for instruction in instructions_with_command
                 ],
-            }, fp, indent=2)  # type: ignore
+            }, fp, indent=2)
         return file.exists()

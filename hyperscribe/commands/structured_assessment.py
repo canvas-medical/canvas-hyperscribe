@@ -15,4 +15,4 @@ class StructuredAssessment(BaseQuestionnaire):
         return False
 
     def sdk_command(self) -> Type[StructuredAssessmentCommand]:
-        return StructuredAssessmentCommand
+        return StructuredAssessmentCommand  # type: ignore

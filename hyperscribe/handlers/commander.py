@@ -253,7 +253,7 @@ class Commander(BaseProtocol):
 
         common_commands[0].extend(questionnaire_commands[0])
         common_commands[1].extend(questionnaire_commands[1])
-        return common_commands
+        return common_commands # type: ignore
 
     @classmethod
     def transcript2commands_common(
@@ -312,11 +312,11 @@ class Commander(BaseProtocol):
 
         instructions_with_command: list[InstructionWithCommand] = []
         with ThreadPoolExecutor(max_workers=max_workers) as builder:
-            for instruction in builder.map(chatter.create_sdk_command_from, instructions_with_parameter):
-                if instruction is not None:
-                    if instruction.uuid in past_uuids:
-                        instruction.command.command_uuid = instruction.uuid
-                    instructions_with_command.append(instruction)
+            for instruction_w_cmd in builder.map(chatter.create_sdk_command_from, instructions_with_parameter):
+                if instruction_w_cmd is not None:
+                    if instruction_w_cmd.uuid in past_uuids:
+                        instruction_w_cmd.command.command_uuid = instruction_w_cmd.uuid
+                    instructions_with_command.append(instruction_w_cmd)
 
         memory_log.output(f"DURATION COMMONS: {int((time() - start) * 1000)}")
         Progress.send_to_user(chatter.identification, chatter.settings, f"commands generation done ({len(instructions_with_command)})")
@@ -488,8 +488,10 @@ class Commander(BaseProtocol):
             information = ""
 
             for initialized in pre_initialized:
-                if instruction_type == initialized.class_name():
-                    information = initialized.staged_command_extract(command.data).label
+                if instruction_type == initialized.class_name() and (
+                        code_item := initialized.staged_command_extract(command.data)
+                ):
+                    information = code_item.label
 
             for idx, instruction in enumerate(instructions):
                 if idx in consumed_indexes:

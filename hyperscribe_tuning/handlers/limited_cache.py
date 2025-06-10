@@ -103,7 +103,7 @@ class LimitedCache:
     def current_conditions(self) -> list[CodedItem]:
         if self._conditions is None:
             self.retrieve_conditions()
-        return self._conditions
+        return self._conditions or []
 
     def current_medications(self) -> list[CodedItem]:
         if self._medications is None:
@@ -141,12 +141,12 @@ class LimitedCache:
     def condition_history(self) -> list[CodedItem]:
         if self._condition_history is None:
             self.retrieve_conditions()
-        return self._condition_history
+        return self._condition_history or []
 
     def surgery_history(self) -> list[CodedItem]:
         if self._surgery_history is None:
             self.retrieve_conditions()
-        return self._surgery_history
+        return self._surgery_history or []
 
     def existing_questionnaires(self) -> list[CodedItem]:
         if self._questionnaires is None:

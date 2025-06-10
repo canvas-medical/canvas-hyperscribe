@@ -38,5 +38,5 @@ class Settings(NamedTuple):
         )
 
     @classmethod
-    def is_true(cls, string: str) -> bool:
+    def is_true(cls, string: str | None) -> bool:
         return bool(isinstance(string, str) and string.lower() in ["yes", "y", "1"])

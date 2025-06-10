@@ -1,7 +1,6 @@
 import json
 from datetime import datetime
 
-from hyperscribe.commands.base_questionnaire import BaseQuestionnaire
 from hyperscribe.handlers.progress import Progress
 from hyperscribe.libraries.helper import Helper
 from hyperscribe.libraries.implemented_commands import ImplementedCommands
@@ -262,18 +261,18 @@ class AudioInterpreter:
                     self.settings,
                     MemoryLog.instance(self.identification, log_label, self.s3_credentials),
                 )
-                questionnaire = instance.update_from_transcript(discussion, direction, chatter)
-                command = instance.command_from_questionnaire(direction.uuid, questionnaire)
-                return InstructionWithCommand(
-                    uuid=direction.uuid,
-                    index=direction.index,
-                    instruction=direction.instruction,
-                    information=json.dumps(questionnaire.to_json()),
-                    is_new=False,
-                    is_updated=True,
-                    parameters={},
-                    command=command,
-                )
+                if questionnaire := instance.update_from_transcript(discussion, direction, chatter):  # type: ignore[attr-defined]
+                    command = instance.command_from_questionnaire(direction.uuid, questionnaire)  # type: ignore[attr-defined]
+                    return InstructionWithCommand(
+                        uuid=direction.uuid,
+                        index=direction.index,
+                        instruction=direction.instruction,
+                        information=json.dumps(questionnaire.to_json()),
+                        is_new=False,
+                        is_updated=True,
+                        parameters={},
+                        command=command,
+                    )
         return None
 
     @classmethod

@@ -20,5 +20,6 @@ class InstructionWithParameters(Instruction):
             parameters=parameters,
         )
 
-    def __eq__(self, other: InstructionWithParameters) -> bool:
+    def __eq__(self, other: object) -> bool:
+        assert isinstance(other, InstructionWithParameters)
         return super().__eq__(other) and self.parameters == other.parameters

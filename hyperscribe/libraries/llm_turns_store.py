@@ -67,15 +67,15 @@ class LlmTurnsStore:
         if client_s3.is_ready():
             client_s3.upload_text_to_s3(f"{self.store_path()}/{name}", json.dumps(document, indent=2))
 
-    def stored_document(self, name: str) -> dict | list:
+    def stored_document(self, name: str) -> list:
         client_s3 = AwsS3(self.s3_credentials)
         if client_s3.is_ready():
             response = client_s3.access_s3_object(f"{self.store_path()}/{name}")
             if response.status_code == HTTPStatus.OK.value:
-                return response.json()
+                return response.json() or []
         return []
 
-    def stored_documents(self) -> Iterable[tuple[str, list | dict]]:
+    def stored_documents(self) -> Iterable[tuple[str, list]]:
         client_s3 = AwsS3(self.s3_credentials)
         if client_s3.is_ready():
             urls = [
@@ -86,7 +86,7 @@ class LlmTurnsStore:
                 response = client_s3.access_s3_object(url)
                 if response.status_code == HTTPStatus.OK.value:
                     step = url.split("/")[-1].removesuffix(".json")
-                    yield step, response.json()
+                    yield step, response.json() or []
 
     def store_path(self) -> str:
         return (f"hyperscribe-{self.identification.canvas_instance}/"

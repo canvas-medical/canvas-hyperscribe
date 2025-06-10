@@ -18,3 +18,8 @@ uv run pytest -vv tests/ # run all tests and fully display any failure
 
 uv run pytest tests/ --cov=. # run all tests and report the coverage
 ```
+
+Static checks of types and code analyzes can be done with:
+```shell
+uv run mypy --config-file=mypy.ini .
+```

@@ -1,3 +1,4 @@
+# mypy: allow-untyped-defs
 import uuid
 from pathlib import Path
 from re import search
@@ -13,7 +14,7 @@ from evaluations.structures.evaluation_result import EvaluationResult
 from hyperscribe.libraries.audio_interpreter import AudioInterpreter
 from hyperscribe.libraries.constants import Constants as HyperscribeConstants
 from hyperscribe.libraries.limited_cache import LimitedCache
-from hyperscribe.libraries.memory_log import MemoryLog
+from hyperscribe.libraries.memory_log import MemoryLog, ENTRIES
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 
@@ -114,7 +115,7 @@ def pytest_collection_modifyitems(session, config, items):
 
 def pytest_unconfigure(config):
     if config.getoption(Constants.OPTION_PRINT_LOGS, default=False):
-        note_uuid_list = list(MemoryLog.ENTRIES.keys())
+        note_uuid_list = list(ENTRIES.keys())
         for note_uuid in note_uuid_list:
             print(MemoryLog.end_session(note_uuid))
 

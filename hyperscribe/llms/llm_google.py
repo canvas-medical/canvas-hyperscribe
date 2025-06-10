@@ -14,10 +14,7 @@ class LlmGoogle(LlmBase):
             self.audios.append({"format": f"audio/{audio_format}", "data": audio})
 
     def to_dict(self, audio_uris: list[tuple[str, str]]) -> dict:
-        result = {
-            "contents": [],
-            "generationConfig": {"temperature": self.temperature},
-        }
+        contents: list[dict] = []
         roles = {
             self.ROLE_SYSTEM: "user",
             self.ROLE_USER: "user",
@@ -27,18 +24,21 @@ class LlmGoogle(LlmBase):
             role = roles[prompt.role]
             part = {"text": "\n".join(prompt.text)}
             # contiguous parts for the same role are merged
-            if result["contents"] and result["contents"][-1]["role"] == role:
-                result["contents"][-1]["parts"].append(part)
+            if contents and contents[-1]["role"] == role:
+                contents[-1]["parts"].append(part)
             else:
-                result["contents"].append({
+                contents.append({
                     "role": role,
                     "parts": [part],
                 })
         # on the first part, add the audio, if any
         for mime, uri in audio_uris:
-            result["contents"][0]["parts"].append({"file_data": {"mime_type": mime, "file_uri": uri}})
+            contents[0]["parts"].append({"file_data": {"mime_type": mime, "file_uri": uri}})
 
-        return result
+        return {
+            "contents": contents,
+            "generationConfig": {"temperature": self.temperature},
+        }
 
     def upload_audio(self, audio: bytes, audio_format: str, audio_name: str) -> str:
         result = ""

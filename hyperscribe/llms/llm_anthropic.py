@@ -10,12 +10,7 @@ from hyperscribe.structures.http_response import HttpResponse
 class LlmAnthropic(LlmBase):
 
     def to_dict(self) -> dict:
-        result = {
-            "model": self.model,
-            "temperature": self.temperature,
-            "max_tokens": 8192,
-            "messages": [],
-        }
+        messages: list[dict] = []
 
         roles = {
             self.ROLE_SYSTEM: "user",
@@ -26,15 +21,20 @@ class LlmAnthropic(LlmBase):
             role = roles[prompt.role]
             part = {"type": "text", "text": "\n".join(prompt.text)}
             # contiguous parts for the same role are merged
-            if result["messages"] and result["messages"][-1]["role"] == role:
-                result["messages"][-1]["content"].append(part)
+            if messages and messages[-1]["role"] == role:
+                messages[-1]["content"].append(part)
             else:
-                result["messages"].append({
+                messages.append({
                     "role": role,
                     "content": [part],
                 })
 
-        return result
+        return {
+            "model": self.model,
+            "temperature": self.temperature,
+            "max_tokens": 8192,
+            "messages": messages,
+        }
 
     def request(self) -> HttpResponse:
         url = "https://api.anthropic.com/v1/messages"

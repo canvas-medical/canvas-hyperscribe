@@ -10,7 +10,7 @@ from evaluations.case_builders.builder_summarize import BuilderSummarize
 
 class CaseBuilder:
     @classmethod
-    def run(cls, arguments):
+    def run(cls, arguments: list[str]) -> None:
         if "--delete" in arguments:
             BuilderDelete.run()
         elif "--transcript" in arguments:

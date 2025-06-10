@@ -1,5 +1,6 @@
 import json
 from datetime import datetime
+from typing import Any
 
 from hyperscribe.handlers.progress import Progress
 from hyperscribe.libraries.aws_s3 import AwsS3
@@ -40,7 +41,7 @@ class LlmDecisionsReviewer:
 
         Progress.send_to_user(identification, settings, "create the audits...")
         for cycle in range(1, cycles + 1):
-            result: list[dict[str, list[str]]] = []
+            result: list[dict] = []
             store = LlmTurnsStore(credentials, identification, creation_day, cycle)
             for incremented_step, discussion in store.stored_documents():
                 Progress.send_to_user(identification, settings, f"auditing of {incremented_step} (cycle {cycle: 02d})")

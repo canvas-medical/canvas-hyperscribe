@@ -17,7 +17,7 @@ class Helper:
     @classmethod
     def str2datetime(cls, string: str | None) -> datetime | None:
         try:
-            return datetime.strptime(string, "%Y-%m-%d")
+            return datetime.strptime(string or "", "%Y-%m-%d")
         except Exception:
             return None
 

@@ -29,7 +29,7 @@ class AwsS3:
 
         binary_data, content_type = data
 
-        payload_hash = sha256(binary_data).hexdigest()  # type: ignore
+        payload_hash = sha256(binary_data).hexdigest()
 
         # canonical request
         canonical_uri = f"/{quote(object_key)}"  # URL encode the key
@@ -45,14 +45,14 @@ class AwsS3:
         # string to sign
         algorithm = 'AWS4-HMAC-SHA256'
         credential_scope = f"{date_stamp}/{self.region}/s3/aws4_request"
-        string_to_sign = f"{algorithm}\n{amz_date}\n{credential_scope}\n{sha256(canonical_request.encode('utf-8')).hexdigest()}"  # type: ignore
+        string_to_sign = f"{algorithm}\n{amz_date}\n{credential_scope}\n{sha256(canonical_request.encode('utf-8')).hexdigest()}"
 
         # compute the signature
-        k_date = hmac_new(('AWS4' + self.aws_secret).encode('utf-8'), date_stamp.encode('utf-8'), sha256).digest()  # type: ignore
-        k_region = hmac_new(k_date, self.region.encode('utf-8'), sha256).digest()  # type: ignore
-        k_service = hmac_new(k_region, b's3', sha256).digest()  # type: ignore
-        k_signing = hmac_new(k_service, b'aws4_request', sha256).digest()  # type: ignore
-        signature = hmac_new(k_signing, string_to_sign.encode('utf-8'), sha256).hexdigest()  # type: ignore
+        k_date = hmac_new(('AWS4' + self.aws_secret).encode('utf-8'), date_stamp.encode('utf-8'), sha256).digest()
+        k_region = hmac_new(k_date, self.region.encode('utf-8'), sha256).digest()
+        k_service = hmac_new(k_region, b's3', sha256).digest()
+        k_signing = hmac_new(k_service, b'aws4_request', sha256).digest()
+        signature = hmac_new(k_signing, string_to_sign.encode('utf-8'), sha256).hexdigest()
 
         # build authorization header
         authorization_header = f"{algorithm} Credential={self.aws_key_id}/{credential_scope}, SignedHeaders={signed_headers}, Signature={signature}"
@@ -77,7 +77,7 @@ class AwsS3:
         endpoint = f"https://{headers['Host']}/{object_key}"
         return requests_put(endpoint, headers=headers, data=data)
 
-    def upload_binary_to_s3(self, object_key: str, binary_data: bytes, content_type: str):
+    def upload_binary_to_s3(self, object_key: str, binary_data: bytes, content_type: str) -> Response:
         headers = self.headers(object_key, (binary_data, content_type)) | {
             'Content-Type': content_type,
             'Content-Length': str(len(binary_data)),

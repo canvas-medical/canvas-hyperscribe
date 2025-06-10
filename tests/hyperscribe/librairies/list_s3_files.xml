@@ -32,6 +32,9 @@
         <StorageClass>STANDARD</StorageClass>
     </Contents>
     <Contents>
+        <Comment>invalid node, not expected</Comment>
+    </Contents>
+    <Contents>
         <Key>from_plugin4</Key>
         <LastModified>2025-03-04T12:01:11.000Z</LastModified>
         <ETag>&quot;48362d2dffa0ebdc7f1bfb60a0e11662&quot;</ETag>

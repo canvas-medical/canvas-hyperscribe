@@ -37,7 +37,8 @@ class Instruction:
     def limited_str(self) -> str:
         return f"{self.instruction} #{self.index:02d} ({self.uuid}, new/updated: {self.is_new}/{self.is_updated}): {self.information}"
 
-    def __eq__(self, other: Instruction) -> bool:
+    def __eq__(self, other: object) -> bool:
+        assert isinstance(other, Instruction)
         return (self.uuid == other.uuid and
                 self.instruction == other.instruction and
                 self.information == other.information and

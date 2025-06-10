@@ -1008,7 +1008,7 @@ def test_update_questionnaire(chatter, memory_log):
         command_mocks[0].return_value.update_from_transcript.side_effect = [questionnaire_mocks[0]]
         command_mocks[1].return_value.update_from_transcript.side_effect = [questionnaire_mocks[1]]
         command_mocks[2].return_value.update_from_transcript.side_effect = [questionnaire_mocks[2]]
-        command_mocks[3].return_value.update_from_transcript.side_effect = [questionnaire_mocks[3]]
+        command_mocks[3].return_value.update_from_transcript.side_effect = [None]
         command_mocks[0].return_value.command_from_questionnaire.side_effect = ["theCommand1"]
         command_mocks[1].return_value.command_from_questionnaire.side_effect = ["theCommand2"]
         command_mocks[2].return_value.command_from_questionnaire.side_effect = ["theCommand3"]
@@ -1029,7 +1029,8 @@ def test_update_questionnaire(chatter, memory_log):
     tests = [
         ("First", 0, '{"key": "questionnaire1"}', "theCommand1", "First_theUuid_questionnaire_update"),
         ("Second", 1, '{"key": "questionnaire2"}', "theCommand2", "Second_theUuid_questionnaire_update"),
-        ("Fourth", 3, '{"key": "questionnaire4"}', "theCommand4", "Fourth_theUuid_questionnaire_update"),
+        # ("Fourth", 3, '{"key": "questionnaire4"}', "theCommand4", "Fourth_theUuid_questionnaire_update"),
+        ("Fourth", 3, None, None, "Fourth_theUuid_questionnaire_update"),
         ("Third", 4, None, None, None),
     ]
     for name, rank, exp_information, exp_command, exp_log_label in tests:
@@ -1073,10 +1074,17 @@ def test_update_questionnaire(chatter, memory_log):
             if idx < rank + 1 and idx != 2:
                 calls.extend([call().class_name()])
             if idx == rank and idx != 2:
-                calls.extend([
-                    call().update_from_transcript(discussion, instruction, "LlmBaseInstance"),
-                    call().command_from_questionnaire('theUuid', questionnaire_mocks[rank]),
-                ])
+                if idx != 2:
+                    calls.extend([call().update_from_transcript(
+                        discussion,
+                        instruction,
+                        "LlmBaseInstance",
+                    )])
+                    if rank != 3:
+                        calls.extend([call().command_from_questionnaire(
+                            'theUuid',
+                            questionnaire_mocks[rank],
+                        )])
             assert mock.mock_calls == calls, f"---> {idx}"
         reset_mocks()
 

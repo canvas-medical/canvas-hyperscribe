@@ -56,7 +56,7 @@ VALUES (%(now)s,%(uuid)s,%(commit)s,%(type)s,%(group)s,%(name)s,%(test)s,%(durat
         ) as connection:
             with connection.cursor() as cursor:
                 cursor.execute(sql, params)
-                column_names = [desc[0] for desc in cursor.description]
+                column_names = [desc[0] for desc in cursor.description or []]
                 for row in cursor.fetchall():
                     yield dict(zip(column_names, row))
                 connection.commit()

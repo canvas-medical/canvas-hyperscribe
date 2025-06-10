@@ -35,7 +35,7 @@ class Archiver(SimpleAPIRoute):
         hash_arg = query_params['ts'] + self.secrets[Constants.SECRET_API_SIGNING_KEY]
         internal_sig = sha256(hash_arg.encode('utf-8')).hexdigest()
 
-        return request_sig == internal_sig
+        return bool(request_sig == internal_sig)
 
     def get(self) -> list[Response | Effect]:
         qp = self.request.query_params

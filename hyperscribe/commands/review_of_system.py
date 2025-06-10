@@ -15,4 +15,4 @@ class ReviewOfSystem(BaseQuestionnaire):
         return True
 
     def sdk_command(self) -> Type[ReviewOfSystemsCommand]:
-        return ReviewOfSystemsCommand
+        return ReviewOfSystemsCommand  # type: ignore

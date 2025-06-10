@@ -265,7 +265,7 @@ def test_current_conditions(retrieve_conditions):
     tested = LimitedCache("patientUuid", {})
     assert tested._conditions is None
     result = tested.current_conditions()
-    assert result is None
+    assert result == []
     calls = [call()]
     assert retrieve_conditions.mock_calls == calls
     reset_mocks()
@@ -409,7 +409,7 @@ def test_condition_history(retrieve_conditions):
     tested = LimitedCache("patientUuid", {})
     assert tested._condition_history is None
     result = tested.condition_history()
-    assert result is None
+    assert result == []
     calls = [call()]
     assert retrieve_conditions.mock_calls == calls
     reset_mocks()
@@ -430,7 +430,7 @@ def test_surgery_history(retrieve_conditions):
     tested = LimitedCache("patientUuid", {})
     assert tested._surgery_history is None
     result = tested.surgery_history()
-    assert result is None
+    assert result == []
     calls = [call()]
     assert retrieve_conditions.mock_calls == calls
     reset_mocks()

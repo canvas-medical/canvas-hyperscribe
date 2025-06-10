@@ -17,34 +17,35 @@ from hyperscribe.structures.medication_detail import MedicationDetail
 from hyperscribe.structures.medication_detail_quantity import MedicationDetailQuantity
 
 
+# note that the "# type: ignore" could be removed if "from typing import TypeVar" was allowed
 class CanvasScience:
     @classmethod
     def instructions(cls, host: str, expressions: list[str]) -> list[MedicalConcept]:
-        return cls.medical_concept(host, "/search/instruction", expressions, MedicalConcept)
+        return cls.medical_concept(host, "/search/instruction", expressions, MedicalConcept)  # type: ignore
 
     @classmethod
     def family_histories(cls, host: str, expressions: list[str]) -> list[MedicalConcept]:
-        return cls.medical_concept(host, "/search/family-history", expressions, MedicalConcept)
+        return cls.medical_concept(host, "/search/family-history", expressions, MedicalConcept)  # type: ignore
 
     @classmethod
     def surgical_histories(cls, host: str, expressions: list[str]) -> list[MedicalConcept]:
-        return cls.medical_concept(host, "/search/surgical-history-procedure", expressions, MedicalConcept)
+        return cls.medical_concept(host, "/search/surgical-history-procedure", expressions, MedicalConcept)  # type: ignore
 
     @classmethod
     def medical_histories(cls, host: str, expressions: list[str]) -> list[Icd10Condition]:
-        return cls.medical_concept(host, "/search/medical-history-condition", expressions, Icd10Condition)
+        return cls.medical_concept(host, "/search/medical-history-condition", expressions, Icd10Condition)  # type: ignore
 
     @classmethod
     def medication_details(cls, host: str, expressions: list[str]) -> list[MedicationDetail]:
-        return cls.medical_concept(host, "/search/grouped-medication", expressions, MedicationDetail)
+        return cls.medical_concept(host, "/search/grouped-medication", expressions, MedicationDetail)  # type: ignore
 
     @classmethod
     def search_conditions(cls, host: str, expressions: list[str]) -> list[Icd10Condition]:
-        return cls.medical_concept(host, "/search/condition", expressions, Icd10Condition)
+        return cls.medical_concept(host, "/search/condition", expressions, Icd10Condition)  # type: ignore
 
     @classmethod
     def search_imagings(cls, host: str, expressions: list[str]) -> list[ImagingReport]:
-        return cls.medical_concept(host, "/parse-templates/imaging-reports", expressions, ImagingReport)
+        return cls.medical_concept(host, "/parse-templates/imaging-reports", expressions, ImagingReport)  # type: ignore
 
     @classmethod
     def medical_concept(
@@ -178,7 +179,7 @@ class CanvasScience:
                 response = science_http.get_json(url, headers)
 
             if response.status_code == HTTPStatus.OK.value:
-                return response.json().get("results", [])
+                return response.json().get("results") or []
 
             log.info(f"get response code: {response.status_code} - {url}")
 

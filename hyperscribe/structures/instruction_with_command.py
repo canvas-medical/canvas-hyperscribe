@@ -33,5 +33,6 @@ class InstructionWithCommand(InstructionWithParameters):
             command=command
         )
 
-    def __eq__(self, other: InstructionWithCommand) -> bool:
+    def __eq__(self, other: object) -> bool:
+        assert isinstance(other, InstructionWithCommand)
         return super().__eq__(other) and self.command == other.command
