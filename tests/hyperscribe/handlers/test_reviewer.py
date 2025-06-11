@@ -63,7 +63,7 @@ def test_compute(
         "AwsKey": "theKey",
         "AwsSecret": "theSecret",
         "AwsRegion": "theRegion",
-        "AwsBucket": "theBucket",
+        "AwsBucketLogs": "theBucketLogs",
     }
     event = Event(EventRequest(target="taskUuid"))
     environment = {"CUSTOMER_IDENTIFIER": "theTestEnv"}
@@ -188,7 +188,7 @@ def test_compute_audit_documents(
         "AwsKey": "theKey",
         "AwsSecret": "theSecret",
         "AwsRegion": "theRegion",
-        "AwsBucket": "theBucket",
+        "AwsBucketLogs": "theBucketLogs",
         "APISigningKey": "theApiSigningKey",
     }
     event = Event(EventRequest(target="taskUuid"))
@@ -202,7 +202,7 @@ def test_compute_audit_documents(
         aws_key='theKey',
         aws_secret='theSecret',
         region='theRegion',
-        bucket='theBucket',
+        bucket='theBucketLogs',
     )
     settings = Settings(
         llm_text=VendorKey(vendor="theVendorTextLLM", api_key="theKeyTextLLM"),

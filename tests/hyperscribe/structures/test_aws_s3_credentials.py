@@ -20,13 +20,13 @@ def test_from_dictionary():
         "AwsKey": "theKey",
         "AwsSecret": "theSecret",
         "AwsRegion": "theRegion",
-        "AwsBucket": "theBucket",
+        "AwsBucketLogs": "theBucketLogs",
     })
     expected = AwsS3Credentials(
         aws_key="theKey",
         aws_secret="theSecret",
         region="theRegion",
-        bucket="theBucket",
+        bucket="theBucketLogs",
     )
     assert result == expected
     #

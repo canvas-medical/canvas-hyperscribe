@@ -31,7 +31,7 @@ def helper_instance() -> ReviewerDisplay:
         "AwsKey": "theKey",
         "AwsSecret": "theSecret",
         "AwsRegion": "theRegion",
-        "AwsBucket": "theBucket",
+        "AwsBucketLogs": "theBucketLogs",
         "APISigningKey": "theApiSigningKey",
     }
     environment = {
@@ -83,7 +83,7 @@ def test_get(aws_s3, render_to_string):
         aws_key='theKey',
         aws_secret='theSecret',
         region='theRegion',
-        bucket='theBucket',
+        bucket='theBucketLogs',
     )
     a_date = datetime(2025, 5, 8, 7, 11, 45, tzinfo=timezone.utc)
 

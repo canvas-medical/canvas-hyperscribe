@@ -140,7 +140,7 @@ class Commander(BaseProtocol):
 
         cache = LimitedCache(
             identification.patient_uuid,
-            cls.existing_commands_to_coded_items(current_commands, settings.commands_policy),
+            cls.existing_commands_to_coded_items(current_commands, settings.commands_policy, True),
         )
         chatter = AudioInterpreter(settings, aws_s3, cache, identification)
         previous_instructions = cls.existing_commands_to_instructions(
@@ -513,7 +513,8 @@ class Commander(BaseProtocol):
         return list(result.values())
 
     @classmethod
-    def existing_commands_to_coded_items(cls, current_commands: Iterable[Command], commands_policy: AccessPolicy) -> dict[str, list[CodedItem]]:
+    def existing_commands_to_coded_items(cls, current_commands: Iterable[Command], commands_policy: AccessPolicy, real_uuids: bool) -> dict[
+        str, list[CodedItem]]:
         result: dict[str, list[CodedItem]] = {}
         for command in current_commands:
             for command_class in ImplementedCommands.command_list():
@@ -523,7 +524,7 @@ class Commander(BaseProtocol):
                         if key not in result:
                             result[key] = []
                         result[key].append(CodedItem(
-                            uuid=str(command.id),
+                            uuid=str(command.id) if real_uuids else coded_item.uuid,
                             label=coded_item.label,
                             code=coded_item.code,
                         ))

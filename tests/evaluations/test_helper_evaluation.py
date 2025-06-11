@@ -61,7 +61,7 @@ def test_aws_s3_credentials(monkeypatch):
     monkeypatch.setenv("AwsKey", "theKey")
     monkeypatch.setenv("AwsSecret", "theSecret")
     monkeypatch.setenv("AwsRegion", "theRegion")
-    monkeypatch.setenv("AwsBucket", "theBucket")
+    monkeypatch.setenv("AwsBucketLogs", "theBucketLogs")
 
     tested = HelperEvaluation
     result = tested.aws_s3_credentials()
@@ -69,7 +69,7 @@ def test_aws_s3_credentials(monkeypatch):
         aws_key="theKey",
         aws_secret="theSecret",
         region="theRegion",
-        bucket="theBucket",
+        bucket="theBucketLogs",
     )
     assert result == expected
 

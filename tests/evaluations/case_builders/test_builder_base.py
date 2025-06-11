@@ -426,7 +426,11 @@ def test__limited_cache_from(command_db, existing_commands_to_coded_items):
         call.filter().order_by('dbid'),
     ]
     assert command_db.mock_calls == calls
-    calls = [call("QuerySetCommands", AccessPolicy(policy=False, items=["Command1", "Command2"]))]
+    calls = [call(
+        "QuerySetCommands",
+        AccessPolicy(policy=False, items=["Command1", "Command2"]),
+        True,
+    )]
     assert existing_commands_to_coded_items.mock_calls == calls
     reset_mocks()
 

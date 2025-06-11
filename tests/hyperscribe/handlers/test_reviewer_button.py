@@ -113,7 +113,7 @@ def test_visible(note_db):
             "AwsKey": "theKey",
             "AwsSecret": "theSecret",
             "AwsRegion": "theRegion",
-            "AwsBucket": "theBucket",
+            "AwsBucketLogs": "theBucketLogs",
             "APISigningKey": "theApiSigningKey",
             "StaffersList": "1,2 3 4",
             "StaffersPolicy": policy,

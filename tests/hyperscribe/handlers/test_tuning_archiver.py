@@ -14,11 +14,14 @@ from canvas_sdk.handlers.simple_api import SimpleAPIRoute, Credentials
 from canvas_sdk.v1.data import Patient, Command
 from requests import Response
 
-from hyperscribe_tuning.handlers.archiver import Archiver, ArchiverHelper
+from hyperscribe.handlers.commander import Commander
+from hyperscribe.handlers.tuning_archiver import TuningArchiver, ArchiverHelper
+from hyperscribe.structures.access_policy import AccessPolicy
+from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from tests.helper import is_constant
 
 
-def helper_instance() -> Archiver:
+def helper_instance() -> TuningArchiver:
     event = Event(EventRequest(context=json.dumps({
         "note_id": "noteId",
         "method": "GET",
@@ -33,20 +36,20 @@ def helper_instance() -> Archiver:
         "AwsKey": "theKey",
         "AwsSecret": "theSecret",
         "AwsRegion": "theRegion",
-        "AwsBucket": "theBucket",
+        "AwsBucketTuning": "theBucketTuning",
     }
-    instance = Archiver(event, secrets)
+    instance = TuningArchiver(event, secrets)
     instance._path_pattern = re.compile(r".*")  # TODO this is a hack, find the right way to create the Archiver instance
     return instance
 
 
 def test_class():
-    tested = Archiver
+    tested = TuningArchiver
     assert issubclass(tested, SimpleAPIRoute)
 
 
 def test_constants():
-    tested = Archiver
+    tested = TuningArchiver
     constants = {
         "PATH": "/archive",
         "RESPONDS_TO": ['SIMPLE_API_AUTHENTICATE', 'SIMPLE_API_REQUEST'],  # <--- SimpleAPIBase class
@@ -54,7 +57,7 @@ def test_constants():
     assert is_constant(tested, constants)
 
 
-@patch("hyperscribe_tuning.handlers.archiver.time", wraps=time)
+@patch("hyperscribe.handlers.tuning_archiver.time", wraps=time)
 def test_authenticate(mock_time):
     def reset_mocks():
         mock_time.reset_mock()
@@ -118,7 +121,7 @@ def test_authenticate(mock_time):
     reset_mocks()
 
 
-@patch("hyperscribe_tuning.handlers.archiver.render_to_string")
+@patch("hyperscribe.handlers.tuning_archiver.render_to_string")
 def test_get(render_to_string):
     def reset_mocks():
         render_to_string.reset_mock()
@@ -159,7 +162,7 @@ def test_get(render_to_string):
 
 @patch.object(ArchiverHelper, "store_audio")
 @patch.object(ArchiverHelper, "store_chart")
-@patch("hyperscribe_tuning.handlers.archiver.AwsS3")
+@patch("hyperscribe.handlers.tuning_archiver.AwsS3")
 def test_post(aws_s3, post_chart, post_audio):
     def reset_mocks():
         aws_s3.reset_mock()
@@ -185,7 +188,7 @@ def test_post(aws_s3, post_chart, post_audio):
     expected = ["thePostChart"]
     assert result == expected
     calls = [
-        call('theKey', 'theSecret', 'theRegion', 'theBucket'),
+        call(AwsS3Credentials(aws_key='theKey', aws_secret='theSecret', region='theRegion', bucket='theBucketTuning')),
     ]
     assert aws_s3.mock_calls == calls
     calls = [call("awsS3Instance", "theHost", tested.request)]
@@ -210,7 +213,7 @@ def test_post(aws_s3, post_chart, post_audio):
     expected = ["thePostAudio"]
     assert result == expected
     calls = [
-        call('theKey', 'theSecret', 'theRegion', 'theBucket'),
+        call(AwsS3Credentials(aws_key='theKey', aws_secret='theSecret', region='theRegion', bucket='theBucketTuning')),
     ]
     assert aws_s3.mock_calls == calls
     assert post_chart.mock_calls == []
@@ -220,14 +223,16 @@ def test_post(aws_s3, post_chart, post_audio):
 
 
 @patch.object(Command, "objects")
-@patch("hyperscribe_tuning.handlers.archiver.LimitedCache")
-@patch("hyperscribe_tuning.handlers.archiver.AwsS3")
-def test_store_chart(aws_s3, limited_cache, command_db):
+@patch.object(Commander, 'existing_commands_to_coded_items')
+@patch("hyperscribe.handlers.tuning_archiver.LimitedCache")
+@patch("hyperscribe.handlers.tuning_archiver.AwsS3")
+def test_store_chart(aws_s3, limited_cache, existing_commands_to_coded_items, command_db):
     mock_request = MagicMock()
 
     def reset_mocks():
         aws_s3.reset_mock()
         limited_cache.reset_mock()
+        existing_commands_to_coded_items.reset_mock()
         command_db.reset_mock()
         mock_request.reset_mock()
 
@@ -239,7 +244,7 @@ def test_store_chart(aws_s3, limited_cache, command_db):
     response.encoding = "utf-8"
 
     aws_s3.upload_text_to_s3.side_effect = [response]
-    limited_cache.existing_commands_to_coded_items.side_effect = ["existingCommandsToCodedItems"]
+    existing_commands_to_coded_items.side_effect = ["existingCommandsToCodedItems"]
     limited_cache.return_value.to_json.side_effect = [{"key": "theLimitedCache"}]
     command_db.filter.return_value.order_by.side_effect = ["QuerySetCommands"]
     mock_request.query_params = {
@@ -262,23 +267,24 @@ def test_store_chart(aws_s3, limited_cache, command_db):
         ),
     ]
     assert aws_s3.mock_calls == calls
+    calls = [call('QuerySetCommands', AccessPolicy(policy=False, items=[]), False)]
+    assert existing_commands_to_coded_items.mock_calls == calls
     calls = [
         call.filter(patient__id='thePatientId', note__id='theNoteId', state='staged'),
         call.filter().order_by('dbid'),
     ]
     assert command_db.mock_calls == calls
     calls = [
-        call.existing_commands_to_coded_items("QuerySetCommands"),
         call("thePatientId", "existingCommandsToCodedItems"),
-        call().to_json()
+        call().to_json(True),
     ]
     assert limited_cache.mock_calls == calls
     assert mock_request.mock_calls == []
     reset_mocks()
 
 
-@patch("hyperscribe_tuning.handlers.archiver.time", wraps=time)
-@patch("hyperscribe_tuning.handlers.archiver.AwsS3")
+@patch("hyperscribe.handlers.tuning_archiver.time", wraps=time)
+@patch("hyperscribe.handlers.tuning_archiver.AwsS3")
 def test_store_audio(aws_s3, mock_time):
     mock_request = MagicMock()
 

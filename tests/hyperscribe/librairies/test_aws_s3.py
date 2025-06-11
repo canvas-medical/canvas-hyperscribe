@@ -237,6 +237,54 @@ def test_upload_text_to_s3(is_ready, headers, requests_put):
     rest_mocks()
 
 
+@patch("hyperscribe.libraries.aws_s3.requests_put")
+@patch.object(AwsS3, "headers")
+@patch.object(AwsS3, "is_ready")
+def test_upload_binary_to_s3(is_ready, headers, requests_put):
+    def rest_mocks():
+        is_ready.reset_mock()
+        headers.reset_mock()
+        requests_put.reset_mock()
+
+    credentials = AwsS3Credentials(aws_key="theKey", aws_secret="theSecret", region="theRegion", bucket="theBucket")
+    test = AwsS3(credentials)
+    # ready
+    is_ready.side_effect = [True]
+    headers.side_effect = [{"Host": "theHost", "someKey": "someValue"}]
+    requests_put.side_effect = ["theResponse"]
+    result = test.upload_binary_to_s3("theObjectKey", b"someData", "theContentType")
+    assert result == "theResponse"
+
+    calls = [call()]
+    assert is_ready.mock_calls == calls
+    calls = [call('theObjectKey', (b'someData', 'theContentType'))]
+    assert headers.mock_calls == calls
+    calls = [call(
+        'https://theHost/theObjectKey',
+        headers={
+            'Host': 'theHost',
+            'someKey': 'someValue',
+            'Content-Type': 'theContentType',
+            'Content-Length': '8',
+        },
+        data=b'someData',
+    )]
+    assert requests_put.mock_calls == calls
+    rest_mocks()
+    # not ready
+    is_ready.side_effect = [False]
+    headers.side_effect = []
+    requests_put.side_effect = []
+    result = test.upload_binary_to_s3("theObjectKey", b"someData", "theContentType")
+    assert result.status_code is None
+
+    calls = [call()]
+    assert is_ready.mock_calls == calls
+    assert headers.mock_calls == []
+    assert requests_put.mock_calls == []
+    rest_mocks()
+
+
 @patch("hyperscribe.libraries.aws_s3.requests_get")
 @patch.object(AwsS3, "headers")
 @patch.object(AwsS3, "is_ready")

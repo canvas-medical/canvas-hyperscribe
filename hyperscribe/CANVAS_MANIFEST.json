@@ -1,6 +1,6 @@
 {
-  "sdk_version": "0.39.0",
-  "plugin_version": "0.0.75",
+  "sdk_version": "0.40.1",
+  "plugin_version": "0.0.76",
   "name": "hyperscribe",
   "description": "Create commands based on the content of an audio discussion between a patient and a provider.",
   "url_permissions": [
@@ -85,6 +85,24 @@
           "read": [],
           "write": []
         }
+      },
+      {
+        "class": "hyperscribe.handlers.tuning_archiver:TuningArchiver",
+        "description": "Store audios and chart data in an S3 bucket",
+        "data_access": {
+          "event": "",
+          "read": [],
+          "write": []
+        }
+      },
+      {
+        "class": "hyperscribe.handlers.tuning_launcher:TuningLauncher",
+        "description": "Display launch button in note header",
+        "data_access": {
+          "event": "",
+          "read": [],
+          "write": []
+        }
       }
     ],
     "applications": [],
@@ -108,7 +126,8 @@
     "AwsKey",
     "AwsSecret",
     "AwsRegion",
-    "AwsBucket",
+    "AwsBucketLogs",
+    "AwsBucketTuning",
     "APISigningKey",
     "CommandsList",
     "CommandsPolicy",

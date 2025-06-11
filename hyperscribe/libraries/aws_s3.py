@@ -97,6 +97,16 @@ class AwsS3:
         endpoint = f"https://{headers['Host']}/{object_key}"
         return requests_put(endpoint, headers=headers, data=data)
 
+    def upload_binary_to_s3(self, object_key: str, binary_data: bytes, content_type: str) -> Response:
+        if not self.is_ready():
+            return Response()
+        headers = self.headers(object_key, (binary_data, content_type)) | {
+            'Content-Type': content_type,
+            'Content-Length': str(len(binary_data)),
+        }
+        endpoint = f"https://{headers['Host']}/{object_key}"
+        return requests_put(endpoint, headers=headers, data=binary_data)
+
     def list_s3_objects(self, prefix: str) -> list[AwsS3Object]:
         result: list[AwsS3Object] = []
         if not self.is_ready():

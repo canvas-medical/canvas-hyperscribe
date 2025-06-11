@@ -7,10 +7,11 @@ from canvas_sdk.events import EventType
 from canvas_sdk.handlers.action_button import ActionButton
 from canvas_sdk.v1.data.note import Note
 
-from hyperscribe_tuning.handlers.constants import Constants
+from hyperscribe.libraries.constants import Constants
+from hyperscribe.structures.settings import Settings
 
 
-class Launcher(ActionButton):
+class TuningLauncher(ActionButton):
     BUTTON_TITLE = "🧪 Hyperscribe Tuning"
     BUTTON_KEY = "HYPERSCRIBE_TUNING_LAUNCHER"
     BUTTON_LOCATION = ActionButton.ButtonLocation.NOTE_HEADER
@@ -21,7 +22,7 @@ class Launcher(ActionButton):
     ]
 
     def handle(self) -> list[Effect]:
-        interval = self.secrets[Constants.SECRET_AUDIO_INTERVAL_SECONDS]
+        interval = self.secrets[Constants.SECRET_AUDIO_INTERVAL]
         note_id = str(Note.objects.get(dbid=self.event.context['note_id']).id)
         patient_id = self.target
 
@@ -30,10 +31,12 @@ class Launcher(ActionButton):
         sig = sha256(hash_arg.encode('utf-8')).hexdigest()
         params = f"note_id={note_id}&patient_id={patient_id}&interval={interval}&ts={ts}&sig={sig}"
         tuning_ui = LaunchModalEffect(
-            url=f"/plugin-io/api/hyperscribe_tuning/archive?{params}",
+            url=f"/plugin-io/api/hyperscribe/archive?{params}",
             target=LaunchModalEffect.TargetType.NEW_WINDOW,
         )
         return [tuning_ui.apply()]
 
     def visible(self) -> bool:
-        return True
+        settings = Settings.from_dictionary(self.secrets)
+        staff_id = str(Note.objects.get(dbid=self.event.context['note_id']).provider.dbid)
+        return settings.staffers_policy.is_allowed(staff_id)

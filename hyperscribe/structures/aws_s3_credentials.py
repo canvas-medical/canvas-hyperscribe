@@ -17,5 +17,14 @@ class AwsS3Credentials(NamedTuple):
             aws_key=dictionary.get(Constants.SECRET_AWS_KEY, ""),
             aws_secret=dictionary.get(Constants.SECRET_AWS_SECRET, ""),
             region=dictionary.get(Constants.SECRET_AWS_REGION, ""),
-            bucket=dictionary.get(Constants.SECRET_AWS_BUCKET, ""),
+            bucket=dictionary.get(Constants.SECRET_AWS_BUCKET_LOGS, ""),
+        )
+
+    @classmethod
+    def from_dictionary_tuning(cls, dictionary: dict) -> AwsS3Credentials:
+        return AwsS3Credentials(
+            aws_key=dictionary.get(Constants.SECRET_AWS_KEY, ""),
+            aws_secret=dictionary.get(Constants.SECRET_AWS_SECRET, ""),
+            region=dictionary.get(Constants.SECRET_AWS_REGION, ""),
+            bucket=dictionary.get(Constants.SECRET_AWS_BUCKET_TUNING, ""),
         )

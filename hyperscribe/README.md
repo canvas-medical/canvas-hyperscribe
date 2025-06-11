@@ -10,6 +10,7 @@ The plugin provides these components:
 - [launcher](handlers/launcher.py): button in the header of the note (UI) to start the recording
 - [commander](handlers/commander.py): script executed on the server creating the commands based on the audio
 - [reviewer](handlers/reviewer_button.py): button in the header of the note (UI) to review the LLM decisions
+- [tuning_launcher](handlers/tuning_launcher.py): button in the header of the note (UI) to start the recording for tuning purpose
 
 ## Set up
 
@@ -23,7 +24,7 @@ client_secret=...
 
 (as described in the [Canvas Plugin Overview](https://www.youtube.com/watch?v=X2JOEElq2ck) video)
 
-To be able to run locally your code against your remote instance (`my-canvas-host.canvasmedical.com`), create the environment variables:
+To be able to locally run your code against your remote instance (`my-canvas-host.canvasmedical.com`), create the environment variables:
 
 ```shell
 export CANVAS_SDK_DB_NAME="..."
@@ -79,7 +80,8 @@ The `secrets` are stored in the Canvas instance database and can be upsert in `h
 | `AwsKey`                   |                                 | AWS key to access the S3 service                                                                                                                            |
 | `AwsSecret`                |                                 | AWS secret to access the S3 service                                                                                                                         |
 | `AwsRegion`                |                                 | AWS region of the S3 service                                                                                                                                |
-| `AwsBucket`                |                                 | AWS bucket of the S3 service                                                                                                                                |
+| `AwsBucketLogs`            |                                 | AWS bucket of the S3 service for the logs                                                                                                                   |
+| `AwsBucketTuning`          |                                 | AWS bucket of the S3 service for the tuning files                                                                                                           |
 | `APISigningKey`            |                                 | generated key to accept published effects from the case builder                                                                                             |
 | `CommandsList`             | `Command1,Command2 Command3`    | list of commands, as defined in [libraries/implemented_commands.py::command_list](libraries/implemented_commands.py), related to the `CommandsPolicy` value |
 | `CommandsPolicy`           | `y`, `yes` or `1`               | the commands of `CommandsList` are allowed (`y`) or excluded (`n`)                                                                                          |
@@ -96,7 +98,7 @@ generation. When set, the audit is generated at the end of the session, and it c
 
 The audits are saved in the provided `AWS S3 bucket`.
 
-The logs are saved following the folders structure:
+The logs are saved following the folder structure:
 
 ```shell
 AwsBucket
@@ -107,7 +109,7 @@ AwsBucket
            |- partials - logs of each step
 ```
 
-### Temporary set up
+### Temporary setup
 
 The _Perform_ command needs `CPT` codes provided through the model [`ChargeDescriptionMaster`](./handlers/temporary_data.py).
 

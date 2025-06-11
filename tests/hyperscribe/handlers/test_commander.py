@@ -82,7 +82,7 @@ def test_compute(
         aws_key='theKey',
         aws_secret='theSecret',
         region='theRegion',
-        bucket='theBucket',
+        bucket='theBucketLogs',
     )
     settings = Settings(
         llm_text=VendorKey(vendor="textVendor", api_key="textAPIKey"),
@@ -112,7 +112,7 @@ def test_compute(
         "AwsKey": "theKey",
         "AwsSecret": "theSecret",
         "AwsRegion": "theRegion",
-        "AwsBucket": "theBucket",
+        "AwsBucketLogs": "theBucketLogs",
         "APISigningKey": "theApiSigningKey",
         "sendProgress": False,
         "CommandsPolicy": False,
@@ -548,7 +548,11 @@ def test_compute_audio(
         assert audio2commands.mock_calls == calls
         calls = [call('QuerySetCommands', instructions[2:])]
         assert existing_commands_to_instructions.mock_calls == calls
-        calls = [call('QuerySetCommands', AccessPolicy(policy=False, items=["Command1", "Command2", "Command3"]))]
+        calls = [call(
+            'QuerySetCommands',
+            AccessPolicy(policy=False, items=["Command1", "Command2", "Command3"]),
+            True,
+        )]
         assert existing_commands_to_coded_items.mock_calls == calls
         calls = [
             call.filter(patient__id='patientUuid', note__id='noteUuid', state='staged'),
@@ -1991,7 +1995,7 @@ def test_existing_commands_to_coded_items(command_list):
     mock_commands[2].staged_command_extract.side_effect = []
 
     policy = AccessPolicy(policy=True, items=["CommandX", "CommandY", "CommandZ"])
-    result = tested.existing_commands_to_coded_items(current_commands, policy)
+    result = tested.existing_commands_to_coded_items(current_commands, policy, True)
     expected = {
         'canvas_command_X': [
             CodedItem(uuid='uuid1', label='label1', code='code1'),
@@ -2065,10 +2069,10 @@ def test_existing_commands_to_coded_items(command_list):
     mock_commands[2].staged_command_extract.side_effect = []
 
     policy = AccessPolicy(policy=True, items=["CommandX"])
-    result = tested.existing_commands_to_coded_items(current_commands, policy)
+    result = tested.existing_commands_to_coded_items(current_commands, policy, False)
     expected = {
         'canvas_command_X': [
-            CodedItem(uuid='uuid1', label='label1', code='code1'),
+            CodedItem(uuid='', label='label1', code='code1'),
         ],
     }
     assert result == expected
