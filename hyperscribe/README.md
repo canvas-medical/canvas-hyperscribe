@@ -83,6 +83,8 @@ The `secrets` are stored in the Canvas instance database and can be upsert in `h
 | `APISigningKey`            |                                 | generated key to accept published effects from the case builder                                                                                             |
 | `CommandsList`             | `Command1,Command2 Command3`    | list of commands, as defined in [libraries/implemented_commands.py::command_list](libraries/implemented_commands.py), related to the `CommandsPolicy` value |
 | `CommandsPolicy`           | `y`, `yes` or `1`               | the commands of `CommandsList` are allowed (`y`) or excluded (`n`)                                                                                          |
+| `StaffersList`             | `17,23 37 41`                   | list of staffer ids, related to the `StaffersPolicy` value                                                                                                  |
+| `StaffersPolicy`           | `y`, `yes` or `1`               | the staffers of `StaffersList` are allowed (`y`) or excluded (`n`)                                                                                          |
 
 To use the Canvas services provided by the SDK (`OntologiesHttp` and `ScienceHttp` from `canvas_sdk.utils.http`), set to empty the related secrets (
 `OntologiesHost` and `ScienceHost`).

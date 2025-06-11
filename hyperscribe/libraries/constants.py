@@ -8,7 +8,7 @@ class Constants:
     MAX_ATTEMPTS_LLM_HTTP = 3
     MAX_ATTEMPTS_LLM_JSON = 3
     MAX_ATTEMPTS_CANVAS_SERVICES = 3
-    MAX_CHARGE_DESCRIPTIONS = 500 # limit to the charge descriptions submitted to the LLM to retrieve the CPT code of a Perform command
+    MAX_CHARGE_DESCRIPTIONS = 500  # limit to the charge descriptions submitted to the LLM to retrieve the CPT code of a Perform command
     MAX_WORKERS = 10  # max parallel executions
     MEMORY_LOG_LABEL = "main"
     OPENAI_CHAT_AUDIO = "gpt-4o-audio-preview"  # LLM model used for speech to text
@@ -73,8 +73,10 @@ class Constants:
     SECRET_STRUCTURED_RFV = "StructuredReasonForVisit"
     SECRET_AUDIT_LLM = "AuditLLMDecisions"
     SECRET_API_SIGNING_KEY = "APISigningKey"
-    SECRET_COMMANDS_LIST= "CommandsList"
+    SECRET_COMMANDS_LIST = "CommandsList"
     SECRET_COMMANDS_POLICY = "CommandsPolicy"
+    SECRET_STAFFERS_LIST = "StaffersList"
+    SECRET_STAFFERS_POLICY = "StaffersPolicy"
     #
     PROGRESS_END_OF_MESSAGES = "EOF"
     PROGRESS_SETTING_KEY = "sendProgress"

@@ -12,9 +12,9 @@ from logger import log
 from hyperscribe.handlers.commander import Commander
 from hyperscribe.libraries.cached_discussion import CachedDiscussion
 from hyperscribe.libraries.implemented_commands import ImplementedCommands
+from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.coded_item import CodedItem
-from hyperscribe.structures.commands_policy import CommandsPolicy
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.instruction import Instruction
 from hyperscribe.structures.instruction_with_command import InstructionWithCommand
@@ -94,7 +94,8 @@ def test_compute(
         audit_llm=False,
         api_signing_key="theApiSigningKey",
         send_progress=True,  # <-- changed in the code
-        commands_policy=CommandsPolicy(policy=False, commands=["Command1", "Command2", "Command3"]),
+        commands_policy=AccessPolicy(policy=False, items=["Command1", "Command2", "Command3"]),
+        staffers_policy=AccessPolicy(policy=False, items=["31", "47"]),
     )
     date_x = datetime(2025, 5, 9, 12, 34, 21, tzinfo=timezone.utc)
     secrets = {
@@ -116,6 +117,8 @@ def test_compute(
         "sendProgress": False,
         "CommandsPolicy": False,
         "CommandsList": "Command1 Command3, Command2",
+        "StaffersPolicy": False,
+        "StaffersList": "47 31",
     }
     event = Event(EventRequest(target="taskUuid"))
     environment = {"CUSTOMER_IDENTIFIER": "theTestEnv"}
@@ -384,7 +387,8 @@ def test_compute_audio(
         audit_llm=False,
         api_signing_key="theApiSigningKey",
         send_progress=False,
-        commands_policy=CommandsPolicy(policy=False, commands=["Command1", "Command2", "Command3"]),
+        commands_policy=AccessPolicy(policy=False, items=["Command1", "Command2", "Command3"]),
+        staffers_policy=AccessPolicy(policy=False, items=["31", "47"]),
     )
     # no more audio
     retrieve_audios.side_effect = [[]]
@@ -544,7 +548,7 @@ def test_compute_audio(
         assert audio2commands.mock_calls == calls
         calls = [call('QuerySetCommands', instructions[2:])]
         assert existing_commands_to_instructions.mock_calls == calls
-        calls = [call('QuerySetCommands', CommandsPolicy(policy=False, commands=["Command1", "Command2", "Command3"]))]
+        calls = [call('QuerySetCommands', AccessPolicy(policy=False, items=["Command1", "Command2", "Command3"]))]
         assert existing_commands_to_coded_items.mock_calls == calls
         calls = [
             call.filter(patient__id='patientUuid', note__id='noteUuid', state='staged'),
@@ -1010,7 +1014,8 @@ def test_transcript2commands_common(time, memory_log, progress):
             audit_llm=True,
             api_signing_key="theApiSigningKey",
             send_progress=False,
-            commands_policy=CommandsPolicy(policy=False, commands=["Command1", "Command2", "Command3"]),
+            commands_policy=AccessPolicy(policy=False, items=["Command1", "Command2", "Command3"]),
+            staffers_policy=AccessPolicy(policy=False, items=["31", "47"]),
         )
         mock_chatter.identification = identification
         mock_chatter.settings = settings
@@ -1147,7 +1152,8 @@ def test_transcript2commands_common(time, memory_log, progress):
         audit_llm=True,
         api_signing_key="theApiSigningKey",
         send_progress=False,
-        commands_policy=CommandsPolicy(policy=False, commands=["Command1", "Command2", "Command3"]),
+        commands_policy=AccessPolicy(policy=False, items=["Command1", "Command2", "Command3"]),
+        staffers_policy=AccessPolicy(policy=False, items=["31", "47"]),
     )
     mock_chatter.identification = identification
     mock_chatter.settings = settings
@@ -1349,7 +1355,8 @@ def test_transcript2commands_questionnaires(time, memory_log, progress):
             audit_llm=True,
             api_signing_key="theApiSigningKey",
             send_progress=False,
-            commands_policy=CommandsPolicy(policy=False, commands=["Command1", "Command2", "Command3"]),
+            commands_policy=AccessPolicy(policy=False, items=["Command1", "Command2", "Command3"]),
+            staffers_policy=AccessPolicy(policy=False, items=["31", "47"]),
         )
         chatter.identification = identification
         chatter.settings = settings
@@ -1983,7 +1990,7 @@ def test_existing_commands_to_coded_items(command_list):
     ]
     mock_commands[2].staged_command_extract.side_effect = []
 
-    policy = CommandsPolicy(policy=True, commands=["CommandX", "CommandY", "CommandZ"])
+    policy = AccessPolicy(policy=True, items=["CommandX", "CommandY", "CommandZ"])
     result = tested.existing_commands_to_coded_items(current_commands, policy)
     expected = {
         'canvas_command_X': [
@@ -2057,7 +2064,7 @@ def test_existing_commands_to_coded_items(command_list):
     ]
     mock_commands[2].staged_command_extract.side_effect = []
 
-    policy = CommandsPolicy(policy=True, commands=["CommandX"])
+    policy = AccessPolicy(policy=True, items=["CommandX"])
     result = tested.existing_commands_to_coded_items(current_commands, policy)
     expected = {
         'canvas_command_X': [

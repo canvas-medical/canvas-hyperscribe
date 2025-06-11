@@ -9,6 +9,7 @@ from canvas_sdk.v1.data.note import Note
 from hyperscribe.libraries.authenticator import Authenticator
 from hyperscribe.libraries.constants import Constants
 from hyperscribe.structures.identification_parameters import IdentificationParameters
+from hyperscribe.structures.settings import Settings
 
 
 class Launcher(ActionButton):
@@ -47,4 +48,6 @@ class Launcher(ActionButton):
         return [hyperscribe_pane.apply()]
 
     def visible(self) -> bool:
-        return True
+        settings = Settings.from_dictionary(self.secrets)
+        staff_id = str(Note.objects.get(dbid=self.event.context['note_id']).provider.dbid)
+        return settings.staffers_policy.is_allowed(staff_id)

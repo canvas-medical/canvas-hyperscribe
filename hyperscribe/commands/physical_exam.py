@@ -15,4 +15,4 @@ class PhysicalExam(BaseQuestionnaire):
         return True
 
     def sdk_command(self) -> Type[PhysicalExamCommand]:
-        return PhysicalExamCommand # type: ignore
+        return PhysicalExamCommand  # type: ignore

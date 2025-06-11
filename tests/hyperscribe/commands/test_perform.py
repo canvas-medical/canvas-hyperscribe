@@ -5,9 +5,9 @@ from canvas_sdk.commands import PerformCommand
 from hyperscribe.commands.base import Base
 from hyperscribe.commands.perform import Perform
 from hyperscribe.libraries.limited_cache import LimitedCache
+from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.charge_description import ChargeDescription
 from hyperscribe.structures.coded_item import CodedItem
-from hyperscribe.structures.commands_policy import CommandsPolicy
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.instruction_with_command import InstructionWithCommand
 from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
@@ -26,7 +26,8 @@ def helper_instance() -> Perform:
         audit_llm=False,
         api_signing_key="theApiSigningKey",
         send_progress=False,
-        commands_policy=CommandsPolicy(policy=False, commands=[]),
+        commands_policy=AccessPolicy(policy=False, items=[]),
+        staffers_policy=AccessPolicy(policy=False, items=[]),
     )
     cache = LimitedCache("patientUuid", {})
     identification = IdentificationParameters(

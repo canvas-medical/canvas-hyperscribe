@@ -2,7 +2,7 @@ from unittest.mock import patch, call
 
 import pytest
 
-from hyperscribe.structures.commands_policy import CommandsPolicy
+from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
 from tests.helper import is_namedtuple
@@ -20,7 +20,8 @@ def test_class():
         "audit_llm": bool,
         "api_signing_key": str,
         "send_progress": bool,
-        "commands_policy": CommandsPolicy,
+        "commands_policy": AccessPolicy,
+        "staffers_policy": AccessPolicy,
     }
     assert is_namedtuple(tested, fields)
 
@@ -33,13 +34,13 @@ def test_from_dictionary(is_true):
     tested = Settings
 
     tests = [
-        (True, True, False, True),
-        (True, False, False, False),
-        (False, True, True, False),
-        (False, False, True, True),
+        (True, True, False, True, True),
+        (True, False, False, False, False),
+        (False, True, True, True, False),
+        (False, False, True, False, True),
     ]
-    for rfv, audit, policy, progress in tests:
-        is_true.side_effect = [rfv, audit, policy]
+    for rfv, audit, commands, staffers, progress in tests:
+        is_true.side_effect = [rfv, audit, commands, staffers]
         result = tested.from_dictionary({
             "VendorTextLLM": "textVendor",
             "KeyTextLLM": "textAPIKey",
@@ -53,7 +54,9 @@ def test_from_dictionary(is_true):
             "APISigningKey": "theApiSigningKey",
             "sendProgress": progress,
             "CommandsList": "ReasonForVisit,StopMedication Task Vitals",
-            "CommandsPolicy": "policy",
+            "CommandsPolicy": "commands",
+            "StaffersList": "47 32",
+            "StaffersPolicy": "staffers",
         })
         expected = Settings(
             llm_text=VendorKey(vendor="textVendor", api_key="textAPIKey"),
@@ -65,10 +68,11 @@ def test_from_dictionary(is_true):
             audit_llm=audit,
             api_signing_key="theApiSigningKey",
             send_progress=progress,
-            commands_policy=CommandsPolicy(policy=policy, commands=["ReasonForVisit", "StopMedication", "Task", "Vitals"]),
+            commands_policy=AccessPolicy(policy=commands, items=["ReasonForVisit", "StopMedication", "Task", "Vitals"]),
+            staffers_policy=AccessPolicy(policy=staffers, items=["32", "47"]),
         )
         assert result == expected
-        calls = [call("rfv"), call("audit"), call("policy")]
+        calls = [call("rfv"), call("audit"), call("commands"), call("staffers")]
         assert is_true.mock_calls == calls
         reset_mocks()
 

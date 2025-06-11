@@ -5,8 +5,8 @@ from canvas_sdk.commands.commands.prescribe import PrescribeCommand
 from hyperscribe.commands.base_prescription import BasePrescription
 from hyperscribe.commands.prescription import Prescription
 from hyperscribe.libraries.limited_cache import LimitedCache
+from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.coded_item import CodedItem
-from hyperscribe.structures.commands_policy import CommandsPolicy
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.instruction_with_command import InstructionWithCommand
 from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
@@ -28,7 +28,8 @@ def helper_instance() -> Prescription:
         audit_llm=False,
         api_signing_key="theApiSigningKey",
         send_progress=False,
-        commands_policy=CommandsPolicy(policy=False, commands=[]),
+        commands_policy=AccessPolicy(policy=False, items=[]),
+        staffers_policy=AccessPolicy(policy=False, items=[]),
     )
     cache = LimitedCache("patientUuid", {})
     identification = IdentificationParameters(

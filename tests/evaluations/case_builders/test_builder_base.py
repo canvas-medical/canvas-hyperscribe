@@ -12,7 +12,7 @@ from evaluations.case_builders.builder_base import BuilderBase
 from hyperscribe.handlers.commander import Commander
 from hyperscribe.libraries.cached_discussion import CachedDiscussion
 from hyperscribe.libraries.limited_cache import LimitedCache
-from hyperscribe.structures.commands_policy import CommandsPolicy
+from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.instruction import Instruction
 from hyperscribe.structures.settings import Settings
@@ -201,7 +201,8 @@ def test_run(
             audit_llm=audit_llm,
             api_signing_key="theApiSigningKey",
             send_progress=False,
-            commands_policy=CommandsPolicy(policy=False, commands=[]),
+            commands_policy=AccessPolicy(policy=False, items=[]),
+            staffers_policy=AccessPolicy(policy=False, items=[]),
         )
 
         run.side_effect = [None]
@@ -299,7 +300,8 @@ def test_run(
             audit_llm=audit_llm,
             api_signing_key="theApiSigningKey",
             send_progress=False,
-            commands_policy=CommandsPolicy(policy=False, commands=[]),
+            commands_policy=AccessPolicy(policy=False, items=[]),
+            staffers_policy=AccessPolicy(policy=False, items=[]),
         )
 
         run.side_effect = [None]
@@ -410,7 +412,8 @@ def test__limited_cache_from(command_db, existing_commands_to_coded_items):
         audit_llm=False,
         api_signing_key="theApiSigningKey",
         send_progress=False,
-        commands_policy=CommandsPolicy(policy=False, commands=["Command1", "Command2"]),
+        commands_policy=AccessPolicy(policy=False, items=["Command1", "Command2"]),
+        staffers_policy=AccessPolicy(policy=False, items=[]),
     )
 
     result = tested._limited_cache_from(identification, settings)
@@ -423,7 +426,7 @@ def test__limited_cache_from(command_db, existing_commands_to_coded_items):
         call.filter().order_by('dbid'),
     ]
     assert command_db.mock_calls == calls
-    calls = [call("QuerySetCommands", CommandsPolicy(policy=False, commands=["Command1", "Command2"]))]
+    calls = [call("QuerySetCommands", AccessPolicy(policy=False, items=["Command1", "Command2"]))]
     assert existing_commands_to_coded_items.mock_calls == calls
     reset_mocks()
 
@@ -894,7 +897,8 @@ def test__post_commands(helper_evaluation, requests_post, authenticator):
         audit_llm=True,
         api_signing_key="theApiSigningKey",
         send_progress=False,
-        commands_policy=CommandsPolicy(policy=False, commands=[]),
+        commands_policy=AccessPolicy(policy=False, items=[]),
+        staffers_policy=AccessPolicy(policy=False, items=[]),
     )
 
     tested = BuilderBase

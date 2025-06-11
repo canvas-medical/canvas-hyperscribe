@@ -77,13 +77,28 @@ def test_handle(launch_model_effect, authenticator, note_db):
     reset_mocks()
 
 
-def test_visible():
-    event = Event(EventRequest())
+@patch.object(Note, "objects")
+def test_visible(note_db):
+    def reset_mocks():
+        note_db.reset_mock()
+
+    event = Event(EventRequest(context='{"note_id":"noteId"}'))
     tests = [
-        ("yes", True),
-        ("no", False),
+        ("yes", "yes", 3, True),
+        ("yes", "yes", 5, False),
+        ("no", "yes", 3, False),
+        ("no", "yes", 5, False),
+        ("yes", "no", 3, False),
+        ("yes", "no", 5, True),
+        ("no", "no", 3, False),
+        ("no", "no", 5, False),
     ]
-    for audit_llm, expected in tests:
+    for audit_llm, policy, staff_id, expected in tests:
+        note_db.get.side_effect = [Note(
+            id="uuidNote",
+            patient=Patient(id="uuidPatient"),
+            provider=Staff(id="uuidProvider", dbid=staff_id),
+        )]
         secrets = {
             "AudioHost": "theAudioHost",
             "KeyTextLLM": "theKeyTextLLM",
@@ -100,6 +115,13 @@ def test_visible():
             "AwsRegion": "theRegion",
             "AwsBucket": "theBucket",
             "APISigningKey": "theApiSigningKey",
+            "StaffersList": "1,2 3 4",
+            "StaffersPolicy": policy,
         }
         tested = ReviewerButton(event, secrets)
         assert tested.visible() is expected
+
+        calls = [call.get(dbid='noteId')]
+        assert note_db.mock_calls == calls
+
+        reset_mocks()

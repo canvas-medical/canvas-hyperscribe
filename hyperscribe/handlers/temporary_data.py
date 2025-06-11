@@ -10,7 +10,7 @@ class ChargeDescriptionMaster(Model):
         app_label = "canvas_sdk"
         db_table = "canvas_sdk_data_charge_description_master_001"
 
-    id:BigIntegerField = BigIntegerField(primary_key=True)
-    cpt_code:CharField = CharField()
-    name:CharField = CharField()
+    id: BigIntegerField = BigIntegerField(primary_key=True)
+    cpt_code: CharField = CharField()
+    name: CharField = CharField()
     short_name: CharField = CharField()

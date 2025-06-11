@@ -1,6 +1,5 @@
 import json
 from datetime import datetime
-from typing import Any
 
 from hyperscribe.handlers.progress import Progress
 from hyperscribe.libraries.aws_s3 import AwsS3

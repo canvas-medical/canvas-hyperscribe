@@ -19,7 +19,6 @@ from hyperscribe.libraries.implemented_commands import ImplementedCommands
 from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.libraries.llm_decisions_reviewer import LlmDecisionsReviewer
 from hyperscribe.libraries.memory_log import MemoryLog
-from hyperscribe.structures.commands_policy import CommandsPolicy
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.settings import Settings
 

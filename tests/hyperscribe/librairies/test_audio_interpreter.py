@@ -7,8 +7,8 @@ from hyperscribe.libraries.helper import Helper
 from hyperscribe.libraries.implemented_commands import ImplementedCommands
 from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.libraries.memory_log import MemoryLog
+from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
-from hyperscribe.structures.commands_policy import CommandsPolicy
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.instruction import Instruction
 from hyperscribe.structures.instruction_with_command import InstructionWithCommand
@@ -34,7 +34,8 @@ def helper_instance(mocks, with_audit) -> tuple[AudioInterpreter, Settings, AwsS
             audit_llm=with_audit,
             api_signing_key="theApiSigningKey",
             send_progress=False,
-            commands_policy=CommandsPolicy(policy=False, commands=[]),
+            commands_policy=AccessPolicy(policy=False, items=[]),
+            staffers_policy=AccessPolicy(policy=False, items=[]),
         )
         aws_s3 = AwsS3Credentials(aws_key="theKey", aws_secret="theSecret", region="theRegion", bucket="theBucket")
         if mocks:
@@ -84,7 +85,8 @@ def test___init__(command_list):
         audit_llm=False,
         api_signing_key="theApiSigningKey",
         send_progress=False,
-        commands_policy=CommandsPolicy(policy=False, commands=["Command1", "Command2", "Command3"]),
+        commands_policy=AccessPolicy(policy=False, items=["Command1", "Command2", "Command3"]),
+        staffers_policy=AccessPolicy(policy=False, items=["31", "47"]),
     )
     aws_s3 = AwsS3Credentials(aws_key="theKey", aws_secret="theSecret", region="theRegion", bucket="theBucket")
 

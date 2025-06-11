@@ -4,7 +4,7 @@ import re
 from typing import NamedTuple
 
 from hyperscribe.libraries.constants import Constants
-from hyperscribe.structures.commands_policy import CommandsPolicy
+from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.vendor_key import VendorKey
 
 
@@ -18,7 +18,8 @@ class Settings(NamedTuple):
     structured_rfv: bool
     audit_llm: bool
     send_progress: bool
-    commands_policy: CommandsPolicy
+    commands_policy: AccessPolicy
+    staffers_policy: AccessPolicy
 
     @classmethod
     def from_dictionary(cls, dictionary: dict) -> Settings:
@@ -38,9 +39,13 @@ class Settings(NamedTuple):
             structured_rfv=cls.is_true(dictionary.get(Constants.SECRET_STRUCTURED_RFV)),
             audit_llm=cls.is_true(dictionary.get(Constants.SECRET_AUDIT_LLM)),
             send_progress=dictionary.get(Constants.PROGRESS_SETTING_KEY, False),
-            commands_policy=CommandsPolicy(
+            commands_policy=AccessPolicy(
                 policy=cls.is_true(dictionary.get(Constants.SECRET_COMMANDS_POLICY)),
-                commands=cls.list_from(dictionary.get(Constants.SECRET_COMMANDS_LIST)),
+                items=cls.list_from(dictionary.get(Constants.SECRET_COMMANDS_LIST)),
+            ),
+            staffers_policy=AccessPolicy(
+                policy=cls.is_true(dictionary.get(Constants.SECRET_STAFFERS_POLICY)),
+                items=cls.list_from(dictionary.get(Constants.SECRET_STAFFERS_LIST)),
             )
         )
 

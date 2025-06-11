@@ -27,9 +27,9 @@ from hyperscribe.libraries.implemented_commands import ImplementedCommands
 from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.libraries.llm_turns_store import LlmTurnsStore
 from hyperscribe.libraries.memory_log import MemoryLog
+from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.coded_item import CodedItem
-from hyperscribe.structures.commands_policy import CommandsPolicy
 from hyperscribe.structures.comment_body import CommentBody
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.instruction import Instruction
@@ -254,7 +254,7 @@ class Commander(BaseProtocol):
 
         common_commands[0].extend(questionnaire_commands[0])
         common_commands[1].extend(questionnaire_commands[1])
-        return common_commands # type: ignore
+        return common_commands  # type: ignore
 
     @classmethod
     def transcript2commands_common(
@@ -513,7 +513,7 @@ class Commander(BaseProtocol):
         return list(result.values())
 
     @classmethod
-    def existing_commands_to_coded_items(cls, current_commands: Iterable[Command], commands_policy: CommandsPolicy) -> dict[str, list[CodedItem]]:
+    def existing_commands_to_coded_items(cls, current_commands: Iterable[Command], commands_policy: AccessPolicy) -> dict[str, list[CodedItem]]:
         result: dict[str, list[CodedItem]] = {}
         for command in current_commands:
             for command_class in ImplementedCommands.command_list():

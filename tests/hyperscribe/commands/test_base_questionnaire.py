@@ -7,8 +7,8 @@ from canvas_sdk.commands.commands.questionnaire import QuestionnaireCommand
 from hyperscribe.commands.base import Base
 from hyperscribe.commands.base_questionnaire import BaseQuestionnaire
 from hyperscribe.libraries.limited_cache import LimitedCache
+from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.coded_item import CodedItem
-from hyperscribe.structures.commands_policy import CommandsPolicy
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.instruction import Instruction
 from hyperscribe.structures.line import Line
@@ -31,7 +31,8 @@ def helper_instance() -> BaseQuestionnaire:
         audit_llm=False,
         api_signing_key="theApiSigningKey",
         send_progress=False,
-        commands_policy=CommandsPolicy(policy=False, commands=[]),
+        commands_policy=AccessPolicy(policy=False, items=[]),
+        staffers_policy=AccessPolicy(policy=False, items=[]),
     )
     cache = LimitedCache("patientUuid", {})
     identification = IdentificationParameters(
