@@ -29,6 +29,7 @@ from hyperscribe.libraries.llm_turns_store import LlmTurnsStore
 from hyperscribe.libraries.memory_log import MemoryLog
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.commands_policy import CommandsPolicy
 from hyperscribe.structures.comment_body import CommentBody
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.instruction import Instruction
@@ -139,7 +140,7 @@ class Commander(BaseProtocol):
 
         cache = LimitedCache(
             identification.patient_uuid,
-            cls.existing_commands_to_coded_items(current_commands),
+            cls.existing_commands_to_coded_items(current_commands, settings.commands_policy),
         )
         chatter = AudioInterpreter(settings, aws_s3, cache, identification)
         previous_instructions = cls.existing_commands_to_instructions(
@@ -512,11 +513,11 @@ class Commander(BaseProtocol):
         return list(result.values())
 
     @classmethod
-    def existing_commands_to_coded_items(cls, current_commands: Iterable[Command]) -> dict[str, list[CodedItem]]:
+    def existing_commands_to_coded_items(cls, current_commands: Iterable[Command], commands_policy: CommandsPolicy) -> dict[str, list[CodedItem]]:
         result: dict[str, list[CodedItem]] = {}
         for command in current_commands:
             for command_class in ImplementedCommands.command_list():
-                if command_class.schema_key() == command.schema_key:
+                if commands_policy.is_allowed(command_class.class_name()) and command_class.schema_key() == command.schema_key:
                     if coded_item := command_class.staged_command_extract(command.data):
                         key = command.schema_key
                         if key not in result:

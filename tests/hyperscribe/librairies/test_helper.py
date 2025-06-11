@@ -6,6 +6,7 @@ from hyperscribe.libraries.helper import Helper
 from hyperscribe.llms.llm_anthropic import LlmAnthropic
 from hyperscribe.llms.llm_google import LlmGoogle
 from hyperscribe.llms.llm_openai import LlmOpenai
+from hyperscribe.structures.commands_policy import CommandsPolicy
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
 
@@ -110,6 +111,7 @@ def test_chatter():
             audit_llm=False,
             api_signing_key="theApiSigningKey",
             send_progress=False,
+            commands_policy=CommandsPolicy(policy=False, commands=[]),
         ), memory_log)
         assert memory_log.mock_calls == []
         assert isinstance(result, exp_class)
@@ -137,6 +139,7 @@ def test_audio2texter():
             audit_llm=False,
             api_signing_key="theApiSigningKey",
             send_progress=False,
+            commands_policy=CommandsPolicy(policy=False, commands=[]),
         ), memory_log)
         assert memory_log.mock_calls == []
         assert isinstance(result, exp_class)

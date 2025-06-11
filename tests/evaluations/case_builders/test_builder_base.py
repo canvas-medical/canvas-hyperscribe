@@ -12,6 +12,7 @@ from evaluations.case_builders.builder_base import BuilderBase
 from hyperscribe.handlers.commander import Commander
 from hyperscribe.libraries.cached_discussion import CachedDiscussion
 from hyperscribe.libraries.limited_cache import LimitedCache
+from hyperscribe.structures.commands_policy import CommandsPolicy
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.instruction import Instruction
 from hyperscribe.structures.settings import Settings
@@ -200,6 +201,7 @@ def test_run(
             audit_llm=audit_llm,
             api_signing_key="theApiSigningKey",
             send_progress=False,
+            commands_policy=CommandsPolicy(policy=False, commands=[]),
         )
 
         run.side_effect = [None]
@@ -297,6 +299,7 @@ def test_run(
             audit_llm=audit_llm,
             api_signing_key="theApiSigningKey",
             send_progress=False,
+            commands_policy=CommandsPolicy(policy=False, commands=[]),
         )
 
         run.side_effect = [None]
@@ -390,12 +393,27 @@ def test__limited_cache_from(command_db, existing_commands_to_coded_items):
     tested = BuilderBase
     command_db.filter.return_value.order_by.side_effect = ["QuerySetCommands"]
     existing_commands_to_coded_items.side_effect = [{}]
-    result = tested._limited_cache_from(IdentificationParameters(
+
+    identification = IdentificationParameters(
         patient_uuid="thePatient",
         note_uuid="theNoteUuid",
         provider_uuid="theProviderUuid",
         canvas_instance="theCanvasInstance",
-    ))
+    )
+    settings = Settings(
+        llm_text=VendorKey(vendor="theVendorTextLLM", api_key="theKeyTextLLM"),
+        llm_audio=VendorKey(vendor="theVendorAudioLLM", api_key="theKeyAudioLLM"),
+        science_host='theScienceHost',
+        ontologies_host='theOntologiesHost',
+        pre_shared_key='thePreSharedKey',
+        structured_rfv=True,
+        audit_llm=False,
+        api_signing_key="theApiSigningKey",
+        send_progress=False,
+        commands_policy=CommandsPolicy(policy=False, commands=["Command1", "Command2"]),
+    )
+
+    result = tested._limited_cache_from(identification, settings)
     assert isinstance(result, LimitedCache)
     assert result.patient_uuid == "thePatient"
     assert result._staged_commands == {}
@@ -405,7 +423,7 @@ def test__limited_cache_from(command_db, existing_commands_to_coded_items):
         call.filter().order_by('dbid'),
     ]
     assert command_db.mock_calls == calls
-    calls = [call("QuerySetCommands")]
+    calls = [call("QuerySetCommands", CommandsPolicy(policy=False, commands=["Command1", "Command2"]))]
     assert existing_commands_to_coded_items.mock_calls == calls
     reset_mocks()
 
@@ -876,6 +894,7 @@ def test__post_commands(helper_evaluation, requests_post, authenticator):
         audit_llm=True,
         api_signing_key="theApiSigningKey",
         send_progress=False,
+        commands_policy=CommandsPolicy(policy=False, commands=[]),
     )
 
     tested = BuilderBase

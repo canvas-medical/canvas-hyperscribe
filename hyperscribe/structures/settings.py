@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import re
 from typing import NamedTuple
 
 from hyperscribe.libraries.constants import Constants
+from hyperscribe.structures.commands_policy import CommandsPolicy
 from hyperscribe.structures.vendor_key import VendorKey
 
 
@@ -16,6 +18,7 @@ class Settings(NamedTuple):
     structured_rfv: bool
     audit_llm: bool
     send_progress: bool
+    commands_policy: CommandsPolicy
 
     @classmethod
     def from_dictionary(cls, dictionary: dict) -> Settings:
@@ -35,8 +38,18 @@ class Settings(NamedTuple):
             structured_rfv=cls.is_true(dictionary.get(Constants.SECRET_STRUCTURED_RFV)),
             audit_llm=cls.is_true(dictionary.get(Constants.SECRET_AUDIT_LLM)),
             send_progress=dictionary.get(Constants.PROGRESS_SETTING_KEY, False),
+            commands_policy=CommandsPolicy(
+                policy=cls.is_true(dictionary.get(Constants.SECRET_COMMANDS_POLICY)),
+                commands=cls.list_from(dictionary.get(Constants.SECRET_COMMANDS_LIST)),
+            )
         )
 
     @classmethod
     def is_true(cls, string: str | None) -> bool:
         return bool(isinstance(string, str) and string.lower() in ["yes", "y", "1"])
+
+    @classmethod
+    def list_from(cls, string: str | None) -> list:
+        if isinstance(string, str):
+            return sorted(re.findall(r'[a-zA-Z0-9]+', string))
+        return []

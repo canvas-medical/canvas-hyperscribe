@@ -7,6 +7,7 @@ from evaluations.helper_evaluation import HelperEvaluation
 from evaluations.structures.postgres_credentials import PostgresCredentials
 from hyperscribe.libraries.helper import Helper
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
+from hyperscribe.structures.commands_policy import CommandsPolicy
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.json_extract import JsonExtract
 from hyperscribe.structures.settings import Settings
@@ -22,6 +23,7 @@ def test_settings(monkeypatch):
     monkeypatch.setenv("OntologiesHost", "theOntologiesHost")
     monkeypatch.setenv("PreSharedKey", "thePreSharedKey")
     monkeypatch.setenv("APISigningKey", "theApiSigningKey")
+    monkeypatch.setenv("CommandsList", "Command1 Command2, Command3")
 
     tests = [
         ("y", True),
@@ -33,6 +35,7 @@ def test_settings(monkeypatch):
     for env_variable, exp_bool in tests:
         monkeypatch.setenv("StructuredReasonForVisit", env_variable)
         monkeypatch.setenv("AuditLLMDecisions", env_variable)
+        monkeypatch.setenv("CommandsPolicy", env_variable)
 
         tested = HelperEvaluation
         result = tested.settings()
@@ -46,6 +49,7 @@ def test_settings(monkeypatch):
             audit_llm=exp_bool,
             api_signing_key="theApiSigningKey",
             send_progress=False,
+            commands_policy=CommandsPolicy(policy=exp_bool, commands=["Command1", "Command2", "Command3"]),
         )
         assert result == expected
 

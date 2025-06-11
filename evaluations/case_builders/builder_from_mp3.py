@@ -31,7 +31,9 @@ class BuilderFromMp3(BuilderBase):
 
     @classmethod
     def _run(cls, parameters: Namespace, recorder: AuditorFile, identification: IdentificationParameters) -> None:
-        limited_cache = cls._limited_cache_from(identification)
+        settings = HelperEvaluation.settings()
+        aws_s3_credentials = HelperEvaluation.aws_s3_credentials()
+        limited_cache = cls._limited_cache_from(identification, settings)
 
         StoreCases.upsert(EvaluationCase(
             environment=identification.canvas_instance,
@@ -49,12 +51,7 @@ class BuilderFromMp3(BuilderBase):
         for file in parameters.mp3:
             print(f"- {file.name}")
 
-        chatter = AudioInterpreter(
-            HelperEvaluation.settings(),
-            HelperEvaluation.aws_s3_credentials(),
-            limited_cache,
-            identification,
-        )
+        chatter = AudioInterpreter(settings, aws_s3_credentials, limited_cache, identification)
         audios: list[bytes] = []
         for file in parameters.mp3:
             with file.open("rb") as f:

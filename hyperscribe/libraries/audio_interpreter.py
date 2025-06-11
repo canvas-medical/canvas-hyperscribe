@@ -33,6 +33,7 @@ class AudioInterpreter:
             instance
             for command_class in ImplementedCommands.command_list()
             if (instance := command_class(settings, cache, identification))
+               and self.settings.commands_policy.is_allowed(instance.class_name())
                and instance.is_available()
         ]
 

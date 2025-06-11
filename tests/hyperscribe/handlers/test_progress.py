@@ -13,6 +13,7 @@ from canvas_sdk.v1.data import Patient
 import hyperscribe.handlers.progress as progress
 from hyperscribe.handlers.progress import Progress
 from hyperscribe.libraries.authenticator import Authenticator
+from hyperscribe.structures.commands_policy import CommandsPolicy
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
@@ -217,6 +218,7 @@ def test_send_to_user(requests_post, authenticator, mock_datetime):
         audit_llm=False,
         api_signing_key="theApiSigningKey",
         send_progress=True,
+        commands_policy=CommandsPolicy(policy=False, commands=[]),
     )
     authenticator.presigned_url.side_effect = ["thePresignedUrl"]
     mock_datetime.now.side_effect = [a_date]
@@ -254,6 +256,7 @@ def test_send_to_user(requests_post, authenticator, mock_datetime):
         audit_llm=False,
         api_signing_key="theApiSigningKey",
         send_progress=False,
+        commands_policy=CommandsPolicy(policy=False, commands=[]),
     )
     authenticator.presigned_url.side_effect = []
     mock_datetime.now.side_effect = []

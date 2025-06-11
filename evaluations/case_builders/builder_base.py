@@ -19,7 +19,9 @@ from hyperscribe.libraries.implemented_commands import ImplementedCommands
 from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.libraries.llm_decisions_reviewer import LlmDecisionsReviewer
 from hyperscribe.libraries.memory_log import MemoryLog
+from hyperscribe.structures.commands_policy import CommandsPolicy
 from hyperscribe.structures.identification_parameters import IdentificationParameters
+from hyperscribe.structures.settings import Settings
 
 
 class BuilderBase:
@@ -69,7 +71,7 @@ class BuilderBase:
             canvas_instance=HelperEvaluation.get_canvas_instance(),
         )
 
-        memory_log = MemoryLog(identification, "case_builder")
+        _ = MemoryLog(identification, "case_builder")
 
         cls._run(parameters, recorder, identification)
 
@@ -93,7 +95,7 @@ class BuilderBase:
                 BuilderAuditUrl.presigned_url(identification.patient_uuid, identification.note_uuid)
 
     @classmethod
-    def _limited_cache_from(cls, identification: IdentificationParameters) -> LimitedCache:
+    def _limited_cache_from(cls, identification: IdentificationParameters, settings: Settings) -> LimitedCache:
         current_commands = Command.objects.filter(
             patient__id=identification.patient_uuid,
             note__id=identification.note_uuid,
@@ -102,7 +104,7 @@ class BuilderBase:
 
         return LimitedCache(
             identification.patient_uuid,
-            Commander.existing_commands_to_coded_items(current_commands),
+            Commander.existing_commands_to_coded_items(current_commands, settings.commands_policy),
         )
 
     @classmethod

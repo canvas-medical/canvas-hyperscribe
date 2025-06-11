@@ -172,7 +172,7 @@ def test__run(
         assert capsys.readouterr().out == "\n".join(exp_out)
 
         calls = [
-            call(identification),
+            call(identification, "theSettings"),
             call().to_json(True),
             call().staged_commands_as_instructions("schemaKey2instruction"),
         ]

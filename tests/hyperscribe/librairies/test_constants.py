@@ -77,6 +77,8 @@ def test_constants():
         "SECRET_STRUCTURED_RFV": "StructuredReasonForVisit",
         "SECRET_AUDIT_LLM": "AuditLLMDecisions",
         "SECRET_API_SIGNING_KEY": "APISigningKey",
+        "SECRET_COMMANDS_LIST": "CommandsList",
+        "SECRET_COMMANDS_POLICY": "CommandsPolicy",
         "PROGRESS_END_OF_MESSAGES": "EOF",
         "PROGRESS_SETTING_KEY": "sendProgress",
         "PROGRESS_EXPIRATION_SECONDS": 7200,

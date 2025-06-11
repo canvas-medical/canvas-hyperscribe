@@ -6,6 +6,7 @@ from hyperscribe.libraries.cached_discussion import CachedDiscussion
 from hyperscribe.libraries.llm_decisions_reviewer import LlmDecisionsReviewer
 from hyperscribe.libraries.llm_turns_store import LlmTurnsStore
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
+from hyperscribe.structures.commands_policy import CommandsPolicy
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.llm_turn import LlmTurn
 from hyperscribe.structures.settings import Settings
@@ -183,6 +184,7 @@ def test_review(
         audit_llm=False,
         api_signing_key="theApiSigningKey",
         send_progress=False,
+        commands_policy=CommandsPolicy(policy=False, commands=[]),
     )
     aws_s3.return_value.is_ready.side_effect = []
     cached_discussion.get_discussion.side_effect = []
@@ -210,6 +212,7 @@ def test_review(
         audit_llm=True,
         api_signing_key="theApiSigningKey",
         send_progress=False,
+        commands_policy=CommandsPolicy(policy=False, commands=[]),
     )
     # -- S3 not ready
     aws_s3.return_value.is_ready.side_effect = [False]

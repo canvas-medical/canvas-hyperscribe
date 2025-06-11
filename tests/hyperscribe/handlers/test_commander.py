@@ -14,6 +14,7 @@ from hyperscribe.libraries.cached_discussion import CachedDiscussion
 from hyperscribe.libraries.implemented_commands import ImplementedCommands
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.commands_policy import CommandsPolicy
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.instruction import Instruction
 from hyperscribe.structures.instruction_with_command import InstructionWithCommand
@@ -93,6 +94,7 @@ def test_compute(
         audit_llm=False,
         api_signing_key="theApiSigningKey",
         send_progress=True,  # <-- changed in the code
+        commands_policy=CommandsPolicy(policy=False, commands=["Command1", "Command2", "Command3"]),
     )
     date_x = datetime(2025, 5, 9, 12, 34, 21, tzinfo=timezone.utc)
     secrets = {
@@ -112,6 +114,8 @@ def test_compute(
         "AwsBucket": "theBucket",
         "APISigningKey": "theApiSigningKey",
         "sendProgress": False,
+        "CommandsPolicy": False,
+        "CommandsList": "Command1 Command3, Command2",
     }
     event = Event(EventRequest(target="taskUuid"))
     environment = {"CUSTOMER_IDENTIFIER": "theTestEnv"}
@@ -380,6 +384,7 @@ def test_compute_audio(
         audit_llm=False,
         api_signing_key="theApiSigningKey",
         send_progress=False,
+        commands_policy=CommandsPolicy(policy=False, commands=["Command1", "Command2", "Command3"]),
     )
     # no more audio
     retrieve_audios.side_effect = [[]]
@@ -539,7 +544,7 @@ def test_compute_audio(
         assert audio2commands.mock_calls == calls
         calls = [call('QuerySetCommands', instructions[2:])]
         assert existing_commands_to_instructions.mock_calls == calls
-        calls = [call('QuerySetCommands')]
+        calls = [call('QuerySetCommands', CommandsPolicy(policy=False, commands=["Command1", "Command2", "Command3"]))]
         assert existing_commands_to_coded_items.mock_calls == calls
         calls = [
             call.filter(patient__id='patientUuid', note__id='noteUuid', state='staged'),
@@ -1005,6 +1010,7 @@ def test_transcript2commands_common(time, memory_log, progress):
             audit_llm=True,
             api_signing_key="theApiSigningKey",
             send_progress=False,
+            commands_policy=CommandsPolicy(policy=False, commands=["Command1", "Command2", "Command3"]),
         )
         mock_chatter.identification = identification
         mock_chatter.settings = settings
@@ -1141,6 +1147,7 @@ def test_transcript2commands_common(time, memory_log, progress):
         audit_llm=True,
         api_signing_key="theApiSigningKey",
         send_progress=False,
+        commands_policy=CommandsPolicy(policy=False, commands=["Command1", "Command2", "Command3"]),
     )
     mock_chatter.identification = identification
     mock_chatter.settings = settings
@@ -1342,6 +1349,7 @@ def test_transcript2commands_questionnaires(time, memory_log, progress):
             audit_llm=True,
             api_signing_key="theApiSigningKey",
             send_progress=False,
+            commands_policy=CommandsPolicy(policy=False, commands=["Command1", "Command2", "Command3"]),
         )
         chatter.identification = identification
         chatter.settings = settings
@@ -1941,6 +1949,8 @@ def test_existing_commands_to_coded_items(command_list):
 
     def reset_mocks():
         command_list.reset_mock()
+        for c in mock_commands:
+            c.reset_mock()
 
     tested = Commander
     current_commands = [
@@ -1951,11 +1961,16 @@ def test_existing_commands_to_coded_items(command_list):
         Command(id="uuid5", schema_key="canvas_command_Y", data={"key5": "value5"}),
         Command(id="uuid6", schema_key="canvas_command_A", data={"key6": "value6"}),
     ]
+
+    # all commands allowed
     command_list.side_effect = [mock_commands] * 6
 
     mock_commands[0].schema_key.return_value = "canvas_command_X"
+    mock_commands[0].class_name.return_value = "CommandX"
     mock_commands[1].schema_key.return_value = "canvas_command_Y"
+    mock_commands[1].class_name.return_value = "CommandY"
     mock_commands[2].schema_key.return_value = "canvas_command_Z"
+    mock_commands[2].class_name.return_value = "CommandZ"
 
     mock_commands[0].staged_command_extract.side_effect = [
         CodedItem(label="label1", code="code1", uuid=""),
@@ -1968,7 +1983,8 @@ def test_existing_commands_to_coded_items(command_list):
     ]
     mock_commands[2].staged_command_extract.side_effect = []
 
-    result = tested.existing_commands_to_coded_items(current_commands)
+    policy = CommandsPolicy(policy=True, commands=["CommandX", "CommandY", "CommandZ"])
+    result = tested.existing_commands_to_coded_items(current_commands, policy)
     expected = {
         'canvas_command_X': [
             CodedItem(uuid='uuid1', label='label1', code='code1'),
@@ -1979,32 +1995,102 @@ def test_existing_commands_to_coded_items(command_list):
             CodedItem(uuid='uuid5', label='label5', code='code5'),
         ],
     }
-
     assert result == expected
     calls = [call()] * 6
     assert command_list.mock_calls == calls
     calls = [
+        call.class_name(),
         call.schema_key(),
         call.staged_command_extract({'key1': 'value1'}),
+        call.class_name(),
         call.schema_key(),
         call.staged_command_extract({'key2': 'value2'}),
+        call.class_name(),
         call.schema_key(),
+        call.class_name(),
         call.schema_key(),
+        call.class_name(),
         call.schema_key(),
+        call.class_name(),
         call.schema_key(),
     ]
     assert mock_commands[0].mock_calls == calls
     calls = [
+        call.class_name(),
         call.schema_key(),
         call.staged_command_extract({'key3': 'value3'}),
+        call.class_name(),
         call.schema_key(),
         call.staged_command_extract({'key4': 'value4'}),
+        call.class_name(),
         call.schema_key(),
         call.staged_command_extract({'key5': 'value5'}),
+        call.class_name(),
         call.schema_key(),
     ]
     assert mock_commands[1].mock_calls == calls
-    calls = [call.schema_key()]
+    calls = [
+        call.class_name(),
+        call.schema_key(),
+    ]
+    assert mock_commands[2].mock_calls == calls
+    reset_mocks()
+
+    # one command allowed
+    command_list.side_effect = [mock_commands] * 6
+
+    mock_commands[0].schema_key.return_value = "canvas_command_X"
+    mock_commands[0].class_name.return_value = "CommandX"
+    mock_commands[1].schema_key.return_value = "canvas_command_Y"
+    mock_commands[1].class_name.return_value = "CommandY"
+    mock_commands[2].schema_key.return_value = "canvas_command_Z"
+    mock_commands[2].class_name.return_value = "CommandZ"
+
+    mock_commands[0].staged_command_extract.side_effect = [
+        CodedItem(label="label1", code="code1", uuid=""),
+        None,
+    ]
+    mock_commands[1].staged_command_extract.side_effect = [
+        CodedItem(label="label3", code="code3", uuid=""),
+        CodedItem(label="label4", code="code4", uuid=""),
+        CodedItem(label="label5", code="code5", uuid=""),
+    ]
+    mock_commands[2].staged_command_extract.side_effect = []
+
+    policy = CommandsPolicy(policy=True, commands=["CommandX"])
+    result = tested.existing_commands_to_coded_items(current_commands, policy)
+    expected = {
+        'canvas_command_X': [
+            CodedItem(uuid='uuid1', label='label1', code='code1'),
+        ],
+    }
+    assert result == expected
+    calls = [call()] * 6
+    assert command_list.mock_calls == calls
+    calls = [
+        call.class_name(),
+        call.schema_key(),
+        call.staged_command_extract({'key1': 'value1'}),
+        call.class_name(),
+        call.schema_key(),
+        call.staged_command_extract({'key2': 'value2'}),
+        call.class_name(),
+        call.schema_key(),
+        call.class_name(),
+        call.schema_key(),
+        call.class_name(),
+        call.schema_key(),
+        call.class_name(),
+        call.schema_key(),
+    ]
+    assert mock_commands[0].mock_calls == calls
+    calls = [
+        call.class_name(),
+        call.class_name(),
+        call.class_name(),
+        call.class_name(),
+    ]
+    assert mock_commands[1].mock_calls == calls
     assert mock_commands[2].mock_calls == calls
     reset_mocks()
 

@@ -32,7 +32,9 @@ class BuilderFromTranscript(BuilderBase):
 
     @classmethod
     def _run(cls, parameters: Namespace, recorder: AuditorFile, identification: IdentificationParameters) -> None:
-        limited_cache = cls._limited_cache_from(identification)
+        settings = HelperEvaluation.settings()
+        aws_s3_credentials = HelperEvaluation.aws_s3_credentials()
+        limited_cache = cls._limited_cache_from(identification, settings)
 
         StoreCases.upsert(EvaluationCase(
             environment=identification.canvas_instance,
@@ -49,12 +51,7 @@ class BuilderFromTranscript(BuilderBase):
         print(f"JSON file: {parameters.transcript.name}")
         print(f"Cycles: {parameters.cycles}")
 
-        chatter = AudioInterpreter(
-            HelperEvaluation.settings(),
-            HelperEvaluation.aws_s3_credentials(),
-            limited_cache,
-            identification,
-        )
+        chatter = AudioInterpreter(settings, aws_s3_credentials, limited_cache, identification)
 
         with parameters.transcript.open("r") as f:
             transcript = Line.load_from_json(json.load(f))

@@ -2,6 +2,7 @@ from unittest.mock import patch, call
 
 import pytest
 
+from hyperscribe.structures.commands_policy import CommandsPolicy
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
 from tests.helper import is_namedtuple
@@ -19,6 +20,7 @@ def test_class():
         "audit_llm": bool,
         "api_signing_key": str,
         "send_progress": bool,
+        "commands_policy": CommandsPolicy,
     }
     assert is_namedtuple(tested, fields)
 
@@ -31,13 +33,13 @@ def test_from_dictionary(is_true):
     tested = Settings
 
     tests = [
-        (True, True, True),
-        (True, False, False),
-        (False, True, False),
-        (False, False, True),
+        (True, True, False, True),
+        (True, False, False, False),
+        (False, True, True, False),
+        (False, False, True, True),
     ]
-    for rfv, audit, progress in tests:
-        is_true.side_effect = [rfv, audit]
+    for rfv, audit, policy, progress in tests:
+        is_true.side_effect = [rfv, audit, policy]
         result = tested.from_dictionary({
             "VendorTextLLM": "textVendor",
             "KeyTextLLM": "textAPIKey",
@@ -50,6 +52,8 @@ def test_from_dictionary(is_true):
             "AuditLLMDecisions": "audit",
             "APISigningKey": "theApiSigningKey",
             "sendProgress": progress,
+            "CommandsList": "ReasonForVisit,StopMedication Task Vitals",
+            "CommandsPolicy": "policy",
         })
         expected = Settings(
             llm_text=VendorKey(vendor="textVendor", api_key="textAPIKey"),
@@ -61,9 +65,10 @@ def test_from_dictionary(is_true):
             audit_llm=audit,
             api_signing_key="theApiSigningKey",
             send_progress=progress,
+            commands_policy=CommandsPolicy(policy=policy, commands=["ReasonForVisit", "StopMedication", "Task", "Vitals"]),
         )
         assert result == expected
-        calls = [call("rfv"), call("audit")]
+        calls = [call("rfv"), call("audit"), call("policy")]
         assert is_true.mock_calls == calls
         reset_mocks()
 
@@ -86,4 +91,17 @@ def test_is_true():
     ]
     for string, expected in tests:
         result = tested.is_true(string)
+        assert result == expected, f"---> {string}"
+
+
+def test_list_from():
+    tested = Settings
+    tests = [
+        ("", []),
+        ("command", ["command"]),
+        ("command1 command2    command3, command4,,command5\ncommand6",
+         ["command1", "command2", "command3", "command4", "command5", "command6"]),
+    ]
+    for string, expected in tests:
+        result = tested.list_from(string)
         assert result == expected, f"---> {string}"

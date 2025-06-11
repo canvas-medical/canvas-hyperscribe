@@ -129,9 +129,9 @@ def test__run(
         'JSON file: theFile',
     ]
     exp_limited_cache = [
-        call(identification),
+        call(identification, "theSettings"),
         call().to_json(True),
-        call().staged_commands_as_instructions('schemaKey2instruction'),
+        call().staged_commands_as_instructions("schemaKey2instruction"),
     ]
     exp_schema_key2instruction = [call()]
     exp_store_cases = [call.upsert(EvaluationCase(

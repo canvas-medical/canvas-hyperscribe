@@ -8,6 +8,7 @@ from hyperscribe.libraries.implemented_commands import ImplementedCommands
 from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.libraries.memory_log import MemoryLog
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
+from hyperscribe.structures.commands_policy import CommandsPolicy
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.instruction import Instruction
 from hyperscribe.structures.instruction_with_command import InstructionWithCommand
@@ -33,6 +34,7 @@ def helper_instance(mocks, with_audit) -> tuple[AudioInterpreter, Settings, AwsS
             audit_llm=with_audit,
             api_signing_key="theApiSigningKey",
             send_progress=False,
+            commands_policy=CommandsPolicy(policy=False, commands=[]),
         )
         aws_s3 = AwsS3Credentials(aws_key="theKey", aws_secret="theSecret", region="theRegion", bucket="theBucket")
         if mocks:
@@ -82,6 +84,7 @@ def test___init__(command_list):
         audit_llm=False,
         api_signing_key="theApiSigningKey",
         send_progress=False,
+        commands_policy=CommandsPolicy(policy=False, commands=["Command1", "Command2", "Command3"]),
     )
     aws_s3 = AwsS3Credentials(aws_key="theKey", aws_secret="theSecret", region="theRegion", bucket="theBucket")
 
@@ -89,6 +92,10 @@ def test___init__(command_list):
     mocks[1].return_value.is_available.side_effect = [True]
     mocks[2].return_value.is_available.side_effect = [False]
     mocks[3].return_value.is_available.side_effect = [True]
+    mocks[0].return_value.class_name.side_effect = ["CommandA"]
+    mocks[1].return_value.class_name.side_effect = ["CommandB"]
+    mocks[2].return_value.class_name.side_effect = ["CommandC"]
+    mocks[3].return_value.class_name.side_effect = ["CommandD"]
     command_list.side_effect = [mocks]
 
     cache = LimitedCache("patientUuid", {})
@@ -109,6 +116,7 @@ def test___init__(command_list):
         calls = [
             call(settings, cache, identification),
             call().__bool__(),
+            call().class_name(),
             call().is_available(),
         ]
         assert mock.mock_calls == calls
@@ -163,10 +171,10 @@ def test_instruction_definitions():
         ("Vitals", True),
     ]
     for class_name, expected_present in tests:
-        mocks[0].return_value.class_name.side_effect = [class_name, class_name]
-        mocks[1].return_value.class_name.side_effect = ["Second", "Second"]
-        mocks[2].return_value.class_name.side_effect = ["Third", "Third"]
-        mocks[3].return_value.class_name.side_effect = ["Fourth", "Fourth"]
+        mocks[0].return_value.class_name.side_effect = [class_name, class_name, class_name]
+        mocks[1].return_value.class_name.side_effect = ["Second", "Second", "Second"]
+        mocks[2].return_value.class_name.side_effect = ["Third", "Third", "Third"]
+        mocks[3].return_value.class_name.side_effect = ["Fourth", "Fourth", "Fourth"]
         mocks[0].return_value.instruction_description.side_effect = ["Description1"]
         mocks[1].return_value.instruction_description.side_effect = ["Description2"]
         mocks[2].return_value.instruction_description.side_effect = ["Description3"]
@@ -190,6 +198,7 @@ def test_instruction_definitions():
             calls = [
                 call(settings, cache, tested.identification),
                 call().__bool__(),
+                call().class_name(),
                 call().is_available(),
             ]
             if idx != 2:
@@ -228,10 +237,10 @@ def test_instruction_constraints():
         ([2, 3], ["Constraints4"]),
     ]
     for list_idx, expected in tests:
-        mocks[0].return_value.class_name.side_effect = ["Command1"]
-        mocks[1].return_value.class_name.side_effect = ["Command2"]
-        mocks[2].return_value.class_name.side_effect = ["Command3"]
-        mocks[3].return_value.class_name.side_effect = ["Command4"]
+        mocks[0].return_value.class_name.side_effect = ["Command1", "Command1"]
+        mocks[1].return_value.class_name.side_effect = ["Command2", "Command2"]
+        mocks[2].return_value.class_name.side_effect = ["Command3", "Command3"]
+        mocks[3].return_value.class_name.side_effect = ["Command4", "Command4"]
         mocks[0].return_value.instruction_constraints.side_effect = ["Constraints1"]
         mocks[1].return_value.instruction_constraints.side_effect = [""]
         mocks[2].return_value.instruction_constraints.side_effect = ["Constraints3"]
@@ -244,6 +253,7 @@ def test_instruction_constraints():
             calls = [
                 call(settings, cache, tested.identification),
                 call().__bool__(),
+                call().class_name(),
                 call().is_available(),
             ]
             if idx != 2:
@@ -302,10 +312,10 @@ def test_command_structures():
         ("Vitals", True),
     ]
     for class_name, expected_present in tests:
-        mocks[0].return_value.class_name.side_effect = [class_name, class_name]
-        mocks[1].return_value.class_name.side_effect = ["Second", "Second"]
-        mocks[2].return_value.class_name.side_effect = ["Third", "Third"]
-        mocks[3].return_value.class_name.side_effect = ["Fourth", "Fourth"]
+        mocks[0].return_value.class_name.side_effect = [class_name, class_name, class_name]
+        mocks[1].return_value.class_name.side_effect = ["Second", "Second", "Second"]
+        mocks[2].return_value.class_name.side_effect = ["Third", "Third", "Third"]
+        mocks[3].return_value.class_name.side_effect = ["Fourth", "Fourth", "Fourth"]
         mocks[0].return_value.command_parameters.side_effect = ["Parameters1"]
         mocks[1].return_value.command_parameters.side_effect = ["Parameters2"]
         mocks[2].return_value.command_parameters.side_effect = ["Parameters3"]
@@ -328,6 +338,7 @@ def test_command_structures():
             calls = [
                 call(settings, cache, tested.identification),
                 call().__bool__(),
+                call().class_name(),
                 call().is_available(),
             ]
             if idx != 2:
@@ -564,10 +575,10 @@ def test_detect_instructions(
         memory_log.reset_mock()
         for item in mocks:
             item.reset_mock()
-        mocks[0].return_value.class_name.side_effect = ["First"]
-        mocks[1].return_value.class_name.side_effect = ["Second"]
-        mocks[2].return_value.class_name.side_effect = ["Third"]
-        mocks[3].return_value.class_name.side_effect = ["Fourth"]
+        mocks[0].return_value.class_name.side_effect = ["First", "First"]
+        mocks[1].return_value.class_name.side_effect = ["Second", "Second"]
+        mocks[2].return_value.class_name.side_effect = ["Third", "Third"]
+        mocks[3].return_value.class_name.side_effect = ["Fourth", "Fourth"]
         mocks[0].return_value.instruction_description.side_effect = ["Description1"]
         mocks[1].return_value.instruction_description.side_effect = ["Description2"]
         mocks[2].return_value.instruction_description.side_effect = ["Description3"]
@@ -699,6 +710,7 @@ def test_detect_instructions(
         calls = [
             call(settings, cache, tested.identification),
             call().__bool__(),
+            call().class_name(),
             call().is_available(),
         ]
         if idx != 2:
@@ -786,10 +798,10 @@ def test_create_sdk_command_parameters(chatter, memory_log, progress, mock_datet
         mock_datetime.reset_mock()
         for item in mocks:
             item.reset_mock()
-        mocks[0].return_value.class_name.side_effect = ["First", "First"]
-        mocks[1].return_value.class_name.side_effect = ["Second", "Second"]
-        mocks[2].return_value.class_name.side_effect = ["Third", "Third"]
-        mocks[3].return_value.class_name.side_effect = ["Fourth", "Fourth"]
+        mocks[0].return_value.class_name.side_effect = ["First", "First", "First"]
+        mocks[1].return_value.class_name.side_effect = ["Second", "Second", "Second"]
+        mocks[2].return_value.class_name.side_effect = ["Third", "Third", "Third"]
+        mocks[3].return_value.class_name.side_effect = ["Fourth", "Fourth", "Fourth"]
         mocks[0].return_value.command_parameters.side_effect = [{"Command": "Parameters1"}]
         mocks[1].return_value.command_parameters.side_effect = [{"Command": "Parameters2"}]
         mocks[2].return_value.command_parameters.side_effect = [{"Command": "Parameters3"}]
@@ -867,6 +879,7 @@ def test_create_sdk_command_parameters(chatter, memory_log, progress, mock_datet
         calls = [
             call(settings, cache, tested.identification),
             call().__bool__(),
+            call().class_name(),
             call().is_available(),
         ]
         if idx != 2:
@@ -922,10 +935,10 @@ def test_create_sdk_command_from(chatter, memory_log, progress):
         progress.reset_mock()
         for item in mocks:
             item.reset_mock()
-        mocks[0].return_value.class_name.side_effect = ["First"]
-        mocks[1].return_value.class_name.side_effect = ["Second"]
-        mocks[2].return_value.class_name.side_effect = ["Third"]
-        mocks[3].return_value.class_name.side_effect = ["Fourth"]
+        mocks[0].return_value.class_name.side_effect = ["First", "First"]
+        mocks[1].return_value.class_name.side_effect = ["Second", "Second"]
+        mocks[2].return_value.class_name.side_effect = ["Third", "Third"]
+        mocks[3].return_value.class_name.side_effect = ["Fourth", "Fourth"]
         mocks[0].return_value.command_from_json.side_effect = ["theCommand1"]
         mocks[1].return_value.command_from_json.side_effect = ["theCommand2"]
         mocks[2].return_value.command_from_json.side_effect = ["theCommand3"]
@@ -966,6 +979,7 @@ def test_create_sdk_command_from(chatter, memory_log, progress):
             calls = [
                 call(settings, cache, tested.identification),
                 call().__bool__(),
+                call().class_name(),
                 call().is_available(),
             ]
             if idx < rank + 1 and idx != 2:
@@ -1001,10 +1015,10 @@ def test_update_questionnaire(chatter, memory_log):
         for item in questionnaire_mocks:
             item.reset_mock()
 
-        command_mocks[0].return_value.class_name.side_effect = ["First"]
-        command_mocks[1].return_value.class_name.side_effect = ["Second"]
-        command_mocks[2].return_value.class_name.side_effect = ["Third"]
-        command_mocks[3].return_value.class_name.side_effect = ["Fourth"]
+        command_mocks[0].return_value.class_name.side_effect = ["First", "First"]
+        command_mocks[1].return_value.class_name.side_effect = ["Second", "Second"]
+        command_mocks[2].return_value.class_name.side_effect = ["Third", "Third"]
+        command_mocks[3].return_value.class_name.side_effect = ["Fourth", "Fourth"]
         command_mocks[0].return_value.update_from_transcript.side_effect = [questionnaire_mocks[0]]
         command_mocks[1].return_value.update_from_transcript.side_effect = [questionnaire_mocks[1]]
         command_mocks[2].return_value.update_from_transcript.side_effect = [questionnaire_mocks[2]]
@@ -1069,6 +1083,7 @@ def test_update_questionnaire(chatter, memory_log):
             calls = [
                 call(settings, cache, tested.identification),
                 call().__bool__(),
+                call().class_name(),
                 call().is_available(),
             ]
             if idx < rank + 1 and idx != 2:

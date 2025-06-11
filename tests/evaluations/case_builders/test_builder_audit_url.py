@@ -5,6 +5,7 @@ from _pytest.capture import CaptureResult
 
 from evaluations.case_builders.builder_audit_url import BuilderAuditUrl
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
+from hyperscribe.structures.commands_policy import CommandsPolicy
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
 
@@ -81,6 +82,7 @@ def test_presigned_url(
         audit_llm=False,
         api_signing_key="theApiSigningKey",
         send_progress=False,
+        commands_policy=CommandsPolicy(policy=False, commands=[]),
     )
 
     tested = BuilderAuditUrl()

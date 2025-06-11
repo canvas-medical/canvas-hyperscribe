@@ -57,7 +57,6 @@ def test_charge_descriptions(charge_description_db):
         ChargeDescriptionMaster(cpt_code="code754", name="theFullNameD", short_name="theShortNameA"),
     ]
 
-
     with patch.object(Constants, 'MAX_CHARGE_DESCRIPTIONS', 99):
         # too many records
         charge_description_db.count.side_effect = [100]

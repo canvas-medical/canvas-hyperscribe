@@ -11,6 +11,7 @@ from logger import log
 from hyperscribe.handlers.reviewer import Reviewer
 from hyperscribe.libraries.implemented_commands import ImplementedCommands
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
+from hyperscribe.structures.commands_policy import CommandsPolicy
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
@@ -213,6 +214,7 @@ def test_compute_audit_documents(
         audit_llm=True,
         api_signing_key="theApiSigningKey",
         send_progress=True,
+        commands_policy=CommandsPolicy(policy=False, commands=[]),
     )
     date_x = datetime(2025, 5, 9, 12, 29, 21, tzinfo=timezone.utc)
     schema_key2instruction.side_effect = [

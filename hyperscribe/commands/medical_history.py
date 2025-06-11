@@ -86,4 +86,4 @@ class MedicalHistory(Base):
         return result
 
     def is_available(self) -> bool:
-        return True
+        return self.settings.commands_policy.is_allowed(self.class_name())

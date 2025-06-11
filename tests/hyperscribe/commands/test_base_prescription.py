@@ -9,6 +9,7 @@ from hyperscribe.commands.base_prescription import BasePrescription
 from hyperscribe.libraries.canvas_science import CanvasScience
 from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.commands_policy import CommandsPolicy
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.medication_detail import MedicationDetail
@@ -29,6 +30,7 @@ def helper_instance() -> BasePrescription:
         audit_llm=False,
         api_signing_key="theApiSigningKey",
         send_progress=False,
+        commands_policy=CommandsPolicy(policy=False, commands=[]),
     )
     cache = LimitedCache("patientUuid", {})
     identification = IdentificationParameters(
