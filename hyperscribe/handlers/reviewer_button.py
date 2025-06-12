@@ -37,5 +37,5 @@ class ReviewerButton(ActionButton):
 
     def visible(self) -> bool:
         settings = Settings.from_dictionary(self.secrets)
-        staff_id = str(Note.objects.get(dbid=self.event.context['note_id']).provider.dbid)
+        staff_id = self.context.get("user", {}).get("id", "")
         return settings.audit_llm and settings.staffers_policy.is_allowed(staff_id)

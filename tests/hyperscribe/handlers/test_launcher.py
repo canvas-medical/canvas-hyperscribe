@@ -1,3 +1,4 @@
+import json
 from unittest.mock import patch, call
 
 from canvas_generated.messages.effects_pb2 import Effect
@@ -5,7 +6,7 @@ from canvas_generated.messages.events_pb2 import Event as EventRequest
 from canvas_sdk.events import Event
 from canvas_sdk.events.base import TargetType
 from canvas_sdk.handlers.action_button import ActionButton
-from canvas_sdk.v1.data import Note, Patient, Staff
+from canvas_sdk.v1.data import Note, Patient
 
 from hyperscribe.handlers.launcher import Launcher
 from tests.helper import is_constant
@@ -78,25 +79,17 @@ def test_handle(launch_model_effect, authenticator, note_db):
     reset_mocks()
 
 
-@patch.object(Note, "objects")
-def test_visible(note_db):
-    def reset_mocks():
-        note_db.reset_mock()
-
-    event = Event(EventRequest(context='{"note_id":"noteId"}'))
+def test_visible():
     tests = [
-        ("yes", 3, True),
-        ("yes", 4, True),
-        ("yes", 5, False),
-        ("no", 3, False),
-        ("no", 5, True),
+        ("yes", "userId", True),
+        ("yes", "anotherId", True),
+        ("yes", "otherId", False),
+        ("no", "userId", False),
+        ("no", "anotherId", False),
+        ("no", "otherId", True),
     ]
     for policy, staff_id, expected in tests:
-        note_db.get.side_effect = [Note(
-            id="uuidNote",
-            patient=Patient(id="uuidPatient"),
-            provider=Staff(id="uuidProvider", dbid=staff_id),
-        )]
+        event = Event(EventRequest(context=json.dumps({"note_id": "noteId", "user": {"id": staff_id}})))
         secrets = {
             "AudioHost": "theAudioHost",
             "KeyTextLLM": "theKeyTextLLM",
@@ -113,13 +106,8 @@ def test_visible(note_db):
             "AwsRegion": "theRegion",
             "AwsBucketLogs": "theBucketLogs",
             "APISigningKey": "theApiSigningKey",
-            "StaffersList": "1,2 3 4",
+            "StaffersList": "userId, anotherId",
             "StaffersPolicy": policy,
         }
         tested = Launcher(event, secrets)
         assert tested.visible() is expected
-
-        calls = [call.get(dbid='noteId')]
-        assert note_db.mock_calls == calls
-
-        reset_mocks()
