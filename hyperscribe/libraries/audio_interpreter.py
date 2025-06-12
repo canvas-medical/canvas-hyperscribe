@@ -179,13 +179,41 @@ class AudioInterpreter:
                 "```json",
                 json.dumps(content, indent=1),
                 "```",
-                "It is important to include them in your response, with any necessary additional information mentioned in the transcript.",
+                # "You must always return the previous instructions, such that you return a cumulative collection of instructions.",
+                # "You must not omit them in your response. If there is information in the transcript that is relevant to a prior "
+                # "instruction, then you can use it to update the contents of the instruction, but you must not omit any "
+                # "prior instruction from your response.",
+                "If there is information in the transcript that is relevant to a prior instruction deemed updatable, "
+                "then you can use it to update the contents of the instruction rather than creating a new one.",
+                "But, in all cases, you must provide each and every new, updated and unchanged instructions.",
             ])
         chatter = Helper.chatter(
             self.settings,
             MemoryLog.instance(self.identification, "transcript2instructions", self.s3_credentials),
         )
         result = chatter.single_conversation(system_prompt, user_prompt, [schema], None)
+
+        # check that the known instructions are still present (only one chance)
+        request_correction = False
+        cumulated_instructions = {
+            instruction.uuid: instruction
+            for instruction in Instruction.load_from_json(result)
+        }
+        for instruction in known_instructions:
+            if instruction.uuid not in cumulated_instructions:
+                request_correction = True
+                break
+            returned = cumulated_instructions[instruction.uuid]
+            if returned.instruction != instruction.instruction:
+                request_correction = True
+                break
+        if request_correction:
+            chatter.set_model_prompt(["```json", json.dumps(result), "```"])
+            user_prompt = [
+                "Your response did not include the instructions identified before.",
+                "Correct your response to provide, in the requested format, ALL new, updated and unchanged instructions.",
+            ]
+            result = chatter.single_conversation(system_prompt, user_prompt, [schema], None)
 
         # limit the constraints to the reported instructions only
         instructions = Instruction.load_from_json(result)
