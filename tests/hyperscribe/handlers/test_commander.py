@@ -2,6 +2,7 @@ import json
 from datetime import datetime, timezone, UTC
 from unittest.mock import patch, call, MagicMock
 
+import pytest
 import requests
 from canvas_generated.messages.effects_pb2 import Effect
 from canvas_generated.messages.events_pb2 import Event as EventRequest
@@ -33,6 +34,37 @@ def test_constants():
         "RESPONDS_TO": ["TASK_COMMENT_CREATED"],
     }
     assert is_constant(tested, constants)
+
+
+@patch("hyperscribe.handlers.commander.thread_cleanup")
+def test_with_cleanup(thread_cleanup):
+    function = MagicMock()
+
+    def reset_mocks():
+        thread_cleanup.reset_mock()
+        function.reset_mock()
+
+    tested = Commander
+
+    # no error
+    function.side_effect = ["theResult"]
+    result = tested.with_cleanup(function)("a", "b", c="c")
+    assert result == "theResult"
+    calls = [call('a', 'b', c='c')]
+    assert function.mock_calls == calls
+    calls = [call()]
+    assert thread_cleanup.mock_calls == calls
+    reset_mocks()
+
+    # with error
+    with pytest.raises(ValueError, match="Test error"):
+        function.side_effect = [ValueError("Test error")]
+        result = tested.with_cleanup(function)("x", "y", z="z")
+    calls = [call('x', 'y', z='z')]
+    assert function.mock_calls == calls
+    calls = [call()]
+    assert thread_cleanup.mock_calls == calls
+    reset_mocks()
 
 
 @patch("hyperscribe.handlers.commander.datetime", wraps=datetime)

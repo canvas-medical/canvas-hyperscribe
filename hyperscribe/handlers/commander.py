@@ -4,13 +4,14 @@ import json
 from datetime import datetime, UTC
 from http import HTTPStatus
 from time import time
-from typing import Iterable
+from typing import Iterable, Any
 
 import requests
 from canvas_sdk.effects import Effect, EffectType
 from canvas_sdk.effects.task.task import AddTaskComment, UpdateTask, TaskStatus
 from canvas_sdk.events import EventType
 from canvas_sdk.protocols import BaseProtocol
+from canvas_sdk.utils.db import thread_cleanup
 from canvas_sdk.utils.http import ThreadPoolExecutor
 from canvas_sdk.v1.data import TaskComment
 from canvas_sdk.v1.data.command import Command
@@ -45,6 +46,19 @@ class Commander(BaseProtocol):
         EventType.Name(EventType.TASK_COMMENT_CREATED),
     ]
 
+    @classmethod
+    def with_cleanup(cls, fn: Any) -> Any:  # fn should be Callable, but it is not allowed as import yet
+        """
+        Decorator that calls thread_cleanup() after the wrapped function.
+        """
+
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            try:
+                return fn(*args, **kwargs)
+            finally:
+                thread_cleanup()
+
+        return wrapper
     def compute(self) -> list[Effect]:
         comment = TaskComment.objects.get(id=self.target)
         if not comment.task.labels.filter(name=Constants.LABEL_ENCOUNTER_COPILOT).first():
@@ -232,10 +246,10 @@ class Commander(BaseProtocol):
         common_instructions = [i for i in instructions if i.instruction not in questionnaire_classes]
         questionnaire_instructions = [i for i in instructions if i.instruction in questionnaire_classes]
 
-        with (ThreadPoolExecutor(max_workers=2) as builder):
+        with ThreadPoolExecutor(max_workers=2) as builder:
             # -- common instructions
             future_common = builder.submit(
-                cls.transcript2commands_common,
+                cls.with_cleanup(cls.transcript2commands_common),
                 auditor,
                 transcript,
                 chatter,
@@ -243,7 +257,7 @@ class Commander(BaseProtocol):
             )
             # -- questionnaires
             future_questionnaire = builder.submit(
-                cls.transcript2commands_questionnaires,
+                cls.with_cleanup(cls.transcript2commands_questionnaires),
                 auditor,
                 transcript,
                 chatter,
@@ -304,7 +318,10 @@ class Commander(BaseProtocol):
         with ThreadPoolExecutor(max_workers=max_workers) as builder:
             instructions_with_parameter = [
                 instruction
-                for instruction in builder.map(chatter.create_sdk_command_parameters, computed_instructions)
+                for instruction in builder.map(
+                    cls.with_cleanup(chatter.create_sdk_command_parameters),
+                    computed_instructions,
+                )
                 if instruction is not None
             ]
         memory_log.output(f"--> computed commands: {len(instructions_with_parameter)}")
@@ -313,7 +330,10 @@ class Commander(BaseProtocol):
 
         instructions_with_command: list[InstructionWithCommand] = []
         with ThreadPoolExecutor(max_workers=max_workers) as builder:
-            for instruction_w_cmd in builder.map(chatter.create_sdk_command_from, instructions_with_parameter):
+            for instruction_w_cmd in builder.map(
+                    cls.with_cleanup(chatter.create_sdk_command_from),
+                    instructions_with_parameter,
+            ):
                 if instruction_w_cmd is not None:
                     if instruction_w_cmd.uuid in past_uuids:
                         instruction_w_cmd.command.command_uuid = instruction_w_cmd.uuid
@@ -353,7 +373,7 @@ class Commander(BaseProtocol):
             instructions_with_command = [
                 instruction
                 for instruction in builder.map(
-                    chatter.update_questionnaire,
+                    cls.with_cleanup(chatter.update_questionnaire),
                     [transcript] * len(instructions),
                     instructions,
                 )
@@ -401,7 +421,10 @@ class Commander(BaseProtocol):
         with ThreadPoolExecutor(max_workers=max_workers) as builder:
             instructions_with_parameter = [
                 instruction
-                for instruction in builder.map(chatter.create_sdk_command_parameters, new_instructions)
+                for instruction in builder.map(
+                    cls.with_cleanup(chatter.create_sdk_command_parameters),
+                    new_instructions,
+                )
                 if instruction is not None
             ]
         auditor.computed_parameters(instructions_with_parameter)
@@ -409,7 +432,10 @@ class Commander(BaseProtocol):
         with ThreadPoolExecutor(max_workers=max_workers) as builder:
             instructions_with_command = [
                 instruction
-                for instruction in builder.map(chatter.create_sdk_command_from, instructions_with_parameter)
+                for instruction in builder.map(
+                    cls.with_cleanup(chatter.create_sdk_command_from),
+                    instructions_with_parameter,
+                )
                 if instruction is not None
             ]
 
@@ -418,7 +444,7 @@ class Commander(BaseProtocol):
 
         if chatter.identification.note_uuid == Constants.FAUX_NOTE_UUID:
             # this is the case when running an evaluation against a recorded 'limited cache',
-            # i.e. the patient and/or her data don't exist, something that may be checked
+            # i.e., the patient and/or her data don't exist, something that may be checked
             # when originating the commands
             return []
         return [command.command.originate() for command in instructions_with_command]
@@ -444,14 +470,20 @@ class Commander(BaseProtocol):
         with ThreadPoolExecutor(max_workers=max_workers) as builder:
             instructions_with_parameter = [
                 instruction
-                for instruction in builder.map(chatter.create_sdk_command_parameters, changed_instructions)
+                for instruction in builder.map(
+                    cls.with_cleanup(chatter.create_sdk_command_parameters),
+                    changed_instructions,
+                )
                 if instruction is not None
             ]
         auditor.computed_parameters(instructions_with_parameter)
         memory_log.output(f"--> updated commands: {len(instructions_with_parameter)}")
         instructions_with_command: list[InstructionWithCommand] = []
         with ThreadPoolExecutor(max_workers=max_workers) as builder:
-            for instruction in builder.map(chatter.create_sdk_command_from, instructions_with_parameter):
+            for instruction in builder.map(
+                    cls.with_cleanup(chatter.create_sdk_command_from),
+                    instructions_with_parameter,
+            ):
                 if instruction is not None:
                     instruction.command.command_uuid = instruction.uuid
                     instructions_with_command.append(instruction)
@@ -461,7 +493,7 @@ class Commander(BaseProtocol):
 
         if chatter.identification.note_uuid == Constants.FAUX_NOTE_UUID:
             # this is the case when running an evaluation against a recorded 'limited cache',
-            # i.e. the patient and/or her data don't exist, something that may be checked
+            # i.e., the patient and/or her data don't exist, something that may be checked
             # when editing the commands
             return []
         return [command.command.edit() for command in instructions_with_command]
