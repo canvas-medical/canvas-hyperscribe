@@ -79,6 +79,7 @@ def test_constants():
         "SECRET_AWS_BUCKET_TUNING": "AwsBucketTuning",
         "SECRET_STRUCTURED_RFV": "StructuredReasonForVisit",
         "SECRET_AUDIT_LLM": "AuditLLMDecisions",
+        "SECRET_IS_TUNING": "IsTuning",
         "SECRET_API_SIGNING_KEY": "APISigningKey",
         "SECRET_COMMANDS_LIST": "CommandsList",
         "SECRET_COMMANDS_POLICY": "CommandsPolicy",

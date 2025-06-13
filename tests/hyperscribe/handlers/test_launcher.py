@@ -81,14 +81,19 @@ def test_handle(launch_model_effect, authenticator, note_db):
 
 def test_visible():
     tests = [
-        ("yes", "userId", True),
-        ("yes", "anotherId", True),
-        ("yes", "otherId", False),
-        ("no", "userId", False),
-        ("no", "anotherId", False),
-        ("no", "otherId", True),
+        ("yes", "userId", "no", True),
+        ("yes", "anotherId", "no", True),
+        ("yes", "otherId", "no", False),
+        ("no", "userId", "no", False),
+        ("no", "anotherId", "no", False),
+        ("no", "otherId", "no", True),
+        #
+        ("yes", "userId", "yes", False),
+        ("yes", "anotherId", "yes", False),
+        ("no", "otherId", "yes", False),
+
     ]
-    for policy, staff_id, expected in tests:
+    for policy, staff_id, tuning, expected in tests:
         event = Event(EventRequest(context=json.dumps({"note_id": "noteId", "user": {"id": staff_id}})))
         secrets = {
             "AudioHost": "theAudioHost",
@@ -101,6 +106,7 @@ def test_visible():
             "PreSharedKey": "thePreSharedKey",
             "StructuredReasonForVisit": "yes",
             "AuditLLMDecisions": "no",
+            "IsTuning": tuning,
             "AwsKey": "theKey",
             "AwsSecret": "theSecret",
             "AwsRegion": "theRegion",

@@ -17,6 +17,7 @@ class Settings(NamedTuple):
     pre_shared_key: str
     structured_rfv: bool
     audit_llm: bool
+    is_tuning: bool
     send_progress: bool
     commands_policy: AccessPolicy
     staffers_policy: AccessPolicy
@@ -38,6 +39,7 @@ class Settings(NamedTuple):
             pre_shared_key=dictionary[Constants.SECRET_PRE_SHARED_KEY],
             structured_rfv=cls.is_true(dictionary.get(Constants.SECRET_STRUCTURED_RFV)),
             audit_llm=cls.is_true(dictionary.get(Constants.SECRET_AUDIT_LLM)),
+            is_tuning=cls.is_true(dictionary.get(Constants.SECRET_IS_TUNING)),
             send_progress=dictionary.get(Constants.PROGRESS_SETTING_KEY, False),
             commands_policy=AccessPolicy(
                 policy=cls.is_true(dictionary.get(Constants.SECRET_COMMANDS_POLICY)),

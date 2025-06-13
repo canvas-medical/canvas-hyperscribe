@@ -25,6 +25,7 @@ def helper_instance() -> Refer:
         pre_shared_key="preSharedKey",
         structured_rfv=False,
         audit_llm=False,
+        is_tuning=False,
         api_signing_key="theApiSigningKey",
         send_progress=False,
         commands_policy=AccessPolicy(policy=False, items=[]),

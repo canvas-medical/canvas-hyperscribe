@@ -212,6 +212,7 @@ def test_compute_audit_documents(
         pre_shared_key='thePreSharedKey',
         structured_rfv=True,
         audit_llm=True,
+        is_tuning=False,
         api_signing_key="theApiSigningKey",
         send_progress=True,
         commands_policy=AccessPolicy(policy=False, items=[]),

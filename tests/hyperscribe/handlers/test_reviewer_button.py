@@ -80,16 +80,19 @@ def test_handle(launch_model_effect, authenticator, note_db):
 
 def test_visible():
     tests = [
-        ("yes", "yes", "userId", True),
-        ("yes", "yes", "otherId", False),
-        ("no", "yes", "userId", False),
-        ("no", "yes", "otherId", False),
-        ("yes", "no", "userId", False),
-        ("yes", "no", "otherId", True),
-        ("no", "no", "userId", False),
-        ("no", "no", "otherId", False),
+        ("yes", "yes", "userId", "no", True),
+        ("yes", "yes", "otherId", "no", False),
+        ("no", "yes", "userId", "no", False),
+        ("no", "yes", "otherId", "no", False),
+        ("yes", "no", "userId", "no", False),
+        ("yes", "no", "otherId", "no", True),
+        ("no", "no", "userId", "no", False),
+        ("no", "no", "otherId", "no", False),
+        #
+        ("yes", "yes", "userId", "yes", False),
+        ("yes", "no", "otherId", "yes", False),
     ]
-    for audit_llm, policy, staff_id, expected in tests:
+    for audit_llm, policy, staff_id, tuning, expected in tests:
         event = Event(EventRequest(context=json.dumps({"note_id": "noteId", "user": {"id": staff_id}})))
         secrets = {
             "AudioHost": "theAudioHost",
@@ -102,6 +105,7 @@ def test_visible():
             "PreSharedKey": "thePreSharedKey",
             "StructuredReasonForVisit": "yes",
             "AuditLLMDecisions": audit_llm,
+            "IsTuning": tuning,
             "AwsKey": "theKey",
             "AwsSecret": "theSecret",
             "AwsRegion": "theRegion",

@@ -24,6 +24,7 @@ def helper_instance(structured_rfv: bool = False) -> FollowUp:
         pre_shared_key="preSharedKey",
         structured_rfv=structured_rfv,
         audit_llm=False,
+        is_tuning=False,
         api_signing_key="theApiSigningKey",
         send_progress=False,
         commands_policy=AccessPolicy(policy=False, items=[]),

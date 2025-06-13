@@ -32,6 +32,8 @@ def test_condition_from(search_conditions):
         pre_shared_key="preSharedKey",
         structured_rfv=False,
         audit_llm=False,
+        is_tuning=False,
+
         api_signing_key="theApiSigningKey",
         send_progress=False,
         commands_policy=AccessPolicy(policy=False, items=[]),
@@ -147,6 +149,8 @@ def test_lab_test_from(lab_test_db):
         pre_shared_key="preSharedKey",
         structured_rfv=False,
         audit_llm=False,
+        is_tuning=False,
+
         api_signing_key="theApiSigningKey",
         send_progress=False,
         commands_policy=AccessPolicy(policy=False, items=[]),
@@ -336,6 +340,8 @@ def test_contact_from(search_contacts, summary_of):
         pre_shared_key="preSharedKey",
         structured_rfv=False,
         audit_llm=False,
+        is_tuning=False,
+
         api_signing_key="theApiSigningKey",
         send_progress=False,
         commands_policy=AccessPolicy(policy=False, items=[]),

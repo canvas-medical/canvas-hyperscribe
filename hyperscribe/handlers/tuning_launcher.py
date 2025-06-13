@@ -39,4 +39,4 @@ class TuningLauncher(ActionButton):
     def visible(self) -> bool:
         settings = Settings.from_dictionary(self.secrets)
         staff_id = self.context.get("user", {}).get("id", "")
-        return settings.staffers_policy.is_allowed(staff_id)
+        return settings.is_tuning and settings.staffers_policy.is_allowed(staff_id)

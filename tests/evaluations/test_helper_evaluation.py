@@ -36,6 +36,7 @@ def test_settings(monkeypatch):
     for env_variable, exp_bool in tests:
         monkeypatch.setenv("StructuredReasonForVisit", env_variable)
         monkeypatch.setenv("AuditLLMDecisions", env_variable)
+        monkeypatch.setenv("IsTuning", env_variable)
         monkeypatch.setenv("CommandsPolicy", env_variable)
         monkeypatch.setenv("StaffersPolicy", env_variable)
 
@@ -49,6 +50,7 @@ def test_settings(monkeypatch):
             pre_shared_key="thePreSharedKey",
             structured_rfv=exp_bool,
             audit_llm=exp_bool,
+            is_tuning=exp_bool,
             api_signing_key="theApiSigningKey",
             send_progress=False,
             commands_policy=AccessPolicy(policy=exp_bool, items=["Command1", "Command2", "Command3"]),

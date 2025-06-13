@@ -80,6 +80,8 @@ def test_presigned_url(
         pre_shared_key='thePreSharedKey',
         structured_rfv=True,
         audit_llm=False,
+        is_tuning=False,
+
         api_signing_key="theApiSigningKey",
         send_progress=False,
         commands_policy=AccessPolicy(policy=False, items=[]),

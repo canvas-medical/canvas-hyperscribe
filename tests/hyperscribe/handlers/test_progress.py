@@ -216,6 +216,8 @@ def test_send_to_user(requests_post, authenticator, mock_datetime):
         pre_shared_key="preSharedKey",
         structured_rfv=False,
         audit_llm=False,
+        is_tuning=False,
+
         api_signing_key="theApiSigningKey",
         send_progress=True,
         commands_policy=AccessPolicy(policy=False, items=[]),
@@ -255,6 +257,8 @@ def test_send_to_user(requests_post, authenticator, mock_datetime):
         pre_shared_key="preSharedKey",
         structured_rfv=False,
         audit_llm=False,
+        is_tuning=False,
+
         api_signing_key="theApiSigningKey",
         send_progress=False,
         commands_policy=AccessPolicy(policy=False, items=[]),

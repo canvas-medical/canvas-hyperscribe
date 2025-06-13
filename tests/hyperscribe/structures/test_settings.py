@@ -18,6 +18,7 @@ def test_class():
         "pre_shared_key": str,
         "structured_rfv": bool,
         "audit_llm": bool,
+        "is_tuning": bool,
         "api_signing_key": str,
         "send_progress": bool,
         "commands_policy": AccessPolicy,
@@ -34,13 +35,13 @@ def test_from_dictionary(is_true):
     tested = Settings
 
     tests = [
-        (True, True, False, True, True),
-        (True, False, False, False, False),
-        (False, True, True, True, False),
-        (False, False, True, False, True),
+        (True, True, True, False, True, True),
+        (True, False, True, False, False, False),
+        (False, True, False, True, True, False),
+        (False, False, False, True, False, True),
     ]
-    for rfv, audit, commands, staffers, progress in tests:
-        is_true.side_effect = [rfv, audit, commands, staffers]
+    for rfv, audit, commands, staffers, progress, tuning in tests:
+        is_true.side_effect = [rfv, audit, tuning, commands, staffers]
         result = tested.from_dictionary({
             "VendorTextLLM": "textVendor",
             "KeyTextLLM": "textAPIKey",
@@ -51,6 +52,7 @@ def test_from_dictionary(is_true):
             "PreSharedKey": "thePreSharedKey",
             "StructuredReasonForVisit": "rfv",
             "AuditLLMDecisions": "audit",
+            "IsTuning": "tuning",
             "APISigningKey": "theApiSigningKey",
             "sendProgress": progress,
             "CommandsList": "ReasonForVisit,StopMedication Task Vitals",
@@ -66,13 +68,14 @@ def test_from_dictionary(is_true):
             pre_shared_key="thePreSharedKey",
             structured_rfv=rfv,
             audit_llm=audit,
+            is_tuning=tuning,
             api_signing_key="theApiSigningKey",
             send_progress=progress,
             commands_policy=AccessPolicy(policy=commands, items=["ReasonForVisit", "StopMedication", "Task", "Vitals"]),
             staffers_policy=AccessPolicy(policy=staffers, items=["32", "47"]),
         )
         assert result == expected
-        calls = [call("rfv"), call("audit"), call("commands"), call("staffers")]
+        calls = [call("rfv"), call("audit"), call("tuning"), call("commands"), call("staffers")]
         assert is_true.mock_calls == calls
         reset_mocks()
 
