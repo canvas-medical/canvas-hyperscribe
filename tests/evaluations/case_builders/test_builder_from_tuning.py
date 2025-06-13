@@ -40,7 +40,7 @@ def test__parameters(argument_parser):
 
 @patch("evaluations.case_builders.builder_from_tuning.Commander")
 @patch("evaluations.case_builders.builder_from_tuning.AudioInterpreter")
-@patch("evaluations.case_builders.builder_from_tuning.CachedDiscussion")
+@patch("evaluations.case_builders.builder_from_tuning.CachedSdk")
 @patch("evaluations.case_builders.builder_from_tuning.HelperEvaluation")
 @patch("evaluations.case_builders.builder_from_tuning.StoreCases")
 @patch("evaluations.case_builders.builder_from_tuning.ImplementedCommands")
@@ -134,6 +134,7 @@ def test__run(
     calls = [
         call.get_discussion('theNoteUuid'),
         call.get_discussion().set_cycle(1),
+        call.get_discussion().save(),
     ]
     assert cached_discussion.mock_calls == calls
     calls = [call(

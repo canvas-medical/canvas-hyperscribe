@@ -22,7 +22,7 @@ from hyperscribe.handlers.progress import Progress
 from hyperscribe.libraries.audio_interpreter import AudioInterpreter
 from hyperscribe.libraries.auditor import Auditor
 from hyperscribe.libraries.aws_s3 import AwsS3
-from hyperscribe.libraries.cached_discussion import CachedDiscussion
+from hyperscribe.libraries.cached_sdk import CachedSdk
 from hyperscribe.libraries.constants import Constants
 from hyperscribe.libraries.implemented_commands import ImplementedCommands
 from hyperscribe.libraries.limited_cache import LimitedCache
@@ -128,7 +128,6 @@ class Commander(BaseProtocol):
             host_audio: str,
             chunk_index: int,
     ) -> tuple[bool, list[Effect]]:
-        CachedDiscussion.clear_cache()
         # retrieve the last audio chunks
         audios = cls.retrieve_audios(
             host_audio,
@@ -142,7 +141,7 @@ class Commander(BaseProtocol):
             return False, []
 
         Progress.send_to_user(identification, settings, f"starting the cycle {chunk_index}...")
-        discussion = CachedDiscussion.get_discussion(identification.note_uuid)
+        discussion = CachedSdk.get_discussion(identification.note_uuid)
         discussion.set_cycle(chunk_index)
 
         # request the transcript of the audio (provider + patient...)
@@ -168,6 +167,7 @@ class Commander(BaseProtocol):
             previous_instructions,
             discussion.previous_transcript
         )
+        discussion.save()
         # summary
         memory_log.output(f"<===  note: {identification.note_uuid} ===>")
         memory_log.output(f"Structured RfV: {settings.structured_rfv}")

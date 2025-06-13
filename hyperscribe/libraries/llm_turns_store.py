@@ -6,7 +6,7 @@ from re import search
 from typing import Iterable, Tuple
 
 from hyperscribe.libraries.aws_s3 import AwsS3
-from hyperscribe.libraries.cached_discussion import CachedDiscussion
+from hyperscribe.libraries.cached_sdk import CachedSdk
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.llm_turn import LlmTurn
@@ -23,7 +23,7 @@ class LlmTurnsStore:
 
     @classmethod
     def instance(cls, s3_credentials: AwsS3Credentials, identification: IdentificationParameters) -> LlmTurnsStore:
-        cached = CachedDiscussion.get_discussion(identification.note_uuid)
+        cached = CachedSdk.get_discussion(identification.note_uuid)
         return LlmTurnsStore(s3_credentials, identification, cached.creation_day(), cached.cycle)
 
     def __init__(
