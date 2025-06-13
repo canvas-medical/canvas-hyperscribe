@@ -10,7 +10,7 @@ from canvas_sdk.v1.data import Patient, Command
 from evaluations.auditor_file import AuditorFile
 from evaluations.case_builders.builder_base import BuilderBase
 from hyperscribe.handlers.commander import Commander
-from hyperscribe.libraries.cached_discussion import CachedDiscussion
+from hyperscribe.libraries.cached_sdk import CachedSdk
 from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.identification_parameters import IdentificationParameters
@@ -88,7 +88,7 @@ def test__run():
 @patch("evaluations.case_builders.builder_base.MemoryLog")
 @patch("evaluations.case_builders.builder_base.LlmDecisionsReviewer")
 @patch("evaluations.case_builders.builder_base.HelperEvaluation")
-@patch("evaluations.case_builders.builder_base.CachedDiscussion")
+@patch("evaluations.case_builders.builder_base.CachedSdk")
 @patch("evaluations.case_builders.builder_base.BuilderAuditUrl")
 @patch("evaluations.case_builders.builder_base.AwsS3")
 @patch("evaluations.case_builders.builder_base.AuditorFile")
@@ -138,7 +138,7 @@ def test_run(
         datetime(2025, 3, 10, 7, 55, 37, tzinfo=timezone.utc),
         datetime(2025, 3, 11, 7, 55, 41, tzinfo=timezone.utc),
     ]
-    discussion = CachedDiscussion("noteUuid")
+    discussion = CachedSdk("noteUuid")
     discussion.cycle = 3
     discussion.created = dates[0]
 

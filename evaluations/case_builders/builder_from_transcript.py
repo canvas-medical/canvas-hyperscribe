@@ -9,7 +9,7 @@ from evaluations.helper_evaluation import HelperEvaluation
 from evaluations.structures.evaluation_case import EvaluationCase
 from hyperscribe.handlers.commander import Commander
 from hyperscribe.libraries.audio_interpreter import AudioInterpreter
-from hyperscribe.libraries.cached_discussion import CachedDiscussion
+from hyperscribe.libraries.cached_sdk import CachedSdk
 from hyperscribe.libraries.implemented_commands import ImplementedCommands
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.line import Line
@@ -58,7 +58,7 @@ class BuilderFromTranscript(BuilderBase):
 
         previous = limited_cache.staged_commands_as_instructions(ImplementedCommands.schema_key2instruction())
 
-        discussion = CachedDiscussion.get_discussion(chatter.identification.note_uuid)
+        discussion = CachedSdk.get_discussion(chatter.identification.note_uuid)
         if parameters.cycles < 2:
             discussion.set_cycle(1)
             Commander.transcript2commands(recorder, transcript, chatter, previous)

@@ -228,7 +228,7 @@ def test__run(
         reset_mocks()
 
 
-@patch("evaluations.case_builders.builder_from_mp3.CachedDiscussion")
+@patch("evaluations.case_builders.builder_from_mp3.CachedSdk")
 @patch("evaluations.case_builders.builder_from_mp3.Commander")
 def test__run_combined(commander, cached_discussion):
     mock_chatter = MagicMock()
@@ -280,7 +280,7 @@ def test__run_combined(commander, cached_discussion):
 
 
 @patch("evaluations.case_builders.builder_from_mp3.AuditorFile")
-@patch("evaluations.case_builders.builder_from_mp3.CachedDiscussion")
+@patch("evaluations.case_builders.builder_from_mp3.CachedSdk")
 @patch("evaluations.case_builders.builder_from_mp3.Commander")
 def test__run_chunked(commander, cached_discussion, auditor):
     mock_chatter = MagicMock()

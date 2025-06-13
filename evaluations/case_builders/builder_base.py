@@ -13,7 +13,7 @@ from evaluations.helper_evaluation import HelperEvaluation
 from hyperscribe.handlers.commander import Commander
 from hyperscribe.libraries.authenticator import Authenticator
 from hyperscribe.libraries.aws_s3 import AwsS3
-from hyperscribe.libraries.cached_discussion import CachedDiscussion
+from hyperscribe.libraries.cached_sdk import CachedSdk
 from hyperscribe.libraries.constants import Constants as HyperscribeConstants
 from hyperscribe.libraries.implemented_commands import ImplementedCommands
 from hyperscribe.libraries.limited_cache import LimitedCache
@@ -82,7 +82,7 @@ class BuilderBase:
 
             settings = HelperEvaluation.settings()
             if settings.audit_llm is True:
-                discussion = CachedDiscussion.get_discussion(note_uuid)
+                discussion = CachedSdk.get_discussion(note_uuid)
                 LlmDecisionsReviewer.review(
                     identification,
                     settings,

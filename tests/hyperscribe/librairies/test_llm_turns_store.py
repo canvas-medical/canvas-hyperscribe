@@ -5,7 +5,7 @@ from unittest.mock import patch, call
 from requests import Response
 
 import hyperscribe.libraries.llm_turns_store as llm_turns_store
-from hyperscribe.libraries.cached_discussion import CachedDiscussion
+from hyperscribe.libraries.cached_sdk import CachedSdk
 from hyperscribe.libraries.llm_turns_store import LlmTurnsStore
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.aws_s3_object import AwsS3Object
@@ -68,7 +68,7 @@ def test_end_session():
         }
 
 
-@patch.object(CachedDiscussion, "get_discussion")
+@patch.object(CachedSdk, "get_discussion")
 def test_instance(get_discussion):
     def reset_mocks():
         get_discussion.reset_mock()
@@ -85,7 +85,7 @@ def test_instance(get_discussion):
         region='theRegion',
         bucket='theBucket',
     )
-    cached = CachedDiscussion("theNoteUuid")
+    cached = CachedSdk("theNoteUuid")
     cached.created = datetime(2025, 5, 7, 23, 59, 37, tzinfo=timezone.utc)
     cached.updated = datetime(2025, 5, 7, 0, 38, 21, tzinfo=timezone.utc)
     cached.cycle = 7

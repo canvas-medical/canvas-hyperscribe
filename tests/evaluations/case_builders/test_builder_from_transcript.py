@@ -45,7 +45,7 @@ def test__parameters(argument_parser):
 
 
 @patch("evaluations.case_builders.builder_from_transcript.AuditorFile")
-@patch("evaluations.case_builders.builder_from_transcript.CachedDiscussion")
+@patch("evaluations.case_builders.builder_from_transcript.CachedSdk")
 @patch("evaluations.case_builders.builder_from_transcript.Commander")
 @patch("evaluations.case_builders.builder_from_transcript.AudioInterpreter")
 @patch("evaluations.case_builders.builder_from_transcript.HelperEvaluation")

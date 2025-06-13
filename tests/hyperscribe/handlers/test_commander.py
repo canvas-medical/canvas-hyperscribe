@@ -11,7 +11,7 @@ from canvas_sdk.v1.data import TaskComment, Note, Command, TaskLabel
 from logger import log
 
 from hyperscribe.handlers.commander import Commander
-from hyperscribe.libraries.cached_discussion import CachedDiscussion
+from hyperscribe.libraries.cached_sdk import CachedSdk
 from hyperscribe.libraries.implemented_commands import ImplementedCommands
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
@@ -363,8 +363,9 @@ def test_compute(
 @patch('hyperscribe.handlers.commander.MemoryLog')
 @patch('hyperscribe.handlers.commander.LimitedCache')
 @patch('hyperscribe.handlers.commander.AudioInterpreter')
-@patch('hyperscribe.handlers.commander.CachedDiscussion')
 @patch('hyperscribe.handlers.commander.Auditor')
+@patch.object(CachedSdk, "save")
+@patch.object(CachedSdk, "get_discussion")
 @patch.object(Command, "objects")
 @patch.object(Commander, 'existing_commands_to_coded_items')
 @patch.object(Commander, 'existing_commands_to_instructions')
@@ -376,8 +377,9 @@ def test_compute_audio(
         existing_commands_to_instructions,
         existing_commands_to_coded_items,
         command_db,
+        cache_get_discussion,
+        cache_save,
         auditor,
-        cached_discussion,
         audio_interpreter,
         limited_cache,
         memory_log,
@@ -391,7 +393,8 @@ def test_compute_audio(
         existing_commands_to_coded_items.reset_mock()
         command_db.reset_mock()
         auditor.reset_mock()
-        cached_discussion.reset_mock()
+        cache_get_discussion.reset_mock()
+        cache_save.reset_mock()
         audio_interpreter.reset_mock()
         limited_cache.reset_mock()
         memory_log.reset_mock()
@@ -431,7 +434,7 @@ def test_compute_audio(
     existing_commands_to_coded_items.side_effect = []
     command_db.filter.return_value.order_by.side_effect = []
     auditor.side_effect = []
-    cached_discussion.side_effect = []
+    cache_get_discussion.side_effect = []
     audio_interpreter.side_effect = []
     limited_cache.side_effect = []
     aws_s3.return_value.is_ready.side_effect = []
@@ -453,8 +456,8 @@ def test_compute_audio(
     assert existing_commands_to_coded_items.mock_calls == []
     assert command_db.mock_calls == []
     assert auditor.mock_calls == []
-    calls = [call.clear_cache()]
-    assert cached_discussion.mock_calls == calls
+    assert cache_get_discussion.mock_calls == []
+    assert cache_save.mock_calls == []
     assert audio_interpreter.mock_calls == []
     assert limited_cache.mock_calls == []
     assert progress.mock_calls == []
@@ -521,7 +524,7 @@ def test_compute_audio(
             Effect(type="LOG", payload="Log3"),
         ]
 
-        discussion = CachedDiscussion("noteUuid")
+        discussion = CachedSdk("noteUuid")
         discussion.created = datetime(2025, 3, 10, 23, 59, 7, tzinfo=timezone.utc)
         discussion.updated = datetime(2025, 3, 11, 0, 3, 17, tzinfo=timezone.utc)
         discussion.cycle = 7
@@ -533,7 +536,7 @@ def test_compute_audio(
         existing_commands_to_coded_items.side_effect = ["stagedCommands"]
         command_db.filter.return_value.order_by.side_effect = ["QuerySetCommands"]
         auditor.side_effect = ["AuditorInstance"]
-        cached_discussion.get_discussion.side_effect = [discussion]
+        cache_get_discussion.side_effect = [discussion]
         audio_interpreter.side_effect = ["AudioInterpreterInstance"]
         limited_cache.side_effect = ["LimitedCacheInstance"]
         aws_s3.return_value.is_ready.side_effect = [is_ready]
@@ -595,11 +598,10 @@ def test_compute_audio(
         assert command_db.mock_calls == calls
         calls = [call()]
         assert auditor.mock_calls == calls
-        calls = [
-            call.clear_cache(),
-            call.get_discussion('noteUuid'),
-        ]
-        assert cached_discussion.mock_calls == calls
+        calls = [call('noteUuid')]
+        assert cache_get_discussion.mock_calls == calls
+        calls = [call(), call()]
+        assert cache_save.mock_calls == calls
         calls = [call(settings, aws_s3_credentials, "LimitedCacheInstance", identification)]
         assert audio_interpreter.mock_calls == calls
         calls = [call("patientUuid", "stagedCommands")]

@@ -3,7 +3,7 @@ from datetime import datetime
 
 from hyperscribe.handlers.progress import Progress
 from hyperscribe.libraries.aws_s3 import AwsS3
-from hyperscribe.libraries.cached_discussion import CachedDiscussion
+from hyperscribe.libraries.cached_sdk import CachedSdk
 from hyperscribe.libraries.helper import Helper
 from hyperscribe.libraries.json_schema import JsonSchema
 from hyperscribe.libraries.llm_turns_store import LlmTurnsStore
@@ -33,10 +33,11 @@ class LlmDecisionsReviewer:
         if client_s3.is_ready() is False:
             return
 
-        cached = CachedDiscussion.get_discussion(identification.note_uuid)
+        cached = CachedSdk.get_discussion(identification.note_uuid)
         cached.created = created
-        creation_day = cached.creation_day()
         cached.cycle = cycles + 1  # to force the new logs in a subsequent folder
+        cached.save()
+        creation_day = cached.creation_day()
 
         Progress.send_to_user(identification, settings, "create the audits...")
         for cycle in range(1, cycles + 1):

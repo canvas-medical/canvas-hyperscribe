@@ -2,7 +2,7 @@ import json
 from datetime import timezone, datetime
 from unittest.mock import patch, call
 
-from hyperscribe.libraries.cached_discussion import CachedDiscussion
+from hyperscribe.libraries.cached_sdk import CachedSdk
 from hyperscribe.libraries.llm_decisions_reviewer import LlmDecisionsReviewer
 from hyperscribe.libraries.llm_turns_store import LlmTurnsStore
 from hyperscribe.structures.access_policy import AccessPolicy
@@ -17,19 +17,22 @@ from hyperscribe.structures.vendor_key import VendorKey
 @patch('hyperscribe.libraries.llm_decisions_reviewer.MemoryLog')
 @patch('hyperscribe.libraries.llm_decisions_reviewer.LlmTurnsStore')
 @patch('hyperscribe.libraries.llm_decisions_reviewer.Helper')
-@patch('hyperscribe.libraries.llm_decisions_reviewer.CachedDiscussion')
 @patch('hyperscribe.libraries.llm_decisions_reviewer.AwsS3')
+@patch.object(CachedSdk, "save")
+@patch.object(CachedSdk, "get_discussion")
 def test_review(
+        cache_get_discussion,
+        cache_save,
         aws_s3,
-        cached_discussion,
         helper,
         llm_turns_store,
         memory_log,
         progress,
 ):
     def reset_mocks():
+        cache_get_discussion.reset_mock()
+        cache_save.reset_mock()
         aws_s3.reset_mock()
-        cached_discussion.reset_mock()
         helper.reset_mock()
         llm_turns_store.reset_mock()
         memory_log.reset_mock()
@@ -189,14 +192,15 @@ def test_review(
         staffers_policy=AccessPolicy(policy=False, items=[]),
     )
     aws_s3.return_value.is_ready.side_effect = []
-    cached_discussion.get_discussion.side_effect = []
+    cache_get_discussion.side_effect = []
     llm_turns_store.return_value.stored_document.side_effect = []
     helper.chatter.return_value.single_conversation.side_effect = []
 
     tested.review(identification, settings, aws_s3_credentials, command2uuid, date_x, 5)
 
+    assert cache_get_discussion.mock_calls == []
+    assert cache_save.mock_calls == []
     assert aws_s3.mock_calls == []
-    assert cached_discussion.mock_calls == []
     assert helper.mock_calls == []
     assert llm_turns_store.mock_calls == []
     assert memory_log.mock_calls == []
@@ -220,7 +224,7 @@ def test_review(
     )
     # -- S3 not ready
     aws_s3.return_value.is_ready.side_effect = [False]
-    cached_discussion.get_discussion.side_effect = [CachedDiscussion("noteUuid")]
+    cache_get_discussion.side_effect = [CachedSdk("noteUuid")]
     llm_turns_store.return_value.stored_document.side_effect = []
     helper.chatter.return_value.single_conversation.side_effect = []
     memory_log.instance.side_effect = []
@@ -230,8 +234,9 @@ def test_review(
         call(aws_s3_credentials),
         call().is_ready(),
     ]
+    assert cache_get_discussion.mock_calls == []
+    assert cache_save.mock_calls == []
     assert aws_s3.mock_calls == calls
-    assert cached_discussion.mock_calls == []
     assert helper.mock_calls == []
     assert llm_turns_store.mock_calls == []
     assert memory_log.mock_calls == []
@@ -304,6 +309,10 @@ def test_review(
         "memoryLogInstance7",
     ]
     tested.review(identification, settings, aws_s3_credentials, command2uuid, date_x, 4)
+    calls = [call.get_discussion('noteUuid')]
+    assert cache_get_discussion.mock_calls == calls
+    calls = [call()]
+    assert cache_save.mock_calls == calls
     calls = [
         call(aws_s3_credentials),
         call().is_ready(),
@@ -313,10 +322,6 @@ def test_review(
         call().upload_text_to_s3('hyperscribe-canvasInstance/audits/noteUuid/final_audit_04.log', json.dumps(expected_uploads[3], indent=2)),
     ]
     assert aws_s3.mock_calls == calls
-    calls = [
-        call.get_discussion('noteUuid'),
-    ]
-    assert cached_discussion.mock_calls == calls
     calls = [
         call.chatter(settings, "memoryLogInstance0"),
         call.chatter().add_prompt(LlmTurn(role='system', text=['system_t2i_00'])),

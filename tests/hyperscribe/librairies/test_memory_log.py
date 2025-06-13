@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from unittest.mock import patch, call
 
 import hyperscribe.libraries.memory_log as memory_log
-from hyperscribe.libraries.cached_discussion import CachedDiscussion
+from hyperscribe.libraries.cached_sdk import CachedSdk
 from hyperscribe.libraries.memory_log import MemoryLog
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.identification_parameters import IdentificationParameters
@@ -248,7 +248,7 @@ def test_logs(mock_datetime):
     MemoryLog.end_session("noteUuid")
 
 
-@patch.object(CachedDiscussion, "get_discussion")
+@patch.object(CachedSdk, "get_discussion")
 @patch("hyperscribe.libraries.memory_log.AwsS3")
 def test_store_so_far(aws_s3, get_discussion):
     def reset_mocks():
@@ -281,7 +281,7 @@ def test_store_so_far(aws_s3, get_discussion):
     assert get_discussion.mock_calls == []
     reset_mocks()
     #
-    cached = CachedDiscussion("theNoteUuid")
+    cached = CachedSdk("theNoteUuid")
     cached.created = datetime(2025, 3, 11, 23, 59, 37, tzinfo=timezone.utc)
     cached.updated = datetime(2025, 3, 12, 0, 38, 21, tzinfo=timezone.utc)
     cached.cycle = 7
