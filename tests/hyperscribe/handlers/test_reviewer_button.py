@@ -1,3 +1,4 @@
+import json
 from unittest.mock import patch, call
 
 from canvas_generated.messages.effects_pb2 import Effect
@@ -77,28 +78,19 @@ def test_handle(launch_model_effect, authenticator, note_db):
     reset_mocks()
 
 
-@patch.object(Note, "objects")
-def test_visible(note_db):
-    def reset_mocks():
-        note_db.reset_mock()
-
-    event = Event(EventRequest(context='{"note_id":"noteId"}'))
+def test_visible():
     tests = [
-        ("yes", "yes", 3, True),
-        ("yes", "yes", 5, False),
-        ("no", "yes", 3, False),
-        ("no", "yes", 5, False),
-        ("yes", "no", 3, False),
-        ("yes", "no", 5, True),
-        ("no", "no", 3, False),
-        ("no", "no", 5, False),
+        ("yes", "yes", "userId", True),
+        ("yes", "yes", "otherId", False),
+        ("no", "yes", "userId", False),
+        ("no", "yes", "otherId", False),
+        ("yes", "no", "userId", False),
+        ("yes", "no", "otherId", True),
+        ("no", "no", "userId", False),
+        ("no", "no", "otherId", False),
     ]
     for audit_llm, policy, staff_id, expected in tests:
-        note_db.get.side_effect = [Note(
-            id="uuidNote",
-            patient=Patient(id="uuidPatient"),
-            provider=Staff(id="uuidProvider", dbid=staff_id),
-        )]
+        event = Event(EventRequest(context=json.dumps({"note_id": "noteId", "user": {"id": staff_id}})))
         secrets = {
             "AudioHost": "theAudioHost",
             "KeyTextLLM": "theKeyTextLLM",
@@ -113,15 +105,11 @@ def test_visible(note_db):
             "AwsKey": "theKey",
             "AwsSecret": "theSecret",
             "AwsRegion": "theRegion",
-            "AwsBucket": "theBucket",
+            "AwsBucketLogs": "theBucketLogs",
             "APISigningKey": "theApiSigningKey",
-            "StaffersList": "1,2 3 4",
+            "StaffersList": "userId, anotherId",
             "StaffersPolicy": policy,
         }
         tested = ReviewerButton(event, secrets)
         assert tested.visible() is expected
 
-        calls = [call.get(dbid='noteId')]
-        assert note_db.mock_calls == calls
-
-        reset_mocks()

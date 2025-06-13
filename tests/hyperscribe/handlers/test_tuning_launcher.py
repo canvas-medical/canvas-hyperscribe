@@ -1,3 +1,4 @@
+import json
 from time import time
 from unittest.mock import patch, call
 
@@ -8,17 +9,17 @@ from canvas_sdk.events.base import TargetType
 from canvas_sdk.handlers.action_button import ActionButton
 from canvas_sdk.v1.data import Note, Patient
 
-from hyperscribe_tuning.handlers.launcher import Launcher
+from hyperscribe.handlers.tuning_launcher import TuningLauncher
 from tests.helper import is_constant
 
 
 def test_class():
-    tested = Launcher
+    tested = TuningLauncher
     assert issubclass(tested, ActionButton)
 
 
 def test_constants():
-    tested = Launcher
+    tested = TuningLauncher
     constants = {
         "BUTTON_TITLE": "🧪 Hyperscribe Tuning",
         "BUTTON_KEY": "HYPERSCRIBE_TUNING_LAUNCHER",
@@ -29,9 +30,9 @@ def test_constants():
     assert is_constant(tested, constants)
 
 
-@patch("hyperscribe_tuning.handlers.launcher.time", wraps=time)
+@patch("hyperscribe.handlers.tuning_launcher.time", wraps=time)
 @patch.object(Note, "objects")
-@patch('hyperscribe_tuning.handlers.launcher.LaunchModalEffect')
+@patch('hyperscribe.handlers.tuning_launcher.LaunchModalEffect')
 def test_handle(launch_model_effect, note_db, mock_time):
     def reset_mocks():
         launch_model_effect.reset_mock()
@@ -50,14 +51,14 @@ def test_handle(launch_model_effect, note_db, mock_time):
         "AudioIntervalSeconds": 7,
         "APISigningKey": "theApiSigningKey",
     }
-    tested = Launcher(event, secrets)
+    tested = TuningLauncher(event, secrets)
     result = tested.handle()
     expected = [Effect(type="LOG", payload="SomePayload")]
     assert result == expected
 
     calls = [
         call(
-            url='/plugin-io/api/hyperscribe_tuning/archive'
+            url='/plugin-io/api/hyperscribe/archive'
                 '?note_id=uuidNote'
                 '&patient_id=targetId'
                 '&interval=7'
@@ -76,6 +77,34 @@ def test_handle(launch_model_effect, note_db, mock_time):
 
 
 def test_visible():
-    event = Event(EventRequest())
-    tested = Launcher(event)
-    assert tested.visible() is True
+    tests = [
+        ("yes", "userId", True),
+        ("yes", "someId", True),
+        ("yes", "otherId", False),
+        ("no", "userId", False),
+        ("no", "someId", False),
+        ("no", "otherId", True),
+    ]
+    for policy, staff_id, expected in tests:
+        event = Event(EventRequest(context=json.dumps({"note_id": "noteId", "user": {"id": staff_id}})))
+        secrets = {
+            "AudioHost": "theAudioHost",
+            "KeyTextLLM": "theKeyTextLLM",
+            "VendorTextLLM": "theVendorTextLLM",
+            "KeyAudioLLM": "theKeyAudioLLM",
+            "VendorAudioLLM": "theVendorAudioLLM",
+            "ScienceHost": "theScienceHost",
+            "OntologiesHost": "theOntologiesHost",
+            "PreSharedKey": "thePreSharedKey",
+            "StructuredReasonForVisit": "yes",
+            "AuditLLMDecisions": "no",
+            "AwsKey": "theKey",
+            "AwsSecret": "theSecret",
+            "AwsRegion": "theRegion",
+            "AwsBucketLogs": "theBucketLogs",
+            "APISigningKey": "theApiSigningKey",
+            "StaffersList": "userId, someId",
+            "StaffersPolicy": policy,
+        }
+        tested = TuningLauncher(event, secrets)
+        assert tested.visible() is expected

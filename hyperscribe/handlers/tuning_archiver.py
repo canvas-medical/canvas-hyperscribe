@@ -10,12 +10,15 @@ from canvas_sdk.handlers.simple_api.api import Request
 from canvas_sdk.templates import render_to_string
 from canvas_sdk.v1.data import Command
 
-from hyperscribe_tuning.handlers.aws_s3 import AwsS3
-from hyperscribe_tuning.handlers.constants import Constants
-from hyperscribe_tuning.handlers.limited_cache import LimitedCache
+from hyperscribe.handlers.commander import Commander
+from hyperscribe.libraries.aws_s3 import AwsS3
+from hyperscribe.libraries.constants import Constants
+from hyperscribe.libraries.limited_cache import LimitedCache
+from hyperscribe.structures.access_policy import AccessPolicy
+from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 
 
-class Archiver(SimpleAPIRoute):
+class TuningArchiver(SimpleAPIRoute):
     PATH = "/archive"
 
     def authenticate(self, credentials: Credentials) -> bool:
@@ -41,7 +44,7 @@ class Archiver(SimpleAPIRoute):
         qp = self.request.query_params
 
         # force the interval to 15s or more
-        interval = self.secrets[Constants.SECRET_AUDIO_INTERVAL_SECONDS]
+        interval = self.secrets[Constants.SECRET_AUDIO_INTERVAL]
         if not interval or not interval.isdigit() or int(interval) < int(Constants.MAX_AUDIO_INTERVAL_SECONDS):
             interval = Constants.MAX_AUDIO_INTERVAL_SECONDS
 
@@ -58,12 +61,7 @@ class Archiver(SimpleAPIRoute):
         ]
 
     def post(self) -> list[Response | Effect]:
-        client_s3 = AwsS3(
-            self.secrets[Constants.SECRET_AWS_KEY],
-            self.secrets[Constants.SECRET_AWS_SECRET],
-            self.secrets[Constants.SECRET_AWS_REGION],
-            self.secrets[Constants.SECRET_AWS_BUCKET],
-        )
+        client_s3 = AwsS3(AwsS3Credentials.from_dictionary_tuning(self.secrets))
         subdomain = self.request.headers['host'].split('.')[0]
         if bool(self.request.query_params.get('archive_limited_chart')):
             result = ArchiverHelper.store_chart(client_s3, subdomain, self.request)
@@ -84,8 +82,12 @@ class ArchiverHelper:
             state="staged").order_by("dbid")
         limited_chart = LimitedCache(
             patient_id,
-            LimitedCache.existing_commands_to_coded_items(current_commands),
-        ).to_json()
+            Commander.existing_commands_to_coded_items(
+                current_commands,
+                AccessPolicy.allow_all(),
+                False,
+            ),
+        ).to_json(True)
 
         object_key = f"hyperscribe-{subdomain}/patient_{patient_id}/note_{note_id}/limited_chart.json"
         response = client_s3.upload_text_to_s3(object_key, json.dumps(limited_chart))
