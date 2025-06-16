@@ -7,9 +7,8 @@ from hyperscribe.libraries.aws_s3 import AwsS3
 
 
 def list_all_for_prefix(prefix, client_s3):
-    patients = {}  # count notes
-    notes = {}  # count chunks
-
+    patients = {} #count notes
+    notes = {} #count chunks
     objects = client_s3.list_s3_objects(prefix)
     print(f'There are {len(objects)} S3 objects under the prefix {prefix}')
 
