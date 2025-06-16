@@ -118,11 +118,6 @@ class AwsS3:
 
     def list_s3_objects(self, prefix: str) -> list[AwsS3Object]:
         result: list[AwsS3Object] = []
-        #checks to see what was going on. 
-        print(f"aws_key: '{self.aws_key}'")
-        print(f"aws_secret: '{self.aws_secret}'")
-        print(f"region: '{self.region}'")
-        print(f"bucket: '{self.bucket}'")
         if not self.is_ready():
             raise RuntimeError("Client not ready due to missing or invalid credentials")
 
@@ -160,6 +155,7 @@ class AwsS3:
                         size=int(size_match.group(1)),
                         last_modified=datetime.fromisoformat(modified_match.group(1)),
                     ))
+
             truncated_match = truncated_pattern.search(response_text)
             is_truncated = truncated_match and truncated_match.group(1) == "true"
             if is_truncated:
