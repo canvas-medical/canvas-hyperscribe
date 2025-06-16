@@ -6,3 +6,4 @@ cases_runs/
 .coverage
 .venv
 evaluations.db
+local_env.sh
