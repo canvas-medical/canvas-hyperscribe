@@ -10,6 +10,7 @@ import requests
 from canvas_sdk.effects import Effect, EffectType
 from canvas_sdk.effects.task.task import AddTaskComment, UpdateTask, TaskStatus
 from canvas_sdk.events import EventType
+from canvas_sdk.handlers.base import version
 from canvas_sdk.protocols import BaseProtocol
 from canvas_sdk.utils.db import thread_cleanup
 from canvas_sdk.utils.http import ThreadPoolExecutor
@@ -59,6 +60,7 @@ class Commander(BaseProtocol):
                 thread_cleanup()
 
         return wrapper
+
     def compute(self) -> list[Effect]:
         comment = TaskComment.objects.get(id=self.target)
         if not comment.task.labels.filter(name=Constants.LABEL_ENCOUNTER_COPILOT).first():
@@ -79,7 +81,7 @@ class Commander(BaseProtocol):
         settings = Settings.from_dictionary(self.secrets | {Constants.PROGRESS_SETTING_KEY: True})
         aws_s3 = AwsS3Credentials.from_dictionary(self.secrets)
         memory_log = MemoryLog.instance(identification, Constants.MEMORY_LOG_LABEL, aws_s3)
-        memory_log.output(f"Text: {self.secrets[Constants.SECRET_TEXT_VENDOR]} - Audio: {self.secrets[Constants.SECRET_AUDIO_VENDOR]}")
+        memory_log.output(f"SDK: {version} - Text: {self.secrets[Constants.SECRET_TEXT_VENDOR]} - Audio: {self.secrets[Constants.SECRET_AUDIO_VENDOR]}")
         had_audio, effects = self.compute_audio(identification, settings, aws_s3, self.secrets[Constants.SECRET_AUDIO_HOST], information.chunk_index)
         if had_audio:
             log.info(f"audio was present => go to next iteration ({information.chunk_index + 1})")

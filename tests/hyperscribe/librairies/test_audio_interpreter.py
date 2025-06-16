@@ -127,7 +127,7 @@ def test___init__(command_list):
     reset_mocks()
 
 
-def test_instruction_definitions():
+def test_common_instructions():
     mocks = [
         MagicMock(),
         MagicMock(),
@@ -175,27 +175,20 @@ def test_instruction_definitions():
         ("Vitals", True),
     ]
     for class_name, expected_present in tests:
-        mocks[0].return_value.class_name.side_effect = [class_name, class_name, class_name]
-        mocks[1].return_value.class_name.side_effect = ["Second", "Second", "Second"]
-        mocks[2].return_value.class_name.side_effect = ["Third", "Third", "Third"]
-        mocks[3].return_value.class_name.side_effect = ["Fourth", "Fourth", "Fourth"]
-        mocks[0].return_value.instruction_description.side_effect = ["Description1"]
-        mocks[1].return_value.instruction_description.side_effect = ["Description2"]
-        mocks[2].return_value.instruction_description.side_effect = ["Description3"]
-        mocks[3].return_value.instruction_description.side_effect = ["Description4"]
+        mocks[0].return_value.class_name.side_effect = [class_name, class_name]
+        mocks[1].return_value.class_name.side_effect = ["Second", "Second"]
+        mocks[2].return_value.class_name.side_effect = ["Third", "Third"]
+        mocks[3].return_value.class_name.side_effect = ["Fourth", "Fourth"]
 
         tested, settings, aws_credentials, cache = helper_instance(mocks, True)
-        result = tested.instruction_definitions()
+        result = tested.common_instructions()
         expected = [
-            {'information': 'Description2', 'instruction': 'Second'},
-            {'information': 'Description4', 'instruction': 'Fourth'},
+            mocks[1].return_value,
+            mocks[3].return_value,
         ]
 
-        absent_idx = [2]
         if expected_present:
-            expected.insert(0, {'information': 'Description1', 'instruction': class_name})
-        else:
-            absent_idx.append(0)
+            expected.insert(0, mocks[0].return_value)
 
         assert result == expected
         for idx, mock in enumerate(mocks):
@@ -207,11 +200,6 @@ def test_instruction_definitions():
             ]
             if idx != 2:
                 calls.append(call().class_name())
-            if idx not in absent_idx:
-                calls.extend([
-                    call().class_name(),
-                    call().instruction_description(),
-                ])
             assert mock.mock_calls == calls, f"---> {idx}"
         reset_mocks()
 
@@ -556,9 +544,9 @@ def test_combine_and_speaker_detection(audio2texter, memory_log):
 @patch.object(Helper, "chatter")
 @patch.object(AudioInterpreter, 'instruction_constraints')
 @patch.object(AudioInterpreter, 'json_schema')
-@patch.object(AudioInterpreter, 'instruction_definitions')
+@patch.object(AudioInterpreter, 'common_instructions')
 def test_detect_instructions(
-        instruction_definitions,
+        common_instructions,
         json_schema,
         instruction_constraints,
         chatter,
@@ -572,21 +560,21 @@ def test_detect_instructions(
     ]
 
     def reset_mocks():
-        instruction_definitions.reset_mock()
+        common_instructions.reset_mock()
         json_schema.reset_mock()
         instruction_constraints.reset_mock()
         chatter.reset_mock()
         memory_log.reset_mock()
         for item in mocks:
             item.reset_mock()
-        mocks[0].return_value.class_name.side_effect = ["First", "First"]
-        mocks[1].return_value.class_name.side_effect = ["Second", "Second"]
-        mocks[2].return_value.class_name.side_effect = ["Third", "Third"]
-        mocks[3].return_value.class_name.side_effect = ["Fourth", "Fourth"]
-        mocks[0].return_value.instruction_description.side_effect = ["Description1"]
-        mocks[1].return_value.instruction_description.side_effect = ["Description2"]
-        mocks[2].return_value.instruction_description.side_effect = ["Description3"]
-        mocks[3].return_value.instruction_description.side_effect = ["Description4"]
+        mocks[0].class_name.side_effect = ["First", "First"]
+        mocks[1].class_name.side_effect = ["Second", "Second"]
+        mocks[2].class_name.side_effect = ["Third", "Third"]
+        mocks[3].class_name.side_effect = ["Fourth", "Fourth"]
+        mocks[0].instruction_description.side_effect = ["Description1"]
+        mocks[1].instruction_description.side_effect = ["Description2"]
+        mocks[2].instruction_description.side_effect = ["Description3"]
+        mocks[3].instruction_description.side_effect = ["Description4"]
 
     system_prompt = [
         "The conversation is in the context of a clinical encounter between patient and licensed healthcare provider.",
@@ -597,7 +585,10 @@ def test_detect_instructions(
         "",
         "The instructions are limited to the following:",
         '```json',
-        '"theInstructionDefinition"',
+        '[{"instruction": "First", "information": "Description1"}, '
+        '{"instruction": "Second", "information": "Description2"}, '
+        '{"instruction": "Third", "information": "Description3"}, '
+        '{"instruction": "Fourth", "information": "Description4"}]',
         '```',
         '',
         'Your response must be a JSON Markdown block validated with the schema:',
@@ -695,7 +686,7 @@ def test_detect_instructions(
 
     tested, settings, aws_credentials, cache = helper_instance(mocks, False)
     # -- no known instruction
-    instruction_definitions.side_effect = ["theInstructionDefinition"]
+    common_instructions.side_effect = [mocks]
     json_schema.side_effect = ["theJsonSchema"]
     instruction_constraints.side_effect = [["theConstraint1", "theConstraint2"]]
     chatter.return_value.single_conversation.side_effect = [[{"information": "response1"}], [{"information": "response2"}]]
@@ -704,8 +695,8 @@ def test_detect_instructions(
     expected = [{"information": "response2"}]
     assert result == expected
     calls = [call()]
-    assert instruction_definitions.mock_calls == calls
-    calls = [call(['First', 'Second', 'Fourth'])]
+    assert common_instructions.mock_calls == calls
+    calls = [call(['First', 'Second', 'Third', 'Fourth'])]
     assert json_schema.mock_calls == calls
     calls = [call([Instruction(uuid='', index=0, instruction='', information='response1', is_new=True, is_updated=False)])]
     assert instruction_constraints.mock_calls == calls
@@ -724,14 +715,15 @@ def test_detect_instructions(
             call().__bool__(),
             call().class_name(),
             call().is_available(),
+            call.class_name(),
+            call.class_name(),
+            call.instruction_description(),
         ]
-        if idx != 2:
-            calls.extend([call().class_name()])
         assert mock.mock_calls == calls, f"---> {idx}"
     reset_mocks()
 
     # -- no known instruction + no constraint
-    instruction_definitions.side_effect = ["theInstructionDefinition"]
+    common_instructions.side_effect = [mocks]
     json_schema.side_effect = ["theJsonSchema"]
     instruction_constraints.side_effect = [[]]
     chatter.return_value.single_conversation.side_effect = [[{"information": "response1"}], [{"information": "response2"}]]
@@ -740,8 +732,8 @@ def test_detect_instructions(
     expected = [{"information": "response1"}]
     assert result == expected
     calls = [call()]
-    assert instruction_definitions.mock_calls == calls
-    calls = [call(['First', 'Second', 'Fourth'])]
+    assert common_instructions.mock_calls == calls
+    calls = [call(['First', 'Second', 'Third', 'Fourth'])]
     assert json_schema.mock_calls == calls
     calls = [call([Instruction(uuid='', index=0, instruction='', information='response1', is_new=True, is_updated=False)])]
     assert instruction_constraints.mock_calls == calls
@@ -753,15 +745,17 @@ def test_detect_instructions(
     calls = [call(tested.identification, "transcript2instructions", aws_credentials)]
     assert memory_log.mock_calls == calls
     for idx, mock in enumerate(mocks):
-        calls = []
-        if idx != 2:
-            calls.extend([call().class_name()])
+        calls = [
+            call.class_name(),
+            call.class_name(),
+            call.instruction_description(),
+        ]
         assert mock.mock_calls == calls, f"---> {idx}"
     reset_mocks()
 
     # -- with known instructions
     # -- -- all instructions repeated
-    instruction_definitions.side_effect = ["theInstructionDefinition"]
+    common_instructions.side_effect = [mocks]
     json_schema.side_effect = ["theJsonSchema"]
     instruction_constraints.side_effect = [["theConstraint1", "theConstraint2"]]
     chatter.return_value.single_conversation.side_effect = [
@@ -786,8 +780,8 @@ def test_detect_instructions(
 
     assert result == expected
     calls = [call()]
-    assert instruction_definitions.mock_calls == calls
-    calls = [call(['First', 'Second', 'Fourth'])]
+    assert common_instructions.mock_calls == calls
+    calls = [call(['First', 'Second', 'Third', 'Fourth'])]
     assert json_schema.mock_calls == calls
     calls = [call([
         Instruction(uuid='uuid1', index=0, instruction='theInstruction1', information='', is_new=True, is_updated=False),
@@ -811,9 +805,11 @@ def test_detect_instructions(
     calls = [call(tested.identification, "transcript2instructions", aws_credentials)]
     assert memory_log.mock_calls == calls
     for idx, mock in enumerate(mocks):
-        calls = []
-        if idx != 2:
-            calls.extend([call().class_name()])
+        calls = [
+            call.class_name(),
+            call.class_name(),
+            call.instruction_description(),
+        ]
         assert mock.mock_calls == calls, f"---> {idx}"
     reset_mocks()
     # -- -- forgotten instructions (no constraints)
@@ -837,7 +833,7 @@ def test_detect_instructions(
         ),
     ]
     for first_response, model_prompt in tests:
-        instruction_definitions.side_effect = ["theInstructionDefinition"]
+        common_instructions.side_effect = [mocks]
         json_schema.side_effect = ["theJsonSchema"]
         instruction_constraints.side_effect = [[]]
         chatter.return_value.single_conversation.side_effect = [
@@ -858,8 +854,8 @@ def test_detect_instructions(
 
         assert result == expected
         calls = [call()]
-        assert instruction_definitions.mock_calls == calls
-        calls = [call(['First', 'Second', 'Fourth'])]
+        assert common_instructions.mock_calls == calls
+        calls = [call(['First', 'Second', 'Third', 'Fourth'])]
         assert json_schema.mock_calls == calls
         calls = [call([
             Instruction(uuid='uuid1', index=0, instruction='theInstruction1', information='', is_new=True, is_updated=False),
@@ -877,9 +873,11 @@ def test_detect_instructions(
         calls = [call(tested.identification, "transcript2instructions", aws_credentials)]
         assert memory_log.mock_calls == calls
         for idx, mock in enumerate(mocks):
-            calls = []
-            if idx != 2:
-                calls.extend([call().class_name()])
+            calls = [
+                call.class_name(),
+                call.class_name(),
+                call.instruction_description(),
+            ]
             assert mock.mock_calls == calls, f"---> {idx}"
         reset_mocks()
 

@@ -84,7 +84,10 @@ def test_compute(
         progress,
         llm_turns_store,
         mock_datetime,
+        monkeypatch
 ):
+    monkeypatch.setattr("hyperscribe.handlers.commander.version", "theVersion")
+
     mock_comment = MagicMock()
     mock_note = MagicMock()
 
@@ -264,10 +267,9 @@ def test_compute(
         call("audio was present => go to next iteration (8)"),
     ]
     assert info.mock_calls == calls
-    m = call.instance()
     calls = [
         call.instance(identification, "main", aws_s3_credentials),
-        call.instance().output("Text: textVendor - Audio: audioVendor"),
+        call.instance().output("SDK: theVersion - Text: textVendor - Audio: audioVendor"),
         call.end_session("noteUuid"),
     ]
     assert memory_log.mock_calls == calls
@@ -335,7 +337,7 @@ def test_compute(
     m1 = call.instance()
     calls = [
         call.instance(identification, "main", aws_s3_credentials),
-        call.instance().output("Text: textVendor - Audio: audioVendor"),
+        call.instance().output("SDK: theVersion - Text: textVendor - Audio: audioVendor"),
         call.end_session("noteUuid"),
     ]
     assert memory_log.mock_calls == calls

@@ -1,6 +1,7 @@
 import json
 from datetime import datetime
 
+from hyperscribe.commands.base import Base
 from hyperscribe.handlers.progress import Progress
 from hyperscribe.libraries.helper import Helper
 from hyperscribe.libraries.implemented_commands import ImplementedCommands
@@ -37,12 +38,9 @@ class AudioInterpreter:
                and instance.is_available()
         ]
 
-    def instruction_definitions(self) -> list[dict[str, str]]:
+    def common_instructions(self) -> list[Base]:
         return [
-            {
-                "instruction": instance.class_name(),
-                "information": instance.instruction_description(),
-            }
+            instance
             for instance in self._command_context
             if instance.class_name() not in ImplementedCommands.questionnaire_command_name_list()
         ]
@@ -141,10 +139,17 @@ class AudioInterpreter:
             ],
         )
 
+
     def detect_instructions(self, discussion: list[Line], known_instructions: list[Instruction]) -> list:
-        schema = self.json_schema(
-            [instance.class_name() for instance in self._command_context]
-        )
+        common_instructions = self.common_instructions()
+        schema = self.json_schema([item.class_name() for item in common_instructions])
+        definitions = [
+            {
+                "instruction": item.class_name(),
+                "information": item.instruction_description(),
+            }
+            for item in common_instructions
+        ]
         system_prompt = [
             "The conversation is in the context of a clinical encounter between patient and licensed healthcare provider.",
             "The user will submit the transcript of the visit of a patient with the healthcare provider.",
@@ -154,7 +159,7 @@ class AudioInterpreter:
             "",
             "The instructions are limited to the following:",
             "```json",
-            json.dumps(self.instruction_definitions()),
+            json.dumps(definitions),
             "```",
             "",
             "Your response must be a JSON Markdown block validated with the schema:",
