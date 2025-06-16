@@ -5,3 +5,4 @@ debug/
 .coverage
 .venv
 evaluations.db
+local_env.sh

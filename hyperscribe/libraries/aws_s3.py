@@ -109,8 +109,17 @@ class AwsS3:
 
     def list_s3_objects(self, prefix: str) -> list[AwsS3Object]:
         result: list[AwsS3Object] = []
+        #checks to see what was going on. 
+        print(f"aws_key: '{self.aws_key}'")
+        print(f"aws_secret: '{self.aws_secret}'")
+        print(f"region: '{self.region}'")
+        print(f"bucket: '{self.bucket}'")
         if not self.is_ready():
+            raise RuntimeError("client not ready due to missing or invalid credentials")
+            print("[AWS Error] Check your AWS Key/Secret!")
             return result
+            #alternatively raise runtime error: raise RuntimeError("client not ready due to missing or invalid credentials")
+            #code breaks down here, result is provided. 
         params: dict[str, int | str] = {
             'list-type': 2,
             'prefix': prefix,
@@ -132,6 +141,8 @@ class AwsS3:
                         size=int(size_match.group(1)),
                         last_modified=datetime.fromisoformat(modified_match.group(1)),
                     ))
+        else:
+            raise RuntimeError("HTTP Status Code Issue")
 
         return result
 
