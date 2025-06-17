@@ -86,7 +86,7 @@ class CaseBuilder(SimpleAPIRoute):
                         continue
                     result.append(self.common_command_from(command_class, attributes))
 
-        return result
+        return [e.apply() for e in result]
 
     @classmethod
     def command_type(cls, command_class: Type[BaseCommand], prefix: str) -> str:
