@@ -1,16 +1,18 @@
 {
-  "instructions": [
-    {
-      "uuid": "a",
-      "instruction": "ReasonForVisit",
-      "information": "Patient is worried about their arm being really itchy and not going away.",
-      "isNew": false,
-      "is_updated": false
-    }
-  ],
-  "parameters": [
-    {
-      "reasonForVisit": "Patient is worried about their arm being really itchy and not going away."
-    }
-  ]
+  "cycle_000": {
+    "instructions": [
+      {
+        "uuid": "a",
+        "instruction": "ReasonForVisit",
+        "information": "Patient is worried about their arm being really itchy and not going away.",
+        "isNew": false,
+        "is_updated": false
+      }
+    ],
+    "parameters": [
+      {
+        "reasonForVisit": "Patient is worried about their arm being really itchy and not going away."
+      }
+    ]
+  }
 }

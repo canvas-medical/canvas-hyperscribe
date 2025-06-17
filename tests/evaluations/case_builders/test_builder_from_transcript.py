@@ -111,10 +111,10 @@ def test__run(
         )
     ]
     recorders = [
-        AuditorFile("theCase0"),
-        AuditorFile("theCase1"),
-        AuditorFile("theCase2"),
-        AuditorFile("theCase3"),
+        AuditorFile("theCase", 0),
+        AuditorFile("theCase", 1),
+        AuditorFile("theCase", 2),
+        AuditorFile("theCase", 3),
     ]
     identification = IdentificationParameters(
         patient_uuid="thePatient",
@@ -263,8 +263,8 @@ def test__run(
     ]
     assert cached_discussion.mock_calls == calls
     calls = [
-        call("theCase_cycle00"),
-        call("theCase_cycle01"),
+        call('theCase', 0),
+        call('theCase', 1),
     ]
     assert auditor.mock_calls == calls
     assert mock_file.mock_calls == exp_mock_file
@@ -335,9 +335,9 @@ def test__run(
     ]
     assert cached_discussion.mock_calls == calls
     calls = [
-        call("theCase_cycle00"),
-        call("theCase_cycle01"),
-        call("theCase_cycle02"),
+        call("theCase", 0),
+        call("theCase", 1),
+        call("theCase", 2),
     ]
     assert auditor.mock_calls == calls
     assert mock_file.mock_calls == exp_mock_file

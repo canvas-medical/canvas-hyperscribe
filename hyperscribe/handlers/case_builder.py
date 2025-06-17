@@ -133,6 +133,8 @@ class CaseBuilder(SimpleAPIRoute):
                 command_uuid=attributes["command_uuid"],
             )
             for idx, question in enumerate(result.questions):
+                if question.name not in questions:
+                    continue
                 if question.type == ResponseOption.TYPE_INTEGER:
                     question.add_response(integer=questions[question.name])
                 elif question.type == ResponseOption.TYPE_CHECKBOX:

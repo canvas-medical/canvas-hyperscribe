@@ -5,6 +5,7 @@ from pathlib import Path
 from unittest.mock import patch, call, MagicMock
 
 import pytest
+from canvas_generated.messages.effects_pb2 import Effect
 from canvas_sdk.v1.data import Patient, Command
 
 from evaluations.auditor_file import AuditorFile
@@ -15,6 +16,7 @@ from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.instruction import Instruction
+from hyperscribe.structures.line import Line
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
 
@@ -75,7 +77,7 @@ def test__run():
     with pytest.raises(NotImplementedError):
         _ = tested._run(
             Namespace(),
-            AuditorFile("theCase"),
+            AuditorFile("theCase", 0),
             IdentificationParameters(
                 patient_uuid="patientUuid",
                 note_uuid="noteUuid",
@@ -167,7 +169,7 @@ def test_run(
     calls = [call()]
     assert parameters.mock_calls == calls
     calls = [
-        call("theCase"),
+        call("theCase", 0),
         call().is_ready(),
     ]
     assert auditor_file.mock_calls == calls
@@ -241,7 +243,7 @@ def test_run(
             calls.append(call.settings())
         assert helper.mock_calls == calls
         calls = [
-            call("theCase"),
+            call("theCase", 0),
             call().is_ready(),
         ]
         assert auditor_file.mock_calls == calls
@@ -340,7 +342,7 @@ def test_run(
             calls.append(call.settings())
         assert helper.mock_calls == calls
         calls = [
-            call("theCase"),
+            call("theCase", 0),
             call().is_ready(),
         ]
         assert auditor_file.mock_calls == calls
@@ -385,6 +387,106 @@ def test_run(
             calls.append(call.now(UTC))
         assert mock_datetime.mock_calls == calls
         reset_mocks()
+
+
+@patch("evaluations.case_builders.builder_base.Commander")
+@patch.object(AuditorFile, "transcript")
+def test__run_cycle(transcript, commander):
+    chatter = MagicMock()
+
+    def reset_mocks():
+        transcript.reset_mock()
+        commander.reset_mock()
+        chatter.reset_mock()
+
+    audios = [
+        b"audio1",
+        b"audio2",
+    ]
+    instructions = [
+        Instruction(
+            uuid="uuid1",
+            index=0,
+            instruction="theInstruction1",
+            information="theInformation1",
+            is_new=False,
+            is_updated=True,
+        ),
+        Instruction(
+            uuid="uuid2",
+            index=1,
+            instruction="theInstruction2",
+            information="theInformation2",
+            is_new=False,
+            is_updated=True,
+        ),
+        Instruction(
+            uuid="uuid3",
+            index=2,
+            instruction="theInstruction3",
+            information="theInformation3",
+            is_new=False,
+            is_updated=True,
+        ),
+    ]
+    effects = [
+        Effect(type="LOG", payload="Log1"),
+        Effect(type="LOG", payload="Log2"),
+        Effect(type="LOG", payload="Log3"),
+    ]
+    lines = [
+        Line(speaker="voiceA", text="theText1"),
+        Line(speaker="voiceB", text="theText2"),
+        Line(speaker="voiceB", text="theText3"),
+        Line(speaker="voiceA", text="theText4"),
+    ]
+    previous = "the previous transcript"
+
+    tested = BuilderBase
+    # the transcript has not been done yet
+    transcript.side_effect = [[]]
+    commander.transcript2commands.side_effect = []
+    commander.audio2commands.side_effect = [(instructions, effects, "the end of the new transcript")]
+    result = tested._run_cycle("theCase", 7, audios, chatter, instructions[:2], previous)
+    expected = (instructions, "the end of the new transcript")
+    assert result == expected
+
+    calls = [call()]
+    assert transcript.mock_calls == calls
+    calls = [
+        call.audio2commands(
+            AuditorFile("theCase", 7),
+            audios,
+            chatter,
+            instructions[:2],
+            previous,
+        ),
+    ]
+    assert commander.mock_calls == calls
+    assert chatter.mock_calls == []
+    reset_mocks()
+
+    # the transcript has been done
+    transcript.side_effect = [lines]
+    commander.transcript2commands.side_effect = [(instructions, effects)]
+    commander.audio2commands.side_effect = []
+    result = tested._run_cycle("theCase", 7, audios, chatter, instructions[:2], previous)
+    expected = (instructions, "")
+    assert result == expected
+
+    calls = [call()]
+    assert transcript.mock_calls == calls
+    calls = [
+        call.transcript2commands(
+            AuditorFile("theCase", 7),
+            lines,
+            chatter,
+            instructions[:2],
+        ),
+    ]
+    assert commander.mock_calls == calls
+    assert chatter.mock_calls == []
+    reset_mocks()
 
 
 @patch.object(Commander, 'existing_commands_to_coded_items')
@@ -443,11 +545,7 @@ def test_summary_generated_commands(path):
     path_files = [
         MagicMock(),
         MagicMock(),
-        MagicMock(),
     ]
-    path_files[0].name = "theCase02.json"
-    path_files[1].name = "theCase03.json"
-    path_files[2].name = "theCase01.json"
 
     def reset_mocks():
         path.reset_mock()
@@ -456,63 +554,61 @@ def test_summary_generated_commands(path):
 
     directory = Path(__file__).parent.as_posix().replace("/tests", "")
 
-    exp_glob_calls = [
+    exp_path_calls = [
         call(f'{directory}/builder_base.py'),
-        call().parent.parent.__truediv__('parameters2command'),
-        call().parent.parent.__truediv__().glob('theCase*.json'),
+        call().parent.parent.__truediv__('parameters2command/theCase.json'),
         call(f'{directory}/builder_base.py'),
-        call().parent.parent.__truediv__('staged_questionnaires'),
-        call().parent.parent.__truediv__().glob('theCase*.json'),
+        call().parent.parent.__truediv__('staged_questionnaires/theCase.json'),
     ]
 
     tested = BuilderBase
 
     # there are no files for the case
-    path.return_value.parent.parent.__truediv__.return_value.glob.side_effect = [[], []]
+    path.return_value.parent.parent.__truediv__.side_effect = [path_files[0], path_files[1]]
+    for idx, path_file in enumerate(path_files):
+        path_file.exists.side_effect = [False]
 
     result = tested.summary_generated_commands("theCase")
     assert result == []
 
-    assert path.mock_calls == exp_glob_calls
+    assert path.mock_calls == exp_path_calls
+    calls = [call.exists()]
     for path_file in path_files:
-        assert path_file.mock_calls == []
+        assert path_file.mock_calls == calls
     reset_mocks()
 
     # there are files for the case
     # -- no commands in the files (only one file)
-    file_contents = [
-        json.dumps({"instructions": [], "commands": []}),
-        json.dumps({"instructions": [], "commands": []}),
-        json.dumps({"instructions": [], "commands": []}),
+    tests = [
+        {},
+        {
+            "cycle_000": {"instructions": [], "commands": []},
+            "cycle_001": {"instructions": [], "commands": []},
+        },
     ]
-    path.return_value.parent.parent.__truediv__.return_value.glob.side_effect = [path_files, path_files[1:]]
-    for idx, path_file in enumerate(path_files):
-        path_file.open.return_value.__enter__.return_value.read.side_effect = [file_contents[idx], file_contents[idx]]
+    for content in tests:
+        file_content = json.dumps(content)
+        path.return_value.parent.parent.__truediv__.side_effect = [path_files[0], path_files[1]]
+        for idx, path_file in enumerate(path_files):
+            path_file.exists.side_effect = [True]
+            path_file.open.return_value.read.side_effect = [file_content, file_content]
 
-    result = tested.summary_generated_commands("theCase")
-    assert result == []
+        result = tested.summary_generated_commands("theCase")
+        assert result == []
 
-    assert path.mock_calls == exp_glob_calls
-    for idx, path_file in enumerate(path_files):
-        calls = [
-            call.open('r'),
-            call.open().__enter__(),
-            call.open().__enter__().read(),
-            call.open().__exit__(None, None, None),
-        ]
-        if idx == 1:
-            calls.extend([
+        assert path.mock_calls == exp_path_calls
+        for idx, path_file in enumerate(path_files):
+            calls = [
+                call.exists(),
                 call.open('r'),
-                call.open().__enter__(),
-                call.open().__enter__().read(),
-                call.open().__exit__(None, None, None),
-            ])
-        assert path_file.mock_calls == calls
-    reset_mocks()
+                call.open().read(),
+            ]
+            assert path_file.mock_calls == calls
+        reset_mocks()
 
     # -- with commands in the files
-    file_contents = [
-        json.dumps({
+    file_content = json.dumps({
+        "cycle_000": {
             "instructions": [
                 {"uuid": "uuid1", "information": "theInformation1"},
             ],
@@ -527,8 +623,8 @@ def test_summary_generated_commands(path):
                         "attributeY": "valueY",
                     },
                 },
-            ]}),
-        json.dumps({
+            ]},
+        "cycle_001": {
             "instructions": [
                 {"uuid": "uuid1", "information": "theInformation2"},
                 {"uuid": "uuid3", "information": "theInformation3"},
@@ -551,8 +647,8 @@ def test_summary_generated_commands(path):
                         "note_uuid": ">?<",
                     },
                 },
-            ]}),
-        json.dumps({
+            ]},
+        "cycle_002": {
             "instructions": [
                 {"uuid": "uuid4", "information": "theInformation4"},
             ],
@@ -568,83 +664,70 @@ def test_summary_generated_commands(path):
                         "attributeC": "valueC",
                     },
                 },
-            ]}),
-    ]
-    path.return_value.parent.parent.__truediv__.return_value.glob.side_effect = [path_files, path_files[1:]]
+            ]},
+    })
+    path.return_value.parent.parent.__truediv__.side_effect = [path_files[0], path_files[1]]
     for idx, path_file in enumerate(path_files):
-        path_file.open.return_value.__enter__.return_value.read.side_effect = [file_contents[idx], file_contents[idx]]
+        path_file.exists.side_effect = [True]
+        path_file.open.return_value.read.side_effect = [file_content, file_content]
 
     result = tested.summary_generated_commands("theCase")
     expected = [
         # common
         {
-            "command": {
-                "attributes": {
-                    "attributeA": "valueA",
-                    "attributeB": "valueB",
-                    "attributeC": "valueC",
+            'command': {
+                'attributes': {
+                    'attributeZ': 'valueZ',
                 },
-                "class": "TheClass4",
-                "module": "theModule4",
+                'class': 'TheClass2',
+                'module': 'theModule2',
             },
-            "instruction": "theInformation4",
-        },
-        # -- theInformation1 is replaced with theInformation2....
-        {
-            "command": {
-                "attributes": {
-                    "attributeZ": "valueZ",
-                },
-                "class": "TheClass2",
-                "module": "theModule2",
-            },
-            "instruction": "theInformation2",
+            'instruction': 'theInformation2',
         },
         {
-            "command": {
-                "attributes": {},
-                "class": "TheClass3",
-                "module": "theModule3",
+            'command': {
+                'attributes': {},
+                'class': 'TheClass3',
+                'module': 'theModule3',
             },
-            "instruction": "theInformation3",
+            'instruction': 'theInformation3',
+        },
+        {
+            'command': {
+                'attributes': {
+                    'attributeA': 'valueA',
+                    'attributeB': 'valueB',
+                    'attributeC': 'valueC',
+                },
+                'class': 'TheClass4',
+                'module': 'theModule4',
+            },
+            'instruction': 'theInformation4',
         },
         # questionnaires
         {
-            "command": {
-                "attributes": {
-                    "attributeZ": "valueZ",
+            'command': {
+                'attributes': {
+                    'attributeA': 'valueA',
+                    'attributeB': 'valueB',
+                    'attributeC': 'valueC',
                 },
-                "class": "TheClass2",
-                "module": "theModule2",
+                'class': 'TheClass4',
+                'module': 'theModule4',
             },
-            "instruction": "n/a",
-        },
-        {
-            "command": {
-                "attributes": {},
-                "class": "TheClass3",
-                "module": "theModule3",
-            },
-            "instruction": "n/a",
+            'instruction': 'n/a',
         },
     ]
+
     assert result == expected
 
-    assert path.mock_calls == exp_glob_calls
+    assert path.mock_calls == exp_path_calls
     for idx, path_file in enumerate(path_files):
         calls = [
+            call.exists(),
             call.open('r'),
-            call.open().__enter__(),
-            call.open().__enter__().read(),
-            call.open().__exit__(None, None, None),
+            call.open().read(),
         ]
-        if idx == 1:
-            calls.extend([
-                call.open('r'),
-                call.open().__enter__(),
-                call.open().__enter__().read(),
-                call.open().__exit__(None, None, None),
-            ])
         assert path_file.mock_calls == calls
     reset_mocks()
 
@@ -745,8 +828,7 @@ def test__render_in_ui(summary_generated_commands, post_commands, import_module,
     implemented_commands.schema_key2instruction.side_effect = []
     import_module.side_effect = []
 
-    result = tested._render_in_ui("theCase", identification, limited_cache)
-    assert result is None
+    tested._render_in_ui("theCase", identification, limited_cache)
 
     calls = [call("theCase")]
     assert summary_generated_commands.mock_calls == calls
@@ -824,8 +906,7 @@ def test__render_in_ui(summary_generated_commands, post_commands, import_module,
     implemented_commands.schema_key2instruction.side_effect = [schema_key2instruction]
     import_module.side_effect = [TheModule, TheModule, TheModule, TheModule]
 
-    result = tested._render_in_ui("theCase", identification, limited_cache)
-    assert result is None
+    tested._render_in_ui("theCase", identification, limited_cache)
 
     calls = [call('theCase')]
     assert summary_generated_commands.mock_calls == calls

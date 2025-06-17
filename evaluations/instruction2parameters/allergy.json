@@ -1,20 +1,22 @@
 {
-  "instructions": [
-    {
-      "uuid": "a",
-      "instruction": "Allergy",
-      "information": "Allergy to cephalosporin, following rash, hives, identified on July 26th 2024.",
-      "isNew": false,
-      "is_updated": false
-    }
-  ],
-  "parameters": [
-    {
-      "keywords": "cephalosporin",
-      "type": "allergy group",
-      "severity": "moderate",
-      "reaction": "rash, hives",
-      "approximateDateOfOnset": "2024-07-26"
-    }
-  ]
+  "cycle_000": {
+    "instructions": [
+      {
+        "uuid": "a",
+        "instruction": "Allergy",
+        "information": "Allergy to cephalosporin, following rash, hives, identified on July 26th 2024.",
+        "isNew": false,
+        "is_updated": false
+      }
+    ],
+    "parameters": [
+      {
+        "keywords": "cephalosporin",
+        "type": "allergy group",
+        "severity": "moderate",
+        "reaction": "rash, hives",
+        "approximateDateOfOnset": "2024-07-26"
+      }
+    ]
+  }
 }

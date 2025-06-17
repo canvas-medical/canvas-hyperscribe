@@ -1,23 +1,25 @@
 {
-  "commands": [
-    {
-      "module": "canvas_sdk.commands.commands.reason_for_visit",
-      "class": "ReasonForVisitCommand",
-      "attributes": {
-        "structured": false,
-        "coding": null,
-        "comment": "Patient is worried about their arm being really itchy and not going away. Patient is worried about a worm in their arm. Patient thinks they need help with anxiety."
+  "cycle_000": {
+    "commands": [
+      {
+        "module": "canvas_sdk.commands.commands.reason_for_visit",
+        "class": "ReasonForVisitCommand",
+        "attributes": {
+          "structured": false,
+          "coding": null,
+          "comment": "Patient is worried about their arm being really itchy and not going away. Patient is worried about a worm in their arm. Patient thinks they need help with anxiety."
+        }
       }
-    }
-  ],
-  "instructions": [
-    {
-      "instruction": "ReasonForVisit"
-    }
-  ],
-  "parameters": [
-    {
-      "reasonForVisit": "Patient is worried about their arm being really itchy and not going away. Patient is worried about a worm in their arm. Patient thinks they need help with anxiety."
-    }
-  ]
+    ],
+    "instructions": [
+      {
+        "instruction": "ReasonForVisit"
+      }
+    ],
+    "parameters": [
+      {
+        "reasonForVisit": "Patient is worried about their arm being really itchy and not going away. Patient is worried about a worm in their arm. Patient thinks they need help with anxiety."
+      }
+    ]
+  }
 }

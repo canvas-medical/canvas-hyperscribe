@@ -11,7 +11,6 @@ from hyperscribe.libraries.audio_interpreter import AudioInterpreter
 from hyperscribe.libraries.cached_sdk import CachedSdk
 from hyperscribe.libraries.implemented_commands import ImplementedCommands
 from hyperscribe.structures.identification_parameters import IdentificationParameters
-from hyperscribe.structures.instruction import Instruction
 
 
 class BuilderFromMp3(BuilderBase):
@@ -51,34 +50,39 @@ class BuilderFromMp3(BuilderBase):
         for file in parameters.mp3:
             print(f"- {file.name}")
 
+        cycles = cls._combined_audios(parameters)
+
         chatter = AudioInterpreter(settings, aws_s3_credentials, limited_cache, identification)
+        previous = limited_cache.staged_commands_as_instructions(ImplementedCommands.schema_key2instruction())
+        transcript_tail = ""
+        discussion = CachedSdk.get_discussion(chatter.identification.note_uuid)
+        for cycle, combined in enumerate(cycles):
+            discussion.set_cycle(cycle + 1)
+            previous, transcript_tail = cls._run_cycle(
+                parameters.case,
+                cycle,
+                combined,
+                chatter,
+                previous,
+                transcript_tail,
+            )
+
+        if parameters.render:
+            cls._render_in_ui(parameters.case, identification, limited_cache)
+
+    @classmethod
+    def _combined_audios(cls, parameters: Namespace) -> list[list[bytes]]:
         audios: list[bytes] = []
         for file in parameters.mp3:
             with file.open("rb") as f:
                 audios.append(f.read())
 
-        previous = limited_cache.staged_commands_as_instructions(ImplementedCommands.schema_key2instruction())
-        if parameters.combined or (len(parameters.mp3) == 1):
-            cls._run_combined(recorder, chatter, audios, previous)
+        cycles: list[list[bytes]] = []
+        if parameters.combined:
+            cycles.append(audios)
         else:
-            cls._run_chunked(parameters, chatter, audios, previous)
-        if parameters.render:
-            cls._render_in_ui(parameters.case, identification, limited_cache)
-
-    @classmethod
-    def _run_combined(cls, recorder: AuditorFile, chatter: AudioInterpreter, audios: list[bytes], previous: list[Instruction]) -> None:
-        CachedSdk.get_discussion(chatter.identification.note_uuid).set_cycle(1)
-        Commander.audio2commands(recorder, audios, chatter, previous, "")
-
-    @classmethod
-    def _run_chunked(cls, parameters: Namespace, chatter: AudioInterpreter, audios: list[bytes], previous: list[Instruction]) -> None:
-        transcript_tail = ""
-        discussion = CachedSdk.get_discussion(chatter.identification.note_uuid)
-        for cycle in range(len(audios)):
-            combined: list[bytes] = []
-            for chunk in range(cycle, max(-1, cycle - Commander.MAX_PREVIOUS_AUDIOS), -1):
-                combined.insert(0, audios[chunk])
-
-            discussion.set_cycle(cycle + 1)
-            recorder = AuditorFile(f"{parameters.case}{Constants.CASE_CYCLE_SUFFIX}{cycle:02d}")
-            previous, _, transcript_tail = Commander.audio2commands(recorder, combined, chatter, previous, transcript_tail)
+            for cycle in range(len(audios)):
+                cycles.append([])
+                for chunk in range(cycle, max(-1, cycle - (1 + Commander.MAX_PREVIOUS_AUDIOS)), -1):
+                    cycles[-1].insert(0, audios[chunk])
+        return cycles

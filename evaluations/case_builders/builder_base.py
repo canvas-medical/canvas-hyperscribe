@@ -3,6 +3,7 @@ from argparse import ArgumentTypeError, Namespace
 from datetime import datetime, UTC
 from importlib import import_module
 from pathlib import Path
+from typing import Tuple
 
 from canvas_sdk.v1.data import Patient, Command
 from requests import post as requests_post, Response
@@ -11,6 +12,7 @@ from evaluations.auditor_file import AuditorFile
 from evaluations.case_builders.builder_audit_url import BuilderAuditUrl
 from evaluations.helper_evaluation import HelperEvaluation
 from hyperscribe.handlers.commander import Commander
+from hyperscribe.libraries.audio_interpreter import AudioInterpreter
 from hyperscribe.libraries.authenticator import Authenticator
 from hyperscribe.libraries.aws_s3 import AwsS3
 from hyperscribe.libraries.cached_sdk import CachedSdk
@@ -20,6 +22,7 @@ from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.libraries.llm_decisions_reviewer import LlmDecisionsReviewer
 from hyperscribe.libraries.memory_log import MemoryLog
 from hyperscribe.structures.identification_parameters import IdentificationParameters
+from hyperscribe.structures.instruction import Instruction
 from hyperscribe.structures.settings import Settings
 
 
@@ -50,7 +53,7 @@ class BuilderBase:
     def run(cls) -> None:
         parameters = cls._parameters()
         # auditor
-        recorder = AuditorFile(parameters.case)
+        recorder = AuditorFile(parameters.case, 0)
         if not recorder.is_ready():
             print(f"Case '{parameters.case}': some files exist already")
             return
@@ -94,6 +97,35 @@ class BuilderBase:
                 BuilderAuditUrl.presigned_url(identification.patient_uuid, identification.note_uuid)
 
     @classmethod
+    def _run_cycle(
+            cls,
+            case: str,
+            cycle: int,
+            audios: list[bytes],
+            chatter: AudioInterpreter,
+            previous_instructions: list[Instruction],
+            previous_transcript: str,
+    ) -> Tuple[list[Instruction], str]:
+        auditor = AuditorFile(case, cycle)
+        if transcript := auditor.transcript():
+            instructions, _ = Commander.transcript2commands(
+                auditor,
+                transcript,
+                chatter,
+                previous_instructions,
+            )
+            end_of_transcript = ""
+        else:
+            instructions, _, end_of_transcript = Commander.audio2commands(
+                auditor,
+                audios,
+                chatter,
+                previous_instructions,
+                previous_transcript,
+            )
+        return instructions, end_of_transcript
+
+    @classmethod
     def _limited_cache_from(cls, identification: IdentificationParameters, settings: Settings) -> LimitedCache:
         current_commands = Command.objects.filter(
             patient__id=identification.patient_uuid,
@@ -115,10 +147,10 @@ class BuilderBase:
         result: dict[str, dict] = {}
 
         # common commands
-        files = sorted((Path(__file__).parent.parent / "parameters2command").glob(f"{case}*.json"), key=lambda item: item.name)
-        for file in files:
-            with file.open("r") as f:
-                content = json.load(f)
+        file = Path(__file__).parent.parent / f"parameters2command/{case}.json"
+        if file.exists():
+            cycles = json.load(file.open("r"))
+            for cycle, content in cycles.items():
                 for instruction, command in zip(content["instructions"], content["commands"]):
                     result[instruction["uuid"]] = {
                         "instruction": instruction["information"],
@@ -126,11 +158,11 @@ class BuilderBase:
                     }
 
         # questionnaires - command is from the last cycle
-        files = sorted((Path(__file__).parent.parent / "staged_questionnaires").glob(f"{case}*.json"), key=lambda item: item.name)
-        if files:
-            with files[-1].open("r") as f:
-                content = json.load(f)
-                for index, command in enumerate(content["commands"]):
+        file = Path(__file__).parent.parent / f"staged_questionnaires/{case}.json"
+        if file.exists():
+            cycles = json.load(file.open("r"))
+            if values := list(cycles.values()):
+                for index, command in enumerate(values[-1]["commands"]):
                     result[f"questionnaire_{index:02d}"] = {
                         "instruction": "n/a",
                         "command": cls._remove_uuids(command),

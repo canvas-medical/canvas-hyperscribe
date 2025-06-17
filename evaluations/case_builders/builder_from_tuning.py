@@ -25,7 +25,7 @@ class BuilderFromTuning(BuilderBase):
         parser.add_argument("--group", type=str, help="Group of the case", default=Constants.GROUP_COMMON)
         parser.add_argument("--type", type=str, choices=types, help=f"Type of the case: {', '.join(types)}", default=types[1])
         parser.add_argument("--tuning-json", required=True, type=cls.validate_files, help="JSON file with the limited cache content")
-        parser.add_argument("--tuning-mp3", required=True, type=cls.validate_files, help="MP3 file of the discussion")
+        parser.add_argument("--tuning-mp3", required=True, nargs='+', type=cls.validate_files, help="MP3 files of the discussion")
         return parser.parse_args()
 
     @classmethod
@@ -45,7 +45,9 @@ class BuilderFromTuning(BuilderBase):
 
         print(f"Evaluation Case: {parameters.case}")
         print(f"JSON file: {parameters.tuning_json.name}")
-        print(f"MP3 file: {parameters.tuning_mp3.name}")
+        print("MP3 files:")
+        for file in parameters.tuning_mp3:
+            print(f"- {file.name}")
 
         limited_cache = LimitedCache.load_from_json(limited_cache_data)
         chatter = AudioInterpreter(
@@ -56,10 +58,24 @@ class BuilderFromTuning(BuilderBase):
         )
         previous = limited_cache.staged_commands_as_instructions(ImplementedCommands.schema_key2instruction())
         audios: list[bytes] = []
-        with parameters.tuning_mp3.open("rb") as f:
-            audios.append(f.read())
-        discussion = CachedSdk.get_discussion(chatter.identification.note_uuid)
-        discussion.set_cycle(1)
-        discussion.save()
+        for file in parameters.tuning_mp3:
+            with file.open("rb") as f:
+                audios.append(f.read())
+
         transcript_tail = ""
-        Commander.audio2commands(recorder, audios, chatter, previous, transcript_tail)
+        discussion = CachedSdk.get_discussion(chatter.identification.note_uuid)
+        for cycle in range(len(audios)):
+            combined: list[bytes] = []
+            for chunk in range(cycle, max(-1, cycle - (1 + Commander.MAX_PREVIOUS_AUDIOS)), -1):
+                combined.insert(0, audios[chunk])
+
+            discussion.set_cycle(cycle + 1)
+
+            previous, transcript_tail = cls._run_cycle(
+                parameters.case,
+                cycle,
+                combined,
+                chatter,
+                previous,
+                transcript_tail,
+            )

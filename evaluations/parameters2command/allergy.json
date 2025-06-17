@@ -1,4 +1,5 @@
 {
+  "cycle_000": {
   "commands": [
     {
       "module": "canvas_sdk.commands.commands.allergy",
@@ -28,4 +29,5 @@
       "approximateDateOfOnset": "2025-02-04"
     }
   ]
+  }
 }

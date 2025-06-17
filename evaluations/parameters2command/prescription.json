@@ -1,39 +1,41 @@
 {
-  "commands": [
-    {
-      "module": "canvas_sdk.commands.commands.prescribe",
-      "class": "PrescribeCommand",
-      "attributes": {
-        "fdb_code": "287712",
-        "icd10_codes": [],
-        "sig": "Apply approximately 1 gram of clotrimazole 1% cream to the affected area twice daily for 14 days. Ensure the area is clean and dry before application. Do not cover the treated area with a bandage unless directed by a healthcare provider.",
-        "days_supply": 14,
-        "quantity_to_dispense": "36.00",
-        "type_to_dispense": {
-          "representative_ndc": "41100059416",
-          "ncpdp_quantity_qualifier_code": "C48155"
-        },
-        "refills": 0,
-        "substitutions": "allowed",
-        "pharmacy": null,
-        "prescriber_id": ">?<",
-        "note_to_pharmacist": "Dispense three 12-gram tubes to cover the 14-day treatment period."
+  "cycle_000": {
+    "commands": [
+      {
+        "module": "canvas_sdk.commands.commands.prescribe",
+        "class": "PrescribeCommand",
+        "attributes": {
+          "fdb_code": "287712",
+          "icd10_codes": [],
+          "sig": "Apply approximately 1 gram of clotrimazole 1% cream to the affected area twice daily for 14 days. Ensure the area is clean and dry before application. Do not cover the treated area with a bandage unless directed by a healthcare provider.",
+          "days_supply": 14,
+          "quantity_to_dispense": "36.00",
+          "type_to_dispense": {
+            "representative_ndc": "41100059416",
+            "ncpdp_quantity_qualifier_code": "C48155"
+          },
+          "refills": 0,
+          "substitutions": "allowed",
+          "pharmacy": null,
+          "prescriber_id": ">?<",
+          "note_to_pharmacist": "Dispense three 12-gram tubes to cover the 14-day treatment period."
+        }
       }
-    }
-  ],
-  "instructions": [
-    {
-      "instruction": "Prescription"
-    }
-  ],
-  "parameters": [
-    {
-      "keywords": "clotrimazole, antifungal, azole, cream, topical",
-      "medicationNames": "Clotrimazole",
-      "sig": "Apply the cream on the affected area.",
-      "suppliedDays": 14,
-      "substitution": "allowed",
-      "comment": "Prescribed for treating fungal skin infections."
-    }
-  ]
+    ],
+    "instructions": [
+      {
+        "instruction": "Prescription"
+      }
+    ],
+    "parameters": [
+      {
+        "keywords": "clotrimazole, antifungal, azole, cream, topical",
+        "medicationNames": "Clotrimazole",
+        "sig": "Apply the cream on the affected area.",
+        "suppliedDays": 14,
+        "substitution": "allowed",
+        "comment": "Prescribed for treating fungal skin infections."
+      }
+    ]
+  }
 }

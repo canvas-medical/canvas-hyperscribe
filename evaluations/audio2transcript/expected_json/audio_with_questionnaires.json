@@ -1,138 +1,140 @@
-[
-  {
-    "character": "secretary",
-    "text": "Good morning! You must be Mr. Johnson. Please have a seat. Dr. Carter will see you shortly."
-  },
-  {
-    "character": "patient",
-    "text": "Thank you."
-  },
-  {
-    "character": "doctor",
-    "text": "Good morning, Mr. Johnson! It's Dr. Carter. How are you today?"
-  },
-  {
-    "character": "patient",
-    "text": "Not great, to be honest. I've been feeling pretty down lately."
-  },
-  {
-    "character": "doctor",
-    "text": "I'm sorry to hear that. I see from your chart that it's been about six months since your last visit. Since today is January 29, 2025, let's take a closer look at what's going on. Can you tell me a bit more about what you're experiencing?"
-  },
-  {
-    "character": "patient",
-    "text": "I just feel really low, unmotivated. I don’t want to do much, even things I used to enjoy. It’s been going on for a few weeks now, maybe longer."
-  },
-  {
-    "character": "doctor",
-    "text": "I appreciate you sharing that with me. Based on what you're saying, I’d like to use a standardized questionnaire to assess your stress levels. It’s a simple scale where you rate different aspects of stress from 'not at all' to 'very much.' It helps us get a clearer picture. Does that sound okay?"
-  },
-  {
-    "character": "patient",
-    "text": "Yeah, that’s fine."
-  },
-  {
-    "character": "doctor",
-    "text": "Great. First question: Over the last month, how often have you felt that you were unable to control the important things in your life? Would you say 'not at all,' 'sometimes,' 'fairly often,' or 'very much'?"
-  },
-  {
-    "character": "patient",
-    "text": "Uh, I’d say… 'fairly often.'"
-  },
-  {
-    "character": "doctor",
-    "text": "Okay, and how often have you felt difficulties were piling up so high that you could not overcome them?"
-  },
-  {
-    "character": "patient",
-    "text": "Probably the same. 'Fairly often.'"
-  },
-  {
-    "character": "doctor",
-    "text": "Got it. I’ll make a note of that. Now, I’d also like to ask you a few questions from another questionnaire related to physical activity, since exercise can have a big impact on mood and stress. Sound good?"
-  },
-  {
-    "character": "patient",
-    "text": "Sure."
-  },
-  {
-    "character": "doctor",
-    "text": "Alright. First question: Do you regularly exercise?"
-  },
-  {
-    "character": "patient",
-    "text": "Not really. I used to, but I’ve kind of stopped."
-  },
-  {
-    "character": "doctor",
-    "text": "I see. When you were exercising, how many sessions per week were you doing?"
-  },
-  {
-    "character": "patient",
-    "text": "Maybe twice a week?"
-  },
-  {
-    "character": "doctor",
-    "text": "Okay. And how long were those sessions?"
-  },
-  {
-    "character": "patient",
-    "text": "Usually about 45 minutes, sometimes an hour."
-  },
-  {
-    "character": "doctor",
-    "text": "Good to know. And what type of exercise were you doing?"
-  },
-  {
-    "character": "patient",
-    "text": "Mostly weightlifting and sometimes jogging."
-  },
-  {
-    "character": "doctor",
-    "text": "Alright, thanks for sharing that. Based on what we've discussed, I’d like to suggest setting a simple, achievable goal—starting with at least 30 minutes of walking each day. Walking has been shown to help improve mood and reduce stress, and it’s a good way to ease back into physical activity. What do you think?"
-  },
-  {
-    "character": "patient",
-    "text": "I think I could try that."
-  },
-  {
-    "character": "doctor",
-    "text": "Great. Let’s aim for a daily walk, even if it’s just around your neighborhood. Now, before we wrap up, I’m going to do some standard measurements. Let’s check your blood pressure first."
-  },
-  {
-    "character": "doctor",
-    "text": "Okay, your blood pressure today is 128 over 82. That’s within a normal range. Now let me check your heart rate… That’s 76 beats per minute—also good."
-  },
-  {
-    "character": "doctor",
-    "text": "Now let’s check your weight and height. Step onto the scale for me… Alright, your weight today is 182 pounds. And your height remains 5 feet 11 inches."
-  },
-  {
-    "character": "doctor",
-    "text": "Everything looks stable. I’ll document these in your chart. Before we finish, do you have any questions or concerns?"
-  },
-  {
-    "character": "patient",
-    "text": "No, I think that covers it."
-  },
-  {
-    "character": "doctor",
-    "text": "Alright, Mr. Johnson. I’ll document today’s visit and we’ll check in again soon. If things don’t improve or you need any additional support, don’t hesitate to reach out. Sound good?"
-  },
-  {
-    "character": "patient",
-    "text": "Yeah, sounds good. Thanks, Doc."
-  },
-  {
-    "character": "doctor",
-    "text": "You're welcome. Take care, and I’ll see you next time."
-  },
-  {
-    "character": "secretary",
-    "text": "Alright, Mr. Johnson, you’re all set. Have a great day!"
-  },
-  {
-    "character": "patient",
-    "text": "Thanks, you too."
-  }
-]
+{
+  "cycle_000": [
+    {
+      "character": "secretary",
+      "text": "Good morning! You must be Mr. Johnson. Please have a seat. Dr. Carter will see you shortly."
+    },
+    {
+      "character": "patient",
+      "text": "Thank you."
+    },
+    {
+      "character": "doctor",
+      "text": "Good morning, Mr. Johnson! It's Dr. Carter. How are you today?"
+    },
+    {
+      "character": "patient",
+      "text": "Not great, to be honest. I've been feeling pretty down lately."
+    },
+    {
+      "character": "doctor",
+      "text": "I'm sorry to hear that. I see from your chart that it's been about six months since your last visit. Since today is January 29, 2025, let's take a closer look at what's going on. Can you tell me a bit more about what you're experiencing?"
+    },
+    {
+      "character": "patient",
+      "text": "I just feel really low, unmotivated. I don’t want to do much, even things I used to enjoy. It’s been going on for a few weeks now, maybe longer."
+    },
+    {
+      "character": "doctor",
+      "text": "I appreciate you sharing that with me. Based on what you're saying, I’d like to use a standardized questionnaire to assess your stress levels. It’s a simple scale where you rate different aspects of stress from 'not at all' to 'very much.' It helps us get a clearer picture. Does that sound okay?"
+    },
+    {
+      "character": "patient",
+      "text": "Yeah, that’s fine."
+    },
+    {
+      "character": "doctor",
+      "text": "Great. First question: Over the last month, how often have you felt that you were unable to control the important things in your life? Would you say 'not at all,' 'sometimes,' 'fairly often,' or 'very much'?"
+    },
+    {
+      "character": "patient",
+      "text": "Uh, I’d say… 'fairly often.'"
+    },
+    {
+      "character": "doctor",
+      "text": "Okay, and how often have you felt difficulties were piling up so high that you could not overcome them?"
+    },
+    {
+      "character": "patient",
+      "text": "Probably the same. 'Fairly often.'"
+    },
+    {
+      "character": "doctor",
+      "text": "Got it. I’ll make a note of that. Now, I’d also like to ask you a few questions from another questionnaire related to physical activity, since exercise can have a big impact on mood and stress. Sound good?"
+    },
+    {
+      "character": "patient",
+      "text": "Sure."
+    },
+    {
+      "character": "doctor",
+      "text": "Alright. First question: Do you regularly exercise?"
+    },
+    {
+      "character": "patient",
+      "text": "Not really. I used to, but I’ve kind of stopped."
+    },
+    {
+      "character": "doctor",
+      "text": "I see. When you were exercising, how many sessions per week were you doing?"
+    },
+    {
+      "character": "patient",
+      "text": "Maybe twice a week?"
+    },
+    {
+      "character": "doctor",
+      "text": "Okay. And how long were those sessions?"
+    },
+    {
+      "character": "patient",
+      "text": "Usually about 45 minutes, sometimes an hour."
+    },
+    {
+      "character": "doctor",
+      "text": "Good to know. And what type of exercise were you doing?"
+    },
+    {
+      "character": "patient",
+      "text": "Mostly weightlifting and sometimes jogging."
+    },
+    {
+      "character": "doctor",
+      "text": "Alright, thanks for sharing that. Based on what we've discussed, I’d like to suggest setting a simple, achievable goal—starting with at least 30 minutes of walking each day. Walking has been shown to help improve mood and reduce stress, and it’s a good way to ease back into physical activity. What do you think?"
+    },
+    {
+      "character": "patient",
+      "text": "I think I could try that."
+    },
+    {
+      "character": "doctor",
+      "text": "Great. Let’s aim for a daily walk, even if it’s just around your neighborhood. Now, before we wrap up, I’m going to do some standard measurements. Let’s check your blood pressure first."
+    },
+    {
+      "character": "doctor",
+      "text": "Okay, your blood pressure today is 128 over 82. That’s within a normal range. Now let me check your heart rate… That’s 76 beats per minute—also good."
+    },
+    {
+      "character": "doctor",
+      "text": "Now let’s check your weight and height. Step onto the scale for me… Alright, your weight today is 182 pounds. And your height remains 5 feet 11 inches."
+    },
+    {
+      "character": "doctor",
+      "text": "Everything looks stable. I’ll document these in your chart. Before we finish, do you have any questions or concerns?"
+    },
+    {
+      "character": "patient",
+      "text": "No, I think that covers it."
+    },
+    {
+      "character": "doctor",
+      "text": "Alright, Mr. Johnson. I’ll document today’s visit and we’ll check in again soon. If things don’t improve or you need any additional support, don’t hesitate to reach out. Sound good?"
+    },
+    {
+      "character": "patient",
+      "text": "Yeah, sounds good. Thanks, Doc."
+    },
+    {
+      "character": "doctor",
+      "text": "You're welcome. Take care, and I’ll see you next time."
+    },
+    {
+      "character": "secretary",
+      "text": "Alright, Mr. Johnson, you’re all set. Have a great day!"
+    },
+    {
+      "character": "patient",
+      "text": "Thanks, you too."
+    }
+  ]
+}

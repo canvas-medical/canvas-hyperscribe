@@ -1,55 +1,57 @@
 {
-  "commands": [
-    {
-      "module": "canvas_sdk.commands.commands.vitals",
-      "class": "VitalsCommand",
-      "attributes": {
-        "height": 65,
-        "weight_lbs": 125,
-        "weight_oz": null,
-        "waist_circumference": 121,
-        "body_temperature": 98,
-        "body_temperature_site": null,
-        "blood_pressure_systole": 112,
-        "blood_pressure_diastole": 70,
-        "blood_pressure_position_and_site": null,
-        "pulse": 72,
-        "pulse_rhythm": null,
-        "respiration_rate": 7,
-        "oxygen_saturation": null,
-        "note": null
+  "cycle_000": {
+    "commands": [
+      {
+        "module": "canvas_sdk.commands.commands.vitals",
+        "class": "VitalsCommand",
+        "attributes": {
+          "height": 65,
+          "weight_lbs": 125,
+          "weight_oz": null,
+          "waist_circumference": 121,
+          "body_temperature": 98,
+          "body_temperature_site": null,
+          "blood_pressure_systole": 112,
+          "blood_pressure_diastole": 70,
+          "blood_pressure_position_and_site": null,
+          "pulse": 72,
+          "pulse_rhythm": null,
+          "respiration_rate": 7,
+          "oxygen_saturation": null,
+          "note": null
+        }
       }
-    }
-  ],
-  "instructions": [
-    {
-      "instruction": "Vitals"
-    }
-  ],
-  "parameters": [
-    {
-      "height": {
-        "inches": 65
-      },
-      "weight": {
-        "pounds": 125
-      },
-      "waistCircumference": {
-        "centimeters": 121
-      },
-      "temperature": {
-        "fahrenheit": 98
-      },
-      "bloodPressure": {
-        "systolicPressure": 112,
-        "diastolicPressure": 70
-      },
-      "pulseRate": {
-        "beatPerMinute": 72
-      },
-      "respirationRate": {
-        "beatPerMinute": 7
+    ],
+    "instructions": [
+      {
+        "instruction": "Vitals"
       }
-    }
-  ]
+    ],
+    "parameters": [
+      {
+        "height": {
+          "inches": 65
+        },
+        "weight": {
+          "pounds": 125
+        },
+        "waistCircumference": {
+          "centimeters": 121
+        },
+        "temperature": {
+          "fahrenheit": 98
+        },
+        "bloodPressure": {
+          "systolicPressure": 112,
+          "diastolicPressure": 70
+        },
+        "pulseRate": {
+          "beatPerMinute": 72
+        },
+        "respirationRate": {
+          "beatPerMinute": 7
+        }
+      }
+    ]
+  }
 }

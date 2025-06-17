@@ -1,4 +1,5 @@
 import json
+from io import StringIO
 from unittest.mock import patch, MagicMock, call
 
 from canvas_sdk.v1.data import Note
@@ -72,6 +73,23 @@ def test_aws_s3_credentials(monkeypatch):
         aws_secret="theSecret",
         region="theRegion",
         bucket="theBucketLogs",
+    )
+    assert result == expected
+
+
+def test_aws_s3_credentials_tuning(monkeypatch):
+    monkeypatch.setenv("AwsKey", "theKey")
+    monkeypatch.setenv("AwsSecret", "theSecret")
+    monkeypatch.setenv("AwsRegion", "theRegion")
+    monkeypatch.setenv("AwsBucketTuning", "theBucketTuning")
+
+    tested = HelperEvaluation
+    result = tested.aws_s3_credentials_tuning()
+    expected = AwsS3Credentials(
+        aws_key="theKey",
+        aws_secret="theSecret",
+        region="theRegion",
+        bucket="theBucketTuning",
     )
     assert result == expected
 
@@ -409,4 +427,49 @@ def test_nuanced_differences(settings, get_canvas_instance, chatter, memory_log)
         call.chat([schema]),
     ]
     assert conversation.mock_calls == calls
+    reset_mocks()
+
+
+def test_list_case_files():
+    path = MagicMock()
+    files = [
+        MagicMock(stem="file1"),
+        MagicMock(stem="file2"),
+        MagicMock(stem="file3"),
+    ]
+
+    def reset_mocks():
+        path.reset_mock()
+        for item in files:
+            item.reset_mock()
+
+    tested = HelperEvaluation
+
+    # no file
+    path.glob.side_effect = [[]]
+    result = tested.list_case_files(path)
+    assert result == []
+    calls = [call.glob('*.json')]
+    assert path.mock_calls == calls
+    reset_mocks()
+
+    # with files
+    path.glob.side_effect = [files]
+    files[0].open.side_effect = [StringIO(json.dumps({"cycle_002": {}, "cycle_001": {}}))]
+    files[1].open.side_effect = [StringIO(json.dumps({"cycle_003": {}}))]
+    files[2].open.side_effect = [StringIO(json.dumps({}))]
+
+    result = tested.list_case_files(path)
+    expected = [
+        ('file1', 'cycle_002', files[0]),
+        ('file1', 'cycle_001', files[0]),
+        ('file2', 'cycle_003', files[1]),
+    ]
+
+    assert result == expected
+    calls = [call.glob('*.json')]
+    assert path.mock_calls == calls
+    calls = [call.open('r')]
+    for item in files:
+        assert item.mock_calls == calls
     reset_mocks()

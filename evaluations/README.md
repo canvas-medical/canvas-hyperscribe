@@ -4,21 +4,21 @@ Hyperscribe Evaluations
 The [hyperscribe](../hyperscribe) plugin has five essential steps:
 
 * transcript the audio into a discussion, identifying the speakers and what they say
-* extract from the discussion a set of instructions, a plain english description of a Canvas command
-* transform an instruction into a data structure close to a Canvas command parameters
+* extract from the discussion a set of instructions, a plain English description of a Canvas command
+* transform an instruction into a data structure close to Canvas command parameters
 * create the Canvas command based on the parameters
 * update the staged questionnaires in the considered note based on the discussion
 
 The evaluation tests are designed to validate each of these steps.
 
-The convention used is to have:
+The convention is to have:
 
 - a folder where to store tests for each step ([`evaluations/audio2transcript`](./audio2transcript), [
   `evaluations/transcript2instructions`](./transcript2instructions)...)
 - a test file to run the stored tests of each step ([`test_audio2transcript.py`](test_audio2transcript.py), [
   `test_transcript2instructions.py`](test_transcript2instructions.py)...)
 
-The tests are JSON files with the input and the expected output for the considered step.
+The JSON files store, for each cycle, the input and the expected output for the considered step.
 
 ### Run evaluation tests
 
@@ -37,7 +37,7 @@ The following parameters can be used to configure the evaluation test:
 - `--print-logs` – Print the logs on the standard output at the end of the tests.
 - `--store-logs` – Store the logs in the configured AWS S3 bucket.
 
-Among standard `pytest` parameters, `-k` is useful as it allows to target a specific test.
+Among standard `pytest` parameters, `-k` is useful as it allows targeting tests of specific cases.
 
 ```shell
 # run all evaluation tests for the patient patient_uuid
@@ -64,6 +64,9 @@ uv  run pytest -v evaluations/test_staged_questionnaires.py -k the_case
 
 # run all steps for a specific case the_case
 uv  run pytest -v evaluations -k the_case
+
+# run a specific test
+uv  run pytest -vv evaluations/test_parameters2command.py::test_parameters2command[the_case_cycle_007]
 ```
 
 ### Create evaluation tests
@@ -82,6 +85,9 @@ export PreSharedKey="...."
 export StructuredReasonForVisit="y" or "n"
 export AuditLLMDecisions="y" or "n"
 export APISigningKey="..."
+export CUSTOMER_IDENTIFIER="local" # the canvas_instance value
+export CommandsPolicy="n"
+export CommandsList=""
 ```
 
 The logs will be sent to the `AWS S3 bucket` if the following environment variables are set:
@@ -90,13 +96,14 @@ The logs will be sent to the `AWS S3 bucket` if the following environment variab
 export AwsKey="..."
 export AwsSecret="..."
 export AwsRegion="..."
-export AwsBucket="..."
+export AwsBucketLogs="..."
 ```
 
 In addition, if the `AuditLLMDecisions` is set, an audit of the LLM decisions is run at the end of the evaluation and saved in the AWS S3 bucket
 provided.
 
-The logs are saved following the folders structure, with the top-level `hyperscribe-{canvas_instance}` needing to match exactly the IAM User whose `AwsKey` and `AwsSecret` are set in secrets:
+The logs are saved following the folder structure, with the top-level `hyperscribe-{canvas_instance}` needing to match exactly the IAM User whose
+`AwsKey` and `AwsSecret` are set in secrets:
 
 ```shell
 AwsBucket
@@ -109,7 +116,7 @@ AwsBucket
 
 #### From Audio to commands
 
-Based on a set of `mp3` files, a set (i.e. covering all steps) of evaluation tests (also called `case`) can be created using:
+Based on a set of `mp3` files, a set (i.e., covering all steps) of evaluation tests (also called `case`) can be created using:
 
 ```shell
 uv run python case_builder.py \
@@ -128,27 +135,27 @@ The `combined` flag instructs the case builder to first combine the mp3 files in
 
 Without it, the case builder will perform as many cycles as files, using the result of each cycle to the next, mimicking the real behavior.
 
-The generated files of each step will have a suffix `_cycle\d{2}` corresponding to the cycle (starting from 0).
 
 ```shell
 # run the tests for the_case, regardless of the --combined flag 
 uv  run pytest -v evaluations/ -k the_case
 
 # run the tests for cycle 3 of the_case, assuming it was built using at least 3 mp3 files and without the --combined flag
-uv  run pytest -v evaluations/ -k the_case_cycle02
+uv  run pytest -v evaluations/ -k the_case_cycle_002
 ```
 
 Note also that on the first step (`audio2transcript`):
 
-- all `mp3` files are saved in the [`evaluations/audio2transcript/inputs_mp3/`](audio2transcript/inputs_mp3) folder, the first one using the `--case`
-  as name, the subsequent files have the same name with an added number (suffix `\.\d{2}`, starting from 1),
+- all `mp3` files are saved in the [`evaluations/audio2transcript/inputs_mp3/the_case`](audio2transcript/inputs_mp3) folder, all files are named
+  `cycle_\d{3}_\d{2}`, the first number being the cycle, the second number being the chunk use at the cycle (all numbers starting from 0).
+- if a cycle has the transcript already done, the step is not performed again.
 
-On the second step (`transcript2instructions`):
+- On the second step (`transcript2instructions`):
 
 - the `uuid` of the instructions is by default set to `>?<`
-- the order of the instructions of different type is ignored
+- the instruction order of different types is ignored
 
-If the `render` flag is set, the effect of the commands of the last cycle will be sent to the UI.
+If the `render` flag is set, the effect of the commands, result of the last cycle, will be sent to the UI.
 
 #### From Transcript to commands
 
@@ -170,14 +177,14 @@ The flag `cycles` instructs the case builder to perform as many cycles, using th
 Like previously, on the step `transcript2instructions`:
 
 - the `uuid` of the instructions is by default set to `>?<`
-- the order of the instructions of different type is ignored
+- the instruction order of different types is ignored
 
-If the `render` flag is set, the effect of the commands of the last cycle will be sent to the UI.
+If the `render` flag is set, the effect of the commands, result of the last cycle, will be sent to the UI.
 
 #### From Tuning data to commands
 
-Based on a `mp3`, recording of a discussion through the `hyperscribe-tuning` plugin and its `json` file, limited cache of the patient data at the
-start of the recording, a set of evaluation tests can be created using:
+Based on a set of `mp3`, recordings of a discussion through the `hyperscribe-tuning` plugin and its `json` file, limited cache of the patient data at
+the start of the recording, a set of evaluation tests can be created using:
 
 ```shell
 uv run python case_builder.py \
@@ -185,21 +192,20 @@ uv run python case_builder.py \
   --group common \
   --type general \
   --tuning-json "file/path/to/file.json" \
-  --tuning-mp3 "file/path/to/file.mp3"
+  --tuning-mp3 "file/path/to/file_01.mp3" \
+  "file/path/to/file_02.mp3" \
+  "file/path/to/file_03.mp3"
 ```
 
-Like previously, on the step `transcript2instructions`:
-
-- the `uuid` of the instructions is by default set empty
-- the order of the instructions of different type is ignored
+This case builder based on the tuning data has the same behavior as the case builder based on audio files, except that it has no `render` flag.
 
 #### Storing the cases and the run results
 
 When creating a `case` by running the [`case_builder.py`](../case_builder.py) script, a file created/updated in the [cases](datastores/cases)
 directory, part of the repository.
 
-This directory stores the meta information related to the `case`, namely: the group, the type, the environment, the patient uuid.
-The limited cache in stored in the subdirectory [limited_caches](datastores/cases/limited_caches).
+This directory stores the meta-information related to the `case`, namely: the group, the type, the environment, the patient uuid.
+The limited cache is stored in the subdirectory [limited_caches](datastores/cases/limited_caches).
 
 *ATTENTION* The limited cache will be used when running the tests if the `--patient-uuid` is not provided.
 
@@ -262,6 +268,10 @@ uv  run python case_builder.py --case the_case --summary
 A set of evaluation tests (or `case`) can be deleted using:
 
 ```shell
+# remove all files related to the case
+uv  run python case_builder.py --case the_case --delete --audios
+
+# remove all files related to the case, except the files of the `audio2transcript` folder
 uv  run python case_builder.py --case the_case --delete
 ```
 

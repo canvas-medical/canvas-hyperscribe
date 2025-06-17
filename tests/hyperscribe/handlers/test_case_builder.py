@@ -376,6 +376,12 @@ def test_questionnaire_command_from(command_db, questionnaire_db):
             coding={},
             options=[],
         ),
+        TextQuestion(
+            name="question-17",
+            label="otherTextQuestion",
+            coding={},
+            options=[],
+        ),
     ]
 
     # there is a matching questionnaire

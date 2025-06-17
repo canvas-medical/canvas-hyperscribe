@@ -1,7 +1,7 @@
 import json
 from argparse import Namespace
 from pathlib import Path
-from unittest.mock import patch, call, MagicMock
+from unittest.mock import patch, call
 
 from evaluations.auditor_file import AuditorFile
 from evaluations.case_builders.builder_summarize import BuilderSummarize
@@ -78,113 +78,96 @@ def test_run(parameters, summary_generated_commands, browser_open, path, named_t
     reset_mocks()
 
 
-@patch.object(AuditorFile, "case_files_from")
-def test_summary_generated_commands(case_files_from):
-    path_files = [
-        MagicMock(),
-        MagicMock(),
-        MagicMock(),
-    ]
-    path_files[0].name = "theCase02.json"
-    path_files[1].name = "theCase03.json"
-    path_files[2].name = "theCase01.json"
+@patch.object(AuditorFile, "case_file_from")
+def test_summary_generated_commands(case_file_from):
 
     def reset_mocks():
-        case_files_from.reset_mock()
-        for pf in path_files:
-            pf.reset_mock()
+        case_file_from.reset_mock()
 
-    exp_case_files_from_calls = [
-        call("parameters2command", "json"),
-        call("staged_questionnaires", "json"),
-    ]
     tested = BuilderSummarize
 
     # there are no files for the case
-    case_files_from.side_effect = [[], []]
+    case_file_from.return_value.exists.side_effect = [False, False]
 
     result = tested.summary_generated_commands("theCase")
     assert result == []
-
-    assert case_files_from.mock_calls == exp_case_files_from_calls
-    for path_file in path_files:
-        assert path_file.mock_calls == []
+    calls = [
+        call("parameters2command", "json"),
+        call().exists(),
+        call("staged_questionnaires", "json"),
+        call().exists(),
+    ]
+    assert case_file_from.mock_calls == calls
     reset_mocks()
 
-    # -- no commands in the files (only one file)
-    file_contents = [
-        json.dumps({"instructions": [], "commands": []}),
-        json.dumps({"instructions": [], "commands": []}),
-        json.dumps({"instructions": [], "commands": []}),
+    # -- no commands in the files
+    case_file_from.return_value.exists.side_effect = [True, True]
+    case_file_from.return_value.open.return_value.read.side_effect = [
+        json.dumps({}),
+        json.dumps({}),
     ]
-    case_files_from.side_effect = [path_files, path_files[1:]]
-    for idx, path_file in enumerate(path_files):
-        path_file.open.return_value.__enter__.return_value.read.side_effect = [file_contents[idx], file_contents[idx]]
 
     result = tested.summary_generated_commands("theCase")
     assert result == []
 
-    assert case_files_from.mock_calls == exp_case_files_from_calls
-    for idx, path_file in enumerate(path_files):
-        calls = [
-            call.open('r'),
-            call.open().__enter__(),
-            call.open().__enter__().read(),
-            call.open().__exit__(None, None, None),
-        ]
-        if idx == 1:
-            calls.extend([
-                call.open('r'),
-                call.open().__enter__(),
-                call.open().__enter__().read(),
-                call.open().__exit__(None, None, None),
-            ])
-        assert path_file.mock_calls == calls
+    calls = [
+        call("parameters2command", "json"),
+        call().exists(),
+        call().open('r'),
+        call().open().read(),
+        call("staged_questionnaires", "json"),
+        call().exists(),
+        call().open('r'),
+        call().open().read(),
+    ]
+    assert case_file_from.mock_calls == calls
     reset_mocks()
 
     # -- commands only in common commands
-    file_contents = [
+    case_file_from.return_value.exists.side_effect = [True, True]
+    case_file_from.return_value.open.return_value.read.side_effect = [
         json.dumps({
-            "instructions": [
-                {"uuid": "uuid1", "information": "theInformation1"},
-            ],
-            "commands": [
-                {
-                    "module": "theModule1",
-                    "class": "TheClass1",
-                    "attributes": {
-                        "command_uuid": ">?<",
-                        "note_uuid": ">?<",
-                        "attributeX": "valueX",
-                        "attributeY": "valueY",
+            "cycle_000": {
+                "instructions": [
+                    {"uuid": "uuid1", "information": "theInformation1"},
+                ],
+                "commands": [
+                    {
+                        "module": "theModule1",
+                        "class": "TheClass1",
+                        "attributes": {
+                            "command_uuid": ">?<",
+                            "note_uuid": ">?<",
+                            "attributeX": "valueX",
+                            "attributeY": "valueY",
+                        },
                     },
-                },
-            ]}),
-        json.dumps({
-            "instructions": [
-                {"uuid": "uuid1", "information": "theInformation2"},
-                {"uuid": "uuid3", "information": "theInformation3"},
-            ],
-            "commands": [
-                {
-                    "module": "theModule2",
-                    "class": "TheClass2",
-                    "attributes": {
-                        "command_uuid": ">?<",
-                        "note_uuid": ">?<",
-                        "attributeZ": "valueZ",
+                ]},
+            "cycle_001": {
+                "instructions": [
+                    {"uuid": "uuid1", "information": "theInformation2"},
+                    {"uuid": "uuid3", "information": "theInformation3"},
+                ],
+                "commands": [
+                    {
+                        "module": "theModule2",
+                        "class": "TheClass2",
+                        "attributes": {
+                            "command_uuid": ">?<",
+                            "note_uuid": ">?<",
+                            "attributeZ": "valueZ",
+                        },
                     },
-                },
-                {
-                    "module": "theModule3",
-                    "class": "TheClass3",
-                    "attributes": {
-                        "command_uuid": ">?<",
-                        "note_uuid": ">?<",
+                    {
+                        "module": "theModule3",
+                        "class": "TheClass3",
+                        "attributes": {
+                            "command_uuid": ">?<",
+                            "note_uuid": ">?<",
+                        },
                     },
-                },
-            ]}),
-        json.dumps({
+                ]},
+            "cycle_002": {
             "instructions": [
                 {"uuid": "uuid4", "information": "theInformation4"},
             ],
@@ -200,26 +183,13 @@ def test_summary_generated_commands(case_files_from):
                         "attributeC": "valueC",
                     },
                 },
-            ]}),
+            ]},
+        }),
+        json.dumps({}),
     ]
-    case_files_from.side_effect = [path_files, []]
-    for idx, path_file in enumerate(path_files):
-        path_file.open.return_value.__enter__.return_value.read.side_effect = [file_contents[idx]]
 
     result = tested.summary_generated_commands("theCase")
     expected = [
-        {
-            "command": {
-                "attributes": {
-                    "attributeA": "valueA",
-                    "attributeB": "valueB",
-                    "attributeC": "valueC",
-                },
-                "class": "TheClass4",
-                "module": "theModule4",
-            },
-            "instruction": "theInformation4",
-        },
         # -- theInformation1 is replaced with theInformation2....
         {
             "command": {
@@ -239,18 +209,22 @@ def test_summary_generated_commands(case_files_from):
             },
             "instruction": "theInformation3",
         },
+        {
+            "command": {
+                "attributes": {
+                    "attributeA": "valueA",
+                    "attributeB": "valueB",
+                    "attributeC": "valueC",
+                },
+                "class": "TheClass4",
+                "module": "theModule4",
+            },
+            "instruction": "theInformation4",
+        },
     ]
     assert result == expected
 
-    assert case_files_from.mock_calls == exp_case_files_from_calls
-    for idx, path_file in enumerate(path_files):
-        calls = [
-            call.open('r'),
-            call.open().__enter__(),
-            call.open().__enter__().read(),
-            call.open().__exit__(None, None, None),
-        ]
-        assert path_file.mock_calls == calls
+    assert case_file_from.mock_calls == calls
     reset_mocks()
 
     # -- commands only in questionnaire commands
@@ -305,111 +279,126 @@ def test_summary_generated_commands(case_files_from):
                         {"dbid": 37, "value": "", "selected": False, "comment": None},
                     ]
                 },
+                {
+                    "dbid": 17,
+                    "label": "otherTextQuestion",
+                    "type": "TXT",
+                    "skipped": None,
+                    "responses": [
+                        {"dbid": 51, "value": "", "selected": False, "comment": None},
+                    ]
+                },
             ]
         }
     ]
-    file_contents = [
+    case_file_from.return_value.exists.side_effect = [True, True]
+    case_file_from.return_value.open.return_value.read.side_effect = [
+        json.dumps({}),
         json.dumps({
-            "instructions": [
-                {"uuid": "uuid1", "instruction": "nope1", "information": json.dumps(questionnaires[0])},
-                {"uuid": "uuid1", "instruction": "nope2", "information": json.dumps(questionnaires[1])},
-            ],
-            "commands": [
-                {
-                    "module": "theModule1",
-                    "class": "TheClass1",
-                    "attributes": {
-                        "command_uuid": ">?<",
-                        "note_uuid": ">?<",
-                    },
-                },
-                {
-                    "module": "theModule2",
-                    "class": "TheClass2",
-                    "attributes": {
-                        "command_uuid": ">?<",
-                        "note_uuid": ">?<",
-                    },
-                },
-            ]}),
-        json.dumps({
-            "instructions": [
-                {"uuid": "uuid1", "instruction": "questionnaireA", "information": json.dumps(questionnaires[0])},
-                {"uuid": "uuid2", "instruction": "questionnaireB", "information": json.dumps(questionnaires[1])},
-            ],
-            "commands": [
-                {
-                    "module": "theModule1",
-                    "class": "TheClass1",
-                    "attributes": {
-                        "command_uuid": ">?<",
-                        "note_uuid": ">?<",
-                        "questions": {
-                            "question-9": 26,
-                            "question-12": 57,
+            "cycle_000": {
+                "instructions": [
+                    {"uuid": "uuid1", "instruction": "questionnaireA", "information": json.dumps(questionnaires[0])},
+                    {"uuid": "uuid2", "instruction": "questionnaireB", "information": json.dumps(questionnaires[1])},
+                ],
+                "commands": [
+                    {
+                        "module": "theModule1",
+                        "class": "TheClass1",
+                        "attributes": {
+                            "command_uuid": ">?<",
+                            "note_uuid": ">?<",
+                            "questions": {
+                                "question-9": 999,
+                                "question-12": 999,
 
+                            },
                         },
                     },
-                },
-                {
-                    "module": "theModule2",
-                    "class": "TheClass2",
-                    "attributes": {
-                        "command_uuid": ">?<",
-                        "note_uuid": ">?<",
-                        "questions": {
-                            "question-10": [
-                                {
-                                    "text": "Checkbox1",
-                                    "value": 33,
-                                    "comment": "",
-                                    "selected": False,
-                                },
-                                {
-                                    "text": "Checkbox2",
-                                    "value": 34,
-                                    "comment": "theComment2",
-                                    "selected": True,
-                                },
-                                {
-                                    "text": "Checkbox3",
-                                    "value": 35,
-                                    "comment": "",
-                                    "selected": True,
-                                },
-                            ],
-                            "question-11": "theFreeText",
+                    {
+                        "module": "theModule2",
+                        "class": "TheClass2",
+                        "attributes": {
+                            "command_uuid": ">?<",
+                            "note_uuid": ">?<",
+                            "questions": {
+                                "question-10": [
+                                    {
+                                        "text": "Checkbox1",
+                                        "value": 999,
+                                        "comment": "",
+                                        "selected": False,
+                                    },
+                                    {
+                                        "text": "Checkbox2",
+                                        "value": 999,
+                                        "comment": "theComment2",
+                                        "selected": True,
+                                    },
+                                    {
+                                        "text": "Checkbox3",
+                                        "value": 999,
+                                        "comment": "",
+                                        "selected": True,
+                                    },
+                                ],
+                                "question-11": "theFreeText",
+                            },
                         },
                     },
-                },
-            ]}),
-        json.dumps({
-            "instructions": [
-                {"uuid": "uuid1", "instruction": "nope3", "information": json.dumps(questionnaires[0])},
-                {"uuid": "uuid2", "instruction": "nope4", "information": json.dumps(questionnaires[1])},
-            ],
-            "commands": [
-                {
-                    "module": "theModule1",
-                    "class": "TheClass1",
-                    "attributes": {
-                        "command_uuid": ">?<",
-                        "note_uuid": ">?<",
+                ]},
+            "cycle_002": {
+                "instructions": [
+                    {"uuid": "uuid1", "instruction": "questionnaireA", "information": json.dumps(questionnaires[0])},
+                    {"uuid": "uuid2", "instruction": "questionnaireB", "information": json.dumps(questionnaires[1])},
+                ],
+                "commands": [
+                    {
+                        "module": "theModule1",
+                        "class": "TheClass1",
+                        "attributes": {
+                            "command_uuid": ">?<",
+                            "note_uuid": ">?<",
+                            "questions": {
+                                "question-9": 26,
+                                "question-12": 57,
+
+                            },
+                        },
                     },
-                },
-                {
-                    "module": "theModule2",
-                    "class": "TheClass2",
-                    "attributes": {
-                        "command_uuid": ">?<",
-                        "note_uuid": ">?<",
+                    {
+                        "module": "theModule2",
+                        "class": "TheClass2",
+                        "attributes": {
+                            "command_uuid": ">?<",
+                            "note_uuid": ">?<",
+                            "questions": {
+                                "question-10": [
+                                    {
+                                        "text": "Checkbox1",
+                                        "value": 33,
+                                        "comment": "",
+                                        "selected": False,
+                                    },
+                                    {
+                                        "text": "Checkbox2",
+                                        "value": 34,
+                                        "comment": "theComment2",
+                                        "selected": True,
+                                    },
+                                    {
+                                        "text": "Checkbox3",
+                                        "value": 35,
+                                        "comment": "",
+                                        "selected": True,
+                                    },
+                                ],
+                                "question-11": "theFreeText",
+                            },
+                        },
                     },
-                },
-            ]}),
+                ]},
+        }),
     ]
-    case_files_from.side_effect = [[], path_files]
-    for idx, path_file in enumerate(path_files):
-        path_file.open.return_value.__enter__.return_value.read.side_effect = [file_contents[idx]]
 
     result = tested.summary_generated_commands("theCase")
     expected = [
@@ -439,15 +428,5 @@ def test_summary_generated_commands(case_files_from):
 
     assert result == expected
 
-    assert case_files_from.mock_calls == exp_case_files_from_calls
-    for idx, path_file in enumerate(path_files):
-        calls = []
-        if idx == 1:
-            calls = [
-                call.open('r'),
-                call.open().__enter__(),
-                call.open().__enter__().read(),
-                call.open().__exit__(None, None, None),
-            ]
-        assert path_file.mock_calls == calls
+    assert case_file_from.mock_calls == calls
     reset_mocks()

@@ -158,15 +158,6 @@ def test_get(db_path):
             description="theDescription",
             limited_cache={},
         )),
-        ("theCaseName_cycle02", True, False, [data], [], EvaluationCase(
-            environment="theEnvironment",
-            patient_uuid="thePatientUuid",
-            case_type="theCaseType",
-            case_group="theCaseGroup",
-            case_name="theCaseName_cycle02",
-            description="theDescription",
-            limited_cache={},
-        )),
     ]
     for case_name, case_exists, cache_exists, side_effect_case, side_effect_cache, expected in tests:
         db_path.return_value.__truediv__.side_effect = mock_files

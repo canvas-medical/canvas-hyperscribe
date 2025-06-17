@@ -10,21 +10,20 @@ from hyperscribe.structures.instruction_with_parameters import InstructionWithPa
 
 
 def pytest_generate_tests(metafunc):
-    if 'parameters2command' in metafunc.fixturenames:
+    step = 'parameters2command'
+    if step in metafunc.fixturenames:
         # run all evaluation tests in the parameters2command directory
-        # in each JSON file, there should be:
+        # in each JSON file, there should be for each cycle:
         # - a set of instructions, and the related
         # - set of parameters
         # - set of commands
-        files = list((Path(__file__).parent / 'parameters2command').glob('*.json'))
-        if not files:
-            return
-        metafunc.parametrize('parameters2command', files, ids=lambda path: path.stem)
+        files = HelperEvaluation.list_case_files(Path(__file__).parent / step)
+        metafunc.parametrize(step, files, ids=lambda path: f"{path[0]}_{path[1]}")
 
 
 def test_parameters2command(parameters2command, allowed_levels, audio_interpreter, capsys, request):
-    with parameters2command.open("r") as f:
-        content = json.load(f)
+    case, cycle, json_file = parameters2command
+    content = json.load(json_file.open("r"))[cycle]
 
     instructions = Instruction.load_from_json(content["instructions"])
     parameters = content["parameters"]
@@ -32,7 +31,7 @@ def test_parameters2command(parameters2command, allowed_levels, audio_interprete
     for idx, instruction in enumerate(instructions):
         response = audio_interpreter.create_sdk_command_from(InstructionWithParameters.add_parameters(instruction, parameters[idx]))
 
-        error_label = f"{parameters2command.stem} {instruction.instruction} - {idx:02d}"
+        error_label = f"{case} {cycle} {instruction.instruction} - {idx:02d}"
         assert response is not None, error_label
         command = response.command
         assert command.__class__.__module__ == expected[idx]["module"], error_label
@@ -49,7 +48,7 @@ def test_parameters2command(parameters2command, allowed_levels, audio_interprete
 
         if automated != reviewed:
             valid, differences = HelperEvaluation.json_nuanced_differences(
-                f"{parameters2command.stem}-parameters2command",
+                f"{case}-{cycle}-parameters2command",
                 allowed_levels,
                 json.dumps(automated, indent=1),
                 json.dumps(reviewed, indent=1),

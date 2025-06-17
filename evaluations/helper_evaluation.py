@@ -1,5 +1,6 @@
 import json
 from os import environ
+from pathlib import Path
 
 from canvas_sdk.v1.data import Note
 
@@ -22,6 +23,10 @@ class HelperEvaluation:
     @classmethod
     def aws_s3_credentials(cls) -> AwsS3Credentials:
         return AwsS3Credentials.from_dictionary(dict(environ))
+
+    @classmethod
+    def aws_s3_credentials_tuning(cls) -> AwsS3Credentials:
+        return AwsS3Credentials.from_dictionary_tuning(dict(environ))
 
     @classmethod
     def postgres_credentials(cls) -> PostgresCredentials:
@@ -148,3 +153,12 @@ class HelperEvaluation:
             if difference["level"] not in accepted_levels
         ]
         return bool(excluded_minor_differences == []), json.dumps(chat.content, indent=1)
+
+    @classmethod
+    def list_case_files(cls, folder: Path) -> list[tuple[str, str, Path]]:
+        return [
+            (json_file.stem, cycle, json_file)
+            for json_file in folder.glob('*.json')
+            for cycle in json.load(json_file.open("r")).keys()
+            if cycle.startswith(Constants.CASE_CYCLE_SUFFIX)
+        ]

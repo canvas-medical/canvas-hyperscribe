@@ -93,7 +93,7 @@ class LlmTurnsStore:
                 f"llm_turns/"
                 f"{self.creation_day}/"
                 f"{self.identification.note_uuid}/"
-                f"{self.cycle:02d}")
+                f"{self.cycle:03d}")
 
     @classmethod
     def s3_path_sort(cls, s3_path: str) -> Tuple[int, int]:

@@ -22,6 +22,7 @@ def test_parameters(argument_parser):
         call(description="Delete all files and case record related to the built case."),
         call().add_argument("--delete", action="store_true"),
         call().add_argument("--case", type=str),
+        call().add_argument("--audios", action="store_true", default=False, help="delete audio files"),
         call().parse_args(),
     ]
     assert argument_parser.mock_calls == calls
@@ -43,20 +44,20 @@ def test_run(
         store_cases.reset_mock()
 
     tested = BuilderDelete()
-    parameters.side_effect = [Namespace(case="theCase")]
-    result = tested.run()
-    assert result is None
+    for audios in [True, False]:
+        parameters.side_effect = [Namespace(case="theCase", audios=audios)]
+        tested.run()
 
-    exp_out = CaptureResult("Evaluation Case 'theCase' deleted (files and record)\n", "")
-    assert capsys.readouterr() == exp_out
+        exp_out = CaptureResult("Evaluation Case 'theCase' deleted (files and record)\n", "")
+        assert capsys.readouterr() == exp_out
 
-    calls = [call()]
-    assert parameters.mock_calls == calls
-    calls = [
-        call('theCase'),
-        call().reset(),
-    ]
-    assert auditor_file.mock_calls == calls
-    calls = [call.delete('theCase')]
-    assert store_cases.mock_calls == calls
-    reset_mocks()
+        calls = [call()]
+        assert parameters.mock_calls == calls
+        calls = [
+            call('theCase', 0),
+            call().reset(audios),
+        ]
+        assert auditor_file.mock_calls == calls
+        calls = [call.delete('theCase')]
+        assert store_cases.mock_calls == calls
+        reset_mocks()

@@ -36,15 +36,12 @@ class BuilderSummarize:
     def summary_generated_commands(cls, case: str) -> list[dict]:
         result: dict[str, dict] = {}
 
-        recorder = AuditorFile(case)
+        recorder = AuditorFile(case, 0)
         # common commands
-        files = sorted(
-            [f for f in recorder.case_files_from("parameters2command", "json")],
-            key=lambda item: item.name,
-        )
-        for file in files:
-            with file.open("r") as f:
-                content = json.load(f)
+        file = recorder.case_file_from("parameters2command", "json")
+        if file.exists():
+            cycles = json.load(file.open("r"))
+            for cycle, content in cycles.items():
                 for instruction, command in zip(content["instructions"], content["commands"]):
                     result[instruction["uuid"]] = {
                         "instruction": instruction["information"],
@@ -59,20 +56,22 @@ class BuilderSummarize:
                         },
                     }
 
+
         # questionnaires - command is from the last cycle
-        files = sorted(
-            [f for f in recorder.case_files_from("staged_questionnaires", "json")],
-            key=lambda item: item.name,
-        )
-        if files:
-            with files[-1].open("r") as f:
-                content = json.load(f)
+        file = recorder.case_file_from("staged_questionnaires", "json")
+        if file.exists():
+            cycles = json.load(file.open("r"))
+            if values := list(cycles.values()):
+                content = values[-1]
                 for index, command in enumerate(content["commands"]):
                     attributes: dict[str, str] = {}
                     instruction = content["instructions"][index]
                     questionnaire = json.loads(instruction["information"])
+                    responses = command["attributes"]["questions"]
                     for question in questionnaire["questions"]:
-                        response = command["attributes"]["questions"][f"question-{question['dbid']}"]
+                        if f"question-{question['dbid']}" not in responses:
+                            continue
+                        response = responses[f"question-{question['dbid']}"]
 
                         if question["type"] == ResponseOption.TYPE_CHECKBOX:
                             attributes[question["label"]] = ", ".join([

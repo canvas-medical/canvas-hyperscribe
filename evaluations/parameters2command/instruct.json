@@ -1,23 +1,25 @@
 {
-  "commands": [
-    {
-      "module": "canvas_sdk.commands.commands.instruct",
-      "class": "InstructCommand",
-      "attributes": {
-        "instruction": "Instruction on regular washing and bathing",
+  "cycle_000": {
+    "commands": [
+      {
+        "module": "canvas_sdk.commands.commands.instruct",
+        "class": "InstructCommand",
+        "attributes": {
+          "instruction": "Instruction on regular washing and bathing",
+          "comment": "Wash all your bedding and clothing"
+        }
+      }
+    ],
+    "instructions": [
+      {
+        "instruction": "Instruct"
+      }
+    ],
+    "parameters": [
+      {
+        "keywords": "wash, clean, launder, sanitize, cleanse",
         "comment": "Wash all your bedding and clothing"
       }
-    }
-  ],
-  "instructions": [
-    {
-      "instruction": "Instruct"
-    }
-  ],
-  "parameters": [
-    {
-      "keywords": "wash, clean, launder, sanitize, cleanse",
-      "comment": "Wash all your bedding and clothing"
-    }
-  ]
+    ]
+  }
 }

@@ -68,9 +68,8 @@ class BuilderFromTranscript(BuilderBase):
             for cycle in range(0, parameters.cycles):
                 idx = cycle * length
                 discussion.set_cycle(cycle + 1)
-                recorder = AuditorFile(f"{parameters.case}{Constants.CASE_CYCLE_SUFFIX}{cycle:02d}")
                 previous, _ = Commander.transcript2commands(
-                    recorder,
+                    AuditorFile(parameters.case, cycle),
                     transcript[idx:idx + length],
                     chatter,
                     previous,
