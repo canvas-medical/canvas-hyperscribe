@@ -55,6 +55,7 @@ def test_insert(connect, mock_datetime):
             case_type="theType",
             case_group="theGroup",
             case_name="theCaseName",
+            cycles=9,
             description="theDescription",
         ),
         EvaluationResult(
@@ -64,7 +65,8 @@ def test_insert(connect, mock_datetime):
             passed=False,
             test_file="theTestFile",
             test_name="theTestName",
-            test_case="theTestCase",
+            case_name="theTestCase",
+            cycle=7,
             errors="theErrors",
         ),
     )
@@ -84,8 +86,11 @@ def test_insert(connect, mock_datetime):
     ]
     assert mock_connection.mock_calls == calls
     sql = sqlist.SQL("""
-INSERT INTO "results" ("created","run_uuid","plugin_commit","case_type","case_group","case_name","test_name","milliseconds","passed","errors")
-VALUES (%(now)s,%(uuid)s,%(commit)s,%(type)s,%(group)s,%(name)s,%(test)s,%(duration)s,%(passed)s,%(errors)s)
+INSERT INTO "results" (
+    "created","run_uuid","plugin_commit","case_type","case_group","case_name",
+    "cycles","cycle","test_name","milliseconds","passed","errors"
+)
+VALUES (%(now)s,%(uuid)s,%(commit)s,%(type)s,%(group)s,%(name)s,%(cycles)s,%(cycle)s,%(test)s,%(duration)s,%(passed)s,%(errors)s)
 """)
     calls = [
         call.execute(
@@ -97,6 +102,8 @@ VALUES (%(now)s,%(uuid)s,%(commit)s,%(type)s,%(group)s,%(name)s,%(test)s,%(durat
                 'type': 'theType',
                 'group': 'theGroup',
                 'name': 'theCaseName',
+                'cycles': 9,
+                'cycle': 7,
                 'test': 'theTestName',
                 'duration': 123456.7,
                 'passed': False,

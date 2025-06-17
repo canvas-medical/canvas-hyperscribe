@@ -19,6 +19,7 @@ class StoreCases:
                 "caseType": case.case_type,
                 "caseGroup": case.case_group,
                 "caseName": case.case_name,
+                "cycles": case.cycles,
                 "description": case.description,
             }, indent=2))
 
@@ -56,6 +57,7 @@ class StoreCases:
                 case_type=data["caseType"],
                 case_group=data["caseGroup"],
                 case_name=case_name,
+                cycles=data["cycles"],
                 description=data["description"],
             )
         return result
@@ -71,6 +73,7 @@ class StoreCases:
                 case_type=data["caseType"],
                 case_group=data["caseGroup"],
                 case_name=data["caseName"],
+                cycles=data["cycles"],
                 description=data["description"],
             ))
         return result

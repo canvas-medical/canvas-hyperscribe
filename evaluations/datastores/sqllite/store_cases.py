@@ -20,20 +20,21 @@ class StoreCases(StoreBase):
                 "`case_type` TEXT NOT NULL,"
                 "`case_group` TEXT NOT NULL,"
                 "`case_name` TEXT NOT NULL,"
+                "`cycles` INT NOT NULL,"
                 "`description` TEXT NOT NULL)")
 
     @classmethod
     def _update_sql(cls) -> str:
         return ("UPDATE `cases` "
                 "SET `updated`=:now,`environment`=:environment,`patient_uuid`=:patient,`limited_cache`=:cache,"
-                "`case_type`=:type,`case_group`=:group,`description`=:description "
+                "`case_type`=:type,`case_group`=:group,`cycles`=:cycles,`description`=:description "
                 "WHERE `case_name`=:name")
 
     @classmethod
     def _insert_sql(cls) -> str:
         return (
-            "INSERT INTO `cases` (`created`,`updated`,`environment`,`patient_uuid`,`limited_cache`,`case_type`,`case_group`,`case_name`,`description`) "
-            "VALUES (:now,:now,:environment,:patient,:cache,:type,:group,:name,:description)")
+            "INSERT INTO `cases` (`created`,`updated`,`environment`,`patient_uuid`,`limited_cache`,`case_type`,`case_group`,`case_name`,`cycles`,`description`) "
+            "VALUES (:now,:now,:environment,:patient,:cache,:type,:group,:name,:cycles,:description)")
 
     @classmethod
     def _delete_sql(cls) -> str:
@@ -54,6 +55,7 @@ class StoreCases(StoreBase):
             "type": case.case_type,
             "group": case.case_group,
             "description": case.description,
+            "cycles": case.cycles,
             "name": case.case_name,
         }
         cls._upsert(parameters)
@@ -69,7 +71,7 @@ class StoreCases(StoreBase):
             case_group=Constants.GROUP_COMMON,
             case_name=case_name,
         )
-        sql = ("SELECT `environment`,`patient_uuid`,`limited_cache`,`case_type`,`case_group`,`case_name`,`description` "
+        sql = ("SELECT `environment`,`patient_uuid`,`limited_cache`,`case_type`,`case_group`,`case_name`,`cycles`,`description` "
                "FROM `cases` "
                "WHERE `case_name`=:name")
         for row in cls._select(sql, {"name": case_name}):
@@ -78,7 +80,7 @@ class StoreCases(StoreBase):
 
     @classmethod
     def all(cls) -> list[EvaluationCase]:
-        sql = ("SELECT `environment`,`patient_uuid`,`case_type`,`case_group`,`case_name`,`description` "
+        sql = ("SELECT `environment`,`patient_uuid`,`case_type`,`case_group`,`case_name`,`cycles`,`description` "
                "FROM `cases` "
                "ORDER BY 3")
         return [

@@ -19,6 +19,7 @@ def test__create_table_sql():
                 "`case_type` TEXT NOT NULL,"
                 "`case_group` TEXT NOT NULL,"
                 "`case_name` TEXT NOT NULL,"
+                "`cycles` INT NOT NULL,"
                 "`description` TEXT NOT NULL)")
     assert result == expected
 
@@ -28,7 +29,7 @@ def test__update_sql():
     result = tested._update_sql()
     expected = ("UPDATE `cases` "
                 "SET `updated`=:now,`environment`=:environment,`patient_uuid`=:patient,`limited_cache`=:cache,"
-                "`case_type`=:type,`case_group`=:group,`description`=:description "
+                "`case_type`=:type,`case_group`=:group,`cycles`=:cycles,`description`=:description "
                 "WHERE `case_name`=:name")
     assert result == expected
 
@@ -37,8 +38,8 @@ def test__insert_sql():
     tested = StoreCases
     result = tested._insert_sql()
     expected = (
-        "INSERT INTO `cases` (`created`,`updated`,`environment`,`patient_uuid`,`limited_cache`,`case_type`,`case_group`,`case_name`,`description`) "
-        "VALUES (:now,:now,:environment,:patient,:cache,:type,:group,:name,:description)")
+        "INSERT INTO `cases` (`created`,`updated`,`environment`,`patient_uuid`,`limited_cache`,`case_type`,`case_group`,`case_name`,`cycles`,`description`) "
+        "VALUES (:now,:now,:environment,:patient,:cache,:type,:group,:name,:cycles,:description)")
     assert result == expected
 
 
@@ -74,6 +75,7 @@ def test_upsert(upsert, mock_datetime):
         case_type="theType",
         case_group="theGroup",
         case_name="theCaseName",
+        cycles=3,
         description="theDescription",
     ))
     calls = [call.now(UTC)]
@@ -87,6 +89,7 @@ def test_upsert(upsert, mock_datetime):
         "group": "theGroup",
         "description": "theDescription",
         "name": "theCaseName",
+        "cycles": 3,
     })]
     assert upsert.mock_calls == calls
     reset_mocks()
@@ -110,7 +113,7 @@ def test_get(select):
         select.reset_mock()
 
     calls = [
-        call("SELECT `environment`,`patient_uuid`,`limited_cache`,`case_type`,`case_group`,`case_name`,`description` "
+        call("SELECT `environment`,`patient_uuid`,`limited_cache`,`case_type`,`case_group`,`case_name`,`cycles`,`description` "
              "FROM `cases` "
              "WHERE `case_name`=:name",
              {'name': 'theCaseName'})
@@ -127,6 +130,7 @@ def test_get(select):
         case_type="general",
         case_group="common",
         case_name="theCaseName",
+        cycles=0,
         description="",
     )
     assert result == expected
@@ -141,6 +145,7 @@ def test_get(select):
         "case_type": "theType",
         "case_group": "theGroup",
         "case_name": "theCaseName",
+        "cycles": 3,
         "description": "theDescription",
     }]]
     result = tested.get("theCaseName")
@@ -151,6 +156,7 @@ def test_get(select):
         case_type="theType",
         case_group="theGroup",
         case_name="theCaseName",
+        cycles=3,
         description="theDescription",
     )
     assert result == expected
@@ -164,7 +170,7 @@ def test_all(select):
         select.reset_mock()
 
     calls = [
-        call("SELECT `environment`,`patient_uuid`,`case_type`,`case_group`,`case_name`,`description` "
+        call("SELECT `environment`,`patient_uuid`,`case_type`,`case_group`,`case_name`,`cycles`,`description` "
              "FROM `cases` "
              "ORDER BY 3",
              {})
@@ -186,6 +192,7 @@ def test_all(select):
             "case_type": "theType1",
             "case_group": "theGroup1",
             "case_name": "theCaseName1",
+            "cycles": 2,
             "description": "theDescription1",
         },
         {
@@ -194,6 +201,7 @@ def test_all(select):
             "case_type": "theType2",
             "case_group": "theGroup2",
             "case_name": "theCaseName2",
+            "cycles": 3,
             "description": "theDescription2",
         },
         {
@@ -202,6 +210,7 @@ def test_all(select):
             "case_type": "theType3",
             "case_group": "theGroup3",
             "case_name": "theCaseName3",
+            "cycles": 7,
             "description": "theDescription3",
         },
     ]]
@@ -213,6 +222,7 @@ def test_all(select):
             case_type="theType1",
             case_group="theGroup1",
             case_name="theCaseName1",
+            cycles=2,
             description="theDescription1",
         ),
         EvaluationCase(
@@ -221,6 +231,7 @@ def test_all(select):
             case_type="theType2",
             case_group="theGroup2",
             case_name="theCaseName2",
+            cycles=3,
             description="theDescription2",
         ),
         EvaluationCase(
@@ -229,6 +240,7 @@ def test_all(select):
             case_type="theType3",
             case_group="theGroup3",
             case_name="theCaseName3",
+            cycles=7,
             description="theDescription3",
         ),
     ]

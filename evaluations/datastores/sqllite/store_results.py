@@ -19,6 +19,8 @@ class StoreResults(StoreBase):
                 "`case_type` TEXT NOT NULL,"
                 "`case_group` TEXT NOT NULL,"
                 "`case_name` TEXT NOT NULL,"
+                "`cycles` INT NOT NULL,"
+                "`cycle` INT NOT NULL,"
                 "`test_name` TEXT NOT NULL,"
                 "`milliseconds` REAL NOT NULL,"  # <-- duration of the test
                 "`passed` INTEGER NOT NULL,"
@@ -27,8 +29,8 @@ class StoreResults(StoreBase):
     @classmethod
     def _insert_sql(cls) -> str:
         return ("INSERT INTO results (`created`,`run_uuid`,`plugin_commit`,`case_type`,`case_group`,`case_name`,"
-                "`test_name`,`milliseconds`,`passed`,`errors`) "
-                "VALUES (:now,:uuid,:commit,:type,:group,:name,:test,:duration,:passed,:errors)")
+                "`cycles`,`cycle`,`test_name`,`milliseconds`,`passed`,`errors`) "
+                "VALUES (:now,:uuid,:commit,:type,:group,:name,:cycles,:cycle,:test,:duration,:passed,:errors)")
 
     @classmethod
     def _db_path(cls) -> Path:
@@ -43,6 +45,8 @@ class StoreResults(StoreBase):
             "type": case.case_type,
             "group": case.case_group,
             "name": case.case_name,
+            "cycles": case.cycles,
+            "cycle": result.cycle,
             "test": result.test_name,
             "duration": result.milliseconds,
             "passed": result.passed,

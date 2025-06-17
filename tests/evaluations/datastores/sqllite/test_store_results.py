@@ -21,6 +21,8 @@ def test__create_table_sql():
                 "`case_type` TEXT NOT NULL,"
                 "`case_group` TEXT NOT NULL,"
                 "`case_name` TEXT NOT NULL,"
+                "`cycles` INT NOT NULL,"
+                "`cycle` INT NOT NULL,"
                 "`test_name` TEXT NOT NULL,"
                 "`milliseconds` REAL NOT NULL,"
                 "`passed` INTEGER NOT NULL,"
@@ -32,8 +34,8 @@ def test__insert_sql():
     tested = StoreResults
     result = tested._insert_sql()
     expected = ("INSERT INTO results (`created`,`run_uuid`,`plugin_commit`,`case_type`,`case_group`,`case_name`,"
-                "`test_name`,`milliseconds`,`passed`,`errors`) "
-                "VALUES (:now,:uuid,:commit,:type,:group,:name,:test,:duration,:passed,:errors)")
+                "`cycles`,`cycle`,`test_name`,`milliseconds`,`passed`,`errors`) "
+                "VALUES (:now,:uuid,:commit,:type,:group,:name,:cycles,:cycle,:test,:duration,:passed,:errors)")
     assert result == expected
 
 
@@ -62,6 +64,7 @@ def test_insert(insert, mock_datetime):
             case_type="theType",
             case_group="theGroup",
             case_name="theCaseName",
+            cycles=9,
             description="theDescription",
         ),
         EvaluationResult(
@@ -71,7 +74,8 @@ def test_insert(insert, mock_datetime):
             passed=False,
             test_file="theTestFile",
             test_name="theTestName",
-            test_case="theTestCase",
+            case_name="theTestCase",
+            cycle=7,
             errors="theErrors",
         ),
     )
@@ -84,6 +88,8 @@ def test_insert(insert, mock_datetime):
         "type": "theType",
         "group": "theGroup",
         "name": "theCaseName",
+        "cycles": 9,
+        "cycle": 7,
         "test": "theTestName",
         "duration": 123456.7,
         "passed": False,
@@ -179,6 +185,8 @@ def helper_records() -> list[dict]:
             "type": "theType",
             "group": "theGroup",
             "name": "theCase1",
+            "cycles": 2,
+            "cycle": 1,
             "test": "audio2transcript",
             "duration": 1253.0,
             "passed": 1,
@@ -191,6 +199,8 @@ def helper_records() -> list[dict]:
             "type": "theType",
             "group": "theGroup",
             "name": "theCase1",
+            "cycles": 2,
+            "cycle": 1,
             "test": "transcript2instructions",
             "duration": 1253.0,
             "passed": 1,
@@ -203,6 +213,8 @@ def helper_records() -> list[dict]:
             "type": "theType",
             "group": "theGroup",
             "name": "theCase1",
+            "cycles": 2,
+            "cycle": 1,
             "test": "instruction2parameters",
             "duration": 1253.0,
             "passed": 1,
@@ -215,6 +227,8 @@ def helper_records() -> list[dict]:
             "type": "theType",
             "group": "theGroup",
             "name": "theCase1",
+            "cycles": 2,
+            "cycle": 1,
             "test": "parameters2command",
             "duration": 1253.0,
             "passed": 1,
@@ -228,6 +242,8 @@ def helper_records() -> list[dict]:
             "type": "theType",
             "group": "theGroup",
             "name": "theCase1",
+            "cycles": 2,
+            "cycle": 1,
             "test": "transcript2instructions",
             "duration": 1253.0,
             "passed": 1,
@@ -240,6 +256,8 @@ def helper_records() -> list[dict]:
             "type": "theType",
             "group": "theGroup",
             "name": "theCase1",
+            "cycles": 2,
+            "cycle": 1,
             "test": "instruction2parameters",
             "duration": 1253.0,
             "passed": 1,
@@ -253,6 +271,8 @@ def helper_records() -> list[dict]:
             "type": "theType",
             "group": "theGroup",
             "name": "theCase2",
+            "cycles": 2,
+            "cycle": 1,
             "test": "transcript2instructions",
             "duration": 1253.0,
             "passed": 1,
@@ -265,6 +285,8 @@ def helper_records() -> list[dict]:
             "type": "theType",
             "group": "theGroup",
             "name": "theCase2",
+            "cycles": 2,
+            "cycle": 1,
             "test": "instruction2parameters",
             "duration": 1253.0,
             "passed": 0,
@@ -277,6 +299,8 @@ def helper_records() -> list[dict]:
             "type": "theType",
             "group": "theGroup",
             "name": "theCase2",
+            "cycles": 2,
+            "cycle": 1,
             "test": "parameters2command",
             "duration": 1253.0,
             "passed": 1,
@@ -290,6 +314,8 @@ def helper_records() -> list[dict]:
             "type": "theType",
             "group": "theGroup",
             "name": "theCase3",
+            "cycles": 2,
+            "cycle": 1,
             "test": "theTest",
             "duration": 1253.0,
             "passed": 1,

@@ -28,7 +28,8 @@ def test_insert(postgres_credentials, case_get, lite_store, postgres_store):
         passed=False,
         test_file="theTestFile",
         test_name="theTestName",
-        test_case="theTestCase",
+        case_name="theTestCase",
+        cycle=7,
         errors="theErrors",
     )
 

@@ -27,12 +27,15 @@ def pytest_runtest_makereport(item, call):
 
     # limiting the collect to the "evaluation/" tests
     if report.when == "call" and test_file.startswith("evaluations/"):
+
         test_name = report.location[2]
-        test_case = "n/a"
-        pattern = r"test_(.+)\[(.+)\]"
+        case_name = "n/a"
+        cycle = -1
+        pattern = rf"test_(.+)\[(.+)_{Constants.CASE_CYCLE_SUFFIX}_(\d\d\d)\]"
         if match := search(pattern, report.location[2]):
             test_name = match.group(1)
-            test_case = match.group(2)
+            case_name = match.group(2)
+            cycle = int(match.group(3))
 
         errors = ""
         if report.failed and call.excinfo is not None:
@@ -51,7 +54,8 @@ def pytest_runtest_makereport(item, call):
                 passed=report.passed,
                 test_file=test_file,
                 test_name=test_name,
-                test_case=test_case,
+                case_name=case_name,
+                cycle=cycle,
                 errors=errors,
             ),
         )

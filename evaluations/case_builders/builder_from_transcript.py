@@ -43,6 +43,7 @@ class BuilderFromTranscript(BuilderBase):
             case_name=parameters.case,
             case_group=parameters.group,
             case_type=parameters.type,
+            cycles=max(1, parameters.cycles),
             description=parameters.case,
         ))
 

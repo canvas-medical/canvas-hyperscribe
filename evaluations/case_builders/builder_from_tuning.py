@@ -40,6 +40,7 @@ class BuilderFromTuning(BuilderBase):
             case_name=parameters.case,
             case_group=parameters.group,
             case_type=parameters.type,
+            cycles=len(parameters.tuning_mp3),
             description=parameters.case,
         ))
 

@@ -20,8 +20,11 @@ class StoreResults:
 
     def insert(self, case: EvaluationCase, result: EvaluationResult) -> None:
         sql = sqlist.SQL("""
-INSERT INTO "results" ("created","run_uuid","plugin_commit","case_type","case_group","case_name","test_name","milliseconds","passed","errors")
-VALUES (%(now)s,%(uuid)s,%(commit)s,%(type)s,%(group)s,%(name)s,%(test)s,%(duration)s,%(passed)s,%(errors)s)
+INSERT INTO "results" (
+    "created","run_uuid","plugin_commit","case_type","case_group","case_name",
+    "cycles","cycle","test_name","milliseconds","passed","errors"
+)
+VALUES (%(now)s,%(uuid)s,%(commit)s,%(type)s,%(group)s,%(name)s,%(cycles)s,%(cycle)s,%(test)s,%(duration)s,%(passed)s,%(errors)s)
 """)
         values = {
             "now": datetime.now(UTC),
@@ -30,6 +33,8 @@ VALUES (%(now)s,%(uuid)s,%(commit)s,%(type)s,%(group)s,%(name)s,%(test)s,%(durat
             "type": case.case_type,
             "group": case.case_group,
             "name": case.case_name,
+            "cycles": case.cycles,
+            "cycle": result.cycle,
             "test": result.test_name,
             "duration": result.milliseconds,
             "passed": result.passed,

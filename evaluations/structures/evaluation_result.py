@@ -8,5 +8,6 @@ class EvaluationResult(NamedTuple):
     passed: bool
     test_file: str
     test_name: str
-    test_case: str
+    case_name: str
+    cycle: int
     errors: str

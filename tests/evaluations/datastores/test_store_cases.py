@@ -37,6 +37,7 @@ def test_upsert(db_path):
         case_type="theType",
         case_group="theGroup",
         case_name="theCaseName",
+        cycles=7,
         description="theDescription",
     ))
     calls = [
@@ -56,6 +57,7 @@ def test_upsert(db_path):
             '  "caseType": "theType",\n'
             '  "caseGroup": "theGroup",\n'
             '  "caseName": "theCaseName",\n'
+            '  "cycles": 7,\n'
             '  "description": "theDescription"\n'
             '}'
         ),
@@ -133,6 +135,7 @@ def test_get(db_path):
         "caseType": "theCaseType",
         "caseGroup": "theCaseGroup",
         "caseName": "theCaseName",
+        "cycles": 7,
         "description": "theDescription",
     })
     cache = json.dumps({"key": "theLimitedCache"})
@@ -146,6 +149,7 @@ def test_get(db_path):
             case_type="theCaseType",
             case_group="theCaseGroup",
             case_name="theCaseName",
+            cycles=7,
             description="theDescription",
             limited_cache={"key": "theLimitedCache"},
         )),
@@ -155,6 +159,7 @@ def test_get(db_path):
             case_type="theCaseType",
             case_group="theCaseGroup",
             case_name="theCaseName",
+            cycles=7,
             description="theDescription",
             limited_cache={},
         )),
@@ -208,6 +213,7 @@ def test_all(db_path):
         "caseType": f"theCaseType{i:02d}",
         "caseGroup": f"theCaseGroup{i:02d}",
         "caseName": f"theCaseName{i:02d}",
+        "cycles": 2 * i + 1,
         "description": f"theDescription{i:02d}",
     }) for i in range(3)]
     expected = [
@@ -217,6 +223,7 @@ def test_all(db_path):
             case_type=f"theCaseType{i:02d}",
             case_group=f"theCaseGroup{i:02d}",
             case_name=f"theCaseName{i:02d}",
+            cycles=2 * i + 1,
             description=f"theDescription{i:02d}",
             limited_cache={},
         )

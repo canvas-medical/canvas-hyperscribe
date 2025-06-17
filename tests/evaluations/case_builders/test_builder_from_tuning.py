@@ -169,6 +169,7 @@ def test__run(
                 case_name="theCase",
                 case_group="theGroup",
                 case_type="theType",
+                cycles=5,
                 description="theCase",
             ))]
             assert store_cases.mock_calls == calls

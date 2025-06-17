@@ -134,15 +134,6 @@ def test__run(
         call().staged_commands_as_instructions("schemaKey2instruction"),
     ]
     exp_schema_key2instruction = [call()]
-    exp_store_cases = [call.upsert(EvaluationCase(
-        environment="theCanvasInstance",
-        patient_uuid="thePatientUuid",
-        limited_cache={"key": "value"},
-        case_name="theCase",
-        case_group="theGroup",
-        case_type="theType",
-        description="theCase",
-    ))]
     exp_helper = [
         call.settings(),
         call.aws_s3_credentials(),
@@ -188,7 +179,17 @@ def test__run(
     calls = [call("theCase", identification, limited_cache_from.return_value)]
     assert render_in_ui.mock_calls == calls
     assert schema_key2instruction.mock_calls == exp_schema_key2instruction
-    assert store_cases.mock_calls == exp_store_cases
+    calls = [call.upsert(EvaluationCase(
+        environment="theCanvasInstance",
+        patient_uuid="thePatientUuid",
+        limited_cache={"key": "value"},
+        case_name="theCase",
+        case_group="theGroup",
+        case_type="theType",
+        cycles=1,
+        description="theCase",
+    ))]
+    assert store_cases.mock_calls == calls
     assert helper.mock_calls == exp_helper
     assert audio_interpreter.mock_calls == exp_audio_interpreter
     calls = [call.transcript2commands(
@@ -238,7 +239,17 @@ def test__run(
     assert limited_cache_from.mock_calls == exp_limited_cache
     assert render_in_ui.mock_calls == []
     assert schema_key2instruction.mock_calls == exp_schema_key2instruction
-    assert store_cases.mock_calls == exp_store_cases
+    calls = [call.upsert(EvaluationCase(
+        environment="theCanvasInstance",
+        patient_uuid="thePatientUuid",
+        limited_cache={"key": "value"},
+        case_name="theCase",
+        case_group="theGroup",
+        case_type="theType",
+        cycles=2,
+        description="theCase",
+    ))]
+    assert store_cases.mock_calls == calls
     assert helper.mock_calls == exp_helper
     assert audio_interpreter.mock_calls == exp_audio_interpreter
     calls = [
@@ -303,7 +314,17 @@ def test__run(
     calls = [call("theCase", identification, limited_cache_from.return_value)]
     assert render_in_ui.mock_calls == calls
     assert schema_key2instruction.mock_calls == exp_schema_key2instruction
-    assert store_cases.mock_calls == exp_store_cases
+    calls = [call.upsert(EvaluationCase(
+        environment="theCanvasInstance",
+        patient_uuid="thePatientUuid",
+        limited_cache={"key": "value"},
+        case_name="theCase",
+        case_group="theGroup",
+        case_type="theType",
+        cycles=3,
+        description="theCase",
+    ))]
+    assert store_cases.mock_calls == calls
     assert helper.mock_calls == exp_helper
     assert audio_interpreter.mock_calls == exp_audio_interpreter
     calls = [

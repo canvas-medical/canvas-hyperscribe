@@ -15,7 +15,7 @@ class StoreResults:
         sql_store: Type[StoreResultsLite] | StoreResultPostgres = StoreResultsLite
         if (credentials := HelperEvaluation.postgres_credentials()) and credentials.database:
             sql_store = StoreResultPostgres(credentials)
-        case = StoreCases.get(result.test_case)
+        case = StoreCases.get(result.case_name)
         sql_store.insert(case, result)
 
     @classmethod

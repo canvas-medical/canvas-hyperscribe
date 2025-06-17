@@ -11,6 +11,7 @@ def test_class():
         "case_type": str,
         "case_group": str,
         "case_name": str,
+        "cycles": int,
         "description": str,
     }
     assert is_namedtuple(tested, fields)
