@@ -2,26 +2,45 @@
 import json
 from pathlib import Path
 
+import pytest
 from canvas_sdk.commands.base import _BaseCommand as BaseCommand
 
 from evaluations.helper_evaluation import HelperEvaluation
+from hyperscribe.libraries.audio_interpreter import AudioInterpreter
 from hyperscribe.structures.instruction import Instruction
 from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 
 
-def pytest_generate_tests(metafunc):
+def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
     step = 'parameters2command'
     if step in metafunc.fixturenames:
-        # run all evaluation tests in the parameters2command directory
-        # in each JSON file, there should be for each cycle:
-        # - a set of instructions, and the related
-        # - set of parameters
-        # - set of commands
         files = HelperEvaluation.list_case_files(Path(__file__).parent / step)
         metafunc.parametrize(step, files, ids=lambda path: f"{path[0]}_{path[1]}")
 
 
-def test_parameters2command(parameters2command, allowed_levels, audio_interpreter, capsys, request):
+def test_parameters2command(
+        parameters2command: tuple[str, str, Path],
+        allowed_levels: list,
+        audio_interpreter: AudioInterpreter,
+        capsys: pytest.CaptureFixture[str],
+        request: pytest.FixtureRequest,
+) -> None:
+    runner_parameters2command(
+        parameters2command,
+        allowed_levels,
+        audio_interpreter,
+        capsys,
+        request,
+    )
+
+
+def runner_parameters2command(
+        parameters2command: tuple[str, str, Path],
+        allowed_levels: list,
+        audio_interpreter: AudioInterpreter,
+        capsys: pytest.CaptureFixture[str],
+        request: pytest.FixtureRequest,
+) -> None:
     case, cycle, json_file = parameters2command
     content = json.load(json_file.open("r"))[cycle]
 
@@ -31,7 +50,7 @@ def test_parameters2command(parameters2command, allowed_levels, audio_interprete
     for idx, instruction in enumerate(instructions):
         response = audio_interpreter.create_sdk_command_from(InstructionWithParameters.add_parameters(instruction, parameters[idx]))
 
-        error_label = f"{case} {cycle} {instruction.instruction} - {idx:02d}"
+        error_label = f"{case}-{cycle} {instruction.instruction} - {idx:02d}"
         assert response is not None, error_label
         command = response.command
         assert command.__class__.__module__ == expected[idx]["module"], error_label

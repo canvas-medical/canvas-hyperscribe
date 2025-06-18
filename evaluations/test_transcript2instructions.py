@@ -2,24 +2,45 @@
 import json
 from pathlib import Path
 
+import pytest
+
 from evaluations.constants import Constants
 from evaluations.helper_evaluation import HelperEvaluation
+from hyperscribe.libraries.audio_interpreter import AudioInterpreter
 from hyperscribe.structures.instruction import Instruction
 from hyperscribe.structures.line import Line
 
 
-def pytest_generate_tests(metafunc):
+def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
     step = 'transcript2instructions'
     if step in metafunc.fixturenames:
-        # run all evaluation tests in the transcript2instructions directory
-        # in each JSON file, there should be for each cycle:
-        # - a transcript
-        # - a set of initial instructions
-        # - a set of result instructions
         files = HelperEvaluation.list_case_files(Path(__file__).parent / step)
         metafunc.parametrize(step, files, ids=lambda path: f"{path[0]}_{path[1]}")
 
-def test_transcript2instructions(transcript2instructions, allowed_levels, audio_interpreter, capsys, request):
+
+def test_transcript2instructions(
+        transcript2instructions: tuple[str, str, Path],
+        allowed_levels: list,
+        audio_interpreter: AudioInterpreter,
+        capsys: pytest.CaptureFixture[str],
+        request: pytest.FixtureRequest,
+) -> None:
+    runner_transcript2instructions(
+        transcript2instructions,
+        allowed_levels,
+        audio_interpreter,
+        capsys,
+        request,
+    )
+
+
+def runner_transcript2instructions(
+        transcript2instructions: tuple[str, str, Path],
+        allowed_levels: list,
+        audio_interpreter: AudioInterpreter,
+        capsys: pytest.CaptureFixture[str],
+        request: pytest.FixtureRequest,
+) -> None:
     case, cycle, json_file = transcript2instructions
     content = json.load(json_file.open("r"))[cycle]
 
@@ -39,7 +60,7 @@ def test_transcript2instructions(transcript2instructions, allowed_levels, audio_
     result.sort(key=lambda x: (x.instruction, x.is_new, x.is_updated))
 
     for actual, instruction in zip(result, expected):
-        error_label = f"{case} {cycle} {instruction.instruction}: information incorrect\n=>{instruction.information}<="
+        error_label = f"{case}-{cycle} {instruction.instruction}: information incorrect\n=>{instruction.information}<="
         if instruction.uuid not in ["", Constants.IGNORED_KEY_VALUE]:
             assert actual.uuid == instruction.uuid, error_label
         assert actual.instruction == instruction.instruction, error_label

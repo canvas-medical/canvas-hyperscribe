@@ -76,6 +76,8 @@ class BuilderBase:
         _ = MemoryLog(identification, "case_builder")
 
         cls._run(parameters, recorder, identification)
+        recorder.generate_commands_summary()
+        recorder.generate_html_summary()
 
         aws_s3_credentials = HelperEvaluation.aws_s3_credentials()
         if (client_s3 := AwsS3(aws_s3_credentials)) and client_s3.is_ready():

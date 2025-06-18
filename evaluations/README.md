@@ -17,6 +17,7 @@ The convention is to have:
   `evaluations/transcript2instructions`](./transcript2instructions)...)
 - a test file to run the stored tests of each step ([`test_audio2transcript.py`](test_audio2transcript.py), [
   `test_transcript2instructions.py`](test_transcript2instructions.py)...)
+- all test files of cases built with the case builders are stored in a subfolder to the [`cases`](./cases) directory.
 
 The JSON files store, for each cycle, the input and the expected output for the considered step.
 
@@ -67,6 +68,9 @@ uv  run pytest -v evaluations -k the_case
 
 # run a specific test
 uv  run pytest -vv evaluations/test_parameters2command.py::test_parameters2command[the_case_cycle_007]
+
+# run from end to end the case the_case
+uv  run pytest evaluations/test_end2end.py::test_end2end[the_case]
 ```
 
 ### Create evaluation tests
@@ -114,6 +118,34 @@ AwsBucket
            |- partials - logs of each step
 ```
 
+#### Case builders
+
+The case builders are scripts that create all evaluation tests from end to end.
+
+The evaluation tests are stored in the [cases](cases) directory, one subdirectory per case.
+
+These evaluations of a case are run all at once with:
+
+```shell
+uv run pytest evaluations/test_end2end.py::test_end2end[the_case]
+```
+
+The files created are:
+
+- the `audios` folder, containing the `mp3` files used for the step `audio2transcript`
+- the `audio2transcript.json` file, containing the input and the expected output for the step `audio2transcript`
+- the `transcript2instructions.json` file, containing the input and the expected output for the step `transcript2instructions`
+- the `instruction2parameters.json` file, containing the input and the expected output for the step `instruction2parameters`
+- the `parameters2command.json` file, containing the input and the expected output for the step `parameters2command`
+- the `staged_questionnaires.json` file, containing the input and the expected output for the questionnaires updates
+- the `summary_initial.json` file, containing the summarized commands
+- the `summary_revised.json` file, containing the summarized commands which would be revised
+- the `summary.html` file, HTML file to display the summarized commands based on the `summary_revised.json` file ; it can be updated with the command
+  `uv run python case_builder.py --case the_case --summarize`
+
+Note that when removing the case files with the command `uv run python case_builder.py --case the_case --delete [--audios]`, the files `summary.html`
+and `summary_revised.json` are not removed.
+
 #### From Audio to commands
 
 Based on a set of `mp3` files, a set (i.e., covering all steps) of evaluation tests (also called `case`) can be created using:
@@ -137,21 +169,17 @@ Without it, the case builder will perform as many cycles as files, using the res
 
 
 ```shell
-# run the tests for the_case, regardless of the --combined flag 
-uv  run pytest -v evaluations/ -k the_case
-
-# run the tests for cycle 3 of the_case, assuming it was built using at least 3 mp3 files and without the --combined flag
-uv  run pytest -v evaluations/ -k the_case_cycle_002
+# run the tests for the_case
+uv  run pytest -v evaluations/test_end2end.py::test_end2end[the_case]
 ```
 
 Note also that on the first step (`audio2transcript`):
 
-- all `mp3` files are saved in the [`evaluations/audio2transcript/inputs_mp3/the_case`](audio2transcript/inputs_mp3) folder, all files are named
-  `cycle_\d{3}_\d{2}`, the first number being the cycle, the second number being the chunk use at the cycle (all numbers starting from 0).
+- all `mp3` files are saved in the `evaluations/cases/the_case/audios` folder, all files are named
+  `cycle_\d{3}_\d{2}`, the first number being the cycle, the second number being the chunk used during the cycle (all numbers starting from 0).
 - if a cycle has the transcript already done, the step is not performed again.
 
-- On the second step (`transcript2instructions`):
-
+On the second step (`transcript2instructions`):
 - the `uuid` of the instructions is by default set to `>?<`
 - the instruction order of different types is ignored
 
@@ -201,7 +229,8 @@ This case builder based on the tuning data has the same behavior as the case bui
 
 #### Storing the cases and the run results
 
-When creating a `case` by running the [`case_builder.py`](../case_builder.py) script, a file created/updated in the [cases](datastores/cases)
+When creating a `case` by running the [`case_builder.py`](../case_builder.py) script, a file created/updated in
+the [datastores/cases](datastores/cases)
 directory, part of the repository.
 
 This directory stores the meta-information related to the `case`, namely: the group, the type, the environment, the patient uuid.
@@ -260,7 +289,7 @@ When creating the cases based on audio files or a transcript, the option `--rend
 The following command will display in the system's default browser a summary of the detected instructions and the generated commands:
 
 ```shell
-uv  run python case_builder.py --case the_case --summary
+uv  run python case_builder.py --case the_case --summarize
 ```
 
 ### Delete evaluation tests
@@ -271,8 +300,8 @@ A set of evaluation tests (or `case`) can be deleted using:
 # remove all files related to the case
 uv  run python case_builder.py --case the_case --delete --audios
 
-# remove all files related to the case, except the files of the `audio2transcript` folder
+# remove all files related to the case, except the files of the `audios` folder and the `audio2transcript.json` file.
 uv  run python case_builder.py --case the_case --delete
 ```
 
-The files related to the `case` in the directory [cases](datastores/cases) will be removed.
+The files related to the `case` in the directory [datastores/cases](datastores/cases) will be removed.

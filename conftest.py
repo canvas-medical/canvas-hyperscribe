@@ -93,6 +93,7 @@ def pytest_addoption(parser):
 def pytest_collection_modifyitems(session, config, items):
     list_evaluation_tests = {
         'test_audio2transcript.py',
+        'test_end2end.py',
         'test_instruction2parameters.py',
         'test_parameters2command.py',
         'test_staged_questionnaires.py',

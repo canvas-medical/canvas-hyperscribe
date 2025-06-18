@@ -245,6 +245,8 @@ def test_run(
         calls = [
             call("theCase", 0),
             call().is_ready(),
+            call().generate_commands_summary(),
+            call().generate_html_summary(),
         ]
         assert auditor_file.mock_calls == calls
         calls = [
@@ -344,6 +346,8 @@ def test_run(
         calls = [
             call("theCase", 0),
             call().is_ready(),
+            call().generate_commands_summary(),
+            call().generate_html_summary(),
         ]
         assert auditor_file.mock_calls == calls
         calls = [

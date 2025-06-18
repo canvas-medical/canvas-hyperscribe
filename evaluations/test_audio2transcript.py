@@ -2,11 +2,14 @@
 import json
 from pathlib import Path
 
+import pytest
+
 from evaluations.constants import Constants
 from evaluations.helper_evaluation import HelperEvaluation
+from hyperscribe.libraries.audio_interpreter import AudioInterpreter
 
 
-def pytest_generate_tests(metafunc):
+def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
     if 'audio2transcript_files' in metafunc.fixturenames:
         # run all evaluation tests in the audio2transcript directory:
         # for each MP3 folder in the inputs_mp3 directory, there should be a
@@ -34,21 +37,42 @@ def pytest_generate_tests(metafunc):
         metafunc.parametrize('audio2transcript_files', files, ids=lambda path: f"{path[0]}_{path[1]}")
 
 
-def test_audio2transcript(audio2transcript_files, allowed_levels, audio_interpreter, capsys, request):
+def test_audio2transcript(
+        audio2transcript_files: tuple[str, str, list[Path], Path],
+        allowed_levels: list,
+        audio_interpreter: AudioInterpreter,
+        capsys: pytest.CaptureFixture[str],
+        request: pytest.FixtureRequest,
+)-> None:
+    runner_audio2transcript(
+        audio2transcript_files,
+        allowed_levels,
+        audio_interpreter,
+        capsys,
+        request,
+    )
+
+
+def runner_audio2transcript(
+        audio2transcript_files: tuple[str, str, list[Path], Path],
+        allowed_levels: list,
+        audio_interpreter: AudioInterpreter,
+        capsys: pytest.CaptureFixture[str],
+        request: pytest.FixtureRequest,
+)-> None:
     case, cycle, mp3_files, json_file = audio2transcript_files
     content: list[bytes] = []
     for mp3_file in mp3_files:
         with mp3_file.open("rb") as f:
             content.append(f.read())
 
-    case = json_file.stem
     expected = json.load(json_file.open('r')).get(cycle, [])
 
     transcript = audio_interpreter.combine_and_speaker_detection(content, "")
-    assert transcript.has_error is False, f"{case}: transcript failed"
+    assert transcript.has_error is False, f"{case}-{cycle}: transcript failed"
 
     valid, differences = HelperEvaluation.json_nuanced_differences(
-        f"{case}-audio2transcript",
+        f"{case}-{cycle}-audio2transcript",
         allowed_levels,
         json.dumps(transcript.content, indent=1),
         json.dumps(expected, indent=1),
@@ -57,4 +81,4 @@ def test_audio2transcript(audio2transcript_files, allowed_levels, audio_interpre
         request.node.user_properties.append(("llmExplanation", differences))
         with capsys.disabled():
             print(differences)
-    assert valid, f"{case}: transcript incorrect"
+    assert valid, f"{case}-{cycle}: transcript incorrect"
