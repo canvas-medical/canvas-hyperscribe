@@ -1,0 +1,86 @@
+{
+  "instructions": [
+    {
+      "uuid": "1a2b3c4d-0001",
+      "index": 0,
+      "instruction": "ReasonForVisit",
+      "information": "Fatigue",
+      "isNew": true,
+      "isUpdated": false
+    },
+    {
+      "uuid": "1a2b3c4d-0002",
+      "index": 1,
+      "instruction": "HistoryOfPresentIllness",
+      "information": "Patient has been experiencing fatigue for the last couple of weeks or longer. No significant weight loss, but sleep is disrupted with frequent awakenings and not feeling rested. Some stress at work but not excessive. Occasional lightheadedness when standing up. Stopped taking iron supplements due to stomach upset.",
+      "isNew": true,
+      "isUpdated": false
+    },
+    {
+      "uuid": "1a2b3c4d-0003",
+      "index": 2,
+      "instruction": "LabOrder",
+      "information": "Order labs for iron, thyroid, and B12 levels. No fasting required.",
+      "isNew": true,
+      "isUpdated": false
+    }
+  ],
+  "parameters": [
+    {
+      "reasonForVisit": "Fatigue"
+    },
+    {
+      "narrative": "Patient has been experiencing fatigue for the last couple of weeks or longer. No significant weight loss, but sleep is disrupted with frequent awakenings and not feeling rested. Some stress at work but not excessive. Occasional lightheadedness when standing up. Stopped taking iron supplements due to stomach upset."
+    },
+    {
+      "labOrders": [
+        {
+          "labOrderKeywords": "iron,thyroid,B12,vitamin B12,thyroxine"
+        }
+      ],
+      "conditions": [
+        {
+          "conditionKeywords": "anemia,hypothyroidism,vitamin B12 deficiency",
+          "ICD10": "D50,E03,E53.8"
+        }
+      ],
+      "fastingRequired": false,
+      "comment": "Check levels of iron, thyroid, and B12; no fasting needed."
+    }
+  ],
+  "commands": [
+    {
+      "module": "canvas_sdk.commands.commands.reason_for_visit",
+      "class": "ReasonForVisitCommand",
+      "attributes": {
+        "note_uuid": ">?<",
+        "comment": "Fatigue",
+        "command_uuid": ">?<"
+      }
+    },
+    {
+      "module": "canvas_sdk.commands.commands.history_present_illness",
+      "class": "HistoryOfPresentIllnessCommand",
+      "attributes": {
+        "note_uuid": ">?<",
+        "narrative": "Patient has been experiencing fatigue for the last couple of weeks or longer. No significant weight loss, but sleep is disrupted with frequent awakenings and not feeling rested. Some stress at work but not excessive. Occasional lightheadedness when standing up. Stopped taking iron supplements due to stomach upset.",
+        "command_uuid": ">?<"
+      }
+    },
+    {
+      "module": "canvas_sdk.commands.commands.lab_order",
+      "class": "LabOrderCommand",
+      "attributes": {
+        "tests_order_codes": [],
+        "note_uuid": ">?<",
+        "comment": "Check levels of iron, thyroid, and B12; no fasting needed.",
+        "ordering_provider_key": "4150cd20de8a470aa570a852859ac87e",
+        "fasting_required": false,
+        "diagnosis_codes": [
+          "D519"
+        ],
+        "command_uuid": ">?<"
+      }
+    }
+  ]
+}
