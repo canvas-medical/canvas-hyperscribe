@@ -1,0 +1,22 @@
+{
+  "score_vector": [
+    5,
+    5,
+    3,
+    3,
+    0,
+    0,
+    0,
+    0
+  ],
+  "reasoning_vector": [
+    "The ReasonForVisit command is included with appropriate details about fatigue and feeling drained.",
+    "The HistoryOfPresentIllness command documents key symptoms such as fatigue, sleep issues, weight loss, and lightheadedness, along with the duration of symptoms.",
+    "The LabOrder command mentions iron, thyroid, and B12 tests, but lacks specific order codes, partially fulfilling the criterion.",
+    "The HistoryOfPresentIllness command notes stopping iron supplements due to stomach upset, fulfilling the criterion for documenting medication changes.",
+    "There is no ReviewOfSystem command capturing patient-reported symptoms, so this criterion is not met.",
+    "There is no FollowUp command included for future patient encounters, so this criterion is not met.",
+    "There is no Allergy command documenting current allergies, so this criterion is not met.",
+    "There is no demographic information recorded, so this criterion is not met."
+  ]
+}
