@@ -22,10 +22,20 @@ class MemoryLog:
     def end_session(cls, note_uuid: str) -> str:
         if note_uuid not in ENTRIES:
             return ""
-        return "\n".join(
-            ["\n".join(l) for l in sorted([e for e in ENTRIES.pop(note_uuid).values() if e], key=lambda v: v[0])],
-        )
-
+        return "\n".join([
+            "\n".join(l)
+            for l in sorted(
+                [e for e in ENTRIES.pop(note_uuid).values() if e],
+                key=lambda v: v[0],
+            )
+        ])
+    
+    @classmethod
+    def dev_null_instance(cls):
+        identification = IdentificationParameters(patient_uuid='', note_uuid='', provider_uuid='', canvas_instance='local')
+        instance = cls(identification, 'local')
+        return instance
+    
     @classmethod
     def instance(
         cls,
