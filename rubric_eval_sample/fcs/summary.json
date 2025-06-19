@@ -1,0 +1,38 @@
+[
+  {
+    "instruction": "Fatigue and feeling drained",
+    "command": {
+      "module": "canvas_sdk.commands.commands.reason_for_visit",
+      "class": "ReasonForVisitCommand",
+      "attributes": {
+        "comment": "Fatigue and feeling drained"
+      }
+    }
+  },
+  {
+    "instruction": "Fatigue for the last couple of weeks, waking up a lot at night, not feeling rested, slight weight loss, lightheadedness when standing up, stopped taking iron supplements due to stomach upset.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.history_present_illness",
+      "class": "HistoryOfPresentIllnessCommand",
+      "attributes": {
+        "narrative": "Fatigue for the last couple of weeks, waking up a lot at night, not feeling rested, slight weight loss, lightheadedness when standing up, stopped taking iron supplements due to stomach upset."
+      }
+    }
+  },
+  {
+    "instruction": "Iron, thyroid, B12 tests ordered.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.lab_order",
+      "class": "LabOrderCommand",
+      "attributes": {
+        "ordering_provider_key": "4150cd20de8a470aa570a852859ac87e",
+        "fasting_required": false,
+        "tests_order_codes": [],
+        "diagnosis_codes": [
+          "D509"
+        ],
+        "comment": "To assess iron levels, thyroid function, and B12 status."
+      }
+    }
+  }
+]

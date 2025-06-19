@@ -26,34 +26,58 @@ def main(transcript_path, chart_path, canvas_context_path, output_path):
 
     #Copied from previous example.
     llm.add_prompt(LlmTurn(
-        role='system',
-        text=[
-            'You are a clinical informatics expert helping a veteran physician build a new type of medical education software.'
-        ]
-    ))
+    role='system',
+    text=[
+        "You are a clinical informatics expert working with a senior physician to build innovative medical education software. "
+        "You specialize in designing case-specific rubrics to evaluate the quality of medical scribe notes."
+    ]
+))
 
-    #Initial draft authored by AS, asked GPT to improve prompt for its own API for both system and user add_prompt calls.
     llm.add_prompt(LlmTurn(
         role='user',
         text=[
             (
-                "You are a clinical informatics expert helping a veteran physician build a new type of medical education software. "
-                "Your task is to create a scoring rubric that can be used to evaluate a medical scribe's notes based on a provided transcript "
-                "of synthetic (fake) medical conversations, synthetic medical record information, and Canvas Medical's EMR command module structure. "
+                "Your task is to create a detailed, case-specific scoring rubric that will evaluate a medical scribe's notes. "
+                "The rubric is for a single case involving synthetic (fake) medical conversations, synthetic medical record data, "
+                "and a Canvas Medical EMR command module structure."
             ),
             (
-                "The rubric should help assess whether a scribe's note correctly reflects key medical information and documentation standards. "
-                "Use the available commands in the Canvas context to inform your criteria. Each criterion should represent an essential element "
-                "that should appear in a good scribe note for this case."
+                "Design criteria that assess how well the scribe's notes capture essential, accurate, and context-specific medical information "
+                "reflecting appropriate clinical documentation standards. Each criterion should be based on the case details and the patient's context."
+            ),
+            (
+                "The chart represents pre-existing medical record information and **must not be repeated or copied into the scribe's note**. "
+                "Chart data must serve *only* as background to inform documentation decisions — for example, identifying allergies to guide prescribing decisions or recognizing pre-existing conditions that shape the plan of care. "
+                "**No part of the chart content should be documented in the scribe note simply for its own sake. Any inclusion of redundant or copied chart information should result in negative points.**"
+            ),
+            (
+                "Assign relative weights thoughtfully. Core clinical elements should carry more weight. "
+                "Negative points should be used for criteria where the *presence* of a problem (e.g., inclusion of misleading information, redundant chart data, copying of chart content) should be penalized. "
+                "Frame all criteria as clear positive or neutral statements. Let the max_score value indicate whether it is a reward (positive points) or penalty (negative points)."
+            ),
+            (
+                "There is no fixed total maximum score — assign point values as appropriate based on the importance of each criterion."
             ),
             (
                 "Your output must be a JSON array of tuples: "
-                "[[\"criterion 1 description\", max_score], [\"criterion 2 description\", max_score], ...]. "
-                "Each criterion description must be 1-2 brief, concise, and clear sentences. The max_score should be a positive integer representing the full points."
-                "if the criterion is fully met. Example: [[\"Includes a ReasonForVisit command with appropriate details\", 5], [\"Documents medication changes using AdjustPrescription\", 3]]"
+                "[[\"criterion description\", max_score], [\"criterion description\", max_score], ...]. "
+                "Each criterion description must be 1-2 brief, clear sentences that state what is being evaluated. "
+                "The max_score must be a numeric integer — do not use strings like '5 points'."
             ),
             (
-                "DO NOT include any Markdown, explanations, or extraneous text — only the pure JSON array that can be loaded with json.loads()."
+                "The rubric should follow best practices similar to OpenAI HealthBench — it should be tailored to the specific case and context, "
+                "not generic or flat in structure."
+            ),
+            (
+                "**Be extremely strict about preventing redundancy or unnecessary repetition. Notes should focus only on new, relevant, case-specific information and appropriate decisions informed by, but not duplicating, the chart.**"
+            ),
+            (
+                "DO NOT include any Markdown, code block formatting, explanations, or extraneous text — only output the pure JSON array that can be loaded with json.loads()."
+            ),
+            (
+                "Your output must begin with the [ character and end with the ] character. "
+                "Do not include any Markdown syntax, code block markers, or language tags such as ```json. "
+                "Output the raw JSON array only, nothing else."
             ),
             "Below is the data to inform your rubric design:",
             "--- TRANSCRIPT JSON ---",
@@ -64,6 +88,8 @@ def main(transcript_path, chart_path, canvas_context_path, output_path):
             json.dumps(canvas_context)
         ]
     ))
+
+
 
     print("Generating rubric...")
     response = llm.request()
