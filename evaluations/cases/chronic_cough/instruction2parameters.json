@@ -1,0 +1,48 @@
+{
+  "cycle_000": {
+    "instructions": [
+      {
+        "uuid": "422353dd-46b2-4f36-a8bc-9db44623bf05",
+        "index": 1,
+        "instruction": "ReasonForVisit",
+        "information": "Sick Visit, Persistent cough",
+        "isNew": false,
+        "isUpdated": true
+      },
+      {
+        "uuid": "b1f3c5a1-2d4e-4f3b-9c3e-8f1a2b3c4d5e",
+        "index": 2,
+        "instruction": "HistoryOfPresentIllness",
+        "information": "Patient has had a persistent cough for close to six weeks, mostly dry with occasional phlegm in the morning, no blood in sputum, no fever, chills, or night sweats. Patient experiences slight shortness of breath when climbing stairs. No history of asthma. Partner smokes outside. Recent increase in heartburn.",
+        "isNew": true,
+        "isUpdated": false
+      },
+      {
+        "uuid": "f2e4c6d7-3f8b-4e9a-8c7d-9f0b1a2c3d4e",
+        "index": 3,
+        "instruction": "Prescription",
+        "information": "Medication for reflux to see if it helps with the cough.",
+        "isNew": true,
+        "isUpdated": false
+      }
+    ],
+    "parameters": [
+      {
+        "reasonForVisit": "Persistent cough"
+      },
+      {
+        "narrative": "Patient has had a persistent cough for close to six weeks, mostly dry with occasional phlegm in the morning. No blood in sputum, no fever, chills, or night sweats. Patient experiences slight shortness of breath when climbing stairs. No history of asthma. Partner smokes outside. Recent increase in heartburn."
+      },
+      {
+        "keywords": "reflux, cough",
+        "medicationNames": "omeprazole, lansoprazole, pantoprazole, esomeprazole, rabeprazole",
+        "sig": "Take one tablet by mouth daily",
+        "suppliedDays": 30,
+        "substitution": "allowed",
+        "comment": "Medication for reflux to see if it helps with the cough.",
+        "condition": "None",
+        "conditionIndex": -1
+      }
+    ]
+  }
+}
