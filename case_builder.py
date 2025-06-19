@@ -1,3 +1,4 @@
+import sys #added for rubric command that operates here. 
 from sys import argv
 
 from evaluations.case_builders.builder_audit_url import BuilderAuditUrl
@@ -8,7 +9,6 @@ from evaluations.case_builders.builder_from_mp3 import BuilderFromMp3
 from evaluations.case_builders.builder_from_transcript import BuilderFromTranscript
 from evaluations.case_builders.builder_from_tuning import BuilderFromTuning
 from evaluations.case_builders.builder_summarize import BuilderSummarize
-
 
 class CaseBuilder:
     @classmethod
@@ -31,7 +31,6 @@ class CaseBuilder:
             BuilderDirectFromTuningFull.run()
         else:
             print("no explicit action to perform")
-
-
+        
 if __name__ == "__main__":
     CaseBuilder.run(argv)
