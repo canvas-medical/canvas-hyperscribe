@@ -26,6 +26,7 @@ def test_constants():
         "OPTION_PATIENT_UUID": "--patient-uuid",
         "OPTION_PRINT_LOGS": "--print-logs",
         "OPTION_STORE_LOGS": "--store-logs",
+        "OPTION_END2END": "--end2end",
         #
         "CUSTOMER_IDENTIFIER": "CUSTOMER_IDENTIFIER",
         #

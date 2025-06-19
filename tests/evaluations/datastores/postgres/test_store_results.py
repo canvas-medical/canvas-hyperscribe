@@ -204,9 +204,10 @@ def test_statistics_per_test(select):
     ]
     assert result == expected
     sql = sqlist.SQL("""
-SELECT "case_name","test_name",SUM(CASE WHEN "passed"=True THEN 1 ELSE 0 END) AS "passed_count"
+SELECT "case_name", "test_name", SUM(CASE WHEN "passed" = True THEN 1 ELSE 0 END) / "cycles" AS "passed_count"
 FROM "results"
-GROUP BY "case_name","test_name"
+WHERE "cycles" > 0
+GROUP BY "case_name", "test_name", "cycles"
 ORDER BY 1, 2
 """)
     calls = [call(sql, {})]
@@ -228,24 +229,25 @@ def test_statistics_end2end(select):
     )
     select.side_effect = [
         [
-            {"case_name": "caseName1", "run_count": 2, "end2end": 1},
-            {"case_name": "caseName2", "run_count": 3, "end2end": 1},
-            {"case_name": "caseName3", "run_count": 1, "end2end": 0},
+            {"case_name": "caseName1", "run_count": 2, "full_run": 1, "end2end": 1},
+            {"case_name": "caseName2", "run_count": 3, "full_run": 1, "end2end": 1},
+            {"case_name": "caseName3", "run_count": 1, "full_run": 0, "end2end": 0},
         ]]
     tested = StoreResults(credentials)
     result = tested.statistics_end2end()
     expected = [
-        StatisticEnd2End(case_name='caseName1', run_count=2, end2end=1),
-        StatisticEnd2End(case_name='caseName2', run_count=3, end2end=1),
-        StatisticEnd2End(case_name='caseName3', run_count=1, end2end=0),
+        StatisticEnd2End(case_name='caseName1', run_count=2, full_run=1, end2end=1),
+        StatisticEnd2End(case_name='caseName2', run_count=3, full_run=1, end2end=1),
+        StatisticEnd2End(case_name='caseName3', run_count=1, full_run=0, end2end=0),
     ]
     assert result == expected
     sql = sqlist.SQL("""
-SELECT "case_name",SUM("full_passed") AS "end2end",COUNT(distinct "run_uuid") AS "run_count" 
+SELECT "case_name",SUM("full_run") AS "full_run",SUM("full_passed") AS "end2end",COUNT(distinct "run_uuid") AS "run_count" 
 FROM (SELECT 
  "case_name", 
  "run_uuid", 
- (CASE WHEN SUM(CASE WHEN "passed"=True THEN 1 ELSE 0 END)=COUNT(1) THEN 1 ELSE 0 END) AS "full_passed" 
+ (CASE WHEN SUM(CASE WHEN "passed"=True THEN 1 ELSE 0 END)=COUNT(1) THEN 1 ELSE 0 END) AS "full_passed", 
+ (CASE WHEN MAX("cycle")=-1 THEN 1 ELSE 0 END) AS "full_run"  
  FROM "results" 
  GROUP BY "case_name","run_uuid") 
 GROUP BY "case_name"

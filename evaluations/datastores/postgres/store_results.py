@@ -68,9 +68,10 @@ VALUES (%(now)s,%(uuid)s,%(commit)s,%(type)s,%(group)s,%(name)s,%(cycles)s,%(cyc
 
     def statistics_per_test(self) -> list[StatisticTest]:
         sql = sqlist.SQL("""
-SELECT "case_name","test_name",SUM(CASE WHEN "passed"=True THEN 1 ELSE 0 END) AS "passed_count"
+SELECT "case_name", "test_name", SUM(CASE WHEN "passed" = True THEN 1 ELSE 0 END) / "cycles" AS "passed_count"
 FROM "results"
-GROUP BY "case_name","test_name"
+WHERE "cycles" > 0
+GROUP BY "case_name", "test_name", "cycles"
 ORDER BY 1, 2
 """)
         return [
@@ -84,11 +85,12 @@ ORDER BY 1, 2
 
     def statistics_end2end(self) -> list[StatisticEnd2End]:
         sql = sqlist.SQL("""
-SELECT "case_name",SUM("full_passed") AS "end2end",COUNT(distinct "run_uuid") AS "run_count" 
+SELECT "case_name",SUM("full_run") AS "full_run",SUM("full_passed") AS "end2end",COUNT(distinct "run_uuid") AS "run_count" 
 FROM (SELECT 
  "case_name", 
  "run_uuid", 
- (CASE WHEN SUM(CASE WHEN "passed"=True THEN 1 ELSE 0 END)=COUNT(1) THEN 1 ELSE 0 END) AS "full_passed" 
+ (CASE WHEN SUM(CASE WHEN "passed"=True THEN 1 ELSE 0 END)=COUNT(1) THEN 1 ELSE 0 END) AS "full_passed", 
+ (CASE WHEN MAX("cycle")=-1 THEN 1 ELSE 0 END) AS "full_run"  
  FROM "results" 
  GROUP BY "case_name","run_uuid") 
 GROUP BY "case_name"
@@ -98,6 +100,7 @@ ORDER BY 1
             StatisticEnd2End(
                 case_name=record["case_name"],
                 run_count=record["run_count"],
+                full_run=record["full_run"],
                 end2end=record["end2end"],
             )
             for record in self._select(sql, {})

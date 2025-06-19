@@ -57,9 +57,10 @@ class StoreResults(StoreBase):
     @classmethod
     def statistics_per_test(cls) -> list[StatisticTest]:
         sql = ("SELECT `case_name`,`test_name`,"
-               "SUM(CASE WHEN `passed`=1 THEN 1 ELSE 0 END) AS `passed_count` "
+               "SUM(CASE WHEN `passed`=1 THEN 1 ELSE 0 END)/`cycles` AS `passed_count` "
                "FROM `results` "
-               "GROUP BY `case_name`,`test_name`")
+               "WHERE `cycles`>0 "
+               "GROUP BY `case_name`,`test_name`,`cycles`")
 
         return [
             StatisticTest(
@@ -72,11 +73,12 @@ class StoreResults(StoreBase):
 
     @classmethod
     def statistics_end2end(cls) -> list[StatisticEnd2End]:
-        sql = ("SELECT `case_name`,SUM(`full_passed`) AS `end2end`,COUNT(distinct `run_uuid`) AS `run_count` "
+        sql = ("SELECT `case_name`,SUM(`full_run`) AS `full_run`,SUM(`full_passed`) AS `end2end`,COUNT(distinct `run_uuid`) AS `run_count` "
                "FROM (SELECT "
                " `case_name`, "
                " `run_uuid`, "
-               " (CASE WHEN SUM(CASE WHEN `passed`=1 THEN 1 ELSE 0 END)=COUNT(1) THEN 1 ELSE 0 END) AS `full_passed` "
+               " (CASE WHEN SUM(CASE WHEN `passed`=1 THEN 1 ELSE 0 END)=COUNT(1) THEN 1 ELSE 0 END) AS `full_passed`, "
+               " (CASE WHEN MAX(`cycle`)=-1 THEN 1 ELSE 0 END) AS `full_run` "
                " FROM `results` "
                " GROUP BY `case_name`,`run_uuid`) "
                "GROUP BY `case_name`")
@@ -84,6 +86,7 @@ class StoreResults(StoreBase):
             StatisticEnd2End(
                 case_name=row["case_name"],
                 run_count=row["run_count"],
+                full_run=row["full_run"],
                 end2end=row["end2end"],
             )
             for row in cls._select(sql, {})

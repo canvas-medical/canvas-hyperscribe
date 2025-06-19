@@ -7,6 +7,7 @@ def test_class():
     fields = {
         "case_name": str,
         "run_count": int,
+        "full_run": int,
         "end2end": int,
     }
     assert is_namedtuple(tested, fields)

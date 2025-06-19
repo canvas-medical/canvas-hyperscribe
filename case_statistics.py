@@ -8,6 +8,8 @@ class CaseStatistics:
         headers = [
             "case",
             "run count",
+            "full run",
+            "audio -> questionnaire",
             "audio -> transcript",
             "-> instructions",
             "-> parameters",
@@ -29,6 +31,8 @@ class CaseStatistics:
             values = [
                 f"{case.case_name:<{widths[0]}}",
                 str(case.run_count),
+                str(case.full_run),
+                str(case.staged_questionnaires) if case.staged_questionnaires > -1 else "",
                 str(case.audio2transcript) if case.audio2transcript > -1 else "",
                 str(case.transcript2instructions) if case.transcript2instructions > -1 else "",
                 str(case.instruction2parameters) if case.instruction2parameters > -1 else "",

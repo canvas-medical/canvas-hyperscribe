@@ -2,7 +2,7 @@
 import json
 import uuid
 from pathlib import Path
-from re import search
+from re import match
 from subprocess import check_output
 
 import pytest
@@ -28,13 +28,19 @@ def pytest_runtest_makereport(item, call):
 
     # limiting the collect to the "evaluation/" tests
     if report.when == "call" and test_file.startswith("evaluations/test_end2end.py"):
-
         test_name = report.location[2]
         case_name = "n/a"
-        pattern = rf"test_(.+)\[(.+)\]"
-        if match := search(pattern, report.location[2]):
-            test_name = match.group(1)
-            case_name = match.group(2)
+        cycle = -1
+        pattern_end2end = rf'test_(.+?)\[([^\]]+?)\]'
+        pattern_details = rf'test_detail_(.+?)\[(.+)_{Constants.CASE_CYCLE_SUFFIX}_(\d+)\]'
+        if result := match(pattern_details, report.location[2]):
+            test_name = result.group(1)
+            case_name = result.group(2)
+            cycle = int(result.group(3))
+        elif result := match(pattern_end2end, report.location[2]):
+            test_name = result.group(1)
+            case_name = result.group(2)
+            cycle = -1
 
         errors = ""
         if report.failed and call.excinfo is not None:
@@ -54,7 +60,7 @@ def pytest_runtest_makereport(item, call):
                 test_file=test_file,
                 test_name=test_name,
                 case_name=case_name,
-                cycle=0,
+                cycle=cycle,
                 errors=errors,
             ),
         )
@@ -123,8 +129,6 @@ def pytest_collection_modifyitems(session, config, items):
             print(f"{key}: {value}")
         #
         end2end = config.getoption(Constants.OPTION_END2END)
-        skip_end2end = pytest.mark.skip(reason=f"Need {Constants.OPTION_END2END} option to run")
-        skip_other = pytest.mark.skip(reason=f"Need @pytest.mark.end2end option to run")
         deselected = [
             item
             for item in items

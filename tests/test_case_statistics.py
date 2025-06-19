@@ -18,10 +18,10 @@ def test_run(case_test_statistics, capsys):
     calls = [call()]
     assert case_test_statistics.mock_calls == calls
     exp_out = "\n".join([
-        "------------------------------------------------------------------------------------------------------",
-        "| case | run count | audio -> transcript | -> instructions | -> parameters | -> command | end to end |",
-        "------------------------------------------------------------------------------------------------------",
-        "------------------------------------------------------------------------------------------------------",
+        "------------------------------------------------------------------------------------------------------------------------------------------",
+        "| case | run count | full run | audio -> questionnaire | audio -> transcript | -> instructions | -> parameters | -> command | end to end |",
+        "------------------------------------------------------------------------------------------------------------------------------------------",
+        "------------------------------------------------------------------------------------------------------------------------------------------",
         "",
     ])
     assert capsys.readouterr().out == exp_out
@@ -33,6 +33,8 @@ def test_run(case_test_statistics, capsys):
             StatisticCaseTest(
                 case_name='theCase1',
                 run_count=2,
+                full_run=1,
+                staged_questionnaires=1,
                 audio2transcript=1,
                 transcript2instructions=2,
                 instruction2parameters=2,
@@ -42,6 +44,8 @@ def test_run(case_test_statistics, capsys):
             StatisticCaseTest(
                 case_name='theCase2',
                 run_count=1,
+                full_run=0,
+                staged_questionnaires=1,
                 audio2transcript=-1,
                 transcript2instructions=1,
                 instruction2parameters=0,
@@ -51,6 +55,8 @@ def test_run(case_test_statistics, capsys):
             StatisticCaseTest(
                 case_name='theCase3',
                 run_count=1,
+                full_run=1,
+                staged_questionnaires=-11,
                 audio2transcript=-1,
                 transcript2instructions=-1,
                 instruction2parameters=-1,
@@ -64,13 +70,13 @@ def test_run(case_test_statistics, capsys):
     calls = [call()]
     assert case_test_statistics.mock_calls == calls
     exp_out = "\n".join([
-        "----------------------------------------------------------------------------------------------------------",
-        "| case     | run count | audio -> transcript | -> instructions | -> parameters | -> command | end to end |",
-        "----------------------------------------------------------------------------------------------------------",
-        "| theCase1 |     2     |          1          |        2        |       2       |     1      |     2      |",
-        "| theCase2 |     1     |                     |        1        |       0       |     1      |     0      |",
-        "| theCase3 |     1     |                     |                 |               |            |     1      |",
-        "----------------------------------------------------------------------------------------------------------",
+        "----------------------------------------------------------------------------------------------------------------------------------------------",
+        "| case     | run count | full run | audio -> questionnaire | audio -> transcript | -> instructions | -> parameters | -> command | end to end |",
+        "----------------------------------------------------------------------------------------------------------------------------------------------",
+        "| theCase1 |     2     |    1     |           1            |          1          |        2        |       2       |     1      |     2      |",
+        "| theCase2 |     1     |    0     |           1            |                     |        1        |       0       |     1      |     0      |",
+        "| theCase3 |     1     |    1     |                        |                     |                 |               |            |     1      |",
+        "----------------------------------------------------------------------------------------------------------------------------------------------",
         "",
     ])
     assert capsys.readouterr().out == exp_out

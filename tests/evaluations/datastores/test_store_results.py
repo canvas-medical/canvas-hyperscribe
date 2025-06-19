@@ -105,14 +105,15 @@ def test_case_test_statistics(postgres_credentials, lite_store, postgres_store):
         StatisticTest(case_name='theCase3', test_name='theTest', passed_count=1),
     ]
     statistic_end2ends = [
-        StatisticEnd2End(case_name='theCase1', run_count=2, end2end=2),
-        StatisticEnd2End(case_name='theCase2', run_count=1, end2end=0),
-        StatisticEnd2End(case_name='theCase3', run_count=1, end2end=1),
+        StatisticEnd2End(case_name='theCase1', run_count=2, full_run=1, end2end=2),
+        StatisticEnd2End(case_name='theCase2', run_count=1, full_run=0, end2end=0),
+        StatisticEnd2End(case_name='theCase3', run_count=1, full_run=1, end2end=1),
     ]
     expected = [
         StatisticCaseTest(
             case_name='theCase1',
             run_count=2,
+            full_run=1,
             audio2transcript=1,
             transcript2instructions=2,
             instruction2parameters=2,
@@ -122,6 +123,7 @@ def test_case_test_statistics(postgres_credentials, lite_store, postgres_store):
         StatisticCaseTest(
             case_name='theCase2',
             run_count=1,
+            full_run=0,
             audio2transcript=-1,
             transcript2instructions=1,
             instruction2parameters=0,
@@ -131,6 +133,7 @@ def test_case_test_statistics(postgres_credentials, lite_store, postgres_store):
         StatisticCaseTest(
             case_name='theCase3',
             run_count=1,
+            full_run=1,
             audio2transcript=-1,
             transcript2instructions=-1,
             instruction2parameters=-1,

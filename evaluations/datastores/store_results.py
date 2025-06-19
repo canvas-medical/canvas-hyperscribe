@@ -34,6 +34,7 @@ class StoreResults:
         # get the statistics end to end
         for end2end in sql_store.statistics_end2end():
             result[end2end.case_name].run_count = end2end.run_count
+            result[end2end.case_name].full_run = end2end.full_run
             result[end2end.case_name].end2end = end2end.end2end
 
         return list(result.values())

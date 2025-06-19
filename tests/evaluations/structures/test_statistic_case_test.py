@@ -7,6 +7,8 @@ def test_class():
     fields = {
         "case_name": str,
         "run_count": int,
+        "full_run": int,
+        "staged_questionnaires": int,
         "audio2transcript": int,
         "transcript2instructions": int,
         "instruction2parameters": int,

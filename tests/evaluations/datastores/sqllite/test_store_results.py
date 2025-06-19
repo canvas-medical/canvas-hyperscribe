@@ -123,14 +123,14 @@ def test_statistics_per_test(db_path):
 
         result = tested.statistics_per_test()
         expected = [
-            StatisticTest(case_name='theCase1', test_name='audio2transcript', passed_count=1),
-            StatisticTest(case_name='theCase1', test_name='instruction2parameters', passed_count=2),
-            StatisticTest(case_name='theCase1', test_name='parameters2command', passed_count=1),
-            StatisticTest(case_name='theCase1', test_name='transcript2instructions', passed_count=2),
+            StatisticTest(case_name='theCase1', test_name='audio2transcript', passed_count=0),
+            StatisticTest(case_name='theCase1', test_name='instruction2parameters', passed_count=1),
+            StatisticTest(case_name='theCase1', test_name='parameters2command', passed_count=0),
+            StatisticTest(case_name='theCase1', test_name='transcript2instructions', passed_count=1),
             StatisticTest(case_name='theCase2', test_name='instruction2parameters', passed_count=0),
-            StatisticTest(case_name='theCase2', test_name='parameters2command', passed_count=1),
-            StatisticTest(case_name='theCase2', test_name='transcript2instructions', passed_count=1),
-            StatisticTest(case_name='theCase3', test_name='theTest', passed_count=1),
+            StatisticTest(case_name='theCase2', test_name='parameters2command', passed_count=0),
+            StatisticTest(case_name='theCase2', test_name='transcript2instructions', passed_count=0),
+            StatisticTest(case_name='theCase3', test_name='theTest', passed_count=0),
         ]
         assert result == expected
 
@@ -163,9 +163,9 @@ def test_statistics_end2end(db_path):
 
         result = tested.statistics_end2end()
         expected = [
-            StatisticEnd2End(case_name='theCase1', run_count=2, end2end=2),
-            StatisticEnd2End(case_name='theCase2', run_count=1, end2end=0),
-            StatisticEnd2End(case_name='theCase3', run_count=1, end2end=1),
+            StatisticEnd2End(case_name='theCase1', run_count=2, full_run=0, end2end=2),
+            StatisticEnd2End(case_name='theCase2', run_count=1, full_run=0, end2end=0),
+            StatisticEnd2End(case_name='theCase3', run_count=1, full_run=0, end2end=1),
         ]
         assert result == expected
 
