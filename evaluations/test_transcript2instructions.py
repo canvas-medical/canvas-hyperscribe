@@ -1,4 +1,3 @@
-# mypy: allow-untyped-defs
 import json
 from pathlib import Path
 
@@ -9,13 +8,6 @@ from evaluations.helper_evaluation import HelperEvaluation
 from hyperscribe.libraries.audio_interpreter import AudioInterpreter
 from hyperscribe.structures.instruction import Instruction
 from hyperscribe.structures.line import Line
-
-
-def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
-    step = 'transcript2instructions'
-    if step in metafunc.fixturenames:
-        files = HelperEvaluation.list_case_files(Path(__file__).parent / step)
-        metafunc.parametrize(step, files, ids=lambda path: f"{path[0]}_{path[1]}")
 
 
 def test_transcript2instructions(

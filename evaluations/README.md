@@ -1,25 +1,43 @@
 Hyperscribe Evaluations
 =======================
 
+### Description
 The [hyperscribe](../hyperscribe) plugin has five essential steps:
 
 * transcript the audio into a discussion, identifying the speakers and what they say
-* extract from the discussion a set of instructions, a plain English description of a Canvas command
-* transform an instruction into a data structure close to Canvas command parameters
-* create the Canvas command based on the parameters
-* update the staged questionnaires in the considered note based on the discussion
+* then:
+  * extract from the discussion a set of instructions, a plain English description of a Canvas command
+  * transform an instruction into a data structure close to Canvas command parameters
+  * create the Canvas command based on the parameters
+* and:
+  * update the staged questionnaires in the considered note based on the discussion
 
-The evaluation tests are designed to validate each of these steps.
+The evaluation tests are designed to validate each of these steps, using the `pytest` tool.
 
-The convention is to have:
+#### Situational and case evaluations
+The evaluation tests are separated into two categories:
+* ___situational___ evaluation: this checks the behavior of the Hyperscribe code against a single step, possibly through several cycles
+* ___case___ evaluation: this checks the behavior of the Hyperscribe code through all the steps and cycles
 
-- a folder where to store tests for each step ([`evaluations/audio2transcript`](./audio2transcript), [
-  `evaluations/transcript2instructions`](./transcript2instructions)...)
-- a test file to run the stored tests of each step ([`test_audio2transcript.py`](test_audio2transcript.py), [
-  `test_transcript2instructions.py`](test_transcript2instructions.py)...)
-- all test files of cases built with the case builders are stored in a subfolder to the [`cases`](./cases) directory.
+The _case builder_ commands generate the drafts of the evaluation cases. They are described later in this document.
 
-The JSON files store, for each cycle, the input and the expected output for the considered step.
+#### Folders structure
+
+The _situational_ evaluations are in a folder related to the covered step:
+  * `situational/audio2transcript`
+  * `situational/transcript2instructions`
+  * `situational/instruction2parameters`
+  * `situational/parameters2command`
+  * `situational/staged_questionnaires`
+
+The files of the `audio2transcript` step are stored as:
+* `theSituationName/audios` for the audio files
+* `theSituationName/audio2transcript.json` for the expected transcripts
+
+For the other steps, for each cycle, the input and the expected output are stored in `theSituationName.json` files.
+
+
+The _cases_ evaluations are in a folder `cases/theCaseName`, one JSON file per step for all cycles, except the audio files, stored in a `audios` subfolder.
 
 ### Run evaluation tests
 
@@ -37,46 +55,35 @@ The following parameters can be used to configure the evaluation test:
 - `--patient-uuid` – Identifies the patient to run the evaluation test against.
 - `--print-logs` – Print the logs on the standard output at the end of the tests.
 - `--store-logs` – Store the logs in the configured AWS S3 bucket.
+- `--end2end` – Run the _case_ tests in one shot (otherwise, they are run as _situational_ tests).
 
-Among standard `pytest` parameters, `-k` is useful as it allows targeting tests of specific cases.
 
 ```shell
-# run all evaluation tests for the patient patient_uuid
-uv  run pytest -v evaluations --patient-uuid patient_uuid
+# list all the existing tests
+uv run pytest --collect-only -q evaluations/
 
-# run the test the_case defined for the step audio2transcript, 
-# accepting all differences minor, moderate and severe
-uv  run pytest -v evaluations/test_audio2transcript.py -k the_case --evaluation-difference-levels "minor,moderate,severe"
+# run a specific situational test
+uv run pytest -v evaluations/test_audio2transcript.py::test_audio2transcript[the_test_as_shown_with_the_tests_collection]
 
-# run the test the_case defined for the step instruction2parameters 
-# for the patient patient_uuid
-uv  run pytest -v evaluations/test_instruction2parameters.py -k the_case --patient-uuid patient_uuid
+# run a specific case test
+uv run pytest -v --end2end evaluations/test_end2end.py::test_end2end[the_test_as_shown_with_the_tests_collection]
 
-# run all tests for the step parameters2command 
-# for the patient patient_uuid
-uv  run pytest -v evaluations/test_parameters2command.py --patient-uuid patient_uuid
+# run ALL situational tests for the step transcript2instructions
+uv run pytest -v evaluations/test_transcript2instructions.py
 
-# run all tests for the step transcript2instructions 
-# for the patient patient_uuid
-uv  run pytest -v evaluations/test_transcript2instructions.py --patient-uuid patient_uuid
+# run ALL situational tests
+uv run pytest -v evaluations/
 
-# run the test the_case for the step staged_questionnaires 
-uv  run pytest -v evaluations/test_staged_questionnaires.py -k the_case
+# run ALL case tests
+uv run pytest -v --end2end evaluations/
 
-# run all steps for a specific case the_case
-uv  run pytest -v evaluations -k the_case
-
-# run a specific test
-uv  run pytest -vv evaluations/test_parameters2command.py::test_parameters2command[the_case_cycle_007]
-
-# run from end to end the case the_case
-uv  run pytest evaluations/test_end2end.py::test_end2end[the_case]
+# run all tests of the step transcript2instructions for cases or situation starting with xxxx
+uv run pytest -vv evaluations/ -k "test_detail_transcript2instructions[xxxx"
 ```
 
 ### Create evaluation tests
 
-To be able to create evaluation codes locally, in addition to the `CANVAS_SDK_DB_...` as defined in the [README.md](../hyperscribe/README.md), create
-the environment variables:
+To be able to create evaluation codes locally, in addition to the `CANVAS_SDK_DB_...` as defined in the [README.md](../hyperscribe/README.md), create the environment variables:
 
 ```shell
 export VendorTextLLM="..." # OpenAI, Google, Anthropic...
@@ -103,11 +110,9 @@ export AwsRegion="..."
 export AwsBucketLogs="..."
 ```
 
-In addition, if the `AuditLLMDecisions` is set, an audit of the LLM decisions is run at the end of the evaluation and saved in the AWS S3 bucket
-provided.
+In addition, if the `AuditLLMDecisions` is set, an audit of the LLM decisions is run at the end of the evaluation and saved in the AWS S3 bucket provided.
 
-The logs are saved following the folder structure, with the top-level `hyperscribe-{canvas_instance}` needing to match exactly the IAM User whose
-`AwsKey` and `AwsSecret` are set in secrets:
+The logs are saved following the folder structure, with the top-level `hyperscribe-{canvas_instance}` needing to match exactly the IAM User whose `AwsKey` and `AwsSecret` are set in secrets:
 
 ```shell
 AwsBucket
@@ -127,7 +132,7 @@ The evaluation tests are stored in the [cases](cases) directory, one subdirector
 These evaluations of a case are run all at once with:
 
 ```shell
-uv run pytest evaluations/test_end2end.py::test_end2end[the_case]
+uv run pytest -v --end2end evaluations/test_end2end.py::test_end2end[the_case]
 ```
 
 The files created are:
@@ -140,11 +145,9 @@ The files created are:
 - the `staged_questionnaires.json` file, containing the input and the expected output for the questionnaires updates
 - the `summary_initial.json` file, containing the summarized commands
 - the `summary_revised.json` file, containing the summarized commands which would be revised
-- the `summary.html` file, HTML file to display the summarized commands based on the `summary_revised.json` file ; it can be updated with the command
-  `uv run python case_builder.py --case the_case --summarize`
+- the `summary.html` file, HTML file to display the summarized commands _based_ on the `summary_revised.json` file ; it can be updated with the command `uv run python case_builder.py --case the_case --summarize`
 
-Note that when removing the case files with the command `uv run python case_builder.py --case the_case --delete [--audios]`, the files `summary.html`
-and `summary_revised.json` are not removed.
+Note that when removing the case files with the command `uv run python case_builder.py --case the_case --delete [--audios]`, the files `summary.html` and `summary_revised.json` are not removed.
 
 #### From Audio to commands
 
@@ -170,7 +173,7 @@ Without it, the case builder will perform as many cycles as files, using the res
 
 ```shell
 # run the tests for the_case
-uv  run pytest -v evaluations/test_end2end.py::test_end2end[the_case]
+uv  run pytest -v --end2end evaluations/test_end2end.py::test_end2end[the_case]
 ```
 
 Note also that on the first step (`audio2transcript`):
@@ -187,7 +190,7 @@ If the `render` flag is set, the effect of the commands, result of the last cycl
 
 #### From Transcript to commands
 
-Based on a `json` file, transcript of the conversation, a set (i.e. covering all steps except the first one) of evaluation tests can be created using:
+Based on a `json` file, transcript of the conversation, a set (i.e., covering all steps except the first one) of evaluation tests can be created using:
 
 ```shell
 uv run python case_builder.py \
@@ -229,9 +232,8 @@ This case builder based on the tuning data has the same behavior as the case bui
 
 #### Storing the cases and the run results
 
-When creating a `case` by running the [`case_builder.py`](../case_builder.py) script, a file created/updated in
-the [datastores/cases](datastores/cases)
-directory, part of the repository.
+When creating a `case` by running the [`case_builder.py`](../case_builder.py) script, a file is created/updated in
+the [datastores/cases](datastores/cases) directory, part of the repository.
 
 This directory stores the meta-information related to the `case`, namely: the group, the type, the environment, the patient uuid.
 The limited cache is stored in the subdirectory [limited_caches](datastores/cases/limited_caches).
@@ -268,17 +270,19 @@ The table `results` should already exist in the database and defined as:
 ```postgresql
 CREATE TABLE IF NOT EXISTS "results"
 (
-    "id"            SERIAL PRIMARY KEY,
-    "created"       TIMESTAMP NOT NULL,
-    "run_uuid"      TEXT      NOT NULL,
-    "plugin_commit" TEXT      NOT NULL,
-    "case_type"     TEXT      NOT NULL,
-    "case_group"    TEXT      NOT NULL,
-    "case_name"     TEXT      NOT NULL,
-    "test_name"     TEXT      NOT NULL,
-    "milliseconds"  REAL      NOT NULL,
-    "passed"        BOOLEAN   NOT NULL,
-    "errors"        TEXT      NOT NULL
+  "id"            SERIAL PRIMARY KEY,
+  "created"       TIMESTAMP NOT NULL,
+  "run_uuid"      TEXT      NOT NULL,
+  "plugin_commit" TEXT      NOT NULL,
+  "case_type"     TEXT      NOT NULL,
+  "case_group"    TEXT      NOT NULL,
+  "case_name"     TEXT      NOT NULL,
+  "cycles"        INT       NOT NULL,
+  "test_name"     TEXT      NOT NULL,
+  "cycle"         INT       NOT NULL,
+  "milliseconds"  REAL      NOT NULL,
+  "passed"        BOOLEAN   NOT NULL,
+  "errors"        TEXT      NOT NULL
 );
 ```
 
@@ -286,7 +290,7 @@ CREATE TABLE IF NOT EXISTS "results"
 
 When creating the cases based on audio files or a transcript, the option `--render` will generate the commands to see them in the UI. 
 
-The following command will display in the system's default browser a summary of the detected instructions and the generated commands:
+The following command will display in the system's default browser a summary of the detected instructions and the generated commands, based on the `summary_revised.json`:
 
 ```shell
 uv  run python case_builder.py --case the_case --summarize
@@ -297,10 +301,10 @@ uv  run python case_builder.py --case the_case --summarize
 A set of evaluation tests (or `case`) can be deleted using:
 
 ```shell
-# remove all files related to the case
+# remove all files related to the case, except the summary_revised.json and summary.html
 uv  run python case_builder.py --case the_case --delete --audios
 
-# remove all files related to the case, except the files of the `audios` folder and the `audio2transcript.json` file.
+# remove files as above, except the files of the `audios` folder and the `audio2transcript.json` file.
 uv  run python case_builder.py --case the_case --delete
 ```
 

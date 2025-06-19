@@ -1,4 +1,5 @@
 # mypy: allow-untyped-defs
+import json
 import uuid
 from pathlib import Path
 from re import search
@@ -26,16 +27,14 @@ def pytest_runtest_makereport(item, call):
     test_file = report.location[0]
 
     # limiting the collect to the "evaluation/" tests
-    if report.when == "call" and test_file.startswith("evaluations/"):
+    if report.when == "call" and test_file.startswith("evaluations/test_end2end.py"):
 
         test_name = report.location[2]
         case_name = "n/a"
-        cycle = -1
-        pattern = rf"test_(.+)\[(.+)_{Constants.CASE_CYCLE_SUFFIX}_(\d\d\d)\]"
+        pattern = rf"test_(.+)\[(.+)\]"
         if match := search(pattern, report.location[2]):
             test_name = match.group(1)
             case_name = match.group(2)
-            cycle = int(match.group(3))
 
         errors = ""
         if report.failed and call.excinfo is not None:
@@ -55,7 +54,7 @@ def pytest_runtest_makereport(item, call):
                 test_file=test_file,
                 test_name=test_name,
                 case_name=case_name,
-                cycle=cycle,
+                cycle=0,
                 errors=errors,
             ),
         )
@@ -88,6 +87,12 @@ def pytest_addoption(parser):
         default=False,
         help="Store the logs in the configured AWS S3 bucket",
     )
+    parser.addoption(
+        Constants.OPTION_END2END,
+        action="store_true",
+        default=False,
+        help="Run the end2end tests",
+    )
 
 
 def pytest_collection_modifyitems(session, config, items):
@@ -116,6 +121,22 @@ def pytest_collection_modifyitems(session, config, items):
         }
         for key, value in parameters.items():
             print(f"{key}: {value}")
+        #
+        end2end = config.getoption(Constants.OPTION_END2END)
+        skip_end2end = pytest.mark.skip(reason=f"Need {Constants.OPTION_END2END} option to run")
+        skip_other = pytest.mark.skip(reason=f"Need @pytest.mark.end2end option to run")
+        deselected = [
+            item
+            for item in items
+            if (item.name.startswith("test_end2end") and not end2end) or (not item.name.startswith("test_end2end") and end2end)
+        ]
+        if deselected:
+            config.hook.pytest_deselected(items=deselected)
+        items[:] = [
+            item
+            for item in items
+            if item.name.startswith("test_end2end") is end2end
+        ]
 
 
 def pytest_unconfigure(config):
@@ -163,3 +184,72 @@ def audio_interpreter(request):
         canvas_instance=HelperEvaluation.get_canvas_instance(),
     )
     return AudioInterpreter(settings, aws_s3, cache, identification)
+
+
+def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
+    step = 'end2end_folder'
+    if step in metafunc.fixturenames:
+        cases_dir = Path(__file__).parent / 'evaluations/cases'
+        folders: list[Path] = []
+
+        for case_folder in cases_dir.glob('*'):
+            if case_folder.is_dir() is False:
+                continue
+            folders.append(case_folder)
+
+        metafunc.parametrize(step, folders, ids=lambda path: path.stem)
+
+    step = 'audio2transcript_files'
+    if step in metafunc.fixturenames:
+        parameters: list[tuple[str, str, list[Path], Path]] = []
+        if metafunc.function.__name__.startswith("test_detail_"):
+            folder = Path(__file__).parent / 'evaluations/cases'
+        else:
+            folder = Path(__file__).parent / "evaluations/situational/audio2transcript/"
+
+        for case in folder.glob("*"):
+            if case.is_dir() is False:
+                continue
+            audios = case / "audios"
+            json_file = case / "audio2transcript.json"
+            assert json_file.exists(), f"{case.stem}: no corresponding JSON file found"
+
+            cycle_len = len(f"{Constants.CASE_CYCLE_SUFFIX}_???")
+            cycles = json.load(json_file.open("r")).keys()
+            cycled_mp3_files: dict[str, list[Path]] = {cycle: [] for cycle in cycles}
+            for file in audios.glob(f"{Constants.CASE_CYCLE_SUFFIX}_???_??.mp3"):
+                key = file.stem[:cycle_len]
+                cycled_mp3_files[key].append(file)
+
+            for cycle, mp3_files in cycled_mp3_files.items():
+                parameters.append((case.stem, cycle, sorted(mp3_files, key=lambda x: x.stem), json_file))
+
+        metafunc.parametrize(step, parameters, ids=lambda path: f"{path[0]}_{path[1]}")
+
+    steps = [
+        'transcript2instructions',
+        'instruction2parameters',
+        'parameters2command',
+        'staged_questionnaires',
+    ]
+    for step in steps:
+        if step in metafunc.fixturenames:
+            json_files: list[tuple[str, Path]] = []
+            if metafunc.function.__name__.startswith("test_detail_"):
+                folder = Path(__file__).parent / 'evaluations/cases'
+                for case in folder.glob("*"):
+                    if case.is_dir() is False:
+                        continue
+                    json_file = case / f"{step}.json"
+                    json_files.append((case.stem, json_file))
+            else:
+                folder = Path(__file__).parent / f"evaluations/situational/{step}/"
+                for json_file in folder.glob('*.json'):
+                    json_files.append((json_file.stem, json_file))
+            files = [
+                (case_name, cycle, json_file)
+                for case_name, json_file in json_files
+                for cycle in json.load(json_file.open("r")).keys()
+                if cycle.startswith(Constants.CASE_CYCLE_SUFFIX)
+            ]
+            metafunc.parametrize(step, files, ids=lambda path: f"{path[0]}_{path[1]}")
