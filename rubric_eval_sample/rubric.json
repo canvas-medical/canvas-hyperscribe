@@ -1,0 +1,9 @@
+[
+  ["Includes a ReasonForVisit command with appropriate details", 5],
+  ["Documents the prescription of antibiotics using the Prescription command, including dosage and duration",5],
+  ["Records the patient's allergy to penicillin using the Allergy command", 3],
+  ["Includes a FollowUp command with instructions for the patient to call if symptoms persist",4],
+  ["Accurately reflects the patient's medical history, including chronic kidney disease, using the MedicalHistory command",3],
+  ["Documents current medications using the Medication command",2],
+  [ "Ensures no unnecessary commands are included, maintaining clarity and relevance",2]
+]
