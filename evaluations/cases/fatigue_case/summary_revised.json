@@ -1,0 +1,267 @@
+[
+  {
+    "instruction": "Patient reports feeling drained and fatigued for the last couple of weeks, possibly longer. No significant weight loss, but sleep is disrupted with frequent awakenings and feeling unrested. Occasional lightheadedness when standing up. Stopped taking iron supplements due to stomach upset.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.history_present_illness",
+      "class": "HistoryOfPresentIllnessCommand",
+      "attributes": {
+        "narrative": "Patient reports feeling drained and fatigued for the last couple of weeks, possibly longer. No significant weight loss, but sleep is disrupted with frequent awakenings and feeling unrested. Occasional lightheadedness when standing up. Stopped taking iron supplements due to stomach upset."
+      }
+    }
+  },
+  {
+    "instruction": "Order labs for iron, thyroid, and B12 levels. No fasting required.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.lab_order",
+      "class": "LabOrderCommand",
+      "attributes": {
+        "fasting_required": false,
+        "comment": "Check levels of iron, thyroid, and B12; no fasting needed.",
+        "tests_order_codes": [],
+        "diagnosis_codes": [
+          "D519"
+        ],
+        "ordering_provider_key": "4150cd20de8a470aa570a852859ac87e"
+      }
+    }
+  },
+  {
+    "instruction": "Patient reports feeling drained and fatigued.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.reason_for_visit",
+      "class": "ReasonForVisitCommand",
+      "attributes": {
+        "comment": "feeling drained and fatigued"
+      }
+    }
+  },
+  {
+    "instruction": "Questionnaire: PHQ-2",
+    "command": {
+      "module": "canvas_sdk.commands.commands.questionnaire",
+      "class": "QuestionnaireCommand",
+      "attributes": {
+        "Little interest or pleasure in doing things?": "Not at all",
+        "Feeling down, depressed, or hopeless?": "Several days"
+      }
+    }
+  },
+  {
+    "instruction": "Questionnaire: Exercise",
+    "command": {
+      "module": "canvas_sdk.commands.commands.questionnaire",
+      "class": "QuestionnaireCommand",
+      "attributes": {
+        "Do you exercise on a regular basis?": "Yes",
+        "In an average week, how many days do you exercise?": "6",
+        "On the days when you exercised, for how long did you exercise?": "> 1 hr",
+        "What type of exercise do you do?": "Currently training for triathlons, so swim, bike, and run mainly."
+      }
+    }
+  },
+  {
+    "instruction": "Questionnaire: Biopsychosocial Assessment - Demographics",
+    "command": {
+      "module": "canvas_sdk.commands.commands.questionnaire",
+      "class": "QuestionnaireCommand",
+      "attributes": {
+        "Caregiver Name": "",
+        "Primary Care Physician Name": "",
+        "Primary Care Physician Phone": "",
+        "POA/Guardian/Proxy Name": "",
+        "POA/Guardian/Proxy Phone": "",
+        "Total Number of Hours Caregiver provides service per week": ""
+      }
+    }
+  },
+  {
+    "instruction": "Questionnaire: Biopsychosocial Assessment - Precipitating Events",
+    "command": {
+      "module": "canvas_sdk.commands.commands.questionnaire",
+      "class": "QuestionnaireCommand",
+      "attributes": {
+        "Primary Concern": "Feeling drained and fatigued",
+        "Brief Medical History": "Stopped taking iron supplements a few months ago due to stomach upset",
+        "Family Medical History": "",
+        "Additional Stressors": "Work has been hectic",
+        "Current Health Status": "Fatigue for the last couple of weeks, waking up frequently at night, occasional lightheadedness",
+        "During the last six months - number of falls": "",
+        "During the last six months - number of hospitalizations": "",
+        "During the last six months - number of short term rehab stays": "",
+        "Psych DX comments": "",
+        "Psychiatrist Name": "",
+        "Psychiatrist Phone": "",
+        "Psychiatrist Last Appointment": "",
+        "LCSW/Psychologist Name": "",
+        "LCSW/Psychologist Phone": "",
+        "LCSW/Psychologist Last Appointment": "",
+        "Specialist Name": "",
+        "Specialist Phone": ""
+      }
+    }
+  },
+  {
+    "instruction": "Questionnaire: Biopsychosocial Assessment - Strengths",
+    "command": {
+      "module": "canvas_sdk.commands.commands.questionnaire",
+      "class": "QuestionnaireCommand",
+      "attributes": {
+        "What are strengths observed for this client?": "",
+        "What resources are there in the client's environment?": ""
+      }
+    }
+  },
+  {
+    "instruction": "Questionnaire: Biopsychosocial Assessment - Social Support",
+    "command": {
+      "module": "canvas_sdk.commands.commands.questionnaire",
+      "class": "QuestionnaireCommand",
+      "attributes": {
+        "Important Relationships": "",
+        "Conflictual Relationships": ""
+      }
+    }
+  },
+  {
+    "instruction": "Questionnaire: Biopsychosocial Assessment - Spirituality/Religious Affiliation",
+    "command": {
+      "module": "canvas_sdk.commands.commands.questionnaire",
+      "class": "QuestionnaireCommand",
+      "attributes": {
+        "Spirituality/Religious Affiliation": ""
+      }
+    }
+  },
+  {
+    "instruction": "Questionnaire: Biopsychosocial Assessment - Recreation/Social Interests",
+    "command": {
+      "module": "canvas_sdk.commands.commands.questionnaire",
+      "class": "QuestionnaireCommand",
+      "attributes": {
+        "Hobbies": "",
+        "Interests": "",
+        "Methods of Relaxation": ""
+      }
+    }
+  },
+  {
+    "instruction": "Questionnaire: Biopsychosocial Assessment - Family of Origin",
+    "command": {
+      "module": "canvas_sdk.commands.commands.questionnaire",
+      "class": "QuestionnaireCommand",
+      "attributes": {
+        "Spouse": "",
+        "Parents/Siblings": "",
+        "Children": "",
+        "Childhood Traumas": ""
+      }
+    }
+  },
+  {
+    "instruction": "Questionnaire: Biopsychosocial Assessment - Education/Employment",
+    "command": {
+      "module": "canvas_sdk.commands.commands.questionnaire",
+      "class": "QuestionnaireCommand",
+      "attributes": {
+        "Degrees Earned": "",
+        "Occupation/Skillset": "",
+        "Volunteer Work": ""
+      }
+    }
+  },
+  {
+    "instruction": "Questionnaire: Biopsychosocial Assessment - Substance Use",
+    "command": {
+      "module": "canvas_sdk.commands.commands.questionnaire",
+      "class": "QuestionnaireCommand",
+      "attributes": {
+        "Type of Alcohol": "",
+        "Number of Drinks": "",
+        "What do you smoke?": "",
+        "Number of Smokes": ""
+      }
+    }
+  },
+  {
+    "instruction": "Questionnaire: Biopsychosocial Assessment - Legal Involvement",
+    "command": {
+      "module": "canvas_sdk.commands.commands.questionnaire",
+      "class": "QuestionnaireCommand",
+      "attributes": {
+        "Relevant Detail": ""
+      }
+    }
+  },
+  {
+    "instruction": "Questionnaire: Biopsychosocial Assessment - Military Experience",
+    "command": {
+      "module": "canvas_sdk.commands.commands.questionnaire",
+      "class": "QuestionnaireCommand",
+      "attributes": {
+        "Military Experience": "",
+        "Relevant Detail": ""
+      }
+    }
+  },
+  {
+    "instruction": "Questionnaire: Biopsychosocial Assessment - General Treatment Goals",
+    "command": {
+      "module": "canvas_sdk.commands.commands.questionnaire",
+      "class": "QuestionnaireCommand",
+      "attributes": {
+        "General Treatment Goal 1": "Address fatigue and improve energy levels.",
+        "General Treatment Goal 2": "Investigate potential causes of fatigue, including iron levels, thyroid function, and B12 levels.",
+        "General Treatment Goal 3": "Improve sleep quality and ensure the patient feels rested upon waking."
+      }
+    }
+  },
+  {
+    "instruction": "ReviewOfSystem: Brief ROS",
+    "command": {
+      "module": "canvas_sdk.commands.commands.review_of_systems",
+      "class": "ReviewOfSystemsCommand",
+      "attributes": {
+        "Constitutional": "",
+        "Cardiac": "",
+        "Respiratory": "",
+        "Musculoskeletal": "",
+        "Skin": "Lumps/bumps (Patient reports a couple of bumps, likely mosquito bites, around the neck and face.)"
+      }
+    }
+  },
+  {
+    "instruction": "ReviewOfSystem: Biopsychosocial Assessment - Current Symptoms",
+    "command": {
+      "module": "canvas_sdk.commands.commands.review_of_systems",
+      "class": "ReviewOfSystemsCommand",
+      "attributes": {
+        "Current Symptoms": "Sleeping (Falls asleep fine but wakes up a lot at night, does not feel rested), Fatigue (Feeling drained for the last couple of weeks)"
+      }
+    }
+  },
+  {
+    "instruction": "PhysicalExam: Biopsychosocial Assessment - Mental Status",
+    "command": {
+      "module": "canvas_sdk.commands.commands.exam",
+      "class": "PhysicalExamCommand",
+      "attributes": {
+        "Behavior": "Lethargic (Patient reports feeling drained and wiped out.)",
+        "Tone of Voice": "Serious (Patient's tone suggests concern about their health.)",
+        "Mood": "Pessimistic (Patient feels worn down and is concerned about their health.)",
+        "Speech": "WNL",
+        "Affect": "",
+        "Attitude": "Cooperative (Patient is cooperative and open about their symptoms.)",
+        "Communication": "WNL",
+        "Appearance": "WNL",
+        "Orientation": "",
+        "Memory": "",
+        "Judgement": "",
+        "If yes to Suicidal/Homicidal Thoughts": "",
+        "Relevant Detail": "",
+        "If past suicidal/homicaidal thoughts, when": "",
+        "Past suicidal/homicidal thought comments": "",
+        "Past treamtnet for mental health/emotional issues?": ""
+      }
+    }
+  }
+]
