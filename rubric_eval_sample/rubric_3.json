@@ -1,0 +1,28 @@
+[
+  [ "Accurate Prescription Documentation: Ensure the antibiotic prescription is documented with correct dosage, frequency, and duration as instructed by the doctor.",
+    10],
+  [ "Avoidance of Redundant Chart Information: Do not include any pre-existing chart information such as allergies or medical history unless it directly informs a new decision.",
+    -10
+  ],
+  [
+    "Contextual Relevance: Include only information that is directly relevant to the current visit and treatment plan, avoiding extraneous details.",
+    5],
+  [
+    "Follow-Up Instruction: Accurately document the follow-up instruction provided by the doctor, including the condition for follow-up.",
+    8],
+  [
+    "Clarity and Conciseness: Ensure the notes are clear and concise, capturing the essence of the conversation without unnecessary elaboration.",
+    5],
+  [
+    "Absence of Misleading Information: Ensure no incorrect or misleading information is included in the notes.",
+    -10],
+  [
+    "Proper Use of Canvas Commands: Use the appropriate Canvas Medical EMR commands to structure the notes according to the provided context.",
+    7],
+  [
+    "Patient's Reason for Visit: Clearly document the patient's reason for the visit as related to the current condition being treated.",
+    6],
+  [
+    "Exclusion of Unnecessary Details: Avoid including any details not pertinent to the current medical decision-making process.",
+    -5]
+]
