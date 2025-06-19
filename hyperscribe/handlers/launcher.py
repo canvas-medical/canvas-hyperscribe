@@ -43,7 +43,8 @@ class Launcher(ActionButton):
         })
         hyperscribe_pane = LaunchModalEffect(
             url=f"{audio_server_base_url}/capture/{patient_id}/{note_id}?{encoded_params}",
-            target=LaunchModalEffect.TargetType.RIGHT_CHART_PANE
+            target=LaunchModalEffect.TargetType.RIGHT_CHART_PANE,
+            title="Hyperscribe"
         )
         return [hyperscribe_pane.apply()]
 
