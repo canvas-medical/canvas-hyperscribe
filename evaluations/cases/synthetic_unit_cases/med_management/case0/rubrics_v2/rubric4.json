@@ -1,0 +1,30 @@
+[
+  [
+    "Accurately document the decision to stop atorvastatin due to muscle aches, including the rationale provided by the doctor.",
+    10
+  ],
+  [
+    "Correctly record the prescription of a PCSK9 inhibitor as a replacement for atorvastatin, including any specific instructions or dosage if mentioned.",
+    10
+  ],
+  [
+    "Ensure that the note does not include any redundant information from the chart, such as the patient's demographic details or current conditions, unless directly relevant to the new decisions.",
+    -5
+  ],
+  [
+    "Clearly state the reason for the visit as 'Medication Management Visit' without duplicating chart data.",
+    5
+  ],
+  [
+    "Avoid including any current medications, conditions, or allergies from the chart unless they are directly relevant to the new prescription or plan.",
+    -5
+  ],
+  [
+    "Document any follow-up plans or instructions given by the doctor regarding the new medication or monitoring of symptoms.",
+    5
+  ],
+  [
+    "Ensure that the note does not include any unnecessary repetition of the patient's current conditions like hyperlipidemia or anxiety unless it directly informs the new treatment plan.",
+    -5
+  ]
+]
