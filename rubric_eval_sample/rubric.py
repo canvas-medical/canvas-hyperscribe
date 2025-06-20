@@ -1,4 +1,4 @@
-#input: chart, transcript, canvas-specific context (descriptions of the implemented-commands class)
+# input: chart, transcript, canvas-specific context (descriptions of the implemented-commands class)
 #api call for model with specific prompt to ask for an effective rubric.
 #output: rubric.json in cases/case_name/directory – for now, keeping it in rubric_eval_sample. 
 #USAGE from root canvas-hyperscribe directory: uv run python rubric_eval_sample/rubric.py rubric_eval_sample/test.json rubric_eval_sample/chart.json rubric_eval_sample/canvas_context.json rubric_eval_sample/rubric.json 
@@ -30,8 +30,8 @@ def main(transcript_path, chart_path, canvas_context_path, output_path):
     text=[
         "You are a clinical informatics expert working with a senior physician to build innovative medical education software. "
         "You specialize in designing case-specific rubrics to evaluate the quality of medical scribe notes."
-    ]
-))
+        ]
+    ))
 
     llm.add_prompt(LlmTurn(
         role='user',
@@ -42,13 +42,17 @@ def main(transcript_path, chart_path, canvas_context_path, output_path):
                 "and a Canvas Medical EMR command module structure."
             ),
             (
-                "Design criteria that assess how well the scribe's notes capture essential, accurate, and context-specific medical information "
-                "reflecting appropriate clinical documentation standards. Each criterion should be based on the case details and the patient's context."
+                "Each rubric criterion must directly reference specific facts, concepts, or decisions found in the provided transcript and chart. "
+                "**Do not write generic documentation criteria. Every criterion must name or describe the actual elements from this specific case, such as the exact medication change, diagnosis, symptom, or decision.**"
             ),
             (
                 "The chart represents pre-existing medical record information and **must not be repeated or copied into the scribe's note**. "
                 "Chart data must serve *only* as background to inform documentation decisions — for example, identifying allergies to guide prescribing decisions or recognizing pre-existing conditions that shape the plan of care. "
-                "**No part of the chart content should be documented in the scribe note simply for its own sake. Any inclusion of redundant or copied chart information should result in negative points.**"
+                "**Any inclusion of redundant or copied chart information must result in negative points.**"
+            ),
+            (
+                "**Be explicit about what the scribe note must capture for this case, including the specific conditions, medications, allergies, symptoms, and plan decisions.** "
+                "The rubric should specify these required elements exactly as they appear in the case."
             ),
             (
                 "Assign relative weights thoughtfully. Core clinical elements should carry more weight. "
@@ -65,8 +69,8 @@ def main(transcript_path, chart_path, canvas_context_path, output_path):
                 "The max_score must be a numeric integer — do not use strings like '5 points'."
             ),
             (
-                "The rubric should follow best practices similar to OpenAI HealthBench — it should be tailored to the specific case and context, "
-                "not generic or flat in structure."
+                "The rubric should follow best practices similar to OpenAI HealthBench — it must be tailored to the specific case and context, "
+                "and must explicitly reference actual case facts in each criterion."
             ),
             (
                 "**Be extremely strict about preventing redundancy or unnecessary repetition. Notes should focus only on new, relevant, case-specific information and appropriate decisions informed by, but not duplicating, the chart.**"
@@ -88,7 +92,6 @@ def main(transcript_path, chart_path, canvas_context_path, output_path):
             json.dumps(canvas_context)
         ]
     ))
-
 
 
     print("Generating rubric...")
