@@ -1,0 +1,45 @@
+{
+  "stagedCommands": {
+    "reasonForVisit": [
+      {
+        "uuid": "sample-uuid-1",
+        "label": "Follow-up for Kidney Function Monitoring",
+        "code": "KFM-002"
+      }
+    ]
+  },
+  "demographicStr": "the patient is a female, born on 1953-01-01 (age 70)",
+  "currentConditions": [
+    {
+      "uuid": "cond-uuid-1",
+      "label": "Hyperlipidemia",
+      "code": "E78.5"
+    },
+    {
+      "uuid": "cond-uuid-2",
+      "label": "Chronic kidney disease",
+      "code": "N18.9"
+    }
+  ],
+  "currentMedications": [
+    {
+      "uuid": "med-uuid-1",
+      "label": "Losartan 50 mg tablet",
+      "code": "197361"
+    },
+    {
+      "uuid": "med-uuid-2",
+      "label": "Calcium Carbonate 500 mg tablet",
+      "code": "198765"
+    }
+  ],
+  "currentAllergies": [
+    {
+      "uuid": "allergy-uuid-1",
+      "label": "Aspirin",
+      "code": "70618"
+    }
+  ],
+  "surgeryHistory": [],
+  "familyHistory": []
+}
