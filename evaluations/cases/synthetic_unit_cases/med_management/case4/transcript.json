@@ -1,0 +1,18 @@
+[
+  {
+    "speaker": "Doctor",
+    "text": "Are you still taking the ibuprofen for your arthritis pain?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Yes, but I've been having some stomach discomfort."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "We should switch to a different pain reliever that is gentler on your stomach, like acetaminophen."
+  },
+  {
+    "speaker": "Patient",
+    "text": "That would be great. I was worried about the stomach issues."
+  }
+]

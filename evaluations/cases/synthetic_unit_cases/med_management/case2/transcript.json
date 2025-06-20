@@ -1,0 +1,22 @@
+[
+  {
+    "speaker": "Doctor",
+    "text": "I see you're on metformin for your diabetes. How have your blood sugar levels been?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "They've been a bit high in the mornings."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "We could add a GLP-1 receptor agonist to help with that. It can also aid in weight loss."
+  },
+  {
+    "speaker": "Patient",
+    "text": "That sounds promising. Are there any side effects I should be aware of?"
+  },
+  {
+    "speaker": "Doctor",
+    "text": "Some people experience nausea, but it often improves over time."
+  }
+]

@@ -1,0 +1,30 @@
+[
+  [
+    "Accurately document the decision to stop the statin due to muscle aches, as stated by the doctor.",
+    10
+  ],
+  [
+    "Correctly record the prescription of a PCSK9 inhibitor as a replacement for the statin, including any specific instructions provided by the doctor.",
+    10
+  ],
+  [
+    "Ensure that the reason for the visit, 'Statin Intolerance Evaluation', is clearly noted without duplicating chart information.",
+    5
+  ],
+  [
+    "Avoid including any redundant or copied information from the chart, such as demographic details or pre-existing conditions, in the scribe note.",
+    -10
+  ],
+  [
+    "Clearly state that the patient agreed to the medication change, reflecting the patient's response in the transcript.",
+    5
+  ],
+  [
+    "Do not include any allergies, as there are none mentioned in the transcript or chart.",
+    -5
+  ],
+  [
+    "Ensure that no unnecessary or unrelated information is added to the scribe note, maintaining focus on the specific case details.",
+    -5
+  ]
+]
