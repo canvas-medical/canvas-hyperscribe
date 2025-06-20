@@ -1,0 +1,50 @@
+{
+  "stagedCommands": {
+    "reasonForVisit": [
+      {
+        "uuid": "uuid-visit-1",
+        "label": "Follow-up for muscle aches and medication management",
+        "code": "FMM-002"
+      }
+    ]
+  },
+  "demographicStr": "the patient is a female, born on 1961-01-01 (age 62)",
+  "currentConditions": [
+    {
+      "uuid": "cond-uuid-1",
+      "label": "Hyperlipidemia",
+      "code": "E78.5"
+    },
+    {
+      "uuid": "cond-uuid-2",
+      "label": "Essential hypertension",
+      "code": "I10"
+    },
+    {
+      "uuid": "cond-uuid-3",
+      "label": "Osteoarthritis",
+      "code": "M19.90"
+    }
+  ],
+  "currentMedications": [
+    {
+      "uuid": "med-uuid-1",
+      "label": "Amlodipine 5 mg tablet",
+      "code": "197361"
+    },
+    {
+      "uuid": "med-uuid-2",
+      "label": "Ibuprofen 200 mg tablet",
+      "code": "197362"
+    }
+  ],
+  "currentAllergies": [
+    {
+      "uuid": "allergy-uuid-1",
+      "label": "Penicillin",
+      "code": "70618"
+    }
+  ],
+  "surgeryHistory": [],
+  "familyHistory": []
+}
