@@ -1,0 +1,18 @@
+[
+  {
+    "speaker": "Doctor",
+    "text": "How is the new medication for your migraines working?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "It's reduced the frequency, but I feel a bit drowsy."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "We can try taking it at night to minimize the drowsiness during the day."
+  },
+  {
+    "speaker": "Patient",
+    "text": "I'll try that and see if it helps."
+  }
+]
