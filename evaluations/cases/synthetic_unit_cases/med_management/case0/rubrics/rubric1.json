@@ -1,0 +1,38 @@
+[
+  [
+    "Accurately document the decision to stop the statin due to muscle aches, including the rationale provided by the doctor.",
+    10
+  ],
+  [
+    "Correctly record the prescription of a PCSK9 inhibitor as a replacement for the statin, including any specific instructions or dosage if mentioned.",
+    10
+  ],
+  [
+    "Ensure no redundant information from the chart, such as current medications or conditions, is copied into the scribe note.",
+    -5
+  ],
+  [
+    "Include the reason for the visit as 'Lipid Management Follow-up' without duplicating chart data.",
+    5
+  ],
+  [
+    "Do not include any allergies, as the chart indicates there are none, and no new allergies were discussed.",
+    -5
+  ],
+  [
+    "Avoid documenting any family history, surgery history, or past medical history as none were discussed in the transcript.",
+    -5
+  ],
+  [
+    "Ensure the note reflects the patient's agreement or understanding of the medication change as indicated by their response.",
+    5
+  ],
+  [
+    "Do not include any new diagnoses or assessments not mentioned in the transcript.",
+    -5
+  ],
+  [
+    "Avoid documenting any follow-up plans unless explicitly mentioned in the transcript.",
+    -5
+  ]
+]
