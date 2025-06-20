@@ -13,19 +13,21 @@ def generate_patient_profiles(llm, transcript, output_path):
         ]
     ))
     llm.add_prompt(LlmTurn(
-        role='user',
-        text=[
-            (
-                "Generate a JSON array of 5 distinct patient profiles that would be realistic given the following transcript of a medical conversation. "
-                "Each profile should be a plausible variation of a patient where this transcript could apply. "
-                "Each profile must include: age, sex, conditions (list), medications (list), allergies (list), and recent care context (brief sentence). "
-                "This list of characteristics for the profile is not comprehensive — include any relevant information that would ensure that the patient profile being created is different from the others. "
-                "Output raw JSON array only — no Markdown, no commentary."
-            ),
-            "--- TRANSCRIPT JSON ---",
-            json.dumps(transcript)
+    role='user',
+    text=[
+        (
+            "Generate 5 distinct short patient profile summaries that could realistically correspond to the following medical conversation transcript. "
+            "Each summary should be a plausible patient scenario for this case. Do not include details from the transcript to inform the profile–it should be a background for the patient for which the transcript could be a conversation."
+            "Vary the detail and completeness across profiles to reflect real-world documentation — for example, some profiles may include more medication details, others may emphasize conditions or context. "
+            "Format the output as a JSON object where each key is 'Patient N' (where N is 1-5) and each value is a string summary of that patient's profile. "
+            "Example: {\"Patient 1\": \"Profile 1 summary...\", \"Patient 2\": \"Profile 2 summary...\", ...}. "
+            "Do not include Markdown, code block formatting, or commentary. Output raw JSON only."
+        ),
+        "--- TRANSCRIPT JSON ---",
+        json.dumps(transcript)
         ]
     ))
+
     response = llm.request()
 
     #fixes markdown variation creeping in occasionally.
@@ -48,7 +50,7 @@ def main():
     #fix later, make this into a parameter entered in by user.
     base_dir = os.path.expanduser("~/canvas-hyperscribe/evaluations/cases/synthetic_unit_cases/med_management/case0")
     transcript_path = os.path.join(base_dir, "transcript.json")
-    profiles_path = os.path.join(base_dir, "patient_profiles.json")
+    profiles_path = os.path.join(base_dir, "patient_profiles_v2.json")
 
     with open(transcript_path, 'r') as f:
         transcript = json.load(f)
