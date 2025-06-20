@@ -1,0 +1,29 @@
+{
+  "stagedCommands": {
+    "reasonForVisit": [
+      {
+        "uuid": "rvv-5",
+        "label": "Muscle weakness evaluation",
+        "code": "MWE-05"
+      }
+    ]
+  },
+  "demographicStr": "the patient is a woman, born on 1969-05-02 (age 55)",
+  "currentConditions": [
+    {
+      "uuid": "cond-7",
+      "label": "Autoimmune myopathy",
+      "code": "G72.89"
+    }
+  ],
+  "currentAllergies": [
+    {
+      "uuid": "allergy-1",
+      "label": "Statins",
+      "code": "999999"
+    }
+  ],
+  "currentMedications": [],
+  "surgeryHistory": [],
+  "familyHistory": []
+}

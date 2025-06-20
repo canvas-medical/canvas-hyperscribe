@@ -1,0 +1,34 @@
+[
+  [
+    "Accurately document the decision to stop the statin due to muscle aches, as stated by the doctor.",
+    10
+  ],
+  [
+    "Correctly record the prescription of a PCSK9 inhibitor as a replacement for the statin, including any available details on dosage and administration.",
+    10
+  ],
+  [
+    "Ensure the note does not redundantly include the patient's known allergy to statins, as this is already documented in the chart.",
+    -5
+  ],
+  [
+    "Avoid copying any pre-existing chart information, such as the patient's autoimmune myopathy diagnosis, unless it is directly relevant to the new plan or decision.",
+    -5
+  ],
+  [
+    "Clearly state the reason for the visit as 'Muscle weakness evaluation' without duplicating chart data.",
+    5
+  ],
+  [
+    "Include a brief summary of the patient's symptoms and the doctor's observations related to the muscle aches, without repeating chart information.",
+    5
+  ],
+  [
+    "Ensure the note reflects the patient's agreement or understanding of the medication change, as indicated by the patient's response.",
+    5
+  ],
+  [
+    "Do not include any unnecessary or unrelated information that is not part of the current case discussion.",
+    -5
+  ]
+]
