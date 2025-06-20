@@ -10,6 +10,7 @@ class CommentBody(NamedTuple):
     patient_id: str
     created: datetime
     finished: datetime | None
+    banner: bool
 
     def to_dict(self) -> dict:
         return {
@@ -18,6 +19,7 @@ class CommentBody(NamedTuple):
             "patient_id": self.patient_id,
             "created": self.created.isoformat(),
             "finished": self.finished.isoformat() if isinstance(self.finished, datetime) else None,
+            "banner": self.banner,
         }
 
     @classmethod
@@ -28,4 +30,5 @@ class CommentBody(NamedTuple):
             patient_id=data.get("patient_id", ""),
             created=datetime.fromisoformat(created) if (created := data.get("created")) else datetime.now(UTC),
             finished=datetime.fromisoformat(finished) if (finished := data.get("finished")) else None,
+            banner=data.get("banner", False),
         )

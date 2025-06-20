@@ -13,6 +13,7 @@ def test_class():
         "patient_id": str,
         "created": datetime,
         "finished": datetime | None,
+        "banner": bool,
     }
     assert is_namedtuple(tested, fields)
 
@@ -24,6 +25,7 @@ def test_to_dict():
         patient_id="thePatientUuid",
         created=datetime(2025, 5, 12, 11, 6, 47, tzinfo=UTC),
         finished=None,
+        banner=False,
     )
     result = tested.to_dict()
     expected = {
@@ -32,6 +34,7 @@ def test_to_dict():
         'finished': None,
         'note_id': 'theNoteUuid',
         'patient_id': 'thePatientUuid',
+        'banner': False,
     }
 
     assert result == expected
@@ -42,6 +45,7 @@ def test_to_dict():
         patient_id="thePatientUuid",
         created=datetime(2025, 5, 12, 23, 49, 47, tzinfo=UTC),
         finished=datetime(2025, 5, 13, 0, 7, 33, tzinfo=UTC),
+        banner=True,
     )
     result = tested.to_dict()
     expected = {
@@ -50,6 +54,7 @@ def test_to_dict():
         'finished': '2025-05-13T00:07:33+00:00',
         'note_id': 'theNoteUuid',
         'patient_id': 'thePatientUuid',
+        'banner': True,
     }
     assert result == expected
 
@@ -69,6 +74,7 @@ def test_load_from_json(mock_datetime):
                 'finished': '2025-05-12T11:06:53+00:00',
                 'note_id': 'theNoteUuid',
                 'patient_id': 'thePatientUuid',
+                'banner': True,
             },
             CommentBody(
                 chunk_index=7,
@@ -76,6 +82,7 @@ def test_load_from_json(mock_datetime):
                 patient_id="thePatientUuid",
                 created=datetime(2025, 5, 12, 11, 6, 47, tzinfo=UTC),
                 finished=datetime(2025, 5, 12, 11, 6, 53, tzinfo=UTC),
+                banner=True,
             ),
             [
                 call.fromisoformat('2025-05-12T11:06:47+00:00'),
@@ -96,6 +103,7 @@ def test_load_from_json(mock_datetime):
                 patient_id="thePatientUuid",
                 created=datetime(2025, 5, 12, 11, 6, 47, tzinfo=UTC),
                 finished=None,
+                banner=False,
             ),
             [call.fromisoformat('2025-05-12T11:06:47+00:00')],
         ),
@@ -106,6 +114,7 @@ def test_load_from_json(mock_datetime):
                 'finished': None,
                 'note_id': 'theNoteUuid',
                 'patient_id': 'thePatientUuid',
+                'banner': False,
             },
             CommentBody(
                 chunk_index=7,
@@ -113,6 +122,7 @@ def test_load_from_json(mock_datetime):
                 patient_id="thePatientUuid",
                 created=datetime(2025, 5, 12, 11, 6, 47, tzinfo=UTC),
                 finished=None,
+                banner=False,
             ),
             [call.now(UTC)],
         ),

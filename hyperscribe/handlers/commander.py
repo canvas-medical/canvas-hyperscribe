@@ -8,6 +8,7 @@ from typing import Iterable, Any
 
 import requests
 from canvas_sdk.effects import Effect, EffectType
+from canvas_sdk.effects.banner_alert import AddBannerAlert, RemoveBannerAlert
 from canvas_sdk.effects.task.task import AddTaskComment, UpdateTask, TaskStatus
 from canvas_sdk.events import EventType
 from canvas_sdk.handlers.base import version
@@ -78,6 +79,28 @@ class Commander(BaseProtocol):
             provider_uuid=str(note.provider.id),
             canvas_instance=self.environment[Constants.CUSTOMER_IDENTIFIER],
         )
+        if not information.banner:
+            return [
+                AddBannerAlert(
+                    patient_id=identification.patient_uuid,
+                    key="hyperscribe-info",
+                    narrative="Hyperscribe has started...",
+                    placement=[AddBannerAlert.Placement.TIMELINE],
+                    intent=AddBannerAlert.Intent.WARNING,
+                ).apply(),
+                AddTaskComment(
+                    task_id=str(comment.task.id),
+                    body=json.dumps(CommentBody(
+                        note_id=information.note_id,
+                        patient_id=identification.patient_uuid,
+                        chunk_index=information.chunk_index,
+                        created=information.created,
+                        finished=None,
+                        banner=True,
+                    ).to_dict())
+                ).apply(),
+            ]
+
         settings = Settings.from_dictionary(self.secrets | {Constants.PROGRESS_SETTING_KEY: True})
         aws_s3 = AwsS3Credentials.from_dictionary(self.secrets)
         memory_log = MemoryLog.instance(identification, Constants.MEMORY_LOG_LABEL, aws_s3)
@@ -94,6 +117,7 @@ class Commander(BaseProtocol):
                     chunk_index=information.chunk_index + 1,
                     created=information.created,
                     finished=None,
+                    banner=True,
                 ).to_dict())
             ).apply())
         else:
@@ -107,6 +131,7 @@ class Commander(BaseProtocol):
                     chunk_index=information.chunk_index - 1,
                     created=information.created,
                     finished=datetime.now(UTC),
+                    banner=True,
                 ).to_dict())
             ).apply())
             # TODO ^^^ removed when https://github.com/canvas-medical/canvas-plugins/issues/600 is fixed
@@ -117,6 +142,13 @@ class Commander(BaseProtocol):
                 id=str(comment.task.id),
                 status=TaskStatus.COMPLETED,
             ).apply())
+            effects.append(AddBannerAlert(
+                    patient_id=identification.patient_uuid,
+                    key="hyperscribe-info",
+                    narrative="Hyperscribe has finished",
+                    placement=[AddBannerAlert.Placement.TIMELINE],
+                    intent=AddBannerAlert.Intent.INFO,
+                ).apply())
         MemoryLog.end_session(information.note_id)
         LlmTurnsStore.end_session(information.note_id)
         return effects

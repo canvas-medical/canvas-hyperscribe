@@ -224,9 +224,74 @@ def test_compute(
     reset_mocks()
 
     # -- with more audio
+    # -- -- banner is not set yet
     compute_audio.side_effect = [(True, [Effect(type="LOG", payload="SomePayload")])]
     mock_comment.id = "commentUuid"
     mock_comment.body = json.dumps({"chunk_index": 7, "note_id": "noteUuid", "created": "2025-05-09T12:34:55+00:00"})
+    mock_comment.task.id = "taskUuid"
+    mock_comment.task.labels.all.side_effect = [task_labels]
+    mock_comment.task.labels.filter.return_value.first.side_effect = ["aTask"]
+    task_comment_db.get.side_effect = [mock_comment]
+    mock_datetime.now.side_effect = [date_x]
+
+    mock_note.provider.id = "providerUuid"
+    mock_note.patient.id = "patientUuid"
+    note_db.get.side_effect = [mock_note]
+
+    result = tested.compute()
+    expected = [
+        Effect(
+            type="ADD_BANNER_ALERT",
+            payload=json.dumps({
+                "patient": "patientUuid",
+                "patient_filter": None,
+                "key": "hyperscribe-info",
+                "data": {
+                    "narrative": "Hyperscribe has started...",
+                    "placement": ["timeline"],
+                    "intent": "warning",
+                    "href": None,
+                },
+            }),
+        ),
+        Effect(
+            type="CREATE_TASK_COMMENT",
+            payload=json.dumps({
+                "data": {
+                    "task": {"id": "taskUuid"},
+                    "body": json.dumps({
+                        "chunk_index": 7,
+                        "note_id": "noteUuid",
+                        "patient_id": "patientUuid",
+                        "created": "2025-05-09T12:34:55+00:00",
+                        "finished": None,
+                        "banner": True,
+                    })
+                }}),
+        ),
+    ]
+    assert result == expected
+
+    calls = []
+    assert compute_audio.mock_calls == calls
+    calls = [call.get(id='taskUuid')]
+    assert task_comment_db.mock_calls == calls
+    assert info.mock_calls == []
+    assert memory_log.mock_calls == []
+    assert progress.mock_calls == []
+    assert llm_turns_store.mock_calls == []
+    calls = [
+        call.task.labels.filter(name='Encounter Copilot'),
+        call.task.labels.filter().first()
+    ]
+    assert mock_comment.mock_calls == calls
+    assert mock_note.mock_calls == []
+    assert mock_datetime.mock_calls == []
+    reset_mocks()
+    # -- -- banner is set
+    compute_audio.side_effect = [(True, [Effect(type="LOG", payload="SomePayload")])]
+    mock_comment.id = "commentUuid"
+    mock_comment.body = json.dumps({"chunk_index": 7, "note_id": "noteUuid", "created": "2025-05-09T12:34:55+00:00", "banner": True})
     mock_comment.task.id = "taskUuid"
     mock_comment.task.labels.all.side_effect = [task_labels]
     mock_comment.task.labels.filter.return_value.first.side_effect = ["aTask"]
@@ -253,7 +318,9 @@ def test_compute(
                         "note_id": "noteUuid",
                         "patient_id": "patientUuid",
                         "created": "2025-05-09T12:34:55+00:00",
-                        "finished": None})
+                        "finished": None,
+                        "banner": True,
+                    })
                 }}),
         ),
     ]
@@ -290,7 +357,7 @@ def test_compute(
     # -- no more audio
     compute_audio.side_effect = [(False, [])]
     mock_comment.id = "commentUuid"
-    mock_comment.body = json.dumps({"chunk_index": 7, "note_id": "noteUuid", "created": "2025-05-09T12:34:44+00:00"})
+    mock_comment.body = json.dumps({"chunk_index": 7, "note_id": "noteUuid", "created": "2025-05-09T12:34:44+00:00", "banner": True})
     mock_comment.task.id = "taskUuid"
     mock_comment.task.labels.all.side_effect = [task_labels]
     mock_comment.task.labels.filter.return_value.first.side_effect = ["aTask"]
@@ -314,12 +381,27 @@ def test_compute(
                         "patient_id": "patientUuid",
                         "created": "2025-05-09T12:34:44+00:00",
                         "finished": "2025-05-09T12:34:21+00:00",
+                        "banner": True,
                     }),
                 }}),
         ),
         Effect(
             type="UPDATE_TASK",
             payload=json.dumps({"data": {"id": "taskUuid", "status": "COMPLETED"}}),
+        ),
+        Effect(
+            type="ADD_BANNER_ALERT",
+            payload=json.dumps({
+                "patient": "patientUuid",
+                "patient_filter": None,
+                "key": "hyperscribe-info",
+                "data": {
+                    "narrative": "Hyperscribe has finished",
+                    "placement": ["timeline"],
+                    "intent": "info",
+                    "href": None,
+                },
+            }),
         ),
     ]
     assert result == expected
