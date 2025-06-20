@@ -14,3 +14,27 @@ class ChargeDescriptionMaster(Model):
     cpt_code: CharField = CharField()
     name: CharField = CharField()
     short_name: CharField = CharField()
+
+
+class LastNoteStateEvent(Model):
+    NEW = "NEW"
+    PUSHED = "PSH"
+    LOCKED = "LKD"
+    UNLOCKED = "ULK"
+    DELETED = "DLT"
+    RELOCKED = "RLK"
+    RESTORED = "RST"
+    RECALLED = "RCL"
+    UNDELETED = "UND"
+
+    class Meta:
+        managed = False
+        app_label = "canvas_sdk"
+        db_table = "canvas_sdk_last_note_state_event_001"
+
+    dbid: BigIntegerField = BigIntegerField(primary_key=True)
+    state: CharField = CharField()
+    note_id: BigIntegerField = BigIntegerField()
+
+    def editable(self) -> bool:
+        return self.state in [self.NEW, self.PUSHED, self.UNLOCKED, self.RESTORED, self.UNDELETED]

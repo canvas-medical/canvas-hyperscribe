@@ -7,6 +7,7 @@ from canvas_sdk.events import EventType
 from canvas_sdk.handlers.action_button import ActionButton
 from canvas_sdk.v1.data.note import Note
 
+from hyperscribe.handlers.temporary_data import LastNoteStateEvent
 from hyperscribe.libraries.constants import Constants
 from hyperscribe.structures.settings import Settings
 
@@ -39,4 +40,7 @@ class TuningLauncher(ActionButton):
     def visible(self) -> bool:
         settings = Settings.from_dictionary(self.secrets)
         staff_id = self.context.get("user", {}).get("id", "")
-        return settings.is_tuning and settings.staffers_policy.is_allowed(staff_id)
+        result = False
+        if settings.is_tuning and settings.staffers_policy.is_allowed(staff_id):
+            result = LastNoteStateEvent.objects.get(note_id=self.event.context['note_id']).editable()
+        return result

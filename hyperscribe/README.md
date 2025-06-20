@@ -125,6 +125,22 @@ FROM quality_and_revenue_chargedescriptionmaster;
 GRANT SELECT ON canvas_sdk_data_charge_description_master_001 TO canvas_sdk_read_only;
 ```
 
+To be able to display or hide the buttons depending on the current note's state, the plugin needs to know the last state change event
+of each note.
+
+The underlying view is not exposed to the SDK yet, and it can be
+created with the following SQL script run on the CANVAS instance:
+
+```postgresql
+CREATE OR REPLACE VIEW canvas_sdk_last_note_state_event_001 AS
+SELECT event.externally_exposable_id AS id, event.id AS dbid, event.note_id, event.state 
+FROM api_notestatechangeevent AS event
+JOIN (SELECT MAX(id)id FROM api_notestatechangeevent GROUP by note_id) AS last_id
+ON event.id=last_id.id;
+
+GRANT SELECT ON canvas_sdk_last_note_state_event_001 TO canvas_sdk_read_only;
+```
+
 ## Unit tests
 
 The `hyperscribe` code is tested with `pytest` and discussed in this [README.md](../README.md)
