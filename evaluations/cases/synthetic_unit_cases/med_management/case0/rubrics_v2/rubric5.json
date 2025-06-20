@@ -1,0 +1,34 @@
+[
+  [
+    "Document the decision to stop the statin due to muscle aches, as explicitly stated by the doctor.",
+    10
+  ],
+  [
+    "Include the prescription of a PCSK9 inhibitor as a replacement for the statin, as decided by the doctor.",
+    10
+  ],
+  [
+    "Avoid including any pre-existing conditions such as hyperlipidemia and hypothyroidism from the chart, as they are not newly discussed in the transcript.",
+    -5
+  ],
+  [
+    "Do not repeat the patient's demographic information from the chart in the scribe note.",
+    -5
+  ],
+  [
+    "Ensure that the reason for the visit is documented as 'Medication Management Visit' without copying the chart data.",
+    5
+  ],
+  [
+    "Exclude any mention of current medications like Levothyroxine and Hydrochlorothiazide unless they are directly relevant to the new prescription decision.",
+    -5
+  ],
+  [
+    "Do not include the patient's shellfish allergy from the chart unless it is relevant to the new medication decision.",
+    -5
+  ],
+  [
+    "Capture the patient's acknowledgment and understanding of the medication change, as indicated by their response.",
+    5
+  ]
+]

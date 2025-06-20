@@ -1,0 +1,84 @@
+[
+  {
+    "age": 62,
+    "sex": "female",
+    "conditions": [
+      "hyperlipidemia",
+      "hypertension",
+      "osteoarthritis"
+    ],
+    "medications": [
+      "amlodipine",
+      "ibuprofen"
+    ],
+    "allergies": [
+      "penicillin"
+    ],
+    "recent_care_context": "Visited the clinic due to persistent muscle aches after starting statin therapy."
+  },
+  {
+    "age": 55,
+    "sex": "male",
+    "conditions": [
+      "hyperlipidemia",
+      "type 2 diabetes",
+      "obesity"
+    ],
+    "medications": [
+      "metformin",
+      "lisinopril"
+    ],
+    "allergies": [
+      "sulfa drugs"
+    ],
+    "recent_care_context": "Complained of muscle pain during a routine check-up for diabetes management."
+  },
+  {
+    "age": 70,
+    "sex": "female",
+    "conditions": [
+      "hyperlipidemia",
+      "chronic kidney disease"
+    ],
+    "medications": [
+      "losartan",
+      "calcium carbonate"
+    ],
+    "allergies": [
+      "aspirin"
+    ],
+    "recent_care_context": "Reported muscle discomfort during a follow-up for kidney function monitoring."
+  },
+  {
+    "age": 48,
+    "sex": "male",
+    "conditions": [
+      "hyperlipidemia",
+      "anxiety"
+    ],
+    "medications": [
+      "sertraline",
+      "atorvastatin"
+    ],
+    "allergies": [
+      "latex"
+    ],
+    "recent_care_context": "Visited the doctor after experiencing muscle aches, suspecting a side effect of statin."
+  },
+  {
+    "age": 65,
+    "sex": "female",
+    "conditions": [
+      "hyperlipidemia",
+      "hypothyroidism"
+    ],
+    "medications": [
+      "levothyroxine",
+      "hydrochlorothiazide"
+    ],
+    "allergies": [
+      "shellfish"
+    ],
+    "recent_care_context": "Came in for a medication review due to muscle pain potentially linked to statin use."
+  }
+]
