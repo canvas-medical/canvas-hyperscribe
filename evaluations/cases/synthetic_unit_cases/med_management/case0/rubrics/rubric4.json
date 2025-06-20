@@ -1,0 +1,42 @@
+[
+  [
+    "Accurately document the decision to stop the statin due to muscle aches, including the rationale provided by the doctor.",
+    10
+  ],
+  [
+    "Correctly record the prescription of a PCSK9 inhibitor as a replacement for the statin, ensuring to include any specific instructions or dosage if mentioned.",
+    10
+  ],
+  [
+    "Ensure that the reason for the visit, 'Post-ACS lipid management', is not redundantly included in the scribe note as it is already in the chart.",
+    -5
+  ],
+  [
+    "Avoid copying any demographic information such as the patient's age or birthdate from the chart into the scribe note.",
+    -5
+  ],
+  [
+    "Do not include any current medications like 'Aspirin 81 mg tablet' from the chart unless there is a change or specific mention in the conversation.",
+    -5
+  ],
+  [
+    "Ensure no allergies are documented in the scribe note since the chart indicates there are none and no new allergies were discussed.",
+    -5
+  ],
+  [
+    "Accurately reflect the patient's agreement or understanding of the medication change as expressed in the conversation.",
+    5
+  ],
+  [
+    "Avoid including any past medical history or conditions from the chart unless they are directly relevant to the new decisions made in the conversation.",
+    -5
+  ],
+  [
+    "Ensure that no family history or surgery history is included in the scribe note as none was discussed or relevant to the current case.",
+    -5
+  ],
+  [
+    "Document any follow-up plans or instructions if mentioned by the doctor, ensuring they are specific to this encounter.",
+    5
+  ]
+]
