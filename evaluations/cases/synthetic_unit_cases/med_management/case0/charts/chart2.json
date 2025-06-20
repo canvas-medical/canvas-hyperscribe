@@ -1,0 +1,23 @@
+{
+  "stagedCommands": {
+    "reasonForVisit": [
+      {
+        "uuid": "rvv-2",
+        "label": "Statin Intolerance Evaluation",
+        "code": "SIE-02"
+      }
+    ]
+  },
+  "demographicStr": "the patient is a man, born on 1962-09-10 (age 62)",
+  "currentConditions": [
+    {
+      "uuid": "cond-3",
+      "label": "Hyperlipidemia, unspecified",
+      "code": "E78.5"
+    }
+  ],
+  "currentMedications": [],
+  "currentAllergies": [],
+  "surgeryHistory": [],
+  "familyHistory": []
+}

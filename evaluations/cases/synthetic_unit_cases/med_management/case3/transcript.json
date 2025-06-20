@@ -1,0 +1,18 @@
+[
+  {
+    "speaker": "Doctor",
+    "text": "How are you managing with the new antidepressant, sertraline?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "I feel a bit more anxious since starting it."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "That's not uncommon initially. We can adjust the dose or try a different medication if it doesn't improve soon."
+  },
+  {
+    "speaker": "Patient",
+    "text": "Okay, I'll give it a bit more time and see how it goes."
+  }
+]
