@@ -97,11 +97,24 @@ class PatientProfilePipeline:
         self.output_path = Path(output_path_str).expanduser()
         self.all_profiles = {}
 
-    def _save(self):
+    def _save_combined(self):
         self.output_path.parent.mkdir(parents=True, exist_ok=True)
         with self.output_path.open('w') as f:
             json.dump(self.all_profiles, f, indent=2)
         print(f"Saved {len(self.all_profiles)} medication management profiles to {self.output_path}")
+
+    def _save_individuals(self):
+        base_dir = self.output_path.parent
+        for name, narrative in self.all_profiles.items():
+            # Sanitize name for directory (e.g., "Patient 1" -> "Patient_1")
+            dir_name = re.sub(r'\s+', '_', name.strip())
+            dir_path = base_dir / dir_name
+            dir_path.mkdir(parents=True, exist_ok=True)
+
+            file_path = dir_path / "profile.json"
+            with file_path.open('w') as f:
+                json.dump({name: narrative}, f, indent=2)
+            print(f"Saved profile for {name} to {file_path}")
 
     def run(self, batches=8, batch_size=5):
         for batch_num in range(1, batches + 1):
@@ -110,7 +123,9 @@ class PatientProfilePipeline:
             for profile in batch_profiles:
                 self.all_profiles[profile.name] = profile.narrative
 
-        self._save()
+        self._save_combined()
+        self._save_individuals()
+
 
 if __name__ == "__main__":
     llm_key = os.getenv('KeyTextLLM')
