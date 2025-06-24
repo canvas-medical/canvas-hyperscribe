@@ -1,0 +1,26 @@
+[
+  {
+    "speaker": "Doctor",
+    "text": "Good morning, how have you been managing with your current medications, especially the methotrexate?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Hi, Doctor. I've been doing okay, but I sometimes feel a bit nauseous after taking methotrexate."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "I'm sorry to hear that. Have you been taking your folic acid regularly? It can help with some of the side effects."
+  },
+  {
+    "speaker": "Patient",
+    "text": "Yes, I take it every day as you advised. It does help a bit, but the nausea still bothers me sometimes."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "We could consider adjusting the timing of your methotrexate dose or even the dose itself. Would you be open to trying that?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "I\u2019d be willing to try changing the timing. I\u2019d prefer not to lower the dose if it\u2019s helping my arthritis."
+  }
+]

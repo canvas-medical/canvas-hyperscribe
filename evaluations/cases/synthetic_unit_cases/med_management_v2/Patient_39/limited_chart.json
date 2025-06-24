@@ -1,0 +1,44 @@
+{
+  "demographicStr": "the patient is a man, born on January 1, 1948 (age 75)",
+  "conditionHistory": [],
+  "currentAllergies": [
+    {
+      "uuid": "allergy1",
+      "label": "Sulfa drugs",
+      "code": "Z88.2"
+    }
+  ],
+  "currentConditions": [
+    {
+      "uuid": "cond1",
+      "label": "Atrial fibrillation",
+      "code": "I48.91"
+    },
+    {
+      "uuid": "cond2",
+      "label": "Chronic kidney disease stage 3",
+      "code": "N18.3"
+    }
+  ],
+  "currentGoals": [],
+  "currentMedications": [
+    {
+      "uuid": "med1",
+      "label": "Warfarin",
+      "code": "B01AA03"
+    },
+    {
+      "uuid": "med2",
+      "label": "Furosemide",
+      "code": "C03CA01"
+    }
+  ],
+  "familyHistory": [
+    {
+      "uuid": "fh1",
+      "label": "Family history of atrial fibrillation",
+      "code": "Z82.49"
+    }
+  ],
+  "surgeryHistory": []
+}

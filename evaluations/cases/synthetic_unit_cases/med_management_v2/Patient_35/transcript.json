@@ -1,0 +1,26 @@
+[
+  {
+    "speaker": "Doctor",
+    "text": "Good morning, I'm Dr. Smith. I understand you've recently moved here. How can I assist you today?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Hi, yes, I'm trying to get settled and need to sort out my medications. I can't remember everything I've been on."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "That's understandable. Do you recall any specific medications you're currently taking or have taken recently?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "I think I was on something for blood pressure, but I can't remember the name. I also had some pain medication after a surgery a while back."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "Alright, let's start with the blood pressure medication. Do you remember if it was a pill you took daily?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Yes, it was a daily pill. I think it was a small white tablet, but that's all I can remember."
+  }
+]

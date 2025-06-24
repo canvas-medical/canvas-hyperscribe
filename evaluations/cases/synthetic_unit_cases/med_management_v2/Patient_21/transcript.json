@@ -1,0 +1,26 @@
+[
+  {
+    "speaker": "Doctor",
+    "text": "Good morning, Mr. Johnson. How have you been managing with your COPD medications lately?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Morning, Doctor. I've been using the tiotropium daily, and the albuterol only when I feel really short of breath."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "That's good to hear. Have you noticed any side effects from the tiotropium?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Not really, but sometimes I feel a bit dry in the mouth. It's not too bothersome though."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "Okay, that's a common side effect. As for your blood pressure, how are you doing with the lisinopril?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "The lisinopril seems to be working fine. I haven't had any issues with it, unlike the beta-blockers before."
+  }
+]

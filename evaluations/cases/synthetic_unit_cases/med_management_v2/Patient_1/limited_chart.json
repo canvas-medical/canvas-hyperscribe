@@ -1,0 +1,54 @@
+{
+  "demographicStr": "the patient is a man, born on January 1, 1955 (age 68)",
+  "conditionHistory": [],
+  "currentAllergies": [
+    {
+      "uuid": "allergy1",
+      "label": "Rash with penicillin",
+      "code": "Z88.0"
+    }
+  ],
+  "currentConditions": [
+    {
+      "uuid": "cond1",
+      "label": "Hypertension",
+      "code": "I10"
+    },
+    {
+      "uuid": "cond2",
+      "label": "Type 2 diabetes mellitus without complications",
+      "code": "E11.9"
+    },
+    {
+      "uuid": "cond3",
+      "label": "Chronic kidney disease, stage 3",
+      "code": "N18.3"
+    }
+  ],
+  "currentGoals": [],
+  "currentMedications": [
+    {
+      "uuid": "med1",
+      "label": "Lisinopril 10 mg tablet",
+      "code": "314076"
+    },
+    {
+      "uuid": "med2",
+      "label": "Metformin 500 mg tablet",
+      "code": "860975"
+    },
+    {
+      "uuid": "med3",
+      "label": "Atorvastatin 20 mg tablet",
+      "code": "617317"
+    }
+  ],
+  "familyHistory": [
+    {
+      "uuid": "fh1",
+      "label": "Family history of myocardial infarction",
+      "code": "Z82.49"
+    }
+  ],
+  "surgeryHistory": []
+}

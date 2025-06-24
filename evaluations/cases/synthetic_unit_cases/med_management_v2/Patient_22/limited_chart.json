@@ -1,0 +1,43 @@
+{
+  "demographicStr": "the patient is a woman, born on January 1, 1971 (age 52)",
+  "conditionHistory": [],
+  "currentAllergies": [],
+  "currentConditions": [
+    {
+      "uuid": "cond1",
+      "label": "Rheumatoid arthritis",
+      "code": "M06.9"
+    },
+    {
+      "uuid": "cond2",
+      "label": "Hyperlipidemia",
+      "code": "E78.5"
+    }
+  ],
+  "currentGoals": [],
+  "currentMedications": [
+    {
+      "uuid": "med1",
+      "label": "Methotrexate",
+      "code": "L01BA01"
+    },
+    {
+      "uuid": "med2",
+      "label": "Folic acid",
+      "code": "B03BB01"
+    },
+    {
+      "uuid": "med3",
+      "label": "Atorvastatin",
+      "code": "C10AA05"
+    }
+  ],
+  "familyHistory": [
+    {
+      "uuid": "fh1",
+      "label": "Family history of osteoporosis",
+      "code": "Z82.62"
+    }
+  ],
+  "surgeryHistory": []
+}

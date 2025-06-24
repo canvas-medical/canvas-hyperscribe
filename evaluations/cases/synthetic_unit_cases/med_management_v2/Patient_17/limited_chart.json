@@ -1,0 +1,28 @@
+{
+  "demographicStr": "the patient is a woman, born on January 1, 1995 (age 28)",
+  "conditionHistory": [],
+  "currentAllergies": [],
+  "currentConditions": [
+    {
+      "uuid": "cond1",
+      "label": "Epilepsy",
+      "code": "G40.909"
+    }
+  ],
+  "currentGoals": [],
+  "currentMedications": [
+    {
+      "uuid": "med1",
+      "label": "Lamotrigine",
+      "code": "N03AX09"
+    }
+  ],
+  "familyHistory": [
+    {
+      "uuid": "fh1",
+      "label": "Family history of epilepsy",
+      "code": "Z82.0"
+    }
+  ],
+  "surgeryHistory": []
+}

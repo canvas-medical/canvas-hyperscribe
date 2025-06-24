@@ -1,0 +1,49 @@
+{
+  "demographicStr": "the patient is a woman, born on January 1, 1955 (age 68)",
+  "conditionHistory": [],
+  "currentAllergies": [
+    {
+      "uuid": "allergy1",
+      "label": "Penicillin",
+      "code": "Z88.0"
+    }
+  ],
+  "currentConditions": [
+    {
+      "uuid": "cond1",
+      "label": "Chronic obstructive pulmonary disease",
+      "code": "J44.9"
+    },
+    {
+      "uuid": "cond2",
+      "label": "Osteoporosis",
+      "code": "M81.0"
+    }
+  ],
+  "currentGoals": [],
+  "currentMedications": [
+    {
+      "uuid": "med1",
+      "label": "Albuterol inhaler",
+      "code": "NDC 0173-0682"
+    },
+    {
+      "uuid": "med2",
+      "label": "Tiotropium",
+      "code": "NDC 0597-0085"
+    },
+    {
+      "uuid": "med3",
+      "label": "Alendronate",
+      "code": "NDC 0006-0077"
+    }
+  ],
+  "familyHistory": [
+    {
+      "uuid": "fh1",
+      "label": "Family history of osteoporosis",
+      "code": "Z82.62"
+    }
+  ],
+  "surgeryHistory": []
+}

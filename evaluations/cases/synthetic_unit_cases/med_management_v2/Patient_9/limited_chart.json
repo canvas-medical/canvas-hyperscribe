@@ -1,0 +1,32 @@
+{
+  "demographicStr": "the patient is a man, born on January 1, 1983 (age 40)",
+  "conditionHistory": [],
+  "currentAllergies": [],
+  "currentConditions": [
+    {
+      "uuid": "cond1",
+      "label": "Bipolar disorder",
+      "code": "F31.9"
+    },
+    {
+      "uuid": "cond2",
+      "label": "Chronic back pain",
+      "code": "M54.5"
+    }
+  ],
+  "currentGoals": [],
+  "currentMedications": [
+    {
+      "uuid": "med1",
+      "label": "Lithium",
+      "code": "N05AN01"
+    },
+    {
+      "uuid": "med2",
+      "label": "Gabapentin",
+      "code": "N03AX12"
+    }
+  ],
+  "familyHistory": [],
+  "surgeryHistory": []
+}

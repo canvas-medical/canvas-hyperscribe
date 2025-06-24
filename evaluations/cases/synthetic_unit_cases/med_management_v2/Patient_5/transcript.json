@@ -1,0 +1,26 @@
+[
+  {
+    "speaker": "Doctor",
+    "text": "Good morning, Mrs. Thompson. How have you been feeling on your current medications?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Morning, Doctor. I've been okay, but I'm a bit worried about the warfarin. I remember the bleeding episode I had last year."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "I understand your concern. Have you noticed any new bruising or bleeding recently?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "No, nothing like that. But I do get a bit anxious about it sometimes."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "That's understandable. We can review your INR levels to ensure they're within the safe range. Have you been able to keep up with your regular blood tests?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Yes, I've been going for my tests regularly. I just want to make sure I'm doing everything right."
+  }
+]

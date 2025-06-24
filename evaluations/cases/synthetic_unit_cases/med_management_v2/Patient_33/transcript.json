@@ -1,0 +1,34 @@
+[
+  {
+    "speaker": "Doctor",
+    "text": "Hi there! How have you been feeling since your last visit?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "I've been okay, but sometimes I feel really tired."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "I see. Have you noticed any changes in your seizures or any other new symptoms?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "No new seizures, but sometimes I get headaches."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "Thanks for telling me. The tiredness and headaches could be side effects of the levetiracetam. Have you been taking your medication every day?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Yes, I take it every morning and night like you said."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "Great job on taking it regularly. We might need to adjust your dose to help with the tiredness and headaches. How does that sound?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Okay, if it helps me feel better."
+  }
+]
