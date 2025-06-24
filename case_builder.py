@@ -7,16 +7,20 @@ from evaluations.case_builders.builder_from_mp3 import BuilderFromMp3
 from evaluations.case_builders.builder_from_transcript import BuilderFromTranscript
 from evaluations.case_builders.builder_from_tuning import BuilderFromTuning
 from evaluations.case_builders.builder_summarize import BuilderSummarize
+from evaluations.case_builders.builder_from_chart_transcript import BuilderFromChartTranscript
 
-from rubric_eval_sample.rubric_runner import run_rubric
-
+#from rubric_eval_sample.rubric_runner import run_rubric
 
 class CaseBuilder:
     @classmethod
     def run(cls, arguments: list[str]) -> None:
+        
         if "--delete" in arguments:
             #print("DEBUG: delete path")
             BuilderDelete.run()
+        elif "--chart" in arguments and "--transcript" in arguments:
+            BuilderFromChartTranscript.run()
+
         elif "--transcript" in arguments:
             #print("DEBUG: transcript path")
             BuilderFromTranscript.run()
@@ -35,6 +39,7 @@ class CaseBuilder:
         
         #edited control flow and pulled this out of elif to make sure it runs if in the argument, not dependent now on other builder files. 
         #because of this, we also don't need to have --rubric be parsed in any other builder files.
+        '''
         if "--rubric" in arguments:
             #print("DEBUG: rubric path")
             try:
@@ -49,8 +54,8 @@ class CaseBuilder:
             except (ValueError, IndexError): #value/index correspond to issues with missing flags or value flags.
                 print("Error: --case, --transcript, and --rubric flags must be provided with values.")
                 sys.exit(1)
-
-            run_rubric(case_name, transcript_path, rubric_path)
+        '''
+            #run_rubric(case_name, transcript_path, rubric_path)
 
 
 if __name__ == "__main__":
