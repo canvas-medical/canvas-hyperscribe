@@ -1,0 +1,28 @@
+{
+  "demographicStr": "the patient is a woman, born on January 1, 1994 (age 29)",
+  "conditionHistory": [],
+  "currentAllergies": [],
+  "currentConditions": [
+    {
+      "uuid": "cond1",
+      "label": "Hypothyroidism",
+      "code": "E03.9"
+    }
+  ],
+  "currentGoals": [],
+  "currentMedications": [
+    {
+      "uuid": "med1",
+      "label": "Levothyroxine",
+      "code": "C01AA05"
+    }
+  ],
+  "familyHistory": [
+    {
+      "uuid": "fh1",
+      "label": "Family history of type 2 diabetes mellitus",
+      "code": "Z83.3"
+    }
+  ],
+  "surgeryHistory": []
+}

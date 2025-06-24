@@ -1,0 +1,26 @@
+[
+  {
+    "speaker": "Doctor",
+    "text": "Good morning, how have you been managing with your medications, especially the metformin?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Morning, Doctor. I've been doing okay, but sometimes I still get some stomach upset."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "I see. We had adjusted your metformin dose before. Are you taking it with meals?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Yes, I always take it with breakfast and dinner, just like you advised."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "That's good. We could consider switching to the extended-release form if the side effects persist. How does that sound?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "That might be worth trying. I\u2019d like to see if it helps with the stomach issues."
+  }
+]

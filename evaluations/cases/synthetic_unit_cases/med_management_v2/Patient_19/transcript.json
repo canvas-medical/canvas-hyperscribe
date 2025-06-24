@@ -1,0 +1,26 @@
+[
+  {
+    "speaker": "Doctor",
+    "text": "Hi, how have you been feeling on your current medications, especially the buprenorphine and sertraline?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "I've been doing okay, but sometimes I feel a bit off. I'm not sure if it's the medication or something else."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "Can you describe what you mean by 'off'? Are you experiencing any specific side effects?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Mostly just some fatigue and occasional headaches. I wonder if it's related to the sertraline."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "Fatigue can sometimes be a side effect of sertraline. Have you noticed any changes in your mood or cravings?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "My mood's been stable, and I haven't had any cravings, which is good. It's just the tiredness that's bothering me."
+  }
+]

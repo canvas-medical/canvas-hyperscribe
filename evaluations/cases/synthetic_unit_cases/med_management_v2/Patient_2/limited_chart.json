@@ -1,0 +1,38 @@
+{
+  "demographicStr": "the patient is a woman, born on January 1, 1978 (age 45)",
+  "conditionHistory": [],
+  "currentAllergies": [],
+  "currentConditions": [
+    {
+      "uuid": "cond1",
+      "label": "Major depressive disorder",
+      "code": "F33.9"
+    },
+    {
+      "uuid": "cond2",
+      "label": "Generalized anxiety disorder",
+      "code": "F41.1"
+    }
+  ],
+  "currentGoals": [],
+  "currentMedications": [
+    {
+      "uuid": "med1",
+      "label": "Sertraline",
+      "code": "N06AB06"
+    },
+    {
+      "uuid": "med2",
+      "label": "Clonazepam",
+      "code": "N03AE01"
+    }
+  ],
+  "familyHistory": [
+    {
+      "uuid": "fh1",
+      "label": "Family history of depression",
+      "code": "Z81.8"
+    }
+  ],
+  "surgeryHistory": []
+}

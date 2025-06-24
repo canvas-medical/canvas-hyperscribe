@@ -1,0 +1,32 @@
+{
+  "demographicStr": "the patient is a male, age 15",
+  "conditionHistory": [],
+  "currentAllergies": [],
+  "currentConditions": [
+    {
+      "uuid": "cond1",
+      "label": "Attention-deficit/hyperactivity disorder",
+      "code": "F90.9"
+    },
+    {
+      "uuid": "cond2",
+      "label": "Mild asthma",
+      "code": "J45.20"
+    }
+  ],
+  "currentGoals": [],
+  "currentMedications": [
+    {
+      "uuid": "med1",
+      "label": "Methylphenidate",
+      "code": "N06BA04"
+    },
+    {
+      "uuid": "med2",
+      "label": "Albuterol inhaler",
+      "code": "R03AC02"
+    }
+  ],
+  "familyHistory": [],
+  "surgeryHistory": []
+}
