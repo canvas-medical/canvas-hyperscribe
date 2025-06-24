@@ -1,0 +1,22 @@
+{
+  "demographicStr": "the patient is a man, born on January 1, 1998 (age 25)",
+  "conditionHistory": [],
+  "currentAllergies": [],
+  "currentConditions": [
+    {
+      "uuid": "cond1",
+      "label": "Schizophrenia",
+      "code": "F20.9"
+    }
+  ],
+  "currentGoals": [],
+  "currentMedications": [
+    {
+      "uuid": "med1",
+      "label": "Aripiprazole",
+      "code": "N05AX12"
+    }
+  ],
+  "familyHistory": [],
+  "surgeryHistory": []
+}

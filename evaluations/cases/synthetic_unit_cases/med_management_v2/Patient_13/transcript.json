@@ -1,0 +1,26 @@
+[
+  {
+    "speaker": "Doctor",
+    "text": "Hi, how have you been managing with your sertraline and sumatriptan?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Hi, I've been doing okay. The sertraline helps with my anxiety, but I still get migraines occasionally."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "How often are you using the sumatriptan for your migraines?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "I use it about twice a month. It usually works, but sometimes it takes a while to kick in."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "Have you noticed any side effects from the sumatriptan or the sertraline?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Not really from the sumatriptan, but the sertraline sometimes makes me feel a bit drowsy."
+  }
+]

@@ -1,0 +1,43 @@
+{
+  "demographicStr": "the patient is a woman, born on January 1, 1978 (age 45)",
+  "conditionHistory": [],
+  "currentAllergies": [],
+  "currentConditions": [
+    {
+      "uuid": "cond1",
+      "label": "Major depressive disorder",
+      "code": "F33.9"
+    },
+    {
+      "uuid": "cond2",
+      "label": "Chronic migraine",
+      "code": "G43.709"
+    }
+  ],
+  "currentGoals": [],
+  "currentMedications": [
+    {
+      "uuid": "med1",
+      "label": "Sertraline 50 mg tablet",
+      "code": "N06AB06"
+    },
+    {
+      "uuid": "med2",
+      "label": "Sumatriptan 50 mg tablet",
+      "code": "N02CC01"
+    }
+  ],
+  "familyHistory": [
+    {
+      "uuid": "fh1",
+      "label": "Family history of depression",
+      "code": "Z81.8"
+    },
+    {
+      "uuid": "fh2",
+      "label": "Family history of anxiety disorders",
+      "code": "Z81.8"
+    }
+  ],
+  "surgeryHistory": []
+}

@@ -1,0 +1,26 @@
+[
+  {
+    "speaker": "Doctor",
+    "text": "Hi, how have you been doing with your lamotrigine lately?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Hi, I've been doing well. No seizures and the side effects have been manageable."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "That's great to hear. Are you experiencing any side effects that we should discuss?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Just some occasional dizziness, but it's not too bad. It usually happens if I miss a meal."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "Okay, it's important to take it with food if that's helping. Have you had any issues with remembering to take your doses?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Not really, I set reminders on my phone, so that keeps me on track."
+  }
+]

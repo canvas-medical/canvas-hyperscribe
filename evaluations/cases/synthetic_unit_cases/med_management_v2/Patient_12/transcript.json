@@ -1,0 +1,26 @@
+[
+  {
+    "speaker": "Doctor",
+    "text": "Good morning, Mrs. Thompson. How have you been managing with your current medications?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Morning, Doctor. I've been doing okay, but I still have some pain, especially in the evenings."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "I see. You're currently on acetaminophen and gabapentin for the pain. Have you noticed any side effects from these?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Not really from the acetaminophen, but sometimes the gabapentin makes me feel a bit drowsy."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "That's a common side effect. We could consider adjusting the timing of your doses to help with that. Would you be open to taking it earlier in the evening?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Yes, I think that might help. I usually take it right before bed, but I can try taking it a bit earlier."
+  }
+]

@@ -1,0 +1,28 @@
+{
+  "demographicStr": "the patient is a girl, born on January 1, 2014 (age 9)",
+  "conditionHistory": [],
+  "currentAllergies": [],
+  "currentConditions": [
+    {
+      "uuid": "cond1",
+      "label": "Epilepsy",
+      "code": "G40.909"
+    }
+  ],
+  "currentGoals": [],
+  "currentMedications": [
+    {
+      "uuid": "med1",
+      "label": "Levetiracetam",
+      "code": "N03AX14"
+    }
+  ],
+  "familyHistory": [
+    {
+      "uuid": "fh1",
+      "label": "Family history of epilepsy",
+      "code": "Z82.0"
+    }
+  ],
+  "surgeryHistory": []
+}

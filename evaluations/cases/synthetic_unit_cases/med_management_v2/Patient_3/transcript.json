@@ -1,0 +1,34 @@
+[
+  {
+    "speaker": "Doctor",
+    "text": "Hi there! How have you been feeling with your asthma lately?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "It's okay, but sometimes I still get out of breath when I play soccer."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "I see. How often are you using your albuterol inhaler?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Maybe a couple of times a week, mostly after playing."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "Alright. And have you noticed any side effects from the inhaler or the nasal spray?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "No, I don't think so. They seem fine."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "That's good to hear. Since you're using the inhaler a few times a week, we might consider adding a daily controller medication to help manage your symptoms better. What do you think?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Okay, if it helps me breathe better when I play, that sounds good."
+  }
+]

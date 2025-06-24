@@ -1,0 +1,26 @@
+[
+  {
+    "speaker": "Doctor",
+    "text": "Good morning, how have you been feeling on your current medications, sertraline and clonazepam?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Hi, Doctor. I've been feeling okay, but sometimes I still get anxious, especially in the evenings."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "I see. Are you taking the clonazepam as prescribed, or have you had to adjust the dose on your own?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "I've been taking it as prescribed, but there are days when I feel like I might need a bit more."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "It's important to stick to the prescribed dose to avoid dependency. We could consider adjusting your sertraline dose instead. How does that sound?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "That might help. I remember when I was on fluoxetine, I had stomach issues, so I'm a bit worried about side effects."
+  }
+]

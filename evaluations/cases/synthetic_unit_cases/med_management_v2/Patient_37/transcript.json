@@ -1,0 +1,26 @@
+[
+  {
+    "speaker": "Doctor",
+    "text": "Good morning, Mrs. Thompson. How have you been managing with your COPD medications lately?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Morning, Doctor. I've been using the albuterol more often, especially with the weather changes."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "I see. Are you using the tiotropium daily as prescribed?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Yes, I take it every morning, but sometimes I feel it's not enough when I'm short of breath."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "We might need to reassess your inhaler use. Have you noticed any side effects from the alendronate for your osteoporosis?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Not really, but I do worry about my bones since my mom had similar issues."
+  }
+]

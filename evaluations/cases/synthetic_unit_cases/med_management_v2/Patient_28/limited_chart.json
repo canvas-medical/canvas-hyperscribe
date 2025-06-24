@@ -1,0 +1,49 @@
+{
+  "demographicStr": "the patient is a woman, born on January 1, 1953 (age 70)",
+  "conditionHistory": [],
+  "currentAllergies": [
+    {
+      "uuid": "allergy1",
+      "label": "Penicillin",
+      "code": "Z88.0"
+    }
+  ],
+  "currentConditions": [
+    {
+      "uuid": "cond1",
+      "label": "Chronic kidney disease, stage 3",
+      "code": "N18.3"
+    },
+    {
+      "uuid": "cond2",
+      "label": "Osteoarthritis",
+      "code": "M19.90"
+    }
+  ],
+  "currentGoals": [],
+  "currentMedications": [
+    {
+      "uuid": "med1",
+      "label": "Losartan 50 mg tablet",
+      "code": "C09CA01"
+    },
+    {
+      "uuid": "med2",
+      "label": "Acetaminophen 500 mg tablet",
+      "code": "N02BE01"
+    }
+  ],
+  "familyHistory": [
+    {
+      "uuid": "fh1",
+      "label": "Family history of diabetes",
+      "code": "Z83.3"
+    },
+    {
+      "uuid": "fh2",
+      "label": "Family history of hypertension",
+      "code": "Z82.49"
+    }
+  ],
+  "surgeryHistory": []
+}
