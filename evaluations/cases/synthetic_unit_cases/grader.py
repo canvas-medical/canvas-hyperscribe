@@ -9,11 +9,9 @@ from hyperscribe.structures.llm_turn import LlmTurn
 from hyperscribe.libraries.constants import Constants
 from hyperscribe.libraries.memory_log import MemoryLog
 
-
 def load_json_file(path):
     with open(path, 'r') as f:
         return json.load(f)
-
 
 def main(rubric_path, hyperscribe_output_path, output_path):
     # Load input files

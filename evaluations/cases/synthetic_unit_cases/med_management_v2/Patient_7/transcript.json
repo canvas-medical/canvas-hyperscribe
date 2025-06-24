@@ -1,0 +1,34 @@
+[
+  {
+    "speaker": "Doctor",
+    "text": "Good morning, how have you been managing with your medications lately?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Morning, Doctor. I've been okay, but I feel a bit dizzy sometimes, especially when I stand up quickly."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "I see. That could be related to your blood pressure medication, lisinopril. Have you noticed if the dizziness happens at a specific time after taking it?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "It usually happens in the morning, about an hour after I take my pills."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "We might need to adjust the timing or the dose of lisinopril. Have you been taking it with food or on an empty stomach?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "I usually take it with breakfast. Should I change that?"
+  },
+  {
+    "speaker": "Doctor",
+    "text": "Let's try taking it in the evening instead and see if that helps with the dizziness. We'll monitor your blood pressure closely to ensure it's still well-controlled."
+  },
+  {
+    "speaker": "Patient",
+    "text": "Alright, I'll give that a try. Anything else I should watch out for?"
+  }
+]

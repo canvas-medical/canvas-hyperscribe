@@ -1,0 +1,26 @@
+[
+  {
+    "speaker": "Doctor",
+    "text": "Hello, I see we're here to review your daughter's medications. Can you tell me what she's currently taking?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Honestly, I'm not sure. We haven't been given a clear list, and I think she might have been on something before."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "That's okay. Let's start fresh. Has she been experiencing any symptoms or issues that might require medication?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Not really, she's been pretty healthy. Just the usual colds and stuff."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "Great to hear. For now, we'll focus on monitoring her general health and only introduce medications if necessary. Does that sound good?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Yes, that sounds perfect. I'll keep an eye on her and let you know if anything changes."
+  }
+]

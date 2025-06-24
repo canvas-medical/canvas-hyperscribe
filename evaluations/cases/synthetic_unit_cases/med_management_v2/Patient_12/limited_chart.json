@@ -1,0 +1,43 @@
+{
+  "demographicStr": "the patient is a woman, born on January 1, 1948 (age 75)",
+  "conditionHistory": [],
+  "currentAllergies": [],
+  "currentConditions": [
+    {
+      "uuid": "cond1",
+      "label": "Osteoporosis",
+      "code": "M81.0"
+    },
+    {
+      "uuid": "cond2",
+      "label": "Osteoarthritis",
+      "code": "M19.90"
+    }
+  ],
+  "currentGoals": [],
+  "currentMedications": [
+    {
+      "uuid": "med1",
+      "label": "Alendronate 70 mg tablet",
+      "code": "123456"
+    },
+    {
+      "uuid": "med2",
+      "label": "Acetaminophen 500 mg tablet",
+      "code": "123457"
+    },
+    {
+      "uuid": "med3",
+      "label": "Gabapentin 300 mg capsule",
+      "code": "123458"
+    }
+  ],
+  "familyHistory": [
+    {
+      "uuid": "fh1",
+      "label": "Family history of osteoporosis",
+      "code": "Z82.62"
+    }
+  ],
+  "surgeryHistory": []
+}

@@ -1,0 +1,26 @@
+[
+  {
+    "speaker": "Doctor",
+    "text": "Good morning, how have you been managing with your current medications?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Hi, Doctor. The lisinopril is working well for my blood pressure, but I'm still having frequent migraines."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "I see. How often are you using the sumatriptan for your migraines?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "About twice a week. It helps, but I'm worried about taking it too often."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "Given your family history and the frequency of your migraines, we might consider adding a preventive medication. Have you experienced any side effects from the sumatriptan?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "No, the sumatriptan doesn't give me any side effects, but I remember feeling really tired when I was on the beta-blockers."
+  }
+]

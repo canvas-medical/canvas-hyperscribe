@@ -1,0 +1,38 @@
+{
+  "demographicStr": "the patient is a boy, born on October 1, 2013 (age 10)",
+  "conditionHistory": [
+    {
+      "uuid": "condHist1",
+      "label": "History of bronchitis",
+      "code": "J20.9"
+    }
+  ],
+  "currentAllergies": [],
+  "currentConditions": [
+    {
+      "uuid": "cond1",
+      "label": "Asthma",
+      "code": "J45.909"
+    },
+    {
+      "uuid": "cond2",
+      "label": "Eczema",
+      "code": "L20.9"
+    }
+  ],
+  "currentGoals": [],
+  "currentMedications": [
+    {
+      "uuid": "med1",
+      "label": "Albuterol inhaler",
+      "code": "NDC 0173-0682-20"
+    },
+    {
+      "uuid": "med2",
+      "label": "Fluticasone nasal spray",
+      "code": "NDC 54868-6050-1"
+    }
+  ],
+  "familyHistory": [],
+  "surgeryHistory": []
+}

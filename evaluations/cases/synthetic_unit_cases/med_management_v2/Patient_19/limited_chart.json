@@ -1,0 +1,32 @@
+{
+  "demographicStr": "the patient is a man, born on January 1, 1988 (age 35)",
+  "conditionHistory": [],
+  "currentAllergies": [],
+  "currentConditions": [
+    {
+      "uuid": "cond1",
+      "label": "Opioid use disorder",
+      "code": "F11.20"
+    },
+    {
+      "uuid": "cond2",
+      "label": "Major depressive disorder, recurrent, in partial remission",
+      "code": "F33.41"
+    }
+  ],
+  "currentGoals": [],
+  "currentMedications": [
+    {
+      "uuid": "med1",
+      "label": "Buprenorphine 8 mg tablet",
+      "code": "928390"
+    },
+    {
+      "uuid": "med2",
+      "label": "Sertraline 50 mg tablet",
+      "code": "599320"
+    }
+  ],
+  "familyHistory": [],
+  "surgeryHistory": []
+}

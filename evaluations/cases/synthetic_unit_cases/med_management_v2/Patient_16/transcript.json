@@ -1,0 +1,26 @@
+[
+  {
+    "speaker": "Doctor",
+    "text": "Good morning, Mr. Smith. How have you been feeling since we added atorvastatin to your regimen?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Morning, Doctor. I've been feeling okay, but I've noticed some muscle aches lately. Could it be the new medication?"
+  },
+  {
+    "speaker": "Doctor",
+    "text": "Muscle aches can be a side effect of atorvastatin. How severe are the aches, and do they affect your daily activities?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "They're not too severe, but they are noticeable, especially when I'm walking for a while."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "I see. We could try reducing the dose to see if that helps with the aches. Would you be comfortable with that approach?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Yes, I think that would be a good idea. I want to manage my cholesterol, but not at the cost of being in pain."
+  }
+]

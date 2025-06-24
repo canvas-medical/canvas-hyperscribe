@@ -1,0 +1,26 @@
+[
+  {
+    "speaker": "Doctor",
+    "text": "Hi, how have you been feeling on the sertraline lately?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Overall, it's been okay, but I still have some days where I feel pretty low."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "I see. And how about the migraines? Are the sumatriptan tablets helping when you need them?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Yes, they do help, but I try not to take them too often because I'm worried about overuse."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "That's a good point. Have you noticed any side effects from the sertraline or sumatriptan?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Not really from the sumatriptan, but sometimes the sertraline makes me feel a bit jittery."
+  }
+]

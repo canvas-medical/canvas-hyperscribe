@@ -1,0 +1,38 @@
+{
+  "demographicStr": "the patient is a man, born on January 1, 1961 (age 62)",
+  "conditionHistory": [],
+  "currentAllergies": [],
+  "currentConditions": [
+    {
+      "uuid": "cond1",
+      "label": "Coronary artery disease",
+      "code": "I25.10"
+    },
+    {
+      "uuid": "cond2",
+      "label": "Hyperlipidemia",
+      "code": "E78.5"
+    }
+  ],
+  "currentGoals": [],
+  "currentMedications": [
+    {
+      "uuid": "med1",
+      "label": "Atorvastatin 20 mg tablet",
+      "code": "C10AA05"
+    },
+    {
+      "uuid": "med2",
+      "label": "Aspirin 81 mg tablet",
+      "code": "B01AC06"
+    }
+  ],
+  "familyHistory": [
+    {
+      "uuid": "fh1",
+      "label": "Family history of myocardial infarction",
+      "code": "Z82.49"
+    }
+  ],
+  "surgeryHistory": []
+}

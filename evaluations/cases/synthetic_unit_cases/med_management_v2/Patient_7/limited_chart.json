@@ -1,0 +1,48 @@
+{
+  "demographicStr": "the patient is a woman, born on January 1, 1951 (age 72)",
+  "conditionHistory": [],
+  "currentAllergies": [
+    {
+      "uuid": "allergy1",
+      "label": "Penicillin",
+      "code": "Z88.0"
+    }
+  ],
+  "currentConditions": [
+    {
+      "uuid": "cond1",
+      "label": "Chronic obstructive pulmonary disease",
+      "code": "J44.9"
+    },
+    {
+      "uuid": "cond2",
+      "label": "Hypertension",
+      "code": "I10"
+    },
+    {
+      "uuid": "cond3",
+      "label": "Osteoporosis",
+      "code": "M81.0"
+    }
+  ],
+  "currentGoals": [],
+  "currentMedications": [
+    {
+      "uuid": "med1",
+      "label": "Tiotropium",
+      "code": "197361"
+    },
+    {
+      "uuid": "med2",
+      "label": "Lisinopril",
+      "code": "29046"
+    },
+    {
+      "uuid": "med3",
+      "label": "Alendronate",
+      "code": "43575"
+    }
+  ],
+  "familyHistory": [],
+  "surgeryHistory": []
+}

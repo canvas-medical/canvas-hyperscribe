@@ -1,0 +1,26 @@
+[
+  {
+    "speaker": "Doctor",
+    "text": "Good morning, Mr. Johnson. How have you been managing with your medications lately?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Morning, Doctor. I've been taking my metformin and tiotropium as prescribed, but my blood sugar levels have been a bit unpredictable."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "I see. Have you noticed any particular times when your blood sugar tends to spike or drop?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "It seems to spike after meals, even though I'm trying to watch what I eat."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "We might need to adjust your metformin dose or consider adding another medication to help with those post-meal spikes. How are your COPD symptoms with the tiotropium?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "The tiotropium helps, but I still get short of breath sometimes, especially when I'm active."
+  }
+]

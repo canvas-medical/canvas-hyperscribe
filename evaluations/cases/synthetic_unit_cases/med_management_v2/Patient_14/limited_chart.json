@@ -1,0 +1,22 @@
+{
+  "demographicStr": "the patient is a boy, born on October 1, 2017 (age 6)",
+  "conditionHistory": [],
+  "currentAllergies": [],
+  "currentConditions": [
+    {
+      "uuid": "cond1",
+      "label": "Attention-deficit/hyperactivity disorder, predominantly hyperactive-impulsive presentation",
+      "code": "F90.1"
+    }
+  ],
+  "currentGoals": [],
+  "currentMedications": [
+    {
+      "uuid": "med1",
+      "label": "Methylphenidate long-acting formulation",
+      "code": "N06BA04"
+    }
+  ],
+  "familyHistory": [],
+  "surgeryHistory": []
+}

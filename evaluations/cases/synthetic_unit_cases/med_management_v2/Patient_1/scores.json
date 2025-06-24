@@ -1,0 +1,26 @@
+{
+  "score_vector": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+  ],
+  "reasoning_vector": [
+    "The note does not mention the patient's reported symptom of ankle swelling or its potential link to lisinopril.",
+    "The patient's blood pressure reading of 150/90 is not documented in the note.",
+    "There is no mention of the patient's partial adherence to the medication regimen or forgetting the evening dose.",
+    "The note does not include the doctor's consideration to adjust the lisinopril dose or add another medication.",
+    "There is no mention of a plan to review kidney function tests before making medication changes.",
+    "The note does not include any pre-existing conditions such as hypertension, type 2 diabetes, or chronic kidney disease.",
+    "The patient's allergy to penicillin is not repeated in the note.",
+    "There is no redundant information from the chart copied into the scribe note.",
+    "The note does not summarize any discussion about strategies to improve medication adherence.",
+    "The patient's agreement to ensure everything is in check before making changes is not included."
+  ]
+}

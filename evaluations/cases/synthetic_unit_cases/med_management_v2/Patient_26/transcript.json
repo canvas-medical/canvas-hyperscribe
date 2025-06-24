@@ -1,0 +1,26 @@
+[
+  {
+    "speaker": "Doctor",
+    "text": "Good morning, Mr. Johnson. How have you been managing with your current medications, especially after the insulin adjustment?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Morning, Doctor. It's been a bit challenging. My blood sugar levels are still up and down, and I'm not sure if I'm taking the right amount of insulin."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "I understand. Let's review your insulin doses and your blood sugar logs. Have you noticed any patterns or specific times when your levels are particularly high or low?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Well, they seem to spike after dinner, even though I'm trying to watch what I eat."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "We might need to adjust your evening insulin dose. Also, how are you doing with the atorvastatin? Any side effects like muscle pain or weakness?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "No, I haven't noticed any side effects from the atorvastatin. It's just the insulin that's been tricky."
+  }
+]

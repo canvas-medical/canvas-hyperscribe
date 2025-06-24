@@ -1,0 +1,48 @@
+{
+  "demographicStr": "the patient is a woman, born on January 1, 1944 (age 79)",
+  "conditionHistory": [],
+  "currentAllergies": [],
+  "currentConditions": [
+    {
+      "uuid": "cond1",
+      "label": "Congestive heart failure",
+      "code": "I50.9"
+    },
+    {
+      "uuid": "cond2",
+      "label": "Chronic kidney disease",
+      "code": "N18.9"
+    }
+  ],
+  "currentGoals": [],
+  "currentMedications": [
+    {
+      "uuid": "med1",
+      "label": "Furosemide",
+      "code": "C03CA01"
+    },
+    {
+      "uuid": "med2",
+      "label": "Carvedilol",
+      "code": "C07AG02"
+    },
+    {
+      "uuid": "med3",
+      "label": "Aspirin",
+      "code": "B01AC06"
+    }
+  ],
+  "familyHistory": [
+    {
+      "uuid": "fh1",
+      "label": "Family history of hypertension",
+      "code": "Z82.49"
+    },
+    {
+      "uuid": "fh2",
+      "label": "Family history of diabetes",
+      "code": "Z83.3"
+    }
+  ],
+  "surgeryHistory": []
+}

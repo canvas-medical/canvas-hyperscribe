@@ -1,0 +1,26 @@
+[
+  {
+    "speaker": "Doctor",
+    "text": "Hi there! How have you been managing with your insulin pump lately?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "It's been okay, but I've noticed my blood sugar levels are a bit higher after soccer practice."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "That can happen with increased activity. Have you tried adjusting your basal rate before practice?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "I haven't yet. I'm not sure how much to adjust it by."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "We can work on that together. Let's look at your recent glucose readings and see if a temporary basal rate increase might help."
+  },
+  {
+    "speaker": "Patient",
+    "text": "That sounds good. I want to make sure I'm doing it right."
+  }
+]

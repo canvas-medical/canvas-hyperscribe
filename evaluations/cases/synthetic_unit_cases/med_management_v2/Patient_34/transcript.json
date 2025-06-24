@@ -1,0 +1,26 @@
+[
+  {
+    "speaker": "Doctor",
+    "text": "Good morning, Mr. Smith. How have you been feeling on your current medications?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Morning, Doctor. I've been feeling okay, but sometimes I wonder if the atorvastatin is causing some muscle aches."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "Muscle aches can be a side effect of atorvastatin. How severe are these aches, and do they affect your daily activities?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "They're not too severe, just a bit bothersome when I'm more active. I can still do my daily tasks."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "We could consider adjusting the dose or trying a different statin if it becomes more problematic. For now, let's monitor it. Are you taking your aspirin regularly?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Yes, I take it every day as you advised. I haven't missed a dose."
+  }
+]

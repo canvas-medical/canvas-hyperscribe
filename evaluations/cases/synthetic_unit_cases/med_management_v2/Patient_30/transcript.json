@@ -1,0 +1,26 @@
+[
+  {
+    "speaker": "Doctor",
+    "text": "Hi, I understand you're new to the area. Can you tell me a bit about any medications you're currently taking?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Hi, yes, I just moved here. I think I'm on a blood pressure pill, but I can't remember the name."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "That's okay. Do you have the pill bottle with you, or is there a pharmacy you used before moving here that we could contact?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "I don't have the bottle, but I used to get my prescriptions from a pharmacy back in my old town. I can try to find their contact information."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "That would be helpful. In the meantime, have you experienced any side effects or issues with the medication you remember taking?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Not that I can recall, but sometimes I forget to take it, especially with the move and all."
+  }
+]
