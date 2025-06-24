@@ -1,0 +1,26 @@
+[
+  {
+    "speaker": "Doctor",
+    "text": "Hi, I see we don't have much information on your medical history. Can you tell me about any medications you're currently taking?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Sure, I'm taking a birth control pill, but I can't remember the name right now."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "That's okay. Do you know if you've had any side effects from it?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Not really, but sometimes I feel a bit nauseous."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "Alright, we can look into that. Are you taking any other medications or supplements?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "No, that's the only one."
+  }
+]

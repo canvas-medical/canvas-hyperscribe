@@ -1,0 +1,42 @@
+[
+  [
+    "Capture the patient's reported symptom of ankle swelling and its potential link to lisinopril.",
+    10
+  ],
+  [
+    "Document the patient's blood pressure reading of 150/90 as reported during the visit.",
+    10
+  ],
+  [
+    "Note the patient's partial adherence to the medication regimen, specifically forgetting the evening dose.",
+    8
+  ],
+  [
+    "Include the doctor's consideration to adjust the lisinopril dose or add another medication for better blood pressure control.",
+    10
+  ],
+  [
+    "Mention the plan to review kidney function tests before making medication changes.",
+    10
+  ],
+  [
+    "Avoid including any pre-existing conditions such as hypertension, type 2 diabetes, or chronic kidney disease from the chart.",
+    -5
+  ],
+  [
+    "Do not repeat the patient's allergy to penicillin from the chart.",
+    -5
+  ],
+  [
+    "Ensure no redundant information from the chart is copied into the scribe note.",
+    -10
+  ],
+  [
+    "Summarize the discussion about strategies to improve medication adherence.",
+    5
+  ],
+  [
+    "Include the patient's agreement to ensure everything is in check before making changes.",
+    5
+  ]
+]

@@ -1,0 +1,26 @@
+[
+  {
+    "speaker": "Doctor",
+    "text": "Good morning, how have you been feeling on your current medications, especially the atorvastatin and allopurinol?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Morning, Doctor. I've been doing okay, but I've noticed some muscle aches again. Not as bad as with simvastatin, but still there."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "I'm sorry to hear that. How long have you been experiencing these muscle aches?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "It's been a few weeks now. I thought it might go away, but it hasn't."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "Given your history with simvastatin, we might consider adjusting your atorvastatin dose or trying a different statin. How does that sound to you?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "I think trying a different statin might be a good idea. I don't want to risk more muscle pain."
+  }
+]

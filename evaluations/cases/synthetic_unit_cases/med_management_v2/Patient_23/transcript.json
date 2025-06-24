@@ -1,0 +1,26 @@
+[
+  {
+    "speaker": "Doctor",
+    "text": "Hi there, how have you been managing with your medications lately?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Pretty good, I think. The methylphenidate helps me focus better in school."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "That's great to hear. Have you noticed any side effects from the methylphenidate?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Sometimes I feel a bit jittery, but it's not too bad."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "Okay, if it becomes bothersome, we can discuss adjusting the dose. How about your asthma? Are you using the albuterol inhaler often?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Not really, just once or twice a week when I'm playing sports."
+  }
+]

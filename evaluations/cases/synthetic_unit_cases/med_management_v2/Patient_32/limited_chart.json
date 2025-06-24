@@ -1,0 +1,49 @@
+{
+  "demographicStr": "the patient is a man, born on January 1, 1945 (age 78)",
+  "conditionHistory": [],
+  "currentAllergies": [
+    {
+      "uuid": "allergy1",
+      "label": "Penicillin",
+      "code": "Z88.0"
+    }
+  ],
+  "currentConditions": [
+    {
+      "uuid": "cond1",
+      "label": "Chronic obstructive pulmonary disease",
+      "code": "J44.9"
+    },
+    {
+      "uuid": "cond2",
+      "label": "Type 2 diabetes mellitus without complications",
+      "code": "E11.9"
+    }
+  ],
+  "currentGoals": [],
+  "currentMedications": [
+    {
+      "uuid": "med1",
+      "label": "Metformin 500 mg tablet",
+      "code": "860975"
+    },
+    {
+      "uuid": "med2",
+      "label": "Tiotropium 18 mcg inhalation",
+      "code": "197316"
+    }
+  ],
+  "familyHistory": [
+    {
+      "uuid": "fh1",
+      "label": "Family history of diabetes mellitus",
+      "code": "Z83.3"
+    },
+    {
+      "uuid": "fh2",
+      "label": "Family history of lung disease",
+      "code": "Z82.5"
+    }
+  ],
+  "surgeryHistory": []
+}

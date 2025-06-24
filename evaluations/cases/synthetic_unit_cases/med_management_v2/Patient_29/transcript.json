@@ -1,0 +1,26 @@
+[
+  {
+    "speaker": "Doctor",
+    "text": "Hi, how have you been feeling since we switched you from risperidone to aripiprazole?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "I think it's been going okay. I haven't noticed any new side effects, but I'm still worried about the weight gain."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "That's understandable. Have you noticed any changes in your weight since starting aripiprazole?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "I haven't weighed myself recently, but my clothes feel about the same."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "Alright, it's important to monitor that. How are you finding the aripiprazole in terms of managing your symptoms?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "I feel like it's working pretty well. I haven't had any major episodes, which is good."
+  }
+]

@@ -1,0 +1,33 @@
+{
+  "demographicStr": "the patient is a woman, born on January 1, 1991 (age 32)",
+  "conditionHistory": [
+    {
+      "uuid": "condHist1",
+      "label": "Previous miscarriage",
+      "code": "O03.9"
+    }
+  ],
+  "currentAllergies": [],
+  "currentConditions": [
+    {
+      "uuid": "cond1",
+      "label": "Hypothyroidism",
+      "code": "E03.9"
+    }
+  ],
+  "currentGoals": [],
+  "currentMedications": [
+    {
+      "uuid": "med1",
+      "label": "Levothyroxine",
+      "code": "C01AA05"
+    },
+    {
+      "uuid": "med2",
+      "label": "Prenatal vitamins",
+      "code": "V07AB"
+    }
+  ],
+  "familyHistory": [],
+  "surgeryHistory": []
+}

@@ -1,0 +1,26 @@
+[
+  {
+    "speaker": "Doctor",
+    "text": "Good morning, Mrs. Thompson. How have you been feeling since we adjusted your medications?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Good morning, Doctor. I've been feeling a bit better, but I still get tired easily."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "That's understandable. With your heart condition, fatigue can be common. How are you managing with the furosemide?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "I think it's helping with the swelling, but I have to go to the bathroom quite often."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "Frequent urination is a known side effect. We can consider adjusting the timing of your dose. Are you taking it in the morning?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Yes, I take it in the morning as you suggested. It helps, but sometimes it's inconvenient."
+  }
+]

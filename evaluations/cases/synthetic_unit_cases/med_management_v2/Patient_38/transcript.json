@@ -1,0 +1,26 @@
+[
+  {
+    "speaker": "Doctor",
+    "text": "Good morning! How have you been feeling since we last adjusted your levothyroxine dose?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Morning, Doctor. I've been feeling okay, but I've noticed some fatigue lately. I'm not sure if it's the pregnancy or my thyroid."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "Fatigue can be common in early pregnancy, but let's make sure your thyroid levels are where they should be. Have you been taking your levothyroxine consistently?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Yes, I've been taking it every morning on an empty stomach, just like you advised."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "Great to hear. We'll do a blood test today to check your TSH levels. It's important to keep them in the optimal range during pregnancy. If needed, we might adjust your dose."
+  },
+  {
+    "speaker": "Patient",
+    "text": "That sounds good. I want to make sure everything is on track for the baby."
+  }
+]
