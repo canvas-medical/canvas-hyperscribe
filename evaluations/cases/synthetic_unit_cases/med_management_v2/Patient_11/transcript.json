@@ -1,0 +1,26 @@
+[
+  {
+    "speaker": "Doctor",
+    "text": "Good morning, Mr. Smith. How have you been feeling on your current medications, especially the atorvastatin?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Morning, Doctor. I've been feeling okay, but I sometimes wonder if the atorvastatin is affecting my energy levels."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "That's a valid concern. Have you noticed any specific times when your energy dips, or is it more constant?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "It's mostly in the afternoons. I just feel more tired than usual."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "We could consider adjusting the dose or trying a different statin if it's impacting your daily life. How's your adherence to the lisinopril and atorvastatin?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "I take them every day as prescribed, but I sometimes forget if I'm really busy."
+  }
+]

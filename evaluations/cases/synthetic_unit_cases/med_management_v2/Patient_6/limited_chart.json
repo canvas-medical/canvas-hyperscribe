@@ -1,0 +1,38 @@
+{
+  "demographicStr": "the patient is a man, born on January 1, 1968 (age 55)",
+  "conditionHistory": [],
+  "currentAllergies": [],
+  "currentConditions": [
+    {
+      "uuid": "cond1",
+      "label": "Hyperlipidemia",
+      "code": "E78.5"
+    },
+    {
+      "uuid": "cond2",
+      "label": "Gout",
+      "code": "M10.9"
+    }
+  ],
+  "currentGoals": [],
+  "currentMedications": [
+    {
+      "uuid": "med1",
+      "label": "Atorvastatin 20 mg tablet",
+      "code": "C10AA05"
+    },
+    {
+      "uuid": "med2",
+      "label": "Allopurinol 300 mg tablet",
+      "code": "M04AA01"
+    }
+  ],
+  "familyHistory": [
+    {
+      "uuid": "fh1",
+      "label": "Family history of myocardial infarction",
+      "code": "Z82.49"
+    }
+  ],
+  "surgeryHistory": []
+}

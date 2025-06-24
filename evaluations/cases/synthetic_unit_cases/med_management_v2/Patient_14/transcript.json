@@ -1,0 +1,26 @@
+[
+  {
+    "speaker": "Doctor",
+    "text": "Hi there! How have you been feeling since we switched to the long-acting methylphenidate?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Um, I think it's okay. I can do my school work better now."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "That's great to hear. Have you noticed any problems, like trouble sleeping or not feeling hungry?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Sometimes I don't want to eat lunch, but I eat dinner."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "Okay, that's something we can keep an eye on. Are you having any trouble with the medicine wearing off too early in the day?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "No, I think it lasts until I get home from school."
+  }
+]

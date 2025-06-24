@@ -1,0 +1,26 @@
+[
+  {
+    "speaker": "Doctor",
+    "text": "Hi, how have you been feeling on your current medications, especially the lithium and gabapentin?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "I've been okay, but I sometimes feel a bit shaky. I'm not sure if it's the lithium or something else."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "Shakiness can be a side effect of lithium. When was your last lithium level check?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "I think it was about a month ago. They said it was within the normal range."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "Alright, we should probably check it again soon to make sure it's still stable. How's the gabapentin working for your back pain?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "It helps a bit, but the pain is still there. I was wondering if we could adjust the dose or try something else."
+  }
+]

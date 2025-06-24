@@ -1,0 +1,26 @@
+[
+  {
+    "speaker": "Doctor",
+    "text": "Hi, how have you been feeling with your levothyroxine dose since we adjusted it earlier in your pregnancy?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "I've been feeling okay, but I noticed some fatigue lately. I'm not sure if it's the pregnancy or my thyroid."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "Fatigue can be common in the third trimester, but let's make sure your thyroid levels are where they should be. Have you had any recent blood tests?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Yes, I had a test last week. I think the results should be in by now."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "Great, I'll check those results. If your TSH is off, we might need to adjust your levothyroxine again. Have you been taking it consistently?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "I have been taking it every morning on an empty stomach, just like you advised."
+  }
+]

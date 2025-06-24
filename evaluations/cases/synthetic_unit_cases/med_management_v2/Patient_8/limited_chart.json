@@ -1,0 +1,22 @@
+{
+  "demographicStr": "the patient is a woman, born on January 1, 2007 (age 16)",
+  "conditionHistory": [],
+  "currentAllergies": [],
+  "currentConditions": [
+    {
+      "uuid": "cond1",
+      "label": "Type 1 diabetes mellitus",
+      "code": "E10.9"
+    }
+  ],
+  "currentGoals": [],
+  "currentMedications": [],
+  "familyHistory": [
+    {
+      "uuid": "fh1",
+      "label": "Family history of rheumatoid arthritis",
+      "code": "Z82.61"
+    }
+  ],
+  "surgeryHistory": []
+}

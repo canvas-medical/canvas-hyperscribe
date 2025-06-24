@@ -1,0 +1,48 @@
+{
+  "demographicStr": "the patient is a man, born on January 1, 1942 (age 81)",
+  "conditionHistory": [],
+  "currentAllergies": [
+    {
+      "uuid": "allergy1",
+      "label": "Sulfa drugs",
+      "code": "Z88.2"
+    }
+  ],
+  "currentConditions": [
+    {
+      "uuid": "cond1",
+      "label": "Atrial fibrillation",
+      "code": "I48.91"
+    },
+    {
+      "uuid": "cond2",
+      "label": "Chronic kidney disease stage 3",
+      "code": "N18.3"
+    },
+    {
+      "uuid": "cond3",
+      "label": "Hypertension",
+      "code": "I10"
+    }
+  ],
+  "currentGoals": [],
+  "currentMedications": [
+    {
+      "uuid": "med1",
+      "label": "Warfarin",
+      "code": "B01AA03"
+    },
+    {
+      "uuid": "med2",
+      "label": "Furosemide",
+      "code": "C03CA01"
+    },
+    {
+      "uuid": "med3",
+      "label": "Amlodipine",
+      "code": "C08CA01"
+    }
+  ],
+  "familyHistory": [],
+  "surgeryHistory": []
+}

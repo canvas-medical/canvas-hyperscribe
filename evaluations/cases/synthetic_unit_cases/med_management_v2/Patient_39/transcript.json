@@ -1,0 +1,26 @@
+[
+  {
+    "speaker": "Doctor",
+    "text": "Good morning, Mr. Johnson. How have you been feeling lately, especially with your current medications?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Morning, Doctor. I've been okay, but I noticed some bruising on my arms and legs. I'm worried it might be the warfarin."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "I understand your concern. Bruising can happen with warfarin. When was your last INR check?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "It was last week, and they said it was a bit high, but they didn't change my dose."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "Given the bruising and your INR results, we might need to adjust your warfarin dose. Have you had any changes in your diet or new medications?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "No new medications, but I did start eating more leafy greens. Could that be affecting it?"
+  }
+]

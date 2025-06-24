@@ -1,0 +1,26 @@
+[
+  {
+    "speaker": "Doctor",
+    "text": "Good morning, Mrs. Smith. I understand we have some challenges with your medication history. Can you tell me about any medications you're currently taking?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Well, I think I'm on something for my blood pressure, but I can't remember the name. I also take something for pain when it gets bad."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "Okay, do you recall how often you take the blood pressure medication or the pain medication?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "The blood pressure one is every day, I think. The pain medication is just when I need it, maybe a couple of times a week."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "That helps. Since we're not sure about the exact medications, would you be open to starting a new blood pressure medication that we can monitor closely?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Yes, that sounds good. I just want to make sure my blood pressure stays under control."
+  }
+]

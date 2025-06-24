@@ -1,0 +1,26 @@
+[
+  {
+    "speaker": "Doctor",
+    "text": "Good morning, Mr. Thompson. How have you been feeling lately with your current medications?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Morning, Doctor. I've been okay, but I noticed some swelling in my ankles again."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "I see. That could be related to your furosemide. Have you been taking it as prescribed?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Yes, I take it every morning, but sometimes I feel like it doesn't work as well as it used to."
+  },
+  {
+    "speaker": "Doctor",
+    "text": "Given your kidney function, we might need to adjust the dose. Have you had any issues with dizziness or lightheadedness?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Not really, just the swelling and sometimes I feel a bit tired."
+  }
+]
