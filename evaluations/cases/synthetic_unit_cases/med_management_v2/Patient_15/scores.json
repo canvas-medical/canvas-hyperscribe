@@ -1,27 +1,32 @@
 [
   {
-    "rationale": "HPI includes all key subjective items: improved breathing, concern about long-term steroid effects, jitteriness from inhaler, and notes that only \u201ca few doses\u201d remain; however, it omits a precise day count.",
-    "satisfaction": 85.0,
-    "score": 17.0
+    "rationale": "HPI content is mostly absent; only captures the 2 days remaining on prednisone and mentions jitteriness. It omits the documented improvement in breathing and the couple\u2019s concern about long-term steroid effects.",
+    "satisfaction": 30.0,
+    "score": 6.0
   },
   {
-    "rationale": "Med list names prednisone (short course, few doses left), confirms tiotropium correct use and adherence, and states no other inhalers; lacks exact course length or dosing details.",
-    "satisfaction": 80.0,
-    "score": 20.0
+    "rationale": "Medication list includes prednisone taper and tiotropium with clear sigs and quantities, but does not explicitly state that no other inhalers or respiratory drugs are used.",
+    "satisfaction": 75.0,
+    "score": 11.25
   },
   {
-    "rationale": "Plan advises finishing short course and to report worsening jitteriness, but gives minimal risk\u2013benefit counseling and does not discuss broader steroid side effects.",
+    "rationale": "Plan continues tiotropium, stops prednisone after completion, and advises monitoring for worsening jitteriness, but it lacks an explicit assessment of stable COPD status and follow-up for recurrence of symptoms.",
     "satisfaction": 65.0,
-    "score": 13.0
+    "score": 16.25
   },
   {
-    "rationale": "Management continues tiotropium and completes prednisone without extension, consistent with guidelines; omits explicit follow-up arrangement.",
+    "rationale": "Provides minimal counseling\u2014only to call if jitteriness worsens; no explanation of risk\u2013benefit of short steroid burst or reassurance about common side effects.",
+    "satisfaction": 40.0,
+    "score": 6.0
+  },
+  {
+    "rationale": "Uses appropriate Prescribe and Instruct commands with accurate content and no redundancy, but omits other relevant instruction types (e.g., HPI entry) and issues a new prescription for an existing maintenance drug instead of a ContinueMedication command.",
     "satisfaction": 70.0,
-    "score": 17.5
+    "score": 10.5
   },
   {
-    "rationale": "Note is concise with little duplication and no irrelevant copy-pasted material aside from minor repetition of visit reason.",
-    "satisfaction": 95.0,
-    "score": 9.5
+    "rationale": "No obvious irrelevant or duplicated information; details given are clinically pertinent, so minimal penalty warranted.",
+    "satisfaction": 90.0,
+    "score": 9.0
   }
 ]
