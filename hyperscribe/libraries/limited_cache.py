@@ -5,9 +5,10 @@ from typing import Any
 
 from canvas_sdk.commands.constants import CodeSystems
 from canvas_sdk.v1.data import (
-    AllergyIntolerance, Condition, Command,
-    Patient, Observation, NoteType, Medication,
-    ReasonForVisitSettingCoding, Staff, PracticeLocation)
+    AllergyIntolerance, Command, Condition,
+    Medication, NoteType, Observation, Patient,
+    PracticeLocation, ReasonForVisitSettingCoding,
+    Staff, TaskLabel)
 from canvas_sdk.v1.data.condition import ClinicalStatus
 from canvas_sdk.v1.data.lab import LabPartner
 from canvas_sdk.v1.data.medication import Status
@@ -38,7 +39,9 @@ class LimitedCache:
         self._preferred_lab_partner: CodedItem | None = None
         self._note_type: list[CodedItem] | None = None
         self._reason_for_visit: list[CodedItem] | None = None
+        self._staff_members: list[CodedItem] | None = None
         self._surgery_history: list[CodedItem] | None = None
+        self._task_labels: list[CodedItem] | None = None
         self._staged_commands: dict[str, list[CodedItem]] = staged_commands_to_coded_items
         self._charge_descriptions: list[ChargeDescription] | None = None
 
@@ -205,6 +208,28 @@ class LimitedCache:
                 ))
         return self._reason_for_visit
 
+    def existing_staff_members(self) -> list[CodedItem]:
+        if self._staff_members is None:
+            self._staff_members = []
+            for staff in Staff.objects.filter(active=True).order_by("last_name"):
+                self._staff_members.append(CodedItem(
+                    uuid=str(staff.dbid),
+                    label=f"{staff.first_name} {staff.last_name}",
+                    code="",
+                ))
+        return self._staff_members
+
+    def existing_task_labels(self) -> list[CodedItem]:
+        if self._task_labels is None:
+            self._task_labels = []
+            for task in TaskLabel.objects.filter(active=True).order_by("name"):
+                self._task_labels.append(CodedItem(
+                    uuid=str(task.dbid),
+                    label=task.name,
+                    code="",
+                ))
+        return self._task_labels
+
     def demographic__str__(self, obfuscate: bool) -> str:
         if self._demographic is None:
             patient = Patient.objects.get(id=self.patient_uuid)
@@ -284,6 +309,8 @@ class LimitedCache:
             "currentMedications": [i.to_dict() for i in self.current_medications()],
             "existingNoteTypes": [i.to_dict() for i in self.existing_note_types()],
             "existingReasonForVisit": [i.to_dict() for i in self.existing_reason_for_visits()],
+            "existingStaffMembers": [],  # no staff name stored (HPI?)
+            "existingTaskLabels": [i.to_dict() for i in self.existing_task_labels()],
             "familyHistory": [i.to_dict() for i in self.family_history()],
             "preferredLabPartner": self.preferred_lab_partner().to_dict(),
             "surgeryHistory": [i.to_dict() for i in self.surgery_history()],
@@ -308,6 +335,8 @@ class LimitedCache:
         result._medications = [MedicationCached.load_from_json(i) for i in cache.get("currentMedications", [])]
         result._preferred_lab_partner = CodedItem.load_from_json(cache.get("preferredLabPartner", {}))
         result._note_type = [CodedItem.load_from_json(i) for i in cache.get("existingNoteTypes", [])]
+        result._staff_members = []
+        result._task_labels = [CodedItem.load_from_json(i) for i in cache.get("existingTaskLabels", [])]
         result._reason_for_visit = [CodedItem.load_from_json(i) for i in cache.get("existingReasonForVisit", [])]
         result._family_history = [CodedItem.load_from_json(i) for i in cache.get("familyHistory", [])]
         result._surgery_history = [CodedItem.load_from_json(i) for i in cache.get("surgeryHistory", [])]

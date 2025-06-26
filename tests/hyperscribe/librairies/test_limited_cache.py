@@ -7,7 +7,7 @@ from canvas_sdk.v1.data import (
     Command, Condition, ConditionCoding, MedicationCoding,
     Medication, AllergyIntolerance, AllergyIntoleranceCoding,
     Patient, Observation, NoteType, ReasonForVisitSettingCoding,
-    Staff, PracticeLocation, PracticeLocationSetting)
+    Staff, PracticeLocation, PracticeLocationSetting, TaskLabel)
 from canvas_sdk.v1.data.lab import LabPartner
 from django.db.models.expressions import When, Value, Case
 
@@ -554,6 +554,76 @@ def test_existing_reason_for_visits(rfv_coding_db):
     reset_mocks()
 
 
+@patch.object(Staff, 'objects')
+def test_existing_staff_members(staff_db):
+    def reset_mocks():
+        staff_db.reset_mock()
+
+    staff_db.filter.return_value.order_by.side_effect = [
+        [
+            Staff(dbid=1245, first_name="firstName1", last_name="lastName1"),
+            Staff(dbid=1277, first_name="firstName2", last_name="lastName2"),
+            Staff(dbid=1296, first_name="firstName3", last_name="lastName3"),
+        ],
+    ]
+    tested = LimitedCache("patientUuid", "providerUuid", {})
+    expected = [
+        CodedItem(uuid="1245", label="firstName1 lastName1", code=""),
+        CodedItem(uuid="1277", label="firstName2 lastName2", code=""),
+        CodedItem(uuid="1296", label="firstName3 lastName3", code=""),
+    ]
+    result = tested.existing_staff_members()
+    assert result == expected
+    assert tested._staff_members == expected
+    calls = [
+        call.filter(active=True),
+        call.filter().order_by('last_name'),
+    ]
+    assert staff_db.mock_calls == calls
+    reset_mocks()
+
+    result = tested.existing_staff_members()
+    assert result == expected
+    assert tested._staff_members == expected
+    assert staff_db.mock_calls == []
+    reset_mocks()
+
+
+@patch.object(TaskLabel, 'objects')
+def test_existing_task_labels(task_label_db):
+    def reset_mocks():
+        task_label_db.reset_mock()
+
+    task_label_db.filter.return_value.order_by.side_effect = [
+        [
+            TaskLabel(dbid=1245, name="name1"),
+            TaskLabel(dbid=1277, name="name2"),
+            TaskLabel(dbid=1296, name="name3"),
+        ],
+    ]
+    tested = LimitedCache("patientUuid", "providerUuid", {})
+    expected = [
+        CodedItem(uuid="1245", label="name1", code=""),
+        CodedItem(uuid="1277", label="name2", code=""),
+        CodedItem(uuid="1296", label="name3", code=""),
+    ]
+    result = tested.existing_task_labels()
+    assert result == expected
+    assert tested._task_labels == expected
+    calls = [
+        call.filter(active=True),
+        call.filter().order_by('name'),
+    ]
+    assert task_label_db.mock_calls == calls
+    reset_mocks()
+
+    result = tested.existing_task_labels()
+    assert result == expected
+    assert tested._task_labels == expected
+    assert task_label_db.mock_calls == []
+    reset_mocks()
+
+
 @patch('hyperscribe.libraries.limited_cache.date')
 @patch.object(Observation, 'objects')
 @patch.object(Patient, 'objects')
@@ -874,6 +944,8 @@ def test_preferred_lab_partner(lab_partner_db, practice_setting):
             reset_mocks()
 
 
+@patch.object(LimitedCache, 'existing_staff_members')
+@patch.object(LimitedCache, 'existing_task_labels')
 @patch.object(LimitedCache, 'preferred_lab_partner')
 @patch.object(LimitedCache, 'practice_setting')
 @patch.object(LimitedCache, 'surgery_history')
@@ -901,6 +973,8 @@ def test_to_json(
         surgery_history,
         practice_setting,
         preferred_lab_partner,
+        existing_task_labels,
+        existing_staff_members,
 ):
     def reset_mocks():
         demographic.reset_mock()
@@ -916,6 +990,8 @@ def test_to_json(
         surgery_history.reset_mock()
         practice_setting.reset_mock()
         preferred_lab_partner.reset_mock()
+        existing_task_labels.reset_mock()
+        existing_staff_members.reset_mock()
 
     tested = LimitedCache(
         "patientUuid",
@@ -986,6 +1062,14 @@ def test_to_json(
             CodedItem(uuid="uuid011", label="label011", code="code011"),
             CodedItem(uuid="uuid111", label="label111", code="code111"),
         ]]
+        existing_task_labels.side_effect = [[
+            CodedItem(uuid="uuid091", label="label091", code="code091"),
+            CodedItem(uuid="uuid191", label="label191", code="code191"),
+        ]]
+        existing_staff_members.side_effect = [[
+            CodedItem(uuid="uuid037", label="label037", code="code037"),
+            CodedItem(uuid="uuid137", label="label137", code="code137"),
+        ]]
         practice_setting.side_effect = [
             "thePreferredLabPartner",
             "theServiceAreaZipCodes",
@@ -1039,6 +1123,11 @@ def test_to_json(
                 {'code': 'code009', 'label': 'label009', 'uuid': 'uuid009'},
                 {'code': 'code109', 'label': 'label109', 'uuid': 'uuid109'},
             ],
+            'existingStaffMembers': [],
+            'existingTaskLabels': [
+                {'code': 'code091', 'label': 'label091', 'uuid': 'uuid091'},
+                {'code': 'code191', 'label': 'label191', 'uuid': 'uuid191'},
+            ],
             'familyHistory': [
                 {'code': 'code010', 'label': 'label010', 'uuid': 'uuid010'},
                 {'code': 'code110', 'label': 'label110', 'uuid': 'uuid110'},
@@ -1084,6 +1173,8 @@ def test_to_json(
         assert current_medications.mock_calls == calls
         assert existing_note_types.mock_calls == calls
         assert existing_reason_for_visits.mock_calls == calls
+        assert existing_staff_members.mock_calls == []
+        assert existing_task_labels.mock_calls == calls
         assert family_history.mock_calls == calls
         assert surgery_history.mock_calls == calls
         assert preferred_lab_partner.mock_calls == calls
@@ -1137,6 +1228,14 @@ def test_load_from_json():
         "existingReasonForVisit": [
             {"code": "code009", "label": "label009", "uuid": "uuid009"},
             {"code": "code109", "label": "label109", "uuid": "uuid109"},
+        ],
+        'existingStaffMembers': [
+            {'code': 'code037', 'label': 'label037', 'uuid': 'uuid037'},
+            {'code': 'code137', 'label': 'label137', 'uuid': 'uuid137'},
+        ],
+        'existingTaskLabels': [
+            {'code': 'code091', 'label': 'label091', 'uuid': 'uuid091'},
+            {'code': 'code191', 'label': 'label191', 'uuid': 'uuid191'},
         ],
         "familyHistory": [
             {"code": "code010", "label": "label010", "uuid": "uuid010"},
@@ -1229,6 +1328,11 @@ def test_load_from_json():
     assert result.existing_reason_for_visits() == [
         CodedItem(uuid="uuid009", label="label009", code="code009"),
         CodedItem(uuid="uuid109", label="label109", code="code109"),
+    ]
+    assert result.existing_staff_members() == []
+    assert result.existing_task_labels() == [
+        CodedItem(uuid="uuid091", label="label091", code="code091"),
+        CodedItem(uuid="uuid191", label="label191", code="code191"),
     ]
     assert result.surgery_history() == [
         CodedItem(uuid="uuid011", label="label011", code="code011"),

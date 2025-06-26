@@ -1,7 +1,6 @@
 import json
 
 from canvas_sdk.commands.commands.task import TaskCommand, TaskAssigner, AssigneeType
-from canvas_sdk.v1.data import TaskLabel, Staff
 
 from hyperscribe.commands.base import Base
 from hyperscribe.libraries.constants import Constants
@@ -31,9 +30,8 @@ class Task(Base):
             return CodedItem(label=f"{task}: {comment} (due on: {due_date}, labels: {labels})", code="", uuid="")
         return None
 
-    @classmethod
-    def select_staff(cls, instruction: InstructionWithParameters, chatter: LlmBase, assigned_to: str, comment: str) -> None | TaskAssigner:
-        staff_members = Staff.objects.filter(active=True).order_by("last_name")
+    def select_staff(self, instruction: InstructionWithParameters, chatter: LlmBase, assigned_to: str, comment: str) -> None | TaskAssigner:
+        staff_members = self.cache.existing_staff_members()
         if not staff_members:
             return None
 
@@ -54,7 +52,7 @@ class Task(Base):
             "",
             'Among the following staff members, identify the most relevant one:',
             '',
-            "\n".join(f' * {staff.first_name} {staff.last_name} (staffId: {staff.dbid})' for staff in staff_members),
+            "\n".join(f' * {staff.label} (staffId: {staff.uuid})' for staff in staff_members),
             '',
             'Please, present your findings in a JSON format within a Markdown code block like:',
             '```json',
@@ -68,10 +66,9 @@ class Task(Base):
             return TaskAssigner(to=AssigneeType.STAFF, id=staff_id)
         return None
 
-    @classmethod
-    def select_labels(cls, instruction: InstructionWithParameters, chatter: LlmBase, labels: str, comment: str) -> None | list[str]:
-        label_db = TaskLabel.objects.filter(active=True).order_by("name")
-        if not label_db:
+    def select_labels(self, instruction: InstructionWithParameters, chatter: LlmBase, labels: str, comment: str) -> None | list[str]:
+        task_labels = self.cache.existing_task_labels()
+        if not task_labels:
             return None
 
         system_prompt = [
@@ -91,7 +88,7 @@ class Task(Base):
             "",
             'Among the following labels, identify all the most relevant to characterized the task:',
             '',
-            "\n".join(f' * {label.name} (labelId: {label.dbid})' for label in label_db),
+            "\n".join(f' * {label.label} (labelId: {label.uuid})' for label in task_labels),
             '',
             'Please, present your findings in a JSON format within a Markdown code block like:',
             '```json',
