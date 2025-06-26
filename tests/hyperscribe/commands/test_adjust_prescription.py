@@ -3,7 +3,6 @@ from unittest.mock import patch, call, MagicMock
 from canvas_sdk.commands import AdjustPrescriptionCommand
 from canvas_sdk.commands.commands.prescribe import PrescribeCommand
 from canvas_sdk.commands.constants import ClinicalQuantity
-from canvas_sdk.v1.data import Medication, MedicationCoding
 
 from hyperscribe.commands.adjust_prescription import AdjustPrescription
 from hyperscribe.commands.base_prescription import BasePrescription
@@ -13,6 +12,7 @@ from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.instruction_with_command import InstructionWithCommand
 from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
+from hyperscribe.structures.medication_cached import MedicationCached
 from hyperscribe.structures.medication_detail import MedicationDetail
 from hyperscribe.structures.medication_detail_quantity import MedicationDetailQuantity
 from hyperscribe.structures.medication_search import MedicationSearch
@@ -150,13 +150,11 @@ def test_staged_command_extract():
             assert result == expected
 
 
-@patch.object(Medication, 'codings')
-@patch.object(Medication, 'objects')
 @patch.object(LimitedCache, "current_medications")
 @patch.object(AdjustPrescription, "set_medication_dosage")
 @patch.object(AdjustPrescription, "medications_from")
 @patch.object(LimitedCache, "current_conditions")
-def test_command_from_json(current_conditions, medications_from, set_medication_dosage, current_medications, medication_db, codings_db):
+def test_command_from_json(current_conditions, medications_from, set_medication_dosage, current_medications):
     chatter = MagicMock()
 
     def reset_mocks():
@@ -165,12 +163,13 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
         medications_from.reset_mock()
         set_medication_dosage.reset_mock()
         current_medications.reset_mock()
-        medication_db.reset_mock()
-        codings_db.reset_mock()
 
     tested = helper_instance()
 
-    medication_record = MedicationDetail(fdb_code="code369", description="labelB", quantities=[
+    medication_record = MedicationDetail(
+        fdb_code="code369",
+        description="labelB",
+        quantities=[
         MedicationDetailQuantity(
             quantity="7",
             representative_ndc="ndc1",
@@ -190,9 +189,30 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
         CodedItem(uuid="theUuid3", label="display3a", code="CODE98.76"),
     ]
     medications = [
-        CodedItem(uuid="theUuid1", label="display1a", code="CODE123"),
-        CodedItem(uuid="theUuid2", label="display2a", code="CODE45"),
-        CodedItem(uuid="theUuid3", label="display3a", code="CODE9876"),
+        MedicationCached(
+            uuid="theUuid",
+            label="display1",
+            code_rx_norm="rxNorm1",
+            code_fdb="fdb1",
+            national_drug_code="ndc1",
+            potency_unit_code="puc1",
+        ),
+        MedicationCached(
+            uuid="theUuid2",
+            label="display2",
+            code_rx_norm="rxNorm2",
+            code_fdb="fdb2",
+            national_drug_code="ndc2",
+            potency_unit_code="puc2",
+        ),
+        MedicationCached(
+            uuid="theUuid3",
+            label="display3",
+            code_rx_norm="rxNorm3",
+            code_fdb="fdb3",
+            national_drug_code="ndc3",
+            potency_unit_code="puc4",
+        ),
     ]
     keywords = ["keyword1", "keyword2", "keyword3"]
     brands = ["brand1", "brand2", "brand3", "brand4"]
@@ -201,8 +221,6 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
     current_conditions.side_effect = [conditions, conditions]
     medications_from.side_effect = [[medication_record]]
     current_medications.side_effect = [medications]
-    medication_db.get.side_effect = [Medication(national_drug_code="theNdc", potency_unit_code="thePuc")]
-    codings_db.filter.return_value.first.side_effect = [MedicationCoding(system="theSystem", display="theDisplay", code="theCode"), ]
 
     arguments = {
         "uuid": "theUuid",
@@ -242,8 +260,6 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
     calls = [call(instruction, chatter, "theComment", command, medication_record)]
     assert set_medication_dosage.mock_calls == calls
     assert current_medications.mock_calls == []
-    assert medication_db.mock_calls == []
-    assert codings_db.mock_calls == []
     assert chatter.mock_calls == []
     reset_mocks()
 
@@ -251,8 +267,6 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
     current_conditions.side_effect = [conditions, conditions]
     medications_from.side_effect = [[medication_record]]
     current_medications.side_effect = [medications]
-    medication_db.get.side_effect = [Medication(national_drug_code="theNdc", potency_unit_code="thePuc")]
-    codings_db.filter.return_value.first.side_effect = [MedicationCoding(system="theSystem", display="theDisplay", code="theCode"), ]
 
     arguments = {
         "uuid": "theUuid",
@@ -278,11 +292,11 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
     instruction = InstructionWithParameters(**arguments)
     result = tested.command_from_json(instruction, chatter)
     command = AdjustPrescriptionCommand(
-        fdb_code='theCode',
-        new_fdb_code='theCode',
+        fdb_code='fdb2',
+        new_fdb_code='fdb2',
         type_to_dispense=ClinicalQuantity(
-            representative_ndc='theNdc',
-            ncpdp_quantity_qualifier_code='thePuc',
+            representative_ndc='ndc2',
+            ncpdp_quantity_qualifier_code='puc2',
         ),
         sig="theSig",
         days_supply=11,
@@ -299,13 +313,6 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
     assert set_medication_dosage.mock_calls == calls
     calls = [call()]
     assert current_medications.mock_calls == calls
-    calls = [call.get(id='theUuid2')]
-    assert medication_db.mock_calls == calls
-    calls = [
-        call.filter(system='http://www.fdbhealth.com/'),
-        call.filter().first(),
-    ]
-    assert codings_db.mock_calls == calls
     assert chatter.mock_calls == []
     reset_mocks()
 
@@ -313,8 +320,6 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
     current_conditions.side_effect = [conditions, conditions]
     medications_from.side_effect = [[medication_record]]
     current_medications.side_effect = [medications]
-    medication_db.get.side_effect = [Medication(national_drug_code="theNdc", potency_unit_code="thePuc")]
-    codings_db.filter.return_value.first.side_effect = [MedicationCoding(system="theSystem", display="theDisplay", code="theCode"), ]
 
     arguments = {
         "uuid": "theUuid",
@@ -340,11 +345,11 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
     instruction = InstructionWithParameters(**arguments)
     result = tested.command_from_json(instruction, chatter)
     command = AdjustPrescriptionCommand(
-        fdb_code='theCode',
-        new_fdb_code='theCode',
+        fdb_code='fdb2',
+        new_fdb_code='fdb2',
         type_to_dispense=ClinicalQuantity(
-            representative_ndc='theNdc',
-            ncpdp_quantity_qualifier_code='thePuc',
+            representative_ndc='ndc2',
+            ncpdp_quantity_qualifier_code='puc2',
         ),
         sig="theSig",
         days_supply=11,
@@ -359,13 +364,6 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
     assert set_medication_dosage.mock_calls == []
     calls = [call()]
     assert current_medications.mock_calls == calls
-    calls = [call.get(id='theUuid2')]
-    assert medication_db.mock_calls == calls
-    calls = [
-        call.filter(system='http://www.fdbhealth.com/'),
-        call.filter().first(),
-    ]
-    assert codings_db.mock_calls == calls
     assert chatter.mock_calls == []
     reset_mocks()
 
@@ -373,8 +371,6 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
     current_conditions.side_effect = [conditions, conditions]
     medications_from.side_effect = [[]]
     current_medications.side_effect = [medications]
-    medication_db.get.side_effect = [Medication(national_drug_code="theNdc", potency_unit_code="thePuc")]
-    codings_db.filter.return_value.first.side_effect = [MedicationCoding(system="theSystem", display="theDisplay", code="theCode"), ]
 
     arguments = {
         "uuid": "theUuid",
@@ -400,11 +396,11 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
     instruction = InstructionWithParameters(**arguments)
     result = tested.command_from_json(instruction, chatter)
     command = AdjustPrescriptionCommand(
-        fdb_code='theCode',
-        new_fdb_code='theCode',
+        fdb_code='fdb2',
+        new_fdb_code='fdb2',
         type_to_dispense=ClinicalQuantity(
-            representative_ndc='theNdc',
-            ncpdp_quantity_qualifier_code='thePuc',
+            representative_ndc='ndc2',
+            ncpdp_quantity_qualifier_code='puc2',
         ),
         sig="theSig",
         days_supply=11,
@@ -420,13 +416,6 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
     assert set_medication_dosage.mock_calls == []
     calls = [call()]
     assert current_medications.mock_calls == calls
-    calls = [call.get(id='theUuid2')]
-    assert medication_db.mock_calls == calls
-    calls = [
-        call.filter(system='http://www.fdbhealth.com/'),
-        call.filter().first(),
-    ]
-    assert codings_db.mock_calls == calls
     assert chatter.mock_calls == []
     reset_mocks()
 
@@ -438,14 +427,35 @@ def test_command_parameters(current_medications):
 
     tested = helper_instance()
     medications = [
-        CodedItem(uuid="theUuid1", label="display1a", code="CODE123"),
-        CodedItem(uuid="theUuid2", label="display2a", code="CODE45"),
-        CodedItem(uuid="theUuid3", label="display3a", code="CODE9876"),
+        MedicationCached(
+            uuid="theUuid",
+            label="display1",
+            code_rx_norm="rxNorm1",
+            code_fdb="fdb1",
+            national_drug_code="ndc1",
+            potency_unit_code="puc1",
+        ),
+        MedicationCached(
+            uuid="theUuid2",
+            label="display2",
+            code_rx_norm="rxNorm2",
+            code_fdb="fdb2",
+            national_drug_code="ndc2",
+            potency_unit_code="puc2",
+        ),
+        MedicationCached(
+            uuid="theUuid3",
+            label="display3",
+            code_rx_norm="rxNorm3",
+            code_fdb="fdb3",
+            national_drug_code="ndc3",
+            potency_unit_code="puc4",
+        ),
     ]
     current_medications.side_effect = [medications]
     result = tested.command_parameters()
     expected = {
-        'oldMedication': 'one of: display1a (index: 0)/display2a (index: 1)/display3a (index: 2)',
+        'oldMedication': 'one of: display1 (index: 0)/display2 (index: 1)/display3 (index: 2)',
         "oldMedicationIndex": "index of the medication to change, or -1, as integer",
         "newMedication": {
             "keywords": "comma separated keywords of up to 5 synonyms of the new medication to prescribe",
@@ -470,13 +480,34 @@ def test_instruction_description(current_medications):
 
     tested = helper_instance()
     medications = [
-        CodedItem(uuid="theUuid1", label="display1a", code="CODE123"),
-        CodedItem(uuid="theUuid2", label="display2a", code="CODE45"),
-        CodedItem(uuid="theUuid3", label="display3a", code="CODE9876"),
+        MedicationCached(
+            uuid="theUuid",
+            label="display1",
+            code_rx_norm="rxNorm1",
+            code_fdb="fdb1",
+            national_drug_code="ndc1",
+            potency_unit_code="puc1",
+        ),
+        MedicationCached(
+            uuid="theUuid2",
+            label="display2",
+            code_rx_norm="rxNorm2",
+            code_fdb="fdb2",
+            national_drug_code="ndc2",
+            potency_unit_code="puc2",
+        ),
+        MedicationCached(
+            uuid="theUuid3",
+            label="display3",
+            code_rx_norm="rxNorm3",
+            code_fdb="fdb3",
+            national_drug_code="ndc3",
+            potency_unit_code="puc4",
+        ),
     ]
     current_medications.side_effect = [medications]
     result = tested.instruction_description()
-    expected = ("Change the prescription of a current medication (display1a, display2a, display3a), "
+    expected = ("Change the prescription of a current medication (display1, display2, display3), "
                 "including the new medication, the directions, the duration and the dosage. "
                 "There can be only one change of prescription per instruction, and no instruction in the lack of.")
     assert result == expected
@@ -492,16 +523,37 @@ def test_instruction_constraints(current_medications):
 
     tested = helper_instance()
     medications = [
-        CodedItem(uuid="theUuid1", label="display1a", code="CODE123"),
-        CodedItem(uuid="theUuid2", label="display2a", code="CODE45"),
-        CodedItem(uuid="theUuid3", label="display3a", code="CODE9876"),
+        MedicationCached(
+            uuid="theUuid",
+            label="display1",
+            code_rx_norm="rxNorm1",
+            code_fdb="fdb1",
+            national_drug_code="ndc1",
+            potency_unit_code="puc1",
+        ),
+        MedicationCached(
+            uuid="theUuid2",
+            label="display2",
+            code_rx_norm="rxNorm2",
+            code_fdb="fdb2",
+            national_drug_code="ndc2",
+            potency_unit_code="puc2",
+        ),
+        MedicationCached(
+            uuid="theUuid3",
+            label="display3",
+            code_rx_norm="rxNorm3",
+            code_fdb="fdb3",
+            national_drug_code="ndc3",
+            potency_unit_code="puc4",
+        ),
     ]
     current_medications.side_effect = [medications]
     result = tested.instruction_constraints()
     expected = ("'AdjustPrescription' has to be related to one of the following medications: "
-                "display1a (RxNorm: CODE123), "
-                "display2a (RxNorm: CODE45), "
-                "display3a (RxNorm: CODE9876)")
+                "display1 (RxNorm: rxNorm1), "
+                "display2 (RxNorm: rxNorm2), "
+                "display3 (RxNorm: rxNorm3)")
     assert result == expected
     calls = [call()]
     assert current_medications.mock_calls == calls
@@ -515,9 +567,30 @@ def test_is_available(current_medications):
 
     tested = helper_instance()
     medications = [
-        CodedItem(uuid="theUuid1", label="display1a", code="CODE123"),
-        CodedItem(uuid="theUuid2", label="display2a", code="CODE45"),
-        CodedItem(uuid="theUuid3", label="display3a", code="CODE9876"),
+        MedicationCached(
+            uuid="theUuid",
+            label="display1",
+            code_rx_norm="rxNorm1",
+            code_fdb="fdb1",
+            national_drug_code="ndc1",
+            potency_unit_code="puc1",
+        ),
+        MedicationCached(
+            uuid="theUuid2",
+            label="display2",
+            code_rx_norm="rxNorm2",
+            code_fdb="fdb2",
+            national_drug_code="ndc2",
+            potency_unit_code="puc2",
+        ),
+        MedicationCached(
+            uuid="theUuid3",
+            label="display3",
+            code_rx_norm="rxNorm3",
+            code_fdb="fdb3",
+            national_drug_code="ndc3",
+            potency_unit_code="puc4",
+        ),
     ]
     tests = [
         (medications, True),

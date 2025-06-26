@@ -20,6 +20,7 @@ from hyperscribe.libraries.helper import Helper
 from hyperscribe.structures.charge_description import ChargeDescription
 from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.instruction import Instruction
+from hyperscribe.structures.medication_cached import MedicationCached
 
 
 class LimitedCache:
@@ -33,7 +34,7 @@ class LimitedCache:
         self._demographic: str | None = None
         self._family_history: list[CodedItem] | None = None
         self._goals: list[CodedItem] | None = None
-        self._medications: list[CodedItem] | None = None
+        self._medications: list[MedicationCached] | None = None
         self._preferred_lab_partner: CodedItem | None = None
         self._note_type: list[CodedItem] | None = None
         self._reason_for_visit: list[CodedItem] | None = None
@@ -126,18 +127,30 @@ class LimitedCache:
             self.retrieve_conditions()
         return self._conditions or []
 
-    def current_medications(self) -> list[CodedItem]:
+    def current_medications(self) -> list[MedicationCached]:
         if self._medications is None:
             self._medications = []
             medications = Medication.objects.committed().for_patient(self.patient_uuid).filter(status=Status.ACTIVE)
             for medication in medications.order_by('-dbid'):
+                label = ""
+                code_rx_norm = ""
+                code_fdb = ""
                 for coding in medication.codings.all():
                     if coding.system == CodeSystems.RXNORM:
-                        self._medications.append(CodedItem(
-                            uuid=str(medication.id),
-                            label=coding.display,
-                            code=coding.code,
-                        ))
+                        label = coding.display
+                        code_rx_norm = coding.code
+                    if coding.system == CodeSystems.FDB:
+                        label = coding.display
+                        code_fdb = coding.code
+
+                self._medications.append(MedicationCached(
+                    uuid=str(medication.id),
+                    label=label,
+                    code_rx_norm=code_rx_norm,
+                    code_fdb=code_fdb,
+                    national_drug_code=medication.national_drug_code,
+                    potency_unit_code=medication.potency_unit_code,
+                ))
         return self._medications
 
     def current_allergies(self) -> list[CodedItem]:
@@ -255,7 +268,7 @@ class LimitedCache:
     def to_json(self, obfuscate: bool) -> dict:
         return {
             "stagedCommands": {
-                key: [i._asdict() for i in commands]
+                key: [i.to_dict() for i in commands]
                 for key, commands in self._staged_commands.items()
             },
             "settings": {
@@ -292,7 +305,7 @@ class LimitedCache:
         result._allergies = [CodedItem.load_from_json(i) for i in cache.get("currentAllergies", [])]
         result._conditions = [CodedItem.load_from_json(i) for i in cache.get("currentConditions", [])]
         result._goals = [CodedItem.load_from_json(i) for i in cache.get("currentGoals", [])]
-        result._medications = [CodedItem.load_from_json(i) for i in cache.get("currentMedications", [])]
+        result._medications = [MedicationCached.load_from_json(i) for i in cache.get("currentMedications", [])]
         result._preferred_lab_partner = CodedItem.load_from_json(cache.get("preferredLabPartner", {}))
         result._note_type = [CodedItem.load_from_json(i) for i in cache.get("existingNoteTypes", [])]
         result._reason_for_visit = [CodedItem.load_from_json(i) for i in cache.get("existingReasonForVisit", [])]

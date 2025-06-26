@@ -17,6 +17,7 @@ from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.structures.charge_description import ChargeDescription
 from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.instruction import Instruction
+from hyperscribe.structures.medication_cached import MedicationCached
 
 
 def test___init__():
@@ -289,32 +290,71 @@ def test_current_medications(medication_db, codings_db):
         medication_db.reset_mock()
         codings_db.reset_mock()
 
+    rx_norm = "http://www.nlm.nih.gov/research/umls/rxnorm"
+    fdb = "http://www.fdbhealth.com/"
+
     codings_db.all.side_effect = [
         [
-            MedicationCoding(system="http://www.nlm.nih.gov/research/umls/rxnorm", display="display1a", code="CODE123"),
+            MedicationCoding(system=rx_norm, display="display1a", code="CODE123"),
             MedicationCoding(system="OTHER", display="display1b", code="CODE321"),
+            MedicationCoding(system=fdb, display="display1c", code="CODE231"),
         ],
         [
-            MedicationCoding(system="http://www.nlm.nih.gov/research/umls/rxnorm", display="display2a", code="CODE45"),
+            MedicationCoding(system=rx_norm, display="display2a", code="CODE45"),
             MedicationCoding(system="OTHER", display="display2b", code="CODE54"),
         ],
         [
             MedicationCoding(system="OTHER", display="display3b", code="CODE6789"),
-            MedicationCoding(system="http://www.nlm.nih.gov/research/umls/rxnorm", display="display3a", code="CODE9876"),
+            MedicationCoding(system=rx_norm, display="display3a", code="CODE9876"),
+            MedicationCoding(system=fdb, display="display3c", code="CODE8976"),
+        ],
+        [
+            MedicationCoding(system=fdb, display="display4c", code="CODE5654"),
         ],
     ]
     medication_db.committed.return_value.for_patient.return_value.filter.return_value.order_by.side_effect = [
         [
-            Medication(id=uuid5(NAMESPACE_DNS, "1")),
-            Medication(id=uuid5(NAMESPACE_DNS, "2")),
-            Medication(id=uuid5(NAMESPACE_DNS, "3")),
+            Medication(id=uuid5(NAMESPACE_DNS, "1"), national_drug_code="ndc1", potency_unit_code="puc1"),
+            Medication(id=uuid5(NAMESPACE_DNS, "2"), national_drug_code="ndc2", potency_unit_code="puc2"),
+            Medication(id=uuid5(NAMESPACE_DNS, "3"), national_drug_code="ndc3", potency_unit_code="puc3"),
+            Medication(id=uuid5(NAMESPACE_DNS, "4"), national_drug_code="ndc4", potency_unit_code="puc4"),
         ],
     ]
+
     tested = LimitedCache("patientUuid", "providerUuid", {})
     expected = [
-        CodedItem(uuid="b04965e6-a9bb-591f-8f8a-1adcb2c8dc39", label="display1a", code="CODE123"),
-        CodedItem(uuid="4b166dbe-d99d-5091-abdd-95b83330ed3a", label="display2a", code="CODE45"),
-        CodedItem(uuid="98123fde-012f-5ff3-8b50-881449dac91a", label="display3a", code="CODE9876"),
+        MedicationCached(
+            uuid="b04965e6-a9bb-591f-8f8a-1adcb2c8dc39",
+            label="display1c",
+            code_rx_norm="CODE123",
+            code_fdb="CODE231",
+            national_drug_code="ndc1",
+            potency_unit_code="puc1",
+        ),
+        MedicationCached(
+            uuid="4b166dbe-d99d-5091-abdd-95b83330ed3a",
+            label="display2a",
+            code_rx_norm="CODE45",
+            code_fdb="",
+            national_drug_code="ndc2",
+            potency_unit_code="puc2",
+        ),
+        MedicationCached(
+            uuid="98123fde-012f-5ff3-8b50-881449dac91a",
+            label="display3c",
+            code_rx_norm="CODE9876",
+            code_fdb="CODE8976",
+            national_drug_code="ndc3",
+            potency_unit_code="puc3",
+        ),
+        MedicationCached(
+            uuid="6ed955c6-506a-5343-9be4-2c0afae02eef",
+            label="display4c",
+            code_rx_norm="",
+            code_fdb="CODE5654",
+            national_drug_code="ndc4",
+            potency_unit_code="puc4",
+        ),
     ]
     result = tested.current_medications()
     assert result == expected
@@ -326,7 +366,7 @@ def test_current_medications(medication_db, codings_db):
         call.committed().for_patient().filter().order_by('-dbid'),
     ]
     assert medication_db.mock_calls == calls
-    calls = [call.all(), call.all(), call.all()]
+    calls = [call.all(), call.all(), call.all(), call.all()]
     assert codings_db.mock_calls == calls
     reset_mocks()
 
@@ -913,8 +953,22 @@ def test_to_json(
             CodedItem(uuid="uuid105", label="label105", code="code105"),
         ]]
         current_medications.side_effect = [[
-            CodedItem(uuid="uuid006", label="label006", code="code006"),
-            CodedItem(uuid="uuid106", label="label106", code="code106"),
+            MedicationCached(
+                uuid="uuid076",
+                label="label076",
+                code_rx_norm="code076",
+                code_fdb="code987",
+                national_drug_code="ndc12",
+                potency_unit_code="puc78",
+            ),
+            MedicationCached(
+                uuid="uuid176",
+                label="label176",
+                code_rx_norm="code176",
+                code_fdb="code998",
+                national_drug_code="ndc17",
+                potency_unit_code="puc56",
+            ),
         ]]
         existing_note_types.side_effect = [[
             CodedItem(uuid="uuid007", label="label007", code="code007"),
@@ -959,8 +1013,22 @@ def test_to_json(
                 {'code': 'code105', 'label': 'label105', 'uuid': 'uuid105'},
             ],
             'currentMedications': [
-                {'code': 'code006', 'label': 'label006', 'uuid': 'uuid006'},
-                {'code': 'code106', 'label': 'label106', 'uuid': 'uuid106'},
+                {
+                    "codeRxNorm": "code076",
+                    "label": "label076",
+                    "uuid": "uuid076",
+                    "codeFdb": "code987",
+                    "nationalDrugCode": "ndc12",
+                    "potencyUnitCode": "puc78",
+                },
+                {
+                    "codeRxNorm": "code176",
+                    "label": "label176",
+                    "uuid": "uuid176",
+                    "codeFdb": "code998",
+                    "nationalDrugCode": "ndc17",
+                    "potencyUnitCode": "puc56",
+                },
             ],
             'demographicStr': 'theDemographic',
             'existingNoteTypes': [
@@ -1044,6 +1112,22 @@ def test_load_from_json():
         "currentMedications": [
             {"code": "code006", "label": "label006", "uuid": "uuid006"},
             {"code": "code106", "label": "label106", "uuid": "uuid106"},
+            {
+                "codeRxNorm": "code076",
+                "label": "label076",
+                "uuid": "uuid076",
+                "codeFdb": "code987",
+                "nationalDrugCode": "ndc12",
+                "potencyUnitCode": "puc78",
+            },
+            {
+                "codeRxNorm": "code176",
+                "label": "label176",
+                "uuid": "uuid176",
+                "codeFdb": "code998",
+                "nationalDrugCode": "ndc17",
+                "potencyUnitCode": "puc56",
+            },
         ],
         "demographicStr": "theDemographic",
         "existingNoteTypes": [
@@ -1119,8 +1203,24 @@ def test_load_from_json():
         CodedItem(uuid="uuid105", label="label105", code="code105"),
     ]
     assert result.current_medications() == [
-        CodedItem(uuid="uuid006", label="label006", code="code006"),
-        CodedItem(uuid="uuid106", label="label106", code="code106"),
+        MedicationCached(uuid="uuid006", label="label006", code_rx_norm="code006", code_fdb="", national_drug_code="", potency_unit_code=""),
+        MedicationCached(uuid="uuid106", label="label106", code_rx_norm="code106", code_fdb="", national_drug_code="", potency_unit_code=""),
+        MedicationCached(
+            uuid="uuid076",
+            label="label076",
+            code_rx_norm="code076",
+            code_fdb="code987",
+            national_drug_code="ndc12",
+            potency_unit_code="puc78",
+        ),
+        MedicationCached(
+            uuid="uuid176",
+            label="label176",
+            code_rx_norm="code176",
+            code_fdb="code998",
+            national_drug_code="ndc17",
+            potency_unit_code="puc56",
+        ),
     ]
     assert result.existing_note_types() == [
         CodedItem(uuid="uuid008", label="label008", code="code008"),

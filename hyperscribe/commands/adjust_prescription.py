@@ -1,6 +1,5 @@
 from canvas_sdk.commands.commands.adjust_prescription import AdjustPrescriptionCommand
-from canvas_sdk.commands.constants import CodeSystems, ClinicalQuantity
-from canvas_sdk.v1.data import Medication
+from canvas_sdk.commands.constants import ClinicalQuantity
 
 from hyperscribe.commands.base_prescription import BasePrescription
 from hyperscribe.libraries.constants import Constants
@@ -56,14 +55,11 @@ class AdjustPrescription(BasePrescription):
             note_uuid=self.identification.note_uuid,
         )
         if 0 <= (idx := instruction.parameters["oldMedicationIndex"]) < len(current := self.cache.current_medications()):
-            medication_uuid = current[idx].uuid
-            medication = Medication.objects.get(id=medication_uuid)
-            coding = medication.codings.filter(system=CodeSystems.FDB).first()
-            result.fdb_code = coding.code
+            result.fdb_code = current[idx].code_fdb
             # new_fdb_code and type_to_dispense will be overwritten if the new medication is different
             result.type_to_dispense = ClinicalQuantity(
-                representative_ndc=medication.national_drug_code,
-                ncpdp_quantity_qualifier_code=medication.potency_unit_code,
+                representative_ndc=current[idx].national_drug_code,
+                ncpdp_quantity_qualifier_code=current[idx].potency_unit_code,
             )
             result.new_fdb_code = result.fdb_code
 
@@ -114,7 +110,7 @@ class AdjustPrescription(BasePrescription):
                 "the duration and the dosage. There can be only one change of prescription per instruction, and no instruction in the lack of.")
 
     def instruction_constraints(self) -> str:
-        text = ", ".join([f'{medication.label} (RxNorm: {medication.code})' for medication in self.cache.current_medications()])
+        text = ", ".join([f'{medication.label} (RxNorm: {medication.code_rx_norm})' for medication in self.cache.current_medications()])
         return f"'{self.class_name()}' has to be related to one of the following medications: {text}"
 
     def is_available(self) -> bool:

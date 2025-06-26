@@ -1,7 +1,6 @@
 from canvas_sdk.commands.commands.prescribe import PrescribeCommand
 from canvas_sdk.commands.commands.refill import RefillCommand
-from canvas_sdk.commands.constants import ClinicalQuantity, CodeSystems
-from canvas_sdk.v1.data import Medication
+from canvas_sdk.commands.constants import ClinicalQuantity
 
 from hyperscribe.commands.base import Base
 from hyperscribe.libraries.constants import Constants
@@ -47,14 +46,10 @@ class Refill(Base):
             note_uuid=self.identification.note_uuid,
         )
         if 0 <= (idx := instruction.parameters["medicationIndex"]) < len(current := self.cache.current_medications()):
-            medication_uuid = current[idx].uuid
-            medication = Medication.objects.get(id=medication_uuid)
-            coding = medication.codings.filter(system=CodeSystems.FDB).first()
-
-            result.fdb_code = coding.code
+            result.fdb_code = current[idx].code_fdb
             result.type_to_dispense = ClinicalQuantity(
-                representative_ndc=medication.national_drug_code,
-                ncpdp_quantity_qualifier_code=medication.potency_unit_code,
+                representative_ndc=current[idx].national_drug_code,
+                ncpdp_quantity_qualifier_code=current[idx].potency_unit_code,
             )
         return InstructionWithCommand.add_command(instruction, result)
 
@@ -76,7 +71,7 @@ class Refill(Base):
                 "There can be only one refill per instruction, and no instruction in the lack of.")
 
     def instruction_constraints(self) -> str:
-        text = ", ".join([f'{medication.label} (RxNorm: {medication.code})' for medication in self.cache.current_medications()])
+        text = ", ".join([f'{medication.label} (RxNorm: {medication.code_rx_norm})' for medication in self.cache.current_medications()])
         return f"'{self.class_name()}' has to be related to one of the following medications: {text}"
 
     def is_available(self) -> bool:

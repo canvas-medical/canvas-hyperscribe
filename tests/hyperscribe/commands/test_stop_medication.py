@@ -10,6 +10,7 @@ from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.instruction_with_command import InstructionWithCommand
 from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
+from hyperscribe.structures.medication_cached import MedicationCached
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
 
@@ -86,9 +87,30 @@ def test_command_from_json(current_medications):
 
     tested = helper_instance()
     medications = [
-        CodedItem(uuid="theUuid1", label="display1a", code="CODE123"),
-        CodedItem(uuid="theUuid2", label="display2a", code="CODE45"),
-        CodedItem(uuid="theUuid3", label="display3a", code="CODE9876"),
+        MedicationCached(
+            uuid="theUuid",
+            label="display1",
+            code_rx_norm="rxNorm1",
+            code_fdb="fdb1",
+            national_drug_code="ndc1",
+            potency_unit_code="puc1",
+        ),
+        MedicationCached(
+            uuid="theUuid2",
+            label="display2",
+            code_rx_norm="rxNorm2",
+            code_fdb="fdb2",
+            national_drug_code="ndc2",
+            potency_unit_code="puc2",
+        ),
+        MedicationCached(
+            uuid="theUuid3",
+            label="display3",
+            code_rx_norm="rxNorm3",
+            code_fdb="fdb3",
+            national_drug_code="ndc3",
+            potency_unit_code="puc3",
+        ),
     ]
     tests = [
         (1, "theUuid2"),
@@ -133,14 +155,35 @@ def test_command_parameters(current_medications):
 
     tested = helper_instance()
     medications = [
-        CodedItem(uuid="theUuid1", label="display1a", code="CODE123"),
-        CodedItem(uuid="theUuid2", label="display2a", code="CODE45"),
-        CodedItem(uuid="theUuid3", label="display3a", code="CODE9876"),
+        MedicationCached(
+            uuid="theUuid",
+            label="display1",
+            code_rx_norm="rxNorm1",
+            code_fdb="fdb1",
+            national_drug_code="ndc1",
+            potency_unit_code="puc1",
+        ),
+        MedicationCached(
+            uuid="theUuid2",
+            label="display2",
+            code_rx_norm="rxNorm2",
+            code_fdb="fdb2",
+            national_drug_code="ndc2",
+            potency_unit_code="puc2",
+        ),
+        MedicationCached(
+            uuid="theUuid3",
+            label="display3",
+            code_rx_norm="rxNorm3",
+            code_fdb="fdb3",
+            national_drug_code="ndc3",
+            potency_unit_code="puc3",
+        ),
     ]
     current_medications.side_effect = [medications]
     result = tested.command_parameters()
     expected = {
-        'medication': 'one of: display1a (index: 0)/display2a (index: 1)/display3a (index: 2)',
+        'medication': 'one of: display1 (index: 0)/display2 (index: 1)/display3 (index: 2)',
         "medicationIndex": "index of the medication to stop, or -1, as integer",
         "rationale": "explanation of why the medication is stopped, as free text",
     }
@@ -165,14 +208,35 @@ def test_instruction_constraints(current_medications):
 
     tested = helper_instance()
     medications = [
-        CodedItem(uuid="theUuid1", label="display1a", code="CODE123"),
-        CodedItem(uuid="theUuid2", label="display2a", code="CODE45"),
-        CodedItem(uuid="theUuid3", label="display3a", code="CODE9876"),
+        MedicationCached(
+            uuid="theUuid",
+            label="display1",
+            code_rx_norm="rxNorm1",
+            code_fdb="fdb1",
+            national_drug_code="ndc1",
+            potency_unit_code="puc1",
+        ),
+        MedicationCached(
+            uuid="theUuid2",
+            label="display2",
+            code_rx_norm="rxNorm2",
+            code_fdb="fdb2",
+            national_drug_code="ndc2",
+            potency_unit_code="puc2",
+        ),
+        MedicationCached(
+            uuid="theUuid3",
+            label="display3",
+            code_rx_norm="rxNorm3",
+            code_fdb="fdb3",
+            national_drug_code="ndc3",
+            potency_unit_code="puc3",
+        ),
     ]
     current_medications.side_effect = [medications]
     result = tested.instruction_constraints()
     expected = ("'StopMedication' has to be related to one of the following medications: "
-                "display1a, display2a, display3a.")
+                "display1, display2, display3.")
     assert result == expected
     calls = [call()]
     assert current_medications.mock_calls == calls
@@ -186,9 +250,30 @@ def test_is_available(current_medications):
 
     tested = helper_instance()
     medications = [
-        CodedItem(uuid="theUuid1", label="display1a", code="CODE123"),
-        CodedItem(uuid="theUuid2", label="display2a", code="CODE45"),
-        CodedItem(uuid="theUuid3", label="display3a", code="CODE9876"),
+        MedicationCached(
+            uuid="theUuid",
+            label="display1",
+            code_rx_norm="rxNorm1",
+            code_fdb="fdb1",
+            national_drug_code="ndc1",
+            potency_unit_code="puc1",
+        ),
+        MedicationCached(
+            uuid="theUuid2",
+            label="display2",
+            code_rx_norm="rxNorm2",
+            code_fdb="fdb2",
+            national_drug_code="ndc2",
+            potency_unit_code="puc2",
+        ),
+        MedicationCached(
+            uuid="theUuid3",
+            label="display3",
+            code_rx_norm="rxNorm3",
+            code_fdb="fdb3",
+            national_drug_code="ndc3",
+            potency_unit_code="puc3",
+        ),
     ]
     tests = [
         (medications, True),

@@ -11,6 +11,7 @@ from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.instruction_with_command import InstructionWithCommand
 from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
+from hyperscribe.structures.medication_cached import MedicationCached
 from hyperscribe.structures.medication_detail import MedicationDetail
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
@@ -224,12 +225,33 @@ def test_instruction_constraints(current_medications):
     tested = helper_instance()
 
     medications = [
-        CodedItem(uuid="theUuid1", label="display1a", code="CODE123"),
-        CodedItem(uuid="theUuid2", label="display2a", code="CODE45"),
-        CodedItem(uuid="theUuid3", label="display3a", code="CODE9876"),
+        MedicationCached(
+            uuid="theUuid",
+            label="display1",
+            code_rx_norm="rxNorm1",
+            code_fdb="fdb1",
+            national_drug_code="ndc1",
+            potency_unit_code="puc1",
+        ),
+        MedicationCached(
+            uuid="theUuid2",
+            label="display2",
+            code_rx_norm="rxNorm2",
+            code_fdb="fdb2",
+            national_drug_code="ndc2",
+            potency_unit_code="puc2",
+        ),
+        MedicationCached(
+            uuid="theUuid3",
+            label="display3",
+            code_rx_norm="rxNorm3",
+            code_fdb="fdb3",
+            national_drug_code="ndc3",
+            potency_unit_code="puc3",
+        ),
     ]
     tests = [
-        (medications, "'Medication' cannot include: display1a, display2a, display3a."),
+        (medications, "'Medication' cannot include: display1, display2, display3."),
         ([], ""),
     ]
     for side_effect, expected in tests:
