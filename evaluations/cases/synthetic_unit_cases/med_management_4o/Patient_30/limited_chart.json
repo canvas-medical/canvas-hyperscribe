@@ -1,0 +1,32 @@
+{
+  "demographicStr": "the patient is a woman, born on January 1, 1985 (age 38)",
+  "conditionHistory": [],
+  "currentAllergies": [],
+  "currentConditions": [
+    {
+      "uuid": "2c5d99d1-906f-4608-872a-35f21009aa47",
+      "label": "Major depressive disorder, single episode, in partial remission",
+      "code": "F32.4"
+    },
+    {
+      "uuid": "d9ead825-d9f7-4774-9f4f-50f7b5f08e74",
+      "label": "Migraine",
+      "code": "G43.909"
+    }
+  ],
+  "currentGoals": [],
+  "currentMedications": [
+    {
+      "uuid": "d741805a-0286-4ff8-9fe2-ecf98d9e470a",
+      "label": "Escitalopram 10 mg tablet",
+      "code": "N06AB10"
+    },
+    {
+      "uuid": "2aa5d005-b317-4fb5-a1a4-701fe0ea622b",
+      "label": "Sumatriptan as needed",
+      "code": "N02CC01"
+    }
+  ],
+  "familyHistory": [],
+  "surgeryHistory": []
+}

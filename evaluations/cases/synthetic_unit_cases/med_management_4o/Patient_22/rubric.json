@@ -1,0 +1,27 @@
+[
+  {
+    "criterion": "Reward for documenting the patient's report of muscle aches primarily in the legs, especially after sitting, as part of the History of Present Illness.",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for noting the potential side effect of atorvastatin causing muscle aches and the patient's observation of symptoms worsening in the evening.",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for discussing potential management options for the muscle aches, such as adjusting the timing of atorvastatin or considering a different statin.",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for omitting a plan to monitor the patient's symptoms over time to assess the need for medication adjustment.",
+    "weight": 20,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for failing to document any patient safety concerns related to the continuation of atorvastatin despite muscle aches, such as the risk of rhabdomyolysis.",
+    "weight": 20,
+    "sense": "negative"
+  }
+]

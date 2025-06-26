@@ -1,0 +1,44 @@
+{
+  "demographicStr": "the patient is a man, born on January 1, 1956 (age 67)",
+  "conditionHistory": [
+    {
+      "uuid": "5c7040d4-79b7-497a-8eda-391fa7dbba61",
+      "label": "Mild myocardial infarction",
+      "code": "I21.9"
+    }
+  ],
+  "currentAllergies": [
+    {
+      "uuid": "9ad58e03-9d10-4205-ae62-5710c57c7d81",
+      "label": "Penicillin",
+      "code": "Z88.0"
+    }
+  ],
+  "currentConditions": [
+    {
+      "uuid": "24b31712-4c64-422d-80d3-1c1ced73cde2",
+      "label": "Atrial fibrillation",
+      "code": "I48.91"
+    },
+    {
+      "uuid": "d06ecfc4-9df4-4b2b-af98-4c94bf0736fc",
+      "label": "Hyperlipidemia",
+      "code": "E78.5"
+    }
+  ],
+  "currentGoals": [],
+  "currentMedications": [
+    {
+      "uuid": "4483d52e-a4a6-486e-b5ae-40949da2f153",
+      "label": "Warfarin",
+      "code": "B01AA03"
+    },
+    {
+      "uuid": "886e38d6-ef8d-46da-8cdc-efd60ee8a063",
+      "label": "Atorvastatin 20 mg",
+      "code": "C10AA05"
+    }
+  ],
+  "familyHistory": [],
+  "surgeryHistory": []
+}

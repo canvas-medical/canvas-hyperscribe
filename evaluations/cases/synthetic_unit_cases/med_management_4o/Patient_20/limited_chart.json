@@ -1,0 +1,22 @@
+{
+  "demographicStr": "the patient is a woman, born on January 1, 1994 (age 29)",
+  "conditionHistory": [],
+  "currentAllergies": [],
+  "currentConditions": [
+    {
+      "uuid": "ab272d9e-584b-4f4c-b8ee-de11174e906e",
+      "label": "Bipolar disorder",
+      "code": "F31.9"
+    }
+  ],
+  "currentGoals": [],
+  "currentMedications": [
+    {
+      "uuid": "d4b4e446-f3ae-4067-afbb-d9f9eed1b9e5",
+      "label": "Lithium 300 mg tablet, twice daily",
+      "code": "N05AN01"
+    }
+  ],
+  "familyHistory": [],
+  "surgeryHistory": []
+}

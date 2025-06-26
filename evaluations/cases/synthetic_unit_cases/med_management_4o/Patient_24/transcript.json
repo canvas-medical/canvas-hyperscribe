@@ -1,0 +1,26 @@
+[
+  {
+    "speaker": "Patient",
+    "text": "So, I was just wondering if, um, increasing the dose might help even more, or if it's better to stay where I am?"
+  },
+  {
+    "speaker": "Clinician",
+    "text": "That's a good question. You've been on 100 mg for a while now, and it seems like it's been working well for you. Are you still experiencing any anxiety symptoms that are, uh, concerning?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Not really, I mean, it's mostly under control. I just have those occasional, um, stressful days at work, you know?"
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Right, and those are pretty normal. We could consider a dose increase if you feel like those days are becoming more frequent or intense, but it sounds like you're managing well overall."
+  },
+  {
+    "speaker": "Patient",
+    "text": "Yeah, I think so. I just wanted to make sure I was doing everything I could. My mom always said it's better to be proactive."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Absolutely, and it's great that you're being so proactive. Just keep an eye on how you're feeling, and we can adjust if needed. How's your routine with taking the medication? Any issues there?"
+  }
+]

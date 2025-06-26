@@ -1,0 +1,34 @@
+{
+  "demographicStr": "the patient is a man, age 60",
+  "conditionHistory": [],
+  "currentAllergies": [
+    {
+      "uuid": "a5298c09-1354-4b57-8b33-19e1f4a17e14",
+      "label": "Penicillin",
+      "code": "Z88.0"
+    }
+  ],
+  "currentConditions": [
+    {
+      "uuid": "b104de7f-65c7-4dcf-9e92-5939443952cd",
+      "label": "Essential (primary) hypertension",
+      "code": "I10"
+    }
+  ],
+  "currentGoals": [],
+  "currentMedications": [
+    {
+      "uuid": "6b9be331-12c9-4987-8c7e-641b85d0a546",
+      "label": "Losartan 50 mg tablet",
+      "code": "C09CA01"
+    }
+  ],
+  "familyHistory": [
+    {
+      "uuid": "1ab65ce7-1483-445c-ba2a-f38f037a3782",
+      "label": "Family history of cardiovascular disease",
+      "code": "Z82.49"
+    }
+  ],
+  "surgeryHistory": []
+}
