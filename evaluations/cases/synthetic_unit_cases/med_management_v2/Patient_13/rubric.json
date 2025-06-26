@@ -1,0 +1,32 @@
+[
+  {
+    "criterion": "Reward for clearly documenting the patient's transient dizziness side effect, including onset in first weeks, current resolution, and association with levetiracetam",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing the medication adherence conversation: patient's use of phone alarms, occasional missed alarms due to unpredictable work projects, and jointly discussed backup strategy of a pill organizer or alternative reminder",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for noting the patient's unpredictable work schedule as a social determinant impacting medication adherence",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for failing to include explicit seizure-safety counseling or instructions regarding what to do if a levetiracetam dose is missed, given the known risk of breakthrough seizures from non-adherence",
+    "weight": 25,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Reward for keeping the documentation concise and free of redundant template text, limited strictly to new information from this encounter segment",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for adding information not supported by the transcript or chart (e.g., seizure frequency, lab orders, ROS elements) or contradictory to provided data",
+    "weight": 15,
+    "sense": "negative"
+  }
+]

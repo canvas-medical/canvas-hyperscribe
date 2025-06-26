@@ -1,10 +1,37 @@
 {
-  "demographicStr": "the patient is a woman, born on January 1, 1958 (age 65)",
+  "demographicStr": "the patient is a man, born on January 1, 1948 (age 75)",
   "conditionHistory": [],
   "currentAllergies": [],
-  "currentConditions": [],
+  "currentConditions": [
+    {
+      "uuid": "102c68a8-63d7-488d-9ec6-20419c5f32ca",
+      "label": "Atrial fibrillation",
+      "code": "I48.91"
+    },
+    {
+      "uuid": "667e98c2-97fc-49bb-bbcb-3cfe1f3e8f3c",
+      "label": "Chronic kidney disease",
+      "code": "N18.9"
+    },
+    {
+      "uuid": "d456fb28-cc94-42c8-ab0a-be2fdb6d5314",
+      "label": "Hypertension",
+      "code": "I10"
+    },
+    {
+      "uuid": "7094b6bc-9d62-4e98-97fb-8938c481b42c",
+      "label": "Heart failure",
+      "code": "I50.9"
+    }
+  ],
   "currentGoals": [],
-  "currentMedications": [],
+  "currentMedications": [
+    {
+      "uuid": "e72f1786-101e-4787-b672-3a8f481329e5",
+      "label": "Warfarin",
+      "code": "B01AA03"
+    }
+  ],
   "familyHistory": [],
   "surgeryHistory": []
 }

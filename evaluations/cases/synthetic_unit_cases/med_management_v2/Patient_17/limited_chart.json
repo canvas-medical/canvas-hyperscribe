@@ -1,28 +1,43 @@
 {
-  "demographicStr": "the patient is a woman, born on January 1, 1995 (age 28)",
+  "demographicStr": "the patient is a woman, born on January 1, 1965 (age 58)",
   "conditionHistory": [],
-  "currentAllergies": [],
+  "currentAllergies": [
+    {
+      "uuid": "f4a639b7-2f25-4eeb-9fbc-8d842dace295",
+      "label": "Penicillin",
+      "code": "Z88.0"
+    }
+  ],
   "currentConditions": [
     {
-      "uuid": "cond1",
-      "label": "Epilepsy",
-      "code": "G40.909"
+      "uuid": "6c08cc3b-41f1-4137-adab-1554cc456bbc",
+      "label": "Type 2 diabetes mellitus without complications",
+      "code": "E11.9"
+    },
+    {
+      "uuid": "5efb9157-914f-45c0-a451-5bb9b5b9c8da",
+      "label": "Essential (primary) hypertension",
+      "code": "I10"
     }
   ],
   "currentGoals": [],
   "currentMedications": [
     {
-      "uuid": "med1",
-      "label": "Lamotrigine",
-      "code": "N03AX09"
-    }
-  ],
-  "familyHistory": [
+      "uuid": "1fd16a50-93b6-4495-ab91-b52deb3f22c9",
+      "label": "Metformin 500 mg tablet",
+      "code": "860975"
+    },
     {
-      "uuid": "fh1",
-      "label": "Family history of epilepsy",
-      "code": "Z82.0"
+      "uuid": "2c62c0c2-ae1c-49a3-8bb6-4ad93b8faa2f",
+      "label": "Glipizide 5 mg tablet",
+      "code": "197560"
+    },
+    {
+      "uuid": "7fb39650-368f-4cd6-a42e-7f01cf4b1b2a",
+      "label": "Losartan 50 mg tablet",
+      "code": "317240"
     }
   ],
+  "familyHistory": [],
   "surgeryHistory": []
 }

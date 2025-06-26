@@ -1,53 +1,43 @@
 {
-  "demographicStr": "the patient is a woman, born on January 1, 1941 (age 82)",
+  "demographicStr": "the patient is a woman, born on January 1, 1968 (age 55)",
   "conditionHistory": [],
   "currentAllergies": [
     {
-      "uuid": "allergy1",
-      "label": "Allergy to sulfonamides",
+      "uuid": "9753b303-4b5b-42da-9405-c8a496e04e92",
+      "label": "Allergy to sulfa drugs",
       "code": "Z88.2"
     }
   ],
   "currentConditions": [
     {
-      "uuid": "cond1",
-      "label": "Atrial fibrillation",
-      "code": "I48.91"
-    },
-    {
-      "uuid": "cond2",
-      "label": "Osteoarthritis",
-      "code": "M19.90"
-    },
-    {
-      "uuid": "cond3",
-      "label": "Hypertension",
-      "code": "I10"
+      "uuid": "01db2d1d-efa5-4d45-884e-1d384daadb5f",
+      "label": "Rheumatoid arthritis",
+      "code": "M06.9"
     }
   ],
   "currentGoals": [],
   "currentMedications": [
     {
-      "uuid": "med1",
-      "label": "Warfarin",
-      "code": "B01AA03"
+      "uuid": "bd5a722e-530a-47a5-a001-a6c70263122e",
+      "label": "Methotrexate 15 mg weekly",
+      "code": "J9250"
     },
     {
-      "uuid": "med2",
-      "label": "Metoprolol",
-      "code": "C07AB02"
+      "uuid": "f710d41e-0fb1-4760-85a2-8766e96bf0ed",
+      "label": "Folic acid 1 mg daily",
+      "code": "B03BB01"
     },
     {
-      "uuid": "med3",
-      "label": "Acetaminophen",
-      "code": "N02BE01"
+      "uuid": "940a07c5-40e5-4982-b763-7ca9a9003d7c",
+      "label": "Hydroxychloroquine 200 mg daily",
+      "code": "P01BA02"
     }
   ],
   "familyHistory": [
     {
-      "uuid": "fh1",
-      "label": "Family history of osteoporosis",
-      "code": "Z82.62"
+      "uuid": "0a79ca38-33f3-407e-bc5e-4047152c2c84",
+      "label": "Family history of autoimmune diseases",
+      "code": "Z83.7"
     }
   ],
   "surgeryHistory": []

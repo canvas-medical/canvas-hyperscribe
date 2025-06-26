@@ -1,26 +1,26 @@
 [
   {
-    "speaker": "Doctor",
-    "text": "Hi, how have you been feeling since we switched you from risperidone to aripiprazole?"
+    "speaker": "Patient",
+    "text": "So, I was just wondering if, um, the losartan is enough to keep my blood pressure in check, or if there's, uh, something else I should be doing?"
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Well, your last few readings have been pretty stable, which is a good sign. But, um, we should keep monitoring it closely. Are you still checking it at home regularly?"
   },
   {
     "speaker": "Patient",
-    "text": "I think it's been going okay. I haven't noticed any new side effects, but I'm still worried about the weight gain."
+    "text": "Yeah, I try to do it every morning. Sometimes I forget, but mostly I'm on top of it. It's just, you know, with work and everything, it gets a bit hectic."
   },
   {
-    "speaker": "Doctor",
-    "text": "That's understandable. Have you noticed any changes in your weight since starting aripiprazole?"
-  },
-  {
-    "speaker": "Patient",
-    "text": "I haven't weighed myself recently, but my clothes feel about the same."
-  },
-  {
-    "speaker": "Doctor",
-    "text": "Alright, it's important to monitor that. How are you finding the aripiprazole in terms of managing your symptoms?"
+    "speaker": "Clinician",
+    "text": "I understand. It's important to keep that routine. And, uh, about the atorvastatin, have you had any muscle aches or anything unusual since we last talked?"
   },
   {
     "speaker": "Patient",
-    "text": "I feel like it's working pretty well. I haven't had any major episodes, which is good."
+    "text": "No, not really. I mean, sometimes I feel a bit tired, but I think that's more from work stress than anything else."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Okay, that's good to hear. Just keep an eye on it, and if anything changes, let me know. And, uh, about your diet and exercise, are you managing to keep up with that?"
   }
 ]

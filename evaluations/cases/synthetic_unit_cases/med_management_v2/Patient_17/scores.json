@@ -1,0 +1,32 @@
+[
+  {
+    "rationale": "The output does not mention the patient's concern about increased hunger or the clinician's explanation of glipizide's effect on insulin release.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "The output includes a plan to monitor weight and adjust the diet plan, but does not mention the patient's observation of lower blood sugar readings.",
+    "satisfaction": 50.0,
+    "score": 7.5
+  },
+  {
+    "rationale": "The output notes the cessation of lisinopril due to coughing but does not explicitly document the patient's report of no longer experiencing a cough or the clinician's acknowledgment.",
+    "satisfaction": 50.0,
+    "score": 5.0
+  },
+  {
+    "rationale": "The output includes the patient's report of ankle swelling and the clinician's plan to monitor the symptom and consider dose adjustment.",
+    "satisfaction": 100.0,
+    "score": 20.0
+  },
+  {
+    "rationale": "The output does not mention the patient's current medications, glipizide and losartan, in the context of their effects and side effects.",
+    "satisfaction": 100.0,
+    "score": 15.0
+  },
+  {
+    "rationale": "The output includes a follow-up plan to monitor weight and ankle swelling, ensuring ongoing monitoring and adjustment of treatment.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  }
+]

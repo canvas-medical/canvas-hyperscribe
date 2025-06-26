@@ -1,0 +1,32 @@
+[
+  {
+    "rationale": "States transient dizziness in the first weeks and that it has resolved, implying association with current therapy but does not name levetiracetam explicitly.",
+    "satisfaction": 85.0,
+    "score": 17.0
+  },
+  {
+    "rationale": "Captures use of phone alarms, admits occasional misses, and documents clinician-patient discussion of pill organizer as backup.",
+    "satisfaction": 93.0,
+    "score": 18.6
+  },
+  {
+    "rationale": "Explicitly links medication timing difficulty to patient\u2019s unpredictable work schedule.",
+    "satisfaction": 96.0,
+    "score": 9.6
+  },
+  {
+    "rationale": "Note contains no seizure-safety counseling or instructions for missed doses, so full penalty applies.",
+    "satisfaction": 100.0,
+    "score": -25.0
+  },
+  {
+    "rationale": "Only two succinct commands, no boilerplate or redundancy; entirely encounter-specific.",
+    "satisfaction": 92.0,
+    "score": 9.2
+  },
+  {
+    "rationale": "No unsupported or contradictory information present.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  }
+]

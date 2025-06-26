@@ -1,0 +1,27 @@
+[
+  {
+    "rationale": "HPI includes all key subjective items: improved breathing, concern about long-term steroid effects, jitteriness from inhaler, and notes that only \u201ca few doses\u201d remain; however, it omits a precise day count.",
+    "satisfaction": 85.0,
+    "score": 17.0
+  },
+  {
+    "rationale": "Med list names prednisone (short course, few doses left), confirms tiotropium correct use and adherence, and states no other inhalers; lacks exact course length or dosing details.",
+    "satisfaction": 80.0,
+    "score": 20.0
+  },
+  {
+    "rationale": "Plan advises finishing short course and to report worsening jitteriness, but gives minimal risk\u2013benefit counseling and does not discuss broader steroid side effects.",
+    "satisfaction": 65.0,
+    "score": 13.0
+  },
+  {
+    "rationale": "Management continues tiotropium and completes prednisone without extension, consistent with guidelines; omits explicit follow-up arrangement.",
+    "satisfaction": 70.0,
+    "score": 17.5
+  },
+  {
+    "rationale": "Note is concise with little duplication and no irrelevant copy-pasted material aside from minor repetition of visit reason.",
+    "satisfaction": 95.0,
+    "score": 9.5
+  }
+]

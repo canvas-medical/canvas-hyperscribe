@@ -1,0 +1,27 @@
+[
+  {
+    "criterion": "Reward for accurately documenting all patient-reported subjective information from this segment, including improved breathing on prednisone, concern about long-term steroid effects, jitteriness from inhaler, and number of days remaining on the steroid course",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for complete medication reconciliation: explicitly listing prednisone (with course length/remaining days) and tiotropium (with confirmation of correct use and adherence) and clearly noting the absence of any other inhalers or respiratory medications",
+    "weight": 25,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting clinician counseling on prednisone (short course, risk\u2013benefit explanation), anticipated side effects (jitteriness), and clear safety instructions on when to report worsening or bothersome effects",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for recording an evidence-based management plan that aligns with COPD guidelines: finish current short prednisone course without unnecessary extension, continue tiotropium as maintenance therapy, and specify appropriate follow-up arrangements",
+    "weight": 25,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for inclusion of redundant, irrelevant, or copy-pasted material that is not directly pertinent to this encounter segment, leading to excessive or repetitive documentation",
+    "weight": 10,
+    "sense": "negative"
+  }
+]

@@ -1,30 +1,20 @@
 {
-  "demographicStr": "the patient is a woman, born on January 1, 1993 (age 30)",
+  "demographicStr": "the patient is a man, age 29",
   "conditionHistory": [],
   "currentAllergies": [],
   "currentConditions": [
     {
-      "uuid": "cond1",
-      "label": "Generalized anxiety disorder",
-      "code": "F41.1"
-    },
-    {
-      "uuid": "cond2",
-      "label": "Migraine",
-      "code": "G43.909"
+      "uuid": "0ed9cf7e-14e4-421a-9e69-48ff762f1d07",
+      "label": "Epilepsy",
+      "code": "G40.909"
     }
   ],
   "currentGoals": [],
   "currentMedications": [
     {
-      "uuid": "med1",
-      "label": "Sertraline 50 mg tablet",
-      "code": "N05AB06"
-    },
-    {
-      "uuid": "med2",
-      "label": "Sumatriptan 50 mg tablet",
-      "code": "N02CC01"
+      "uuid": "1b24bd71-80f5-4fc4-ac03-d89aa45f8b2c",
+      "label": "Levetiracetam 500 mg tablet",
+      "code": "N03AX14"
     }
   ],
   "familyHistory": [],

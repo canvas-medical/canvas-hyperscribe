@@ -1,10 +1,44 @@
 {
-  "demographicStr": "the patient is a woman, born on January 1, 2001 (age 22)",
+  "demographicStr": "the patient is a woman, born on January 1, 1955 (age 68)",
   "conditionHistory": [],
-  "currentAllergies": [],
-  "currentConditions": [],
+  "currentAllergies": [
+    {
+      "uuid": "956f061f-4751-42de-bec5-65555122e3ba",
+      "label": "Aspirin",
+      "code": "Z88.6"
+    }
+  ],
+  "currentConditions": [
+    {
+      "uuid": "d9682647-aeca-4fad-9ace-c217987ae2a1",
+      "label": "Osteoarthritis",
+      "code": "M19.90"
+    },
+    {
+      "uuid": "2202d878-18b3-423c-94a6-116ca871e04e",
+      "label": "Hypertension",
+      "code": "I10"
+    }
+  ],
   "currentGoals": [],
-  "currentMedications": [],
-  "familyHistory": [],
+  "currentMedications": [
+    {
+      "uuid": "bb9f182b-4126-45de-9113-10036747735d",
+      "label": "Celecoxib 100 mg capsule",
+      "code": "NDC 0002-0800"
+    },
+    {
+      "uuid": "13806d89-7246-4e62-9db8-9eb1636b53f5",
+      "label": "Amlodipine 5 mg tablet",
+      "code": "NDC 0069-1530"
+    }
+  ],
+  "familyHistory": [
+    {
+      "uuid": "7470c322-859d-42ad-bdd0-10afc80a1900",
+      "label": "Family history of rheumatoid arthritis",
+      "code": "Z82.61"
+    }
+  ],
   "surgeryHistory": []
 }

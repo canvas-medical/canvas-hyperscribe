@@ -1,36 +1,36 @@
 {
-  "demographicStr": "the patient is a woman, born on January 1, 1968 (age 55)",
+  "demographicStr": "the patient is a woman, born on January 1, 1961 (age 62)",
   "conditionHistory": [],
   "currentAllergies": [],
   "currentConditions": [
     {
-      "uuid": "cond1",
-      "label": "Essential (primary) hypertension",
+      "uuid": "8d8a33d0-b17c-47a1-8cc2-d5cf27a620b8",
+      "label": "Hypertension",
       "code": "I10"
     },
     {
-      "uuid": "cond2",
-      "label": "Chronic migraine without aura, not intractable",
-      "code": "G43.709"
+      "uuid": "e38deba8-7c35-4219-8255-688db816c664",
+      "label": "Hyperlipidemia",
+      "code": "E78.5"
     }
   ],
   "currentGoals": [],
   "currentMedications": [
     {
-      "uuid": "med1",
-      "label": "Lisinopril 10 mg tablet",
-      "code": "123456"
+      "uuid": "ab4ba1a7-ab37-4841-a5b1-b03d54532a9c",
+      "label": "Losartan 50 mg tablet",
+      "code": "C09CA01"
     },
     {
-      "uuid": "med2",
-      "label": "Sumatriptan 50 mg tablet",
-      "code": "654321"
+      "uuid": "28c9f2ac-2626-47e8-b82e-7a59e630bd81",
+      "label": "Atorvastatin 20 mg tablet",
+      "code": "C10AA05"
     }
   ],
   "familyHistory": [
     {
-      "uuid": "fh1",
-      "label": "Family history of ischemic heart disease",
+      "uuid": "a800234c-6076-40d6-bde5-377db27041e0",
+      "label": "Family history of cardiovascular disease",
       "code": "Z82.49"
     }
   ],

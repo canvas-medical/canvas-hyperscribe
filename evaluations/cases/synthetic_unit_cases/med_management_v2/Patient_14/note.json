@@ -1,0 +1,36 @@
+[
+  {
+    "instruction": "Patient states prior stomach issues occurred with sertraline but have not been experienced with current fluoxetine therapy. Since the recent dose adjustment, mood has remained stable even during a hectic period at work; patient does not feel overwhelmed. Reports full adherence to fluoxetine, taking it every morning without missed doses.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.history_present_illness",
+      "class": "HistoryOfPresentIllnessCommand",
+      "attributes": {
+        "narrative": "Patient previously experienced stomach issues on sertraline but reports none on current fluoxetine therapy. Since the recent fluoxetine dose adjustment, mood remains stable despite a hectic work period, and the patient does not feel overwhelmed. Patient reports full adherence, taking fluoxetine every morning with no missed doses."
+      }
+    }
+  },
+  {
+    "instruction": "Fluoxetine \u2013 patient currently taking once daily every morning; adherent with no missed doses and no gastrointestinal side-effects reported.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.medication_statement",
+      "class": "MedicationStatementCommand",
+      "attributes": {
+        "fdb_code": "287344",
+        "sig": "Take once daily every morning."
+      }
+    }
+  },
+  {
+    "instruction": "Major depressive disorder, single episode, unspecified (ICD-10 F32.9) \u2013 condition assessed as stable on current fluoxetine regimen; patient reports improved tolerance and stable mood.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.assess",
+      "class": "AssessCommand",
+      "attributes": {
+        "condition_id": "6c237b5a-d5fd-4fe6-8556-99ddb0051a5c",
+        "background": "The patient reports stable mood and improved medication tolerance; the provider assessed the disorder as stable on the current fluoxetine regimen.",
+        "status": "stable",
+        "narrative": "Major depressive disorder appears stable with continued benefit from fluoxetine; no medication changes required at this time."
+      }
+    }
+  }
+]

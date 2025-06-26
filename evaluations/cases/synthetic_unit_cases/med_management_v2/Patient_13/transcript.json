@@ -1,26 +1,26 @@
 [
   {
-    "speaker": "Doctor",
-    "text": "Hi, how have you been managing with your sertraline and sumatriptan?"
+    "speaker": "Clinician",
+    "text": "So, when you mentioned the dizziness, it was just at the beginning, right? And it's, uh, resolved now?"
   },
   {
     "speaker": "Patient",
-    "text": "Hi, I've been doing okay. The sertraline helps with my anxiety, but I still get migraines occasionally."
+    "text": "Yeah, it was mostly in the first couple of weeks. I was a bit worried at first, but it seems to have settled down."
   },
   {
-    "speaker": "Doctor",
-    "text": "How often are you using the sumatriptan for your migraines?"
-  },
-  {
-    "speaker": "Patient",
-    "text": "I use it about twice a month. It usually works, but sometimes it takes a while to kick in."
-  },
-  {
-    "speaker": "Doctor",
-    "text": "Have you noticed any side effects from the sumatriptan or the sertraline?"
+    "speaker": "Clinician",
+    "text": "That's good to hear. And how are you managing with the reminders for your doses? I know you mentioned your work schedule can be a bit unpredictable."
   },
   {
     "speaker": "Patient",
-    "text": "Not really from the sumatriptan, but the sertraline sometimes makes me feel a bit drowsy."
+    "text": "I've been using my phone to set alarms. It's helped, but sometimes if I'm in the middle of a project, I, uh, tend to ignore them."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "I understand. Maybe we can think of a backup plan, like a pill organizer or, um, a different type of reminder that might catch your attention better?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Yeah, maybe a pill organizer could work. I just need something more, uh, in my face, you know?"
   }
 ]

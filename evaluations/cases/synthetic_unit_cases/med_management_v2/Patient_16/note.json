@@ -1,0 +1,58 @@
+[
+  {
+    "instruction": "Patient seeks guidance about long-term effects of atorvastatin and possible additional lifestyle measures to reduce cardiovascular risk.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.reason_for_visit",
+      "class": "ReasonForVisitCommand",
+      "attributes": {
+        "comment": "Discuss long-term effects of atorvastatin and additional lifestyle measures to reduce cardiovascular risk"
+      }
+    }
+  },
+  {
+    "instruction": "Atorvastatin \u2013 currently taking for dyslipidemia/cardiovascular risk reduction (dose not specified).",
+    "command": {
+      "module": "canvas_sdk.commands.commands.medication_statement",
+      "class": "MedicationStatementCommand",
+      "attributes": {
+        "fdb_code": "163181",
+        "sig": "Currently taking for dyslipidemia and cardiovascular risk reduction; dose not specified."
+      }
+    }
+  },
+  {
+    "instruction": "Patient on atorvastatin without muscle pain; reports slight increase in fatigue after cycling last week; concerned about long-term statin effects; father had a heart attack; no other new symptoms.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.history_present_illness",
+      "class": "HistoryOfPresentIllnessCommand",
+      "attributes": {
+        "narrative": "Patient taking atorvastatin with no muscle pain; noted slightly increased fatigue after cycling last week; expresses concern about long-term statin effects; reports that father experienced a heart attack; denies any other new symptoms."
+      }
+    }
+  },
+  {
+    "instruction": "Advised patient to reduce dietary saturated fats and increase fiber intake to augment lipid control.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "comment": "Advised patient to reduce dietary saturated fats and increase fiber intake to augment lipid control."
+      }
+    }
+  },
+  {
+    "instruction": "Patient to monitor for muscle aches or unusual fatigue while on atorvastatin and contact clinic if symptoms persist; potential liver enzyme check will be considered at that time.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "comment": "Monitor for muscle aches or unusual fatigue while taking atorvastatin and contact the clinic if symptoms persist; a liver enzyme check may be considered at that time.",
+        "coding": {
+          "system": "http://snomed.info/sct",
+          "code": "396075001",
+          "display": "Medication monitoring education"
+        }
+      }
+    }
+  }
+]
