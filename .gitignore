@@ -6,4 +6,4 @@ debug/
 .venv
 evaluations.db
 local_env.sh
-.DS_Store
+**/.DS_Store
