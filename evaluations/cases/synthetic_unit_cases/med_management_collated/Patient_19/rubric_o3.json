@@ -1,0 +1,42 @@
+[
+  {
+    "criterion": "Reward for documentation that the patient reports difficulty remembering to take fluticasone/salmeterol daily because of rushing to work and forgetting doses",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for recording the specific adherence strategies discussed (phone reminders, linking inhaler use to another daily habit, additional brainstorming)",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for missing an objective assessment of current asthma control (e.g., symptom frequency, rescue inhaler use, nighttime awakenings, recent exacerbations) before finalizing the plan",
+    "weight": 20,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Reward for explicitly documenting patient-safety counseling: importance of daily controller use, proper rescue inhaler plan, and warning signs that warrant urgent care",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for evidence-based management that focuses on improving adherence to the existing ICS/LABA regimen rather than stepping down or changing therapy prematurely",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for noting the social determinant barrier (hectic work schedule) as a contributor to non-adherence",
+    "weight": 5,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for inclusion of redundant, copied, or excessively wordy content not directly relevant to this encounter segment",
+    "weight": 10,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for failing to accurately list or reconcile current asthma medications (albuterol and fluticasone/salmeterol) in the note",
+    "weight": 5,
+    "sense": "negative"
+  }
+]

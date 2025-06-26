@@ -1,0 +1,32 @@
+[
+  {
+    "criterion": "Reward for detailed documentation of the patient\u2019s self-reported progress and ongoing challenges with carbohydrate counting and matching insulin lispro doses, including specific scenarios (eating out versus at home) mentioned in the encounter",
+    "weight": 25,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting the specific self-management education or instructions provided by the clinician during the visit (e.g., recommendation to use carb-counting apps, acknowledgment that adaptation takes time)",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for accurately listing the patient\u2019s current insulin regimen (glargine basal, lispro bolus) and any discussed dose adjustments, adherence issues, or observed glycemic patterns",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for failure to document an assessment of recent hypoglycemia or hyperglycemia episodes and an associated safety plan (e.g., glucose monitoring guidance, recognition/management of lows) while advising insulin adjustment",
+    "weight": 20,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Reward for explicitly linking counseling to evidence-based guidelines for Type 1 diabetes self-management (e.g., ADA recommendations on carb counting and insulin-to-carb ratios) or otherwise stating a clear clinical rationale for advice given",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for inclusion of redundant, irrelevant, or copy-pasted information not directly pertinent to this encounter segment, resulting in unnecessary wordiness",
+    "weight": 10,
+    "sense": "negative"
+  }
+]

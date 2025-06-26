@@ -1,0 +1,32 @@
+[
+  {
+    "rationale": "No HistoryOfPresentIllness section; patient\u2019s GI upset and missed evening doses not documented. Only an instruct line indirectly references GI upset.",
+    "satisfaction": 5,
+    "score": 1.25
+  },
+  {
+    "rationale": "Counseling about taking metformin with meals captured, but no mention of phone reminders or tying dose to routine.",
+    "satisfaction": 50,
+    "score": 12.5
+  },
+  {
+    "rationale": "No instructions about handling missed doses or monitoring side-effects beyond general GI comment.",
+    "satisfaction": 0,
+    "score": 0
+  },
+  {
+    "rationale": "No unauthorized medication changes were introduced; therefore no penalty.",
+    "satisfaction": 100,
+    "score": 15
+  },
+  {
+    "rationale": "Note is brief and focused with no redundant or boilerplate content.",
+    "satisfaction": 100,
+    "score": 10
+  },
+  {
+    "rationale": "Instruction placed in correct Instruct section, but incorrect SNOMED code (advice to reduce meat intake) and missing other sections (HPI) show partial misclassification.",
+    "satisfaction": 40,
+    "score": 4
+  }
+]

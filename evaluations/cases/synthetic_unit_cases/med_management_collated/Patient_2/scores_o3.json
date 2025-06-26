@@ -1,0 +1,42 @@
+[
+  {
+    "rationale": "No HistoryOfPresentIllness section; missed-dose details, higher glucose readings, wife reminders, phone alarms all absent.",
+    "satisfaction": 0,
+    "score": 0
+  },
+  {
+    "rationale": "No Assess command provided; no link between transient hyperglycemia and missed sulfonylurea dose, no statement about medication plan.",
+    "satisfaction": 0,
+    "score": 0
+  },
+  {
+    "rationale": "Instruct command suggests a pill organizer for trips, but omits phone alarms or other concrete adherence tools.",
+    "satisfaction": 55,
+    "score": 8.25
+  },
+  {
+    "rationale": "Note lacks any advice about monitoring for hyper- or hypoglycemia after missed doses or guidance on when to seek care.",
+    "satisfaction": 100,
+    "score": -12
+  },
+  {
+    "rationale": "Uses only a single Instruct command\u2014no irrelevant or incorrect Canvas commands present.",
+    "satisfaction": 90,
+    "score": 9
+  },
+  {
+    "rationale": "Did not copy medication list or other unchanged chart data\u2014no redundancy detected.",
+    "satisfaction": 0,
+    "score": 0
+  },
+  {
+    "rationale": "No prescriptions or dosages were added or modified, so no wrongful changes.",
+    "satisfaction": 0,
+    "score": 0
+  },
+  {
+    "rationale": "Briefly references travel (\u201cfor trips\u201d) implying situational barrier, but no family context or broader social details.",
+    "satisfaction": 35,
+    "score": 2.8
+  }
+]

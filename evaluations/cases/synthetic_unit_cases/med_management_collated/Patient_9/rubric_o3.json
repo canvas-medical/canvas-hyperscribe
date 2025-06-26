@@ -1,0 +1,32 @@
+[
+  {
+    "criterion": "Reward for documentation of the patient\u2019s own report regarding sertraline effectiveness (mood slightly better), early transient nausea with approximate onset and duration, and inconsistent dosing due to hectic mornings",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for inclusion of clinician counseling details: advising patient to take sertraline with food, recommending a phone reminder for daily dosing consistency, and explaining that nausea typically resolves within 1\u20132 weeks",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing the affordability barrier (skipped refill because of cost) and the plan to investigate prescription-assistance resources or programs",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for specifying a concrete safety-monitoring plan for SSRI therapy (e.g., timeline for follow-up, instructions to report persistent side effects, and suicide-risk screening or documentation of its results)",
+    "weight": 25,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for failure to document any suicide-risk assessment in a patient with major depressive disorder who has recently started or adjusted an SSRI",
+    "weight": 10,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for inclusion of redundant, copy-pasted, or irrelevant information that is not specifically related to medication response, adherence, counseling, cost issues, or safety planning discussed in this encounter segment",
+    "weight": 10,
+    "sense": "negative"
+  }
+]

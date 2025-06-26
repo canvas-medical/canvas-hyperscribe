@@ -1,0 +1,37 @@
+[
+  {
+    "rationale": "All three required patient-reported elements\u2014relief of stomach pain on celecoxib vs ibuprofen, stable home BP 120/80, and light walking/stretching limited by arthritis\u2014are explicitly present in the HPI narrative.",
+    "satisfaction": 95.0,
+    "score": 20.9
+  },
+  {
+    "rationale": "Current celecoxib and amlodipine are listed. Narrative notes celecoxib is easier on stomach (rationale). However, counseling to monitor BP and watch for edema/side-effects is absent.",
+    "satisfaction": 60.0,
+    "score": 13.2
+  },
+  {
+    "rationale": "Only general instruction to \u201ckeep up with current routine\u201d is given; no explicit plan to continue BP checks, monitor for swelling, or guidance on when to call.",
+    "satisfaction": 10.0,
+    "score": 2.0
+  },
+  {
+    "rationale": "Lifestyle advice includes salt restriction and encouragement to continue light activity, but lacks detail on specific exercise parameters or salt goals.",
+    "satisfaction": 70.0,
+    "score": 8.4
+  },
+  {
+    "rationale": "No mention of the documented aspirin allergy or reconciliation in the note.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "There is no clear assessment/plan for osteoarthritis pain control or hypertension; thus major essential content is missing.",
+    "satisfaction": 80.0,
+    "score": 9.6
+  },
+  {
+    "rationale": "Note is concise with minimal non-pertinent content; only slight generic phrasing, no obvious redundancy.",
+    "satisfaction": 10.0,
+    "score": 0.4
+  }
+]

@@ -1,0 +1,42 @@
+[
+  {
+    "criterion": "Reward for clear and concise HPI that accurately records patient-reported tolerance of losartan (no cough), tolerance of atorvastatin (no myalgias), duration on losartan (~1 month), and home blood-pressure readings including one elevated reading tied to stress",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for explicit medication reconciliation listing losartan 50 mg and atorvastatin 10 mg with confirmation of adherence and absence of side-effects",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for missing or incorrect Assessment and Plan entries for each chronic condition discussed (Hypertension and Hyperlipidemia), including current control status and management strategy",
+    "weight": 20,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Reward for documenting patient safety counseling about ensuring sufficient medication supply when traveling and instructions to report sustained BP elevation",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for absence of objective data or ROS relevant to hypertension management (e.g., current vitals or summarized home BP log)",
+    "weight": 10,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for redundant, excessively wordy, or copy-pasted content not directly relevant to this encounter segment",
+    "weight": 10,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Reward for evidence-based monitoring of statin therapy by documenting query about myalgias and plan for periodic lipid panel",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for lack of a clear follow-up plan (timing of next visit or lab work) pertinent to chronic disease management",
+    "weight": 5,
+    "sense": "negative"
+  }
+]

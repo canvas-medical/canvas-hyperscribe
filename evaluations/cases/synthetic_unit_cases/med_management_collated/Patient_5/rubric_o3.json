@@ -1,0 +1,42 @@
+[
+  {
+    "criterion": "Reward for accurately documenting the patient's current symptom report, including increased rheumatoid arthritis pain severity, day-to-day variability, and uncertainty about hydroxychloroquine benefit",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for clearly listing all current rheumatoid arthritis medications with exact doses (methotrexate 15 mg weekly, hydroxychloroquine 200 mg daily, folic acid 1 mg daily) and noting adherence to folic acid",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing the shared decision-making discussion about potential DMARD dose adjustment or alternative therapy and specifying a concrete follow-up monitoring plan",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for delineating an evidence-based rheumatoid arthritis management strategy consistent with ACR guidelines, such as allowing an adequate trial period before escalation and outlining options for dose increase or additional DMARD/biologic",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for failure to document necessary patient safety monitoring related to methotrexate and hydroxychloroquine, including baseline and periodic CBC/LFTs and scheduling of ophthalmology screening",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Reward for documenting the patient's sulfa drug allergy in the note",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for using appropriate Canvas instruction tags that correctly categorize each data element (e.g., Assess for RA, AdjustPrescription if dose change, FollowUp for revisit)",
+    "weight": 5,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for inclusion of redundant chart information or excessive verbiage not pertinent to this encounter segment",
+    "weight": 10,
+    "sense": "negative"
+  }
+]

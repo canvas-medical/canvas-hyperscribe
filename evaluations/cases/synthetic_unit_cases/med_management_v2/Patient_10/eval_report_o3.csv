@@ -1,6 +1,0 @@
-Criterion #,Criterion,Max Score,Satisfaction (%),Score Awarded,Rationale
-1,"Reward for documenting the patient's use of a pill organizer to manage warfarin, as it indicates adherence support.",20,100.0,20.0,"The use of a pill organizer to manage warfarin is documented, indicating adherence support."
-2,"Reward for noting the patient's concern about INR stability, which is crucial for managing warfarin therapy.",20,0.0,0.0,The patient's concern about INR stability is not explicitly noted.
-3,"Penalize for omitting the patient's chronic kidney disease in the context of warfarin management, as it affects dosing and monitoring.",25,0.0,0.0,"The patient's chronic kidney disease is not mentioned, which is important for warfarin management."
-4,"Reward for documenting the absence of unusual bruising or bleeding, which is important for assessing warfarin safety.",15,100.0,15.0,"The absence of unusual bruising or bleeding is documented, which is important for assessing warfarin safety."
-5,"Penalize for not addressing the need for regular INR checks and potential adjustments in warfarin dosing, given the patient's age and comorbidities.",20,50.0,10.0,"Regular INR checks are mentioned, but there is no discussion of potential adjustments in warfarin dosing."

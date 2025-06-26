@@ -1,0 +1,37 @@
+[
+  {
+    "criterion": "Reward for capturing in the History of Present Illness that the patient is inconsistently taking mesalamine, including approximate frequency of missed doses and the associated return of Crohn\u2019s symptoms",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting the patient\u2019s engagement in specific adherence strategies (phone reminders found ineffective and plan to try a pill organizer) within the Plan or Instructions",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for providing an evidence-based assessment of Crohn\u2019s disease control and decision to continue mesalamine maintenance therapy consistent with clinical guidelines",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for recording clear patient-safety instructions to report any new symptoms, medication side effects, or disease flare promptly",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for specifying a concrete follow-up plan or timeline to reassess medication adherence and disease status",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for omission or inaccurate documentation of the current medication name and dose (mesalamine 2.4 g daily) or for failing to note allergies when relevant",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for inclusion of redundant, boiler-plate, or clinically irrelevant content not supported by the encounter transcript",
+    "weight": 10,
+    "sense": "negative"
+  }
+]
