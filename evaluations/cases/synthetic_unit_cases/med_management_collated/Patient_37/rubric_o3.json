@@ -1,0 +1,42 @@
+[
+  {
+    "criterion": "Reward for explicit documentation of the patient\u2019s request to move metformin dosing from breakfast to lunch AND the clinician\u2019s agreement or instructions about that change",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting the discussion of medication adherence and self-monitoring of blood glucose (frequency, instances of forgetting, or consistency)",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for inclusion of patient-safety counseling related to metformin timing (need for consistency, taking with food to minimize GI side-effects, what to do if a dose is missed)",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for demonstrating evidence-based decision making by noting that metformin may be taken with any main meal without dose change and no anticipated impact on glycemic control",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for missing, incorrect, or conflicting core medication details for metformin (name, dose, route, frequency) in the documentation",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for absence of a documented follow-up or monitoring plan pertinent to diabetes control (e.g., SMBG schedule reinforcement or HbA1c/lab follow-up timeline)",
+    "weight": 10,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for improper or inconsistent use of Canvas instruction categories (e.g., using AdjustPrescription when only counseling is given, or omitting an Instruct entry when counseling is documented)",
+    "weight": 5,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for redundant, overly wordy, or irrelevant information not supported by the transcript or chart",
+    "weight": 5,
+    "sense": "negative"
+  }
+]

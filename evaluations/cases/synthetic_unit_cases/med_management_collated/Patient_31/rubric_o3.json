@@ -1,0 +1,27 @@
+[
+  {
+    "criterion": "Reward for accurately documenting the patient's subjective report that she has no cough while on losartan, notes only occasional fatigue, and voices questions about side-effects of losartan and atorvastatin",
+    "weight": 25,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for explicitly recording the clinician\u2019s counseling on common side-effects (dizziness/fatigue for losartan, muscle pain for atorvastatin) and the instruction to notify the provider if these occur",
+    "weight": 30,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for stating a clear safety plan to continue current medications unchanged while monitoring for side-effects and willingness to adjust therapy if symptoms develop",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for including redundant or irrelevant chart information not brought up in the transcript (e.g., full medication lists, past conditions) or for excessive wordiness beyond encounter-specific details",
+    "weight": 10,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for documenting information that contradicts the transcript or pharmacologic facts (e.g., claiming cough persists, attributing muscle pain to losartan) or other clinically incorrect statements",
+    "weight": 20,
+    "sense": "negative"
+  }
+]

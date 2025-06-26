@@ -1,0 +1,37 @@
+[
+  {
+    "rationale": "Only captured consistent morning dosing with breakfast; did not document no-cough tolerance, positional dizziness, or exercise routine.",
+    "satisfaction": 25.0,
+    "score": 5.0
+  },
+  {
+    "rationale": "Shows medication adherence (daily dosing) and gives advice to stand up slowly, but lacks instruction to contact clinic if dizziness worsens.",
+    "satisfaction": 60.0,
+    "score": 12.0
+  },
+  {
+    "rationale": "No explicit assessment of hypertension stability, no plan to continue dose, no lifestyle reinforcement present.",
+    "satisfaction": 15.0,
+    "score": 3.0
+  },
+  {
+    "rationale": "No blood pressure or other vital signs recorded in this segment.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Provides some preventive advice (stand slowly) but omits explicit follow-up or safety-net instructions for worsening dizziness or hypotension.",
+    "satisfaction": 10.0,
+    "score": 1.0
+  },
+  {
+    "rationale": "Lists losartan but does not reconcile full medication or allergy lists and does not state that no changes were made.",
+    "satisfaction": 10.0,
+    "score": 1.0
+  },
+  {
+    "rationale": "Note is concise; contains no obvious boiler-plate or unsupported information.",
+    "satisfaction": 95.0,
+    "score": 4.75
+  }
+]

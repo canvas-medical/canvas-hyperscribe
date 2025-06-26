@@ -1,0 +1,32 @@
+[
+  {
+    "criterion": "Reward for accurately documenting the patient's reported improvement in breathing, mild jitteriness, remaining length of prednisone course, and spouse assistance with inhaler use within the History of Present Illness",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing encounter-specific medication details: short course prednisone with dose/days remaining, ongoing tiotropium maintenance inhaler, explicit confirmation of no other inhalers, and caregiver involvement",
+    "weight": 25,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting clinician counseling on prednisone risks and benefits, emphasizing short-term use, expected side-effects, and advising the patient to report troublesome symptoms",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for recording a clear, evidence-based follow-up plan: finish current prednisone course without extension, continue tiotropium, monitor for COPD symptom changes or increased jitteriness, and instructions on when to seek care",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for inclusion of redundant chart information or verbose, non-pertinent text that does not add new, encounter-specific clinical value",
+    "weight": 10,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for any inaccurate, conflicting, or unsafe documentation (e.g., implying long-term prednisone use, omitting course duration, misidentifying medications) that could compromise patient safety",
+    "weight": 15,
+    "sense": "negative"
+  }
+]

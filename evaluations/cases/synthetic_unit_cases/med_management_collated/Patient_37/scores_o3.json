@@ -1,0 +1,42 @@
+[
+  {
+    "rationale": "There is no documentation at all, so the patient\u2019s request to change metformin timing and the clinician\u2019s response are completely absent.",
+    "satisfaction": 0,
+    "score": 0
+  },
+  {
+    "rationale": "No mention of medication adherence or SMBG; criterion entirely unmet.",
+    "satisfaction": 0,
+    "score": 0
+  },
+  {
+    "rationale": "No counseling about timing consistency, taking with food, or missed-dose instructions is present.",
+    "satisfaction": 0,
+    "score": 0
+  },
+  {
+    "rationale": "No evidence-based note explaining flexibility of metformin dosing was documented.",
+    "satisfaction": 0,
+    "score": 0
+  },
+  {
+    "rationale": "All core medication details (name, dose, route, frequency) are missing, so this negative criterion is fully triggered.",
+    "satisfaction": 0,
+    "score": 0
+  },
+  {
+    "rationale": "There is no follow-up or monitoring plan for diabetes; criterion fully unmet.",
+    "satisfaction": 0,
+    "score": 0
+  },
+  {
+    "rationale": "Because no Canvas instruction categories were used at all, required Instruct/AdjustPrescription elements are missing; partial penalty assigned.",
+    "satisfaction": 10,
+    "score": 0.5
+  },
+  {
+    "rationale": "Empty note contains no redundancy or irrelevant information, so no penalty here.",
+    "satisfaction": 100,
+    "score": 5
+  }
+]

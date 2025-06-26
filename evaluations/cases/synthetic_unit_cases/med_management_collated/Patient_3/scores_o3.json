@@ -1,0 +1,37 @@
+[
+  {
+    "rationale": "HPI mentions nausea description (less intense than prior fluoxetine nausea) and notes slight anxiety improvement, but lacks onset timing, current severity scale, and context of comparison details; overall partially complete.",
+    "satisfaction": 40.0,
+    "score": 8.0
+  },
+  {
+    "rationale": "Note does not explicitly state sertraline by name, 50 mg dose, daily schedule, or adherence; only gives instruction to take \"the medication\" with breakfast.",
+    "satisfaction": 10.0,
+    "score": 1.5
+  },
+  {
+    "rationale": "No assessment statement linking nausea to SSRI side-effect or its typical course is documented.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Management plan elements (continue drug, monitor, adjust dose, schedule follow-up) absent except minimal advice to take with food.",
+    "satisfaction": 5.0,
+    "score": 0.75
+  },
+  {
+    "rationale": "Provides brief education to take with food, but omits monitoring guidance and return precautions.",
+    "satisfaction": 30.0,
+    "score": 3.0
+  },
+  {
+    "rationale": "Safety instructions and defined follow-up are missing, so penalty applies; partial credit given for at least some instruction.",
+    "satisfaction": 20.0,
+    "score": 3.0
+  },
+  {
+    "rationale": "No obvious redundancy or irrelevant copied text; documentation concise.",
+    "satisfaction": 90.0,
+    "score": 9.0
+  }
+]

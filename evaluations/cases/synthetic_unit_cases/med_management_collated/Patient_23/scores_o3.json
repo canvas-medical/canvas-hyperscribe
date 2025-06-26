@@ -1,0 +1,32 @@
+[
+  {
+    "rationale": "No note at all, so no patient-reported progress, challenges, or scenarios documented.",
+    "satisfaction": 0,
+    "score": 0
+  },
+  {
+    "rationale": "No description of any self-management education or instructions provided.",
+    "satisfaction": 0,
+    "score": 0
+  },
+  {
+    "rationale": "Current insulin regimen and dose information completely absent.",
+    "satisfaction": 0,
+    "score": 0
+  },
+  {
+    "rationale": "No assessment of recent hypo/hyperglycemia or safety planning; full omission of required content.",
+    "satisfaction": 0,
+    "score": 0
+  },
+  {
+    "rationale": "No mention of guidelines or rationale for counseling because no counseling documented.",
+    "satisfaction": 0,
+    "score": 0
+  },
+  {
+    "rationale": "The note is empty, so it contains no redundant or irrelevant text; thus the criterion is fully satisfied.",
+    "satisfaction": 95,
+    "score": 9.5
+  }
+]

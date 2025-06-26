@@ -1,0 +1,42 @@
+[
+  {
+    "rationale": "No note produced; adherence gap not mentioned at all.",
+    "satisfaction": 0,
+    "score": 0
+  },
+  {
+    "rationale": "No intervention or task about automatic refills documented.",
+    "satisfaction": 0,
+    "score": 0
+  },
+  {
+    "rationale": "No linkage between missed doses and COPD exacerbation risk recorded.",
+    "satisfaction": 0,
+    "score": 0
+  },
+  {
+    "rationale": "No plan documented; while no inappropriate changes were made, the required evidence-based adherence focus is absent.",
+    "satisfaction": 10,
+    "score": 1
+  },
+  {
+    "rationale": "No Canvas instructions, refill orders, or medication details provided.",
+    "satisfaction": 0,
+    "score": 0
+  },
+  {
+    "rationale": "Because nothing was added, no unsupported diagnoses/medication changes were made.",
+    "satisfaction": 100,
+    "score": 15
+  },
+  {
+    "rationale": "Tiotropium and its details were entirely omitted, triggering the penalty.",
+    "satisfaction": 0,
+    "score": 0
+  },
+  {
+    "rationale": "With no content, there is no redundancy or irrelevant data.",
+    "satisfaction": 100,
+    "score": 5
+  }
+]

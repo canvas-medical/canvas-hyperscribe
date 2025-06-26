@@ -1,0 +1,32 @@
+[
+  {
+    "rationale": "No note of patient-reported mood improvement, nausea onset/duration, or stated inconsistent dosing; only a reminder suggests adherence issue.",
+    "satisfaction": 10.0,
+    "score": 2.0
+  },
+  {
+    "rationale": "Provides phone-reminder counseling but omits advice to take with food and reassurance about transient nausea.",
+    "satisfaction": 35.0,
+    "score": 5.25
+  },
+  {
+    "rationale": "No mention of cost concerns or assistance plans.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "No follow-up timeline, side-effect monitoring, or suicide-risk screening documented.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Suicide-risk assessment entirely absent, triggering full penalty.",
+    "satisfaction": 100.0,
+    "score": 10.0
+  },
+  {
+    "rationale": "Brief, focused note without irrelevant or duplicate content, so no penalty.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  }
+]

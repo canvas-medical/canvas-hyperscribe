@@ -1,0 +1,32 @@
+[
+  {
+    "rationale": "HPI mentions extra furosemide dose, dizziness since yesterday, partial improvement, and no weight gain or edema; omits caregiver involvement and finer temporal details.",
+    "satisfaction": 72,
+    "score": 14.4
+  },
+  {
+    "rationale": "No assessment statement provided; dizziness not connected to diuretic use or CKD/HF and no differential or evaluation steps documented.",
+    "satisfaction": 5,
+    "score": 1.25
+  },
+  {
+    "rationale": "Plan only suggests coordinating dosing schedule with daughter; lacks guidance on holding/adjusting furosemide, monitoring, or follow-up timeline.",
+    "satisfaction": 25,
+    "score": 6.25
+  },
+  {
+    "rationale": "No medication list or reconciliation present; overdose not explicitly noted.",
+    "satisfaction": 0,
+    "score": 0
+  },
+  {
+    "rationale": "Objective data such as vitals, weight, exam, or labs entirely absent, representing major deficiency.",
+    "satisfaction": 30,
+    "score": 3
+  },
+  {
+    "rationale": "Note is brief and focused on encounter; contains no obvious irrelevant or duplicated information.",
+    "satisfaction": 90,
+    "score": 9
+  }
+]
