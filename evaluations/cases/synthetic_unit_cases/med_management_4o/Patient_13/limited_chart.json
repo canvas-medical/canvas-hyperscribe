@@ -1,0 +1,22 @@
+{
+  "demographicStr": "the patient is a man, age 29",
+  "conditionHistory": [],
+  "currentAllergies": [],
+  "currentConditions": [
+    {
+      "uuid": "0ed9cf7e-14e4-421a-9e69-48ff762f1d07",
+      "label": "Epilepsy",
+      "code": "G40.909"
+    }
+  ],
+  "currentGoals": [],
+  "currentMedications": [
+    {
+      "uuid": "1b24bd71-80f5-4fc4-ac03-d89aa45f8b2c",
+      "label": "Levetiracetam 500 mg tablet",
+      "code": "N03AX14"
+    }
+  ],
+  "familyHistory": [],
+  "surgeryHistory": []
+}

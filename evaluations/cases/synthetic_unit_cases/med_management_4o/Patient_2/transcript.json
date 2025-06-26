@@ -1,0 +1,26 @@
+[
+  {
+    "speaker": "Patient",
+    "text": "I think I missed a dose of the glipizide last week. My wife usually reminds me, but we were out visiting our daughter."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "That happens. It's important to try and take it consistently, though. Have you noticed any changes in your blood sugar readings since then?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Yeah, they were a bit higher than usual. I was worried it might be because of that missed dose."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "It's possible. Glipizide helps your body produce more insulin, so missing a dose can affect your levels. Do you have a system in place for when you're traveling?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "We usually set alarms on our phones, but I guess we just got caught up with family stuff."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Understandable. Maybe a pill organizer could help, especially for trips. It might make it easier to keep track."
+  }
+]

@@ -1,0 +1,28 @@
+{
+  "demographicStr": "the patient is a woman, born on January 1, 1969 (age 54)",
+  "conditionHistory": [],
+  "currentAllergies": [],
+  "currentConditions": [
+    {
+      "uuid": "d62597f7-212b-40e3-aa34-e713b8089ac5",
+      "label": "Essential (primary) hypertension",
+      "code": "I10"
+    }
+  ],
+  "currentGoals": [],
+  "currentMedications": [
+    {
+      "uuid": "329c2063-dc19-4444-9dde-9e390c170a72",
+      "label": "Losartan 50 mg tablet",
+      "code": "C09CA01"
+    }
+  ],
+  "familyHistory": [
+    {
+      "uuid": "99f010d8-4395-4de5-815e-9d51057c35c6",
+      "label": "Family history of cardiovascular disease",
+      "code": "Z82.49"
+    }
+  ],
+  "surgeryHistory": []
+}

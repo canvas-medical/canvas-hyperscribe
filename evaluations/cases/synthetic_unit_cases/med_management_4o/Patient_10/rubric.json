@@ -1,0 +1,27 @@
+[
+  {
+    "criterion": "Reward for documenting the patient's use of a pill organizer to manage warfarin, as it indicates adherence support.",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for noting the patient's daughter assists with transportation for INR checks, highlighting social support.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for omitting specific INR values or trends, as this is critical for managing warfarin therapy and patient safety.",
+    "weight": 25,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Reward for documenting the absence of unusual bruising or bleeding, which is important for assessing warfarin safety.",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for not addressing the patient's concern about INR variability, as it is important for patient reassurance and safety.",
+    "weight": 20,
+    "sense": "negative"
+  }
+]

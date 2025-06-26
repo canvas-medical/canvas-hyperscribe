@@ -1,0 +1,32 @@
+[
+  {
+    "instruction": "Stay hydrated, especially with the patient's job.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "coding": {
+          "system": "http://snomed.info/sct",
+          "code": "183081002",
+          "display": "Patient advised about safe drinking - water"
+        },
+        "comment": "Stay hydrated, especially with the patient's job."
+      }
+    }
+  },
+  {
+    "instruction": "Use an app or set an alarm on the phone to remember to take medication.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "coding": {
+          "system": "http://snomed.info/sct",
+          "code": "386401000",
+          "display": "Prompted voiding"
+        },
+        "comment": "Use an app or set an alarm on the phone to remember to take medication."
+      }
+    }
+  }
+]

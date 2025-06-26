@@ -1,0 +1,32 @@
+[
+  {
+    "criterion": "Reward for documenting the patient's positive response to celecoxib in terms of improved joint pain and mobility.",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for noting the absence of gastrointestinal discomfort with celecoxib, especially in comparison to previous issues with meloxicam.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for including the patient's proactive management of blood pressure, given the family history of hypertension.",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for omitting any mention of the patient's age and gender, which are relevant demographic details.",
+    "weight": 10,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for failing to document the patient's allergy to penicillin, which is a critical safety detail.",
+    "weight": 25,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Reward for discussing the importance of monitoring blood pressure and providing reassurance about medication adjustments if needed.",
+    "weight": 10,
+    "sense": "positive"
+  }
+]
