@@ -1,26 +1,21 @@
 [
   {
-    "instruction": "Patient experienced transient dizziness during the first couple of weeks of therapy, which has now resolved. Patient reports difficulty maintaining consistent dosing times due to unpredictable work schedule; currently uses phone alarms but occasionally ignores them.",
+    "instruction": "Patient reported dizziness only during the first couple of weeks of therapy; symptom has now resolved. Patient relies on phone alarms for medication dosing reminders but sometimes ignores them when busy at work, indicating occasional missed or delayed doses.",
     "command": {
       "module": "canvas_sdk.commands.commands.history_present_illness",
       "class": "HistoryOfPresentIllnessCommand",
       "attributes": {
-        "narrative": "Patient experienced transient dizziness during the first couple of weeks of therapy that has since resolved. Patient reports difficulty maintaining consistent dosing times due to an unpredictable work schedule; they set phone alarms but occasionally ignore them."
+        "narrative": "The patient experienced dizziness only during the first couple of weeks of therapy, which has since resolved. They use phone alarms to remind them to take their medication but admit to sometimes ignoring the alerts when busy at work, leading to occasional missed or delayed doses."
       }
     }
   },
   {
-    "instruction": "Clinician advised the patient to adopt a backup medication-reminder strategy, such as using a pill organizer or another more attention-grabbing reminder method, to improve dose adherence given the patient\u2019s variable work schedule.",
+    "instruction": "Clinician advised the patient to set up a back-up reminder system\u2014such as a pill organizer or another more attention-grabbing alert\u2014to improve medication adherence when phone alarms are missed.",
     "command": {
       "module": "canvas_sdk.commands.commands.instruct",
       "class": "InstructCommand",
       "attributes": {
-        "coding": {
-          "system": "http://snomed.info/sct",
-          "code": "713092004",
-          "display": "Education about use of pill box"
-        },
-        "comment": "Adopt a backup medication-reminder strategy\u2014such as using a pill organizer or another more attention-grabbing reminder method\u2014to improve dose adherence given the patient\u2019s variable work schedule."
+        "comment": "Set up a back-up reminder system\u2014such as using a pill organizer or another more attention-grabbing alert\u2014to improve medication adherence when phone alarms are missed."
       }
     }
   }

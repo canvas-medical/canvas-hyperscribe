@@ -1,32 +1,37 @@
 [
   {
-    "rationale": "Note documents missed warfarin dose, daughter\u2019s pill-organizer intervention, and describes current adherence (\u201cable to attend frequent checks\u201d).",
-    "satisfaction": 90.0,
-    "score": 18.0
+    "rationale": "Note explicitly states missed warfarin dose and daughter-organized pill box indicating corrective adherence action.",
+    "satisfaction": 95,
+    "score": 19
   },
   {
-    "rationale": "Bleeding/bruising review present; mentions \u201cfrequent monitoring,\u201d but no specific INR value, target range, or scheduled date.",
-    "satisfaction": 60.0,
-    "score": 15.0
+    "rationale": "HPI records patient denies unusual bruising or bleeding, meeting focused bleeding risk review.",
+    "satisfaction": 100,
+    "score": 15
   },
   {
-    "rationale": "Clearly states daughter created pill organizer and provides transportation to monitoring visits, addressing both SDoH elements.",
-    "satisfaction": 95.0,
-    "score": 9.5
+    "rationale": "Only mentions \"frequent INR checks\" without current value, interval, or clear future plan; detail largely absent.",
+    "satisfaction": 30,
+    "score": 7.5
   },
   {
-    "rationale": "No reference to patient\u2019s CKD or how it affects anticoagulation decisions.",
-    "satisfaction": 0.0,
-    "score": 0.0
+    "rationale": "No mention of chronic kidney disease or renal considerations in anticoagulation discussion.",
+    "satisfaction": 0,
+    "score": 0
   },
   {
-    "rationale": "Entry is brief and focused; contains no redundant problem lists or transcript filler, so only minimal penalty warranted.",
-    "satisfaction": 10.0,
-    "score": 1.5
+    "rationale": "Includes social support: daughter drives to appointments and assists with medications.",
+    "satisfaction": 90,
+    "score": 9
   },
   {
-    "rationale": "Fails to outline target INR, next check date, or who will follow results; represents a substantial omission.",
-    "satisfaction": 90.0,
-    "score": 13.5
+    "rationale": "No explicit safety instruction (e.g., dose adjustment or immediate INR test) after missed dose, representing major omission.",
+    "satisfaction": 80,
+    "score": -12
+  },
+  {
+    "rationale": "Brief note, no evident redundant or irrelevant copied text; minimal violation.",
+    "satisfaction": 10,
+    "score": -0.5
   }
 ]

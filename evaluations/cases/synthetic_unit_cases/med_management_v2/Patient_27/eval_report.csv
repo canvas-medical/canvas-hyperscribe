@@ -1,7 +1,0 @@
-Criterion #,Criterion,Max Score,Satisfaction (%),Score Awarded,Rationale
-1,Reward for documenting the patient's report of improved blood sugar control and increased thirst as a side effect of empagliflozin.,20,100.0,20.0,The patient's report of improved blood sugar control and increased thirst as a side effect of empagliflozin is documented.
-2,Penalize for omitting the patient's difficulty in adhering to the medication schedule due to irregular work hours.,15,0.0,0.0,The patient's difficulty in adhering to the medication schedule due to irregular work hours is documented.
-3,"Reward for suggesting practical solutions to improve medication adherence, such as using an app or setting an alarm.",15,100.0,15.0,"Practical solutions to improve medication adherence, such as using an app or setting an alarm, are suggested."
-4,Penalize for not addressing the patient's concern about weight gain in relation to the new medication.,10,0.0,0.0,There is no mention of the patient's concern about weight gain in relation to the new medication.
-5,Reward for including patient safety advice regarding staying hydrated while on empagliflozin.,20,0.0,0.0,There is no mention of patient safety advice regarding staying hydrated while on empagliflozin.
-6,Penalize for not documenting any follow-up plan or further assessment regarding the patient's diabetes management.,20,0.0,0.0,There is no documentation of any follow-up plan or further assessment regarding the patient's diabetes management.
