@@ -1,27 +1,37 @@
 [
   {
-    "criterion": "Reward for accurately documenting the patient's HPI details from this segment, specifically: inconsistent amlodipine pickup, difficulty keeping track while living alone, current use of a pill organizer yet inconsistent use, and new onset fatigue.",
+    "criterion": "Reward for clearly and concisely recording in HistoryOfPresentIllness that the patient sometimes forgets to pick up amlodipine, lives alone, uses a pill organizer inconsistently, and reports increased fatigue",
     "weight": 20,
     "sense": "positive"
   },
   {
-    "criterion": "Reward for explicitly recording the current antihypertensive medication (amlodipine 10 mg) with dosage, and noting the clinician-led inquiry about common amlodipine side effects (ankle/foot swelling) with the patient's negative response plus the reported fatigue.",
+    "criterion": "Reward for documenting the adherence counseling given (phone reminders, consistent pill-organizer use) as an Instruct or Plan element",
     "weight": 15,
     "sense": "positive"
   },
   {
-    "criterion": "Reward for documenting the clinician's adherence-support counseling (suggested phone reminders and consistent pill-organizer use) as part of the plan, showing evidence-based self-management education.",
-    "weight": 25,
+    "criterion": "Reward for capturing the side-effect review: clinician inquiry about ankle/foot swelling (patient denies) and acknowledgement of fatigue as a potential medication effect, placed in ReviewOfSystem or HPI",
+    "weight": 15,
     "sense": "positive"
   },
   {
-    "criterion": "Penalize for failing to include a patient-safety\u2013focused plan related to hypertension control and amlodipine monitoring (e.g., follow-up blood-pressure checks, monitoring for peripheral edema, or evaluation of fatigue etiology).",
-    "weight": 25,
+    "criterion": "Reward for including an Assessment entry for Hypertension that notes current amlodipine therapy, the adherence issue, and a plan to continue the same dose pending follow-up",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for documenting any Prescription, AdjustPrescription, StopMedication, or dosage change that alters amlodipine or adds other medications not supported by the transcript",
+    "weight": 15,
     "sense": "negative"
   },
   {
-    "criterion": "Penalize for inclusion of redundant, irrelevant, or copy-pasted information not supported by this transcript segment or for omitting the social determinant detail that the patient lives alone.",
-    "weight": 15,
+    "criterion": "Penalize for redundant or irrelevant information, such as re-listing charted demographics/medications/diagnoses without new context or adding wordy, non-case-specific text",
+    "weight": 10,
     "sense": "negative"
+  },
+  {
+    "criterion": "Reward for correctly using Canvas structured instructions (e.g., HistoryOfPresentIllness, Instruct, Assess) without misclassification or conflicting tags",
+    "weight": 10,
+    "sense": "positive"
   }
 ]

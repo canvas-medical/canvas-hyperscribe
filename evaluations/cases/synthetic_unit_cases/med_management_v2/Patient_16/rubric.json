@@ -1,36 +1,31 @@
 [
   {
-    "criterion": "Reward for accurately documenting the patient\u2019s expressed primary concern about long-term atorvastatin effects and the reported post-cycling fatigue as the reason for today\u2019s visit",
-    "weight": 15,
-    "sense": "positive"
-  },
-  {
-    "criterion": "Reward for clearly recording the current atorvastatin 10 mg regimen, the patient\u2019s adherence, and any noted or denied muscle aches/fatigue side-effects",
-    "weight": 15,
-    "sense": "positive"
-  },
-  {
-    "criterion": "Reward for including an evidence-based risk\u2013benefit or shared decision-making discussion about continuing statin therapy (heart-attack prevention versus potential adverse effects)",
-    "weight": 15,
-    "sense": "positive"
-  },
-  {
-    "criterion": "Reward for specifying a concrete patient-safety monitoring plan (e.g., timeline for liver enzymes or CK testing, instructions to report persistent symptoms, possible dose adjustment)",
+    "criterion": "Reward for accurately documenting in the HistoryOfPresentIllness the patient-reported concern about long-term atorvastatin effects, absence of muscle aches, single episode of post-cycling fatigue, and the family history of father\u2019s myocardial infarction",
     "weight": 20,
     "sense": "positive"
   },
   {
-    "criterion": "Reward for documenting lifestyle modification counseling pertinent to dyslipidemia (e.g., reducing saturated fats, increasing dietary fiber)",
-    "weight": 10,
+    "criterion": "Reward for including an explicit Medication entry listing Atorvastatin 10 mg with current dosing, counseling on potential side-effects, and the shared plan to continue therapy while observing for symptoms",
+    "weight": 20,
     "sense": "positive"
   },
   {
-    "criterion": "Reward for a succinct, structured Assessment and Plan focused on hyperlipidemia/statin management that integrates today\u2019s findings without restating unchanged chart data",
+    "criterion": "Reward for providing an evidence-based assessment that links the patient\u2019s age and family history to guideline-supported statin use for primary ASCVD prevention",
     "weight": 15,
     "sense": "positive"
   },
   {
-    "criterion": "Penalize for inclusion of redundant transcript text or other irrelevant information that does not contribute new, encounter-specific clinical content",
+    "criterion": "Reward for documenting lifestyle counseling to reduce saturated fats, increase dietary fiber, and noting any patient agreement or planned dietary changes",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for failure to specify patient-safety follow-up measures for statin therapy\u2014such as ordering or scheduling liver enzyme/CK labs, advising immediate reporting of muscle pain, or setting a follow-up visit",
+    "weight": 25,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for inclusion of redundant or irrelevant information not supported by this encounter (e.g., copy-pasted historical data, unrelated conditions, or excessive repetition)",
     "weight": 10,
     "sense": "negative"
   }

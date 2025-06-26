@@ -1,32 +1,37 @@
 [
   {
-    "criterion": "Reward for clearly documenting the patient-reported missed warfarin dose, the pill-organizer intervention instituted by the daughter, and the patient\u2019s current adherence status.",
+    "criterion": "Reward for documenting the patient\u2019s missed warfarin dose last week and the new use of a pill-organizer set up by his daughter, demonstrating assessment of warfarin adherence and any corrective action",
     "weight": 20,
     "sense": "positive"
   },
   {
-    "criterion": "Reward for recording warfarin safety monitoring details: current/future INR check arrangements and explicit review (with findings) of bleeding or bruising symptoms.",
+    "criterion": "Reward for explicitly recording the patient\u2019s report of no unusual bruising or bleeding, reflecting a focused anticoagulation-related bleeding risk review",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for stating the current status and/or scheduled frequency of INR monitoring and including a clear plan or instructions for future INR checks consistent with warfarin management guidelines",
     "weight": 25,
     "sense": "positive"
   },
   {
-    "criterion": "Reward for capturing relevant social determinants of health that impact care (daughter\u2019s assistance with medication management and transportation to appointments).",
+    "criterion": "Reward for linking the patient\u2019s chronic kidney disease to anticoagulation management (e.g., noting renal function considerations when discussing INR goals or dosing)",
     "weight": 10,
     "sense": "positive"
   },
   {
-    "criterion": "Reward for explicitly linking the patient\u2019s chronic kidney disease to anticoagulation management decisions, demonstrating evidence-based consideration of comorbidity risk.",
-    "weight": 15,
+    "criterion": "Reward for capturing the social support detail that the daughter drives the patient to appointments and assists with medications, as a relevant social determinant of health",
+    "weight": 10,
     "sense": "positive"
   },
   {
-    "criterion": "Penalize for including redundant or extraneous information not discussed in this encounter segment (e.g., full historical problem lists, unrelated medications, or verbatim transcript repetition) or for excessive wordiness that obscures key details.",
+    "criterion": "Penalize for failing to include an explicit safety decision or follow-up action in response to the missed warfarin dose (e.g., dose adjustment advice or immediate INR check)",
     "weight": 15,
     "sense": "negative"
   },
   {
-    "criterion": "Penalize for omitting or failing to specify a clear, guideline-consistent plan for ongoing INR monitoring and follow-up (e.g., target range, next check date, responsible party).",
-    "weight": 15,
+    "criterion": "Penalize for inclusion of redundant, copy-pasted, or clinically irrelevant information that goes beyond what is new and pertinent to this encounter segment",
+    "weight": 5,
     "sense": "negative"
   }
 ]

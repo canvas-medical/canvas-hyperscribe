@@ -1,11 +1,11 @@
 [
   {
-    "instruction": "Patient reports occasionally missing medications; specifically missed one dose of anticoagulant (warfarin) last week. Daughter created a pill organizer to improve adherence. Patient expresses concern about INR stability but is able to attend frequent checks with daughter's assistance. Denies unusual bruising or bleeding beyond minor incidents.",
+    "instruction": "Patient reports missing a dose of warfarin last week; daughter created a pill organizer and now helps maintain adherence. Daughter also drives patient to frequent INR checks. Patient expresses concern about INR values but denies any unusual bruising or bleeding.",
     "command": {
       "module": "canvas_sdk.commands.commands.history_present_illness",
       "class": "HistoryOfPresentIllnessCommand",
       "attributes": {
-        "narrative": "Patient occasionally misses medications, including one missed dose of warfarin last week. Daughter created a pill organizer to support adherence. Patient is concerned about INR stability but is able to attend frequent monitoring appointments with help from daughter. Denies unusual bruising or significant bleeding, noting only minor incidents."
+        "narrative": "Missed one dose of warfarin last week; daughter has set up a pill organizer, helps maintain adherence, and drives patient to frequent INR checks. Patient is concerned about INR values but denies any unusual bruising or bleeding."
       }
     }
   }
