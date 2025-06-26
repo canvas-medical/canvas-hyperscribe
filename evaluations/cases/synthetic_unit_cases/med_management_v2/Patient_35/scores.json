@@ -1,0 +1,32 @@
+[
+  {
+    "rationale": "The hyperscribe output does not mention the patient's response to losartan or the absence of cough.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "There is no mention of the patient's report of fatigue or any advice to monitor it.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "The output includes advice on missed doses, but does not specifically mention levothyroxine adherence concerns.",
+    "satisfaction": 50.0,
+    "score": 10.0
+  },
+  {
+    "rationale": "The output mentions a family history but does not specify stroke, which is relevant to hypertension management.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "There is no mention of the patient's energy levels on levothyroxine.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "The output does not document the absence of new allergies.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  }
+]

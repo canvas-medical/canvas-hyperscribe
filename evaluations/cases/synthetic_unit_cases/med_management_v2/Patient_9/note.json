@@ -1,0 +1,28 @@
+[
+  {
+    "instruction": "Sertraline",
+    "command": {
+      "module": "canvas_sdk.commands.commands.medication_statement",
+      "class": "MedicationStatementCommand",
+      "attributes": {
+        "fdb_code": "227618",
+        "sig": "Take as directed by your healthcare provider."
+      }
+    }
+  },
+  {
+    "instruction": "Set a reminder on your phone to take sertraline consistently.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "coding": {
+          "system": "http://snomed.info/sct",
+          "code": "390942004",
+          "display": "Patient given telephone advice during surgery hours"
+        },
+        "comment": "Set a reminder on your phone to take sertraline consistently."
+      }
+    }
+  }
+]

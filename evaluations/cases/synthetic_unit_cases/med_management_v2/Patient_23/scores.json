@@ -1,0 +1,37 @@
+[
+  {
+    "rationale": "The documentation does not mention the patient's progress in carb counting or insulin lispro dose adjustment.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "The documentation does not mention the patient's difficulty with estimating carbs when eating out.",
+    "satisfaction": 100.0,
+    "score": 15.0
+  },
+  {
+    "rationale": "The documentation does not include any discussion about using apps for carb counting.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "The documentation does not address the patient's forgetfulness in using carb counting apps.",
+    "satisfaction": 100.0,
+    "score": 10.0
+  },
+  {
+    "rationale": "The documentation does not mention the clinician's supportive response to the patient's challenges.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "The documentation lacks a specific follow-up plan or recommendations to address challenges in carb counting and insulin management.",
+    "satisfaction": 100.0,
+    "score": 20.0
+  },
+  {
+    "rationale": "The documentation does not discuss potential risks associated with inaccurate carb counting and insulin dosing.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  }
+]

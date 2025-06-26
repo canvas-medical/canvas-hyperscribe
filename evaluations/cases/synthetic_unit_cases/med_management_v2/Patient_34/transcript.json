@@ -1,26 +1,26 @@
 [
   {
-    "speaker": "Doctor",
-    "text": "Good morning, Mr. Smith. How have you been feeling on your current medications?"
+    "speaker": "Patient",
+    "text": "So, uh, with the prednisone, I noticed my breathing's been a lot better, but I'm worried about, you know, the long-term effects. My daughter read something about it online."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "I understand your concern. Prednisone can have side effects, especially with long-term use, but at 5 mg, the risk is relatively low. It's important to weigh the benefits for your breathing against those risks."
   },
   {
     "speaker": "Patient",
-    "text": "Morning, Doctor. I've been feeling okay, but sometimes I wonder if the atorvastatin is causing some muscle aches."
+    "text": "Yeah, I get that. It's just, sometimes I forget to take it, and then I worry if missing a dose is bad."
   },
   {
-    "speaker": "Doctor",
-    "text": "Muscle aches can be a side effect of atorvastatin. How severe are these aches, and do they affect your daily activities?"
-  },
-  {
-    "speaker": "Patient",
-    "text": "They're not too severe, just a bit bothersome when I'm more active. I can still do my daily tasks."
-  },
-  {
-    "speaker": "Doctor",
-    "text": "We could consider adjusting the dose or trying a different statin if it becomes more problematic. For now, let's monitor it. Are you taking your aspirin regularly?"
+    "speaker": "Clinician",
+    "text": "It's best to take it consistently, but if you miss a dose, just take it as soon as you remember, unless it's almost time for your next dose. Then, just skip it and continue as normal."
   },
   {
     "speaker": "Patient",
-    "text": "Yes, I take it every day as you advised. I haven't missed a dose."
+    "text": "Okay, that makes sense. I guess I should set a reminder or something."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "That could definitely help. And how are you managing with the tiotropium? Any issues there?"
   }
 ]

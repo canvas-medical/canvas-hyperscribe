@@ -1,0 +1,27 @@
+[
+  {
+    "instruction": "Patient experienced transient dizziness during the first couple of weeks of therapy, which has now resolved. Patient reports difficulty maintaining consistent dosing times due to unpredictable work schedule; currently uses phone alarms but occasionally ignores them.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.history_present_illness",
+      "class": "HistoryOfPresentIllnessCommand",
+      "attributes": {
+        "narrative": "Patient experienced transient dizziness during the first couple of weeks of therapy that has since resolved. Patient reports difficulty maintaining consistent dosing times due to an unpredictable work schedule; they set phone alarms but occasionally ignore them."
+      }
+    }
+  },
+  {
+    "instruction": "Clinician advised the patient to adopt a backup medication-reminder strategy, such as using a pill organizer or another more attention-grabbing reminder method, to improve dose adherence given the patient\u2019s variable work schedule.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "coding": {
+          "system": "http://snomed.info/sct",
+          "code": "713092004",
+          "display": "Education about use of pill box"
+        },
+        "comment": "Adopt a backup medication-reminder strategy\u2014such as using a pill organizer or another more attention-grabbing reminder method\u2014to improve dose adherence given the patient\u2019s variable work schedule."
+      }
+    }
+  }
+]

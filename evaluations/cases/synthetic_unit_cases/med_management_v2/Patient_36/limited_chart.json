@@ -1,42 +1,33 @@
 {
-  "demographicStr": "the patient is a man, born on January 1, 1969 (age 54)",
+  "demographicStr": "the patient is a man, age 60",
   "conditionHistory": [],
-  "currentAllergies": [],
+  "currentAllergies": [
+    {
+      "uuid": "a5298c09-1354-4b57-8b33-19e1f4a17e14",
+      "label": "Penicillin",
+      "code": "Z88.0"
+    }
+  ],
   "currentConditions": [
     {
-      "uuid": "cond1",
-      "label": "Hypertension",
+      "uuid": "b104de7f-65c7-4dcf-9e92-5939443952cd",
+      "label": "Essential (primary) hypertension",
       "code": "I10"
-    },
-    {
-      "uuid": "cond2",
-      "label": "Type 2 diabetes mellitus without complications",
-      "code": "E11.9"
     }
   ],
   "currentGoals": [],
   "currentMedications": [
     {
-      "uuid": "med1",
-      "label": "Lisinopril 10 mg tablet",
-      "code": "123456"
-    },
-    {
-      "uuid": "med2",
-      "label": "Metformin 500 mg tablet",
-      "code": "860975"
+      "uuid": "6b9be331-12c9-4987-8c7e-641b85d0a546",
+      "label": "Losartan 50 mg tablet",
+      "code": "C09CA01"
     }
   ],
   "familyHistory": [
     {
-      "uuid": "fh1",
-      "label": "Family history of coronary artery disease",
+      "uuid": "1ab65ce7-1483-445c-ba2a-f38f037a3782",
+      "label": "Family history of cardiovascular disease",
       "code": "Z82.49"
-    },
-    {
-      "uuid": "fh2",
-      "label": "Family history of type 2 diabetes mellitus",
-      "code": "Z83.3"
     }
   ],
   "surgeryHistory": []

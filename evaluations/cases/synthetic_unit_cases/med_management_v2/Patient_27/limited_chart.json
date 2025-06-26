@@ -1,42 +1,38 @@
 {
-  "demographicStr": "the patient is a woman, born on January 1, 1978 (age 45)",
+  "demographicStr": "the patient is a man, born on January 1, 1978 (age 45)",
   "conditionHistory": [],
   "currentAllergies": [],
   "currentConditions": [
     {
-      "uuid": "cond1",
-      "label": "Major depressive disorder",
-      "code": "F33.9"
-    },
-    {
-      "uuid": "cond2",
-      "label": "Chronic migraine",
-      "code": "G43.709"
+      "uuid": "9bde5c2b-882f-47d6-99dc-35704be8eeaf",
+      "label": "Type 2 diabetes mellitus without complications",
+      "code": "E11.9"
     }
   ],
-  "currentGoals": [],
+  "currentGoals": [
+    {
+      "uuid": "a650e485-dad9-4212-b98f-002cee3cb3a7",
+      "label": "Improve blood sugar control",
+      "code": ""
+    }
+  ],
   "currentMedications": [
     {
-      "uuid": "med1",
-      "label": "Sertraline 50 mg tablet",
-      "code": "N06AB06"
+      "uuid": "4aa6b80b-eab8-4c6c-86ae-fa08110cf2e4",
+      "label": "Metformin 1000 mg tablet",
+      "code": "860975"
     },
     {
-      "uuid": "med2",
-      "label": "Sumatriptan 50 mg tablet",
-      "code": "N02CC01"
+      "uuid": "378e39c9-4eae-4d50-ade8-e1977685ab47",
+      "label": "Empagliflozin 10 mg tablet",
+      "code": "123456"
     }
   ],
   "familyHistory": [
     {
-      "uuid": "fh1",
-      "label": "Family history of depression",
-      "code": "Z81.8"
-    },
-    {
-      "uuid": "fh2",
-      "label": "Family history of anxiety disorders",
-      "code": "Z81.8"
+      "uuid": "bbe167ba-c74c-47b5-9501-1e23c028a4b8",
+      "label": "Family history of early-onset coronary artery disease",
+      "code": "Z82.49"
     }
   ],
   "surgeryHistory": []

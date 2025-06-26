@@ -1,0 +1,27 @@
+[
+  {
+    "instruction": "The patient experiences nausea mostly in the morning after taking lithium, which improves by lunchtime. Taking lithium with food seems to help reduce nausea. The patient is concerned about long-term effects and is worried about hospitalization. The patient's partner provides support and reminders.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.history_present_illness",
+      "class": "HistoryOfPresentIllnessCommand",
+      "attributes": {
+        "narrative": "The patient experiences nausea mostly in the morning after taking lithium, which improves by lunchtime. Taking lithium with food seems to help reduce nausea. The patient is concerned about long-term effects and is worried about hospitalization. The patient's partner provides support and reminders."
+      }
+    }
+  },
+  {
+    "instruction": "The clinician advised that taking lithium with food can help reduce nausea.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "comment": "Taking lithium with food can help reduce nausea.",
+        "coding": {
+          "system": "http://snomed.info/sct",
+          "code": "229808009",
+          "display": "Advice to change food intake"
+        }
+      }
+    }
+  }
+]

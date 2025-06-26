@@ -1,0 +1,27 @@
+[
+  {
+    "criterion": "Reward for documenting the patient's concern about the effectiveness of hydroxychloroquine and the intensity of pain, reflecting the patient's perspective and symptoms accurately.",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for including the clinician's plan to monitor the patient's condition and consider adjusting the medication if pain persists, demonstrating a proactive approach to patient management.",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for omitting any mention of the patient's adherence to folic acid, which is relevant to the management of methotrexate side effects.",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Reward for acknowledging the patient's participation in a support group, which provides insight into the patient's social support and adherence to treatment.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for not explicitly addressing the patient's allergy to sulfa drugs, which is critical for patient safety and medication management.",
+    "weight": 30,
+    "sense": "negative"
+  }
+]

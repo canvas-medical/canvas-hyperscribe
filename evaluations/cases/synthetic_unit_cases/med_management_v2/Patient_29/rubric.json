@@ -1,0 +1,27 @@
+[
+  {
+    "criterion": "Reward for documenting the patient's adherence to home blood pressure monitoring and any challenges faced in maintaining this routine.",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for noting the patient's response to atorvastatin, specifically the absence of muscle aches or unusual symptoms.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for omitting the patient's concern about whether losartan is sufficient for blood pressure control.",
+    "weight": 25,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Reward for including a follow-up plan to continue monitoring blood pressure and any potential side effects of medications.",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for not addressing the patient's report of tiredness and its potential relation to medication or other health factors.",
+    "weight": 20,
+    "sense": "negative"
+  }
+]

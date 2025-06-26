@@ -1,0 +1,27 @@
+[
+  {
+    "criterion": "Reward for documenting the patient's proactive approach to managing her generalized anxiety disorder, as it reflects patient engagement and adherence to treatment.",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for noting the patient's current medication regimen of Sertraline 100 mg daily and its effectiveness in managing anxiety symptoms, as this is crucial for ongoing treatment evaluation.",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for omitting any mention of potential side effects or safety concerns related to increasing the dosage of Sertraline, as this is important for patient safety and informed decision-making.",
+    "weight": 25,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Reward for including a discussion about the patient's occasional stressful days at work and how they relate to her anxiety management, as this provides context for the treatment plan.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for not addressing the family history of depression, which could be relevant to the patient's treatment plan and risk assessment.",
+    "weight": 20,
+    "sense": "negative"
+  }
+]

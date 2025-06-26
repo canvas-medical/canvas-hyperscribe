@@ -1,49 +1,22 @@
 {
-  "demographicStr": "the patient is a woman, born on January 1, 1953 (age 70)",
+  "demographicStr": "the patient is a woman, born on January 1, 1951 (age 72)",
   "conditionHistory": [],
-  "currentAllergies": [
-    {
-      "uuid": "allergy1",
-      "label": "Penicillin",
-      "code": "Z88.0"
-    }
-  ],
+  "currentAllergies": [],
   "currentConditions": [
     {
-      "uuid": "cond1",
-      "label": "Chronic kidney disease, stage 3",
-      "code": "N18.3"
-    },
-    {
-      "uuid": "cond2",
-      "label": "Osteoarthritis",
-      "code": "M19.90"
+      "uuid": "2a76fa6a-b8a6-44b7-b39e-a447dad0d6b0",
+      "label": "Hypothyroidism",
+      "code": "E03.9"
     }
   ],
   "currentGoals": [],
   "currentMedications": [
     {
-      "uuid": "med1",
-      "label": "Losartan 50 mg tablet",
-      "code": "C09CA01"
-    },
-    {
-      "uuid": "med2",
-      "label": "Acetaminophen 500 mg tablet",
-      "code": "N02BE01"
+      "uuid": "02c117c4-3226-41ec-b7c9-333530578220",
+      "label": "Levothyroxine 75 mcg tablet",
+      "code": "123456"
     }
   ],
-  "familyHistory": [
-    {
-      "uuid": "fh1",
-      "label": "Family history of diabetes",
-      "code": "Z83.3"
-    },
-    {
-      "uuid": "fh2",
-      "label": "Family history of hypertension",
-      "code": "Z82.49"
-    }
-  ],
+  "familyHistory": [],
   "surgeryHistory": []
 }

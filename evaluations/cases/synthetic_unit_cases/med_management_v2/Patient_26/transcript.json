@@ -1,26 +1,30 @@
 [
   {
-    "speaker": "Doctor",
-    "text": "Good morning, Mr. Johnson. How have you been managing with your current medications, especially after the insulin adjustment?"
+    "speaker": "Clinician",
+    "text": "So, with the celecoxib, have you noticed any improvement in the joint pain, or is it still, um, about the same as before?"
   },
   {
     "speaker": "Patient",
-    "text": "Morning, Doctor. It's been a bit challenging. My blood sugar levels are still up and down, and I'm not sure if I'm taking the right amount of insulin."
+    "text": "Well, it's been a bit better, I think. The mornings are still tough, but I can move around more easily by the afternoon."
   },
   {
-    "speaker": "Doctor",
-    "text": "I understand. Let's review your insulin doses and your blood sugar logs. Have you noticed any patterns or specific times when your levels are particularly high or low?"
-  },
-  {
-    "speaker": "Patient",
-    "text": "Well, they seem to spike after dinner, even though I'm trying to watch what I eat."
-  },
-  {
-    "speaker": "Doctor",
-    "text": "We might need to adjust your evening insulin dose. Also, how are you doing with the atorvastatin? Any side effects like muscle pain or weakness?"
+    "speaker": "Clinician",
+    "text": "That's good to hear. And, uh, how's your stomach been since the switch? Any discomfort like with the meloxicam?"
   },
   {
     "speaker": "Patient",
-    "text": "No, I haven't noticed any side effects from the atorvastatin. It's just the insulin that's been tricky."
+    "text": "Not really, no. I was worried at first, but it seems to be okay. I just make sure to take it with food."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Great, taking it with food is definitely a good idea. And, um, have you been keeping an eye on your blood pressure, just in case?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Yes, I check it every morning. It's been stable, thankfully. I know my family history, so I'm quite vigilant about it."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "That's reassuring. If you notice any changes, just let me know. We can always adjust things if needed."
   }
 ]

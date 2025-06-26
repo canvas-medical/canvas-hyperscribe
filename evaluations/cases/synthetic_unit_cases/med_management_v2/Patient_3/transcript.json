@@ -1,34 +1,30 @@
 [
   {
-    "speaker": "Doctor",
-    "text": "Hi there! How have you been feeling with your asthma lately?"
+    "speaker": "Clinician",
+    "text": "So, when you mentioned the nausea earlier, was it similar to what you experienced with fluoxetine, or was it different this time?"
   },
   {
     "speaker": "Patient",
-    "text": "It's okay, but sometimes I still get out of breath when I play soccer."
+    "text": "It was a bit different, actually. Not as intense, but still uncomfortable. I was worried it might get worse."
   },
   {
-    "speaker": "Doctor",
-    "text": "I see. How often are you using your albuterol inhaler?"
-  },
-  {
-    "speaker": "Patient",
-    "text": "Maybe a couple of times a week, mostly after playing."
-  },
-  {
-    "speaker": "Doctor",
-    "text": "Alright. And have you noticed any side effects from the inhaler or the nasal spray?"
+    "speaker": "Clinician",
+    "text": "I understand. Sometimes, these side effects can settle down after a few weeks. Have you noticed any improvement since you started?"
   },
   {
     "speaker": "Patient",
-    "text": "No, I don't think so. They seem fine."
+    "text": "A little, I think. It's hard to tell with all the school stress, but I do feel slightly less anxious."
   },
   {
-    "speaker": "Doctor",
-    "text": "That's good to hear. Since you're using the inhaler a few times a week, we might consider adding a daily controller medication to help manage your symptoms better. What do you think?"
+    "speaker": "Clinician",
+    "text": "That's a good sign. We can keep monitoring it. If the nausea persists, we might consider adjusting the dose or timing. Are you taking it with food?"
   },
   {
     "speaker": "Patient",
-    "text": "Okay, if it helps me breathe better when I play, that sounds good."
+    "text": "Yes, I take it with breakfast. I thought that might help."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Great, that can often help. Let's keep an eye on it, and if it doesn't improve, we can explore other options."
   }
 ]

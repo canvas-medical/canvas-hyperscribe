@@ -1,0 +1,32 @@
+[
+  {
+    "rationale": "The note documents the patient's report of taking an extra dose of furosemide and experiencing dizziness, which is crucial for understanding the current situation.",
+    "satisfaction": 100.0,
+    "score": 20.0
+  },
+  {
+    "rationale": "The note does not mention any clinician's consideration of adjusting the furosemide dose or timing.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "The note omits the patient's chronic conditions such as heart failure, atrial fibrillation, and chronic kidney disease in the context of medication management.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "The note includes the patient's daughter's involvement in medication management, highlighting the social support system.",
+    "satisfaction": 100.0,
+    "score": 15.0
+  },
+  {
+    "rationale": "The note does not document a follow-up plan or specific instructions for monitoring symptoms or medication adherence.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "The note assesses the absence of weight changes or swelling, which are relevant to the patient's heart failure management.",
+    "satisfaction": 100.0,
+    "score": 10.0
+  }
+]

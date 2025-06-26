@@ -1,26 +1,26 @@
 [
   {
-    "speaker": "Doctor",
-    "text": "Good morning, Mr. Smith. How have you been feeling on your current medications, especially the atorvastatin?"
+    "speaker": "Patient",
+    "text": "I mean, I try to keep track of the amlodipine, but sometimes I just, uh, forget to pick it up on time. Living alone, it's easy to lose track."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "I understand. It can be challenging to manage everything on your own. Have you considered setting reminders on your phone or maybe using a pill organizer?"
   },
   {
     "speaker": "Patient",
-    "text": "Morning, Doctor. I've been feeling okay, but I sometimes wonder if the atorvastatin is affecting my energy levels."
+    "text": "Yeah, I have a pill organizer, but I guess I just need to be more consistent with it. It's just, you know, sometimes the days blend together."
   },
   {
-    "speaker": "Doctor",
-    "text": "That's a valid concern. Have you noticed any specific times when your energy dips, or is it more constant?"
-  },
-  {
-    "speaker": "Patient",
-    "text": "It's mostly in the afternoons. I just feel more tired than usual."
-  },
-  {
-    "speaker": "Doctor",
-    "text": "We could consider adjusting the dose or trying a different statin if it's impacting your daily life. How's your adherence to the lisinopril and atorvastatin?"
+    "speaker": "Clinician",
+    "text": "That makes sense. And, uh, about the amlodipine, have you noticed any swelling in your ankles or feet? That's something we should keep an eye on."
   },
   {
     "speaker": "Patient",
-    "text": "I take them every day as prescribed, but I sometimes forget if I'm really busy."
+    "text": "Not really, but I do feel a bit more tired than usual. Could that be related?"
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Fatigue can sometimes be a side effect, but let's make sure it's not something else. Have you been sleeping well, or has anything else changed recently?"
   }
 ]
