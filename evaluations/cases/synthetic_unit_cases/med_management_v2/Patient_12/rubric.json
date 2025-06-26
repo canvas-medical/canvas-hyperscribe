@@ -1,31 +1,36 @@
 [
   {
-    "criterion": "Reward for accurately documenting that the patient missed one dose of warfarin last week, felt no symptomatic change, promptly resumed therapy, and that the daughter assisted in getting back on track",
+    "criterion": "Reward for clearly documenting in HistoryOfPresentIllness that the patient missed one warfarin dose last week, experienced no new symptoms, and that his daughter helped him resume therapy",
     "weight": 20,
     "sense": "positive"
   },
   {
-    "criterion": "Reward for documenting specific adherence\u2010improvement instructions given (e.g., use of weekly pillbox, setting phone alerts) and the patient\u2019s agreement to implement them",
+    "criterion": "Reward for including an Instruct or Task entry that details specific adherence aids (weekly pill box and phone/alert reminders) with an assigned person (patient or daughter) and timeframe",
     "weight": 15,
     "sense": "positive"
   },
   {
-    "criterion": "Reward for including an evidence-based safety plan related to warfarin (e.g., ordering or reviewing timely INR, advising on what to do after a missed dose, counseling on bleeding or clotting warning signs)",
-    "weight": 30,
+    "criterion": "Reward for documenting an anticoagulation safety plan that covers at least one of the following: patient education not to double warfarin doses, bleeding\u2010risk warning signs and when to seek care, or instructions to contact clinic if another dose is missed",
+    "weight": 20,
     "sense": "positive"
   },
   {
-    "criterion": "Reward for recording relevant social context that affects care (daughter\u2019s involvement, patient\u2019s comfort with technology) without extraneous social history",
+    "criterion": "Reward for ordering or scheduling a follow-up INR test within guideline time-frame (\u22644 weeks) and explicitly stating that current warfarin dosing will be maintained unless INR indicates otherwise",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing relevant social context (daughter\u2019s involvement and patient\u2019s openness to technology) in Social History or appropriate free text without redundancy",
     "weight": 10,
     "sense": "positive"
   },
   {
-    "criterion": "Penalize for redundant or irrelevant content (e.g., repeating charted problems/medications not discussed, excessive verbatim transcript, unnecessary wordiness)",
-    "weight": 15,
+    "criterion": "Penalize for inclusion of chart data or narrative unrelated to the transcript (e.g., copying full past medical history, allergies, or review of systems) that does not advance the current encounter",
+    "weight": 10,
     "sense": "negative"
   },
   {
-    "criterion": "Penalize for documenting unsafe or incorrect warfarin guidance (e.g., advising double dosing, stopping medication without provider input, or other recommendations conflicting with standard anticoagulation guidelines)",
+    "criterion": "Penalize for misusing Canvas instruction types (e.g., combining multiple instructions in one, omitting required single-instruction categories, or placing content in an incorrect category such as safety plan in HistoryOfPresentIllness)",
     "weight": 10,
     "sense": "negative"
   }

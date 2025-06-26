@@ -1,6 +1,0 @@
-Criterion #,Criterion,Max Score,Satisfaction (%),Score Awarded,Rationale
-1,Reward for accurately documenting the patient's question about missing a dose of losartan and the clinician's advice on how to handle it.,20,100.0,20.0,The documentation accurately captures the clinician's advice on handling a missed dose of losartan.
-2,Reward for including the patient's concern about family history of cardiovascular disease and its influence on their medication adherence.,15,0.0,0.0,The patient's concern about family history of cardiovascular disease and its influence on medication adherence is not mentioned.
-3,Reward for documenting the patient's question about the potential side effect of cough with losartan and the clinician's reassurance based on pharmacological differences from lisinopril.,20,50.0,10.0,The documentation mentions the patient's cough with lisinopril but does not include the clinician's reassurance about losartan.
-4,Penalize for omitting the clinician's instruction to monitor blood pressure at home and report any unusual changes.,25,100.0,0.0,The clinician's instruction to monitor blood pressure at home is documented.
-5,"Reward for including the clinician's advice to contact them if new symptoms arise, ensuring patient safety and follow-up.",20,0.0,0.0,The clinician's advice to contact them if new symptoms arise is not documented.

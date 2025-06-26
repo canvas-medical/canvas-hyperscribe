@@ -1,32 +1,37 @@
 [
   {
-    "rationale": "Note explicitly states the patient missed one warfarin dose last week, felt no change, promptly resumed with daughter\u2019s help\u2014covers all required elements.",
-    "satisfaction": 92.0,
-    "score": 18.4
-  },
-  {
-    "rationale": "Documents use of weekly pillbox and recommendation to set phone alerts with daughter\u2019s help, but does not record explicit patient agreement or additional adherence strategies.",
-    "satisfaction": 75.0,
-    "score": 11.25
-  },
-  {
-    "rationale": "No mention of INR monitoring, bleeding/clotting warnings, or instructions after missed dose\u2014evidence-based safety plan essentially absent.",
-    "satisfaction": 10.0,
-    "score": 3.0
-  },
-  {
-    "rationale": "Captures daughter\u2019s involvement and patient\u2019s use of technology without adding unrelated social history.",
-    "satisfaction": 85.0,
-    "score": 8.5
-  },
-  {
-    "rationale": "Content is concise, avoids repetition or irrelevant information; minimal verbatim transcription.",
+    "rationale": "HPI clearly notes a single missed warfarin dose last week, absence of new symptoms, and daughter-assisted resumption, fulfilling all elements.",
     "satisfaction": 95.0,
-    "score": 14.25
+    "score": 19.0
   },
   {
-    "rationale": "No unsafe or incorrect warfarin advice given; recommendations align with standard care.",
-    "satisfaction": 97.0,
-    "score": 9.7
+    "rationale": "Instruct entry lists pill box and phone alerts but does not assign a specific person (only implicitly the patient) and lacks a timeframe, so partially complete.",
+    "satisfaction": 60.0,
+    "score": 9.0
+  },
+  {
+    "rationale": "No anticoagulation safety plan (no guidance on not doubling doses, bleeding warnings, or clinic contact) is documented.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "There is no order or plan for follow-up INR within four weeks and no statement about continuing current dosing pending results.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Daughter\u2019s involvement captured in HPI and patient\u2019s acceptance of phone alerts implied, but not placed in Social History and limited detail, giving partial credit.",
+    "satisfaction": 50.0,
+    "score": 5.0
+  },
+  {
+    "rationale": "Note contains no extraneous chart data; therefore no penalty warranted.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Commands are used appropriately (separate HPI and Instruct); no misuse observed.",
+    "satisfaction": 0.0,
+    "score": 0.0
   }
 ]
