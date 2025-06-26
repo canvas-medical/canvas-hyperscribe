@@ -1,0 +1,15 @@
+[
+  {
+    "instruction": "Prescribed penicillin 500mg PO BID x10 days for suspected bacterial sinusitis.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.medication",
+      "class": "MedicationOrderCommand",
+      "attributes": {
+        "medication": "Penicillin 500mg tablet",
+        "dosage": "500mg",
+        "frequency": "BID",
+        "duration": "10 days"
+      }
+    }
+  }
+]

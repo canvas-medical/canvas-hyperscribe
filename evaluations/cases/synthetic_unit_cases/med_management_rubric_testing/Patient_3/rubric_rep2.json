@@ -1,0 +1,37 @@
+[
+  {
+    "criterion": "Reward for accurately documenting all patient-reported symptoms and side-effect details from the transcript (e.g., nausea quality compared with fluoxetine, degree of discomfort, slight anxiety improvement, school stress, taking medication with breakfast).",
+    "weight": 25,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for faithfully capturing the clinician\u2019s expressed assessment and plan elements (monitoring period, possibility of dose or timing adjustment if nausea persists, reassurance that side-effects may settle, acknowledgment that taking with food can help).",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for correctly incorporating only the chart details that are clearly relevant to the encounter (e.g., current medication Sertraline 50 mg daily and existing diagnosis of generalized anxiety disorder) without introducing unrelated chart items.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for overall completeness and structural fidelity of the note relative to the full content of the transcript, with no major sections or statements omitted or misplaced.",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for omission or distortion of any clinically pertinent fact explicitly stated or implied in the transcript (e.g., leaving out the patient\u2019s comparison to fluoxetine, the improvement in anxiety, or the plan to adjust dosing if needed).",
+    "weight": 25,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for addition of information, assessments, instructions, or orders not grounded in the transcript or chart (e.g., new medication changes, lab orders, differential diagnoses).",
+    "weight": 25,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for inaccurate copying or over-copying from the chart, such as wrong medication name/dose, incorrect demographic data, or inclusion of unrelated family history, procedures, or conditions that were not discussed.",
+    "weight": 15,
+    "sense": "negative"
+  }
+]

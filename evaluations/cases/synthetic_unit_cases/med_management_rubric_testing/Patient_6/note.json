@@ -1,0 +1,23 @@
+[
+  {
+    "instruction": "Current medication: mesalamine.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.medication_statement",
+      "class": "MedicationStatementCommand",
+      "attributes": {
+        "fdb_code": "155199",
+        "sig": "Take as directed by your healthcare provider."
+      }
+    }
+  },
+  {
+    "instruction": "Specific direction: Consistency is key with mesalamine to keep symptoms in check.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "comment": "Consistency is key with mesalamine to keep symptoms in check."
+      }
+    }
+  }
+]

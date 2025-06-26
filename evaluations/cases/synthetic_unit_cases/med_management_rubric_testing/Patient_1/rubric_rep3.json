@@ -1,0 +1,42 @@
+[
+  {
+    "criterion": "Reward for documenting every clinically relevant statement explicitly or implicitly made in the transcript, including medication tolerance (losartan without cough, atorvastatin without myalgias), home blood-pressure trend, and travel refill advice, with no omissions.",
+    "weight": 25,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for accurately recording current medications and dosages exactly as listed in the chart (Losartan 50 mg tablet, Atorvastatin 10 mg tablet) when referenced, without altering strength, formulation, or spelling.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for concisely importing only chart elements directly relevant to the visit (patient age/sex, diagnoses of hypertension and hyperlipidemia) while leaving out unrelated chart data.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for omitting the clinician\u2019s instruction to continue home blood-pressure monitoring and to notify the clinic if readings consistently change.",
+    "weight": 10,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for failing to capture the clinician\u2019s travel-related refill advice or misrepresenting its wording or intent.",
+    "weight": 8,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for introducing information not present in either the transcript or chart (e.g., new symptoms, exams, labs, diagnoses, or plans) or for speculating on clinical reasoning.",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for copying irrelevant chart details (e.g., family history, unused Canvas context instructions) or for selective chart copying that creates misleading emphasis.",
+    "weight": 10,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for inaccuracies in names, doses, durations, or instructions of medications mentioned, or for misattributing statements to the wrong speaker.",
+    "weight": 7,
+    "sense": "negative"
+  }
+]

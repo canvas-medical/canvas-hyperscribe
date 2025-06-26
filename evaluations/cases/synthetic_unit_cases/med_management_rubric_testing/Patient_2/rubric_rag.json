@@ -1,0 +1,27 @@
+[
+  {
+    "criterion": "Reward for accurately recording medication details exactly as stated or shown in the chart (e.g., glipizide 5 mg, metformin 1000 mg) without introducing new or incorrect drug names, strengths, or directions.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for faithful documentation of the clinician\u2019s counseling and suggested adherence strategies (importance of consistent dosing, phone alarms, pill-organizer suggestion) without embellishment.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for omission, distortion, or misquotation of key dialogue elements such as the patient\u2019s concern about higher readings or the clinician\u2019s explanation of how glipizide affects blood sugar.",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for adding information not present or implied in the transcript or chart, including fabricated physical exams, labs, diagnoses, medication changes, or follow-up plans.",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for indiscriminate or inaccurate copying from the chart\u2014adding irrelevant demographics, conditions, or medications not referenced in the encounter, or failing to include chart elements directly pertinent to the discussion (e.g., type 2 diabetes, current glipizide therapy).",
+    "weight": 10,
+    "sense": "negative"
+  }
+]

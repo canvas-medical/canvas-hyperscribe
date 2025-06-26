@@ -1,0 +1,32 @@
+[
+  {
+    "speaker": "Patient",
+    "text": "So, uh, with the losartan, I sometimes forget to take it when I'm on the road. It's just, you know, the schedule's all over the place.",
+    "label": "medication adherence issue"
+  },
+  {
+    "speaker": "Clinician",
+    "text": "I understand. It can be tough with your job. Have you thought about setting reminders on your phone or maybe using a pill organizer?",
+    "label": "adherence strategy suggestion"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Yeah, I tried the phone reminders, but sometimes I'm driving and can't really stop to take it right then.",
+    "label": "adherence barrier explanation"
+  },
+  {
+    "speaker": "Clinician",
+    "text": "That makes sense. Maybe we could look into a medication that fits better with your routine. Or, if it's easier, taking it at a consistent time when you're not driving, like before bed?",
+    "label": "regimen adjustment discussion"
+  },
+  {
+    "speaker": "Patient",
+    "text": "I could try before bed. But, uh, would that affect my sleep or anything?",
+    "label": "side effect concern"
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Generally, losartan shouldn't affect your sleep. But if you notice anything unusual, we can adjust. It's important to keep your blood pressure stable.",
+    "label": "reassurance and education"
+  }
+]

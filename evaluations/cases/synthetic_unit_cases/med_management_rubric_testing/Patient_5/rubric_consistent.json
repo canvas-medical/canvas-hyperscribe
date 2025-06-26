@@ -1,0 +1,47 @@
+[
+  {
+    "criterion": "Reward for accurately documenting the patient's reported concerns and symptom course (increased pain intensity, day-to-day variability, worry that hydroxychloroquine may be insufficient).",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for faithfully capturing the clinician's counseling and management plan (allow more time on current therapy, monitor closely, consider dose adjustment or alternative options).",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for precisely recording the medication-adherence detail that the patient takes folic acid daily, influenced by her support group.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for including relevant chart elements only when referenced (current RA diagnosis, sulfa allergy, current medications with correct names and dosages) and omitting unrelated chart data.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for overall completeness: the note contains every clinically relevant fact, question, and answer explicitly or implicitly present in the transcript without distortion.",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for introducing information, assessments, diagnoses, orders, instructions, or plans not present or reasonably implied in the transcript or supported by the chart.",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for factual inaccuracies or distortions in any copied or transcribed detail (medication names or dosages, frequencies, demographics, clinician statements, patient quotes).",
+    "weight": 10,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for omitting any major encounter element (patient concerns, symptom course, medication adherence details, clinician plan), thereby reducing completeness.",
+    "weight": 10,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for copying or pasting irrelevant or incorrect chart information (e.g., unrelated conditions, family history, boilerplate templates).",
+    "weight": 5,
+    "sense": "negative"
+  }
+]
