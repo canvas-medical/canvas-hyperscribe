@@ -797,7 +797,7 @@ def test_practice_setting(staff_db, practice_location_db, practice_settings_db):
     # -- provider has no primary practice
     tested._settings = {}
     for idx in range(3):
-        staff_db.get.side_effect = [Staff(primary_practice_location=None)]
+        staff_db.filter.return_value.first.side_effect = [Staff(primary_practice_location=None)]
         practice_location_db.order_by.return_value.first.side_effect = [PracticeLocation(full_name="theLocation")]
         practice_settings_db.filter.return_value.order_by.return_value.first.side_effect = [PracticeLocationSetting(value="theValue")]
 
@@ -810,7 +810,10 @@ def test_practice_setting(staff_db, practice_location_db, practice_settings_db):
             assert practice_location_db.mock_calls == []
             assert practice_settings_db.mock_calls == []
         else:
-            calls = [call.get(id='providerUuid')]
+            calls = [
+                call.filter(id='providerUuid'),
+                call.filter().first(),
+            ]
             assert staff_db.mock_calls == calls
             calls = [
                 call.order_by('dbid'),
@@ -827,7 +830,7 @@ def test_practice_setting(staff_db, practice_location_db, practice_settings_db):
     # -- provider has one primary practice
     tested._settings = {}
     for idx in range(3):
-        staff_db.get.side_effect = [Staff(primary_practice_location=PracticeLocation(full_name="theLocation"))]
+        staff_db.filter.return_value.first.side_effect = [Staff(primary_practice_location=PracticeLocation(full_name="theLocation"))]
         practice_location_db.order_by.return_value.first.side_effect = []
         practice_settings_db.filter.return_value.order_by.return_value.first.side_effect = [PracticeLocationSetting(value="theValue")]
 
@@ -840,7 +843,10 @@ def test_practice_setting(staff_db, practice_location_db, practice_settings_db):
             assert practice_location_db.mock_calls == []
             assert practice_settings_db.mock_calls == []
         else:
-            calls = [call.get(id='providerUuid')]
+            calls = [
+                call.filter(id='providerUuid'),
+                call.filter().first(),
+            ]
             assert staff_db.mock_calls == calls
             assert practice_location_db.mock_calls == []
             calls = [
@@ -854,7 +860,7 @@ def test_practice_setting(staff_db, practice_location_db, practice_settings_db):
     # no setting found
     tested._settings = {}
     for idx in range(3):
-        staff_db.get.side_effect = [Staff(primary_practice_location=None)]
+        staff_db.filter.return_value.first.side_effect = [Staff(primary_practice_location=None)]
         practice_location_db.order_by.return_value.first.side_effect = [PracticeLocation(full_name="theLocation")]
         practice_settings_db.filter.return_value.order_by.return_value.first.side_effect = [None]
 
@@ -866,7 +872,10 @@ def test_practice_setting(staff_db, practice_location_db, practice_settings_db):
             assert practice_location_db.mock_calls == []
             assert practice_settings_db.mock_calls == []
         else:
-            calls = [call.get(id='providerUuid')]
+            calls = [
+                call.filter(id='providerUuid'),
+                call.filter().first(),
+            ]
             assert staff_db.mock_calls == calls
             calls = [
                 call.order_by('dbid'),
@@ -884,7 +893,7 @@ def test_practice_setting(staff_db, practice_location_db, practice_settings_db):
     # no practice found
     tested._settings = {}
     for idx in range(3):
-        staff_db.get.side_effect = [Staff(primary_practice_location=None)]
+        staff_db.filter.return_value.first.side_effect = [Staff(primary_practice_location=None)]
         practice_location_db.order_by.return_value.first.side_effect = [None]
         practice_settings_db.filter.return_value.order_by.return_value.first.side_effect = []
 
@@ -896,7 +905,10 @@ def test_practice_setting(staff_db, practice_location_db, practice_settings_db):
             assert practice_location_db.mock_calls == []
             assert practice_settings_db.mock_calls == []
         else:
-            calls = [call.get(id='providerUuid')]
+            calls = [
+                call.filter(id='providerUuid'),
+                call.filter().first(),
+            ]
             assert staff_db.mock_calls == calls
             calls = [
                 call.order_by('dbid'),
@@ -904,6 +916,40 @@ def test_practice_setting(staff_db, practice_location_db, practice_settings_db):
             ]
             assert practice_location_db.mock_calls == calls
             assert practice_settings_db.mock_calls == []
+        reset_mocks()
+
+    # no provider found
+    tested._settings = {}
+    for idx in range(3):
+        staff_db.filter.return_value.first.side_effect = [None]
+        practice_location_db.order_by.return_value.first.side_effect = [PracticeLocation(full_name="theLocation")]
+        practice_settings_db.filter.return_value.order_by.return_value.first.side_effect = [PracticeLocationSetting(value="theValue")]
+
+        result = tested.practice_setting("theSetting")
+        expected = "theValue"
+        assert result == expected
+
+        if idx > 0:
+            assert staff_db.mock_calls == []
+            assert practice_location_db.mock_calls == []
+            assert practice_settings_db.mock_calls == []
+        else:
+            calls = [
+                call.filter(id='providerUuid'),
+                call.filter().first(),
+            ]
+            assert staff_db.mock_calls == calls
+            calls = [
+                call.order_by('dbid'),
+                call.order_by().first(),
+            ]
+            assert practice_location_db.mock_calls == calls
+            calls = [
+                call.filter(name='theSetting'),
+                call.filter().order_by('dbid'),
+                call.filter().order_by().first(),
+            ]
+            assert practice_settings_db.mock_calls == calls
         reset_mocks()
 
 

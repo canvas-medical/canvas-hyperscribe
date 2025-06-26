@@ -269,7 +269,10 @@ class LimitedCache:
     def practice_setting(self, setting: str) -> Any:
         if setting not in self._settings:
             self._settings[setting] = None
-            practice = Staff.objects.get(id=self.provider_uuid).primary_practice_location
+
+            practice = None
+            if staff := Staff.objects.filter(id=self.provider_uuid).first():
+                practice = staff.primary_practice_location
             if practice is None:
                 practice = PracticeLocation.objects.order_by("dbid").first()
             if practice and (value := practice.settings.filter(name=setting).order_by("dbid").first()):
