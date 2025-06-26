@@ -333,7 +333,7 @@ class LimitedCache:
         result._conditions = [CodedItem.load_from_json(i) for i in cache.get("currentConditions", [])]
         result._goals = [CodedItem.load_from_json(i) for i in cache.get("currentGoals", [])]
         result._medications = [MedicationCached.load_from_json(i) for i in cache.get("currentMedications", [])]
-        result._preferred_lab_partner = CodedItem.load_from_json(cache.get("preferredLabPartner", {}))
+        result._preferred_lab_partner = CodedItem.load_from_json(cache.get("preferredLabPartner", {"uuid": "", "label": "", "code": ""}))
         result._note_type = [CodedItem.load_from_json(i) for i in cache.get("existingNoteTypes", [])]
         result._staff_members = []
         result._task_labels = [CodedItem.load_from_json(i) for i in cache.get("existingTaskLabels", [])]
