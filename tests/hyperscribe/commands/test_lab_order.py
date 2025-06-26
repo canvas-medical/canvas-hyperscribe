@@ -30,7 +30,7 @@ def helper_instance() -> LabOrder:
         commands_policy=AccessPolicy(policy=False, items=[]),
         staffers_policy=AccessPolicy(policy=False, items=[]),
     )
-    cache = LimitedCache("patientUuid", {})
+    cache = LimitedCache("patientUuid", "providerUuid", {})
     identification = IdentificationParameters(
         patient_uuid="patientUuid",
         note_uuid="noteUuid",
@@ -109,7 +109,7 @@ def test_staged_command_extract():
             assert result == expected
 
 
-@patch.object(LabOrder, 'practice_setting')
+@patch.object(LimitedCache, 'practice_setting')
 @patch.object(LabPartner, "objects")
 @patch.object(SelectorChat, "lab_test_from")
 @patch.object(SelectorChat, "condition_from")

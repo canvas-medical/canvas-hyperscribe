@@ -8,7 +8,7 @@ from canvas_sdk.effects.simple_api import HTMLResponse, JSONResponse, Response
 from canvas_sdk.handlers.simple_api import Credentials, SimpleAPIRoute
 from canvas_sdk.handlers.simple_api.api import Request
 from canvas_sdk.templates import render_to_string
-from canvas_sdk.v1.data import Command
+from canvas_sdk.v1.data import Command, Note
 
 from hyperscribe.handlers.commander import Commander
 from hyperscribe.libraries.aws_s3 import AwsS3
@@ -82,6 +82,7 @@ class ArchiverHelper:
             state="staged").order_by("dbid")
         limited_chart = LimitedCache(
             patient_id,
+            str(Note.objects.get(id=note_id).provider.id),
             Commander.existing_commands_to_coded_items(
                 current_commands,
                 AccessPolicy.allow_all(),

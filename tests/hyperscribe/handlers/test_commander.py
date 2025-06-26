@@ -606,7 +606,7 @@ def test_compute_audio(
         assert cache_save.mock_calls == calls
         calls = [call(settings, aws_s3_credentials, "LimitedCacheInstance", identification)]
         assert audio_interpreter.mock_calls == calls
-        calls = [call("patientUuid", "stagedCommands")]
+        calls = [call("patientUuid", "providerUuid", "stagedCommands")]
         assert limited_cache.mock_calls == calls
         calls = [
             call.send_to_user(identification, settings, "starting the cycle 3..."),

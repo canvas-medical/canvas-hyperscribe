@@ -31,7 +31,7 @@ def helper_instance() -> Refer:
         commands_policy=AccessPolicy(policy=False, items=[]),
         staffers_policy=AccessPolicy(policy=False, items=[]),
     )
-    cache = LimitedCache("patientUuid", {})
+    cache = LimitedCache("patientUuid", "providerUuid", {})
     identification = IdentificationParameters(
         patient_uuid="patientUuid",
         note_uuid="noteUuid",
@@ -114,7 +114,7 @@ def test_staged_command_extract():
             assert result == expected
 
 
-@patch.object(Refer, 'practice_setting')
+@patch.object(LimitedCache, 'practice_setting')
 @patch.object(SelectorChat, "contact_from")
 @patch.object(SelectorChat, "condition_from")
 def test_command_from_json(condition_from, contact_from, practice_setting):

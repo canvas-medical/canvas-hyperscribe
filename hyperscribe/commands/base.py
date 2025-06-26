@@ -1,7 +1,3 @@
-from typing import Any
-
-from canvas_sdk.v1.data import PracticeLocation, Staff
-
 from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.coded_item import CodedItem
@@ -44,11 +40,3 @@ class Base:
 
     def is_available(self) -> bool:
         raise NotImplementedError
-
-    def practice_setting(self, setting: str) -> Any:
-        practice = Staff.objects.get(id=self.identification.provider_uuid).primary_practice_location
-        if practice is None:
-            practice = PracticeLocation.objects.order_by("dbid").first()
-        if practice and (setting := practice.settings.filter(name=setting).order_by("dbid").first()):
-            return setting.value
-        return None

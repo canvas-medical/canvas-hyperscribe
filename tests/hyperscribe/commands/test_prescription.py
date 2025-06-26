@@ -32,7 +32,7 @@ def helper_instance() -> Prescription:
         commands_policy=AccessPolicy(policy=False, items=[]),
         staffers_policy=AccessPolicy(policy=False, items=[]),
     )
-    cache = LimitedCache("patientUuid", {})
+    cache = LimitedCache("patientUuid", "providerUuid", {})
     identification = IdentificationParameters(
         patient_uuid="patientUuid",
         note_uuid="noteUuid",

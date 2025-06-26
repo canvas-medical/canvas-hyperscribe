@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from datetime import date
+from typing import Any
 
 from canvas_sdk.commands.constants import CodeSystems
 from canvas_sdk.v1.data import (
     AllergyIntolerance, Condition, Command,
-    Patient, Observation, NoteType, Medication, ReasonForVisitSettingCoding)
+    Patient, Observation, NoteType, Medication,
+    ReasonForVisitSettingCoding, Staff, PracticeLocation)
 from canvas_sdk.v1.data.condition import ClinicalStatus
 from canvas_sdk.v1.data.medication import Status
 from canvas_sdk.v1.data.patient import SexAtBirth
@@ -20,8 +22,10 @@ from hyperscribe.structures.instruction import Instruction
 
 
 class LimitedCache:
-    def __init__(self, patient_uuid: str, staged_commands_to_coded_items: dict[str, list[CodedItem]]):
+    def __init__(self, patient_uuid: str, provider_uuid: str, staged_commands_to_coded_items: dict[str, list[CodedItem]]):
         self.patient_uuid = patient_uuid
+        self.provider_uuid = provider_uuid
+        self._settings: dict = {}
         self._allergies: list[CodedItem] | None = None
         self._condition_history: list[CodedItem] | None = None
         self._conditions: list[CodedItem] | None = None
@@ -222,12 +226,26 @@ class LimitedCache:
 
         return self._demographic
 
+    def practice_setting(self, setting: str) -> Any:
+        if setting not in self._settings:
+            self._settings[setting] = None
+            practice = Staff.objects.get(id=self.provider_uuid).primary_practice_location
+            if practice is None:
+                practice = PracticeLocation.objects.order_by("dbid").first()
+            if practice and (value := practice.settings.filter(name=setting).order_by("dbid").first()):
+                self._settings[setting] = value.value
+        return self._settings[setting]
+
     def to_json(self, obfuscate: bool) -> dict:
         return {
             "stagedCommands": {
                 key: [i._asdict() for i in commands]
                 for key, commands in self._staged_commands.items()
             },
+            "settings": {
+                setting: self.practice_setting(setting)
+                for setting in ["preferredLabPartner", "serviceAreaZipCodes"]
+            },  # force the setting fetch
             "demographicStr": self.demographic__str__(obfuscate),
             #
             "conditionHistory": [i._asdict() for i in self.condition_history()],
@@ -249,8 +267,9 @@ class LimitedCache:
             for key, commands in cache.get("stagedCommands", {}).items()
         }
 
-        result = cls(Constants.FAUX_PATIENT_UUID, staged_commands)
+        result = cls(Constants.FAUX_PATIENT_UUID, Constants.FAUX_PROVIDER_UUID, staged_commands)
         result._demographic = cache.get("demographicStr", "")
+        result._settings = cache.get("settings", {})
 
         result._condition_history = [CodedItem(**i) for i in cache.get("conditionHistory", [])]
         result._allergies = [CodedItem(**i) for i in cache.get("currentAllergies", [])]

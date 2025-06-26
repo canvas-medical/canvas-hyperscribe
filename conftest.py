@@ -168,7 +168,7 @@ def audio_interpreter(request):
     patient_uuid = HyperscribeConstants.FAUX_PATIENT_UUID
     note_uuid = HyperscribeConstants.FAUX_NOTE_UUID
     provider_uuid = HyperscribeConstants.FAUX_PROVIDER_UUID
-    cache = LimitedCache(patient_uuid, {})
+    cache = LimitedCache(patient_uuid, provider_uuid, {})
 
     if forced_patient_uuid := request.config.getoption(Constants.OPTION_PATIENT_UUID):
         patient_uuid = forced_patient_uuid

@@ -6,7 +6,8 @@ from canvas_sdk.commands.constants import CodeSystems
 from canvas_sdk.v1.data import (
     Command, Condition, ConditionCoding, MedicationCoding,
     Medication, AllergyIntolerance, AllergyIntoleranceCoding,
-    Patient, Observation, NoteType, ReasonForVisitSettingCoding)
+    Patient, Observation, NoteType, ReasonForVisitSettingCoding,
+    Staff, PracticeLocation, PracticeLocationSetting)
 from django.db.models.expressions import When, Value, Case
 
 from hyperscribe.handlers.temporary_data import ChargeDescriptionMaster
@@ -26,8 +27,10 @@ def test___init__():
             CodedItem(code="code2", label="label2", uuid="uuid2"),
         ],
     }
-    tested = LimitedCache("patientUuid", staged_commands_to_coded_items)
+    tested = LimitedCache("patientUuid", "providerUuid", staged_commands_to_coded_items)
     assert tested.patient_uuid == "patientUuid"
+    assert tested.provider_uuid == "providerUuid"
+    assert tested._settings == {}
     assert tested._allergies is None
     assert tested._condition_history is None
     assert tested._conditions is None
@@ -61,7 +64,7 @@ def test_charge_descriptions(charge_description_db):
         # too many records
         charge_description_db.count.side_effect = [100]
         charge_description_db.all.return_value.order_by.side_effect = []
-        tested = LimitedCache("patientUuid", {})
+        tested = LimitedCache("patientUuid", "providerUuid", {})
         result = tested.charge_descriptions()
         assert result == []
         calls = [
@@ -78,7 +81,7 @@ def test_charge_descriptions(charge_description_db):
         # not too many records
         charge_description_db.count.side_effect = [99]
         charge_description_db.all.return_value.order_by.side_effect = [charge_descriptions]
-        tested = LimitedCache("patientUuid", {})
+        tested = LimitedCache("patientUuid", "providerUuid", {})
         result = tested.charge_descriptions()
         expected = [
             ChargeDescription(full_name='theFullNameD', short_name='theShortNameA', cpt_code='code754'),
@@ -128,7 +131,7 @@ def test_retrieve_conditions(condition_db, codings_db):
             Condition(id=uuid5(NAMESPACE_DNS, "6"), clinical_status="active"),
         ],
     ]
-    tested = LimitedCache("patientUuid", {})
+    tested = LimitedCache("patientUuid", "providerUuid", {})
     tested.retrieve_conditions()
 
     result = tested._conditions
@@ -179,7 +182,7 @@ def test_staged_commands_of():
         "keyY": [],
         "keyZ": [coded_items[1], coded_items[2]],
     }
-    tested = LimitedCache("patientUuid", staged_commands_to_coded_items)
+    tested = LimitedCache("patientUuid", "providerUuid", staged_commands_to_coded_items)
 
     tests = [
         (["keyX"], coded_items[:1]),
@@ -205,7 +208,7 @@ def test_staged_commands_as_instructions():
         "keyY": [],
         "keyZ": [coded_items[1], coded_items[2]],
     }
-    tested = LimitedCache("patientUuid", staged_commands_to_coded_items)
+    tested = LimitedCache("patientUuid", "providerUuid", staged_commands_to_coded_items)
 
     schema_key2instruction = {
         "keyX": "Instruction1",
@@ -232,7 +235,7 @@ def test_current_goals(command_db):
         Command(id=uuid5(NAMESPACE_DNS, "2"), dbid=259, data={"goal_statement": "statement2"}),
         Command(id=uuid5(NAMESPACE_DNS, "3"), dbid=267, data={"goal_statement": "statement3"}),
     ]]
-    tested = LimitedCache("patientUuid", {})
+    tested = LimitedCache("patientUuid", "providerUuid", {})
     expected = [
         CodedItem(uuid="b04965e6-a9bb-591f-8f8a-1adcb2c8dc39", code="258", label="statement1"),
         CodedItem(uuid="4b166dbe-d99d-5091-abdd-95b83330ed3a", code="259", label="statement2"),
@@ -261,7 +264,7 @@ def test_current_conditions(retrieve_conditions):
     def reset_mocks():
         retrieve_conditions.reset_mock()
 
-    tested = LimitedCache("patientUuid", {})
+    tested = LimitedCache("patientUuid", "providerUuid", {})
     assert tested._conditions is None
     result = tested.current_conditions()
     assert result == []
@@ -305,7 +308,7 @@ def test_current_medications(medication_db, codings_db):
             Medication(id=uuid5(NAMESPACE_DNS, "3")),
         ],
     ]
-    tested = LimitedCache("patientUuid", {})
+    tested = LimitedCache("patientUuid", "providerUuid", {})
     expected = [
         CodedItem(uuid="b04965e6-a9bb-591f-8f8a-1adcb2c8dc39", label="display1a", code="CODE123"),
         CodedItem(uuid="4b166dbe-d99d-5091-abdd-95b83330ed3a", label="display2a", code="CODE45"),
@@ -361,7 +364,7 @@ def test_current_allergies(allergy_db, codings_db):
             AllergyIntolerance(id=uuid5(NAMESPACE_DNS, "3")),
         ],
     ]
-    tested = LimitedCache("patientUuid", {})
+    tested = LimitedCache("patientUuid", "providerUuid", {})
     expected = [
         CodedItem(uuid="b04965e6-a9bb-591f-8f8a-1adcb2c8dc39", label="display1a", code="CODE123"),
         CodedItem(uuid="4b166dbe-d99d-5091-abdd-95b83330ed3a", label="display2a", code="CODE45"),
@@ -390,7 +393,7 @@ def test_current_allergies(allergy_db, codings_db):
 
 
 def test_family_history():
-    tested = LimitedCache("patientUuid", {})
+    tested = LimitedCache("patientUuid", "providerUuid", {})
     result = tested.family_history()
     assert result == []
     assert tested._family_history == []
@@ -405,7 +408,7 @@ def test_condition_history(retrieve_conditions):
     def reset_mocks():
         retrieve_conditions.reset_mock()
 
-    tested = LimitedCache("patientUuid", {})
+    tested = LimitedCache("patientUuid", "providerUuid", {})
     assert tested._condition_history is None
     result = tested.condition_history()
     assert result == []
@@ -426,7 +429,7 @@ def test_surgery_history(retrieve_conditions):
     def reset_mocks():
         retrieve_conditions.reset_mock()
 
-    tested = LimitedCache("patientUuid", {})
+    tested = LimitedCache("patientUuid", "providerUuid", {})
     assert tested._surgery_history is None
     result = tested.surgery_history()
     assert result == []
@@ -454,7 +457,7 @@ def test_existing_note_types(note_type_db):
             NoteType(id=uuid5(NAMESPACE_DNS, "3"), name="noteType3", code="code3"),
         ],
     ]
-    tested = LimitedCache("patientUuid", {})
+    tested = LimitedCache("patientUuid", "providerUuid", {})
     expected = [
         CodedItem(uuid="b04965e6-a9bb-591f-8f8a-1adcb2c8dc39", label="noteType1", code="code1"),
         CodedItem(uuid="4b166dbe-d99d-5091-abdd-95b83330ed3a", label="noteType2", code="code2"),
@@ -489,7 +492,7 @@ def test_existing_reason_for_visits(rfv_coding_db):
             ReasonForVisitSettingCoding(id=uuid5(NAMESPACE_DNS, "3"), display="display3", code="code3"),
         ],
     ]
-    tested = LimitedCache("patientUuid", {})
+    tested = LimitedCache("patientUuid", "providerUuid", {})
     expected = [
         CodedItem(uuid="b04965e6-a9bb-591f-8f8a-1adcb2c8dc39", label="display1", code="code1"),
         CodedItem(uuid="4b166dbe-d99d-5091-abdd-95b83330ed3a", label="display2", code="code2"),
@@ -590,7 +593,7 @@ def test_demographic__str__(patient_db, observation_db, mock_date):
         observation_db.for_patient.return_value.filter.return_value.order_by.return_value.first.side_effect = [
             Observation(units="oz", value="1990"),
         ]
-        tested = LimitedCache("patientUuid", {})
+        tested = LimitedCache("patientUuid", "providerUuid", {})
 
         result = tested.demographic__str__(obfuscate)
         assert result == expected, f" ---> {sex_at_birth} - {birth_date}"
@@ -623,7 +626,7 @@ def test_demographic__str__(patient_db, observation_db, mock_date):
     observation_db.for_patient.return_value.filter.return_value.order_by.return_value.first.side_effect = [
         None
     ]
-    tested = LimitedCache("patientUuid", {})
+    tested = LimitedCache("patientUuid", "providerUuid", {})
     result = tested.demographic__str__(False)
     expected = "the patient is a woman, born on February 07, 2000 (age 24)"
     assert result == expected
@@ -648,7 +651,7 @@ def test_demographic__str__(patient_db, observation_db, mock_date):
     observation_db.for_patient.return_value.filter.return_value.order_by.return_value.first.side_effect = [
         Observation(units="any", value="125"),
     ]
-    tested = LimitedCache("patientUuid", {})
+    tested = LimitedCache("patientUuid", "providerUuid", {})
     result = tested.demographic__str__(False)
     expected = "the patient is a woman, born on February 07, 2000 (age 24) and weight 125.00 pounds"
     assert result == expected
@@ -667,6 +670,132 @@ def test_demographic__str__(patient_db, observation_db, mock_date):
     reset_mocks()
 
 
+@patch.object(PracticeLocation, 'settings')
+@patch.object(PracticeLocation, 'objects')
+@patch.object(Staff, 'objects')
+def test_practice_setting(staff_db, practice_location_db, practice_settings_db):
+    def reset_mocks():
+        staff_db.reset_mock()
+        practice_location_db.reset_mock()
+        practice_settings_db.reset_mock()
+
+    tested = LimitedCache("patientUuid", "providerUuid", {})
+
+    # all good
+    # -- provider has no primary practice
+    tested._settings = {}
+    for idx in range(3):
+        staff_db.get.side_effect = [Staff(primary_practice_location=None)]
+        practice_location_db.order_by.return_value.first.side_effect = [PracticeLocation(full_name="theLocation")]
+        practice_settings_db.filter.return_value.order_by.return_value.first.side_effect = [PracticeLocationSetting(value="theValue")]
+
+        result = tested.practice_setting("theSetting")
+        expected = "theValue"
+        assert result == expected
+
+        if idx > 0:
+            assert staff_db.mock_calls == []
+            assert practice_location_db.mock_calls == []
+            assert practice_settings_db.mock_calls == []
+        else:
+            calls = [call.get(id='providerUuid')]
+            assert staff_db.mock_calls == calls
+            calls = [
+                call.order_by('dbid'),
+                call.order_by().first(),
+            ]
+            assert practice_location_db.mock_calls == calls
+            calls = [
+                call.filter(name='theSetting'),
+                call.filter().order_by('dbid'),
+                call.filter().order_by().first(),
+            ]
+            assert practice_settings_db.mock_calls == calls
+        reset_mocks()
+    # -- provider has one primary practice
+    tested._settings = {}
+    for idx in range(3):
+        staff_db.get.side_effect = [Staff(primary_practice_location=PracticeLocation(full_name="theLocation"))]
+        practice_location_db.order_by.return_value.first.side_effect = []
+        practice_settings_db.filter.return_value.order_by.return_value.first.side_effect = [PracticeLocationSetting(value="theValue")]
+
+        result = tested.practice_setting("theSetting")
+        expected = "theValue"
+        assert result == expected
+
+        if idx > 0:
+            assert staff_db.mock_calls == []
+            assert practice_location_db.mock_calls == []
+            assert practice_settings_db.mock_calls == []
+        else:
+            calls = [call.get(id='providerUuid')]
+            assert staff_db.mock_calls == calls
+            assert practice_location_db.mock_calls == []
+            calls = [
+                call.filter(name='theSetting'),
+                call.filter().order_by('dbid'),
+                call.filter().order_by().first(),
+            ]
+            assert practice_settings_db.mock_calls == calls
+        reset_mocks()
+
+    # no setting found
+    tested._settings = {}
+    for idx in range(3):
+        staff_db.get.side_effect = [Staff(primary_practice_location=None)]
+        practice_location_db.order_by.return_value.first.side_effect = [PracticeLocation(full_name="theLocation")]
+        practice_settings_db.filter.return_value.order_by.return_value.first.side_effect = [None]
+
+        result = tested.practice_setting("theSetting")
+        assert result is None
+
+        if idx > 0:
+            assert staff_db.mock_calls == []
+            assert practice_location_db.mock_calls == []
+            assert practice_settings_db.mock_calls == []
+        else:
+            calls = [call.get(id='providerUuid')]
+            assert staff_db.mock_calls == calls
+            calls = [
+                call.order_by('dbid'),
+                call.order_by().first(),
+            ]
+            assert practice_location_db.mock_calls == calls
+            calls = [
+                call.filter(name='theSetting'),
+                call.filter().order_by('dbid'),
+                call.filter().order_by().first(),
+            ]
+            assert practice_settings_db.mock_calls == calls
+        reset_mocks()
+
+    # no practice found
+    tested._settings = {}
+    for idx in range(3):
+        staff_db.get.side_effect = [Staff(primary_practice_location=None)]
+        practice_location_db.order_by.return_value.first.side_effect = [None]
+        practice_settings_db.filter.return_value.order_by.return_value.first.side_effect = []
+
+        result = tested.practice_setting("theSetting")
+        assert result is None
+
+        if idx > 0:
+            assert staff_db.mock_calls == []
+            assert practice_location_db.mock_calls == []
+            assert practice_settings_db.mock_calls == []
+        else:
+            calls = [call.get(id='providerUuid')]
+            assert staff_db.mock_calls == calls
+            calls = [
+                call.order_by('dbid'),
+                call.order_by().first(),
+            ]
+            assert practice_location_db.mock_calls == calls
+            assert practice_settings_db.mock_calls == []
+        reset_mocks()
+
+
+@patch.object(LimitedCache, 'practice_setting')
 @patch.object(LimitedCache, 'surgery_history')
 @patch.object(LimitedCache, 'family_history')
 @patch.object(LimitedCache, 'existing_reason_for_visits')
@@ -690,6 +819,7 @@ def test_to_json(
         existing_reason_for_visits,
         family_history,
         surgery_history,
+        practice_setting,
 ):
     def reset_mocks():
         demographic.reset_mock()
@@ -703,9 +833,11 @@ def test_to_json(
         existing_reason_for_visits.reset_mock()
         family_history.reset_mock()
         surgery_history.reset_mock()
+        practice_setting.reset_mock()
 
     tested = LimitedCache(
         "patientUuid",
+        "providerUuid",
         {
             "keyX": [CodedItem(code="code1", label="label1", uuid="uuid1")],
             "keyY": [],
@@ -758,6 +890,7 @@ def test_to_json(
             CodedItem(uuid="uuid011", label="label011", code="code011"),
             CodedItem(uuid="uuid111", label="label111", code="code111"),
         ]]
+        practice_setting.side_effect = ["thePreferredLabPartner", "theServiceAreaZipCodes"]
 
         result = tested.to_json(obfuscate)
         expected = {
@@ -812,6 +945,10 @@ def test_to_json(
                 {'full_name': 'fullName1', 'short_name': 'shortName1', 'cpt_code': 'code1'},
                 {'full_name': 'fullName2', 'short_name': 'shortName2', 'cpt_code': 'code2'},
             ],
+            "settings": {
+                "preferredLabPartner": "thePreferredLabPartner",
+                "serviceAreaZipCodes": "theServiceAreaZipCodes",
+            },
         }
 
         assert result == expected
@@ -885,6 +1022,10 @@ def test_load_from_json():
             {'full_name': 'fullName1', 'short_name': 'shortName1', 'cpt_code': 'code1'},
             {'full_name': 'fullName2', 'short_name': 'shortName2', 'cpt_code': 'code2'},
         ],
+        "settings": {
+            "preferredLabPartner": "thePreferredLabPartner",
+            "serviceAreaZipCodes": "theServiceAreaZipCodes",
+        },
     })
 
     assert result.patient_uuid == "_PatientUuid"
@@ -938,3 +1079,5 @@ def test_load_from_json():
         ChargeDescription(short_name="shortName1", full_name="fullName1", cpt_code="code1"),
         ChargeDescription(short_name="shortName2", full_name="fullName2", cpt_code="code2"),
     ]
+    assert result.practice_setting("preferredLabPartner") == "thePreferredLabPartner"
+    assert result.practice_setting("serviceAreaZipCodes") == "theServiceAreaZipCodes"

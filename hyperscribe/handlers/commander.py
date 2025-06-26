@@ -155,6 +155,7 @@ class Commander(BaseProtocol):
 
         cache = LimitedCache(
             identification.patient_uuid,
+            identification.provider_uuid,
             cls.existing_commands_to_coded_items(current_commands, settings.commands_policy, True),
         )
         chatter = AudioInterpreter(settings, aws_s3, cache, identification)

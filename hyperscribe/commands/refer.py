@@ -40,7 +40,7 @@ class Refer(Base):
         return None
 
     def command_from_json(self, instruction: InstructionWithParameters, chatter: LlmBase) -> InstructionWithCommand | None:
-        zip_codes = self.practice_setting("serviceAreaZipCodes")
+        zip_codes = self.cache.practice_setting("serviceAreaZipCodes")
         information = instruction.parameters["referredServiceProvider"]["specialty"]
         if names := instruction.parameters["referredServiceProvider"]["names"]:
             information = f"{information} {names}"  # <-- the order is important for the search in the Canvas Science service

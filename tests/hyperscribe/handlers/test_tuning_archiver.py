@@ -11,7 +11,7 @@ from canvas_sdk.effects.simple_api import HTMLResponse, JSONResponse
 from canvas_sdk.events import Event
 from canvas_sdk.events.base import TargetType
 from canvas_sdk.handlers.simple_api import SimpleAPIRoute, Credentials
-from canvas_sdk.v1.data import Patient, Command
+from canvas_sdk.v1.data import Patient, Command, Note
 from requests import Response
 
 from hyperscribe.handlers.commander import Commander
@@ -222,11 +222,12 @@ def test_post(aws_s3, post_chart, post_audio):
     reset_mocks()
 
 
+@patch.object(Note, "objects")
 @patch.object(Command, "objects")
 @patch.object(Commander, 'existing_commands_to_coded_items')
 @patch("hyperscribe.handlers.tuning_archiver.LimitedCache")
 @patch("hyperscribe.handlers.tuning_archiver.AwsS3")
-def test_store_chart(aws_s3, limited_cache, existing_commands_to_coded_items, command_db):
+def test_store_chart(aws_s3, limited_cache, existing_commands_to_coded_items, command_db, note_db):
     mock_request = MagicMock()
 
     def reset_mocks():
@@ -234,6 +235,7 @@ def test_store_chart(aws_s3, limited_cache, existing_commands_to_coded_items, co
         limited_cache.reset_mock()
         existing_commands_to_coded_items.reset_mock()
         command_db.reset_mock()
+        note_db.reset_mock()
         mock_request.reset_mock()
 
     tested = ArchiverHelper
@@ -247,6 +249,7 @@ def test_store_chart(aws_s3, limited_cache, existing_commands_to_coded_items, co
     existing_commands_to_coded_items.side_effect = ["existingCommandsToCodedItems"]
     limited_cache.return_value.to_json.side_effect = [{"key": "theLimitedCache"}]
     command_db.filter.return_value.order_by.side_effect = ["QuerySetCommands"]
+    note_db.get.return_value.provider.id = "providerUuid"
     mock_request.query_params = {
         "patient_id": "thePatientId",
         "note_id": "theNoteId",
@@ -274,8 +277,10 @@ def test_store_chart(aws_s3, limited_cache, existing_commands_to_coded_items, co
         call.filter().order_by('dbid'),
     ]
     assert command_db.mock_calls == calls
+    calls = [call.get(id='theNoteId')]
+    assert note_db.mock_calls == calls
     calls = [
-        call("thePatientId", "existingCommandsToCodedItems"),
+        call("thePatientId", "providerUuid", "existingCommandsToCodedItems"),
         call().to_json(True),
     ]
     assert limited_cache.mock_calls == calls

@@ -66,7 +66,7 @@ class LabOrder(Base):
                 conditions.append(item)
                 result.diagnosis_codes.append(item.code)
 
-        preferred_lab = self.practice_setting("preferredLabPartner")
+        preferred_lab = self.cache.practice_setting("preferredLabPartner")
         lab_partner = LabPartner.objects.filter(name=preferred_lab).first()
         if lab_partner is not None:
             result.lab_partner = str(lab_partner.id)

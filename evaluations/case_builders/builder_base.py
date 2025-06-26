@@ -137,6 +137,7 @@ class BuilderBase:
 
         return LimitedCache(
             identification.patient_uuid,
+            identification.provider_uuid,
             Commander.existing_commands_to_coded_items(
                 current_commands,
                 settings.commands_policy,
