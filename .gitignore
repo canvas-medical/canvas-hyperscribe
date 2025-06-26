@@ -7,3 +7,4 @@ cases_runs/
 .venv
 evaluations.db
 local_env.sh
+.DS_Store
