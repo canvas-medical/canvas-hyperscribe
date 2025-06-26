@@ -1,32 +1,27 @@
 [
   {
-    "rationale": "The output does not mention the patient's concern about increased hunger or the clinician's explanation of glipizide's effect on insulin release.",
-    "satisfaction": 0.0,
-    "score": 0.0
+    "rationale": "HPI clearly lists increased hunger, worry about weight gain, lower home glucose readings, and new ankle swelling since losartan; all stated patient concerns are captured accurately.",
+    "satisfaction": 95.0,
+    "score": 28.5
   },
   {
-    "rationale": "The output includes a plan to monitor weight and adjust the diet plan, but does not mention the patient's observation of lower blood sugar readings.",
-    "satisfaction": 50.0,
-    "score": 7.5
+    "rationale": "Assessments connect appetite increase to glipizide and edema to losartan, highlight improved glycemic control and resolved cough; edema not explicitly labeled \"adverse effect,\" but implication present.",
+    "satisfaction": 85.0,
+    "score": 21.25
   },
   {
-    "rationale": "The output notes the cessation of lisinopril due to coughing but does not explicitly document the patient's report of no longer experiencing a cough or the clinician's acknowledgment.",
-    "satisfaction": 50.0,
-    "score": 5.0
+    "rationale": "Plan instructs daily weight monitoring, reporting of persistent swelling/weight gain, and possible therapy adjustment; mentions general monitoring but omits explicit BG checks and detailed return precautions.",
+    "satisfaction": 80.0,
+    "score": 16.0
   },
   {
-    "rationale": "The output includes the patient's report of ankle swelling and the clinician's plan to monitor the symptom and consider dose adjustment.",
-    "satisfaction": 100.0,
-    "score": 20.0
+    "rationale": "Only brief diet reminder provided; no discussion of sulfonylurea-related weight gain mechanisms, weight-neutral options, or ARB edema risk.",
+    "satisfaction": 40.0,
+    "score": 6.0
   },
   {
-    "rationale": "The output does not mention the patient's current medications, glipizide and losartan, in the context of their effects and side effects.",
-    "satisfaction": 100.0,
-    "score": 15.0
-  },
-  {
-    "rationale": "The output includes a follow-up plan to monitor weight and ankle swelling, ensuring ongoing monitoring and adjustment of treatment.",
-    "satisfaction": 0.0,
-    "score": 0.0
+    "rationale": "Note stays focused on issues in transcript with no extraneous ROS or duplicate material, so minimal penalty required.",
+    "satisfaction": 5.0,
+    "score": 0.5
   }
 ]
