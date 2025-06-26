@@ -1,0 +1,27 @@
+[
+  {
+    "rationale": "The documentation does not mention the patient's response to losartan, including the absence of cough.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "The documentation does not include any mention of the patient's inquiry about side effects of losartan and atorvastatin.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "There is no assessment of the patient's reported fatigue, which is a significant omission.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "The documentation does not advise the patient to report new or worsening symptoms, such as muscle pain from atorvastatin.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "There is no documentation of a follow-up plan or instructions for monitoring potential side effects.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  }
+]

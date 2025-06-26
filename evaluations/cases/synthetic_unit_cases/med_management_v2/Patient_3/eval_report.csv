@@ -1,0 +1,6 @@
+Criterion #,Criterion,Max Score,Satisfaction (%),Score Awarded,Rationale
+1,Reward for documenting the patient's report of nausea and its comparison to previous experiences with fluoxetine.,20,95.0,19.0,"The patient's report of nausea and its comparison to previous experiences with fluoxetine is documented, noting it is less intense but still uncomfortable."
+2,Reward for noting the patient's slight improvement in anxiety symptoms since starting sertraline.,15,90.0,13.5,The patient's slight improvement in anxiety symptoms since starting sertraline is noted.
+3,Penalize for omitting the discussion about the potential adjustment of sertraline dosage or timing if nausea persists.,25,0.0,0.0,There is no mention of a discussion about potential adjustment of sertraline dosage or timing if nausea persists.
+4,Reward for including the patient's strategy of taking sertraline with food to mitigate nausea.,10,100.0,10.0,The patient's strategy of taking sertraline with food to mitigate nausea is included.
+5,Penalize for not documenting a follow-up plan to monitor the patient's nausea and anxiety symptoms.,30,0.0,0.0,There is no documentation of a follow-up plan to monitor the patient's nausea and anxiety symptoms.

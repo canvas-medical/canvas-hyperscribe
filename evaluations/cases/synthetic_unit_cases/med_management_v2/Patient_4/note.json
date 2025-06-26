@@ -1,0 +1,27 @@
+[
+  {
+    "instruction": "Set up a more consistent schedule with the patient's daughter to help manage the doses of furosemide.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "coding": {
+          "system": "http://snomed.info/sct",
+          "code": "710218006",
+          "display": "Plan of care education"
+        },
+        "comment": "Set up a more consistent schedule with the patient's daughter to help manage the doses of furosemide."
+      }
+    }
+  },
+  {
+    "instruction": "Patient took an extra dose of furosemide yesterday, felt dizzy afterward. Feeling a bit better today but still not quite right. No changes in weight or swelling observed.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.history_present_illness",
+      "class": "HistoryOfPresentIllnessCommand",
+      "attributes": {
+        "narrative": "Patient took an extra dose of furosemide yesterday, felt dizzy afterward. Feeling a bit better today but still not quite right. No changes in weight or swelling observed."
+      }
+    }
+  }
+]

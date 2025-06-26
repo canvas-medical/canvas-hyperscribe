@@ -35,48 +35,43 @@ class PatientProfileGenerator:
         llm = self._create_llm()
 
         llm.add_prompt(LlmTurn(
-            role='system',
+            role="system",
             text=[
-                "You are a clinical informatics expert designing synthetic patient profiles for medical education on medication management."
+                "You are a clinical informatics expert generating synthetic patient profiles for testing medication management AI systems. You understand the structure and variation in real EHR notes and how medication histories reflect complex clinical decision-making."
             ]
         ))
 
         llm.add_prompt(LlmTurn(
-            role='user',
+            role="user",
             text=[
                 (
-                    f"Generate a JSON object with {count} key-value pairs. "
-                    f"Each key should be \"Patient {1 + (batch_num - 1) * count}\", "
-                    f"\"Patient {2 + (batch_num - 1) * count}\", ..., "
-                    f"\"Patient {batch_num * count}\". "
-                    "Each value should be a realistic narrative (4-6 sentences) describing a distinct patient profile. "
-                    "The narrative should focus only on the patient’s medical history, past diagnoses, current medication list, and relevant family or allergy history. "
-                    "Do not describe any clinic visit, evaluation, current symptoms, or plan. "
-                    "Do not include any recommendations, advice, or care team actions."
+                    f"Create a JSON object with {count} key-value pairs labeled 'Patient {1 + (batch_num - 1) * count}' through 'Patient {batch_num * count}'. "
+                    "Each value should be a free-text, realistic background narrative (3–7 sentences) summarizing the patient's longitudinal medication history."
                 ),
                 (
-                    "Ensure this batch spans diverse medication management scenarios, including: "
-                    "common chronic conditions (e.g., hypertension, hyperlipidemia, diabetes, CKD); "
-                    "polypharmacy/complex cases; special populations (e.g., pediatric, pregnant, frail elderly); "
-                    "risky medication classes (e.g., anticoagulants, opioids, psychotropics); "
-                    "medication transitions/adjustments in the past (e.g., side effect-driven changes, dose adjustments, prior discontinuations). "
-                    "Include at least one patient where prior medical history, medication list, or allergies are undocumented or unclear."
+                    "The narrative **should resemble a subjective section or HPI summary** from a clinician’s perspective — not a templated demographic blurb. "
+                    "Write each one differently, varying structure, voice, and order of information (e.g., lead with medication list, or with allergies, or with family history)."
                 ),
                 (
-                    "Each patient narrative must present background information only — no visit context, no active concerns, no plan or recommendations."
+                    "Include details such as: current and prior medications (with reason for changes or side effects), relevant comorbidities, family history (if relevant), allergies, and any known social factors or documentation gaps that affect medication decisions."
                 ),
                 (
-                    "Prior patients covered these scenarios: "
-                    + "; ".join(self.seen_scenarios) + ". "
-                    "Ensure none of these are repeated or too similar."
-                ) if self.seen_scenarios else "This is the first batch — ensure diverse and unique scenarios.",
+                    "Demographic context (age, gender, life role) should be lightly woven in — e.g., 'a retired mechanic in his 70s', 'a young woman recently diagnosed with diabetes', or implied through phrasing. Avoid template-like openings, but include enough detail to anchor the narrative."
+                ),
                 (
-                    "Output raw JSON only — no Markdown, code formatting, or commentary."
+                    "Cover a **diverse set of realistic scenarios**, including: straightforward new prescriptions with no prior history; simple dose adjustments or clean medication changes (e.g., lisinopril to losartan); chronic single-medication use; and also complex edge cases involving risky medications, polypharmacy, or social barriers."
+                ),
+                (
+                    "Avoid visit summaries, symptom descriptions, or care plans. These are background medication narratives, not SOAP notes or assessments."
+                ),
+                (
+                    f"Previous profiles included scenarios like: {', '.join(self.seen_scenarios)}. Avoid repeating similar patients or medication stories. Use new combinations, conditions, or social factors that introduce variation without always increasing complexity."
+                ) if self.seen_scenarios else "This is the first batch — ensure maximal diversity in profile structure, condition type, and medication reasoning.",
+                (
+                    "Output raw JSON only — no Markdown, no explanation, no formatting."
                 )
             ]
         ))
-
-
 
         response = llm.request()
         #cleans any errors with json formatting (safety net)

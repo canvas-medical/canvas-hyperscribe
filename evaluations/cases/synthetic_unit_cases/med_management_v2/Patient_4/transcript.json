@@ -1,26 +1,26 @@
 [
   {
-    "speaker": "Doctor",
-    "text": "Hi, how have you been feeling lately with your pregnancy and the levothyroxine?"
+    "speaker": "Patient",
+    "text": "I think I might've taken an extra dose of the furosemide yesterday. I was feeling a bit dizzy afterward."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Okay, let's see. That could definitely cause some dizziness, especially with your kidney function. How are you feeling today?"
   },
   {
     "speaker": "Patient",
-    "text": "I've been feeling okay, but I'm a bit worried about whether the dose is right during pregnancy."
+    "text": "A bit better, but still not quite right. My daughter said I should call you if it happened again."
   },
   {
-    "speaker": "Doctor",
-    "text": "That's a good point. Pregnancy can affect thyroid hormone levels. Have you had any recent blood tests to check your TSH levels?"
-  },
-  {
-    "speaker": "Patient",
-    "text": "Yes, I had one last week, but I haven't seen the results yet."
-  },
-  {
-    "speaker": "Doctor",
-    "text": "I'll check those results now. It's important to adjust the levothyroxine dose if needed to maintain optimal thyroid function during pregnancy."
+    "speaker": "Clinician",
+    "text": "That's good advice. We might need to adjust your dose or timing. Have you noticed any changes in your weight or swelling?"
   },
   {
     "speaker": "Patient",
-    "text": "I just want to make sure everything is on track, especially after my previous miscarriage."
+    "text": "No, not really. My weight's been about the same, and I haven't seen much swelling."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Alright, that's helpful to know. Let's keep an eye on it, and maybe we can set up a more consistent schedule with your daughter to help manage the doses."
   }
 ]

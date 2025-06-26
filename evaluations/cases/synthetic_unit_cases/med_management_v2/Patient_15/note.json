@@ -1,0 +1,37 @@
+[
+  {
+    "instruction": "Follow-up for COPD management; patient concerned about potential long-term side effects of prednisone therapy.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.reason_for_visit",
+      "class": "ReasonForVisitCommand",
+      "attributes": {
+        "comment": "COPD management follow-up; concerns about prednisone side effects"
+      }
+    }
+  },
+  {
+    "instruction": "Patient notes marked improvement in breathing while on a short course of prednisone with only a few doses remaining; expresses worry\u2014prompted by spouse\u2014about long-term prednisone effects. Denies difficulty using tiotropium inhaler but experiences occasional mild jitteriness. No additional inhalers used; wife assists with medication administration.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.history_present_illness",
+      "class": "HistoryOfPresentIllnessCommand",
+      "attributes": {
+        "narrative": "Patient notes marked improvement in breathing while on a short course of prednisone with only a few doses remaining, expresses spouse-prompted concern about long-term prednisone effects, denies difficulty using tiotropium inhaler but reports occasional mild jitteriness, uses no additional inhalers and receives assistance with medication administration from wife."
+      }
+    }
+  },
+  {
+    "instruction": "Complete the remaining few days of the current prednisone course, then continue tiotropium inhaler for COPD maintenance; monitor for worsening jitteriness and report if bothersome; avoid starting any additional inhalers unless advised.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "coding": {
+          "system": "http://snomed.info/sct",
+          "code": "4761000124103",
+          "display": "Recommendation to continue a medication"
+        },
+        "comment": "Complete the remaining few days of the current prednisone course, then continue tiotropium inhaler for COPD maintenance; monitor for worsening jitteriness and report if bothersome; avoid starting any additional inhalers unless advised."
+      }
+    }
+  }
+]

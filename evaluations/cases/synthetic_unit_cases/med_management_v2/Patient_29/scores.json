@@ -1,0 +1,27 @@
+[
+  {
+    "rationale": "The note mentions that the patient is monitoring blood pressure at home regularly but sometimes forgets due to a hectic work schedule, which addresses adherence and challenges.",
+    "satisfaction": 90.0,
+    "score": 18.0
+  },
+  {
+    "rationale": "The note explicitly states that there are no muscle aches from atorvastatin, satisfying the criterion.",
+    "satisfaction": 100.0,
+    "score": 15.0
+  },
+  {
+    "rationale": "There is no mention of the patient's concern about whether losartan is sufficient for blood pressure control.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "The note does not include a follow-up plan for monitoring blood pressure or potential side effects.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "The note mentions the patient feels tired, possibly due to work stress, but does not explore potential medication-related causes.",
+    "satisfaction": 50.0,
+    "score": 10.0
+  }
+]

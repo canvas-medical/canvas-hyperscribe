@@ -1,48 +1,38 @@
 {
-  "demographicStr": "the patient is a woman, born on January 1, 1951 (age 72)",
+  "demographicStr": "the patient is a woman, born on January 1, 1961 (age 62)",
   "conditionHistory": [],
-  "currentAllergies": [
-    {
-      "uuid": "allergy1",
-      "label": "Penicillin",
-      "code": "Z88.0"
-    }
-  ],
+  "currentAllergies": [],
   "currentConditions": [
     {
-      "uuid": "cond1",
-      "label": "Chronic obstructive pulmonary disease",
-      "code": "J44.9"
+      "uuid": "d7cd97a5-f083-4091-a9d4-4759842052f1",
+      "label": "Hypothyroidism",
+      "code": "E03.9"
     },
     {
-      "uuid": "cond2",
-      "label": "Hypertension",
-      "code": "I10"
-    },
-    {
-      "uuid": "cond3",
-      "label": "Osteoporosis",
-      "code": "M81.0"
+      "uuid": "3064fe33-dec5-4d56-bf71-d70c6495f610",
+      "label": "Hyperlipidemia",
+      "code": "E78.5"
     }
   ],
   "currentGoals": [],
   "currentMedications": [
     {
-      "uuid": "med1",
-      "label": "Tiotropium",
-      "code": "197361"
+      "uuid": "75af1d97-446f-4bb9-9bca-637c08d5fbd8",
+      "label": "Levothyroxine 88 mcg tablet",
+      "code": "123456"
     },
     {
-      "uuid": "med2",
-      "label": "Lisinopril",
-      "code": "29046"
-    },
-    {
-      "uuid": "med3",
-      "label": "Alendronate",
-      "code": "43575"
+      "uuid": "ecb44d2e-8126-4c28-9b22-9e207d520be5",
+      "label": "Atorvastatin 20 mg tablet",
+      "code": "654321"
     }
   ],
-  "familyHistory": [],
+  "familyHistory": [
+    {
+      "uuid": "35ed5fa5-2ca2-4c3d-b3ea-fef368a8e8df",
+      "label": "Family history of heart attack",
+      "code": "Z82.49"
+    }
+  ],
   "surgeryHistory": []
 }

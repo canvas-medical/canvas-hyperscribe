@@ -1,26 +1,26 @@
 [
   {
-    "speaker": "Doctor",
-    "text": "Hi there! How have you been feeling since we switched to the long-acting methylphenidate?"
+    "speaker": "Clinician",
+    "text": "So, when you mentioned the, uh, stomach issues with sertraline, have you had anything similar with the fluoxetine, or has it been, um, smoother this time around?"
   },
   {
     "speaker": "Patient",
-    "text": "Um, I think it's okay. I can do my school work better now."
+    "text": "No, thankfully, it's been much better. I was really worried about that, but, uh, no problems so far."
   },
   {
-    "speaker": "Doctor",
-    "text": "That's great to hear. Have you noticed any problems, like trouble sleeping or not feeling hungry?"
-  },
-  {
-    "speaker": "Patient",
-    "text": "Sometimes I don't want to eat lunch, but I eat dinner."
-  },
-  {
-    "speaker": "Doctor",
-    "text": "Okay, that's something we can keep an eye on. Are you having any trouble with the medicine wearing off too early in the day?"
+    "speaker": "Clinician",
+    "text": "That's good to hear. And, um, in terms of your mood, have you noticed any changes since we last adjusted the dose?"
   },
   {
     "speaker": "Patient",
-    "text": "No, I think it lasts until I get home from school."
+    "text": "Actually, I think it's been pretty stable. I mean, work's been hectic, but I haven't felt, uh, overwhelmed like before."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Great. And just to confirm, you're still taking it every morning, right? No missed doses?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Yes, every morning. I have a reminder set on my phone, so I don't forget."
   }
 ]

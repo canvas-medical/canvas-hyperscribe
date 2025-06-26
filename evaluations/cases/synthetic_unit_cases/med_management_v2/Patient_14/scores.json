@@ -1,0 +1,32 @@
+[
+  {
+    "rationale": "All four required HPI elements are present: prior stomach upset on sertraline, absence of GI symptoms on fluoxetine, stable mood since dose change, and mention of a hectic work period indicating ongoing work stress. Narrative is concise.",
+    "satisfaction": 97.0,
+    "score": 24.25
+  },
+  {
+    "rationale": "Current medication (fluoxetine) and full adherence are documented, but the 20-mg dose strength and use of a phone reminder are omitted.",
+    "satisfaction": 55.0,
+    "score": 8.25
+  },
+  {
+    "rationale": "Assessment labels MDD as stable, links stability to fluoxetine, and states no change in regimen, fulfilling all requirements.",
+    "satisfaction": 95.0,
+    "score": 19.0
+  },
+  {
+    "rationale": "No suicide or self-harm screening question or result is documented.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "No explicit follow-up interval or monitoring instructions are included.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Note stays within provided information; no unsupported ROS, physical exam, or irrelevant data added. Minor system codes are standard metadata.",
+    "satisfaction": 90.0,
+    "score": 9.0
+  }
+]

@@ -1,0 +1,17 @@
+[
+  {
+    "instruction": "It's best to take metformin with meals to help reduce stomach upset.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "coding": {
+          "system": "http://snomed.info/sct",
+          "code": "223421004",
+          "display": "Recommendation regarding when to take drug"
+        },
+        "comment": "It's best to take metformin with meals to help reduce stomach upset."
+      }
+    }
+  }
+]

@@ -1,0 +1,27 @@
+[
+  {
+    "instruction": "The patient experienced nausea, which was different from the nausea experienced with fluoxetine. It was less intense but still uncomfortable. The patient feels slightly less anxious since starting the medication, despite school stress.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.history_present_illness",
+      "class": "HistoryOfPresentIllnessCommand",
+      "attributes": {
+        "narrative": "The patient experienced nausea, which was different from the nausea experienced with fluoxetine. It was less intense but still uncomfortable. The patient feels slightly less anxious since starting the medication, despite school stress."
+      }
+    }
+  },
+  {
+    "instruction": "The patient is advised to continue taking the medication with food, specifically with breakfast, to help with nausea.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "comment": "The patient is advised to continue taking the medication with food, specifically with breakfast, to help with nausea.",
+        "coding": {
+          "system": "http://snomed.info/sct",
+          "code": "4761000124103",
+          "display": "Recommendation to continue a medication"
+        }
+      }
+    }
+  }
+]

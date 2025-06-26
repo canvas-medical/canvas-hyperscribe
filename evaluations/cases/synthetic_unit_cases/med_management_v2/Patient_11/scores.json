@@ -1,0 +1,27 @@
+[
+  {
+    "rationale": "HPI captures inconsistent amlodipine pickup, patient lives alone, and new-onset fatigue, but omits that the patient already owns a pill organizer and uses it inconsistently.",
+    "satisfaction": 75.0,
+    "score": 15.0
+  },
+  {
+    "rationale": "Lists amlodipine but leaves out the 10 mg dosage; documents negative ankle/foot swelling inquiry and fatigue complaint.",
+    "satisfaction": 60.0,
+    "score": 9.0
+  },
+  {
+    "rationale": "Plan clearly records clinician advice to set phone reminders and use pill organizer consistently, covering the two specified adherence supports.",
+    "satisfaction": 95.0,
+    "score": 23.75
+  },
+  {
+    "rationale": "No documented plan for BP follow-up, edema monitoring, or fatigue work-up, so safety measures are essentially absent.",
+    "satisfaction": 10.0,
+    "score": 2.5
+  },
+  {
+    "rationale": "Includes the key social detail that patient lives alone and adds no irrelevant copy-paste content.",
+    "satisfaction": 90.0,
+    "score": 13.5
+  }
+]

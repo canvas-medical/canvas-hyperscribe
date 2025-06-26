@@ -1,26 +1,26 @@
 [
   {
-    "speaker": "Doctor",
-    "text": "Good morning, Mrs. Thompson. How have you been managing with your current medications?"
+    "speaker": "Clinician",
+    "text": "So, when you mentioned missing a dose of the warfarin last week, did you notice any changes in how you were feeling, or was everything pretty much the same?"
   },
   {
     "speaker": "Patient",
-    "text": "Morning, Doctor. I've been doing okay, but I still have some pain, especially in the evenings."
+    "text": "Uh, I didn't really feel any different, to be honest. My daughter was a bit worried, though, and she made sure I got back on track right away."
   },
   {
-    "speaker": "Doctor",
-    "text": "I see. You're currently on acetaminophen and gabapentin for the pain. Have you noticed any side effects from these?"
-  },
-  {
-    "speaker": "Patient",
-    "text": "Not really from the acetaminophen, but sometimes the gabapentin makes me feel a bit drowsy."
-  },
-  {
-    "speaker": "Doctor",
-    "text": "That's a common side effect. We could consider adjusting the timing of your doses to help with that. Would you be open to taking it earlier in the evening?"
+    "speaker": "Clinician",
+    "text": "That's good to hear. It's important to keep it consistent. Have you thought about using a pill organizer or setting reminders on your phone?"
   },
   {
     "speaker": "Patient",
-    "text": "Yes, I think that might help. I usually take it right before bed, but I can try taking it a bit earlier."
+    "text": "Yeah, she actually got me one of those weekly pill boxes. It's been helpful, but sometimes I just forget to check it."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "I understand. Maybe we can also look into setting up some alerts on your phone. It might be a good backup plan."
+  },
+  {
+    "speaker": "Patient",
+    "text": "That sounds like a good idea. I'll ask my daughter to help me with that. She's better with the tech stuff."
   }
 ]

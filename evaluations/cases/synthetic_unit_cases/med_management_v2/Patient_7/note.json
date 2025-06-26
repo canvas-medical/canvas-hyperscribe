@@ -1,0 +1,12 @@
+[
+  {
+    "instruction": "Patient to continue taking levothyroxine on an empty stomach in the morning and to space it out from atorvastatin.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "comment": "Patient to continue taking levothyroxine on an empty stomach in the morning and to space it out from atorvastatin."
+      }
+    }
+  }
+]

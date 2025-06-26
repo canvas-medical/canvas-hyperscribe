@@ -1,26 +1,26 @@
 [
   {
-    "speaker": "Doctor",
-    "text": "Good morning, Mr. Smith. How have you been feeling since we added atorvastatin to your regimen?"
+    "speaker": "Patient",
+    "text": "I mean, I know it's important, but I'm just worried about, uh, the long-term effects of taking atorvastatin. My dad had a heart attack, so I get why it's necessary, but still..."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "I understand your concern. Atorvastatin is generally well-tolerated, but it's good to be aware. Have you noticed any muscle aches or, um, unusual fatigue since you started?"
   },
   {
     "speaker": "Patient",
-    "text": "Morning, Doctor. I've been feeling okay, but I've noticed some muscle aches lately. Could it be the new medication?"
+    "text": "Not really, but I did feel a bit more tired than usual after cycling last week. Could that be related?"
   },
   {
-    "speaker": "Doctor",
-    "text": "Muscle aches can be a side effect of atorvastatin. How severe are the aches, and do they affect your daily activities?"
-  },
-  {
-    "speaker": "Patient",
-    "text": "They're not too severe, but they are noticeable, especially when I'm walking for a while."
-  },
-  {
-    "speaker": "Doctor",
-    "text": "I see. We could try reducing the dose to see if that helps with the aches. Would you be comfortable with that approach?"
+    "speaker": "Clinician",
+    "text": "It's possible, though it could also be just a coincidence. Let's keep an eye on it. If it persists, we might consider checking your liver enzymes or adjusting the dose."
   },
   {
     "speaker": "Patient",
-    "text": "Yes, I think that would be a good idea. I want to manage my cholesterol, but not at the cost of being in pain."
+    "text": "Okay, that makes sense. Should I be doing anything else, like, uh, changing my diet more?"
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Diet can definitely help. Reducing saturated fats and increasing fiber can complement the medication. Have you made any changes since we last talked?"
   }
 ]

@@ -1,26 +1,26 @@
 [
   {
-    "speaker": "Doctor",
-    "text": "Hi there! How have you been managing with your insulin pump lately?"
+    "speaker": "Patient",
+    "text": "So, uh, with the losartan, I sometimes forget to take it when I'm on the road. It's just, you know, the schedule's all over the place."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "I understand. It can be tough with your job. Have you thought about setting reminders on your phone or maybe using a pill organizer?"
   },
   {
     "speaker": "Patient",
-    "text": "It's been okay, but I've noticed my blood sugar levels are a bit higher after soccer practice."
+    "text": "Yeah, I tried the phone reminders, but sometimes I'm driving and can't really stop to take it right then."
   },
   {
-    "speaker": "Doctor",
-    "text": "That can happen with increased activity. Have you tried adjusting your basal rate before practice?"
-  },
-  {
-    "speaker": "Patient",
-    "text": "I haven't yet. I'm not sure how much to adjust it by."
-  },
-  {
-    "speaker": "Doctor",
-    "text": "We can work on that together. Let's look at your recent glucose readings and see if a temporary basal rate increase might help."
+    "speaker": "Clinician",
+    "text": "That makes sense. Maybe we could look into a medication that fits better with your routine. Or, if it's easier, taking it at a consistent time when you're not driving, like before bed?"
   },
   {
     "speaker": "Patient",
-    "text": "That sounds good. I want to make sure I'm doing it right."
+    "text": "I could try before bed. But, uh, would that affect my sleep or anything?"
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Generally, losartan shouldn't affect your sleep. But if you notice anything unusual, we can adjust. It's important to keep your blood pressure stable."
   }
 ]

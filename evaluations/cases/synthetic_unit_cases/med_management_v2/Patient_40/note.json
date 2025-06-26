@@ -1,0 +1,44 @@
+[
+  {
+    "instruction": "Blood pressure: 120/80",
+    "command": {
+      "module": "canvas_sdk.commands.commands.vitals",
+      "class": "VitalsCommand",
+      "attributes": {
+        "blood_pressure_systole": 120,
+        "respiration_rate": null,
+        "height": null,
+        "weight_lbs": null,
+        "waist_circumference": null,
+        "body_temperature": null,
+        "blood_pressure_diastole": 80,
+        "pulse": null
+      }
+    }
+  },
+  {
+    "instruction": "Keep up with current routine and watch salt intake.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "coding": {
+          "system": "http://snomed.info/sct",
+          "code": "306805000",
+          "display": "Advice to continue with treatment"
+        },
+        "comment": "Keep up with current routine and watch salt intake."
+      }
+    }
+  },
+  {
+    "instruction": "Patient reports no stomach pain with celecoxib unlike with ibuprofen. Blood pressure has been stable at home, usually around 120/80. Patient tries to stay active but finds it tough due to arthritis, engages in light walking and stretching.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.history_present_illness",
+      "class": "HistoryOfPresentIllnessCommand",
+      "attributes": {
+        "narrative": "Patient reports no stomach pain with celecoxib unlike with ibuprofen. Blood pressure has been stable at home, usually around 120/80. Patient tries to stay active but finds it tough due to arthritis, engages in light walking and stretching."
+      }
+    }
+  }
+]

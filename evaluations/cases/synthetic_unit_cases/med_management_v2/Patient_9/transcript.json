@@ -1,26 +1,30 @@
 [
   {
-    "speaker": "Doctor",
-    "text": "Hi, how have you been feeling on your current medications, especially the lithium and gabapentin?"
+    "speaker": "Clinician",
+    "text": "And, uh, about the sertraline, have you noticed any changes in your mood or, um, any side effects since you started?"
   },
   {
     "speaker": "Patient",
-    "text": "I've been okay, but I sometimes feel a bit shaky. I'm not sure if it's the lithium or something else."
+    "text": "Well, I think my mood's been a bit better, but I'm not sure if it's the medication or just, you know, things settling down a bit at home. I did feel a bit nauseous the first few days, though."
   },
   {
-    "speaker": "Doctor",
-    "text": "Shakiness can be a side effect of lithium. When was your last lithium level check?"
-  },
-  {
-    "speaker": "Patient",
-    "text": "I think it was about a month ago. They said it was within the normal range."
-  },
-  {
-    "speaker": "Doctor",
-    "text": "Alright, we should probably check it again soon to make sure it's still stable. How's the gabapentin working for your back pain?"
+    "speaker": "Clinician",
+    "text": "That's not uncommon when starting sertraline. The nausea usually subsides after a week or two. Are you taking it with food?"
   },
   {
     "speaker": "Patient",
-    "text": "It helps a bit, but the pain is still there. I was wondering if we could adjust the dose or try something else."
+    "text": "Uh, sometimes. I try to, but mornings can be hectic with the kids. I just grab it when I remember."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "I understand. It might help to set a reminder on your phone, just to keep it consistent. And, um, about the cost, have you been able to fill the prescription without any issues?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "It's been a bit tight, honestly. I had to skip a refill last month because of some unexpected expenses."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Okay, let's see if we can find a way to make it more affordable. There might be some assistance programs we can look into."
   }
 ]

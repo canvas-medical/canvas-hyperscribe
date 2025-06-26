@@ -1,34 +1,26 @@
 [
   {
-    "speaker": "Doctor",
-    "text": "Good morning, how have you been managing with your medications lately?"
+    "speaker": "Clinician",
+    "text": "So, with the increase to 88 mcg of levothyroxine, have you noticed any changes in how you're feeling? Any, uh, new symptoms or anything like that?"
   },
   {
     "speaker": "Patient",
-    "text": "Morning, Doctor. I've been okay, but I feel a bit dizzy sometimes, especially when I stand up quickly."
+    "text": "Not really, I mean, I feel pretty much the same. Maybe a bit more energetic, but it's hard to tell if that's just because I've been more active lately."
   },
   {
-    "speaker": "Doctor",
-    "text": "I see. That could be related to your blood pressure medication, lisinopril. Have you noticed if the dizziness happens at a specific time after taking it?"
-  },
-  {
-    "speaker": "Patient",
-    "text": "It usually happens in the morning, about an hour after I take my pills."
-  },
-  {
-    "speaker": "Doctor",
-    "text": "We might need to adjust the timing or the dose of lisinopril. Have you been taking it with food or on an empty stomach?"
+    "speaker": "Clinician",
+    "text": "That's good to hear. Sometimes it can take a little while for the body to adjust. Just keep an eye out for any unusual symptoms, like palpitations or, um, increased sweating."
   },
   {
     "speaker": "Patient",
-    "text": "I usually take it with breakfast. Should I change that?"
+    "text": "Okay, I'll watch for those. I usually take it first thing in the morning, like you suggested. Is that still the best time?"
   },
   {
-    "speaker": "Doctor",
-    "text": "Let's try taking it in the evening instead and see if that helps with the dizziness. We'll monitor your blood pressure closely to ensure it's still well-controlled."
+    "speaker": "Clinician",
+    "text": "Yes, taking it on an empty stomach in the morning is ideal. It helps with absorption. And, uh, just to confirm, you're still spacing it out from your atorvastatin, right?"
   },
   {
     "speaker": "Patient",
-    "text": "Alright, I'll give that a try. Anything else I should watch out for?"
+    "text": "Yes, I take the atorvastatin at night. I remember you mentioned that before, so I've been sticking to it."
   }
 ]

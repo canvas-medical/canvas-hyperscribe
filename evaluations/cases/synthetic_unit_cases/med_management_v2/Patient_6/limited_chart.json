@@ -1,37 +1,27 @@
 {
-  "demographicStr": "the patient is a man, born on January 1, 1968 (age 55)",
+  "demographicStr": "the patient is a man, age 29",
   "conditionHistory": [],
   "currentAllergies": [],
   "currentConditions": [
     {
-      "uuid": "cond1",
-      "label": "Hyperlipidemia",
-      "code": "E78.5"
-    },
-    {
-      "uuid": "cond2",
-      "label": "Gout",
-      "code": "M10.9"
+      "uuid": "a5a3e91a-bdfd-4735-9ba0-4a2b2e80842e",
+      "label": "Crohn's disease",
+      "code": "K50.90"
     }
   ],
   "currentGoals": [],
   "currentMedications": [
     {
-      "uuid": "med1",
-      "label": "Atorvastatin 20 mg tablet",
-      "code": "C10AA05"
-    },
-    {
-      "uuid": "med2",
-      "label": "Allopurinol 300 mg tablet",
-      "code": "M04AA01"
+      "uuid": "803febe8-95fb-45be-ba12-3e57f948a31f",
+      "label": "Mesalamine 2.4 g daily",
+      "code": "A07EC02"
     }
   ],
   "familyHistory": [
     {
-      "uuid": "fh1",
-      "label": "Family history of myocardial infarction",
-      "code": "Z82.49"
+      "uuid": "99873cd4-8723-4da7-993a-960778f088d6",
+      "label": "Family history of autoimmune conditions",
+      "code": "Z83.79"
     }
   ],
   "surgeryHistory": []
