@@ -1,0 +1,47 @@
+[
+  {
+    "criterion": "Reward for accurately documenting the patient\u2019s report of taking losartan for about one month with good tolerance and no cough.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for faithfully capturing the discussion of home blood-pressure readings being mostly within the target range with a single stress-related elevation.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for accurately noting the absence of atorvastatin side-effects and the patient\u2019s nighttime dosing schedule as stated.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for including the clinician\u2019s advice to secure adequate medication supplies when traveling to avoid refill issues.",
+    "weight": 5,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for incorporating only relevant chart details (age, sex, active diagnoses, current medications) that contextualize the visit without importing unrelated chart data.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for omission of any substantive question, answer, instruction, or contextual detail present in the transcript, reflecting overall incompleteness.",
+    "weight": 30,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for adding information, assessments, plans, or data not explicitly stated in the transcript or supported by the chart (fabrication).",
+    "weight": 25,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for inaccurate transcription of specific details\u2014medication names, doses, durations, timelines\u2014or misattribution of statements between clinician and patient.",
+    "weight": 20,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for copying extraneous or outdated chart elements (e.g., unrelated past conditions, family history not referenced) or for miscopying chart details such as medication dose or condition codes.",
+    "weight": 15,
+    "sense": "negative"
+  }
+]

@@ -1,0 +1,42 @@
+[
+  {
+    "criterion": "Reward for accurately capturing the patient's main concern that rheumatoid arthritis pain has intensified and fear that hydroxychloroquine may be insufficient",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for faithfully documenting the clinician's stated management plan: give hydroxychloroquine more time, monitor pain closely, and consider dose adjustment or alternative options if pain persists",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for including the medication-adherence detail that the patient takes folic acid daily, influenced by a support group, exactly as expressed",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for correctly listing current medications and pertinent allergy drawn from the chart when\u2014and only when\u2014relevant to the conversation, with accurate names and dosages",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for overall completeness: the note contains all clinically relevant statements and contextual details explicitly or implicitly present in the entire transcript, with none omitted",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for introducing information not present in either the transcript or chart (e.g., new symptoms, diagnoses, labs, physical-exam findings, or altered medication doses)",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for inaccuracies or distortions of stated facts (e.g., wrong medication names/dosages, misquoting plan, misattributing statements, incorrect frequency of folic acid)",
+    "weight": 10,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for copying chart data that was not referenced or relevant to the encounter (e.g., family history or conditions not discussed), or for omitting/altering chart data that was discussed",
+    "weight": 5,
+    "sense": "negative"
+  }
+]

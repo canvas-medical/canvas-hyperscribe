@@ -1,0 +1,37 @@
+[
+  {
+    "criterion": "Reward for complete and accurate capture of all patient-reported information about sertraline, including mood improvement uncertainty, transient nausea, inconsistent dosing with/without food, and skipped refill due to cost, exactly as conveyed in the transcript.",
+    "weight": 25,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for precise documentation of every clinician statement, assessment, and plan element\u2014normalizing early nausea, advice to take sertraline with food, suggestion to set phone reminders, and plan to explore affordability assistance\u2014without embellishment or omission.",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for incorporating only chart details directly relevant to the encounter (active sertraline 50 mg prescription, diagnoses of major depressive disorder and/or anxiety, basic demographics) while excluding unrelated chart information.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for omission of any major patient-reported or clinician-stated element from the transcript, resulting in an incomplete representation of the encounter.",
+    "weight": 25,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for introducing information not present or implied in the transcript or pertinent chart (e.g., new diagnoses, lab orders, medication changes, follow-up intervals, additional symptoms).",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for factual inaccuracies or misattribution of details\u2014wrong medication name or dosage, incorrect side-effect timeline, erroneous demographic data, or swapping speaker attribution.",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for indiscriminate or incorrect copying of chart data, such as including irrelevant family history, allergies, past surgeries, or misstating current medication details.",
+    "weight": 5,
+    "sense": "negative"
+  }
+]

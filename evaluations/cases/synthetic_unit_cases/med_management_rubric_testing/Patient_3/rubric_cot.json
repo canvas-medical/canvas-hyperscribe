@@ -1,0 +1,52 @@
+[
+  {
+    "criterion": "Reward for documenting the patient's report of ongoing nausea associated with current sertraline use, explicitly tying it to the discussion of side-effects.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing the comparison that the current nausea is less intense than nausea previously experienced with fluoxetine.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for recording the patient's statement of slight improvement in anxiety symptoms despite school stress.",
+    "weight": 12,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for noting the clinician's counseling that side-effects often subside after a few weeks and the intent to keep monitoring.",
+    "weight": 12,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting that the patient takes sertraline with breakfast/food.",
+    "weight": 8,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for including the plan to consider dose or timing adjustment\u2014or other options\u2014if nausea persists.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for accurately listing relevant chart information: current diagnosis of generalized anxiety disorder and current medication sertraline 50 mg daily, without adding unrelated chart data.",
+    "weight": 8,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for overall completeness: the note should capture all major history, assessment, and plan elements present in the transcript without significant omissions.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for introducing clinical details, diagnoses, tests, physical exam findings, or medications that are not mentioned or implied in the transcript or relevant chart context.",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for inaccurate or excessive copying from the chart (e.g., wrong dosage, adding unrelated historical items, or copying entire chart sections that were not discussed).",
+    "weight": 10,
+    "sense": "negative"
+  }
+]

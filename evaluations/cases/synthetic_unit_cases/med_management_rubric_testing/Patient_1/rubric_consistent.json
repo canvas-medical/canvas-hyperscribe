@@ -1,0 +1,42 @@
+[
+  {
+    "criterion": "Reward for comprehensive inclusion of all clinically relevant content explicitly or implicitly stated in the transcript\u2014including medication names and doses, patient reports of tolerance, home blood-pressure trends, and every clinician instruction\u2014without substantive omission.",
+    "weight": 30,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for precise documentation of current medications and their details exactly as stated or reflected in the chart (Losartan 50 mg, duration ~1 month, no cough; Atorvastatin 10 mg, taken at night, no myalgias), preserving correct spelling, strengths, schedules, and context.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for accurately capturing clinician counseling (continue home BP monitoring, report consistent changes, ensure adequate medication supply when traveling) in wording that preserves meaning and intent.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for selectively importing only chart elements directly relevant to the encounter (e.g., patient age/sex, diagnoses of hypertension and hyperlipidemia) while excluding unrelated chart data.",
+    "weight": 5,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for any omission, alteration, or distortion of key information from the transcript\u2014such as medication details, side-effect reports, blood-pressure readings, or clinician instructions.",
+    "weight": 25,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for introducing fabricated or speculative content (new symptoms, exams, assessments, plans, or data) that lacks explicit or implicit support from either the transcript or the chart.",
+    "weight": 20,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for indiscriminate or inaccurate copying from the chart, including insertion of unrelated conditions, family history, allergies, or incorrect medication details that were not mentioned during the encounter.",
+    "weight": 10,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for factual inaccuracies in the documented content\u2014such as wrong medication names, doses, timing, duration, or misattribution of statements to the wrong speaker.",
+    "weight": 15,
+    "sense": "negative"
+  }
+]

@@ -1,0 +1,12 @@
+[
+  {
+    "speaker": "Clinician",
+    "text": "Sounds like a classic sinus infection. I\u2019m going to prescribe penicillin for 10 days. That should clear things up.",
+    "label": "antibiotic prescription plan"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Alright, sounds good. I\u2019ll start it tonight.",
+    "label": "accepting prescription"
+  }
+]

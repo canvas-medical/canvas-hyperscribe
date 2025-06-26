@@ -1,0 +1,37 @@
+[
+  {
+    "criterion": "Reward for accurately recording the patient's expressed concerns: increasing pain intensity, worry that hydroxychloroquine may be insufficient, mixed but uncertain response, and urgency about not waiting too long",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for faithfully documenting the clinician's statements about giving hydroxychloroquine more time, potential dose adjustment or alternative therapies if pain persists, and commitment to close monitoring",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing the clinician's question about folic acid adherence and the patient's confirmation of daily use and support-group influence",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for including only relevant chart-based context that was implicitly referenced (current RA diagnosis, current medications, sulfa allergy) without importing unrelated chart data",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for overall omissions of any significant dialogue elements or contextual facts from the transcript (patient concerns, plan discussion, adherence details, relevant meds/allergy) resulting in an incomplete note",
+    "weight": 35,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for fabrications or additions not grounded in the transcript or chart (e.g., new symptoms, exam findings, diagnostic reasoning, lab orders, or recommendations that were never mentioned)",
+    "weight": 30,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for inaccurate or indiscriminate copying from the chart, such as incorrect medication names/doses, inclusion of unrelated historical data, or failure to reflect chart details correctly when cited",
+    "weight": 25,
+    "sense": "negative"
+  }
+]

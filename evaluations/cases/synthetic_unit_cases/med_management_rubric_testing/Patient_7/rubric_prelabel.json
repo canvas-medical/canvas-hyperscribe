@@ -1,0 +1,42 @@
+[
+  {
+    "criterion": "Reward for accurately documenting the levothyroxine regimen exactly as stated (dose increased to 88 mcg, taken in the morning on an empty stomach).",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for accurately documenting that atorvastatin is taken at night and spaced from levothyroxine, reflecting patient adherence confirmation.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing the patient\u2019s reported symptom status (no major change, possibly a bit more energetic) exactly as stated.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for including the clinician\u2019s advice to monitor for specific side-effects (palpitations, increased sweating).",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for incorporating only the relevant chart details that were pertinent to the discussion (62-year-old female, hypothyroidism, hyperlipidemia, current meds levothyroxine & atorvastatin) without importing unrelated chart data.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for introducing any new information, assessments, diagnoses, plans, labs, or instructions that are not explicitly present or implied in the transcript or chart.",
+    "weight": 20,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for omission or distortion of any key dialogue element (medication dosing/timing changes, symptom response, side-effect advice, adherence confirmation) that results in an incomplete or inaccurate note overall.",
+    "weight": 25,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for wholesale or selective copying of chart elements that were not discussed or relevant (e.g., family history of heart attack, unused Canvas templates, empty conditions), or for inaccurately transcribing chart data.",
+    "weight": 15,
+    "sense": "negative"
+  }
+]

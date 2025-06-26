@@ -1,0 +1,37 @@
+[
+  {
+    "criterion": "Reward for comprehensively capturing all patient-reported details from the encounter, including description of nausea differences, degree of improvement, impact of school stress, and timing of medication with breakfast.",
+    "weight": 30,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for accurately documenting all clinician statements, assessments, and plans discussed (monitoring side-effects, potential dose/timing adjustment, confirmation that taking medication with food can help).",
+    "weight": 25,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for correctly incorporating only relevant chart information that supports the encounter (e.g., sertraline 50 mg daily, generalized anxiety disorder, patient demographics) without introducing unrelated chart data.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for overall completeness and coherence of the note relative to the entire transcript, ensuring no spoken content of clinical significance is omitted.",
+    "weight": 25,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for adding any content, conclusions, or recommendations not grounded in either the transcript or the relevant portions of the chart (e.g., new diagnoses, lab orders, vitals, dosage changes that were not discussed).",
+    "weight": 20,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for selective or inaccurate copying from the chart, such as inserting irrelevant historical items, misstating current medications/dosages, or fabricating allergies/family history not referenced in the encounter.",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for factual inaccuracies, misquotations, or mischaracterizations of statements (e.g., reversing who said what, wrong medication name, incorrect timing, misstated symptom severity).",
+    "weight": 20,
+    "sense": "negative"
+  }
+]

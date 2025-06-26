@@ -1,0 +1,61 @@
+{
+  "fidelity_criteria": [
+    {
+      "criterion": "Reward for accurately documenting the patient's admission that he sometimes forgets to take mesalamine because he gets caught up in work.",
+      "weight": 20,
+      "sense": "positive"
+    },
+    {
+      "criterion": "Reward for recording the clinician\u2019s suggested adherence aids (phone reminders, pill organizer) exactly as discussed.",
+      "weight": 15,
+      "sense": "positive"
+    },
+    {
+      "criterion": "Reward for capturing the patient\u2019s report that regular dosing improves symptoms whereas missed doses cause symptoms to return.",
+      "weight": 15,
+      "sense": "positive"
+    },
+    {
+      "criterion": "Reward for including the clinician\u2019s instruction to notify the office promptly about any new symptoms or side-effects.",
+      "weight": 10,
+      "sense": "positive"
+    },
+    {
+      "criterion": "Penalize for omitting or misrepresenting the current prescription of mesalamine 2.4 g daily or the active Crohn\u2019s disease diagnosis that are present in the chart.",
+      "weight": 20,
+      "sense": "negative"
+    },
+    {
+      "criterion": "Penalize for documenting any medication change (dose adjustment, discontinuation, or new drug) that was not mentioned in the transcript.",
+      "weight": 20,
+      "sense": "negative"
+    }
+  ],
+  "appropriateness_criteria": [
+    {
+      "criterion": "Reward for including a concrete, patient-centered plan to improve adherence (e.g., recommending a pill organizer and/or setting effective reminders).",
+      "weight": 20,
+      "sense": "positive"
+    },
+    {
+      "criterion": "Reward for reinforcing evidence-based education that consistent mesalamine use is critical for Crohn\u2019s symptom control and relapse prevention.",
+      "weight": 15,
+      "sense": "positive"
+    },
+    {
+      "criterion": "Reward for advising the patient to seek prompt medical attention if new symptoms or side-effects occur, thereby addressing patient safety.",
+      "weight": 15,
+      "sense": "positive"
+    },
+    {
+      "criterion": "Penalize for failing to address the identified adherence barrier with any intervention or counseling in the plan.",
+      "weight": 25,
+      "sense": "negative"
+    },
+    {
+      "criterion": "Penalize for unsafe or unjustified alteration of mesalamine therapy (dose change, stoppage) without clinical rationale.",
+      "weight": 25,
+      "sense": "negative"
+    }
+  ]
+}

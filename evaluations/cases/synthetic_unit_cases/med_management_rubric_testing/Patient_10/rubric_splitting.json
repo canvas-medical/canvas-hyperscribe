@@ -1,0 +1,51 @@
+{
+  "fidelity_criteria": [
+    {
+      "criterion": "Reward for documenting the patient's exertional chest discomfort in the History of Present Illness or Reason for Visit section.",
+      "weight": 15,
+      "sense": "positive"
+    },
+    {
+      "criterion": "Reward for documenting the new prescription of low-dose aspirin including name, 81 mg dosage, and daily frequency.",
+      "weight": 25,
+      "sense": "positive"
+    },
+    {
+      "criterion": "Penalize for recording an incorrect aspirin dose, frequency, or omitting the dose entirely.",
+      "weight": 20,
+      "sense": "negative"
+    },
+    {
+      "criterion": "Reward for documenting the clinician's instruction to continue warfarin without change.",
+      "weight": 15,
+      "sense": "positive"
+    },
+    {
+      "criterion": "Reward for listing the patient's atrial fibrillation and history of gastrointestinal bleeding in the past medical history or assessment section.",
+      "weight": 15,
+      "sense": "positive"
+    },
+    {
+      "criterion": "Penalize for introducing undocumented allergies or contraindications that are not supported by the transcript or chart (e.g., stating the patient is allergic to aspirin).",
+      "weight": 10,
+      "sense": "negative"
+    }
+  ],
+  "appropriateness_criteria": [
+    {
+      "criterion": "Reward for documenting a bleeding-risk mitigation or monitoring plan (e.g., INR checks, GI prophylaxis, or bleeding warnings) in light of concomitant warfarin and new aspirin therapy.",
+      "weight": 35,
+      "sense": "positive"
+    },
+    {
+      "criterion": "Penalize for adding aspirin to ongoing warfarin therapy without documenting a clear clinical indication or risk\u2013benefit discussion.",
+      "weight": 25,
+      "sense": "negative"
+    },
+    {
+      "criterion": "Reward for counseling or arranging further evaluation of possible coronary ischemia (e.g., stress testing, cardiology referral) to address the patient's exertional chest discomfort in an evidence-based manner.",
+      "weight": 20,
+      "sense": "positive"
+    }
+  ]
+}
