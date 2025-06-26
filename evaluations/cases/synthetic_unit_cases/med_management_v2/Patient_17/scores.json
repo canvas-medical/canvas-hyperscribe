@@ -1,27 +1,32 @@
 [
   {
-    "rationale": "HPI clearly lists increased hunger, worry about weight gain, lower home glucose readings, and new ankle swelling since losartan; all stated patient concerns are captured accurately.",
-    "satisfaction": 95.0,
-    "score": 28.5
+    "rationale": "HPI clearly records increased hunger on glipizide, patient concern about weight gain, resolution of lisinopril-related cough, and new intermittent ankle swelling after starting losartan.",
+    "satisfaction": 90.0,
+    "score": 18.0
   },
   {
-    "rationale": "Assessments connect appetite increase to glipizide and edema to losartan, highlight improved glycemic control and resolved cough; edema not explicitly labeled \"adverse effect,\" but implication present.",
-    "satisfaction": 85.0,
-    "score": 21.25
+    "rationale": "Assessment links symptoms to medications and advises monitoring, but stops short of asserting causality or outlining concrete alternatives, dose changes, or time-bound follow-up.",
+    "satisfaction": 60.0,
+    "score": 15.0
   },
   {
-    "rationale": "Plan instructs daily weight monitoring, reporting of persistent swelling/weight gain, and possible therapy adjustment; mentions general monitoring but omits explicit BG checks and detailed return precautions.",
-    "satisfaction": 80.0,
-    "score": 16.0
+    "rationale": "Provides basic education to monitor weight, follow meal plan, check glucose, and report swelling, but omits hypoglycemia warning signs, red-flag edema advice, and a definite re-evaluation timeframe.",
+    "satisfaction": 50.0,
+    "score": 10.0
   },
   {
-    "rationale": "Only brief diet reminder provided; no discussion of sulfonylurea-related weight gain mechanisms, weight-neutral options, or ARB edema risk.",
-    "satisfaction": 40.0,
-    "score": 6.0
+    "rationale": "Little evidence-based discussion; no mention of sulfonylurea weight-gain risk, ARB guideline justification, or ADA lifestyle reinforcement beyond brief meal-plan note.",
+    "satisfaction": 30.0,
+    "score": 4.5
   },
   {
-    "rationale": "Note stays focused on issues in transcript with no extraneous ROS or duplicate material, so minimal penalty required.",
-    "satisfaction": 5.0,
-    "score": 0.5
+    "rationale": "Objective data largely absent\u2014no current weight, BP, glucose logs, edema description, or exact medication doses recorded.",
+    "satisfaction": 25.0,
+    "score": 2.5
+  },
+  {
+    "rationale": "Documentation concise and encounter-focused with no redundant or irrelevant copy-paste material detected.",
+    "satisfaction": 90.0,
+    "score": 9.0
   }
 ]

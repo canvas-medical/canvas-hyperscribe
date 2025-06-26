@@ -1,7 +1,0 @@
-Criterion #,Criterion,Max Score,Satisfaction (%),Score Awarded,Rationale
-1,"Reward for documenting the patient's reported nausea as a side effect of lithium, including the timing and improvement with food.",20,95.0,19.0,"The documentation includes the patient's reported nausea as a side effect of lithium, noting the timing (morning) and improvement with food."
-2,Reward for noting the patient's concern about long-term effects of lithium and the clinician's plan to monitor levels closely.,20,50.0,10.0,"The patient's concern about long-term effects of lithium is noted, but there is no mention of the clinician's plan to monitor levels closely."
-3,"Reward for including the patient's support system, specifically the partner's role in medication adherence.",15,100.0,15.0,"The patient's support system is documented, specifically mentioning the partner's role in providing support and reminders."
-4,Penalize for omitting any mention of potential adjustments to lithium dosage or timing if nausea persists.,15,0.0,0.0,There is no mention of potential adjustments to lithium dosage or timing if nausea persists.
-5,Reward for documenting the clinician's advice to take lithium with food to mitigate nausea.,10,100.0,10.0,The clinician's advice to take lithium with food to mitigate nausea is documented.
-6,Penalize for not including a follow-up plan or further assessment of the patient's bipolar disorder management.,20,0.0,0.0,There is no follow-up plan or further assessment of the patient's bipolar disorder management included.
