@@ -1,0 +1,32 @@
+[
+  {
+    "rationale": "The hyperscribe output does not mention the patient's response to losartan or the absence of side effects like cough.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "The hyperscribe output does not include any information about the patient's blood pressure monitoring at home or the context of high readings due to stress.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "There is no mention of atorvastatin, muscle aches, unusual symptoms, or adherence to taking it at night in the hyperscribe output.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "The hyperscribe output includes a reminder about ensuring medication availability during travel.",
+    "satisfaction": 100.0,
+    "score": 10.0
+  },
+  {
+    "rationale": "The hyperscribe output includes a plan for the patient to report any consistent changes in blood pressure.",
+    "satisfaction": 100.0,
+    "score": 15.0
+  },
+  {
+    "rationale": "The hyperscribe output does not document the patient's family history of cardiovascular disease.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  }
+]

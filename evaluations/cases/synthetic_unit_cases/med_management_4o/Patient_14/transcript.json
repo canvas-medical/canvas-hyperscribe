@@ -1,0 +1,26 @@
+[
+  {
+    "speaker": "Clinician",
+    "text": "So, when you mentioned the, uh, stomach issues with sertraline, have you had anything similar with the fluoxetine, or has it been, um, smoother this time around?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "No, thankfully, it's been much better. I was really worried about that, but, uh, no problems so far."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "That's good to hear. And, um, in terms of your mood, have you noticed any changes since we last adjusted the dose?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Actually, I think it's been pretty stable. I mean, work's been hectic, but I haven't felt, uh, overwhelmed like before."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Great. And just to confirm, you're still taking it every morning, right? No missed doses?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Yes, every morning. I have a reminder set on my phone, so I don't forget."
+  }
+]

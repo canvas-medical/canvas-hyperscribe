@@ -1,0 +1,27 @@
+[
+  {
+    "criterion": "Reward for documenting the patient's inquiry about adjusting the timing of metformin intake and the clinician's response, ensuring it reflects the patient's lifestyle needs and clinician's approval.",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for including the patient's self-reported adherence to blood sugar monitoring and any challenges faced, such as forgetting due to a hectic schedule.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for omitting the patient's current medication regimen, specifically the use of metformin, and any changes or considerations discussed during the encounter.",
+    "weight": 25,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Reward for noting the clinician's emphasis on the importance of routine and consistency in medication timing and blood sugar monitoring.",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for failing to document any safety concerns or potential risks associated with changing the timing of metformin intake, such as the impact on blood sugar control.",
+    "weight": 20,
+    "sense": "negative"
+  }
+]

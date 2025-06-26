@@ -1,0 +1,26 @@
+[
+  {
+    "speaker": "Clinician",
+    "text": "And, uh, when you adjust your insulin lispro dose, are you finding it easier to match it with your meals, or is it still a bit tricky?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "It's, um, getting better, I think. I mean, counting carbs was confusing at first, but I'm starting to get the hang of it. Sometimes I still second-guess myself, though."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "That's completely normal. It takes time to get comfortable with it. Have you noticed any patterns, like certain meals that are more challenging to manage?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Yeah, definitely. Like, when I eat out, it's harder to estimate. At home, it's easier because I can measure everything."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Right, eating out can be tricky. Have you tried using any apps to help with carb counting when you're not at home?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "I have, but sometimes I forget to use them. I guess I need to make it more of a habit."
+  }
+]

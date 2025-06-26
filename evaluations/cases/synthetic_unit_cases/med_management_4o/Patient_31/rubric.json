@@ -1,0 +1,32 @@
+[
+  {
+    "criterion": "Reward for documenting the patient's positive response to losartan regarding the absence of cough, as it reflects effective medication management.",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for noting the patient's inquiry about potential side effects of losartan and atorvastatin, demonstrating patient engagement and informed decision-making.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for omitting documentation of the patient's report of occasional tiredness, which could be relevant to medication side effects or other health issues.",
+    "weight": 10,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Reward for clinician's advice to monitor and report any significant side effects, ensuring patient safety and proactive management.",
+    "weight": 25,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for lack of documentation on the patient's family history of cardiovascular disease, which is relevant to the management of hypertension and hyperlipidemia.",
+    "weight": 10,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Reward for clinician's explanation of potential muscle pain as a side effect of atorvastatin, aligning with evidence-based practice guidelines.",
+    "weight": 20,
+    "sense": "positive"
+  }
+]
