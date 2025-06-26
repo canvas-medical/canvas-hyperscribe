@@ -1,0 +1,42 @@
+[
+  {
+    "criterion": "Reward for explicitly documenting the patient-reported adherence gap (running out of tiotropium for 1-2 days due to delayed refill requests) in HistoryOfPresentIllness or Assessment, including the stated barrier of feeling overwhelmed/forgetfulness",
+    "weight": 25,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for recording a concrete intervention to improve adherence\u2014e.g., creating an Instruct or Task to set up automatic pharmacy refills for the tiotropium inhaler (and optionally other COPD meds)",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for linking missed inhaler doses to potential COPD exacerbation or other patient-safety risk, and documenting this risk and the mitigation plan",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for demonstrating evidence-based COPD management by maintaining current maintenance therapy (no unnecessary medication changes) and focusing plan on adherence support in line with guidelines",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for using appropriate, non-redundant Canvas instruction types (e.g., Refill for tiotropium, Instruct on automatic refill, Task for staff/pharmacy) with correct medication name, dose, and frequency",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for introducing new diagnoses, medication changes, or orders not supported by the transcript (e.g., altering prednisone, adding new drugs, ordering tests)",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for omitting key medication detail (name, strength, frequency) or missing any mention of tiotropium when documenting refill/adherence plan",
+    "weight": 10,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for excessive redundancy or inclusion of irrelevant chart data not touched on in the conversation (e.g., copying entire past medical history without need)",
+    "weight": 5,
+    "sense": "negative"
+  }
+]

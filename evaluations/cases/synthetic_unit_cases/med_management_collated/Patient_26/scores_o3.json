@@ -1,0 +1,37 @@
+[
+  {
+    "rationale": "No documentation provided, so no mention of pain relief, stiffness, GI tolerance, or taking with food.",
+    "satisfaction": 0,
+    "score": 0
+  },
+  {
+    "rationale": "No note of home BP readings or family history; criterion unmet.",
+    "satisfaction": 0,
+    "score": 0
+  },
+  {
+    "rationale": "No assessment or plan for OA or celecoxib dosing given.",
+    "satisfaction": 0,
+    "score": 0
+  },
+  {
+    "rationale": "No future safety monitoring steps documented.",
+    "satisfaction": 0,
+    "score": 0
+  },
+  {
+    "rationale": "Current celecoxib prescription details entirely omitted\u2014major omission.",
+    "satisfaction": 0,
+    "score": 0
+  },
+  {
+    "rationale": "Record is empty, so no redundant or irrelevant copied text.",
+    "satisfaction": 100,
+    "score": 5
+  },
+  {
+    "rationale": "No counseling or follow-up instructions documented at all.",
+    "satisfaction": 0,
+    "score": 0
+  }
+]

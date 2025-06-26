@@ -1,0 +1,32 @@
+[
+  {
+    "criterion": "Reward for accurately documenting the patient's report that dizziness occurred only during the first couple of weeks and has now resolved.",
+    "weight": 18,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for clearly documenting medication-adherence challenges, including the patient's use of phone alarms, occasional ignoring of alarms when busy, and the barrier posed by an unpredictable work schedule.",
+    "weight": 18,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting an agreed-upon intervention to improve adherence\u2014specifically consideration or provision of a pill organizer or alternative reminder system as a backup plan.",
+    "weight": 18,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for including an assessment of epilepsy control and patient safety, noting absence of ongoing dizziness, monitoring for seizure recurrence, and counseling about risks of missed doses.",
+    "weight": 18,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for including substantial redundant or irrelevant information from the chart or generic templates that was not discussed in this encounter segment (e.g., extensive past history, full medication list, unrelated ROS).",
+    "weight": 10,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for recording any medication dosage change, discontinuation, or new prescription for levetiracetam or other antiepileptics without supporting discussion or evidence in this segment.",
+    "weight": 18,
+    "sense": "negative"
+  }
+]

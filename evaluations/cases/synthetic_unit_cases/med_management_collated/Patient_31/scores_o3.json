@@ -1,0 +1,27 @@
+[
+  {
+    "rationale": "Subjective findings (no cough on losartan, only occasional fatigue, patient questions about side-effects) are not mentioned at all.",
+    "satisfaction": 0,
+    "score": 0
+  },
+  {
+    "rationale": "Note explicitly instructs patient to report dizziness/fatigue on losartan and muscle aches on atorvastatin, matching requested counseling; minor detail omissions (e.g., term \"common side-effects\" not stated) slightly lower completeness.",
+    "satisfaction": 90,
+    "score": 27
+  },
+  {
+    "rationale": "No statement addressing continuation of current regimen or monitoring plan; safety plan absent.",
+    "satisfaction": 0,
+    "score": 0
+  },
+  {
+    "rationale": "Very concise; only encounter-specific counseling appears. No extraneous medication lists or irrelevant history; slight duplication of SNOMED template but negligible.",
+    "satisfaction": 98,
+    "score": 9.8
+  },
+  {
+    "rationale": "No content contradicts the transcript or pharmacology; instructions are clinically accurate.",
+    "satisfaction": 100,
+    "score": 20
+  }
+]

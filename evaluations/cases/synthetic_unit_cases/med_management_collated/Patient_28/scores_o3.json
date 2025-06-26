@@ -1,0 +1,42 @@
+[
+  {
+    "rationale": "Narrative states palpitations less frequent since dose change and still occur occasionally, but lacks detail on frequency, duration, and patient worry.",
+    "satisfaction": 60,
+    "score": 9.0
+  },
+  {
+    "rationale": "Plan for medication delivery is documented, but note does not explicitly mention refill difficulty or adherence history.",
+    "satisfaction": 50,
+    "score": 7.5
+  },
+  {
+    "rationale": "Transportation barrier explicitly cited and directly tied to pharmacy delivery intervention.",
+    "satisfaction": 85,
+    "score": 8.5
+  },
+  {
+    "rationale": "Assessment notes improvement after dose adjustment but omits the actual levothyroxine dose amount.",
+    "satisfaction": 65,
+    "score": 9.75
+  },
+  {
+    "rationale": "No order or plan for follow-up TSH or timing provided.",
+    "satisfaction": 5,
+    "score": 0.75
+  },
+  {
+    "rationale": "No safety or escalation instructions documented for worsening palpitations.",
+    "satisfaction": 0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Note contains minimal repetition of charted history; largely visit-focused content.",
+    "satisfaction": 90,
+    "score": 6.3
+  },
+  {
+    "rationale": "Key details missing (exact dose, follow-up testing, explicit refill plan), leading to partial omissions.",
+    "satisfaction": 30,
+    "score": 2.4
+  }
+]

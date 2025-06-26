@@ -1,0 +1,42 @@
+[
+  {
+    "criterion": "Reward for accurately documenting the patient's expressed concern/question about whether losartan alone is sufficient for blood pressure control (i.e., capturing the chief complaint/reason for visit in the HPI).",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for recording the patient's home blood-pressure monitoring details (frequency and recent readings) and noting the clinician's assessment that the readings have been stable.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting medication reconciliation and adherence assessment, including the specific inquiry about atorvastatin-related muscle aches and the patient's negative response.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing discussion of lifestyle factors (diet, exercise, work stress) and any counseling or reinforcement provided by the clinician.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for stating a clear plan for continued home BP monitoring, instructions to report new side effects, and timing/arrangements for follow-up.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for missing documentation of objective safety data or plan (e.g., failure to record in-office vitals or order/plan labs such as lipid panel or creatine kinase when monitoring statin therapy), thereby posing potential patient-safety risk.",
+    "weight": 20,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for redundant inclusion of information already present in the chart (e.g., restating full medication lists or chronic conditions) without adding new, encounter-specific relevance.",
+    "weight": 5,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Reward for explicitly linking management decisions to evidence-based guidelines (e.g., continuing current ARB and statin dosages because BP readings are controlled and no statin side effects reported, and planning routine guideline-recommended labs).",
+    "weight": 10,
+    "sense": "positive"
+  }
+]

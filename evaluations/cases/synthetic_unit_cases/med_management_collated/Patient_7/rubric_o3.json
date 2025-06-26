@@ -1,0 +1,37 @@
+[
+  {
+    "criterion": "Reward for clearly documenting the current medication regimen, including levothyroxine 88 mcg taken once daily on an empty stomach in the morning and atorvastatin 20 mg taken at night, plus confirming the patient\u2019s adherence to this schedule",
+    "weight": 25,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for recording the patient's subjective response to the dose increase and absence of concerning hyperthyroid or other adverse symptoms (e.g., palpitations, excessive sweating)",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing the clinician\u2019s safety counseling (monitor for palpitations or sweating, continue separating levothyroxine from atorvastatin) in the note",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for including an evidence-based monitoring plan for hypothyroidism, such as ordering a follow-up TSH in 6\u20138 weeks and/or scheduling appropriate follow-up visit",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for using appropriate Canvas structured instructions (e.g., HistoryOfPresentIllness, Assess Hypothyroidism, LabOrder for TSH, Instruct for medication timing) rather than only free-text",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for redundant or irrelevant information that duplicates chart data or does not pertain to this encounter segment",
+    "weight": 5,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for any contradictions or factual inaccuracies in the documentation regarding medications, dosing, timing, or patient statements",
+    "weight": 10,
+    "sense": "negative"
+  }
+]
