@@ -1,0 +1,38 @@
+{
+  "demographicStr": "the patient is a man, born on January 1, 1973 (age 50)",
+  "conditionHistory": [],
+  "currentAllergies": [],
+  "currentConditions": [
+    {
+      "uuid": "6b2cb62d-29c1-4966-b5e6-f5e3784c690b",
+      "label": "Hypertension",
+      "code": "I10"
+    },
+    {
+      "uuid": "a0afba62-d8a5-43dd-aff5-3eab73aed78c",
+      "label": "Hyperlipidemia",
+      "code": "E78.5"
+    }
+  ],
+  "currentGoals": [],
+  "currentMedications": [
+    {
+      "uuid": "db5e2cb9-64ee-4d8a-81b5-8cdecf06403f",
+      "label": "Losartan 50 mg tablet",
+      "code": "C09CA01"
+    },
+    {
+      "uuid": "40a6616c-016f-4ab8-be4e-6a83f25bbbb8",
+      "label": "Atorvastatin 20 mg tablet",
+      "code": "C10AA05"
+    }
+  ],
+  "familyHistory": [
+    {
+      "uuid": "76f02927-2fee-4417-96a0-81fb1ae55803",
+      "label": "Family history of stroke",
+      "code": "Z82.3"
+    }
+  ],
+  "surgeryHistory": []
+}

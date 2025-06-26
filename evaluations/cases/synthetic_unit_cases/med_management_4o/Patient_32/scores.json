@@ -1,0 +1,32 @@
+[
+  {
+    "rationale": "The note documents the patient's lightheadedness after taking amlodipine and mentions the timing and dietary habits, such as having only coffee for breakfast.",
+    "satisfaction": 95.0,
+    "score": 19.0
+  },
+  {
+    "rationale": "The clinician's advice to have a more substantial breakfast to mitigate lightheadedness is clearly documented.",
+    "satisfaction": 100.0,
+    "score": 15.0
+  },
+  {
+    "rationale": "The note does not mention the patient's concern about dizziness while working on scaffolding, which is a significant safety issue.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "There is no documentation of the clinician's plan to monitor the side effect or adjust medication timing or dosage.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "The note does not address the patient's family history of heart disease in the context of hypertension management.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "The note does not include any mention of the clinician's emphasis on safety as a priority in the management plan.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  }
+]

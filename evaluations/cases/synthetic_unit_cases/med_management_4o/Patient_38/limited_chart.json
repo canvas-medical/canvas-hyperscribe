@@ -1,0 +1,28 @@
+{
+  "demographicStr": "the patient is a woman, born on January 1, 1951 (age 72)",
+  "conditionHistory": [],
+  "currentAllergies": [
+    {
+      "uuid": "9d5e2098-d166-4e91-9097-2d5965b700f1",
+      "label": "Allergy to sulfa drugs",
+      "code": "Z88.2"
+    }
+  ],
+  "currentConditions": [
+    {
+      "uuid": "6161c6a0-67d6-49ab-bec7-35ff1381114d",
+      "label": "Atrial fibrillation",
+      "code": "I48.91"
+    }
+  ],
+  "currentGoals": [],
+  "currentMedications": [
+    {
+      "uuid": "f96e0e6e-0eb2-44a7-ac92-df89493a20a1",
+      "label": "Warfarin",
+      "code": "B01AA03"
+    }
+  ],
+  "familyHistory": [],
+  "surgeryHistory": []
+}

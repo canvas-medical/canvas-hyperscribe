@@ -1,0 +1,32 @@
+[
+  {
+    "criterion": "Reward for accurately documenting the patient's concern about long-term effects of prednisone and the clinician's explanation of the risk-benefit balance.",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for including the clinician's advice on what to do if a dose of prednisone is missed, ensuring patient safety and adherence.",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for omitting the patient's expressed concern about forgetting to take prednisone and the clinician's suggestion to set a reminder.",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Reward for documenting the clinician's inquiry about the patient's management of tiotropium, indicating thorough medication review.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for failing to document any new or relevant information about the patient's current condition or medication adherence that could impact clinical decision-making.",
+    "weight": 20,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Reward for maintaining appropriate brevity and focus on new, relevant information without unnecessary repetition of known chart details.",
+    "weight": 10,
+    "sense": "positive"
+  }
+]
