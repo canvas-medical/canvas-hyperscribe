@@ -8,6 +8,7 @@ from canvas_sdk.v1.data import (
     Medication, AllergyIntolerance, AllergyIntoleranceCoding,
     Patient, Observation, NoteType, ReasonForVisitSettingCoding,
     Staff, PracticeLocation, PracticeLocationSetting)
+from canvas_sdk.v1.data.lab import LabPartner
 from django.db.models.expressions import When, Value, Case
 
 from hyperscribe.handlers.temporary_data import ChargeDescriptionMaster
@@ -39,6 +40,7 @@ def test___init__():
     assert tested._goals is None
     assert tested._medications is None
     assert tested._note_type is None
+    assert tested._preferred_lab_partner is None
     assert tested._reason_for_visit is None
     assert tested._surgery_history is None
     assert tested._staged_commands == staged_commands_to_coded_items
@@ -796,6 +798,44 @@ def test_practice_setting(staff_db, practice_location_db, practice_settings_db):
 
 
 @patch.object(LimitedCache, 'practice_setting')
+@patch.object(LabPartner, "objects")
+def test_preferred_lab_partner(lab_partner_db, practice_setting):
+    def reset_mocks():
+        lab_partner_db.reset_mock()
+        practice_setting.reset_mock()
+
+    tested = LimitedCache("patientUuid", "providerUuid", {})
+
+    tests = [
+        (None, CodedItem(uuid="", label="thePreferredLab", code="")),
+        (LabPartner(id="uuidLab", name="theLabPartner"), CodedItem(uuid="uuidLab", label="thePreferredLab", code="")),
+    ]
+
+    for lab_partner, expected in tests:
+        tested._preferred_lab_partner = None
+        for i in range(3):
+            lab_partner_db.filter.return_value.first.side_effect = [lab_partner]
+            practice_setting.side_effect = ["thePreferredLab"]
+
+            result = tested.preferred_lab_partner()
+            assert result == expected
+
+            if i > 0:
+                assert lab_partner_db.mock_calls == []
+                assert practice_setting.mock_calls == []
+            else:
+                calls = [
+                    call.filter(name='thePreferredLab'),
+                    call.filter().first(),
+                ]
+                assert lab_partner_db.mock_calls == calls
+                calls = [call("preferredLabPartner")]
+                assert practice_setting.mock_calls == calls
+            reset_mocks()
+
+
+@patch.object(LimitedCache, 'preferred_lab_partner')
+@patch.object(LimitedCache, 'practice_setting')
 @patch.object(LimitedCache, 'surgery_history')
 @patch.object(LimitedCache, 'family_history')
 @patch.object(LimitedCache, 'existing_reason_for_visits')
@@ -820,6 +860,7 @@ def test_to_json(
         family_history,
         surgery_history,
         practice_setting,
+        preferred_lab_partner,
 ):
     def reset_mocks():
         demographic.reset_mock()
@@ -834,6 +875,7 @@ def test_to_json(
         family_history.reset_mock()
         surgery_history.reset_mock()
         practice_setting.reset_mock()
+        preferred_lab_partner.reset_mock()
 
     tested = LimitedCache(
         "patientUuid",
@@ -890,7 +932,13 @@ def test_to_json(
             CodedItem(uuid="uuid011", label="label011", code="code011"),
             CodedItem(uuid="uuid111", label="label111", code="code111"),
         ]]
-        practice_setting.side_effect = ["thePreferredLabPartner", "theServiceAreaZipCodes"]
+        practice_setting.side_effect = [
+            "thePreferredLabPartner",
+            "theServiceAreaZipCodes",
+        ]
+        preferred_lab_partner.side_effect = [
+            CodedItem(uuid="theUuid", label="theLabel", code="theCode"),
+        ]
 
         result = tested.to_json(obfuscate)
         expected = {
@@ -942,12 +990,17 @@ def test_to_json(
                 {'code': 'code111', 'label': 'label111', 'uuid': 'uuid111'},
             ],
             'chargeDescriptions': [
-                {'full_name': 'fullName1', 'short_name': 'shortName1', 'cpt_code': 'code1'},
-                {'full_name': 'fullName2', 'short_name': 'shortName2', 'cpt_code': 'code2'},
+                {'fullName': 'fullName1', 'shortName': 'shortName1', 'cptCode': 'code1'},
+                {'fullName': 'fullName2', 'shortName': 'shortName2', 'cptCode': 'code2'},
             ],
             "settings": {
                 "preferredLabPartner": "thePreferredLabPartner",
                 "serviceAreaZipCodes": "theServiceAreaZipCodes",
+            },
+            "preferredLabPartner": {
+                "uuid": "theUuid",
+                "label": "theLabel",
+                "code": "theCode",
             },
         }
 
@@ -965,66 +1018,72 @@ def test_to_json(
         assert existing_reason_for_visits.mock_calls == calls
         assert family_history.mock_calls == calls
         assert surgery_history.mock_calls == calls
+        assert preferred_lab_partner.mock_calls == calls
         reset_mocks()
 
 
 def test_load_from_json():
     tested = LimitedCache
     result = tested.load_from_json({
-        'conditionHistory': [
-            {'code': 'code002', 'label': 'label002', 'uuid': 'uuid002'},
-            {'code': 'code102', 'label': 'label102', 'uuid': 'uuid102'},
+        "conditionHistory": [
+            {"code": "code002", "label": "label002", "uuid": "uuid002"},
+            {"code": "code102", "label": "label102", "uuid": "uuid102"},
         ],
-        'currentAllergies': [
-            {'code': 'code003', 'label': 'label003', 'uuid': 'uuid003'},
-            {'code': 'code103', 'label': 'label103', 'uuid': 'uuid103'},
+        "currentAllergies": [
+            {"code": "code003", "label": "label003", "uuid": "uuid003"},
+            {"code": "code103", "label": "label103", "uuid": "uuid103"},
         ],
-        'currentConditions': [
-            {'code': 'code004', 'label': 'label004', 'uuid': 'uuid004'},
-            {'code': 'code104', 'label': 'label104', 'uuid': 'uuid104'},
+        "currentConditions": [
+            {"code": "code004", "label": "label004", "uuid": "uuid004"},
+            {"code": "code104", "label": "label104", "uuid": "uuid104"},
         ],
-        'currentGoals': [
-            {'code': 'code005', 'label': 'label005', 'uuid': 'uuid005'},
-            {'code': 'code105', 'label': 'label105', 'uuid': 'uuid105'},
+        "currentGoals": [
+            {"code": "code005", "label": "label005", "uuid": "uuid005"},
+            {"code": "code105", "label": "label105", "uuid": "uuid105"},
         ],
-        'currentMedications': [
-            {'code': 'code006', 'label': 'label006', 'uuid': 'uuid006'},
-            {'code': 'code106', 'label': 'label106', 'uuid': 'uuid106'},
+        "currentMedications": [
+            {"code": "code006", "label": "label006", "uuid": "uuid006"},
+            {"code": "code106", "label": "label106", "uuid": "uuid106"},
         ],
-        'demographicStr': 'theDemographic',
-        'existingNoteTypes': [
-            {'code': 'code008', 'label': 'label008', 'uuid': 'uuid008'},
-            {'code': 'code108', 'label': 'label108', 'uuid': 'uuid108'},
+        "demographicStr": "theDemographic",
+        "existingNoteTypes": [
+            {"code": "code008", "label": "label008", "uuid": "uuid008"},
+            {"code": "code108", "label": "label108", "uuid": "uuid108"},
         ],
-        'existingReasonForVisit': [
-            {'code': 'code009', 'label': 'label009', 'uuid': 'uuid009'},
-            {'code': 'code109', 'label': 'label109', 'uuid': 'uuid109'},
+        "existingReasonForVisit": [
+            {"code": "code009", "label": "label009", "uuid": "uuid009"},
+            {"code": "code109", "label": "label109", "uuid": "uuid109"},
         ],
-        'familyHistory': [
-            {'code': 'code010', 'label': 'label010', 'uuid': 'uuid010'},
-            {'code': 'code110', 'label': 'label110', 'uuid': 'uuid110'},
+        "familyHistory": [
+            {"code": "code010", "label": "label010", "uuid": "uuid010"},
+            {"code": "code110", "label": "label110", "uuid": "uuid110"},
         ],
-        'stagedCommands': {
-            'keyX': [
-                {'code': 'code1', 'label': 'label1', 'uuid': 'uuid1'},
+        "stagedCommands": {
+            "keyX": [
+                {"code": "code1", "label": "label1", "uuid": "uuid1"},
             ],
-            'keyY': [],
-            'keyZ': [
-                {'code': 'code3', 'label': 'label3', 'uuid': 'uuid3'},
-                {'code': 'code2', 'label': 'label2', 'uuid': 'uuid2'},
+            "keyY": [],
+            "keyZ": [
+                {"code": "code3", "label": "label3", "uuid": "uuid3"},
+                {"code": "code2", "label": "label2", "uuid": "uuid2"},
             ],
         },
-        'surgeryHistory': [
-            {'code': 'code011', 'label': 'label011', 'uuid': 'uuid011'},
-            {'code': 'code111', 'label': 'label111', 'uuid': 'uuid111'},
+        "surgeryHistory": [
+            {"code": "code011", "label": "label011", "uuid": "uuid011"},
+            {"code": "code111", "label": "label111", "uuid": "uuid111"},
         ],
-        'chargeDescriptions': [
-            {'full_name': 'fullName1', 'short_name': 'shortName1', 'cpt_code': 'code1'},
-            {'full_name': 'fullName2', 'short_name': 'shortName2', 'cpt_code': 'code2'},
+        "chargeDescriptions": [
+            {"full_name": "fullName1", "short_name": "shortName1", "cpt_code": "code1"},
+            {"fullName": "fullName2", "shortName": "shortName2", "cptCode": "code2"},
         ],
         "settings": {
             "preferredLabPartner": "thePreferredLabPartner",
             "serviceAreaZipCodes": "theServiceAreaZipCodes",
+        },
+        "preferredLabPartner": {
+            "uuid": "theUuid",
+            "label": "theLabel",
+            "code": "theCode",
         },
     })
 
@@ -1081,3 +1140,4 @@ def test_load_from_json():
     ]
     assert result.practice_setting("preferredLabPartner") == "thePreferredLabPartner"
     assert result.practice_setting("serviceAreaZipCodes") == "theServiceAreaZipCodes"
+    assert result.preferred_lab_partner() == CodedItem(uuid="theUuid", label="theLabel", code="theCode")

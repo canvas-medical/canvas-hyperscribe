@@ -25,3 +25,14 @@ def test_load_from_json():
         cpt_code="theCPTCode",
     )
     assert result == expected
+    result = tested.load_from_json({
+        "full_name": "theFullName",
+        "short_name": "theShortName",
+        "cpt_code": "theCPTCode",
+    })
+    expected = ChargeDescription(
+        full_name="theFullName",
+        short_name="theShortName",
+        cpt_code="theCPTCode",
+    )
+    assert result == expected

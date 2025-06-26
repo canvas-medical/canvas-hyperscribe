@@ -9,6 +9,7 @@ from canvas_sdk.v1.data import (
     Patient, Observation, NoteType, Medication,
     ReasonForVisitSettingCoding, Staff, PracticeLocation)
 from canvas_sdk.v1.data.condition import ClinicalStatus
+from canvas_sdk.v1.data.lab import LabPartner
 from canvas_sdk.v1.data.medication import Status
 from canvas_sdk.v1.data.patient import SexAtBirth
 from django.db.models.expressions import When, Value, Case
@@ -33,6 +34,7 @@ class LimitedCache:
         self._family_history: list[CodedItem] | None = None
         self._goals: list[CodedItem] | None = None
         self._medications: list[CodedItem] | None = None
+        self._preferred_lab_partner: CodedItem | None = None
         self._note_type: list[CodedItem] | None = None
         self._reason_for_visit: list[CodedItem] | None = None
         self._surgery_history: list[CodedItem] | None = None
@@ -236,6 +238,20 @@ class LimitedCache:
                 self._settings[setting] = value.value
         return self._settings[setting]
 
+    def preferred_lab_partner(self) -> CodedItem:
+        if self._preferred_lab_partner is None:
+            lab_partner_uuid = ""
+            preferred_lab = self.practice_setting("preferredLabPartner")
+            lab_partner = LabPartner.objects.filter(name=preferred_lab).first()
+            if lab_partner is not None:
+                lab_partner_uuid = str(lab_partner.id)
+            self._preferred_lab_partner = CodedItem(
+                uuid=lab_partner_uuid,
+                label=preferred_lab,
+                code="",
+            )
+        return self._preferred_lab_partner
+
     def to_json(self, obfuscate: bool) -> dict:
         return {
             "stagedCommands": {
@@ -248,22 +264,23 @@ class LimitedCache:
             },  # force the setting fetch
             "demographicStr": self.demographic__str__(obfuscate),
             #
-            "conditionHistory": [i._asdict() for i in self.condition_history()],
-            "currentAllergies": [i._asdict() for i in self.current_allergies()],
-            "currentConditions": [i._asdict() for i in self.current_conditions()],
-            "currentGoals": [i._asdict() for i in self.current_goals()],
-            "currentMedications": [i._asdict() for i in self.current_medications()],
-            "existingNoteTypes": [i._asdict() for i in self.existing_note_types()],
-            "existingReasonForVisit": [i._asdict() for i in self.existing_reason_for_visits()],
-            "familyHistory": [i._asdict() for i in self.family_history()],
-            "surgeryHistory": [i._asdict() for i in self.surgery_history()],
-            "chargeDescriptions": [i._asdict() for i in self.charge_descriptions()],
+            "conditionHistory": [i.to_dict() for i in self.condition_history()],
+            "currentAllergies": [i.to_dict() for i in self.current_allergies()],
+            "currentConditions": [i.to_dict() for i in self.current_conditions()],
+            "currentGoals": [i.to_dict() for i in self.current_goals()],
+            "currentMedications": [i.to_dict() for i in self.current_medications()],
+            "existingNoteTypes": [i.to_dict() for i in self.existing_note_types()],
+            "existingReasonForVisit": [i.to_dict() for i in self.existing_reason_for_visits()],
+            "familyHistory": [i.to_dict() for i in self.family_history()],
+            "preferredLabPartner": self.preferred_lab_partner().to_dict(),
+            "surgeryHistory": [i.to_dict() for i in self.surgery_history()],
+            "chargeDescriptions": [i.to_dict() for i in self.charge_descriptions()],
         }
 
     @classmethod
     def load_from_json(cls, cache: dict) -> LimitedCache:
         staged_commands = {
-            key: [CodedItem(**i) for i in commands]
+            key: [CodedItem.load_from_json(i) for i in commands]
             for key, commands in cache.get("stagedCommands", {}).items()
         }
 
@@ -271,16 +288,17 @@ class LimitedCache:
         result._demographic = cache.get("demographicStr", "")
         result._settings = cache.get("settings", {})
 
-        result._condition_history = [CodedItem(**i) for i in cache.get("conditionHistory", [])]
-        result._allergies = [CodedItem(**i) for i in cache.get("currentAllergies", [])]
-        result._conditions = [CodedItem(**i) for i in cache.get("currentConditions", [])]
-        result._goals = [CodedItem(**i) for i in cache.get("currentGoals", [])]
-        result._medications = [CodedItem(**i) for i in cache.get("currentMedications", [])]
-        result._note_type = [CodedItem(**i) for i in cache.get("existingNoteTypes", [])]
-        result._reason_for_visit = [CodedItem(**i) for i in cache.get("existingReasonForVisit", [])]
-        result._family_history = [CodedItem(**i) for i in cache.get("familyHistory", [])]
-        result._surgery_history = [CodedItem(**i) for i in cache.get("surgeryHistory", [])]
+        result._condition_history = [CodedItem.load_from_json(i) for i in cache.get("conditionHistory", [])]
+        result._allergies = [CodedItem.load_from_json(i) for i in cache.get("currentAllergies", [])]
+        result._conditions = [CodedItem.load_from_json(i) for i in cache.get("currentConditions", [])]
+        result._goals = [CodedItem.load_from_json(i) for i in cache.get("currentGoals", [])]
+        result._medications = [CodedItem.load_from_json(i) for i in cache.get("currentMedications", [])]
+        result._preferred_lab_partner = CodedItem.load_from_json(cache.get("preferredLabPartner", {}))
+        result._note_type = [CodedItem.load_from_json(i) for i in cache.get("existingNoteTypes", [])]
+        result._reason_for_visit = [CodedItem.load_from_json(i) for i in cache.get("existingReasonForVisit", [])]
+        result._family_history = [CodedItem.load_from_json(i) for i in cache.get("familyHistory", [])]
+        result._surgery_history = [CodedItem.load_from_json(i) for i in cache.get("surgeryHistory", [])]
 
-        result._charge_descriptions = [ChargeDescription(**i) for i in cache.get("chargeDescriptions", [])]
+        result._charge_descriptions = [ChargeDescription.load_from_json(i) for i in cache.get("chargeDescriptions", [])]
 
         return result

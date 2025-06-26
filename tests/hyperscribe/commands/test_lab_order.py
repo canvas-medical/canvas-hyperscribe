@@ -1,7 +1,6 @@
 from unittest.mock import patch, call, MagicMock
 
 from canvas_sdk.commands.commands.lab_order import LabOrderCommand
-from canvas_sdk.v1.data.lab import LabPartner
 
 from hyperscribe.commands.base import Base
 from hyperscribe.commands.lab_order import LabOrder
@@ -109,23 +108,20 @@ def test_staged_command_extract():
             assert result == expected
 
 
-@patch.object(LimitedCache, 'practice_setting')
-@patch.object(LabPartner, "objects")
+@patch.object(LimitedCache, 'preferred_lab_partner')
 @patch.object(SelectorChat, "lab_test_from")
 @patch.object(SelectorChat, "condition_from")
 def test_command_from_json(
         condition_from,
         lab_test_from,
-        lab_partner_db,
-        practice_setting,
+        preferred_lab_partner,
 ):
     chatter = MagicMock()
 
     def reset_mocks():
         condition_from.reset_mock()
         lab_test_from.reset_mock()
-        lab_partner_db.reset_mock()
-        practice_setting.reset_mock()
+        preferred_lab_partner.reset_mock()
         chatter.reset_mock()
 
     tested = helper_instance()
@@ -157,7 +153,7 @@ def test_command_from_json(
 
     tests = [
         (
-            None,
+            CodedItem(uuid="", label="theLabPartner", code=""),
             LabOrderCommand(
                 ordering_provider_key="providerUuid",
                 fasting_required=True,
@@ -169,7 +165,7 @@ def test_command_from_json(
             ),
         ),
         (
-            LabPartner(id="uuidLab", name="theLabPartner"),
+            CodedItem(uuid="uuidLab", label="theLabPartner", code=""),
             LabOrderCommand(
                 lab_partner="uuidLab",
                 ordering_provider_key="providerUuid",
@@ -193,8 +189,7 @@ def test_command_from_json(
             CodedItem(uuid="uuid3", label="lab3", code=""),
             CodedItem(uuid="uuid4", label="lab4", code="code4"),
         ]
-        lab_partner_db.filter.return_value.first.side_effect = [lab_partner]
-        practice_setting.side_effect = ["thePreferredLab"]
+        preferred_lab_partner.side_effect = [lab_partner]
         instruction = InstructionWithParameters(**arguments)
         result = tested.command_from_json(instruction, chatter)
         # ATTENTION the LabOrderCommand._get_error_details method checks the codes directly in the DB
@@ -213,22 +208,15 @@ def test_command_from_json(
         ]
         assert condition_from.mock_calls == calls
         calls = []
-        if lab_partner is not None:
+        if lab_partner.uuid:
             calls = [
                 call(instruction, chatter, tested.settings, 'theLabPartner', ['lab1', 'lab2'], comment, ['condition1', 'condition4']),
                 call(instruction, chatter, tested.settings, 'theLabPartner', ['lab3'], comment, ['condition1', 'condition4']),
                 call(instruction, chatter, tested.settings, 'theLabPartner', ['lab4'], comment, ['condition1', 'condition4']),
             ]
         assert lab_test_from.mock_calls == calls
-        calls = [
-            call.filter(name='thePreferredLab'),
-            call.filter().first(),
-        ]
-        assert lab_partner_db.mock_calls == calls
-        calls = [
-            call('preferredLabPartner'),
-        ]
-        assert practice_setting.mock_calls == calls
+        calls = [call()]
+        assert preferred_lab_partner.mock_calls == calls
         assert chatter.mock_calls == []
         reset_mocks()
 

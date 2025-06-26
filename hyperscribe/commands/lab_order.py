@@ -1,5 +1,4 @@
 from canvas_sdk.commands.commands.lab_order import LabOrderCommand
-from canvas_sdk.v1.data.lab import LabPartner
 
 from hyperscribe.commands.base import Base
 from hyperscribe.libraries.constants import Constants
@@ -66,17 +65,16 @@ class LabOrder(Base):
                 conditions.append(item)
                 result.diagnosis_codes.append(item.code)
 
-        preferred_lab = self.cache.practice_setting("preferredLabPartner")
-        lab_partner = LabPartner.objects.filter(name=preferred_lab).first()
-        if lab_partner is not None:
-            result.lab_partner = str(lab_partner.id)
+        lab_partner = self.cache.preferred_lab_partner()
+        if lab_partner.uuid:
+            result.lab_partner = lab_partner.uuid
             # retrieve the tests based on the keywords
             for lab_order in instruction.parameters["labOrders"]:
                 item = SelectorChat.lab_test_from(
                     instruction,
                     chatter,
                     self.settings,
-                    lab_partner.name,
+                    lab_partner.label,
                     lab_order["labOrderKeywords"].split(","),
                     instruction.parameters["comment"],
                     [c.label for c in conditions],
