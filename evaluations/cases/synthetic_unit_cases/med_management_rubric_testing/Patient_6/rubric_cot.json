@@ -1,0 +1,47 @@
+[
+  {
+    "criterion": "Reward for accurately documenting the patient's admitted non-adherence to daily mesalamine and the stated reason (busy work schedule/forgetfulness).",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing the clinician's counseling on adherence strategies, including suggestion of phone reminders and pill organizer, and patient's response.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for noting the relationship between adherence and symptom control (feels better when takes medication, symptoms return when doses missed).",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for including the clinician's instruction to contact provider if new symptoms or side effects arise.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for incorporating relevant chart context: active Crohn's disease diagnosis and current mesalamine 2.4 g daily medication, without extraneous chart details.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for overall completeness and fidelity\u2014note captures all major statements and decisions from the encounter without adding unrelated content.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for selectively or inaccurately copying chart information that was not discussed or is irrelevant to this encounter (e.g., family history, unrelated conditions) or omitting key relevant chart elements above.",
+    "weight": 10,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for fabricating clinical findings, orders, assessments, or plans not present in transcript or chart (e.g., labs, vitals, medication changes).",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for altering or misreporting concrete details stated in transcript or chart, such as medication name, dosage (mesalamine 2.4 g daily), or counseling content.",
+    "weight": 10,
+    "sense": "negative"
+  }
+]

@@ -1,0 +1,37 @@
+[
+  {
+    "criterion": "Reward for comprehensive inclusion of all clinically relevant statements, findings, and instructions explicitly or implicitly expressed in the transcript (medication names, patient responses, clinician guidance), without omission.",
+    "weight": 25,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for accurately documenting current medications (losartan 50 mg and atorvastatin 10 mg) and the patient's reported tolerance/no side-effects exactly as discussed.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for faithfully capturing the patient's home blood-pressure trend (mostly within range, one high reading due to stress) and the clinician's advice to keep monitoring and report consistent changes.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for including the clinician's travel/refill precaution about ensuring adequate medication supply when travelling.",
+    "weight": 5,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for any omission, alteration, or misstatement of the discussed medications, side-effects, blood-pressure readings, or clinician instructions.",
+    "weight": 20,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for introducing fabricated content, clinical assessments, physical exam findings, plans, or recommendations not grounded in either the transcript or the patient chart.",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for selectively or inaccurately copying chart information\u2014such as adding unrelated conditions, allergies, family history, or misreporting medication doses\u2014that were not mentioned or relevant to the encounter.",
+    "weight": 10,
+    "sense": "negative"
+  }
+]

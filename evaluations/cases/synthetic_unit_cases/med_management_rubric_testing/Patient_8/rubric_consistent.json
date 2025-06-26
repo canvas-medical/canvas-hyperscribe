@@ -1,0 +1,32 @@
+[
+  {
+    "criterion": "Reward for comprehensive, accurate inclusion of all clinically pertinent dialogue from the transcript, including the patient\u2019s adherence challenges, travel schedule context, prior phone-reminder attempt, driving barrier, clinician recommendations (phone reminders, pill organizer, alternative timing, bedtime dosing), patient\u2019s sleep concern, clinician reassurance, and emphasis on maintaining stable blood pressure.",
+    "weight": 25,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for omission, distortion, or partial capture of any key conversational element present in the transcript.",
+    "weight": 25,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Reward for accurately incorporating only chart elements that are directly relevant to the encounter (e.g., 45-year-old male, hypertension diagnosis, current losartan 50 mg; include diabetes/metformin only if clearly tied to the discussion) and aligning them correctly with transcript context.",
+    "weight": 12,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for inclusion of extraneous or inaccurately copied chart data, or for misalignment of chart elements with what was said or implied during the encounter.",
+    "weight": 12,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for introducing fabricated assessments, diagnoses, plans, orders, prescriptions, instructions, or other content not supported by the transcript or relevant chart context.",
+    "weight": 16,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for factual inaccuracies or misattributions of information from the transcript or chart (e.g., wrong medication name or dose, incorrect speaker attribution, or stating that losartan affects sleep).",
+    "weight": 10,
+    "sense": "negative"
+  }
+]

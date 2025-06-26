@@ -1,0 +1,32 @@
+[
+  {
+    "speaker": "Patient",
+    "text": "I think I might've taken an extra dose of the furosemide yesterday. I was feeling a bit dizzy afterward.",
+    "label": "medication overdose concern"
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Okay, let's see. That could definitely cause some dizziness, especially with your kidney function. How are you feeling today?",
+    "label": "assess current symptoms"
+  },
+  {
+    "speaker": "Patient",
+    "text": "A bit better, but still not quite right. My daughter said I should call you if it happened again.",
+    "label": "reports persistent symptoms"
+  },
+  {
+    "speaker": "Clinician",
+    "text": "That's good advice. We might need to adjust your dose or timing. Have you noticed any changes in your weight or swelling?",
+    "label": "fluid status inquiry"
+  },
+  {
+    "speaker": "Patient",
+    "text": "No, not really. My weight's been about the same, and I haven't seen much swelling.",
+    "label": "negative symptom report"
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Alright, that's helpful to know. Let's keep an eye on it, and maybe we can set up a more consistent schedule with your daughter to help manage the doses.",
+    "label": "dosing schedule plan"
+  }
+]

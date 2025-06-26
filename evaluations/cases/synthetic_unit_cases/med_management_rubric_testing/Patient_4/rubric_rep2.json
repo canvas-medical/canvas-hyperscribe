@@ -1,0 +1,32 @@
+[
+  {
+    "criterion": "Reward for comprehensive inclusion of all major patient and clinician statements from the transcript (extra furosemide dose, dizziness, current weight/swelling status, daughter's involvement, clinician's plan to adjust dose/schedule and monitor)",
+    "weight": 30,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for any omission or distortion of critical details explicitly stated in the transcript (e.g., missing mention of extra dose, dizziness episode timing, stable weight, lack of swelling, or planned coordination with daughter)",
+    "weight": 25,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for introducing information not present or implied in the transcript or chart (fabricated symptoms, diagnoses, orders, or plans)",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Reward for selectively incorporating only relevant chart details that provide necessary context to the transcript (e.g., listing current furosemide 40 mg, documented kidney disease, or penicillin allergy when pertinent), without excess",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for copying or inserting chart elements that are not referenced or relevant to the encounter (unrelated conditions, full medication lists, unused Canvas context instructions, etc.)",
+    "weight": 10,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for inaccuracies in factual specifics carried over from transcript or chart (incorrect drug names, dosages, patient age, or speaker attribution)",
+    "weight": 10,
+    "sense": "negative"
+  }
+]

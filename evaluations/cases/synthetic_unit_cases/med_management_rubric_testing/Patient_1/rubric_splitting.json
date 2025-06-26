@@ -1,0 +1,61 @@
+{
+  "fidelity_criteria": [
+    {
+      "criterion": "Reward for documenting that the patient has been on losartan for about one month and denies cough or other side-effects",
+      "weight": 12,
+      "sense": "positive"
+    },
+    {
+      "criterion": "Reward for recording home blood-pressure pattern (mostly within target with one elevated reading attributed to stress)",
+      "weight": 10,
+      "sense": "positive"
+    },
+    {
+      "criterion": "Reward for documenting that the patient takes atorvastatin 10 mg at night and reports no muscle aches",
+      "weight": 10,
+      "sense": "positive"
+    },
+    {
+      "criterion": "Reward for capturing clinician instructions to continue BP self-monitoring and to ensure adequate medication supply when travelling",
+      "weight": 8,
+      "sense": "positive"
+    },
+    {
+      "criterion": "Reward for including both active problems (hypertension and hyperlipidemia) in today\u2019s Assessment/Plan section",
+      "weight": 10,
+      "sense": "positive"
+    },
+    {
+      "criterion": "Penalize for introducing symptoms, diagnoses, medications, or management steps not mentioned in the transcript or chart (fabrication/distortion)",
+      "weight": 15,
+      "sense": "negative"
+    }
+  ],
+  "appropriateness_criteria": [
+    {
+      "criterion": "Reward for documenting a plan to obtain a lipid panel (and/or liver enzymes) within the next 3\u201312 months for guideline-based statin monitoring",
+      "weight": 12,
+      "sense": "positive"
+    },
+    {
+      "criterion": "Reward for specifying ongoing renal function and potassium monitoring for losartan therapy, reflecting evidence-based ARB safety monitoring",
+      "weight": 12,
+      "sense": "positive"
+    },
+    {
+      "criterion": "Reward for advising (and documenting) that the patient maintain an adequate medication supply while travelling to prevent interruption of antihypertensive/statin therapy (patient-safety emphasis)",
+      "weight": 10,
+      "sense": "positive"
+    },
+    {
+      "criterion": "Penalize for omission of any follow-up plan or interval for blood-pressure review or clinic visit despite chronic hypertension (risk of uncontrolled BP)",
+      "weight": 14,
+      "sense": "negative"
+    },
+    {
+      "criterion": "Penalize for documenting or ordering unsafe medication dose changes (e.g., doubling losartan or increasing atorvastatin) without supporting data or rationale",
+      "weight": 15,
+      "sense": "negative"
+    }
+  ]
+}

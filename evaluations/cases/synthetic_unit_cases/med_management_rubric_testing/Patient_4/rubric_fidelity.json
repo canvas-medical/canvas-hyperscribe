@@ -1,0 +1,37 @@
+[
+  {
+    "criterion": "Reward for comprehensive inclusion of all clinically relevant facts, symptoms, assessments, and plans explicitly or implicitly stated in the transcript (e.g., extra furosemide dose, dizziness, stable weight/swelling, plan to adjust dosing with daughter's help).",
+    "weight": 30,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for omission or distortion of any key element spoken in the encounter (missing symptoms, assessments, plans, or follow-up advice).",
+    "weight": 25,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Reward for accurately documenting patient-specific details drawn from the chart that are germane to the visit (age, sex, heart failure, chronic kidney disease, furosemide 40 mg, penicillin allergy) without inserting unrelated chart data.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for wholesale or selective copying of chart information that was not referenced or relevant to the transcript (e.g., unrelated medications, empty sections, boiler-plate histories).",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Reward for precise transcription of quantitative or specific details stated in the encounter (medication name and dose, absence of weight change or swelling, daughter\u2019s involvement), with correct attribution to patient or clinician.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for fabrication of new information, recommendations, diagnoses, dates, or measurements not grounded in either the transcript or chart.",
+    "weight": 20,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for misattribution of statements, incorrect speaker identification, or altered narrative tone that changes the meaning of what was said.",
+    "weight": 10,
+    "sense": "negative"
+  }
+]

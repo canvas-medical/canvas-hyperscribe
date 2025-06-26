@@ -1,0 +1,37 @@
+[
+  {
+    "criterion": "Reward for complete and accurate capture of all patient-reported information about mood improvement, initial nausea, inconsistent dosing with hectic mornings, and financial difficulty affording sertraline, exactly as conveyed in the transcript.",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for precise documentation of clinician statements\u2014including reassurance about transient nausea, advice to take sertraline with food, suggestion to set phone reminders, and plan to explore affordability assistance\u2014without embellishment or omission.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for omission of any major element from the encounter (patient symptoms, adherence pattern, side-effect timeline, cost issues, or clinician counseling and affordability plan) that was stated or clearly implied in the transcript.",
+    "weight": 20,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for introduction of content not supported by the transcript or chart (e.g., new diagnoses, physical exam findings, lab orders, medication changes, or follow-up intervals not mentioned).",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for inaccurate transcription of factual details\u2014wrong medication name or dosage, misreported timing of nausea, incorrect demographic data, or misattribution of statements to the patient versus clinician.",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Reward for selectively incorporating only chart elements directly relevant to the conversation (current sertraline 50 mg prescription, documented depression/anxiety diagnoses) while excluding unrelated chart information.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for copying or inserting chart data that was not referenced in the encounter (e.g., family history, allergies, other conditions) or for mismatching chart details with what was discussed.",
+    "weight": 5,
+    "sense": "negative"
+  }
+]

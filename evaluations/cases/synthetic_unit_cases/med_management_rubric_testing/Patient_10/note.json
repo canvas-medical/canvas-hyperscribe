@@ -1,0 +1,28 @@
+[
+  {
+    "instruction": "Start aspirin 81mg daily for cardiovascular protection.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.medication",
+      "class": "MedicationOrderCommand",
+      "attributes": {
+        "medication": "Aspirin 81mg tablet",
+        "dosage": "81mg",
+        "frequency": "Daily",
+        "duration": "Ongoing"
+      }
+    }
+  },
+  {
+    "instruction": "Continue warfarin 5mg daily.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.medication",
+      "class": "MedicationOrderCommand",
+      "attributes": {
+        "medication": "Warfarin 5mg tablet",
+        "dosage": "5mg",
+        "frequency": "Daily",
+        "duration": "Ongoing"
+      }
+    }
+  }
+]
