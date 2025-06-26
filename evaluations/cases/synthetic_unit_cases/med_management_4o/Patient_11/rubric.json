@@ -1,0 +1,27 @@
+[
+  {
+    "criterion": "Reward for including patient-reported adherence challenges with amlodipine and suggested solutions like reminders or pill organizers.",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for omitting assessment of potential side effects of amlodipine, such as fatigue, and not exploring other possible causes.",
+    "weight": 25,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Reward for addressing potential side effects of amlodipine, such as swelling, and inquiring about other symptoms like fatigue.",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for not documenting the patient's living situation and its impact on medication adherence, which is a relevant social determinant of health.",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Reward for including a plan to monitor for side effects of amlodipine, such as swelling and fatigue, in future visits.",
+    "weight": 20,
+    "sense": "positive"
+  }
+]

@@ -1,0 +1,27 @@
+[
+  {
+    "criterion": "Reward for documenting the resolution of the patient's dizziness, including the timeframe and patient's perception of improvement.",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for addressing the patient's medication adherence challenges, including the use of phone alarms and the suggestion of a pill organizer as a backup plan.",
+    "weight": 25,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for omitting the patient's current medication details, including dosage and frequency, in the context of discussing adherence.",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Reward for including a discussion of potential solutions to improve medication adherence, such as alternative reminder systems.",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for not documenting any follow-up plan or further assessment related to the patient's epilepsy management.",
+    "weight": 20,
+    "sense": "negative"
+  }
+]

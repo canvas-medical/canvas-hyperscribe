@@ -1,0 +1,32 @@
+[
+  {
+    "rationale": "The hyperscribe output does not mention the patient's concern about long-term effects of prednisone or the clinician's explanation of the risk-benefit balance.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "The output includes the clinician's advice on what to do if a dose of prednisone is missed, ensuring patient safety and adherence.",
+    "satisfaction": 100.0,
+    "score": 20.0
+  },
+  {
+    "rationale": "There is no mention of the patient's concern about forgetting to take prednisone or the clinician's suggestion to set a reminder.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "The output does not document any inquiry about the patient's management of tiotropium.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "The output does not provide any new or relevant information about the patient's current condition or medication adherence that could impact clinical decision-making.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "The output is focused on new, relevant information without unnecessary repetition, but it is very brief.",
+    "satisfaction": 80.0,
+    "score": 8.0
+  }
+]

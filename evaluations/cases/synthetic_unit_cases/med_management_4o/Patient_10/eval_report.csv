@@ -1,0 +1,6 @@
+Criterion #,Criterion,Max Score,Satisfaction (%),Score Awarded,Rationale
+1,"Reward for documenting the patient's use of a pill organizer to manage warfarin, as it indicates adherence support.",20,0.0,0.0,The documentation does not mention the patient's use of a pill organizer.
+2,"Reward for noting the patient's daughter assists with transportation for INR checks, highlighting social support.",15,0.0,0.0,The documentation does not mention the patient's daughter assisting with transportation.
+3,"Penalize for omitting specific INR values or trends, as this is critical for managing warfarin therapy and patient safety.",25,0.0,0.0,"The documentation omits specific INR values or trends, which are critical for managing warfarin therapy."
+4,"Reward for documenting the absence of unusual bruising or bleeding, which is important for assessing warfarin safety.",20,0.0,0.0,The documentation does not mention the absence of unusual bruising or bleeding.
+5,"Penalize for not addressing the patient's concern about INR variability, as it is important for patient reassurance and safety.",20,0.0,0.0,The documentation does not address the patient's concern about INR variability.

@@ -1,0 +1,32 @@
+[
+  {
+    "criterion": "Reward for documenting the patient's report of improved blood sugar control since starting empagliflozin.",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for noting the patient's experience of increased thirst as a side effect of empagliflozin and advising on hydration.",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for not addressing the patient's difficulty in maintaining the dosing schedule due to irregular work hours with a specific plan or follow-up.",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Reward for suggesting practical solutions, such as using an app or alarm, to help the patient remember medication dosing.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for not documenting any assessment or follow-up plan regarding the patient's weight gain concern.",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Reward for including relevant social determinants of health, such as the patient's job affecting medication adherence.",
+    "weight": 15,
+    "sense": "positive"
+  }
+]

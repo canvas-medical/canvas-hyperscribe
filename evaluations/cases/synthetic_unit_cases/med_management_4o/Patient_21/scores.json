@@ -1,0 +1,32 @@
+[
+  {
+    "rationale": "The patient's question about missing a dose of losartan and the clinician's advice on how to handle it is accurately documented.",
+    "satisfaction": 100.0,
+    "score": 20.0
+  },
+  {
+    "rationale": "The patient's concern about family history of cardiovascular disease is mentioned, but there is no documentation of the clinician's reassurance and advice on monitoring blood pressure.",
+    "satisfaction": 50.0,
+    "score": 10.0
+  },
+  {
+    "rationale": "There is no documentation of the patient's question about the potential for a cough with losartan or the clinician's explanation of the difference between losartan and lisinopril.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "The current medication, losartan, is mentioned, satisfying the criterion.",
+    "satisfaction": 100.0,
+    "score": -15.0
+  },
+  {
+    "rationale": "There is no documentation of the clinician's instruction to monitor blood pressure at home and report any unusual changes.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "There is no mention of the clinician's advice to contact them if new symptoms arise.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  }
+]
