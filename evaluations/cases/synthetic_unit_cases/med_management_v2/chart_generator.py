@@ -1,5 +1,6 @@
 import json
 import re
+import uuid
 from pathlib import Path
 import os
 from hyperscribe.llms.llm_openai import LlmOpenai
@@ -52,10 +53,14 @@ class ChartGenerator:
             text=[
                 f"Patient profile: {profile_text}",
                 f"Here is an example structure:\n{json.dumps(self.example_chart, indent=2)}",
-                "Generate a valid limited_chart.json for this patient. Only output raw JSON — no markdown, no commentary."
-                "Be very clear that the limited_chart only references the existing conditions that the patient has rather than things they might be being seen for."
+                "Generate a valid limited_chart.json for this patient. Only output raw JSON — no markdown, no commentary.",
+                "Be strict about including only information that is clearly **already known or documented** in the profile. Do not speculate or infer anything that could happen in the future.",
+                "Include only conditions the patient **has had or is actively diagnosed with**, not symptoms or possibilities.",
+                "Include only medications the patient is **actually taking**, not medications they might take, are considering, or could be prescribed.",
+                "Everything in the chart must be written from a factual, retrospective standpoint — it should reflect the patient’s clinical record, not a future possibility or plan."
             ]
         ))
+
 
         response = llm.request()
         cleaned = re.sub(r'```(?:json)?\n?|\n?```', '', response.response).strip()
@@ -66,6 +71,20 @@ class ChartGenerator:
             LimitedCache.load_from_json(chart_json)
         except Exception as e:
             raise ValueError(f"Invalid limited_chart.json structure: {e}")
+
+    def assign_valid_uuids(self, obj):
+        """
+        Recursively walk the JSON dict/list and replace any 'uuid' field with a generated UUID4.
+        """
+        if isinstance(obj, dict):
+            return {
+                k: str(uuid.uuid4()) if k.lower() == 'uuid' else self.assign_valid_uuids(v)
+                for k, v in obj.items()
+            }
+        elif isinstance(obj, list):
+            return [self.assign_valid_uuids(item) for item in obj]
+        else:
+            return obj
 
     def run(self):
         for patient_name, profile_text in self.profiles.items():
@@ -78,6 +97,9 @@ class ChartGenerator:
 
             # Validate
             self.validate_chart(chart_json)
+
+            # Replace UUIDs
+            chart_json = self.assign_valid_uuids(chart_json)
 
             # Save
             chart_path = patient_dir / "limited_chart.json"

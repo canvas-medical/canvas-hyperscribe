@@ -1,0 +1,6 @@
+Criterion #,Criterion,Max Score,Satisfaction (%),Score Awarded,Rationale
+1,"Reward for documenting the patient's positive response to losartan, specifically the absence of cough, which is a known side effect of other antihypertensives like ACE inhibitors.",20,0.0,0.0,The documentation did not mention the patient's response to losartan or the absence of cough.
+2,"Reward for noting the patient's mild dizziness upon standing, as this is a potential side effect of losartan and relevant to patient safety.",20,0.0,0.0,The documentation did not note the patient's mild dizziness upon standing.
+3,"Penalize for omitting a structured assessment of the patient's blood pressure control, given the patient's history of essential hypertension.",25,0.0,0.0,There was no structured assessment of the patient's blood pressure control.
+4,Reward for confirming the patient's adherence to the medication regimen by documenting the timing of losartan intake.,15,0.0,0.0,The documentation did not confirm the patient's adherence to the medication regimen or the timing of losartan intake.
+5,Penalize for not explicitly documenting any follow-up plan or instructions for monitoring the dizziness or other potential side effects.,20,0.0,0.0,There was no documentation of a follow-up plan or instructions for monitoring dizziness or other side effects.

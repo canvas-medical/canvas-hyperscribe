@@ -1,38 +1,28 @@
 {
-  "demographicStr": "the patient is a boy, born on October 1, 2013 (age 10)",
-  "conditionHistory": [
-    {
-      "uuid": "condHist1",
-      "label": "History of bronchitis",
-      "code": "J20.9"
-    }
-  ],
+  "demographicStr": "the patient is a woman, born on January 1, 1993 (age 30)",
+  "conditionHistory": [],
   "currentAllergies": [],
   "currentConditions": [
     {
-      "uuid": "cond1",
-      "label": "Asthma",
-      "code": "J45.909"
-    },
-    {
-      "uuid": "cond2",
-      "label": "Eczema",
-      "code": "L20.9"
+      "uuid": "3d97c52b-2cbf-4c3d-a1c1-fa77623ba109",
+      "label": "Generalized anxiety disorder",
+      "code": "F41.1"
     }
   ],
   "currentGoals": [],
   "currentMedications": [
     {
-      "uuid": "med1",
-      "label": "Albuterol inhaler",
-      "code": "NDC 0173-0682-20"
-    },
-    {
-      "uuid": "med2",
-      "label": "Fluticasone nasal spray",
-      "code": "NDC 54868-6050-1"
+      "uuid": "22fb518e-9234-4106-a08d-f69031e3103d",
+      "label": "Sertraline 50 mg daily",
+      "code": "N06AB06"
     }
   ],
-  "familyHistory": [],
+  "familyHistory": [
+    {
+      "uuid": "ad371b09-bcf8-4820-8066-c382c7c211e0",
+      "label": "Family history of depression",
+      "code": "Z81.8"
+    }
+  ],
   "surgeryHistory": []
 }

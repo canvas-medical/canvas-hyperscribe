@@ -1,26 +1,26 @@
 [
   {
-    "speaker": "Doctor",
-    "text": "Good morning, Mrs. Patient 28. How have you been feeling lately with your current medications?"
+    "speaker": "Clinician",
+    "text": "And, uh, when you mentioned the palpitations, have they been less frequent since we adjusted the levothyroxine dose?"
   },
   {
     "speaker": "Patient",
-    "text": "Good morning, Doctor. I've been managing okay, but my knees have been quite painful lately."
+    "text": "Yes, I think so. It's, um, not as bad as before, but I still get them sometimes. It's a bit worrying."
   },
   {
-    "speaker": "Doctor",
-    "text": "I see. You're currently taking acetaminophen for the pain, correct? How is that working for you?"
-  },
-  {
-    "speaker": "Patient",
-    "text": "It helps a bit, but not as much as I'd like. I used to take ibuprofen, but I know that's not an option anymore."
-  },
-  {
-    "speaker": "Doctor",
-    "text": "Yes, with your kidney function, we need to avoid NSAIDs. Have you been taking the acetaminophen regularly, and at what dose?"
+    "speaker": "Clinician",
+    "text": "I understand. It's important we keep an eye on that. Have you been able to, uh, get your refills on time, or has transportation been an issue lately?"
   },
   {
     "speaker": "Patient",
-    "text": "I've been taking it three times a day, usually 500 mg each time."
+    "text": "Well, it's been a bit tricky. My neighbor usually helps, but she's been busy. I managed last time, but it was close."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Okay, let's see if we can set up a delivery service for your medication. That might help ease some of the stress."
+  },
+  {
+    "speaker": "Patient",
+    "text": "That would be great. I didn't know that was an option. It would really help."
   }
 ]

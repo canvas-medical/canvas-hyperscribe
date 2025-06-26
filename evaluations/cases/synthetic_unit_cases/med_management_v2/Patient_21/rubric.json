@@ -1,0 +1,27 @@
+[
+  {
+    "criterion": "Reward for accurately documenting the patient's question about missing a dose of losartan and the clinician's advice on how to handle it.",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for including the patient's concern about family history of cardiovascular disease and its influence on their medication adherence.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting the patient's question about the potential side effect of cough with losartan and the clinician's reassurance based on pharmacological differences from lisinopril.",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for omitting the clinician's instruction to monitor blood pressure at home and report any unusual changes.",
+    "weight": 25,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Reward for including the clinician's advice to contact them if new symptoms arise, ensuring patient safety and follow-up.",
+    "weight": 20,
+    "sense": "positive"
+  }
+]

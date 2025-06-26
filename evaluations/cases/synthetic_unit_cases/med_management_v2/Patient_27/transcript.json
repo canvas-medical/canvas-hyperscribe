@@ -1,26 +1,22 @@
 [
   {
-    "speaker": "Doctor",
-    "text": "Hi, how have you been feeling on the sertraline lately?"
+    "speaker": "Clinician",
+    "text": "And, uh, when you mentioned the empagliflozin, have you noticed any changes in your blood sugar levels or, um, any side effects since you started?"
   },
   {
     "speaker": "Patient",
-    "text": "Overall, it's been okay, but I still have some days where I feel pretty low."
+    "text": "Well, I think my blood sugar's been a bit better, but, uh, sometimes I feel a bit more thirsty than usual. Is that, uh, normal?"
   },
   {
-    "speaker": "Doctor",
-    "text": "I see. And how about the migraines? Are the sumatriptan tablets helping when you need them?"
-  },
-  {
-    "speaker": "Patient",
-    "text": "Yes, they do help, but I try not to take them too often because I'm worried about overuse."
-  },
-  {
-    "speaker": "Doctor",
-    "text": "That's a good point. Have you noticed any side effects from the sertraline or sumatriptan?"
+    "speaker": "Clinician",
+    "text": "Yes, increased thirst can be a side effect. It's important to stay hydrated, especially with your job. Have you been able to keep up with the dosing schedule despite your, uh, irregular hours?"
   },
   {
     "speaker": "Patient",
-    "text": "Not really from the sumatriptan, but sometimes the sertraline makes me feel a bit jittery."
+    "text": "It's been tricky. I try to take it in the morning, but, uh, sometimes I forget if I'm on the road early. I guess I need to set a better reminder."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "That could help. Maybe using an app or setting an alarm on your phone might make it easier to remember. And, uh, about the weight gain, have you noticed any changes since starting the new medication?"
   }
 ]

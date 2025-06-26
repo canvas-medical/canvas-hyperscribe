@@ -1,0 +1,27 @@
+[
+  {
+    "criterion": "Reward for documenting the patient's adherence to the medication schedule, specifically taking levothyroxine in the morning on an empty stomach and atorvastatin at night.",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for noting the patient's subjective report of feeling more energetic, which may indicate a response to the increased levothyroxine dosage.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for omitting any mention of potential side effects or adverse reactions to the increased dosage of levothyroxine, such as palpitations or increased sweating, which were discussed during the encounter.",
+    "weight": 25,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Reward for confirming the absence of new symptoms or adverse effects following the medication adjustment, which is crucial for patient safety.",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for not including a follow-up plan or instructions for monitoring symptoms or scheduling a future appointment to reassess the patient's response to the medication change.",
+    "weight": 20,
+    "sense": "negative"
+  }
+]

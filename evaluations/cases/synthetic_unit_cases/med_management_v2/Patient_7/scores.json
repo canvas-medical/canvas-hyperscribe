@@ -1,0 +1,27 @@
+[
+  {
+    "rationale": "The note mentions taking levothyroxine on an empty stomach in the morning but does not specify atorvastatin at night.",
+    "satisfaction": 70.0,
+    "score": 14.0
+  },
+  {
+    "rationale": "There is no mention of the patient's subjective report of feeling more energetic.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "The note does not mention any potential side effects or adverse reactions to the increased dosage of levothyroxine.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "There is no confirmation of the absence of new symptoms or adverse effects following the medication adjustment.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "The note does not include a follow-up plan or instructions for monitoring symptoms or scheduling a future appointment.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  }
+]

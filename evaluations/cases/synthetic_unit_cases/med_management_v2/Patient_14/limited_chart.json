@@ -1,22 +1,28 @@
 {
-  "demographicStr": "the patient is a boy, born on October 1, 2017 (age 6)",
+  "demographicStr": "the patient is a woman, born on January 1, 1978 (age 45)",
   "conditionHistory": [],
   "currentAllergies": [],
   "currentConditions": [
     {
-      "uuid": "cond1",
-      "label": "Attention-deficit/hyperactivity disorder, predominantly hyperactive-impulsive presentation",
-      "code": "F90.1"
+      "uuid": "6c237b5a-d5fd-4fe6-8556-99ddb0051a5c",
+      "label": "Major depressive disorder, single episode, unspecified",
+      "code": "F32.9"
     }
   ],
   "currentGoals": [],
   "currentMedications": [
     {
-      "uuid": "med1",
-      "label": "Methylphenidate long-acting formulation",
-      "code": "N06BA04"
+      "uuid": "25e830b4-d3bf-4a0b-93ee-cab343f4ebe9",
+      "label": "Fluoxetine 20 mg daily",
+      "code": "N06AB03"
     }
   ],
-  "familyHistory": [],
+  "familyHistory": [
+    {
+      "uuid": "9714d6d0-fe8f-4700-971d-2ff952bc0b70",
+      "label": "Family history of depression",
+      "code": "Z81.8"
+    }
+  ],
   "surgeryHistory": []
 }

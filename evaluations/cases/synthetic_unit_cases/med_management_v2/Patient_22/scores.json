@@ -1,0 +1,32 @@
+[
+  {
+    "rationale": "The patient's report of muscle aches primarily in the legs, especially after sitting, is clearly documented in the History of Present Illness.",
+    "satisfaction": 100.0,
+    "score": 20.0
+  },
+  {
+    "rationale": "The note mentions the patient's observation of symptoms worsening in the evening but does not explicitly link this to atorvastatin as a potential side effect.",
+    "satisfaction": 70.0,
+    "score": 14.0
+  },
+  {
+    "rationale": "There is no discussion of potential management options for the muscle aches, such as adjusting the timing of atorvastatin or considering a different statin.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "The note does not include a plan to monitor the patient's symptoms over time to assess the need for medication adjustment.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "The patient's concern about stopping atorvastatin due to cholesterol management is documented.",
+    "satisfaction": 100.0,
+    "score": -15.0
+  },
+  {
+    "rationale": "There is no mention of considering the risks and benefits of changing the statin medication in line with evidence-based guidelines.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  }
+]

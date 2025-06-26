@@ -1,0 +1,32 @@
+[
+  {
+    "criterion": "Reward for documenting a clear, concise HPI that includes all four patient-reported details from the encounter: (1) prior stomach upset on sertraline, (2) absence of GI symptoms on fluoxetine, (3) stable mood since last dose change, and (4) ongoing work stress context",
+    "weight": 25,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for explicitly recording the current antidepressant regimen (fluoxetine 20 mg daily) and the patient\u2019s confirmed full adherence with a daily phone reminder and no missed doses",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for an assessment section that correctly identifies major depressive disorder as \"improved/stable\" or similar, attributes this to current fluoxetine therapy, and states the plan to continue the same dose",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting a suicide or self-harm risk screen (e.g., direct question about suicidal ideation) and its result, ensuring patient safety",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for including an evidence-based follow-up or monitoring plan (e.g., next visit within 4\u20138 weeks or instructions to report side effects promptly) consistent with antidepressant management guidelines",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for adding information not supported by the transcript or chart (e.g., unrelated review of systems, physical exam findings, lab orders) or for duplicating chart data verbatim without clinical relevance",
+    "weight": 10,
+    "sense": "negative"
+  }
+]
