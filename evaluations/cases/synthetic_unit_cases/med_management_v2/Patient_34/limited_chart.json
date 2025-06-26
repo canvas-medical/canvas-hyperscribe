@@ -1,38 +1,27 @@
 {
-  "demographicStr": "the patient is a man, born on January 1, 1961 (age 62)",
+  "demographicStr": "the patient is a man, born on January 1, 1945 (age 78)",
   "conditionHistory": [],
   "currentAllergies": [],
   "currentConditions": [
     {
-      "uuid": "cond1",
-      "label": "Coronary artery disease",
-      "code": "I25.10"
-    },
-    {
-      "uuid": "cond2",
-      "label": "Hyperlipidemia",
-      "code": "E78.5"
+      "uuid": "6bdc1578-248f-42c7-b061-7a106da6d83d",
+      "label": "Chronic obstructive pulmonary disease",
+      "code": "J44.9"
     }
   ],
   "currentGoals": [],
   "currentMedications": [
     {
-      "uuid": "med1",
-      "label": "Atorvastatin 20 mg tablet",
-      "code": "C10AA05"
+      "uuid": "f23b52d2-ecea-41b0-be4d-bb27048c2e15",
+      "label": "Tiotropium inhaler",
+      "code": "216980"
     },
     {
-      "uuid": "med2",
-      "label": "Aspirin 81 mg tablet",
-      "code": "B01AC06"
+      "uuid": "2c0393f7-b407-4cac-8fa9-606172feb26a",
+      "label": "Prednisone 5 mg tablet",
+      "code": "548680"
     }
   ],
-  "familyHistory": [
-    {
-      "uuid": "fh1",
-      "label": "Family history of myocardial infarction",
-      "code": "Z82.49"
-    }
-  ],
+  "familyHistory": [],
   "surgeryHistory": []
 }

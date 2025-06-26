@@ -1,0 +1,27 @@
+[
+  {
+    "instruction": "Patient reports improved blood sugar levels since starting empagliflozin but experiences increased thirst as a side effect. The patient finds it tricky to maintain the dosing schedule due to irregular work hours and sometimes forgets to take the medication when on the road early.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.history_present_illness",
+      "class": "HistoryOfPresentIllnessCommand",
+      "attributes": {
+        "narrative": "Patient reports improved blood sugar levels since starting empagliflozin but experiences increased thirst as a side effect. The patient finds it tricky to maintain the dosing schedule due to irregular work hours and sometimes forgets to take the medication when on the road early."
+      }
+    }
+  },
+  {
+    "instruction": "The clinician suggested using an app or setting an alarm on the phone to help remember the medication dosing schedule.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "coding": {
+          "system": "http://snomed.info/sct",
+          "code": "313184003",
+          "display": "Patient given telephone advice out of hours"
+        },
+        "comment": "The clinician suggested using an app or setting an alarm on the phone to help remember the medication dosing schedule."
+      }
+    }
+  }
+]

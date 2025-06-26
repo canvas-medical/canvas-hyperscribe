@@ -1,0 +1,38 @@
+[
+  {
+    "instruction": "Amlodipine (dose not specified) \u2013 patient currently takes for hypertension but reports occasionally forgetting to pick up refills.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.medication_statement",
+      "class": "MedicationStatementCommand",
+      "attributes": {
+        "fdb_code": "202624",
+        "sig": "Dose not specified; patient currently takes for hypertension"
+      }
+    }
+  },
+  {
+    "instruction": "Patient lives alone and reports inconsistent adherence to amlodipine, occasionally forgetting pharmacy pick-ups. Denies ankle or foot swelling. Complains of feeling more tired than usual (fatigue). Sleep quality and other recent changes under review.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.history_present_illness",
+      "class": "HistoryOfPresentIllnessCommand",
+      "attributes": {
+        "narrative": "Lives alone, inconsistently takes amlodipine and sometimes forgets pharmacy refills; denies ankle or foot swelling but reports increased fatigue, with sleep quality and other recent changes currently being evaluated."
+      }
+    }
+  },
+  {
+    "instruction": "Clinician advises patient to set phone reminders and use a pill organizer consistently to improve adherence to amlodipine.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "coding": {
+          "system": "http://snomed.info/sct",
+          "code": "713092004",
+          "display": "Education about use of pill box"
+        },
+        "comment": "Please set phone reminders and use a pill organizer consistently to improve adherence to your amlodipine."
+      }
+    }
+  }
+]

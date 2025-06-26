@@ -1,30 +1,31 @@
 {
-  "demographicStr": "the patient is a male, age 15",
+  "demographicStr": "the patient is a man, born on January 1, 1991 (age 32)",
   "conditionHistory": [],
   "currentAllergies": [],
   "currentConditions": [
     {
-      "uuid": "cond1",
-      "label": "Attention-deficit/hyperactivity disorder",
-      "code": "F90.9"
-    },
-    {
-      "uuid": "cond2",
-      "label": "Mild asthma",
-      "code": "J45.20"
+      "uuid": "73967988-e637-4420-8640-f0eccacd5184",
+      "label": "Type 1 diabetes mellitus",
+      "code": "E10.9"
     }
   ],
-  "currentGoals": [],
+  "currentGoals": [
+    {
+      "uuid": "492b1e4b-520a-417d-a989-6cc484d9137d",
+      "label": "Manage blood sugar levels effectively",
+      "code": ""
+    }
+  ],
   "currentMedications": [
     {
-      "uuid": "med1",
-      "label": "Methylphenidate",
-      "code": "N06BA04"
+      "uuid": "de2dab55-2ffd-42a7-b8d6-de92d8fe3653",
+      "label": "Insulin glargine",
+      "code": "123456"
     },
     {
-      "uuid": "med2",
-      "label": "Albuterol inhaler",
-      "code": "R03AC02"
+      "uuid": "561b6829-4b21-44c5-938c-33946d83ca71",
+      "label": "Insulin lispro",
+      "code": "654321"
     }
   ],
   "familyHistory": [],

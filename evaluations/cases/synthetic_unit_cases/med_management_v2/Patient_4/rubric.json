@@ -1,0 +1,32 @@
+[
+  {
+    "criterion": "Reward for documenting the patient's report of taking an extra dose of furosemide and experiencing dizziness, as it is crucial for understanding the current situation and potential medication adjustment.",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for noting the clinician's consideration of adjusting the furosemide dose or timing, reflecting evidence-based decision making in response to the patient's symptoms and chronic kidney disease.",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for omitting the patient's chronic conditions (heart failure, atrial fibrillation, chronic kidney disease) in the context of discussing medication management and potential side effects.",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Reward for including the patient's daughter's involvement in medication management, as it highlights the social support system and potential for improved adherence and safety.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for not documenting a follow-up plan or specific instructions for monitoring symptoms or medication adherence, which is important for patient safety and ongoing management.",
+    "weight": 20,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Reward for assessing the absence of weight changes or swelling, which are relevant to the patient's heart failure management and potential side effects of furosemide.",
+    "weight": 10,
+    "sense": "positive"
+  }
+]

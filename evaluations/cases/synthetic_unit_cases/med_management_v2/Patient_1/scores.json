@@ -1,26 +1,32 @@
-{
-  "score_vector": [
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0
-  ],
-  "reasoning_vector": [
-    "The note does not mention the patient's reported symptom of ankle swelling or its potential link to lisinopril.",
-    "The patient's blood pressure reading of 150/90 is not documented in the note.",
-    "There is no mention of the patient's partial adherence to the medication regimen or forgetting the evening dose.",
-    "The note does not include the doctor's consideration to adjust the lisinopril dose or add another medication.",
-    "There is no mention of a plan to review kidney function tests before making medication changes.",
-    "The note does not include any pre-existing conditions such as hypertension, type 2 diabetes, or chronic kidney disease.",
-    "The patient's allergy to penicillin is not repeated in the note.",
-    "There is no redundant information from the chart copied into the scribe note.",
-    "The note does not summarize any discussion about strategies to improve medication adherence.",
-    "The patient's agreement to ensure everything is in check before making changes is not included."
-  ]
-}
+[
+  {
+    "rationale": "Names (losartan, atorvastatin), duration (~1 mo), adherence and absence of side-effects documented, but exact dosages (e.g., 50 mg, 10 mg) are completely missing.",
+    "satisfaction": 70.0,
+    "score": 17.5
+  },
+  {
+    "rationale": "Notes typical control (\u201cmostly within target range\u201d) and one stress-related spike; gives instruction to report persistent elevations, but lacks specific numeric readings.",
+    "satisfaction": 75.0,
+    "score": 15.0
+  },
+  {
+    "rationale": "Provides counseling to continue BP monitoring and secure adequate supply before travel; does not explicitly remind patient to take atorvastatin at night.",
+    "satisfaction": 70.0,
+    "score": 10.5
+  },
+  {
+    "rationale": "No mention of renal/k\u207a labs after losartan start or lipid panel for statin; no stated reason for omission.",
+    "satisfaction": 5.0,
+    "score": 0.75
+  },
+  {
+    "rationale": "Documentation is concise with no obvious copy-pasted past history or full med list.",
+    "satisfaction": 95.0,
+    "score": 9.5
+  },
+  {
+    "rationale": "Gives contingency to report elevated BP but lacks concrete follow-up interval or plan if BP remains uncontrolled.",
+    "satisfaction": 40.0,
+    "score": 6.0
+  }
+]

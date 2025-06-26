@@ -1,0 +1,30 @@
+[
+  {
+    "instruction": "Hypothyroidism: Palpitations have been less frequent since adjusting the levothyroxine dose, but the patient still experiences them sometimes.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.update_diagnosis",
+      "class": "UpdateDiagnosisCommand",
+      "attributes": {
+        "background": "The patient has been experiencing less frequent palpitations since the levothyroxine dose was adjusted, indicating a possible link between the hypothyroidism treatment and the palpitations.",
+        "narrative": "The patient still experiences palpitations sometimes, despite the adjustment in levothyroxine dosage.",
+        "condition_code": "E03.9",
+        "new_condition_code": "R002"
+      }
+    }
+  },
+  {
+    "instruction": "Set up a delivery service for the patient's medication to help with transportation issues.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.task",
+      "class": "TaskCommand",
+      "attributes": {
+        "comment": "Assist the patient with transportation issues by arranging a delivery service for their medication.",
+        "labels": [
+          "Coordinate"
+        ],
+        "due_date": "2025-06-25",
+        "title": "Set up medication delivery service"
+      }
+    }
+  }
+]

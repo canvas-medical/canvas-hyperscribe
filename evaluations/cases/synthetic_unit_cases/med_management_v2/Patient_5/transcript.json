@@ -1,26 +1,30 @@
 [
   {
-    "speaker": "Doctor",
-    "text": "Good morning, Mrs. Thompson. How have you been feeling on your current medications?"
+    "speaker": "Patient",
+    "text": "But, um, I'm just worried that adding the hydroxychloroquine might not be enough. The pain's been, uh, more intense lately."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "I understand your concern. It's not uncommon to need adjustments. Have you noticed any improvement at all since starting it?"
   },
   {
     "speaker": "Patient",
-    "text": "Morning, Doctor. I've been okay, but I'm a bit worried about the warfarin. I remember the bleeding episode I had last year."
+    "text": "A little, maybe, but it's hard to tell. I mean, some days are better than others, you know?"
   },
   {
-    "speaker": "Doctor",
-    "text": "I understand your concern. Have you noticed any new bruising or bleeding recently?"
-  },
-  {
-    "speaker": "Patient",
-    "text": "No, nothing like that. But I do get a bit anxious about it sometimes."
-  },
-  {
-    "speaker": "Doctor",
-    "text": "That's understandable. We can review your INR levels to ensure they're within the safe range. Have you been able to keep up with your regular blood tests?"
+    "speaker": "Clinician",
+    "text": "That's quite typical with RA. We might need to give it a bit more time, but if the pain persists, we could consider adjusting the dose or exploring other options."
   },
   {
     "speaker": "Patient",
-    "text": "Yes, I've been going for my tests regularly. I just want to make sure I'm doing everything right."
+    "text": "Okay, I just don't want to, um, wait too long and end up in more pain."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Absolutely, and we can keep a close eye on it. Also, have you been taking the folic acid regularly? It can help with some of the side effects."
+  },
+  {
+    "speaker": "Patient",
+    "text": "Yes, every day. The support group really emphasizes sticking to the regimen, so that's been helpful."
   }
 ]

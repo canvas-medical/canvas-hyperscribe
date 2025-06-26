@@ -1,48 +1,37 @@
 {
-  "demographicStr": "the patient is a man, born on January 1, 1945 (age 78)",
+  "demographicStr": "the patient is a man, born on January 1, 1978 (age 45)",
   "conditionHistory": [],
-  "currentAllergies": [
-    {
-      "uuid": "allergy1",
-      "label": "Penicillin",
-      "code": "Z88.0"
-    }
-  ],
+  "currentAllergies": [],
   "currentConditions": [
     {
-      "uuid": "cond1",
-      "label": "Chronic obstructive pulmonary disease",
-      "code": "J44.9"
+      "uuid": "d6f34a6d-0454-42c8-ae0f-271ff1bdcc51",
+      "label": "Asthma",
+      "code": "J45.909"
     },
     {
-      "uuid": "cond2",
-      "label": "Type 2 diabetes mellitus without complications",
-      "code": "E11.9"
+      "uuid": "64af7c63-5edf-4b0b-8f3d-fa9fc3b6c7a0",
+      "label": "Hypertension",
+      "code": "I10"
     }
   ],
   "currentGoals": [],
   "currentMedications": [
     {
-      "uuid": "med1",
-      "label": "Metformin 500 mg tablet",
-      "code": "860975"
+      "uuid": "560edbf9-2065-4947-b248-8779fd4d9a4d",
+      "label": "Albuterol as needed",
+      "code": "NDC 0173-0682"
     },
     {
-      "uuid": "med2",
-      "label": "Tiotropium 18 mcg inhalation",
-      "code": "197316"
+      "uuid": "a671d157-e7ca-415c-a8d1-8047465a9cc1",
+      "label": "Amlodipine 5 mg daily",
+      "code": "NDC 0069-1520"
     }
   ],
   "familyHistory": [
     {
-      "uuid": "fh1",
-      "label": "Family history of diabetes mellitus",
-      "code": "Z83.3"
-    },
-    {
-      "uuid": "fh2",
-      "label": "Family history of lung disease",
-      "code": "Z82.5"
+      "uuid": "0dcd9c9e-d132-48a2-b7b3-d7f69e6076ab",
+      "label": "Family history of heart disease",
+      "code": "Z82.49"
     }
   ],
   "surgeryHistory": []

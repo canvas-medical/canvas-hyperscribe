@@ -1,38 +1,38 @@
 {
-  "demographicStr": "the patient is a woman, born on January 1, 1978 (age 45)",
+  "demographicStr": "the patient is a man, born on January 1, 1955 (age 68)",
   "conditionHistory": [],
   "currentAllergies": [],
   "currentConditions": [
     {
-      "uuid": "cond1",
-      "label": "Major depressive disorder",
-      "code": "F33.9"
-    },
-    {
-      "uuid": "cond2",
-      "label": "Generalized anxiety disorder",
-      "code": "F41.1"
+      "uuid": "259829bf-1147-4ba6-9cbe-386926e11eea",
+      "label": "Type 2 diabetes mellitus without complications",
+      "code": "E11.9"
     }
   ],
-  "currentGoals": [],
+  "currentGoals": [
+    {
+      "uuid": "ed745043-873c-4703-afd7-44586d9207f8",
+      "label": "Improve blood sugar control",
+      "code": ""
+    }
+  ],
   "currentMedications": [
     {
-      "uuid": "med1",
-      "label": "Sertraline",
-      "code": "N06AB06"
+      "uuid": "e86c1b15-042b-4ac6-a62e-d3446fff3e98",
+      "label": "Metformin 1000 mg tablet",
+      "code": "860975"
     },
     {
-      "uuid": "med2",
-      "label": "Clonazepam",
-      "code": "N03AE01"
-    }
-  ],
-  "familyHistory": [
+      "uuid": "c7ce9d80-7ba1-4366-9ce3-4b117a38fa3d",
+      "label": "Glipizide 5 mg tablet",
+      "code": "860098"
+    },
     {
-      "uuid": "fh1",
-      "label": "Family history of depression",
-      "code": "Z81.8"
+      "uuid": "467f080d-cf87-488f-a9e0-ad672c049214",
+      "label": "Aspirin 81 mg tablet",
+      "code": "860081"
     }
   ],
+  "familyHistory": [],
   "surgeryHistory": []
 }

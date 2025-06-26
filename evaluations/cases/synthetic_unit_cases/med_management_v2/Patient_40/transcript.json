@@ -1,26 +1,22 @@
 [
   {
-    "speaker": "Doctor",
-    "text": "Hi, I see we don't have much information on your medical history. Can you tell me about any medications you're currently taking?"
+    "speaker": "Patient",
+    "text": "So, with the celecoxib, I haven't had any of that stomach pain like with the ibuprofen, which is a relief. But, um, should I be worried about any other side effects that might pop up?"
+  },
+  {
+    "speaker": "Clinician",
+    "text": "That's good to hear it's helping without the discomfort. Celecoxib is generally easier on the stomach, but we do keep an eye on blood pressure, especially since you're on amlodipine. Have you noticed any changes there?"
   },
   {
     "speaker": "Patient",
-    "text": "Sure, I'm taking a birth control pill, but I can't remember the name right now."
+    "text": "Not really, my blood pressure's been pretty stable. I check it at home, and it's usually around 120 over 80. But, uh, I was wondering if I should be doing anything else to, you know, keep it in check?"
   },
   {
-    "speaker": "Doctor",
-    "text": "That's okay. Do you know if you've had any side effects from it?"
-  },
-  {
-    "speaker": "Patient",
-    "text": "Not really, but sometimes I feel a bit nauseous."
-  },
-  {
-    "speaker": "Doctor",
-    "text": "Alright, we can look into that. Are you taking any other medications or supplements?"
+    "speaker": "Clinician",
+    "text": "That's a great reading. Just keep up with your current routine, and maybe watch your salt intake. If you notice any swelling or unusual symptoms, let me know. How's your activity level these days?"
   },
   {
     "speaker": "Patient",
-    "text": "No, that's the only one."
+    "text": "I try to stay active, but the arthritis makes it a bit tough sometimes. I do some light walking and, uh, a bit of stretching. Is that enough, or should I be doing more?"
   }
 ]

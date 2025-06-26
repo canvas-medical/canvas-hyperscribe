@@ -1,26 +1,26 @@
 [
   {
-    "speaker": "Doctor",
-    "text": "Good morning, Mrs. Thompson. How have you been feeling since we adjusted your medications?"
+    "speaker": "Patient",
+    "text": "So, I was thinking, if I switch to the new medication, will I still need to, um, get my blood checked as often?"
+  },
+  {
+    "speaker": "Clinician",
+    "text": "That's a great question. With the direct oral anticoagulants, you typically don't need regular INR checks like you do with warfarin. It's one of the benefits, actually."
   },
   {
     "speaker": "Patient",
-    "text": "Good morning, Doctor. I've been feeling a bit better, but I still get tired easily."
+    "text": "Oh, that sounds, uh, much easier. But, um, what about the, uh, risk of bleeding? Is it, you know, the same?"
   },
   {
-    "speaker": "Doctor",
-    "text": "That's understandable. With your heart condition, fatigue can be common. How are you managing with the furosemide?"
-  },
-  {
-    "speaker": "Patient",
-    "text": "I think it's helping with the swelling, but I have to go to the bathroom quite often."
-  },
-  {
-    "speaker": "Doctor",
-    "text": "Frequent urination is a known side effect. We can consider adjusting the timing of your dose. Are you taking it in the morning?"
+    "speaker": "Clinician",
+    "text": "The bleeding risk is still there, but it's generally comparable to warfarin. The key difference is that these newer medications have a more predictable effect, so we don't have to adjust the dose as often."
   },
   {
     "speaker": "Patient",
-    "text": "Yes, I take it in the morning as you suggested. It helps, but sometimes it's inconvenient."
+    "text": "I see. And, uh, my daughter was worried about, um, interactions with my other medications. Should we be concerned?"
+  },
+  {
+    "speaker": "Clinician",
+    "text": "It's definitely something to consider. These medications do have fewer interactions than warfarin, but we'll review everything you're taking to make sure there aren't any issues."
   }
 ]

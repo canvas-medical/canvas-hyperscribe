@@ -1,26 +1,30 @@
 [
   {
-    "speaker": "Doctor",
-    "text": "Good morning, how have you been managing with your medications, especially the metformin?"
+    "speaker": "Patient",
+    "text": "So, with the losartan, I haven't had any of that cough, which is a relief. But, um, should I be worried about any other side effects that might pop up?"
+  },
+  {
+    "speaker": "Clinician",
+    "text": "That's good to hear about the cough. Losartan is generally well-tolerated, but some people might experience dizziness or headaches. Have you noticed anything like that?"
   },
   {
     "speaker": "Patient",
-    "text": "Morning, Doctor. I've been doing okay, but sometimes I still get some stomach upset."
+    "text": "Not really, just a bit of dizziness when I stand up too fast, but I think that's more about me rushing around."
   },
   {
-    "speaker": "Doctor",
-    "text": "I see. We had adjusted your metformin dose before. Are you taking it with meals?"
-  },
-  {
-    "speaker": "Patient",
-    "text": "Yes, I always take it with breakfast and dinner, just like you advised."
-  },
-  {
-    "speaker": "Doctor",
-    "text": "That's good. We could consider switching to the extended-release form if the side effects persist. How does that sound?"
+    "speaker": "Clinician",
+    "text": "Okay, just make sure to stand up slowly. And, uh, keep an eye on it. If it gets worse, let me know. How's your exercise routine going with the new medication?"
   },
   {
     "speaker": "Patient",
-    "text": "That might be worth trying. I\u2019d like to see if it helps with the stomach issues."
+    "text": "It's been good. I still go for my morning walks and do some light weights. I think it's helping with the blood pressure too."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "That's great. Staying active is definitely beneficial. And, uh, just to confirm, you're taking the losartan in the morning, right?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Yeah, every morning with breakfast. It's become part of my routine now."
   }
 ]

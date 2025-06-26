@@ -1,0 +1,32 @@
+[
+  {
+    "criterion": "Reward for accurately documenting that the patient missed one dose of warfarin last week, felt no symptomatic change, promptly resumed therapy, and that the daughter assisted in getting back on track",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting specific adherence\u2010improvement instructions given (e.g., use of weekly pillbox, setting phone alerts) and the patient\u2019s agreement to implement them",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for including an evidence-based safety plan related to warfarin (e.g., ordering or reviewing timely INR, advising on what to do after a missed dose, counseling on bleeding or clotting warning signs)",
+    "weight": 30,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for recording relevant social context that affects care (daughter\u2019s involvement, patient\u2019s comfort with technology) without extraneous social history",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for redundant or irrelevant content (e.g., repeating charted problems/medications not discussed, excessive verbatim transcript, unnecessary wordiness)",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for documenting unsafe or incorrect warfarin guidance (e.g., advising double dosing, stopping medication without provider input, or other recommendations conflicting with standard anticoagulation guidelines)",
+    "weight": 10,
+    "sense": "negative"
+  }
+]

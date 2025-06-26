@@ -1,15 +1,20 @@
 {
-  "demographicStr": "the patient is a woman, born on January 1, 1971 (age 52)",
+  "demographicStr": "the patient is a woman, born on January 1, 1955 (age 68)",
   "conditionHistory": [],
   "currentAllergies": [],
   "currentConditions": [
     {
-      "uuid": "cond1",
-      "label": "Rheumatoid arthritis",
-      "code": "M06.9"
+      "uuid": "b1378a7d-67a6-48c0-aa9a-2037a24562cd",
+      "label": "Hypothyroidism",
+      "code": "E03.9"
     },
     {
-      "uuid": "cond2",
+      "uuid": "644d9866-f9ca-427d-a792-69a22b3eaf0a",
+      "label": "Osteoporosis",
+      "code": "M81.0"
+    },
+    {
+      "uuid": "1c141a78-c7ce-409b-af79-afba7e70605a",
       "label": "Hyperlipidemia",
       "code": "E78.5"
     }
@@ -17,27 +22,21 @@
   "currentGoals": [],
   "currentMedications": [
     {
-      "uuid": "med1",
-      "label": "Methotrexate",
-      "code": "L01BA01"
+      "uuid": "a10fca8c-cd9c-4469-a183-af397c6d840a",
+      "label": "Levothyroxine 100 mcg tablet",
+      "code": "123456"
     },
     {
-      "uuid": "med2",
-      "label": "Folic acid",
-      "code": "B03BB01"
+      "uuid": "46ba7a16-e922-4e3e-9fd6-ef90f7ddd565",
+      "label": "Atorvastatin 20 mg tablet",
+      "code": "654321"
     },
     {
-      "uuid": "med3",
-      "label": "Atorvastatin",
-      "code": "C10AA05"
+      "uuid": "0bce25c7-804d-47dc-8397-635cc94e558a",
+      "label": "Calcium and Vitamin D supplements",
+      "code": "789012"
     }
   ],
-  "familyHistory": [
-    {
-      "uuid": "fh1",
-      "label": "Family history of osteoporosis",
-      "code": "Z82.62"
-    }
-  ],
+  "familyHistory": [],
   "surgeryHistory": []
 }

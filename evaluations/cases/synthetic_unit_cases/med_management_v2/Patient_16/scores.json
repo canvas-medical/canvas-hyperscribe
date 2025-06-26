@@ -1,0 +1,37 @@
+[
+  {
+    "rationale": "Reason for visit explicitly notes concern about long-term atorvastatin effects; post-cycling fatigue documented in HPI though not in reason statement, so largely but not completely captured.",
+    "satisfaction": 80,
+    "score": 12.0
+  },
+  {
+    "rationale": "Medication statement records atorvastatin use without specifying 10 mg dose or detailed adherence; HPI notes no myalgias and some fatigue, partially fulfilling requirement.",
+    "satisfaction": 55,
+    "score": 8.25
+  },
+  {
+    "rationale": "No documented discussion contrasting cardiovascular benefit versus adverse effects or describing shared decision-making about continuing statin.",
+    "satisfaction": 20,
+    "score": 3.0
+  },
+  {
+    "rationale": "Gives instructions to watch for muscle aches/fatigue and mentions possible liver enzyme check if symptoms persist, but lacks definite timeline, CK plan, or dose-change strategy.",
+    "satisfaction": 60,
+    "score": 12.0
+  },
+  {
+    "rationale": "Provides dietary counseling to reduce saturated fats and increase fiber, directly addressing lifestyle modification.",
+    "satisfaction": 90,
+    "score": 9.0
+  },
+  {
+    "rationale": "No clear Assessment/Plan section; management elements scattered and not labeled, with limited linkage to today\u2019s findings.",
+    "satisfaction": 25,
+    "score": 3.75
+  },
+  {
+    "rationale": "Documentation is concise with little duplicate or irrelevant transcript text, so minimal penalty.",
+    "satisfaction": 10,
+    "score": 1.0
+  }
+]

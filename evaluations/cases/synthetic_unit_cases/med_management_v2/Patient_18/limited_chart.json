@@ -1,48 +1,27 @@
 {
-  "demographicStr": "the patient is a woman, born on January 1, 1944 (age 79)",
+  "demographicStr": "the patient is a woman, born on January 1, 1951 (age 72)",
   "conditionHistory": [],
   "currentAllergies": [],
   "currentConditions": [
     {
-      "uuid": "cond1",
-      "label": "Congestive heart failure",
-      "code": "I50.9"
+      "uuid": "6fa965b8-f564-411e-9436-51fa3af2f9b2",
+      "label": "Atrial fibrillation",
+      "code": "I48.91"
     },
     {
-      "uuid": "cond2",
-      "label": "Chronic kidney disease",
-      "code": "N18.9"
+      "uuid": "dd37b3c7-a6c9-4379-b67b-bb4d9a8af859",
+      "label": "History of falls",
+      "code": "R29.6"
     }
   ],
   "currentGoals": [],
   "currentMedications": [
     {
-      "uuid": "med1",
-      "label": "Furosemide",
-      "code": "C03CA01"
-    },
-    {
-      "uuid": "med2",
-      "label": "Carvedilol",
-      "code": "C07AG02"
-    },
-    {
-      "uuid": "med3",
-      "label": "Aspirin",
-      "code": "B01AC06"
+      "uuid": "7f3b7cb0-54a5-45c3-b10e-77f4fc2cff5c",
+      "label": "Warfarin",
+      "code": "B01AA03"
     }
   ],
-  "familyHistory": [
-    {
-      "uuid": "fh1",
-      "label": "Family history of hypertension",
-      "code": "Z82.49"
-    },
-    {
-      "uuid": "fh2",
-      "label": "Family history of diabetes",
-      "code": "Z83.3"
-    }
-  ],
+  "familyHistory": [],
   "surgeryHistory": []
 }
