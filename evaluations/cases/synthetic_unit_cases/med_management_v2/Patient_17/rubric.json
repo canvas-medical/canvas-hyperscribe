@@ -1,32 +1,27 @@
 [
   {
-    "criterion": "Reward for accurately documenting the patient's concern about increased hunger and its potential link to glipizide, including the clinician's explanation of the medication's effect on insulin release.",
+    "criterion": "Reward for accurately documenting the patient\u2019s stated symptoms and concerns: increased hunger/appetite and fear of weight gain since starting glipizide, lower blood-sugar readings, and intermittent ankle swelling after switching to losartan",
+    "weight": 30,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for a focused assessment that explicitly attributes the appetite/weight issue to glipizide, the ankle edema to losartan, notes glipizide\u2019s effectiveness on glycemic control and losartan\u2019s resolution of cough, and classifies the swelling as a potential medication adverse effect",
+    "weight": 25,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for a safety-oriented management plan that includes monitoring weight and blood glucose, tracking ankle swelling, clear return-precautions for worsening edema, and a contingency to adjust or change medication if side effects persist",
     "weight": 20,
     "sense": "positive"
   },
   {
-    "criterion": "Reward for noting the patient's observation of lower blood sugar readings since starting glipizide and the clinician's plan to monitor weight and adjust the diet plan if necessary.",
+    "criterion": "Reward for evidence-based counseling that discusses known sulfonylurea-related weight gain and considers dietary adjustment or weight-neutral diabetes agents, and acknowledges the low but real risk of edema with ARBs",
     "weight": 15,
     "sense": "positive"
   },
   {
-    "criterion": "Reward for documenting the patient's report of no longer experiencing a cough after switching from lisinopril to losartan, and the clinician's acknowledgment of this improvement.",
+    "criterion": "Penalize for inclusion of content not supported by the transcript\u2014such as extraneous review-of-systems, unrelated historical details, or duplicate information\u2014that unnecessarily lengthens the note",
     "weight": 10,
-    "sense": "positive"
-  },
-  {
-    "criterion": "Reward for including the patient's report of ankle swelling since starting losartan and the clinician's plan to monitor the symptom and consider dose adjustment or alternative options if it persists.",
-    "weight": 20,
-    "sense": "positive"
-  },
-  {
-    "criterion": "Penalize for omitting any mention of the patient's current medications, specifically glipizide and losartan, in the context of the discussion about their effects and side effects.",
-    "weight": 15,
-    "sense": "negative"
-  },
-  {
-    "criterion": "Penalize for failing to document a follow-up plan to reassess the patient's weight and ankle swelling, ensuring ongoing monitoring and adjustment of treatment as needed.",
-    "weight": 20,
     "sense": "negative"
   }
 ]
