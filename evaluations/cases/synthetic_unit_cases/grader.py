@@ -1,21 +1,19 @@
-#inputs: rubric, hyperscribe_output to be graded
-#output: two vectors: score and reasoning vectors. 
-#USAGE from root canvas-hyperscribe directory: uv run python rubric_eval_sample/grader.py rubric_eval_sample/rubric.json rubric_eval_sample/hyperscribe_output.json rubric_eval_sample/graded_scores.json
-#SAMPLE FATIGUE_CASE USAGE: #USAGE from root canvas-hyperscribe directory: uv run python rubric_eval_sample/grader.py rubric_eval_sample/fcs/rubric.json rubric_eval_sample/fcs/summary.json rubric_eval_sample/fcs/graded_scores.json
-
 import sys
 import os
 import json
 import argparse
+import re
 
 from hyperscribe.llms.llm_openai import LlmOpenai
 from hyperscribe.structures.llm_turn import LlmTurn
 from hyperscribe.libraries.constants import Constants
 from hyperscribe.libraries.memory_log import MemoryLog
 
+
 def load_json_file(path):
     with open(path, 'r') as f:
         return json.load(f)
+
 
 def main(rubric_path, hyperscribe_output_path, output_path):
     # Load input files
@@ -30,56 +28,58 @@ def main(rubric_path, hyperscribe_output_path, output_path):
         False
     )
 
-    # System prompt
     llm.add_prompt(LlmTurn(
         role='system',
         text=[
-            "You are a clinical documentation grading assistant. You help evaluate medical scribe notes against structured rubrics in medical education contexts."
+            "You are a clinical documentation grading assistant. You help evaluate medical scribe notes using structured rubrics."
         ]
     ))
 
-    # Refined user prompt
     llm.add_prompt(LlmTurn(
-    role='user',
-    text=[
-        (
-            "Given the rubric and the hyperscribe output below, produce a strict JSON object containing two arrays: "
-            "\"score_vector\" and \"reasoning_vector\"."
-        ),
-        (
-            "\"score_vector\" must contain one numeric score for each rubric criterion, in order. "
-            "Each score must be an integer >= 0 and <= the max score for that criterion from the rubric."
-        ),
-        (
-            "\"reasoning_vector\" must contain one short, clear explanation for each score in the score vector, describing why the score was given for that criterion."
-        ),
-        (
-            "Make sure the two arrays have the same length and order as the rubric."
-        ),
-        (
-            "Output ONLY the pure JSON object without ANY markdown (such as ```json), "
-            "without ANY wrapping characters, without ANY commentary — just the raw JSON text starting with { and ending with }."
-        ),
-        "--- RUBRIC JSON ---",
-        json.dumps(rubric),
-        "--- HYPERSCRIBE OUTPUT JSON ---",
-        json.dumps(hyperscribe_output)
+        role='user',
+        text=[
+            (
+                "Given the rubric and the hyperscribe output below, return a JSON array where each item corresponds to one rubric criterion, "
+                "in the same order as the rubric. Each item must be a dictionary with the following keys:\n"
+                "- 'rationale': a short, specific explanation of how well the criterion was satisfied or not.\n"
+                "- 'satisfaction': a numeric value between 0 and 100 (can be any float such as 20, 55, or 85, not just 0, 50, 100), indicating how well the criterion was satisfied.\n"
+                "- 'score': the result of multiplying the satisfaction percentage (as a fraction, e.g., 83%) by the criterion's weight."
+            ),
+            (
+                "For example, if the criterion is mostly met but missing some details, you might assign a satisfaction of 83.7, not just 50 or 100. "
+                "Use your best judgment, but justify every score precisely. Avoid rounding unless clearly appropriate."
+            ),
+            (
+                "Maintain the original order and structure of the rubric—output must be a list of the same length and order as the rubric input."
+            ),
+            (
+                "Output ONLY the raw JSON array, starting with [ and ending with ]. No markdown, no extra text, no explanation."
+            ),
+            "--- BEGIN RUBRIC JSON ---",
+            json.dumps(rubric),
+            "--- END RUBRIC JSON",
+            "--- BEGIN HYPERSCRIBE OUTPUT JSON ---",
+            json.dumps(hyperscribe_output),
+            "--- END HYPERSCRIBE OUTPUT JSON ---",
         ]
     ))
+
 
     print("Grading...")
     response = llm.request()
+    cleaned = re.sub(r'```(?:json)?\n?|\n?```', '', response.response).strip()
 
     try:
-        result = json.loads(response.response)
+        result = json.loads(cleaned)
         with open(output_path, 'w') as f:
             json.dump(result, f, indent=2)
         print(f"Wrote grading result to {output_path}")
     except json.JSONDecodeError:
-        print("Warning: LLM response is not valid JSON. Saving raw output instead.") #occurred once, edited prompt to include no markdown prompting (line 60).
+        print("Warning: LLM response is not valid JSON. Saving raw output instead.")
         with open(output_path, 'w') as f:
-            f.write(response.response)
+            f.write(cleaned)
         print(f"Wrote raw response to {output_path}")
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Grade hyperscribe output against a rubric.")

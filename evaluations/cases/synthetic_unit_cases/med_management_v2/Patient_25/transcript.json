@@ -1,26 +1,22 @@
 [
   {
-    "speaker": "Doctor",
-    "text": "Good morning, Mr. Thompson. How have you been feeling lately with your current medications?"
+    "speaker": "Clinician",
+    "text": "And, uh, when you mentioned the gaps in using your inhaler, do you think setting a reminder might help, or is it more about, um, getting the refills on time?"
   },
   {
     "speaker": "Patient",
-    "text": "Morning, Doctor. I've been okay, but I noticed some swelling in my ankles again."
+    "text": "I think it's mostly about the refills. I, uh, sometimes just forget to call it in, and then I'm out for a day or two."
   },
   {
-    "speaker": "Doctor",
-    "text": "I see. That could be related to your furosemide. Have you been taking it as prescribed?"
-  },
-  {
-    "speaker": "Patient",
-    "text": "Yes, I take it every morning, but sometimes I feel like it doesn't work as well as it used to."
-  },
-  {
-    "speaker": "Doctor",
-    "text": "Given your kidney function, we might need to adjust the dose. Have you had any issues with dizziness or lightheadedness?"
+    "speaker": "Clinician",
+    "text": "Right, that makes sense. Have you considered using an automatic refill service? Some pharmacies offer that, and it might, uh, help keep you on track."
   },
   {
     "speaker": "Patient",
-    "text": "Not really, just the swelling and sometimes I feel a bit tired."
+    "text": "I haven't tried that. I guess I could look into it. It's just, you know, sometimes I get a bit overwhelmed with all the options."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "I understand, it can be a lot. Maybe we can start with just one change at a time. How about we set up the automatic refills first and see how that goes?"
   }
 ]

@@ -1,0 +1,32 @@
+[
+  {
+    "rationale": "The patient's response to the adjusted levothyroxine dose is documented, noting a reduction in palpitations but with some remaining symptoms.",
+    "satisfaction": 85.0,
+    "score": 17.0
+  },
+  {
+    "rationale": "The documentation does not explicitly mention transportation challenges in obtaining medication refills or their impact on adherence.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "A solution to the transportation issue is proposed by suggesting a medication delivery service, but the patient's response to this suggestion is not documented.",
+    "satisfaction": 70.0,
+    "score": 14.0
+  },
+  {
+    "rationale": "The patient's age and current condition of hypothyroidism are not mentioned in the context of the encounter.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "There is no documentation of a follow-up plan or assessment for the patient's hypothyroidism.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "The documentation does not include any social determinant information such as reliance on a neighbor for transportation.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  }
+]

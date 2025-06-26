@@ -1,0 +1,27 @@
+[
+  {
+    "criterion": "Reward for accurately documenting the patient's HPI details from this segment, specifically: inconsistent amlodipine pickup, difficulty keeping track while living alone, current use of a pill organizer yet inconsistent use, and new onset fatigue.",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for explicitly recording the current antihypertensive medication (amlodipine 10 mg) with dosage, and noting the clinician-led inquiry about common amlodipine side effects (ankle/foot swelling) with the patient's negative response plus the reported fatigue.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting the clinician's adherence-support counseling (suggested phone reminders and consistent pill-organizer use) as part of the plan, showing evidence-based self-management education.",
+    "weight": 25,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for failing to include a patient-safety\u2013focused plan related to hypertension control and amlodipine monitoring (e.g., follow-up blood-pressure checks, monitoring for peripheral edema, or evaluation of fatigue etiology).",
+    "weight": 25,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for inclusion of redundant, irrelevant, or copy-pasted information not supported by this transcript segment or for omitting the social determinant detail that the patient lives alone.",
+    "weight": 15,
+    "sense": "negative"
+  }
+]

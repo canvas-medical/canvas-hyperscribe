@@ -1,0 +1,32 @@
+[
+  {
+    "rationale": "Note documents missed warfarin dose, daughter\u2019s pill-organizer intervention, and describes current adherence (\u201cable to attend frequent checks\u201d).",
+    "satisfaction": 90.0,
+    "score": 18.0
+  },
+  {
+    "rationale": "Bleeding/bruising review present; mentions \u201cfrequent monitoring,\u201d but no specific INR value, target range, or scheduled date.",
+    "satisfaction": 60.0,
+    "score": 15.0
+  },
+  {
+    "rationale": "Clearly states daughter created pill organizer and provides transportation to monitoring visits, addressing both SDoH elements.",
+    "satisfaction": 95.0,
+    "score": 9.5
+  },
+  {
+    "rationale": "No reference to patient\u2019s CKD or how it affects anticoagulation decisions.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Entry is brief and focused; contains no redundant problem lists or transcript filler, so only minimal penalty warranted.",
+    "satisfaction": 10.0,
+    "score": 1.5
+  },
+  {
+    "rationale": "Fails to outline target INR, next check date, or who will follow results; represents a substantial omission.",
+    "satisfaction": 90.0,
+    "score": 13.5
+  }
+]

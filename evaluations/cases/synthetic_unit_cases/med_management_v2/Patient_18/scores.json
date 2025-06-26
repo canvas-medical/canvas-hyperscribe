@@ -1,0 +1,32 @@
+[
+  {
+    "rationale": "The patient's inquiry about the need for regular blood checks with the new medication was not documented.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "The clinician's explanation that direct oral anticoagulants typically do not require regular INR checks was not included.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "The patient's concern about bleeding risk and the clinician's response that the risk is comparable to warfarin were not documented.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "The patient's concern about medication interactions and the clinician's plan to review the patient's current medications were not noted.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "The patient's history of falls, relevant to the discussion of anticoagulation therapy and bleeding risk, was omitted.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "There was no documentation of a plan for follow-up or medication review to ensure patient safety and adherence to best practices.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  }
+]

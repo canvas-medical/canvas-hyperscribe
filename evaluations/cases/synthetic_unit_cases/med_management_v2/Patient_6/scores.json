@@ -1,0 +1,27 @@
+[
+  {
+    "rationale": "The output does not document the patient's struggle with medication adherence or its impact on symptoms, which is critical for managing Crohn's disease.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "The output suggests using a pill organizer, which is a practical solution to improve medication adherence and aligns with evidence-based strategies.",
+    "satisfaction": 100.0,
+    "score": 20.0
+  },
+  {
+    "rationale": "The output does not mention the patient's acknowledgment of improved symptoms with regular medication use, which is important for assessing treatment efficacy.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "The output does not advise the patient to report new symptoms or side effects, which is crucial for patient safety and proactive management.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "The output does not document the patient's current medication regimen or any changes discussed, which is essential for continuity of care.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  }
+]

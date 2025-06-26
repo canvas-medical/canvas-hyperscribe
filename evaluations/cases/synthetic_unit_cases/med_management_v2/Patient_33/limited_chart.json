@@ -1,28 +1,27 @@
 {
-  "demographicStr": "the patient is a girl, born on January 1, 2014 (age 9)",
+  "demographicStr": "the patient is a woman, born on January 1, 1994 (age 29)",
   "conditionHistory": [],
   "currentAllergies": [],
   "currentConditions": [
     {
-      "uuid": "cond1",
-      "label": "Epilepsy",
-      "code": "G40.909"
+      "uuid": "21f09f83-46a3-4bcb-9be2-d994f9ff5852",
+      "label": "Polycystic ovary syndrome",
+      "code": "E28.2"
     }
   ],
   "currentGoals": [],
   "currentMedications": [
     {
-      "uuid": "med1",
-      "label": "Levetiracetam",
-      "code": "N03AX14"
-    }
-  ],
-  "familyHistory": [
+      "uuid": "e915339b-1097-4a44-ac8f-4c9546af6f8f",
+      "label": "Metformin 500 mg tablet",
+      "code": "860975"
+    },
     {
-      "uuid": "fh1",
-      "label": "Family history of epilepsy",
-      "code": "Z82.0"
+      "uuid": "1eae17b0-ea68-40a4-81b1-b062b8532faa",
+      "label": "Oral contraceptive",
+      "code": "173844"
     }
   ],
+  "familyHistory": [],
   "surgeryHistory": []
 }

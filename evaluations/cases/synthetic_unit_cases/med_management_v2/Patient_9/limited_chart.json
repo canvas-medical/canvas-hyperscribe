@@ -1,32 +1,33 @@
 {
-  "demographicStr": "the patient is a man, born on January 1, 1983 (age 40)",
+  "demographicStr": "the patient is a woman, born on January 1, 1985 (age 38)",
   "conditionHistory": [],
   "currentAllergies": [],
   "currentConditions": [
     {
-      "uuid": "cond1",
-      "label": "Bipolar disorder",
-      "code": "F31.9"
+      "uuid": "b8063958-58fa-4aab-ad70-d6603a1d811c",
+      "label": "Major depressive disorder",
+      "code": "F32.9"
     },
     {
-      "uuid": "cond2",
-      "label": "Chronic back pain",
-      "code": "M54.5"
+      "uuid": "2240baf4-d380-45e3-8c32-2d5f6f25a718",
+      "label": "Anxiety disorder",
+      "code": "F41.9"
     }
   ],
   "currentGoals": [],
   "currentMedications": [
     {
-      "uuid": "med1",
-      "label": "Lithium",
-      "code": "N05AN01"
-    },
-    {
-      "uuid": "med2",
-      "label": "Gabapentin",
-      "code": "N03AX12"
+      "uuid": "1987c6de-8e8c-4120-9f3e-6c9654b9fc04",
+      "label": "Sertraline 50 mg",
+      "code": "N06AB06"
     }
   ],
-  "familyHistory": [],
+  "familyHistory": [
+    {
+      "uuid": "d65eecdd-9a05-4ddc-a119-7fe0dfede361",
+      "label": "Family history of depression",
+      "code": "Z81.8"
+    }
+  ],
   "surgeryHistory": []
 }

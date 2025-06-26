@@ -1,36 +1,26 @@
 {
-  "demographicStr": "the patient is a man, born on January 1, 1965 (age 58)",
+  "demographicStr": "the patient is a woman, born on January 1, 1971 (age 52)",
   "conditionHistory": [],
   "currentAllergies": [],
   "currentConditions": [
     {
-      "uuid": "cond1",
-      "label": "Essential (primary) hypertension",
+      "uuid": "166da422-ec66-41c7-a2fe-ed843a79c81f",
+      "label": "Hypertension",
       "code": "I10"
-    },
-    {
-      "uuid": "cond2",
-      "label": "Pure hypercholesterolemia",
-      "code": "E78.0"
     }
   ],
   "currentGoals": [],
   "currentMedications": [
     {
-      "uuid": "med1",
-      "label": "Lisinopril 10 mg tablet",
-      "code": "123456"
-    },
-    {
-      "uuid": "med2",
-      "label": "Atorvastatin 20 mg tablet",
-      "code": "654321"
+      "uuid": "67d958e1-6528-4c7a-b9e7-c3a16164fb14",
+      "label": "Amlodipine 10 mg tablet",
+      "code": "C08CA01"
     }
   ],
   "familyHistory": [
     {
-      "uuid": "fh1",
-      "label": "Family history of myocardial infarction",
+      "uuid": "914594d4-6f62-496b-86a3-4959e994df07",
+      "label": "Family history of cardiovascular disease",
       "code": "Z82.49"
     }
   ],

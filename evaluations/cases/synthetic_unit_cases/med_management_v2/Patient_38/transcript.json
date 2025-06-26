@@ -1,26 +1,26 @@
 [
   {
-    "speaker": "Doctor",
-    "text": "Good morning! How have you been feeling since we last adjusted your levothyroxine dose?"
+    "speaker": "Patient",
+    "text": "So, I was thinking, with the changes in my diet, should I be, um, checking my INR more often, or is the current schedule okay?"
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Given the fluctuations you've mentioned, it might be a good idea to check it a bit more frequently for now. Maybe every week instead of every two weeks, just until things stabilize."
   },
   {
     "speaker": "Patient",
-    "text": "Morning, Doctor. I've been feeling okay, but I've noticed some fatigue lately. I'm not sure if it's the pregnancy or my thyroid."
+    "text": "Alright, I can do that. My daughter usually helps me with the appointments, so I'll let her know."
   },
   {
-    "speaker": "Doctor",
-    "text": "Fatigue can be common in early pregnancy, but let's make sure your thyroid levels are where they should be. Have you been taking your levothyroxine consistently?"
-  },
-  {
-    "speaker": "Patient",
-    "text": "Yes, I've been taking it every morning on an empty stomach, just like you advised."
-  },
-  {
-    "speaker": "Doctor",
-    "text": "Great to hear. We'll do a blood test today to check your TSH levels. It's important to keep them in the optimal range during pregnancy. If needed, we might adjust your dose."
+    "speaker": "Clinician",
+    "text": "Great. And about the missed doses, how's the pill organizer working out for you?"
   },
   {
     "speaker": "Patient",
-    "text": "That sounds good. I want to make sure everything is on track for the baby."
+    "text": "It's been helpful, but I still sometimes forget, especially if I'm out for the day. I try to remember, but, you know, it's not always easy."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "I understand. Maybe setting an alarm on your phone could be a backup reminder? It might help on those busier days."
   }
 ]

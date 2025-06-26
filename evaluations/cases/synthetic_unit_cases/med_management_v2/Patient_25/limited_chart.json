@@ -1,46 +1,25 @@
 {
-  "demographicStr": "the patient is a man, born on January 1, 1942 (age 81)",
+  "demographicStr": "the patient is a man, born on January 1, 1948 (age 75)",
   "conditionHistory": [],
-  "currentAllergies": [
-    {
-      "uuid": "allergy1",
-      "label": "Sulfa drugs",
-      "code": "Z88.2"
-    }
-  ],
+  "currentAllergies": [],
   "currentConditions": [
     {
-      "uuid": "cond1",
-      "label": "Atrial fibrillation",
-      "code": "I48.91"
-    },
-    {
-      "uuid": "cond2",
-      "label": "Chronic kidney disease stage 3",
-      "code": "N18.3"
-    },
-    {
-      "uuid": "cond3",
-      "label": "Hypertension",
-      "code": "I10"
+      "uuid": "7201b4af-a3a6-400f-a1a9-392cd387df41",
+      "label": "Chronic obstructive pulmonary disease",
+      "code": "J44.9"
     }
   ],
   "currentGoals": [],
   "currentMedications": [
     {
-      "uuid": "med1",
-      "label": "Warfarin",
-      "code": "B01AA03"
+      "uuid": "42801bb3-fb3e-417e-90a6-54efb3cac3c7",
+      "label": "Tiotropium inhaler",
+      "code": "216980"
     },
     {
-      "uuid": "med2",
-      "label": "Furosemide",
-      "code": "C03CA01"
-    },
-    {
-      "uuid": "med3",
-      "label": "Amlodipine",
-      "code": "C08CA01"
+      "uuid": "34e8e3ca-2297-4d52-b58e-2d0cc3e2c7a5",
+      "label": "Prednisone",
+      "code": "8315"
     }
   ],
   "familyHistory": [],

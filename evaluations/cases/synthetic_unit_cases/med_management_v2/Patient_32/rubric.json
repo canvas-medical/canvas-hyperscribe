@@ -1,0 +1,32 @@
+[
+  {
+    "criterion": "Reward for documenting the patient's reported side effect of lightheadedness after taking amlodipine, including the context of timing and dietary habits.",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for including the clinician's advice on having a more substantial breakfast to potentially mitigate the side effect of lightheadedness.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for noting the patient's concern about dizziness while working on scaffolding, highlighting the occupational safety risk.",
+    "weight": 25,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting the clinician's plan to monitor the side effect and consider adjusting the medication timing or dosage if necessary.",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for omitting the patient's family history of heart disease, which could be relevant to the management of hypertension.",
+    "weight": 10,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for not explicitly documenting the patient's current medications, particularly amlodipine, in the context of the reported side effects.",
+    "weight": 10,
+    "sense": "negative"
+  }
+]

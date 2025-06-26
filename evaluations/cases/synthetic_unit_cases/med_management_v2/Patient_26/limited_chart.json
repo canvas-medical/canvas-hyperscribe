@@ -1,62 +1,32 @@
 {
-  "demographicStr": "the patient is a man, born on January 1, 1963 (age 60)",
+  "demographicStr": "the patient is a woman, born on January 1, 1963 (age 60)",
   "conditionHistory": [],
-  "currentAllergies": [],
+  "currentAllergies": [
+    {
+      "uuid": "2408702d-ca1d-4e35-89b3-6a6adee9511c",
+      "label": "Penicillin",
+      "code": "Z88.0"
+    }
+  ],
   "currentConditions": [
     {
-      "uuid": "cond1",
-      "label": "Hypertension",
-      "code": "I10"
-    },
-    {
-      "uuid": "cond2",
-      "label": "Type 2 diabetes mellitus without complications",
-      "code": "E11.9"
-    },
-    {
-      "uuid": "cond3",
-      "label": "Hyperlipidemia",
-      "code": "E78.5"
+      "uuid": "5c7572b5-eea4-41d3-9c0d-737a0eee2061",
+      "label": "Osteoarthritis",
+      "code": "M19.90"
     }
   ],
-  "currentGoals": [
-    {
-      "uuid": "goal1",
-      "label": "Improve blood sugar control",
-      "code": ""
-    },
-    {
-      "uuid": "goal2",
-      "label": "Manage blood pressure",
-      "code": ""
-    },
-    {
-      "uuid": "goal3",
-      "label": "Lower cholesterol levels",
-      "code": ""
-    }
-  ],
+  "currentGoals": [],
   "currentMedications": [
     {
-      "uuid": "med1",
-      "label": "Lisinopril 10 mg tablet",
-      "code": "314076"
-    },
-    {
-      "uuid": "med2",
-      "label": "Metformin 500 mg tablet",
-      "code": "860975"
-    },
-    {
-      "uuid": "med3",
-      "label": "Atorvastatin 20 mg tablet",
-      "code": "617317"
+      "uuid": "d9ed94b4-6f87-46fb-8c72-47b0bf9f0ec0",
+      "label": "Celecoxib 100 mg daily",
+      "code": "NDC 0002-0800-01"
     }
   ],
   "familyHistory": [
     {
-      "uuid": "fh1",
-      "label": "Family history of cardiovascular disease",
+      "uuid": "4d47f8e4-5532-45e5-8518-d42cdc6de449",
+      "label": "Family history of hypertension",
       "code": "Z82.49"
     }
   ],

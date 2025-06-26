@@ -1,0 +1,75 @@
+[
+  {
+    "instruction": "Patient has been taking losartan for approximately one month without adverse effects (no cough). Home blood-pressure readings have been mostly within the previously discussed target range, with one isolated elevated value likely related to acute work-related stress. Patient also continues nightly atorvastatin without muscle aches or other side-effects. Overall feels the medications are working well.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.history_present_illness",
+      "class": "HistoryOfPresentIllnessCommand",
+      "attributes": {
+        "narrative": "Patient reports one month of losartan use without adverse effects and mostly target-range home blood-pressure readings except for a single elevated value attributed to work stress; continues nightly atorvastatin without muscle aches; overall feels medications are effective."
+      }
+    }
+  },
+  {
+    "instruction": "Losartan (antihypertensive) \u2014 started ~1 month ago, patient currently taking as prescribed, no side-effects reported.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.medication_statement",
+      "class": "MedicationStatementCommand",
+      "attributes": {
+        "fdb_code": "150773",
+        "sig": "Take as prescribed."
+      }
+    }
+  },
+  {
+    "instruction": "Atorvastatin (lipid-lowering agent) \u2014 taken nightly per prior instructions, no muscle aches or other adverse effects reported.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.medication_statement",
+      "class": "MedicationStatementCommand",
+      "attributes": {
+        "fdb_code": "227996",
+        "sig": "Take nightly per prior instructions."
+      }
+    }
+  },
+  {
+    "instruction": "Hypertension \u2014 well-controlled on current losartan regimen; home BP readings largely within target range.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.assess",
+      "class": "AssessCommand",
+      "attributes": {
+        "narrative": "Hypertension remains well-controlled; continue current losartan regimen and home BP monitoring.",
+        "background": "Patient\u2019s hypertension is well-controlled on current losartan regimen with home blood pressure readings largely within the target range.",
+        "condition_id": "762e0767-8ad5-4de0-abbd-e0105ca86d02",
+        "status": "stable"
+      }
+    }
+  },
+  {
+    "instruction": "Hyperlipidemia \u2014 stable on atorvastatin, no adverse effects reported.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.assess",
+      "class": "AssessCommand",
+      "attributes": {
+        "narrative": "Hyperlipidemia is well controlled; continue current atorvastatin regimen.",
+        "background": "Patient remains on atorvastatin without side-effects, indicating ongoing control of lipid levels.",
+        "condition_id": "bde18d24-d8ba-4bf4-bdc7-6ff65978a822",
+        "status": "stable"
+      }
+    }
+  },
+  {
+    "instruction": "Patient advised to continue regular home blood-pressure monitoring and report any consistent elevations; also reminded to ensure adequate medication supply when traveling to avoid gaps in treatment.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "comment": "Continue regular home blood-pressure monitoring and report any consistent elevations; ensure an adequate supply of medications when traveling to avoid gaps in treatment.",
+        "coding": {
+          "system": "http://snomed.info/sct",
+          "code": "432371000124100",
+          "display": "Recommendation to monitor physiologic parameters"
+        }
+      }
+    }
+  }
+]

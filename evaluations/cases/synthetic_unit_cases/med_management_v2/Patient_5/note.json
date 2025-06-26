@@ -1,0 +1,27 @@
+[
+  {
+    "instruction": "The patient reports increased intensity of pain despite starting hydroxychloroquine. Some days are better than others, indicating variability in symptoms.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.history_present_illness",
+      "class": "HistoryOfPresentIllnessCommand",
+      "attributes": {
+        "narrative": "The patient reports increased intensity of pain despite starting hydroxychloroquine. Some days are better than others, indicating variability in symptoms."
+      }
+    }
+  },
+  {
+    "instruction": "The patient is instructed to continue taking folic acid regularly to help with side effects.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "comment": "The patient is instructed to continue taking folic acid regularly to help with side effects.",
+        "coding": {
+          "system": "http://snomed.info/sct",
+          "code": "4831000124104",
+          "display": "Recommendation to start dietary supplement"
+        }
+      }
+    }
+  }
+]
