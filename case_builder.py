@@ -19,7 +19,6 @@ class CaseBuilder:
             BuilderDelete.run()
         elif "--chart" in arguments and "--transcript" in arguments:
             BuilderFromChartTranscript.run()
-
         elif "--transcript" in arguments:
             BuilderFromTranscript.run()
         elif "--tuning-json" in arguments:
