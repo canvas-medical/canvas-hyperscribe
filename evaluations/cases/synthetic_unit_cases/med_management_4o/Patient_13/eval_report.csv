@@ -1,6 +1,0 @@
-Criterion #,Criterion,Max Score,Satisfaction (%),Score Awarded,Rationale
-1,"Reward for documenting the resolution of the patient's dizziness, including the timeframe and patient's perception of improvement.",20,0.0,0.0,"The resolution of the patient's dizziness, including timeframe and perception of improvement, was not documented."
-2,"Reward for addressing the patient's medication adherence challenges, including the use of phone alarms and the suggestion of a pill organizer as a backup plan.",25,0.0,0.0,"The patient's medication adherence challenges, including phone alarms and pill organizer suggestion, were not addressed."
-3,"Penalize for omitting the patient's current medication details, including dosage and frequency, in the context of discussing adherence.",15,100.0,15.0,"The patient's current medication details, including dosage and frequency, were omitted."
-4,"Reward for including a discussion of potential solutions to improve medication adherence, such as alternative reminder systems.",20,0.0,0.0,There was no discussion of potential solutions to improve medication adherence.
-5,Penalize for not documenting any follow-up plan or further assessment related to the patient's epilepsy management.,20,100.0,20.0,No follow-up plan or further assessment related to the patient's epilepsy management was documented.

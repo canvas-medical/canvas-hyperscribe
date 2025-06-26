@@ -1,6 +1,0 @@
-Criterion #,Criterion,Max Score,Satisfaction (%),Score Awarded,Rationale
-1,Reward for documenting the patient's concern about long-term effects of atorvastatin and family history of myocardial infarction.,20,0.0,0.0,The patient's concern about long-term effects of atorvastatin and family history of myocardial infarction is not documented.
-2,Reward for noting the clinician's response to monitor for muscle aches or unusual fatigue as potential side effects of atorvastatin.,15,0.0,0.0,The clinician's response to monitor for muscle aches or unusual fatigue as potential side effects of atorvastatin is not noted.
-3,"Penalize for omitting a plan to follow up on the patient's reported fatigue after cycling, which could be related to medication side effects.",25,0.0,0.0,There is no mention of a plan to follow up on the patient's reported fatigue after cycling.
-4,Reward for including dietary recommendations to reduce saturated fats and increase fiber as part of the management plan.,15,100.0,15.0,Dietary recommendations to reduce saturated fats and increase fiber are included in the management plan.
-5,Penalize for not documenting a specific follow-up plan or timeline to reassess the patient's symptoms and medication tolerance.,25,0.0,0.0,There is no documentation of a specific follow-up plan or timeline to reassess the patient's symptoms and medication tolerance.

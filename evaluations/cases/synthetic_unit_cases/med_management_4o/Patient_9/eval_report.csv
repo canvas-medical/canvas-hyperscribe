@@ -1,6 +1,0 @@
-Criterion #,Criterion,Max Score,Satisfaction (%),Score Awarded,Rationale
-1,Reward for documenting the patient's report of improved mood and initial nausea as part of the medication assessment.,20,0.0,0.0,The patient's report of improved mood and initial nausea was not documented in the medication assessment.
-2,"Penalize for omitting the patient's inconsistent medication adherence due to hectic mornings, which is relevant for medication management.",15,0.0,0.0,The patient's inconsistent medication adherence due to hectic mornings was not mentioned.
-3,Reward for addressing the patient's financial difficulty in affording medication and suggesting assistance programs.,25,0.0,0.0,There is no mention of the patient's financial difficulty in affording medication or any assistance programs.
-4,Penalize for not documenting a plan to follow up on the patient's adherence to medication and financial assistance outcomes.,20,0.0,0.0,There is no documentation of a plan to follow up on the patient's adherence to medication and financial assistance outcomes.
-5,"Reward for providing practical advice on setting a reminder for medication adherence, which supports patient safety and adherence.",20,100.0,20.0,"Practical advice on setting a reminder for medication adherence was provided, supporting patient safety and adherence."
