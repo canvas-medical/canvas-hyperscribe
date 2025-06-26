@@ -1,32 +1,32 @@
 [
   {
-    "rationale": "All four required HPI elements are present: prior stomach upset on sertraline, absence of GI symptoms on fluoxetine, stable mood since dose change, and mention of a hectic work period indicating ongoing work stress. Narrative is concise.",
-    "satisfaction": 97.0,
-    "score": 24.25
+    "rationale": "HPI explicitly notes mood stable \"after the recent dose adjustment\" and cites hectic work stressor; temporal context and mood captured clearly.",
+    "satisfaction": 92.0,
+    "score": 13.8
   },
   {
-    "rationale": "Current medication (fluoxetine) and full adherence are documented, but the 20-mg dose strength and use of a phone reminder are omitted.",
-    "satisfaction": 55.0,
-    "score": 8.25
-  },
-  {
-    "rationale": "Assessment labels MDD as stable, links stability to fluoxetine, and states no change in regimen, fulfilling all requirements.",
+    "rationale": "Documented taking fluoxetine every morning, uses phone reminder, and reports no missed doses\u2014complete adherence details present.",
     "satisfaction": 95.0,
-    "score": 19.0
+    "score": 9.5
   },
   {
-    "rationale": "No suicide or self-harm screening question or result is documented.",
+    "rationale": "States prior GI issues with sertraline resolved; no GI side-effects on fluoxetine\u2014tolerance information fully addressed.",
+    "satisfaction": 95.0,
+    "score": 9.5
+  },
+  {
+    "rationale": "No mention of suicide or self-harm assessment anywhere in the note.",
     "satisfaction": 0.0,
     "score": 0.0
   },
   {
-    "rationale": "No explicit follow-up interval or monitoring instructions are included.",
-    "satisfaction": 0.0,
-    "score": 0.0
+    "rationale": "Assessment affirms stability on current therapy but lacks explicit statement to continue at 20 mg and omits follow-up interval; only partially evidence-based.",
+    "satisfaction": 55.0,
+    "score": 13.75
   },
   {
-    "rationale": "Note stays within provided information; no unsupported ROS, physical exam, or irrelevant data added. Minor system codes are standard metadata.",
-    "satisfaction": 90.0,
-    "score": 9.0
+    "rationale": "Note limited to encounter-relevant content without extraneous past history or demographic copy-forward.",
+    "satisfaction": 95.0,
+    "score": 9.5
   }
 ]

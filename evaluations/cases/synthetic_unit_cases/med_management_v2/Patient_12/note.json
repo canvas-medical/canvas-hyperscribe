@@ -1,16 +1,16 @@
 [
   {
-    "instruction": "Patient reports missing one dose of warfarin last week; experienced no change in how they felt. Daughter noticed and helped patient resume medication promptly. Patient now using a weekly pill box but sometimes forgets to check it.",
+    "instruction": "Missed one dose of warfarin last week; no noticeable symptoms; daughter ensured patient resumed medication immediately.",
     "command": {
       "module": "canvas_sdk.commands.commands.history_present_illness",
       "class": "HistoryOfPresentIllnessCommand",
       "attributes": {
-        "narrative": "Missed one dose of warfarin last week and felt no change; daughter noticed the lapse and helped resume the medication promptly. Patient now uses a weekly pill box but sometimes forgets to check it."
+        "narrative": "Patient reports missing one dose of warfarin last week. They experienced no noticeable symptoms, and their daughter promptly made sure the medication was resumed right away."
       }
     }
   },
   {
-    "instruction": "Advise patient to continue using the weekly pill organizer and set up phone alerts (with daughter\u2019s assistance) as a secondary reminder to take anticoagulation medication consistently.",
+    "instruction": "Advised patient to continue using weekly pill organizer and set phone alerts as a backup reminder to improve warfarin adherence.",
     "command": {
       "module": "canvas_sdk.commands.commands.instruct",
       "class": "InstructCommand",
@@ -20,7 +20,7 @@
           "code": "713092004",
           "display": "Education about use of pill box"
         },
-        "comment": "Continue using the weekly pill organizer and set up phone alerts with the daughter\u2019s assistance as a secondary reminder to take anticoagulation medication consistently."
+        "comment": "Advised patient to continue using weekly pill organizer and set phone alerts as a backup reminder to improve warfarin adherence."
       }
     }
   }

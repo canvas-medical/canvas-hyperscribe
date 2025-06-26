@@ -1,36 +1,64 @@
 [
   {
-    "instruction": "Follow-up for COPD management; patient concerned about potential long-term side effects of prednisone therapy.",
+    "instruction": "Prednisone oral corticosteroid\u2014continue the existing short course for COPD exacerbation relief; complete the remaining couple of days as previously prescribed (exact dosage per prior prescription), then stop.",
     "command": {
-      "module": "canvas_sdk.commands.commands.reason_for_visit",
-      "class": "ReasonForVisitCommand",
+      "module": "canvas_sdk.commands.commands.prescribe",
+      "class": "PrescribeCommand",
       "attributes": {
-        "comment": "COPD management follow-up; concerns about prednisone side effects"
+        "days_supply": 2,
+        "fdb_code": "187978",
+        "quantity_to_dispense": "2.00",
+        "note_to_pharmacist": "Dispense exactly two (2) 5-mg prednisone tablets to allow the patient to finish the final 2 days of his taper; no additional refills.",
+        "refills": 0,
+        "prescriber_id": "4150cd20de8a470aa570a852859ac87e",
+        "substitutions": "allowed",
+        "type_to_dispense": {
+          "representative_ndc": "59651048601",
+          "ncpdp_quantity_qualifier_code": "C48542"
+        },
+        "sig": "Take 1 tablet (5 mg) by mouth once each morning with food for 2 days, then stop the medication.",
+        "icd10_codes": [
+          "J449"
+        ]
       }
     }
   },
   {
-    "instruction": "Patient notes marked improvement in breathing while on a short course of prednisone with only a few doses remaining; expresses worry\u2014prompted by spouse\u2014about long-term prednisone effects. Denies difficulty using tiotropium inhaler but experiences occasional mild jitteriness. No additional inhalers used; wife assists with medication administration.",
+    "instruction": "Tiotropium inhaler\u2014maintenance bronchodilator for chronic COPD management; inhale one capsule (18 mcg) once daily via HandiHaler, ongoing.",
     "command": {
-      "module": "canvas_sdk.commands.commands.history_present_illness",
-      "class": "HistoryOfPresentIllnessCommand",
+      "module": "canvas_sdk.commands.commands.prescribe",
+      "class": "PrescribeCommand",
       "attributes": {
-        "narrative": "Patient notes marked improvement in breathing while on a short course of prednisone with only a few doses remaining, expresses spouse-prompted concern about long-term prednisone effects, denies difficulty using tiotropium inhaler but reports occasional mild jitteriness, uses no additional inhalers and receives assistance with medication administration from wife."
+        "days_supply": 30,
+        "fdb_code": "579341",
+        "quantity_to_dispense": "4.00",
+        "note_to_pharmacist": "Dispense ONE Spiriva Respimat inhaler (4 g solution/60 actuations). Each inhaler provides a 30-day supply when used as directed (2 puffs once daily).",
+        "refills": 11,
+        "prescriber_id": "4150cd20de8a470aa570a852859ac87e",
+        "substitutions": "allowed",
+        "type_to_dispense": {
+          "representative_ndc": "00597010051",
+          "ncpdp_quantity_qualifier_code": "C48155"
+        },
+        "sig": "Inhale 2 puffs from the Spiriva Respimat inhaler by mouth once every day, at the same time each day, until the inhaler is empty (60 puffs total). Prime the inhaler before first use and if not used for more than 3 days. Rinse mouthpiece after use; do not swallow the mist.",
+        "icd10_codes": [
+          "J449"
+        ]
       }
     }
   },
   {
-    "instruction": "Complete the remaining few days of the current prednisone course, then continue tiotropium inhaler for COPD maintenance; monitor for worsening jitteriness and report if bothersome; avoid starting any additional inhalers unless advised.",
+    "instruction": "Patient to finish the remaining prednisone doses, then continue only the tiotropium inhaler for maintenance and notify the provider if the jitteriness worsens or becomes bothersome.",
     "command": {
       "module": "canvas_sdk.commands.commands.instruct",
       "class": "InstructCommand",
       "attributes": {
+        "comment": "Finish the remaining prednisone doses, then continue only the tiotropium inhaler for maintenance, and notify the provider if the jitteriness worsens or becomes bothersome.",
         "coding": {
           "system": "http://snomed.info/sct",
           "code": "4761000124103",
           "display": "Recommendation to continue a medication"
-        },
-        "comment": "Complete the remaining few days of the current prednisone course, then continue tiotropium inhaler for COPD maintenance; monitor for worsening jitteriness and report if bothersome; avoid starting any additional inhalers unless advised."
+        }
       }
     }
   }
