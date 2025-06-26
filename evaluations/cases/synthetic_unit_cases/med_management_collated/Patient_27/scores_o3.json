@@ -1,0 +1,42 @@
+[
+  {
+    "rationale": "Patient narrative details (better sugars, thirst side-effect, difficulty remembering morning dose) are entirely absent; only instructions are documented.",
+    "satisfaction": 10.0,
+    "score": 2.0
+  },
+  {
+    "rationale": "Note includes both hydration advice and a concrete reminder tool exactly as discussed.",
+    "satisfaction": 90.0,
+    "score": 13.5
+  },
+  {
+    "rationale": "No assessment or plan for T2DM, no reference to current SGLT2+metformin therapy, and no follow-up labs documented.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Irregular work/travel schedule affecting adherence is not explicitly mentioned.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Neither metformin nor empagliflozin are listed or reconciled.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "No fabricated or speculative information is present; only verifiable counseling statements.",
+    "satisfaction": 100.0,
+    "score": 25.0
+  },
+  {
+    "rationale": "Commands used are valid Instruct commands without duplication, but other appropriate sections (HPI, Assess) are missing.",
+    "satisfaction": 80.0,
+    "score": 8.0
+  },
+  {
+    "rationale": "Safety counseling on DKA/UTI signs and when to seek care is largely missing; only generic hydration advice given.",
+    "satisfaction": 20.0,
+    "score": 5.0
+  }
+]

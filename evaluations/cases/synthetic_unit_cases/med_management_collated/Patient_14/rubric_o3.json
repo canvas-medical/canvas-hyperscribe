@@ -1,0 +1,32 @@
+[
+  {
+    "criterion": "Reward for accurately documenting patient's current antidepressant regimen including medication name (fluoxetine), dose (20 mg), timing (every morning), and the patient\u2019s stated full adherence (no missed doses, phone reminder)",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for explicitly recording medication tolerability/side-effect information, specifically the absence of stomach issues on fluoxetine and prior GI intolerance to sertraline",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing the patient\u2019s reported mood status since the last dose adjustment\u2014i.e., mood stability and not feeling overwhelmed despite work stress\u2014as part of the MDD assessment",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting a suicide or self-harm risk screen (positive or negative) or clearly noting that such safety assessment was deferred, reflecting adherence to depression-care safety guidelines",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for inclusion of data in the note that is not supported by the current transcript or chart (fabricated symptoms, exam findings, plans, or irrelevant historical details)",
+    "weight": 10,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for excessive redundancy or wordiness, such as repeating chart information or transcript statements without added clinical value, leading to unnecessary length",
+    "weight": 10,
+    "sense": "negative"
+  }
+]

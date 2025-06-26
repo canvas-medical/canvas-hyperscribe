@@ -1,0 +1,37 @@
+[
+  {
+    "criterion": "Reward for accurately documenting the patient\u2019s warfarin adherence issue (missed dose) and the corrective action taken (use of pill organizer) in the encounter note",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting the patient\u2019s caregiver and social support details relevant to treatment (daughter sets pill organizer and provides transportation)",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing the patient\u2019s INR-monitoring status and concerns (frequency of checks, hassle, anxiety about results)",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for recording a targeted review of systems for bleeding/bruising with the patient\u2019s negative response",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for including an evidence-based assessment and plan addressing warfarin management given CKD (e.g., counsel on missed dose, schedule/adjust INR check) that explicitly mitigates bleeding/thromboembolic risk",
+    "weight": 25,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for omission or inaccuracy in listing active high-risk medication (warfarin) or relevant comorbidities (atrial fibrillation, chronic kidney disease, heart failure, hypertension) that impact anticoagulation management",
+    "weight": 10,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for inclusion of redundant, irrelevant, or transcript-unsupported information that unnecessarily lengthens the documentation",
+    "weight": 5,
+    "sense": "negative"
+  }
+]
