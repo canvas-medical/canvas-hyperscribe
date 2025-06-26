@@ -1,0 +1,32 @@
+[
+  {
+    "rationale": "The documentation does not mention the patient's positive response to losartan regarding the absence of cough.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "The potential side effects of losartan, such as dizziness and fatigue, are not discussed.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "There is no mention of the patient's report of fatigue or discussion of its potential causes.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "The patient's concern about missing doses of levothyroxine is not documented.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Clear instructions are provided on what to do if a dose of medication is missed.",
+    "satisfaction": 100.0,
+    "score": 20.0
+  },
+  {
+    "rationale": "The family history of stroke is not documented; instead, a history of diabetes mellitus is noted.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  }
+]

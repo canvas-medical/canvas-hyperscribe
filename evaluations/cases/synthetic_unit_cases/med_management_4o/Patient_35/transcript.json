@@ -1,0 +1,26 @@
+[
+  {
+    "speaker": "Patient",
+    "text": "So, with the losartan, I haven't had any of that cough, which is a relief. But, um, should I be worried about any other side effects that might pop up?"
+  },
+  {
+    "speaker": "Clinician",
+    "text": "That's good to hear about the cough. Losartan is generally well-tolerated, but some people might experience dizziness or, uh, fatigue. Have you noticed anything like that?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Not really, but sometimes I feel a bit tired. I just thought it was from work, you know, long hours in the kitchen."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "It could be a combination of both. Just keep an eye on it, and if it gets worse, let me know. And, uh, how's the levothyroxine working for you? Any changes in your energy levels or anything?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "I think it's been okay. My energy's been pretty stable, but I do get a bit anxious about missing a dose. My mom's history makes me, uh, extra cautious."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Understandable. It's important to stay consistent with both medications. If you ever miss a dose, just take it as soon as you remember, unless it's close to the next one."
+  }
+]

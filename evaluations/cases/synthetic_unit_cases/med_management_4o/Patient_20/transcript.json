@@ -1,0 +1,30 @@
+[
+  {
+    "speaker": "Clinician",
+    "text": "And, uh, when you mentioned the nausea, was it more in the morning or, um, throughout the day?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "It's mostly in the morning, right after I take the lithium. It usually gets better by lunchtime."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Okay, that's helpful to know. Sometimes taking it with food can, uh, help reduce that. Have you tried that yet?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Yeah, my partner suggested that, and it does seem to help a bit. But, um, I'm still worried about the long-term effects."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "I understand. It's important to balance the benefits with any side effects. We'll keep monitoring your levels closely to avoid any issues."
+  },
+  {
+    "speaker": "Patient",
+    "text": "Right, and I really don't want to end up in the hospital again. My partner's been great about reminding me, though."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "That's good to hear. Having support makes a big difference. If the nausea persists, we can look into adjusting the dose or timing."
+  }
+]

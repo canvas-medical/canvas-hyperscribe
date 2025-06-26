@@ -1,0 +1,32 @@
+[
+  {
+    "rationale": "The hyperscribe output is empty, so there is no documentation of the patient's positive response to celecoxib.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "The hyperscribe output is empty, so there is no mention of the absence of gastrointestinal discomfort with celecoxib.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "The hyperscribe output is empty, so there is no mention of the patient's proactive management of blood pressure.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "The hyperscribe output is empty, so there is no mention of the patient's age and gender.",
+    "satisfaction": 100.0,
+    "score": 10.0
+  },
+  {
+    "rationale": "The hyperscribe output is empty, so there is no mention of the patient's allergy to penicillin.",
+    "satisfaction": 100.0,
+    "score": 25.0
+  },
+  {
+    "rationale": "The hyperscribe output is empty, so there is no discussion of monitoring blood pressure or reassurance about medication adjustments.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  }
+]

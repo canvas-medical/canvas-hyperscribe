@@ -1,0 +1,32 @@
+[
+  {
+    "instruction": "Patient should report if dizziness or fatigue becomes more noticeable or bothersome.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "coding": {
+          "system": "http://snomed.info/sct",
+          "code": "223451005",
+          "display": "Advice to report signs and symptoms"
+        },
+        "comment": "Patient should report if dizziness or fatigue becomes more noticeable or bothersome."
+      }
+    }
+  },
+  {
+    "instruction": "Patient should report any unusual muscle aches, especially in the legs, while on atorvastatin.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "coding": {
+          "system": "http://snomed.info/sct",
+          "code": "223451005",
+          "display": "Advice to report signs and symptoms"
+        },
+        "comment": "Patient should report any unusual muscle aches, especially in the legs, while on atorvastatin."
+      }
+    }
+  }
+]
