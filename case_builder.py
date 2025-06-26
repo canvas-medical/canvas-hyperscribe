@@ -20,7 +20,6 @@ class CaseBuilder:
             BuilderDelete.run()
         elif "--chart" in arguments and "--transcript" in arguments:
             BuilderFromChartTranscript.run()
-
         elif "--transcript" in arguments:
             #print("DEBUG: transcript path")
             BuilderFromTranscript.run()
