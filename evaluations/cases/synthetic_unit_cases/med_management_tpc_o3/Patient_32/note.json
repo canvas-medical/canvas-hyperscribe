@@ -1,0 +1,76 @@
+[
+  {
+    "instruction": "Crohn's disease, unspecified, without complications (ICD-10: K50.90). Current literature shows no spike in malformations or infections with adalimumab during pregnancy.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.assess",
+      "class": "AssessCommand",
+      "attributes": {
+        "background": "Current literature shows no spike in malformations or infections with adalimumab during pregnancy.",
+        "narrative": "The condition is currently stable with no complications reported.",
+        "condition_id": "da800955-97a4-491d-b30f-0e719702d93b",
+        "status": "stable"
+      }
+    }
+  },
+  {
+    "instruction": "Essential (primary) hypertension (ICD-10: I10). Blood pressure readings at home are 145/92, and the patient is experiencing pounding headaches.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.assess",
+      "class": "AssessCommand",
+      "attributes": {
+        "background": "The patient has blood pressure readings at home of 145/92 and is experiencing pounding headaches, indicating poorly controlled hypertension.",
+        "narrative": "The patient's hypertension appears to be poorly controlled, as evidenced by elevated blood pressure readings and associated symptoms such as headaches.",
+        "condition_id": "8e94082a-7628-4632-b73d-4b6792147b8a",
+        "status": "deteriorated"
+      }
+    }
+  },
+  {
+    "instruction": "24 weeks gestation of pregnancy (ICD-10: Z3A.24). Concerns about the safety of adalimumab during pregnancy due to pharmacist warning.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.assess",
+      "class": "AssessCommand",
+      "attributes": {
+        "background": "Concerns about the safety of adalimumab during pregnancy due to pharmacist warning.",
+        "narrative": "The patient is currently 24 weeks pregnant and has expressed concerns regarding the use of adalimumab during pregnancy following a warning from the pharmacist.",
+        "condition_id": "8af10a1a-82d6-4610-b695-e4801d2e50f8",
+        "status": "stable"
+      }
+    }
+  },
+  {
+    "instruction": "If redness or bruising bigger than a quarter at the injection site, fever above 100.4, or any sudden abdominal pain occurs, call the clinic first and do not skip the medication.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "coding": {
+          "system": "http://snomed.info/sct",
+          "code": "710581006",
+          "display": "Education about managing fever"
+        },
+        "comment": "If redness or bruising bigger than a quarter at the injection site, fever above 100.4, or any sudden abdominal pain occurs, call the clinic first and do not skip the medication."
+      }
+    }
+  },
+  {
+    "instruction": "Confirm blood pressure readings today. If two home logs top 140/90, start labetalol 100 mg twice daily while clearing it with OB.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.plan",
+      "class": "PlanCommand",
+      "attributes": {
+        "narrative": "Confirm blood pressure readings today. If two home logs top 140/90, start labetalol 100 mg twice daily while clearing it with OB."
+      }
+    }
+  },
+  {
+    "instruction": "Concerns about Crohn's disease management during pregnancy, high blood pressure readings, and potential medication side effects.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.reason_for_visit",
+      "class": "ReasonForVisitCommand",
+      "attributes": {
+        "comment": "Concerns about Crohn's disease management during pregnancy, high blood pressure readings, and potential medication side effects."
+      }
+    }
+  }
+]

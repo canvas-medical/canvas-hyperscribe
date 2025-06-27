@@ -1,0 +1,20 @@
+{
+  "turn_total": 6,
+  "speaker_sequence": [
+    "Patient",
+    "Patient",
+    "Clinician",
+    "Patient",
+    "Patient",
+    "Clinician"
+  ],
+  "ratio": 1.47,
+  "mood": [
+    "clinician is rushed",
+    "patient is frustrated"
+  ],
+  "pressure": "side\u2011effect report just came in",
+  "clinician_style": "brief and efficient",
+  "patient_style": "agreeable but vague",
+  "bucket": "medium"
+}

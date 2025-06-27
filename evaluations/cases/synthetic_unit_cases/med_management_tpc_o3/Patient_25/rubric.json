@@ -1,0 +1,77 @@
+[
+  {
+    "criterion": "Reward for accurately documenting that the nilotinib regimen remains 300 mg twice daily with the specified fasting window (no food 2 h before and 1 h after).",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing the patient\u2019s report of no dizziness, no fainting, and a single episode of heart flutter yesterday.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for noting that dextromethorphan cough syrup has been completely discontinued.",
+    "weight": 8,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for recording today\u2019s blood-pressure reading of 132/78 taken by the village nurse.",
+    "weight": 6,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting that the patient has not missed any doses of lisinopril or simvastatin.",
+    "weight": 6,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for including the patient\u2019s concern about the cancelled ECG and potential danger of skipping a month.",
+    "weight": 6,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting that the urgent-care ECG was cancelled and the clinician will reroute the ECG to Monday morning in oncology.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing the instruction to hold simvastatin tonight and the prescription change to pravastatin 40 mg, including that a fax will be sent.",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for noting that the insurance authorization appeal for the second month of nilotinib is in progress/\"in limbo\" and that an appeal file was opened.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for referencing pertinent chart context (64-year-old male with CML, current meds list) only insofar as it illuminates the encounter, without importing unrelated chart sections.",
+    "weight": 8,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for overall completeness\u2014i.e., the note captures all clinically relevant statements, decisions, patient concerns, and plans present in the transcript without significant omissions.",
+    "weight": 25,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for omitting or misrepresenting any of the key actions or instructions (e.g., ECG reroute, pravastatin switch) that were explicitly stated.",
+    "weight": 20,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for fabricating clinical content, advice, diagnoses, lab orders, or reasoning not present or implied in the transcript.",
+    "weight": 20,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for selectively copying irrelevant chart details (e.g., empty family/surgical history) or introducing chart data that was not referenced during the encounter.",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for contradicting factual details from the transcript (wrong doses, incorrect blood pressure, misstated symptoms, etc.).",
+    "weight": 20,
+    "sense": "negative"
+  }
+]

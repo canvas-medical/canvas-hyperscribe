@@ -1,0 +1,85 @@
+[
+  {
+    "instruction": "Change the prescription of a current medication (Levothyroxine sodium 88 microgram tablet), including the new medication, the directions, the duration and the dosage.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.adjust_prescription",
+      "class": "AdjustPrescriptionCommand",
+      "attributes": {
+        "refills": 0,
+        "sig": "Use the GM100 kit as directed by your healthcare provider. Follow any specific instructions provided with the kit.",
+        "fdb_code": "",
+        "substitutions": "allowed",
+        "note_to_pharmacist": "Dispense one GM100 kit as a one-time supply. No refills are authorized.",
+        "type_to_dispense": {
+          "representative_ndc": "08539010001",
+          "ncpdp_quantity_qualifier_code": "C48504"
+        },
+        "prescriber_id": "4150cd20de8a470aa570a852859ac87e",
+        "days_supply": 0,
+        "new_fdb_code": "557994",
+        "quantity_to_dispense": "1.00"
+      }
+    }
+  },
+  {
+    "instruction": "Take one tablet first thing, on an empty stomach, then wait at least thirty minutes before coffee or breakfast. If you accidentally take the old 100-microgram pill, don't double back; just resume 88 \u03bcg the next morning. Store the bottle above 59 \u00b0F; freezing by the window can weaken potency over time.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "comment": "Take one tablet first thing, on an empty stomach, then wait at least thirty minutes before coffee or breakfast."
+      }
+    }
+  },
+  {
+    "instruction": "For memory slips, set your phone alarm or use a seven-slot pillbox you load every Sunday. If you do double-dose, you might feel jittery, a bit sweaty, but it usually settles\u2014call if palpitations last more than a few hours.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "coding": {
+          "system": "http://snomed.info/sct",
+          "code": "713092004",
+          "display": "Education about use of pill box"
+        },
+        "comment": "For memory slips, set your phone alarm or use a seven-slot pillbox you load every Sunday. If you do double-dose, you might feel jittery, a bit sweaty, but it usually settles\u2014call if palpitations last more than a few hours."
+      }
+    }
+  },
+  {
+    "instruction": "Re-check labs in six weeks to adjust if needed.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.lab_order",
+      "class": "LabOrderCommand",
+      "attributes": {
+        "diagnosis_codes": [
+          "L639"
+        ],
+        "tests_order_codes": [],
+        "comment": "Re-check labs in six weeks to adjust if needed.",
+        "fasting_required": false,
+        "ordering_provider_key": "4150cd20de8a470aa570a852859ac87e"
+      }
+    }
+  },
+  {
+    "instruction": "Concerns about medication dosage change and symptoms of dry skin and leg cramps.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.reason_for_visit",
+      "class": "ReasonForVisitCommand",
+      "attributes": {
+        "comment": "medication dosage change concerns, dry skin, and leg cramps"
+      }
+    }
+  },
+  {
+    "instruction": "Patient received a new prescription of Levothyroxine sodium 88 microgram tablet due to TSH levels dipping below 0.3. Patient reports dry skin and cramping in calves at night, questioning if related to thyroid or winter. Patient has half a bottle of 100 microgram tablets remaining and inquires about splitting them. Concerns about forgetting to take medication and potential effects of double dosing.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.history_present_illness",
+      "class": "HistoryOfPresentIllnessCommand",
+      "attributes": {
+        "narrative": "Patient received a new prescription of Levothyroxine sodium 88 microgram tablet due to TSH levels dipping below 0.3. Patient reports dry skin and cramping in calves at night, questioning if related to thyroid or winter. Patient has half a bottle of 100 microgram tablets remaining and inquires about splitting them. Concerns about forgetting to take medication and potential effects of double dosing."
+      }
+    }
+  }
+]

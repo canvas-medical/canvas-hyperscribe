@@ -1,0 +1,26 @@
+[
+  {
+    "speaker": "Clinician",
+    "text": "Clara, the remote EMR pinged me five minutes ago: reported calf soreness and dark urine after your second atovaquone–proguanil dose. Given the backdrop of atorvastatin, I’m worried about a brewing myopathy rather than simple dehydration."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "First move: stop atorvastatin tonight—no tablets until 48 hours after the last nirmatrelvir–ritonavir dose just in case you have to start that pack; ritonavir shoots statin levels way up, and we don’t want a full-blown rhabdo episode."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Keep taking the malaria pill, but double the water—about three liters daily—and log any muscle weakness or, uh, cola-colored urine in that notebook so the field nurse can text me daily vitals."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "I’m emailing a one-page algorithm: if pain climbs above five out of ten or urine stays brown for more than, say, six hours, hold all suspect meds, start oral rehydration salts, and radio the river post for an evac boat."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Remember grapefruit is still off-limits—some trees grow wild near camp, and even a half cup can spike the statin when you restart; stick to oranges or, I mean, bottled juice you know is safe."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Last bit: pack the albuterol in a zip bag with silica gel; rainforest humidity clogs the valve fast. Two puffs only if the wheeze hits; if you’re using it more than twice a week, flag the mission doctor and I’ll reassess remotely."
+  }
+]

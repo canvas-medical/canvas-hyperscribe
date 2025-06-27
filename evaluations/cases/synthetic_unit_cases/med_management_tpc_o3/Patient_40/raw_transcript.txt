@@ -1,0 +1,30 @@
+[
+  {
+    "speaker": "Clinician",
+    "text": "Okay, Ms. Green, quick recap: semaglutide stays 0.5-mg every Sunday morning, fridge until thirty minutes before use. We’ve stopped glyburide entirely; pack it away so you don’t reach for it on the ship. Atovaquone/proguanil begins the morning before embarkation, then one tablet daily with food and milk, continue seven days after you dock home. Any nausea, yellow eyes, or low-sugar shakiness—test first, then email me."
+  },
+  {
+    "speaker": "Patient",
+    "text": "Why did the pharmacy swap my green pen for a purple one, and why’s it suddenly two hundred dollars more?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "I’m scared I’ll mix them up on the boat—what if I stick the wrong day or drop it overboard?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Plus, uh, the malaria pill list says ‘take with food,’ but some excursions skip lunch altogether."
+  },
+  {
+    "speaker": "Patient",
+    "text": "And my sugars already dipped to 84 yesterday; I felt shaky until I found a mango stand."
+  },
+  {
+    "speaker": "Patient",
+    "text": "I’m really trying, but every change piles on—I don’t want to ruin the trip for my sister."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Understood. The purple pen is identical strength; insurer dropped the cheaper brand last week—I’m filing an appeal, but for now I’ve arranged two free boxes at the ship’s infirmary desk. Store pens in the cabin fridge, needle side up. For missed meals, still swallow the malaria pill with even a cracker."
+  }
+]

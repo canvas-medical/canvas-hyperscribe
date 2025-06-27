@@ -1,0 +1,141 @@
+[
+  {
+    "instruction": "Type 2 diabetes mellitus without complications: A1C improved from 8.6% to 7.7% after four semaglutide 0.25-mg injections.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.assess",
+      "class": "AssessCommand",
+      "attributes": {
+        "status": "improved",
+        "condition_id": "84d2c166-b310-4083-9712-faedc75dab8b",
+        "narrative": "The patient's A1C levels have improved, indicating better glycemic control.",
+        "background": "A1C improved from 8.6% to 7.7% after four semaglutide 0.25-mg injections."
+      }
+    }
+  },
+  {
+    "instruction": "Change the prescription of Semaglutide 0.25 mg/0.5 mL subcutaneous solution pen injector from 0.25 mg to 0.5 mg, inject weekly on Sunday morning in the thigh, hold button for ten seconds, then refrigerate the pen cap for reuse.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.adjust_prescription",
+      "class": "AdjustPrescriptionCommand",
+      "attributes": {
+        "fdb_code": "",
+        "prescriber_id": "4150cd20de8a470aa570a852859ac87e",
+        "sig": "Inject 0.5 mg weekly on Sunday morning in the thigh, hold button for ten seconds, then refrigerate the pen cap for reuse",
+        "type_to_dispense": {
+          "representative_ndc": "",
+          "ncpdp_quantity_qualifier_code": ""
+        },
+        "new_fdb_code": "",
+        "substitutions": "allowed",
+        "days_supply": 7
+      }
+    }
+  },
+  {
+    "instruction": "Refill Glaucoma eye drops (unspecified formulation), use as directed.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.refill",
+      "class": "RefillCommand",
+      "attributes": {
+        "fdb_code": "",
+        "prescriber_id": "4150cd20de8a470aa570a852859ac87e",
+        "sig": "use as directed",
+        "type_to_dispense": {
+          "representative_ndc": "",
+          "ncpdp_quantity_qualifier_code": ""
+        },
+        "substitutions": null,
+        "days_supply": null
+      }
+    }
+  },
+  {
+    "instruction": "Schedule repeat labs in six weeks to monitor kidney function and other relevant parameters.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.lab_order",
+      "class": "LabOrderCommand",
+      "attributes": {
+        "diagnosis_codes": [
+          "N184"
+        ],
+        "comment": "Schedule repeat labs in six weeks to monitor kidney function.",
+        "ordering_provider_key": "4150cd20de8a470aa570a852859ac87e",
+        "tests_order_codes": [],
+        "fasting_required": false
+      }
+    }
+  },
+  {
+    "instruction": "Referral to ophthalmology for a check-up in six weeks to monitor glaucoma.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.refer",
+      "class": "ReferCommand",
+      "attributes": {
+        "priority": "Routine",
+        "clinical_question": "Assistance with Ongoing Management",
+        "diagnosis_codes": [
+          "H409"
+        ],
+        "service_provider": {
+          "first_name": "Ophthalmology",
+          "last_name": "(TBD)",
+          "specialty": "Ophthalmology",
+          "practice_name": "",
+          "business_fax": null,
+          "business_phone": null,
+          "business_address": "120 E. Monterey Way, Phoenix, AZ 85012",
+          "notes": null
+        },
+        "comment": "Referral for a check-up in six weeks to monitor glaucoma.",
+        "notes_to_specialist": "Please monitor the patient's glaucoma."
+      }
+    }
+  },
+  {
+    "instruction": "Set the glucometer vibration alert as a backup and keep the display light bright for easy midnight checks.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "comment": "Set the glucometer vibration alert as a backup and keep the display light bright for easy midnight checks."
+      }
+    }
+  },
+  {
+    "instruction": "On aspirin, expect small bruises on forearms; call only if purple patches exceed a guitar pick in size or if nosebleeds persist.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "comment": "On aspirin, expect small bruises on forearms; call only if purple patches exceed a guitar pick in size or if nosebleeds persist.",
+        "coding": {
+          "system": "http://snomed.info/sct",
+          "code": "315045009",
+          "display": "Advice about taking aspirin"
+        }
+      }
+    }
+  },
+  {
+    "instruction": "Fax the appeal for insurance coverage of semaglutide and note the glyburide stop.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.task",
+      "class": "TaskCommand",
+      "attributes": {
+        "due_date": "2025-06-27",
+        "comment": "Note the glyburide stop",
+        "title": "Fax appeal for insurance coverage of semaglutide"
+      }
+    }
+  },
+  {
+    "instruction": "Patient's A1C improved from 8.6% to 7.7% after semaglutide injections. Experienced a hypoglycemic event with a reading of 62 after lunch, likely due to delayed breakfast. Tinnitus spiked, unsure if related to semaglutide. Glaucoma drops ran out early due to spillage. Concerns about semaglutide and lisinopril interaction affecting kidneys.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.history_present_illness",
+      "class": "HistoryOfPresentIllnessCommand",
+      "attributes": {
+        "narrative": "Patient's A1C improved from 8.6% to 7.7% after semaglutide injections. Experienced a hypoglycemic event with a reading of 62 after lunch, likely due to delayed breakfast. Tinnitus spiked, unsure if related to semaglutide. Glaucoma drops ran out early due to spillage. Concerns about semaglutide and lisinopril interaction affecting kidneys."
+      }
+    }
+  }
+]

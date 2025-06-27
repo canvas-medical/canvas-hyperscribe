@@ -1,0 +1,41 @@
+[
+  {
+    "instruction": "Stop simvastatin due to potential interaction with nilotinib.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.stop_medication",
+      "class": "StopMedicationCommand",
+      "attributes": {
+        "rationale": "Stop simvastatin due to potential interaction with nilotinib.",
+        "medication_id": "330badff-56e4-4edf-bd94-99343686871f"
+      }
+    }
+  },
+  {
+    "instruction": "Blood pressure: 132/78.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.vitals",
+      "class": "VitalsCommand",
+      "attributes": {
+        "blood_pressure_systole": 132,
+        "blood_pressure_diastole": 78,
+        "height": null,
+        "pulse": null,
+        "weight_lbs": null,
+        "waist_circumference": null,
+        "body_temperature": null,
+        "respiration_rate": null
+      }
+    }
+  },
+  {
+    "instruction": "ECG rerouted to Monday morning in oncology.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.perform",
+      "class": "PerformCommand",
+      "attributes": {
+        "notes": "The ECG has been rescheduled to Monday morning in the oncology department.",
+        "cpt_code": ""
+      }
+    }
+  }
+]

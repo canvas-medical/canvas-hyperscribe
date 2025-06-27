@@ -1,0 +1,43 @@
+{
+  "demographicStr": "the patient is a man, born on January 1, 1979 (age 45)",
+  "conditionHistory": [],
+  "currentAllergies": [],
+  "currentConditions": [
+    {
+      "uuid": "62ead069-1a3c-4b29-9f74-a922bc37b0ad",
+      "label": "Essential (primary) hypertension",
+      "code": "I10"
+    },
+    {
+      "uuid": "43ae1c50-d489-4425-9a1e-d4837b85f8ab",
+      "label": "Obesity, unspecified",
+      "code": "E66.9"
+    }
+  ],
+  "currentGoals": [
+    {
+      "uuid": "acc83b38-68d0-48e1-9773-45495e0d8cfc",
+      "label": "Achieve gradual weight loss with weekly monitoring",
+      "code": ""
+    },
+    {
+      "uuid": "20053ea6-bf80-4c67-9151-6f83583c95ea",
+      "label": "Maintain blood pressure within target range",
+      "code": ""
+    }
+  ],
+  "currentMedications": [
+    {
+      "uuid": "45993167-6a00-4cfc-9b54-b54d191d8f05",
+      "label": "Semaglutide 2 mg/0.74 mL subcutaneous solution, inject once weekly",
+      "code": "2421282"
+    },
+    {
+      "uuid": "5357c57a-7fc5-496c-bef4-15028b4407ca",
+      "label": "Lisinopril 10 mg oral tablet, take once daily",
+      "code": "316272"
+    }
+  ],
+  "familyHistory": [],
+  "surgeryHistory": []
+}

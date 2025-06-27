@@ -1,0 +1,21 @@
+{
+  "turn_total": 7,
+  "speaker_sequence": [
+    "Clinician",
+    "Patient",
+    "Clinician",
+    "Patient",
+    "Clinician",
+    "Clinician",
+    "Patient"
+  ],
+  "ratio": 1.91,
+  "mood": [
+    "clinician is rushed",
+    "patient is tearful"
+  ],
+  "pressure": "patient traveling soon",
+  "clinician_style": "warm and chatty",
+  "patient_style": "anxious and talkative",
+  "bucket": "medium"
+}

@@ -1,0 +1,16 @@
+{
+  "demographicStr": "the patient is a woman, born on January 1, 2002 (age 22)",
+  "conditionHistory": [],
+  "currentAllergies": [],
+  "currentConditions": [],
+  "currentGoals": [],
+  "currentMedications": [
+    {
+      "uuid": "8a97c265-667a-4e28-855e-ea0cd91869e0",
+      "label": "Ethinyl estradiol 0.03 mg / levonorgestrel 0.15 mg oral tablet",
+      "code": "1049627"
+    }
+  ],
+  "familyHistory": [],
+  "surgeryHistory": []
+}

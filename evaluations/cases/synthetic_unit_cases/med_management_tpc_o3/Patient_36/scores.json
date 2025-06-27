@@ -1,0 +1,57 @@
+[
+  {
+    "rationale": "Lists drug strength (20 \u00b5g EE/100 \u00b5g LNG), start tonight even if bleeding, one pill daily with first snack after night-shift, continuous use, and alarm reminder, but omits the detail that there are 28 active tablets per pack.",
+    "satisfaction": 85.0,
+    "score": 17.0
+  },
+  {
+    "rationale": "No mention of brand denial, out-of-pocket payment, appeal, or possible switch to $12 generic at Costco.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Financial worry and night-shift driving context absent from note.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Includes all timing instructions: no stretching/splitting packs, 3-hour window, single catch-up if late, never double doses.",
+    "satisfaction": 95.0,
+    "score": 11.4
+  },
+  {
+    "rationale": "Documents mild nausea, breast soreness, brown spotting, and ER warnings of sharp calf pain and crushing chest pressure.",
+    "satisfaction": 100.0,
+    "score": 12.0
+  },
+  {
+    "rationale": "Provides guidance to keep a backup pad and to contact portal if soaking hourly persists by week eight.",
+    "satisfaction": 100.0,
+    "score": 6.0
+  },
+  {
+    "rationale": "Carsickness, fear of added nausea, and request for alternatives not captured.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Penicillin allergy and clarification of irrelevance to clot risk not recorded.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Captures most counseling but omits insurance, financial concerns, allergy, and patient preference items, so overall completeness is moderate.",
+    "satisfaction": 60.0,
+    "score": 9.0
+  },
+  {
+    "rationale": "No fabricated or altered information detected; content stays within transcript scope.",
+    "satisfaction": 95.0,
+    "score": -0.5
+  },
+  {
+    "rationale": "Fails to include referenced penicillin allergy; otherwise no indiscriminate chart copying.",
+    "satisfaction": 20.0,
+    "score": -6.4
+  }
+]

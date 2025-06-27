@@ -1,0 +1,18 @@
+{
+  "turn_total": 4,
+  "speaker_sequence": [
+    "Patient",
+    "Clinician",
+    "Patient",
+    "Clinician"
+  ],
+  "ratio": 1.92,
+  "mood": [
+    "patient is frustrated",
+    "patient is embarrassed"
+  ],
+  "pressure": "refill limit reached",
+  "clinician_style": "over\u2011explainer",
+  "patient_style": "confused and forgetful",
+  "bucket": "short"
+}

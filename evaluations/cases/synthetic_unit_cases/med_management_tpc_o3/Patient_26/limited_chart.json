@@ -1,0 +1,22 @@
+{
+  "demographicStr": "the patient is a boy, born on January 1, 2014 (age 10)",
+  "conditionHistory": [],
+  "currentAllergies": [],
+  "currentConditions": [
+    {
+      "uuid": "5121245c-0aa0-4fba-a19f-8fce980f7fe6",
+      "label": "Mild intermittent asthma, uncomplicated",
+      "code": "J45.20"
+    }
+  ],
+  "currentGoals": [],
+  "currentMedications": [
+    {
+      "uuid": "14addcf4-40f6-4ff1-be23-f95801a9043e",
+      "label": "Budesonide-formoterol 80 mcg-4.5 mcg inhalation, 2 puffs twice daily",
+      "code": "310798"
+    }
+  ],
+  "familyHistory": [],
+  "surgeryHistory": []
+}

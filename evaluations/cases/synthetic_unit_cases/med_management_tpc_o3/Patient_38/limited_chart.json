@@ -1,0 +1,37 @@
+{
+  "demographicStr": "the patient is a woman, born on January 1, 1941 (age 83)",
+  "conditionHistory": [],
+  "currentAllergies": [],
+  "currentConditions": [
+    {
+      "uuid": "735846ff-1a15-432a-80af-56246ab6d4cb",
+      "label": "Unspecified dementia with behavioral disturbance",
+      "code": "F03.91"
+    }
+  ],
+  "currentGoals": [],
+  "currentMedications": [
+    {
+      "uuid": "9003e049-4c57-4811-8c7a-35638c5cf31d",
+      "label": "Risperidone 25 mg extended-release intramuscular injection (monthly depot)",
+      "code": "197939"
+    },
+    {
+      "uuid": "bfbc74b2-d131-47f6-a43e-b9851eaba059",
+      "label": "Aspirin 81 mg oral tablet",
+      "code": "1191"
+    },
+    {
+      "uuid": "e61f3856-fc46-40c2-ac5a-308d734ba4d6",
+      "label": "Vitamin D (cholecalciferol) 1000 IU oral tablet",
+      "code": "308137"
+    },
+    {
+      "uuid": "e3fed09b-7a6b-402f-a262-f91d6c6bd8f0",
+      "label": "Diuretic (water pill) oral tablet",
+      "code": ""
+    }
+  ],
+  "familyHistory": [],
+  "surgeryHistory": []
+}

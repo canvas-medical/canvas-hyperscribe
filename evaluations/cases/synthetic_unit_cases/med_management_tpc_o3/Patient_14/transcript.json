@@ -1,0 +1,30 @@
+[
+  {
+    "speaker": "Clinician",
+    "text": "Samuel, I\u2019m watching the clock but I don\u2019t want to rush this. You\u2019re down to 200 mg of gabapentin at bedtime for the next three nights, then stop\u2014please write that on the pillbox so it\u2019s clear. If the pins-and-needles fire up again, call me, we can hold at 100 mg instead of zero. The lisinopril stays 10 mg breakfast, atorvastatin 40 mg with supper, aspirin 81 mg any time of day. Those turmeric-ginger capsules aren\u2019t dangerous, but they can thin blood a bit; space them at least four hours from aspirin. How many bottles are left, and do any doses ever get skipped while you\u2019re caring for your wife?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Uh, honestly I haven\u2019t counted, but I think maybe two turmeric bottles in the cabinet. I usually forget the second atorvastatin pill, though."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Okay, that helps. The statin is only once daily, so if an extra tablet is sneaking in, let\u2019s toss the old 20 mg leftovers and stick with the current 40 mg single dose. I\u2019ll send a fresh blister pack to cut confusion. Because of the turmeric and aspirin tandem, I\u2019m ordering a CBC to be drawn before next week\u2019s visit\u2014takes two minutes, no fasting. Meanwhile, jot down bedtime, wake-up, and any groggy spells in that little spiral notebook. Deal?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Sure, I can write things down, but mornings get chaotic when my wife needs help finding her glasses. Sometimes I just swallow everything at once to get moving."
+  },
+  {
+    "speaker": "Patient",
+    "text": "If I stop the gabapentin completely, will the buzzing in my feet come roaring back? I hated that, and I really don\u2019t have time to be up all night."
+  },
+  {
+    "speaker": "Patient",
+    "text": "Also, the pill sorter is confusing because the aspirin and the turmeric look the same color. Is there a cheaper way than buying those fancy color-coded boxes?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "One more thing\u2014uh, if the blood test shows a problem, are you going to yank the aspirin? My cardiologist started it years ago, so I don\u2019t want mixed messages."
+  }
+]

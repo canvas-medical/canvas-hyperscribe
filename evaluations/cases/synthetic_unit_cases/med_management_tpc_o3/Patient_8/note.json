@@ -1,0 +1,53 @@
+[
+  {
+    "instruction": "Store semaglutide in the fridge door, not the freezer, and start a new pen after four doses.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "coding": {
+          "system": "http://snomed.info/sct",
+          "code": "409021006",
+          "display": "Dispensing medication education"
+        },
+        "comment": "Store semaglutide in the fridge door, not the freezer, and start a new pen after four doses."
+      }
+    }
+  },
+  {
+    "instruction": "If nausea hits, sip ginger tea and eat small dry crackers before injecting, rather than skipping.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "coding": {
+          "system": "http://snomed.info/sct",
+          "code": "408881000",
+          "display": "Nausea care education"
+        },
+        "comment": "If nausea hits, sip ginger tea and eat small dry crackers before injecting, rather than skipping."
+      }
+    }
+  },
+  {
+    "instruction": "Stop semaglutide 2 mg/1.5 mL subcutaneous solution pen injector the moment a home pregnancy test turns positive because the patient would like to conceive.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.stop_medication",
+      "class": "StopMedicationCommand",
+      "attributes": {
+        "rationale": "The patient would like to conceive.",
+        "medication_id": "3ee4adf0-9fa6-4d69-beca-9387258e3796"
+      }
+    }
+  },
+  {
+    "instruction": "Patient reported fluctuating blood sugar levels with a reading of 168 before dal bhat and 212 at bedtime. The patient forgot to check after lunch due to a rush job. The patient took the usual forty units of insulin but felt heavy and queasy. Semaglutide reduces hunger but has not significantly affected weight. Concerns about pharmacy delays and financial constraints were expressed.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.history_present_illness",
+      "class": "HistoryOfPresentIllnessCommand",
+      "attributes": {
+        "narrative": "Patient reported fluctuating blood sugar levels with a reading of 168 before dal bhat and 212 at bedtime. The patient forgot to check after lunch due to a rush job. The patient took the usual forty units of insulin but felt heavy and queasy. Semaglutide reduces hunger but has not significantly affected weight. Concerns about pharmacy delays and financial constraints were expressed."
+      }
+    }
+  }
+]

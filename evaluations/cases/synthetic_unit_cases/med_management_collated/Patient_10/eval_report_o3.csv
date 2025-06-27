@@ -1,8 +1,0 @@
-Criterion #,Criterion,Max Score,Satisfaction (%),Score Awarded,Rationale
-1,Reward for accurately documenting the patient’s warfarin adherence issue (missed dose) and the corrective action taken (use of pill organizer) in the encounter note,20,0,0,Warfarin missed dose and pill-organizer corrective action not documented at all.
-2,Reward for documenting the patient’s caregiver and social support details relevant to treatment (daughter sets pill organizer and provides transportation),10,0,0,No mention of daughter or any caregiver/social support.
-3,"Reward for capturing the patient’s INR-monitoring status and concerns (frequency of checks, hassle, anxiety about results)",15,0,0,"INR-monitoring frequency, hassle, or anxiety not recorded."
-4,Reward for recording a targeted review of systems for bleeding/bruising with the patient’s negative response,15,0,0,No review of systems for bleeding/bruising documented.
-5,"Reward for including an evidence-based assessment and plan addressing warfarin management given CKD (e.g., counsel on missed dose, schedule/adjust INR check) that explicitly mitigates bleeding/thromboembolic risk",25,0,0,No assessment/plan for warfarin management or CKD considerations provided.
-6,"Penalize for omission or inaccuracy in listing active high-risk medication (warfarin) or relevant comorbidities (atrial fibrillation, chronic kidney disease, heart failure, hypertension) that impact anticoagulation management",10,100,-10,All high-risk meds and comorbidities omitted; complete omission merits full penalty.
-7,"Penalize for inclusion of redundant, irrelevant, or transcript-unsupported information that unnecessarily lengthens the documentation",5,0,0,"Empty note contains no extraneous or unsupported content, so no redundancy penalty."

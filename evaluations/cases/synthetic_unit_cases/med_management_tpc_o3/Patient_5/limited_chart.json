@@ -1,0 +1,42 @@
+{
+  "demographicStr": "the patient is a man, born on January 1, 1962 (age 62)",
+  "conditionHistory": [],
+  "currentAllergies": [],
+  "currentConditions": [
+    {
+      "uuid": "33ac6e0a-2f60-4fb1-a5be-91b39b5f1ba9",
+      "label": "End stage renal disease",
+      "code": "N18.6"
+    },
+    {
+      "uuid": "e481199c-f0e4-45d6-867f-a836fbb55316",
+      "label": "Chronic viral hepatitis C",
+      "code": "B18.2"
+    }
+  ],
+  "currentGoals": [],
+  "currentMedications": [
+    {
+      "uuid": "2156a24d-2fbb-4738-9a1f-a0aee0f1897a",
+      "label": "Carvedilol oral tablet",
+      "code": "197365"
+    },
+    {
+      "uuid": "b85039a4-b3c1-49ed-8855-df5d95241c09",
+      "label": "Sevelamer oral tablet",
+      "code": "309760"
+    },
+    {
+      "uuid": "c876d268-9f83-43c3-b4bf-cc5a395a3960",
+      "label": "Glecaprevir-Pibrentasvir oral tablet",
+      "code": "1977267"
+    },
+    {
+      "uuid": "d2b0f882-db45-40a7-9b71-ce45a35a0002",
+      "label": "Topical pruritus lotion",
+      "code": ""
+    }
+  ],
+  "familyHistory": [],
+  "surgeryHistory": []
+}

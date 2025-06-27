@@ -1,0 +1,21 @@
+{
+  "turn_total": 7,
+  "speaker_sequence": [
+    "Clinician",
+    "Clinician",
+    "Clinician",
+    "Patient",
+    "Clinician",
+    "Patient",
+    "Clinician"
+  ],
+  "ratio": 1.93,
+  "mood": [
+    "patient is embarrassed",
+    "patient is tearful"
+  ],
+  "pressure": "formulary change",
+  "clinician_style": "warm and chatty",
+  "patient_style": "anxious and talkative",
+  "bucket": "medium"
+}

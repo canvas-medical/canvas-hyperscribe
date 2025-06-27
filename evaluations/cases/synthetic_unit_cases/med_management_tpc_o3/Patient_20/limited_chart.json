@@ -1,0 +1,38 @@
+{
+  "demographicStr": "the patient is a man, born on January 1, 1947 (age 77)",
+  "conditionHistory": [],
+  "currentAllergies": [],
+  "currentConditions": [
+    {
+      "uuid": "468c6a8f-649a-4a66-b515-293aad246134",
+      "label": "Chronic myeloid leukemia, BCR/ABL-positive, not in remission",
+      "code": "C92.10"
+    }
+  ],
+  "currentGoals": [
+    {
+      "uuid": "ed113826-0819-42d4-9aba-de7cdd06b891",
+      "label": "Regular monitoring of blood counts while on imatinib therapy",
+      "code": ""
+    }
+  ],
+  "currentMedications": [
+    {
+      "uuid": "27ecdf60-5677-4286-b5df-843409e3b14e",
+      "label": "Imatinib 400 mg oral tablet",
+      "code": "310429"
+    },
+    {
+      "uuid": "7e383322-30e5-4f17-8e5a-a705bc52bbda",
+      "label": "Aspirin 81 mg chewable tablet",
+      "code": "1191"
+    },
+    {
+      "uuid": "061c9cfa-8408-404c-b123-159c1563a819",
+      "label": "Atorvastatin 20 mg oral tablet",
+      "code": "83367"
+    }
+  ],
+  "familyHistory": [],
+  "surgeryHistory": []
+}

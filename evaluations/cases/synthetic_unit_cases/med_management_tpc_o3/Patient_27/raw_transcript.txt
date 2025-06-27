@@ -1,0 +1,14 @@
+[
+  {"speaker":"Patient","text":"I’m embarrassed I forgot the risperidone tablets."},
+  {"speaker":"Patient","text":"The bottle says take with food, right?"},
+  {"speaker":"Patient","text":"I skipped breakfast a lot, so maybe that’s why."},
+  {"speaker":"Patient","text":"Now my sleep’s messy even with melatonin gummies."},
+  {"speaker":"Patient","text":"I took two gummies last night by accident."},
+  {"speaker":"Patient","text":"Is that dangerous with the new shot today?"},
+  {"speaker":"Patient","text":"Also, the campus pharmacy swapped brands last month."},
+  {"speaker":"Patient","text":"The pills were white instead of pink; confusing."},
+  {"speaker":"Patient","text":"Do I still keep the bottle or toss it?"},
+  {"speaker":"Patient","text":"You said labs in four weeks; which day exactly?"},
+  {"speaker":"Patient","text":"I lose track when midterms hit and alarms fail."},
+  {"speaker":"Clinician","text":"No worries, missing tablets happens. Today’s injection was 25 mg risperidone-er, slow release in the deltoid. It covers you for four weeks, so no tablets unless I message otherwise. Melatonin two gummies equals 10 mg; that’s still safe, just keep it at one gummy—5 mg—because higher doses can blur your daytime focus. Brand change: white generic is fine; same 2-mg strength. It dissolves the same. If the bottle predates today, recycle it so you don’t double medicate. Labs: Tuesday the 14th, anytime before 3 p.m.—we’ll check prolactin, kidney, and liver panels. Set two phone alarms and ask Disability Services for a visual reminder board. Sound okay?"}
+]

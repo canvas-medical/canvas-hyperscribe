@@ -1,0 +1,77 @@
+[
+  {
+    "rationale": "No mention of nilotinib dose or fasting window.",
+    "satisfaction": 5.0,
+    "score": 0.75
+  },
+  {
+    "rationale": "Symptoms (no dizziness/fainting, heart flutter) not documented.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Discontinuation of dextromethorphan not recorded.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "BP 132/78 captured but note omits that it was taken by village nurse.",
+    "satisfaction": 85.0,
+    "score": 5.1
+  },
+  {
+    "rationale": "No statement regarding missed doses of lisinopril or simvastatin.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Patient concern about cancelled ECG not included.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "ECG rescheduled to Monday oncology noted, but original urgent-care cancellation not explicitly stated.",
+    "satisfaction": 80.0,
+    "score": 12.0
+  },
+  {
+    "rationale": "Simvastatin stop documented, but no instruction to hold tonight, no pravastatin 40 mg, no fax detail.",
+    "satisfaction": 30.0,
+    "score": 6.0
+  },
+  {
+    "rationale": "Insurance appeal status for nilotinib not mentioned.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "No irrelevant chart data added, but also lacks helpful context such as CML history.",
+    "satisfaction": 40.0,
+    "score": 3.2
+  },
+  {
+    "rationale": "Note captures only 3 of many clinically relevant items; overall incomplete.",
+    "satisfaction": 25.0,
+    "score": 6.25
+  },
+  {
+    "rationale": "Multiple key actions omitted (pravastatin switch, nilotinib regimen, etc.).",
+    "satisfaction": 20.0,
+    "score": -16.0
+  },
+  {
+    "rationale": "No fabricated diagnoses or advice detected.",
+    "satisfaction": 90.0,
+    "score": -2.0
+  },
+  {
+    "rationale": "No irrelevant chart sections copied.",
+    "satisfaction": 95.0,
+    "score": -0.75
+  },
+  {
+    "rationale": "No contradictions to transcript present.",
+    "satisfaction": 90.0,
+    "score": -2.0
+  }
+]

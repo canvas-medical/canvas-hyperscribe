@@ -1,0 +1,69 @@
+{
+  "demographicStr": "The patient is a woman who primarily speaks Haitian Creole, born on January 1, 1970 (age 54)",
+  "conditionHistory": [],
+  "currentAllergies": [
+    {
+      "uuid": "a6a485d9-666a-4800-b65b-fa300c1f0b6b",
+      "label": "Penicillin allergy (rash)",
+      "code": "414285001"
+    }
+  ],
+  "currentConditions": [
+    {
+      "uuid": "b9aacb0b-182c-4421-bc98-96150b19a3c0",
+      "label": "Type 2 diabetes mellitus without complications",
+      "code": "E11.9"
+    },
+    {
+      "uuid": "0cfd7add-3fa1-4ebc-b661-cd3aa6f7bbb5",
+      "label": "Essential (primary) hypertension",
+      "code": "I10"
+    },
+    {
+      "uuid": "3e3cdee4-f112-48f1-89f4-f76a01cc7be3",
+      "label": "Chronic pain in knee",
+      "code": "M25.569"
+    }
+  ],
+  "currentGoals": [
+    {
+      "uuid": "7929080d-a455-4e11-a275-b5b17b886581",
+      "label": "Improve blood sugar control",
+      "code": ""
+    },
+    {
+      "uuid": "45864ab2-3a18-46d6-9282-deb440bde21c",
+      "label": "Weight reduction",
+      "code": ""
+    }
+  ],
+  "currentMedications": [
+    {
+      "uuid": "2195bd2b-dccf-48f6-a69b-3bb0c1b33f2d",
+      "label": "Metformin 500 mg oral tablet",
+      "code": "860975"
+    },
+    {
+      "uuid": "7bb7cc56-9b5a-428d-9a04-72a390d91333",
+      "label": "Lisinopril 10 mg oral tablet",
+      "code": "29046"
+    },
+    {
+      "uuid": "6383a743-1bfb-438c-b265-40e804110b11",
+      "label": "Hydrochlorothiazide 25 mg oral tablet",
+      "code": "316047"
+    },
+    {
+      "uuid": "add7fb06-ce97-47ca-9839-a0ca446fbe56",
+      "label": "Naproxen 500 mg oral tablet",
+      "code": "861116"
+    },
+    {
+      "uuid": "df3aa9a8-e128-4bb8-924f-47ae18cb0f66",
+      "label": "Semaglutide 1 mg/mL subcutaneous injection (weekly)",
+      "code": "1990968"
+    }
+  ],
+  "familyHistory": [],
+  "surgeryHistory": []
+}

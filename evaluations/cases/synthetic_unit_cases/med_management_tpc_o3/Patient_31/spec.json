@@ -1,0 +1,28 @@
+{
+  "turn_total": 14,
+  "speaker_sequence": [
+    "Patient",
+    "Patient",
+    "Clinician",
+    "Clinician",
+    "Patient",
+    "Clinician",
+    "Clinician",
+    "Clinician",
+    "Patient",
+    "Clinician",
+    "Clinician",
+    "Clinician",
+    "Clinician",
+    "Patient"
+  ],
+  "ratio": 1.63,
+  "mood": [
+    "patient is tearful",
+    "patient is embarrassed"
+  ],
+  "pressure": "side\u2011effect report just came in",
+  "clinician_style": "warm and chatty",
+  "patient_style": "agreeable but vague",
+  "bucket": "long"
+}

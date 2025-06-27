@@ -1,0 +1,30 @@
+[
+  {
+    "speaker": "Clinician",
+    "text": "Okay, so insurance bounced the brand I first picked, but, good news, the pharmacy still stocks a generic 20 microgram ethinyl estradiol with 100 microgram levonorgestrel that doesn’t need prior auth. One tablet every day, no seven-day break, start tonight even though it’s mid-cycle; the shift work won’t hurt it as long as you anchor the dose to a single clock time—set an alarm for, say, 5 p.m. before you leave for work."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Side-effects can be mild nausea, spotting the first couple packs, or tender breasts; serious warnings would be sudden leg pain, chest pressure, or a bad migraine with vision changes—if any of those hit, skip the next pill and call me. Because you smoke, even just a few a day, keep it under five and stay hydrated; the clot risk stays low at this dose but I still have to nag. We’ll check in at three months."
+  },
+  {
+    "speaker": "Patient",
+    "text": "I guess that works, but, uh, my breaks move around a lot. What if I’m on a call when the alarm rings? Like, is being an hour late a big deal? I don’t want to mess up."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Ideally you take it within the same two-hour window, but one pill up to twelve hours late still blocks pregnancy. If the delay stretches past twelve hours, take the forgotten tablet as soon as you remember, even if that means two in one go, and use condoms for the next week. To help you remember, stash the pack next to your headset and slide a sticky note over the day you swallowed. I’ll push a new claim to insurance tomorrow."
+  },
+  {
+    "speaker": "Patient",
+    "text": "Okay, that makes sense. The generic is fine, but the pharmacy texted me about a thirty-dollar copay. I’m paid weekly, so can I pick up just one pack at a time?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "And what about nausea? My sister said her pill upset her stomach the first week. I’m on the phone all night—I can’t be running to the bathroom."
+  },
+  {
+    "speaker": "Patient",
+    "text": "Last thing, I smoke mostly on break to stay awake. If I switch to the nicotine gum instead, is that enough, or do I have to quit completely while on the pill?"
+  }
+]

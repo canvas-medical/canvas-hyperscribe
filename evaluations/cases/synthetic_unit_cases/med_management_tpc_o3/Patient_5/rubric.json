@@ -1,0 +1,52 @@
+[
+  {
+    "criterion": "Reward for accurately documenting the antiviral regimen: three tablets of glecaprevir\u2013pibrentasvir taken with a snack within one hour after dialysis, and noting the clinician's explanation that the drug is hepatically cleared and not removed by dialysis.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing all laboratory orders exactly as stated: week-4 trough HCV RNA, routine CMP, and tacrolimus level via the automatic lab bundle.",
+    "weight": 8,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for recording the carvedilol interaction override, including baseline QTc 420 ms, cardiology\u2019s 30 ms delta threshold, immediate 7-day pharmacy release, and plan to extend to a full-month supply after follow-up labs.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting the QT monitoring plan: EKG at week one and weekly thereafter if QT prolongs, with results routed to the patient portal.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for including the pruritus management strategy: continue nightly emollient, add cool compresses post-dialysis, advise messaging if severity >5/10, and contingency options of hydroxyzine 10 mg HS (renal-adjusted) or rifampin after week-2 labs before steroid creams.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for noting home-monitoring instructions: maintain HR >60 bpm and SBP >90 mmHg, keep a BP/dizziness log, and bring it to the Tuesday session.",
+    "weight": 6,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing the patient\u2019s expressed concerns (dialysis efficacy on drug levels, carvedilol delay, QT follow-up clarity, persistent itching) as part of the history or counseling sections.",
+    "weight": 6,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for overall completeness: the note reflects all major decisions, instructions, and patient concerns from the transcript without significant omissions or distortions.",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for fabricating, altering, or omitting clinical details not supported by the transcript or chart (e.g., changing dosages, adding diagnoses, or inventing lab results).",
+    "weight": 20,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for indiscriminate or irrelevant copying from the chart (e.g., listing unrelated conditions or medications that were not discussed in the encounter).",
+    "weight": 8,
+    "sense": "negative"
+  }
+]

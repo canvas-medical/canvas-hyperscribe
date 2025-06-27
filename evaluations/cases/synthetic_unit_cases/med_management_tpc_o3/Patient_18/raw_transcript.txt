@@ -1,0 +1,58 @@
+[
+  {
+    "speaker": "Clinician",
+    "text": "Okay, Marie, so first, about the insurance denial: they say semaglutide is off-formulary until we document two more oral failures. I’ve already filed an appeal, but it may take six weeks. Meanwhile I pulled two sample pens, each 0.25-mg weekly dose, from the fridge. That covers eight weeks. Keep them between 36 and 46 degrees; a small gel pack in your purse works—just never freeze it."
+  },
+  {
+    "speaker": "Patient",
+    "text": "I'm glad you fought, but, doktè, mwen pè. I read the leaflet, and it says some people vomit or their sugar goes too low. My knees already make me sleepless; I can’t handle new problems. And if the samples run out before the decision, will I have to start all over? I don’t want my weight yo-yo again."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "I hear you, and I don’t want surprises either. The starter dose is tiny—0.25 mg once weekly for four weeks, then 0.5 mg if you tolerate it. At those levels, most folks feel only mild queasiness that fades after a day. To guard against lows, we’ll keep metformin the same but ask you to check fasting sugar every other morning and note anything below 80."
+  },
+  {
+    "speaker": "Patient",
+    "text": "Fine, I can log that on my phone. But, listen, I already cut rice in half and switched to plantains once a week. My sister lost pounds on insulin injections; why can’t I just adjust food instead of taking another needle? Also, naproxen hurts my stomach sometimes—how will semaglutide mix with that? Will it make the burning worse at night?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "And, um, I’m scared because my pressure jumped last week—150 over 92—even though I never skip lisinopril. I walked the stairs and my knees screamed; I sat and cried. If semaglutide makes me nauseous, I’ll probably skip meals, the pills, everything. Se mwen vle konpreann tout bagay avan mwen siyen. Please, tell me again how the injection really helps the weight."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Absolutely. The medication mimics a gut hormone that signals fullness to your brain and slows stomach emptying, so you feel satisfied with smaller portions, not starved. In clinical trials, people similar to you lost nine to twelve percent of body weight, which can drop blood pressure five points and ease knee load by forty pounds of force per step. So one shot ripples through everything."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "To protect your stomach, take naproxen only after a meal and add 20 mg omeprazole each morning; it doesn’t clash with semaglutide or lisinopril. If queasiness appears, sip cold ginger tea or plain crackers and wait thirty minutes before other pills. Importantly, semaglutide delays gastric emptying, so space naproxen at least one hour after the shot to avoid slow absorption and double dosing confusion for safety."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Let’s walk through the injection steps again, just to lock them in. Sunday morning, wash hands, twist the gray cap off, press the pen flat against belly skin at least two inches from the navel, and hold the button until you hear the second click—about ten seconds. No need to pinch. Rotate sites each week. Write the date on your glucose sheet so we can match trends."
+  },
+  {
+    "speaker": "Patient",
+    "text": "Alright, but I travel to Boston every other weekend to help my grandson. The bus air-conditioning is freezing. Will the pen spoil? Also, I heard about thyroid cancer risk on the TV commercial—my cousin had a goiter removed. Should I get an ultrasound first? I want every risk on the table, pa vre? Tell me straight, mwen serye sou pwen."
+  },
+  {
+    "speaker": "Patient",
+    "text": "My meter strips are almost gone; pharmacy says refill in three days. If I start the shot Sunday, but strips arrive Wednesday, the numbers will look patchy, and I know you need consistent data. Should I delay the first dose? Also, I’m interchanging English and Creole with the kids; they can help record readings if that matters for you doctor."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Good thinking. Start the first pen Sunday anyway; three fasting readings before Wednesday are enough to spot lows. I’ll fax an urgent strip override to the pharmacy tonight, marking “GLP-1 start.” If they still balk, call me—I'll send a 25-count box from clinic stock. For travel, store the pen in a small insulated lunch sleeve with a room-temperature pack; cold extremes, not moderate cool, cause damage."
+  },
+  {
+    "speaker": "Patient",
+    "text": "I'm writing that down. One more thing: I keep my pills in a weekly organizer. The pen doesn't fit there, obviously. If I leave it in the fridge door, my nephew might grab it thinking it's a highlighter. Should I hide it in the butter compartment or lock box? Give me a clear plan, please. Li dwe byen klè toujou."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Great catch. Store each pen horizontally in the butter shelf—that spot stays a steady 40 degrees and is less visible. Slide it inside the zip pouch we provided; the orange sticker warns, ‘Medication—Do Not Touch.’ Tape the instruction card to the fridge door so family understands. Set a phone alarm labeled ‘Shot before breakfast—pen in butter shelf’ so the organizer and alarm cue you together."
+  },
+  {
+    "speaker": "Patient",
+    "text": "Alright, mwen konprann. If the appeal fails, what’s plan B? I don’t want to fall in love with this medicine and then lose it. Can we switch to dulaglutide or get charity help? Also, when you call insurance, mention I’m exercising again—thirty minutes chair yoga daily—they like hearing that. Anything else you need from me tonight before I leave, doktè?"
+  }
+]

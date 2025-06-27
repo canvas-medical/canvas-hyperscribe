@@ -1,0 +1,62 @@
+[
+  {
+    "rationale": "Note states pills look different and formulary switch but omits color description (pale yellow vs salmon).",
+    "satisfaction": 70.0,
+    "score": 8.4
+  },
+  {
+    "rationale": "No mention that the bottle insert still lists imatinib 400 mg or confirmation of same strength.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "States patient is \"concerned about the correct dosage\" but does not capture 300 mg question specifically.",
+    "satisfaction": 40.0,
+    "score": 3.2
+  },
+  {
+    "rationale": "Patient\u2019s query about holding off medication until dose checked is absent.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Explicitly notes worry about missing blood draw due to ferry cancellation.",
+    "satisfaction": 90.0,
+    "score": 10.8
+  },
+  {
+    "rationale": "Mentions \"implications for the REMS program,\" partially reflecting fear of being flagged, but not stated explicitly.",
+    "satisfaction": 70.0,
+    "score": 5.6
+  },
+  {
+    "rationale": "No documentation of patient\u2019s suggestion to stretch pills for extra days.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "References imatinib 400 mg without unrelated chart data, but omits CML context; partly complete.",
+    "satisfaction": 60.0,
+    "score": 7.2
+  },
+  {
+    "rationale": "Several key statements omitted (bottle insert, 300 mg question, holding meds, stretching pills); partial capture only.",
+    "satisfaction": 40.0,
+    "score": 10.0
+  },
+  {
+    "rationale": "No unsolicited clinical advice or dosing confirmation added.",
+    "satisfaction": 95.0,
+    "score": -1.0
+  },
+  {
+    "rationale": "Does not pull in irrelevant chart data or unrelated meds.",
+    "satisfaction": 100.0,
+    "score": -0.0
+  },
+  {
+    "rationale": "No fabricated provider dialog or exam findings present.",
+    "satisfaction": 100.0,
+    "score": -0.0
+  }
+]

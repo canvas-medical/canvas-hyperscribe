@@ -1,0 +1,22 @@
+{
+  "turn_total": 8,
+  "speaker_sequence": [
+    "Clinician",
+    "Clinician",
+    "Clinician",
+    "Patient",
+    "Clinician",
+    "Clinician",
+    "Clinician",
+    "Clinician"
+  ],
+  "ratio": 1.52,
+  "mood": [
+    "clinician is concerned",
+    "patient is frustrated"
+  ],
+  "pressure": "time pressure on the visit",
+  "clinician_style": "warm and chatty",
+  "patient_style": "assertive and informed",
+  "bucket": "medium"
+}

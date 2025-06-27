@@ -1,0 +1,52 @@
+[
+  {
+    "rationale": "States patient \"missed a month of medication\" and is now consistent, reflecting lapse and recommitment.",
+    "satisfaction": 90.0,
+    "score": 13.5
+  },
+  {
+    "rationale": "Explicitly notes sneeze followed by second dose ten minutes later, capturing double-dosing incident.",
+    "satisfaction": 95.0,
+    "score": 14.25
+  },
+  {
+    "rationale": "Does not mention 8 a.m. alarm or daily timing routine.",
+    "satisfaction": 10.0,
+    "score": 1.0
+  },
+  {
+    "rationale": "Mentions concern about omeprazole lowering levels but omits the three alternative strategies discussed.",
+    "satisfaction": 40.0,
+    "score": 6.0
+  },
+  {
+    "rationale": "States chest burning occurs when heartburn medication is skipped.",
+    "satisfaction": 90.0,
+    "score": 4.5
+  },
+  {
+    "rationale": "Notes running low on amlodipine and financial strain but leaves out \"5 tablets left,\" sample request, and BP-spike concern.",
+    "satisfaction": 50.0,
+    "score": 7.5
+  },
+  {
+    "rationale": "No separate problem list provided; HIV and hypertension not explicitly listed.",
+    "satisfaction": 15.0,
+    "score": 0.75
+  },
+  {
+    "rationale": "Includes \"ten minutes later\" but omits \"5 tablets left\" and \"8 a.m.\" alarm, so some key numbers missing.",
+    "satisfaction": 30.0,
+    "score": -7.0
+  },
+  {
+    "rationale": "Does not import extraneous chart data or fabricate new information outside transcript content.",
+    "satisfaction": 95.0,
+    "score": -0.25
+  },
+  {
+    "rationale": "Captures main issues but misses several specific details (timing routine, options, exact tablet count), so completeness is moderate.",
+    "satisfaction": 60.0,
+    "score": 12.0
+  }
+]

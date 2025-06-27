@@ -1,0 +1,34 @@
+{
+  "demographicStr": "The patient is a woman, born on January 1, 1995 (age 29)",
+  "conditionHistory": [],
+  "currentAllergies": [
+    {
+      "uuid": "9b473961-a096-45f3-8fa1-7e1ee9aa22f5",
+      "label": "Penicillin allergy (rash)",
+      "code": "91936005"
+    }
+  ],
+  "currentConditions": [
+    {
+      "uuid": "c769227a-12d2-46ea-8fc8-3ea22a20aa35",
+      "label": "Heavy menstrual bleeding",
+      "code": "N92.0"
+    }
+  ],
+  "currentGoals": [
+    {
+      "uuid": "e8a74036-ba76-4e80-835d-1c977412150a",
+      "label": "Regulate menstrual bleeding",
+      "code": ""
+    }
+  ],
+  "currentMedications": [
+    {
+      "uuid": "055539fa-ec95-4e20-a4be-85c052fa52ff",
+      "label": "Combined estrogen-progestin oral contraceptive pill, once daily",
+      "code": "9986"
+    }
+  ],
+  "familyHistory": [],
+  "surgeryHistory": []
+}

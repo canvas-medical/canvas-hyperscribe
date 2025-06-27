@@ -1,0 +1,12 @@
+[
+  {
+    "instruction": "The patient missed a month of medication but has been consistent with taking bictegravir-emtricitabine-tenofovir since restarting. The patient sneezed after taking the medication yesterday and took a second dose ten minutes later, concerned about double-dosing. The patient is worried about omeprazole potentially lowering tenofovir levels and is experiencing chest burns if the heartburn medication is skipped. The patient is running low on amlodipine and is financially constrained until unemployment benefits begin.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.history_present_illness",
+      "class": "HistoryOfPresentIllnessCommand",
+      "attributes": {
+        "narrative": "The patient missed a month of medication but has been consistent with taking bictegravir-emtricitabine-tenofovir since restarting. The patient sneezed after taking the medication yesterday and took a second dose ten minutes later, concerned about double-dosing. The patient is worried about omeprazole potentially lowering tenofovir levels and is experiencing chest burns if the heartburn medication is skipped. The patient is running low on amlodipine and is financially constrained until unemployment benefits begin."
+      }
+    }
+  }
+]

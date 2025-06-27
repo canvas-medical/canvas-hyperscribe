@@ -1,0 +1,52 @@
+[
+  {
+    "rationale": "Includes Pulmicort Flexhaler 400 \u00b5g, two puffs AM and bedtime, 12-hour gap and \"until the smoke clears,\" but does not explicitly state \"escalation from 200 \u00b5g\" wording.",
+    "satisfaction": 85.0,
+    "score": 21.25
+  },
+  {
+    "rationale": "States rinse, gargle, spit to prevent hoarseness/thrush and to call if metallic taste or voice changes occur.",
+    "satisfaction": 92.0,
+    "score": 13.8
+  },
+  {
+    "rationale": "Documents discarding 200 \u00b5g cartridges, keeping 400 \u00b5g cartridges dry, and faxing pharmacy for two 400 \u00b5g cartridges (one spare).",
+    "satisfaction": 93.0,
+    "score": 9.3
+  },
+  {
+    "rationale": "Contains noon-and-bedtime split dosing if travel disrupts schedule and advice to call if rescue inhaler reaches four sprays.",
+    "satisfaction": 96.0,
+    "score": 14.4
+  },
+  {
+    "rationale": "Patient issues (mixing cartridges, skipped rinses on bus, scratchy throat, no chest tightness) are not recorded.",
+    "satisfaction": 20.0,
+    "score": 2.0
+  },
+  {
+    "rationale": "Basketball trip mentioned only indirectly (\u201cfor the trip\u201d); length and start date omitted.",
+    "satisfaction": 40.0,
+    "score": 2.0
+  },
+  {
+    "rationale": "Includes reminder to swish/rinse at school restroom when rinse is skipped on bus.",
+    "satisfaction": 90.0,
+    "score": 4.5
+  },
+  {
+    "rationale": "Captures most key decisions and instructions but misses patient-reported symptoms and trip details.",
+    "satisfaction": 70.0,
+    "score": 14.0
+  },
+  {
+    "rationale": "Strength conflict: dispensing note lists 90 \u00b5g device, creating a mis-stated numeric detail; other numbers correct.",
+    "satisfaction": 40.0,
+    "score": -12.0
+  },
+  {
+    "rationale": "No unrelated history, vitals, or fabricated data added.",
+    "satisfaction": 95.0,
+    "score": -0.5
+  }
+]

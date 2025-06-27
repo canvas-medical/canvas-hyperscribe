@@ -1,0 +1,50 @@
+[
+  {
+    "speaker": "Clinician",
+    "text": "Marcus, your aripiprazole shot is due Friday; the log shows only four buprenorphine\u2013naloxone strips left. Any missed doses since switching?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Uh, I, I think I took them each morning, but yesterday I dropped the pack between the seats, so I'm not totally sure I swallowed one."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Okay, no shame, it happens. Any sweats, yawning, or muscle cramps hinting at withdrawal after that maybe-missed dose?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "I felt kinda restless last night, kept tapping the steering wheel, but, uh, no chills or goosebumps. I figured it was the cold air outside."
+  },
+  {
+    "speaker": "Patient",
+    "text": "My arm from the last shot\u2019s still a little sore, like a lump when I lean back. That normal, right?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Also I\u2019m parking by the river now, and the thermometer on the dash says thirty-two at night. Does that mess much with the blister packs?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Sometimes the films taste extra bitter. Not always, just sometimes. Is that the naloxone, or maybe they went bad from the cold out there overnight?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "And, uh, the pharmacy said I\u2019m at my limit till next week. Do I just wait or get samples somewhere?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Case worker mentioned a lockbox, but no one\u2019s called. Should I keep asking them yet?"
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Yes\u2014freeze under 15\u00b0F hurts the films, but thirty-two is okay. Keep them tucked inside your jacket pocket overnight."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "That knot at the shot site is normal; massage or warm compress will ease it."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "I\u2019ll issue an emergency five-day card, and nudge the lockbox team this afternoon for you."
+  }
+]

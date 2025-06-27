@@ -1,0 +1,52 @@
+[
+  {
+    "rationale": "Includes \u201cRisperidone 25 mg intramuscular suspension, extended release, administered today, covering for four weeks,\u201d but does not specify deltoid site.",
+    "satisfaction": 85.0,
+    "score": 12.75
+  },
+  {
+    "rationale": "Explicitly states \u201cNo tablets unless otherwise instructed,\u201d matching clinician\u2019s directive.",
+    "satisfaction": 90.0,
+    "score": 9.0
+  },
+  {
+    "rationale": "Mentions recycling old bottles, but omits pt\u2019s missed doses, color change confusion, and reassurance that white 2-mg generic is equivalent.",
+    "satisfaction": 30.0,
+    "score": 2.4
+  },
+  {
+    "rationale": "Gives guidance to limit melatonin to one 5-mg gummy, yet omits the accidental 10-mg ingestion and clinician assurance of safety/daytime grogginess comment.",
+    "satisfaction": 50.0,
+    "score": 5.0
+  },
+  {
+    "rationale": "Orders prolactin, kidney, liver labs for Tuesday the 14th before 3 p.m.; fully matches detail requested.",
+    "satisfaction": 95.0,
+    "score": 11.4
+  },
+  {
+    "rationale": "Lists both suggested behavioral aids: two phone alarms and Disability Services visual board.",
+    "satisfaction": 100.0,
+    "score": 5.0
+  },
+  {
+    "rationale": "Note contains no statement about ongoing sleep disturbance despite melatonin.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Captures most key items but misses several details (missed doses, color confusion, melatonin overdose context, sleep complaint).",
+    "satisfaction": 60.0,
+    "score": 12.0
+  },
+  {
+    "rationale": "Does not introduce incorrect doses/meds; minor neutral additions (ICD code) acceptable.",
+    "satisfaction": 90.0,
+    "score": -1.0
+  },
+  {
+    "rationale": "No irrelevant chart copy such as ROS/PE or wrong melatonin strength; aligns with transcript.",
+    "satisfaction": 90.0,
+    "score": -0.5
+  }
+]

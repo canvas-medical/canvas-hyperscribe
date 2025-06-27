@@ -1,0 +1,34 @@
+[
+  {
+    "speaker": "Patient",
+    "text": "Look, I already read the full prescribing sheet, and I understand the antiviral is three tablets once daily with food, but I'm worried dialysis might flush it out—are you sure the timing right after my session makes sense?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Plus, the pharmacy says my carvedilol refill is on hold because of some automatic interaction flag, and I can't afford delays; my BP spikes when I miss even one dose."
+  },
+  {
+    "speaker": "Patient",
+    "text": "And, uh, nobody has explained how often you'll check my QT; I'm not signing off until I know who's reading the EKGs and when."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Right after dialysis is actually ideal—the drug is hepatically cleared, not dialyzable, so plasma levels stay stable. Take all three tablets with a snack within one hour of ending your run. I'll order a trough HCV RNA at week four and routine CMP, plus tacrolimus level even though you're not currently on it; lab bundle prints automatically for the nurse."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "As for carvedilol, the interaction flag is pharmacokinetic but clinically minor. I just submitted an override note citing your baseline ECG, which shows 420-millisecond QT; cardiology agreed the delta to watch is 30 ms. Pharmacy should release a seven-day fill today; I'll push for a full month once the first follow-up labs confirm safety, again."
+  },
+  {
+    "speaker": "Patient",
+    "text": "Fine, but keep in mind I still itch every night; that lotion barely helps. If the antivirals make it worse, I want a backup plan ready."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "For the itching, keep using the emollient nightly and add cool compresses post-dialysis. If pruritus escalates beyond a five on your zero-to-ten scale, message me—we can trial hydroxyzine 10 mg at bedtime, renal-adjusted, or consider rifampin after we rule out drug-induced liver injury at week two labs before touching steroid creams."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Last piece—monitor vitals at home: heart rate over 60, systolic above 90. Bring the BP log and any dizziness notes to Tuesday’s session. I’ll set the EKG for week one, then weekly if QT creeps; results feed straight into your portal within hours for review."
+  }
+]

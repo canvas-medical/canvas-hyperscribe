@@ -1,0 +1,72 @@
+[
+  {
+    "criterion": "Reward for documenting the insurance denial of semaglutide, the need for two additional oral failures, the clinician\u2019s appeal submission, and the expected six-week decision window.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for recording that two 0.25-mg semaglutide sample pens were dispensed (eight weeks\u2019 supply) and must be stored at 36\u201346 \u00b0F with no freezing.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for accurately capturing the planned dosing schedule: 0.25 mg weekly for 4 weeks, then increase to 0.5 mg if tolerated.",
+    "weight": 12,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for including all key storage and handling instructions (gel pack for travel, insulated sleeve on bus, butter-shelf placement at home, horizontal storage, \u2018Do Not Touch\u2019 pouch and family notice).",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting the patient\u2019s expressed concerns (nausea/vomiting, hypoglycemia, weight rebound, knee pain, naproxen stomach irritation, recent BP 150/92, thyroid-cancer worry, travel logistics, pen visibility).",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing the plan to keep metformin unchanged while asking the patient to check fasting glucose every other morning and report readings <80 mg/dL.",
+    "weight": 8,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for recording GI protection strategy: take naproxen only after meals, add omeprazole 20 mg daily, and separate naproxen by \u22651 hour after semaglutide injection.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for detailing injection technique and adherence aids (Sunday morning timing, hand-washing, pen flat to abdomen, hold until second click ~10 s, rotate sites, log date on glucose sheet, phone alarm).",
+    "weight": 8,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for noting the clinician\u2019s contingency for glucose-strip shortage (faxed urgent override and clinic 25-count fallback).",
+    "weight": 6,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting the clinician\u2019s explanation of expected benefits (9\u201312 % weight loss, ~5 mm Hg BP reduction, 40-lb per-step knee load reduction).",
+    "weight": 5,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for overall completeness: the note coherently summarizes the majority of salient history, counseling, decisions, instructions, and follow-up tasks discussed in the transcript.",
+    "weight": 25,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for introducing information not found in the transcript or chart (e.g., fabricated vitals, lab results, physical exam findings, alternative medications, or speculative diagnoses).",
+    "weight": 20,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for omitting multiple major elements listed above (\u22653), or materially altering doses, frequencies, timelines, or instructions.",
+    "weight": 20,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for indiscriminate or inaccurate copying from the chart (e.g., listing unrelated historical conditions, surgeries, or medications not referenced during the visit, or failing to include relevant chart details like documented allergies when appropriate).",
+    "weight": 15,
+    "sense": "negative"
+  }
+]
