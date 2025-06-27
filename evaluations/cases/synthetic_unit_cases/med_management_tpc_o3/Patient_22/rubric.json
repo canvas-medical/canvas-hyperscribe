@@ -1,0 +1,57 @@
+[
+  {
+    "criterion": "Reward for clearly documenting the patient's missed two active oral contraceptive pills, her doubled-up dosing, current spotting, heavy legs with sprinting, and anxiety about impact on health/workouts exactly as stated.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for recording the clinician's specific instruction to resume with ONE blue tablet nightly at 9 p.m. starting tonight (no extra doses).",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing the directive to use condom backup for seven days because more than 48 hours of pills were missed.",
+    "weight": 12,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for including the future\u2010missed-pill guidance: if any pill is >24 h late, take it immediately, continue the pack, and restart the seven-day condom countdown.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting the clinician\u2019s counseling on expected side effects (spotting, breast tenderness, mild water retention, mood changes) that should resolve by the second pack and will not reduce VO\u2082 max.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for noting red-flag symptoms prompting emergency care (calf pain or sudden chest tightness).",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing adherence strategies discussed (link pill to tooth-brushing, set two alarms, carry backup strip).",
+    "weight": 8,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for reflecting the patient\u2019s question about forgetting again and possible interest in alternative methods.",
+    "weight": 5,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for overall completeness and coherence: the note should encompass all major instructions, reasoning, symptoms, and patient concerns present in the transcript without significant omission.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for introducing information, diagnoses, tests, or recommendations that are not explicitly or implicitly supported by the transcript or chart.",
+    "weight": 10,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for selectively or inaccurately copying chart data\u2014e.g., adding unrelated historical sections or misrepresenting the existing ethinyl-estradiol/levonorgestrel prescription.",
+    "weight": 5,
+    "sense": "negative"
+  }
+]

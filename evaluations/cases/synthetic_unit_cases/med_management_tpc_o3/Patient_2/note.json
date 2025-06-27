@@ -1,0 +1,37 @@
+[
+  {
+    "instruction": "Store the Semaglutide pen in the small cooler used for vaccines, with gel packs provided.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "comment": "Store the Semaglutide pen in the small cooler used for vaccines, with gel packs provided."
+      }
+    }
+  },
+  {
+    "instruction": "If mid-day sugars climb above 200, call to add two units of rapid insulin before lunch.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "coding": {
+          "system": "http://snomed.info/sct",
+          "code": "385793003",
+          "display": "Insulin administration education"
+        },
+        "comment": "If mid-day sugars climb above 200, call to add two units of rapid insulin before lunch."
+      }
+    }
+  },
+  {
+    "instruction": "Set a six-week phone review after faxing the lab slip today.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.plan",
+      "class": "PlanCommand",
+      "attributes": {
+        "narrative": "Set a six-week phone review after faxing the lab slip today."
+      }
+    }
+  }
+]

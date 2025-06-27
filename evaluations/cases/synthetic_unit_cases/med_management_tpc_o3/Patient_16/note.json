@@ -1,0 +1,47 @@
+[
+  {
+    "instruction": "Current tobacco use: Patient smokes a few cigarettes a day, advised to keep it under five and stay hydrated due to clot risk.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.assess",
+      "class": "AssessCommand",
+      "attributes": {
+        "status": "stable",
+        "background": "Patient smokes a few cigarettes a day, advised to keep it under five and stay hydrated due to clot risk.",
+        "condition_id": "b59dc21f-d98c-4f6b-9a8d-e66943f15579",
+        "narrative": "Patient continues to smoke a few cigarettes a day."
+      }
+    }
+  },
+  {
+    "instruction": "If a pill is taken up to twelve hours late, it still blocks pregnancy. If the delay is more than twelve hours, take the forgotten tablet as soon as remembered, even if that means two in one go, and use condoms for the next week. Stash the pack next to the headset and slide a sticky note over the day the pill was taken.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "comment": "If a pill is taken up to twelve hours late, it still blocks pregnancy. If the delay is more than twelve hours, take the forgotten tablet as soon as remembered, even if that means two in one go, and use condoms for the next week."
+      }
+    }
+  },
+  {
+    "instruction": "Check in at three months to assess the prescription and smoking habits.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.plan",
+      "class": "PlanCommand",
+      "attributes": {
+        "narrative": "Check in at three months to assess the prescription and smoking habits."
+      }
+    }
+  },
+  {
+    "instruction": "Push a new claim to insurance tomorrow.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.task",
+      "class": "TaskCommand",
+      "attributes": {
+        "due_date": "2025-06-28",
+        "title": "Push a new claim to insurance",
+        "comment": ""
+      }
+    }
+  }
+]

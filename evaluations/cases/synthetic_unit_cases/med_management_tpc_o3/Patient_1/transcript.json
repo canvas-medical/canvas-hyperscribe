@@ -1,0 +1,42 @@
+[
+  {
+    "speaker": "Patient",
+    "text": "I already set a reminder, but I keep worrying I\u2019ll mess up the timing because the flight leaves at 3 a.m. and everything will be upside-down."
+  },
+  {
+    "speaker": "Patient",
+    "text": "And then the pharmacist suddenly said insurance might not cover this brand after next week\u2014so what am I supposed to do if they switch it?"
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Right, the formulary committee, uh, updated their list yesterday. The active ingredients\u2014atovaquone and proguanil\u2014are the same no matter which generic they stock, so the tablet you might get later will look different but work identically. You\u2019d still take one tablet with your largest meal each day, starting two days before departure and for seven days after you leave Ghana. No dose change at all."
+  },
+  {
+    "speaker": "Patient",
+    "text": "Okay, but if the pill suddenly changes color I\u2019ll probably forget which one I\u2019ve already taken, especially with jet lag\u2014can I mark the blister pack or something?"
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Absolutely, and that\u2019s a smart strategy. The manufacturer prints dates on the foil, but you can also draw arrows or write the weekday next to each pocket, just avoid scratching through the tablet itself. Some travelers peel the whole week into a small pill box; that\u2019s fine too as long as it stays in your carry-on with the original label for customs. Whichever cue you choose, link it to a fixed meal, not the clock."
+  },
+  {
+    "speaker": "Patient",
+    "text": "See, that\u2019s where I get lost\u2014I don\u2019t always eat breakfast, and in Ghana meals come at weird times during fieldwork."
+  },
+  {
+    "speaker": "Patient",
+    "text": "What if I skip food entirely because I\u2019m out in the villages? Is it better to delay the pill or just swallow it on an empty stomach?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "And also, um, do I need to carry Benadryl in case my shellfish allergy flares up, or is that unrelated to this drug?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Someone mentioned vivid dreams on malaria pills\u2014was that this one or the other kind? I really can\u2019t afford sleepless nights before exams."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "If a meal is delayed more than three hours, wait until you have at least a snack with some fat\u2014nuts or yogurt works. Taking it without food cuts absorption in half. Shellfish allergy doesn\u2019t overlap with this drug, but antihistamine in your kit is still wise. Vivid dreams? Rare with atovaquone-proguanil; more common with mefloquine, so you should be fine."
+  }
+]

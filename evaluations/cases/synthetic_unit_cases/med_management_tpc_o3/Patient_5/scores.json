@@ -1,0 +1,52 @@
+[
+  {
+    "rationale": "Regimen includes 3 tablets with snack within 1h after dialysis, but omits note that drug is hepatically cleared and not removed by dialysis.",
+    "satisfaction": 70.0,
+    "score": 10.5
+  },
+  {
+    "rationale": "Lists week-4 trough HCV RNA, routine CMP, and tacrolimus level; bundle terminology not mentioned but orders correct.",
+    "satisfaction": 90.0,
+    "score": 7.2
+  },
+  {
+    "rationale": "Mentions override and 7-day release, but lacks baseline QTc 420 ms, 30 ms delta threshold, and plan for full-month refill.",
+    "satisfaction": 40.0,
+    "score": 4.0
+  },
+  {
+    "rationale": "EKG at week one and weekly if QT prolongs documented; routing of results to portal absent.",
+    "satisfaction": 80.0,
+    "score": 8.0
+  },
+  {
+    "rationale": "Continues emollient and adds cool compresses; misses >5/10 messaging instruction and contingency meds (hydroxyzine, rifampin).",
+    "satisfaction": 40.0,
+    "score": 4.0
+  },
+  {
+    "rationale": "HR>60, SBP>90, keep BP/dizziness log, bring Tuesday documented fully.",
+    "satisfaction": 95.0,
+    "score": 5.7
+  },
+  {
+    "rationale": "Captures concerns about antiviral timing, carvedilol delay, QT monitoring; itching concern partially implied but not explicitly listed.",
+    "satisfaction": 75.0,
+    "score": 4.5
+  },
+  {
+    "rationale": "Note covers most key decisions but misses several specific details (hepatic clearance, QTc values, portal routing, pruritus contingencies).",
+    "satisfaction": 70.0,
+    "score": 14.0
+  },
+  {
+    "rationale": "No fabricated or altered clinical data detected; only omissions.",
+    "satisfaction": 90.0,
+    "score": -2.0
+  },
+  {
+    "rationale": "No irrelevant chart copy; content focused on encounter.",
+    "satisfaction": 95.0,
+    "score": -0.4
+  }
+]

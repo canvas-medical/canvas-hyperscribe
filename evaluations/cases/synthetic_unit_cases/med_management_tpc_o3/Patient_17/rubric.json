@@ -1,0 +1,52 @@
+[
+  {
+    "criterion": "Reward for accurately documenting the escalation of Pulmicort Flexhaler (budesonide) from 200 \u00b5g to 400 \u00b5g twice daily, including the instruction to take two inhalations in the morning and two at bedtime until the wildfire smoke subsides.",
+    "weight": 25,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing clinician counseling on hoarseness/thrush risk and the specific instruction to rinse, gargle, and spit after each dose, with advice to contact the clinic if metallic taste or voice changes occur.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting directions to discard remaining 200 \u00b5g cartridges, the plan to fax the pharmacy for two new 400 \u00b5g cartridges (one spare), and the storage advice to keep cartridges dry and away from heat.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for including the travel contingency plan: one puff at noon if schedule disrupted, second puff at bedtime, and instruction to call if rescue albuterol reaches four sprays.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for recording patient-reported issues: mixing old and new cartridges, occasionally skipping rinses on the bus, absence of chest tightness, and presence of a scratchy throat.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for noting the upcoming five-day basketball trip starting Friday, which motivates the contingency dosing plan.",
+    "weight": 5,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing clinician reminder that the patient may swish/rinse at the school restroom when rinsing is skipped on the bus.",
+    "weight": 5,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for overall completeness: the note reflects all major decisions, instructions, and patient concerns expressed in the transcript without significant omissions.",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for omitting, altering, or misstating critical numeric details (e.g., 400 \u00b5g strength, two inhalations, 12-hour gap, rescue threshold of four sprays).",
+    "weight": 20,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for adding fabricated information or copying chart elements not referenced in the encounter (e.g., unrelated past medical history, vitals, allergies).",
+    "weight": 10,
+    "sense": "negative"
+  }
+]

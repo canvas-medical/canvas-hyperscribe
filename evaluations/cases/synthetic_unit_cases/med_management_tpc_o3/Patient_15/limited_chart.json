@@ -1,0 +1,58 @@
+{
+  "demographicStr": "The patient is a woman, born on January 1, 1942 (age 82)",
+  "conditionHistory": [],
+  "currentAllergies": [
+    {
+      "uuid": "17d60c5c-8e7f-47db-9330-3d254e45ce55",
+      "label": "Sulfonamide allergy",
+      "code": "387406002"
+    }
+  ],
+  "currentConditions": [
+    {
+      "uuid": "8370ee9a-7bad-451e-bfe9-a8e930427f32",
+      "label": "Malignant neoplasm of bronchus and lung, unspecified",
+      "code": "C34.90"
+    },
+    {
+      "uuid": "4b4c7b9f-f4bd-4aff-b984-22fc329e671b",
+      "label": "Acute bronchitis, unspecified",
+      "code": "J20.9"
+    }
+  ],
+  "currentGoals": [],
+  "currentMedications": [
+    {
+      "uuid": "11b7d3d6-9886-4aba-be42-5122da10b99b",
+      "label": "Osimertinib 80 mg oral tablet",
+      "code": "1818155"
+    },
+    {
+      "uuid": "b90a2978-c63e-4dd3-9618-4e5723769e39",
+      "label": "Metoprolol 50 mg oral tablet",
+      "code": "197361"
+    },
+    {
+      "uuid": "54734e6b-39cc-48cd-bd69-cc0a55178e00",
+      "label": "Furosemide 40 mg oral tablet",
+      "code": "202433"
+    },
+    {
+      "uuid": "ec20109e-340a-466f-ab6a-9c2cf6fd434c",
+      "label": "Acetaminophen 500 mg oral tablet",
+      "code": "161"
+    },
+    {
+      "uuid": "47d1a4f0-10e3-4262-a368-fd6ea06df85f",
+      "label": "Daily multivitamin oral tablet",
+      "code": "1161633"
+    },
+    {
+      "uuid": "a4cb1d3d-61ae-4959-b029-632447feb7f9",
+      "label": "Azithromycin 250 mg oral tablet",
+      "code": "310798"
+    }
+  ],
+  "familyHistory": [],
+  "surgeryHistory": []
+}

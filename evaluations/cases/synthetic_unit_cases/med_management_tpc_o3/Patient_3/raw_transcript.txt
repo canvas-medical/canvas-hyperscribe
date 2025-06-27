@@ -1,0 +1,50 @@
+[
+  {
+    "speaker": "Clinician",
+    "text": "Okay, so insurance just bounced the last adalimumab refill, saying pregnancy makes it experimental— which, frankly, is nonsense given the registry data—but I still have to draft a peer-to-peer call by Friday. Meanwhile, you have two syringes left, right? Any redness, bruising, or weird cramping after your last thigh injection? I’m moving fast here, but I need precise details so I can document safety, adherence, and why delaying even one dose risks a Crohn’s flare and possible steroid rescue."
+  },
+  {
+    "speaker": "Patient",
+    "text": "Yes, two pens remain. The interpreter told me studies are clear, so I’m upset the insurer suddenly doubts it. I follow the picture guide exactly, and there’s only a small bruise, nothing serious. What happens if they don’t approve before my next scheduled shot?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "I also keep reading forums where moms say anti-TNF drugs made their babies anemic. That worries me. Can you, uh, explain in plain terms whether the medicine crosses the placenta now or mostly in the third trimester? I’m fourteen weeks today."
+  },
+  {
+    "speaker": "Patient",
+    "text": "Somebody suggested stretching the interval to every three weeks to save doses. I’m not comfortable experimenting, but if you think shifting one injection by a few days is safer, tell me exactly which date and time, because I track everything on my phone."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Right, let’s not improvise a three-week gap; that could drop serum trough levels below 5 µg/mL, which correlates with relapse. What we can do—assuming the appeal drags—is slide the next dose by, say, 48 hours, then return to your usual Saturday-morning rhythm once the pharmacy ships. Side-effect-wise, I need to document that you’re still on 40 mg subcutaneously, no dose escalation, and that you monitor temperature, stool frequency, and fetal movement apps daily. Any new joint pain, fevers, or visual changes since last visit?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "No fevers, joints okay, vision fine. I already postponed last week’s dose by one day because I travelled, and my bowels grumbled right away, which scared me. It took two days to settle, and I don’t want emergency steroids while pregnant. So I’m really hesitant to shift again unless absolutely required."
+  },
+  {
+    "speaker": "Patient",
+    "text": "The prenatal vitamin makes me nauseated. When I add aspirin right after breakfast, I gag. Can I split them, or switch brands? Also, ondansetron constipates me, which obviously complicates Crohn’s. Is there another safe anti-nausea option? Maybe ginger chews would help?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "And the aspirin timing—should it be with food, separate from the injection, or doesn’t that matter? I read something about bleeding risk at the injection site and got nervous. I want to be sure I’m not increasing bruising or harming the baby."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Good questions. Keep the vitamin with lunch instead of breakfast; taking it alongside fatty food slows iron release and eases queasiness. Low-dose aspirin is fine right before bed—different GI window, no meaningful interaction with the biologic, and the platelet effect is systemic, so it won’t worsen local bruising beyond a millimeter or two. For nausea, try doxylamine-pyridoxine first; it’s category A, doesn’t constipate, and insurance usually covers the generic. Ginger chews are harmless but less studied. Increase water and a fiber supplement to offset any ondansetron you still need."
+  },
+  {
+    "speaker": "Patient",
+    "text": "Great, please write those names in Chinese characters for the pharmacy. Also, when can we expect a decision on the prior authorization? My account shows 'in review' for three days, and I don’t want gaps or big copays. Could you set a text alert?"
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Absolutely. I’ll submit the electronic appeal tonight with the OB’s letter attached, highlight the American Gastroenterological Association pregnancy guidelines, and flag it ‘urgent’ because delays jeopardize maternal-fetal health—insurers love that phrase. Typically they must answer within 72 business hours; if they stall, I’ll request a temporary medical-necessity override and fax you a sample voucher that covers two pens. Meanwhile, enroll in the manufacturer’s program; the QR code is on this sheet, and it can zero out any surprise copay for the rest of the pregnancy."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "One more administrative piece—when the pharmacy portal pings you for confirmation, click 'yes' immediately; a 24-hour silence gets recorded as patient-initiated delay, and that weakens my argument. I’ll also upload the bilingual injection calendar to your patient portal tonight; please glance at the color-coded boxes and tell me if any dates clash with your anatomy scan. If they do, we can pre-authorize an in-clinic nurse visit for supervised dosing, which counts as adherence data during the audit."
+  }
+]

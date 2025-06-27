@@ -1,0 +1,72 @@
+[
+  {
+    "rationale": "Insurer denial noted and electronic appeal task recorded, but no mention of peer-to-peer call or Friday deadline.",
+    "satisfaction": 60.0,
+    "score": 9.0
+  },
+  {
+    "rationale": "HPI explicitly states the patient \"has two syringes left.\"",
+    "satisfaction": 95.0,
+    "score": 5.7
+  },
+  {
+    "rationale": "HPI documents only a small bruise after last injection, matching requested outcome.",
+    "satisfaction": 90.0,
+    "score": 4.5
+  },
+  {
+    "rationale": "14-week gestation included but no reference to placental transfer or infant anemia concerns.",
+    "satisfaction": 50.0,
+    "score": 3.5
+  },
+  {
+    "rationale": "Order captures 48-hour delay and return to Saturday dosing, but omits the prohibition on 3-week extension and trough >5 \u00b5g/mL goal.",
+    "satisfaction": 65.0,
+    "score": 6.5
+  },
+  {
+    "rationale": "Note retains adalimumab 40 mg with no escalation but lacks daily self-monitoring details.",
+    "satisfaction": 55.0,
+    "score": 3.85
+  },
+  {
+    "rationale": "One-day delay with bowel symptoms documented; negative review for fevers, joint pain, visual changes missing.",
+    "satisfaction": 40.0,
+    "score": 2.4
+  },
+  {
+    "rationale": "Provides prenatal vitamin timing, bedtime aspirin, doxylamine-pyridoxine, and water/fiber advice; ginger chews not mentioned.",
+    "satisfaction": 85.0,
+    "score": 10.2
+  },
+  {
+    "rationale": "Appeal flagged urgent with OB letter and AGA guidelines; bilingual calendar upload noted. Missing 72-hour response, temporary override, voucher, QR code, and 24-h pharmacy confirmation.",
+    "satisfaction": 60.0,
+    "score": 8.4
+  },
+  {
+    "rationale": "No documentation of request for Chinese-character medication names.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Captures most key clinical and administrative points but omits several finer details (peer-to-peer, trough goal, ginger chews, Chinese character request).",
+    "satisfaction": 70.0,
+    "score": 7.0
+  },
+  {
+    "rationale": "No fabricated diagnoses or recommendations detected.",
+    "satisfaction": 90.0,
+    "score": -1.5
+  },
+  {
+    "rationale": "No unrelated chart data or extraneous history inserted.",
+    "satisfaction": 95.0,
+    "score": -0.4
+  },
+  {
+    "rationale": "Some key numerical/time details (peer-to-peer Friday, 72-h deadline) omitted, but others (2 pens, 48-h limit, 14 weeks) preserved.",
+    "satisfaction": 55.0,
+    "score": -4.95
+  }
+]

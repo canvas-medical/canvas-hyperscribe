@@ -1,0 +1,62 @@
+[
+  {
+    "rationale": "States \"one 1-gram tablet after breakfast each day until Sunday\" but omits explicit Friday/Saturday wording and \"last dose Sunday morning\"/\"5-day course\" phrase.",
+    "satisfaction": 70.0,
+    "score": 10.5
+  },
+  {
+    "rationale": "Reason for visit notes \"Rash burning at night, concern about medication duration\"\u2014captures both nighttime symptom and worry about needing more than five days.",
+    "satisfaction": 90.0,
+    "score": 7.2
+  },
+  {
+    "rationale": "Includes instruction to swallow with a full glass of water but omits mention of expected mild nausea/headache and clarification that no nighttime doses are required.",
+    "satisfaction": 50.0,
+    "score": 5.0
+  },
+  {
+    "rationale": "Records that Vitamin D chewable after lunch is safe and non-interactive; does not mention 1-hour spacing option.",
+    "satisfaction": 80.0,
+    "score": 8.0
+  },
+  {
+    "rationale": "No documentation of penicillin allergy concern or clinician reassurance.",
+    "satisfaction": 5.0,
+    "score": 0.6
+  },
+  {
+    "rationale": "Notes to continue medication if brand changes and inform staff, but omits guidance about one pill per blister slot, color/shape changes, and imprint verification.",
+    "satisfaction": 70.0,
+    "score": 7.0
+  },
+  {
+    "rationale": "Allergies not listed, so penicillin allergy not documented.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "No fabricated conditions, drugs, or history appear in the note.",
+    "satisfaction": 95.0,
+    "score": -0.4
+  },
+  {
+    "rationale": "Valacyclovir dose strength and daily timing captured, but missing 5-day course detail and final morning timing; partial omission.",
+    "satisfaction": 40.0,
+    "score": -6.0
+  },
+  {
+    "rationale": "Captures most topics (rash, duration, dosing, vitamin D, pharmacy switch) but misses allergy discussion and side-effects.",
+    "satisfaction": 60.0,
+    "score": 4.8
+  },
+  {
+    "rationale": "No irrelevant chart content copied.",
+    "satisfaction": 100.0,
+    "score": -0.0
+  },
+  {
+    "rationale": "No contradictions to transcript (no false cross-reactivity or stop advice).",
+    "satisfaction": 100.0,
+    "score": -0.0
+  }
+]

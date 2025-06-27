@@ -1,0 +1,47 @@
+[
+  {
+    "criterion": "Reward for accurately documenting the osimertinib management plan: instruction not to split tablets, same-day local pickup at Walgreens on Speedway, and dosing details of 40 mg once daily with water in the morning on an empty stomach for one hour.",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for recording ongoing medications exactly as stated: aspirin 81 mg with breakfast and atorvastatin 20 mg with supper.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for copying medication information from the chart that conflicts with what was said (e.g., listing atorvastatin 40 mg) or introducing medications not mentioned in the transcript.",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Reward for capturing the ECG/QT discussion: patient\u2019s reference to a 'borderline' result, documented QT of 462 ms, decision of no change, and plan to fax results to the cardiologist.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for including the patient\u2019s reported dizziness episode and the clinician\u2019s instruction to log dizzy spells, palpitations, and calf cramps.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting interaction warnings to avoid grapefruit and St. John\u2019s wort.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for noting the medication supply issue (Michigan bottle finished, Arizona shipment delayed) and the patient\u2019s question about tablet splitting.",
+    "weight": 5,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for overall completeness: the note faithfully includes all significant patient concerns, clinician responses, instructions, and plans discussed in the transcript, without omission or fabrication.",
+    "weight": 25,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for adding clinical content, reasoning, diagnoses, or historical details not explicitly stated or implied in the transcript.",
+    "weight": 10,
+    "sense": "negative"
+  }
+]

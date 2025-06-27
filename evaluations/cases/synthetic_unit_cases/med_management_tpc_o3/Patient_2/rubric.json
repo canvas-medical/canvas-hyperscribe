@@ -1,0 +1,57 @@
+[
+  {
+    "criterion": "Reward for correctly documenting that insulin glargine is to continue at 26 units at bedtime with no dose change pending review of glucose logs.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for recording that semaglutide is being taken weekly at a starting dose of 0.25 mg and that the clinician counseled about possible mild nausea.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for stating that glyburide has been stopped and the patient was advised to include a bedtime snack to reduce overnight hypoglycemia risk.",
+    "weight": 12,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing the contingency plan: if mid-day glucose exceeds 200 mg/dL, patient is to call and clinician may add 2 units of rapid-acting insulin before lunch.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting storage instructions for the semaglutide pen (keep in vaccine cooler; gel packs to be supplied).",
+    "weight": 8,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for including refill logistics (nurse to call every fourth Thursday and option to pick up at co-op dropbox if weather delays delivery).",
+    "weight": 8,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for noting the immediate administrative plan: fax lab slip today and schedule a six-week phone review.",
+    "weight": 8,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for accurately reflecting the patient\u2019s expressed concerns (nausea, dizziness while farming, weight loss, refrigeration failure, after-lunch glucose spikes, travel distance) in the HPI/subjective section.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for introducing medical decisions, diagnoses, medications, or counseling not present in either the transcript or the chart (fabrication or unwarranted inference).",
+    "weight": 12,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for omitting more than two of the key elements listed above, indicating inadequate overall completeness relative to the transcript.",
+    "weight": 18,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for copying chart information not referenced in the encounter (e.g., congestive heart failure, osteoarthritis) or outdated medications, thereby adding irrelevant content.",
+    "weight": 6,
+    "sense": "negative"
+  }
+]

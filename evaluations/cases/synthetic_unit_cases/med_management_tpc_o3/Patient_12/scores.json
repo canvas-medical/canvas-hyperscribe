@@ -1,0 +1,77 @@
+[
+  {
+    "rationale": "Includes \"first paliperidone shot in the left deltoid, 156 milligrams, with a fifteen-second push.\"",
+    "satisfaction": 95.0,
+    "score": 14.25
+  },
+  {
+    "rationale": "States patient \"should not need risperidone tablets anymore\" but does not specify \"starting tonight.\"",
+    "satisfaction": 80.0,
+    "score": 6.4
+  },
+  {
+    "rationale": "No mention of sleepiness/fog, stiff muscles, local soreness, or urgent high-fever/neck-stiffness warnings.",
+    "satisfaction": 10.0,
+    "score": 1.0
+  },
+  {
+    "rationale": "Mentions next shot due day 28 via outreach task but omits calendar fax to shelter.",
+    "satisfaction": 40.0,
+    "score": 3.2
+  },
+  {
+    "rationale": "Creates task to contact Pima County outreach for day-28 \u00b12 walk-in; does not explicitly note upcoming Tucson move.",
+    "satisfaction": 75.0,
+    "score": 9.0
+  },
+  {
+    "rationale": "No documentation of wallet card or photograph advice.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Records arm \"feeling hot and tight\" and gives cold-pack 10-on/10-off instructions.",
+    "satisfaction": 95.0,
+    "score": 4.75
+  },
+  {
+    "rationale": "No statement that paliperidone doesn\u2019t affect nicotine cravings or to continue gum.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Gives hydration/salt advice, orders prolactin check, and lists chest tenderness/leakage to report.",
+    "satisfaction": 90.0,
+    "score": 7.2
+  },
+  {
+    "rationale": "Does not record patient\u2019s question about buddy signing for medication delivery.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Notes schizophrenia; omits age and nicotine gum but adds no unrelated chart data.",
+    "satisfaction": 70.0,
+    "score": 3.5
+  },
+  {
+    "rationale": "Captures many key items but misses side-effects, wallet card, nicotine advice, buddy question, calendar fax.",
+    "satisfaction": 50.0,
+    "score": 5.0
+  },
+  {
+    "rationale": "No significant new unstated diagnoses or treatments were introduced.",
+    "satisfaction": 90.0,
+    "score": -1.5
+  },
+  {
+    "rationale": "Multiple omissions/distortions (side-effects, wallet card, etc.) lower accuracy.",
+    "satisfaction": 30.0,
+    "score": -8.4
+  },
+  {
+    "rationale": "Does not copy irrelevant past history or template content.",
+    "satisfaction": 95.0,
+    "score": -0.3
+  }
+]

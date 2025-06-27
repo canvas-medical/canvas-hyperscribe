@@ -1,0 +1,54 @@
+[
+  {
+    "instruction": "Refill of Semaglutide 2 mg/0.74 mL subcutaneous solution, inject once weekly. The refill block shows because the auto-approve covered only the first four pens; a new prior-auth has been faxed and marked urgent.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.refill",
+      "class": "RefillCommand",
+      "attributes": {
+        "prescriber_id": "4150cd20de8a470aa570a852859ac87e",
+        "type_to_dispense": {
+          "representative_ndc": "",
+          "ncpdp_quantity_qualifier_code": ""
+        },
+        "substitutions": null,
+        "days_supply": null,
+        "sig": "inject once weekly",
+        "fdb_code": ""
+      }
+    }
+  },
+  {
+    "instruction": "Change the prescription of Lisinopril to 10 mg oral tablet, take once daily in the morning.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.adjust_prescription",
+      "class": "AdjustPrescriptionCommand",
+      "attributes": {
+        "prescriber_id": "4150cd20de8a470aa570a852859ac87e",
+        "type_to_dispense": {
+          "representative_ndc": "",
+          "ncpdp_quantity_qualifier_code": ""
+        },
+        "substitutions": "allowed",
+        "days_supply": 30,
+        "sig": "take once daily in the morning",
+        "fdb_code": "",
+        "new_fdb_code": ""
+      }
+    }
+  },
+  {
+    "instruction": "For shoulder soreness after the shot, apply ice for ten minutes and rotate injection sites, maybe use the abdomen next time.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "comment": "apply ice for ten minutes",
+        "coding": {
+          "system": "http://snomed.info/sct",
+          "code": "429531000124103",
+          "display": "Education about long term compression therapy"
+        }
+      }
+    }
+  }
+]

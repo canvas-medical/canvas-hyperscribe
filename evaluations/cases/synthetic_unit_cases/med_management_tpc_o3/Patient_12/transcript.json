@@ -1,0 +1,30 @@
+[
+  {
+    "speaker": "Clinician",
+    "text": "So, Ra\u00fal, quick recap while the nurse finishes the paperwork: we gave you the first paliperidone shot in the left deltoid, 156 milligrams, fifteen-second push. It starts releasing within a day, so tonight you shouldn\u2019t need the risperidone tablets anymore. Common snags are sleepy fog, stiff muscles, or a sore lump where we injected; rare but urgent would be high fever or neck stiffness\u2014call us or 911 if that happens. I\u2019m faxing a calendar to the shelter so they remember the day twenty-eight refills are due. Sound clear?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Uh, I\u2014I think so, but my bus for Tucson leaves in three weeks, and I don\u2019t know where I\u2019ll be sleeping down there. If I miss that next shot, the voices will come roaring back. Can they give it someplace else?"
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Good catch. The depot brand we used today is stocked at nearly every county clinic. I\u2019ll ping the mobile outreach team in Pima County and pre-authorize a walk-in on day twenty-eight\u2014give or take two days is still okay. Keep the little wallet card I\u2019m printing; it has the lot number and dosing schedule. If the shelter mail loses it, snap a photo."
+  },
+  {
+    "speaker": "Patient",
+    "text": "Okay, that helps. My arm already feels kind of hot and tight, though. Should I ice it or just, like, chew more gum and ignore it? And does the shot mess with smoking cravings?"
+  },
+  {
+    "speaker": "Clinician",
+    "text": "A cold pack ten minutes on, ten off, for the first evening usually tames the swelling. Paliperidone doesn\u2019t touch nicotine receptors, so the gum routine stays the same\u2014park, chew, park."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "More important is hydration and salt balance; that lowers the risk of dizziness when you stand. You\u2019ll get a brief prolactin check next visit, too\u2014if your chest feels tender or you leak fluid, flag it early."
+  },
+  {
+    "speaker": "Patient",
+    "text": "Got it. I\u2019ve been drinking the shelter\u2019s coffee instead of water\u2014guess I\u2019ll switch. Uh, one last thing: if the pharmacy van shows up while I\u2019m at work program, can my buddy sign for the delivery?"
+  }
+]

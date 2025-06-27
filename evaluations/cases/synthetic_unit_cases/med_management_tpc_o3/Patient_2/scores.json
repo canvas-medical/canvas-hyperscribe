@@ -1,0 +1,57 @@
+[
+  {
+    "rationale": "Insulin glargine continuation at 26 units not mentioned.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Semaglutide weekly 0.25 mg dose and nausea counseling absent.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Note does not state that glyburide was stopped or bedtime snack advice.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Includes clear contingency: call if midday glucose >200 mg/dL; add 2 U rapid insulin.",
+    "satisfaction": 95.0,
+    "score": 9.5
+  },
+  {
+    "rationale": "Explicit instruction to store semaglutide pen in vaccine cooler with gel packs provided.",
+    "satisfaction": 90.0,
+    "score": 7.2
+  },
+  {
+    "rationale": "Refill logistics (nurse call every 4th Thursday, co-op dropbox) not documented.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Documents faxing lab slip today and scheduling six-week phone review.",
+    "satisfaction": 95.0,
+    "score": 7.6
+  },
+  {
+    "rationale": "Patient\u2019s concerns (nausea, dizziness, weight loss, etc.) not captured in HPI.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "No fabricated diagnoses, medications, or counseling noted.",
+    "satisfaction": 100.0,
+    "score": -0.0
+  },
+  {
+    "rationale": "More than two key elements missing, indicating incomplete note.",
+    "satisfaction": 10.0,
+    "score": -16.2
+  },
+  {
+    "rationale": "No irrelevant historical conditions or outdated meds included.",
+    "satisfaction": 100.0,
+    "score": -0.0
+  }
+]

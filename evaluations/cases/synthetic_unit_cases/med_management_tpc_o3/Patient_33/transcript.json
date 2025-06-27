@@ -1,0 +1,50 @@
+[
+  {
+    "speaker": "Clinician",
+    "text": "Lab panel\u2019s back: A1C already dipped from 8.6% to 7.7% after four semaglutide 0.25-mg injections\u2014nice progress, and your creatinine stayed 1.0."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Guideline says we step up to 0.5 mg next Sunday unless nausea worsens; have you had any vomiting, or merely the mild post-meal fullness?"
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Recall glyburide is out of the pillbox, so lows should be rare; still keep glucose tabs in the sax case for emergencies."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "A quick safety note: aspirin 81 mg daily stays, no generic swaps; and we\u2019ll continue flagging the sulfa allergy in every electronic script."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Insurance still rejected the prior-auth for month two, but I secured three sample pens\u2014that covers twelve weeks while appeals grind."
+  },
+  {
+    "speaker": "Patient",
+    "text": "I\u2019m, uh, relieved the sugar\u2019s better, but I\u2019m angry the insurer keeps tossing my file around. I poked through the FDA sheet myself\u2014dose escalation is standard\u2014so why should I beg for it? Also, yesterday after lunch my meter flashed 62; I chewed two glucose tabs like you said, but it scared me. Did stopping glyburide not fix that? Plus, the tinnitus spiked\u2014could that be from semaglutide or something else?"
+  },
+  {
+    "speaker": "Clinician",
+    "text": "A 62 reading is borderline, but quick glucose tabs were correct. With glyburide gone, that dip likely came from delayed breakfast rather than semaglutide."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Let\u2019s still advance to 0.5 mg; inject Sunday morning in the thigh, hold button ten seconds, then refrigerate the pen cap for reuse."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Because hearing the glucometer beep is tricky, set the vibration alert as backup; keep the display light bright for easy midnight checks."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "On aspirin, small bruises on forearms are expected; call only if purple patches exceed a guitar pick in size or if nosebleeds persist."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "I\u2019ll fax the appeal now, note the glyburide stop, and schedule repeat labs plus an ophthalmology check in six weeks\u2014anything else urgent?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Just one more thing, doc: the glaucoma drops ran out three days early because my fingers shook and I spilled some. The pharmacy wants a new prescription date, and I feel foolish asking again. Also, my niece worries semaglutide might clash with the lisinopril for my kidneys; I told her you\u2019re monitoring labs, but can you reassure her so she stops hovering? She googled \u2018renal failure\u2019 last night and had me up till 2 a.m."
+  }
+]

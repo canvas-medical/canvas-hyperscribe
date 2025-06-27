@@ -1,0 +1,54 @@
+[
+  {
+    "instruction": "Ethinyl estradiol 0.02 mg oral tablet, one tablet every day at the same hour with no breaks, the last seven are placebo. Duration: six months. Targeted condition: contraception.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.prescribe",
+      "class": "PrescribeCommand",
+      "attributes": {
+        "days_supply": 180,
+        "type_to_dispense": {
+          "representative_ndc": "50419040503",
+          "ncpdp_quantity_qualifier_code": "C48542"
+        },
+        "fdb_code": "476825",
+        "substitutions": "allowed",
+        "quantity_to_dispense": "196.00",
+        "refills": 0,
+        "note_to_pharmacist": "Dispense 7 packs of YAZ (28) 3 mg-0.02 mg tablets to cover a 180-day supply.",
+        "prescriber_id": "4150cd20de8a470aa570a852859ac87e",
+        "sig": "Take one tablet by mouth daily at the same time each day, with no breaks between packs, to ensure consistent hormone levels."
+      }
+    }
+  },
+  {
+    "instruction": "Levonorgestrel 0.1 mg oral tablet, one tablet every day at the same hour with no breaks, the last seven are placebo. Duration: six months. Targeted condition: contraception.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.prescribe",
+      "class": "PrescribeCommand",
+      "attributes": {
+        "days_supply": 180,
+        "type_to_dispense": {
+          "representative_ndc": "73358024101",
+          "ncpdp_quantity_qualifier_code": "C48542"
+        },
+        "fdb_code": "615378",
+        "substitutions": "allowed",
+        "quantity_to_dispense": "28.00",
+        "refills": 6,
+        "note_to_pharmacist": "Dispense 28 tablets per cycle, with 6 refills to cover a total of 180 days.",
+        "prescriber_id": "4150cd20de8a470aa570a852859ac87e",
+        "sig": "Take 1 tablet by mouth daily at the same time each day. Continue taking the tablets without breaks, including the 7 placebo tablets at the end of each cycle."
+      }
+    }
+  },
+  {
+    "instruction": "Set a daily alarm on your phone for whatever time you can reliably manage to take the pill. If under twelve hours late, just take the pill; over twelve, take one immediately and another at the usual hour tomorrow, then use condoms for seven days.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "comment": "Set a daily alarm on your phone for whatever time you can reliably manage to take the pill."
+      }
+    }
+  }
+]

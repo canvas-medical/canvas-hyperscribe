@@ -1,0 +1,36 @@
+{
+  "demographicStr": "the patient is a man, born on January 1, 1956 (age 68)",
+  "conditionHistory": [],
+  "currentAllergies": [],
+  "currentConditions": [],
+  "currentGoals": [],
+  "currentMedications": [
+    {
+      "uuid": "e2b3d4bd-2b8f-462d-b9f9-2e45917cca47",
+      "label": "Lisinopril 10 mg tablet",
+      "code": "29046"
+    },
+    {
+      "uuid": "df3fa600-dfd6-4d3e-8076-faf5c21ae6ce",
+      "label": "Atorvastatin 20 mg tablet",
+      "code": "83367"
+    },
+    {
+      "uuid": "d4e6970a-672b-469b-8ec2-f0db6ae7d7d4",
+      "label": "Aspirin 81 mg tablet",
+      "code": "861631"
+    },
+    {
+      "uuid": "29ea3835-bc91-4ace-b0bf-eca167cbc93c",
+      "label": "Gabapentin 300 mg capsule",
+      "code": "108665"
+    },
+    {
+      "uuid": "9045717a-1548-49fc-9e91-1cc72db2adae",
+      "label": "Turmeric-ginger capsule (dietary supplement)",
+      "code": ""
+    }
+  ],
+  "familyHistory": [],
+  "surgeryHistory": []
+}

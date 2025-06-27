@@ -1,0 +1,42 @@
+{
+  "demographicStr": "The patient is a woman, born on January 1, 1989 (age 35)",
+  "conditionHistory": [],
+  "currentAllergies": [],
+  "currentConditions": [
+    {
+      "uuid": "6332527f-4143-40a3-b95d-6726690e34bd",
+      "label": "Crohn's disease, unspecified, without complications",
+      "code": "K50.90"
+    },
+    {
+      "uuid": "084c0c6a-28cf-4e7b-b4c4-2e2fde93e13c",
+      "label": "Pregnant state, incidental",
+      "code": "Z33.1"
+    }
+  ],
+  "currentGoals": [],
+  "currentMedications": [
+    {
+      "uuid": "5953e64d-f104-43b3-aa3f-1f9108b74f52",
+      "label": "Adalimumab 40 mg/0.8 mL subcutaneous solution syringe",
+      "code": "1154295"
+    },
+    {
+      "uuid": "b9325f71-bce9-4e5d-9680-8e9dba081091",
+      "label": "Prenatal multivitamin, oral",
+      "code": "861291"
+    },
+    {
+      "uuid": "2e4d3470-83ea-4b98-9518-602b690e1a5b",
+      "label": "Aspirin 81 mg oral tablet",
+      "code": "161"
+    },
+    {
+      "uuid": "5de090b7-47c0-44c6-b3cd-55751b6cec67",
+      "label": "Ondansetron 8 mg oral tablet",
+      "code": "197361"
+    }
+  ],
+  "familyHistory": [],
+  "surgeryHistory": []
+}

@@ -1,0 +1,52 @@
+[
+  {
+    "rationale": "Note lists new 220 mcg inhaler but does not mention that 110 mcg fell off formulary or that it is a replacement.",
+    "satisfaction": 30.0,
+    "score": 6.0
+  },
+  {
+    "rationale": "Narrative states 1 puff AM/PM, but the prescription SIG still says \"2 puffs twice daily,\" so dosing update is only partially correct.",
+    "satisfaction": 40.0,
+    "score": 4.0
+  },
+  {
+    "rationale": "Provides spacer instructions with shake, insert, 4-second inhale, 5-second hold, but does not specify that a clear spacer was handed out.",
+    "satisfaction": 80.0,
+    "score": 12.0
+  },
+  {
+    "rationale": "HPI explicitly records locker-line barrier and associated nocturnal cough/chest tightness.",
+    "satisfaction": 95.0,
+    "score": 9.5
+  },
+  {
+    "rationale": "Task describes storing inhaler in nurses\u2019 cabinet until 10 p.m.; phone-alarm alternative not documented.",
+    "satisfaction": 70.0,
+    "score": 7.0
+  },
+  {
+    "rationale": "Includes gargle/rinse advice and mentions thrush/frog voice but omits reassurance about steroid dose & weight gain.",
+    "satisfaction": 75.0,
+    "score": 7.5
+  },
+  {
+    "rationale": "Captures most key elements, but omits formulary context, phone-alarm idea, weight-gain counseling, and has incorrect SIG.",
+    "satisfaction": 65.0,
+    "score": 6.5
+  },
+  {
+    "rationale": "Old 110 mcg med not shown, but new SIG is wrong; therefore medication directions not fully updated.",
+    "satisfaction": 30.0,
+    "score": -10.5
+  },
+  {
+    "rationale": "No new clinical details beyond encounter content were introduced.",
+    "satisfaction": 90.0,
+    "score": -1.0
+  },
+  {
+    "rationale": "No irrelevant historical data copied into note.",
+    "satisfaction": 95.0,
+    "score": -0.25
+  }
+]

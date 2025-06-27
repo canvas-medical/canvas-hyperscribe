@@ -1,0 +1,57 @@
+[
+  {
+    "rationale": "Captured missed two pills, doubled-up dosing, spotting, and heavy legs but omitted the patient\u2019s anxiety about health/workouts.",
+    "satisfaction": 80.0,
+    "score": 12.0
+  },
+  {
+    "rationale": "Specific order to resume ONE blue pill nightly at 9 p.m. starting tonight with no extra doses is documented verbatim.",
+    "satisfaction": 100.0,
+    "score": 15.0
+  },
+  {
+    "rationale": "States condom backup for seven days because >48 h of pills were missed.",
+    "satisfaction": 100.0,
+    "score": 12.0
+  },
+  {
+    "rationale": "Includes full future-missed-pill guidance: take late pill immediately, continue pack, restart seven-day condom clock.",
+    "satisfaction": 100.0,
+    "score": 10.0
+  },
+  {
+    "rationale": "Lists breast tenderness, mild water retention, mood changes, resolution by second pack, and no VO\u2082 impact but does not mention spotting as an expected side effect.",
+    "satisfaction": 85.0,
+    "score": 8.5
+  },
+  {
+    "rationale": "ER warning for calf pain or sudden chest tightness is explicitly noted.",
+    "satisfaction": 100.0,
+    "score": 10.0
+  },
+  {
+    "rationale": "Documents all three adherence strategies: tooth-brushing link, two alarms, backup strip.",
+    "satisfaction": 100.0,
+    "score": 8.0
+  },
+  {
+    "rationale": "Patient\u2019s question about future forgetfulness/alternative methods is not recorded.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Note is coherent and captures most key points; minor omissions of anxiety and alternative-method question.",
+    "satisfaction": 88.0,
+    "score": 13.2
+  },
+  {
+    "rationale": "No extraneous or unsupported information introduced.",
+    "satisfaction": 95.0,
+    "score": -0.5
+  },
+  {
+    "rationale": "No inaccurate chart copying or prescription misrepresentation detected.",
+    "satisfaction": 100.0,
+    "score": -0.0
+  }
+]

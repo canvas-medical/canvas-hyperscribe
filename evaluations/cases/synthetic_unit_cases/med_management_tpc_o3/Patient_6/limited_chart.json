@@ -1,0 +1,38 @@
+{
+  "demographicStr": "the patient is a woman, born on January 1, 1998 (age 26)",
+  "conditionHistory": [],
+  "currentAllergies": [],
+  "currentConditions": [
+    {
+      "uuid": "c5cc6c39-041e-49ad-9887-4b0d84ffd318",
+      "label": "Dysmenorrhea, unspecified",
+      "code": "N94.6"
+    },
+    {
+      "uuid": "9d70ac19-4dac-4693-9251-c7c703495f2e",
+      "label": "Irregular menstruation, unspecified",
+      "code": "N92.6"
+    }
+  ],
+  "currentGoals": [
+    {
+      "uuid": "33cb6df9-73af-4ffb-b0de-ddb1d97a0db3",
+      "label": "Adherence to combined oral contraceptive pill",
+      "code": ""
+    }
+  ],
+  "currentMedications": [
+    {
+      "uuid": "f7054c00-ec2e-4110-b4e8-9d8fae84257d",
+      "label": "Ibuprofen 200 mg oral tablet",
+      "code": "5640"
+    },
+    {
+      "uuid": "e132bf28-55f6-47f4-a19d-02f3e76988d5",
+      "label": "Ethinyl estradiol 0.02 mg / levonorgestrel 0.1 mg oral tablet",
+      "code": "1049621"
+    }
+  ],
+  "familyHistory": [],
+  "surgeryHistory": []
+}

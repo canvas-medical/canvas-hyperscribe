@@ -1,0 +1,27 @@
+{
+  "demographicStr": "the patient is a male, born on January 1, 2009 (age 15)",
+  "conditionHistory": [],
+  "currentAllergies": [],
+  "currentConditions": [
+    {
+      "uuid": "d6142dbc-72fd-409c-972f-64151e63e7b3",
+      "label": "Schizophrenia, unspecified",
+      "code": "F20.9"
+    }
+  ],
+  "currentGoals": [],
+  "currentMedications": [
+    {
+      "uuid": "b83e6eb9-8f7a-4373-abde-acdb5cb11838",
+      "label": "Aripiprazole 400 mg extended-release injectable suspension",
+      "code": "1717290"
+    },
+    {
+      "uuid": "162767c5-68d8-442a-bf25-9ff4d9e946a7",
+      "label": "Cholecalciferol 1000 IU chewable tablet",
+      "code": "617820"
+    }
+  ],
+  "familyHistory": [],
+  "surgeryHistory": []
+}

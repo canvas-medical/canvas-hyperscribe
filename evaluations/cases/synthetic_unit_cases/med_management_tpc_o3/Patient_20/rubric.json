@@ -1,0 +1,62 @@
+[
+  {
+    "criterion": "Reward for documenting the patient report that the new shipment of pills looks different in color (pale yellow vs salmon) and is from a different manufacturer due to formulary switch.",
+    "weight": 12,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for noting that the pill bottle insert still lists imatinib 400 mg, confirming same strength despite appearance change.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing the patient's uncertainty about whether imatinib comes in a 300 mg strength and whether the received dose is correct.",
+    "weight": 8,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for recording the patient's question about whether to hold off taking the medication until the dose is double-checked.",
+    "weight": 8,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting the patient's concern that ferry cancellation may prevent the planned pre-weekend blood draw.",
+    "weight": 12,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing the patient's worry about being flagged by the REMS program if the lab is delayed.",
+    "weight": 8,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for noting the patient's suggestion of stretching current pills for one to two extra days if needed.",
+    "weight": 6,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for accurately referencing relevant chart context\u2014chronic myeloid leukemia on imatinib 400 mg therapy and need for blood count monitoring\u2014without importing unrelated chart details.",
+    "weight": 12,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for overall completeness: the note includes all major patient statements, questions, and concerns from the transcript without significant omission or distortion.",
+    "weight": 25,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for adding clinical advice, dosing confirmations, or management decisions that were not expressed or implied in the transcript.",
+    "weight": 20,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for copying irrelevant or inaccurate information from the chart (e.g., unrelated medications like aspirin, atorvastatin, or unrelated conditions).",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for fabricating provider dialogue, physical exam findings, or additional patient history not present in the transcript.",
+    "weight": 25,
+    "sense": "negative"
+  }
+]

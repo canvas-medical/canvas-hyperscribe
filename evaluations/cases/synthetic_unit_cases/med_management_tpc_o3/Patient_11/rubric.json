@@ -1,0 +1,52 @@
+[
+  {
+    "criterion": "Reward for accurately documenting the patient\u2019s current fluticasone regimen as stated (1 puff of the orange inhaler each morning before school and 1 puff at night after brushing teeth).",
+    "weight": 12,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for clearly noting the pharmacy refill block until the 28th and the resulting potential 3-day gap in medication supply.",
+    "weight": 12,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing the canister status (~6 sprays left) and the fact that the patient forgot to bring the spare inhaler.",
+    "weight": 8,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting the absence of throat-related side effects (no hoarseness, white spots, or soreness) and the patient\u2019s routine of gargling after use.",
+    "weight": 8,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for recording albuterol use during soccer (2 puffs pre-game, rarely needs additional doses).",
+    "weight": 8,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for including the patient\u2019s question/concern about what to do if the fluticasone runs out before the 28th.",
+    "weight": 8,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for correctly incorporating relevant chart details\u201410-year-old female with mild persistent asthma and current medications\u2014without adding unrelated chart data.",
+    "weight": 8,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for overall completeness: the note captures all major statements, questions, and numerical details present in the transcript without significant omissions.",
+    "weight": 16,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for copying or inserting chart information not discussed in the encounter (e.g., unrelated histories, immunizations, or boilerplate).",
+    "weight": 10,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for fabricating, altering, or omitting facts from the encounter (e.g., adding clinical plans, advice, or symptoms not mentioned, or misreporting numbers).",
+    "weight": 10,
+    "sense": "negative"
+  }
+]

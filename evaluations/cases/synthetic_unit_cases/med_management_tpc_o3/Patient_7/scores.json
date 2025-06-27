@@ -1,0 +1,67 @@
+[
+  {
+    "rationale": "Strength difference (100\u219288 mcg) documented, but no mention of new tablet color.",
+    "satisfaction": 70.0,
+    "score": 7.0
+  },
+  {
+    "rationale": "States dose lowered for TSH <0.3 but omits pharmacy switch/Mylan formulary detail.",
+    "satisfaction": 60.0,
+    "score": 9.0
+  },
+  {
+    "rationale": "Exact instructions to take 88 mcg on empty stomach and wait \u226530 min before coffee/breakfast included verbatim.",
+    "satisfaction": 95.0,
+    "score": 14.25
+  },
+  {
+    "rationale": "Contingency not to double-dose and to resume 88 mcg next morning captured clearly.",
+    "satisfaction": 100.0,
+    "score": 10.0
+  },
+  {
+    "rationale": "Storage advice to keep >59 \u00b0F and avoid freezing near window recorded exactly.",
+    "satisfaction": 100.0,
+    "score": 5.0
+  },
+  {
+    "rationale": "Mentions patient asking about splitting, but does NOT document \u2018do not split\u2019 nor safety-stock shipment.",
+    "satisfaction": 20.0,
+    "score": 1.6
+  },
+  {
+    "rationale": "Phone alarm/pillbox adherence aids and double-dose symptom counseling with call instruction fully included.",
+    "satisfaction": 100.0,
+    "score": 8.0
+  },
+  {
+    "rationale": "Dry skin & nocturnal calf cramps noted, but clinician\u2019s assessment (winter air/low Mg) missing.",
+    "satisfaction": 40.0,
+    "score": 4.0
+  },
+  {
+    "rationale": "No recommendation to take 400 mg magnesium; completely absent.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Plan to re-check thyroid labs in six weeks with possible adjustment clearly documented.",
+    "satisfaction": 95.0,
+    "score": 9.5
+  },
+  {
+    "rationale": "Introduced unrelated \u2018GM100 kit\u2019 medication; omitted pharmacy-switch rationale \u2192 sizeable penalty.",
+    "satisfaction": 25.0,
+    "score": -11.25
+  },
+  {
+    "rationale": "Little irrelevant chart data, but missing some pertinent context; moderate penalty.",
+    "satisfaction": 60.0,
+    "score": -4.0
+  },
+  {
+    "rationale": "Captures most key elements but misses Mg plan, tablet-splitting advice, formulary detail; adds extraneous item\u2014overall fairly complete.",
+    "satisfaction": 70.0,
+    "score": 14.0
+  }
+]

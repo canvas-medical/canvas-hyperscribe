@@ -1,0 +1,30 @@
+[
+  {
+    "instruction": "Atovaquone/proguanil, directions: begin the morning before embarkation, then one tablet daily with food and milk, continue seven days after docking home, targeted condition: malaria prevention.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.prescribe",
+      "class": "PrescribeCommand",
+      "attributes": {
+        "substitutions": "allowed",
+        "days_supply": 8,
+        "sig": "Begin the morning before embarkation, then one tablet daily with food and milk, continue seven days after docking home.",
+        "prescriber_id": "4150cd20de8a470aa570a852859ac87e"
+      }
+    }
+  },
+  {
+    "instruction": "Store pens in the cabin fridge, needle side up. For missed meals, still swallow the malaria pill with even a cracker.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "comment": "Store pens in the cabin fridge, needle side up.",
+        "coding": {
+          "system": "http://snomed.info/sct",
+          "code": "473148007",
+          "display": "Recommended to maintain supply of blood ketone test strips"
+        }
+      }
+    }
+  }
+]

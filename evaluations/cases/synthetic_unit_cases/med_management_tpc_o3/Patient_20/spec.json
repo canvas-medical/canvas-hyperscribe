@@ -1,0 +1,16 @@
+{
+  "turn_total": 2,
+  "speaker_sequence": [
+    "Patient",
+    "Patient"
+  ],
+  "ratio": 1.92,
+  "mood": [
+    "clinician is brief",
+    "clinician is warm"
+  ],
+  "pressure": "formulary change",
+  "clinician_style": "cautious and inquisitive",
+  "patient_style": "confused and forgetful",
+  "bucket": "short"
+}

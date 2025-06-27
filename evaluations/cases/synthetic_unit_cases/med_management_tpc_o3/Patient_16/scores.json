@@ -1,0 +1,52 @@
+[
+  {
+    "rationale": "Prescription strength, continuous daily regimen, and instruction to start tonight are entirely absent.",
+    "satisfaction": 5.0,
+    "score": 1.25
+  },
+  {
+    "rationale": "No guidance to tie pill-taking to a fixed daily clock time was documented.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Missed-pill protocol accurately captures \u226412 h window, >12 h action, double-dose, and 7-day condom use.",
+    "satisfaction": 95.0,
+    "score": 14.25
+  },
+  {
+    "rationale": "Note omits all discussed common side-effects and serious warning signs and related instructions.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Documents smoking status and advice to keep under five cigarettes and stay hydrated; no mention of nicotine gum discussion.",
+    "satisfaction": 60.0,
+    "score": 4.8
+  },
+  {
+    "rationale": "Follow-up appointment at 3 months and task to submit insurance claim tomorrow both recorded.",
+    "satisfaction": 90.0,
+    "score": 6.3
+  },
+  {
+    "rationale": "Patient\u2019s $30 copay concern and wish to buy one pack at a time not mentioned.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Several key counseling points missing (prescription details, side-effects, financial issue), so only partially complete.",
+    "satisfaction": 30.0,
+    "score": 3.0
+  },
+  {
+    "rationale": "Does not introduce unrelated chart data and includes referenced smoking status; minimal omission of chart context.",
+    "satisfaction": 90.0,
+    "score": -0.8
+  },
+  {
+    "rationale": "No fabricated or contradictory details; omissions only. All provided details align with likely transcript.",
+    "satisfaction": 95.0,
+    "score": -0.6
+  }
+]

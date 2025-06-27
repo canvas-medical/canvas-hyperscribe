@@ -1,0 +1,12 @@
+[
+  {
+    "instruction": "The patient received a new box of Imatinib 400 mg tablets that look different due to a formulary switch to a different manufacturer. The patient is concerned about the correct dosage and whether to continue taking the medication. Additionally, the patient is worried about missing a blood draw due to potential ferry cancellations and the implications for the REMS program.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.history_present_illness",
+      "class": "HistoryOfPresentIllnessCommand",
+      "attributes": {
+        "narrative": "The patient received a new box of Imatinib 400 mg tablets that look different due to a formulary switch to a different manufacturer. The patient is concerned about the correct dosage and whether to continue taking the medication. Additionally, the patient is worried about missing a blood draw due to potential ferry cancellations and the implications for the REMS program."
+      }
+    }
+  }
+]
