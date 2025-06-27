@@ -103,6 +103,15 @@
           "read": [],
           "write": []
         }
+      },
+      {
+        "class": "hyperscribe.handlers.capture:CaptureView",
+        "description": "Serve the user interface for Hyperscribe",
+        "data_access": {
+          "event": "",
+          "read": [],
+          "write": []
+        }
       }
     ],
     "applications": [],
@@ -114,6 +123,7 @@
   "secrets": [
     "APISigningKey",
     "AudioHost",
+    "AudioHostSharedSecret",
     "AudioIntervalSeconds",
     "AuditLLMDecisions",
     "AwsBucketLogs",
