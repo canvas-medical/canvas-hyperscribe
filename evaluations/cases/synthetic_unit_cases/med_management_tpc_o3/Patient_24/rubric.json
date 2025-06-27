@@ -1,0 +1,52 @@
+[
+  {
+    "criterion": "Reward for documenting that the previous fluticasone 110 mcg inhaler fell off formulary and was replaced with a 220 mcg per-actuation canister",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for recording the new dosing instructions: one puff in the morning and one puff at night (no longer two puffs each time)",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for noting that a clear spacer was provided and for including the specific technique instructions (shake, attach, slow 4-second inhale, 5-second hold)",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing the patient\u2019s reported adherence barrier (locker line closes before lights-out leading to missed evening dose) and resulting nocturnal cough/chest tightness",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting the brainstormed and agreed plan to store the inhaler in the nurses\u2019 cabinet until 10 p.m. with a clinician note (and mention of alternate phone alarm idea)",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for including counseling about side effects: gargling/rinsing to avoid \u2018frog throat\u2019, reassurance about steroid dose and weight gain, monitoring for thrush",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for overall completeness: the note coherently summarizes all major exchange points from the encounter without omitting any of the above key items",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for failing to update the medication list and directions (e.g., leaving the outdated 110 mcg BID entry or omitting the new 220 mcg regimen)",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for introducing clinical details or recommendations not present in the transcript or chart",
+    "weight": 10,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for copying irrelevant or extraneous chart information unrelated to this visit (e.g., unrelated immunizations, family history not discussed)",
+    "weight": 5,
+    "sense": "negative"
+  }
+]

@@ -1,0 +1,77 @@
+[
+  {
+    "criterion": "Reward for accurately documenting that the first paliperidone palmitate injection was administered in the left deltoid at a dose of 156 mg with a ~15-second push.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for noting clinician instruction that the patient should stop taking risperidone tablets starting tonight.",
+    "weight": 8,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for including both common side-effects (sleepiness/fog, stiff muscles, local soreness) and rare urgent warnings (high fever or neck stiffness with instruction to call 911/clinic).",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing that a calendar fax was sent to the shelter and that the next depot injection is due on day 28.",
+    "weight": 8,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting the patient\u2019s upcoming move to Tucson and the clinician\u2019s plan to contact the Pima County mobile outreach team to pre-authorize a walk-in injection on day 28 \u00b12 days.",
+    "weight": 12,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for recording that the patient received a wallet card with lot number/dosing schedule and was advised to photograph it as backup.",
+    "weight": 5,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting the patient\u2019s immediate complaint of arm warmth/tightness and the cold-pack instructions (10 min on/10 min off for the first evening).",
+    "weight": 5,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for noting that paliperidone does not affect nicotine cravings and that the patient should continue the nicotine gum routine.",
+    "weight": 4,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for including hydration/salt balance advice, the planned prolactin check next visit, and symptoms (breast tenderness or galactorrhea) that should prompt earlier reporting.",
+    "weight": 8,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for recording the patient\u2019s question about whether a buddy can sign for medication delivery, even though no clinician answer was given.",
+    "weight": 4,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for accurately incorporating relevant chart context (23-year-old male with schizophrenia, current nicotine gum use) without adding unrelated chart items.",
+    "weight": 5,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for overall completeness: the note captures essentially all clinically relevant statements, decisions, instructions, and patient concerns from the encounter.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for introducing any clinical details, rationale, diagnoses, medications, or recommendations that were not explicitly stated or clearly implied in the transcript.",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for omitting or materially distorting any of the key items listed above (e.g., wrong dose, wrong timing window, missing side-effect warnings).",
+    "weight": 12,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for copying irrelevant or excessive information from the chart that was not referenced during the encounter (e.g., unrelated past medical history, generic templates).",
+    "weight": 6,
+    "sense": "negative"
+  }
+]

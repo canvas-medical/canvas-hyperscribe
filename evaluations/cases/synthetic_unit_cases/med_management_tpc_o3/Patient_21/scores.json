@@ -1,0 +1,62 @@
+[
+  {
+    "rationale": "Chief complaint of sudden purple arm bruises and worry about medication timing is clearly stated in HPI.",
+    "satisfaction": 80.0,
+    "score": 12.0
+  },
+  {
+    "rationale": "Note lacks clinician\u2019s detailed review of aspirin, methotrexate and folic-acid schedules; no reassurance documented.",
+    "satisfaction": 5.0,
+    "score": 0.75
+  },
+  {
+    "rationale": "No mention of adalimumab timing or instruction not to take it on methotrexate day.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Prednisone taper (10 mg start, \u21931 mg q5 days) not documented.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Included precise monitoring instruction to photograph and call if bruise > quarter or warm.",
+    "satisfaction": 90.0,
+    "score": 7.2
+  },
+  {
+    "rationale": "Advice to keep blood-pressure log present, but amlodipine unchanged statement missing.",
+    "satisfaction": 60.0,
+    "score": 4.8
+  },
+  {
+    "rationale": "Task sent to visiting nurse to recolor pill organizer exactly as specified.",
+    "satisfaction": 100.0,
+    "score": 6.0
+  },
+  {
+    "rationale": "Patient requests/questions not recorded; no fabricated answers either.",
+    "satisfaction": 30.0,
+    "score": 1.5
+  },
+  {
+    "rationale": "Several key decisions and instructions are missing, so overall completeness is poor.",
+    "satisfaction": 20.0,
+    "score": 3.0
+  },
+  {
+    "rationale": "Omitted multiple key medication instructions (adalimumab, prednisone taper, schedules) resulting in major penalty.",
+    "satisfaction": 10.0,
+    "score": -13.5
+  },
+  {
+    "rationale": "No fabricated clinician plans or recommendations detected.",
+    "satisfaction": 95.0,
+    "score": -0.5
+  },
+  {
+    "rationale": "Did not insert unrelated chart data or extra conditions/meds.",
+    "satisfaction": 95.0,
+    "score": -0.35
+  }
+]

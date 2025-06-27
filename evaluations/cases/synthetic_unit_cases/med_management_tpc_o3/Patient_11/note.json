@@ -1,0 +1,20 @@
+[
+  {
+    "instruction": "Fluticasone propionate 44 mcg/actuation inhalation aerosol, inhale 1 puff twice daily, targeted condition: asthma.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.refill",
+      "class": "RefillCommand",
+      "attributes": {
+        "substitutions": "allowed",
+        "sig": "Inhale 1 puff twice daily",
+        "fdb_code": "",
+        "type_to_dispense": {
+          "representative_ndc": "",
+          "ncpdp_quantity_qualifier_code": ""
+        },
+        "prescriber_id": "4150cd20de8a470aa570a852859ac87e",
+        "days_supply": 30
+      }
+    }
+  }
+]

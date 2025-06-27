@@ -1,0 +1,72 @@
+[
+  {
+    "criterion": "Reward for accurately documenting that the prior authorization was denied and that the clinician will fax charts tonight, call the reviewer tomorrow, and update the patient on the appeal status.",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for recording that two sample semaglutide 0.25 mg pens were dispensed, covering eight weeks of therapy.",
+    "weight": 18,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing all key administration instructions: first dose this Sunday, weekly injections, abdominal pinch with 10-second hold, alcohol dab afterward, and rotating sites (left, right, thigh, arm).",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for including storage guidance: keep pens 36\u201346 \u00b0F, use a small ice pack without direct metal contact or freezing, lunch-bag cooler safe 6\u20138 h, and cabin temperature acceptable for a 4-hour flight.",
+    "weight": 12,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting the dosing schedule contingency: if >48 h late, skip and wait for the next scheduled Sunday dose.",
+    "weight": 8,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for noting common side effects (queasy stomach, burpy reflux, slowed bowel movements) and mitigation strategies (protein first, sip water, stop at two-thirds full, prefer acetaminophen for headaches).",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for reflecting that the patient\u2019s shellfish allergy is not a contraindication because semaglutide is synthetic with no crustacean components.",
+    "weight": 6,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing monitoring and follow-up plan: check fasting glucose weekly and text if <70, reassess after four injections; escalate to 0.5 mg if weight loss adequate and side effects tolerable, otherwise continue 0.25 mg, and consider a two-week wait during weight stalls.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for recording cost information discussed (\u2248$900 per pen cash price, \u2248$300 via discount portals).",
+    "weight": 6,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for noting unresolved patient questions (earlier dose escalation with FBG 115, CGM coupon vs finger-sticks, vegetarian protein intake, flight storage) without fabricating clinician answers.",
+    "weight": 8,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for omitting any of the above high-priority items or materially distorting their numeric details, timelines, or instructions.",
+    "weight": 30,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Reward for overall completeness: the note should read as a coherent summary that touches on all major clinician statements and patient concerns from the transcript.",
+    "weight": 25,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for copying extraneous chart data not referenced in the encounter (e.g., unrelated past conditions, family history, or default review-of-systems) or failing to include relevant chart data that was explicitly referenced (shellfish allergy).",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for introducing new clinical recommendations, diagnoses, or interpretations not present in the transcript or chart.",
+    "weight": 25,
+    "sense": "negative"
+  }
+]

@@ -1,0 +1,33 @@
+{
+  "demographicStr": "the patient is a boy, born on January 1, 2010 (age 14)",
+  "conditionHistory": [],
+  "currentAllergies": [],
+  "currentConditions": [
+    {
+      "uuid": "9f9de691-9328-414b-8ce8-6f9fd14c33a0",
+      "label": "Mild persistent asthma, uncomplicated",
+      "code": "J45.30"
+    }
+  ],
+  "currentGoals": [
+    {
+      "uuid": "09c0e807-b716-47b2-bbba-5681655dc2d8",
+      "label": "Reduce nighttime asthma symptoms",
+      "code": ""
+    }
+  ],
+  "currentMedications": [
+    {
+      "uuid": "6a841aa1-9d2e-45fb-8652-f9dfc316662c",
+      "label": "Albuterol sulfate 90 mcg/actuation inhaler, 2 puffs as needed",
+      "code": "329498"
+    },
+    {
+      "uuid": "46313f9f-03d7-4ca7-9048-98eb503fdc4b",
+      "label": "Fluticasone propionate 220 mcg/actuation inhaler, 2 puffs twice daily",
+      "code": "1161430"
+    }
+  ],
+  "familyHistory": [],
+  "surgeryHistory": []
+}

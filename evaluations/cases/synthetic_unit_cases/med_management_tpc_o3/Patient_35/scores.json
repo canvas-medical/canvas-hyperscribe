@@ -1,0 +1,52 @@
+[
+  {
+    "rationale": "Implant note lacks 68 \u00b5g/day dose, 3-year duration, 7-day efficacy statement, and left-arm location.",
+    "satisfaction": 15.0,
+    "score": 2.25
+  },
+  {
+    "rationale": "Includes phone bleeding tracker and ibuprofen 600 mg q6h, \u22642400 mg/day, stop for GI bleed, but omits OTC note and explicit expected spotting discussion.",
+    "satisfaction": 75.0,
+    "score": 7.5
+  },
+  {
+    "rationale": "Mentions heat/redness/pus and antibiotic change, but omits explicit non-penicillin wording and call number.",
+    "satisfaction": 60.0,
+    "score": 6.0
+  },
+  {
+    "rationale": "States wallet card lost but omits writing 19 Jul 2026 on arm or photographing it.",
+    "satisfaction": 40.0,
+    "score": 3.2
+  },
+  {
+    "rationale": "Captures concern about missing first 7 days but not uncertainty of last menses timing.",
+    "satisfaction": 60.0,
+    "score": 4.2
+  },
+  {
+    "rationale": "Documents homelessness/couch-surfing and phone issues; no charger detail.",
+    "satisfaction": 80.0,
+    "score": 5.6
+  },
+  {
+    "rationale": "Penicillin allergy noted; implant implied; ibuprofen PRN not explicitly listed as med.",
+    "satisfaction": 60.0,
+    "score": 4.8
+  },
+  {
+    "rationale": "Many key instructions present but several omissions (implant specs, alt removal date, menstruation detail).",
+    "satisfaction": 50.0,
+    "score": 12.5
+  },
+  {
+    "rationale": "No fabricated diagnoses, labs, or referrals detected.",
+    "satisfaction": 90.0,
+    "score": -1.0
+  },
+  {
+    "rationale": "No irrelevant historical data copied into note.",
+    "satisfaction": 100.0,
+    "score": -0.0
+  }
+]

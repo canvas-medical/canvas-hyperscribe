@@ -1,0 +1,82 @@
+[
+  {
+    "instruction": "Administered 25 mg of long-acting risperidone in the patient's right arm.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.perform",
+      "class": "PerformCommand",
+      "attributes": {
+        "cpt_code": "",
+        "notes": "Administered 25 mg of long-acting risperidone in the patient's right arm."
+      }
+    }
+  },
+  {
+    "instruction": "Ordered baseline ECG and electrolytes. If potassium dips below four, start potassium chloride 20 mEq after supper daily.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.lab_order",
+      "class": "LabOrderCommand",
+      "attributes": {
+        "diagnosis_codes": [
+          "E876"
+        ],
+        "tests_order_codes": [],
+        "comment": "Monitor heart and electrolyte levels; manage low potassium if needed.",
+        "ordering_provider_key": "4150cd20de8a470aa570a852859ac87e",
+        "fasting_required": false
+      }
+    }
+  },
+  {
+    "instruction": "Remind aides: stand-by assist for walks, slow position changes, record each blood-pressure reading in the binder daily.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "comment": "Remind aides: stand-by assist for walks, slow position changes, record each blood-pressure reading in the binder daily.",
+        "coding": {
+          "system": "http://snomed.info/sct",
+          "code": "410302006",
+          "display": "Positioning teaching, guidance, and counseling"
+        }
+      }
+    }
+  },
+  {
+    "instruction": "Next risperidone injection scheduled for day 28; if daytime drowsiness exceeds two naps, reduce to 12.5 mg.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.refill",
+      "class": "RefillCommand",
+      "attributes": {
+        "prescriber_id": "4150cd20de8a470aa570a852859ac87e",
+        "sig": "Next injection scheduled for day 28; if daytime drowsiness exceeds two naps, reduce to 12.5 mg.",
+        "substitutions": "not_allowed",
+        "fdb_code": "",
+        "days_supply": 28,
+        "type_to_dispense": {
+          "representative_ndc": "",
+          "ncpdp_quantity_qualifier_code": ""
+        }
+      }
+    }
+  },
+  {
+    "instruction": "Daily pulse checks and weekly ECG for the first month to monitor QT interval.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.plan",
+      "class": "PlanCommand",
+      "attributes": {
+        "narrative": "Daily pulse checks and weekly ECG for the first month to monitor QT interval."
+      }
+    }
+  },
+  {
+    "instruction": "Patient experienced dizziness and ringing in ears after taking medication. Hallucinations occur at 3 a.m., causing fear. Concern about QT interval prolongation with current medications.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.history_present_illness",
+      "class": "HistoryOfPresentIllnessCommand",
+      "attributes": {
+        "narrative": "Patient experienced dizziness and ringing in ears after taking medication. Hallucinations occur at 3 a.m., causing fear. Concern about QT interval prolongation with current medications."
+      }
+    }
+  }
+]

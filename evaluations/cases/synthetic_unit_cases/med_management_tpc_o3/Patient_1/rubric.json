@@ -1,0 +1,62 @@
+[
+  {
+    "criterion": "Reward for accurately documenting the counseling that atovaquone-proguanil dosing remains one tablet daily with the largest meal, starting 2 days before departure and continuing for 7 days after leaving Ghana, irrespective of brand or generic switch.",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing the insurance/formulary update and reassurance that any future generic contains the same active ingredients, even if the tablet looks different.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for including the patient\u2019s concern about pill appearance and the clinician\u2019s strategies: marking the blister pack, writing weekdays/arrows, or transferring a week\u2019s supply to a labeled pill box kept in carry-on luggage.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting the clinician\u2019s instruction to tie dosing to a meal rather than the clock, and the specific guidance that if a meal is delayed >3 hours the patient should wait for a snack with fat (nuts, yogurt) because fasting halves absorption.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing the patient\u2019s irregular-meal scenario (3 a.m. flight, fieldwork) and her use of reminders, reflecting her adherence concerns.",
+    "weight": 5,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for noting discussion of shellfish allergy: no cross-reactivity with the drug but clinician recommends carrying an antihistamine (e.g., Benadryl).",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for including clarification that vivid dreams are rare with atovaquone-proguanil and more associated with mefloquine.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for correctly referencing relevant chart details (24-year-old female, current atovaquone-proguanil prescription, shellfish allergy) without introducing unrelated chart information.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for overall completeness: the note concisely captures all major questions, concerns, and counseling points exchanged during the encounter without significant omissions.",
+    "weight": 30,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for omission or distortion of key dosing or absorption instructions (meal linkage, snack with fat, 2 days before/7 days after regimen).",
+    "weight": 25,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for fabricating clinical content not present in the transcript (e.g., additional side effects, monitoring labs, vital signs, or alternative medications).",
+    "weight": 20,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for copying irrelevant or excessive chart data (unrelated past history, template ROS/PE, or medications not mentioned), thereby diluting fidelity to the encounter.",
+    "weight": 15,
+    "sense": "negative"
+  }
+]

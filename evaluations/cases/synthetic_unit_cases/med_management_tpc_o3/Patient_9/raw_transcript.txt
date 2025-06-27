@@ -1,0 +1,10 @@
+[
+  {
+    "speaker": "Clinician",
+    "text": "All right, Malik, let me walk through the pieces quickly, because I’m eyeing the clock but I don’t want to miss anything. You’re still on dolutegravir-lamivudine 50/300 mg once daily in the morning, correct? Cabozantinib is 60 mg at night with food spaced at least two hours from the antacid. That keeps the tiny pH effect from omeprazole from blunting absorption. Because both agents can nudge the QT interval, the critical thing is stable potassium and magnesium: target potassium above 4.0, magnesium above 2.0. I’m prescribing 400 mg magnesium glycinate at bedtime; no laxative surprise. We’ll grab baseline labs today—potassium, mag, creatinine—one quick tube, in and out. In flight, keep the pills on home-time; if a leg crosses midnight, just keep the twelve-hour gap. Side-effect watch list: jaw pain, hand-foot redness, mouth sores, or any flutter in the chest—call before your next dose. Last, the ECG: cardiology has you for the first Thursday of each month, five minutes, in and out. Does that, uh, all line up so far?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Look, I’m trying, but the airline just pushed my return leg to Hong Kong, so the schedule’s a mess and I don’t want anyone blaming me if the readings go off. I took my first cabozantinib last night, exactly two hours after dinner, yet this morning I felt a weird skip in my heartbeat. My phone ECG strip said 105 milliseconds QTc, or maybe I read it wrong—either way, it scared me. Also, the supplement aisle has ten kinds of magnesium; if I grab citrate instead of glycinate will you later say I botched the absorption? And aspirin: the oncologist’s nurse muttered something about bleeding risk, but nobody told me to stop, so I’m still on 81 milligrams. Finally, if customs confiscates the pills, do I just miss doses until I’m back, or do I beg a local doctor? I need straight answers, not shrugs."
+  }
+]

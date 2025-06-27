@@ -1,0 +1,50 @@
+[
+  {
+    "instruction": "Patient woke up with big purple spots on the arm, did not bump into anything. The visiting nurse was worried and sent a report. Patient is concerned about medication timing, especially with methotrexate and prednisone, and the potential link to bruising.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.history_present_illness",
+      "class": "HistoryOfPresentIllnessCommand",
+      "attributes": {
+        "narrative": "Patient woke up with big purple spots on the arm without any known injury. The visiting nurse was worried and sent a report. Patient is concerned about medication timing, especially with methotrexate and prednisone, and the potential link to bruising."
+      }
+    }
+  },
+  {
+    "instruction": "If a bruise gets larger than a quarter or feels warm, snap a photo and call the clinician the same day.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "comment": "If a bruise gets larger than a quarter or feels warm, snap a photo and call the clinician the same day."
+      }
+    }
+  },
+  {
+    "instruction": "Keep the blood pressure log, as prednisone can increase blood pressure.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "comment": "Keep the blood pressure log, as prednisone can increase blood pressure.",
+        "coding": {
+          "system": "http://snomed.info/sct",
+          "code": "432371000124100",
+          "display": "Recommendation to monitor physiologic parameters"
+        }
+      }
+    }
+  },
+  {
+    "instruction": "Message the nurse to update the pill organizer colors: blue for steroids, yellow for methotrexate.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.task",
+      "class": "TaskCommand",
+      "attributes": {
+        "due_date": "2025-06-27",
+        "comment": "Blue for steroids, yellow for methotrexate.",
+        "assign_to": null,
+        "title": "Update pill organizer colors"
+      }
+    }
+  }
+]

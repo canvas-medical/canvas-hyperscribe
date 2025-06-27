@@ -1,0 +1,22 @@
+{
+  "demographicStr": "the patient is a man, born on January 1, 2008 (age 16)",
+  "conditionHistory": [],
+  "currentAllergies": [],
+  "currentConditions": [
+    {
+      "uuid": "efe1fb83-1b79-473d-b7b8-34f20e40de4d",
+      "label": "Unspecified asthma, uncomplicated",
+      "code": "J45.909"
+    }
+  ],
+  "currentGoals": [],
+  "currentMedications": [
+    {
+      "uuid": "630f02bb-7430-4685-864b-c72c4eb149d7",
+      "label": "Budesonide 400 micrograms inhalation, 1 actuation twice daily",
+      "code": "310798"
+    }
+  ],
+  "familyHistory": [],
+  "surgeryHistory": []
+}

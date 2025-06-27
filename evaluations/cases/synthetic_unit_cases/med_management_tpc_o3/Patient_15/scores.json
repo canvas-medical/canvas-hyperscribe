@@ -1,0 +1,62 @@
+[
+  {
+    "rationale": "QT prolongation mentioned but exact value 470 ms and the alert itself are not documented.",
+    "satisfaction": 20.0,
+    "score": 3.0
+  },
+  {
+    "rationale": "Yesterday\u2019s chest flutter with ear ringing and today\u2019s absence of dizziness/palpitations are not captured.",
+    "satisfaction": 10.0,
+    "score": 1.0
+  },
+  {
+    "rationale": "Azithromycin dose explicitly changed to 250 mg daily, matching clinician decision.",
+    "satisfaction": 90.0,
+    "score": 18.0
+  },
+  {
+    "rationale": "Potassium lab for tomorrow clearly ordered with rationale to monitor QT.",
+    "satisfaction": 90.0,
+    "score": 9.0
+  },
+  {
+    "rationale": "Instruction to repeat ECG in 48 hours is documented with appropriate details.",
+    "satisfaction": 90.0,
+    "score": 9.0
+  },
+  {
+    "rationale": "Continuation of osimertinib 80 mg with breakfast and metoprolol unchanged is stated.",
+    "satisfaction": 85.0,
+    "score": 8.5
+  },
+  {
+    "rationale": "Specific instructions to skip extra electrolytes and contact staff if flutter recurs are included.",
+    "satisfaction": 90.0,
+    "score": 4.5
+  },
+  {
+    "rationale": "No mention of patient\u2019s concern about QT-prolonging drugs or avoiding more pills.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Major orders and instructions present, but key symptoms and QT value missing, so partially complete.",
+    "satisfaction": 60.0,
+    "score": 9.0
+  },
+  {
+    "rationale": "Note does not include unrelated meds or conditions; no irrelevant chart content copied.",
+    "satisfaction": 95.0,
+    "score": -0.5
+  },
+  {
+    "rationale": "No fabricated or speculative information detected; content aligns with likely transcript.",
+    "satisfaction": 95.0,
+    "score": -0.75
+  },
+  {
+    "rationale": "QT value (470 ms) omitted, a key quantitative detail; other dosages correct.",
+    "satisfaction": 30.0,
+    "score": -7.0
+  }
+]

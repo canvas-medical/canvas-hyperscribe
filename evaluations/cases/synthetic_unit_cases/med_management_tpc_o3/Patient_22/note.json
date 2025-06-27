@@ -1,0 +1,27 @@
+[
+  {
+    "instruction": "Patient missed two active birth control pills during finals, doubled up on doses, and is experiencing spotting and heavy legs during sprints.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.history_present_illness",
+      "class": "HistoryOfPresentIllnessCommand",
+      "attributes": {
+        "narrative": "Patient missed two active birth control pills during finals, doubled up on doses, and is experiencing spotting and heavy legs during sprints."
+      }
+    }
+  },
+  {
+    "instruction": "From tonight, take one blue tablet at 9 p.m., no doses. Because you skipped more than 48 hours, add condoms for seven days. If any pill is over 24 hours late, swallow it immediately, continue the pack, and restart seven-day condom clock. Expected side effects include breast tenderness, mild water weight, mood flutter\u2014settle by the second pack and don\u2019t hurt VO\u2082 max. But calf pain or sudden chest tightness means ER, no apologies. Tie the pill to tooth-brushing, set two alarms, and keep a backup strip in your gear bag.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "coding": {
+          "system": "http://snomed.info/sct",
+          "code": "44651004",
+          "display": "Contraceptive use education"
+        },
+        "comment": "From tonight, take one blue tablet at 9 p.m., no doses. Because you skipped more than 48 hours, add condoms for seven days. If any pill is over 24 hours late, swallow it immediately, continue the pack, and restart seven-day condom clock. Expected side effects include breast tenderness, mild water weight, mood flutter\u2014settle by the second pack and don\u2019t hurt VO\u2082 max. But calf pain or sudden chest tightness means ER, no apologies. Tie the pill to tooth-brushing, set two alarms, and keep a backup strip in your gear bag."
+      }
+    }
+  }
+]

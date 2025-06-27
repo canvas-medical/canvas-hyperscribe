@@ -1,0 +1,82 @@
+[
+  {
+    "criterion": "Reward for accurately documenting that a 25 mg long-acting risperidone injection was administered today in the patient\u2019s right arm.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing the plan to shift furosemide 20 mg administration from noon to 10 a.m. with stated goal of reducing evening dizziness and allowing lunchtime re-hydration.",
+    "weight": 12,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for recording the patient\u2019s reported night-time dizziness, ringing in ears, emotional distress, and her desire to keep the \"water pill\" so her shoes fit.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting clinician orders for baseline ECG and serum electrolytes.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for including the conditional plan to start potassium chloride 20 mEq after supper daily if potassium drops below 4 mEq/L.",
+    "weight": 8,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for noting clinician instructions to aides: stand-by assist for ambulation, slow position changes, and daily blood-pressure recording in the binder.",
+    "weight": 8,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for recording that the next risperidone injection is due on day 28 and that excessive daytime drowsiness (>2 naps) should trigger a call to reduce the dose to 12.5 mg.",
+    "weight": 8,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting the patient\u2019s continued hallucinations, her request to advance the injection, and the clinician\u2019s explanation for holding until steady state after two injections.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing the patient\u2019s QT-interval concern about combining the water pill with risperidone and the clinician\u2019s response (low risk, daily pulse checks, weekly ECG for one month).",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for noting that the grandson served as interpreter and the facility nurse signed as witness.",
+    "weight": 5,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for accurately listing ongoing medications and their typical timing (furosemide, aspirin 81 mg with supper, vitamin D after breakfast) without adding drugs not mentioned.",
+    "weight": 6,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for overall completeness: the note captures all major statements, decisions, and patient concerns from the encounter without significant omissions or distortions.",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for omitting or inaccurately transcribing any high-value element above (e.g., wrong dose, missing ECG order, mis-timed medications).",
+    "weight": 20,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for introducing new clinical content, recommendations, or assessments that were not explicitly stated or implied in the transcript or chart.",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for copying irrelevant or excessive chart details (unrelated past history, medications, or demographic data) that were not referenced during the encounter.",
+    "weight": 10,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for fabricating patient responses or clinician statements not present in the transcript (e.g., denying side effects that were never addressed).",
+    "weight": 10,
+    "sense": "negative"
+  }
+]

@@ -1,0 +1,72 @@
+[
+  {
+    "rationale": "No mention that the long-acting aripiprazole injection is due Friday.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Includes advice to massage/apply warm compress, but does not record patient\u2019s report of soreness/lump.",
+    "satisfaction": 40.0,
+    "score": 4.0
+  },
+  {
+    "rationale": "No documentation of film count, possible missed dose, or withdrawal symptoms.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Gives storage instruction (keep in jacket) but omits patient\u2019s cold-weather concern and 15 \u00b0F threshold education.",
+    "satisfaction": 40.0,
+    "score": 4.0
+  },
+  {
+    "rationale": "Bitter taste observation not documented.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Emergency 5-day supply documented, but pharmacy \u2018limit until next week\u2019 not mentioned.",
+    "satisfaction": 70.0,
+    "score": 10.5
+  },
+  {
+    "rationale": "Task to nudge lockbox team present; patient awaiting call not documented.",
+    "satisfaction": 70.0,
+    "score": 7.0
+  },
+  {
+    "rationale": "Living situation by the river not noted.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Lists buprenorphine film implicitly, omits aripiprazole IM; no extra meds added.",
+    "satisfaction": 40.0,
+    "score": 2.0
+  },
+  {
+    "rationale": "Captures several plan items but omits many history/context elements; overall incomplete.",
+    "satisfaction": 30.0,
+    "score": 6.0
+  },
+  {
+    "rationale": "Some key items (e.g., injection due date, adherence details) omitted; moderate penalty.",
+    "satisfaction": 40.0,
+    "score": -9.0
+  },
+  {
+    "rationale": "No unwarranted diagnoses, symptoms, or medications introduced.",
+    "satisfaction": 100.0,
+    "score": -0.0
+  },
+  {
+    "rationale": "No incorrect quantitative facts stated.",
+    "satisfaction": 90.0,
+    "score": -1.5
+  },
+  {
+    "rationale": "Does not include irrelevant bulk chart data.",
+    "satisfaction": 100.0,
+    "score": -0.0
+  }
+]

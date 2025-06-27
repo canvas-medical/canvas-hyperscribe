@@ -1,0 +1,57 @@
+[
+  {
+    "criterion": "Reward for documenting patient's request for a year-long refill of loratadine and the reasons given (avoid repeated refills, keep extra bottle in school locker).",
+    "weight": 12,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for accurately recording the pharmacy alert and patient's report of grogginess after unintentionally doubling the loratadine dose.",
+    "weight": 12,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing clinician guidance to continue a single 10 mg loratadine tablet daily and to set a phone reminder to avoid missed doses.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting the specific refill plan: 90 tablets with three refills, to last until next spring, with separate bottles for home and locker.",
+    "weight": 12,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for including counseling on splitting supply into 10-pill blister packs and providing a one-page information sheet listing side-effect red flags.",
+    "weight": 8,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for noting the medication/supplement review in which the patient denies taking other drugs, supplements, or energy drinks.",
+    "weight": 6,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for recording weight confirmation (~140 lb / >30 kg) and clinician conclusion that current 10 mg dose is appropriate.",
+    "weight": 8,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing patient's concern about wheezing during cold practices and use of cousin's old inhaler.",
+    "weight": 6,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for overall completeness: the note faithfully reflects all significant statements, decisions, and counseling points from the encounter without omissions or additions.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for adding, omitting, or altering clinical facts (e.g., different medication, dose, quantity, or side effects) not supported by transcript or chart.",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for indiscriminate or inaccurate copying from the chart (e.g., irrelevant historical sections, nonexistent allergies) or failure to include relevant existing chart data such as current loratadine prescription.",
+    "weight": 6,
+    "sense": "negative"
+  }
+]

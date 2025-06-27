@@ -1,0 +1,62 @@
+[
+  {
+    "rationale": "Includes daily dosing and 0.02 mg EE / 0.1 mg LNG but as two separate drugs and even cites YAZ (drospirenone); omits \u201cstart tonight\u201d and 28-day pack wording.",
+    "satisfaction": 20.0,
+    "score": 4.0
+  },
+  {
+    "rationale": "Lists 6-month supply but no Harbor Pharmacy queue, voucher, Form K, or fax logistics.",
+    "satisfaction": 15.0,
+    "score": 1.5
+  },
+  {
+    "rationale": "Missed-pill instructions (<12 h vs >12 h and 7-day condoms) clearly documented.",
+    "satisfaction": 95.0,
+    "score": 14.25
+  },
+  {
+    "rationale": "No mention of common side-effects or serious warning signs.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Gives phone-alarm adherence tip but omits spotting guidance and ibuprofen advice.",
+    "satisfaction": 30.0,
+    "score": 2.1
+  },
+  {
+    "rationale": "Patient concerns about timing, bleeding, costs not captured.",
+    "satisfaction": 5.0,
+    "score": 0.35
+  },
+  {
+    "rationale": "No reflection of age, existing dysmenorrhea/irregular menses, or current meds.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Several key clinician elements absent; structure minimal.",
+    "satisfaction": 30.0,
+    "score": 6.0
+  },
+  {
+    "rationale": "Introduces YAZ and separate LNG prescription not in transcript\u2014moderate fabrication.",
+    "satisfaction": 30.0,
+    "score": -21.0
+  },
+  {
+    "rationale": "Hormone combination recorded inaccurately; extra tablet counts; therefore notable numeric errors.",
+    "satisfaction": 25.0,
+    "score": -15.0
+  },
+  {
+    "rationale": "Does not dump unrelated chart data.",
+    "satisfaction": 95.0,
+    "score": -0.5
+  },
+  {
+    "rationale": "Omission of side-effects, warning signs, logistics \u2192 significant gaps.",
+    "satisfaction": 30.0,
+    "score": -17.5
+  }
+]

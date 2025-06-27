@@ -1,0 +1,72 @@
+[
+  {
+    "rationale": "Included faxing charts, calling reviewer, and updating patient, but did not explicitly state that the PA was denied.",
+    "satisfaction": 80.0,
+    "score": 16.0
+  },
+  {
+    "rationale": "No mention of dispensing two sample pens or eight-week supply.",
+    "satisfaction": 5.0,
+    "score": 0.9
+  },
+  {
+    "rationale": "Lists weekly Sunday injections and rotating sites, but omits first-dose emphasis, 10-sec abdominal pinch, alcohol dab, and specific site rotation list.",
+    "satisfaction": 45.0,
+    "score": 6.75
+  },
+  {
+    "rationale": "Documents 36\u201346 \u00b0F range, ice-pack caveat, 6\u20138 h lunch-bag cooler, and 4-h flight cabin guidance accurately.",
+    "satisfaction": 95.0,
+    "score": 11.4
+  },
+  {
+    "rationale": "Clearly states to skip dose if >48 h late and wait until next Sunday.",
+    "satisfaction": 100.0,
+    "score": 8.0
+  },
+  {
+    "rationale": "Gives protein-first, sip water, stop at two-thirds full, acetaminophen advice, but omits explicit side-effect list (queasy stomach, reflux, slowed bowels).",
+    "satisfaction": 70.0,
+    "score": 10.5
+  },
+  {
+    "rationale": "Does not mention shellfish allergy non-issue.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Captures weekly FBG checks, <70 texting, 4-week reassessment and possible 0.5 mg escalation, but omits 2-week stall option.",
+    "satisfaction": 85.0,
+    "score": 12.75
+  },
+  {
+    "rationale": "No cost figures recorded.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Notes flight storage, but does not list other unresolved questions; does not label any items as unanswered.",
+    "satisfaction": 25.0,
+    "score": 2.0
+  },
+  {
+    "rationale": "Several high-priority elements missing (samples, allergy note, cost), so moderate penalty.",
+    "satisfaction": 35.0,
+    "score": -19.5
+  },
+  {
+    "rationale": "Note is organized and covers many key points but misses a few major details.",
+    "satisfaction": 70.0,
+    "score": 17.5
+  },
+  {
+    "rationale": "Adds no irrelevant chart data, but omits referenced shellfish allergy detail.",
+    "satisfaction": 50.0,
+    "score": -7.5
+  },
+  {
+    "rationale": "Introduces no new diagnoses or advice not in transcript.",
+    "satisfaction": 95.0,
+    "score": -1.25
+  }
+]

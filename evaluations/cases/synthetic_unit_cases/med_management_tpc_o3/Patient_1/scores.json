@@ -1,0 +1,62 @@
+[
+  {
+    "rationale": "Only mentions food-dependent absorption; omits one-tablet daily regimen and 2-days-before/7-days-after schedule.",
+    "satisfaction": 20.0,
+    "score": 4.0
+  },
+  {
+    "rationale": "No statement about insurance, formulary, or equivalence of future generics.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Does not document pill-appearance concern or suggested marking/ pill-box strategies.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Includes guidance to wait for snack with fat if >3 h delay, but does not explicitly say to link dose to a meal rather than the clock.",
+    "satisfaction": 60.0,
+    "score": 9.0
+  },
+  {
+    "rationale": "Irregular-meal/3 a.m. flight scenario and reminder strategies absent.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Captures shellfish allergy reassurance and advice to carry Benadryl.",
+    "satisfaction": 90.0,
+    "score": 9.0
+  },
+  {
+    "rationale": "Notes that vivid dreams are rare with atovaquone-proguanil and common with mefloquine.",
+    "satisfaction": 90.0,
+    "score": 9.0
+  },
+  {
+    "rationale": "References the drug and avoids unrelated data but omits patient age/sex; partial chart fidelity.",
+    "satisfaction": 50.0,
+    "score": 5.0
+  },
+  {
+    "rationale": "Key counseling points missing (dosing schedule, insurance, appearance); note only partially reflects encounter.",
+    "satisfaction": 25.0,
+    "score": 7.5
+  },
+  {
+    "rationale": "Omitted major dosing timing instructions; penalty applies.",
+    "satisfaction": 30.0,
+    "score": -17.5
+  },
+  {
+    "rationale": "No fabricated side effects, labs, or other content; stays within transcript.",
+    "satisfaction": 95.0,
+    "score": -1.0
+  },
+  {
+    "rationale": "No irrelevant history or template data copied; concise.",
+    "satisfaction": 95.0,
+    "score": -0.75
+  }
+]

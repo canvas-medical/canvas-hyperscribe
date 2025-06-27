@@ -1,0 +1,92 @@
+[
+  {
+    "instruction": "Refill of Loratadine 10 mg tablet, with directions to take one tablet daily, for a duration of 90 tablets with three refills, targeting allergic rhinitis due to pollen.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.refill",
+      "class": "RefillCommand",
+      "attributes": {
+        "days_supply": 90,
+        "fdb_code": "",
+        "sig": "Take one tablet daily",
+        "substitutions": "allowed",
+        "type_to_dispense": {
+          "representative_ndc": "",
+          "ncpdp_quantity_qualifier_code": ""
+        },
+        "prescriber_id": "4150cd20de8a470aa570a852859ac87e"
+      }
+    }
+  },
+  {
+    "instruction": "Set a phone reminder to take one Loratadine 10 mg tablet daily to avoid doubling up doses.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "comment": "Set a phone reminder to take one Loratadine 10 mg tablet daily to avoid doubling up doses."
+      }
+    }
+  },
+  {
+    "instruction": "Split the supply of Loratadine into smaller blister packs of ten pills each to prevent loss if the locker is broken into.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "comment": "Split the supply of Loratadine into smaller blister packs of ten pills each to prevent loss if the locker is broken into."
+      }
+    }
+  },
+  {
+    "instruction": "Provide a one-page sheet with the dose, purpose, and side-effect red flags such as sleepiness, rash, or racing heart for teachers or the coach.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "comment": "Provide a one-page sheet with the dose, purpose, and side-effect red flags such as sleepiness, rash, or racing heart for teachers or the coach.",
+        "coding": {
+          "system": "http://snomed.info/sct",
+          "code": "410264007",
+          "display": "Medication action/side effects education, guidance, and counseling"
+        }
+      }
+    }
+  },
+  {
+    "instruction": "Weight: 140 pounds.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.vitals",
+      "class": "VitalsCommand",
+      "attributes": {
+        "blood_pressure_systole": null,
+        "respiration_rate": null,
+        "blood_pressure_diastole": null,
+        "body_temperature": null,
+        "waist_circumference": null,
+        "height": null,
+        "pulse": null,
+        "weight_lbs": 140
+      }
+    }
+  },
+  {
+    "instruction": "Patient experiences eye leaking due to allergies and felt groggy after doubling up on Loratadine. Patient is juggling school, soccer, and living with grandparents. Patient gets wheezy during the first cold practice in March.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.history_present_illness",
+      "class": "HistoryOfPresentIllnessCommand",
+      "attributes": {
+        "narrative": "Patient experiences eye leaking due to allergies and felt groggy after doubling up on Loratadine. Patient is juggling school, soccer, and living with grandparents. Patient gets wheezy during the first cold practice in March."
+      }
+    }
+  },
+  {
+    "instruction": "Request for a year-long refill of allergy medication and discussion of side effects.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.reason_for_visit",
+      "class": "ReasonForVisitCommand",
+      "attributes": {
+        "comment": "Request for a year-long refill of allergy medication and discussion of side effects."
+      }
+    }
+  }
+]
