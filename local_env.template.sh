@@ -1,0 +1,26 @@
+#!/bin/bash
+export CUSTOMER_IDENTIFIER=
+export PATH_TO_REPO=
+export CANVAS_SDK_DB_NAME=
+export CANVAS_SDK_DB_USERNAME=
+export CANVAS_SDK_DB_PASSWORD=
+export CANVAS_SDK_DB_HOST=
+export CANVAS_SDK_DB_PORT=
+export VendorTextLLM=
+export KeyTextLLM=
+export VendorAudioLLM=
+export KeyAudioLLM=
+export ScienceHost=
+export OntologiesHost=
+export PreSharedKey=
+export StructuredReasonForVisit=
+export AwsKey=
+export AwsSecret=
+export AwsRegion=
+export AwsBucket=
+export SuperAwsKey=
+export SuperAwsSecret=
+export TUNING_CASE_DIRECTORY=
+export APISigningKey=
+export AUDIO_SERVER_URL=
+export AUDIO_SERVER_REGISTRATION_KEY=

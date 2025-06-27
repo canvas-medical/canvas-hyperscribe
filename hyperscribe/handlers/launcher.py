@@ -10,6 +10,7 @@ from hyperscribe.libraries.authenticator import Authenticator
 from hyperscribe.libraries.constants import Constants
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.settings import Settings
+from hyperscribe.handlers.capture import CaptureView
 
 
 class Launcher(ActionButton):
@@ -24,7 +25,6 @@ class Launcher(ActionButton):
 
     def handle(self) -> list[Effect]:
         note_id = str(Note.objects.get(dbid=self.event.context['note_id']).id)
-        audio_server_base_url = self.secrets[Constants.SECRET_AUDIO_HOST].rstrip('/')
         patient_id = self.target
         identification = IdentificationParameters(
             patient_uuid=patient_id,
@@ -32,6 +32,7 @@ class Launcher(ActionButton):
             provider_uuid='N/A',  # this field is not used within this handle() method
             canvas_instance=self.environment[Constants.CUSTOMER_IDENTIFIER],
         )
+        #TODO: Remove
         encoded_params = urlencode({
             "interval": self.secrets[Constants.SECRET_AUDIO_INTERVAL],
             "end_flag": Constants.PROGRESS_END_OF_MESSAGES,
@@ -42,7 +43,7 @@ class Launcher(ActionButton):
             ),
         })
         hyperscribe_pane = LaunchModalEffect(
-            url=f"{audio_server_base_url}/capture/{patient_id}/{note_id}?{encoded_params}",
+            url=f"/plugin-io/api/hyperscribe/{CaptureView.PATH}?patient_id={patient_id}&note_id={note_id}",
             target=LaunchModalEffect.TargetType.RIGHT_CHART_PANE,
             title="Hyperscribe"
         )
