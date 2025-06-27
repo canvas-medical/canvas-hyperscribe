@@ -1,0 +1,32 @@
+[
+  {
+    "criterion": "Reward for faithfully documenting all patient-reported details from the transcript, including the nausea being milder than with fluoxetine, patient worry about worsening, slight anxiety improvement, and that sertraline is taken with breakfast.",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for accurately capturing every clinician statement regarding assessment and plan: reassurance that side-effects often settle, ongoing monitoring, possible future dose/timing adjustment, and confirmation that taking medication with food can help.",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for overall completeness\u2014note includes every clinically relevant fact, action, and plan mentioned in the transcript with no omissions, distortions, or speaker misattributions.",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for introducing any content not present or implied in the transcript or chart (e.g., new diagnoses, physical exam findings, lab orders, medication changes, vitals, or counseling that were never discussed).",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Reward for selectively and accurately integrating relevant chart information (age 30 female, generalized anxiety disorder, current sertraline 50 mg daily, family history of depression) while omitting chart elements that are empty or unrelated.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for inaccurate or wholesale copying from the chart\u2014such as listing conditions, allergies, surgeries, or medication details that are absent, outdated, or irrelevant to the encounter, or misstating existing chart data.",
+    "weight": 15,
+    "sense": "negative"
+  }
+]

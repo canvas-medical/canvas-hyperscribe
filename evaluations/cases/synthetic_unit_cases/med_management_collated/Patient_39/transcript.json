@@ -1,0 +1,26 @@
+[
+  {
+    "speaker": "Patient",
+    "text": "So, um, with the sertraline, I noticed the nausea's getting better, but I'm still a bit worried about, uh, how long it'll take to fully go away."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "That's good to hear it's improving. Nausea can be a common side effect initially, but it usually subsides within a few weeks. Are you finding it manageable, or is it affecting your daily routine?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "It's not too bad now. I mean, I can still work and everything, but I just, uh, want to make sure it doesn't linger too long."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Absolutely, and if it does persist, we can look at adjusting the timing of your dose or even consider other options. But for now, let's give it a bit more time. How's everything else going with the therapy and lifestyle changes?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Therapy's been really helpful. I'm trying to, uh, stick to a routine with exercise and meditation. It's just, you know, balancing everything can be a bit tricky sometimes."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "That's understandable. It's great that you're committed to those changes. They can really complement the medication. If you ever feel overwhelmed, we can discuss ways to make it more manageable."
+  }
+]

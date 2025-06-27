@@ -1,0 +1,37 @@
+[
+  {
+    "criterion": "Reward for HPI that clearly documents the patient\u2019s lightheadedness/dizziness episodes with timing relative to morning amlodipine intake, adequacy of breakfast, and work on scaffolding, including frequency and severity",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for explicit assessment linking dizziness to possible amlodipine-induced hypotension and listing a brief differential diagnosis",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for evidence-based plan: advise taking amlodipine with substantial food, outline home or in-clinic blood pressure monitoring, propose dose/timing adjustment if symptoms persist, and specify follow-up interval",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting occupational safety guidance (e.g., avoiding scaffold work when dizzy, instructions on when to stop work or seek care)",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for concise documentation that omits redundant chart data not directly pertinent to today\u2019s encounter",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for absence of documented vital signs or orthostatic blood pressure measurement plan despite complaint of lightheadedness",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for continuing amlodipine without any monitoring or dose-adjustment plan despite reported dizziness, indicating unsafe management",
+    "weight": 10,
+    "sense": "negative"
+  }
+]

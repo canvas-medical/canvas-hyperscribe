@@ -1,0 +1,42 @@
+[
+  {
+    "criterion": "Reward for documenting in the HPI that the patient missed one dose of glipizide while traveling last week, noticed higher blood-sugar readings afterward, and normally relies on wife reminders and phone alarms",
+    "weight": 18,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for including an Assess instruction that evaluates current type 2 diabetes control, explicitly links the transient hyperglycemia to the missed sulfonylurea dose, and states that no medication change is required at this time",
+    "weight": 18,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for recording an Instruct instruction that gives specific adherence strategies (e.g., pill organizer, phone alarms when traveling) to prevent future missed doses",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for failure to document patient-safety guidance about monitoring for hyperglycemia/hypoglycemia after missed doses and when to seek medical attention",
+    "weight": 12,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Reward for using only relevant Canvas commands (HistoryOfPresentIllness, Assess, Instruct) without introducing unnecessary or incorrect command types",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for redundantly copying unchanged chart details (e.g., full medication list, demographics) instead of focusing on new encounter content",
+    "weight": 9,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for adding or changing prescriptions or dosages in response to this single missed dose without documented clinical indication",
+    "weight": 10,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Reward for noting social context and barriers (traveling to visit daughter, family involvement) that affect medication adherence",
+    "weight": 8,
+    "sense": "positive"
+  }
+]

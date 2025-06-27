@@ -1,0 +1,32 @@
+[
+  {
+    "criterion": "Reward for accurately documenting the core discussion about mesalamine adherence, including the patient's admitted difficulty taking it daily and the impact on symptoms.",
+    "weight": 25,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for faithfully recording the clinician's specific recommendations (use phone reminders, consider a pill organizer, report new symptoms or side-effects).",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for correctly incorporating relevant chart context actually pertinent to the visit (29-year-old male, Crohn's disease, current mesalamine 2.4 g daily) without adding unrelated chart details.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for introducing information or actions not grounded in either the transcript or the chart (e.g., new diagnoses, labs, imaging, dosage changes, follow-ups not discussed).",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for inaccurate transcription of concrete details such as medication name, dosage, demographic data, or advice (e.g., misstating mesalamine dosage, wrong age).",
+    "weight": 10,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for wholesale or selective copying of irrelevant chart data that was not referenced in the encounter (e.g., family history, allergies, surgery history) thereby reducing fidelity.",
+    "weight": 5,
+    "sense": "negative"
+  }
+]

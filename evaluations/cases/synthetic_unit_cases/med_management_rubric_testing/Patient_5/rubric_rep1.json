@@ -1,0 +1,37 @@
+[
+  {
+    "criterion": "Reward for accurately documenting the patient's reported concerns and symptom description (increased pain intensity, uncertainty about hydroxychloroquine efficacy, day-to-day variability).",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for faithfully capturing the clinician's statements and plan (give medication more time, monitor pain, possible dose adjustment or alternative options, reminder about daily folic acid).",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for overall completeness: the note includes every clinically relevant fact, question, or answer that appears in the transcript without omission or distortion.",
+    "weight": 25,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for introducing any information, assessment, diagnosis, order, instruction, or plan not explicitly stated or implied in the transcript or supported by the chart.",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Reward for selectively including only chart elements that are relevant and referenced (current RA diagnosis, current medications, sulfa allergy, demographics) and omitting unrelated chart data.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for copying chart information inaccurately or irrelevantly (e.g., listing unrelated conditions, wrong medication doses, or adding family history not mentioned).",
+    "weight": 10,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for any discrepancy in factual details explicitly stated in the transcript or chart (names, ages, medication names or strengths, frequencies).",
+    "weight": 10,
+    "sense": "negative"
+  }
+]

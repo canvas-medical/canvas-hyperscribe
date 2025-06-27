@@ -1,0 +1,42 @@
+[
+  {
+    "criterion": "Reward for documenting verbatim or clearly paraphrased patient reports of (a) improved blood sugars, (b) increased thirst as a side-effect, and (c) difficulty remembering morning empagliflozin dose because of irregular driving schedule, without adding unspoken details.",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for recording counseling given: specific hydration advice and a concrete adherence aid (e.g., phone alarm/app) that matches the dialogue.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for including an evidence-based assessment & plan for type 2 diabetes that references current SGLT2 + metformin therapy and indicates follow-up monitoring (e.g., A1c or weight check).",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for explicitly noting the social determinant that the patient\u2019s irregular work/travel schedule impairs medication adherence.",
+    "weight": 5,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for failure to list or reconcile both current antidiabetic medications (metformin 1000 mg, empagliflozin 10 mg) in the documentation.",
+    "weight": 5,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for inclusion of fabricated, speculative, or duplicated information that is not supported by the transcript or chart (e.g., inventing weight-gain data, lab values, or allergy status).",
+    "weight": 25,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Reward for correct use of appropriate Canvas structured commands (e.g., HistoryOfPresentIllness, Instruct, Assess) to capture this segment\u2019s content without unnecessary duplication.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for missing or insufficient safety documentation regarding SGLT2-inhibitor risks (dehydration, DKA/UTI signs) and when to seek care.",
+    "weight": 25,
+    "sense": "negative"
+  }
+]

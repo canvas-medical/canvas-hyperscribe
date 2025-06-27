@@ -1,0 +1,42 @@
+[
+  {
+    "criterion": "Reward for explicitly documenting the patient's reported symptom of chest discomfort with exertion in the History of Present Illness (or equivalent section).",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting the new prescription of low-dose aspirin, including the correct strength (81 mg) and daily dosing instructions.",
+    "weight": 25,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for recording the clinician's instruction to continue the patient\u2019s existing warfarin therapy without change.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for listing the patient\u2019s current warfarin 5 mg medication (sourced from the chart) accurately in the Medication section.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for overall completeness: the note captures all clinically relevant statements from the transcript (symptom, aspirin plan, warfarin continuation, patient acknowledgment) with no major omissions.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for introducing fabricated or speculative content not present or implied in the transcript or chart (e.g., additional diagnoses, tests, counseling).",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for copying irrelevant chart data (e.g., unrelated conditions like history of GI bleeding) that were not mentioned or implied during the encounter.",
+    "weight": 10,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for distorting transcript details, such as incorrect aspirin dosage, frequency, or misrepresenting the instruction regarding warfarin.",
+    "weight": 10,
+    "sense": "negative"
+  }
+]

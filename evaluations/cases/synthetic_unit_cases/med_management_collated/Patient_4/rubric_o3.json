@@ -1,0 +1,32 @@
+[
+  {
+    "criterion": "Reward for documenting a concise, complete History of Present Illness that includes the accidental extra furosemide dose, onset and course of dizziness, current improvement, absence of weight change or peripheral edema, and involvement of daughter/caregiver, without unrelated details.",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for recording an evidence-based assessment that links dizziness to possible diuretic-induced volume depletion or hypotension in the context of heart failure and chronic kidney disease, and that outlines appropriate differential or evaluation steps (e.g., orthostatic vitals, renal function, electrolytes) consistent with guidelines.",
+    "weight": 25,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for a clear patient-safety\u2013focused plan that provides specific instructions for adjusting or holding furosemide, establishes a caregiver-supported dosing schedule, advises monitoring (daily weight, symptoms, when to seek care), and sets a concrete follow-up timeline.",
+    "weight": 25,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for accurate medication reconciliation that lists current carvedilol, warfarin, and furosemide with correct doses, notes the one-time overdose, and avoids duplication or omission.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for failing to document essential objective data relevant to dizziness and diuretic use (e.g., current blood pressure, heart rate, weight, pertinent physical exam findings, or lab orders).",
+    "weight": 10,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for inclusion of redundant, copy-pasted, or irrelevant information not pertinent to this encounter segment.",
+    "weight": 10,
+    "sense": "negative"
+  }
+]

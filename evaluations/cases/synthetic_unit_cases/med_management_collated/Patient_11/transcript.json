@@ -1,0 +1,26 @@
+[
+  {
+    "speaker": "Patient",
+    "text": "I mean, I try to keep track of the amlodipine, but sometimes I just, uh, forget to pick it up on time. Living alone, it's easy to lose track."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "I understand. It can be challenging to manage everything on your own. Have you considered setting reminders on your phone or maybe using a pill organizer?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Yeah, I have a pill organizer, but I guess I just need to be more consistent with it. It's just, you know, sometimes the days blend together."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "That makes sense. And, uh, about the amlodipine, have you noticed any swelling in your ankles or feet? That's something we should keep an eye on."
+  },
+  {
+    "speaker": "Patient",
+    "text": "Not really, but I do feel a bit more tired than usual. Could that be related?"
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Fatigue can sometimes be a side effect, but let's make sure it's not something else. Have you been sleeping well, or has anything else changed recently?"
+  }
+]

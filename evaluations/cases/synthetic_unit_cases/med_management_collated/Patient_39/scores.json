@@ -1,0 +1,32 @@
+[
+  {
+    "rationale": "The note mentions the patient's report of improvement in nausea with sertraline but does not include the patient's concern about the duration of this side effect.",
+    "satisfaction": 50.0,
+    "score": 10.0
+  },
+  {
+    "rationale": "The note does not mention the clinician's reassurance about the commonality and expected duration of nausea or any plan to monitor and adjust treatment.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "The note does not include any feedback from the patient on the manageability of nausea or its impact on daily activities.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "The note documents the patient's engagement in therapy and lifestyle changes, including exercise and meditation.",
+    "satisfaction": 100.0,
+    "score": 20.0
+  },
+  {
+    "rationale": "The note does not mention any discussion or plan regarding follow-up on the patient's progress with therapy and lifestyle changes.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "The note does not mention any offer from the clinician to discuss ways to manage the patient's routine if they feel overwhelmed.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  }
+]

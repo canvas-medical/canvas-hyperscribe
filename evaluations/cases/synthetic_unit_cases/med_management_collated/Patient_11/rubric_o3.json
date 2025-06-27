@@ -1,0 +1,42 @@
+[
+  {
+    "criterion": "Reward for explicit documentation of the patient\u2019s amlodipine adherence difficulty, including missed pharmacy pickups and inconsistent pill-organizer use",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing and attributing the clinician\u2019s adherence-improvement counseling (phone reminders, pill organizer strategies) as part of the note",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for recording patient-reported symptoms and pertinent negatives specific to amlodipine (absence of ankle/foot swelling, presence of fatigue) exactly as stated",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting the clinician\u2019s further evaluation of fatigue (questions about sleep quality or other recent changes) to demonstrate differential assessment",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for inclusion of the social determinant that the patient lives alone and how it contributes to medication non-adherence",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for accurately listing ongoing antihypertensive therapy (amlodipine 10 mg) with correct dose and without introducing unverified medications or allergies",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for failure to document a safety plan or follow-up monitoring related to antihypertensive therapy (e.g., blood-pressure checks, surveillance for edema or persistent fatigue)",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for redundant, copy-pasted, or extraneous information that is not new or case-specific to this encounter segment",
+    "weight": 5,
+    "sense": "negative"
+  }
+]

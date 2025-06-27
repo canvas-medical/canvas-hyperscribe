@@ -1,0 +1,42 @@
+[
+  {
+    "criterion": "Reward for accurately documenting the patient's reported worsening pain, day-to-day variability, and worry that hydroxychloroquine may not be sufficient",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for faithfully recording the clinician's statements about waiting longer on current therapy, the possibility of dose adjustment or alternative options, and the plan to monitor closely",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing the discussion of medication adherence, including daily folic acid use and the support group influence",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for including only the relevant chart details explicitly or implicitly invoked\u2014current RA diagnosis, sulfa allergy, and current medications with correct names and dosages\u2014without extraneous chart information",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for introducing any symptoms, diagnoses, assessments, plans, tests, or instructions that are not present or implied in the transcript or chart",
+    "weight": 20,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for omitting any major element of the encounter (patient concerns, symptom course, medication adherence, clinician monitoring plan) thereby reducing overall completeness",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for factual inaccuracies or distortions in names, dosages, frequencies, dates, or demographics when copying from transcript or chart",
+    "weight": 10,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for copying or pasting irrelevant chart sections (e.g., unrelated family history, goals, template boilerplate) not connected to the current conversation",
+    "weight": 5,
+    "sense": "negative"
+  }
+]

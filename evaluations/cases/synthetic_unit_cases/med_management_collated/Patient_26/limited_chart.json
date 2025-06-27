@@ -1,0 +1,34 @@
+{
+  "demographicStr": "the patient is a woman, born on January 1, 1963 (age 60)",
+  "conditionHistory": [],
+  "currentAllergies": [
+    {
+      "uuid": "2408702d-ca1d-4e35-89b3-6a6adee9511c",
+      "label": "Penicillin",
+      "code": "Z88.0"
+    }
+  ],
+  "currentConditions": [
+    {
+      "uuid": "5c7572b5-eea4-41d3-9c0d-737a0eee2061",
+      "label": "Osteoarthritis",
+      "code": "M19.90"
+    }
+  ],
+  "currentGoals": [],
+  "currentMedications": [
+    {
+      "uuid": "d9ed94b4-6f87-46fb-8c72-47b0bf9f0ec0",
+      "label": "Celecoxib 100 mg daily",
+      "code": "NDC 0002-0800-01"
+    }
+  ],
+  "familyHistory": [
+    {
+      "uuid": "4d47f8e4-5532-45e5-8518-d42cdc6de449",
+      "label": "Family history of hypertension",
+      "code": "Z82.49"
+    }
+  ],
+  "surgeryHistory": []
+}

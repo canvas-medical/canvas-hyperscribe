@@ -1,0 +1,27 @@
+[
+  {
+    "rationale": "The documentation does not mention the patient's struggle with medication adherence or its impact on symptoms, missing important context for managing Crohn's disease.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "There are no practical solutions suggested for improving medication adherence, such as using a pill organizer.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "There is no follow-up plan documented to assess the effectiveness of adherence strategies.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "The documentation does not advise the patient to report new symptoms or side effects.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "The patient's current medication regimen is documented, including the importance of consistency with mesalamine.",
+    "satisfaction": 85.0,
+    "score": 17.0
+  }
+]

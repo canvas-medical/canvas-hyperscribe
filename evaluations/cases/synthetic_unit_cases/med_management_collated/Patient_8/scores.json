@@ -1,0 +1,32 @@
+[
+  {
+    "rationale": "The note mentions the patient's driving constraints but does not explicitly discuss an irregular schedule affecting adherence.",
+    "satisfaction": 60.0,
+    "score": 12.0
+  },
+  {
+    "rationale": "No practical solutions like setting reminders or using a pill organizer are suggested in the note.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "The note suggests taking losartan before bed, which fits the patient's routine.",
+    "satisfaction": 100.0,
+    "score": 15.0
+  },
+  {
+    "rationale": "There is no discussion of potential side effects or reassurance provided in the note.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "The note does not document the patient's current medication regimen or any changes discussed.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "The note lacks a follow-up plan or instructions for monitoring changes in symptoms or side effects.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  }
+]

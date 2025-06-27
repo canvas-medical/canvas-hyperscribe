@@ -1,0 +1,32 @@
+[
+  {
+    "criterion": "Reward for accurate and succinct HPI documentation of the patient\u2019s statin-associated muscle aches, capturing location (legs), timing (worse after sitting, evenings), aggravating factors, and the patient\u2019s level of concern",
+    "weight": 25,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for explicitly linking the muscle aches to atorvastatin and recording pertinent risk factors (current atorvastatin use, age >65, hypothyroidism) to support consideration of statin-induced myopathy",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting an evidence-based assessment and plan addressing possible statin-associated myopathy, including consideration or ordering of CK/LFT labs, dose-timing change or alternative statin, and a concrete follow-up timeline",
+    "weight": 25,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for absence of patient safety counseling on red-flag symptoms of severe muscle injury (e.g., weakness, dark urine) and clear instructions about when to stop the medication or seek urgent care",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for inclusion of irrelevant or redundant chart data or excessive narrative not directly pertinent to today\u2019s statin-related muscle ache discussion",
+    "weight": 10,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Reward for correct and efficient use of Canvas structured instructions (HistoryOfPresentIllness, Assess Hyperlipidemia, possible LabOrder for CK, FollowUp) in compliance with one-per-type constraints",
+    "weight": 5,
+    "sense": "positive"
+  }
+]

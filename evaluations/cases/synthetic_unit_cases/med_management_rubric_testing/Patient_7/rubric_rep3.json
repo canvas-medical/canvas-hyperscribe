@@ -1,0 +1,42 @@
+[
+  {
+    "criterion": "Reward for comprehensive inclusion of all clinically pertinent statements from the transcript (medication change to 88 mcg, patient\u2019s reported no new symptoms and slight energy increase, counseling on morning empty-stomach dosing, separation from atorvastatin, watch-for symptoms).",
+    "weight": 30,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for omission of any major element explicitly discussed in the transcript (e.g., lack of new symptoms, mild increased energy, timing of levothyroxine, spacing from atorvastatin, palpitations/sweating warning).",
+    "weight": 25,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Reward for precise transcription of medication names, strengths, and administration times exactly as spoken or listed in the chart (levothyroxine 88 mcg AM, atorvastatin 20 mg PM).",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for inaccurate or altered details relative to transcript or chart (wrong dosages, swapped times, incorrect symptom wording, misquoted advice).",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for introducing fabricated content not present or implied in the transcript or chart (additional diagnoses, plans, exam findings, review-of-systems, lab orders, etc.).",
+    "weight": 10,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Reward for selectively incorporating only chart data that is relevant to the encounter (hypothyroidism and hyperlipidemia as existing conditions, current meds) without copying unrelated chart elements.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for copying or paraphrasing chart information that was not referenced or implied in the encounter (e.g., family history of heart attack) or for misrepresenting demographic data.",
+    "weight": 10,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Reward for maintaining fidelity of speaker attribution and conversational tone (clearly distinguishing clinician instructions from patient responses without mislabeling).",
+    "weight": 5,
+    "sense": "positive"
+  }
+]

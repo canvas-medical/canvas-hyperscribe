@@ -1,0 +1,32 @@
+[
+  {
+    "rationale": "The patient's concern about increased hunger and potential weight gain related to glipizide use is documented, reflecting patient-centered care.",
+    "satisfaction": 95.0,
+    "score": 19.0
+  },
+  {
+    "rationale": "The patient's report of lower blood sugar readings since starting glipizide is noted, indicating effective medication management.",
+    "satisfaction": 90.0,
+    "score": 13.5
+  },
+  {
+    "rationale": "There is no mention of a plan to monitor the patient's weight or adjust the diet plan, which is crucial for managing potential weight gain from glipizide.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "There is no documentation of the patient's response to losartan with resolution of cough, missing an opportunity to indicate effective management.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "The patient's report of ankle swelling potentially related to losartan is documented, but there is no further evaluation or plan mentioned.",
+    "satisfaction": 50.0,
+    "score": 10.0
+  },
+  {
+    "rationale": "There is no plan included to monitor the patient's ankle swelling or consider dose adjustment, missing proactive patient safety measures.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  }
+]

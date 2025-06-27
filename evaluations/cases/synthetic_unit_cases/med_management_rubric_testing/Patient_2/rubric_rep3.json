@@ -1,0 +1,32 @@
+[
+  {
+    "criterion": "Reward for comprehensive inclusion of all clinically relevant statements from the transcript, faithfully capturing each speaker\u2019s key points (missed glipizide dose, higher glucose readings, travel context, adherence strategies).",
+    "weight": 30,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for faithfully documenting the patient\u2019s admission of missing one dose of glipizide during travel and the reason (visiting daughter, distraction).",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for accurately noting the patient\u2019s report of higher blood sugar readings since the missed dose and related worry.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for precisely capturing the clinician\u2019s counseling and recommendations: importance of consistent dosing, inquiry about travel system, suggestion of phone alarms and a pill organizer.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for copying or importing chart data that was not referenced or pertinent to the encounter, or for omitting relevant chart elements that give necessary context (e.g., current diabetes diagnosis and active medications).",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for any misstatements, distortions, or fabricated information (e.g., altered medication names/doses, added lab orders, new diagnoses or plans) that are unsupported by the transcript or chart.",
+    "weight": 15,
+    "sense": "negative"
+  }
+]

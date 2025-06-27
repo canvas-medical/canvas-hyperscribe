@@ -1,0 +1,27 @@
+[
+  {
+    "criterion": "Reward for accurately documenting the patient's reported chest discomfort with exertion exactly as stated in the transcript.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for accurately documenting the clinician's plan to add low-dose aspirin 81 mg daily to the patient's regimen, including dose and frequency.",
+    "weight": 25,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for accurately documenting the instruction to continue taking warfarin as usual without changes.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for fabrications or statements not supported or implied by the transcript or chart (e.g., new diagnoses, lab orders, follow-up plans, ROS items not mentioned).",
+    "weight": 20,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for inappropriate or selective copying from the chart, such as importing past medical history, demographics, or conditions not referenced in the transcript, or copying them inaccurately.",
+    "weight": 10,
+    "sense": "negative"
+  }
+]

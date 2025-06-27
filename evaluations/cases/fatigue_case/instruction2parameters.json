@@ -1,0 +1,53 @@
+{
+  "cycle_000": {
+    "instructions": [
+      {
+        "uuid": "1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p",
+        "index": 0,
+        "instruction": "ReasonForVisit",
+        "information": "Fatigue and feeling drained",
+        "isNew": true,
+        "isUpdated": false
+      },
+      {
+        "uuid": "2b3c4d5e-6f7g-8h9i-0j1k-2l3m4n5o6p7q",
+        "index": 1,
+        "instruction": "HistoryOfPresentIllness",
+        "information": "Fatigue for the last couple of weeks, waking up a lot at night, not feeling rested, slight weight loss, lightheadedness when standing up, stopped taking iron supplements due to stomach upset.",
+        "isNew": true,
+        "isUpdated": false
+      },
+      {
+        "uuid": "3c4d5e6f-7g8h-9i0j-1k2l-3m4n5o6p7q8r",
+        "index": 2,
+        "instruction": "LabOrder",
+        "information": "Iron, thyroid, B12 tests ordered.",
+        "isNew": true,
+        "isUpdated": false
+      }
+    ],
+    "parameters": [
+      {
+        "reasonForVisit": "Fatigue and feeling drained"
+      },
+      {
+        "narrative": "Fatigue for the last couple of weeks, waking up a lot at night, not feeling rested, slight weight loss, lightheadedness when standing up, stopped taking iron supplements due to stomach upset."
+      },
+      {
+        "labOrders": [
+          {
+            "labOrderKeywords": "iron,serum iron,iron level,iron test,iron studies,thyroid,TSH,thyroid function,thyroid panel,thyroid test,B12,vitamin B12,B12 level,B12 test,cobalamin"
+          }
+        ],
+        "conditions": [
+          {
+            "conditionKeywords": "anemia,iron deficiency,thyroid disorder,hypothyroidism,hyperthyroidism,B12 deficiency,pernicious anemia",
+            "ICD10": "D50.9,E03.9,E05.9,D51.0"
+          }
+        ],
+        "fastingRequired": false,
+        "comment": "To assess iron levels, thyroid function, and B12 status."
+      }
+    ]
+  }
+}

@@ -1,0 +1,66 @@
+{
+  "fidelity_criteria": [
+    {
+      "criterion": "Reward for accurately documenting the patient's report of nausea with current sertraline therapy, explicitly noting that the nausea is less intense than what she previously experienced with fluoxetine.",
+      "weight": 15,
+      "sense": "positive"
+    },
+    {
+      "criterion": "Reward for documenting the patient's statement of slight improvement in anxiety symptoms since starting sertraline.",
+      "weight": 10,
+      "sense": "positive"
+    },
+    {
+      "criterion": "Reward for recording the current medication details: sertraline 50 mg taken once daily with breakfast (i.e., with food).",
+      "weight": 10,
+      "sense": "positive"
+    },
+    {
+      "criterion": "Reward for capturing the clinician's plan to continue the present dose, monitor side-effects, and consider dose or timing adjustment only if nausea persists.",
+      "weight": 15,
+      "sense": "positive"
+    },
+    {
+      "criterion": "Penalize for documenting any change to the sertraline prescription (dose alteration, discontinuation, or new medication) that was not ordered or discussed in the encounter segment.",
+      "weight": 20,
+      "sense": "negative"
+    },
+    {
+      "criterion": "Reward for including core patient context (30-year-old female with diagnosed generalized anxiety disorder) exactly as reflected in the chart.",
+      "weight": 5,
+      "sense": "positive"
+    },
+    {
+      "criterion": "Penalize for omitting any reference to the clinician's reassurance that nausea often settles after a few weeks and instruction to \"keep an eye on it\" (i.e., monitor side-effects).",
+      "weight": 10,
+      "sense": "negative"
+    }
+  ],
+  "appropriateness_criteria": [
+    {
+      "criterion": "Reward for maintaining the current sertraline dose and opting for watchful waiting, an evidence-based approach for mild early SSRI gastrointestinal side-effects with partial therapeutic benefit already evident.",
+      "weight": 20,
+      "sense": "positive"
+    },
+    {
+      "criterion": "Reward for providing patient-safety instructions to report worsening nausea or other concerning symptoms and for setting expectations on side-effect duration.",
+      "weight": 15,
+      "sense": "positive"
+    },
+    {
+      "criterion": "Penalize for failing to specify a clear follow-up timeframe or mechanism to reassess side-effects, which poses a patient-safety risk.",
+      "weight": 15,
+      "sense": "negative"
+    },
+    {
+      "criterion": "Penalize for recommending an unsafe or non\u2013evidence-based intervention (e.g., dose increase, abrupt discontinuation, or antiemetic with significant interaction risk) without documented justification.",
+      "weight": 20,
+      "sense": "negative"
+    },
+    {
+      "criterion": "Reward for advising or reaffirming the evidence-based strategy of taking sertraline with food to mitigate nausea.",
+      "weight": 10,
+      "sense": "positive"
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+[
+  {
+    "rationale": "No patient-reported statuses (no cough, fatigue, stable energy, anxiety) documented; only generic medication statements given.",
+    "satisfaction": 5.0,
+    "score": 1.25
+  },
+  {
+    "rationale": "Captures a generic missed-dose instruction but omits losartan side-effect counseling and monitoring advice.",
+    "satisfaction": 20.0,
+    "score": 4.0
+  },
+  {
+    "rationale": "No safety or monitoring plan, no BP self-monitoring, no lab orders; criterion completely unmet.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Major subjective and counseling elements omitted (fatigue, no cough, energy level, side-effects); only partial missed-dose advice recorded.",
+    "satisfaction": 20.0,
+    "score": 3.0
+  },
+  {
+    "rationale": "Used MedicationStatement and Instruct commands, but lacked structured assessments and lab orders; partial compliance.",
+    "satisfaction": 40.0,
+    "score": 4.0
+  },
+  {
+    "rationale": "Note is concise; only mildly irrelevant family-history line included\u2014minimal redundancy.",
+    "satisfaction": 80.0,
+    "score": 8.0
+  }
+]

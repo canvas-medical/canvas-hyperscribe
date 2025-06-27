@@ -1,0 +1,17 @@
+[
+  {
+    "instruction": "It's best to take prednisone consistently, but if you miss a dose, take it as soon as you remember, unless it's almost time for your next dose. Then, skip it and continue as normal.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "comment": "If you miss a dose of prednisone, take it as soon as you remember, unless it's almost time for your next dose. Then, skip it and continue as normal.",
+        "coding": {
+          "system": "http://snomed.info/sct",
+          "code": "4761000124103",
+          "display": "Recommendation to continue a medication"
+        }
+      }
+    }
+  }
+]

@@ -1,0 +1,9 @@
+{
+  "environment": "plugin-testing",
+  "patientUuid": "189a9c1402264263ab0805195f80c514",
+  "caseType": "general",
+  "caseGroup": "common",
+  "caseName": "chronic_cough",
+  "cycles": 1,
+  "description": "chronic_cough"
+}

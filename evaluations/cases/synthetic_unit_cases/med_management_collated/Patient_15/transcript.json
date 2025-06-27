@@ -1,0 +1,26 @@
+[
+  {
+    "speaker": "Patient",
+    "text": "So, uh, with the prednisone, I noticed my breathing's been a lot better, but I'm worried about, you know, the long-term effects. My wife read something about it online."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "That's a valid concern. Prednisone can have side effects, especially with long-term use, but since you're on a short course, the benefits usually outweigh the risks. How many days do you have left on this course?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "I think, uh, just a couple more days. My wife keeps track of it, but I think that's right."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Okay, great. And after you finish this course, we'll just continue with the tiotropium for maintenance. Have you had any issues using the inhaler?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "No, not really. My wife helps me with it, so it's been fine. Just sometimes I feel a bit jittery, but it's not too bad."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "That's good to hear. The jitteriness can happen, but if it becomes bothersome, let me know. And, uh, just to confirm, you're not using any other inhalers, right?"
+  }
+]

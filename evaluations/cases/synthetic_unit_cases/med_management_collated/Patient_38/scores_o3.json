@@ -1,0 +1,32 @@
+[
+  {
+    "rationale": "Specifies weekly INR checks and states \"until things stabilize,\" but does not document a specific lab order or follow-up appointment.",
+    "satisfaction": 65.0,
+    "score": 16.25
+  },
+  {
+    "rationale": "Links increased monitoring to recent dietary changes but does not cite evidence-based guidelines explicitly.",
+    "satisfaction": 75.0,
+    "score": 11.25
+  },
+  {
+    "rationale": "Provides phone-alarm reminder but omits pill-organizer counseling.",
+    "satisfaction": 50.0,
+    "score": 7.5
+  },
+  {
+    "rationale": "No documentation that daughter assists with appointments or other social context.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Completely omits warfarin safety counseling (bleeding signs, missed doses, when to seek care).",
+    "satisfaction": 100.0,
+    "score": -20.0
+  },
+  {
+    "rationale": "Note is brief and focused; only minor duplication of phrasing, minimal irrelevant content.",
+    "satisfaction": 10.0,
+    "score": -1.5
+  }
+]

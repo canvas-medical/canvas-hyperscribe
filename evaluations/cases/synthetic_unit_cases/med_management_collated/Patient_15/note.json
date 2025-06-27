@@ -1,0 +1,12 @@
+[
+  {
+    "instruction": "Patient reports improved breathing with prednisone but is concerned about long-term effects. No issues using the tiotropium inhaler, but experiences occasional jitteriness.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.history_present_illness",
+      "class": "HistoryOfPresentIllnessCommand",
+      "attributes": {
+        "narrative": "Patient reports improved breathing with prednisone but is concerned about long-term effects. No issues using the tiotropium inhaler, but experiences occasional jitteriness."
+      }
+    }
+  }
+]

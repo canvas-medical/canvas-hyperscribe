@@ -1,0 +1,37 @@
+[
+  {
+    "criterion": "Reward for documenting a clear, concise History of Present Illness that captures onset and character of nausea, its comparison to past fluoxetine-related nausea, current severity, and partial anxiety improvement",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for explicitly recording current medication details including sertraline name, 50 mg daily dose, patient is taking with breakfast, and adherence",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for stating an evidence-based assessment that mild nausea is a common SSRI side effect likely related to sertraline and usually self-limited",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting a management plan consistent with guidelines: continue sertraline, monitor for a few weeks, consider dose or timing adjustment if nausea persists, and schedule follow-up",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for recording the patient education provided (take with food, monitor symptoms) and specific return-precautions",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for missing or inadequate safety instructions regarding concerning symptoms (e.g., worsening nausea, persistent vomiting, suicidal ideation) or absence of a defined follow-up timeframe",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for redundant, irrelevant, or copy-pasted information unrelated to this encounter segment (e.g., restating entire medication list or historical data not discussed)",
+    "weight": 10,
+    "sense": "negative"
+  }
+]

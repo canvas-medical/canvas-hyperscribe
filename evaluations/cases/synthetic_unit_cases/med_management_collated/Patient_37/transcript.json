@@ -1,0 +1,22 @@
+[
+  {
+    "speaker": "Patient",
+    "text": "So, um, I was thinking, if I take the metformin with my lunch instead of breakfast, would that be okay? Sometimes mornings are just too hectic."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "That's a good question. Taking it with lunch is fine, as long as you're consistent with the timing. Have you noticed any changes in your blood sugar levels when you adjust the timing?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Not really, but I just want to make sure I'm doing it right. I mean, I try to keep it regular, but some days are just, you know, all over the place."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "I understand. It's important to find a routine that fits your schedule. Have you been able to check your blood sugar regularly?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Yeah, I try to do it every morning before work. It's just that sometimes I forget if I'm rushing out the door."
+  }
+]

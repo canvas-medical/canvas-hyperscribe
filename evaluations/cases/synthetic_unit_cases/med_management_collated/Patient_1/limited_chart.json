@@ -1,0 +1,38 @@
+{
+  "demographicStr": "the patient is a woman, born on January 1, 1978 (age 45)",
+  "conditionHistory": [],
+  "currentAllergies": [],
+  "currentConditions": [
+    {
+      "uuid": "762e0767-8ad5-4de0-abbd-e0105ca86d02",
+      "label": "Hypertension",
+      "code": "I10"
+    },
+    {
+      "uuid": "bde18d24-d8ba-4bf4-bdc7-6ff65978a822",
+      "label": "Hyperlipidemia",
+      "code": "E78.5"
+    }
+  ],
+  "currentGoals": [],
+  "currentMedications": [
+    {
+      "uuid": "aa8a2864-1527-432d-bcff-4d7fce5f1927",
+      "label": "Losartan 50 mg tablet",
+      "code": "C09CA01"
+    },
+    {
+      "uuid": "6356b56d-9dbe-4237-bbd9-f6208e7c7e62",
+      "label": "Atorvastatin 10 mg tablet",
+      "code": "C10AA05"
+    }
+  ],
+  "familyHistory": [
+    {
+      "uuid": "1d737e81-9814-450b-b00a-2b46feb8f871",
+      "label": "Family history of cardiovascular disease",
+      "code": "Z82.49"
+    }
+  ],
+  "surgeryHistory": []
+}

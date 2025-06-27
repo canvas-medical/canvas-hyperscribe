@@ -1,0 +1,124 @@
+{
+  "cycle_000": {
+    "transcript": [
+      {
+        "speaker": "",
+        "text": "Hi, welcome back. Still dealing with that cough?"
+      },
+      {
+        "speaker": "",
+        "text": "Yeah, it\u2019s hanging on. Some days it\u2019s better, some days it flares up."
+      },
+      {
+        "speaker": "",
+        "text": "About how long has it been at this point?"
+      },
+      {
+        "speaker": "",
+        "text": "Close to six weeks, I think."
+      },
+      {
+        "speaker": "",
+        "text": "That\u2019s a while. Is it mostly dry, or are you bringing stuff up?"
+      },
+      {
+        "speaker": "",
+        "text": "Mostly dry. Sometimes in the morning I\u2019ll cough up a bit of phlegm."
+      },
+      {
+        "speaker": "",
+        "text": "Any blood in what you cough up?"
+      },
+      {
+        "speaker": "",
+        "text": "No, nothing like that."
+      },
+      {
+        "speaker": "",
+        "text": "Fever, chills, night sweats?"
+      },
+      {
+        "speaker": "",
+        "text": "Nope."
+      },
+      {
+        "speaker": "",
+        "text": "How\u2019s your breathing otherwise? Any wheezing or shortness of breath?"
+      },
+      {
+        "speaker": "",
+        "text": "I do get a bit winded going up stairs now, but that might just be me getting older."
+      },
+      {
+        "speaker": "",
+        "text": "Have you ever been diagnosed with asthma or anything like that?"
+      },
+      {
+        "speaker": "",
+        "text": "No, not that I know of."
+      },
+      {
+        "speaker": "",
+        "text": "Are you around smoke or fumes at work or home?"
+      },
+      {
+        "speaker": "",
+        "text": "No smoke. My partner smokes outside sometimes but not inside."
+      },
+      {
+        "speaker": "",
+        "text": "Any heartburn or reflux?"
+      },
+      {
+        "speaker": "",
+        "text": "Now that you mention it, yeah. I\u2019ve had more heartburn lately."
+      },
+      {
+        "speaker": "",
+        "text": "That can sometimes cause or worsen a cough. Let\u2019s try something for reflux and see if it helps."
+      },
+      {
+        "speaker": "",
+        "text": "Okay, I\u2019ll give it a shot."
+      }
+    ],
+    "instructions": {
+      "initial": [
+        {
+          "uuid": ">?<",
+          "index": 1,
+          "instruction": "ReasonForVisit",
+          "information": "Sick Visit",
+          "isNew": false,
+          "isUpdated": false
+        }
+      ],
+      "result": [
+        {
+          "uuid": ">?<",
+          "index": 1,
+          "instruction": "ReasonForVisit",
+          "information": "Sick Visit, Persistent cough",
+          "isNew": false,
+          "isUpdated": true
+        },
+        {
+          "uuid": ">?<",
+          "index": 2,
+          "instruction": "HistoryOfPresentIllness",
+          "information": "Patient has had a persistent cough for close to six weeks, mostly dry with occasional phlegm in the morning, no blood in sputum, no fever, chills, or night sweats. Patient experiences slight shortness of breath when climbing stairs. No history of asthma. Partner smokes outside. Recent increase in heartburn.",
+          "isNew": true,
+          "isUpdated": false
+        },
+        {
+          "uuid": ">?<",
+          "index": 3,
+          "instruction": "Prescription",
+          "information": "Medication for reflux to see if it helps with the cough.",
+          "isNew": true,
+          "isUpdated": false
+        }
+      ]
+    }
+  }
+}

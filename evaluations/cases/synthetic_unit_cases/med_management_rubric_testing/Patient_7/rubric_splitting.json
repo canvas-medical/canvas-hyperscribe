@@ -1,0 +1,56 @@
+{
+  "fidelity_criteria": [
+    {
+      "criterion": "Reward for accurately documenting that the patient reports feeling essentially the same after the dose increase, with only a possible slight increase in energy",
+      "weight": 20,
+      "sense": "positive"
+    },
+    {
+      "criterion": "Reward for including the clinician's advice to monitor for hyper-thyroid symptoms such as palpitations or increased sweating",
+      "weight": 15,
+      "sense": "positive"
+    },
+    {
+      "criterion": "Reward for correctly recording that the patient takes levothyroxine 88 mcg on an empty stomach in the morning and atorvastatin 20 mg at night, separated from levothyroxine",
+      "weight": 20,
+      "sense": "positive"
+    },
+    {
+      "criterion": "Reward for listing current medications with their exact dosages as shown in the chart (levothyroxine 88 mcg, atorvastatin 20 mg)",
+      "weight": 10,
+      "sense": "positive"
+    },
+    {
+      "criterion": "Penalize for introducing symptoms, medication changes, instructions, or other clinical details that were not stated in the transcript or present in the chart",
+      "weight": 20,
+      "sense": "negative"
+    },
+    {
+      "criterion": "Penalize for omitting any of the explicitly discussed counseling or medication-timing details (morning empty-stomach dosing, nighttime atorvastatin, watch for palpitations/sweating)",
+      "weight": 15,
+      "sense": "negative"
+    }
+  ],
+  "appropriateness_criteria": [
+    {
+      "criterion": "Reward for documenting an evidence-based plan to re-check thyroid function (TSH) within about 6\u20138 weeks after the levothyroxine dose adjustment",
+      "weight": 30,
+      "sense": "positive"
+    },
+    {
+      "criterion": "Penalize for absence of any follow-up or monitoring plan for thyroid function after the recent dose increase",
+      "weight": 20,
+      "sense": "negative"
+    },
+    {
+      "criterion": "Reward for providing correct safety counseling that levothyroxine should be taken on an empty stomach 30\u201360 minutes before food and separated from atorvastatin or other medications by several hours",
+      "weight": 20,
+      "sense": "positive"
+    },
+    {
+      "criterion": "Penalize for giving incorrect or unsafe dosing instructions for levothyroxine (e.g., advising intake with food or at the same time as atorvastatin)",
+      "weight": 30,
+      "sense": "negative"
+    }
+  ]
+}

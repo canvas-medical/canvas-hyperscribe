@@ -1,0 +1,37 @@
+[
+  {
+    "rationale": "Note states GAD mostly under control but omits that patient asked about increasing sertraline and does not name sertraline itself, so only partial fulfillment.",
+    "satisfaction": 30.0,
+    "score": 6.0
+  },
+  {
+    "rationale": "Lists \u201c100 mg of medication for anxiety\u201d but drug name absent and no adherence information documented.",
+    "satisfaction": 25.0,
+    "score": 2.5
+  },
+  {
+    "rationale": "Assessment marks GAD stable, but plan to continue current dose and explicit rationale not written.",
+    "satisfaction": 40.0,
+    "score": 10.0
+  },
+  {
+    "rationale": "No counseling about monitoring symptoms or contacting clinic present.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "No follow-up timeframe or contingency instructions included.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "No unsupported dose increase recorded; criterion fully satisfied.",
+    "satisfaction": 100.0,
+    "score": 10.0
+  },
+  {
+    "rationale": "Note concise; minimal non-specific or copy-pasted material\u2014minor generic phrasing only.",
+    "satisfaction": 90.0,
+    "score": 9.0
+  }
+]

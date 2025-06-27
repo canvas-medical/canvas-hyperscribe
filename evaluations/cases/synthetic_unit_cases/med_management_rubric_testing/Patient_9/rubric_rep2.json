@@ -1,0 +1,32 @@
+[
+  {
+    "criterion": "Reward for capturing all patient-reported details from the transcript, including mood improvement uncertainty, initial nausea, inconsistent ingestion with/without food, and skipped refill due to cost",
+    "weight": 30,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting all clinician statements and actions from the transcript, such as advising taking sertraline with food, suggesting phone reminders, and intent to explore affordability/assistance programs",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for accurately incorporating only chart information that is directly relevant to the encounter (e.g., current sertraline 50 mg, major depressive disorder, anxiety disorder, basic demographics) while omitting unrelated chart data",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for omitting any of the key patient-reported or clinician-stated elements listed above, resulting in an incomplete representation of the encounter",
+    "weight": 25,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for introducing any information, diagnoses, plans, dosages, symptoms, or timelines not present in either the transcript or the chart",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for copying chart data inaccurately or indiscriminately (e.g., adding unrelated family history, allergies, or past surgeries) or misrepresenting chart details (wrong medication dose, wrong age, etc.)",
+    "weight": 5,
+    "sense": "negative"
+  }
+]

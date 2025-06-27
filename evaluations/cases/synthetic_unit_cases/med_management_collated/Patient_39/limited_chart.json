@@ -1,0 +1,34 @@
+{
+  "demographicStr": "the patient is a man, born on January 1, 1988 (age 35)",
+  "conditionHistory": [],
+  "currentAllergies": [],
+  "currentConditions": [
+    {
+      "uuid": "f7dd1bc8-43fc-4a7f-b5ea-384f2e4817ac",
+      "label": "Anxiety",
+      "code": "F41.9"
+    }
+  ],
+  "currentGoals": [
+    {
+      "uuid": "ec949d5b-5ca2-4a2a-929a-cca20156556c",
+      "label": "Manage anxiety through therapy and lifestyle changes",
+      "code": ""
+    }
+  ],
+  "currentMedications": [
+    {
+      "uuid": "41e0f094-ff04-47e9-86e2-d06f1884467b",
+      "label": "Sertraline 50 mg daily",
+      "code": "N06AB06"
+    }
+  ],
+  "familyHistory": [
+    {
+      "uuid": "d4735e9e-5730-43f6-80b2-96a498d9d0de",
+      "label": "Family history of depression",
+      "code": "Z81.8"
+    }
+  ],
+  "surgeryHistory": []
+}

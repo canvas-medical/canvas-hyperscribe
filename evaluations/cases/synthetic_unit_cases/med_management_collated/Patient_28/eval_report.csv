@@ -1,0 +1,7 @@
+Criterion #,Criterion,Max Score,Satisfaction (%),Score Awarded,Rationale
+1,"Reward for documenting the patient's response to the adjusted levothyroxine dose, including the reduction in frequency of palpitations.",20,90.0,18.0,"The patient's response to the adjusted levothyroxine dose is documented, including the reduction in frequency of palpitations."
+2,"Reward for identifying and addressing the patient's transportation issue for medication refills, including the suggestion of a delivery service.",25,100.0,25.0,The transportation issue is addressed with the suggestion of a delivery service.
+3,"Penalize for omitting the patient's age and gender, which are relevant demographic details for context.",10,0.0,0.0,The patient's age and gender are not mentioned in the documentation.
+4,"Reward for including the patient's expressed concern about ongoing palpitations, which is important for assessing the effectiveness of the current treatment plan.",15,85.0,12.75,"The patient's concern about ongoing palpitations is included, which is important for treatment assessment."
+5,Penalize for not explicitly documenting the plan to monitor the patient's palpitations and any follow-up actions.,15,0.0,0.0,There is no explicit documentation of a plan to monitor palpitations or follow-up actions.
+6,"Reward for including the patient's acknowledgment of the benefit of the proposed medication delivery service, indicating patient engagement and understanding.",15,0.0,0.0,The patient's acknowledgment of the benefit of the delivery service is not documented.

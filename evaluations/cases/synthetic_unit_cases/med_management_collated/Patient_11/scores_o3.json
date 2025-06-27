@@ -1,0 +1,42 @@
+[
+  {
+    "rationale": "No scribe note present\u2014no mention of amlodipine adherence issues, missed pickups, or pill-organizer use.",
+    "satisfaction": 0,
+    "score": 0
+  },
+  {
+    "rationale": "No documentation of clinician counseling about adherence strategies was captured.",
+    "satisfaction": 0,
+    "score": 0
+  },
+  {
+    "rationale": "Note contains no patient-reported symptoms or pertinent negatives related to amlodipine.",
+    "satisfaction": 0,
+    "score": 0
+  },
+  {
+    "rationale": "No record of clinician exploring fatigue or related differential questions.",
+    "satisfaction": 0,
+    "score": 0
+  },
+  {
+    "rationale": "Social context of living alone and its effect on adherence not mentioned.",
+    "satisfaction": 0,
+    "score": 0
+  },
+  {
+    "rationale": "Amlodipine therapy, dose, and medication list not documented at all.",
+    "satisfaction": 0,
+    "score": 0
+  },
+  {
+    "rationale": "Safety plan or follow-up monitoring is completely absent, triggering full penalty.",
+    "satisfaction": 0,
+    "score": 0
+  },
+  {
+    "rationale": "With no content, there is no redundant or extraneous information, so no penalty applies.",
+    "satisfaction": 100,
+    "score": 5
+  }
+]

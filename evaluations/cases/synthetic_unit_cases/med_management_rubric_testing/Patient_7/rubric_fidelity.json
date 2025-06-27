@@ -1,0 +1,37 @@
+[
+  {
+    "criterion": "Reward for thoroughly documenting every clinically relevant statement, question, response, instruction, and observation mentioned in the transcript (overall completeness).",
+    "weight": 25,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for accurately recording medication names, doses, timing (morning versus night), and separation instructions exactly as discussed.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for selectively incorporating only chart information that is directly relevant to the encounter (e.g., age, active diagnoses, current medications) without altering it.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing the clinician\u2019s monitoring advice (watch for palpitations or increased sweating) and the patient\u2019s reported absence of new symptoms faithfully.",
+    "weight": 5,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for adding any information, assessment, plan, or data not present in either the transcript or relevant chart entries (fabrication).",
+    "weight": 20,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for misstating or altering factual details from the transcript or chart, such as incorrect medication dose, timing, symptoms, or patient demographics.",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for copying or inserting large portions of chart data that were not referenced in the conversation and are not pertinent to the current visit (irrelevant chart dumping).",
+    "weight": 10,
+    "sense": "negative"
+  }
+]

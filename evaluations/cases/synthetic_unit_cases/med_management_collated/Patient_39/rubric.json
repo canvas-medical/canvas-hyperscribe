@@ -1,0 +1,32 @@
+[
+  {
+    "criterion": "Reward for documenting the patient's report of improvement in nausea with sertraline, including the patient's concern about the duration of this side effect.",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for noting the clinician's reassurance about the commonality and expected duration of nausea as a side effect of sertraline, and the plan to monitor and adjust treatment if necessary.",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for including the patient's feedback on the manageability of nausea and its impact on daily activities.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting the patient's engagement in therapy and lifestyle changes, including exercise and meditation, as part of anxiety management.",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for omission of any discussion or plan regarding follow-up on the patient's progress with therapy and lifestyle changes.",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Reward for noting the clinician's offer to discuss ways to manage the patient's routine if they feel overwhelmed, indicating a patient-centered approach.",
+    "weight": 10,
+    "sense": "positive"
+  }
+]

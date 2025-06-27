@@ -1,0 +1,38 @@
+{
+  "demographicStr": "the patient is a woman, born on January 1, 1969 (age 54)",
+  "conditionHistory": [],
+  "currentAllergies": [],
+  "currentConditions": [
+    {
+      "uuid": "0a369844-ed69-4489-8630-1a8248147d72",
+      "label": "Hypertension",
+      "code": "I10"
+    },
+    {
+      "uuid": "9465301b-9a89-41d2-a3e7-12c7223d8211",
+      "label": "Hypothyroidism",
+      "code": "E03.9"
+    }
+  ],
+  "currentGoals": [],
+  "currentMedications": [
+    {
+      "uuid": "b2b3546e-b001-4516-aa9a-48ca373a1750",
+      "label": "Losartan 50 mg tablet",
+      "code": "C09CA01"
+    },
+    {
+      "uuid": "bf01b605-cb1d-4ed1-8d77-59eef3a445e3",
+      "label": "Levothyroxine 75 mcg tablet",
+      "code": "H03AA01"
+    }
+  ],
+  "familyHistory": [
+    {
+      "uuid": "50149496-9e2a-41d9-a216-949694918618",
+      "label": "Family history of stroke",
+      "code": "Z82.3"
+    }
+  ],
+  "surgeryHistory": []
+}

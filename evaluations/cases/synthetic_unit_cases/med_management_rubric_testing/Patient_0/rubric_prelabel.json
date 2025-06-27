@@ -1,0 +1,37 @@
+[
+  {
+    "criterion": "Reward for accurately documenting the clinician's prescription of penicillin for 10 days to treat the sinus infection, including drug name and duration exactly as stated.",
+    "weight": 25,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting the patient\u2019s verbal acceptance and intention to start the medication the same night, mirroring the transcript wording or meaning.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for omitting, misstating, or contradicting the chart-documented severe penicillin allergy, which is directly relevant to the prescribed medication.",
+    "weight": 20,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for introducing any medication, dosage, diagnosis, instruction, assessment, or other clinical content not present in either the transcript or the chart (fabrication).",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for inaccuracies in key details explicitly stated in the transcript (e.g., wrong drug name, duration, or misquoted dialogue).",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Reward for overall completeness: the note captures every clinically relevant statement from the transcript and any pertinent chart information without omission.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for copying or inserting irrelevant chart data (e.g., unrelated past conditions like hypertension) that were not discussed and are not pertinent to the encounter.",
+    "weight": 10,
+    "sense": "negative"
+  }
+]

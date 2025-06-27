@@ -1,0 +1,32 @@
+[
+  {
+    "rationale": "The documentation includes the patient's reported nausea as a side effect of lithium, noting the timing (morning) and improvement with food.",
+    "satisfaction": 95.0,
+    "score": 19.0
+  },
+  {
+    "rationale": "There is no mention of the patient's concern about long-term effects of lithium or the clinician's plan to monitor levels closely.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "The documentation does not include any information about the patient's support system or the partner's role in medication adherence.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "There is no mention of potential adjustments to lithium dosage or timing if nausea persists.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "The clinician's advice to take lithium with food to mitigate nausea is documented.",
+    "satisfaction": 100.0,
+    "score": 10.0
+  },
+  {
+    "rationale": "There is no documentation of a follow-up plan or further assessment of the patient's bipolar disorder.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  }
+]

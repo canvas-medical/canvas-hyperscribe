@@ -1,0 +1,32 @@
+[
+  {
+    "criterion": "Reward for documenting the patient's concern about long-term effects of prednisone and the clinician's reassurance about the short course benefits.",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for confirming the patient's current medication regimen, specifically the use of tiotropium for maintenance after prednisone.",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for not documenting the specific duration of the prednisone course as mentioned by the patient.",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Reward for addressing potential side effects of tiotropium, such as jitteriness, and providing guidance on when to report them.",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for not explicitly confirming the absence of other inhalers or medications, which could impact patient safety.",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Reward for including the patient's reliance on his wife for medication management, highlighting a relevant social determinant of health.",
+    "weight": 10,
+    "sense": "positive"
+  }
+]

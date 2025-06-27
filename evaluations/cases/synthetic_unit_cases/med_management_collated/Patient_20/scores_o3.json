@@ -1,0 +1,27 @@
+[
+  {
+    "rationale": "Includes morning nausea, relation to lithium ingestion, improvement by lunchtime, relief with food; missing patient worries and partner support.",
+    "satisfaction": 70.0,
+    "score": 17.5
+  },
+  {
+    "rationale": "Mentions lithium but omits exact 300 mg BID regimen and adherence details; only loosely links nausea to lithium.",
+    "satisfaction": 25.0,
+    "score": 5.0
+  },
+  {
+    "rationale": "No documentation of lithium level or renal/thyroid monitoring plan or timeframe.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Provides counseling to take lithium with food but lacks further evidence-based options (dose/timing adjustment discussion).",
+    "satisfaction": 55.0,
+    "score": 11.0
+  },
+  {
+    "rationale": "No advice to stop or change lithium without monitoring; no incorrect statements about monitoring.",
+    "satisfaction": 100.0,
+    "score": 10.0
+  }
+]

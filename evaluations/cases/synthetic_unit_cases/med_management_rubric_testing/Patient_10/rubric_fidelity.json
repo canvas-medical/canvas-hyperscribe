@@ -1,0 +1,32 @@
+[
+  {
+    "criterion": "Reward for accurately documenting all key statements from the encounter: patient\u2019s report of exertional chest discomfort, clinician\u2019s decision to start low-dose aspirin (81 mg daily), patient\u2019s confirmation, and instruction to continue warfarin.",
+    "weight": 25,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for any omission, distortion, or incorrect transcription of the above key statements (e.g., wrong dosage, failure to mention continuation of warfarin, missing patient\u2019s agreement).",
+    "weight": 25,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Reward for selectively incorporating only chart details that are directly relevant to the encounter (e.g., age, atrial fibrillation, current warfarin use, history of GI bleeding) without adding unrelated chart data.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for copying or importing chart elements that were not discussed and are not clearly relevant (e.g., unrelated conditions, empty sections, boiler-plate ROS or vitals).",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for fabricating or inferring information not present in either transcript or chart (e.g., physical exam findings, new diagnoses, future tests, counseling details that were not spoken).",
+    "weight": 12,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Reward for overall completeness and fidelity of the note\u2014capturing every clinically relevant utterance from the transcript in an organized, appropriately labeled manner without altering speaker intent or tone.",
+    "weight": 8,
+    "sense": "positive"
+  }
+]

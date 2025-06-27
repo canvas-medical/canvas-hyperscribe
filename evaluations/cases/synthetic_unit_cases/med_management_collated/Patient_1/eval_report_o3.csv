@@ -1,0 +1,9 @@
+Criterion #,Criterion,Max Score,Satisfaction (%),Score Awarded,Rationale
+1,"Reward for clear and concise HPI that accurately records patient-reported tolerance of losartan (no cough), tolerance of atorvastatin (no myalgias), duration on losartan (~1 month), and home blood-pressure readings including one elevated reading tied to stress",20,5,1,"No HPI present—no mention of losartan tolerance, atorvastatin tolerance, duration, or home BP readings."
+2,Reward for explicit medication reconciliation listing losartan 50 mg and atorvastatin 10 mg with confirmation of adherence and absence of side-effects,15,0,0,No medication list or reconciliation provided.
+3,"Penalize for missing or incorrect Assessment and Plan entries for each chronic condition discussed (Hypertension and Hyperlipidemia), including current control status and management strategy",20,20,4,"Assessment/Plan for HTN and HLD entirely absent, so major penalty."
+4,Reward for documenting patient safety counseling about ensuring sufficient medication supply when traveling and instructions to report sustained BP elevation,10,85,8.5,Provides counseling on monitoring BP and having adequate meds while traveling.
+5,"Penalize for absence of objective data or ROS relevant to hypertension management (e.g., current vitals or summarized home BP log)",10,10,1,"No vitals, ROS, or summary of home BP log documented."
+6,"Penalize for redundant, excessively wordy, or copy-pasted content not directly relevant to this encounter segment",10,95,9.5,Note is brief with no obvious redundancy or copy-paste content.
+7,Reward for evidence-based monitoring of statin therapy by documenting query about myalgias and plan for periodic lipid panel,10,0,0,No query about statin myalgias or plan for lipid panel.
+8,Penalize for lack of a clear follow-up plan (timing of next visit or lab work) pertinent to chronic disease management,5,20,1,No stated follow-up interval or lab schedule.

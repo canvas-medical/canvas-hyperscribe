@@ -1,0 +1,37 @@
+[
+  {
+    "rationale": "No mention of patient\u2019s online concerns about long-term steroid side-effects, missed doses, or reported breathing improvement; only clinician instruction documented.",
+    "satisfaction": 5,
+    "score": 1
+  },
+  {
+    "rationale": "Provides clear missed-dose guidance and states importance of consistent dosing, but omits counseling on low risk at 5 mg and broader adherence emphasis.",
+    "satisfaction": 40,
+    "score": 10
+  },
+  {
+    "rationale": "No documentation of reminder strategy or inquiry about tiotropium use.",
+    "satisfaction": 0,
+    "score": 0
+  },
+  {
+    "rationale": "No safety or monitoring plan for long-term corticosteroid effects included.",
+    "satisfaction": 0,
+    "score": 0
+  },
+  {
+    "rationale": "No assessment of COPD management or rationale for continuing prednisone versus taper.",
+    "satisfaction": 0,
+    "score": 0
+  },
+  {
+    "rationale": "Note does not copy demographics or unrelated medication lists; therefore no penalized content.",
+    "satisfaction": 0,
+    "score": 0
+  },
+  {
+    "rationale": "No inaccurate or contradictory dosing/risk instructions observed; advice given is correct.",
+    "satisfaction": 0,
+    "score": 0
+  }
+]

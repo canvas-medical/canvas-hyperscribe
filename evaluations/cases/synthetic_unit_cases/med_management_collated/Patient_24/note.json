@@ -1,0 +1,25 @@
+[
+  {
+    "instruction": "Patient is currently on 100 mg of medication for anxiety.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.medication_statement",
+      "class": "MedicationStatementCommand",
+      "attributes": {
+        "sig": "Take 100 mg of medication for anxiety"
+      }
+    }
+  },
+  {
+    "instruction": "Generalized anxiety disorder is mostly under control with occasional stressful days at work.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.assess",
+      "class": "AssessCommand",
+      "attributes": {
+        "narrative": "Generalized anxiety disorder is mostly under control with occasional stressful days at work.",
+        "condition_id": "d739483c-80f9-442e-87f0-144d6d253a39",
+        "status": "stable",
+        "background": "The condition is mostly under control with only occasional stressful days at work."
+      }
+    }
+  }
+]

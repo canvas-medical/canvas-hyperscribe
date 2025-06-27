@@ -1,0 +1,42 @@
+[
+  {
+    "rationale": "No ReasonForVisit instruction present, so primary concern not documented.",
+    "satisfaction": 5.0,
+    "score": 0.5
+  },
+  {
+    "rationale": "No HistoryOfPresentIllness instruction at all; fatigue details, timing, context entirely absent.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Atorvastatin listed without dose (10 mg), frequency, adherence, or side-effect inquiry\u2014partial reconciliation only.",
+    "satisfaction": 25.0,
+    "score": 3.75
+  },
+  {
+    "rationale": "No Assess or Plan instructions; no rationale to continue statin, no lab orders for LFT/CK, no family-history reference.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Dietary counseling instruction explicitly advises reducing saturated fat and increasing fiber and is in an Instruct instruction.",
+    "satisfaction": 85.0,
+    "score": 8.5
+  },
+  {
+    "rationale": "Safety monitoring absent\u2014no advice about reporting muscle pain, stopping medication, or lab follow-up.",
+    "satisfaction": 10.0,
+    "score": 1.5
+  },
+  {
+    "rationale": "Note is concise with no redundant chart copy.",
+    "satisfaction": 90.0,
+    "score": 4.5
+  },
+  {
+    "rationale": "Correct command types used for medication and counseling, but missing required ReasonForVisit, HPI, Assess, LabOrder; partial compliance.",
+    "satisfaction": 40.0,
+    "score": 4.0
+  }
+]

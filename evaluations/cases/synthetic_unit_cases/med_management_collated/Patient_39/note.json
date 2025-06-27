@@ -1,0 +1,12 @@
+[
+  {
+    "instruction": "Patient experiences nausea as a side effect of sertraline, which is improving. Patient is engaged in therapy and lifestyle changes including exercise and meditation, but finds balancing everything challenging.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.history_present_illness",
+      "class": "HistoryOfPresentIllnessCommand",
+      "attributes": {
+        "narrative": "Patient experiences nausea as a side effect of sertraline, which is improving. Patient is engaged in therapy and lifestyle changes including exercise and meditation, but finds balancing everything challenging."
+      }
+    }
+  }
+]

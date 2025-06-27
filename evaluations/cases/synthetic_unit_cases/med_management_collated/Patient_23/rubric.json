@@ -1,0 +1,32 @@
+[
+  {
+    "criterion": "Reward for documenting the patient's progress in carb counting and insulin dose adjustment, reflecting an understanding of the patient's self-management skills.",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for omitting the patient's difficulty with estimating carbs when eating out, as this is a key barrier to effective diabetes management.",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Reward for including the patient's use of apps for carb counting, as this reflects an evidence-based approach to managing diabetes.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for not addressing the need for a follow-up plan to reinforce the habit of using apps for carb counting, which is crucial for patient safety and effective diabetes management.",
+    "weight": 20,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Reward for noting the patient's self-reported improvement in carb counting, which is important for assessing progress towards the goal of managing blood sugar levels effectively.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for excessive wordiness or redundancy in documenting the patient's statements, which can obscure critical information.",
+    "weight": 15,
+    "sense": "negative"
+  }
+]

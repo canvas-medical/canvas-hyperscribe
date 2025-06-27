@@ -1,0 +1,32 @@
+[
+  {
+    "rationale": "Fluoxetine listed with morning dosing, but 20-mg dose and adherence details (no missed doses, phone reminder) are absent.",
+    "satisfaction": 45.0,
+    "score": 9.0
+  },
+  {
+    "rationale": "Clearly states no stomach issues on fluoxetine and contrasts with prior GI intolerance to sertraline.",
+    "satisfaction": 90.0,
+    "score": 18.0
+  },
+  {
+    "rationale": "Documents stable mood and lack of overwhelm despite work stress, matching rubric elements.",
+    "satisfaction": 95.0,
+    "score": 19.0
+  },
+  {
+    "rationale": "No suicide/self-harm risk assessment or note of deferral found in the output.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "All documented items appear traceable to transcript; no unsupported or fabricated data detected.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Note is succinct with little repetition; minor wording redundancy only.",
+    "satisfaction": 10.0,
+    "score": 1.0
+  }
+]

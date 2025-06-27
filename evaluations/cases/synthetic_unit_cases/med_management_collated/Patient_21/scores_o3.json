@@ -1,0 +1,32 @@
+[
+  {
+    "rationale": "Gives clear, concise instructions about what to do if a losartan dose is missed, matching the recommended timing guidance.",
+    "satisfaction": 95.0,
+    "score": 23.75
+  },
+  {
+    "rationale": "Documents lisinopril cough intolerance but omits explanation that losartan (ARB) should not cause the same cough or its different mechanism.",
+    "satisfaction": 50.0,
+    "score": 10.0
+  },
+  {
+    "rationale": "Notes current losartan but omits dose (50 mg) and vague sig; lists stopping lisinopril but does not add it to allergy/intolerance list.",
+    "satisfaction": 45.0,
+    "score": 6.75
+  },
+  {
+    "rationale": "No explicit assessment/plan for essential hypertension and no advice on home BP monitoring; only implicit continuation of losartan.",
+    "satisfaction": 10.0,
+    "score": 2.0
+  },
+  {
+    "rationale": "No documented safety instructions about when to contact the clinic or respond to abnormal readings.",
+    "satisfaction": 5.0,
+    "score": 0.75
+  },
+  {
+    "rationale": "Note is brief with minimal irrelevant or redundant content (only a generic family-history statement), so low wordiness.",
+    "satisfaction": 80.0,
+    "score": 4.0
+  }
+]

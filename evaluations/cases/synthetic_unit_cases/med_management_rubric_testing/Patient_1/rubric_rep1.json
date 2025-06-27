@@ -1,0 +1,42 @@
+[
+  {
+    "criterion": "Reward for accurately documenting the patient's duration of losartan therapy (\"about a month\"), absence of cough, and overall tolerance exactly as stated in the transcript.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for faithfully recording the patient's report that home blood-pressure readings are mostly within the agreed range with one isolated high value attributed to stress.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing that the patient takes atorvastatin at night, has experienced no muscle aches, and that the medication is \"working fine,\" matching the dialogue verbatim or paraphrased without distortion.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for including the clinician's specific counseling: continue monitoring blood pressure, report consistent changes, and ensure adequate medication supply when traveling.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for overall omissions or incomplete coverage of any major discussion points (medication tolerance, BP home readings, counseling instructions) that were clearly expressed in the transcript.",
+    "weight": 20,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for adding clinical statements, assessments, plans, or data that are not explicitly or implicitly present in either the transcript or the chart (fabrications).",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for indiscriminate or inaccurate copying from the chart\u2014such as importing family history or other conditions not mentioned during the encounter, or misrepresenting active medication details.",
+    "weight": 10,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for incorrect transcription of factual details that were stated\u2014wrong medication names, doses (e.g., losartan 100 mg instead of 50 mg), timing (e.g., atorvastatin in morning), or misquoting duration.",
+    "weight": 15,
+    "sense": "negative"
+  }
+]

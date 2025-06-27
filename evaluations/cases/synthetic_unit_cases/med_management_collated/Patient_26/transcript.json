@@ -1,0 +1,30 @@
+[
+  {
+    "speaker": "Clinician",
+    "text": "So, with the celecoxib, have you noticed any improvement in the joint pain, or is it still, um, about the same as before?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Well, it's been a bit better, I think. The mornings are still tough, but I can move around more easily by the afternoon."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "That's good to hear. And, uh, how's your stomach been since the switch? Any discomfort like with the meloxicam?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Not really, no. I was worried at first, but it seems to be okay. I just make sure to take it with food."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Great, taking it with food is definitely a good idea. And, um, have you been keeping an eye on your blood pressure, just in case?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Yes, I check it every morning. It's been stable, thankfully. I know my family history, so I'm quite vigilant about it."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "That's reassuring. If you notice any changes, just let me know. We can always adjust things if needed."
+  }
+]

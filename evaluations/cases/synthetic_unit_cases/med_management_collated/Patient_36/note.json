@@ -1,0 +1,28 @@
+[
+  {
+    "instruction": "Losartan, taken every morning with breakfast.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.medication_statement",
+      "class": "MedicationStatementCommand",
+      "attributes": {
+        "fdb_code": "249335",
+        "sig": "Take every morning with breakfast."
+      }
+    }
+  },
+  {
+    "instruction": "Make sure to stand up slowly to avoid dizziness.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "comment": "Make sure to stand up slowly to avoid dizziness.",
+        "coding": {
+          "system": "http://snomed.info/sct",
+          "code": "57456004",
+          "display": "Standing transfer training"
+        }
+      }
+    }
+  }
+]

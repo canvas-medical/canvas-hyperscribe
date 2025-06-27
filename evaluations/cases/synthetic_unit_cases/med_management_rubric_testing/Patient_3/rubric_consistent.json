@@ -1,0 +1,42 @@
+[
+  {
+    "criterion": "Reward for accurately documenting all patient-reported symptoms, side-effects, comparisons, and contextual factors exactly as expressed in the transcript.",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for faithfully capturing every clinician statement regarding assessment, monitoring, counseling, and plan (e.g., reassurance, time course, dose/timing adjustment, taking medication with food).",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for selectively and accurately integrating only chart details that are clearly relevant to today\u2019s encounter (demographics, existing diagnosis, current medication) while omitting unrelated chart data.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for overall completeness and structural fidelity of the note, with no clinically important content from the transcript omitted or misplaced.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for omission or distortion of any clinically pertinent fact explicitly stated or reasonably implied in the transcript.",
+    "weight": 25,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for addition of information, assessments, instructions, orders, or diagnoses not supported by the transcript or relevant chart context.",
+    "weight": 20,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for factual inaccuracies in transcribing spoken or chart information, such as wrong medication name, dose, symptom severity, or clinician recommendations.",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for inclusion of irrelevant or bulk-copied chart elements that were not discussed and do not inform the current encounter.",
+    "weight": 10,
+    "sense": "negative"
+  }
+]

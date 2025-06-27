@@ -1,0 +1,27 @@
+{
+  "demographicStr": "the patient is a man, born on January 1, 1945 (age 78)",
+  "conditionHistory": [],
+  "currentAllergies": [],
+  "currentConditions": [
+    {
+      "uuid": "6bdc1578-248f-42c7-b061-7a106da6d83d",
+      "label": "Chronic obstructive pulmonary disease",
+      "code": "J44.9"
+    }
+  ],
+  "currentGoals": [],
+  "currentMedications": [
+    {
+      "uuid": "f23b52d2-ecea-41b0-be4d-bb27048c2e15",
+      "label": "Tiotropium inhaler",
+      "code": "216980"
+    },
+    {
+      "uuid": "2c0393f7-b407-4cac-8fa9-606172feb26a",
+      "label": "Prednisone 5 mg tablet",
+      "code": "548680"
+    }
+  ],
+  "familyHistory": [],
+  "surgeryHistory": []
+}

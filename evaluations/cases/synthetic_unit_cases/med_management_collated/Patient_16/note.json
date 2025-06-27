@@ -1,0 +1,28 @@
+[
+  {
+    "instruction": "Atorvastatin",
+    "command": {
+      "module": "canvas_sdk.commands.commands.medication_statement",
+      "class": "MedicationStatementCommand",
+      "attributes": {
+        "sig": "Take as directed by your healthcare provider.",
+        "fdb_code": "227996"
+      }
+    }
+  },
+  {
+    "instruction": "Reduce saturated fats and increase fiber in diet to complement atorvastatin.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "coding": {
+          "system": "http://snomed.info/sct",
+          "code": "314114000",
+          "display": "Advice to reduce meat intake"
+        },
+        "comment": "Reduce saturated fats and increase fiber in diet to complement atorvastatin."
+      }
+    }
+  }
+]

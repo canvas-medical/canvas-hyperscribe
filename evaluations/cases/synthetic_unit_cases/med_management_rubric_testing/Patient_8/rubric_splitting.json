@@ -1,0 +1,61 @@
+{
+  "fidelity_criteria": [
+    {
+      "criterion": "Reward for explicitly documenting the patient's statement that he sometimes forgets to take losartan while on the road because his schedule is unpredictable",
+      "weight": 15,
+      "sense": "positive"
+    },
+    {
+      "criterion": "Reward for accurately recording the clinician's counseling about using phone reminders or a pill organizer to improve medication adherence",
+      "weight": 10,
+      "sense": "positive"
+    },
+    {
+      "criterion": "Reward for documenting the discussion of moving the losartan dose to bedtime, including the patient's concern about sleep and the clinician's reassurance that losartan should not disturb sleep",
+      "weight": 12,
+      "sense": "positive"
+    },
+    {
+      "criterion": "Reward for listing the patient\u2019s current medications with correct names and doses: Losartan 50 mg and Metformin 1000 mg",
+      "weight": 10,
+      "sense": "positive"
+    },
+    {
+      "criterion": "Reward for listing the patient\u2019s chronic conditions exactly as in the chart: Hypertension (I10) and Type 2 diabetes mellitus without complications (E11.9)",
+      "weight": 8,
+      "sense": "positive"
+    },
+    {
+      "criterion": "Reward for capturing the clinician\u2019s remark that keeping the patient\u2019s blood pressure stable is important",
+      "weight": 5,
+      "sense": "positive"
+    },
+    {
+      "criterion": "Penalize for inclusion of fabricated symptoms, allergies, conditions, or historical details that are not present in either the transcript or the chart",
+      "weight": 20,
+      "sense": "negative"
+    }
+  ],
+  "appropriateness_criteria": [
+    {
+      "criterion": "Reward for documenting an evidence-based plan to improve adherence, such as shifting losartan to a consistent bedtime dose or evaluating an alternative antihypertensive that fits the patient\u2019s schedule, with rationale stated",
+      "weight": 18,
+      "sense": "positive"
+    },
+    {
+      "criterion": "Reward for incorporating adherence aids (e.g., phone reminders, pill organizer) into the plan as a recognized, evidence-based strategy",
+      "weight": 10,
+      "sense": "positive"
+    },
+    {
+      "criterion": "Reward for including a safety measure such as instructing home blood-pressure monitoring or scheduling a follow-up visit to evaluate blood-pressure control after the dosing change",
+      "weight": 20,
+      "sense": "positive"
+    },
+    {
+      "criterion": "Penalize for discontinuing or altering losartan (dose, timing, or medication change) without a documented monitoring or follow-up plan to ensure blood-pressure control and avoid hypotension",
+      "weight": 22,
+      "sense": "negative"
+    }
+  ]
+}

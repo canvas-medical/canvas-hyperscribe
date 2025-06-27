@@ -1,0 +1,32 @@
+[
+  {
+    "criterion": "Reward for clearly documenting the intended switch from warfarin to a named direct oral anticoagulant for atrial fibrillation, explicitly noting that routine INR monitoring will no longer be required",
+    "weight": 25,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting patient education/informed consent that bleeding risk persists and detailing counselling on warning signs and when to seek care",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for recording an explicit plan to review the full current medication list (prescription, OTC, supplements) for potential interactions before initiating the DOAC",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting patient-specific safety considerations such as advanced age and history of falls and how these factors influence anticoagulation management",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for absence of a follow-up or safety monitoring plan (e.g., baseline renal function tests and scheduled follow-up visit) related to starting the DOAC",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for inclusion of redundant, copy-pasted, or irrelevant information not directly arising from this encounter segment",
+    "weight": 10,
+    "sense": "negative"
+  }
+]

@@ -1,0 +1,37 @@
+[
+  {
+    "criterion": "Reward for documenting in the HPI all patient-reported details from this segment: relief of stomach pain on celecoxib vs. ibuprofen, stable home BP around 120/80 with no changes, and current activity level (light walking and stretching) limited by arthritis",
+    "weight": 22,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for accurately recording medication review and counseling: current celecoxib and amlodipine use, rationale that celecoxib is gentler on stomach, advice to monitor BP and watch for edema or other side-effects",
+    "weight": 22,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for including a clear patient safety plan related to celecoxib and hypertension (continue home BP checks, monitor for swelling/unusual symptoms, instructions on when to call)",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting specific evidence-based lifestyle guidance provided (salt restriction for BP control, encouragement of appropriate physical activity/stretching despite arthritis)",
+    "weight": 12,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for recording the known aspirin allergy and demonstrating allergy reconciliation by avoiding aspirin-containing recommendations",
+    "weight": 8,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for missing or inaccurate assessment and/or plan entries for the two chronic conditions actively discussed (osteoarthritis pain control and hypertension management)",
+    "weight": 12,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for redundant or non-pertinent content (e.g., unnecessary chart copy-pasting, verbatim transcript segments, or information not directly relevant to this encounter segment)",
+    "weight": 4,
+    "sense": "negative"
+  }
+]

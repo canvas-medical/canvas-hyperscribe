@@ -1,0 +1,27 @@
+[
+  {
+    "rationale": "The patient's report of improved mood and initial nausea was not documented in the medication assessment.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "The patient's inconsistent medication adherence due to hectic mornings was not mentioned.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "There is no mention of the patient's financial difficulty in affording medication or any assistance programs.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "There is no documentation of a plan to follow up on the patient's adherence to medication and financial assistance outcomes.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Practical advice on setting a reminder for medication adherence was provided, supporting patient safety and adherence.",
+    "satisfaction": 100.0,
+    "score": 20.0
+  }
+]

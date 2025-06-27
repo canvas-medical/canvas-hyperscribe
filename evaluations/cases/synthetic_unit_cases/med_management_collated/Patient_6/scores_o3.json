@@ -1,0 +1,37 @@
+[
+  {
+    "rationale": "Mesalamine is listed but there is no mention of missed doses, frequency of non-adherence, or symptom recurrence.",
+    "satisfaction": 5.0,
+    "score": 1.0
+  },
+  {
+    "rationale": "No reference to phone reminders or pill organizer in Plan/Instructions.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "No assessment of Crohn\u2019s control or rationale to continue mesalamine therapy.",
+    "satisfaction": 5.0,
+    "score": 0.75
+  },
+  {
+    "rationale": "No instructions to report new symptoms, side effects, or flares.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Note lacks any follow-up timeline to reassess adherence or disease status.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Medication name given but dose (2.4 g daily) omitted and allergies not documented.",
+    "satisfaction": 85.0,
+    "score": -12.75
+  },
+  {
+    "rationale": "Very brief note; only mild boiler-plate phrasing (\u2018take as directed\u2019); little irrelevant content.",
+    "satisfaction": 10.0,
+    "score": -1.0
+  }
+]

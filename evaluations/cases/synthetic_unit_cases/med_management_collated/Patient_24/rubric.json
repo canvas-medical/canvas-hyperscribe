@@ -1,0 +1,32 @@
+[
+  {
+    "criterion": "Reward for accurately documenting the patient's current medication and dosage, specifically Sertraline 100 mg daily, as it is relevant to the discussion about potential dosage adjustment.",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for including the patient's self-reported symptom control and occasional stressful days at work, as this information is crucial for assessing the effectiveness of the current treatment plan.",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for omitting a clear assessment of the patient's generalized anxiety disorder, including any changes or stability in symptoms, as this is essential for evidence-based decision making.",
+    "weight": 25,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Reward for documenting the clinician's advice to monitor symptoms and consider dosage adjustment if symptoms become more frequent or intense, as this reflects a patient-centered approach and proactive management.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for not addressing the family history of depression, which could be relevant to the patient's mental health management and potential medication adjustments.",
+    "weight": 10,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Reward for noting the patient's proactive approach to managing their condition, as this is a positive aspect of patient engagement and self-management.",
+    "weight": 10,
+    "sense": "positive"
+  }
+]

@@ -1,0 +1,27 @@
+[
+  {
+    "rationale": "The output does not include any mention of patient-reported adherence challenges with amlodipine or suggested solutions.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "The output omits any assessment of potential side effects of amlodipine, such as fatigue, and does not explore other possible causes.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "There is no mention of addressing potential side effects of amlodipine, such as swelling, or inquiring about other symptoms like fatigue.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "The patient's living situation and its impact on medication adherence are not documented.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "There is no plan included to monitor for side effects of amlodipine in future visits.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  }
+]

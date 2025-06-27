@@ -1,0 +1,51 @@
+{
+  "fidelity_criteria": [
+    {
+      "criterion": "Reward for documenting in the HPI that the patient accidentally took an extra dose of furosemide yesterday, experienced dizziness afterward, feels somewhat better today but is still dizzy, reports no weight change or swelling, and that his daughter advised him to call if it happened again.",
+      "weight": 30,
+      "sense": "positive"
+    },
+    {
+      "criterion": "Reward for accurately listing the patient\u2019s chronic conditions (heart failure, atrial fibrillation, chronic kidney disease) and current medications (furosemide 40 mg, carvedilol 12.5 mg, warfarin) as reconciled from the chart, with no omissions or additions.",
+      "weight": 20,
+      "sense": "positive"
+    },
+    {
+      "criterion": "Reward for including the known penicillin allergy exactly as recorded in the chart.",
+      "weight": 5,
+      "sense": "positive"
+    },
+    {
+      "criterion": "Reward for stating the plan discussed: consider adjusting the furosemide dose or timing and coordinate a consistent dosing schedule with the daughter.",
+      "weight": 15,
+      "sense": "positive"
+    },
+    {
+      "criterion": "Penalize for introducing symptoms, findings, diagnoses, medications, or plans that were not mentioned in the transcript or chart (e.g., reporting edema, prescribing new drugs) or for omitting any of the explicitly stated information above.",
+      "weight": 30,
+      "sense": "negative"
+    }
+  ],
+  "appropriateness_criteria": [
+    {
+      "criterion": "Reward for ordering or recommending renal function and electrolyte labs (e.g., BMP) to evaluate potential over-diuresis in a patient with CKD who took an extra furosemide dose (evidence-based decision making).",
+      "weight": 25,
+      "sense": "positive"
+    },
+    {
+      "criterion": "Reward for providing safety counseling about dizziness and fall prevention, advising the patient to sit/stand slowly, maintain hydration, and seek care if dizziness worsens (patient safety).",
+      "weight": 25,
+      "sense": "positive"
+    },
+    {
+      "criterion": "Penalize for failing to propose any adjustment, temporary hold, or detailed monitoring plan for furosemide despite documented dizziness and CKD (unsafe or sub-standard management).",
+      "weight": 30,
+      "sense": "negative"
+    },
+    {
+      "criterion": "Reward for arranging timely follow-up (e.g., phone call or clinic visit) or clear instructions to contact the clinic if symptoms persist, ensuring continuity of care.",
+      "weight": 20,
+      "sense": "positive"
+    }
+  ]
+}

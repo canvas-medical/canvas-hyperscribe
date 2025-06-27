@@ -1,0 +1,32 @@
+[
+  {
+    "criterion": "Reward for clearly documenting the patient\u2019s concern about missing a dose of losartan and the specific, evidence-based guidance: take the pill if remembered within a few hours, but skip if close to the next scheduled dose.",
+    "weight": 25,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting the prior lisinopril-induced cough, noting it as an intolerance/allergy, and explaining that losartan (an ARB) has a different mechanism and should not cause that cough.",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for updating the medication section to show continued losartan 50 mg daily with no change, and adding or confirming lisinopril intolerance in the allergy/intolerance list.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for providing an assessment and plan for essential hypertension that includes continuation of current therapy and a recommendation for regular home blood-pressure monitoring.",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting explicit safety instructions to contact the clinic if home blood pressure readings become abnormal or if any new symptoms develop.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for inclusion of redundant, irrelevant, or excessively wordy text that does not add new, case-specific clinical value.",
+    "weight": 5,
+    "sense": "negative"
+  }
+]

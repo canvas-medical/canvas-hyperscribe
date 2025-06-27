@@ -1,0 +1,32 @@
+[
+  {
+    "criterion": "Reward for complete and accurate documentation of all key elements explicitly stated in the transcript, including patient's chest discomfort with exertion, the new prescription of low-dose aspirin, specified 81 mg daily dosage, instruction to continue warfarin, and patient acknowledgement of understanding.",
+    "weight": 40,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for omission of any key element from the transcript (symptom description, aspirin addition, 81 mg dosage, continuation of warfarin, or patient agreement).",
+    "weight": 40,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for any factual inaccuracies or distortions of transcript details such as incorrect medication name, dosage, frequency, or misattribution of who said what.",
+    "weight": 30,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for introducing new clinical content, decisions, examination findings, or instructions that are not grounded in either the transcript or the patient chart.",
+    "weight": 30,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Reward for succinctly incorporating only relevant chart information that was implicitly referenced (e.g., ongoing warfarin therapy, atrial fibrillation history) to contextualize the note without adding unrelated data.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for selective or inaccurate copying from the chart, such as listing unrelated past conditions, demographics, or medication details not pertinent to the current encounter, or misreporting existing chart data.",
+    "weight": 20,
+    "sense": "negative"
+  }
+]

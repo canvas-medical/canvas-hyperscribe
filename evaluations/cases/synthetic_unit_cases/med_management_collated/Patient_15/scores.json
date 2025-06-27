@@ -1,0 +1,32 @@
+[
+  {
+    "rationale": "The patient's concern about long-term effects of prednisone is documented, but there is no mention of the clinician's reassurance about the short course benefits.",
+    "satisfaction": 50.0,
+    "score": 10.0
+  },
+  {
+    "rationale": "The current medication regimen is partially confirmed with the mention of tiotropium, but there is no explicit confirmation of its use after prednisone.",
+    "satisfaction": 70.0,
+    "score": 14.0
+  },
+  {
+    "rationale": "The specific duration of the prednisone course is not documented.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "The note mentions jitteriness as a side effect of tiotropium but does not provide guidance on when to report them.",
+    "satisfaction": 60.0,
+    "score": 12.0
+  },
+  {
+    "rationale": "There is no explicit confirmation of the absence of other inhalers or medications.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "There is no mention of the patient's reliance on his wife for medication management.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  }
+]

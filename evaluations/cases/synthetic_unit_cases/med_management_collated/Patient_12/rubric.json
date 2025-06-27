@@ -1,0 +1,32 @@
+[
+  {
+    "criterion": "Reward for documenting the patient's adherence to warfarin and the use of a pill organizer as a strategy to improve medication compliance.",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for including the patient's report of no noticeable changes after missing a dose of warfarin, as this is relevant to assessing the risk of adverse events.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for omitting the suggestion of setting phone alerts as a backup plan for medication adherence, as this is a key part of the clinician's advice.",
+    "weight": 10,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Reward for noting the involvement of the patient's daughter in managing medication adherence, which is relevant to social support and care planning.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for failing to document the patient's age and relevant medical history, such as atrial fibrillation and hyperlipidemia, which are critical for understanding the context of warfarin use.",
+    "weight": 20,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Reward for documenting the patient's allergy to penicillin, as this is important for patient safety and future prescribing decisions.",
+    "weight": 20,
+    "sense": "positive"
+  }
+]

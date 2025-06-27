@@ -1,0 +1,27 @@
+[
+  {
+    "criterion": "Reward for documenting the patient's report of improved mood and initial nausea as part of the medication assessment.",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for omitting the patient's inconsistent medication adherence due to hectic mornings, which is relevant for medication management.",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Reward for addressing the patient's financial difficulty in affording medication and suggesting assistance programs.",
+    "weight": 25,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for not documenting a plan to follow up on the patient's adherence to medication and financial assistance outcomes.",
+    "weight": 20,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Reward for providing practical advice on setting a reminder for medication adherence, which supports patient safety and adherence.",
+    "weight": 20,
+    "sense": "positive"
+  }
+]

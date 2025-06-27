@@ -1,0 +1,32 @@
+[
+  {
+    "rationale": "HPI mentions sertraline-related nausea, notes that it is improving, and references engagement in therapy/exercise/meditation; however, it omits explicit current severity and concrete impact on work/daily routine.",
+    "satisfaction": 65.0,
+    "score": 16.25
+  },
+  {
+    "rationale": "Note references sertraline but omits dose (50 mg), frequency, anxiety indication, and any side-effect management plan.",
+    "satisfaction": 5.0,
+    "score": 1.0
+  },
+  {
+    "rationale": "No assessment/plan section: anxiety diagnosis, guideline dosing discussion, psychotherapy encouragement, and follow-up interval all absent.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "No documentation of suicidal ideation screening or guidance on when to seek urgent care for adverse effects.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Dose/frequency, nausea management strategy, and follow-up timeline are all missing, triggering this penalty criterion strongly.",
+    "satisfaction": 90.0,
+    "score": 9.0
+  },
+  {
+    "rationale": "Note is brief with no duplicated or irrelevant information, so minimal violation of this negative criterion.",
+    "satisfaction": 5.0,
+    "score": 0.25
+  }
+]

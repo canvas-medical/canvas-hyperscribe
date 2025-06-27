@@ -1,0 +1,42 @@
+[
+  {
+    "criterion": "Reward for accurately documenting the patient's self-reported non-adherence to daily mesalamine, the reason (busy work schedule/forgetfulness), and the observed link between missed doses and symptom recurrence.",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing the clinician's specific counseling statements: suggestion of phone reminders, pill organizer, emphasis that consistency with mesalamine is key, and request to report any new symptoms or side effects.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for appropriate, accurate incorporation of directly relevant chart data (29-year-old male, Crohn\u2019s disease diagnosis, current mesalamine 2.4 g daily) without importing unrelated chart elements.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for overall completeness: the note reflects every clinically pertinent fact, action, and instruction mentioned in the transcript, with no significant omissions.",
+    "weight": 25,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for omitting or misrepresenting any key element from the transcript (e.g., failure to note clinician's advice, patient\u2019s response about snoozing reminders, or the instruction to report new symptoms).",
+    "weight": 20,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for introducing new information not found in the transcript or chart (e.g., additional medications, lab orders, diagnoses, or assessments).",
+    "weight": 20,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for inaccurate or selective copying of chart data (e.g., wrong dosage of mesalamine, adding unrelated family history or conditions, or missing the current Crohn\u2019s disease diagnosis while adding extraneous items).",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for factual inaccuracies in names, ages, medication names, dosages, or other quantitative details compared with transcript and chart.",
+    "weight": 15,
+    "sense": "negative"
+  }
+]

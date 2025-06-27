@@ -1,0 +1,42 @@
+[
+  {
+    "rationale": "Captures increased pain intensity, day-to-day variability (\"some days are better than others\"), and uncertainty about HCQ benefit, but lacks explicit numeric severity or duration detail.",
+    "satisfaction": 75.0,
+    "score": 11.25
+  },
+  {
+    "rationale": "No medication list, doses, or note of folic acid adherence provided.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "No discussion of dose adjustment, alternative therapy, or follow-up monitoring documented.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "No management strategy, escalation timeline, or options per ACR guidelines included.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Fails to mention any CBC/LFT or ophthalmology monitoring; complete omission.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Sulfa allergy not documented anywhere in note.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Uses correct HPI and Assess commands for RA; however, omits other relevant tags (AdjustPrescription, FollowUp).",
+    "satisfaction": 60.0,
+    "score": 3.0
+  },
+  {
+    "rationale": "Note is brief without redundant chart data or unnecessary verbiage.",
+    "satisfaction": 90.0,
+    "score": 9.0
+  }
+]
