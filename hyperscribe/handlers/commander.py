@@ -81,7 +81,7 @@ class Commander(BaseProtocol):
         settings = Settings.from_dictionary(self.secrets | {Constants.PROGRESS_SETTING_KEY: True})
         aws_s3 = AwsS3Credentials.from_dictionary(self.secrets)
         memory_log = MemoryLog.instance(identification, Constants.MEMORY_LOG_LABEL, aws_s3)
-        memory_log.output(f"SDK: {version} - Text: {self.secrets[Constants.SECRET_TEXT_VENDOR]} - Audio: {self.secrets[Constants.SECRET_AUDIO_VENDOR]}")
+        memory_log.output(f"SDK: {version} - Text: {self.secrets[Constants.SECRET_TEXT_LLM_VENDOR]} - Audio: {self.secrets[Constants.SECRET_AUDIO_LLM_VENDOR]}")
         had_audio, effects = self.compute_audio(identification, settings, aws_s3, self.secrets[Constants.SECRET_AUDIO_HOST], information.chunk_index)
         if had_audio:
             log.info(f"audio was present => go to next iteration ({information.chunk_index + 1})")
@@ -196,7 +196,7 @@ class Commander(BaseProtocol):
 
     @classmethod
     def retrieve_audios(cls, host_audio: str, patient_uuid: str, note_uuid: str, chunk_index: int) -> list[bytes]:
-        audio_url = f"{host_audio}/audio/{patient_uuid}/{note_uuid}"
+        audio_url = f"{host_audio}{Constants.BASE_ROUTE}/audio/{patient_uuid}/{note_uuid}?yo"
 
         initial = cls.get_audio(f"{audio_url}/{chunk_index}")
         if not initial:

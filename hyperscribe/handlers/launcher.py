@@ -10,7 +10,6 @@ from hyperscribe.libraries.authenticator import Authenticator
 from hyperscribe.libraries.constants import Constants
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.settings import Settings
-from hyperscribe.handlers.capture import CaptureView
 
 
 class Launcher(ActionButton):
@@ -26,24 +25,15 @@ class Launcher(ActionButton):
     def handle(self) -> list[Effect]:
         note_id = str(Note.objects.get(dbid=self.event.context['note_id']).id)
         patient_id = self.target
-        identification = IdentificationParameters(
-            patient_uuid=patient_id,
-            note_uuid=note_id,
-            provider_uuid='N/A',  # this field is not used within this handle() method
-            canvas_instance=self.environment[Constants.CUSTOMER_IDENTIFIER],
+
+        presigned_url = Authenticator.presigned_url(
+            self.secrets[Constants.SECRET_API_SIGNING_KEY],
+            f"{Constants.BASE_ROUTE}/capture/{patient_id}/{note_id}",
+            {},
         )
-        #TODO: Remove
-        encoded_params = urlencode({
-            "interval": self.secrets[Constants.SECRET_AUDIO_INTERVAL],
-            "end_flag": Constants.PROGRESS_END_OF_MESSAGES,
-            "progress": Authenticator.presigned_url(
-                self.secrets[Constants.SECRET_API_SIGNING_KEY],
-                f"{identification.canvas_host()}/plugin-io/api/hyperscribe/progress",
-                {"note_id": note_id},
-            ),
-        })
+
         hyperscribe_pane = LaunchModalEffect(
-            url=f"/plugin-io/api/hyperscribe/{CaptureView.PATH}?patient_id={patient_id}&note_id={note_id}",
+            url=presigned_url,
             target=LaunchModalEffect.TargetType.RIGHT_CHART_PANE,
             title="Hyperscribe"
         )

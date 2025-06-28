@@ -3,9 +3,375 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hyperscribe</title>
+    <title>Canvas Hyperscribe</title>
+    <!-- script src='/static/progress.js' defer></script -->
+    <style>
+        body {
+            margin: 0;
+            height: 100vh;
+            background: radial-gradient(circle at 40% 40%, rgba(255, 240, 250, 0.9), rgba(180, 200, 255, 0.85), rgba(160, 190, 255, 0.75)),
+                        radial-gradient(circle at 70% 70%, rgba(255, 245, 250, 0.9), rgba(190, 220, 255, 0.85), rgba(170, 210, 255, 0.75)),
+                        linear-gradient(120deg, rgba(220, 240, 255, 0.9), rgba(0, 40, 255, 0.7));
+            background-blend-mode: soft-light, overlay, normal;
+            overflow: hidden; /* Prevent any scrolling on the main body */
+        }
+
+        .logo {
+            width: 150px;
+            height: auto;
+        }
+
+        .toggle-button {
+            margin-top: 20px;
+            width: 80px;
+            height: 80px;
+            font-size: 18px;
+            font-weight: bold;
+            color: white;
+            background-color: black;
+            border: 5px solid transparent; /* Ensure space for border */
+            border-radius: 50%; /* Makes it perfectly circular */
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .toggle-button.active {
+            border-color: red;
+        }
+
+        .debug-message {
+            margin-top: 10px;
+            margin-bottom: 10px;
+            color: darkgreen;
+            font-family: "Helvetica", "Arial", "sans-serif";
+        }
+
+        /* Styles for table container with permanent scrollbar */
+        .table-container {
+            margin-top: 20px;
+            height: calc(100vh - 220px); /* Fixed height instead of max-height */
+            overflow-y: scroll; /* Always show scrollbar */
+            width: 80%;
+            display: block; /* Changed from flex to avoid stretching content */
+            scrollbar-width: thin;
+            scrollbar-color: rgba(0, 40, 255, 0.5) rgba(220, 240, 255, 0.3);
+        }
+
+        /* Custom scrollbar styles */
+        .table-container::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .table-container::-webkit-scrollbar-track {
+            background: rgba(220, 240, 255, 0.3);
+            border-radius: 4px;
+        }
+
+        .table-container::-webkit-scrollbar-thumb {
+            background-color: rgba(0, 40, 255, 0.5);
+            border-radius: 4px;
+        }
+
+        /* Table styling */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 0 auto;
+            table-layout: fixed; /* For consistent column widths */
+        }
+
+        /* Ensure content-based row heights */
+        table tr {
+            height: auto !important; /* Override any fixed heights */
+        }
+
+        th {
+            background-color: rgba(0, 40, 255, 0.2);
+            color: #333;
+            padding: 10px;
+            text-align: center;
+            font-family: "Helvetica", "Arial", "sans-serif";
+        }
+
+        tr {
+            line-height: 1.3; /* Slightly increased for better readability with wrapping */
+        }
+
+        td {
+            padding: 6px 8px;
+            border-bottom: 1px solid rgba(0, 40, 255, 0.1);
+            font-family: "Helvetica", "Arial", "sans-serif";
+            font-size: 11px;
+            vertical-align: top; /* Align content to top */
+            overflow: visible;
+            word-wrap: break-word;
+            box-sizing: border-box;
+            height: min-content; /* Use only what's needed */
+            text-align: right;
+        }
+
+        /* First column can wrap */
+        td:first-child {
+            white-space: normal;
+            text-align: left;
+        }
+
+        #error {
+            color: red;
+            margin-top: 10px;
+            font-family: "Helvetica", "Arial", "sans-serif";
+        }
+
+        /* Center content vertically and horizontally */
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            height: 100vh;
+            padding-top: 40px;
+            box-sizing: border-box; /* Include padding in height calculation */
+            position: relative; /* For proper positioning of child elements */
+        }
+    </style>
 </head>
 <body>
-    <h1>Hyperscribe</h1>
-    <p>{{ name }}</p>
+    <div class="app-container">
+        <img src="https://images.prismic.io/canvas-website/Z8VfRhsAHJWomCr3_hyperscribe_logo.png?auto=format,compress" alt="Logo" class="logo">
+        <button
+            class="toggle-button"
+            id="captureButton"
+            data-interval="{{interval}}"
+            onclick="toggleRecording('{{patientUuid}}', '{{noteUUID}}')">
+            Start
+        </button>
+
+        <div id="debugMessage" class="debug-message"></div>
+
+        <div class="table-container">
+            <table>
+                <colgroup>
+                    <col style="width: 70%">
+                    <col style="width: 30%;text-align: right;">
+                </colgroup>
+                <thead>
+                    <tr>
+                        <th colspan="2">Progress <span id="duration"></span></th>
+                    </tr>
+                </thead>
+                <tbody id="message-table-body">
+                </tbody>
+            </table>
+        </div>
+
+        <div id="error"></div>
+    </div>
+
+    <script>
+        const button = document.getElementById("captureButton");
+        button.addEventListener("click", () => {
+            button.classList.toggle("active");
+            button.textContent = button.classList.contains("active") ? "Stop" : "Start";
+            if (button.classList.contains("active")){
+              resetTable();
+              const timeLogRefresh = 1.7;
+              const timeCellRefresh = 2.3;
+              const progressURL = '{{progressURL | safe}}';
+              const messageEndFlag = '{{endFlag}}';
+              window.previousMessage =new Date();
+              // window.previousMessage =new Date('2025-05-01T22:20:10.757050+00:00');
+              window.logRefreshId = setInterval(() => fetchAndDisplay(progressURL, messageEndFlag), timeLogRefresh * 1000);
+              window.cellRefreshId = setInterval(updateTimeCells, timeCellRefresh * 1000);
+            }
+        });
+        document.addEventListener('DOMContentLoaded', function () {resetTable();});
+
+        // -----------------------------------------------------------------
+        // CAPTURE ---------------------------------------------------------
+        // -----------------------------------------------------------------
+
+        let mediaRecorder = null; // To hold the MediaRecorder instance
+        let isRecording = false; // State of recording
+        let intervalId = null; // Interval ID for periodic uploads
+        let chunkId = 0;
+
+        console.log('CAPTURE.JS')
+
+        async function toggleRecording(patientId, noteId) {
+            const button = document.querySelector("#captureButton");
+            const recordingIntervalInSeconds = parseInt(document.getElementById("captureButton").dataset.interval);
+            
+            console.log(`Audio chunk interval is set to ${recordingIntervalInSeconds} seconds`);
+
+            if (isRecording) {
+                // Stop recording
+                mediaRecorder.stop();
+                clearInterval(intervalId);
+                button.textContent = "Start";
+                isRecording = false;
+                console.log(`Recording stopped for patient ${patientId}.`);
+            } else {
+                // initiate the session
+                fetch('{{newSessionURL | safe}}', {method: "POST"})
+                .then(response => response.text())
+                .then(result => console.log(result))
+                .catch(error => console.error(`Error creating hyperscribe session for patient ${patientId}:`, error));
+                
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+                    // Set the MIME type for MediaRecorder
+                    const mimeType = "audio/webm"; // Ensure browser support for this MIME type
+                    if (!MediaRecorder.isTypeSupported(mimeType)) {
+                        console.error(`MIME type ${mimeType} is not supported.`);
+                        return;
+                    }
+
+                    mediaRecorder = new MediaRecorder(stream, { mimeType });
+
+                    mediaRecorder.ondataavailable = (event) => {
+                        if (event.data.size > 0) {
+                            // Create a new Blob with codec metadata
+                            const mimeType = "audio/webm";
+                            const audioBlob = new Blob([event.data], { type: mimeType });
+
+                            // Create a FormData object and append the audio blob
+                            const formData = new FormData();
+                            chunkId += 1;
+                            const chunkIndex = String(chunkId).padStart(3, '0')
+                            formData.append("audio", audioBlob, `chunk_${chunkIndex}_${patientId}_${noteId}.webm`);
+
+                            // Send the audio blob to the server
+                            fetch('{{saveAudioURL | safe}}', {
+                                method: "POST",
+                                body: formData,
+                            })
+                            .then(response => response.text())
+                            .then(result => console.log(result))
+                            .catch(error => console.error(`Error uploading audio for patient ${patientId}:`, error));
+                        }
+                    };
+
+                    // Start the MediaRecorder and request data at 5-second intervals
+                    mediaRecorder.start();
+                    intervalId = setInterval(() => {
+                        mediaRecorder.requestData(); // Request current chunk for upload
+                    }, 1000 * recordingIntervalInSeconds);
+
+                    button.textContent = "Stop";
+                    isRecording = true;
+                    console.log(`Recording started for patient ${patientId}...`);
+                } catch (error) {
+                    console.error("Error accessing microphone:", error);
+                }
+            }
+        }
+
+        // -----------------------------------------------------------------
+        // PROGRESS --------------------------------------------------------
+        // -----------------------------------------------------------------
+
+        function updateTimeCells() {
+        const duration = document.getElementById('duration');
+        // eslint-disable-next-line no-prototype-builtins
+        if (duration.hasOwnProperty('startingTime')) {
+            const now = new Date();
+            const elapsedSeconds = (now.getTime() - duration.startingTime) / 1000;
+            const minutes = Math.floor(elapsedSeconds / 60);
+            const seconds = Math.floor(elapsedSeconds % 60);
+            duration.textContent = `${minutes}m ${String(seconds).padStart(2, '0')}s`;
+        }
+        }
+
+        function resetTable() {
+        const tbody = document.getElementById('message-table-body');
+        tbody.innerHTML = '<tr><td colspan="2">Waiting...</td></tr>';
+        }
+
+        function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+            }
+        }
+        console.log({'cookieName': name, 'cookieValue': cookieValue});
+        return cookieValue;
+        }
+
+        async function fetchAndDisplay(progressURLPath, endOfMessage) {
+        const tbody = document.getElementById('message-table-body');
+        const errorDiv = document.getElementById('error');
+        errorDiv.textContent = '';
+
+        try {
+            const response = await fetch(progressURLPath, {cache: 'no-store'});
+            if (!response.ok) {
+                errorDiv.textContent = `HTTP error ${response.status}`;
+            } else {
+                const data = await response.json();
+                const currentMessage = new Date(data.time);
+            if (
+                currentMessage.getTime() > window.previousMessage.getTime() &&
+                Array.isArray(data.messages) &&
+                data.messages.length > 0
+            ) {
+                window.previousMessage = currentMessage;
+
+                tbody.innerHTML = '';
+                // compute the oldest time
+                const times = data.messages.map(message => new Date(message.time));
+                const startingTime = new Date(Math.min(...times));
+                // set the duration object
+                const duration = document.getElementById('duration');
+                // eslint-disable-next-line no-prototype-builtins
+                if (duration.hasOwnProperty('startingTime') === false) {
+                duration.startingTime = startingTime;
+                }
+
+                data.messages.forEach(msg => {
+                // end of the messages
+                if (msg.message === endOfMessage) {
+                    clearInterval(window.logRefreshId);
+                    clearInterval(window.cellRefreshId);
+                    duration.textContent = '';
+                    return;
+                }
+                // compute the time from the first message
+                const messageTime = new Date(msg.time);
+                const elapsedSeconds = Math.floor((messageTime - startingTime) / 1000);
+                // create the two columns and fill them
+                const messageCell = document.createElement('td');
+                const timeCell = document.createElement('td');
+                messageCell.textContent = msg.message;
+                if (elapsedSeconds > 0) {
+                    timeCell.textContent = `${elapsedSeconds}s`;
+                } else {
+                    timeCell.textContent = startingTime.toLocaleTimeString();
+                }
+                // create the row and add it to the table
+                const row = document.createElement('tr');
+                row.appendChild(messageCell);
+                row.appendChild(timeCell);
+                tbody.appendChild(row);
+                });
+            }
+            }
+        } catch (err) {
+            errorDiv.textContent = `Error: ${err.message}`;
+        }
+        if (tbody.innerHTML === '') {
+            tbody.innerHTML = '<tr><td colspan="2">...</td></tr>';
+        }
+        }
+    </script>
 </body>
+</html>
