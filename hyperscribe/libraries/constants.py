@@ -1,10 +1,14 @@
 class Constants:
     ANTHROPIC_CHAT_TEXT = "claude-3-5-sonnet-20241022"  # LLM model used for text completion
     AWS3_LINK_EXPIRATION_SECONDS = 1200  # duration of an AWS S3 link
+<<<<<<< HEAD
     API_SIGNED_EXPIRATION_SECONDS = 1200
     CYCLE_TRANSCRIPT_OVERLAP_MIN = 5
     CYCLE_TRANSCRIPT_OVERLAP_MAX = 250
     CYCLE_TRANSCRIPT_OVERLAP_DEFAULT = 100
+=======
+    API_SIGNED_EXPIRATION_SECONDS = 3600
+>>>>>>> 85b6253 (implements audio server)
     DISCUSSION_CACHED_DURATION = 90  # minutes before a discussion is cleared
     GOOGLE_CHAT_ALL = "models/gemini-2.0-flash"  # LLM model used for speech to text and text completion
     LABEL_ENCOUNTER_COPILOT = "Encounter Copilot"
@@ -65,9 +69,10 @@ class Constants:
     #
     SECRET_API_SIGNING_KEY = "APISigningKey"
     SECRET_AUDIO_HOST = "AudioHost"
+    SECRET_AUDIO_HOST_PRE_SHARED_KEY = "AudioHostSharedSecret"
     SECRET_AUDIO_INTERVAL = "AudioIntervalSeconds"
-    SECRET_AUDIO_KEY = "KeyAudioLLM"
-    SECRET_AUDIO_VENDOR = "VendorAudioLLM"
+    SECRET_AUDIO_LLM_KEY = "KeyAudioLLM"
+    SECRET_AUDIO_LLM_VENDOR = "VendorAudioLLM"
     SECRET_AUDIT_LLM = "AuditLLMDecisions"
     SECRET_AWS_BUCKET_LOGS = "AwsBucketLogs"
     SECRET_AWS_BUCKET_TUNING = "AwsBucketTuning"
@@ -83,10 +88,14 @@ class Constants:
     SECRET_STAFFERS_LIST = "StaffersList"
     SECRET_STAFFERS_POLICY = "StaffersPolicy"
     SECRET_STRUCTURED_RFV = "StructuredReasonForVisit"
-    SECRET_TEXT_KEY = "KeyTextLLM"
-    SECRET_TEXT_VENDOR = "VendorTextLLM"
     SECRET_CYCLE_TRANSCRIPT_OVERLAP = "CycleTranscriptOverlap"
+    SECRET_TEXT_LLM_KEY = "KeyTextLLM"
+    SECRET_TEXT_LLM_VENDOR = "VendorTextLLM"
     #
     PROGRESS_END_OF_MESSAGES = "EOF"
     PROGRESS_SETTING_KEY = "sendProgress"
     PROGRESS_EXPIRATION_SECONDS = 7200
+    #
+    BASE_ROUTE = "/plugin-io/api/hyperscribe"
+    FUMAGE_BEARER_TOKEN = "FumageBearerToken"
+    COPILOTS_TEAM_FHIR_GROUP_ID = "CopilotsTeamFHIRGroupId"

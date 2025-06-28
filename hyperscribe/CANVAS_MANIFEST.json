@@ -144,7 +144,9 @@
     "StaffersPolicy",
     "StructuredReasonForVisit",
     "VendorAudioLLM",
-    "VendorTextLLM"
+    "VendorTextLLM",
+    "FumageBearerToken",
+    "CopilotsTeamFHIRGroupId"
   ],
   "tags": {},
   "references": [],
