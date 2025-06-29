@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, UTC
-from http import HTTPStatus
 from time import time
 from typing import Iterable, Any
 
