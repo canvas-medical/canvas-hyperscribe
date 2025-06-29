@@ -20,6 +20,7 @@ from canvas_sdk.v1.data.note import Note
 from logger import log
 
 from hyperscribe.handlers.progress import Progress
+from hyperscribe.libraries.audio_client import AudioClient
 from hyperscribe.libraries.audio_interpreter import AudioInterpreter
 from hyperscribe.libraries.auditor import Auditor
 from hyperscribe.libraries.aws_s3 import AwsS3
@@ -82,7 +83,14 @@ class Commander(BaseProtocol):
         aws_s3 = AwsS3Credentials.from_dictionary(self.secrets)
         memory_log = MemoryLog.instance(identification, Constants.MEMORY_LOG_LABEL, aws_s3)
         memory_log.output(f"SDK: {version} - Text: {self.secrets[Constants.SECRET_TEXT_LLM_VENDOR]} - Audio: {self.secrets[Constants.SECRET_AUDIO_LLM_VENDOR]}")
-        had_audio, effects = self.compute_audio(identification, settings, aws_s3, self.secrets[Constants.SECRET_AUDIO_HOST], information.chunk_index)
+        
+        audio_client = AudioClient(
+            base_url=self.secrets[Constants.SECRET_AUDIO_HOST],
+            instance=self.environment[Constants.CUSTOMER_IDENTIFIER],
+            instance_key=self.secrets[Constants.SECRET_AUDIO_HOST_PRE_SHARED_KEY]
+        )
+        
+        had_audio, effects = self.compute_audio(identification, settings, aws_s3, audio_client, information.chunk_index)
         if had_audio:
             log.info(f"audio was present => go to next iteration ({information.chunk_index + 1})")
             Progress.send_to_user(identification, settings, f"waiting for the next cycle {information.chunk_index + 1}...")
@@ -127,16 +135,18 @@ class Commander(BaseProtocol):
             identification: IdentificationParameters,
             settings: Settings,
             aws_s3: AwsS3Credentials,
-            host_audio: str,
+            audio_client: AudioClient,
             chunk_index: int,
     ) -> tuple[bool, list[Effect]]:
-        # retrieve the last audio chunks
-        audios = cls.retrieve_audios(
-            host_audio,
-            identification.patient_uuid,
-            identification.note_uuid,
-            chunk_index,
-        )
+        audio_bytes = audio_client.get_audio_chunk(
+            identification.patient_uuid, identification.note_uuid, chunk_index)
+        
+        # TODO: Are we going to do overlapping chunks? If not, then simplify, 
+        # TODO: doesn't need to be a list?
+        audios = []
+        if audio_bytes:
+            audios.append(audio_bytes)
+        
         memory_log = MemoryLog.instance(identification, Constants.MEMORY_LOG_LABEL, aws_s3)
         memory_log.output(f"--> audio chunks: {len(audios)}")
         if not audios:
@@ -193,22 +203,6 @@ class Commander(BaseProtocol):
             memory_log.output(f"--> log path: {remote_path}")
             client_s3.upload_text_to_s3(remote_path, MemoryLog.end_session(identification.note_uuid))
         return True, results
-
-    @classmethod
-    def retrieve_audios(cls, host_audio: str, patient_uuid: str, note_uuid: str, chunk_index: int) -> list[bytes]:
-        audio_url = f"{host_audio}{Constants.BASE_ROUTE}/audio/{patient_uuid}/{note_uuid}?yo"
-
-        initial = cls.get_audio(f"{audio_url}/{chunk_index}")
-        if not initial:
-            return []
-        # retrieve the previous segments only if the last one is provided
-        result = [
-            audio
-            for chunk in range(max(0, chunk_index - cls.MAX_PREVIOUS_AUDIOS), chunk_index)
-            if (audio := cls.get_audio(f"{audio_url}/{chunk}")) and len(audio) > 0
-        ]
-        result.append(initial)
-        return result
 
     @classmethod
     def audio2commands(
@@ -563,14 +557,3 @@ class Commander(BaseProtocol):
                         ))
                     break
         return result
-
-    @classmethod
-    def get_audio(cls, chunk_audio_url: str) -> bytes:
-        log.info(f" ---> audio url: {chunk_audio_url}")
-        response = requests.get(chunk_audio_url, timeout=300)
-        log.info(f"           code: {response.status_code}")
-        log.info(f"        content: {len(response.content)}")
-        # Check if the request was successful
-        if response.status_code == HTTPStatus.OK.value:
-            return response.content
-        return b""

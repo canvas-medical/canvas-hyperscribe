@@ -4,8 +4,10 @@ import requests
 from base64 import b64decode
 from requests import Response
 from logger import log
+from typing import NamedTuple
 
 from canvas_sdk.handlers.simple_api import api
+from canvas_sdk.caching.plugins import get_cache
 
 
 WEBM_PREFIX_BASE64_ENCODED = (
@@ -79,7 +81,15 @@ WEBM_PREFIX_BASE64_ENCODED = (
 )
 
 
+class CachedAudioSession(NamedTuple):
+    session_id: str
+    user_token: str
+    logged_in_user_id: str
+
+
 class AudioClient:
+    cache = get_cache()
+
     def __init__(self, 
                  base_url: str, 
                  registration_key: str | None = None, 
@@ -103,12 +113,9 @@ class AudioClient:
             'Canvas-Customer-Shared-Secret': self.instance_key,
             "Content-Type": "application/json"
         }
-        log.info(headers)
         url = f'{self.base_url}/user-tokens'
         data = {'user_external_id': user_identifier}
         resp = requests.post(url, headers=headers, json=data)
-        log.info(f'get_user_token resp.status_code: {resp.status_code}')
-        log.info(f'get_user_token resp.text {resp.text}')
         json_response = resp.json()
         return json_response['token']
 
@@ -119,14 +126,12 @@ class AudioClient:
         }
         url = f'{self.base_url}/sessions'
         resp = requests.post(url, headers=headers, json={'meta': meta})
-        log.info(f'create_session resp.status_code {resp.status_code}')
-        log.info(f'create_session resp.text {resp.text}')
         json_response = resp.json()
         return json_response['id']
 
     def save_audio_chunk(self, 
-                         user_token: str, 
-                         session_id: str, 
+                         patient_id: str, 
+                         note_id: str, 
                          audio_file: api.FileFormPart
                          ) -> Response:
         match = re.search(r"chunk_(\d+)_", audio_file.filename)
@@ -139,15 +144,59 @@ class AudioClient:
             # need this in order to enable ffmpeg conversion to mp3 on audio server
             webm_bytes = b64decode(WEBM_PREFIX_BASE64_ENCODED) + audio_file.content
 
-        url = f'{self.base_url}/sessions/{session_id}/chunks'
-        headers = {"Authorization": f"Bearer {user_token}"}
+        session = self.get_latest_session(patient_id, note_id)
+        if not session:
+            resp = Response()
+            resp._content = b"Conflict: There is no audio server session for this note"
+            resp.status_code = 409
+            return resp
+
+        url = f'{self.base_url}/sessions/{session.session_id}/chunks'
+        headers = {"Authorization": f"Bearer {session.user_token}"}
         files = {'audio': (audio_file.filename, webm_bytes, audio_file.content_type)}
         data = {'sequence_number': sequence_number}
         
         return requests.post(url, headers=headers, files=files, data=data)
 
-    def get_audio_chunk_by_sequence_number(self):
-        pass
+    def get_audio_chunk(self, patient_id: str, note_id: str, chunk_id: int) -> bytes:
+        session = self.get_latest_session(patient_id, note_id)
+        url = f'{self.base_url}/sessions/{session.session_id}/chunks'
+        headers = {"Authorization": f"Bearer {session.user_token}"}
+        params = {'sequence_number': chunk_id}
+        resp = requests.get(url, headers=headers, params=params)
+        
+        if resp.status_code == 204:
+            return b''
+        
+        s3_presigned_url = resp.json()['url']
+        resp = requests.get(s3_presigned_url)
+        return resp.content
 
-    def get_audio_chunk_by_chunk_id(self):
-        pass
+    @classmethod
+    def sessions_key(cls, patient_id: str, note_id: str) -> str:
+        return f"'hyperscribe.sessions'.{patient_id}.{note_id}"
+
+    @classmethod
+    def get_sessions(cls, patient_id, note_id):
+        key = cls.sessions_key(patient_id, note_id)
+        return cls.cache.get(key, default=[])
+
+    @classmethod
+    def get_latest_session(cls, patient_id: str, note_id: str) -> CachedAudioSession | None:
+        sessions = cls.get_sessions(patient_id, note_id)
+        if not sessions:
+            return None
+        return sessions[-1]
+
+    @classmethod
+    def add_session(cls, 
+                    patient_id: str, 
+                    note_id: str, 
+                    session_id: str, 
+                    logged_in_user_id: str, 
+                    user_token: str) -> None:
+        sessions = cls.get_sessions(patient_id, note_id)
+        new_session = CachedAudioSession(session_id, user_token, logged_in_user_id)
+        sessions.append(new_session)
+        key = cls.sessions_key(patient_id, note_id)
+        cls.cache.set(key, sessions)
