@@ -10,7 +10,7 @@ from canvas_sdk.handlers.simple_api import api
 from canvas_sdk.caching.plugins import get_cache
 
 
-WEBM_PREFIX_BASE64_ENCODED = (
+WEBM_PREFIX = b64decode(
     "GkXfo59ChoEBQveBAULygQRC84EIQoKEd2VibUKHgQRChYECGFOAZwH/////////FUmpZpkq17GDD0JATYCGQ2hyb21lV0GGQ2hyb21lFlSua7+uvdeBAXPF"
     "h+TAgHbDxymDgQKGhkFfT1BVU2Oik09wdXNIZWFkAQEAAIC7AAAAAADhjbWERzuAAJ+BAWJkgSAfQ7Z1Af/////////ngQCjRQqBAACA+4P9P/8yfNQEF6c/"
     "TOv4+btNjYzhduPf2/lvxnyXrG25o6GJSm4hU46iNqeUJfFdXzc5RZZxr+E5g8+sa9vMelUU56BK6KK/nw226ARDfh/IK98zs44ABSao4wdok7R0yU6Gr92M"
@@ -142,7 +142,7 @@ class AudioClient:
         else:
             # add prefix to webm content if not the first chunk
             # need this in order to enable ffmpeg conversion to mp3 on audio server
-            webm_bytes = b64decode(WEBM_PREFIX_BASE64_ENCODED) + audio_file.content
+            webm_bytes = WEBM_PREFIX + audio_file.content
 
         session = self.get_latest_session(patient_id, note_id)
         if not session:
