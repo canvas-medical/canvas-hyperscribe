@@ -1,22 +1,21 @@
 import json
 
-from http import HTTPStatus
-
 from datetime import datetime
-from time import time
-
+from http import HTTPStatus
 from logger import log
+from time import time
 
 from canvas_sdk.effects import Effect
 from canvas_sdk.effects.simple_api import Response, HTMLResponse
 from canvas_sdk.handlers.simple_api import Credentials, SimpleAPI, api
 from canvas_sdk.templates import render_to_string
+from canvas_sdk.utils.db import thread_cleanup
 from canvas_sdk.utils.http import Http
 from canvas_sdk.v1.data.staff import Staff
 
-from hyperscribe.libraries.constants import Constants
-from hyperscribe.libraries.authenticator import Authenticator
 from hyperscribe.libraries.audio_client import AudioClient
+from hyperscribe.libraries.authenticator import Authenticator
+from hyperscribe.libraries.constants import Constants
 
 
 class CaptureView(SimpleAPI):
@@ -130,8 +129,12 @@ class CaptureView(SimpleAPI):
             "input": [{"type": {"text": "label"}, "valueString": "Encounter Copilot"}]
         }
         t0 = time()
-        http = Http()
-        response = http.post(url, json=payload, headers=headers)
+        # TODO: there needs to be a better way here, thread_cleanup should be in Http
+        # TODO: https://github.com/canvas-medical/canvas-plugins/issues/733
+        try:
+            response = Http().post(url, json=payload, headers=headers)
+        finally:
+            thread_cleanup()
         log.info(f'FHIR Task Create duration: {int(100*(time()-t0))/100} seconds')
         return [Response(response.content, response.status_code)]
 
