@@ -3,6 +3,7 @@ import json
 import re
 import os
 import random
+import argparse
 from typing import List, Tuple, Any
 from json import JSONDecodeError
 
@@ -11,38 +12,39 @@ from hyperscribe.structures.llm_turn import LlmTurn
 from hyperscribe.libraries.constants import Constants
 from hyperscribe.libraries.memory_log import MemoryLog
 
-TURN_BUCKETS = {
-    "short": (2, 4),      
-    "medium": (6, 8),
-    "long": (10, 14)
-}
+class Constants:
+    TURN_BUCKETS = {
+        "short": (2, 4),      
+        "medium": (6, 8),
+        "long": (10, 14)
+    }
 
-MOOD_POOL = [
-    "patient is frustrated", "patient is tearful", "patient is embarrassed",
-    "patient is defensive", "clinician is concerned", "clinician is rushed",
-    "clinician is warm", "clinician is brief"
-]
+    MOOD_POOL = [
+        "patient is frustrated", "patient is tearful", "patient is embarrassed",
+        "patient is defensive", "clinician is concerned", "clinician is rushed",
+        "clinician is warm", "clinician is brief"
+    ]
 
-PRESSURE_POOL = [
-    "time pressure on the visit", "insurance denied prior authorization",
-    "formulary change", "refill limit reached", "patient traveling soon",
-    "side‑effect report just came in"
-]
+    PRESSURE_POOL = [
+        "time pressure on the visit", "insurance denied prior authorization",
+        "formulary change", "refill limit reached", "patient traveling soon",
+        "side‑effect report just came in"
+    ]
 
-CLINICIAN_PERSONAS = [
-    "warm and chatty", "brief and efficient", "cautious and inquisitive",
-    "over‑explainer"
-]
+    CLINICIAN_PERSONAS = [
+        "warm and chatty", "brief and efficient", "cautious and inquisitive",
+        "over‑explainer"
+    ]
 
-PATIENT_PERSONAS = [
-    "anxious and talkative", "confused and forgetful",
-    "assertive and informed", "agreeable but vague"
-]
+    PATIENT_PERSONAS = [
+        "anxious and talkative", "confused and forgetful",
+        "assertive and informed", "agreeable but vague"
+    ]
 
-FORBIDDEN_CLOSINGS = {
-    "okay thanks", "thanks for coming", "take care", "bye for now",
-    "we'll follow up", "see you next time"
-}
+    FORBIDDEN_CLOSINGS = {
+        "okay thanks", "thanks for coming", "take care", "bye for now",
+        "we'll follow up", "see you next time"
+    }
 
 def _safe_json_load(txt: str) -> Tuple[Any, str | None]:
     """Return (data, err_msg).  data is None if still invalid."""
@@ -90,11 +92,11 @@ class TranscriptGenerator:
                          Constants.OPENAI_CHAT_TEXT, False)
 
     def _random_bucket(self):
-        return random.choice(list(TURN_BUCKETS.keys()))
+        return random.choice(list(Constants.TURN_BUCKETS.keys()))
 
     def _make_spec(self):
         bucket = self._random_bucket()
-        lo, hi = TURN_BUCKETS[bucket]
+        lo, hi = Constants.TURN_BUCKETS[bucket]
         turn_total = random.randint(lo, hi)
 
         first = random.choice(["Clinician", "Patient"])
@@ -106,10 +108,10 @@ class TranscriptGenerator:
         #randomized ratio between 1:2 to 2:1. 
         ratio = round(random.uniform(0.5, 2.0), 2)
 
-        mood = random.sample(MOOD_POOL, k=2)
-        pressure = random.choice(PRESSURE_POOL)
-        clinician_style = random.choice(CLINICIAN_PERSONAS)
-        patient_style = random.choice(PATIENT_PERSONAS)
+        mood = random.sample(Constants.MOOD_POOL, k=2)
+        pressure = random.choice(Constants.PRESSURE_POOL)
+        clinician_style = random.choice(Constants.CLINICIAN_PERSONAS)
+        patient_style = random.choice(Constants.PATIENT_PERSONAS)
 
         return {
             "turn_total": turn_total,
@@ -186,7 +188,8 @@ class TranscriptGenerator:
 
     def run(self, start_index: int = 1, limit: int | None = None):
         items = list(self.profiles.items())
-        items = items[start_index - 1:] #slicing if partial run occurs
+        #slicing based on start_index and limit flags in cases of partial run fails.
+        items = items[start_index - 1:] 
         if limit:
             items = items[:limit]
 
@@ -202,7 +205,7 @@ class TranscriptGenerator:
             (patient_dir / "transcript.json").write_text(json.dumps(transcript, indent=2))
             (patient_dir / "spec.json").write_text(json.dumps(spec, indent=2))
 
-            # always keep raw for audit / debugging
+            #keeping raw file just in case for debugging. 
             (patient_dir / "raw_transcript.txt").write_text(raw_txt)
 
             print("Saved => transcript.json, spec.json, raw_transcript.txt")
@@ -215,13 +218,12 @@ if __name__ == "__main__":
 
     generator = TranscriptGenerator(
         llm_key=llm_key,
-        input_profiles_path="~/canvas-hyperscribe/evaluations/cases/synthetic_unit_cases/med_management_tpc_o3/patient_profiles.json",
-        output_root_path="~/canvas-hyperscribe/evaluations/cases/synthetic_unit_cases/med_management_tpc_o3"
+        input_profiles_path="~/canvas-hyperscribe/evaluations/cases/synthetic_unit_cases/med_management/patient_profiles.json",
+        output_root_path="~/canvas-hyperscribe/evaluations/cases/synthetic_unit_cases/med_management"
     )
     # pass --limit N via CLI if desired
-    import argparse
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--limit", type=int, default=None)
-    ap.add_argument("--start", type=int, default=1,   help="start at patient N (1-based)")
-    args = ap.parse_args()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--limit", type=int, default=None)
+    parser.add_argument("--start", type=int, default=1,   help="start at patient N (1-based)")
+    args = parser.parse_args()
     generator.run(start_index=args.start, limit=args.limit)

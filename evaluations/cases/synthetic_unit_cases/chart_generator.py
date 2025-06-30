@@ -1,8 +1,7 @@
-import json
+import json, re, uuid, os, argparse
 import re
 import uuid
 from pathlib import Path
-import os
 from hyperscribe.llms.llm_openai import LlmOpenai
 from hyperscribe.structures.llm_turn import LlmTurn
 from hyperscribe.libraries.constants import Constants
@@ -54,10 +53,12 @@ class ChartGenerator:
                 f"Patient profile: {profile_text}",
                 f"Here is an example structure:\n{json.dumps(self.example_chart, indent=2)}",
                 "Generate a valid limited_chart.json for this patient. Only output raw JSON — no markdown, no commentary.",
-                "Be strict about including only information that is clearly **already known or documented** in the profile. Do not speculate or infer anything that could happen in the future.",
+                "Be strict about including only information that is clearly **already known or documented** in the profile. "
+                "Do not speculate or infer anything that could happen in the future.",
                 "Include only conditions the patient **has had or is actively diagnosed with**, not symptoms or possibilities.",
                 "Include only medications the patient is **actually taking**, not medications they might take, are considering, or could be prescribed.",
-                "Everything in the chart must be written from a factual, retrospective standpoint — it should reflect the patient’s clinical record, not a future possibility or plan."
+                "Everything in the chart must be written from a factual, retrospective standpoint — it should reflect the patient’s clinical record, "
+                "not a future possibility or plan."
             ]
         ))
 
@@ -74,7 +75,7 @@ class ChartGenerator:
 
     def assign_valid_uuids(self, obj):
         """
-        Recursively walk the JSON dict/list and replace any 'uuid' field with a generated UUID4.
+        Recursively walk the JSON dict/list and replace any 'uuid' field with a generated UUID.
         """
         if isinstance(obj, dict):
             return {
@@ -86,37 +87,59 @@ class ChartGenerator:
         else:
             return obj
 
-    def run(self):
-        for patient_name, profile_text in self.profiles.items():
+    def run(self, start_index: int = 1, limit: int | None = None):
+        items = list(self.profiles.items())
+        items = items[start_index - 1:]
+        if limit is not None:
+            items = items[:limit]
+
+        for patient_name, profile_text in items():
             safe_name = re.sub(r'\W+', '_', patient_name)
             patient_dir = self.output_root / safe_name
             patient_dir.mkdir(parents=True, exist_ok=True)
 
-            print(f"Generating limited_chart.json for {patient_name} → {patient_dir}")
+            print(f"Generating limited_chart.json for {patient_name} in {patient_dir}")
             chart_json = self.generate_chart_for_profile(profile_text)
 
-            # Validate
+            #chart validation and formatting.
             self.validate_chart(chart_json)
-
-            # Replace UUIDs
             chart_json = self.assign_valid_uuids(chart_json)
 
-            # Save
+            #saving. 
             chart_path = patient_dir / "limited_chart.json"
             with chart_path.open('w') as f:
                 json.dump(chart_json, f, indent=2)
             print(f"Saved limited_chart.json to {chart_path}")
 
-
 if __name__ == "__main__":
-    llm_key = os.getenv('KeyTextLLM')
+    llm_key = os.getenv("KeyTextLLM")
     if not llm_key:
         raise RuntimeError("KeyTextLLM environment variable is not set.")
 
-    generator = ChartGenerator(
-        llm_key=llm_key,
-        input_profiles_path="~/canvas-hyperscribe/evaluations/cases/synthetic_unit_cases/med_management_tpc_o3/patient_profiles.json",
-        output_root_path="~/canvas-hyperscribe/evaluations/cases/synthetic_unit_cases/med_management_tpc_o3",
-        example_chart_path="~/canvas-hyperscribe/evaluations/cases/synthetic_unit_cases/representative_limited_chart.json"
-    )
-    generator.run()
+    parser = argparse.ArgumentParser(
+        description="Generate Canvas-compatible limited_chart.json files.")
+    parser.add_argument("--start", type=int, default=1,
+                        help="1-based patient index to start from (default 1)")
+    parser.add_argument("--limit", type=int, default=None,
+                        help="Process at most N patients (default: all)")
+    parser.add_argument("--profiles", type=str, required=False,
+                        default="~/canvas-hyperscribe/evaluations/cases/"
+                                "synthetic_unit_cases/med_management"
+                                "patient_profiles.json",
+                        help="Path to patient_profiles.json")
+    parser.add_argument("--out-root", type=str, required=False,
+                        default="~/canvas-hyperscribe/evaluations/cases/"
+                                "synthetic_unit_cases/med_management",
+                        help="Root folder to write Patient_X/limited_chart.json")
+    parser.add_argument("--example", type=str, required=False,
+                        default="~/canvas-hyperscribe/evaluations/cases/"
+                                "synthetic_unit_cases/"
+                                "representative_limited_chart.json",
+                        help="Example limited_chart structure")
+
+    args = parser.parse_args()
+
+    generator = ChartGenerator(llm_key=llm_key, input_profiles_path=args.profiles,
+                        output_root_path=args.out_root, example_chart_path=args.example)
+    generator.run(start_index=args.start, limit=args.limit)
+
