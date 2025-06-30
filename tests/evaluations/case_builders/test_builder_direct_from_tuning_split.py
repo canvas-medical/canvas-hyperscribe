@@ -320,6 +320,7 @@ def test_schema_summary():
 @patch.object(BuilderDirectFromTuningSplit, "generate_case")
 @patch.object(BuilderDirectFromTuningSplit, "topical_exchange_summary")
 @patch.object(BuilderDirectFromTuningSplit, "detect_topical_exchanges")
+@patch.object(BuilderDirectFromTuningSplit, "anonymize_transcripts")
 @patch.object(BuilderDirectFromTuningSplit, "compact_transcripts")
 @patch.object(BuilderDirectFromTuningSplit, "create_transcripts")
 @patch.object(BuilderDirectFromTuningSplit, "split_audio")
@@ -329,6 +330,7 @@ def test__run(
         split_audio,
         create_transcripts,
         compact_transcripts,
+        anonymize_transcripts,
         detect_topical_exchanges,
         topical_exchange_summary,
         generate_case,
@@ -346,6 +348,7 @@ def test__run(
         split_audio.reset_mock()
         create_transcripts.reset_mock()
         compact_transcripts.reset_mock()
+        anonymize_transcripts.reset_mock()
         detect_topical_exchanges.reset_mock()
         topical_exchange_summary.reset_mock()
         generate_case.reset_mock()
@@ -388,6 +391,7 @@ def test__run(
     split_audio.side_effect = ["theSplitAudioFiles"]
     create_transcripts.side_effect = ["theCreatedTranscripts"]
     compact_transcripts.side_effect = ["theCompactedTranscripts"]
+    anonymize_transcripts.side_effect = ["theAnonymizedTranscripts"]
     detect_topical_exchanges.side_effect = [topical_exchanges]
     topical_exchange_summary.side_effect = exchange_summaries
     generate_case.side_effect = [
@@ -405,10 +409,15 @@ def test__run(
 
     tested._run()
 
-    exp_out = ("----> topic title1:\n"
-               "----> topic title2:\n"
-               "----> topic title3:\n"
-               "----> topic title4:\n")
+    exp_out = ("collect webm, collate to mp3...\n"
+               "split mp3 into chunks...\n"
+               "create transcripts...\n"
+               "de-identification transcripts...\n"
+               "detect topical exchanges...\n"
+               "build case for topic title1:\n"
+               "build case for topic title2:\n"
+               "build case for topic title3:\n"
+               "build case for topic title4:\n")
     assert capsys.readouterr().out == exp_out
 
     calls = [call()]
@@ -420,6 +429,8 @@ def test__run(
     calls = [call('theCreatedTranscripts')]
     assert compact_transcripts.mock_calls == calls
     calls = [call('theCompactedTranscripts')]
+    assert anonymize_transcripts.mock_calls == calls
+    calls = [call('theAnonymizedTranscripts')]
     assert detect_topical_exchanges.mock_calls == calls
     calls = [
         call([topical_exchanges[i] for i in [0, 1]], full_mp3_file.parent),

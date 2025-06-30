@@ -19,8 +19,10 @@ from hyperscribe.libraries.audio_interpreter import AudioInterpreter
 from hyperscribe.libraries.aws_s3 import AwsS3
 from hyperscribe.libraries.cached_sdk import CachedSdk
 from hyperscribe.libraries.constants import Constants
+from hyperscribe.libraries.helper import Helper
 from hyperscribe.libraries.implemented_commands import ImplementedCommands
 from hyperscribe.libraries.limited_cache import LimitedCache
+from hyperscribe.libraries.memory_log import MemoryLog
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.instruction import Instruction
@@ -200,3 +202,123 @@ class BuilderDirectFromTuning:
             chunk_index += 1
             result.append(chunk_file)
         return result
+
+    def anonymize_transcripts(self, transcript_files: list[Path]) -> list[Path]:
+        result: list[Path] = []
+        memory_log = MemoryLog.instance(self.identification, "anonymize_transcript", self.s3_credentials)
+        schema_anonymization = self.schema_anonymization()
+        schema_changes = self.schema_changes()
+
+        used_anonymizations: dict = {}
+        for chunk, transcript in enumerate(transcript_files):
+            anonymized = transcript.parent / f"transcript_anonymized_{chunk:03d}.json"
+            result.append(anonymized)
+            if anonymized.exists() and not self.force_refresh:
+                continue
+
+            chatter = Helper.chatter(self.settings, memory_log)
+            chatter.set_system_prompt([
+                "You are a medical transcript anonymization specialist with expertise in healthcare privacy compliance."
+                "",
+                "Your task is to remove all personally identifiable information (PII) from medical transcripts while preserving "
+                "complete clinical context and medical accuracy through realistic replacements.",
+                "",
+                "**Anonymization Approach**",
+                "Use realistic, plausible substitutions rather than placeholders:",
+                "- Replace names with culturally appropriate alternatives of similar length/structure",
+                "- Substitute locations with comparable geographic areas (similar urban/rural, climate, healthcare infrastructure)",
+                "- Change dates while maintaining temporal relationships and seasonal context when medically relevant",
+                "- Replace specific institutions with similar types (community hospital → regional medical center)",
+                "",
+                "**Medical Preservation Requirements**",
+                "- Maintain ALL clinical terminology, symptoms, diagnoses, differential diagnoses",
+                "- Preserve exact medication names, dosages, frequencies, routes of administration",
+                "- Keep all vital signs, laboratory values, imaging results, and measurements unchanged",
+                "- Retain medical history details, surgical history, family medical history",
+                "- Preserve healthcare provider specialties and their clinical roles",
+                "- Maintain treatment timelines and follow-up schedules precisely",
+                "- Keep allergies, adverse reactions, and contraindications intact",
+                "",
+                "Format the anonymized transcript following the JSON Schema:",
+                "```json",
+                json.dumps(schema_anonymization, indent=1),
+                "```",
+                "",
+                "**Global Consistency**: Use identical replacements for the exact same entity throughout the entire transcript.",
+                "But, two different entities cannot use the same anonymization replacement.",
+                "",
+                "",
+                "In a second JSON Markdown block, format the report of the changes following the JSON Schema:",
+                "```json",
+                json.dumps(schema_changes, indent=1),
+                "```",
+                "",
+            ])
+
+            with transcript.open("r") as f:
+                chatter.set_user_prompt([
+                    "Please anonymize the following medical transcript while preserving all clinical information:",
+                    "```json",
+                    f.read(),
+                    "```",
+                    "",
+                    "Follow rigorously the instructions and provide both JSON Markdown code block using the mentioned JSON Schemas.",
+                ])
+                if used_anonymizations:
+                    chatter.set_user_prompt([
+                        "The anonymized entities so far are:",
+                        "```json",
+                        json.dumps(list(used_anonymizations.values()), indent=1),
+                        "```",
+                        "",
+                        "Include this list in your response to be sure you are not using the same anonymization value for different entities.",
+                    ])
+
+                response = chatter.chat([schema_anonymization, schema_changes])
+                # the anonymized transcript
+                with anonymized.open("w") as f2:
+                    json.dump(response.content[0], f2, indent=2)
+                # the used anonymization
+                last_anonymizations = response.content[1]
+                for anonymization in last_anonymizations:
+                    used_anonymizations[anonymization["originalEntity"]] = anonymization
+
+        return result
+
+    @classmethod
+    def schema_anonymization(cls) -> dict:
+        return {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["speaker", "text"],
+                "properties": {
+                    "speaker": {"type": "string", "minLength": 1},
+                    "text": {"type": "string"},
+                },
+                "additionalProperties": False,
+            },
+        }
+
+    @classmethod
+    def schema_changes(cls) -> dict:
+        return {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["originalEntity", "anonymizedWith"],
+                "properties": {
+                    "originalEntity": {
+                        "type": "string",
+                        "description": "value of the original entity before replacement",
+                    },
+                    "anonymizedWith": {
+                        "type": "string",
+                        "description": "value of the replacement ; two different entities cannot use the same anonymization",
+                    },
+                },
+                "additionalProperties": False,
+            },
+        }

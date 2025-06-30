@@ -100,8 +100,10 @@ class BuilderDirectFromTuningSplit(BuilderDirectFromTuning):
         # while it is important to keep the transcript generation with the same duration as the actual code,
         # it is preferable to give wider context to the LLM to identify the different topics
         compacted_transcript_files = self.compact_transcripts(transcript_files)
+        print(f"de-identification transcripts...")
+        anonymized_transcript_files = self.anonymize_transcripts(compacted_transcript_files)
         print(f"detect topical exchanges...")
-        topic_exchanges = self.detect_topical_exchanges(compacted_transcript_files)
+        topic_exchanges = self.detect_topical_exchanges(anonymized_transcript_files)
 
         key2instruction = ImplementedCommands.schema_key2instruction()
         for topic, exchange in groupby(topic_exchanges, key=lambda x: x.topic):
