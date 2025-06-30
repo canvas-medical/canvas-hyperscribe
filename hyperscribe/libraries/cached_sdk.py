@@ -5,6 +5,7 @@ from datetime import datetime, UTC
 from canvas_sdk.caching.plugins import get_cache
 
 from hyperscribe.structures.instruction import Instruction
+from hyperscribe.structures.line import Line
 
 # ATTENTION the SDK cache is limited to the plugin environment
 CACHED: dict[str, dict] = {}
@@ -18,7 +19,7 @@ class CachedSdk:
         self.cycle: int = 1
         self.note_uuid = note_uuid
         self.previous_instructions: list[Instruction] = []
-        self.previous_transcript: str = ""
+        self.previous_transcript: list[Line] = []
 
     def set_cycle(self, cycle: int) -> None:
         self.updated = datetime.now(UTC)
@@ -45,7 +46,7 @@ class CachedSdk:
                 instruction.to_json(False)
                 for instruction in self.previous_instructions
             ],
-            "previous_transcript": self.previous_transcript,
+            "previous_transcript": [line.to_json() for line in self.previous_transcript],
         }
 
     @classmethod
@@ -65,5 +66,5 @@ class CachedSdk:
         result.updated = datetime.fromisoformat(dictionary["updated"])
         result.cycle = dictionary["cycle"]
         result.previous_instructions = Instruction.load_from_json(dictionary["previous_instructions"])
-        result.previous_transcript = dictionary["previous_transcript"]
+        result.previous_transcript = Line.load_from_json(dictionary["previous_transcript"])
         return result

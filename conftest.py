@@ -216,6 +216,10 @@ def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
                 continue
             audios = case / "audios"
             json_file = case / "audio2transcript.json"
+
+            if audios.exists() is False:
+                continue
+
             assert json_file.exists(), f"{case.stem}: no corresponding JSON file found"
 
             cycle_len = len(f"{Constants.CASE_CYCLE_SUFFIX}_???")
@@ -245,6 +249,8 @@ def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
                     if case.is_dir() is False:
                         continue
                     json_file = case / f"{step}.json"
+                    if json_file.exists() is False:
+                        continue
                     json_files.append((case.stem, json_file))
             else:
                 folder = Path(__file__).parent / f"evaluations/situational/{step}/"

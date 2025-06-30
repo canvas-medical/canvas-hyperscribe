@@ -8,6 +8,7 @@ from evaluations.structures.evaluation_case import EvaluationCase
 from hyperscribe.handlers.commander import Commander
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.instruction import Instruction
+from hyperscribe.structures.line import Line
 
 
 def test_class():
@@ -87,6 +88,13 @@ def test__run(
         )
         for idx in range(5)
     ]
+    lines = [
+        Line(speaker="speaker", text="last words 1"),
+        Line(speaker="speaker", text="last words 2"),
+        Line(speaker="speaker", text="last words 3"),
+        Line(speaker="speaker", text="last words 4"),
+        Line(speaker="speaker", text="last words 5"),
+    ]
 
     tested = BuilderFromTuning
     reset_mocks()
@@ -117,11 +125,11 @@ def test__run(
             mock_json_file.open.return_value.__enter__.return_value.read.side_effect = ['{"key": "value"}']
 
             run_cycle.side_effect = [
-                (instructions[:2], "last words 1"),
-                (instructions[:3], "last words 2"),
-                (instructions[:4], "last words 3"),
-                (instructions[:5], "last words 4"),
-                (instructions[:6], "last words 5"),
+                (instructions[:2], lines[0]),
+                (instructions[:3], lines[1]),
+                (instructions[:4], lines[2]),
+                (instructions[:5], lines[3]),
+                (instructions[:6], lines[4]),
             ]
 
             parameters = Namespace(
@@ -190,11 +198,11 @@ def test__run(
             calls = [call("theSettings", "theAwsS3Credentials", mock_limited_cache, identification)]
             assert audio_interpreter.mock_calls == calls
             calls = [
-                call('theCase', 0, exp_combined[0], audio_interpreter.return_value, instructions[:1], ""),
-                call('theCase', 1, exp_combined[1], audio_interpreter.return_value, instructions[:2], "last words 1"),
-                call('theCase', 2, exp_combined[2], audio_interpreter.return_value, instructions[:3], "last words 2"),
-                call('theCase', 3, exp_combined[3], audio_interpreter.return_value, instructions[:4], "last words 3"),
-                call('theCase', 4, exp_combined[4], audio_interpreter.return_value, instructions[:5], "last words 4"),
+                call('theCase', 0, exp_combined[0], audio_interpreter.return_value, instructions[:1], []),
+                call('theCase', 1, exp_combined[1], audio_interpreter.return_value, instructions[:2], lines[0]),
+                call('theCase', 2, exp_combined[2], audio_interpreter.return_value, instructions[:3], lines[1]),
+                call('theCase', 3, exp_combined[3], audio_interpreter.return_value, instructions[:4], lines[2]),
+                call('theCase', 4, exp_combined[4], audio_interpreter.return_value, instructions[:5], lines[3]),
             ]
             assert run_cycle.mock_calls == calls
             calls = [

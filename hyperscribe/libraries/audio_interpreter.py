@@ -60,7 +60,7 @@ class AudioInterpreter:
             if instance.class_name() not in ImplementedCommands.questionnaire_command_name_list()
         }
 
-    def combine_and_speaker_detection(self, audio_chunks: list[bytes], transcript_tail: str) -> JsonExtract:
+    def combine_and_speaker_detection(self, audio_chunks: list[bytes], transcript_tail: list[Line]) -> JsonExtract:
         conversation = Helper.audio2texter(
             self.settings,
             MemoryLog.instance(self.identification, "audio2transcript", self.s3_credentials),
@@ -73,7 +73,13 @@ class AudioInterpreter:
         ])
         previous_transcript = ""
         if transcript_tail:
-            previous_transcript = f"\nThe previous segment finished with: '{transcript_tail}'.\n"
+            previous_transcript = "\n".join([
+                "The previous segment finished with:",
+                "```json",
+                json.dumps([line.to_json() for line in transcript_tail], indent=1),
+                "```",
+                "",
+            ])
         conversation.set_user_prompt([
             "The recording takes place in a medical setting, specifically related to a patient's visit with a clinician.",
             "",

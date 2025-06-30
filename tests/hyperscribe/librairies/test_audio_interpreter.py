@@ -386,7 +386,15 @@ def test_combine_and_speaker_detection(audio2texter, memory_log):
             "",
             "These audio files contain recordings of a single visit.",
             "There is no overlap between the segments, so they should be regarded as a continuous flow and analyzed at once.",
-            "\nThe previous segment finished with: 'the last words.'.\n",
+            'The previous segment finished with:'
+            '\n```json'
+            '\n['
+            '\n {\n  "speaker": "speaker",\n  "text": "last words 1"\n },'
+            '\n {\n  "speaker": "speaker",\n  "text": "last words 2"\n },'
+            '\n {\n  "speaker": "speaker",\n  "text": "last words 3"\n }'
+            '\n]'
+            '\n```'
+            '\n',
             "Your task is to:",
             "1. label each voice if multiple voices are present.",
             "2. transcribe each speaker's words with maximum accuracy.",
@@ -461,6 +469,11 @@ def test_combine_and_speaker_detection(audio2texter, memory_log):
         {"speaker": "patient", "text": "the text G"},
         {"speaker": "nurse", "text": "the text H"},
     ]
+    lines = [
+        Line(speaker="speaker", text="last words 1"),
+        Line(speaker="speaker", text="last words 2"),
+        Line(speaker="speaker", text="last words 3"),
+    ]
     audio_chunks = [b"chunk1", b"chunk2"]
 
     tested, settings, aws_credentials, cache = helper_instance([], True)
@@ -468,7 +481,7 @@ def test_combine_and_speaker_detection(audio2texter, memory_log):
     # -- all JSON
     audio2texter.return_value.chat.side_effect = [JsonExtract(error="theError", has_error=False, content=[discussion, speakers])]
     memory_log.side_effect = ["MemoryLogInstance"]
-    result = tested.combine_and_speaker_detection(audio_chunks, "")
+    result = tested.combine_and_speaker_detection(audio_chunks, [])
     expected = JsonExtract(error="", has_error=False, content=conversation)
     assert result == expected
     calls = [
@@ -486,7 +499,7 @@ def test_combine_and_speaker_detection(audio2texter, memory_log):
     # -- only one JSON
     audio2texter.return_value.chat.side_effect = [JsonExtract(error="theError", has_error=False, content=[discussion])]
     memory_log.side_effect = ["MemoryLogInstance"]
-    result = tested.combine_and_speaker_detection(audio_chunks, "")
+    result = tested.combine_and_speaker_detection(audio_chunks, [])
     expected = JsonExtract(error="partial response", has_error=True, content=[discussion])
     assert result == expected
     calls = [
@@ -504,7 +517,7 @@ def test_combine_and_speaker_detection(audio2texter, memory_log):
     # -- with some previous transcript
     audio2texter.return_value.chat.side_effect = [JsonExtract(error="theError", has_error=False, content=[discussion, speakers])]
     memory_log.side_effect = ["MemoryLogInstance"]
-    result = tested.combine_and_speaker_detection(audio_chunks, "the last words.")
+    result = tested.combine_and_speaker_detection(audio_chunks, lines)
     expected = JsonExtract(error="", has_error=False, content=conversation)
     assert result == expected
     calls = [
@@ -523,7 +536,7 @@ def test_combine_and_speaker_detection(audio2texter, memory_log):
     # with error
     audio2texter.return_value.chat.side_effect = [JsonExtract(error="theError", has_error=True, content=[discussion, speakers])]
     memory_log.side_effect = ["MemoryLogInstance"]
-    result = tested.combine_and_speaker_detection(audio_chunks, "")
+    result = tested.combine_and_speaker_detection(audio_chunks, [])
     expected = JsonExtract(error="theError", has_error=True, content=[discussion, speakers])
     assert result == expected
     calls = [

@@ -87,6 +87,30 @@ class LimitedCache:
                     # TODO ^ should be: elif condition.clinical_status == ClinicalStatus.RESOLVED and condition.surgical == True:
                     self._surgery_history.append(item)
 
+    def add_instructions_as_staged_commands(self, instructions: list[Instruction], schema_key2instruction: dict) -> None:
+        # it is not correct to assimilate the Instruction.information to command.label, but this is the closest
+        instruction2schema_key = {item: key for key, item in schema_key2instruction.items()}
+        for instruction in instructions:
+            schema_key = instruction2schema_key[instruction.instruction]
+            if schema_key not in self._staged_commands:
+                self._staged_commands[schema_key] = []
+
+            for idx in range(len(self._staged_commands[schema_key])):
+                command = self._staged_commands[schema_key][idx]
+                if command.uuid == instruction.uuid:
+                    self._staged_commands[schema_key][idx] = CodedItem(
+                        uuid=command.uuid,
+                        label=instruction.information,
+                        code=command.code,
+                    )
+                    break
+            else:
+                self._staged_commands[schema_key].append(CodedItem(
+                    uuid=instruction.uuid,
+                    label=instruction.information,
+                    code="",
+                ))
+
     def staged_commands_of(self, schema_keys: list[str]) -> list[CodedItem]:
         return [
             command

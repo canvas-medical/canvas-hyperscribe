@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import fields as dataclass_fields, is_dataclass as dataclass_is_dataclass
 from typing import get_type_hints
 
@@ -34,3 +36,28 @@ def is_constant(cls, constants: dict) -> bool:
             print(f"----> {key} value is {getattr(cls, key)}")
             return False
     return True
+
+
+class MockFile:
+
+    def __init__(self, content: str | bytes = "", mode: str = ""):
+        self.content = content
+        self.mode = mode
+
+    def read(self):
+        return self.content
+
+    def write(self, text: str | bytes):
+        self.content = self.content + text
+        return len(text)
+
+    def close(self):
+        ...
+
+    def __enter__(self):
+        if "w" in self.mode and "+" not in self.mode:
+            self.content = ""
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()

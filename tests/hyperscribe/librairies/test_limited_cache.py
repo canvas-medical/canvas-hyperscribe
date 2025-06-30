@@ -173,6 +173,87 @@ def test_retrieve_conditions(condition_db, codings_db):
     reset_mocks()
 
 
+def test_add_instructions_as_staged_commands():
+    schema_key2instruction = {
+        "keyA": "theInstruction0",
+        "keyB": "theInstruction1",
+        "keyC": "theInstruction2",
+        "keyD": "theInstruction3",
+        "keyE": "theInstruction4",
+        "keyF": "theInstruction5",
+    }
+    instructions = [
+        Instruction(
+            uuid=f"uuid{idx}",
+            index=idx,
+            instruction=f"theInstruction{idx // 2}",
+            information=f"theInformation{idx}",
+            is_new=False,
+            is_updated=True,
+        )
+        for idx in range(5)
+    ]
+
+    # no staged commands
+    tested = LimitedCache("patientUuid", "providerUuid", {})
+    tested.add_instructions_as_staged_commands(instructions, schema_key2instruction)
+    expected = {
+        'keyA': [
+            CodedItem(uuid='uuid0', label='theInformation0', code=''),
+            CodedItem(uuid='uuid1', label='theInformation1', code=''),
+        ],
+        'keyB': [
+            CodedItem(uuid='uuid2', label='theInformation2', code=''),
+            CodedItem(uuid='uuid3', label='theInformation3', code=''),
+        ],
+        'keyC': [
+            CodedItem(uuid='uuid4', label='theInformation4', code=''),
+        ],
+    }
+    assert tested._staged_commands == expected
+
+    # some staged commands
+    tested = LimitedCache(
+        "patientUuid",
+        "providerUuid",
+        {
+            'keyA': [
+                CodedItem(uuid='uuid1', label='theInitial1', code='theCode1'),
+                CodedItem(uuid='uuid6', label='theInitial6', code='theCode6'),
+            ],
+            'keyB': [
+                CodedItem(uuid='uuid2', label='theInitial2', code='theCode2'),
+            ],
+            'keyC': [
+                CodedItem(uuid='uuid5', label='theInitial5', code='theCode5'),
+            ],
+            'keyD': [
+                CodedItem(uuid='uuid7', label='theInitial4', code='theCode4'),
+            ],
+        })
+    tested.add_instructions_as_staged_commands(instructions, schema_key2instruction)
+    expected = {
+        'keyA': [
+            CodedItem(uuid='uuid1', label='theInformation1', code='theCode1'),
+            CodedItem(uuid='uuid6', label='theInitial6', code='theCode6'),
+            CodedItem(uuid='uuid0', label='theInformation0', code=''),
+        ],
+        'keyB': [
+            CodedItem(uuid='uuid2', label='theInformation2', code='theCode2'),
+            CodedItem(uuid='uuid3', label='theInformation3', code=''),
+        ],
+        'keyC': [
+            CodedItem(uuid='uuid5', label='theInitial5', code='theCode5'),
+            CodedItem(uuid='uuid4', label='theInformation4', code=''),
+        ],
+        'keyD': [
+            CodedItem(uuid='uuid7', label='theInitial4', code='theCode4'),
+        ],
+    }
+
+    assert tested._staged_commands == expected
+
+
 def test_staged_commands_of():
     coded_items = [
         CodedItem(code="code1", label="label1", uuid="uuid1"),

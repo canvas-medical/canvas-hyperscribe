@@ -217,13 +217,13 @@ class Commander(BaseProtocol):
             audios: list[bytes],
             chatter: AudioInterpreter,
             previous_instructions: list[Instruction],
-            previous_transcript: str,
-    ) -> tuple[list[Instruction], list[Effect], str]:
+            previous_transcript: list[Line],
+    ) -> tuple[list[Instruction], list[Effect], list[Line]]:
         memory_log = MemoryLog.instance(chatter.identification, Constants.MEMORY_LOG_LABEL, chatter.s3_credentials)
         response = chatter.combine_and_speaker_detection(audios, previous_transcript)
         if response.has_error is True:
             memory_log.output(f"--> transcript encountered: {response.error}")
-            return previous_instructions, [], ""  # <--- let's continue even if we were not able to get a transcript
+            return previous_instructions, [], []  # <--- let's continue even if we were not able to get a transcript
 
         transcript = Line.load_from_json(response.content)
         auditor.identified_transcript(audios, transcript)
@@ -231,11 +231,7 @@ class Commander(BaseProtocol):
         speakers = ', '.join(sorted({l.speaker for l in transcript}))
         Progress.send_to_user(chatter.identification, chatter.settings, f"audio reviewed, speakers detected: {speakers}")
 
-        last_words = transcript[-1].text.split()
-        if len(last_words) > 30:
-            last_words = last_words[-30:]
-
-        return cls.transcript2commands(auditor, transcript, chatter, previous_instructions) + (" ".join(last_words),)
+        return cls.transcript2commands(auditor, transcript, chatter, previous_instructions) + (Line.tail_of(transcript),)
 
     @classmethod
     def transcript2commands(

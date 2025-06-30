@@ -4,6 +4,7 @@ from unittest.mock import patch, call, MagicMock
 import hyperscribe.libraries.cached_sdk as cached_sdk
 from hyperscribe.libraries.cached_sdk import CachedSdk
 from hyperscribe.structures.instruction import Instruction
+from hyperscribe.structures.line import Line
 
 
 @patch("hyperscribe.libraries.cached_sdk.datetime", wraps=datetime)
@@ -20,7 +21,7 @@ def test___init__(mock_datetime):
     assert tested.cycle == 1
     assert tested.note_uuid == "theNoteUuid"
     assert tested.previous_instructions == []
-    assert tested.previous_transcript == ""
+    assert tested.previous_transcript == []
 
     calls = [call.now(timezone.utc)]
     assert mock_datetime.mock_calls == calls
@@ -110,7 +111,10 @@ def test_save(get_cache):
                 'isUpdated': False,
             },
         ],
-        'previous_transcript': 'the last words',
+        'previous_transcript': [
+            {"speaker": "speaker1", "text": 'some words'},
+            {"speaker": "speaker2", "text": 'other words'},
+        ],
     }
 
     tested = CachedSdk("theNoteUuid")
@@ -135,7 +139,10 @@ def test_save(get_cache):
             is_updated=False,
         )
     ]
-    tested.previous_transcript = "the last words"
+    tested.previous_transcript = [
+        Line(speaker="speaker1", text='some words'),
+        Line(speaker="speaker2", text='other words'),
+    ]
     with patch.object(cached_sdk, "CACHED", {}):
         # cache exists
         get_cache.side_effect = [the_cache]
@@ -184,7 +191,10 @@ def test_to_json():
             is_updated=False,
         )
     ]
-    tested.previous_transcript = "the last words"
+    tested.previous_transcript = [
+        Line(speaker="speaker1", text='some words'),
+        Line(speaker="speaker2", text='other words'),
+    ]
 
     result = tested.to_json()
     expected = {
@@ -210,7 +220,10 @@ def test_to_json():
                 'isUpdated': False,
             },
         ],
-        'previous_transcript': 'the last words',
+        'previous_transcript': [
+            {"speaker": "speaker1", "text": 'some words'},
+            {"speaker": "speaker2", "text": 'other words'},
+        ],
     }
     assert result == expected
 
@@ -245,7 +258,10 @@ def test_get_discussion(get_cache, mock_datetime):
                 'isUpdated': False,
             },
         ],
-        'previous_transcript': 'the last words',
+        'previous_transcript': [
+            {"speaker": "speaker1", "text": 'some words'},
+            {"speaker": "speaker2", "text": 'other words'},
+        ],
     }
     instructions = [
         Instruction(
@@ -265,6 +281,10 @@ def test_get_discussion(get_cache, mock_datetime):
             is_updated=False,
         )
     ]
+    lines = [
+        Line(speaker="speaker1", text='some words'),
+        Line(speaker="speaker2", text='other words'),
+    ]
 
     date_0 = datetime(2025, 6, 12, 14, 33, 51, 123456, tzinfo=timezone.utc)
     date_1 = datetime(2025, 6, 12, 14, 33, 21, 123456, tzinfo=timezone.utc)
@@ -283,7 +303,7 @@ def test_get_discussion(get_cache, mock_datetime):
         assert result.updated == date_2
         assert result.cycle == 7
         assert result.previous_instructions == instructions
-        assert result.previous_transcript == "the last words"
+        assert result.previous_transcript == lines
 
         calls = [call()]
         assert get_cache.mock_calls == calls
@@ -304,7 +324,7 @@ def test_get_discussion(get_cache, mock_datetime):
         assert result.updated == date_0
         assert result.cycle == 1
         assert result.previous_instructions == []
-        assert result.previous_transcript == ""
+        assert result.previous_transcript == []
 
         calls = [call()]
         assert get_cache.mock_calls == calls
@@ -323,7 +343,7 @@ def test_get_discussion(get_cache, mock_datetime):
         assert result.updated == date_2
         assert result.cycle == 7
         assert result.previous_instructions == instructions
-        assert result.previous_transcript == "the last words"
+        assert result.previous_transcript == lines
 
         calls = [call()]
         assert get_cache.mock_calls == calls
@@ -345,7 +365,7 @@ def test_get_discussion(get_cache, mock_datetime):
         assert result.updated == date_0
         assert result.cycle == 1
         assert result.previous_instructions == []
-        assert result.previous_transcript == ""
+        assert result.previous_transcript == []
 
         calls = [call()]
         assert get_cache.mock_calls == calls
@@ -381,7 +401,10 @@ def test_load_from_json():
                 'isUpdated': False,
             },
         ],
-        'previous_transcript': 'the last words',
+        'previous_transcript': [
+            {"speaker": "speaker1", "text": 'some words'},
+            {"speaker": "speaker2", "text": 'other words'},
+        ],
     })
     assert isinstance(result, CachedSdk)
     assert result.created == date_1
@@ -405,4 +428,7 @@ def test_load_from_json():
             is_updated=False,
         )
     ]
-    assert result.previous_transcript == "the last words"
+    assert result.previous_transcript == [
+        Line(speaker="speaker1", text='some words'),
+        Line(speaker="speaker2", text='other words'),
+    ]

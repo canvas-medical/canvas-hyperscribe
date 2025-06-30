@@ -55,7 +55,8 @@ class BuilderFromMp3(BuilderBase):
 
         chatter = AudioInterpreter(settings, aws_s3_credentials, limited_cache, identification)
         previous = limited_cache.staged_commands_as_instructions(ImplementedCommands.schema_key2instruction())
-        transcript_tail = ""
+        from hyperscribe.structures.line import Line
+        transcript_tail: list[Line] = []
         discussion = CachedSdk.get_discussion(chatter.identification.note_uuid)
         for cycle, combined in enumerate(cycles):
             discussion.set_cycle(cycle + 1)

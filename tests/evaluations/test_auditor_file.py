@@ -10,29 +10,7 @@ from hyperscribe.structures.instruction import Instruction
 from hyperscribe.structures.instruction_with_command import InstructionWithCommand
 from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.line import Line
-from tests.helper import is_constant
-
-
-class MockFile:
-
-    def __init__(self, content: str = ""):
-        self.content = content
-
-    def read(self):
-        return self.content
-
-    def write(self, text):
-        self.content = f"{self.content}{text}"
-        return len(text)
-
-    def close(self):
-        ...
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.close()
+from tests.helper import is_constant, MockFile
 
 
 def test_constant():
@@ -1379,6 +1357,407 @@ def test_computed_questionnaires(case_file):
     assert json_file.mock_calls == calls
     for command in commands:
         assert command.mock_calls == []
+    reset_mocks()
+
+
+@patch.object(AuditorFile, "case_file")
+def test_summarized_generated_commands_as_instructions(case_file):
+    def reset_mocks():
+        case_file.reset_mock()
+
+    tested = AuditorFile("theCase", 7)
+
+    # there are no files for the case
+    case_file.return_value.exists.side_effect = [False, False]
+
+    result = tested.summarized_generated_commands_as_instructions()
+    assert result == []
+    calls = [
+        call("parameters2command.json"),
+        call().exists(),
+        call("staged_questionnaires.json"),
+        call().exists(),
+    ]
+    assert case_file.mock_calls == calls
+    reset_mocks()
+
+    # -- no commands in the files
+    case_file.return_value.exists.side_effect = [True, True]
+    case_file.return_value.open.return_value.read.side_effect = [
+        json.dumps({}),
+        json.dumps({}),
+    ]
+
+    result = tested.summarized_generated_commands_as_instructions()
+    assert result == []
+
+    calls = [
+        call("parameters2command.json"),
+        call().exists(),
+        call().open('r'),
+        call().open().read(),
+        call("staged_questionnaires.json"),
+        call().exists(),
+        call().open('r'),
+        call().open().read(),
+    ]
+    assert case_file.mock_calls == calls
+    reset_mocks()
+
+    # -- commands only in common commands
+    case_file.return_value.exists.side_effect = [True, True]
+    case_file.return_value.open.return_value.read.side_effect = [
+        json.dumps({
+            "cycle_000": {
+                "instructions": [
+                    {
+                        "uuid": "uuid1",
+                        "index": 0,
+                        "instruction": "theInstruction1",
+                        "information": "theInformation1",
+                        "isNew": True,
+                        "isUpdated": False,
+                    },
+                ],
+            },
+            "cycle_001": {
+                "instructions": [
+                    {
+                        "uuid": "uuid1",
+                        "index": 0,
+                        "instruction": "theInstruction1",
+                        "information": "theInformation2",
+                        "isNew": False,
+                        "isUpdated": True,
+                    },
+                    {
+                        "uuid": "uuid3",
+                        "index": 1,
+                        "instruction": "theInstruction2",
+                        "information": "theInformation3",
+                        "isNew": True,
+                        "isUpdated": False,
+                    },
+                ],
+            },
+            "cycle_002": {
+                "instructions": [
+                    {
+                        "uuid": "uuid4",
+                        "index": 2,
+                        "instruction": "theInstruction3",
+                        "information": "theInformation4",
+                        "isNew": True,
+                        "isUpdated": False,
+                    },
+                ],
+            },
+        }),
+        json.dumps({}),
+    ]
+
+    result = tested.summarized_generated_commands_as_instructions()
+    expected = [
+        Instruction(
+            uuid="uuid1",
+            index=0,
+            instruction="theInstruction1",
+            information="theInformation2",
+            is_new=False,
+            is_updated=True,
+        ),
+        Instruction(
+            uuid="uuid3",
+            index=1,
+            instruction="theInstruction2",
+            information="theInformation3",
+            is_new=True,
+            is_updated=False,
+        ),
+        Instruction(
+            uuid="uuid4",
+            index=2,
+            instruction="theInstruction3",
+            information="theInformation4",
+            is_new=True,
+            is_updated=False,
+        ),
+    ]
+    assert result == expected
+
+    assert case_file.mock_calls == calls
+    reset_mocks()
+
+    # -- commands only in questionnaire commands
+    questionnaires = [
+        {
+            "name": "theQuestionnaire1",
+            "dbid": 3,
+            "questions": [
+                {
+                    "dbid": 9,
+                    "label": "theRadioQuestion",
+                    "type": "SING",
+                    "skipped": None,
+                    "responses": [
+                        {"dbid": 25, "value": "Radio1", "selected": False, "comment": None},
+                        {"dbid": 26, "value": "Radio2", "selected": False, "comment": None},
+                        {"dbid": 27, "value": "Radio3", "selected": False, "comment": None},
+                    ],
+                },
+                {
+                    "dbid": 12,
+                    "label": "theIntegerQuestion",
+                    "type": "INT",
+                    "skipped": None,
+                    "responses": [
+                        {"dbid": 41, "value": "", "selected": False, "comment": None},
+                    ],
+                }
+            ]
+        },
+        {
+            "name": "theQuestionnaire2",
+            "dbid": 3,
+            "questions": [
+                {
+                    "dbid": 10,
+                    "label": "theCheckBoxQuestion",
+                    "type": "MULT",
+                    "skipped": None,
+                    "responses": [
+                        {"dbid": 33, "value": "Checkbox1", "selected": False, "comment": ""},
+                        {"dbid": 34, "value": "Checkbox2", "selected": False, "comment": ""},
+                        {"dbid": 35, "value": "Checkbox3", "selected": False, "comment": ""},
+                    ]
+                },
+                {
+                    "dbid": 11,
+                    "label": "theTextQuestion",
+                    "type": "TXT",
+                    "skipped": None,
+                    "responses": [
+                        {"dbid": 37, "value": "", "selected": False, "comment": None},
+                    ]
+                },
+                {
+                    "dbid": 17,
+                    "label": "otherTextQuestion",
+                    "type": "TXT",
+                    "skipped": None,
+                    "responses": [
+                        {"dbid": 51, "value": "", "selected": False, "comment": None},
+                    ]
+                },
+            ]
+        }
+    ]
+    case_file.return_value.exists.side_effect = [True, True]
+    case_file.return_value.open.return_value.read.side_effect = [
+        json.dumps({}),
+        json.dumps({
+            "cycle_000": {
+                "instructions": [
+                    {"uuid": "uuid1", "instruction": "questionnaireA", "information": json.dumps(questionnaires[0])},
+                    {"uuid": "uuid2", "instruction": "questionnaireB", "information": json.dumps(questionnaires[1])},
+                ],
+                "commands": [
+                    {
+                        "module": "theModule1",
+                        "class": "TheClass1",
+                        "attributes": {
+                            "command_uuid": ">?<",
+                            "note_uuid": ">?<",
+                            "questions": {
+                                "question-9": 999,
+                                "question-12": 999,
+
+                            },
+                        },
+                    },
+                    {
+                        "module": "theModule2",
+                        "class": "TheClass2",
+                        "attributes": {
+                            "command_uuid": ">?<",
+                            "note_uuid": ">?<",
+                            "questions": {
+                                "question-10": [
+                                    {
+                                        "text": "Checkbox1",
+                                        "value": 999,
+                                        "comment": "",
+                                        "selected": False,
+                                    },
+                                    {
+                                        "text": "Checkbox2",
+                                        "value": 999,
+                                        "comment": "theComment2",
+                                        "selected": True,
+                                    },
+                                    {
+                                        "text": "Checkbox3",
+                                        "value": 999,
+                                        "comment": "",
+                                        "selected": True,
+                                    },
+                                ],
+                                "question-11": "theFreeText",
+                            },
+                        },
+                    },
+                ]},
+            "cycle_002": {
+                "instructions": [
+                    {
+                        "uuid": "uuid1",
+                        "index": 0,
+                        "instruction": "questionnaireA",
+                        "information": json.dumps(questionnaires[0]),
+                        "isNew": True,
+                        "isUpdated": False,
+                    },
+                    {
+                        "uuid": "uuid2",
+                        "index": 1,
+                        "instruction": "questionnaireB",
+                        "information": json.dumps(questionnaires[1]),
+                        "isNew": False,
+                        "isUpdated": True,
+                    },
+                ],
+                "commands": [
+                    {
+                        "module": "theModule1",
+                        "class": "TheClass1",
+                        "attributes": {
+                            "command_uuid": ">?<",
+                            "note_uuid": ">?<",
+                            "questions": {
+                                "question-9": 26,
+                                "question-12": 57,
+
+                            },
+                        },
+                    },
+                    {
+                        "module": "theModule2",
+                        "class": "TheClass2",
+                        "attributes": {
+                            "command_uuid": ">?<",
+                            "note_uuid": ">?<",
+                            "questions": {
+                                "question-10": [
+                                    {
+                                        "text": "Checkbox1",
+                                        "value": 33,
+                                        "comment": "",
+                                        "selected": False,
+                                    },
+                                    {
+                                        "text": "Checkbox2",
+                                        "value": 34,
+                                        "comment": "theComment2",
+                                        "selected": True,
+                                    },
+                                    {
+                                        "text": "Checkbox3",
+                                        "value": 35,
+                                        "comment": "",
+                                        "selected": True,
+                                    },
+                                ],
+                                "question-11": "theFreeText",
+                            },
+                        },
+                    },
+                ]},
+        }),
+    ]
+
+    result = tested.summarized_generated_commands_as_instructions()
+    expected = [
+        Instruction(
+            uuid="uuid1",
+            index=0,
+            instruction="questionnaireA",
+            information=json.dumps({
+                "name": "theQuestionnaire1",
+                "dbid": 3,
+                "questions": [
+                    {
+                        "dbid": 9,
+                        "label": "theRadioQuestion",
+                        "type": "SING",
+                        "skipped": None,
+                        "responses": [
+                            {"dbid": 25, "value": "Radio1", "selected": False, "comment": None},
+                            {"dbid": 26, "value": "Radio2", "selected": True, "comment": None},
+                            {"dbid": 27, "value": "Radio3", "selected": False, "comment": None},
+                        ]
+                    },
+                    {
+                        "dbid": 12,
+                        "label": "theIntegerQuestion",
+                        "type": "INT",
+                        "skipped": None,
+                        "responses": [
+                            {"dbid": 41, "value": 57, "selected": True, "comment": None},
+                        ]
+                    }
+                ]
+            }
+            ),
+            is_new=True,
+            is_updated=False,
+        ),
+        Instruction(
+            uuid="uuid2",
+            index=1,
+            instruction="questionnaireB",
+            information=json.dumps({
+                "name": "theQuestionnaire2",
+                "dbid": 3,
+                "questions": [
+                    {
+                        "dbid": 10,
+                        "label": "theCheckBoxQuestion",
+                        "type": "MULT",
+                        "skipped": None,
+                        "responses": [
+                            {"dbid": 33, "value": "Checkbox1", "selected": False, "comment": ""},
+                            {"dbid": 34, "value": "Checkbox2", "selected": True, "comment": "theComment2"},
+                            {"dbid": 35, "value": "Checkbox3", "selected": True, "comment": ""},
+                        ]
+                    },
+                    {
+                        "dbid": 11,
+                        "label": "theTextQuestion",
+                        "type": "TXT",
+                        "skipped": None,
+                        "responses": [
+                            {"dbid": 37, "value": "theFreeText", "selected": True, "comment": None},
+                        ]
+                    },
+                    {
+                        "dbid": 17,
+                        "label": "otherTextQuestion",
+                        "type": "TXT",
+                        "skipped": None,
+                        "responses": [
+                            {"dbid": 51, "value": "", "selected": False, "comment": None},
+                        ]
+                    }
+                ]
+            }
+            ),
+            is_new=False,
+            is_updated=True,
+        ),
+    ]
+    assert result == expected
+
+    assert case_file.mock_calls == calls
     reset_mocks()
 
 

@@ -36,3 +36,26 @@ def test_to_json():
         "text": "theText",
     }
     assert expected == result
+
+
+def test_tail_of():
+    tested = Line
+
+    # empty exchange
+    result = tested.tail_of([])
+    expected = []
+    assert result == expected
+
+    # exchange
+    exchange = [
+        Line(speaker="theSpeaker1", text=" ".join([f"word{i:02d}" for i in range(37)])),
+        Line(speaker="theSpeaker2", text=" ".join([f"word{i:02d}" for i in range(37)])),
+        Line(speaker="theSpeaker1", text=" ".join([f"word{i:02d}" for i in range(37)])),
+    ]
+    result = tested.tail_of(exchange)
+    expected = [
+        Line(speaker="theSpeaker1", text=" ".join([f"word{i:02d}" for i in range((37 * 3 - 100), 37)])),
+        Line(speaker="theSpeaker2", text=" ".join([f"word{i:02d}" for i in range(37)])),
+        Line(speaker="theSpeaker1", text=" ".join([f"word{i:02d}" for i in range(37)])),
+    ]
+    assert result == expected

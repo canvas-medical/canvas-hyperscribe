@@ -13,6 +13,7 @@ from hyperscribe.libraries.cached_sdk import CachedSdk
 from hyperscribe.libraries.implemented_commands import ImplementedCommands
 from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.structures.identification_parameters import IdentificationParameters
+from hyperscribe.structures.line import Line
 
 
 class BuilderFromTuning(BuilderBase):
@@ -63,7 +64,7 @@ class BuilderFromTuning(BuilderBase):
             with file.open("rb") as f:
                 audios.append(f.read())
 
-        transcript_tail = ""
+        transcript_tail: list[Line] = []
         discussion = CachedSdk.get_discussion(chatter.identification.note_uuid)
         for cycle in range(len(audios)):
             combined: list[bytes] = []

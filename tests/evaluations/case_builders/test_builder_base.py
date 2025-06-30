@@ -475,7 +475,7 @@ def test__run_cycle(transcript, commander):
     commander.transcript2commands.side_effect = [(instructions, effects)]
     commander.audio2commands.side_effect = []
     result = tested._run_cycle("theCase", 7, audios, chatter, instructions[:2], previous)
-    expected = (instructions, "")
+    expected = (instructions, [])
     assert result == expected
 
     calls = [call()]
@@ -544,38 +544,40 @@ def test__limited_cache_from(command_db, existing_commands_to_coded_items):
     reset_mocks()
 
 
-@patch("evaluations.case_builders.builder_base.Path")
-def test_summary_generated_commands(path):
+@patch("evaluations.case_builders.builder_base.AuditorFile")
+def test_summary_generated_commands(auditor_file):
     path_files = [
         MagicMock(),
         MagicMock(),
     ]
 
     def reset_mocks():
-        path.reset_mock()
-        for path_file in path_files:
-            path_file.reset_mock()
+        auditor_file.reset_mock()
+        for item in path_files:
+            item.reset_mock()
 
     directory = Path(__file__).parent.as_posix().replace("/tests", "")
 
-    exp_path_calls = [
-        call(f'{directory}/builder_base.py'),
-        call().parent.parent.__truediv__('parameters2command/theCase.json'),
-        call(f'{directory}/builder_base.py'),
-        call().parent.parent.__truediv__('staged_questionnaires/theCase.json'),
+    exp_auditor_file_calls = [
+        call('theCase', 0),
+        call().case_file('parameters2command_file'),
+        call().case_file('parameters2command_file'),
     ]
+
+    auditor_file.PARAMETERS2COMMAND_FILE = "parameters2command_file"
+    auditor_file.STAGED_QUESTIONNAIRES_FILE = "parameters2command_file"
 
     tested = BuilderBase
 
     # there are no files for the case
-    path.return_value.parent.parent.__truediv__.side_effect = [path_files[0], path_files[1]]
+    auditor_file.return_value.case_file.side_effect = [path_files[0], path_files[1]]
     for idx, path_file in enumerate(path_files):
         path_file.exists.side_effect = [False]
 
     result = tested.summary_generated_commands("theCase")
     assert result == []
 
-    assert path.mock_calls == exp_path_calls
+    assert auditor_file.mock_calls == exp_auditor_file_calls
     calls = [call.exists()]
     for path_file in path_files:
         assert path_file.mock_calls == calls
@@ -592,7 +594,7 @@ def test_summary_generated_commands(path):
     ]
     for content in tests:
         file_content = json.dumps(content)
-        path.return_value.parent.parent.__truediv__.side_effect = [path_files[0], path_files[1]]
+        auditor_file.return_value.case_file.side_effect = [path_files[0], path_files[1]]
         for idx, path_file in enumerate(path_files):
             path_file.exists.side_effect = [True]
             path_file.open.return_value.read.side_effect = [file_content, file_content]
@@ -600,7 +602,7 @@ def test_summary_generated_commands(path):
         result = tested.summary_generated_commands("theCase")
         assert result == []
 
-        assert path.mock_calls == exp_path_calls
+        assert auditor_file.mock_calls == exp_auditor_file_calls
         for idx, path_file in enumerate(path_files):
             calls = [
                 call.exists(),
@@ -670,7 +672,7 @@ def test_summary_generated_commands(path):
                 },
             ]},
     })
-    path.return_value.parent.parent.__truediv__.side_effect = [path_files[0], path_files[1]]
+    auditor_file.return_value.case_file.side_effect = [path_files[0], path_files[1]]
     for idx, path_file in enumerate(path_files):
         path_file.exists.side_effect = [True]
         path_file.open.return_value.read.side_effect = [file_content, file_content]
@@ -725,7 +727,7 @@ def test_summary_generated_commands(path):
 
     assert result == expected
 
-    assert path.mock_calls == exp_path_calls
+    assert auditor_file.mock_calls == exp_auditor_file_calls
     for idx, path_file in enumerate(path_files):
         calls = [
             call.exists(),

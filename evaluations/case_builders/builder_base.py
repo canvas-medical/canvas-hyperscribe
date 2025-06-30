@@ -23,6 +23,7 @@ from hyperscribe.libraries.llm_decisions_reviewer import LlmDecisionsReviewer
 from hyperscribe.libraries.memory_log import MemoryLog
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.instruction import Instruction
+from hyperscribe.structures.line import Line
 from hyperscribe.structures.settings import Settings
 
 
@@ -106,8 +107,8 @@ class BuilderBase:
             audios: list[bytes],
             chatter: AudioInterpreter,
             previous_instructions: list[Instruction],
-            previous_transcript: str,
-    ) -> Tuple[list[Instruction], str]:
+            previous_transcript: list[Line],
+    ) -> Tuple[list[Instruction], list[Line]]:
         auditor = AuditorFile(case, cycle)
         if transcript := auditor.transcript():
             instructions, _ = Commander.transcript2commands(
@@ -116,7 +117,7 @@ class BuilderBase:
                 chatter,
                 previous_instructions,
             )
-            end_of_transcript = ""
+            end_of_transcript: list[Line] = []
         else:
             instructions, _, end_of_transcript = Commander.audio2commands(
                 auditor,
@@ -149,8 +150,9 @@ class BuilderBase:
     def summary_generated_commands(cls, case: str) -> list[dict]:
         result: dict[str, dict] = {}
 
+        recorder = AuditorFile(case, 0)
         # common commands
-        file = Path(__file__).parent.parent / f"parameters2command/{case}.json"
+        file = recorder.case_file(AuditorFile.PARAMETERS2COMMAND_FILE)
         if file.exists():
             cycles = json.load(file.open("r"))
             for cycle, content in cycles.items():
@@ -161,7 +163,7 @@ class BuilderBase:
                     }
 
         # questionnaires - command is from the last cycle
-        file = Path(__file__).parent.parent / f"staged_questionnaires/{case}.json"
+        file = recorder.case_file(AuditorFile.STAGED_QUESTIONNAIRES_FILE)
         if file.exists():
             cycles = json.load(file.open("r"))
             if values := list(cycles.values()):

@@ -233,6 +233,69 @@ class AuditorFile(Auditor):
             json.dump(content, fp, indent=2)
         return file.exists()
 
+    def summarized_generated_commands_as_instructions(self) -> list[Instruction]:
+        result: dict[str, Instruction] = {}
+
+        # common commands
+        file = self.case_file(self.PARAMETERS2COMMAND_FILE)
+        if file.exists():
+            cycles = json.load(file.open("r"))
+            for cycle, content in cycles.items():
+                for instruction in content["instructions"]:
+                    result[instruction["uuid"]] = Instruction(
+                        uuid=instruction["uuid"],
+                        index=instruction["index"],
+                        instruction=instruction["instruction"],
+                        information=instruction["information"],
+                        is_new=instruction["isNew"],
+                        is_updated=instruction["isUpdated"],
+                    )
+
+        # questionnaires - result is from the last cycle
+        file = self.case_file(self.STAGED_QUESTIONNAIRES_FILE)
+        if file.exists():
+            cycles = json.load(file.open("r"))
+            if values := list(cycles.values()):
+                content = values[-1]
+                for index, command in enumerate(content["commands"]):
+                    instruction = content["instructions"][index]
+                    questionnaire = json.loads(instruction["information"])
+                    responses = command["attributes"]["questions"]
+                    for question in questionnaire["questions"]:
+                        if f"question-{question['dbid']}" not in responses:
+                            continue
+                        response = responses[f"question-{question['dbid']}"]
+
+                        if question["type"] == ResponseOption.TYPE_CHECKBOX:
+                            for option in response:
+                                for item in question["responses"]:
+                                    if item["dbid"] == option["value"]:
+                                        item["selected"] = option["selected"]
+                                        item["comment"] = option["comment"]
+                        elif question["type"] == ResponseOption.TYPE_RADIO:
+                            for item in question["responses"]:
+                                item["selected"] = bool(item["dbid"] == response)
+                        elif question["type"] == ResponseOption.TYPE_INTEGER:
+                            for item in question["responses"]:
+                                item["selected"] = True
+                                item["value"] = int(response)
+
+                        else:  # question["type"] == ResponseOption.TYPE_TEXT:
+                            for item in question["responses"]:
+                                item["selected"] = True
+                                item["value"] = response
+
+                    result[f"questionnaire_{index:02d}"] = Instruction(
+                        uuid=instruction["uuid"],
+                        index=instruction["index"],
+                        instruction=instruction["instruction"],
+                        information=json.dumps(questionnaire),
+                        is_new=instruction["isNew"],
+                        is_updated=instruction["isUpdated"],
+                    )
+
+        return list(result.values())
+
     def summarized_generated_commands(self) -> list[dict]:
         result: dict[str, dict] = {}
 

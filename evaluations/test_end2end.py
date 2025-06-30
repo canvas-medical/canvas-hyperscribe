@@ -139,80 +139,88 @@ def test_end2end(
                 failures.append(str(e))
 
     # transcript2instructions
-    force_print("*", capsys)
-    for cycle in cycles:
-        force_print(".", capsys)
-        try:
-            runner_transcript2instructions(
-                (
-                    end2end_folder.stem,
-                    cycle,
-                    auditor.case_file(auditor.TRANSCRIPT2INSTRUCTIONS_FILE),
-                ),
-                allowed_levels,
-                audio_interpreter,
-                capsys,
-                request,
-            )
-        except AssertionError as e:
-            failures.append(str(e))
+    json_file = auditor.case_file(auditor.TRANSCRIPT2INSTRUCTIONS_FILE)
+    if json_file.exists():
+        force_print("*", capsys)
+        for cycle in cycles:
+            force_print(".", capsys)
+            try:
+                runner_transcript2instructions(
+                    (
+                        end2end_folder.stem,
+                        cycle,
+                        auditor.case_file(auditor.TRANSCRIPT2INSTRUCTIONS_FILE),
+                    ),
+                    allowed_levels,
+                    audio_interpreter,
+                    capsys,
+                    request,
+                )
+            except AssertionError as e:
+                failures.append(str(e))
 
     # instruction2parameters
-    force_print("*", capsys)
-    for cycle in cycles:
-        force_print(".", capsys)
-        try:
-            runner_instruction2parameters(
-                (
-                    end2end_folder.stem,
-                    cycle,
-                    auditor.case_file(auditor.INSTRUCTION2PARAMETERS_FILE),
-                ),
-                allowed_levels,
-                audio_interpreter,
-                capsys,
-                request,
-            )
-        except AssertionError as e:
-            failures.append(str(e))
+    json_file = auditor.case_file(auditor.INSTRUCTION2PARAMETERS_FILE)
+    if json_file.exists():
+        force_print("*", capsys)
+        for cycle in cycles:
+            force_print(".", capsys)
+            try:
+                runner_instruction2parameters(
+                    (
+                        end2end_folder.stem,
+                        cycle,
+                        auditor.case_file(auditor.INSTRUCTION2PARAMETERS_FILE),
+                    ),
+                    allowed_levels,
+                    audio_interpreter,
+                    capsys,
+                    request,
+                )
+            except AssertionError as e:
+                failures.append(str(e))
 
     # parameters2command
-    force_print("*", capsys)
-    for cycle in cycles:
-        force_print(".", capsys)
-        try:
-            runner_parameters2command(
-                (
-                    end2end_folder.stem,
-                    cycle,
-                    auditor.case_file(auditor.PARAMETERS2COMMAND_FILE),
-                ),
-                allowed_levels,
-                audio_interpreter,
-                capsys,
-                request,
-            )
-        except AssertionError as e:
-            failures.append(str(e))
+    json_file = auditor.case_file(auditor.PARAMETERS2COMMAND_FILE)
+    if json_file.exists():
+        force_print("*", capsys)
+        for cycle in cycles:
+            force_print(".", capsys)
+            try:
+                runner_parameters2command(
+                    (
+                        end2end_folder.stem,
+                        cycle,
+                        auditor.case_file(auditor.PARAMETERS2COMMAND_FILE),
+                    ),
+                    allowed_levels,
+                    audio_interpreter,
+                    capsys,
+                    request,
+                )
+            except AssertionError as e:
+                failures.append(str(e))
 
     # staged_questionnaires
-    force_print("*", capsys)
-    for cycle in cycles:
-        force_print(".", capsys)
-        try:
-            runner_staged_questionnaires(
-                (
-                    end2end_folder.stem,
-                    cycle,
-                    auditor.case_file(auditor.STAGED_QUESTIONNAIRES_FILE),
-                ),
-                allowed_levels,
-                audio_interpreter,
-                capsys,
-                request,
-            )
-        except AssertionError as e:
-            failures.append(str(e))
+    json_file = auditor.case_file(auditor.STAGED_QUESTIONNAIRES_FILE)
+    if json_file.exists():
+        force_print("*", capsys)
+        for cycle in cycles:
+            force_print(".", capsys)
+            try:
+                runner_staged_questionnaires(
+                    (
+                        end2end_folder.stem,
+                        cycle,
+                        auditor.case_file(auditor.STAGED_QUESTIONNAIRES_FILE),
+                    ),
+                    allowed_levels,
+                    audio_interpreter,
+                    capsys,
+                    request,
+                )
+            except AssertionError as e:
+                failures.append(str(e))
 
     if failures:
         pytest.fail("Failures:\n" + "\n".join(failures))
