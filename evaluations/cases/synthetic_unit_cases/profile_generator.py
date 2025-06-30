@@ -2,11 +2,11 @@ import re
 import json
 from pathlib import Path
 import os
+import argparse
 from hyperscribe.llms.llm_openai import LlmOpenai
 from hyperscribe.structures.llm_turn import LlmTurn
 from hyperscribe.libraries.constants import Constants
 from hyperscribe.libraries.memory_log import MemoryLog
-
 
 class PatientProfile:
     def __init__(self, name, narrative):
@@ -114,7 +114,7 @@ class PatientProfilePipeline:
                 json.dump({name: narrative}, f, indent=2)
             print(f"Saved profile for {name} to {file_path}")
 
-    def run(self, batches=8, batch_size=5):
+    def run(self, batches=4, batch_size=5):
         for batch_num in range(1, batches + 1):
             print(f"Generating batch {batch_num}...")
             batch_profiles = self.generator.generate_batch(batch_num, batch_size)
@@ -126,12 +126,21 @@ class PatientProfilePipeline:
 
 
 if __name__ == "__main__":
-    llm_key = os.getenv('KeyTextLLM')
+    parser = argparse.ArgumentParser(description="Generate synthetic patient-profile JSON batches.")
+    parser.add_argument("--batches", type=int, default=4, help="Number of batches to produce (default: 1)")
+    parser.add_argument("--batch-size", type=int, default=5, help="Profiles per batch (default: 3)")
+    parser.add_argument("--output", type=str, 
+            default="~/canvas-hyperscribe/evaluations/cases/synthetic_unit_cases/model_testing/patient_profiles.json",
+            help="Path of combined JSON output (default shown)")
+    args = parser.parse_args()
+
+    llm_key = os.getenv("KeyTextLLM")
     if not llm_key:
         raise RuntimeError("KeyTextLLM environment variable is not set.")
 
     pipeline = PatientProfilePipeline(
         llm_key=llm_key,
-        output_path_str="~/canvas-hyperscribe/evaluations/cases/synthetic_unit_cases/med_management_tpc_o3/patient_profiles.json"
+        output_path_str=args.output
     )
-    pipeline.run()
+    pipeline.run(batches=args.batches, batch_size=args.batch_size)
+
