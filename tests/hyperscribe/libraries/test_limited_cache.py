@@ -1,5 +1,7 @@
+import sqlite3
 from datetime import date
-from unittest.mock import patch, call
+from pathlib import Path
+from unittest.mock import patch, call, MagicMock
 from uuid import uuid5, NAMESPACE_DNS
 
 from canvas_sdk.commands.constants import CodeSystems
@@ -8,7 +10,8 @@ from canvas_sdk.v1.data import (
     Medication, AllergyIntolerance, AllergyIntoleranceCoding,
     Patient, Observation, NoteType, ReasonForVisitSettingCoding,
     Staff, PracticeLocation, PracticeLocationSetting, TaskLabel)
-from canvas_sdk.v1.data.lab import LabPartner
+from canvas_sdk.v1.data.lab import LabPartner, LabPartnerTest
+from django.db.models import Q
 from django.db.models.expressions import When, Value, Case
 
 from hyperscribe.handlers.temporary_data import ChargeDescriptionMaster
@@ -46,7 +49,128 @@ def test___init__():
     assert tested._surgery_history is None
     assert tested._staged_commands == staged_commands_to_coded_items
     assert tested._charge_descriptions is None
+    assert tested._lab_tests == {}
+    assert tested._lab_tests_local is False
 
+
+@patch.object(sqlite3, "connect")
+@patch.object(LabPartnerTest, "objects")
+def test_lab_tests(lab_test_db, sqlite3_connect):
+    chatter = MagicMock()
+    connection = MagicMock()
+
+    def reset_mocks():
+        lab_test_db.reset_mock()
+        sqlite3_connect.reset_mock()
+        chatter.reset_mock()
+        connection.reset_mock()
+
+    lab_tests = [
+        LabPartnerTest(order_code="code123", order_name="labelA"),
+        LabPartnerTest(order_code="code369", order_name="labelB"),
+        LabPartnerTest(order_code="code752", order_name="labelC"),
+    ]
+    expected = [
+        CodedItem(code="code123", label="labelA", uuid=""),
+        CodedItem(code="code369", label="labelB", uuid=""),
+        CodedItem(code="code752", label="labelC", uuid=""),
+    ]
+
+    # not local
+    sqlite3_connect.return_value.__enter__.side_effect = [connection]
+    connection.cursor.return_value.fetchall.side_effect = []
+    tested = LimitedCache("patientUuid", "providerUuid", {})
+    tested._lab_tests_local = False
+    # -- word1 word2 word3
+    lab_test_db.filter.return_value.filter.side_effect = [lab_tests]
+    result = tested.lab_tests("theLabPartner", ["word2", "word3", "word1"])
+    assert result == expected
+
+    calls = [
+        call.filter(lab_partner__name='theLabPartner'),
+        call.filter().filter(Q(('keywords__icontains', 'word2'), ('keywords__icontains', 'word3'), ('keywords__icontains', 'word1'))),
+    ]
+    assert lab_test_db.mock_calls == calls
+    assert sqlite3_connect.mock_calls == []
+    reset_mocks()
+    # -- -- repeat with different orders
+    result = tested.lab_tests("theLabPartner", ["word1", "word3", "word2"])
+    assert result == expected
+    assert lab_test_db.mock_calls == []
+    assert sqlite3_connect.mock_calls == []
+    assert connection.mock_calls == []
+    reset_mocks()
+    result = tested.lab_tests("theLabPartner", ["word2", "word1", "word3"])
+    assert result == expected
+    assert lab_test_db.mock_calls == []
+    assert sqlite3_connect.mock_calls == []
+    assert connection.mock_calls == []
+    reset_mocks()
+    # -- word1 word2
+    lab_test_db.filter.return_value.filter.side_effect = [lab_tests]
+    result = tested.lab_tests("theLabPartner", ["word2", "word1"])
+    assert result == expected
+
+    calls = [
+        call.filter(lab_partner__name='theLabPartner'),
+        call.filter().filter(Q(('keywords__icontains', 'word2'), ('keywords__icontains', 'word1'))),
+    ]
+    assert lab_test_db.mock_calls == calls
+    assert sqlite3_connect.mock_calls == []
+    assert connection.mock_calls == []
+    reset_mocks()
+    # -- -- repeat with different orders
+    result = tested.lab_tests("theLabPartner", ["word1", "word2"])
+    assert result == expected
+    assert lab_test_db.mock_calls == []
+    assert sqlite3_connect.mock_calls == []
+    assert connection.mock_calls == []
+    reset_mocks()
+
+    # local
+    sqlite3_connect.return_value.__enter__.side_effect = [connection]
+    connection.cursor.return_value.fetchall.side_effect = [
+        [
+            {"dbid": 456, "order_code": "code123", "order_name": "labelA"},
+            {"dbid": 458, "order_code": "code369", "order_name": "labelB"},
+            {"dbid": 486, "order_code": "code752", "order_name": "labelC"},
+        ]
+    ]
+    tested = LimitedCache("patientUuid", "providerUuid", {})
+    tested._lab_tests_local = True
+
+    result = tested.lab_tests("theLabPartner", ["word1", "word3", "word2"])
+    assert result == expected
+    assert lab_test_db.mock_calls == []
+    directory = Path(__file__).parent.as_posix().replace("/tests", "")
+    calls = [
+        call(Path(f'{directory}/generic_lab_tests.db')),
+        call().__enter__(),
+        call().__exit__(None, None, None),
+    ]
+    assert sqlite3_connect.mock_calls == calls
+    calls = [
+        call.cursor(),
+        call.cursor().execute(
+            "SELECT `dbid`, `order_code`, `order_name` "
+            "FROM `generic_lab_test` WHERE 1=1 "
+            " AND `keywords` LIKE :kw_00"
+            " AND `keywords` LIKE :kw_01"
+            " AND `keywords` LIKE :kw_02 "
+            "ORDER BY `dbid`",
+            {'kw_00': '%word1%', 'kw_01': '%word3%', 'kw_02': '%word2%'},
+        ),
+        call.cursor().fetchall(),
+    ]
+    assert connection.mock_calls == calls
+    reset_mocks()
+    # -- -- repeat with different orders
+    result = tested.lab_tests("theLabPartner", ["word1", "word3", "word2"])
+    assert result == expected
+    assert lab_test_db.mock_calls == []
+    assert sqlite3_connect.mock_calls == []
+    assert connection.mock_calls == []
+    reset_mocks()
 
 @patch.object(ChargeDescriptionMaster, "objects")
 def test_charge_descriptions(charge_description_db):
@@ -1132,6 +1256,15 @@ def test_to_json(
             ],
         },
     )
+    tested._lab_tests = {
+        "word1 word2 word3": [
+            CodedItem(uuid="uuid054", label="label054", code="code054"),
+            CodedItem(uuid="uuid154", label="label154", code="code154"),
+        ],
+        "word1 word2": [
+            CodedItem(uuid="uuid157", label="label157", code="code157"),
+        ],
+    }
 
     for obfuscate in [True, False]:
         demographic.side_effect = ["theDemographic"]
@@ -1286,6 +1419,7 @@ def test_to_json(
                 "label": "theLabel",
                 "code": "theCode",
             },
+            "labTests": {},
         }
 
         assert result == expected
@@ -1395,6 +1529,11 @@ def test_load_from_json():
             "label": "theLabel",
             "code": "theCode",
         },
+        "labTests": {
+            "word1 word2": [
+                {"code": "code157", "label": "label157", "uuid": "uuid157"},
+            ],
+        },
     })
 
     assert result.patient_uuid == "_PatientUuid"
@@ -1472,3 +1611,6 @@ def test_load_from_json():
     assert result.practice_setting("preferredLabPartner") == "thePreferredLabPartner"
     assert result.practice_setting("serviceAreaZipCodes") == "theServiceAreaZipCodes"
     assert result.preferred_lab_partner() == CodedItem(uuid="theUuid", label="theLabel", code="theCode")
+
+    assert result._lab_tests == {}
+    assert result._lab_tests_local is True

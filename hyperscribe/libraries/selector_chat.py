@@ -1,14 +1,11 @@
 import json
-from functools import reduce
-from operator import and_
 
 from canvas_sdk.commands.constants import ServiceProvider
-from canvas_sdk.v1.data.lab import LabPartnerTest
-from django.db.models import Q
 
 from hyperscribe.libraries.canvas_science import CanvasScience
 from hyperscribe.libraries.helper import Helper
 from hyperscribe.libraries.json_schema import JsonSchema
+from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.instruction import Instruction
@@ -68,7 +65,7 @@ class SelectorChat:
             cls,
             instruction: Instruction,
             chatter: LlmBase,
-            settings: Settings,
+            cache: LimitedCache,
             lab_partner: str,
             expressions: list[str],
             comment: str,
@@ -79,9 +76,7 @@ class SelectorChat:
         for expression in expressions:
             # expression can have several words: look for records that have all of them, regardless of their order
             keywords = expression.strip().split()
-            query = LabPartnerTest.objects.filter(lab_partner__name=lab_partner).filter(reduce(and_, (Q(keywords__icontains=kw) for kw in keywords)))
-            for test in query:
-                lab_tests.append(test)
+            lab_tests = cache.lab_tests(lab_partner, keywords)
 
         if lab_tests:
             prompt_condition = ""
@@ -106,7 +101,7 @@ class SelectorChat:
                 "",
                 'Among the following lab tests, select the most relevant one:',
                 '',
-                "\n".join(f' * {concept.order_name} (code: {concept.order_code})' for concept in lab_tests),
+                "\n".join(f' * {concept.label} (code: {concept.code})' for concept in lab_tests),
                 '',
                 'Please, present your findings in a JSON format within a Markdown code block like:',
                 '```json',

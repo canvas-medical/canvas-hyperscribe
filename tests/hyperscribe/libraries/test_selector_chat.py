@@ -1,8 +1,6 @@
 from unittest.mock import patch, call, MagicMock
 
 from canvas_sdk.commands.constants import ServiceProvider
-from canvas_sdk.v1.data.lab import LabPartnerTest
-from django.db.models import Q
 
 from hyperscribe.libraries.canvas_science import CanvasScience
 from hyperscribe.libraries.selector_chat import SelectorChat
@@ -131,31 +129,16 @@ def test_condition_from(search_conditions):
     reset_mocks()
 
 
-@patch.object(LabPartnerTest, "objects")
-def test_lab_test_from(lab_test_db):
+@patch("hyperscribe.libraries.selector_chat.LimitedCache")
+def test_lab_test_from(limited_cache):
     chatter = MagicMock()
 
     def reset_mocks():
-        lab_test_db.reset_mock()
+        limited_cache.reset_mock()
         chatter.reset_mock()
 
     tested = SelectorChat
 
-    settings = Settings(
-        llm_text=VendorKey(vendor="textVendor", api_key="textKey"),
-        llm_audio=VendorKey(vendor="audioVendor", api_key="audioKey"),
-        science_host="scienceHost",
-        ontologies_host="ontologiesHost",
-        pre_shared_key="preSharedKey",
-        structured_rfv=False,
-        audit_llm=False,
-        is_tuning=False,
-
-        api_signing_key="theApiSigningKey",
-        send_progress=False,
-        commands_policy=AccessPolicy(policy=False, items=[]),
-        staffers_policy=AccessPolicy(policy=False, items=[]),
-    )
     system_prompt = [
         "The conversation is in the medical context.",
         "",
@@ -175,9 +158,6 @@ def test_lab_test_from(lab_test_db):
             '',
             'Among the following lab tests, select the most relevant one:',
             '',
-            ' * labelA (code: code123)\n'
-            ' * labelB (code: code369)\n'
-            ' * labelC (code: code752)\n'
             ' * labelA (code: code123)\n'
             ' * labelB (code: code369)\n'
             ' * labelC (code: code752)',
@@ -200,9 +180,6 @@ def test_lab_test_from(lab_test_db):
             '',
             'Among the following lab tests, select the most relevant one:',
             '',
-            ' * labelA (code: code123)\n'
-            ' * labelB (code: code369)\n'
-            ' * labelC (code: code752)\n'
             ' * labelA (code: code123)\n'
             ' * labelB (code: code369)\n'
             ' * labelC (code: code752)',
@@ -230,9 +207,9 @@ def test_lab_test_from(lab_test_db):
         'maxItems': 1,
     }]
     lab_tests = [
-        LabPartnerTest(order_code="code123", order_name="labelA"),
-        LabPartnerTest(order_code="code369", order_name="labelB"),
-        LabPartnerTest(order_code="code752", order_name="labelC"),
+        CodedItem(code="code123", label="labelA", uuid=""),
+        CodedItem(code="code369", label="labelB", uuid=""),
+        CodedItem(code="code752", label="labelC", uuid=""),
     ]
     expressions = [
         "word1 word2 word3",
@@ -250,72 +227,64 @@ def test_lab_test_from(lab_test_db):
 
     # all good
     # -- with conditions
-    lab_test_db.filter.return_value.filter.side_effect = [lab_tests, lab_tests]
+    limited_cache.lab_tests.side_effect = [lab_tests, lab_tests]
     chatter.single_conversation.side_effect = [[{"code": "CODE9876", "label": "theLabTest"}]]
 
-    result = tested.lab_test_from(instruction, chatter, settings, "theLabPartner", expressions, "theComment", conditions)
+    result = tested.lab_test_from(instruction, chatter, limited_cache, "theLabPartner", expressions, "theComment", conditions)
     expected = CodedItem(label="theLabTest", code="CODE9876", uuid="")
     assert result == expected
     calls = [
-        call.filter(lab_partner__name='theLabPartner'),
-        call.filter().filter(Q(('keywords__icontains', 'word1'), ('keywords__icontains', 'word2'), ('keywords__icontains', 'word3'))),
-        call.filter(lab_partner__name='theLabPartner'),
-        call.filter().filter(Q(('keywords__icontains', 'word4'))),
+        call.lab_tests('theLabPartner', ['word1', 'word2', 'word3']),
+        call.lab_tests('theLabPartner', ['word4']),
     ]
-    assert lab_test_db.mock_calls == calls
+    assert limited_cache.mock_calls == calls
     calls = [call.single_conversation(system_prompt, user_prompts[0], schemas, instruction)]
     assert chatter.mock_calls == calls
     reset_mocks()
     # -- without conditions
-    lab_test_db.filter.return_value.filter.side_effect = [lab_tests, lab_tests]
+    limited_cache.lab_tests.side_effect = [lab_tests, lab_tests]
     chatter.single_conversation.side_effect = [[{"code": "CODE9876", "label": "theLabTest"}]]
 
-    result = tested.lab_test_from(instruction, chatter, settings, "theLabPartner", expressions, "theComment", [])
+    result = tested.lab_test_from(instruction, chatter, limited_cache, "theLabPartner", expressions, "theComment", [])
     expected = CodedItem(label="theLabTest", code="CODE9876", uuid="")
     assert result == expected
     calls = [
-        call.filter(lab_partner__name='theLabPartner'),
-        call.filter().filter(Q(('keywords__icontains', 'word1'), ('keywords__icontains', 'word2'), ('keywords__icontains', 'word3'))),
-        call.filter(lab_partner__name='theLabPartner'),
-        call.filter().filter(Q(('keywords__icontains', 'word4'))),
+        call.lab_tests('theLabPartner', ['word1', 'word2', 'word3']),
+        call.lab_tests('theLabPartner', ['word4']),
     ]
-    assert lab_test_db.mock_calls == calls
+    assert limited_cache.mock_calls == calls
     calls = [call.single_conversation(system_prompt, user_prompts[1], schemas, instruction)]
     assert chatter.mock_calls == calls
     reset_mocks()
 
     # no response
-    lab_test_db.filter.return_value.filter.side_effect = [lab_tests, lab_tests]
+    limited_cache.lab_tests.side_effect = [lab_tests, lab_tests]
     chatter.single_conversation.side_effect = [[]]
 
-    result = tested.lab_test_from(instruction, chatter, settings, "theLabPartner", expressions, "theComment", conditions)
+    result = tested.lab_test_from(instruction, chatter, limited_cache, "theLabPartner", expressions, "theComment", conditions)
     expected = CodedItem(label="", code="", uuid="")
     assert result == expected
     calls = [
-        call.filter(lab_partner__name='theLabPartner'),
-        call.filter().filter(Q(('keywords__icontains', 'word1'), ('keywords__icontains', 'word2'), ('keywords__icontains', 'word3'))),
-        call.filter(lab_partner__name='theLabPartner'),
-        call.filter().filter(Q(('keywords__icontains', 'word4'))),
+        call.lab_tests('theLabPartner', ['word1', 'word2', 'word3']),
+        call.lab_tests('theLabPartner', ['word4']),
     ]
-    assert lab_test_db.mock_calls == calls
+    assert limited_cache.mock_calls == calls
     calls = [call.single_conversation(system_prompt, user_prompts[0], schemas, instruction)]
     assert chatter.mock_calls == calls
     reset_mocks()
 
     # no lab test
-    lab_test_db.filter.return_value.filter.side_effect = [[], []]
+    limited_cache.lab_tests.side_effect = [[], []]
     chatter.single_conversation.side_effect = []
 
-    result = tested.lab_test_from(instruction, chatter, settings, "theLabPartner", expressions, "theComment", conditions)
+    result = tested.lab_test_from(instruction, chatter, limited_cache, "theLabPartner", expressions, "theComment", conditions)
     expected = CodedItem(label="", code="", uuid="")
     assert result == expected
     calls = [
-        call.filter(lab_partner__name='theLabPartner'),
-        call.filter().filter(Q(('keywords__icontains', 'word1'), ('keywords__icontains', 'word2'), ('keywords__icontains', 'word3'))),
-        call.filter(lab_partner__name='theLabPartner'),
-        call.filter().filter(Q(('keywords__icontains', 'word4'))),
+        call.lab_tests('theLabPartner', ['word1', 'word2', 'word3']),
+        call.lab_tests('theLabPartner', ['word4']),
     ]
-    assert lab_test_db.mock_calls == calls
+    assert limited_cache.mock_calls == calls
     assert chatter.mock_calls == []
     reset_mocks()
 

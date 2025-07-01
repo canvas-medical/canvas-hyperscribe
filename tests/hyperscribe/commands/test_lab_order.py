@@ -210,9 +210,9 @@ def test_command_from_json(
         calls = []
         if lab_partner.uuid:
             calls = [
-                call(instruction, chatter, tested.settings, 'theLabPartner', ['lab1', 'lab2'], comment, ['condition1', 'condition4']),
-                call(instruction, chatter, tested.settings, 'theLabPartner', ['lab3'], comment, ['condition1', 'condition4']),
-                call(instruction, chatter, tested.settings, 'theLabPartner', ['lab4'], comment, ['condition1', 'condition4']),
+                call(instruction, chatter, tested.cache, 'theLabPartner', ['lab1', 'lab2'], comment, ['condition1', 'condition4']),
+                call(instruction, chatter, tested.cache, 'theLabPartner', ['lab3'], comment, ['condition1', 'condition4']),
+                call(instruction, chatter, tested.cache, 'theLabPartner', ['lab4'], comment, ['condition1', 'condition4']),
             ]
         assert lab_test_from.mock_calls == calls
         calls = [call()]

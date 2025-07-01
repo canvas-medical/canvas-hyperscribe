@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from datetime import date
+from functools import reduce
+from operator import and_
 from typing import Any
 
 from canvas_sdk.commands.constants import CodeSystems
@@ -11,8 +13,10 @@ from canvas_sdk.v1.data import (
     Staff, TaskLabel)
 from canvas_sdk.v1.data.condition import ClinicalStatus
 from canvas_sdk.v1.data.lab import LabPartner
+from canvas_sdk.v1.data.lab import LabPartnerTest
 from canvas_sdk.v1.data.medication import Status
 from canvas_sdk.v1.data.patient import SexAtBirth
+from django.db.models import Q
 from django.db.models.expressions import When, Value, Case
 
 from hyperscribe.handlers.temporary_data import ChargeDescriptionMaster
@@ -44,6 +48,44 @@ class LimitedCache:
         self._task_labels: list[CodedItem] | None = None
         self._staged_commands: dict[str, list[CodedItem]] = staged_commands_to_coded_items
         self._charge_descriptions: list[ChargeDescription] | None = None
+        self._lab_tests: dict[str, list[CodedItem]] = {}
+        self._lab_tests_local = False
+
+    def lab_tests(self, lab_partner: str, keywords: list[str]) -> list[CodedItem]:
+        key = " ".join(sorted(keywords))
+        if key not in self._lab_tests:
+            self._lab_tests[key] = []
+            if self._lab_tests_local:
+                from pathlib import Path
+                import sqlite3  # <-- the import is forbidden in the plugin context
+                with sqlite3.connect(Path(__file__).parent / Constants.SQLITE_LAB_TESTS_DATABASE) as conn:
+                    conn.row_factory = sqlite3.Row
+                    cursor = conn.cursor()
+                    parameters: dict = {}
+                    sql = "SELECT `dbid`, `order_code`, `order_name` FROM `generic_lab_test` WHERE 1=1 "
+                    for idx, kw in enumerate(keywords):
+                        param = f"kw_{idx:02d}"
+                        sql += f" AND `keywords` LIKE :{param}"
+                        parameters[param] = f"%{kw}%"
+                    sql += " ORDER BY `dbid`"
+                    cursor.execute(sql, parameters)
+                    for row in cursor.fetchall():
+                        self._lab_tests[key].append(CodedItem(
+                            uuid="",
+                            label=row["order_name"],
+                            code=row["order_code"],
+                        ))
+            else:
+                query = (LabPartnerTest.objects
+                         .filter(lab_partner__name=lab_partner)
+                         .filter(reduce(and_, (Q(keywords__icontains=kw) for kw in keywords))))
+                for test in query:
+                    self._lab_tests[key].append(CodedItem(
+                        uuid="",
+                        label=test.order_name,
+                        code=test.order_code,
+                    ))
+        return self._lab_tests[key]
 
     def charge_descriptions(self) -> list[ChargeDescription]:
         if self._charge_descriptions is None:
@@ -342,6 +384,7 @@ class LimitedCache:
             "preferredLabPartner": self.preferred_lab_partner().to_dict(),
             "surgeryHistory": [i.to_dict() for i in self.surgery_history()],
             "chargeDescriptions": [i.to_dict() for i in self.charge_descriptions()],
+            "labTests": {},
         }
 
     @classmethod
@@ -369,5 +412,7 @@ class LimitedCache:
         result._surgery_history = [CodedItem.load_from_json(i) for i in cache.get("surgeryHistory", [])]
 
         result._charge_descriptions = [ChargeDescription.load_from_json(i) for i in cache.get("chargeDescriptions", [])]
+        result._lab_tests = {}
+        result._lab_tests_local = True
 
         return result

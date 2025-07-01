@@ -73,7 +73,7 @@ class LabOrder(Base):
                 item = SelectorChat.lab_test_from(
                     instruction,
                     chatter,
-                    self.settings,
+                    self.cache,
                     lab_partner.label,
                     lab_order["labOrderKeywords"].split(","),
                     instruction.parameters["comment"],

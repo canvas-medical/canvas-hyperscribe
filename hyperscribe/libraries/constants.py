@@ -22,6 +22,7 @@ class Constants:
     FAUX_NOTE_UUID = "_NoteUuid"
     FAUX_PATIENT_UUID = "_PatientUuid"
     FAUX_PROVIDER_UUID = "_ProviderUuid"
+    SQLITE_LAB_TESTS_DATABASE = "generic_lab_tests.db"
     # schema_key field values of the Command view (canvas_sdk.v1.data.command.Command)
     SCHEMA_KEY_ADJUST_PRESCRIPTION = "adjustPrescription"
     SCHEMA_KEY_ALLERGY = "allergy"
