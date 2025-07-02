@@ -16,6 +16,6 @@ class BuilderSummarize:
     @classmethod
     def run(cls) -> None:
         parameters = cls._parameters()
-        auditor = AuditorFile(parameters.case, 0)
+        auditor = AuditorFile.default_instance(parameters.case, 0)
         if (html := auditor.generate_html_summary()) and html:
             browser_open(html.as_uri())

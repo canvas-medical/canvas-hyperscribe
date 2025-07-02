@@ -13,6 +13,14 @@ from hyperscribe.structures.line import Line
 from tests.helper import is_constant, MockFile
 
 
+def helper_instance() -> tuple[MagicMock, AuditorFile]:
+    case_folder = MagicMock()
+    result = AuditorFile("theCase", 7, case_folder)
+    assert case_folder.mock_calls == [call.exists()]
+    case_folder.reset_mock()
+    return case_folder, result
+
+
 def test_constant():
     tested = AuditorFile
     constants = {
@@ -27,90 +35,76 @@ def test_constant():
         "SUMMARY_HTML_FILE": "summary.html",
     }
     assert is_constant(tested, constants)
+
+
 def test_auditor_file():
     tested = AuditorFile
     assert issubclass(tested, Auditor)
 
 
+def test_default_instance():
+    tested = AuditorFile
+    result = tested.default_instance("theCase", 7)
+    directory = Path(__file__).parent.as_posix().replace("/tests", "")
+    expected = AuditorFile("theCase", 7, Path(directory) / "cases" / "theCase")
+    assert result == expected
+
 def test___init__():
-    tested = AuditorFile("theCase", 7)
-    assert tested.case == "theCase"
-    assert tested.cycle == 7
-
-
-@patch("evaluations.auditor_file.Path")
-def test_case_folder(path):
     folder = MagicMock()
 
     def reset_mocks():
-        path.reset_mock()
         folder.reset_mock()
 
-    directory = Path(__file__).parent.as_posix().replace("/tests", "")
-    tested = AuditorFile("theCase", 7)
-
     tests = [
-        (False, [
-            call.exists(),
-            call.mkdir(),
-        ]),
-        (True, [
-            call.exists(),
-        ]),
+        (False, [call.exists(), call.mkdir()]),
+        (True, [call.exists()]),
     ]
-    for folder_exists, exp_calls in tests:
-        path.return_value.parent.__truediv__.side_effect = [folder]
-        folder.exists.side_effect = [folder_exists]
+    for exists, calls in tests:
+        folder.exists.side_effect = [exists]
+        tested = AuditorFile("theCase", 7, folder)
+        assert tested.case == "theCase"
+        assert tested.cycle == 7
+        assert tested.folder is folder
 
-        result = tested.case_folder()
-
-        calls = [
-            call(f'{directory}/auditor_file.py'),
-            call().parent.__truediv__('cases/theCase'),
-        ]
-        assert path.mock_calls == calls
-        assert folder.mock_calls == exp_calls
-
-        assert result == folder
+        assert folder.mock_calls == calls
         reset_mocks()
 
 
-@patch.object(AuditorFile, "case_folder")
-def test_case_file(case_folder):
+def test_case_file():
+    folder, tested = helper_instance()
+
     def reset_mocks():
-        case_folder.reset_mock()
+        folder.reset_mock()
 
-    tested = AuditorFile("theCase", 7)
-
-    case_folder.side_effect = [Path("/the/case/folder")]
+    folder.exists.side_effect = [True]
+    folder.__truediv__.side_effect = ["theNewPath"]
 
     result = tested.case_file("theFile.ext")
-    expected = Path("/the/case/folder/theFile.ext")
+    expected = "theNewPath"
     assert result == expected
-    calls = [call()]
-    assert case_folder.mock_calls == calls
+    calls = [
+        call.__truediv__('theFile.ext'),
+    ]
+    assert folder.mock_calls == calls
     reset_mocks()
 
 
-@patch.object(AuditorFile, "case_folder")
-def test_audio_case_files(case_folder):
+def test_audio_case_files():
+    case_folder, tested = helper_instance()
     audio_folder = MagicMock()
 
     def reset_mocks():
         case_folder.reset_mock()
         audio_folder.reset_mock()
 
-    tested = AuditorFile("theCase", 7)
-
     # folder does not exist
-    case_folder.return_value.__truediv__.side_effect = [audio_folder]
+    case_folder.__truediv__.side_effect = [audio_folder]
     audio_folder.exists.side_effect = [False]
 
     result = [f for f in tested.audio_case_files()]
     assert result == []
     calls = [
-        call(),
-        call().__truediv__('audios'),
+        call.__truediv__('audios'),
     ]
     assert case_folder.mock_calls == calls
     calls = [call.exists()]
@@ -123,15 +117,14 @@ def test_audio_case_files(case_folder):
         Path("/the/case/audios/folder/audio1.ext"),
         Path("/the/case/audios/folder/audio1.ext"),
     ]
-    case_folder.return_value.__truediv__.side_effect = [audio_folder]
+    case_folder.__truediv__.side_effect = [audio_folder]
     audio_folder.exists.side_effect = [True]
     audio_folder.glob.side_effect = [files]
 
     result = [f for f in tested.audio_case_files()]
     assert result == files
     calls = [
-        call(),
-        call().__truediv__('audios'),
+        call.__truediv__('audios'),
     ]
     assert case_folder.mock_calls == calls
     calls = [
@@ -142,9 +135,9 @@ def test_audio_case_files(case_folder):
     reset_mocks()
 
 
-@patch.object(AuditorFile, "case_file")
 @patch.object(AuditorFile, "audio_case_files")
-def test_case_files(audio_case_files, case_file):
+def test_case_files(audio_case_files):
+    case_folder, tested = helper_instance()
     mock_files = [
         MagicMock(),
         MagicMock(),
@@ -158,18 +151,16 @@ def test_case_files(audio_case_files, case_file):
     ]
     def reset_mocks():
         audio_case_files.reset_mock()
-        case_file.reset_mock()
+        case_folder.reset_mock()
         for idx, item in enumerate(mock_files):
             item.reset_mock()
             item.exists.side_effect = [bool(idx != 2)]
-
-    tested = AuditorFile("theCase", 9)
 
     reset_mocks()
 
     # audios not included
     audio_case_files.side_effect = []
-    case_file.side_effect = mock_files
+    case_folder.__truediv__.side_effect = mock_files
 
     result = [f for f in tested.case_files(False)]
     expected = [
@@ -180,13 +171,13 @@ def test_case_files(audio_case_files, case_file):
     ]
     assert result == expected
     calls = [
-        call('instruction2parameters.json'),
-        call('parameters2command.json'),
-        call('staged_questionnaires.json'),
-        call('transcript2instructions.json'),
-        call('summary_initial.json'),
+        call.__truediv__('instruction2parameters.json'),
+        call.__truediv__('parameters2command.json'),
+        call.__truediv__('staged_questionnaires.json'),
+        call.__truediv__('transcript2instructions.json'),
+        call.__truediv__('summary_initial.json'),
     ]
-    assert case_file.mock_calls == calls
+    assert case_folder.mock_calls == calls
     assert audio_case_files.mock_calls == []
     calls = [call.exists()]
     for f in mock_files[:5]:
@@ -197,7 +188,7 @@ def test_case_files(audio_case_files, case_file):
 
     # audios are included
     audio_case_files.side_effect = [mock_files[6:]]
-    case_file.side_effect = mock_files
+    case_folder.__truediv__.side_effect = mock_files
 
     result = [f for f in tested.case_files(True)]
     expected = [
@@ -212,14 +203,14 @@ def test_case_files(audio_case_files, case_file):
     ]
     assert result == expected
     calls = [
-        call('instruction2parameters.json'),
-        call('parameters2command.json'),
-        call('staged_questionnaires.json'),
-        call('transcript2instructions.json'),
-        call('summary_initial.json'),
-        call('audio2transcript.json'),
+        call.__truediv__('instruction2parameters.json'),
+        call.__truediv__('parameters2command.json'),
+        call.__truediv__('staged_questionnaires.json'),
+        call.__truediv__('transcript2instructions.json'),
+        call.__truediv__('summary_initial.json'),
+        call.__truediv__('audio2transcript.json'),
     ]
-    assert case_file.mock_calls == calls
+    assert case_folder.mock_calls == calls
     calls = [call()]
     assert audio_case_files.mock_calls == calls
     calls = [call.exists()]
@@ -232,16 +223,19 @@ def test_case_files(audio_case_files, case_file):
 
 @patch.object(AuditorFile, 'case_files')
 def test_is_ready(case_files):
+    case_folder, tested = helper_instance()
     def reset_mocks():
         case_files.reset_mock()
+        case_folder.reset_mock()
 
-    tested = AuditorFile("theCase", 7)
     # there is no file
     case_files.side_effect = [[]]
     result = tested.is_ready()
     assert result is True
     calls = [call(False)]
     assert case_files.mock_calls == calls
+    calls = []
+    assert case_folder.mock_calls == calls
     reset_mocks()
     # there is one file
     case_files.side_effect = [["file"]]
@@ -249,12 +243,12 @@ def test_is_ready(case_files):
     assert result is False
     calls = [call(False)]
     assert case_files.mock_calls == calls
+    assert case_folder.mock_calls == []
     reset_mocks()
 
 
-@patch("evaluations.auditor_file.Path")
-@patch.object(AuditorFile, "case_file")
-def test_is_complete(case_file, path):
+def test_is_complete():
+    case_folder, tested = helper_instance()
     mock_files = [
         MagicMock(),
         MagicMock(),
@@ -264,103 +258,80 @@ def test_is_complete(case_file, path):
     ]
 
     def reset_mocks():
-        case_file.reset_mock()
-        path.reset_mock()
+        case_folder.reset_mock()
         for item in mock_files:
             item.reset_mock()
 
-    directory = Path(__file__).parent.as_posix().replace("/tests", "")
+    tested = AuditorFile("theCase", 9, case_folder)
 
-    tested = AuditorFile("theCase", 9)
-
-    # case folder does not exist
-    path.return_value.parent.__truediv__.return_value.exists.side_effect = [False]
-    case_file.side_effect = []
-
-    result = tested.is_complete()
-    assert result is False
-
-    path_calls = [
-        call(f'{directory}/auditor_file.py'),
-        call().parent.__truediv__('cases/theCase'),
-        call().parent.__truediv__().exists(),
-    ]
-    assert path.mock_calls == path_calls
-    assert case_file.mock_calls == []
-    for item in mock_files:
-        assert item.mock_calls == []
-    reset_mocks()
-
-    # case folder exists
-    # -- one file does not exist
-    path.return_value.parent.__truediv__.return_value.exists.side_effect = [True]
-    for idx, item in enumerate(mock_files):
-        item.exists.side_effect = [bool(idx != 2)]
-
-    case_file.side_effect = mock_files
+    # one file does not exist
+    case_folder.__truediv__.side_effect = mock_files
+    for idx, file in enumerate(mock_files):
+        file.exists.side_effect = [bool(idx != 2)]
 
     result = tested.is_complete()
     assert result is False
 
-    assert path.mock_calls == path_calls
     calls = [
-        call('instruction2parameters.json'),
-        call('parameters2command.json'),
-        call('staged_questionnaires.json'),
+        call.exists(),
+        call.__truediv__('instruction2parameters.json'),
+        call.__truediv__('parameters2command.json'),
+        call.__truediv__('staged_questionnaires.json'),
     ]
-    assert case_file.mock_calls == calls
+    assert case_folder.mock_calls == calls
     calls = [call.exists()]
     for item in mock_files[:3]:
         assert item.mock_calls == calls
     for item in mock_files[3:]:
         assert item.mock_calls == []
     reset_mocks()
-    # -- all files exist
-    path.return_value.parent.__truediv__.return_value.exists.side_effect = [True]
+    # all files exist
+    case_folder.__truediv__.side_effect = mock_files
     for idx, item in enumerate(mock_files):
         item.exists.side_effect = [True]
-
-    case_file.side_effect = mock_files
 
     result = tested.is_complete()
     assert result is True
 
-    assert path.mock_calls == path_calls
     calls = [
-        call('instruction2parameters.json'),
-        call('parameters2command.json'),
-        call('staged_questionnaires.json'),
-        call('transcript2instructions.json'),
-        call('summary_initial.json'),
+        call.__truediv__('instruction2parameters.json'),
+        call.__truediv__('parameters2command.json'),
+        call.__truediv__('staged_questionnaires.json'),
+        call.__truediv__('transcript2instructions.json'),
+        call.__truediv__('summary_initial.json'),
     ]
-    assert case_file.mock_calls == calls
+    assert case_folder.mock_calls == calls
     calls = [call.exists()]
     for item in mock_files:
         assert item.mock_calls == calls
     reset_mocks()
 
-
-@patch.object(AuditorFile, 'case_folder')
 @patch.object(AuditorFile, 'case_files')
-def test_reset(case_files, case_folder):
+def test_reset(case_files):
+    case_folder, tested = helper_instance()
+    audio_folder = MagicMock()
     mock_files = [MagicMock(), MagicMock(), MagicMock()]
 
     def reset_mocks():
         case_files.reset_mock()
         case_folder.reset_mock()
+        audio_folder.reset_mock()
         for item in mock_files:
             item.reset_mock()
 
-    tested = AuditorFile("theCase", 7)
 
     for files in [[], mock_files]:
-
         # do not delete audios
         case_files.side_effect = [files]
+        case_folder.__truediv__.side_effect = []
+        audio_folder.exists.side_effect = []
+
         tested.reset(False)
+
         calls = [call(False)]
         assert case_files.mock_calls == calls
         assert case_folder.mock_calls == []
+        assert audio_folder.mock_calls == []
         calls = []
         if files:
             calls.append(call.unlink(True))
@@ -371,18 +342,19 @@ def test_reset(case_files, case_folder):
         # delete audios
         for audio_folder_exists in [True, False]:
             case_files.side_effect = [files]
-            case_folder.return_value.__truediv__.return_value.exists.side_effect = [audio_folder_exists]
+            case_folder.__truediv__.side_effect = [audio_folder]
+            audio_folder.exists.side_effect = [audio_folder_exists]
+
             tested.reset(True)
+
             calls = [call(True)]
             assert case_files.mock_calls == calls
-            calls = [
-                call(),
-                call().__truediv__('audios'),
-                call().__truediv__().exists(),
-            ]
-            if audio_folder_exists:
-                calls.append(call().__truediv__().rmdir())
+            calls = [call.__truediv__('audios')]
             assert case_folder.mock_calls == calls
+            calls = [call.exists()]
+            if audio_folder_exists:
+                calls.append(call.rmdir())
+            assert audio_folder.mock_calls == calls
             calls = []
             if files:
                 calls.append(call.unlink(True))
@@ -391,12 +363,12 @@ def test_reset(case_files, case_folder):
             reset_mocks()
 
 
-@patch.object(AuditorFile, 'case_file')
-def test_transcript(case_file):
+def test_transcript():
+    case_folder = MagicMock()
     mock_file = MagicMock()
 
     def reset_mocks():
-        case_file.reset_mock()
+        case_folder.reset_mock()
         mock_file.reset_mock()
 
     content = {
@@ -415,27 +387,33 @@ def test_transcript(case_file):
     }
 
     # file does not exist
-    case_file.side_effect = [mock_file]
+    case_folder.__truediv__.side_effect = [mock_file]
     mock_file.exists.side_effect = [False]
-    tested = AuditorFile("theCase", 7)
+    tested = AuditorFile("theCase", 7, case_folder)
     result = tested.transcript()
     assert result == []
-    calls = [call("audio2transcript.json")]
-    assert case_file.mock_calls == calls
+    calls = [
+        call.exists(),
+        call.__truediv__("audio2transcript.json"),
+    ]
+    assert case_folder.mock_calls == calls
     calls = [call.exists()]
     assert mock_file.mock_calls == calls
     reset_mocks()
 
     # file exist
     # -- cycle does not exist
-    case_file.side_effect = [mock_file]
+    case_folder.__truediv__.side_effect = [mock_file]
     mock_file.exists.side_effect = [True]
     mock_file.open.return_value.read.side_effect = [json.dumps(content)]
-    tested = AuditorFile("theCase", 7)
+    tested = AuditorFile("theCase", 7, case_folder)
     result = tested.transcript()
     assert result == []
-    calls = [call("audio2transcript.json")]
-    assert case_file.mock_calls == calls
+    calls = [
+        call.exists(),
+        call.__truediv__("audio2transcript.json"),
+    ]
+    assert case_folder.mock_calls == calls
     calls = [
         call.exists(),
         call.open('r'),
@@ -444,18 +422,21 @@ def test_transcript(case_file):
     assert mock_file.mock_calls == calls
     reset_mocks()
     # -- cycle exists
-    case_file.side_effect = [mock_file]
+    case_folder.__truediv__.side_effect = [mock_file]
     mock_file.exists.side_effect = [True]
     mock_file.open.return_value.read.side_effect = [json.dumps(content)]
-    tested = AuditorFile("theCase", 2)
+    tested = AuditorFile("theCase", 2, case_folder)
     result = tested.transcript()
     expected = [
         Line(speaker='speaker 2', text='text 5'),
         Line(speaker='speaker 1', text='text 6'),
     ]
     assert result == expected
-    calls = [call("audio2transcript.json")]
-    assert case_file.mock_calls == calls
+    calls = [
+        call.exists(),
+        call.__truediv__("audio2transcript.json"),
+    ]
+    assert case_folder.mock_calls == calls
     calls = [
         call.exists(),
         call.open('r'),
@@ -466,15 +447,15 @@ def test_transcript(case_file):
 
 
 @patch.object(AuditorFile, 'case_file')
-@patch.object(AuditorFile, 'case_folder')
-def test_identified_transcript(case_folder, case_file):
+def test_identified_transcript(case_file):
+    case_folder, tested = helper_instance()
     audio_folder = MagicMock()
     audio_files = [MagicMock(), MagicMock(), MagicMock()]
     json_file = MagicMock()
 
     def reset_mocks():
-        case_folder.reset_mock()
         case_file.reset_mock()
+        case_folder.reset_mock()
         audio_folder.reset_mock()
         for item in audio_files:
             item.reset_mock()
@@ -489,7 +470,7 @@ def test_identified_transcript(case_folder, case_file):
     ]
     for audio_folder_exists, json_file_exists in tests:
         case_file.side_effect = [json_file]
-        case_folder.return_value.__truediv__.side_effect = [audio_folder]
+        case_folder.__truediv__.side_effect = [audio_folder]
         audio_folder.__truediv__.side_effect = [
             audio_files[0],
             audio_files[1],
@@ -508,7 +489,6 @@ def test_identified_transcript(case_folder, case_file):
         json_file.exists.side_effect = [json_file_exists, True]
         json_file.open.side_effect = buffers
 
-        tested = AuditorFile("theCase", 7)
         result = tested.identified_transcript(
             [b"audio1", b"audio2", b"audio3"],
             [
@@ -523,8 +503,7 @@ def test_identified_transcript(case_folder, case_file):
         calls = [call('audio2transcript.json')]
         assert case_file.mock_calls == calls
         calls = [
-            call(),
-            call().__truediv__('audios'),
+            call.__truediv__('audios'),
         ]
         assert case_folder.mock_calls == calls
         calls = [
@@ -595,7 +574,7 @@ def test_found_instructions(case_file):
         json_file.exists.side_effect = [json_file_exists, True]
         json_file.open.side_effect = buffers
 
-        tested = AuditorFile("theCase", 7)
+        _, tested = helper_instance()
         result = tested.found_instructions(
             [
                 Line(speaker="voiceA", text="theText1"),
@@ -717,7 +696,7 @@ def test_computed_parameters(case_file):
     json_file.exists.side_effect = [False, True]
     json_file.open.side_effect = buffers
 
-    tested = AuditorFile("theCase", 7)
+    _, tested = helper_instance()
     result = tested.computed_parameters(sdk_parameters)
     assert result is True
 
@@ -770,7 +749,7 @@ def test_computed_parameters(case_file):
     json_file.exists.side_effect = [True, True]
     json_file.open.side_effect = buffers
 
-    tested = AuditorFile("theCase", 7)
+    _, tested = helper_instance()
     result = tested.computed_parameters(sdk_parameters)
     assert result is True
 
@@ -839,7 +818,7 @@ def test_computed_parameters(case_file):
     json_file.exists.side_effect = [True, True]
     json_file.open.side_effect = buffers
 
-    tested = AuditorFile("theCase", 7)
+    _, tested = helper_instance()
     result = tested.computed_parameters(sdk_parameters)
     assert result is True
 
@@ -938,7 +917,7 @@ def test_computed_commands(case_file):
     json_file.exists.side_effect = [False, True]
     json_file.open.side_effect = buffers
 
-    tested = AuditorFile("theCase", 7)
+    _, tested = helper_instance()
     result = tested.computed_commands(sdk_parameters)
     assert result is True
 
@@ -998,7 +977,7 @@ def test_computed_commands(case_file):
     json_file.exists.side_effect = [True, True]
     json_file.open.side_effect = buffers
 
-    tested = AuditorFile("theCase", 7)
+    _, tested = helper_instance()
     result = tested.computed_commands(sdk_parameters)
     assert result is True
 
@@ -1075,7 +1054,7 @@ def test_computed_commands(case_file):
     json_file.exists.side_effect = [True, True]
     json_file.open.side_effect = buffers
 
-    tested = AuditorFile("theCase", 7)
+    _, tested = helper_instance()
     result = tested.computed_commands(sdk_parameters)
     assert result is True
 
@@ -1228,7 +1207,7 @@ def test_computed_questionnaires(case_file):
     json_file.exists.side_effect = [False, True]
     json_file.open.side_effect = buffers
 
-    tested = AuditorFile("theCase", 7)
+    _, tested = helper_instance()
     result = tested.computed_questionnaires(transcript, initial_instructions, instructions_with_command)
     assert result is True
 
@@ -1298,7 +1277,7 @@ def test_computed_questionnaires(case_file):
     json_file.exists.side_effect = [True, True]
     json_file.open.side_effect = buffers
 
-    tested = AuditorFile("theCase", 7)
+    _, tested = helper_instance()
     result = tested.computed_questionnaires(transcript, initial_instructions, instructions_with_command)
     assert result is True
 
@@ -1365,7 +1344,7 @@ def test_summarized_generated_commands_as_instructions(case_file):
     def reset_mocks():
         case_file.reset_mock()
 
-    tested = AuditorFile("theCase", 7)
+    _, tested = helper_instance()
 
     # there are no files for the case
     case_file.return_value.exists.side_effect = [False, False]
@@ -1766,7 +1745,7 @@ def test_summarized_generated_commands(case_file):
     def reset_mocks():
         case_file.reset_mock()
 
-    tested = AuditorFile("theCase", 7)
+    _, tested = helper_instance()
 
     # there are no files for the case
     case_file.return_value.exists.side_effect = [False, False]
@@ -2126,7 +2105,7 @@ def test_generate_commands_summary(case_file, summarized_generated_commands):
         summary_initial.reset_mock()
         summary_revised.reset_mock()
 
-    tested = AuditorFile("theCase", 7)
+    _, tested = helper_instance()
 
     # the revised file does not exist yet
     buffers = [
@@ -2210,7 +2189,7 @@ def test_generate_html_summary(is_complete, case_file, path):
         data_file.reset_mock()
         html_file.reset_mock()
 
-    tested = AuditorFile("theCase", 7)
+    _, tested = helper_instance()
 
     # the case has been completed
     buffers = [

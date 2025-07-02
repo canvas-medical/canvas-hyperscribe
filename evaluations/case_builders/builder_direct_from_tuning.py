@@ -117,12 +117,12 @@ class BuilderDirectFromTuning:
             cycle += 1
             discussion.set_cycle(cycle)
             previous, _ = Commander.transcript2commands(
-                AuditorFile(case_summary.title, cycle),
+                AuditorFile.default_instance(case_summary.title, cycle),
                 [Line(speaker=line.speaker, text=line.text) for line in exchange],
                 chatter,
                 previous,
             )
-        recorder = AuditorFile(case_summary.title, 0)
+        recorder = AuditorFile.default_instance(case_summary.title, 0)
         recorder.generate_commands_summary()
         recorder.generate_html_summary()
         return recorder.summarized_generated_commands_as_instructions()

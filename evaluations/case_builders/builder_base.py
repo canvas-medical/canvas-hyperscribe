@@ -54,7 +54,7 @@ class BuilderBase:
     def run(cls) -> None:
         parameters = cls._parameters()
         # auditor
-        recorder = AuditorFile(parameters.case, 0)
+        recorder = AuditorFile.default_instance(parameters.case, 0)
         if not recorder.is_ready():
             print(f"Case '{parameters.case}': some files exist already")
             return
@@ -109,7 +109,7 @@ class BuilderBase:
             previous_instructions: list[Instruction],
             previous_transcript: list[Line],
     ) -> Tuple[list[Instruction], list[Line]]:
-        auditor = AuditorFile(case, cycle)
+        auditor = AuditorFile.default_instance(case, cycle)
         if transcript := auditor.transcript():
             instructions, _ = Commander.transcript2commands(
                 auditor,
@@ -147,10 +147,10 @@ class BuilderBase:
         )
 
     @classmethod
-    def summary_generated_commands(cls, case: str) -> list[dict]:
+    def _summary_generated_commands(cls, case: str) -> list[dict]:
         result: dict[str, dict] = {}
 
-        recorder = AuditorFile(case, 0)
+        recorder = AuditorFile.default_instance(case, 0)
         # common commands
         file = recorder.case_file(AuditorFile.PARAMETERS2COMMAND_FILE)
         if file.exists():
@@ -192,7 +192,7 @@ class BuilderBase:
         result: list[dict] = []
         commands = [
             summary["command"]
-            for summary in cls.summary_generated_commands(case)
+            for summary in cls._summary_generated_commands(case)
         ]
         if not commands:
             return

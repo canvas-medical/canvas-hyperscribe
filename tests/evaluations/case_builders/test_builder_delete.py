@@ -77,12 +77,12 @@ def test_run(
             calls = [call()]
             assert parameters.mock_calls == calls
             calls = [
-                call('theCaseName1', 0),
-                call().reset(False),
-                call('theCaseName2', 0),
-                call().reset(False),
-                call('theCaseName3', 0),
-                call().reset(False),
+                call.default_instance('theCaseName1', 0),
+                call.default_instance().reset(False),
+                call.default_instance('theCaseName2', 0),
+                call.default_instance().reset(False),
+                call.default_instance('theCaseName3', 0),
+                call.default_instance().reset(False),
             ]
             assert auditor_file.mock_calls == calls
             calls = [
@@ -114,8 +114,8 @@ def test_run(
         calls = [call()]
         assert parameters.mock_calls == calls
         calls = [
-            call('theCase', 0),
-            call().reset(audios),
+            call.default_instance('theCase', 0),
+            call.default_instance().reset(audios),
         ]
         assert auditor_file.mock_calls == calls
         calls = [call.delete('theCase')]

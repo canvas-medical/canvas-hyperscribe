@@ -39,15 +39,15 @@ def test_run(parameters, auditor_file, browser_open, ):
 
     # HTML file does not exist
     parameters.side_effect = [Namespace(case="theCase")]
-    auditor_file.return_value.generate_html_summary.side_effect = [None]
+    auditor_file.default_instance.return_value.generate_html_summary.side_effect = [None]
 
     tested.run()
 
     calls = [call()]
     assert parameters.mock_calls == calls
     calls = [
-        call("theCase", 0),
-        call().generate_html_summary(),
+        call.default_instance("theCase", 0),
+        call.default_instance().generate_html_summary(),
     ]
     assert auditor_file.mock_calls == calls
     assert browser_open.mock_calls == []
@@ -55,15 +55,15 @@ def test_run(parameters, auditor_file, browser_open, ):
 
     # HTML file exists
     parameters.side_effect = [Namespace(case="theCase")]
-    auditor_file.return_value.generate_html_summary.side_effect = [Path("/from/the/root/file.html")]
+    auditor_file.default_instance.return_value.generate_html_summary.side_effect = [Path("/from/the/root/file.html")]
 
     tested.run()
 
     calls = [call()]
     assert parameters.mock_calls == calls
     calls = [
-        call("theCase", 0),
-        call().generate_html_summary(),
+        call.default_instance("theCase", 0),
+        call.default_instance().generate_html_summary(),
     ]
     assert auditor_file.mock_calls == calls
     calls = [call('file:///from/the/root/file.html')]

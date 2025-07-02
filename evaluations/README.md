@@ -12,7 +12,15 @@ The [hyperscribe](../hyperscribe) plugin has five essential steps:
 * and:
   * update the staged questionnaires in the considered note based on the discussion
 
-The evaluation tests are designed to validate each of these steps, using the `pytest` tool.
+The aim is to provide a continuous validation of the Hyperscribe plugin through two approaches:
+
+* a tests suite run with `pytest` that checks step by step the coherence and the value of the plugin
+* a cases suite run with [`case_runner.py`](../case_runner.py) script that executes an end to end scenario and evaluate it against a rubric
+
+The `pytest` approach is designed to help understand and improve the plugin deep and narrowly.
+
+The rubric approach is designed to offer an overall quality benchmark of the plugin. Currently, the [`case_runner.py`](../case_runner.py) script
+doesn't go further than executing the plugin code using the case from the transcript to the production of the commands and the `summary` files.
 
 #### Situational and case evaluations
 The evaluation tests are separated into two categories:

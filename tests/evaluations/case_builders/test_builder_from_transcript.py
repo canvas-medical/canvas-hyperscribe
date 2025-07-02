@@ -66,6 +66,12 @@ def test__run(
         capsys,
 ):
     mock_file = MagicMock()
+    recorders = [
+        MagicMock(),
+        MagicMock(),
+        MagicMock(),
+        MagicMock(),
+    ]
 
     def reset_mocks():
         limited_cache_from.reset_mock()
@@ -78,6 +84,8 @@ def test__run(
         cached_discussion.reset_mock()
         auditor.reset_mock()
         mock_file.reset_mock()
+        for item in recorders:
+            item.reset_mock()
 
     tested = BuilderFromTranscript
 
@@ -109,12 +117,6 @@ def test__run(
             is_new=False,
             is_updated=True,
         )
-    ]
-    recorders = [
-        AuditorFile("theCase", 0),
-        AuditorFile("theCase", 1),
-        AuditorFile("theCase", 2),
-        AuditorFile("theCase", 3),
     ]
     identification = IdentificationParameters(
         patient_uuid="thePatient",
@@ -162,7 +164,7 @@ def test__run(
         json.dumps([l.to_json() for l in lines]),
     ]
     commander.transcript2commands.side_effect = [(["previous1"], ["effects1"])]
-    auditor.side_effect = []
+    auditor.default_instance.side_effect = []
     parameters = Namespace(
         patient="thePatientUuid",
         case="theCase",
@@ -206,6 +208,7 @@ def test__run(
     assert cached_discussion.mock_calls == calls
     assert auditor.mock_calls == []
     assert mock_file.mock_calls == exp_mock_file
+    assert [r.mock_calls == exp_mock_file for r in recorders]
 
     reset_mocks()
 
@@ -223,7 +226,7 @@ def test__run(
         (["previous1"], ["effects1"]),
         (["previous2"], ["effects2"]),
     ]
-    auditor.side_effect = recorders[1:3]
+    auditor.default_instance.side_effect = recorders[1:3]
     parameters = Namespace(
         patient="thePatientUuid",
         case="theCase",
@@ -274,11 +277,12 @@ def test__run(
     ]
     assert cached_discussion.mock_calls == calls
     calls = [
-        call('theCase', 0),
-        call('theCase', 1),
+        call.default_instance('theCase', 0),
+        call.default_instance('theCase', 1),
     ]
     assert auditor.mock_calls == calls
     assert mock_file.mock_calls == exp_mock_file
+    assert [r.mock_calls == exp_mock_file for r in recorders]
 
     reset_mocks()
 
@@ -297,7 +301,7 @@ def test__run(
         (["previous2"], ["effects2"]),
         (["previous3"], ["effects3"]),
     ]
-    auditor.side_effect = recorders[1:4]
+    auditor.default_instance.side_effect = recorders[1:4]
     parameters = Namespace(
         patient="thePatientUuid",
         case="theCase",
@@ -356,11 +360,12 @@ def test__run(
     ]
     assert cached_discussion.mock_calls == calls
     calls = [
-        call("theCase", 0),
-        call("theCase", 1),
-        call("theCase", 2),
+        call.default_instance("theCase", 0),
+        call.default_instance("theCase", 1),
+        call.default_instance("theCase", 2),
     ]
     assert auditor.mock_calls == calls
     assert mock_file.mock_calls == exp_mock_file
+    assert [r.mock_calls == exp_mock_file for r in recorders]
 
     reset_mocks()

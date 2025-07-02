@@ -29,7 +29,7 @@ class BuilderDelete:
             cases.append(parameters.case)
 
         for case in cases:
-            AuditorFile(case, 0).reset(parameters.audios)
+            AuditorFile.default_instance(case, 0).reset(parameters.audios)
             StoreCases.delete(case)
             print(f"Evaluation Case '{case}' deleted (files and record)")
 

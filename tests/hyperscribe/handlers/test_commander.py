@@ -1380,7 +1380,8 @@ def test_transcript2commands_questionnaires(time, memory_log, progress):
     assert result == expected
     assert memory_log.mock_calls == []
     assert time.mock_calls == []
-    assert auditor.mock_calls == []
+    calls = [call.computed_questionnaires(transcript, [], [])]
+    assert auditor.mock_calls == calls
     assert chatter.mock_calls == []
     for mock_command in mock_commands:
         assert mock_command.mock_calls == []

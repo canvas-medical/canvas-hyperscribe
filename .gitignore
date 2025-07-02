@@ -2,6 +2,7 @@
 .idea/
 __pycache__
 debug/
+cases_runs/
 .coverage
 .venv
 evaluations.db

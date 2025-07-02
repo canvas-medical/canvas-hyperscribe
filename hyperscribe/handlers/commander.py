@@ -362,6 +362,7 @@ class Commander(BaseProtocol):
             instructions: list[Instruction],
     ) -> tuple[list[Instruction], list[Effect]]:
         if not instructions:
+            auditor.computed_questionnaires(transcript, [], [])
             return [], []
 
         memory_log = MemoryLog.instance(chatter.identification, Constants.MEMORY_LOG_LABEL, chatter.s3_credentials)

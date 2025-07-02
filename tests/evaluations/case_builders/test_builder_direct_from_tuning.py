@@ -348,7 +348,7 @@ def test_generate_case(store_cases, audio_interpreter, cached_sdk, commander, au
         (["previous3"], ["effects3"]),
         (["previous4"], ["effects4"]),
     ]
-    auditor_file.return_value.summarized_generated_commands_as_instructions.side_effect = ["summarizedInstructions"]
+    auditor_file.default_instance.return_value.summarized_generated_commands_as_instructions.side_effect = ["summarizedInstructions"]
     limited_cache.to_json.side_effect = [{"obfuscated": "json"}]
     limited_cache.staged_commands_as_instructions.side_effect = [["previous0"]]
     implemented_commands.schema_key2instruction.side_effect = [{'implemented': 'json'}]
@@ -388,25 +388,25 @@ def test_generate_case(store_cases, audio_interpreter, cached_sdk, commander, au
     assert limited_cache.mock_calls == calls
     calls = [
         call.transcript2commands(
-            auditor_file.return_value,
+            auditor_file.default_instance.return_value,
             [Line(speaker='theSpeaker1', text='theText1')],
             audio_interpreter.return_value,
             ["previous0"],
         ),
         call.transcript2commands(
-            auditor_file.return_value,
+            auditor_file.default_instance.return_value,
             [Line(speaker='theSpeaker2', text='theText2'), Line(speaker='theSpeaker1', text='theText3')],
             audio_interpreter.return_value,
             ["previous1"],
         ),
         call.transcript2commands(
-            auditor_file.return_value,
+            auditor_file.default_instance.return_value,
             [Line(speaker='theSpeaker2', text='theText4'), Line(speaker='theSpeaker1', text='theText5')],
             audio_interpreter.return_value,
             ["previous2"],
         ),
         call.transcript2commands(
-            auditor_file.return_value,
+            auditor_file.default_instance.return_value,
             [Line(speaker='theSpeaker1', text='theText6')],
             audio_interpreter.return_value,
             ["previous3"],
@@ -414,14 +414,14 @@ def test_generate_case(store_cases, audio_interpreter, cached_sdk, commander, au
     ]
     assert commander.mock_calls == calls
     calls = [
-        call('theTitle', 1),
-        call('theTitle', 2),
-        call('theTitle', 3),
-        call('theTitle', 4),
-        call('theTitle', 0),
-        call().generate_commands_summary(),
-        call().generate_html_summary(),
-        call().summarized_generated_commands_as_instructions(),
+        call.default_instance('theTitle', 1),
+        call.default_instance('theTitle', 2),
+        call.default_instance('theTitle', 3),
+        call.default_instance('theTitle', 4),
+        call.default_instance('theTitle', 0),
+        call.default_instance().generate_commands_summary(),
+        call.default_instance().generate_html_summary(),
+        call.default_instance().summarized_generated_commands_as_instructions(),
     ]
     assert auditor_file.mock_calls == calls
     calls = [call.schema_key2instruction()]

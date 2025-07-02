@@ -58,6 +58,7 @@ def test__run(
         audio_interpreter,
         capsys,
 ):
+    recorder = MagicMock()
     mock_limited_cache = MagicMock()
     mock_json_file = MagicMock()
     mock_mp3_files = [MagicMock(), MagicMock(), MagicMock(), MagicMock(), MagicMock()]
@@ -70,6 +71,7 @@ def test__run(
         helper.reset_mock()
         cached_discussion.reset_mock()
         audio_interpreter.reset_mock()
+        recorder.reset_mock()
         mock_limited_cache.reset_mock()
         mock_json_file.reset_mock()
         for idx, item in enumerate(mock_mp3_files):
@@ -140,7 +142,6 @@ def test__run(
                 tuning_json=mock_json_file,
                 tuning_mp3=mock_mp3_files,
             )
-            recorder = AuditorFile("theCase", 0)
             identification = IdentificationParameters(
                 patient_uuid="thePatient",
                 note_uuid="theNoteUuid",
@@ -166,6 +167,7 @@ def test__run(
 
             calls = [call.load_from_json({"key": "value"})]
             assert limited_cache.mock_calls == calls
+            assert recorder.mock_calls == []
             calls = [call.staged_commands_as_instructions("schemaKey2instruction")]
             assert mock_limited_cache.mock_calls == calls
             calls = [call.schema_key2instruction()]

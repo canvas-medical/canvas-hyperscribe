@@ -70,7 +70,7 @@ class BuilderFromTranscript(BuilderBase):
                 idx = cycle * length
                 discussion.set_cycle(cycle + 1)
                 previous, _ = Commander.transcript2commands(
-                    AuditorFile(parameters.case, cycle),
+                    AuditorFile.default_instance(parameters.case, cycle),
                     transcript[idx:idx + length],
                     chatter,
                     previous,

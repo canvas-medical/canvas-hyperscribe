@@ -1,7 +1,6 @@
 from argparse import Namespace
 from unittest.mock import patch, call, MagicMock
 
-from evaluations.auditor_file import AuditorFile
 from evaluations.case_builders.builder_base import BuilderBase
 from evaluations.case_builders.builder_from_mp3 import BuilderFromMp3
 from evaluations.structures.evaluation_case import EvaluationCase
@@ -66,6 +65,7 @@ def test__run(
         audio_interpreter,
         capsys,
 ):
+    recorder = MagicMock()
     mock_files = [MagicMock(), MagicMock(), MagicMock()]
     for idx in range(len(mock_files)):
         mock_files[idx].name = f"audio file {idx}"
@@ -82,10 +82,10 @@ def test__run(
         audio_interpreter.reset_mock()
         for item in mock_files:
             item.reset_mock()
+        recorder.reset_mock()
 
     tested = BuilderFromMp3
 
-    recorder = AuditorFile("theCase", 0)
     identification = IdentificationParameters(
         patient_uuid="thePatient",
         note_uuid="theNoteUuid",
@@ -202,6 +202,7 @@ def test__run(
         assert render_in_ui.mock_calls == calls
         for idx, mock_file in enumerate(mock_files):
             assert mock_file.mock_calls == []
+        assert recorder.mock_calls == []
 
         reset_mocks()
 

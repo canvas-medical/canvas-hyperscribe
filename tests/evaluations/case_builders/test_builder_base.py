@@ -77,7 +77,7 @@ def test__run():
     with pytest.raises(NotImplementedError):
         _ = tested._run(
             Namespace(),
-            AuditorFile("theCase", 0),
+            AuditorFile.default_instance("theCase", 0),
             IdentificationParameters(
                 patient_uuid="patientUuid",
                 note_uuid="noteUuid",
@@ -149,7 +149,7 @@ def test_run(
     # auditor is not ready
     run.side_effect = []
     parameters.side_effect = [Namespace(case="theCase")]
-    auditor_file.return_value.is_ready.side_effect = [False]
+    auditor_file.default_instance.return_value.is_ready.side_effect = [False]
     aws_s3.return_value.is_ready.side_effect = []
     cached_discussion.side_effect = []
     helper.side_effect = []
@@ -169,8 +169,8 @@ def test_run(
     calls = [call()]
     assert parameters.mock_calls == calls
     calls = [
-        call("theCase", 0),
-        call().is_ready(),
+        call.default_instance("theCase", 0),
+        call.default_instance().is_ready(),
     ]
     assert auditor_file.mock_calls == calls
     assert aws_s3.mock_calls == []
@@ -210,7 +210,7 @@ def test_run(
 
         run.side_effect = [None]
         parameters.side_effect = [arguments]
-        auditor_file.return_value.is_ready.side_effect = [True]
+        auditor_file.default_instance.return_value.is_ready.side_effect = [True]
         aws_s3.return_value.is_ready.side_effect = [aws_is_ready]
         cached_discussion.get_discussion.side_effect = [discussion]
         helper.aws_s3_credentials.side_effect = ["awsS3CredentialsInstance1"]
@@ -229,7 +229,7 @@ def test_run(
             exp_out.append('Logs saved in: hyperscribe-canvasInstance/finals/2025-03-10/theCase.log')
         exp_out.append('')
         assert capsys.readouterr().out == "\n".join(exp_out)
-        calls = [call(arguments, auditor_file.return_value, identifications["target"])]
+        calls = [call(arguments, auditor_file.default_instance.return_value, identifications["target"])]
         assert run.mock_calls == calls
         calls = [call()]
         assert parameters.mock_calls == calls
@@ -243,10 +243,10 @@ def test_run(
             calls.append(call.settings())
         assert helper.mock_calls == calls
         calls = [
-            call("theCase", 0),
-            call().is_ready(),
-            call().generate_commands_summary(),
-            call().generate_html_summary(),
+            call.default_instance("theCase", 0),
+            call.default_instance().is_ready(),
+            call.default_instance().generate_commands_summary(),
+            call.default_instance().generate_html_summary(),
         ]
         assert auditor_file.mock_calls == calls
         calls = [
@@ -312,7 +312,7 @@ def test_run(
 
         run.side_effect = [None]
         parameters.side_effect = [arguments]
-        auditor_file.return_value.is_ready.side_effect = [True]
+        auditor_file.default_instance.return_value.is_ready.side_effect = [True]
         aws_s3.return_value.is_ready.side_effect = [aws_is_ready]
         cached_discussion.get_discussion.side_effect = [discussion]
         helper.aws_s3_credentials.side_effect = ["awsS3CredentialsInstance1"]
@@ -332,7 +332,7 @@ def test_run(
         exp_out.append('')
         assert capsys.readouterr().out == "\n".join(exp_out)
 
-        calls = [call(arguments, auditor_file.return_value, identifications["generic"])]
+        calls = [call(arguments, auditor_file.default_instance.return_value, identifications["generic"])]
         assert run.mock_calls == calls
         calls = [call()]
         assert parameters.mock_calls == calls
@@ -344,10 +344,10 @@ def test_run(
             calls.append(call.settings())
         assert helper.mock_calls == calls
         calls = [
-            call("theCase", 0),
-            call().is_ready(),
-            call().generate_commands_summary(),
-            call().generate_html_summary(),
+            call.default_instance("theCase", 0),
+            call.default_instance().is_ready(),
+            call.default_instance().generate_commands_summary(),
+            call.default_instance().generate_html_summary(),
         ]
         assert auditor_file.mock_calls == calls
         calls = [
@@ -459,7 +459,7 @@ def test__run_cycle(transcript, commander):
     assert transcript.mock_calls == calls
     calls = [
         call.audio2commands(
-            AuditorFile("theCase", 7),
+            AuditorFile.default_instance("theCase", 7),
             audios,
             chatter,
             instructions[:2],
@@ -482,7 +482,7 @@ def test__run_cycle(transcript, commander):
     assert transcript.mock_calls == calls
     calls = [
         call.transcript2commands(
-            AuditorFile("theCase", 7),
+            AuditorFile.default_instance("theCase", 7),
             lines,
             chatter,
             instructions[:2],
@@ -545,7 +545,7 @@ def test__limited_cache_from(command_db, existing_commands_to_coded_items):
 
 
 @patch("evaluations.case_builders.builder_base.AuditorFile")
-def test_summary_generated_commands(auditor_file):
+def test__summary_generated_commands(auditor_file):
     path_files = [
         MagicMock(),
         MagicMock(),
@@ -556,12 +556,10 @@ def test_summary_generated_commands(auditor_file):
         for item in path_files:
             item.reset_mock()
 
-    directory = Path(__file__).parent.as_posix().replace("/tests", "")
-
     exp_auditor_file_calls = [
-        call('theCase', 0),
-        call().case_file('parameters2command_file'),
-        call().case_file('parameters2command_file'),
+        call.default_instance('theCase', 0),
+        call.default_instance().case_file('parameters2command_file'),
+        call.default_instance().case_file('parameters2command_file'),
     ]
 
     auditor_file.PARAMETERS2COMMAND_FILE = "parameters2command_file"
@@ -570,11 +568,11 @@ def test_summary_generated_commands(auditor_file):
     tested = BuilderBase
 
     # there are no files for the case
-    auditor_file.return_value.case_file.side_effect = [path_files[0], path_files[1]]
+    auditor_file.default_instance.return_value.case_file.side_effect = [path_files[0], path_files[1]]
     for idx, path_file in enumerate(path_files):
         path_file.exists.side_effect = [False]
 
-    result = tested.summary_generated_commands("theCase")
+    result = tested._summary_generated_commands("theCase")
     assert result == []
 
     assert auditor_file.mock_calls == exp_auditor_file_calls
@@ -594,12 +592,12 @@ def test_summary_generated_commands(auditor_file):
     ]
     for content in tests:
         file_content = json.dumps(content)
-        auditor_file.return_value.case_file.side_effect = [path_files[0], path_files[1]]
+        auditor_file.default_instance.return_value.case_file.side_effect = [path_files[0], path_files[1]]
         for idx, path_file in enumerate(path_files):
             path_file.exists.side_effect = [True]
             path_file.open.return_value.read.side_effect = [file_content, file_content]
 
-        result = tested.summary_generated_commands("theCase")
+        result = tested._summary_generated_commands("theCase")
         assert result == []
 
         assert auditor_file.mock_calls == exp_auditor_file_calls
@@ -672,12 +670,12 @@ def test_summary_generated_commands(auditor_file):
                 },
             ]},
     })
-    auditor_file.return_value.case_file.side_effect = [path_files[0], path_files[1]]
+    auditor_file.default_instance.return_value.case_file.side_effect = [path_files[0], path_files[1]]
     for idx, path_file in enumerate(path_files):
         path_file.exists.side_effect = [True]
         path_file.open.return_value.read.side_effect = [file_content, file_content]
 
-    result = tested.summary_generated_commands("theCase")
+    result = tested._summary_generated_commands("theCase")
     expected = [
         # common
         {
@@ -784,7 +782,7 @@ def test__remove_uuids():
 @patch("evaluations.case_builders.builder_base.ImplementedCommands")
 @patch("evaluations.case_builders.builder_base.import_module")
 @patch.object(BuilderBase, "_post_commands")
-@patch.object(BuilderBase, "summary_generated_commands")
+@patch.object(BuilderBase, "_summary_generated_commands")
 def test__render_in_ui(summary_generated_commands, post_commands, import_module, implemented_commands):
     limited_cache = MagicMock()
 

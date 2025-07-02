@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 from pathlib import Path
 from typing import Generator
@@ -23,26 +25,27 @@ class AuditorFile(Auditor):
     SUMMARY_JSON_REVISED_FILE = "summary_revised.json"
     SUMMARY_HTML_FILE = "summary.html"
 
-    def __init__(self, case: str, cycle: int):
+    @classmethod
+    def default_instance(cls, case: str, cycle: int) -> AuditorFile:
+        return cls(case, cycle, Path(__file__).parent / f"cases/{case}")
+
+    def __init__(self, case: str, cycle: int, folder: Path) -> None:
         super().__init__()
         self.case = case
         self.cycle = cycle
+        self.folder = folder
+        if self.folder.exists() is False:
+            self.folder.mkdir()
 
     def __eq__(self, other: object) -> bool:
         assert isinstance(other, AuditorFile)
-        return bool(self.case == other.case and self.cycle == other.cycle)
-
-    def case_folder(self) -> Path:
-        result = Path(__file__).parent / f"cases/{self.case}"
-        if result.exists() is False:
-            result.mkdir()
-        return result
+        return bool(self.case == other.case and self.cycle == other.cycle and self.folder == other.folder)
 
     def case_file(self, file_name: str) -> Path:
-        return self.case_folder() / file_name
+        return self.folder / file_name
 
     def audio_case_files(self) -> Generator[Path, None, None]:
-        audio_folder = self.case_folder() / self.AUDIOS_FOLDER
+        audio_folder = self.folder / self.AUDIOS_FOLDER
         if audio_folder.exists():
             yield from audio_folder.glob(f"{Constants.CASE_CYCLE_SUFFIX}_???_??.mp3")
 
@@ -70,9 +73,6 @@ class AuditorFile(Auditor):
         return True
 
     def is_complete(self) -> bool:
-        folder = Path(__file__).parent / f"cases/{self.case}"
-        if folder.exists() is False:
-            return False
         file_names = [
             # self.AUDIO2TRANSCRIPT_FILE,
             self.INSTRUCTION2PARAMETERS_FILE,
@@ -91,7 +91,7 @@ class AuditorFile(Auditor):
         for case_file in self.case_files(delete_audios):
             case_file.unlink(True)
         if delete_audios:
-            audio_folder = self.case_folder() / self.AUDIOS_FOLDER
+            audio_folder = self.folder / self.AUDIOS_FOLDER
             if audio_folder.exists():
                 audio_folder.rmdir()
 
@@ -105,7 +105,7 @@ class AuditorFile(Auditor):
 
 
     def identified_transcript(self, audios: list[bytes], transcript: list[Line]) -> bool:
-        audio_folder = self.case_folder() / self.AUDIOS_FOLDER
+        audio_folder = self.folder / self.AUDIOS_FOLDER
         if audio_folder.exists() is False:
             audio_folder.mkdir()
 

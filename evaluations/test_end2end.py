@@ -106,7 +106,7 @@ def test_end2end(
         capsys: pytest.CaptureFixture[str],
         request: pytest.FixtureRequest,
 ) -> None:
-    auditor = AuditorFile(end2end_folder.stem, 0)
+    auditor = AuditorFile.default_instance(end2end_folder.stem, 0)
     failures = []
 
     cycles = json.load(auditor.case_file(auditor.TRANSCRIPT2INSTRUCTIONS_FILE).open("r")).keys()
