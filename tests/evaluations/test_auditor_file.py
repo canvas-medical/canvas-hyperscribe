@@ -42,12 +42,37 @@ def test_auditor_file():
     assert issubclass(tested, Auditor)
 
 
-def test_default_instance():
+@patch("evaluations.auditor_file.Path")
+def test_default_instance(path):
+    folder = MagicMock()
+
+    def reset_mock():
+        path.reset_mock()
+        folder.reset_mock()
+
     tested = AuditorFile
-    result = tested.default_instance("theCase", 7)
-    directory = Path(__file__).parent.as_posix().replace("/tests", "")
-    expected = AuditorFile("theCase", 7, Path(directory) / "cases" / "theCase")
-    assert result == expected
+
+    for exists in [True, False]:
+        path.return_value.parent.__truediv__.side_effect = [folder]
+        folder.exists.side_effect = [exists]
+        folder.return_value = "thePath"
+        result = tested.default_instance("theCase", 7)
+        assert isinstance(result, AuditorFile)
+        assert result.case == "theCase"
+        assert result.cycle == 7
+        assert result.folder is folder
+
+        directory = Path(__file__).parent.as_posix().replace("/tests", "")
+        calls = [
+            call(f"{directory}/auditor_file.py"),
+            call().parent.__truediv__('cases/theCase'),
+        ]
+        assert path.mock_calls == calls
+        calls = [call.exists()]
+        if not exists:
+            calls.append(call.mkdir())
+        assert folder.mock_calls == calls
+        reset_mock()
 
 def test___init__():
     folder = MagicMock()

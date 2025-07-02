@@ -71,19 +71,26 @@ def test__parameters():
     with pytest.raises(NotImplementedError):
         _ = tested._parameters()
 
-
 def test__run():
+    auditor = MagicMock()
+
+    def reset_mocks():
+        auditor.reset_mock()
+
     tested = BuilderBase
     with pytest.raises(NotImplementedError):
         _ = tested._run(
             Namespace(),
-            AuditorFile.default_instance("theCase", 0),
+            auditor,
             IdentificationParameters(
                 patient_uuid="patientUuid",
                 note_uuid="noteUuid",
                 provider_uuid="providerUuid",
                 canvas_instance="canvasInstance",
             ))
+        calls = []
+        assert auditor.mock_calls == calls
+        reset_mocks()
 
 
 @patch("evaluations.case_builders.builder_base.datetime", wraps=datetime)
@@ -394,12 +401,12 @@ def test_run(
 
 
 @patch("evaluations.case_builders.builder_base.Commander")
-@patch.object(AuditorFile, "transcript")
-def test__run_cycle(transcript, commander):
+@patch("evaluations.case_builders.builder_base.AuditorFile")
+def test__run_cycle(auditor_file, commander):
     chatter = MagicMock()
 
     def reset_mocks():
-        transcript.reset_mock()
+        auditor_file.reset_mock()
         commander.reset_mock()
         chatter.reset_mock()
 
@@ -448,18 +455,21 @@ def test__run_cycle(transcript, commander):
 
     tested = BuilderBase
     # the transcript has not been done yet
-    transcript.side_effect = [[]]
+    auditor_file.default_instance.return_value.transcript.side_effect = [[]]
     commander.transcript2commands.side_effect = []
     commander.audio2commands.side_effect = [(instructions, effects, "the end of the new transcript")]
     result = tested._run_cycle("theCase", 7, audios, chatter, instructions[:2], previous)
     expected = (instructions, "the end of the new transcript")
     assert result == expected
 
-    calls = [call()]
-    assert transcript.mock_calls == calls
+    calls = [
+        call.default_instance('theCase', 7),
+        call.default_instance().transcript(),
+    ]
+    assert auditor_file.mock_calls == calls
     calls = [
         call.audio2commands(
-            AuditorFile.default_instance("theCase", 7),
+            auditor_file.default_instance.return_value,
             audios,
             chatter,
             instructions[:2],
@@ -471,18 +481,21 @@ def test__run_cycle(transcript, commander):
     reset_mocks()
 
     # the transcript has been done
-    transcript.side_effect = [lines]
+    auditor_file.default_instance.return_value.transcript.side_effect = [lines]
     commander.transcript2commands.side_effect = [(instructions, effects)]
     commander.audio2commands.side_effect = []
     result = tested._run_cycle("theCase", 7, audios, chatter, instructions[:2], previous)
     expected = (instructions, [])
     assert result == expected
 
-    calls = [call()]
-    assert transcript.mock_calls == calls
+    calls = [
+        call.default_instance('theCase', 7),
+        call.default_instance().transcript(),
+    ]
+    assert auditor_file.mock_calls == calls
     calls = [
         call.transcript2commands(
-            AuditorFile.default_instance("theCase", 7),
+            auditor_file.default_instance.return_value,
             lines,
             chatter,
             instructions[:2],

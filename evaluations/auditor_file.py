@@ -37,10 +37,6 @@ class AuditorFile(Auditor):
         if self.folder.exists() is False:
             self.folder.mkdir()
 
-    def __eq__(self, other: object) -> bool:
-        assert isinstance(other, AuditorFile)
-        return bool(self.case == other.case and self.cycle == other.cycle and self.folder == other.folder)
-
     def case_file(self, file_name: str) -> Path:
         return self.folder / file_name
 
