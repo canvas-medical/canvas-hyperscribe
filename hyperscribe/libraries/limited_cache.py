@@ -122,11 +122,9 @@ class LimitedCache:
                 )
                 if condition.clinical_status == ClinicalStatus.ACTIVE:
                     self._conditions.append(item)
-                elif condition.clinical_status == ClinicalStatus.RESOLVED and coding.system == CodeSystems.ICD10:
-                    # TODO ^ should be: elif condition.clinical_status == ClinicalStatus.RESOLVED and condition.surgical == False:
+                elif condition.clinical_status == ClinicalStatus.RESOLVED and condition.surgical is False:
                     self._condition_history.append(item)
-                elif condition.clinical_status == ClinicalStatus.RESOLVED and coding.system == CodeSystems.SNOMED:
-                    # TODO ^ should be: elif condition.clinical_status == ClinicalStatus.RESOLVED and condition.surgical == True:
+                elif condition.clinical_status == ClinicalStatus.RESOLVED and condition.surgical is True:
                     self._surgery_history.append(item)
 
     def add_instructions_as_staged_commands(self, instructions: list[Instruction], schema_key2instruction: dict) -> None:

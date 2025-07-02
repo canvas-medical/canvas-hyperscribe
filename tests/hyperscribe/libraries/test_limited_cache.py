@@ -250,12 +250,12 @@ def test_retrieve_conditions(condition_db, codings_db):
     condition_db.committed.return_value.for_patient.return_value.filter.return_value.order_by.side_effect = [
         [
             Condition(id=uuid5(NAMESPACE_DNS, "1"), clinical_status="active"),
-            Condition(id=uuid5(NAMESPACE_DNS, "2"), clinical_status="resolved"),
-            Condition(id=uuid5(NAMESPACE_DNS, "3"), clinical_status="resolved"),
-            Condition(id=uuid5(NAMESPACE_DNS, "4"), clinical_status="resolved"),
+            Condition(id=uuid5(NAMESPACE_DNS, "2"), clinical_status="resolved", surgical=False),
+            Condition(id=uuid5(NAMESPACE_DNS, "3"), clinical_status="resolved", surgical=True),
+            Condition(id=uuid5(NAMESPACE_DNS, "4"), clinical_status="resolved", surgical=False),
             Condition(id=uuid5(NAMESPACE_DNS, "5"), clinical_status="active"),
             Condition(id=uuid5(NAMESPACE_DNS, "6"), clinical_status="resolved"),
-            Condition(id=uuid5(NAMESPACE_DNS, "6"), clinical_status="active"),
+            Condition(id=uuid5(NAMESPACE_DNS, "7"), clinical_status="active"),
         ],
     ]
     tested = LimitedCache("patientUuid", "providerUuid", {})
