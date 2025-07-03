@@ -1,11 +1,6 @@
 {
-<<<<<<< HEAD
   "sdk_version": "0.43.0",
   "plugin_version": "0.0.88",
-=======
-  "sdk_version": "0.42.0",
-  "plugin_version": "0.0.85",
->>>>>>> 1a71133 (bump versions)
   "name": "hyperscribe",
   "description": "Create commands based on the content of an audio discussion between a patient and a provider.",
   "url_permissions": [
