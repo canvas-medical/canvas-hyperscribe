@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from typing import NamedTuple
+from typing import NamedTuple, Optional
 
 from hyperscribe.libraries.constants import Constants
 from hyperscribe.structures.access_policy import AccessPolicy
@@ -29,6 +29,8 @@ class Settings(NamedTuple):
             llm_text=VendorKey(
                 vendor=dictionary[Constants.SECRET_TEXT_VENDOR],
                 api_key=dictionary[Constants.SECRET_TEXT_KEY],
+                model = dictionary.get(Constants.SECRET_TEXT_MODEL),
+                temperature = cls.float_or_none(dictionary.get(Constants.SECRET_TEXT_TEMP)),
             ),
             llm_audio=VendorKey(
                 vendor=dictionary[Constants.SECRET_AUDIO_VENDOR],
@@ -60,3 +62,10 @@ class Settings(NamedTuple):
         if isinstance(string, str):
             return sorted(re.findall(r'[a-zA-Z0-9]+', string))
         return []
+    
+    @classmethod
+    def float_or_none(cls, val: str | None) -> Optional[float]:
+        try:
+            return float(val) if val is not None else None
+        except ValueError:
+            return None

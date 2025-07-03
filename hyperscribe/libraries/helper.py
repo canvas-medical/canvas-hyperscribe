@@ -8,7 +8,7 @@ from hyperscribe.libraries.memory_log import MemoryLog
 from hyperscribe.llms.llm_anthropic import LlmAnthropic
 from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.llms.llm_google import LlmGoogle
-from hyperscribe.llms.llm_openai import LlmOpenai
+from hyperscribe.llms.llm_openai import LlmOpenai, LlmOpenai4o
 from hyperscribe.structures.settings import Settings
 
 
@@ -46,11 +46,48 @@ class Helper:
     @classmethod
     def chatter(cls, settings: Settings, memory_log: MemoryLog) -> LlmBase:
         if settings.llm_text.vendor.upper() == Constants.VENDOR_GOOGLE.upper():
-            return LlmGoogle(memory_log, settings.llm_text.api_key, Constants.GOOGLE_CHAT_ALL, settings.audit_llm)
+            return LlmGoogle(
+                memory_log,
+                settings.llm_text.api_key,
+                Constants.GOOGLE_CHAT_ALL,
+                settings.audit_llm,
+            )
+
         if settings.llm_text.vendor.upper() == Constants.VENDOR_ANTHROPIC.upper():
-            return LlmAnthropic(memory_log, settings.llm_text.api_key, Constants.ANTHROPIC_CHAT_TEXT, settings.audit_llm)
-        # if settings.llm_text.upper() == Constants.VENDOR_OPENAI.upper():
-        return LlmOpenai(memory_log, settings.llm_text.api_key, Constants.OPENAI_CHAT_TEXT, settings.audit_llm)
+            return LlmAnthropic(
+                memory_log,
+                settings.llm_text.api_key,
+                Constants.ANTHROPIC_CHAT_TEXT,
+                settings.audit_llm,
+            )
+
+        requested = settings.llm_text.model or ""
+        requested_lower = requested.lower()
+
+        four_o_keys = {
+            Constants.OPENAI_CHAT_TEXT_4O.lower(),
+            Constants.OPENAI_CHAT_TEXT_4O,
+            "gpt-4o",
+            "4o",
+        }
+        if requested_lower in four_o_keys:
+            client = LlmOpenai4o(
+                memory_log,
+                settings.llm_text.api_key,
+                with_audit=settings.audit_llm,
+                temperature=settings.llm_text.temperature or 0.0,
+            )
+            client.model = requested
+            return client
+
+        # default to OpenAI “gpt-4o” model
+        return LlmOpenai(
+            memory_log,
+            settings.llm_text.api_key,
+            Constants.OPENAI_CHAT_TEXT,
+            settings.audit_llm,
+        )
+
 
     @classmethod
     def audio2texter(cls, settings: Settings, memory_log: MemoryLog) -> LlmBase:

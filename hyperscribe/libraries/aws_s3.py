@@ -1,3 +1,7 @@
+'''
+If credentials are invalid or S3 returns an error, return [] rather than raising,
+so that callers can treat missing or transient conditions as “no objects found.”
+'''
 from datetime import datetime, UTC
 from hashlib import sha256
 from hmac import new as hmac_new
@@ -110,7 +114,7 @@ class AwsS3:
     def list_s3_objects(self, prefix: str) -> list[AwsS3Object]:
         result: list[AwsS3Object] = []
         if not self.is_ready():
-            raise RuntimeError("Client not ready due to missing or invalid credentials")
+            return []
 
         continuation_token = None
         truncated_pattern = re_compile(r"<IsTruncated>(true|false)</IsTruncated>")
@@ -130,7 +134,7 @@ class AwsS3:
             response_text = response.content.decode('utf-8')
             
             if response.status_code != HTTPStatus.OK.value:
-                raise RuntimeError(f"HTTP Status Code {response.status_code} with message: {response.text}")
+                return []
         
             contents_pattern = re_compile(r'<Contents>(.*?)</Contents>', DOTALL)
             for content_match in contents_pattern.finditer(response_text):
@@ -149,7 +153,10 @@ class AwsS3:
             truncated_match = truncated_pattern.search(response_text)
             is_truncated = truncated_match and truncated_match.group(1) == "true"
             if is_truncated:
-                continuation_token = token_pattern.search(response_text).group(1)
+                token_match = token_pattern.search(response_text)
+                if not token_match:
+                    break
+                continuation_token = token_match.group(1)
             else:
                 break
 

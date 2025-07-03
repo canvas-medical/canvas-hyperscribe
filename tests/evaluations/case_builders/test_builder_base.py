@@ -131,7 +131,7 @@ def test_run(
         "generic": IdentificationParameters(
             patient_uuid='_PatientUuid',
             note_uuid='_NoteUuid',
-            provider_uuid='_ProviderUuid',
+            provider_uuid='4150cd20de8a470aa570a852859ac87e',
             canvas_instance="canvasInstance",
         ),
     }

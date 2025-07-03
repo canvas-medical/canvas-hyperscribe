@@ -2,12 +2,17 @@ import sys
 import json
 import csv
 from pathlib import Path
+from typing import Any, cast
 
-def load_json(path):
+def load_json(path: str | Path) -> list[dict[str, Any]]:
     with open(path, 'r') as f:
-        return json.load(f)
+        return cast(list[dict[str, Any]], json.load(f))
 
-def main(rubric_path, score_path, output_path):
+if __name__ == "__main__":
+    rubric_path = sys.argv[1]
+    score_path = sys.argv[2]
+    output_path = sys.argv[3]
+
     rubric = load_json(rubric_path)
     scores = load_json(score_path)
 
@@ -24,8 +29,7 @@ def main(rubric_path, score_path, output_path):
             "Score Awarded": round(s["score"], 2),
             "Rationale": s["rationale"]
         })
-
-    # Write to CSV
+        
     with open(output_path, 'w', newline='') as f:
         writer = csv.DictWriter(f, fieldnames=rows[0].keys())
         writer.writeheader()
@@ -33,8 +37,3 @@ def main(rubric_path, score_path, output_path):
 
     print(f"Wrote CSV report to {output_path}")
 
-if __name__ == "__main__":
-    rubric_path = sys.argv[1]
-    score_path = sys.argv[2]
-    output_path = sys.argv[3]
-    main(rubric_path, score_path, output_path)

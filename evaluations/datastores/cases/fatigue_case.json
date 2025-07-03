@@ -1,9 +1,0 @@
-{
-  "environment": "plugin-testing",
-  "patientUuid": "8d23ba4b74a7457687745f5ae7c864de",
-  "caseType": "general",
-  "caseGroup": "common",
-  "caseName": "fatigue_case",
-  "cycles": 1,
-  "description": "fatigue_case"
-}

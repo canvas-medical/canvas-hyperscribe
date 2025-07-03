@@ -4,7 +4,7 @@ import re
 import os
 import random
 import argparse
-from typing import List, Tuple, Any
+from typing import Optional, List, Tuple, Any, cast
 from json import JSONDecodeError
 
 from hyperscribe.llms.llm_openai import LlmOpenai
@@ -12,7 +12,7 @@ from hyperscribe.structures.llm_turn import LlmTurn
 from hyperscribe.libraries.constants import Constants
 from hyperscribe.libraries.memory_log import MemoryLog
 
-class Constants:
+class TGConstants:
     TURN_BUCKETS = {
         "short": (2, 4),      
         "medium": (6, 8),
@@ -46,9 +46,9 @@ class Constants:
         "we'll follow up", "see you next time"
     }
 
-def _safe_json_load(txt: str) -> Tuple[Any, str | None]:
+def _safe_json_load(txt: str) -> Tuple[Optional[Any], Optional[str]]:
     """Return (data, err_msg).  data is None if still invalid."""
-    def attempt(s: str):
+    def attempt(s: str) -> Tuple[Optional[Any], Optional[str]]:
         try:
             return json.loads(s), None
         except JSONDecodeError as e:
@@ -64,7 +64,7 @@ def _safe_json_load(txt: str) -> Tuple[Any, str | None]:
         if data:
             return data, None
 
-    stripped = re.sub(r",(?=[\\s]*[\\]}])", "", txt)
+    stripped = stripped = re.sub(r",\s+(?=[}\]])", "", txt)
     data, err = attempt(stripped)
     if data:
         return data, None
@@ -75,7 +75,7 @@ def _safe_json_load(txt: str) -> Tuple[Any, str | None]:
 class TranscriptGenerator:
     """Generate mid‑conversation transcript snippets with controlled variation."""
 
-    def __init__(self, llm_key: str, input_profiles_path: str, output_root_path: str):
+    def __init__(self, llm_key: str, input_profiles_path: str, output_root_path: str) -> None:
         self.llm_key = llm_key
         self.input_profiles_path = Path(input_profiles_path).expanduser()
         self.output_root = Path(output_root_path).expanduser()
@@ -83,20 +83,20 @@ class TranscriptGenerator:
         self.profiles = self._load_profiles()
         self.seen_openings: set[str] = set()
 
-    def _load_profiles(self):
+    def _load_profiles(self) -> dict[str, str]:
         with self.input_profiles_path.open() as f:
-            return json.load(f)
+            return cast(dict[str, str], json.load(f))
 
-    def _create_llm(self):
+    def _create_llm(self) -> LlmOpenai:
         return LlmOpenai(MemoryLog.dev_null_instance(), self.llm_key,
                          Constants.OPENAI_CHAT_TEXT, False)
 
-    def _random_bucket(self):
-        return random.choice(list(Constants.TURN_BUCKETS.keys()))
+    def _random_bucket(self) -> str:
+        return random.choice(list(TGConstants.TURN_BUCKETS.keys()))
 
-    def _make_spec(self):
+    def _make_spec(self) -> dict[str, Any]:
         bucket = self._random_bucket()
-        lo, hi = Constants.TURN_BUCKETS[bucket]
+        lo, hi = TGConstants.TURN_BUCKETS[bucket]
         turn_total = random.randint(lo, hi)
 
         first = random.choice(["Clinician", "Patient"])
@@ -108,10 +108,10 @@ class TranscriptGenerator:
         #randomized ratio between 1:2 to 2:1. 
         ratio = round(random.uniform(0.5, 2.0), 2)
 
-        mood = random.sample(Constants.MOOD_POOL, k=2)
-        pressure = random.choice(Constants.PRESSURE_POOL)
-        clinician_style = random.choice(Constants.CLINICIAN_PERSONAS)
-        patient_style = random.choice(Constants.PATIENT_PERSONAS)
+        mood = random.sample(TGConstants.MOOD_POOL, k=2)
+        pressure = random.choice(TGConstants.PRESSURE_POOL)
+        clinician_style = random.choice(TGConstants.CLINICIAN_PERSONAS)
+        patient_style = random.choice(TGConstants.PATIENT_PERSONAS)
 
         return {
             "turn_total": turn_total,
@@ -164,7 +164,7 @@ class TranscriptGenerator:
             LlmTurn(role="user",  text=user_lines)
         ]
 
-    def generate_transcript_for_profile(self, profile_text: str) -> Tuple[list, dict]:
+    def generate_transcript_for_profile(self, profile_text: str) -> Tuple[list[Any], dict[str, Any], str]:
         spec = self._make_spec()
         llm = self._create_llm()
         for turn in self._build_prompt(profile_text, spec):
@@ -186,7 +186,7 @@ class TranscriptGenerator:
 
         return transcript, spec, cleaned
 
-    def run(self, start_index: int = 1, limit: int | None = None):
+    def run(self, start_index: int = 1, limit: int | None = None) -> None:
         items = list(self.profiles.items())
         #slicing based on start_index and limit flags in cases of partial run fails.
         items = items[start_index - 1:] 

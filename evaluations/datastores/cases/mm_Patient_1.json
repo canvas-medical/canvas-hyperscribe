@@ -3,7 +3,7 @@
   "patientUuid": "_PatientUuid",
   "caseType": "general",
   "caseGroup": "common",
-  "caseName": "med_management_v2_Patient_1",
+  "caseName": "mm_Patient_1",
   "cycles": 1,
-  "description": "med_management_v2_Patient_1"
+  "description": "mm_Patient_1"
 }
