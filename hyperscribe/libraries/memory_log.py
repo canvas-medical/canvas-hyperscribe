@@ -31,7 +31,7 @@ class MemoryLog:
         ])
     
     @classmethod
-    def dev_null_instance(cls):
+    def dev_null_instance(cls) -> MemoryLog:
         identification = IdentificationParameters(patient_uuid='', note_uuid='', provider_uuid='', canvas_instance='local')
         instance = cls(identification, 'local')
         return instance

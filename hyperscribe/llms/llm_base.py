@@ -26,7 +26,7 @@ class LlmBase:
         self.api_key = api_key
         self.model = model
         self.with_audit = with_audit
-        self.temperature = 0.0
+        self.temperature = 0.0 
         self.prompts: list[LlmTurn] = []
         self.audios: list[dict] = []
 
@@ -50,6 +50,9 @@ class LlmBase:
 
     def set_model_prompt(self, text: list[str]) -> None:
         self.prompts.append(LlmTurn(role=self.ROLE_MODEL, text=text))
+
+    def clear_prompts(self) -> None:
+        self.prompts = []
 
     def add_audio(self, audio: bytes, audio_format: str) -> None:
         raise NotImplementedError()

@@ -1,8 +1,6 @@
-# grader.py  –  class-based version
 import json, os, re, sys, argparse
 from pathlib import Path
 from typing import Any
-
 from hyperscribe.llms.llm_openai import LlmOpenai
 from hyperscribe.structures.llm_turn import LlmTurn
 from hyperscribe.libraries.constants import Constants
@@ -13,10 +11,6 @@ def _load_json(p: str | Path) -> Any:
         return json.load(f)
 
 class NoteGrader:
-    """
-    Grade a Hyperscribe note against a rubric, producing a JSON array of results.
-    """
-
     def __init__(self,
                  llm_key: str,
                  rubric_path: str | Path,
@@ -94,17 +88,18 @@ class NoteGrader:
             })
 
         self.output_path.write_text(json.dumps(final, indent=2))
-        print("Saved grading result →", self.output_path)
+        print("Saved grading result in", self.output_path)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Grade a note against a rubric.")
-    parser.add_argument("rubric_path",            help="Path to rubric.json")
+    parser.add_argument("rubric_path", help="Path to rubric.json")
     parser.add_argument("hyperscribe_output_path", help="Path to note.json")
-    parser.add_argument("output_path",            help="Where to save grading JSON")
+    parser.add_argument("output_path", help="Where to save grading JSON")
     args = parser.parse_args()
 
     llm_key = os.environ["KeyTextLLM"]
     grader = NoteGrader(
+        llm_key,
         rubric_path=args.rubric_path,
         note_path=args.hyperscribe_output_path,
         output_path=args.output_path)

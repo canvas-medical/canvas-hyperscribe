@@ -1,10 +1,10 @@
 import json
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
-from evaluations.auditor_file import AuditorFile
+from evaluations.auditors.auditor_file import AuditorFile
 from evaluations.case_builders.builder_base import BuilderBase
 from evaluations.constants import Constants
-from evaluations.datastores.store_cases import StoreCases
+from evaluations.datastores.sqllite.store_cases import StoreCases
 from evaluations.helper_evaluation import HelperEvaluation
 from evaluations.structures.evaluation_case import EvaluationCase
 from hyperscribe.handlers.commander import Commander

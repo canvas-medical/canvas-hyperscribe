@@ -7,23 +7,24 @@ from hyperscribe.llms.llm_openai import LlmOpenai
 from hyperscribe.structures.llm_turn import LlmTurn
 from hyperscribe.libraries.constants import Constants
 from hyperscribe.libraries.memory_log import MemoryLog
+from typing import Any
 
 class PatientProfile:
-    def __init__(self, name, narrative):
+    def __init__(self, name: str, narrative: str) -> None:
         self.name = name
         self.narrative = narrative
 
-    def summarize_scenario(self):
+    def summarize_scenario(self) -> str:
         #Returns first sentence to ensure profile diversity with downstream seen_scenarios variable.
         return self.narrative.split(".")[0][:100]
 
 
 class PatientProfileGenerator:
-    def __init__(self, llm_key):
+    def __init__(self, llm_key: str) -> None:
         self.llm_key = llm_key
-        self.seen_scenarios = []
+        self.seen_scenarios: list[str] = []
 
-    def _create_llm(self):
+    def _create_llm(self) -> LlmOpenai:
         return LlmOpenai(
             MemoryLog.dev_null_instance(),
             self.llm_key,
@@ -31,7 +32,7 @@ class PatientProfileGenerator:
             False
         )
 
-    def generate_batch(self, batch_num, count=5):
+    def generate_batch(self, batch_num: int, count: int = 5) -> list[PatientProfile]:
         llm = self._create_llm()
 
         llm.add_prompt(LlmTurn(
@@ -90,18 +91,18 @@ class PatientProfileGenerator:
         return batch_profiles
 
 class PatientProfilePipeline:
-    def __init__(self, llm_key, output_path_str):
+    def __init__(self, llm_key: str, output_path_str: str) -> None:
         self.generator = PatientProfileGenerator(llm_key)
         self.output_path = Path(output_path_str).expanduser()
-        self.all_profiles = {}
+        self.all_profiles: dict[str, str] = {}
 
-    def _save_combined(self):
+    def _save_combined(self) -> None:
         self.output_path.parent.mkdir(parents=True, exist_ok=True)
         with self.output_path.open('w') as f:
             json.dump(self.all_profiles, f, indent=2)
         print(f"Saved {len(self.all_profiles)} medication management profiles to {self.output_path}")
 
-    def _save_individuals(self):
+    def _save_individuals(self) -> None:
         base_dir = self.output_path.parent
         for name, narrative in self.all_profiles.items():
             # Sanitize name for directory (e.g., "Patient 1" -> "Patient_1")
@@ -114,7 +115,7 @@ class PatientProfilePipeline:
                 json.dump({name: narrative}, f, indent=2)
             print(f"Saved profile for {name} to {file_path}")
 
-    def run(self, batches=4, batch_size=5):
+    def run(self, batches: int=4, batch_size: int=5) -> None:
         for batch_num in range(1, batches + 1):
             print(f"Generating batch {batch_num}...")
             batch_profiles = self.generator.generate_batch(batch_num, batch_size)

@@ -1,8 +1,9 @@
-import json
+import json, pytest
 from unittest.mock import patch, call, MagicMock
-
-from hyperscribe.llms.llm_openai import LlmOpenai
+from hyperscribe.llms.llm_openai import LlmOpenai, LlmOpenai4o
 from hyperscribe.structures.http_response import HttpResponse
+from hyperscribe.libraries.constants import Constants
+from http import HTTPStatus
 
 
 def test_add_audio():
@@ -250,3 +251,61 @@ def test_audio_to_text(requests_post):
     assert requests_post.mock_calls == calls
     assert memory_log.mock_calls == []
     reset_mocks()
+
+#For status_code==200, to parse json and pull out the message content.
+@patch("hyperscribe.llms.llm_openai.requests_post")
+def test_request_extracts_choice_content(requests_post):
+    
+    memory_log = MagicMock()
+    tested = LlmOpenai(memory_log, "openaiKey", "theModel", False)
+    body = {
+        "choices": [
+            {"message": {"content": "Here is the actual reply"}}
+        ]
+    }
+    resp = MagicMock()
+    resp.status_code = HTTPStatus.OK.value
+    resp.text = json.dumps(body)
+    requests_post.return_value = resp
+
+    out = tested.request()
+    assert isinstance(out, HttpResponse)
+    assert out.code == HTTPStatus.OK.value
+    assert out.response == "Here is the actual reply"
+    requests_post.assert_called_once()
+    memory_log.assert_not_called()
+
+
+#status != 200 -> returns full raw JSON. 
+@patch("hyperscribe.llms.llm_openai.requests_post")
+def test_request_passes_through_non_200(requests_post):
+    memory_log = MagicMock()
+    tested = LlmOpenai(memory_log, "openaiKey", "theModel", False)
+
+    resp = MagicMock()
+    resp.status_code = 500
+    resp.text = '{"choices":[{"message":{"content":"bad"}}]}'
+    requests_post.return_value = resp
+
+    out = tested.request()
+    assert out.code == 500
+    # response stays the full JSON
+    assert out.response == resp.text
+
+#make sure llmopenai40 class includes text modality. 
+def test_llm_openai4o_to_dict_forces_modalities_and_text():
+    memory_log = MagicMock()
+    #subclass
+    client: LlmOpenai4o = LlmOpenai4o(memory_log, "key123", with_audit=False, temperature=0.75)
+    client.set_system_prompt(["sys line"])
+    client.set_user_prompt(["user line"])
+    payload = client.to_dict(for_log=False)
+
+    assert payload["model"] == Constants.OPENAI_CHAT_TEXT_4O
+    assert pytest.approx(payload["temperature"], 0.001) == 0.75
+    assert payload["modalities"] == ["text"]
+    msgs = payload["messages"]
+    assert msgs[0]["role"] == "system"
+    assert msgs[0]["content"][0]["text"] == "sys line"
+    assert msgs[1]["role"] == "user"
+    assert msgs[1]["content"][0]["text"] == "user line"
