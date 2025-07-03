@@ -317,3 +317,9 @@ uv  run python case_builder.py --case the_case --delete
 ```
 
 The files related to the `case` in the directory [datastores/cases](datastores/cases) will be removed.
+
+### Synthetic case generation
+For synthetic case generation, you can find these scripts in evaluations/cases/synthetic_unit_cases. Provided in this directory is one sample set of medication management cases, in which patient profiles, Canvas-compatible charts, and transcripts have been AI-generated (with profile_generator, transcript_generator, and chart_generator). From there, a note.json (which matches the format of the summary_initial output of case_builder) file can be produced via case_builder as described above. 
+
+In a separate workflow, rubrics are generated via rubric_generator to produce case-specific rubrics based on the transcript and chart. Thus, we have a rubric, specific to the note, to evaluate Hyperscribe's performance in capturing the necessary components of the patient conversation. From there, a grader_generator file produces a score output based on the criteria devised in the rubric.json file, which produces a scores.json (and collated eval_report.csv) to allow for further analysis regarding Hyperscribe's performance. 
+
