@@ -17,7 +17,8 @@ class Constants:
     MAX_WORKERS = 10  # max parallel executions
     MEMORY_LOG_LABEL = "main"
     OPENAI_CHAT_AUDIO = "gpt-4o-audio-preview"  # LLM model used for speech to text
-    OPENAI_CHAT_TEXT = "gpt-4o"  # LLM model used for text completion
+    OPENAI_CHAT_TEXT = "o3"  # LLM model used for text completion
+    OPENAI_CHAT_TEXT_4O = "gpt-4o"
     VENDOR_ANTHROPIC = "Anthropic"
     VENDOR_GOOGLE = "Google"
     VENDOR_OPENAI = "OpenAI"
@@ -69,6 +70,8 @@ class Constants:
     SECRET_AUDIO_KEY = "KeyAudioLLM"
     SECRET_AUDIO_VENDOR = "VendorAudioLLM"
     SECRET_AUDIT_LLM = "AuditLLMDecisions"
+    SECRET_TEXT_MODEL = "TEXT_MODEL"
+    SECRET_TEXT_TEMP  = "TEXT_TEMPERATURE"
     SECRET_AWS_BUCKET_LOGS = "AwsBucketLogs"
     SECRET_AWS_BUCKET_TUNING = "AwsBucketTuning"
     SECRET_AWS_KEY = "AwsKey"

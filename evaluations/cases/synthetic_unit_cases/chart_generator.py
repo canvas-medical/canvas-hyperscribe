@@ -7,27 +7,26 @@ from hyperscribe.structures.llm_turn import LlmTurn
 from hyperscribe.libraries.constants import Constants
 from hyperscribe.libraries.memory_log import MemoryLog
 from hyperscribe.libraries.limited_cache import LimitedCache
-
+from typing import Any, cast
 
 class ChartGenerator:
-    def __init__(self, llm_key, input_profiles_path, output_root_path, example_chart_path):
+    def __init__(self, llm_key: str, input_profiles_path: str, output_root_path: str, example_chart_path: str) -> None:
         self.llm_key = llm_key
         self.input_profiles_path = Path(input_profiles_path).expanduser()
         self.output_root = Path(output_root_path).expanduser()
         self.example_chart_path = Path(example_chart_path).expanduser()
-
         self.profiles = self._load_profiles()
         self.example_chart = self._load_example_chart()
 
-    def _load_profiles(self):
+    def _load_profiles(self) -> dict[str, str]:
         with self.input_profiles_path.open('r') as f:
-            return json.load(f)
+            return cast(dict[str, str], json.load(f))
 
-    def _load_example_chart(self):
+    def _load_example_chart(self) -> dict[str, str | list[dict[str, str]]]:
         with self.example_chart_path.open('r') as f:
-            return json.load(f)
+            return cast(dict[str, str | list[dict[str, str]]], json.load(f))
 
-    def _create_llm(self):
+    def _create_llm(self) -> LlmOpenai:
         return LlmOpenai(
             MemoryLog.dev_null_instance(),
             self.llm_key,
@@ -35,7 +34,7 @@ class ChartGenerator:
             False
         )
 
-    def generate_chart_for_profile(self, profile_text):
+    def generate_chart_for_profile(self, profile_text: str) -> Any:
         llm = self._create_llm()
 
         llm.add_prompt(LlmTurn(
@@ -67,16 +66,13 @@ class ChartGenerator:
         cleaned = re.sub(r'```(?:json)?\n?|\n?```', '', response.response).strip()
         return json.loads(cleaned)
 
-    def validate_chart(self, chart_json):
+    def validate_chart(self, chart_json: dict[str, str | list[dict[str, str]]]) -> None:
         try:
             LimitedCache.load_from_json(chart_json)
         except Exception as e:
             raise ValueError(f"Invalid limited_chart.json structure: {e}")
 
-    def assign_valid_uuids(self, obj):
-        """
-        Recursively walk the JSON dict/list and replace any 'uuid' field with a generated UUID.
-        """
+    def assign_valid_uuids(self, obj: Any) -> Any:
         if isinstance(obj, dict):
             return {
                 k: str(uuid.uuid4()) if k.lower() == 'uuid' else self.assign_valid_uuids(v)
@@ -87,13 +83,13 @@ class ChartGenerator:
         else:
             return obj
 
-    def run(self, start_index: int = 1, limit: int | None = None):
+    def run(self, start_index: int = 1, limit: int | None = None) -> None:
         items = list(self.profiles.items())
         items = items[start_index - 1:]
         if limit is not None:
             items = items[:limit]
 
-        for patient_name, profile_text in items():
+        for patient_name, profile_text in items:
             safe_name = re.sub(r'\W+', '_', patient_name)
             patient_dir = self.output_root / safe_name
             patient_dir.mkdir(parents=True, exist_ok=True)
@@ -124,12 +120,12 @@ if __name__ == "__main__":
                         help="Process at most N patients (default: all)")
     parser.add_argument("--profiles", type=str, required=False,
                         default="~/canvas-hyperscribe/evaluations/cases/"
-                                "synthetic_unit_cases/med_management"
+                                "synthetic_unit_cases/model_testing/"
                                 "patient_profiles.json",
                         help="Path to patient_profiles.json")
     parser.add_argument("--out-root", type=str, required=False,
                         default="~/canvas-hyperscribe/evaluations/cases/"
-                                "synthetic_unit_cases/med_management",
+                                "synthetic_unit_cases/model_testing/",
                         help="Root folder to write Patient_X/limited_chart.json")
     parser.add_argument("--example", type=str, required=False,
                         default="~/canvas-hyperscribe/evaluations/cases/"

@@ -1,3 +1,4 @@
+import pytest
 from datetime import datetime, date
 from enum import Enum
 from unittest.mock import patch, call, MagicMock
@@ -5,10 +6,11 @@ from unittest.mock import patch, call, MagicMock
 from hyperscribe.libraries.helper import Helper
 from hyperscribe.llms.llm_anthropic import LlmAnthropic
 from hyperscribe.llms.llm_google import LlmGoogle
-from hyperscribe.llms.llm_openai import LlmOpenai
+from hyperscribe.llms.llm_openai import LlmOpenai, LlmOpenai4o
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
+from hyperscribe.libraries.constants import Constants
 
 
 def test_str2datetime():
@@ -97,7 +99,7 @@ def test_chatter():
     tests = [
         ("Anthropic", LlmAnthropic, "claude-3-5-sonnet-20241022"),
         ("Google", LlmGoogle, "models/gemini-2.0-flash"),
-        ("Any", LlmOpenai, "gpt-4o"),
+        ("Any", LlmOpenai, "o3"),
     ]
     for vendor, exp_class, exp_model in tests:
         memory_log.reset_mock()
@@ -154,3 +156,38 @@ def test_audio2texter():
         assert result.api_key == "audioKey"
         assert result.model == exp_model
         assert result.memory_log == memory_log
+
+class DummyVendorKey:
+    def __init__(self, vendor: str, api_key: str, model: str, temperature: float):
+        self.vendor = vendor
+        self.api_key = api_key
+        self.model = model
+        self.temperature = temperature
+
+class DummySettings:
+    def __init__(self, vendor: str, api_key: str, model: str, temperature: float, audit_llm: bool):
+        self.llm_text = DummyVendorKey(vendor, api_key, model, temperature)
+        self.audit_llm = audit_llm
+
+@pytest.mark.parametrize("model_name", [
+    Constants.OPENAI_CHAT_TEXT_4O,
+    Constants.OPENAI_CHAT_TEXT_4O.lower(),
+    "gpt-4o",
+    "4o",
+])
+def test_chatter_for_openai_4o_variants(model_name):
+    memory_log = MagicMock()
+    settings = DummySettings(
+        vendor="SomeVendor",
+        api_key="test-api-key",
+        model=model_name,
+        temperature=0.42,
+        audit_llm=True,
+    )
+    client = Helper.chatter(settings, memory_log)
+    assert isinstance(client, LlmOpenai4o)
+    assert client.api_key == "test-api-key"
+    assert client.model == model_name
+    assert client.with_audit is True
+    assert client.temperature == 0.42
+    memory_log.assert_not_called()

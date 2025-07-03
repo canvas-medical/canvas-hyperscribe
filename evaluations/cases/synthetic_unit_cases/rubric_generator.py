@@ -4,6 +4,7 @@ from hyperscribe.llms.llm_openai import LlmOpenai
 from hyperscribe.structures.llm_turn import LlmTurn
 from hyperscribe.libraries.constants import Constants
 from hyperscribe.libraries.memory_log import MemoryLog
+from typing import Any, cast 
 
 
 class RubricGenerator:
@@ -11,11 +12,13 @@ class RubricGenerator:
         self.llm = LlmOpenai(MemoryLog.dev_null_instance(), llm_key, Constants.OPENAI_CHAT_TEXT, False)
 
     @staticmethod
-    def load_json(path: Path):
+    def load_json(path: Path) -> list[dict[str, Any]]:
         with path.open("r") as f:
-            return json.load(f)
+            return cast(list[dict[str, Any]], json.load(f))
 
-    def build_prompt(self, transcript, chart, canvas_context):
+    def build_prompt(self, transcript: list[dict[str, Any]],
+            chart: list[dict[str, Any]],
+            canvas_context: list[dict[str, Any]]) -> None:
         self.llm.add_prompt(LlmTurn(
             role='system',
             text=[
@@ -79,7 +82,7 @@ class RubricGenerator:
             ]
         ))
 
-    def generate(self, transcript_path: Path, chart_path: Path, canvas_context_path: Path, output_path: Path):
+    def generate(self, transcript_path: Path, chart_path: Path, canvas_context_path: Path, output_path: Path) -> None:
         transcript = self.load_json(transcript_path)
         chart = self.load_json(chart_path)
         canvas_context = self.load_json(canvas_context_path)

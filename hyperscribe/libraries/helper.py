@@ -8,7 +8,7 @@ from hyperscribe.libraries.memory_log import MemoryLog
 from hyperscribe.llms.llm_anthropic import LlmAnthropic
 from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.llms.llm_google import LlmGoogle
-from hyperscribe.llms.llm_openai import LlmOpenai
+from hyperscribe.llms.llm_openai import LlmOpenai, LlmOpenai4o
 from hyperscribe.structures.settings import Settings
 
 
