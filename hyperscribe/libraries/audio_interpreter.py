@@ -27,6 +27,7 @@ class AudioInterpreter:
             cache: LimitedCache,
             identification: IdentificationParameters,
     ) -> None:
+        self.is_local_data = cache.is_local_data
         self.settings = settings
         self.s3_credentials = s3_credentials
         self.identification = identification

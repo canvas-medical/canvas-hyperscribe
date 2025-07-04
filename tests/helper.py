@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import fields as dataclass_fields, is_dataclass as dataclass_is_dataclass
+from re import sub
 from typing import get_type_hints
 
 
@@ -37,6 +38,14 @@ def is_constant(cls, constants: dict) -> bool:
             return False
     return True
 
+
+def compare_sql(left: str, right: str) -> bool:
+    cleaned_left = sub("\s+", " ", left).strip()
+    cleaned_right = sub("\s+", " ", right).strip()
+    if cleaned_left == cleaned_right:
+        return True
+    assert cleaned_left == cleaned_right, cleaned_left
+    return False
 
 class MockFile:
 

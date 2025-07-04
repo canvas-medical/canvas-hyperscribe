@@ -9,6 +9,7 @@ def test_constants():
         "AWS3_LINK_EXPIRATION_SECONDS": 1200,
         "API_SIGNED_EXPIRATION_SECONDS": 1200,
         "DISCUSSION_CACHED_DURATION": 90,
+        "CYCLE_TRANSCRIPT_OVERLAP": 100,
         "GOOGLE_CHAT_ALL": "models/gemini-2.0-flash",
         "LABEL_ENCOUNTER_COPILOT": "Encounter Copilot",
         "MAX_AUDIO_INTERVAL_SECONDS": '15',

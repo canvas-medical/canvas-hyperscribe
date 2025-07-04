@@ -753,7 +753,7 @@ def test_audio2commands(transcript2commands, tail_of, memory_log, progress):
         Line(speaker="speaker1", text=f"{text} textA."),
         Line(speaker="speaker2", text=f"{text} textB."),
         Line(speaker="speaker1", text=f"{text} textC."),
-    ])]
+    ], 100)]
     assert tail_of.mock_calls == calls
     calls = [
         call.identified_transcript(
@@ -1046,14 +1046,14 @@ def test_transcript2commands_common(time, memory_log, progress):
     ]
     tests = [
         # -- simulated note
-        ("_NoteUuid", [], []),
+        (True, [], []),
         # -- 'real' note
-        ("noteUuid", effects, command_calls),
+        (False, effects, command_calls),
     ]
-    for note_uuid, exp_effects, exp_command_calls in tests:
+    for is_local_data, exp_effects, exp_command_calls in tests:
         identification = IdentificationParameters(
             patient_uuid="patientUuid",
-            note_uuid=note_uuid,
+            note_uuid="noteUuid",
             provider_uuid="providerUuid",
             canvas_instance="canvasInstance",
         )
@@ -1071,6 +1071,7 @@ def test_transcript2commands_common(time, memory_log, progress):
             commands_policy=AccessPolicy(policy=False, items=["Command1", "Command2", "Command3"]),
             staffers_policy=AccessPolicy(policy=False, items=["31", "47"]),
         )
+        mock_chatter.is_local_data = is_local_data
         mock_chatter.identification = identification
         mock_chatter.settings = settings
         mock_chatter.s3_credentials = "awsS3"
@@ -1390,14 +1391,14 @@ def test_transcript2commands_questionnaires(time, memory_log, progress):
     # with instructions
     tests = [
         # -- simulated note
-        ("_NoteUuid", (updated, []), []),
+        (True, (updated, []), []),
         # -- 'real' note
-        ("noteUuid", (updated, effects), [call.edit()]),
+        (False, (updated, effects), [call.edit()]),
     ]
-    for note_uuid, expected, command_calls in tests:
+    for is_local_data, expected, command_calls in tests:
         identification = IdentificationParameters(
             patient_uuid="patientUuid",
-            note_uuid=note_uuid,
+            note_uuid="noteUuid",
             provider_uuid="providerUuid",
             canvas_instance="canvasInstance",
         )
@@ -1415,6 +1416,7 @@ def test_transcript2commands_questionnaires(time, memory_log, progress):
             commands_policy=AccessPolicy(policy=False, items=["Command1", "Command2", "Command3"]),
             staffers_policy=AccessPolicy(policy=False, items=["31", "47"]),
         )
+        chatter.is_local_data = is_local_data
         chatter.identification = identification
         chatter.settings = settings
         chatter.s3_credentials = "awsS3"
@@ -1548,6 +1550,7 @@ def test_new_commands_from(time, memory_log):
     time.side_effect = [111.110, 111.219]
     chatter.create_sdk_command_parameters.side_effect = []
     chatter.create_sdk_command_from.side_effect = []
+    chatter.is_local_data = False
     chatter.identification = identification
     chatter.s3_credentials = "awsS3"
     for mock_command in mock_commands:
@@ -1577,17 +1580,18 @@ def test_new_commands_from(time, memory_log):
     # with new instructions
     tests = [
         # -- simulated note
-        ("_NoteUuid", [], []),  # -- simulated note
+        (True, [], []),  # -- simulated note
         # -- 'real' note
-        ("noteUuid", [Effect(type="LOG", payload="Log0"), Effect(type="LOG", payload="Log1")], [call.originate()]),
+        (False, [Effect(type="LOG", payload="Log0"), Effect(type="LOG", payload="Log1")], [call.originate()]),
     ]
-    for note_uuid, expected, command_calls in tests:
+    for is_local_data, expected, command_calls in tests:
         identification = IdentificationParameters(
             patient_uuid="patientUuid",
-            note_uuid=note_uuid,
+            note_uuid="noteUuid",
             provider_uuid="providerUuid",
             canvas_instance="canvasInstance",
         )
+        chatter.is_local_data = is_local_data
         chatter.identification = identification
         past_uuids = {
             "uuidA": instructions[0],
@@ -1725,6 +1729,7 @@ def test_update_commands_from(time, memory_log):
         ),
         None,
     ]
+    chatter.is_local_data = False
     chatter.identification = identification
     chatter.s3_credentials = "awsS3"
 
@@ -1761,17 +1766,18 @@ def test_update_commands_from(time, memory_log):
     # updated instructions
     tests = [
         # -- simulated note
-        ("_NoteUuid", [], []),  # -- simulated note
+        (True, [], []),  # -- simulated note
         # -- 'real' note
-        ("noteUuid", [Effect(type="LOG", payload="Log0"), Effect(type="LOG", payload="Log1")], [call.edit()]),
+        (False, [Effect(type="LOG", payload="Log0"), Effect(type="LOG", payload="Log1")], [call.edit()]),
     ]
-    for note_uuid, expected, command_calls in tests:
+    for is_local_data, expected, command_calls in tests:
         identification = IdentificationParameters(
             patient_uuid="patientUuid",
-            note_uuid=note_uuid,
+            note_uuid="noteUuid",
             provider_uuid="providerUuid",
             canvas_instance="canvasInstance",
         )
+        chatter.is_local_data = is_local_data
         chatter.identification = identification
         past_uuids = {
             "uuidA": Instruction(uuid='uuidA', index=0, instruction='theInstructionX', information='changedA', is_new=False, is_updated=True),

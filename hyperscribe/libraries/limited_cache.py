@@ -49,13 +49,17 @@ class LimitedCache:
         self._staged_commands: dict[str, list[CodedItem]] = staged_commands_to_coded_items
         self._charge_descriptions: list[ChargeDescription] | None = None
         self._lab_tests: dict[str, list[CodedItem]] = {}
-        self._lab_tests_local = False
+        self._local_data = False
+
+    @property
+    def is_local_data(self) -> bool:
+        return self._local_data
 
     def lab_tests(self, lab_partner: str, keywords: list[str]) -> list[CodedItem]:
         key = " ".join(sorted(keywords))
         if key not in self._lab_tests:
             self._lab_tests[key] = []
-            if self._lab_tests_local:
+            if self._local_data:
                 from pathlib import Path
                 import sqlite3  # <-- the import is forbidden in the plugin context
                 with sqlite3.connect(Path(__file__).parent / Constants.SQLITE_LAB_TESTS_DATABASE) as conn:
@@ -411,6 +415,6 @@ class LimitedCache:
 
         result._charge_descriptions = [ChargeDescription.load_from_json(i) for i in cache.get("chargeDescriptions", [])]
         result._lab_tests = {}
-        result._lab_tests_local = True
+        result._local_data = True
 
         return result

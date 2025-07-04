@@ -45,16 +45,16 @@ class Helper:
 
     @classmethod
     def chatter(cls, settings: Settings, memory_log: MemoryLog) -> LlmBase:
+        result: Type[LlmBase] = LlmOpenai
         if settings.llm_text.vendor.upper() == Constants.VENDOR_GOOGLE.upper():
-            return LlmGoogle(memory_log, settings.llm_text.api_key, Constants.GOOGLE_CHAT_ALL, settings.audit_llm)
-        if settings.llm_text.vendor.upper() == Constants.VENDOR_ANTHROPIC.upper():
-            return LlmAnthropic(memory_log, settings.llm_text.api_key, Constants.ANTHROPIC_CHAT_TEXT, settings.audit_llm)
-        # if settings.llm_text.upper() == Constants.VENDOR_OPENAI.upper():
-        return LlmOpenai(memory_log, settings.llm_text.api_key, Constants.OPENAI_CHAT_TEXT, settings.audit_llm)
+            result = LlmGoogle
+        elif settings.llm_text.vendor.upper() == Constants.VENDOR_ANTHROPIC.upper():
+            result = LlmAnthropic
+        return result(memory_log, settings.llm_text.api_key, settings.llm_text_model(), settings.audit_llm)
 
     @classmethod
     def audio2texter(cls, settings: Settings, memory_log: MemoryLog) -> LlmBase:
+        result: Type[LlmBase] = LlmOpenai
         if settings.llm_audio.vendor.upper() == Constants.VENDOR_GOOGLE.upper():
-            return LlmGoogle(memory_log, settings.llm_audio.api_key, Constants.GOOGLE_CHAT_ALL, settings.audit_llm)
-        # if settings.llm_text.upper() == Constants.VENDOR_OPENAI.upper():
-        return LlmOpenai(memory_log, settings.llm_audio.api_key, Constants.OPENAI_CHAT_AUDIO, settings.audit_llm)
+            result = LlmGoogle
+        return result(memory_log, settings.llm_audio.api_key, settings.llm_audio_model(), settings.audit_llm)

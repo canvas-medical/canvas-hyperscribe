@@ -35,5 +35,11 @@ def test_constants():
         "EVALUATIONS_DB_PASSWORD": "EVALUATIONS_DB_PASSWORD",
         "EVALUATIONS_DB_HOST": "EVALUATIONS_DB_HOST",
         "EVALUATIONS_DB_PORT": "EVALUATIONS_DB_PORT",
+        #
+        "AUDIO2TRANSCRIPT": "audio2transcript",
+        "INSTRUCTION2PARAMETERS": "instruction2parameters",
+        "PARAMETERS2COMMAND": "parameters2command",
+        "STAGED_QUESTIONNAIRES": "staged_questionnaires",
+        "TRANSCRIPT2INSTRUCTIONS": "transcript2instructions",
     }
     assert is_constant(tested, constants)

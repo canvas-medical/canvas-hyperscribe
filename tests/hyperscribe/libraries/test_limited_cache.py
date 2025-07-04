@@ -50,7 +50,7 @@ def test___init__():
     assert tested._staged_commands == staged_commands_to_coded_items
     assert tested._charge_descriptions is None
     assert tested._lab_tests == {}
-    assert tested._lab_tests_local is False
+    assert tested._local_data is False
 
 
 @patch.object(sqlite3, "connect")
@@ -80,7 +80,7 @@ def test_lab_tests(lab_test_db, sqlite3_connect):
     sqlite3_connect.return_value.__enter__.side_effect = [connection]
     connection.cursor.return_value.fetchall.side_effect = []
     tested = LimitedCache("patientUuid", "providerUuid", {})
-    tested._lab_tests_local = False
+    tested._local_data = False
     # -- word1 word2 word3
     lab_test_db.filter.return_value.filter.side_effect = [lab_tests]
     result = tested.lab_tests("theLabPartner", ["word2", "word3", "word1"])
@@ -137,7 +137,7 @@ def test_lab_tests(lab_test_db, sqlite3_connect):
         ]
     ]
     tested = LimitedCache("patientUuid", "providerUuid", {})
-    tested._lab_tests_local = True
+    tested._local_data = True
 
     result = tested.lab_tests("theLabPartner", ["word1", "word3", "word2"])
     assert result == expected
@@ -1613,4 +1613,4 @@ def test_load_from_json():
     assert result.preferred_lab_partner() == CodedItem(uuid="theUuid", label="theLabel", code="theCode")
 
     assert result._lab_tests == {}
-    assert result._lab_tests_local is True
+    assert result._local_data is True

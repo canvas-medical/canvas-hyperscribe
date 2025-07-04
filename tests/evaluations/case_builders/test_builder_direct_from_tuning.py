@@ -11,7 +11,10 @@ from requests import Response
 from evaluations.case_builders.builder_direct_from_tuning import BuilderDirectFromTuning
 from evaluations.structures.case_exchange import CaseExchange
 from evaluations.structures.case_exchange_summary import CaseExchangeSummary
-from evaluations.structures.evaluation_case import EvaluationCase
+from evaluations.structures.enums.case_status import CaseStatus
+from evaluations.structures.records.case import Case as RecordCase
+from evaluations.structures.records.generated_note import GeneratedNote as RecordGeneratedNote
+from evaluations.structures.records.real_world_case import RealWorldCase as RecordRealWorldCase
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.aws_s3_object import AwsS3Object
@@ -85,7 +88,7 @@ def test_parameters(parameters, argument_parser):
         call().add_argument('--patient', type=str, required=True, help='The patient UUID to consider'),
         call().add_argument('--note', type=str, required=True, help='The note UUID to consider'),
         call().add_argument('--path_temp_files', type=str, help='Folder to store temporary files, if provided, most existing files will be reused'),
-        call().add_argument('--chunk_duration', type=int, required=True, help='Duration of each audio chunk in seconds'),
+        call().add_argument("--cycle_duration", type=int, required=True, help="Duration of each cycle, i.e. the duration of the audio chunks"),
         call().add_argument("--force_refresh", action="store_true", help="Force refresh the temporary files"),
         call().parse_args(),
     ]
@@ -120,7 +123,7 @@ def test_run(init, parameters, run, helper, temp_dir, path):
     parameters.side_effect = [Namespace(
         patient="thePatientUuid",
         note="theNoteUuid",
-        chunk_duration=37,
+        cycle_duration=37,
         force_refresh=False,
         path_temp_files=Path("/some/path"),
     )]
@@ -172,7 +175,7 @@ def test_run(init, parameters, run, helper, temp_dir, path):
     parameters.side_effect = [Namespace(
         patient="thePatientUuid",
         note="theNoteUuid",
-        chunk_duration=37,
+        cycle_duration=37,
         force_refresh=False,
         path_temp_files=Path("/some/path"),
     )]
@@ -227,7 +230,7 @@ def test_run(init, parameters, run, helper, temp_dir, path):
     parameters.side_effect = [Namespace(
         patient="thePatientUuid",
         note="theNoteUuid",
-        chunk_duration=37,
+        cycle_duration=37,
         force_refresh=False,
         path_temp_files="",
     )]
@@ -318,122 +321,215 @@ def test___init__():
     assert tested.identification == identification
     assert tested.settings == settings
     assert tested.output_dir == path
-    assert tested.segment_duration_seconds == 45
+    assert tested.cycle_duration == 45
     assert tested.force_refresh is True
 
 
+@patch("evaluations.case_builders.builder_direct_from_tuning.HelperEvaluation")
 @patch("evaluations.case_builders.builder_direct_from_tuning.ImplementedCommands")
-@patch("evaluations.case_builders.builder_direct_from_tuning.AuditorFile")
+@patch("evaluations.case_builders.builder_direct_from_tuning.AuditorPostgres")
 @patch("evaluations.case_builders.builder_direct_from_tuning.Commander")
 @patch("evaluations.case_builders.builder_direct_from_tuning.CachedSdk")
 @patch("evaluations.case_builders.builder_direct_from_tuning.AudioInterpreter")
-@patch("evaluations.case_builders.builder_direct_from_tuning.StoreCases")
-def test_generate_case(store_cases, audio_interpreter, cached_sdk, commander, auditor_file, implemented_commands):
+@patch("evaluations.case_builders.builder_direct_from_tuning.GeneratedNoteStore")
+@patch("evaluations.case_builders.builder_direct_from_tuning.RealWorldCaseStore")
+@patch("evaluations.case_builders.builder_direct_from_tuning.CaseStore")
+def test_generate_case(
+        case_store,
+        real_world_case_store,
+        generated_note_store,
+        audio_interpreter,
+        cached_sdk,
+        commander,
+        auditor_postgres,
+        implemented_commands,
+        helper,
+):
+    mock_chatter = MagicMock()
     limited_cache = MagicMock()
+    mock_settings = MagicMock()
 
     def reset_mocks():
-        store_cases.reset_mock()
+        case_store.reset_mock()
+        real_world_case_store.reset_mock()
+        generated_note_store.reset_mock()
         audio_interpreter.reset_mock()
-        limited_cache.reset_mock()
-        commander.reset_mock()
-        auditor_file.reset_mock()
-        implemented_commands.reset_mock()
         cached_sdk.reset_mock()
+        commander.reset_mock()
+        auditor_postgres.reset_mock()
+        implemented_commands.reset_mock()
+        helper.reset_mock()
+        mock_chatter.reset_mock()
+        limited_cache.reset_mock()
+        mock_settings.reset_mock()
 
     tested = helper_instance()
-
+    lines = [
+        Line(speaker="theSpeaker1", text="theText1"),
+        Line(speaker="theSpeaker2", text="theText2"),
+        Line(speaker="theSpeaker3", text="theText3"),
+        Line(speaker="theSpeaker4", text="theText4"),
+        Line(speaker="theSpeaker5", text="theText5"),
+        Line(speaker="theSpeaker6", text="theText6"),
+    ]
+    case_store.return_value.upsert.side_effect = [
+        RecordCase(
+            name="theName",
+            transcript=lines,
+            limited_chart={"limited": "chart"},
+            profile="theProfile",
+            validation_status=CaseStatus.REVIEW,
+            batch_identifier="theBatchIdentifier",
+            tags={"tag1": "tag1", "tag2": "tag2"},
+            id=147,
+        )
+    ]
+    generated_note_store.return_value.insert.side_effect = [RecordGeneratedNote(case_id=147, id=333)]
+    audio_interpreter.side_effect = [mock_chatter]
     commander.transcript2commands.side_effect = [
         (["previous1"], ["effects1"]),
         (["previous2"], ["effects2"]),
         (["previous3"], ["effects3"]),
         (["previous4"], ["effects4"]),
     ]
-    auditor_file.default_instance.return_value.summarized_generated_commands_as_instructions.side_effect = ["summarizedInstructions"]
+    auditor_postgres.return_value.summarized_generated_commands_as_instructions.side_effect = ["summarizedInstructions"]
+    implemented_commands.schema_key2instruction.side_effect = [{'implemented': 'json'}]
+    mock_chatter.identification = tested.identification
     limited_cache.to_json.side_effect = [{"obfuscated": "json"}]
     limited_cache.staged_commands_as_instructions.side_effect = [["previous0"]]
-    implemented_commands.schema_key2instruction.side_effect = [{'implemented': 'json'}]
+    helper.postgres_credentials.side_effect = ["thePostgresCredentials"]
+    mock_settings.llm_audio.vendor = "theVendorAudio"
+    mock_settings.llm_audio_model.side_effect = ["theModelAudio"]
+    mock_settings.llm_text.vendor = "theVendorText"
+    mock_settings.llm_text_model.side_effect = ["theModelText"]
 
     case_summary = CaseExchangeSummary(title="theTitle", summary="theSummary")
     case_exchanges = [
         CaseExchange(speaker="theSpeaker1", text="theText1", chunk=1),
         CaseExchange(speaker="theSpeaker2", text="theText2", chunk=2),
-        CaseExchange(speaker="theSpeaker1", text="theText3", chunk=2),
-        CaseExchange(speaker="theSpeaker2", text="theText4", chunk=3),
-        CaseExchange(speaker="theSpeaker1", text="theText5", chunk=3),
-        CaseExchange(speaker="theSpeaker1", text="theText6", chunk=4),
+        CaseExchange(speaker="theSpeaker3", text="theText3", chunk=2),
+        CaseExchange(speaker="theSpeaker4", text="theText4", chunk=3),
+        CaseExchange(speaker="theSpeaker5", text="theText5", chunk=3),
+        CaseExchange(speaker="theSpeaker6", text="theText6", chunk=4),
     ]
+    tested.settings = mock_settings
     result = tested.generate_case(limited_cache, case_summary, case_exchanges)
     expected = "summarizedInstructions"
     assert result == expected
 
     calls = [
-        call.upsert(EvaluationCase(
-            environment='canvasInstance',
-            patient_uuid='patientUuid',
-            limited_cache={"obfuscated": "json"},
-            case_type='general',
-            case_group='common',
-            case_name='theTitle',
-            cycles=4,
-            description='theSummary',
+        call('thePostgresCredentials'),
+        call().upsert(RecordCase(
+            name='theTitle',
+            transcript=lines,
+            limited_chart={'obfuscated': 'json'},
+            profile='theSummary',
+            validation_status=CaseStatus.GENERATION,
+            batch_identifier='',
+            tags={},
+            id=0,
+        ))
+    ]
+    assert case_store.mock_calls == calls
+    calls = [
+        call('thePostgresCredentials'),
+        call().upsert(RecordRealWorldCase(
+            case_id=147,
+            customer_identifier='canvasInstance',
+            patient_note_hash='patient_patientUuid/note_noteUuid',
+            topical_exchange_identifier='theTitle',
+            start_time=0.0,
+            end_time=0.0,
+            duration=0.0,
+            audio_llm_vendor='theVendorAudio',
+            audio_llm_name='theModelAudio',
+            id=0,
         )),
     ]
-    assert store_cases.mock_calls == calls
+    assert real_world_case_store.mock_calls == calls
+    calls = [
+        call('thePostgresCredentials'),
+        call().insert(RecordGeneratedNote(
+            case_id=147,
+            cycle_duration=45,
+            cycle_count=0,
+            cycle_transcript_overlap=100,
+            text_llm_vendor='theVendorText',
+            text_llm_name='theModelText',
+            note_json=[],
+            hyperscribe_version='',
+            staged_questionnaires={},
+            transcript2instructions={},
+            instruction2parameters={},
+            parameters2command={},
+            failed=True,
+            errors={},
+            id=0,
+        )),
+    ]
+    assert generated_note_store.mock_calls == calls
     calls = [call(tested.settings, tested.s3_credentials, limited_cache, tested.identification)]
     assert audio_interpreter.mock_calls == calls
     calls = [
-        call.to_json(True),
-        call.staged_commands_as_instructions({'implemented': 'json'}),
-    ]
-    assert limited_cache.mock_calls == calls
-    calls = [
-        call.transcript2commands(
-            auditor_file.default_instance.return_value,
-            [Line(speaker='theSpeaker1', text='theText1')],
-            audio_interpreter.return_value,
-            ["previous0"],
-        ),
-        call.transcript2commands(
-            auditor_file.default_instance.return_value,
-            [Line(speaker='theSpeaker2', text='theText2'), Line(speaker='theSpeaker1', text='theText3')],
-            audio_interpreter.return_value,
-            ["previous1"],
-        ),
-        call.transcript2commands(
-            auditor_file.default_instance.return_value,
-            [Line(speaker='theSpeaker2', text='theText4'), Line(speaker='theSpeaker1', text='theText5')],
-            audio_interpreter.return_value,
-            ["previous2"],
-        ),
-        call.transcript2commands(
-            auditor_file.default_instance.return_value,
-            [Line(speaker='theSpeaker1', text='theText6')],
-            audio_interpreter.return_value,
-            ["previous3"],
-        ),
-    ]
-    assert commander.mock_calls == calls
-    calls = [
-        call.default_instance('theTitle', 1),
-        call.default_instance('theTitle', 2),
-        call.default_instance('theTitle', 3),
-        call.default_instance('theTitle', 4),
-        call.default_instance('theTitle', 0),
-        call.default_instance().generate_commands_summary(),
-        call.default_instance().generate_html_summary(),
-        call.default_instance().summarized_generated_commands_as_instructions(),
-    ]
-    assert auditor_file.mock_calls == calls
-    calls = [call.schema_key2instruction()]
-    assert implemented_commands.mock_calls == calls
-    calls = [
-        call.get_discussion(audio_interpreter.return_value.identification.note_uuid),
+        call.get_discussion("noteUuid"),
         call.get_discussion().set_cycle(1),
         call.get_discussion().set_cycle(2),
         call.get_discussion().set_cycle(3),
         call.get_discussion().set_cycle(4),
     ]
     assert cached_sdk.mock_calls == calls
+    calls = [
+        call.transcript2commands(
+            auditor_postgres.return_value,
+            [Line(speaker='theSpeaker1', text='theText1')],
+            mock_chatter,
+            ["previous0"],
+        ),
+        call.transcript2commands(
+            auditor_postgres.return_value,
+            [Line(speaker='theSpeaker2', text='theText2'), Line(speaker='theSpeaker3', text='theText3')],
+            mock_chatter,
+            ["previous1"],
+        ),
+        call.transcript2commands(
+            auditor_postgres.return_value,
+            [Line(speaker='theSpeaker4', text='theText4'), Line(speaker='theSpeaker5', text='theText5')],
+            mock_chatter,
+            ["previous2"],
+        ),
+        call.transcript2commands(
+            auditor_postgres.return_value,
+            [Line(speaker='theSpeaker6', text='theText6')],
+            mock_chatter,
+            ["previous3"],
+        ),
+    ]
+    assert commander.mock_calls == calls
+    calls = [
+        call('theTitle', 0, 333),
+        call().set_cycle(1),
+        call().set_cycle(2),
+        call().set_cycle(3),
+        call().set_cycle(4),
+        call().finalize([]),
+        call().summarized_generated_commands_as_instructions(),
+    ]
+    assert auditor_postgres.mock_calls == calls
+    calls = [call.schema_key2instruction()]
+    assert implemented_commands.mock_calls == calls
+    calls = [call.postgres_credentials()]
+    assert helper.mock_calls == calls
+    assert mock_chatter.mock_calls == []
+    calls = [
+        call.to_json(True),
+        call.staged_commands_as_instructions({'implemented': 'json'}),
+    ]
+    assert limited_cache.mock_calls == calls
+    calls = [
+        call.llm_audio_model(),
+        call.llm_text_model(),
+    ]
+    assert mock_settings.mock_calls == calls
     reset_mocks()
 
 
@@ -773,7 +869,7 @@ def test_split_audio(ffmpeg):
     # forced refresh or files does not exist
     # -- duration 200s
     for test in [True, False]:
-        tested.segment_duration_seconds = 200
+        tested.cycle_duration = 200
         tested.force_refresh = True
         for chunk_file in chunk_files:
             chunk_file.exists.side_effect = [not test]
@@ -825,7 +921,7 @@ def test_split_audio(ffmpeg):
 
     # -- duration 300s
     for test in [True, False]:
-        tested.segment_duration_seconds = 300
+        tested.cycle_duration = 300
         tested.force_refresh = True
         for chunk_file in chunk_files:
             chunk_file.exists.side_effect = [not test]
@@ -871,7 +967,7 @@ def test_split_audio(ffmpeg):
         reset_mocks()
 
     # no forced refresh and files exist
-    tested.segment_duration_seconds = 150
+    tested.cycle_duration = 150
     tested.force_refresh = False
     for chunk_file in chunk_files:
         chunk_file.exists.side_effect = [True]

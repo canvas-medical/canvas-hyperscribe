@@ -42,7 +42,7 @@ def test_tail_of():
     tested = Line
 
     # empty exchange
-    result = tested.tail_of([])
+    result = tested.tail_of([], 100)
     expected = []
     assert result == expected
 
@@ -52,10 +52,19 @@ def test_tail_of():
         Line(speaker="theSpeaker2", text=" ".join([f"word{i:02d}" for i in range(37)])),
         Line(speaker="theSpeaker1", text=" ".join([f"word{i:02d}" for i in range(37)])),
     ]
-    result = tested.tail_of(exchange)
+    result = tested.tail_of(exchange, 100)
     expected = [
         Line(speaker="theSpeaker1", text=" ".join([f"word{i:02d}" for i in range((37 * 3 - 100), 37)])),
         Line(speaker="theSpeaker2", text=" ".join([f"word{i:02d}" for i in range(37)])),
         Line(speaker="theSpeaker1", text=" ".join([f"word{i:02d}" for i in range(37)])),
     ]
     assert result == expected
+    #
+    result = tested.tail_of(exchange, 33)
+    expected = [
+        Line(speaker="theSpeaker1", text=" ".join([f"word{i:02d}" for i in range((37 - 33), 37)])),
+    ]
+    assert result == expected
+    #
+    result = tested.tail_of(exchange, 330)
+    assert result == exchange

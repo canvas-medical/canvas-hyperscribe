@@ -2,12 +2,15 @@ from argparse import Namespace
 from unittest.mock import patch, call, MagicMock
 
 from case_runner import CaseRunner
-from evaluations.structures.evaluation_case import EvaluationCase
+from evaluations.structures.enums.case_status import CaseStatus
+from evaluations.structures.records.case import Case as RecordCase
+from evaluations.structures.records.generated_note import GeneratedNote as RecordGeneratedNote, GeneratedNote
 from hyperscribe.handlers.commander import Commander
 from hyperscribe.libraries.cached_sdk import CachedSdk
 from hyperscribe.libraries.implemented_commands import ImplementedCommands
 from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.structures.identification_parameters import IdentificationParameters
+from hyperscribe.structures.line import Line
 
 
 @patch("case_runner.ArgumentParser")
@@ -23,20 +26,18 @@ def test_parameters(argument_parser):
 
     calls = [
         call(description="Run the case based on the local settings"),
-        call().add_argument("--case", type=str, required=True, help="The case to run"),
-        call().add_argument("--result_folder", type=str, required=True, help="Folder to store result files"),
+        call().add_argument("--case_name", type=str, required=True, help="The case to run"),
+        call().add_argument("--cycles", type=int, required=True, help="Split the transcript in as many cycles"),
         call().parse_args(),
     ]
     assert argument_parser.mock_calls == calls
     reset_mocks()
 
 
-@patch("case_runner.uuid4")
-@patch("case_runner.rmtree")
-@patch("case_runner.Path")
-@patch("case_runner.AuditorFile")
+@patch("case_runner.AuditorPostgres")
 @patch("case_runner.AudioInterpreter")
-@patch("case_runner.StoreCases")
+@patch("case_runner.GeneratedNoteStore")
+@patch("case_runner.CaseStore")
 @patch("case_runner.HelperEvaluation")
 @patch.object(Commander, "transcript2commands")
 @patch.object(ImplementedCommands, "schema_key2instruction")
@@ -50,16 +51,13 @@ def test_run(
         schema_key2instruction,
         transcript2commands,
         helper,
-        store_cases,
+        case_store,
+        generated_note_store,
         audio_interpreter,
-        auditor_file,
-        path,
-        rmtree,
-        uuid4,
+        auditor_postgres,
 ):
-    auditor = MagicMock()
-    folder = MagicMock()
-
+    mock_chatter = MagicMock()
+    mock_settings = MagicMock()
     def reset_mocks():
         parameters.reset_mock()
         load_from_json.reset_mock()
@@ -67,23 +65,118 @@ def test_run(
         schema_key2instruction.reset_mock()
         transcript2commands.reset_mock()
         helper.reset_mock()
-        store_cases.reset_mock()
+        case_store.reset_mock()
+        generated_note_store.reset_mock()
         audio_interpreter.reset_mock()
-        auditor_file.reset_mock()
-        path.reset_mock()
-        rmtree.reset_mock()
-        uuid4.reset_mock()
-        auditor.reset_mock()
-        folder.reset_mock()
+        auditor_postgres.reset_mock()
+        mock_chatter.reset_mock()
+        mock_settings.reset_mock()
 
     identification = IdentificationParameters(
         patient_uuid='_PatientUuid',
         note_uuid='_NoteUuid',
         provider_uuid='_ProviderUuid',
-        canvas_instance='theEnvironment',
+        canvas_instance='runner-environment',
     )
-    for exists in [True, False]:
-        parameters.side_effect = [Namespace(case="theCase", result_folder="theResultFolder")]
+    lines = [
+        Line(speaker="theSpeaker1", text="theText1"),
+        Line(speaker="theSpeaker2", text="theText2"),
+        Line(speaker="theSpeaker3", text="theText3"),
+        Line(speaker="theSpeaker4", text="theText4"),
+        Line(speaker="theSpeaker5", text="theText5"),
+        Line(speaker="theSpeaker6", text="theText6"),
+        Line(speaker="theSpeaker7", text="theText7"),
+    ]
+
+    # case does not exist
+    parameters.side_effect = [Namespace(case_name="theCase", cycles=3)]
+    load_from_json.return_value.staged_commands_as_instructions.side_effect = []
+    schema_key2instruction.side_effect = []
+    transcript2commands.side_effect = []
+    helper.settings.side_effect = [mock_settings]
+    mock_settings.llm_text.vendor = "theVendor"
+    mock_settings.llm_text_model.side_effect = []
+    helper.aws_s3_credentials.side_effect = ["theAwsCredentials"]
+    helper.postgres_credentials.side_effect = ["thePostgresCredentials"]
+    case_store.return_value.get_case.side_effect = [RecordCase(name="theName", id=0)]
+    generated_note_store.return_value.insert.side_effect = []
+    audio_interpreter.side_effect = []
+    mock_chatter.identification = identification
+
+    tested = CaseRunner
+    tested.run()
+
+    calls = [call()]
+    assert parameters.mock_calls == calls
+    assert load_from_json.mock_calls == []
+    assert get_discussion.mock_calls == []
+    assert schema_key2instruction.mock_calls == []
+    assert transcript2commands.mock_calls == []
+    calls = [
+        call.settings(),
+        call.aws_s3_credentials(),
+        call.postgres_credentials(),
+    ]
+    assert helper.mock_calls == calls
+    calls = [
+        call('thePostgresCredentials'),
+        call().get_case('theCase'),
+    ]
+    assert case_store.mock_calls == calls
+    assert generated_note_store.mock_calls == []
+    assert audio_interpreter.mock_calls == []
+    assert auditor_postgres.mock_calls == []
+    assert mock_chatter.mock_calls == []
+    assert mock_settings.mock_calls == []
+    reset_mocks()
+
+    # case exists
+    tests = [
+        # less than 1 cycle
+        (
+            Namespace(case_name="theCase", cycles=0),
+            1,
+            [
+                call(auditor_postgres.return_value, lines[0:7], mock_chatter, ['theCommandAsInstructions']),
+            ]
+        ),
+        # some cycles
+        (
+            Namespace(case_name="theCase", cycles=3),
+            3,
+            [
+                call(auditor_postgres.return_value, lines[0:3], mock_chatter, ["theCommandAsInstructions"]),
+                call(auditor_postgres.return_value, lines[3:6], mock_chatter, ['previous1']),
+                call(auditor_postgres.return_value, lines[6:7], mock_chatter, ['previous2']),
+            ]
+        ),
+        (
+            Namespace(case_name="theCase", cycles=4),
+            4,
+            [
+                call(auditor_postgres.return_value, lines[0:2], mock_chatter, ["theCommandAsInstructions"]),
+                call(auditor_postgres.return_value, lines[2:4], mock_chatter, ['previous1']),
+                call(auditor_postgres.return_value, lines[4:6], mock_chatter, ['previous2']),
+                call(auditor_postgres.return_value, lines[6:7], mock_chatter, ['previous3']),
+            ]
+        ),
+        # cycles more than the transcript turns
+        (
+            Namespace(case_name="theCase", cycles=10),
+            7,
+            [
+                call(auditor_postgres.return_value, lines[0:1], mock_chatter, ["theCommandAsInstructions"]),
+                call(auditor_postgres.return_value, lines[1:2], mock_chatter, ['previous1']),
+                call(auditor_postgres.return_value, lines[2:3], mock_chatter, ['previous2']),
+                call(auditor_postgres.return_value, lines[3:4], mock_chatter, ['previous3']),
+                call(auditor_postgres.return_value, lines[4:5], mock_chatter, ['previous4']),
+                call(auditor_postgres.return_value, lines[5:6], mock_chatter, ['previous5']),
+                call(auditor_postgres.return_value, lines[6:7], mock_chatter, ['previous6']),
+            ]
+        ),
+    ]
+    for params, cycles, exp_call_transcript2commands in tests:
+        parameters.side_effect = [params]
         load_from_json.return_value.staged_commands_as_instructions.side_effect = [["theCommandAsInstructions"]]
         schema_key2instruction.side_effect = ["theSchemaKey2Instructions"]
         transcript2commands.side_effect = [
@@ -91,25 +184,28 @@ def test_run(
             (["previous2"], ["effects2"]),
             (["previous3"], ["effects3"]),
             (["previous4"], ["effects4"]),
+            (["previous5"], ["effects5"]),
+            (["previous6"], ["effects6"]),
+            (["previous7"], ["effects7"]),
         ]
-        helper.settings.side_effect = ["theSettings"]
+        helper.settings.side_effect = [mock_settings]
+        mock_settings.llm_text.vendor = "theVendor"
+        mock_settings.llm_text_model.side_effect = ["theModel"]
         helper.aws_s3_credentials.side_effect = ["theAwsCredentials"]
-        store_cases.get.side_effect = [EvaluationCase(
-            environment="theEnvironment",
-            limited_cache={"limited": "cache"},
-            cycles=3,
+        helper.postgres_credentials.side_effect = ["thePostgresCredentials"]
+        case_store.return_value.get_case.side_effect = [RecordCase(
+            name="theName",
+            transcript=lines,
+            limited_chart={"limited": "chart"},
+            profile="theProfile",
+            validation_status=CaseStatus.REVIEW,
+            batch_identifier="theBatchIdentifier",
+            tags={"tag1": "tag1", "tag2": "tag2"},
+            id=147,
         )]
-        audio_interpreter.side_effect = ["theChatter"]
-        auditor_file.return_value = auditor
-        auditor_file.default_instance.return_value = auditor
-        auditor.transcript.side_effect = [
-            "transcript1",
-            "transcript2",
-            "transcript3",
-        ]
-        path.return_value.__truediv__.side_effect = [folder]
-        folder.exists.side_effect = [exists]
-        uuid4.side_effect = ["theUuid"]
+        generated_note_store.return_value.insert.side_effect = [RecordGeneratedNote(case_id=147, id=333)]
+        audio_interpreter.side_effect = [mock_chatter]
+        mock_chatter.identification = identification
 
         tested = CaseRunner
         tested.run()
@@ -117,70 +213,61 @@ def test_run(
         calls = [call()]
         assert parameters.mock_calls == calls
         calls = [
-            call({'limited': 'cache'}),
+            call({'limited': 'chart'}),
             call().staged_commands_as_instructions("theSchemaKey2Instructions"),
         ]
         assert load_from_json.mock_calls == calls
         calls = [
             call('_NoteUuid'),
-            call().set_cycle(1),
-            call().set_cycle(2),
-            call().set_cycle(3),
         ]
+        for idx in range(cycles):
+            calls.append(call().set_cycle(idx + 1))
         assert get_discussion.mock_calls == calls
         calls = [call()]
         assert schema_key2instruction.mock_calls == calls
-        calls = [
-            call(auditor, "transcript1", "theChatter", ["theCommandAsInstructions"]),
-            call(auditor, "transcript2", "theChatter", ['previous1']),
-            call(auditor, "transcript3", "theChatter", ['previous2']),
-        ]
-        assert transcript2commands.mock_calls == calls
+        assert transcript2commands.mock_calls == exp_call_transcript2commands
         calls = [
             call.settings(),
             call.aws_s3_credentials(),
+            call.postgres_credentials(),
         ]
         assert helper.mock_calls == calls
-        calls = [call.get('theCase')]
-        assert store_cases.mock_calls == calls
-        calls = [call('theSettings', 'theAwsCredentials', load_from_json.return_value, identification)]
+        calls = [
+            call('thePostgresCredentials'),
+            call().get_case('theCase'),
+        ]
+        assert case_store.mock_calls == calls
+        calls = [
+            call('thePostgresCredentials'),
+            call().insert(GeneratedNote(
+                case_id=147,
+                cycle_duration=0,
+                cycle_count=cycles,
+                cycle_transcript_overlap=100,
+                text_llm_vendor='theVendor',
+                text_llm_name='theModel',
+                note_json=[],
+                hyperscribe_version='',
+                staged_questionnaires={},
+                transcript2instructions={},
+                instruction2parameters={},
+                parameters2command={},
+                failed=True,
+                errors={},
+                id=0,
+            )),
+        ]
+        assert generated_note_store.mock_calls == calls
+        calls = [call(mock_settings, 'theAwsCredentials', load_from_json.return_value, identification)]
         assert audio_interpreter.mock_calls == calls
         calls = [
-            call('theCase_run_theUuid', 0, folder),
-            call.default_instance('theCase', 0),
-            call().transcript(),
-            call('theCase_run_theUuid', 1, folder),
-            call.default_instance('theCase', 1),
-            call().transcript(),
-            call('theCase_run_theUuid', 2, folder),
-            call.default_instance('theCase', 2),
-            call().transcript(),
-            call('theCase_run_theUuid', 0, folder),
-            call().generate_commands_summary(),
-            call().generate_html_summary(),
+            call('theName', 0, 333),
         ]
-        assert auditor_file.mock_calls == calls
-        calls = [
-            call('theResultFolder'),
-            call().__truediv__('theCase_run_theUuid'),
-        ]
-        assert path.mock_calls == calls
-        calls = [call(folder)]
-        assert rmtree.mock_calls == calls
-        calls = [
-            call.transcript(),
-            call.transcript(),
-            call.transcript(),
-            call.generate_commands_summary(),
-            call.generate_html_summary(),
-        ]
-        assert auditor.mock_calls == calls
-        calls = [
-            call.exists(),
-        ]
-        if exists is False:
-            calls.append(call.mkdir(parents=True))
-        assert folder.mock_calls == calls
-        calls = [call()]
-        assert uuid4.mock_calls == calls
+        for idx in range(cycles):
+            calls.append(call().set_cycle(idx + 1))
+        calls.append(call().finalize([]), )
+        assert auditor_postgres.mock_calls == calls
+        assert mock_chatter.mock_calls == []
+        calls = [call.llm_text_model()]
+        assert mock_settings.mock_calls == calls
         reset_mocks()

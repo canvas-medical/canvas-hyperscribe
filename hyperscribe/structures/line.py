@@ -24,9 +24,8 @@ class Line(NamedTuple):
         }
 
     @classmethod
-    def tail_of(cls, exchange: list[Line]) -> list[Line]:
+    def tail_of(cls, exchange: list[Line], max_words: int) -> list[Line]:
         result: list[Line] = []
-        max_words = 100
         for line in exchange[::-1]:
             words_count = sum([len(l.text.split()) for l in result])
             next_count = len(line.text.split())

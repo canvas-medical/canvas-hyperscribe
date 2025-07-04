@@ -51,6 +51,7 @@ class Settings(NamedTuple):
             )
         )
 
+
     @classmethod
     def is_true(cls, string: str | None) -> bool:
         return bool(isinstance(string, str) and string.lower() in ["yes", "y", "1"])
@@ -60,3 +61,17 @@ class Settings(NamedTuple):
         if isinstance(string, str):
             return sorted(re.findall(r'[a-zA-Z0-9]+', string))
         return []
+
+    def llm_audio_model(self) -> str:
+        result = Constants.OPENAI_CHAT_AUDIO
+        if self.llm_audio.vendor.upper() == Constants.VENDOR_GOOGLE.upper():
+            result = Constants.GOOGLE_CHAT_ALL
+        return result
+
+    def llm_text_model(self) -> str:
+        result = Constants.OPENAI_CHAT_TEXT
+        if self.llm_text.vendor.upper() == Constants.VENDOR_GOOGLE.upper():
+            result = Constants.GOOGLE_CHAT_ALL
+        elif self.llm_text.vendor.upper() == Constants.VENDOR_ANTHROPIC.upper():
+            result = Constants.ANTHROPIC_CHAT_TEXT
+        return result

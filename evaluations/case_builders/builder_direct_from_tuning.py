@@ -8,12 +8,17 @@ from tempfile import TemporaryDirectory
 
 import ffmpeg
 
-from evaluations.auditor_file import AuditorFile
-from evaluations.datastores.store_cases import StoreCases
+from evaluations.auditor_postgres import AuditorPostgres
+from evaluations.datastores.postgres.case import Case as CaseStore
+from evaluations.datastores.postgres.generated_note import GeneratedNote as GeneratedNoteStore
+from evaluations.datastores.postgres.real_world_case import RealWorldCase as RealWorldCaseStore
 from evaluations.helper_evaluation import HelperEvaluation
 from evaluations.structures.case_exchange import CaseExchange
 from evaluations.structures.case_exchange_summary import CaseExchangeSummary
-from evaluations.structures.evaluation_case import EvaluationCase
+from evaluations.structures.enums.case_status import CaseStatus
+from evaluations.structures.records.case import Case as CaseRecord
+from evaluations.structures.records.generated_note import GeneratedNote as GeneratedNoteRecord
+from evaluations.structures.records.real_world_case import RealWorldCase as RealWordCaseRecord
 from hyperscribe.handlers.commander import Commander
 from hyperscribe.libraries.audio_interpreter import AudioInterpreter
 from hyperscribe.libraries.aws_s3 import AwsS3
@@ -45,7 +50,7 @@ class BuilderDirectFromTuning:
         parser.add_argument("--patient", type=str, required=True, help="The patient UUID to consider")
         parser.add_argument("--note", type=str, required=True, help="The note UUID to consider")
         parser.add_argument("--path_temp_files", type=str, help="Folder to store temporary files, if provided, most existing files will be reused")
-        parser.add_argument("--chunk_duration", type=int, required=True, help="Duration of each audio chunk in seconds")
+        parser.add_argument("--cycle_duration", type=int, required=True, help="Duration of each cycle, i.e. the duration of the audio chunks")
         parser.add_argument("--force_refresh", action="store_true", help="Force refresh the temporary files")
         cls._parameters(parser)
         return parser.parse_args()
@@ -71,7 +76,7 @@ class BuilderDirectFromTuning:
                 s3_credentials,
                 identification,
                 output_dir,
-                parameters.chunk_duration,
+                parameters.cycle_duration,
                 parameters.force_refresh,
             )
             instance._run()
@@ -82,14 +87,14 @@ class BuilderDirectFromTuning:
             s3_credentials: AwsS3Credentials,
             identification: IdentificationParameters,
             output_dir: Path,
-            segment_duration_seconds: int,
+            cycle_duration: int,
             force_refresh: bool,
     ) -> None:
         self.settings = settings
         self.s3_credentials = s3_credentials
         self.identification = identification
         self.output_dir = output_dir
-        self.segment_duration_seconds = segment_duration_seconds
+        self.cycle_duration = cycle_duration
         self.force_refresh = force_refresh
 
     def generate_case(
@@ -98,34 +103,55 @@ class BuilderDirectFromTuning:
             case_summary: CaseExchangeSummary,
             case_exchanges: list[CaseExchange],
     ) -> list[Instruction]:
-
-        StoreCases.upsert(EvaluationCase(
-            environment=self.identification.canvas_instance,
-            patient_uuid=self.identification.patient_uuid,
-            limited_cache=limited_cache.to_json(True),
-            case_name=case_summary.title,
-            # case_group=parameters.group,
-            # case_type=parameters.type,
-            cycles=len({line.chunk for line in case_exchanges}),
-            description=case_summary.summary,
+        credentials = HelperEvaluation.postgres_credentials()
+        case = CaseStore(credentials).upsert(CaseRecord(
+            name=case_summary.title,
+            transcript=[Line(speaker=line.speaker, text=line.text) for line in case_exchanges],
+            limited_chart=limited_cache.to_json(True),
+            profile=case_summary.summary,
+            validation_status=CaseStatus.GENERATION,
+            batch_identifier="",
+            tags={},
         ))
+        RealWorldCaseStore(credentials).upsert(RealWordCaseRecord(
+            case_id=case.id,
+            customer_identifier=self.identification.canvas_instance,
+            patient_note_hash=f"patient_{self.identification.patient_uuid}/note_{self.identification.note_uuid}",
+            topical_exchange_identifier=case_summary.title,
+            start_time=0.0,
+            end_time=0.0,
+            duration=0.0,
+            audio_llm_vendor=self.settings.llm_audio.vendor,
+            audio_llm_name=self.settings.llm_audio_model(),
+        ))
+        generated_note = GeneratedNoteStore(credentials)
+        generated_note_id = generated_note.insert(GeneratedNoteRecord(
+            case_id=case.id,
+            cycle_duration=self.cycle_duration,
+            cycle_count=0,  # <-- updated at the end
+            note_json=[],  # <-- updated at the end
+            cycle_transcript_overlap=Constants.CYCLE_TRANSCRIPT_OVERLAP,  # TODO to be defined in the settings
+            text_llm_vendor=self.settings.llm_text.vendor,
+            text_llm_name=self.settings.llm_text_model(),
+            hyperscribe_version="",  # TODO <-- commit or version declared in the manifest
+            failed=True,  # <-- will be changed to False at the end
+        )).id
+
         chatter = AudioInterpreter(self.settings, self.s3_credentials, limited_cache, self.identification)
         previous = limited_cache.staged_commands_as_instructions(ImplementedCommands.schema_key2instruction())
         discussion = CachedSdk.get_discussion(chatter.identification.note_uuid)
         cycle = 0
-        for chunk, exchange in groupby(case_exchanges, key=lambda x: x.chunk):
-            cycle += 1
-            discussion.set_cycle(cycle)
-            previous, _ = Commander.transcript2commands(
-                AuditorFile.default_instance(case_summary.title, cycle),
-                [Line(speaker=line.speaker, text=line.text) for line in exchange],
-                chatter,
-                previous,
-            )
-        recorder = AuditorFile.default_instance(case_summary.title, 0)
-        recorder.generate_commands_summary()
-        recorder.generate_html_summary()
-        return recorder.summarized_generated_commands_as_instructions()
+        auditor = AuditorPostgres(case_summary.title, 0, generated_note_id)
+        try:
+            for chunk, exchange in groupby(case_exchanges, key=lambda x: x.chunk):
+                cycle += 1
+                discussion.set_cycle(cycle)
+                auditor.set_cycle(cycle)
+                transcript = [Line(speaker=line.speaker, text=line.text) for line in exchange]
+                previous, _ = Commander.transcript2commands(auditor, transcript, chatter, previous)
+        finally:
+            auditor.finalize([])  # TODO retrieve the errors
+        return auditor.summarized_generated_commands_as_instructions()
 
     def create_transcripts(self, mp3_files: list[Path], interpreter: AudioInterpreter) -> list[Path]:
         result: list[Path] = []
@@ -141,7 +167,7 @@ class BuilderDirectFromTuning:
                 with json_file.open("w") as f:
                     json.dump([line.to_json() for line in transcript], f, indent=2)
 
-                last_exchange = Line.tail_of(transcript)
+                last_exchange = Line.tail_of(transcript, Constants.CYCLE_TRANSCRIPT_OVERLAP)
 
             result.append(json_file)
         return result
@@ -189,8 +215,8 @@ class BuilderDirectFromTuning:
         chunk_time = 0.0
 
         while chunk_time < duration:
-            end_time = min(chunk_time + self.segment_duration_seconds, duration)
-            chunk_file = audio_file.parent / f"{audio_file.stem}_{self.segment_duration_seconds:03d}_{chunk_index:03d}.mp3"
+            end_time = min(chunk_time + self.cycle_duration, duration)
+            chunk_file = audio_file.parent / f"{audio_file.stem}_{self.cycle_duration:03d}_{chunk_index:03d}.mp3"
             if self.force_refresh or chunk_file.exists() is False:
                 (ffmpeg
                  .input(audio_file_str, ss=chunk_time, t=end_time - chunk_time)

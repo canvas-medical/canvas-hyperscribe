@@ -231,7 +231,9 @@ class Commander(BaseProtocol):
         speakers = ', '.join(sorted({l.speaker for l in transcript}))
         Progress.send_to_user(chatter.identification, chatter.settings, f"audio reviewed, speakers detected: {speakers}")
 
-        return cls.transcript2commands(auditor, transcript, chatter, previous_instructions) + (Line.tail_of(transcript),)
+        instructions, effects = cls.transcript2commands(auditor, transcript, chatter, previous_instructions)
+        transcript_tail = Line.tail_of(transcript, Constants.CYCLE_TRANSCRIPT_OVERLAP)
+        return instructions, effects, transcript_tail
 
     @classmethod
     def transcript2commands(
@@ -342,12 +344,11 @@ class Commander(BaseProtocol):
         Progress.send_to_user(chatter.identification, chatter.settings, f"commands generation done ({len(instructions_with_command)})")
         auditor.computed_commands(instructions_with_command)
 
-        if chatter.identification.note_uuid == Constants.FAUX_NOTE_UUID:
+        if chatter.is_local_data:
             # this is the case when running an evaluation against a recorded 'limited cache',
             # i.e., the patient and/or her data don't exist, something that may be checked
             # when editing/originating the commands
             return cumulated_instructions, []
-
         return cumulated_instructions, [
             i.command.edit() if i.uuid in past_uuids else i.command.originate()
             for i in instructions_with_command
@@ -396,7 +397,7 @@ class Commander(BaseProtocol):
         Progress.send_to_user(chatter.identification, chatter.settings, f"questionnaires update done ({len(instructions_with_command)})")
         auditor.computed_questionnaires(transcript, instructions, instructions_with_command)
 
-        if chatter.identification.note_uuid == Constants.FAUX_NOTE_UUID:
+        if chatter.is_local_data:
             # this is the case when running an evaluation against a recorded 'limited cache',
             # i.e., the patient and/or her data don't exist, something that may be checked
             # when editing the commands
@@ -442,7 +443,7 @@ class Commander(BaseProtocol):
         memory_log.output(f"DURATION NEW: {int((time() - start) * 1000)}")
         auditor.computed_commands(instructions_with_command)
 
-        if chatter.identification.note_uuid == Constants.FAUX_NOTE_UUID:
+        if chatter.is_local_data:
             # this is the case when running an evaluation against a recorded 'limited cache',
             # i.e., the patient and/or her data don't exist, something that may be checked
             # when originating the commands
@@ -491,7 +492,7 @@ class Commander(BaseProtocol):
         memory_log.output(f"DURATION UPDATE: {int((time() - start) * 1000)}")
         auditor.computed_commands(instructions_with_command)
 
-        if chatter.identification.note_uuid == Constants.FAUX_NOTE_UUID:
+        if chatter.is_local_data:
             # this is the case when running an evaluation against a recorded 'limited cache',
             # i.e., the patient and/or her data don't exist, something that may be checked
             # when editing the commands

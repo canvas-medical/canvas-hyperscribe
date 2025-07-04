@@ -1,7 +1,6 @@
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock
 
 import pytest
-from canvas_sdk.v1.data import PracticeLocation, PracticeLocationSetting, Staff
 
 from hyperscribe.commands.base import Base
 from hyperscribe.libraries.limited_cache import LimitedCache
