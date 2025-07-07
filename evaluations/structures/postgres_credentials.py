@@ -21,3 +21,6 @@ class PostgresCredentials(NamedTuple):
             host=dictionary.get(Constants.EVALUATIONS_DB_HOST, ""),
             port=int(dictionary.get(Constants.EVALUATIONS_DB_PORT, 0)),
         )
+
+    def is_ready(self) -> bool:
+        return bool(self.host and self.port and self.user and self.password and self.database)

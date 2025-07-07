@@ -54,28 +54,7 @@ class GeneratedNote(Postgres):
         )
 
     def update_fields(self, generated_note_id: int, updates: dict) -> None:
-        params: dict = {
-            "now": datetime.now(UTC),
-            "id": generated_note_id,
-        }
-        sql_where: list[str] = []
-        sql_sets: list[str] = ['"updated"=%(now)s']
-        for field, value in updates.items():
-            if not hasattr(Record, field):
-                continue
-            cast_str = ""
-            if get_type_hints(Record)[field] in [dict, list]:
-                cast_str = "::jsonb"
-            sql_sets.append(f'"{field}" = %({field})s')
-            sql_where.append(f'"{field}"{cast_str}<>%({field})s{cast_str}')
-            if isinstance(value, dict) or isinstance(value, list):
-                params[field] = json.dumps(value)
-            else:
-                params[field] = value
-
-        if sql_where:
-            sql: LiteralString = f'UPDATE "generated_note" SET {", ".join(sql_sets)} WHERE "id" = %(id)s AND ({" OR ".join(sql_where)})'
-            self._alter(sql, params, generated_note_id)
+        self._update_fields("generated_note", Record, generated_note_id, updates)
 
     def get_field(self, generated_note_id: int, field: str) -> dict:
         if hasattr(Record, field) and get_type_hints(Record)[field] in [dict]:
@@ -84,3 +63,19 @@ class GeneratedNote(Postgres):
                 result: dict = record[field]
                 return result
         return {}
+
+    def runs_count_for(self, case_id: int) -> int:
+        sql: LiteralString = """
+                             SELECT COUNT("id") AS "count"
+                             FROM "generated_note"
+                             WHERE "case_id" = %(case_id)s """
+        for record in self._select(sql, {"case_id": case_id}):
+            return int(record["count"])
+        return 0
+
+    def delete_for(self, case_id: int) -> None:
+        sql: LiteralString = """
+                             DELETE
+                             FROM "generated_note"
+                             WHERE "case_id" = %(case_id)s RETURNING "id" """
+        self._alter(sql, {"case_id": case_id}, None)

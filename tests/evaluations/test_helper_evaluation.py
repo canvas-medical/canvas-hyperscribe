@@ -15,6 +15,49 @@ from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
 
 
+@patch('evaluations.helper_evaluation.AuditorFile')
+@patch('evaluations.helper_evaluation.AuditorPostgres')
+@patch.object(HelperEvaluation, 'postgres_credentials')
+@patch.object(HelperEvaluation, 'aws_s3_credentials')
+@patch.object(HelperEvaluation, 'settings')
+def test_get_auditor(settings, s3_credentials, psql_credentials, auditor_postgres, auditor_file):
+    def reset_mocks():
+        settings.reset_mock()
+        s3_credentials.reset_mock()
+        psql_credentials.reset_mock()
+        auditor_postgres.reset_mock()
+        auditor_file.reset_mock()
+
+    tested = HelperEvaluation
+
+    for is_ready in [True, False]:
+        psql_credentials.return_value.is_ready.side_effect = [is_ready]
+        settings.side_effect = ["theSettings"]
+        s3_credentials.side_effect = ["theS3Credentials"]
+        auditor_file.default_folder_base.side_effect = ["theDefaultFolder"]
+        result = tested.get_auditor("theCase", 7)
+        if is_ready:
+            assert result is auditor_postgres.return_value
+            calls = [call("theCase", 7, "theSettings", "theS3Credentials", psql_credentials.return_value)]
+            assert auditor_postgres.mock_calls == calls
+            assert auditor_file.mock_calls == []
+        else:
+            assert result is auditor_file.return_value
+            assert auditor_postgres.mock_calls == []
+            calls = [
+                call.default_folder_base(),
+                call('theCase', 7, 'theSettings', 'theS3Credentials', 'theDefaultFolder'),
+            ]
+            assert auditor_file.mock_calls == calls
+
+        calls = [call()]
+        assert settings.mock_calls == calls
+        calls = [call()]
+        assert s3_credentials.mock_calls == calls
+        calls = [call(), call().is_ready()]
+        assert psql_credentials.mock_calls == calls
+        reset_mocks()
+
 def test_settings(monkeypatch):
     monkeypatch.setenv("VendorTextLLM", "textVendor")
     monkeypatch.setenv("KeyTextLLM", "textAPIKey")

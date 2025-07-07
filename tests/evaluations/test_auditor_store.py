@@ -5,10 +5,39 @@ import pytest
 
 from evaluations.auditor_store import AuditorStore
 from hyperscribe.libraries.auditor import Auditor
+from hyperscribe.structures.access_policy import AccessPolicy
+from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.instruction import Instruction
 from hyperscribe.structures.instruction_with_command import InstructionWithCommand
 from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.line import Line
+from hyperscribe.structures.settings import Settings
+from hyperscribe.structures.vendor_key import VendorKey
+from tests.helper import MockFile
+
+
+def helper_instance() -> AuditorStore:
+    settings = Settings(
+        llm_text=VendorKey(vendor="theVendorTextLLM", api_key="theKeyTextLLM"),
+        llm_audio=VendorKey(vendor="theVendorAudioLLM", api_key="theKeyAudioLLM"),
+        science_host='theScienceHost',
+        ontologies_host='theOntologiesHost',
+        pre_shared_key='thePreSharedKey',
+        structured_rfv=True,
+        audit_llm=True,
+        is_tuning=False,
+        api_signing_key="theApiSigningKey",
+        send_progress=False,
+        commands_policy=AccessPolicy(policy=False, items=[]),
+        staffers_policy=AccessPolicy(policy=False, items=[]),
+    )
+    s3_credentials = AwsS3Credentials(
+        aws_key='theKey',
+        aws_secret='theSecret',
+        region='theRegion',
+        bucket='theBucket',
+    )
+    return AuditorStore("theCase", 7, settings, s3_credentials)
 
 
 def test_class():
@@ -17,6 +46,26 @@ def test_class():
 
 
 def test___init__():
+    settings = Settings(
+        llm_text=VendorKey(vendor="theVendorTextLLM", api_key="theKeyTextLLM"),
+        llm_audio=VendorKey(vendor="theVendorAudioLLM", api_key="theKeyAudioLLM"),
+        science_host='theScienceHost',
+        ontologies_host='theOntologiesHost',
+        pre_shared_key='thePreSharedKey',
+        structured_rfv=True,
+        audit_llm=True,
+        is_tuning=False,
+        api_signing_key="theApiSigningKey",
+        send_progress=False,
+        commands_policy=AccessPolicy(policy=False, items=[]),
+        staffers_policy=AccessPolicy(policy=False, items=[]),
+    )
+    s3_credentials = AwsS3Credentials(
+        aws_key='theKey',
+        aws_secret='theSecret',
+        region='theRegion',
+        bucket='theBucket',
+    )
     tests = [
         (-1, 0, "cycle_000"),
         (0, 0, "cycle_000"),
@@ -25,43 +74,76 @@ def test___init__():
         (10, 10, "cycle_010"),
     ]
     for cycle, exp_cycle, exp_key in tests:
-        tested = AuditorStore("theCase", cycle)
+        tested = AuditorStore("theCase", cycle, settings, s3_credentials)
         assert tested.case == "theCase"
         assert tested.cycle == exp_cycle
         assert tested.cycle_key == exp_key
+        assert tested.s3_credentials == s3_credentials
+        assert tested.settings == settings
+
+
+def test_case_prepare():
+    tested = helper_instance()
+    with pytest.raises(NotImplementedError):
+        _ = tested.case_prepare()
+
+
+def test_case_update_limited_cache():
+    tested = helper_instance()
+    with pytest.raises(NotImplementedError):
+        _ = tested.case_update_limited_cache({"limited": "cache"})
+
+
+def test_case_finalize():
+    tested = helper_instance()
+    with pytest.raises(NotImplementedError):
+        _ = tested.case_finalize(["error1", "error2"])
 
 
 def test_upsert_audio():
-    tested = AuditorStore("theCase", 3)
+    tested = helper_instance()
     with pytest.raises(NotImplementedError):
         _ = tested.upsert_audio("theLabel", b"some audio")
 
 
 def test_upsert_json():
-    tested = AuditorStore("theCase", 3)
+    tested = helper_instance()
     with pytest.raises(NotImplementedError):
         _ = tested.upsert_json("theLabel", {"key": "value"})
 
 
 def test_get_json():
-    tested = AuditorStore("theCase", 3)
+    tested = helper_instance()
     with pytest.raises(NotImplementedError):
         _ = tested.get_json("theLabel")
 
 
-def test_finalize():
-    tested = AuditorStore("theCase", 3)
+def test_limited_chart():
+    tested = helper_instance()
     with pytest.raises(NotImplementedError):
-        _ = tested.finalize(["error1", "error2"])
+        _ = tested.limited_chart()
+
+
+def test_transcript():
+    tested = helper_instance()
+    with pytest.raises(NotImplementedError):
+        _ = tested.transcript()
+
+
+def test_full_transcript():
+    tested = helper_instance()
+    with pytest.raises(NotImplementedError):
+        _ = tested.full_transcript()
 
 
 def test_set_cycle():
-    tested = AuditorStore("theCase", 2)
+    tested = helper_instance()
     tests = [
-        (-1, 2, "cycle_002"),
-        (0, 2, "cycle_002"),
-        (1, 2, "cycle_002"),
-        (3, 3, "cycle_003"),
+        (-1, 7, "cycle_007"),
+        (0, 7, "cycle_007"),
+        (1, 7, "cycle_007"),
+        (6, 7, "cycle_007"),
+        (8, 8, "cycle_008"),
         (10, 10, "cycle_010"),
     ]
     for cycle, exp_cycle, exp_key in tests:
@@ -72,14 +154,12 @@ def test_set_cycle():
 
 @patch.object(AuditorStore, "upsert_audio")
 @patch.object(AuditorStore, "upsert_json")
-@patch.object(AuditorStore, "get_json")
-def test_identified_transcript(get_json, upsert_json, upsert_audio):
+def test_identified_transcript(upsert_json, upsert_audio):
     def reset_mocks():
-        get_json.reset_mock()
         upsert_json.reset_mock()
         upsert_audio.reset_mock()
 
-    tested = AuditorStore("theCase", 2)
+    tested = helper_instance()
     audios = [b"audio1", b"audio2", b"audio3"]
     transcript = [
         Line(speaker="speaker1", text="text1"),
@@ -87,17 +167,13 @@ def test_identified_transcript(get_json, upsert_json, upsert_audio):
         Line(speaker="speaker3", text="text3"),
         Line(speaker="speaker4", text="text4"),
     ]
-    get_json.side_effect = [{"cycle_001": "data1", "cycle_002": "data2"}]
 
     result = tested.identified_transcript(audios, transcript)
     assert result is True
 
-    calls = [call('audio2transcript')]
-    assert get_json.mock_calls == calls
     calls = [
         call('audio2transcript', {
-            'cycle_001': 'data1',
-            'cycle_002': [
+            'cycle_007': [
                 {'speaker': 'speaker1', 'text': 'text1'},
                 {'speaker': 'speaker2', 'text': 'text2'},
                 {'speaker': 'speaker3', 'text': 'text3'},
@@ -107,9 +183,9 @@ def test_identified_transcript(get_json, upsert_json, upsert_audio):
     ]
     assert upsert_json.mock_calls == calls
     calls = [
-        call('cycle_002_00.mp3', b'audio1'),
-        call('cycle_002_01.mp3', b'audio2'),
-        call('cycle_002_02.mp3', b'audio3'),
+        call('cycle_007_00', b'audio1'),
+        call('cycle_007_01', b'audio2'),
+        call('cycle_007_02', b'audio3'),
     ]
     assert upsert_audio.mock_calls == calls
     reset_mocks()
@@ -134,9 +210,9 @@ def test_found_instructions(get_json, upsert_json):
         Instruction(uuid="uuid2", index=1, instruction="theInstruction2", information="theInformation2", is_new=True, is_updated=False),
         Instruction(uuid="uuid3", index=2, instruction="theInstruction3", information="theInformation3", is_new=True, is_updated=False),
     ]
-    get_json.side_effect = [{"cycle_001": "data1", "cycle_002": "data2"}]
+    get_json.side_effect = [{"cycle_001": "data1", "cycle_007": "data2"}]
 
-    tested = AuditorStore("theCase", 2)
+    tested = helper_instance()
     result = tested.found_instructions(transcript, initial, cumulated)
     assert result is True
 
@@ -145,7 +221,7 @@ def test_found_instructions(get_json, upsert_json):
     calls = [
         call('transcript2instructions', {
             'cycle_001': 'data1',
-            'cycle_002': {
+            'cycle_007': {
                 'transcript': [
                     {'speaker': 'speaker1', 'text': 'text1'},
                     {'speaker': 'speaker2', 'text': 'text2'},
@@ -301,9 +377,9 @@ def test_computed_parameters(get_json, upsert_json):
         if previous_content:
             get_json.side_effect = [{
                 "cycle_001": "data1",
-                "cycle_002": previous_content,
+                "cycle_007": previous_content,
             }]
-        tested = AuditorStore("theCase", 2)
+        tested = helper_instance()
         result = tested.computed_parameters(sdk_parameters)
         assert result is True
 
@@ -312,7 +388,7 @@ def test_computed_parameters(get_json, upsert_json):
         calls = [
             call('instruction2parameters', {
                 'cycle_001': 'data1',
-                'cycle_002': expected,
+                'cycle_007': expected,
             }),
         ]
         assert upsert_json.mock_calls == calls
@@ -447,9 +523,9 @@ def test_computed_commands(get_json, upsert_json):
         if previous_content:
             get_json.side_effect = [{
                 "cycle_001": "data1",
-                "cycle_002": previous_content,
+                "cycle_007": previous_content,
             }]
-        tested = AuditorStore("theCase", 2)
+        tested = helper_instance()
         result = tested.computed_commands(sdk_parameters)
         assert result is True
 
@@ -458,7 +534,7 @@ def test_computed_commands(get_json, upsert_json):
         calls = [
             call('parameters2command', {
                 'cycle_001': 'data1',
-                'cycle_002': expected,
+                'cycle_007': expected,
             }),
         ]
         assert upsert_json.mock_calls == calls
@@ -553,9 +629,9 @@ def test_computed_questionnaires(get_json, upsert_json):
     ]
     get_json.side_effect = [{
         "cycle_001": "data1",
-        "cycle_002": "date2",
+        "cycle_007": "date2",
     }]
-    tested = AuditorStore("theCase", 2)
+    tested = helper_instance()
     result = tested.computed_questionnaires(transcript, initial_instructions, instructions_with_command)
     assert result is True
 
@@ -564,7 +640,7 @@ def test_computed_questionnaires(get_json, upsert_json):
     calls = [
         call('staged_questionnaires', {
             'cycle_001': 'data1',
-            'cycle_002': {
+            'cycle_007': {
                 "transcript": [
                     {"speaker": "voiceA", "text": "theText1"},
                     {"speaker": "voiceB", "text": "theText2"},
@@ -616,7 +692,7 @@ def test_summarized_generated_commands(get_json):
     def reset_mocks():
         get_json.reset_mock()
 
-    tested = AuditorStore("theCase", 2)
+    tested = helper_instance()
 
     # -- no commands in the fields
     get_json.side_effect = [
@@ -677,7 +753,7 @@ def test_summarized_generated_commands(get_json):
                         },
                     },
                 ]},
-            "cycle_002": {
+            "cycle_007": {
                 "instructions": [
                     {"uuid": "uuid4", "information": "theInformation4"},
                 ],
@@ -855,7 +931,7 @@ def test_summarized_generated_commands(get_json):
                         },
                     },
                 ]},
-            "cycle_002": {
+            "cycle_007": {
                 "instructions": [
                     {"uuid": "uuid1", "instruction": "questionnaireA", "information": json.dumps(questionnaires[0])},
                     {"uuid": "uuid2", "instruction": "questionnaireB", "information": json.dumps(questionnaires[1])},
@@ -946,7 +1022,7 @@ def test_summarized_generated_commands_as_instructions(get_json):
     def reset_mocks():
         get_json.reset_mock()
 
-    tested = AuditorStore("theCase", 2)
+    tested = helper_instance()
 
     # -- no commands in the fields
     get_json.side_effect = [
@@ -999,7 +1075,7 @@ def test_summarized_generated_commands_as_instructions(get_json):
                     },
                 ],
             },
-            "cycle_002": {
+            "cycle_007": {
                 "instructions": [
                     {
                         "uuid": "uuid4",
@@ -1165,7 +1241,7 @@ def test_summarized_generated_commands_as_instructions(get_json):
                         },
                     },
                 ]},
-            "cycle_002": {
+            "cycle_007": {
                 "instructions": [
                     {
                         "uuid": "uuid1",
@@ -1316,4 +1392,45 @@ def test_summarized_generated_commands_as_instructions(get_json):
     assert result == expected
 
     assert get_json.mock_calls == calls
+    reset_mocks()
+
+
+@patch("evaluations.auditor_store.Path")
+@patch("evaluations.auditor_store.NamedTemporaryFile")
+@patch.object(AuditorStore, "summarized_generated_commands")
+def test_generate_html_summary(summarized_generated_commands, temp_file, path):
+    template_file = MagicMock()
+
+    def reset_mocks():
+        summarized_generated_commands.reset_mock()
+        temp_file.reset_mock()
+        template_file.reset_mock()
+
+    tested = helper_instance()
+
+    buffers = [
+        MockFile("HTML: case {{theCase}}, data: {{theData}}."),
+    ]
+    path.return_value.parent.__truediv__.side_effect = [template_file]
+    summarized_generated_commands.side_effect = [{"key": "other"}]
+
+    template_file.open.side_effect = [buffers[0]]
+
+    result = tested.generate_html_summary()
+    assert result is path.return_value
+
+    expected = "HTML: case {{theCase}}, data: {{theData}}."
+    assert buffers[0].content == expected
+
+    calls = [call()]
+    assert summarized_generated_commands.mock_calls == calls
+    calls = [
+        call(delete=False, suffix='.html', mode='w'),
+        call().__enter__(),
+        call().__enter__().write('HTML: case theCase, data: {"key": "other"}.'),
+        call().__exit__(None, None, None),
+    ]
+    assert temp_file.mock_calls == calls
+    calls = [call.open('r')]
+    assert template_file.mock_calls == calls
     reset_mocks()

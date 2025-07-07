@@ -4,6 +4,9 @@ from pathlib import Path
 
 from canvas_sdk.v1.data import Note
 
+from evaluations.auditor_file import AuditorFile
+from evaluations.auditor_postgres import AuditorPostgres
+from evaluations.auditor_store import AuditorStore
 from evaluations.constants import Constants
 from evaluations.structures.postgres_credentials import PostgresCredentials
 from hyperscribe.libraries.constants import Constants as HyperscribeConstants
@@ -15,6 +18,14 @@ from hyperscribe.structures.settings import Settings
 
 
 class HelperEvaluation:
+    @classmethod
+    def get_auditor(cls, case: str, cycle: int) -> AuditorStore:
+        settings = HelperEvaluation.settings()
+        s3_credentials = HelperEvaluation.aws_s3_credentials()
+        postgres_credentials = cls.postgres_credentials()
+        if postgres_credentials.is_ready():
+            return AuditorPostgres(case, cycle, settings, s3_credentials, postgres_credentials)
+        return AuditorFile(case, cycle, settings, s3_credentials, AuditorFile.default_folder_base())
 
     @classmethod
     def settings(cls) -> Settings:

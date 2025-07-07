@@ -1,8 +1,7 @@
 from argparse import ArgumentParser, Namespace
 from os import environ
 
-from evaluations.auditor_file import AuditorFile
-from evaluations.datastores.store_cases import StoreCases
+from evaluations.datastores.datastore_case import DatastoreCase
 
 
 class BuilderDelete:
@@ -23,15 +22,14 @@ class BuilderDelete:
         cases = []
         if parameters.all:
             if environ.get("CanDeleteAllCases", "") == "danger":
-                for record in StoreCases.all():
-                    cases.append(record.case_name)
+                for case in DatastoreCase.all_names():
+                    cases.append(case)
         elif parameters.case:
             cases.append(parameters.case)
 
         for case in cases:
-            AuditorFile.default_instance(case, 0).reset(parameters.audios)
-            StoreCases.delete(case)
-            print(f"Evaluation Case '{case}' deleted (files and record)")
+            DatastoreCase.delete(case, parameters.audios)
+            print(f"Evaluation Case '{case}' deleted")
 
         if not cases:
             print("No cases deleted")

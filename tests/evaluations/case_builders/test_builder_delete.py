@@ -31,20 +31,17 @@ def test_parameters(argument_parser):
     reset_mocks()
 
 
-@patch("evaluations.case_builders.builder_delete.StoreCases")
-@patch("evaluations.case_builders.builder_delete.AuditorFile")
+@patch("evaluations.case_builders.builder_delete.DatastoreCase")
 @patch.object(BuilderDelete, "_parameters")
 def test_run(
         parameters,
-        auditor_file,
-        store_cases,
+        datastore_case,
         capsys,
         monkeypatch,
 ):
     def reset_mocks():
         parameters.reset_mock()
-        auditor_file.reset_mock()
-        store_cases.reset_mock()
+        datastore_case.reset_mock()
 
 
     tested = BuilderDelete()
@@ -55,11 +52,11 @@ def test_run(
         ("anything", False),
     ]
     for env_value, done in tests:
-        store_cases.all.side_effect = [
+        datastore_case.all_names.side_effect = [
             [
-                EvaluationCase(case_name="theCaseName1"),
-                EvaluationCase(case_name="theCaseName2"),
-                EvaluationCase(case_name="theCaseName3"),
+                "theCaseName1",
+                "theCaseName2",
+                "theCaseName3",
             ]
         ]
         monkeypatch.setenv("CanDeleteAllCases", env_value)
@@ -68,38 +65,28 @@ def test_run(
 
         if done:
             exp_out = CaptureResult(
-                "Evaluation Case 'theCaseName1' deleted (files and record)\n"
-                "Evaluation Case 'theCaseName2' deleted (files and record)\n"
-                "Evaluation Case 'theCaseName3' deleted (files and record)\n",
+                "Evaluation Case 'theCaseName1' deleted\n"
+                "Evaluation Case 'theCaseName2' deleted\n"
+                "Evaluation Case 'theCaseName3' deleted\n",
                 "")
             assert capsys.readouterr() == exp_out
 
             calls = [call()]
             assert parameters.mock_calls == calls
             calls = [
-                call.default_instance('theCaseName1', 0),
-                call.default_instance().reset(False),
-                call.default_instance('theCaseName2', 0),
-                call.default_instance().reset(False),
-                call.default_instance('theCaseName3', 0),
-                call.default_instance().reset(False),
+                call.all_names(),
+                call.delete('theCaseName1', False),
+                call.delete('theCaseName2', False),
+                call.delete('theCaseName3', False),
             ]
-            assert auditor_file.mock_calls == calls
-            calls = [
-                call.all(),
-                call.delete('theCaseName1'),
-                call.delete('theCaseName2'),
-                call.delete('theCaseName3'),
-            ]
-            assert store_cases.mock_calls == calls
+            assert datastore_case.mock_calls == calls
         else:
             exp_out = CaptureResult("No cases deleted\n", "")
             assert capsys.readouterr() == exp_out
 
             calls = [call()]
             assert parameters.mock_calls == calls
-            assert auditor_file.mock_calls == []
-            assert store_cases.mock_calls == []
+            assert datastore_case.mock_calls == []
 
         reset_mocks()
 
@@ -108,18 +95,13 @@ def test_run(
         parameters.side_effect = [Namespace(case="theCase", audios=audios, all=False)]
         tested.run()
 
-        exp_out = CaptureResult("Evaluation Case 'theCase' deleted (files and record)\n", "")
+        exp_out = CaptureResult("Evaluation Case 'theCase' deleted\n", "")
         assert capsys.readouterr() == exp_out
 
         calls = [call()]
         assert parameters.mock_calls == calls
-        calls = [
-            call.default_instance('theCase', 0),
-            call.default_instance().reset(audios),
-        ]
-        assert auditor_file.mock_calls == calls
-        calls = [call.delete('theCase')]
-        assert store_cases.mock_calls == calls
+        calls = [call.delete('theCase', audios)]
+        assert datastore_case.mock_calls == calls
         reset_mocks()
 
     # nothing to do
@@ -131,6 +113,5 @@ def test_run(
 
     calls = [call()]
     assert parameters.mock_calls == calls
-    assert auditor_file.mock_calls == []
-    assert store_cases.mock_calls == []
+    assert datastore_case.mock_calls == []
     reset_mocks()

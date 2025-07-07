@@ -9,21 +9,17 @@ from tempfile import TemporaryDirectory
 import ffmpeg
 
 from evaluations.auditor_postgres import AuditorPostgres
-from evaluations.datastores.postgres.case import Case as CaseStore
-from evaluations.datastores.postgres.generated_note import GeneratedNote as GeneratedNoteStore
+from evaluations.constants import Constants as EvaluationConstants
 from evaluations.datastores.postgres.real_world_case import RealWorldCase as RealWorldCaseStore
 from evaluations.helper_evaluation import HelperEvaluation
 from evaluations.structures.case_exchange import CaseExchange
 from evaluations.structures.case_exchange_summary import CaseExchangeSummary
-from evaluations.structures.enums.case_status import CaseStatus
-from evaluations.structures.records.case import Case as CaseRecord
-from evaluations.structures.records.generated_note import GeneratedNote as GeneratedNoteRecord
 from evaluations.structures.records.real_world_case import RealWorldCase as RealWordCaseRecord
 from hyperscribe.handlers.commander import Commander
 from hyperscribe.libraries.audio_interpreter import AudioInterpreter
 from hyperscribe.libraries.aws_s3 import AwsS3
 from hyperscribe.libraries.cached_sdk import CachedSdk
-from hyperscribe.libraries.constants import Constants
+from hyperscribe.libraries.constants import Constants as HyperscribeConstants
 from hyperscribe.libraries.helper import Helper
 from hyperscribe.libraries.implemented_commands import ImplementedCommands
 from hyperscribe.libraries.limited_cache import LimitedCache
@@ -63,7 +59,7 @@ class BuilderDirectFromTuning:
         identification = IdentificationParameters(
             patient_uuid=parameters.patient,
             note_uuid=parameters.note,
-            provider_uuid=Constants.FAUX_PROVIDER_UUID,
+            provider_uuid=HyperscribeConstants.FAUX_PROVIDER_UUID,
             canvas_instance=HelperEvaluation.get_canvas_instance(),
         )
         with TemporaryDirectory() as temp_dir:
@@ -104,17 +100,16 @@ class BuilderDirectFromTuning:
             case_exchanges: list[CaseExchange],
     ) -> list[Instruction]:
         credentials = HelperEvaluation.postgres_credentials()
-        case = CaseStore(credentials).upsert(CaseRecord(
-            name=case_summary.title,
-            transcript=[Line(speaker=line.speaker, text=line.text) for line in case_exchanges],
-            limited_chart=limited_cache.to_json(True),
-            profile=case_summary.summary,
-            validation_status=CaseStatus.GENERATION,
-            batch_identifier="",
-            tags={},
-        ))
+
+        chatter = AudioInterpreter(self.settings, self.s3_credentials, limited_cache, self.identification)
+        previous = limited_cache.staged_commands_as_instructions(ImplementedCommands.schema_key2instruction())
+        discussion = CachedSdk.get_discussion(chatter.identification.note_uuid)
+
+        auditor = AuditorPostgres(case_summary.title, 0, self.settings, self.s3_credentials, credentials)
+        auditor.case_prepare()
+        auditor.case_update_limited_cache(limited_cache.to_json(True))
         RealWorldCaseStore(credentials).upsert(RealWordCaseRecord(
-            case_id=case.id,
+            case_id=auditor.case_id(),
             customer_identifier=self.identification.canvas_instance,
             patient_note_hash=f"patient_{self.identification.patient_uuid}/note_{self.identification.note_uuid}",
             topical_exchange_identifier=case_summary.title,
@@ -124,33 +119,20 @@ class BuilderDirectFromTuning:
             audio_llm_vendor=self.settings.llm_audio.vendor,
             audio_llm_name=self.settings.llm_audio_model(),
         ))
-        generated_note = GeneratedNoteStore(credentials)
-        generated_note_id = generated_note.insert(GeneratedNoteRecord(
-            case_id=case.id,
-            cycle_duration=self.cycle_duration,
-            cycle_count=0,  # <-- updated at the end
-            note_json=[],  # <-- updated at the end
-            cycle_transcript_overlap=Constants.CYCLE_TRANSCRIPT_OVERLAP,  # TODO to be defined in the settings
-            text_llm_vendor=self.settings.llm_text.vendor,
-            text_llm_name=self.settings.llm_text_model(),
-            hyperscribe_version="",  # TODO <-- commit or version declared in the manifest
-            failed=True,  # <-- will be changed to False at the end
-        )).id
-
-        chatter = AudioInterpreter(self.settings, self.s3_credentials, limited_cache, self.identification)
-        previous = limited_cache.staged_commands_as_instructions(ImplementedCommands.schema_key2instruction())
-        discussion = CachedSdk.get_discussion(chatter.identification.note_uuid)
-        cycle = 0
-        auditor = AuditorPostgres(case_summary.title, 0, generated_note_id)
         try:
-            for chunk, exchange in groupby(case_exchanges, key=lambda x: x.chunk):
+            cycle = 0
+            for _, exchange in groupby(case_exchanges, key=lambda x: x.chunk):
+                transcript = [Line(speaker=line.speaker, text=line.text) for line in exchange]
                 cycle += 1
                 discussion.set_cycle(cycle)
                 auditor.set_cycle(cycle)
-                transcript = [Line(speaker=line.speaker, text=line.text) for line in exchange]
+                auditor.upsert_json(
+                    EvaluationConstants.AUDIO2TRANSCRIPT,
+                    {auditor.cycle_key: [line.to_json() for line in transcript]},
+                )
                 previous, _ = Commander.transcript2commands(auditor, transcript, chatter, previous)
         finally:
-            auditor.finalize([])  # TODO retrieve the errors
+            auditor.case_finalize([])  # TODO retrieve the errors
         return auditor.summarized_generated_commands_as_instructions()
 
     def create_transcripts(self, mp3_files: list[Path], interpreter: AudioInterpreter) -> list[Path]:
@@ -167,7 +149,7 @@ class BuilderDirectFromTuning:
                 with json_file.open("w") as f:
                     json.dump([line.to_json() for line in transcript], f, indent=2)
 
-                last_exchange = Line.tail_of(transcript, Constants.CYCLE_TRANSCRIPT_OVERLAP)
+                last_exchange = Line.tail_of(transcript, HyperscribeConstants.CYCLE_TRANSCRIPT_OVERLAP)
 
             result.append(json_file)
         return result

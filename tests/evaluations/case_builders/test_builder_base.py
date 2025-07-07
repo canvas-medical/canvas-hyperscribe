@@ -1,4 +1,3 @@
-import json
 from argparse import Namespace
 from datetime import datetime, timezone, UTC
 from pathlib import Path
@@ -8,8 +7,8 @@ import pytest
 from canvas_generated.messages.effects_pb2 import Effect
 from canvas_sdk.v1.data import Patient, Command
 
-from evaluations.auditor_file import AuditorFile
 from evaluations.case_builders.builder_base import BuilderBase
+from evaluations.datastores.datastore_case import DatastoreCase
 from hyperscribe.handlers.commander import Commander
 from hyperscribe.libraries.cached_sdk import CachedSdk
 from hyperscribe.libraries.limited_cache import LimitedCache
@@ -100,13 +99,13 @@ def test__run():
 @patch("evaluations.case_builders.builder_base.CachedSdk")
 @patch("evaluations.case_builders.builder_base.BuilderAuditUrl")
 @patch("evaluations.case_builders.builder_base.AwsS3")
-@patch("evaluations.case_builders.builder_base.AuditorFile")
+@patch.object(DatastoreCase, "already_generated")
 @patch.object(BuilderBase, "_parameters")
 @patch.object(BuilderBase, "_run")
 def test_run(
         run,
         parameters,
-        auditor_file,
+        already_generated,
         aws_s3,
         builder_audit_url,
         cached_discussion,
@@ -116,10 +115,11 @@ def test_run(
         mock_datetime,
         capsys,
 ):
+    mock_auditor = MagicMock()
     def reset_mocks():
         run.reset_mock()
         parameters.reset_mock()
-        auditor_file.reset_mock()
+        already_generated.reset_mock()
         aws_s3.reset_mock()
         builder_audit_url.reset_mock()
         cached_discussion.reset_mock()
@@ -127,6 +127,7 @@ def test_run(
         llm_decisions_reviewer.reset_mock()
         memory_log.reset_mock()
         mock_datetime.reset_mock()
+        mock_auditor.reset_mock()
 
     identifications = {
         "target": IdentificationParameters(
@@ -153,10 +154,10 @@ def test_run(
 
     tested = BuilderBase()
 
-    # auditor is not ready
+    # the case has already been generated
     run.side_effect = []
     parameters.side_effect = [Namespace(case="theCase")]
-    auditor_file.default_instance.return_value.is_ready.side_effect = [False]
+    already_generated.side_effect = [True]
     aws_s3.return_value.is_ready.side_effect = []
     cached_discussion.side_effect = []
     helper.side_effect = []
@@ -167,7 +168,7 @@ def test_run(
     assert result is None
 
     exp_out = [
-        "Case 'theCase': some files exist already",
+        "Case 'theCase' already generated",
         "",
     ]
     assert capsys.readouterr().out == "\n".join(exp_out)
@@ -175,11 +176,8 @@ def test_run(
     assert run.mock_calls == []
     calls = [call()]
     assert parameters.mock_calls == calls
-    calls = [
-        call.default_instance("theCase", 0),
-        call.default_instance().is_ready(),
-    ]
-    assert auditor_file.mock_calls == calls
+    calls = [call("theCase")]
+    assert already_generated.mock_calls == calls
     assert aws_s3.mock_calls == []
     assert builder_audit_url.mock_calls == []
     assert cached_discussion.mock_calls == []
@@ -187,6 +185,7 @@ def test_run(
     assert llm_decisions_reviewer.mock_calls == []
     assert memory_log.mock_calls == []
     assert mock_datetime.mock_calls == []
+    assert mock_auditor.mock_calls == []
     reset_mocks()
 
     # auditor is ready
@@ -217,26 +216,28 @@ def test_run(
 
         run.side_effect = [None]
         parameters.side_effect = [arguments]
-        auditor_file.default_instance.return_value.is_ready.side_effect = [True]
+        already_generated.side_effect = [False]
         aws_s3.return_value.is_ready.side_effect = [aws_is_ready]
         cached_discussion.get_discussion.side_effect = [discussion]
-        helper.aws_s3_credentials.side_effect = ["awsS3CredentialsInstance1"]
+        helper.get_auditor.side_effect = [mock_auditor]
         helper.get_note_uuid.side_effect = ["noteUuid"]
         helper.get_provider_uuid.side_effect = ["providerUuid"]
         helper.get_canvas_instance.side_effect = ["canvasInstance"]
-        helper.settings.side_effect = [settings]
         memory_log.end_session.side_effect = ["flushedMemoryLog"]
         mock_datetime.now.side_effect = [dates[1]]
+        mock_auditor.s3_credentials = "awsS3CredentialsInstance1"
+        mock_auditor.settings = settings
+        mock_auditor.generate_html_summary.return_value.as_uri.side_effect = ["summaryHTML.uri"]
 
         result = tested.run()
         assert result is None
 
-        exp_out = []
+        exp_out = ["Summary can be viewed at: summaryHTML.uri"]
         if aws_is_ready:
             exp_out.append('Logs saved in: hyperscribe-canvasInstance/finals/2025-03-10/theCase.log')
         exp_out.append('')
         assert capsys.readouterr().out == "\n".join(exp_out)
-        calls = [call(arguments, auditor_file.default_instance.return_value, identifications["target"])]
+        calls = [call(arguments, mock_auditor, identifications["target"])]
         assert run.mock_calls == calls
         calls = [call()]
         assert parameters.mock_calls == calls
@@ -244,18 +245,9 @@ def test_run(
             call.get_note_uuid('patientUuid'),
             call.get_provider_uuid('patientUuid'),
             call.get_canvas_instance(),
-            call.aws_s3_credentials(),
+            call.get_auditor("theCase", 0),
         ]
-        if aws_is_ready:
-            calls.append(call.settings())
         assert helper.mock_calls == calls
-        calls = [
-            call.default_instance("theCase", 0),
-            call.default_instance().is_ready(),
-            call.default_instance().generate_commands_summary(),
-            call.default_instance().generate_html_summary(),
-        ]
-        assert auditor_file.mock_calls == calls
         calls = [
             call("awsS3CredentialsInstance1"),
             call().__bool__(),
@@ -296,6 +288,13 @@ def test_run(
         if aws_is_ready:
             calls.append(call.now(UTC))
         assert mock_datetime.mock_calls == calls
+        calls = [
+            call.case_prepare(),
+            call.case_finalize([]),
+            call.generate_html_summary(),
+            call.generate_html_summary().as_uri(),
+        ]
+        assert mock_auditor.mock_calls == calls
         reset_mocks()
 
     # -- patient is NOT provided
@@ -319,44 +318,38 @@ def test_run(
 
         run.side_effect = [None]
         parameters.side_effect = [arguments]
-        auditor_file.default_instance.return_value.is_ready.side_effect = [True]
+        already_generated.side_effect = [False]
         aws_s3.return_value.is_ready.side_effect = [aws_is_ready]
         cached_discussion.get_discussion.side_effect = [discussion]
-        helper.aws_s3_credentials.side_effect = ["awsS3CredentialsInstance1"]
+        helper.get_auditor.side_effect = [mock_auditor]
         helper.get_note_uuid.side_effect = ["noteUuid"]
         helper.get_provider_uuid.side_effect = ["providerUuid"]
         helper.get_canvas_instance.side_effect = ["canvasInstance"]
         helper.settings.side_effect = [settings]
         memory_log.end_session.side_effect = ["flushedMemoryLog"]
         mock_datetime.now.side_effect = [dates[2]]
+        mock_auditor.s3_credentials = "awsS3CredentialsInstance1"
+        mock_auditor.settings = settings
+        mock_auditor.generate_html_summary.return_value.as_uri.side_effect = ["summaryHTML.uri"]
 
         result = tested.run()
         assert result is None
 
-        exp_out = []
+        exp_out = ["Summary can be viewed at: summaryHTML.uri"]
         if aws_is_ready:
             exp_out.append('Logs saved in: hyperscribe-canvasInstance/finals/2025-03-11/theCase.log')
         exp_out.append('')
         assert capsys.readouterr().out == "\n".join(exp_out)
 
-        calls = [call(arguments, auditor_file.default_instance.return_value, identifications["generic"])]
+        calls = [call(arguments, mock_auditor, identifications["generic"])]
         assert run.mock_calls == calls
         calls = [call()]
         assert parameters.mock_calls == calls
         calls = [
             call.get_canvas_instance(),
-            call.aws_s3_credentials(),
+            call.get_auditor("theCase", 0),
         ]
-        if aws_is_ready:
-            calls.append(call.settings())
         assert helper.mock_calls == calls
-        calls = [
-            call.default_instance("theCase", 0),
-            call.default_instance().is_ready(),
-            call.default_instance().generate_commands_summary(),
-            call.default_instance().generate_html_summary(),
-        ]
-        assert auditor_file.mock_calls == calls
         calls = [
             call("awsS3CredentialsInstance1"),
             call().__bool__(),
@@ -397,16 +390,23 @@ def test_run(
         if aws_is_ready:
             calls.append(call.now(UTC))
         assert mock_datetime.mock_calls == calls
+        calls = [
+            call.case_prepare(),
+            call.case_finalize([]),
+            call.generate_html_summary(),
+            call.generate_html_summary().as_uri(),
+        ]
+        assert mock_auditor.mock_calls == calls
         reset_mocks()
 
 
 @patch("evaluations.case_builders.builder_base.Commander")
-@patch("evaluations.case_builders.builder_base.AuditorFile")
-def test__run_cycle(auditor_file, commander):
+@patch("evaluations.case_builders.builder_base.AuditorStore")
+def test__run_cycle(auditor_store, commander):
     chatter = MagicMock()
 
     def reset_mocks():
-        auditor_file.reset_mock()
+        auditor_store.reset_mock()
         commander.reset_mock()
         chatter.reset_mock()
 
@@ -451,25 +451,22 @@ def test__run_cycle(auditor_file, commander):
         Line(speaker="voiceB", text="theText3"),
         Line(speaker="voiceA", text="theText4"),
     ]
-    previous = "the previous transcript"
+    previous = [Line(speaker="voiceA", text="theText0")]
 
     tested = BuilderBase
     # the transcript has not been done yet
-    auditor_file.default_instance.return_value.transcript.side_effect = [[]]
+    auditor_store.transcript.side_effect = [[]]
     commander.transcript2commands.side_effect = []
     commander.audio2commands.side_effect = [(instructions, effects, "the end of the new transcript")]
-    result = tested._run_cycle("theCase", 7, audios, chatter, instructions[:2], previous)
+    result = tested._run_cycle(auditor_store, audios, chatter, instructions[:2], previous)
     expected = (instructions, "the end of the new transcript")
     assert result == expected
 
-    calls = [
-        call.default_instance('theCase', 7),
-        call.default_instance().transcript(),
-    ]
-    assert auditor_file.mock_calls == calls
+    calls = [call.transcript()]
+    assert auditor_store.mock_calls == calls
     calls = [
         call.audio2commands(
-            auditor_file.default_instance.return_value,
+            auditor_store,
             audios,
             chatter,
             instructions[:2],
@@ -481,21 +478,18 @@ def test__run_cycle(auditor_file, commander):
     reset_mocks()
 
     # the transcript has been done
-    auditor_file.default_instance.return_value.transcript.side_effect = [lines]
+    auditor_store.transcript.side_effect = [lines]
     commander.transcript2commands.side_effect = [(instructions, effects)]
     commander.audio2commands.side_effect = []
-    result = tested._run_cycle("theCase", 7, audios, chatter, instructions[:2], previous)
+    result = tested._run_cycle(auditor_store, audios, chatter, instructions[:2], previous)
     expected = (instructions, [])
     assert result == expected
 
-    calls = [
-        call.default_instance('theCase', 7),
-        call.default_instance().transcript(),
-    ]
-    assert auditor_file.mock_calls == calls
+    calls = [call.transcript()]
+    assert auditor_store.mock_calls == calls
     calls = [
         call.transcript2commands(
-            auditor_file.default_instance.return_value,
+            auditor_store,
             lines,
             chatter,
             instructions[:2],
@@ -557,45 +551,29 @@ def test__limited_cache_from(command_db, existing_commands_to_coded_items):
     reset_mocks()
 
 
-@patch("evaluations.case_builders.builder_base.AuditorFile")
-def test__summary_generated_commands(auditor_file):
-    path_files = [
-        MagicMock(),
-        MagicMock(),
-    ]
+@patch("evaluations.case_builders.builder_base.AuditorStore")
+def test__summary_generated_commands(auditor_store):
 
     def reset_mocks():
-        auditor_file.reset_mock()
-        for item in path_files:
-            item.reset_mock()
+        auditor_store.reset_mock()
 
-    exp_auditor_file_calls = [
-        call.default_instance('theCase', 0),
-        call.default_instance().case_file('parameters2command_file'),
-        call.default_instance().case_file('parameters2command_file'),
+    exp_auditor_store_calls = [
+        call.get_json('parameters2command'),
+        call.get_json('staged_questionnaires'),
     ]
-
-    auditor_file.PARAMETERS2COMMAND_FILE = "parameters2command_file"
-    auditor_file.STAGED_QUESTIONNAIRES_FILE = "parameters2command_file"
 
     tested = BuilderBase
 
-    # there are no files for the case
-    auditor_file.default_instance.return_value.case_file.side_effect = [path_files[0], path_files[1]]
-    for idx, path_file in enumerate(path_files):
-        path_file.exists.side_effect = [False]
-
-    result = tested._summary_generated_commands("theCase")
+    # there are no data for the case
+    auditor_store.get_json.side_effect = [{}, {}]
+    result = tested._summary_generated_commands(auditor_store)
     assert result == []
 
-    assert auditor_file.mock_calls == exp_auditor_file_calls
-    calls = [call.exists()]
-    for path_file in path_files:
-        assert path_file.mock_calls == calls
+    assert auditor_store.mock_calls == exp_auditor_store_calls
     reset_mocks()
 
-    # there are files for the case
-    # -- no commands in the files (only one file)
+    # there are data for the case
+    # -- no commands in the content
     tests = [
         {},
         {
@@ -604,27 +582,16 @@ def test__summary_generated_commands(auditor_file):
         },
     ]
     for content in tests:
-        file_content = json.dumps(content)
-        auditor_file.default_instance.return_value.case_file.side_effect = [path_files[0], path_files[1]]
-        for idx, path_file in enumerate(path_files):
-            path_file.exists.side_effect = [True]
-            path_file.open.return_value.read.side_effect = [file_content, file_content]
+        auditor_store.get_json.side_effect = [content, content]
 
-        result = tested._summary_generated_commands("theCase")
+        result = tested._summary_generated_commands(auditor_store)
         assert result == []
 
-        assert auditor_file.mock_calls == exp_auditor_file_calls
-        for idx, path_file in enumerate(path_files):
-            calls = [
-                call.exists(),
-                call.open('r'),
-                call.open().read(),
-            ]
-            assert path_file.mock_calls == calls
+        assert auditor_store.mock_calls == exp_auditor_store_calls
         reset_mocks()
 
     # -- with commands in the files
-    file_content = json.dumps({
+    content = {
         "cycle_000": {
             "instructions": [
                 {"uuid": "uuid1", "information": "theInformation1"},
@@ -682,13 +649,10 @@ def test__summary_generated_commands(auditor_file):
                     },
                 },
             ]},
-    })
-    auditor_file.default_instance.return_value.case_file.side_effect = [path_files[0], path_files[1]]
-    for idx, path_file in enumerate(path_files):
-        path_file.exists.side_effect = [True]
-        path_file.open.return_value.read.side_effect = [file_content, file_content]
+    }
+    auditor_store.get_json.side_effect = [content, content]
 
-    result = tested._summary_generated_commands("theCase")
+    result = tested._summary_generated_commands(auditor_store)
     expected = [
         # common
         {
@@ -738,14 +702,7 @@ def test__summary_generated_commands(auditor_file):
 
     assert result == expected
 
-    assert auditor_file.mock_calls == exp_auditor_file_calls
-    for idx, path_file in enumerate(path_files):
-        calls = [
-            call.exists(),
-            call.open('r'),
-            call.open().read(),
-        ]
-        assert path_file.mock_calls == calls
+    assert auditor_store.mock_calls == exp_auditor_store_calls
     reset_mocks()
 
 

@@ -1,0 +1,37 @@
+from __future__ import annotations
+
+from evaluations.auditor_file import AuditorFile
+from evaluations.datastores.postgres.case import Case as PostgresCase
+from evaluations.datastores.postgres.generated_note import GeneratedNote as PostgresGeneratedNote
+from evaluations.datastores.store_cases import StoreCases
+from evaluations.helper_evaluation import HelperEvaluation
+
+
+class DatastoreCase:
+    @classmethod
+    def already_generated(cls, case: str) -> bool:
+        postgres_credentials = HelperEvaluation.postgres_credentials()
+        if postgres_credentials.is_ready():
+            case_id = PostgresCase(postgres_credentials).get_id(case)
+            return bool(PostgresGeneratedNote(postgres_credentials).runs_count_for(case_id) > 0)
+
+        return AuditorFile.already_generated(case)
+
+    @classmethod
+    def delete(cls, case: str, delete_audios: bool) -> None:
+        postgres_credentials = HelperEvaluation.postgres_credentials()
+        if postgres_credentials.is_ready():
+            case_id = PostgresCase(postgres_credentials).get_id(case)
+            PostgresGeneratedNote(postgres_credentials).delete_for(case_id)
+            if delete_audios:
+                PostgresCase(postgres_credentials).update_fields(case_id, {"transcript": {}})
+        else:
+            AuditorFile.reset(case, delete_audios)
+
+    @classmethod
+    def all_names(cls) -> list[str]:
+        postgres_credentials = HelperEvaluation.postgres_credentials()
+        if postgres_credentials.is_ready():
+            return PostgresCase(postgres_credentials).all_names()
+
+        return [case.case_name for case in StoreCases.all()]

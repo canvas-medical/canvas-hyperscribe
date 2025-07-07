@@ -11,7 +11,7 @@ def test__db_path():
     with patch('evaluations.datastores.store_cases.Path') as mock_path:
         mock_path.side_effect = [Path('/a/b/c/d/e/theFile.py')]
         result = tested._db_path()
-        assert result == Path('/a/b/c/d/e/cases')
+        assert result == Path('/a/b/c/d/datastores/cases')
 
 
 @patch.object(StoreCases, "_db_path")

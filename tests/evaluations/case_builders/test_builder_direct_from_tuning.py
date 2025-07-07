@@ -11,9 +11,6 @@ from requests import Response
 from evaluations.case_builders.builder_direct_from_tuning import BuilderDirectFromTuning
 from evaluations.structures.case_exchange import CaseExchange
 from evaluations.structures.case_exchange_summary import CaseExchangeSummary
-from evaluations.structures.enums.case_status import CaseStatus
-from evaluations.structures.records.case import Case as RecordCase
-from evaluations.structures.records.generated_note import GeneratedNote as RecordGeneratedNote
 from evaluations.structures.records.real_world_case import RealWorldCase as RecordRealWorldCase
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
@@ -331,13 +328,9 @@ def test___init__():
 @patch("evaluations.case_builders.builder_direct_from_tuning.Commander")
 @patch("evaluations.case_builders.builder_direct_from_tuning.CachedSdk")
 @patch("evaluations.case_builders.builder_direct_from_tuning.AudioInterpreter")
-@patch("evaluations.case_builders.builder_direct_from_tuning.GeneratedNoteStore")
 @patch("evaluations.case_builders.builder_direct_from_tuning.RealWorldCaseStore")
-@patch("evaluations.case_builders.builder_direct_from_tuning.CaseStore")
 def test_generate_case(
-        case_store,
         real_world_case_store,
-        generated_note_store,
         audio_interpreter,
         cached_sdk,
         commander,
@@ -350,9 +343,7 @@ def test_generate_case(
     mock_settings = MagicMock()
 
     def reset_mocks():
-        case_store.reset_mock()
         real_world_case_store.reset_mock()
-        generated_note_store.reset_mock()
         audio_interpreter.reset_mock()
         cached_sdk.reset_mock()
         commander.reset_mock()
@@ -364,27 +355,6 @@ def test_generate_case(
         mock_settings.reset_mock()
 
     tested = helper_instance()
-    lines = [
-        Line(speaker="theSpeaker1", text="theText1"),
-        Line(speaker="theSpeaker2", text="theText2"),
-        Line(speaker="theSpeaker3", text="theText3"),
-        Line(speaker="theSpeaker4", text="theText4"),
-        Line(speaker="theSpeaker5", text="theText5"),
-        Line(speaker="theSpeaker6", text="theText6"),
-    ]
-    case_store.return_value.upsert.side_effect = [
-        RecordCase(
-            name="theName",
-            transcript=lines,
-            limited_chart={"limited": "chart"},
-            profile="theProfile",
-            validation_status=CaseStatus.REVIEW,
-            batch_identifier="theBatchIdentifier",
-            tags={"tag1": "tag1", "tag2": "tag2"},
-            id=147,
-        )
-    ]
-    generated_note_store.return_value.insert.side_effect = [RecordGeneratedNote(case_id=147, id=333)]
     audio_interpreter.side_effect = [mock_chatter]
     commander.transcript2commands.side_effect = [
         (["previous1"], ["effects1"]),
@@ -393,6 +363,8 @@ def test_generate_case(
         (["previous4"], ["effects4"]),
     ]
     auditor_postgres.return_value.summarized_generated_commands_as_instructions.side_effect = ["summarizedInstructions"]
+    auditor_postgres.return_value.case_id.side_effect = [147]
+    auditor_postgres.return_value.cycle_key = "theCycleKey"
     implemented_commands.schema_key2instruction.side_effect = [{'implemented': 'json'}]
     mock_chatter.identification = tested.identification
     limited_cache.to_json.side_effect = [{"obfuscated": "json"}]
@@ -419,20 +391,6 @@ def test_generate_case(
 
     calls = [
         call('thePostgresCredentials'),
-        call().upsert(RecordCase(
-            name='theTitle',
-            transcript=lines,
-            limited_chart={'obfuscated': 'json'},
-            profile='theSummary',
-            validation_status=CaseStatus.GENERATION,
-            batch_identifier='',
-            tags={},
-            id=0,
-        ))
-    ]
-    assert case_store.mock_calls == calls
-    calls = [
-        call('thePostgresCredentials'),
         call().upsert(RecordRealWorldCase(
             case_id=147,
             customer_identifier='canvasInstance',
@@ -447,27 +405,6 @@ def test_generate_case(
         )),
     ]
     assert real_world_case_store.mock_calls == calls
-    calls = [
-        call('thePostgresCredentials'),
-        call().insert(RecordGeneratedNote(
-            case_id=147,
-            cycle_duration=45,
-            cycle_count=0,
-            cycle_transcript_overlap=100,
-            text_llm_vendor='theVendorText',
-            text_llm_name='theModelText',
-            note_json=[],
-            hyperscribe_version='',
-            staged_questionnaires={},
-            transcript2instructions={},
-            instruction2parameters={},
-            parameters2command={},
-            failed=True,
-            errors={},
-            id=0,
-        )),
-    ]
-    assert generated_note_store.mock_calls == calls
     calls = [call(tested.settings, tested.s3_credentials, limited_cache, tested.identification)]
     assert audio_interpreter.mock_calls == calls
     calls = [
@@ -506,12 +443,27 @@ def test_generate_case(
     ]
     assert commander.mock_calls == calls
     calls = [
-        call('theTitle', 0, 333),
+        call('theTitle', 0, mock_settings, tested.s3_credentials, 'thePostgresCredentials'),
+        call().case_prepare(),
+        call().case_update_limited_cache({'obfuscated': 'json'}),
+        call().case_id(),
         call().set_cycle(1),
+        call().upsert_json('audio2transcript',
+                           {'theCycleKey': [{'speaker': 'theSpeaker1', 'text': 'theText1'}]}),
         call().set_cycle(2),
+        call().upsert_json('audio2transcript',
+                           {'theCycleKey': [
+                               {'speaker': 'theSpeaker2', 'text': 'theText2'},
+                               {'speaker': 'theSpeaker3', 'text': 'theText3'}]}),
         call().set_cycle(3),
+        call().upsert_json('audio2transcript',
+                           {'theCycleKey': [
+                               {'speaker': 'theSpeaker4', 'text': 'theText4'},
+                               {'speaker': 'theSpeaker5', 'text': 'theText5'}]}),
         call().set_cycle(4),
-        call().finalize([]),
+        call().upsert_json('audio2transcript',
+                           {'theCycleKey': [{'speaker': 'theSpeaker6', 'text': 'theText6'}]}),
+        call().case_finalize([]),
         call().summarized_generated_commands_as_instructions(),
     ]
     assert auditor_postgres.mock_calls == calls
@@ -521,13 +473,12 @@ def test_generate_case(
     assert helper.mock_calls == calls
     assert mock_chatter.mock_calls == []
     calls = [
-        call.to_json(True),
         call.staged_commands_as_instructions({'implemented': 'json'}),
+        call.to_json(True),
     ]
     assert limited_cache.mock_calls == calls
     calls = [
         call.llm_audio_model(),
-        call.llm_text_model(),
     ]
     assert mock_settings.mock_calls == calls
     reset_mocks()

@@ -3,7 +3,6 @@ from unittest.mock import patch, call, MagicMock
 
 from evaluations.case_builders.builder_base import BuilderBase
 from evaluations.case_builders.builder_from_mp3 import BuilderFromMp3
-from evaluations.structures.evaluation_case import EvaluationCase
 from hyperscribe.handlers.commander import Commander
 from hyperscribe.libraries.cached_sdk import CachedSdk
 from hyperscribe.libraries.implemented_commands import ImplementedCommands
@@ -33,8 +32,6 @@ def test__parameters(argument_parser):
         call(description="Build the files of the evaluation tests against a patient based on the provided files"),
         call().add_argument("--patient", type=BuilderFromMp3.validate_patient, required=True, help="Patient UUID"),
         call().add_argument("--case", type=str, required=True, help="Evaluation case"),
-        call().add_argument("--group", type=str, help="Group of the case", default="common"),
-        call().add_argument("--type", type=str, choices=["situational", "general"], help="Type of the case: situational, general", default="general"),
         call().add_argument("--mp3", required=True, nargs="+", type=BuilderFromMp3.validate_files, help="List of MP3 files"),
         call().add_argument('--combined', action='store_true', default=False, help="Combine the audio files into a single audio"),
         call().add_argument('--render', action='store_true', default=False, help="Upsert the commands of the last cycle to the patient's last note"),
@@ -45,8 +42,6 @@ def test__parameters(argument_parser):
 
 
 @patch("evaluations.case_builders.builder_from_mp3.AudioInterpreter")
-@patch("evaluations.case_builders.builder_from_mp3.HelperEvaluation")
-@patch("evaluations.case_builders.builder_from_mp3.StoreCases")
 @patch.object(CachedSdk, "get_discussion")
 @patch.object(ImplementedCommands, "schema_key2instruction")
 @patch.object(BuilderFromMp3, "_render_in_ui")
@@ -60,8 +55,6 @@ def test__run(
         render_in_ui,
         schema_key2instruction,
         get_discussion,
-        store_cases,
-        helper,
         audio_interpreter,
         capsys,
 ):
@@ -77,8 +70,6 @@ def test__run(
         render_in_ui.reset_mock()
         schema_key2instruction.reset_mock()
         get_discussion.reset_mock()
-        store_cases.reset_mock()
-        helper.reset_mock()
         audio_interpreter.reset_mock()
         for item in mock_files:
             item.reset_mock()
@@ -118,8 +109,8 @@ def test__run(
         limited_cache_from.return_value.to_json.side_effect = [{"key": "value"}]
         limited_cache_from.return_value.staged_commands_as_instructions.side_effect = [instructions[:1]]
         schema_key2instruction.side_effect = ["schemaKey2instruction"]
-        helper.settings.side_effect = ["theSettings"]
-        helper.aws_s3_credentials.side_effect = ["theAwsS3Credentials"]
+        recorder.settings = "theSettings"
+        recorder.s3_credentials = "theAwsS3Credentials"
         combined_audios.side_effect = [[
             [b"audio1"],
             [b"audio1", b"audio2"],
@@ -133,8 +124,6 @@ def test__run(
         parameters = Namespace(
             patient="thePatientUuid",
             case="theCase",
-            group="theGroup",
-            type="theType",
             mp3=[mock_files[idx] for idx in files],
             combined=True,
             render=is_render,
@@ -158,22 +147,6 @@ def test__run(
         assert limited_cache_from.mock_calls == calls
         calls = [call()]
         assert schema_key2instruction.mock_calls == calls
-        calls = [call.upsert(EvaluationCase(
-            environment="theCanvasInstance",
-            patient_uuid="thePatientUuid",
-            limited_cache={"key": "value"},
-            case_name="theCase",
-            case_group="theGroup",
-            case_type="theType",
-            cycles=3,
-            description="theCase",
-        ))]
-        assert store_cases.mock_calls == calls
-        calls = [
-            call.settings(),
-            call.aws_s3_credentials(),
-        ]
-        assert helper.mock_calls == calls
         calls = [call(
             "theSettings",
             "theAwsS3Credentials",
@@ -191,19 +164,24 @@ def test__run(
         calls = [call(parameters)]
         assert combined_audios.mock_calls == calls
         calls = [
-            call('theCase', 0, [b'audio1'], audio_interpreter.return_value, instructions[:1], []),
-            call('theCase', 1, [b'audio1', b'audio2'], audio_interpreter.return_value, instructions[:2], lines[0]),
-            call('theCase', 2, [b'audio2', b'audio3'], audio_interpreter.return_value, instructions[:3], lines[1]),
+            call(recorder, [b'audio1'], audio_interpreter.return_value, instructions[:1], []),
+            call(recorder, [b'audio1', b'audio2'], audio_interpreter.return_value, instructions[:2], lines[0]),
+            call(recorder, [b'audio2', b'audio3'], audio_interpreter.return_value, instructions[:3], lines[1]),
         ]
         assert run_cycle.mock_calls == calls
         calls = []
         if is_render:
-            calls = [call("theCase", identification, limited_cache_from.return_value)]
+            calls = [call(recorder, identification, limited_cache_from.return_value)]
         assert render_in_ui.mock_calls == calls
         for idx, mock_file in enumerate(mock_files):
             assert mock_file.mock_calls == []
-        assert recorder.mock_calls == []
-
+        calls = [
+            call.case_update_limited_cache({'key': 'value'}),
+            call.set_cycle(1),
+            call.set_cycle(2),
+            call.set_cycle(3),
+        ]
+        assert recorder.mock_calls == calls
         reset_mocks()
 
 

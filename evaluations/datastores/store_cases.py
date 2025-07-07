@@ -7,7 +7,7 @@ from evaluations.structures.evaluation_case import EvaluationCase
 class StoreCases:
     @classmethod
     def _db_path(cls) -> Path:
-        return Path(__file__).parent / "cases"
+        return Path(__file__).parent.parent / "datastores/cases"
 
     @classmethod
     def upsert(cls, case: EvaluationCase) -> None:

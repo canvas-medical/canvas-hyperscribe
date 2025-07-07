@@ -107,6 +107,9 @@ class BuilderDirectFromTuningSplit(BuilderDirectFromTuning):
 
         key2instruction = ImplementedCommands.schema_key2instruction()
         for topic, exchange in groupby(topic_exchanges, key=lambda x: x.topic):
+            # # TODO debug
+            # if topic > 2:
+            #     break
             topic_exchange = [line for line in exchange]
             topic_summary = self.topical_exchange_summary(topic_exchange, mp3_file.parent)
             print(f"build case for topic {topic_summary.title}:")

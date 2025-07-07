@@ -42,3 +42,34 @@ def test_from_dictionary():
         database="",
     )
     assert result == expected
+
+
+def test_is_ready():
+    tested = PostgresCredentials(
+        host="theHost",
+        port=1234,
+        user="theUser",
+        password="thePassword",
+        database="theDatabase",
+    )
+    result = tested.is_ready()
+    assert result is True
+
+    arguments = {
+        "host": "",
+        "port": 0,
+        "user": "",
+        "password": "",
+        "database": "",
+    }
+    for field, value in arguments.items():
+        args = {
+                   "host": "theHost",
+                   "port": 1234,
+                   "user": "theUser",
+                   "password": "thePassword",
+                   "database": "theDatabase",
+               } | {field: value}
+        tested = PostgresCredentials(**args)
+        result = tested.is_ready()
+        assert result is False

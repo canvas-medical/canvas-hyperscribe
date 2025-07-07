@@ -1,5 +1,5 @@
-import json
-from argparse import ArgumentTypeError, Namespace
+from argparse import ArgumentTypeError
+from argparse import Namespace
 from datetime import datetime, UTC
 from importlib import import_module
 from pathlib import Path
@@ -8,8 +8,10 @@ from typing import Tuple
 from canvas_sdk.v1.data import Patient, Command
 from requests import post as requests_post, Response
 
-from evaluations.auditor_file import AuditorFile
+from evaluations.auditor_store import AuditorStore
 from evaluations.case_builders.builder_audit_url import BuilderAuditUrl
+from evaluations.constants import Constants as EvaluationConstants
+from evaluations.datastores.datastore_case import DatastoreCase
 from evaluations.helper_evaluation import HelperEvaluation
 from hyperscribe.handlers.commander import Commander
 from hyperscribe.libraries.audio_interpreter import AudioInterpreter
@@ -47,16 +49,14 @@ class BuilderBase:
         raise NotImplementedError
 
     @classmethod
-    def _run(cls, parameters: Namespace, recorder: AuditorFile, identification: IdentificationParameters) -> None:
+    def _run(cls, parameters: Namespace, recorder: AuditorStore, identification: IdentificationParameters) -> None:
         raise NotImplementedError
 
     @classmethod
     def run(cls) -> None:
         parameters = cls._parameters()
-        # auditor
-        recorder = AuditorFile.default_instance(parameters.case, 0)
-        if not recorder.is_ready():
-            print(f"Case '{parameters.case}': some files exist already")
+        if DatastoreCase.already_generated(parameters.case):
+            print(f"Case '{parameters.case}' already generated")
             return
 
         if hasattr(parameters, "patient"):
@@ -76,23 +76,25 @@ class BuilderBase:
 
         _ = MemoryLog(identification, "case_builder")
 
-        cls._run(parameters, recorder, identification)
-        recorder.generate_commands_summary()
-        recorder.generate_html_summary()
+        recorder = HelperEvaluation.get_auditor(parameters.case, 0)
+        recorder.case_prepare()
+        try:
+            cls._run(parameters, recorder, identification)
+        finally:
+            recorder.case_finalize([])  # TODO retrieve the errors
+        print(f"Summary can be viewed at: {recorder.generate_html_summary().as_uri()}")
 
-        aws_s3_credentials = HelperEvaluation.aws_s3_credentials()
-        if (client_s3 := AwsS3(aws_s3_credentials)) and client_s3.is_ready():
+        if (client_s3 := AwsS3(recorder.s3_credentials)) and client_s3.is_ready():
             remote_path = f"hyperscribe-{identification.canvas_instance}/finals/{datetime.now(UTC).date().isoformat()}/{parameters.case}.log"
             client_s3.upload_text_to_s3(remote_path, MemoryLog.end_session(identification.note_uuid))
             print(f"Logs saved in: {remote_path}")
 
-            settings = HelperEvaluation.settings()
-            if settings.audit_llm is True:
+            if recorder.settings.audit_llm is True:
                 discussion = CachedSdk.get_discussion(note_uuid)
                 LlmDecisionsReviewer.review(
                     identification,
-                    settings,
-                    aws_s3_credentials,
+                    recorder.settings,
+                    recorder.s3_credentials,
                     {},
                     discussion.created,
                     discussion.cycle,
@@ -102,14 +104,12 @@ class BuilderBase:
     @classmethod
     def _run_cycle(
             cls,
-            case: str,
-            cycle: int,
+            auditor: AuditorStore,
             audios: list[bytes],
             chatter: AudioInterpreter,
             previous_instructions: list[Instruction],
             previous_transcript: list[Line],
     ) -> Tuple[list[Instruction], list[Line]]:
-        auditor = AuditorFile.default_instance(case, cycle)
         if transcript := auditor.transcript():
             instructions, _ = Commander.transcript2commands(
                 auditor,
@@ -147,31 +147,26 @@ class BuilderBase:
         )
 
     @classmethod
-    def _summary_generated_commands(cls, case: str) -> list[dict]:
+    def _summary_generated_commands(cls, recorder: AuditorStore) -> list[dict]:
         result: dict[str, dict] = {}
 
-        recorder = AuditorFile.default_instance(case, 0)
         # common commands
-        file = recorder.case_file(AuditorFile.PARAMETERS2COMMAND_FILE)
-        if file.exists():
-            cycles = json.load(file.open("r"))
-            for cycle, content in cycles.items():
-                for instruction, command in zip(content["instructions"], content["commands"]):
-                    result[instruction["uuid"]] = {
-                        "instruction": instruction["information"],
-                        "command": cls._remove_uuids(command),
-                    }
+        cycles = recorder.get_json(EvaluationConstants.PARAMETERS2COMMAND)
+        for cycle, content in cycles.items():
+            for instruction, command in zip(content["instructions"], content["commands"]):
+                result[instruction["uuid"]] = {
+                    "instruction": instruction["information"],
+                    "command": cls._remove_uuids(command),
+                }
 
         # questionnaires - command is from the last cycle
-        file = recorder.case_file(AuditorFile.STAGED_QUESTIONNAIRES_FILE)
-        if file.exists():
-            cycles = json.load(file.open("r"))
-            if values := list(cycles.values()):
-                for index, command in enumerate(values[-1]["commands"]):
-                    result[f"questionnaire_{index:02d}"] = {
-                        "instruction": "n/a",
-                        "command": cls._remove_uuids(command),
-                    }
+        cycles = recorder.get_json(EvaluationConstants.STAGED_QUESTIONNAIRES)
+        if values := list(cycles.values()):
+            for index, command in enumerate(values[-1]["commands"]):
+                result[f"questionnaire_{index:02d}"] = {
+                    "instruction": "n/a",
+                    "command": cls._remove_uuids(command),
+                }
 
         return list(result.values())
 
@@ -188,12 +183,15 @@ class BuilderBase:
         }
 
     @classmethod
-    def _render_in_ui(cls, case: str, identification: IdentificationParameters, limited_cache: LimitedCache) -> None:
+    def _render_in_ui(cls, recorder: AuditorStore, identification: IdentificationParameters, limited_cache: LimitedCache) -> None:
         result: list[dict] = []
         commands = [
             summary["command"]
-            for summary in cls._summary_generated_commands(case)
+            for summary in cls._summary_generated_commands(recorder)
         ]
+        print("------")
+        print(commands)
+        print("------")
         if not commands:
             return
 

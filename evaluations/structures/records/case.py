@@ -8,7 +8,7 @@ from hyperscribe.structures.line import Line
 
 class Case(NamedTuple):
     name: str
-    transcript: list[Line] = []
+    transcript: dict[str, list[Line]] = {}
     limited_chart: dict = {}
     profile: str = ""
     validation_status: CaseStatus = CaseStatus.GENERATION
@@ -20,7 +20,10 @@ class Case(NamedTuple):
     def load_record(cls, data: dict) -> Case:
         return Case(
             name=data["name"],
-            transcript=Line.load_from_json(data["transcript"]),
+            transcript={
+                key: Line.load_from_json(lines)
+                for key, lines in data["transcript"].items()
+            },
             limited_chart=data["limited_chart"],
             profile=data["profile"],
             validation_status=CaseStatus(data["validation_status"]),

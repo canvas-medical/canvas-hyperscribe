@@ -8,7 +8,7 @@ def test_class():
     tested = Case
     fields = {
         "name": str,
-        "transcript": list[Line],
+        "transcript": dict[str, list[Line]],
         "limited_chart": dict,
         "profile": str,
         "validation_status": CaseStatus,
@@ -22,7 +22,7 @@ def test_class():
 def test_default():
     result = Case(name="theName")
     assert result.name == "theName"
-    assert result.transcript == []
+    assert result.transcript == {}
     assert result.limited_chart == {}
     assert result.profile == ""
     assert result.validation_status == CaseStatus.GENERATION
@@ -35,12 +35,16 @@ def test_load_record():
     tested = Case
     result = tested.load_record({
         "name": "theName",
-        "transcript": [
+        "transcript": {
+            "cycle_001": [
             {"speaker": "theSpeaker1", "text": "theText1"},
             {"speaker": "theSpeaker2", "text": "theText2"},
             {},
+            ],
+            "cycle_002": [
             {"speaker": "theSpeaker3", "text": "theText3"},
-        ],
+            ],
+        },
         "limited_chart": {"limited": "chart"},
         "profile": "theProfile",
         "validation_status": "evaluation",
@@ -50,12 +54,16 @@ def test_load_record():
     })
     expected = Case(
         name="theName",
-        transcript=[
-            Line(speaker="theSpeaker1", text="theText1"),
-            Line(speaker="theSpeaker2", text="theText2"),
-            Line(speaker="", text=""),
-            Line(speaker="theSpeaker3", text="theText3"),
-        ],
+        transcript={
+            "cycle_001": [
+                Line(speaker="theSpeaker1", text="theText1"),
+                Line(speaker="theSpeaker2", text="theText2"),
+                Line(speaker="", text=""),
+            ],
+            "cycle_002": [
+                Line(speaker="theSpeaker3", text="theText3"),
+            ],
+        },
         limited_chart={"limited": "chart"},
         profile="theProfile",
         validation_status=CaseStatus.EVALUATION,

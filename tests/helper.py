@@ -44,7 +44,7 @@ def compare_sql(left: str, right: str) -> bool:
     cleaned_right = sub("\s+", " ", right).strip()
     if cleaned_left == cleaned_right:
         return True
-    assert cleaned_left == cleaned_right, cleaned_left
+    assert cleaned_left == cleaned_right, f">{cleaned_left}<"
     return False
 
 class MockFile:
@@ -65,7 +65,7 @@ class MockFile:
 
     def __enter__(self):
         if "w" in self.mode and "+" not in self.mode:
-            self.content = ""
+            self.content = b"" if "b" in self.mode else ""
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):

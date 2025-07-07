@@ -111,76 +111,17 @@ def test_insert(alter, mock_datetime):
     reset_mock()
 
 
-@patch("evaluations.datastores.postgres.generated_note.datetime", wraps=datetime)
-@patch.object(GeneratedNote, "_alter")
-def test_update_fields(alter, mock_datetime):
+@patch.object(GeneratedNote, "_update_fields")
+def test_update_fields(update_fields):
     def reset_mock():
-        alter.reset_mock()
-        mock_datetime.reset_mock()
-
-    date_0 = datetime(2025, 7, 4, 6, 11, 4, 805952, tzinfo=timezone.utc)
-
-    tests = [
-        # no field
-        ({}, 0, "", {}),
-        # unknown field
-        ({"unknown": "field"}, 0, "", {}),
-        # regular field
-        (
-            {"failed": True},
-            1,
-            'UPDATE "generated_note" '
-            'SET "updated"=%(now)s, "failed" = %(failed)s '
-            'WHERE "id" = %(id)s AND ("failed"<>%(failed)s)',
-            {'failed': True, 'id': 347, 'now': date_0}
-        ),
-        # json field
-        (
-            {"parameters2command": {"key": "data"}},
-            1,
-            'UPDATE "generated_note" '
-            'SET "updated"=%(now)s, "parameters2command" = %(parameters2command)s '
-            'WHERE "id" = %(id)s AND ("parameters2command"::jsonb<>%(parameters2command)s::jsonb)',
-            {'parameters2command': '{"key": "data"}', 'id': 347, 'now': date_0}
-        ),
-        # several fields
-        (
-            {"instruction2parameters": {"key1": "data1"}, "staged_questionnaires": {"key2": "data2"}, "cycle_count": 11,
-             "text_llm_name": "theTextLlmName"},
-            1,
-            ' UPDATE "generated_note" '
-            'SET "updated"=%(now)s, "instruction2parameters" = %(instruction2parameters)s, '
-            '"staged_questionnaires" = %(staged_questionnaires)s, "cycle_count" = %(cycle_count)s, '
-            '"text_llm_name" = %(text_llm_name)s '
-            'WHERE "id" = %(id)s AND ("instruction2parameters"::jsonb<>%(instruction2parameters)s::jsonb '
-            'OR "staged_questionnaires"::jsonb<>%(staged_questionnaires)s::jsonb '
-            'OR "cycle_count"<>%(cycle_count)s '
-            'OR "text_llm_name"<>%(text_llm_name)s)',
-            {
-                'cycle_count': 11,
-                'id': 347,
-                'instruction2parameters': '{"key1": "data1"}',
-                'now': date_0,
-                'staged_questionnaires': '{"key2": "data2"}',
-                'text_llm_name': 'theTextLlmName',
-
-            }
-        ),
-    ]
+        update_fields.reset_mock()
 
     tested = helper_instance()
-    for updates, exp_count, exp_sql, exp_params in tests:
-        mock_datetime.now.side_effect = [date_0]
+    tested.update_fields(34, {"theField": "theValue"})
 
-        tested.update_fields(347, updates)
-
-        assert len(alter.mock_calls) == exp_count
-        if exp_count > 0:
-            sql, params, involved_id = alter.mock_calls[0].args
-            assert compare_sql(sql, exp_sql)
-            assert params == exp_params
-            assert involved_id == 347
-        reset_mock()
+    calls = [call('generated_note', Record, 34, {'theField': 'theValue'})]
+    assert update_fields.mock_calls == calls
+    reset_mock()
 
 
 @patch.object(GeneratedNote, "_select")
@@ -229,3 +170,50 @@ def test_get_field(select):
             assert compare_sql(sql, exp_sql)
             assert params == exp_params
         reset_mock()
+
+
+@patch.object(GeneratedNote, "_select")
+def test_runs_count_for(select):
+    def reset_mock():
+        select.reset_mock()
+
+    tested = helper_instance()
+
+    test = [
+        ([{"count": 11}], 11),
+        ([], 0),
+    ]
+    for records, expected in test:
+        select.side_effect = [records]
+        result = tested.runs_count_for(34)
+        assert result == expected
+
+        assert len(select.mock_calls) == 1
+        sql, params = select.mock_calls[0].args
+        exp_sql = ('SELECT COUNT("id") AS "count" '
+                   'FROM "generated_note" '
+                   'WHERE "case_id" = %(case_id)s')
+        assert compare_sql(sql, exp_sql)
+        exp_params = {"case_id": 34}
+        assert params == exp_params
+        reset_mock()
+
+
+@patch.object(GeneratedNote, "_alter")
+def test_delete_for(alter):
+    def reset_mock():
+        alter.reset_mock()
+
+    tested = helper_instance()
+
+    tested.delete_for(34)
+
+    assert len(alter.mock_calls) == 1
+    sql, params, involved_id = alter.mock_calls[0].args
+    exp_sql = ('DELETE FROM "generated_note" '
+               'WHERE "case_id" = %(case_id)s RETURNING "id"')
+    assert compare_sql(sql, exp_sql)
+    exp_params = {"case_id": 34}
+    assert params == exp_params
+    assert involved_id is None
+    reset_mock()

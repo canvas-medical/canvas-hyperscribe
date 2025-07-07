@@ -1,7 +1,7 @@
 from argparse import ArgumentParser, Namespace
 from webbrowser import open as browser_open
 
-from evaluations.auditor_file import AuditorFile
+from evaluations.helper_evaluation import HelperEvaluation
 
 
 class BuilderSummarize:
@@ -16,6 +16,6 @@ class BuilderSummarize:
     @classmethod
     def run(cls) -> None:
         parameters = cls._parameters()
-        auditor = AuditorFile.default_instance(parameters.case, 0)
-        if (html := auditor.generate_html_summary()) and html:
-            browser_open(html.as_uri())
+        auditor = HelperEvaluation.get_auditor(parameters.case, 0)
+        html = auditor.generate_html_summary()
+        browser_open(html.as_uri())

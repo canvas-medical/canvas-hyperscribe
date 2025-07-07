@@ -1,32 +1,53 @@
 import json
+from pathlib import Path
+from tempfile import NamedTemporaryFile
 
 from canvas_sdk.commands.commands.questionnaire.question import ResponseOption
 
 from evaluations.constants import Constants
 from hyperscribe.libraries.auditor import Auditor
+from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.instruction import Instruction
 from hyperscribe.structures.instruction_with_command import InstructionWithCommand
 from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.line import Line
+from hyperscribe.structures.settings import Settings
 
 
 class AuditorStore(Auditor):
-    def __init__(self, case: str, cycle: int) -> None:
+    def __init__(self, case: str, cycle: int, settings: Settings, s3_credentials: AwsS3Credentials) -> None:
         super().__init__()
+        self.settings = settings
+        self.s3_credentials = s3_credentials
         self.case = case
         self.cycle = max(0, cycle)
         self.cycle_key = f"{Constants.CASE_CYCLE_SUFFIX}_{self.cycle:03d}"
 
+    def case_prepare(self) -> None:
+        raise NotImplementedError
+
+    def case_update_limited_cache(self, limited_cache: dict) -> None:
+        raise NotImplementedError
+
+    def case_finalize(self, errors: list[str]) -> None:
+        raise NotImplementedError
+
     def upsert_audio(self, label: str, audio: bytes) -> None:
         raise NotImplementedError
 
-    def upsert_json(self, label: str, content: dict | list) -> None:
+    def upsert_json(self, label: str, content: dict) -> None:
         raise NotImplementedError
 
     def get_json(self, label: str) -> dict:
         raise NotImplementedError
 
-    def finalize(self, errors: list[str]) -> None:
+    def limited_chart(self) -> dict:
+        raise NotImplementedError
+
+    def transcript(self) -> list[Line]:
+        raise NotImplementedError
+
+    def full_transcript(self) -> dict[str, list[Line]]:
         raise NotImplementedError
 
     def set_cycle(self, cycle: int) -> None:
@@ -35,13 +56,14 @@ class AuditorStore(Auditor):
 
     def identified_transcript(self, audios: list[bytes], transcript: list[Line]) -> bool:
         for idx, audio in enumerate(audios):
-            audio_file = f"{self.cycle_key}_{idx:02d}.mp3"
+            audio_file = f"{self.cycle_key}_{idx:02d}"
             self.upsert_audio(audio_file, audio)
 
         label = Constants.AUDIO2TRANSCRIPT
-        content = self.get_json(label)
-        content[self.cycle_key] = [t.to_json() for t in transcript]
-        self.upsert_json(label, content)
+        self.upsert_json(
+            label,
+            {self.cycle_key: [line.to_json() for line in transcript]},
+        )
         return True
 
     def found_instructions(
@@ -251,3 +273,14 @@ class AuditorStore(Auditor):
                 )
 
         return list(result.values())
+
+    def generate_html_summary(self) -> Path:
+        template_file = Path(__file__).parent / f"templates/summary.html"
+        data = json.dumps(self.summarized_generated_commands())
+        with template_file.open("r") as source:
+            with NamedTemporaryFile(delete=False, suffix=".html", mode="w") as target:
+                target.write(source
+                             .read()
+                             .replace("{{theCase}}", self.case)
+                             .replace("{{theData}}", data))
+                return Path(target.name)

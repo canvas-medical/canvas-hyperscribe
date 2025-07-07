@@ -27,45 +27,28 @@ def test_parameters(argument_parser):
     reset_mocks()
 
 @patch("evaluations.case_builders.builder_summarize.browser_open")
-@patch("evaluations.case_builders.builder_summarize.AuditorFile")
+@patch("evaluations.case_builders.builder_summarize.HelperEvaluation")
 @patch.object(BuilderSummarize, "_parameters")
-def test_run(parameters, auditor_file, browser_open, ):
+def test_run(parameters, helper, browser_open, ):
     def reset_mocks():
         parameters.reset_mock()
-        auditor_file.reset_mock()
+        helper.reset_mock()
         browser_open.reset_mock()
 
     tested = BuilderSummarize()
 
-    # HTML file does not exist
     parameters.side_effect = [Namespace(case="theCase")]
-    auditor_file.default_instance.return_value.generate_html_summary.side_effect = [None]
+    helper.get_auditor.return_value.generate_html_summary.side_effect = [Path("/from/the/root/file.html")]
 
     tested.run()
 
     calls = [call()]
     assert parameters.mock_calls == calls
     calls = [
-        call.default_instance("theCase", 0),
-        call.default_instance().generate_html_summary(),
+        call.get_auditor("theCase", 0),
+        call.get_auditor().generate_html_summary(),
     ]
-    assert auditor_file.mock_calls == calls
-    assert browser_open.mock_calls == []
-    reset_mocks()
-
-    # HTML file exists
-    parameters.side_effect = [Namespace(case="theCase")]
-    auditor_file.default_instance.return_value.generate_html_summary.side_effect = [Path("/from/the/root/file.html")]
-
-    tested.run()
-
-    calls = [call()]
-    assert parameters.mock_calls == calls
-    calls = [
-        call.default_instance("theCase", 0),
-        call.default_instance().generate_html_summary(),
-    ]
-    assert auditor_file.mock_calls == calls
+    assert helper.mock_calls == calls
     calls = [call('file:///from/the/root/file.html')]
     assert browser_open.mock_calls == calls
     reset_mocks()

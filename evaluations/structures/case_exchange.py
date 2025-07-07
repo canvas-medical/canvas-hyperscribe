@@ -12,11 +12,15 @@ class CaseExchange:
 
     @classmethod
     def load_from_json(cls, json_list: list) -> list[Self]:
+        return cls.load_from_json_default(json_list, 1)
+
+    @classmethod
+    def load_from_json_default(cls, json_list: list, default_chunk: int) -> list[Self]:
         return [
             cls(
                 speaker=json_object["speaker"],
                 text=json_object["text"],
-                chunk=json_object["chunk"],
+                chunk=json_object.get("chunk", default_chunk),
             )
             for json_object in json_list
         ]
