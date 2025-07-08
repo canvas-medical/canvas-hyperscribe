@@ -97,7 +97,7 @@ def test_case_update_limited_cache():
 def test_case_finalize():
     tested = helper_instance()
     with pytest.raises(NotImplementedError):
-        _ = tested.case_finalize(["error1", "error2"])
+        _ = tested.case_finalize({"error1": "value1", "error2": "value2"})
 
 
 def test_upsert_audio():
@@ -1411,7 +1411,7 @@ def test_generate_html_summary(summarized_generated_commands, temp_file, path):
     buffers = [
         MockFile("HTML: case {{theCase}}, data: {{theData}}."),
     ]
-    path.return_value.parent.__truediv__.side_effect = [template_file]
+    path.return_value.parent.parent.__truediv__.side_effect = [template_file]
     summarized_generated_commands.side_effect = [{"key": "other"}]
 
     template_file.open.side_effect = [buffers[0]]

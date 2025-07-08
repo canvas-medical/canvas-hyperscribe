@@ -76,12 +76,15 @@ class BuilderBase:
 
         _ = MemoryLog(identification, "case_builder")
 
+        errors: dict = {}
         recorder = HelperEvaluation.get_auditor(parameters.case, 0)
         recorder.case_prepare()
         try:
             cls._run(parameters, recorder, identification)
+        except Exception as e:
+            errors = HelperEvaluation.trace_error(e)
         finally:
-            recorder.case_finalize([])  # TODO retrieve the errors
+            recorder.case_finalize(errors)
         print(f"Summary can be viewed at: {recorder.generate_html_summary().as_uri()}")
 
         if (client_s3 := AwsS3(recorder.s3_credentials)) and client_s3.is_ready():

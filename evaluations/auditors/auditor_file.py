@@ -14,13 +14,14 @@ from hyperscribe.structures.settings import Settings
 
 class AuditorFile(AuditorStore):
     AUDIOS_FOLDER = "audios"
+    ERROR_JSON_FILE = "errors.json"
     SUMMARY_JSON_FILE = "summary.json"
     SUMMARY_HTML_FILE = "summary.html"
 
 
     @classmethod
     def default_folder_base(cls) -> Path:
-        return Path(__file__).parent / "cases"
+        return Path(__file__).parent.parent / "cases"
 
     def __init__(self, case: str, cycle: int, settings: Settings, s3_credentials: AwsS3Credentials, folder_base: Path) -> None:
         super().__init__(case, cycle, settings, s3_credentials)
@@ -47,7 +48,7 @@ class AuditorFile(AuditorStore):
             description=case.description,
         ))
 
-    def case_finalize(self, errors: list[str]) -> None:
+    def case_finalize(self, errors: dict) -> None:
         # update the cycles
         case = FileSystemCase.get(self.case)
         FileSystemCase.upsert(EvaluationCase(
@@ -65,6 +66,11 @@ class AuditorFile(AuditorStore):
         result = self.folder / self.SUMMARY_JSON_FILE
         with result.open("w") as f:
             json.dump(data, f, indent=2)
+        # errors
+        if errors:
+            result = self.folder / self.ERROR_JSON_FILE
+            with result.open("w") as f:
+                json.dump(errors, f, indent=2)
 
     def upsert_audio(self, label: str, audio: bytes) -> None:
         audio_folder = self.folder / self.AUDIOS_FOLDER

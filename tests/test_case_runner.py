@@ -49,6 +49,7 @@ def test_run(
         already_generated,
         helper,
         audio_interpreter,
+        capsys,
 ):
     mock_chatter = MagicMock()
     mock_auditor = MagicMock()
@@ -96,6 +97,8 @@ def test_run(
 
     tested = CaseRunner
     tested.run()
+
+    assert capsys.readouterr().out == "\n".join(["Case 'theCase' not generated yet", ""])
 
     calls = [call()]
     assert parameters.mock_calls == calls
@@ -185,6 +188,8 @@ def test_run(
         tested = CaseRunner
         tested.run()
 
+        assert capsys.readouterr().out == "\n".join([])
+
         calls = [call()]
         assert parameters.mock_calls == calls
         calls = [call("theCase")]
@@ -209,11 +214,6 @@ def test_run(
         assert helper.mock_calls == calls
         calls = [call("theSettings", 'theAwsCredentials', load_from_json.return_value, identification)]
         assert audio_interpreter.mock_calls == calls
-        calls = [
-            call('theName', 0, 333),
-        ]
-        for idx in range(cycles):
-            calls.append(call().set_cycle(idx + 1))
         assert mock_chatter.mock_calls == []
         calls = [
             call.full_transcript(),
@@ -221,6 +221,74 @@ def test_run(
         ]
         for idx in range(cycles):
             calls.append(call.set_cycle(idx + 1))
-        calls.append(call.case_finalize([]))
+        calls.append(call.case_finalize({}))
         assert mock_auditor.mock_calls == calls
         reset_mocks()
+
+    # errors
+    error = RuntimeError("There was an error")
+    already_generated.side_effect = [True]
+    parameters.side_effect = [Namespace(case="theCase", cycles=3)]
+    load_from_json.return_value.staged_commands_as_instructions.side_effect = [["theCommandAsInstructions"]]
+    schema_key2instruction.side_effect = ["theSchemaKey2Instructions"]
+    transcript2commands.side_effect = [
+        (["previous1"], ["effects1"]),
+        error,
+    ]
+    helper.get_auditor.side_effect = [mock_auditor]
+    helper.trace_error.side_effect = [{"error": "test"}]
+    mock_auditor.limited_chart.side_effect = [{"limited": "chart"}]
+    mock_auditor.full_transcript.side_effect = [{
+        "cycle_001": lines[0:2],
+        "cycle_002": lines[2:5],
+        "cycle_003": lines[5:7],
+    }]
+    mock_auditor.settings = "theSettings"
+    mock_auditor.s3_credentials = "theAwsCredentials"
+    audio_interpreter.side_effect = [mock_chatter]
+    mock_chatter.identification = identification
+
+    tested = CaseRunner
+    tested.run()
+
+    assert capsys.readouterr().out == "\n".join([])
+
+    calls = [call()]
+    assert parameters.mock_calls == calls
+    calls = [call("theCase")]
+    assert already_generated.mock_calls == calls
+    calls = [
+        call({'limited': 'chart'}),
+        call().staged_commands_as_instructions("theSchemaKey2Instructions"),
+    ]
+    assert load_from_json.mock_calls == calls
+    calls = [
+        call('_NoteUuid'),
+        call().set_cycle(1),
+        call().set_cycle(2),
+    ]
+    assert get_discussion.mock_calls == calls
+    calls = [call()]
+    assert schema_key2instruction.mock_calls == calls
+    calls = [
+        call(mock_auditor, lines[0:3], mock_chatter, ["theCommandAsInstructions"]),
+        call(mock_auditor, lines[3:6], mock_chatter, ['previous1']),
+    ]
+    assert transcript2commands.mock_calls == calls
+    calls = [
+        call.get_auditor('theCase', 0),
+        call.trace_error(error),
+    ]
+    assert helper.mock_calls == calls
+    calls = [call("theSettings", 'theAwsCredentials', load_from_json.return_value, identification)]
+    assert audio_interpreter.mock_calls == calls
+    assert mock_chatter.mock_calls == []
+    calls = [
+        call.full_transcript(),
+        call.limited_chart(),
+        call.set_cycle(1),
+        call.set_cycle(2),
+        call.case_finalize({'error': 'test'}),
+    ]
+    assert mock_auditor.mock_calls == calls
+    reset_mocks()

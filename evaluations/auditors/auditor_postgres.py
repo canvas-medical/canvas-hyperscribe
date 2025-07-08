@@ -67,7 +67,7 @@ class AuditorPostgres(AuditorStore):
             {"limited_chart": limited_cache},
         )
 
-    def case_finalize(self, errors: list[str]) -> None:
+    def case_finalize(self, errors: dict) -> None:
         GeneratedNoteStore(self.postgres_credentials).update_fields(
             self.generated_note_id(),
             {

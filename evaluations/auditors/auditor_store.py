@@ -29,7 +29,7 @@ class AuditorStore(Auditor):
     def case_update_limited_cache(self, limited_cache: dict) -> None:
         raise NotImplementedError
 
-    def case_finalize(self, errors: list[str]) -> None:
+    def case_finalize(self, errors: dict) -> None:
         raise NotImplementedError
 
     def upsert_audio(self, label: str, audio: bytes) -> None:
@@ -275,7 +275,7 @@ class AuditorStore(Auditor):
         return list(result.values())
 
     def generate_html_summary(self) -> Path:
-        template_file = Path(__file__).parent / f"templates/summary.html"
+        template_file = Path(__file__).parent.parent / f"templates/summary.html"
         data = json.dumps(self.summarized_generated_commands())
         with template_file.open("r") as source:
             with NamedTemporaryFile(delete=False, suffix=".html", mode="w") as target:

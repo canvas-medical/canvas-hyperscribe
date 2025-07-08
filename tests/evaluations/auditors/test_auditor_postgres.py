@@ -260,7 +260,7 @@ def test_case_finalize(generated_note_id, summarized_generated_commands, generat
     summarized_generated_commands.side_effect = [{"summarized": "commands"}]
 
     tested = helper_instance()
-    tested.case_finalize(["error1", "error2"])
+    tested.case_finalize({"error1": "value1", "error2": "value2"})
 
     calls = [call()]
     assert generated_note_id.mock_calls == calls
@@ -274,7 +274,7 @@ def test_case_finalize(generated_note_id, summarized_generated_commands, generat
                 'cycle_count': 7,
                 'note_json': {'summarized': 'commands'},
                 'failed': True,
-                'errors': ['error1', 'error2'],
+                'errors': {"error1": "value1", "error2": "value2"},
             },
         ),
     ]

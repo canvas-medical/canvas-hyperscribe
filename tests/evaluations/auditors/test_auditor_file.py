@@ -53,6 +53,7 @@ def test_constant():
     tested = AuditorFile
     constants = {
         "AUDIOS_FOLDER": "audios",
+        "ERROR_JSON_FILE": "errors.json",
         "SUMMARY_JSON_FILE": "summary.json",
         "SUMMARY_HTML_FILE": "summary.html",
     }
@@ -74,14 +75,14 @@ def test_default_folder_base(path):
 
     tested = AuditorFile
 
-    path.return_value.parent.__truediv__.side_effect = [folder]
+    path.return_value.parent.parent.__truediv__.side_effect = [folder]
     result = tested.default_folder_base()
     assert result is folder
 
     directory = Path(__file__).parent.as_posix().replace("/tests", "")
     calls = [
         call(f"{directory}/auditor_file.py"),
-        call().parent.__truediv__('cases'),
+        call().parent.parent.__truediv__('cases'),
     ]
     assert path.mock_calls == calls
     reset_mock()
@@ -173,45 +174,56 @@ def test_case_finalize(summarized_generated_commands, filesystem_case):
         filesystem_case.reset_mock()
         summarized_generated_commands.reset_mock()
 
-    filesystem_case.get.side_effect = [EvaluationCase(
-        environment="theEnvironment",
-        patient_uuid="thePatientUuid",
-        limited_cache={"some": "cache"},
-        case_type="theCaseType",
-        case_group="theCaseGroup",
-        case_name="theCase",
-        cycles=3,
-        description="theDescription",
-    )]
-    buffer = MockFile(mode='w')
-    folder.__truediv__.return_value.open.side_effect = [buffer]
-    summarized_generated_commands.side_effect = [{"summary": "generated"}]
-
-    tested.case_finalize(["error1", "error2"])
-    assert buffer.content == '{\n  "summary": "generated"\n}'
-
-    calls = [
-        call.__truediv__('summary.json'),
-        call.__truediv__().open('w'),
+    tests = [
+        ({"error1": "value1", "error2": "value2"}, '{\n  "error1": "value1",\n  "error2": "value2"\n}'),
+        ({}, ''),
     ]
-    assert folder.mock_calls == calls
-    calls = [
-        call.get('theCase'),
-        call.upsert(EvaluationCase(
+    for errors, exp_err in tests:
+        filesystem_case.get.side_effect = [EvaluationCase(
             environment="theEnvironment",
             patient_uuid="thePatientUuid",
             limited_cache={"some": "cache"},
             case_type="theCaseType",
             case_group="theCaseGroup",
             case_name="theCase",
-            cycles=7,
+            cycles=3,
             description="theDescription",
-        ))
-    ]
-    assert filesystem_case.mock_calls == calls
-    calls = [call()]
-    assert summarized_generated_commands.mock_calls == calls
-    reset_mocks()
+        )]
+        buffers = [MockFile(mode='w'), MockFile(mode='w')]
+        folder.__truediv__.return_value.open.side_effect = buffers
+        summarized_generated_commands.side_effect = [{"summary": "generated"}]
+
+        tested.case_finalize(errors)
+        assert buffers[0].content == '{\n  "summary": "generated"\n}'
+        assert buffers[1].content == exp_err
+
+        calls = [
+            call.__truediv__('summary.json'),
+            call.__truediv__().open('w'),
+        ]
+        if errors:
+            calls.extend([
+                call.__truediv__('errors.json'),
+                call.__truediv__().open('w'),
+            ])
+        assert folder.mock_calls == calls
+        calls = [
+            call.get('theCase'),
+            call.upsert(EvaluationCase(
+                environment="theEnvironment",
+                patient_uuid="thePatientUuid",
+                limited_cache={"some": "cache"},
+                case_type="theCaseType",
+                case_group="theCaseGroup",
+                case_name="theCase",
+                cycles=7,
+                description="theDescription",
+            ))
+        ]
+        assert filesystem_case.mock_calls == calls
+        calls = [call()]
+        assert summarized_generated_commands.mock_calls == calls
+        reset_mocks()
 
 
 def test_upsert_audio():

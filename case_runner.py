@@ -50,6 +50,7 @@ class CaseRunner:
         # run the cycles
         length, extra = divmod(len(full_transcript), cycles)
         length += (1 if extra else 0)
+        errors: dict = {}
         try:
             for cycle in range(cycles):
                 idx = cycle * length
@@ -58,9 +59,10 @@ class CaseRunner:
                 discussion.set_cycle(cycle)
                 auditor.set_cycle(cycle)
                 previous, _ = Commander.transcript2commands(auditor, transcript, chatter, previous)
+        except Exception as e:
+            errors = HelperEvaluation.trace_error(e)
         finally:
-            auditor.case_finalize([])  # TODO retrieve the errors
-
+            auditor.case_finalize(errors)
 
 if __name__ == "__main__":
     CaseRunner.run()

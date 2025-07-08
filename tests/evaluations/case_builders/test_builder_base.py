@@ -188,216 +188,230 @@ def test_run(
     assert mock_auditor.mock_calls == []
     reset_mocks()
 
-    # auditor is ready
-    tests = [
-        (True, True),
-        (True, False),
-        (False, True),
-        (False, False),
+    error = RuntimeError("There was an error")
+    tests_error = [
+        (None, False),
+        (error, True),
     ]
-    # -- patient is provided
-    for aws_is_ready, audit_llm in tests:
-        arguments = Namespace(case="theCase", patient="patientUuid")
-
-        settings = Settings(
-            llm_text=VendorKey(vendor="theVendorTextLLM", api_key="theKeyTextLLM"),
-            llm_audio=VendorKey(vendor="theVendorAudioLLM", api_key="theKeyAudioLLM"),
-            science_host='theScienceHost',
-            ontologies_host='theOntologiesHost',
-            pre_shared_key='thePreSharedKey',
-            structured_rfv=True,
-            audit_llm=audit_llm,
-            is_tuning=False,
-            api_signing_key="theApiSigningKey",
-            send_progress=False,
-            commands_policy=AccessPolicy(policy=False, items=[]),
-            staffers_policy=AccessPolicy(policy=False, items=[]),
-        )
-
-        run.side_effect = [None]
-        parameters.side_effect = [arguments]
-        already_generated.side_effect = [False]
-        aws_s3.return_value.is_ready.side_effect = [aws_is_ready]
-        cached_discussion.get_discussion.side_effect = [discussion]
-        helper.get_auditor.side_effect = [mock_auditor]
-        helper.get_note_uuid.side_effect = ["noteUuid"]
-        helper.get_provider_uuid.side_effect = ["providerUuid"]
-        helper.get_canvas_instance.side_effect = ["canvasInstance"]
-        memory_log.end_session.side_effect = ["flushedMemoryLog"]
-        mock_datetime.now.side_effect = [dates[1]]
-        mock_auditor.s3_credentials = "awsS3CredentialsInstance1"
-        mock_auditor.settings = settings
-        mock_auditor.generate_html_summary.return_value.as_uri.side_effect = ["summaryHTML.uri"]
-
-        result = tested.run()
-        assert result is None
-
-        exp_out = ["Summary can be viewed at: summaryHTML.uri"]
-        if aws_is_ready:
-            exp_out.append('Logs saved in: hyperscribe-canvasInstance/finals/2025-03-10/theCase.log')
-        exp_out.append('')
-        assert capsys.readouterr().out == "\n".join(exp_out)
-        calls = [call(arguments, mock_auditor, identifications["target"])]
-        assert run.mock_calls == calls
-        calls = [call()]
-        assert parameters.mock_calls == calls
-        calls = [
-            call.get_note_uuid('patientUuid'),
-            call.get_provider_uuid('patientUuid'),
-            call.get_canvas_instance(),
-            call.get_auditor("theCase", 0),
+    for run_side_effect, has_error in tests_error:
+        # auditor is ready
+        tests = [
+            (True, True),
+            (True, False),
+            (False, True),
+            (False, False),
         ]
-        assert helper.mock_calls == calls
-        calls = [
-            call("awsS3CredentialsInstance1"),
-            call().__bool__(),
-            call().is_ready(),
-        ]
-        if aws_is_ready:
-            calls.append(call().upload_text_to_s3(
-                'hyperscribe-canvasInstance/finals/2025-03-10/theCase.log',
-                "flushedMemoryLog"),
+        # -- patient is provided
+        for aws_is_ready, audit_llm in tests:
+            arguments = Namespace(case="theCase", patient="patientUuid")
+
+            settings = Settings(
+                llm_text=VendorKey(vendor="theVendorTextLLM", api_key="theKeyTextLLM"),
+                llm_audio=VendorKey(vendor="theVendorAudioLLM", api_key="theKeyAudioLLM"),
+                science_host='theScienceHost',
+                ontologies_host='theOntologiesHost',
+                pre_shared_key='thePreSharedKey',
+                structured_rfv=True,
+                audit_llm=audit_llm,
+                is_tuning=False,
+                api_signing_key="theApiSigningKey",
+                send_progress=False,
+                commands_policy=AccessPolicy(policy=False, items=[]),
+                staffers_policy=AccessPolicy(policy=False, items=[]),
             )
-        assert aws_s3.mock_calls == calls
-        calls = []
-        if aws_is_ready and audit_llm:
-            calls = [call.presigned_url('patientUuid', 'noteUuid')]
-        assert builder_audit_url.mock_calls == calls
-        calls = []
-        if aws_is_ready and audit_llm:
-            calls = [call.get_discussion('noteUuid')]
-        assert cached_discussion.mock_calls == calls
-        calls = []
-        if aws_is_ready and audit_llm:
+
+            run.side_effect = [run_side_effect]
+            parameters.side_effect = [arguments]
+            already_generated.side_effect = [False]
+            aws_s3.return_value.is_ready.side_effect = [aws_is_ready]
+            cached_discussion.get_discussion.side_effect = [discussion]
+            helper.get_auditor.side_effect = [mock_auditor]
+            helper.get_note_uuid.side_effect = ["noteUuid"]
+            helper.get_provider_uuid.side_effect = ["providerUuid"]
+            helper.get_canvas_instance.side_effect = ["canvasInstance"]
+            helper.trace_error.side_effect = [{"error": "test"}]
+            memory_log.end_session.side_effect = ["flushedMemoryLog"]
+            mock_datetime.now.side_effect = [dates[1]]
+            mock_auditor.s3_credentials = "awsS3CredentialsInstance1"
+            mock_auditor.settings = settings
+            mock_auditor.generate_html_summary.return_value.as_uri.side_effect = ["summaryHTML.uri"]
+
+            result = tested.run()
+            assert result is None
+
+            exp_out = ["Summary can be viewed at: summaryHTML.uri"]
+            if aws_is_ready:
+                exp_out.append('Logs saved in: hyperscribe-canvasInstance/finals/2025-03-10/theCase.log')
+            exp_out.append('')
+            assert capsys.readouterr().out == "\n".join(exp_out)
+            calls = [call(arguments, mock_auditor, identifications["target"])]
+            assert run.mock_calls == calls
+            calls = [call()]
+            assert parameters.mock_calls == calls
             calls = [
-                call.review(
-                    identifications["target"],
-                    settings,
-                    'awsS3CredentialsInstance1',
-                    {},
-                    dates[0],
-                    3,
-                ),
+                call.get_note_uuid('patientUuid'),
+                call.get_provider_uuid('patientUuid'),
+                call.get_canvas_instance(),
+                call.get_auditor("theCase", 0),
             ]
-        assert llm_decisions_reviewer.mock_calls == calls
-        calls = [call(identifications["target"], "case_builder")]
-        if aws_is_ready:
-            calls.append(call.end_session('noteUuid'))
-        assert memory_log.mock_calls == calls
-        calls = []
-        if aws_is_ready:
-            calls.append(call.now(UTC))
-        assert mock_datetime.mock_calls == calls
-        calls = [
-            call.case_prepare(),
-            call.case_finalize([]),
-            call.generate_html_summary(),
-            call.generate_html_summary().as_uri(),
-        ]
-        assert mock_auditor.mock_calls == calls
-        reset_mocks()
+            if has_error:
+                calls.extend([
+                    call.trace_error(error),
+                ])
+            assert helper.mock_calls == calls
+            calls = [
+                call("awsS3CredentialsInstance1"),
+                call().__bool__(),
+                call().is_ready(),
+            ]
+            if aws_is_ready:
+                calls.append(call().upload_text_to_s3(
+                    'hyperscribe-canvasInstance/finals/2025-03-10/theCase.log',
+                    "flushedMemoryLog"),
+                )
+            assert aws_s3.mock_calls == calls
+            calls = []
+            if aws_is_ready and audit_llm:
+                calls = [call.presigned_url('patientUuid', 'noteUuid')]
+            assert builder_audit_url.mock_calls == calls
+            calls = []
+            if aws_is_ready and audit_llm:
+                calls = [call.get_discussion('noteUuid')]
+            assert cached_discussion.mock_calls == calls
+            calls = []
+            if aws_is_ready and audit_llm:
+                calls = [
+                    call.review(
+                        identifications["target"],
+                        settings,
+                        'awsS3CredentialsInstance1',
+                        {},
+                        dates[0],
+                        3,
+                    ),
+                ]
+            assert llm_decisions_reviewer.mock_calls == calls
+            calls = [call(identifications["target"], "case_builder")]
+            if aws_is_ready:
+                calls.append(call.end_session('noteUuid'))
+            assert memory_log.mock_calls == calls
+            calls = []
+            if aws_is_ready:
+                calls.append(call.now(UTC))
+            assert mock_datetime.mock_calls == calls
+            calls = [
+                call.case_prepare(),
+                call.case_finalize({'error': 'test'} if has_error else {}),
+                call.generate_html_summary(),
+                call.generate_html_summary().as_uri(),
+            ]
+            assert mock_auditor.mock_calls == calls
+            reset_mocks()
 
-    # -- patient is NOT provided
-    for aws_is_ready, audit_llm in tests:
-        arguments = Namespace(case="theCase")
+        # -- patient is NOT provided
+        for aws_is_ready, audit_llm in tests:
+            arguments = Namespace(case="theCase")
 
-        settings = Settings(
-            llm_text=VendorKey(vendor="theVendorTextLLM", api_key="theKeyTextLLM"),
-            llm_audio=VendorKey(vendor="theVendorAudioLLM", api_key="theKeyAudioLLM"),
-            science_host='theScienceHost',
-            ontologies_host='theOntologiesHost',
-            pre_shared_key='thePreSharedKey',
-            structured_rfv=True,
-            audit_llm=audit_llm,
-            is_tuning=False,
-            api_signing_key="theApiSigningKey",
-            send_progress=False,
-            commands_policy=AccessPolicy(policy=False, items=[]),
-            staffers_policy=AccessPolicy(policy=False, items=[]),
-        )
-
-        run.side_effect = [None]
-        parameters.side_effect = [arguments]
-        already_generated.side_effect = [False]
-        aws_s3.return_value.is_ready.side_effect = [aws_is_ready]
-        cached_discussion.get_discussion.side_effect = [discussion]
-        helper.get_auditor.side_effect = [mock_auditor]
-        helper.get_note_uuid.side_effect = ["noteUuid"]
-        helper.get_provider_uuid.side_effect = ["providerUuid"]
-        helper.get_canvas_instance.side_effect = ["canvasInstance"]
-        helper.settings.side_effect = [settings]
-        memory_log.end_session.side_effect = ["flushedMemoryLog"]
-        mock_datetime.now.side_effect = [dates[2]]
-        mock_auditor.s3_credentials = "awsS3CredentialsInstance1"
-        mock_auditor.settings = settings
-        mock_auditor.generate_html_summary.return_value.as_uri.side_effect = ["summaryHTML.uri"]
-
-        result = tested.run()
-        assert result is None
-
-        exp_out = ["Summary can be viewed at: summaryHTML.uri"]
-        if aws_is_ready:
-            exp_out.append('Logs saved in: hyperscribe-canvasInstance/finals/2025-03-11/theCase.log')
-        exp_out.append('')
-        assert capsys.readouterr().out == "\n".join(exp_out)
-
-        calls = [call(arguments, mock_auditor, identifications["generic"])]
-        assert run.mock_calls == calls
-        calls = [call()]
-        assert parameters.mock_calls == calls
-        calls = [
-            call.get_canvas_instance(),
-            call.get_auditor("theCase", 0),
-        ]
-        assert helper.mock_calls == calls
-        calls = [
-            call("awsS3CredentialsInstance1"),
-            call().__bool__(),
-            call().is_ready(),
-        ]
-        if aws_is_ready:
-            calls.append(call().upload_text_to_s3(
-                'hyperscribe-canvasInstance/finals/2025-03-11/theCase.log',
-                "flushedMemoryLog"),
+            settings = Settings(
+                llm_text=VendorKey(vendor="theVendorTextLLM", api_key="theKeyTextLLM"),
+                llm_audio=VendorKey(vendor="theVendorAudioLLM", api_key="theKeyAudioLLM"),
+                science_host='theScienceHost',
+                ontologies_host='theOntologiesHost',
+                pre_shared_key='thePreSharedKey',
+                structured_rfv=True,
+                audit_llm=audit_llm,
+                is_tuning=False,
+                api_signing_key="theApiSigningKey",
+                send_progress=False,
+                commands_policy=AccessPolicy(policy=False, items=[]),
+                staffers_policy=AccessPolicy(policy=False, items=[]),
             )
-        assert aws_s3.mock_calls == calls
-        calls = []
-        if aws_is_ready and audit_llm:
-            calls = [call.presigned_url('_PatientUuid', '_NoteUuid')]
-        assert builder_audit_url.mock_calls == calls
-        calls = []
-        if aws_is_ready and audit_llm:
-            calls = [call.get_discussion('_NoteUuid')]
-        assert cached_discussion.mock_calls == calls
-        calls = []
-        if aws_is_ready and audit_llm:
+
+            run.side_effect = [run_side_effect]
+            parameters.side_effect = [arguments]
+            already_generated.side_effect = [False]
+            aws_s3.return_value.is_ready.side_effect = [aws_is_ready]
+            cached_discussion.get_discussion.side_effect = [discussion]
+            helper.get_auditor.side_effect = [mock_auditor]
+            helper.get_note_uuid.side_effect = ["noteUuid"]
+            helper.get_provider_uuid.side_effect = ["providerUuid"]
+            helper.get_canvas_instance.side_effect = ["canvasInstance"]
+            helper.settings.side_effect = [settings]
+            helper.trace_error.side_effect = [{"error": "test"}]
+            memory_log.end_session.side_effect = ["flushedMemoryLog"]
+            mock_datetime.now.side_effect = [dates[2]]
+            mock_auditor.s3_credentials = "awsS3CredentialsInstance1"
+            mock_auditor.settings = settings
+            mock_auditor.generate_html_summary.return_value.as_uri.side_effect = ["summaryHTML.uri"]
+
+            result = tested.run()
+            assert result is None
+
+            exp_out = ["Summary can be viewed at: summaryHTML.uri"]
+            if aws_is_ready:
+                exp_out.append('Logs saved in: hyperscribe-canvasInstance/finals/2025-03-11/theCase.log')
+            exp_out.append('')
+            assert capsys.readouterr().out == "\n".join(exp_out)
+
+            calls = [call(arguments, mock_auditor, identifications["generic"])]
+            assert run.mock_calls == calls
+            calls = [call()]
+            assert parameters.mock_calls == calls
             calls = [
-                call.review(
-                    identifications["generic"],
-                    settings,
-                    'awsS3CredentialsInstance1',
-                    {},
-                    dates[0],
-                    3,
-                ),
+                call.get_canvas_instance(),
+                call.get_auditor("theCase", 0),
             ]
-        assert llm_decisions_reviewer.mock_calls == calls
-        calls = [call(identifications["generic"], "case_builder")]
-        if aws_is_ready:
-            calls.append(call.end_session('_NoteUuid'))
-        assert memory_log.mock_calls == calls
-        calls = []
-        if aws_is_ready:
-            calls.append(call.now(UTC))
-        assert mock_datetime.mock_calls == calls
-        calls = [
-            call.case_prepare(),
-            call.case_finalize([]),
-            call.generate_html_summary(),
-            call.generate_html_summary().as_uri(),
-        ]
-        assert mock_auditor.mock_calls == calls
-        reset_mocks()
+            if has_error:
+                calls.extend([call.trace_error(error)])
+            assert helper.mock_calls == calls
+            calls = [
+                call("awsS3CredentialsInstance1"),
+                call().__bool__(),
+                call().is_ready(),
+            ]
+            if aws_is_ready:
+                calls.append(call().upload_text_to_s3(
+                    'hyperscribe-canvasInstance/finals/2025-03-11/theCase.log',
+                    "flushedMemoryLog"),
+                )
+            assert aws_s3.mock_calls == calls
+            calls = []
+            if aws_is_ready and audit_llm:
+                calls = [call.presigned_url('_PatientUuid', '_NoteUuid')]
+            assert builder_audit_url.mock_calls == calls
+            calls = []
+            if aws_is_ready and audit_llm:
+                calls = [call.get_discussion('_NoteUuid')]
+            assert cached_discussion.mock_calls == calls
+            calls = []
+            if aws_is_ready and audit_llm:
+                calls = [
+                    call.review(
+                        identifications["generic"],
+                        settings,
+                        'awsS3CredentialsInstance1',
+                        {},
+                        dates[0],
+                        3,
+                    ),
+                ]
+            assert llm_decisions_reviewer.mock_calls == calls
+            calls = [call(identifications["generic"], "case_builder")]
+            if aws_is_ready:
+                calls.append(call.end_session('_NoteUuid'))
+            assert memory_log.mock_calls == calls
+            calls = []
+            if aws_is_ready:
+                calls.append(call.now(UTC))
+            assert mock_datetime.mock_calls == calls
+            calls = [
+                call.case_prepare(),
+                call.case_finalize({'error': 'test'} if has_error else {}),
+                call.generate_html_summary(),
+                call.generate_html_summary().as_uri(),
+            ]
+            assert mock_auditor.mock_calls == calls
+            reset_mocks()
 
 
 @patch("evaluations.case_builders.builder_base.Commander")

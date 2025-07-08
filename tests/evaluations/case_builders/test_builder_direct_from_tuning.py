@@ -354,134 +354,167 @@ def test_generate_case(
         limited_cache.reset_mock()
         mock_settings.reset_mock()
 
-    tested = helper_instance()
-    audio_interpreter.side_effect = [mock_chatter]
-    commander.transcript2commands.side_effect = [
-        (["previous1"], ["effects1"]),
-        (["previous2"], ["effects2"]),
-        (["previous3"], ["effects3"]),
-        (["previous4"], ["effects4"]),
+    error = RuntimeError("There was an error")
+    tests = [
+        (
+            [
+                (["previous1"], ["effects1"]),
+                (["previous2"], ["effects2"]),
+                (["previous3"], ["effects3"]),
+                (["previous4"], ["effects4"]),
+            ],
+            False,
+        ),
+        (
+            [
+                (["previous1"], ["effects1"]),
+                error,
+            ],
+            True,
+        ),
     ]
-    auditor_postgres.return_value.summarized_generated_commands_as_instructions.side_effect = ["summarizedInstructions"]
-    auditor_postgres.return_value.case_id.side_effect = [147]
-    auditor_postgres.return_value.cycle_key = "theCycleKey"
-    implemented_commands.schema_key2instruction.side_effect = [{'implemented': 'json'}]
-    mock_chatter.identification = tested.identification
-    limited_cache.to_json.side_effect = [{"obfuscated": "json"}]
-    limited_cache.staged_commands_as_instructions.side_effect = [["previous0"]]
-    helper.postgres_credentials.side_effect = ["thePostgresCredentials"]
-    mock_settings.llm_audio.vendor = "theVendorAudio"
-    mock_settings.llm_audio_model.side_effect = ["theModelAudio"]
-    mock_settings.llm_text.vendor = "theVendorText"
-    mock_settings.llm_text_model.side_effect = ["theModelText"]
+    for t2c_side_effects, has_error in tests:
+        tested = helper_instance()
+        audio_interpreter.side_effect = [mock_chatter]
+        commander.transcript2commands.side_effect = t2c_side_effects
+        auditor_postgres.return_value.summarized_generated_commands_as_instructions.side_effect = ["summarizedInstructions"]
+        auditor_postgres.return_value.case_id.side_effect = [147]
+        auditor_postgres.return_value.cycle_key = "theCycleKey"
+        implemented_commands.schema_key2instruction.side_effect = [{'implemented': 'json'}]
+        mock_chatter.identification = tested.identification
+        limited_cache.to_json.side_effect = [{"obfuscated": "json"}]
+        limited_cache.staged_commands_as_instructions.side_effect = [["previous0"]]
+        helper.postgres_credentials.side_effect = ["thePostgresCredentials"]
+        helper.trace_error.side_effect = [{"error": "test"}]
+        mock_settings.llm_audio.vendor = "theVendorAudio"
+        mock_settings.llm_audio_model.side_effect = ["theModelAudio"]
+        mock_settings.llm_text.vendor = "theVendorText"
+        mock_settings.llm_text_model.side_effect = ["theModelText"]
 
-    case_summary = CaseExchangeSummary(title="theTitle", summary="theSummary")
-    case_exchanges = [
-        CaseExchange(speaker="theSpeaker1", text="theText1", chunk=1),
-        CaseExchange(speaker="theSpeaker2", text="theText2", chunk=2),
-        CaseExchange(speaker="theSpeaker3", text="theText3", chunk=2),
-        CaseExchange(speaker="theSpeaker4", text="theText4", chunk=3),
-        CaseExchange(speaker="theSpeaker5", text="theText5", chunk=3),
-        CaseExchange(speaker="theSpeaker6", text="theText6", chunk=4),
-    ]
-    tested.settings = mock_settings
-    result = tested.generate_case(limited_cache, case_summary, case_exchanges)
-    expected = "summarizedInstructions"
-    assert result == expected
+        case_summary = CaseExchangeSummary(title="theTitle", summary="theSummary")
+        case_exchanges = [
+            CaseExchange(speaker="theSpeaker1", text="theText1", chunk=1),
+            CaseExchange(speaker="theSpeaker2", text="theText2", chunk=2),
+            CaseExchange(speaker="theSpeaker3", text="theText3", chunk=2),
+            CaseExchange(speaker="theSpeaker4", text="theText4", chunk=3),
+            CaseExchange(speaker="theSpeaker5", text="theText5", chunk=3),
+            CaseExchange(speaker="theSpeaker6", text="theText6", chunk=4),
+        ]
+        tested.settings = mock_settings
+        result = tested.generate_case(limited_cache, case_summary, case_exchanges)
+        expected = "summarizedInstructions"
+        assert result == expected
 
-    calls = [
-        call('thePostgresCredentials'),
-        call().upsert(RecordRealWorldCase(
-            case_id=147,
-            customer_identifier='canvasInstance',
-            patient_note_hash='patient_patientUuid/note_noteUuid',
-            topical_exchange_identifier='theTitle',
-            start_time=0.0,
-            end_time=0.0,
-            duration=0.0,
-            audio_llm_vendor='theVendorAudio',
-            audio_llm_name='theModelAudio',
-            id=0,
-        )),
-    ]
-    assert real_world_case_store.mock_calls == calls
-    calls = [call(tested.settings, tested.s3_credentials, limited_cache, tested.identification)]
-    assert audio_interpreter.mock_calls == calls
-    calls = [
-        call.get_discussion("noteUuid"),
-        call.get_discussion().set_cycle(1),
-        call.get_discussion().set_cycle(2),
-        call.get_discussion().set_cycle(3),
-        call.get_discussion().set_cycle(4),
-    ]
-    assert cached_sdk.mock_calls == calls
-    calls = [
-        call.transcript2commands(
-            auditor_postgres.return_value,
-            [Line(speaker='theSpeaker1', text='theText1')],
-            mock_chatter,
-            ["previous0"],
-        ),
-        call.transcript2commands(
-            auditor_postgres.return_value,
-            [Line(speaker='theSpeaker2', text='theText2'), Line(speaker='theSpeaker3', text='theText3')],
-            mock_chatter,
-            ["previous1"],
-        ),
-        call.transcript2commands(
-            auditor_postgres.return_value,
-            [Line(speaker='theSpeaker4', text='theText4'), Line(speaker='theSpeaker5', text='theText5')],
-            mock_chatter,
-            ["previous2"],
-        ),
-        call.transcript2commands(
-            auditor_postgres.return_value,
-            [Line(speaker='theSpeaker6', text='theText6')],
-            mock_chatter,
-            ["previous3"],
-        ),
-    ]
-    assert commander.mock_calls == calls
-    calls = [
-        call('theTitle', 0, mock_settings, tested.s3_credentials, 'thePostgresCredentials'),
-        call().case_prepare(),
-        call().case_update_limited_cache({'obfuscated': 'json'}),
-        call().case_id(),
-        call().set_cycle(1),
-        call().upsert_json('audio2transcript',
-                           {'theCycleKey': [{'speaker': 'theSpeaker1', 'text': 'theText1'}]}),
-        call().set_cycle(2),
-        call().upsert_json('audio2transcript',
-                           {'theCycleKey': [
-                               {'speaker': 'theSpeaker2', 'text': 'theText2'},
-                               {'speaker': 'theSpeaker3', 'text': 'theText3'}]}),
-        call().set_cycle(3),
-        call().upsert_json('audio2transcript',
-                           {'theCycleKey': [
-                               {'speaker': 'theSpeaker4', 'text': 'theText4'},
-                               {'speaker': 'theSpeaker5', 'text': 'theText5'}]}),
-        call().set_cycle(4),
-        call().upsert_json('audio2transcript',
-                           {'theCycleKey': [{'speaker': 'theSpeaker6', 'text': 'theText6'}]}),
-        call().case_finalize([]),
-        call().summarized_generated_commands_as_instructions(),
-    ]
-    assert auditor_postgres.mock_calls == calls
-    calls = [call.schema_key2instruction()]
-    assert implemented_commands.mock_calls == calls
-    calls = [call.postgres_credentials()]
-    assert helper.mock_calls == calls
-    assert mock_chatter.mock_calls == []
-    calls = [
-        call.staged_commands_as_instructions({'implemented': 'json'}),
-        call.to_json(True),
-    ]
-    assert limited_cache.mock_calls == calls
-    calls = [
-        call.llm_audio_model(),
-    ]
-    assert mock_settings.mock_calls == calls
-    reset_mocks()
+        calls = [
+            call('thePostgresCredentials'),
+            call().upsert(RecordRealWorldCase(
+                case_id=147,
+                customer_identifier='canvasInstance',
+                patient_note_hash='patient_patientUuid/note_noteUuid',
+                topical_exchange_identifier='theTitle',
+                start_time=0.0,
+                end_time=0.0,
+                duration=0.0,
+                audio_llm_vendor='theVendorAudio',
+                audio_llm_name='theModelAudio',
+                id=0,
+            )),
+        ]
+        assert real_world_case_store.mock_calls == calls
+        calls = [call(tested.settings, tested.s3_credentials, limited_cache, tested.identification)]
+        assert audio_interpreter.mock_calls == calls
+        calls = [
+            call.get_discussion("noteUuid"),
+            call.get_discussion().set_cycle(1),
+            call.get_discussion().set_cycle(2),
+        ]
+        if not has_error:
+            calls.extend([
+                call.get_discussion().set_cycle(3),
+                call.get_discussion().set_cycle(4),
+            ])
+        assert cached_sdk.mock_calls == calls
+        calls = [
+            call.transcript2commands(
+                auditor_postgres.return_value,
+                [Line(speaker='theSpeaker1', text='theText1')],
+                mock_chatter,
+                ["previous0"],
+            ),
+            call.transcript2commands(
+                auditor_postgres.return_value,
+                [Line(speaker='theSpeaker2', text='theText2'), Line(speaker='theSpeaker3', text='theText3')],
+                mock_chatter,
+                ["previous1"],
+            ),
+        ]
+        if not has_error:
+            calls.extend([
+                call.transcript2commands(
+                    auditor_postgres.return_value,
+                    [Line(speaker='theSpeaker4', text='theText4'), Line(speaker='theSpeaker5', text='theText5')],
+                    mock_chatter,
+                    ["previous2"],
+                ),
+                call.transcript2commands(
+                    auditor_postgres.return_value,
+                    [Line(speaker='theSpeaker6', text='theText6')],
+                    mock_chatter,
+                    ["previous3"],
+                ),
+            ])
+        assert commander.mock_calls == calls
+        calls = [
+            call('theTitle', 0, mock_settings, tested.s3_credentials, 'thePostgresCredentials'),
+            call().case_prepare(),
+            call().case_update_limited_cache({'obfuscated': 'json'}),
+            call().case_id(),
+            call().set_cycle(1),
+            call().upsert_json('audio2transcript',
+                               {'theCycleKey': [{'speaker': 'theSpeaker1', 'text': 'theText1'}]}),
+            call().set_cycle(2),
+            call().upsert_json('audio2transcript',
+                               {'theCycleKey': [
+                                   {'speaker': 'theSpeaker2', 'text': 'theText2'},
+                                   {'speaker': 'theSpeaker3', 'text': 'theText3'}]}),
+        ]
+        if not has_error:
+            calls.extend([
+                call().set_cycle(3),
+                call().upsert_json('audio2transcript',
+                                   {'theCycleKey': [
+                                       {'speaker': 'theSpeaker4', 'text': 'theText4'},
+                                       {'speaker': 'theSpeaker5', 'text': 'theText5'}]}),
+                call().set_cycle(4),
+                call().upsert_json('audio2transcript',
+                                   {'theCycleKey': [{'speaker': 'theSpeaker6', 'text': 'theText6'}]}),
+                call().case_finalize({}),
+            ])
+        else:
+            calls.extend([
+                call().case_finalize({"error": "test"}),
+            ])
+        calls.extend([
+            call().summarized_generated_commands_as_instructions(),
+        ])
+        assert auditor_postgres.mock_calls == calls
+        calls = [call.schema_key2instruction()]
+        assert implemented_commands.mock_calls == calls
+        calls = [call.postgres_credentials()]
+        if has_error:
+            calls.extend([call.trace_error(error)])
+        assert helper.mock_calls == calls
+        assert mock_chatter.mock_calls == []
+        calls = [
+            call.staged_commands_as_instructions({'implemented': 'json'}),
+            call.to_json(True),
+        ]
+        assert limited_cache.mock_calls == calls
+        calls = [
+            call.llm_audio_model(),
+        ]
+        assert mock_settings.mock_calls == calls
+        reset_mocks()
 
 
 def test_create_transcripts():

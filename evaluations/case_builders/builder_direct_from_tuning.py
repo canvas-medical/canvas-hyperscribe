@@ -119,6 +119,7 @@ class BuilderDirectFromTuning:
             audio_llm_vendor=self.settings.llm_audio.vendor,
             audio_llm_name=self.settings.llm_audio_model(),
         ))
+        errors: dict = {}
         try:
             cycle = 0
             for _, exchange in groupby(case_exchanges, key=lambda x: x.chunk):
@@ -131,8 +132,10 @@ class BuilderDirectFromTuning:
                     {auditor.cycle_key: [line.to_json() for line in transcript]},
                 )
                 previous, _ = Commander.transcript2commands(auditor, transcript, chatter, previous)
+        except Exception as e:
+            errors = HelperEvaluation.trace_error(e)
         finally:
-            auditor.case_finalize([])  # TODO retrieve the errors
+            auditor.case_finalize(errors)
         return auditor.summarized_generated_commands_as_instructions()
 
     def create_transcripts(self, mp3_files: list[Path], interpreter: AudioInterpreter) -> list[Path]:

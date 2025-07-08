@@ -1,6 +1,9 @@
 import json
+from inspect import getargvalues
 from os import environ
 from pathlib import Path
+from pprint import pformat
+from sys import exc_info
 
 from canvas_sdk.v1.data import Note
 
@@ -18,6 +21,25 @@ from hyperscribe.structures.settings import Settings
 
 
 class HelperEvaluation:
+    @staticmethod
+    def trace_error(error: Exception) -> dict:
+        trace = exc_info()[2]
+        steps: list = []
+        variables: dict = {}
+        while trace:
+            frame = trace.tb_frame
+            code_file = frame.f_code.co_filename
+            code_name = frame.f_code.co_name
+            code_line = frame.f_lineno
+            variables = getargvalues(frame).locals
+            steps.append(f'{code_file}.{code_name}:{code_line}')
+            trace = trace.tb_next
+
+        return {
+            'error': str(error),
+            'files': steps,
+            'variables': {variable: pformat(value) for variable, value in variables.items()},
+        }
     @classmethod
     def get_auditor(cls, case: str, cycle: int) -> AuditorStore:
         settings = HelperEvaluation.settings()

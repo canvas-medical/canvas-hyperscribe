@@ -1,5 +1,6 @@
 import json
 from io import StringIO
+from pathlib import Path
 from unittest.mock import patch, MagicMock, call
 
 from canvas_sdk.v1.data import Note
@@ -14,6 +15,27 @@ from hyperscribe.structures.json_extract import JsonExtract
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
 
+
+def test_trace_error():
+    def mistake(a_dict: dict, b_dict: dict, various: str):
+        return a_dict['a'] == b_dict['x'] == various
+
+    file_path = Path(__file__).as_posix()
+    tested = HelperEvaluation
+    try:
+        mistake({'a': 1, 'secret': 'SecretA'}, {'b': 2}, 'random var')
+        assert False  # <-- ensure we go in the exception`
+    except Exception as error:
+        result = tested.trace_error(error)
+        expected = {
+            'error': "'x'",
+            'files': [
+                f'{file_path}.test_trace_error:29',
+                f'{file_path}.mistake:21',
+            ],
+            'variables': {'a_dict': "{'a': 1, 'secret': 'SecretA'}", 'b_dict': "{'b': 2}", 'various': "'random var'"},
+        }
+        assert result == expected
 
 @patch('evaluations.helper_evaluation.AuditorFile')
 @patch('evaluations.helper_evaluation.AuditorPostgres')
