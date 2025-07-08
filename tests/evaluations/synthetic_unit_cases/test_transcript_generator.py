@@ -1,9 +1,10 @@
-import json, random, re, pytest
+import json, random, pytest
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
 from hyperscribe.libraries.constants import Constants
 from evaluations.cases.synthetic_unit_cases import transcript_generator as tg
+from hyperscribe.structures.vendor_key import VendorKey
 
 
 
@@ -87,8 +88,8 @@ def test_generate_transcript_ok(
 ):
     good_json = '[{"speaker":"Clinician","text":"Mid-visit note."}]'
     mock_llm.return_value = _fake_llm(good_json)
-
-    gen = tg.TranscriptGenerator("KEY", str(fake_profiles_file), str(tmp_path))
+    vendor_key = VendorKey(vendor="openai", api_key="MY_KEY")
+    gen = tg.TranscriptGenerator(vendor_key, str(fake_profiles_file), str(tmp_path))
     transcript, spec, raw = gen.generate_transcript_for_profile("stub profile")
 
     assert transcript == json.loads(good_json)
@@ -110,8 +111,8 @@ def test_generate_transcript_bad_json_fallback(
 ):
     bad_json = "NOT-JSON"
     mock_llm.return_value = _fake_llm(bad_json)
-
-    gen = tg.TranscriptGenerator("KEY", str(fake_profiles_file), str(tmp_path))
+    vendor_key = VendorKey(vendor="openai", api_key="MY_KEY")
+    gen = tg.TranscriptGenerator(vendor_key, str(fake_profiles_file), str(tmp_path))
     transcript, spec, raw = gen.generate_transcript_for_profile("stub profile")
 
     assert transcript[0]["speaker"] == "SYSTEM"
@@ -127,7 +128,8 @@ def test_run_creates_files(mock_llm, tmp_path):
         '[{"speaker":"Clinician","text":"content"}]'
     )
     out_root = tmp_path / "out"
-    gen = tg.TranscriptGenerator("KEY", str(profiles_path), str(out_root))
+    vendor_key = VendorKey(vendor="openai", api_key="MY_KEY")
+    gen = tg.TranscriptGenerator(vendor_key, str(profiles_path), str(out_root))
     
     # start at 2 so only Patient 2 is processed
     gen.run(start_index=2, limit=1)
@@ -147,9 +149,11 @@ def test_safe_json_load_happy_path_executes_return():
 
 
 def test__create_llm_real_instance(fake_profiles_file, tmp_path):
-    gen = tg.TranscriptGenerator("KEY123", str(fake_profiles_file), str(tmp_path))
+    vendor_key = VendorKey(vendor="openai", api_key="MY_KEY")
+    gen = tg.TranscriptGenerator(vendor_key, str(fake_profiles_file), str(tmp_path))
     llm = gen._create_llm()
-    assert llm.api_key == "KEY123" and llm.model == Constants.OPENAI_CHAT_TEXT
+    assert llm.api_key == "MY_KEY" 
+    assert llm.model == Constants.OPENAI_CHAT_TEXT_O3
 
 
 def test_build_prompt_includes_seen_openings(fake_profiles_file, tmp_path):
@@ -164,7 +168,8 @@ def test_build_prompt_includes_seen_openings(fake_profiles_file, tmp_path):
 def test_seen_openings_branch(fake_profiles_file, tmp_path):
     good = '[{"speaker":"Clinician","text":"Hello there"}]'
     with patch.object(tg.TranscriptGenerator, "_create_llm", return_value=_fake_llm(good)):
-        g = tg.TranscriptGenerator("KEY", str(fake_profiles_file), str(tmp_path))
+        vendor_key = VendorKey(vendor="vendor", api_key="MY_KEY")
+        g = tg.TranscriptGenerator(vendor_key, str(fake_profiles_file), str(tmp_path))
         assert not g.seen_openings                # empty before
         g.generate_transcript_for_profile("profile")
         # after one call the first line must be stored (branch executed)
@@ -181,6 +186,7 @@ def test_run_without_limit(fake_profiles_file, tmp_path):
     with patch.object(tg.TranscriptGenerator, "_create_llm",
                       return_value=_fake_llm('[{"speaker":"C","text":"x"}]')):
         out_root = tmp_path / "out_no_limit"
-        tg.TranscriptGenerator("K", str(profiles_path), str(out_root)).run()
+        vendor_key = VendorKey(vendor="openai", api_key="MY_KEY")
+        tg.TranscriptGenerator(vendor_key, str(profiles_path), str(out_root)).run()
         assert (out_root / "Patient_1").exists()
         assert (out_root / "Patient_2").exists()

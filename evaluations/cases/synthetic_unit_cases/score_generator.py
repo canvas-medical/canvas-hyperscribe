@@ -3,32 +3,33 @@ from pathlib import Path
 from typing import Any
 from hyperscribe.llms.llm_openai import LlmOpenai
 from hyperscribe.structures.llm_turn import LlmTurn
-from hyperscribe.libraries.constants import Constants
+from hyperscribe.structures.vendor_key import VendorKey
+from hyperscribe.structures.settings import Settings
 from hyperscribe.libraries.memory_log import MemoryLog
-
-def _load_json(p: str | Path) -> Any:
-    with Path(p).expanduser().open() as f:
-        return json.load(f)
 
 class NoteGrader:
     def __init__(self,
-                 llm_key: str,
+                 vendor_key: VendorKey,
                  rubric_path: str | Path,
                  note_path: str | Path,
                  output_path: str | Path):
-        self.llm_key = llm_key
+        self.vendor_key = vendor_key
         self.rubric_path = Path(rubric_path).expanduser()
         self.note_path = Path(note_path).expanduser()
         self.output_path = Path(output_path).expanduser()
         self.rubric = _load_json(self.rubric_path)
         self.note   = _load_json(self.note_path)
 
+    @classmethod
+    def _load_json(p: Path) -> Any:
+        with Path(p).expanduser().open() as f:
+            return json.load(f)
+        
     def _build_llm(self) -> LlmOpenai:
         llm = LlmOpenai(
             MemoryLog.dev_null_instance(),
-            self.llm_key,
-            Constants.OPENAI_CHAT_TEXT,   # o3
-            False
+            self.vendor_key.api_key,
+            with_audit=False
         )
 
         llm.add_prompt(LlmTurn(role="system", text=[
@@ -97,9 +98,10 @@ if __name__ == "__main__":
     parser.add_argument("output_path", help="Where to save grading JSON")
     args = parser.parse_args()
 
-    llm_key = os.environ["KeyTextLLM"]
+    settings = Settings.from_dictionary(os.environ)
+    vendor_key = settings.llm_text
     grader = NoteGrader(
-        llm_key,
+        vendor_key,
         rubric_path=args.rubric_path,
         note_path=args.hyperscribe_output_path,
         output_path=args.output_path)

@@ -1,8 +1,6 @@
-from typing import NamedTuple, Optional
+from typing import NamedTuple
 
 
 class VendorKey(NamedTuple):
     vendor: str
     api_key: str
-    model: Optional[str] = None
-    temperature: Optional[float] = None

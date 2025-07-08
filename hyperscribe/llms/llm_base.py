@@ -26,7 +26,7 @@ class LlmBase:
         self.api_key = api_key
         self.model = model
         self.with_audit = with_audit
-        self.temperature = 0.0 
+        self.temperature = 0.0
         self.prompts: list[LlmTurn] = []
         self.audios: list[dict] = []
 

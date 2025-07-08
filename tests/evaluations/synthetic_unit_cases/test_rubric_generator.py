@@ -4,9 +4,9 @@ from pathlib import Path
 from unittest.mock import patch, MagicMock
 
 import pytest
-
-# module under test
 from evaluations.cases.synthetic_unit_cases import rubric_generator as rg
+from hyperscribe.structures.vendor_key import VendorKey
+
 
 @pytest.fixture
 def stub_paths(tmp_path):
@@ -31,12 +31,14 @@ def test_load_json_reads_file(tmp_path):
 
 
 def test_create_llm_uses_key():
-    gen = rg.RubricGenerator("MY_KEY")
+    vendor_key = VendorKey(vendor="openai", api_key="MY_KEY")
+    gen = rg.RubricGenerator(vendor_key)
     assert gen.llm.api_key == "MY_KEY"
-    assert gen.llm.model == rg.Constants.OPENAI_CHAT_TEXT #checks that o3 is used as default. 
+    assert gen.llm.model == rg.Constants.OPENAI_CHAT_TEXT_O3
 
 def test_build_prompt_adds_two_turns():
-    g = rg.RubricGenerator("KEY")
+    vendor_key = VendorKey(vendor="openai", api_key="MY_KEY")
+    g = rg.RubricGenerator(vendor_key)
     g.build_prompt(transcript=[{"x": 1}],
                    chart={"y": 2},
                    canvas_context={"z": 3})
@@ -59,7 +61,8 @@ def test_generate_success(load_json_mock, monkeypatch, stub_paths, tmp_path):
         {"criterion": "Reward for capturing greeting",
          "weight": 10, "sense": "positive"}
     ]
-    gen = rg.RubricGenerator("KEY")
+    vendor_key = VendorKey(vendor="openai", api_key="MY_KEY")
+    gen = rg.RubricGenerator(vendor_key)
     monkeypatch.setattr(gen.llm, "request", lambda: _fake_response(json.dumps(rubric_json)))
 
     out = tmp_path / "rubric.json"
@@ -72,7 +75,8 @@ def test_generate_success(load_json_mock, monkeypatch, stub_paths, tmp_path):
 @patch.object(rg.RubricGenerator, "load_json")
 def test_generate_fallback_raw(load_json_mock, monkeypatch, stub_paths, tmp_path):
     load_json_mock.side_effect = lambda p: json.loads(Path(p).read_text())
-    gen = rg.RubricGenerator("KEY")
+    vendor_key = VendorKey(vendor="openai", api_key="MY_KEY")
+    gen = rg.RubricGenerator(vendor_key)
     monkeypatch.setattr(
         gen.llm, "request", lambda: _fake_response("NOT-JSON")
     )

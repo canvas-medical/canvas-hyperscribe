@@ -1,8 +1,9 @@
 import json, pytest
 from unittest.mock import patch, call, MagicMock
-from hyperscribe.llms.llm_openai import LlmOpenai, LlmOpenai4o
+from hyperscribe.llms.llm_openai import LlmOpenai 
+from hyperscribe.llms.llm_openai_o3 import LlmOpenaiO3
 from hyperscribe.structures.http_response import HttpResponse
-from hyperscribe.libraries.constants import Constants
+from hyperscribe.libraries.memory_log import MemoryLog
 from http import HTTPStatus
 
 
@@ -292,20 +293,15 @@ def test_request_passes_through_non_200(requests_post):
     # response stays the full JSON
     assert out.response == resp.text
 
-#make sure llmopenai40 class includes text modality. 
-def test_llm_openai4o_to_dict_forces_modalities_and_text():
-    memory_log = MagicMock()
-    #subclass
-    client: LlmOpenai4o = LlmOpenai4o(memory_log, "key123", with_audit=False, temperature=0.75)
-    client.set_system_prompt(["sys line"])
-    client.set_user_prompt(["user line"])
-    payload = client.to_dict(for_log=False)
+def test_to_dict_removes_modalities():
+    mock_log = MagicMock(spec=MemoryLog)
+    llm = LlmOpenaiO3(memory_log=mock_log, api_key="sk-test", with_audit=True, temperature=0.5)
 
-    assert payload["model"] == Constants.OPENAI_CHAT_TEXT_4O
-    assert pytest.approx(payload["temperature"], 0.001) == 0.75
-    assert payload["modalities"] == ["text"]
-    msgs = payload["messages"]
-    assert msgs[0]["role"] == "system"
-    assert msgs[0]["content"][0]["text"] == "sys line"
-    assert msgs[1]["role"] == "user"
-    assert msgs[1]["content"][0]["text"] == "user line"
+    #patching to_dict with a fake dict to test
+    parent_dict = {"modalities": "text", "other": "value"}
+    llm.__class__.__bases__[0].to_dict = lambda self, for_log: parent_dict.copy()
+
+    result = llm.to_dict(for_log=True)
+
+    assert "modalities" not in result
+    assert result == {"other": "value"}

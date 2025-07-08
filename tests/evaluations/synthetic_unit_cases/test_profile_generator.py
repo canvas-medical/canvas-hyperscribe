@@ -3,6 +3,7 @@ from pathlib import Path
 from unittest.mock import patch
 from evaluations.cases.synthetic_unit_cases import profile_generator as pg
 from hyperscribe.libraries.constants import Constants
+from hyperscribe.structures.vendor_key import VendorKey
 
 @pytest.fixture
 def dummy_profiles():
@@ -23,10 +24,11 @@ def test_patient_profile_summarize():
 
 
 def test_create_llm_uses_key():
-    generator = pg.PatientProfileGenerator("KEY")
+    vendor_key = VendorKey(vendor="openai", api_key="MY_KEY")
+    generator = pg.PatientProfileGenerator(vendor_key)
     llm = generator._create_llm()
-    assert llm.model == Constants.OPENAI_CHAT_TEXT #this tests for the o3 constant default
-    assert llm.api_key == "KEY"
+    assert llm.model == Constants.OPENAI_CHAT_TEXT_O3
+    assert llm.api_key == "MY_KEY"
     
 
 @patch.object(pg.PatientProfileGenerator, "_create_llm")
@@ -34,8 +36,8 @@ def test_generate_batch_parses_llm_json(mock_llm_cls):
     #uses .request() to return the fake string
     instance = mock_llm_cls.return_value
     instance.request.return_value.response = fake_llm_response(3)
-
-    g = pg.PatientProfileGenerator("KEY")
+    vendor_key = VendorKey(vendor="openai", api_key="MY_KEY")
+    g = pg.PatientProfileGenerator(vendor_key)
     batch = g.generate_batch(batch_num=1, count=3)
 
     # expectations–three sentences in seen_scenarios 

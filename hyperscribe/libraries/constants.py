@@ -19,8 +19,8 @@ class Constants:
     MAX_WORKERS = 10  # max parallel executions
     MEMORY_LOG_LABEL = "main"
     OPENAI_CHAT_AUDIO = "gpt-4o-audio-preview"  # LLM model used for speech to text
-    OPENAI_CHAT_TEXT = "o3"  # LLM model used for text completion
-    OPENAI_CHAT_TEXT_4O = "gpt-4o"
+    OPENAI_CHAT_TEXT = "gpt-4o"  # LLM model used for text completion
+    OPENAI_CHAT_TEXT_O3 = "o3" #LLM model used for synthetic case generation
     VENDOR_ANTHROPIC = "Anthropic"
     VENDOR_GOOGLE = "Google"
     VENDOR_OPENAI = "OpenAI"
