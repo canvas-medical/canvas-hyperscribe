@@ -3,7 +3,7 @@ from unittest.mock import patch, call, MagicMock
 
 import pytest
 
-from evaluations.auditor_store import AuditorStore
+from evaluations.auditors.auditor_store import AuditorStore
 from hyperscribe.libraries.auditor import Auditor
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
@@ -1395,8 +1395,8 @@ def test_summarized_generated_commands_as_instructions(get_json):
     reset_mocks()
 
 
-@patch("evaluations.auditor_store.Path")
-@patch("evaluations.auditor_store.NamedTemporaryFile")
+@patch("evaluations.auditors.auditor_store.Path")
+@patch("evaluations.auditors.auditor_store.NamedTemporaryFile")
 @patch.object(AuditorStore, "summarized_generated_commands")
 def test_generate_html_summary(summarized_generated_commands, temp_file, path):
     template_file = MagicMock()

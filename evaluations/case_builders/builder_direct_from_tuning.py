@@ -8,7 +8,7 @@ from tempfile import TemporaryDirectory
 
 import ffmpeg
 
-from evaluations.auditor_postgres import AuditorPostgres
+from evaluations.auditors.auditor_postgres import AuditorPostgres
 from evaluations.constants import Constants as EvaluationConstants
 from evaluations.datastores.postgres.real_world_case import RealWorldCase as RealWorldCaseStore
 from evaluations.helper_evaluation import HelperEvaluation

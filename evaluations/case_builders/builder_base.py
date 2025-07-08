@@ -8,7 +8,7 @@ from typing import Tuple
 from canvas_sdk.v1.data import Patient, Command
 from requests import post as requests_post, Response
 
-from evaluations.auditor_store import AuditorStore
+from evaluations.auditors.auditor_store import AuditorStore
 from evaluations.case_builders.builder_audit_url import BuilderAuditUrl
 from evaluations.constants import Constants as EvaluationConstants
 from evaluations.datastores.datastore_case import DatastoreCase

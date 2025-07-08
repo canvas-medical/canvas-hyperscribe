@@ -4,9 +4,9 @@ from pathlib import Path
 
 from canvas_sdk.v1.data import Note
 
-from evaluations.auditor_file import AuditorFile
-from evaluations.auditor_postgres import AuditorPostgres
-from evaluations.auditor_store import AuditorStore
+from evaluations.auditors.auditor_file import AuditorFile
+from evaluations.auditors.auditor_postgres import AuditorPostgres
+from evaluations.auditors.auditor_store import AuditorStore
 from evaluations.constants import Constants
 from evaluations.structures.postgres_credentials import PostgresCredentials
 from hyperscribe.libraries.constants import Constants as HyperscribeConstants

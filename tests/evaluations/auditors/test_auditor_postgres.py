@@ -1,8 +1,8 @@
 from inspect import getsource
 from unittest.mock import patch, call, MagicMock
 
-from evaluations.auditor_postgres import AuditorPostgres
-from evaluations.auditor_store import AuditorStore
+from evaluations.auditors.auditor_postgres import AuditorPostgres
+from evaluations.auditors.auditor_store import AuditorStore
 from evaluations.structures.enums.case_status import CaseStatus
 from evaluations.structures.postgres_credentials import PostgresCredentials
 from evaluations.structures.records.case import Case as CaseRecord
@@ -87,7 +87,7 @@ def test___init__():
     assert tested.postgres_credentials == psql_credentials
 
 
-@patch('evaluations.auditor_postgres.CaseStore')
+@patch('evaluations.auditors.auditor_postgres.CaseStore')
 def test_case_id(case_store):
     def reset_mocks():
         case_store.reset_mock()
@@ -115,7 +115,7 @@ def test_case_id(case_store):
     reset_mocks()
 
 
-@patch('evaluations.auditor_postgres.GeneratedNoteStore')
+@patch('evaluations.auditors.auditor_postgres.GeneratedNoteStore')
 @patch.object(AuditorPostgres, 'case_id')
 def test_generated_note_id(case_id, generated_note_store):
     mock_settings = MagicMock()
@@ -180,7 +180,7 @@ def test_generated_note_id(case_id, generated_note_store):
     reset_mocks()
 
 
-@patch('evaluations.auditor_postgres.CaseStore')
+@patch('evaluations.auditors.auditor_postgres.CaseStore')
 def test_case_prepare(case_store):
     def reset_mocks():
         case_store.reset_mock()
@@ -225,7 +225,7 @@ def test_case_prepare(case_store):
     reset_mocks()
 
 
-@patch('evaluations.auditor_postgres.CaseStore')
+@patch('evaluations.auditors.auditor_postgres.CaseStore')
 @patch.object(AuditorPostgres, 'case_id')
 def test_case_update_limited_cache(case_id, case_store):
     def reset_mocks():
@@ -247,7 +247,7 @@ def test_case_update_limited_cache(case_id, case_store):
     reset_mocks()
 
 
-@patch('evaluations.auditor_postgres.GeneratedNoteStore')
+@patch('evaluations.auditors.auditor_postgres.GeneratedNoteStore')
 @patch.object(AuditorPostgres, 'summarized_generated_commands')
 @patch.object(AuditorPostgres, 'generated_note_id')
 def test_case_finalize(generated_note_id, summarized_generated_commands, generated_note_store):
@@ -297,8 +297,8 @@ def test_upsert_audio():
     assert tested.upsert_audio("theLabel", b"audio1") is None
 
 
-@patch('evaluations.auditor_postgres.GeneratedNoteStore')
-@patch('evaluations.auditor_postgres.CaseStore')
+@patch('evaluations.auditors.auditor_postgres.GeneratedNoteStore')
+@patch('evaluations.auditors.auditor_postgres.CaseStore')
 @patch.object(AuditorPostgres, 'generated_note_id')
 @patch.object(AuditorPostgres, 'case_id')
 def test_upsert_json(case_id, generated_note_id, case_store, generated_note_store):
@@ -355,7 +355,7 @@ def test_upsert_json(case_id, generated_note_id, case_store, generated_note_stor
     reset_mocks()
 
 
-@patch('evaluations.auditor_postgres.GeneratedNoteStore')
+@patch('evaluations.auditors.auditor_postgres.GeneratedNoteStore')
 @patch.object(AuditorPostgres, 'generated_note_id')
 def test_get_json(generated_note_id, generated_note_store):
     def reset_mocks():
@@ -379,7 +379,7 @@ def test_get_json(generated_note_id, generated_note_store):
     reset_mocks()
 
 
-@patch('evaluations.auditor_postgres.CaseStore')
+@patch('evaluations.auditors.auditor_postgres.CaseStore')
 @patch.object(AuditorPostgres, 'case_id')
 def test_limited_chart(case_id, case_store):
     def reset_mocks():
@@ -429,7 +429,7 @@ def test_transcript(full_transcript):
     reset_mocks()
 
 
-@patch('evaluations.auditor_postgres.CaseStore')
+@patch('evaluations.auditors.auditor_postgres.CaseStore')
 @patch.object(AuditorPostgres, 'case_id')
 def test_full_transcript(case_id, case_store):
     def reset_mocks():

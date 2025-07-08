@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from evaluations.auditor_file import AuditorFile
+from evaluations.auditors.auditor_file import AuditorFile
 from evaluations.datastores.postgres.case import Case as PostgresCase
 from evaluations.datastores.postgres.generated_note import GeneratedNote as PostgresGeneratedNote
 from evaluations.datastores.filesystem.case import Case as FileSystemCase

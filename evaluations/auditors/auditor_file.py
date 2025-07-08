@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from evaluations.auditor_store import AuditorStore
+from evaluations.auditors.auditor_store import AuditorStore
 from evaluations.constants import Constants as EvaluationConstants
 from evaluations.datastores.filesystem.case import Case as FileSystemCase
 from evaluations.structures.evaluation_case import EvaluationCase

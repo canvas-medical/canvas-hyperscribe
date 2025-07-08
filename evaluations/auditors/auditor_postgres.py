@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from evaluations.auditor_store import AuditorStore
+from evaluations.auditors.auditor_store import AuditorStore
 from evaluations.constants import Constants as EvaluationConstants
 from evaluations.datastores.postgres.case import Case as CaseStore
 from evaluations.datastores.postgres.generated_note import GeneratedNote as GeneratedNoteStore

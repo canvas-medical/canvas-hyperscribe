@@ -1,6 +1,6 @@
 from argparse import ArgumentParser, Namespace
 
-from evaluations.auditor_store import AuditorStore
+from evaluations.auditors.auditor_store import AuditorStore
 from evaluations.case_builders.builder_base import BuilderBase
 from hyperscribe.handlers.commander import Commander
 from hyperscribe.libraries.audio_interpreter import AudioInterpreter

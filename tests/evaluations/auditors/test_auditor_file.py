@@ -4,8 +4,8 @@ import json
 from pathlib import Path
 from unittest.mock import patch, call, MagicMock
 
-from evaluations.auditor_file import AuditorFile
-from evaluations.auditor_store import AuditorStore
+from evaluations.auditors.auditor_file import AuditorFile
+from evaluations.auditors.auditor_store import AuditorStore
 from evaluations.structures.evaluation_case import EvaluationCase
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
@@ -64,7 +64,7 @@ def test_auditor_file():
     assert issubclass(tested, AuditorStore)
 
 
-@patch("evaluations.auditor_file.Path")
+@patch("evaluations.auditors.auditor_file.Path")
 def test_default_folder_base(path):
     folder = MagicMock()
 
@@ -93,7 +93,7 @@ def test___init__():
     assert isinstance(tested.s3_credentials, AwsS3Credentials)
 
 
-@patch('evaluations.auditor_file.FileSystemCase')
+@patch('evaluations.auditors.auditor_file.FileSystemCase')
 def test_case_prepare(filesystem_case):
     folder, tested = helper_instance()
 
@@ -126,7 +126,7 @@ def test_case_prepare(filesystem_case):
         reset_mocks()
 
 
-@patch('evaluations.auditor_file.FileSystemCase')
+@patch('evaluations.auditors.auditor_file.FileSystemCase')
 def test_case_update_limited_cache(filesystem_case):
     folder, tested = helper_instance()
 
@@ -163,7 +163,7 @@ def test_case_update_limited_cache(filesystem_case):
     reset_mocks()
 
 
-@patch('evaluations.auditor_file.FileSystemCase')
+@patch('evaluations.auditors.auditor_file.FileSystemCase')
 @patch.object(AuditorFile, 'summarized_generated_commands')
 def test_case_finalize(summarized_generated_commands, filesystem_case):
     folder, tested = helper_instance()
@@ -340,7 +340,7 @@ def test_get_json():
         reset_mocks()
 
 
-@patch('evaluations.auditor_file.FileSystemCase')
+@patch('evaluations.auditors.auditor_file.FileSystemCase')
 def test_limited_chart(filesystem_case):
     folder, tested = helper_instance()
 
