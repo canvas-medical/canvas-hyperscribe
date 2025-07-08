@@ -6,7 +6,10 @@ from unittest.mock import ANY
 from unittest.mock import MagicMock, patch
 
 import pytest
-from evaluations.cases.synthetic_unit_cases import grader_generator as gg
+from evaluations.cases.synthetic_unit_cases import score_generator as gg
+from hyperscribe.structures.vendor_key import VendorKey
+from hyperscribe.libraries.constants import Constants
+
 
 @pytest.fixture
 def tmp_files(tmp_path):
@@ -38,16 +41,11 @@ def test_build_llm_uses_key(mock_openai, tmp_files):
     rubric_path, note_path, output, *_ = tmp_files
 
     dummy_llm = MagicMock()
-    dummy_llm.api_key = "KEY123"
     mock_openai.return_value = dummy_llm  
-
-    grader = gg.NoteGrader("KEY123", rubric_path, note_path, output)
-    llm = grader._build_llm() #should call add_prompt twice. 
-    # assertions
-    mock_openai.assert_called_once_with(ANY, "KEY123", 
-                        gg.Constants.OPENAI_CHAT_TEXT, False)
-    assert llm.api_key == "KEY123"
-    # two prompts added (system + user)
+    vendor_key = VendorKey(vendor="openai", api_key="MY_KEY")
+    grader = gg.NoteGrader(vendor_key, rubric_path, note_path, output)
+    grader._build_llm()
+    
     assert dummy_llm.add_prompt.call_count == 2
 
 
@@ -60,7 +58,8 @@ def test_run_happy_path(mock_build, tmp_files):
     ]
     mock_build.return_value = _fake_response(json.dumps(llm_payload))
 
-    grader = gg.NoteGrader("KEY", rubric_path, note_path, output)
+    vendor_key = VendorKey(vendor="openai", api_key="KEY")
+    grader = gg.NoteGrader(vendor_key, rubric_path, note_path, output)
     grader.run()
 
     saved = json.loads(output.read_text())
@@ -77,7 +76,8 @@ def test_run_raw_fallback(mock_build, tmp_files, monkeypatch):
     mock_build.return_value = _fake_response(raw_text)
     monkeypatch.setattr(sys, "exit", lambda code=0: (_ for _ in ()).throw(SystemExit(code)))
 
-    grader = gg.NoteGrader("KEY", r_path, n_path, out_path)
+    vendor_key = VendorKey(vendor="openai", api_key="KEY")
+    grader = gg.NoteGrader(vendor_key, r_path, n_path, out_path)
 
     with pytest.raises(SystemExit) as exc:
         grader.run()

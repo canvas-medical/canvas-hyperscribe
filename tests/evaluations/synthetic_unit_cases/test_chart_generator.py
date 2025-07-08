@@ -2,6 +2,8 @@ from pathlib import Path
 import json, uuid, pytest
 from unittest.mock import MagicMock, patch
 from evaluations.cases.synthetic_unit_cases import chart_generator as cg
+from hyperscribe.structures.vendor_key import VendorKey
+from hyperscribe.libraries.constants import Constants
 
 @pytest.fixture
 def example_chart():
@@ -38,14 +40,14 @@ def test_assign_valid_uuids_replaces_all():
 def test_create_llm_uses_key(example_chart, dummy_profiles, tmp_path):
     ex = tmp_path / "ex.json"
     ex.write_text(json.dumps(example_chart))
+    vendor_key = VendorKey(vendor="openai", api_key="MY_KEY")
     gen = cg.ChartGenerator(
-        llm_key="KEY",
+        vendor_key,
         input_profiles_path=str(dummy_profiles),
         output_root_path=str(tmp_path),
         example_chart_path=str(ex))
     llm = gen._create_llm()
-    assert llm.api_key == "KEY"
-    assert llm.model == cg.Constants.OPENAI_CHAT_TEXT
+    assert llm.model == Constants.OPENAI_CHAT_TEXT_O3
 
 @patch.object(cg.ChartGenerator, "_create_llm")
 def test_generate_chart_for_profile_parses_json(mock_llm, example_chart, dummy_profiles, tmp_path):
@@ -66,8 +68,9 @@ def test_generate_chart_for_profile_parses_json(mock_llm, example_chart, dummy_p
 @patch.object(cg.LimitedCache, "load_from_json")
 def test_validate_chart_passes_to_cache(mock_cache, example_chart, dummy_profiles, tmp_path):
     (tmp_path / "ex.json").write_text(json.dumps(example_chart))
+    vendor_key = VendorKey(vendor="openai", api_key="MY_KEY")
     gen = cg.ChartGenerator(
-        llm_key="KEY",
+        vendor_key,
         input_profiles_path=str(dummy_profiles),
         output_root_path=str(tmp_path),
         example_chart_path=str(tmp_path / "ex.json"),

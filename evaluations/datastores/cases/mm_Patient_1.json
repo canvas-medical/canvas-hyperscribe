@@ -1,9 +1,0 @@
-{
-  "environment": "plugin-testing",
-  "patientUuid": "_PatientUuid",
-  "caseType": "general",
-  "caseGroup": "common",
-  "caseName": "mm_Patient_1",
-  "cycles": 1,
-  "description": "mm_Patient_1"
-}

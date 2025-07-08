@@ -1,15 +1,21 @@
 import os, re, json, argparse
 from pathlib import Path
-from hyperscribe.llms.llm_openai import LlmOpenai
+from hyperscribe.llms.llm_openai_o3 import LlmOpenaiO3
 from hyperscribe.structures.llm_turn import LlmTurn
 from hyperscribe.libraries.constants import Constants
+from hyperscribe.structures.vendor_key import VendorKey
+from hyperscribe.structures.settings import Settings
 from hyperscribe.libraries.memory_log import MemoryLog
 from typing import Any, cast 
 
 
 class RubricGenerator:
-    def __init__(self, llm_key: str):
-        self.llm = LlmOpenai(MemoryLog.dev_null_instance(), llm_key, Constants.OPENAI_CHAT_TEXT, False)
+    def __init__(self, vendor_key: VendorKey):
+        self.vendor_key = vendor_key
+        self.llm = LlmOpenaiO3(
+            MemoryLog.dev_null_instance(), 
+            self.vendor_key.api_key, 
+            with_audit=False)
 
     @staticmethod
     def load_json(path: Path) -> list[dict[str, Any]]:
@@ -113,6 +119,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    llm_key = os.environ["KeyTextLLM"]
-    generator = RubricGenerator(llm_key)
+    settings = Settings.from_dictionary(os.environ)
+    vendor_key = settings.llm_text
+    generator = RubricGenerator(vendor_key)
     generator.generate(args.transcript_path, args.chart_path, args.canvas_context_path, args.output_path)

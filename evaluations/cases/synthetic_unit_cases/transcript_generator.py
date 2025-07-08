@@ -7,9 +7,10 @@ import argparse
 from typing import Optional, List, Tuple, Any, cast
 from json import JSONDecodeError
 
-from hyperscribe.llms.llm_openai import LlmOpenai
+from hyperscribe.llms.llm_openai_o3 import LlmOpenaiO3
 from hyperscribe.structures.llm_turn import LlmTurn
-from hyperscribe.libraries.constants import Constants
+from hyperscribe.structures.vendor_key import VendorKey
+from hyperscribe.structures.settings import Settings
 from hyperscribe.libraries.memory_log import MemoryLog
 
 class TGConstants:
@@ -64,7 +65,7 @@ def _safe_json_load(txt: str) -> Tuple[Optional[Any], Optional[str]]:
         if data:
             return data, None
 
-    stripped = stripped = re.sub(r",\s+(?=[}\]])", "", txt)
+    stripped = re.sub(r",\s+(?=[}\]])", "", txt)
     data, err = attempt(stripped)
     if data:
         return data, None
@@ -75,8 +76,8 @@ def _safe_json_load(txt: str) -> Tuple[Optional[Any], Optional[str]]:
 class TranscriptGenerator:
     """Generate mid‑conversation transcript snippets with controlled variation."""
 
-    def __init__(self, llm_key: str, input_profiles_path: str, output_root_path: str) -> None:
-        self.llm_key = llm_key
+    def __init__(self, vendor_key: VendorKey, input_profiles_path: str, output_root_path: str) -> None:
+        self.vendor_key = vendor_key
         self.input_profiles_path = Path(input_profiles_path).expanduser()
         self.output_root = Path(output_root_path).expanduser()
         self.output_root.mkdir(parents=True, exist_ok=True)
@@ -87,9 +88,12 @@ class TranscriptGenerator:
         with self.input_profiles_path.open() as f:
             return cast(dict[str, str], json.load(f))
 
-    def _create_llm(self) -> LlmOpenai:
-        return LlmOpenai(MemoryLog.dev_null_instance(), self.llm_key,
-                         Constants.OPENAI_CHAT_TEXT, False)
+    def _create_llm(self) -> LlmOpenaiO3:
+        return LlmOpenaiO3(
+            MemoryLog.dev_null_instance(),
+            self.vendor_key.api_key,
+            with_audit=False
+        )
 
     def _random_bucket(self) -> str:
         return random.choice(list(TGConstants.TURN_BUCKETS.keys()))
@@ -212,14 +216,13 @@ class TranscriptGenerator:
 
 
 if __name__ == "__main__":
-    llm_key = os.getenv("KeyTextLLM")
-    if not llm_key:
-        raise RuntimeError("KeyTextLLM env var not set")
+    settings = Settings.from_dictionary(os.environ)
+    vendor_key = settings.llm_text
 
     generator = TranscriptGenerator(
-        llm_key=llm_key,
-        input_profiles_path="~/canvas-hyperscribe/evaluations/cases/synthetic_unit_cases/med_management/patient_profiles.json",
-        output_root_path="~/canvas-hyperscribe/evaluations/cases/synthetic_unit_cases/med_management"
+        vendor_key=vendor_key,
+        input_profiles_path="~/canvas-hyperscribe/evaluations/cases/synthetic_unit_cases/patient_profiles_test.json",
+        output_root_path="~/canvas-hyperscribe/evaluations/cases/synthetic_unit_cases/"
     )
     # pass --limit N via CLI if desired
     parser = argparse.ArgumentParser()

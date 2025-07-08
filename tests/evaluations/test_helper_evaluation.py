@@ -110,7 +110,7 @@ def test_settings(monkeypatch):
         tested = HelperEvaluation
         result = tested.settings()
         expected = Settings(
-            llm_text=VendorKey(vendor="textVendor", api_key="textAPIKey", model=None, temperature=None),
+            llm_text=VendorKey(vendor="textVendor", api_key="textAPIKey"),
             llm_audio=VendorKey(vendor="audioVendor", api_key="audioAPIKey"),
             science_host="theScienceHost",
             ontologies_host="theOntologiesHost",

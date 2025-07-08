@@ -3,11 +3,13 @@ import json
 from pathlib import Path
 import os
 import argparse
-from hyperscribe.llms.llm_openai import LlmOpenai
+from hyperscribe.llms.llm_openai_o3 import LlmOpenaiO3
 from hyperscribe.structures.llm_turn import LlmTurn
-from hyperscribe.libraries.constants import Constants
+from hyperscribe.structures.vendor_key import VendorKey
+from hyperscribe.structures.settings import Settings
 from hyperscribe.libraries.memory_log import MemoryLog
 from typing import Any
+
 
 class PatientProfile:
     def __init__(self, name: str, narrative: str) -> None:
@@ -20,28 +22,25 @@ class PatientProfile:
 
 
 class PatientProfileGenerator:
-    def __init__(self, llm_key: str) -> None:
-        self.llm_key = llm_key
+    def __init__(self, vendor_key: VendorKey) -> None:
+        self.vendor_key = vendor_key
         self.seen_scenarios: list[str] = []
 
-    def _create_llm(self) -> LlmOpenai:
-        return LlmOpenai(
+    def _create_llm(self) -> LlmOpenaiO3:
+        return LlmOpenaiO3(
             MemoryLog.dev_null_instance(),
-            self.llm_key,
-            Constants.OPENAI_CHAT_TEXT,
-            False
+            self.vendor_key.api_key,
+            with_audit=False
         )
 
     def generate_batch(self, batch_num: int, count: int = 5) -> list[PatientProfile]:
         llm = self._create_llm()
-
         llm.add_prompt(LlmTurn(
             role="system",
             text=[
                 "You are a clinical informatics expert generating synthetic patient profiles for testing medication management AI systems. You understand the structure and variation in real EHR notes and how medication histories reflect complex clinical decision-making."
             ]
         ))
-
         llm.add_prompt(LlmTurn(
             role="user",
             text=[
@@ -91,8 +90,8 @@ class PatientProfileGenerator:
         return batch_profiles
 
 class PatientProfilePipeline:
-    def __init__(self, llm_key: str, output_path_str: str) -> None:
-        self.generator = PatientProfileGenerator(llm_key)
+    def __init__(self, vendor_key: VendorKey, output_path_str: str) -> None:
+        self.generator = PatientProfileGenerator(vendor_key)
         self.output_path = Path(output_path_str).expanduser()
         self.all_profiles: dict[str, str] = {}
 
@@ -115,7 +114,7 @@ class PatientProfilePipeline:
                 json.dump({name: narrative}, f, indent=2)
             print(f"Saved profile for {name} to {file_path}")
 
-    def run(self, batches: int=4, batch_size: int=5) -> None:
+    def run(self, batches: int, batch_size: int) -> None:
         for batch_num in range(1, batches + 1):
             print(f"Generating batch {batch_num}...")
             batch_profiles = self.generator.generate_batch(batch_num, batch_size)
@@ -128,19 +127,16 @@ class PatientProfilePipeline:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Generate synthetic patient-profile JSON batches.")
-    parser.add_argument("--batches", type=int, default=4, help="Number of batches to produce (default: 1)")
-    parser.add_argument("--batch-size", type=int, default=5, help="Profiles per batch (default: 3)")
-    parser.add_argument("--output", type=str, 
-            default="~/canvas-hyperscribe/evaluations/cases/synthetic_unit_cases/model_testing/patient_profiles.json",
-            help="Path of combined JSON output (default shown)")
+    parser.add_argument("--batches", type=int, help="Number of batches to produce (default: 1)")
+    parser.add_argument("--batch-size", type=int, help="Profiles per batch (default: 3)")
+    parser.add_argument("--output", type=str, help="Path of combined JSON output")
     args = parser.parse_args()
-
-    llm_key = os.getenv("KeyTextLLM")
-    if not llm_key:
-        raise RuntimeError("KeyTextLLM environment variable is not set.")
+    
+    settings = Settings.from_dictionary(os.environ)
+    vendor_key = settings.llm_text
 
     pipeline = PatientProfilePipeline(
-        llm_key=llm_key,
+        vendor_key=settings.llm_text,
         output_path_str=args.output
     )
     pipeline.run(batches=args.batches, batch_size=args.batch_size)

@@ -2,10 +2,11 @@ import json, re, uuid, os, argparse
 import re
 import uuid
 from pathlib import Path
-from hyperscribe.llms.llm_openai import LlmOpenai
+from hyperscribe.llms.llm_openai_o3 import LlmOpenaiO3
 from hyperscribe.structures.llm_turn import LlmTurn
-from hyperscribe.libraries.constants import Constants
 from hyperscribe.libraries.memory_log import MemoryLog
+from hyperscribe.structures.settings import Settings
+from hyperscribe.structures.vendor_key import VendorKey
 from hyperscribe.libraries.limited_cache import LimitedCache
 from typing import Any, cast
 
@@ -18,6 +19,7 @@ class ChartGenerator:
         self.profiles = self._load_profiles()
         self.example_chart = self._load_example_chart()
 
+    @classmethod
     def _load_profiles(self) -> dict[str, str]:
         with self.input_profiles_path.open('r') as f:
             return cast(dict[str, str], json.load(f))
@@ -26,12 +28,11 @@ class ChartGenerator:
         with self.example_chart_path.open('r') as f:
             return cast(dict[str, str | list[dict[str, str]]], json.load(f))
 
-    def _create_llm(self) -> LlmOpenai:
-        return LlmOpenai(
+    def _create_llm(self) -> LlmOpenaiO3:
+        return LlmOpenaiO3(
             MemoryLog.dev_null_instance(),
             self.llm_key,
-            Constants.OPENAI_CHAT_TEXT,
-            False
+            with_audit=False
         )
 
     def generate_chart_for_profile(self, profile_text: str) -> Any:
@@ -84,7 +85,7 @@ class ChartGenerator:
             return obj
 
     def run(self, start_index: int = 1, limit: int | None = None) -> None:
-        items = list(self.profiles.items())
+        items = self.profiles.values()
         items = items[start_index - 1:]
         if limit is not None:
             items = items[:limit]
@@ -108,9 +109,8 @@ class ChartGenerator:
             print(f"Saved limited_chart.json to {chart_path}")
 
 if __name__ == "__main__":
-    llm_key = os.getenv("KeyTextLLM")
-    if not llm_key:
-        raise RuntimeError("KeyTextLLM environment variable is not set.")
+    settings = Settings.from_dictionary(os.environ)
+    vendor_key: VendorKey = settings.llm_text
 
     parser = argparse.ArgumentParser(
         description="Generate Canvas-compatible limited_chart.json files.")
@@ -119,23 +119,15 @@ if __name__ == "__main__":
     parser.add_argument("--limit", type=int, default=None,
                         help="Process at most N patients (default: all)")
     parser.add_argument("--profiles", type=str, required=False,
-                        default="~/canvas-hyperscribe/evaluations/cases/"
-                                "synthetic_unit_cases/model_testing/"
-                                "patient_profiles.json",
                         help="Path to patient_profiles.json")
-    parser.add_argument("--out-root", type=str, required=False,
-                        default="~/canvas-hyperscribe/evaluations/cases/"
-                                "synthetic_unit_cases/model_testing/",
+    parser.add_argument("--out", type=str, required=False,
                         help="Root folder to write Patient_X/limited_chart.json")
     parser.add_argument("--example", type=str, required=False,
-                        default="~/canvas-hyperscribe/evaluations/cases/"
-                                "synthetic_unit_cases/"
-                                "representative_limited_chart.json",
                         help="Example limited_chart structure")
 
     args = parser.parse_args()
 
-    generator = ChartGenerator(llm_key=llm_key, input_profiles_path=args.profiles,
-                        output_root_path=args.out_root, example_chart_path=args.example)
-    generator.run(start_index=args.start, limit=args.limit)
+    generator = ChartGenerator(vendor_key.api_key, args.profiles,
+                        args.out, args.example)
+    generator.run(args.start, args.limit)
 

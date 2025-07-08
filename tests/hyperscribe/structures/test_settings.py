@@ -172,9 +172,3 @@ def test_list_from():
     for string, expected in tests:
         result = tested.list_from(string)
         assert result == expected, f"---> {string}"
-
-def test_float_or_none_variants():
-    assert Settings.float_or_none("3.14") == pytest.approx(3.14)
-    assert Settings.float_or_none("not_a_number") is None
-    assert Settings.float_or_none(None) is None
-

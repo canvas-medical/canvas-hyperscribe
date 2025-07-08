@@ -7,7 +7,5 @@ def test_class():
     fields = {
         "vendor": str,
         "api_key": str,
-        "model": Optional[str],
-        "temperature": Optional[float],
     }
     assert is_namedtuple(tested, fields)

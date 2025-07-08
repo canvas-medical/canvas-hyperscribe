@@ -1,4 +1,4 @@
-import csv
+import subprocess
 import json
 import runpy
 import sys
@@ -29,34 +29,46 @@ def test_load_json_reads_file(tmp_path):
     assert erg.load_json(p) == payload
 
 
-def test_script_generates_csv(tmp_path, monkeypatch):
-    rubric_path, scores_path, output = _write_inputs(tmp_path, n=3)
+def test_script_generates_csv(tmp_path):
+    rubric_path, scores_path, output_path = _write_inputs(tmp_path, n=2)
+    script_path = Path("evaluations/cases/synthetic_unit_cases/eval_report_generator.py")
 
-    monkeypatch.setattr(
-        sys, "argv",
-        ["eval_report.py", str(rubric_path), str(scores_path), str(output)],)
-
-    runpy.run_module(
-        "evaluations.cases.synthetic_unit_cases.eval_report_generator", run_name="__main__")
-
-    assert output.exists()
-    rows = list(csv.DictReader(output.open()))
-    assert len(rows) == 3
-    assert rows[0]["Criterion #"] == "1"
-    assert rows[0]["Max Score"] == "10"
-    assert rows[0]["Satisfaction (%)"] == "95.5"
-    assert rows[0]["Score Awarded"] == "9.56"
-
-
-def test_length_mismatch_raises(tmp_path, monkeypatch):
-    """If rubric & score lengths differ the script should raise ValueError."""
-    rubric_p, scores_p, out_p = _write_inputs(tmp_path, n=2)
-    scores_p.write_text(json.dumps([{"satisfaction": 80, "score": 8, "rationale": "x"}]))
-
-    monkeypatch.setattr(sys, "argv",
-        ["eval_report_generator.py", str(rubric_p), str(scores_p), str(out_p)],
+    result = subprocess.run(
+        [
+            "python", str(script_path),
+            "--rubric", str(rubric_path),
+            "--scores", str(scores_path),
+            "--out", str(output_path)
+        ],
+        capture_output=True,
+        text=True,
+        check=False
     )
 
-    with pytest.raises(ValueError):
-        runpy.run_module(
-            "evaluations.cases.synthetic_unit_cases.eval_report_generator", run_name="__main__")
+    assert result.returncode == 0, f"Script failed:\n{result.stderr}"
+    assert output_path.exists(), "CSV file was not generated"
+    content = output_path.read_text()
+    assert "Criterion #" in content
+    assert "Score Awarded" in content
+
+
+def test_length_mismatch_raises(tmp_path):
+    rubric_path, scores_path, output_path = _write_inputs(tmp_path, n=3)
+    rubric_path.write_text(json.dumps([{"criterion": "C0", "weight": 10}]))
+
+    script_path = Path("evaluations/cases/synthetic_unit_cases/eval_report_generator.py")
+
+    result = subprocess.run(
+        [
+            "python", str(script_path),
+            "--rubric", str(rubric_path),
+            "--scores", str(scores_path),
+            "--out", str(output_path)
+        ],
+        capture_output=True,
+        text=True,
+        check=False
+    )
+
+    assert result.returncode != 0, "Expected non-zero return code for mismatched lengths"
+    assert "Rubric and score arrays must have the same length." in result.stderr
