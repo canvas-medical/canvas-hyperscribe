@@ -5,7 +5,7 @@ from pathlib import Path
 
 from evaluations.auditor_store import AuditorStore
 from evaluations.constants import Constants as EvaluationConstants
-from evaluations.datastores.store_cases import StoreCases
+from evaluations.datastores.filesystem.case import Case as FileSystemCase
 from evaluations.structures.evaluation_case import EvaluationCase
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.line import Line
@@ -29,14 +29,14 @@ class AuditorFile(AuditorStore):
     def case_prepare(self) -> None:
         if self.folder.exists() is False:
             self.folder.mkdir()
-        StoreCases.upsert(EvaluationCase(
+        FileSystemCase.upsert(EvaluationCase(
             case_name=self.case,
             description=self.case,
         ))
 
     def case_update_limited_cache(self, limited_cache: dict) -> None:
-        case = StoreCases.get(self.case)
-        StoreCases.upsert(EvaluationCase(
+        case = FileSystemCase.get(self.case)
+        FileSystemCase.upsert(EvaluationCase(
             environment=case.environment,
             patient_uuid=case.patient_uuid,
             limited_cache=limited_cache,
@@ -49,8 +49,8 @@ class AuditorFile(AuditorStore):
 
     def case_finalize(self, errors: list[str]) -> None:
         # update the cycles
-        case = StoreCases.get(self.case)
-        StoreCases.upsert(EvaluationCase(
+        case = FileSystemCase.get(self.case)
+        FileSystemCase.upsert(EvaluationCase(
             environment=case.environment,
             patient_uuid=case.patient_uuid,
             limited_cache=case.limited_cache,
@@ -91,7 +91,7 @@ class AuditorFile(AuditorStore):
         return {}
 
     def limited_chart(self) -> dict:
-        return StoreCases.get(self.case).limited_cache
+        return FileSystemCase.get(self.case).limited_cache
 
     def transcript(self) -> list[Line]:
         return self.full_transcript().get(self.cycle_key, [])

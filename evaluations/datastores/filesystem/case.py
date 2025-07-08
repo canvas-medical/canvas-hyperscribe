@@ -4,10 +4,10 @@ from pathlib import Path
 from evaluations.structures.evaluation_case import EvaluationCase
 
 
-class StoreCases:
+class Case:
     @classmethod
     def _db_path(cls) -> Path:
-        return Path(__file__).parent.parent / "datastores/cases"
+        return Path(__file__).parent.parent.parent / "datastores/cases"
 
     @classmethod
     def upsert(cls, case: EvaluationCase) -> None:

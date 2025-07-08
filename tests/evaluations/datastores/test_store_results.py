@@ -1,6 +1,6 @@
 from unittest.mock import patch, call
 
-from evaluations.datastores.store_cases import StoreCases
+from evaluations.datastores.filesystem.case import Case as FileSystemCase
 from evaluations.datastores.store_results import StoreResults
 from evaluations.helper_evaluation import HelperEvaluation
 from evaluations.structures.evaluation_result import EvaluationResult
@@ -12,7 +12,7 @@ from evaluations.structures.statistic_test import StatisticTest
 
 @patch('evaluations.datastores.store_results.StoreResultPostgres')
 @patch('evaluations.datastores.store_results.StoreResultsLite')
-@patch.object(StoreCases, 'get')
+@patch.object(FileSystemCase, 'get')
 @patch.object(HelperEvaluation, 'postgres_credentials')
 def test_insert(postgres_credentials, case_get, lite_store, postgres_store):
     def reset_mock():

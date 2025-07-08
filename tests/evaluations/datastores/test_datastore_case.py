@@ -125,14 +125,14 @@ def test_delete(helper, psql_case, psql_generated_note, auditor_file):
         reset_mock()
 
 
-@patch('evaluations.datastores.datastore_case.StoreCases')
+@patch('evaluations.datastores.datastore_case.FileSystemCase')
 @patch('evaluations.datastores.datastore_case.PostgresCase')
 @patch('evaluations.datastores.datastore_case.HelperEvaluation')
-def test_all_names(helper, psql_case, store_cases):
+def test_all_names(helper, psql_case, fs_cases):
     def reset_mock():
         helper.reset_mock()
         psql_case.reset_mock()
-        store_cases.reset_mock()
+        fs_cases.reset_mock()
 
     tested = DatastoreCase
 
@@ -143,7 +143,7 @@ def test_all_names(helper, psql_case, store_cases):
     for psql_ready, expected in tests:
         helper.postgres_credentials.return_value.is_ready.side_effect = [psql_ready]
         psql_case.return_value.all_names.side_effect = [["name1", "name2"]]
-        store_cases.all.side_effect = [[
+        fs_cases.all.side_effect = [[
             EvaluationCase(case_name="name3"),
             EvaluationCase(case_name="name4"),
         ]]
@@ -168,5 +168,5 @@ def test_all_names(helper, psql_case, store_cases):
             calls.extend([
                 call.all(),
             ])
-        assert store_cases.mock_calls == calls
+        assert fs_cases.mock_calls == calls
         reset_mock()

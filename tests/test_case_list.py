@@ -1,11 +1,11 @@
 from unittest.mock import patch, call
 
 from case_list import CaseList
-from evaluations.datastores.store_cases import StoreCases
+from evaluations.datastores.filesystem.case import Case as FileSystemCase
 from evaluations.structures.evaluation_case import EvaluationCase
 
 
-@patch.object(StoreCases, "all")
+@patch.object(FileSystemCase, "all")
 def test_run(mock_all, capsys):
     def reset_mocks():
         mock_all.reset_mock()

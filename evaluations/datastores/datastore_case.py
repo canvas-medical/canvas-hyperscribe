@@ -3,7 +3,7 @@ from __future__ import annotations
 from evaluations.auditor_file import AuditorFile
 from evaluations.datastores.postgres.case import Case as PostgresCase
 from evaluations.datastores.postgres.generated_note import GeneratedNote as PostgresGeneratedNote
-from evaluations.datastores.store_cases import StoreCases
+from evaluations.datastores.filesystem.case import Case as FileSystemCase
 from evaluations.helper_evaluation import HelperEvaluation
 
 
@@ -34,4 +34,4 @@ class DatastoreCase:
         if postgres_credentials.is_ready():
             return PostgresCase(postgres_credentials).all_names()
 
-        return [case.case_name for case in StoreCases.all()]
+        return [case.case_name for case in FileSystemCase.all()]

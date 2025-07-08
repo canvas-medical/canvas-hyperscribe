@@ -2,7 +2,7 @@ from typing import Type
 
 from evaluations.datastores.postgres.store_results import StoreResults as StoreResultPostgres
 from evaluations.datastores.sqllite.store_results import StoreResults as StoreResultsLite
-from evaluations.datastores.store_cases import StoreCases
+from evaluations.datastores.filesystem.case import Case as FileSystemCase
 from evaluations.helper_evaluation import HelperEvaluation
 from evaluations.structures.evaluation_result import EvaluationResult
 from evaluations.structures.statistic_case_test import StatisticCaseTest
@@ -15,7 +15,7 @@ class StoreResults:
         sql_store: Type[StoreResultsLite] | StoreResultPostgres = StoreResultsLite
         if (credentials := HelperEvaluation.postgres_credentials()) and credentials.database:
             sql_store = StoreResultPostgres(credentials)
-        case = StoreCases.get(result.case_name)
+        case = FileSystemCase.get(result.case_name)
         sql_store.insert(case, result)
 
     @classmethod

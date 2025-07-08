@@ -2,19 +2,19 @@ import json
 from pathlib import Path
 from unittest.mock import patch, call, MagicMock
 
-from evaluations.datastores.store_cases import StoreCases
+from evaluations.datastores.filesystem.case import Case
 from evaluations.structures.evaluation_case import EvaluationCase
 
 
 def test__db_path():
-    tested = StoreCases
-    with patch('evaluations.datastores.store_cases.Path') as mock_path:
+    tested = Case
+    with patch('evaluations.datastores.filesystem.case.Path') as mock_path:
         mock_path.side_effect = [Path('/a/b/c/d/e/theFile.py')]
         result = tested._db_path()
-        assert result == Path('/a/b/c/d/datastores/cases')
+        assert result == Path('/a/b/c/datastores/cases')
 
 
-@patch.object(StoreCases, "_db_path")
+@patch.object(Case, "_db_path")
 def test_upsert(db_path):
     mock_files = [
         MagicMock(),
@@ -26,7 +26,7 @@ def test_upsert(db_path):
         for item in mock_files:
             item.reset_mock()
 
-    tested = StoreCases
+    tested = Case
 
     db_path.return_value.__truediv__.side_effect = mock_files
 
@@ -78,7 +78,7 @@ def test_upsert(db_path):
     reset_mocks()
 
 
-@patch.object(StoreCases, "_db_path")
+@patch.object(Case, "_db_path")
 def test_delete(db_path):
     mock_files = [
         MagicMock(),
@@ -90,7 +90,7 @@ def test_delete(db_path):
         for item in mock_files:
             item.reset_mock()
 
-    tested = StoreCases
+    tested = Case
     tests = [True, False]
     for exists in tests:
         db_path.return_value.__truediv__.side_effect = mock_files
@@ -115,7 +115,7 @@ def test_delete(db_path):
         reset_mocks()
 
 
-@patch.object(StoreCases, "_db_path")
+@patch.object(Case, "_db_path")
 def test_get(db_path):
     mock_files = [
         MagicMock(),
@@ -127,7 +127,7 @@ def test_get(db_path):
         for item in mock_files:
             item.reset_mock()
 
-    tested = StoreCases
+    tested = Case
 
     data = json.dumps({
         "environment": "theEnvironment",
@@ -192,7 +192,7 @@ def test_get(db_path):
         reset_mocks()
 
 
-@patch.object(StoreCases, "_db_path")
+@patch.object(Case, "_db_path")
 def test_all(db_path):
     mock_files = [
         MagicMock(),
@@ -205,7 +205,7 @@ def test_all(db_path):
         for item in mock_files:
             item.reset_mock()
 
-    tested = StoreCases
+    tested = Case
 
     data = [json.dumps({
         "environment": f"theEnvironment{i:02d}",

@@ -1,4 +1,4 @@
-from evaluations.datastores.store_cases import StoreCases
+from evaluations.datastores.filesystem.case import Case as FileSystemCase
 
 
 class CaseList:
@@ -13,7 +13,7 @@ class CaseList:
             "patient_uuid": "patient UUID",
             "description": "description",
         }
-        records = StoreCases.all()
+        records = FileSystemCase.all()
 
         widths = [len(h) for h in headers.values()]
         for record in records:

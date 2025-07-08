@@ -8,7 +8,7 @@ from subprocess import check_output
 import pytest
 
 from evaluations.constants import Constants
-from evaluations.datastores.store_cases import StoreCases
+from evaluations.datastores.filesystem.case import Case as FileSystemCase
 from evaluations.datastores.store_results import StoreResults
 from evaluations.helper_evaluation import HelperEvaluation
 from evaluations.structures.evaluation_result import EvaluationResult
@@ -177,7 +177,7 @@ def audio_interpreter(request):
     if patient_uuid and patient_uuid != HyperscribeConstants.FAUX_PATIENT_UUID:
         note_uuid = HelperEvaluation.get_note_uuid(patient_uuid)
         provider_uuid = HelperEvaluation.get_provider_uuid(patient_uuid)
-    elif case := StoreCases.get(request.node.callspec.id):
+    elif case := FileSystemCase.get(request.node.callspec.id):
         # ^ if there is no provided patient uuid and this is a built case
         cache = LimitedCache.load_from_json(case.limited_cache)
 

@@ -93,13 +93,13 @@ def test___init__():
     assert isinstance(tested.s3_credentials, AwsS3Credentials)
 
 
-@patch('evaluations.auditor_file.StoreCases')
-def test_case_prepare(store_cases):
+@patch('evaluations.auditor_file.FileSystemCase')
+def test_case_prepare(filesystem_case):
     folder, tested = helper_instance()
 
     def reset_mocks():
         folder.reset_mock()
-        store_cases.reset_mock()
+        filesystem_case.reset_mock()
 
     for exists in [False, True]:
         folder.exists.side_effect = [exists]
@@ -122,19 +122,19 @@ def test_case_prepare(store_cases):
                 description='theCase',
             ))
         ]
-        assert store_cases.mock_calls == calls
+        assert filesystem_case.mock_calls == calls
         reset_mocks()
 
 
-@patch('evaluations.auditor_file.StoreCases')
-def test_case_update_limited_cache(store_cases):
+@patch('evaluations.auditor_file.FileSystemCase')
+def test_case_update_limited_cache(filesystem_case):
     folder, tested = helper_instance()
 
     def reset_mocks():
         folder.reset_mock()
-        store_cases.reset_mock()
+        filesystem_case.reset_mock()
 
-    store_cases.get.side_effect = [EvaluationCase(
+    filesystem_case.get.side_effect = [EvaluationCase(
         environment="theEnvironment",
         patient_uuid="thePatientUuid",
         limited_cache={"some": "cache"},
@@ -159,21 +159,21 @@ def test_case_update_limited_cache(store_cases):
             description="theDescription",
         ))
     ]
-    assert store_cases.mock_calls == calls
+    assert filesystem_case.mock_calls == calls
     reset_mocks()
 
 
-@patch('evaluations.auditor_file.StoreCases')
+@patch('evaluations.auditor_file.FileSystemCase')
 @patch.object(AuditorFile, 'summarized_generated_commands')
-def test_case_finalize(summarized_generated_commands, store_cases):
+def test_case_finalize(summarized_generated_commands, filesystem_case):
     folder, tested = helper_instance()
 
     def reset_mocks():
         folder.reset_mock()
-        store_cases.reset_mock()
+        filesystem_case.reset_mock()
         summarized_generated_commands.reset_mock()
 
-    store_cases.get.side_effect = [EvaluationCase(
+    filesystem_case.get.side_effect = [EvaluationCase(
         environment="theEnvironment",
         patient_uuid="thePatientUuid",
         limited_cache={"some": "cache"},
@@ -208,7 +208,7 @@ def test_case_finalize(summarized_generated_commands, store_cases):
             description="theDescription",
         ))
     ]
-    assert store_cases.mock_calls == calls
+    assert filesystem_case.mock_calls == calls
     calls = [call()]
     assert summarized_generated_commands.mock_calls == calls
     reset_mocks()
@@ -340,15 +340,15 @@ def test_get_json():
         reset_mocks()
 
 
-@patch('evaluations.auditor_file.StoreCases')
-def test_limited_chart(store_cases):
+@patch('evaluations.auditor_file.FileSystemCase')
+def test_limited_chart(filesystem_case):
     folder, tested = helper_instance()
 
     def reset_mocks():
         folder.reset_mock()
-        store_cases.reset_mock()
+        filesystem_case.reset_mock()
 
-    store_cases.get.side_effect = [EvaluationCase(
+    filesystem_case.get.side_effect = [EvaluationCase(
         environment="theEnvironment",
         patient_uuid="thePatientUuid",
         limited_cache={"limited": "cache"},
@@ -365,7 +365,7 @@ def test_limited_chart(store_cases):
 
     assert folder.mock_calls == []
     calls = [call.get('theCase')]
-    assert store_cases.mock_calls == calls
+    assert filesystem_case.mock_calls == calls
     reset_mocks()
 
 
