@@ -25,6 +25,7 @@ def helper_instance() -> Base:
         send_progress=False,
         commands_policy=AccessPolicy(policy=False, items=[]),
         staffers_policy=AccessPolicy(policy=False, items=[]),
+        cycle_transcript_overlap=37,
     )
     cache = LimitedCache("patientUuid", "providerUuid", {})
     identification = IdentificationParameters(
@@ -50,6 +51,7 @@ def test___init__():
         send_progress=False,
         commands_policy=AccessPolicy(policy=False, items=[]),
         staffers_policy=AccessPolicy(policy=False, items=[]),
+        cycle_transcript_overlap=37,
     )
     cache = LimitedCache("patientUuid", "providerUuid", {})
     identification = IdentificationParameters(

@@ -28,6 +28,7 @@ def helper_instance() -> AuditorPostgres:
         send_progress=False,
         commands_policy=AccessPolicy(policy=False, items=[]),
         staffers_policy=AccessPolicy(policy=False, items=[]),
+        cycle_transcript_overlap=37,
     )
     s3_credentials = AwsS3Credentials(
         aws_key='theKey',
@@ -64,6 +65,7 @@ def test___init__():
         send_progress=False,
         commands_policy=AccessPolicy(policy=False, items=[]),
         staffers_policy=AccessPolicy(policy=False, items=[]),
+        cycle_transcript_overlap=37,
     )
     s3_credentials = AwsS3Credentials(
         aws_key='theKey',
@@ -131,6 +133,7 @@ def test_generated_note_id(case_id, generated_note_store):
     #
     mock_settings.llm_text.vendor = "theTextVendor"
     mock_settings.llm_text_model.side_effect = ["theTextModel"]
+    mock_settings.cycle_transcript_overlap = 37
     case_id.side_effect = [47]
     generated_note_store.return_value.insert.side_effect = [GeneratedNoteRecord(case_id=111, id=333)]
 
@@ -146,7 +149,7 @@ def test_generated_note_id(case_id, generated_note_store):
             case_id=47,
             cycle_duration=0,
             cycle_count=0,
-            cycle_transcript_overlap=100,
+            cycle_transcript_overlap=37,
             text_llm_vendor='theTextVendor',
             text_llm_name='theTextModel',
             note_json=[],

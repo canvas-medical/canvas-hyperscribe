@@ -190,6 +190,7 @@ def test_compute_audit_documents(
         "AwsRegion": "theRegion",
         "AwsBucketLogs": "theBucketLogs",
         "APISigningKey": "theApiSigningKey",
+        "CycleTranscriptOverlap": "37",
     }
     event = Event(EventRequest(target="taskUuid"))
     identification = IdentificationParameters(
@@ -217,6 +218,7 @@ def test_compute_audit_documents(
         send_progress=True,
         commands_policy=AccessPolicy(policy=False, items=[]),
         staffers_policy=AccessPolicy(policy=False, items=[]),
+        cycle_transcript_overlap=37,
     )
     date_x = datetime(2025, 5, 9, 12, 29, 21, tzinfo=timezone.utc)
     schema_key2instruction.side_effect = [

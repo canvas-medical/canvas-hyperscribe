@@ -132,6 +132,7 @@ def test_compute(
         send_progress=True,  # <-- changed in the code
         commands_policy=AccessPolicy(policy=False, items=["Command1", "Command2", "Command3"]),
         staffers_policy=AccessPolicy(policy=False, items=["31", "47"]),
+        cycle_transcript_overlap=37,
     )
     date_x = datetime(2025, 5, 9, 12, 34, 21, tzinfo=timezone.utc)
     secrets = {
@@ -155,6 +156,7 @@ def test_compute(
         "CommandsList": "Command1 Command3, Command2",
         "StaffersPolicy": False,
         "StaffersList": "47 31",
+        "CycleTranscriptOverlap": "37",
     }
     event = Event(EventRequest(target="taskUuid"))
     environment = {"CUSTOMER_IDENTIFIER": "theTestEnv"}
@@ -428,6 +430,7 @@ def test_compute_audio(
         send_progress=False,
         commands_policy=AccessPolicy(policy=False, items=["Command1", "Command2", "Command3"]),
         staffers_policy=AccessPolicy(policy=False, items=["31", "47"]),
+        cycle_transcript_overlap=37,
     )
     # no more audio
     retrieve_audios.side_effect = [[]]
@@ -691,6 +694,21 @@ def test_audio2commands(transcript2commands, tail_of, memory_log, progress):
         provider_uuid="providerUuid",
         canvas_instance="canvasInstance",
     )
+    settings = Settings(
+        llm_text=VendorKey(vendor="theVendorTextLLM", api_key="theKeyTextLLM"),
+        llm_audio=VendorKey(vendor="theVendorAudioLLM", api_key="theKeyAudioLLM"),
+        science_host='theScienceHost',
+        ontologies_host='theOntologiesHost',
+        pre_shared_key='thePreSharedKey',
+        structured_rfv=True,
+        audit_llm=True,
+        is_tuning=False,
+        api_signing_key="theApiSigningKey",
+        send_progress=True,
+        commands_policy=AccessPolicy(policy=False, items=[]),
+        staffers_policy=AccessPolicy(policy=False, items=[]),
+        cycle_transcript_overlap=37,
+    )
     lines = [
         Line(speaker="speaker", text="last words 1"),
         Line(speaker="speaker", text="last words 2"),
@@ -712,7 +730,7 @@ def test_audio2commands(transcript2commands, tail_of, memory_log, progress):
     ]
     mock_chatter.identification = identification
     mock_chatter.s3_credentials = "s3Credentials"
-    mock_chatter.settings = "theSettings"
+    mock_chatter.settings = settings
 
     result = tested.audio2commands(mock_auditor, audios, mock_chatter, previous, [Line(speaker='speaker0', text="some text")])
     expected = ("instructions", "effects", lines)
@@ -724,7 +742,7 @@ def test_audio2commands(transcript2commands, tail_of, memory_log, progress):
     ]
     assert memory_log.mock_calls == calls
     calls = [
-        call.send_to_user(identification, "theSettings", "audio reviewed, speakers detected: speaker1, speaker2"),
+        call.send_to_user(identification, settings, "audio reviewed, speakers detected: speaker1, speaker2"),
     ]
     assert progress.mock_calls == calls
     calls = [
@@ -753,7 +771,7 @@ def test_audio2commands(transcript2commands, tail_of, memory_log, progress):
         Line(speaker="speaker1", text=f"{text} textA."),
         Line(speaker="speaker2", text=f"{text} textB."),
         Line(speaker="speaker1", text=f"{text} textC."),
-    ], 100)]
+    ], 37)]
     assert tail_of.mock_calls == calls
     calls = [
         call.identified_transcript(
@@ -1070,6 +1088,7 @@ def test_transcript2commands_common(time, memory_log, progress):
             send_progress=False,
             commands_policy=AccessPolicy(policy=False, items=["Command1", "Command2", "Command3"]),
             staffers_policy=AccessPolicy(policy=False, items=["31", "47"]),
+            cycle_transcript_overlap=37,
         )
         mock_chatter.is_local_data = is_local_data
         mock_chatter.identification = identification
@@ -1210,6 +1229,7 @@ def test_transcript2commands_common(time, memory_log, progress):
         send_progress=False,
         commands_policy=AccessPolicy(policy=False, items=["Command1", "Command2", "Command3"]),
         staffers_policy=AccessPolicy(policy=False, items=["31", "47"]),
+        cycle_transcript_overlap=37,
     )
     mock_chatter.identification = identification
     mock_chatter.settings = settings
@@ -1415,6 +1435,7 @@ def test_transcript2commands_questionnaires(time, memory_log, progress):
             send_progress=False,
             commands_policy=AccessPolicy(policy=False, items=["Command1", "Command2", "Command3"]),
             staffers_policy=AccessPolicy(policy=False, items=["31", "47"]),
+            cycle_transcript_overlap=37,
         )
         chatter.is_local_data = is_local_data
         chatter.identification = identification

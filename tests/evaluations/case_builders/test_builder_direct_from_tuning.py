@@ -37,6 +37,7 @@ def helper_instance() -> BuilderDirectFromTuning:
         send_progress=False,
         commands_policy=AccessPolicy(policy=False, items=[]),
         staffers_policy=AccessPolicy(policy=False, items=[]),
+        cycle_transcript_overlap=37,
     )
     s3_credentials = AwsS3Credentials(
         aws_key='theKey',
@@ -292,6 +293,7 @@ def test___init__():
         send_progress=False,
         commands_policy=AccessPolicy(policy=False, items=[]),
         staffers_policy=AccessPolicy(policy=False, items=[]),
+        cycle_transcript_overlap=37,
     )
     s3_credentials = AwsS3Credentials(
         aws_key='theKey',
@@ -564,6 +566,7 @@ def test_create_transcripts():
                 content=[{"speaker": "theSpeaker3", "text": "theText3"}],
             ),
         ]
+        mock_interpreter.settings = tested.settings
         result = tested.create_transcripts(mock_audio_files, mock_interpreter)
         expected = mock_json_files
         assert result == expected

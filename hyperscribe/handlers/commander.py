@@ -232,7 +232,7 @@ class Commander(BaseProtocol):
         Progress.send_to_user(chatter.identification, chatter.settings, f"audio reviewed, speakers detected: {speakers}")
 
         instructions, effects = cls.transcript2commands(auditor, transcript, chatter, previous_instructions)
-        transcript_tail = Line.tail_of(transcript, Constants.CYCLE_TRANSCRIPT_OVERLAP)
+        transcript_tail = Line.tail_of(transcript, chatter.settings.cycle_transcript_overlap)
         return instructions, effects, transcript_tail
 
     @classmethod

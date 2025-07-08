@@ -1,6 +1,6 @@
 {
   "sdk_version": "0.43.0",
-  "plugin_version": "0.0.89",
+  "plugin_version": "0.0.90",
   "name": "hyperscribe",
   "description": "Create commands based on the content of an audio discussion between a patient and a provider.",
   "url_permissions": [
@@ -123,6 +123,7 @@
     "AwsSecret",
     "CommandsList",
     "CommandsPolicy",
+    "CycleTranscriptOverlap",
     "IsTuning",
     "KeyAudioLLM",
     "KeyTextLLM",

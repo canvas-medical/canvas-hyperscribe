@@ -190,6 +190,7 @@ def test_review(
         send_progress=False,
         commands_policy=AccessPolicy(policy=False, items=[]),
         staffers_policy=AccessPolicy(policy=False, items=[]),
+        cycle_transcript_overlap=37,
     )
     aws_s3.return_value.is_ready.side_effect = []
     cache_get_discussion.side_effect = []
@@ -221,6 +222,7 @@ def test_review(
         send_progress=False,
         commands_policy=AccessPolicy(policy=False, items=[]),
         staffers_policy=AccessPolicy(policy=False, items=[]),
+        cycle_transcript_overlap=37,
     )
     # -- S3 not ready
     aws_s3.return_value.is_ready.side_effect = [False]

@@ -91,6 +91,7 @@ def test_settings(monkeypatch):
     monkeypatch.setenv("APISigningKey", "theApiSigningKey")
     monkeypatch.setenv("CommandsList", "Command1 Command2, Command3")
     monkeypatch.setenv("StaffersList", "41, 32 56")
+    monkeypatch.setenv("CycleTranscriptOverlap", "37")
 
     tests = [
         ("y", True),
@@ -121,6 +122,7 @@ def test_settings(monkeypatch):
             send_progress=False,
             commands_policy=AccessPolicy(policy=exp_bool, items=["Command1", "Command2", "Command3"]),
             staffers_policy=AccessPolicy(policy=exp_bool, items=["32", "41", "56"]),
+            cycle_transcript_overlap=37,
         )
         assert result == expected
 

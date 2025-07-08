@@ -41,7 +41,7 @@ class AuditorPostgres(AuditorStore):
                 cycle_duration=0,
                 cycle_count=0,  # <-- updated at the end
                 note_json=[],  # <-- updated at the end
-                cycle_transcript_overlap=HyperscribeConstants.CYCLE_TRANSCRIPT_OVERLAP,  # TODO to be defined in the settings
+                cycle_transcript_overlap=self.settings.cycle_transcript_overlap,
                 text_llm_vendor=self.settings.llm_text.vendor,
                 text_llm_name=self.settings.llm_text_model(),
                 hyperscribe_version="",  # TODO <-- commit or version declared in the manifest

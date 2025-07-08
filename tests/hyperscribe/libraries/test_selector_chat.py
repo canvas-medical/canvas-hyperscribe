@@ -36,6 +36,7 @@ def test_condition_from(search_conditions):
         send_progress=False,
         commands_policy=AccessPolicy(policy=False, items=[]),
         staffers_policy=AccessPolicy(policy=False, items=[]),
+        cycle_transcript_overlap=37,
     )
     system_prompt = [
         "The conversation is in the medical context.",
@@ -310,11 +311,11 @@ def test_contact_from(search_contacts, summary_of):
         structured_rfv=False,
         audit_llm=False,
         is_tuning=False,
-
         api_signing_key="theApiSigningKey",
         send_progress=False,
         commands_policy=AccessPolicy(policy=False, items=[]),
         staffers_policy=AccessPolicy(policy=False, items=[]),
+        cycle_transcript_overlap=37,
     )
     system_prompt = [
         "The conversation is in the medical context.",

@@ -152,7 +152,7 @@ class BuilderDirectFromTuning:
                 with json_file.open("w") as f:
                     json.dump([line.to_json() for line in transcript], f, indent=2)
 
-                last_exchange = Line.tail_of(transcript, HyperscribeConstants.CYCLE_TRANSCRIPT_OVERLAP)
+                last_exchange = Line.tail_of(transcript, interpreter.settings.cycle_transcript_overlap)
 
             result.append(json_file)
         return result

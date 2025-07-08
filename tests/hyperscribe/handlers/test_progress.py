@@ -222,6 +222,7 @@ def test_send_to_user(requests_post, authenticator, mock_datetime):
         send_progress=True,
         commands_policy=AccessPolicy(policy=False, items=[]),
         staffers_policy=AccessPolicy(policy=False, items=[]),
+        cycle_transcript_overlap=37,
     )
     authenticator.presigned_url.side_effect = ["thePresignedUrl"]
     mock_datetime.now.side_effect = [a_date]
@@ -263,6 +264,7 @@ def test_send_to_user(requests_post, authenticator, mock_datetime):
         send_progress=False,
         commands_policy=AccessPolicy(policy=False, items=[]),
         staffers_policy=AccessPolicy(policy=False, items=[]),
+        cycle_transcript_overlap=37,
     )
     authenticator.presigned_url.side_effect = []
     mock_datetime.now.side_effect = []

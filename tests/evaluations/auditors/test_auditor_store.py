@@ -30,6 +30,7 @@ def helper_instance() -> AuditorStore:
         send_progress=False,
         commands_policy=AccessPolicy(policy=False, items=[]),
         staffers_policy=AccessPolicy(policy=False, items=[]),
+        cycle_transcript_overlap=37,
     )
     s3_credentials = AwsS3Credentials(
         aws_key='theKey',
@@ -59,6 +60,7 @@ def test___init__():
         send_progress=False,
         commands_policy=AccessPolicy(policy=False, items=[]),
         staffers_policy=AccessPolicy(policy=False, items=[]),
+        cycle_transcript_overlap=37,
     )
     s3_credentials = AwsS3Credentials(
         aws_key='theKey',

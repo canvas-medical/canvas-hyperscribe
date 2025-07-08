@@ -2,8 +2,10 @@ class Constants:
     ANTHROPIC_CHAT_TEXT = "claude-3-5-sonnet-20241022"  # LLM model used for text completion
     AWS3_LINK_EXPIRATION_SECONDS = 1200  # duration of an AWS S3 link
     API_SIGNED_EXPIRATION_SECONDS = 1200
+    CYCLE_TRANSCRIPT_OVERLAP_MIN = 5
+    CYCLE_TRANSCRIPT_OVERLAP_MAX = 250
+    CYCLE_TRANSCRIPT_OVERLAP_DEFAULT = 100
     DISCUSSION_CACHED_DURATION = 90  # minutes before a discussion is cleared
-    CYCLE_TRANSCRIPT_OVERLAP = 100
     GOOGLE_CHAT_ALL = "models/gemini-2.0-flash"  # LLM model used for speech to text and text completion
     LABEL_ENCOUNTER_COPILOT = "Encounter Copilot"
     MAX_AUDIO_INTERVAL_SECONDS = '15'
@@ -83,6 +85,7 @@ class Constants:
     SECRET_STRUCTURED_RFV = "StructuredReasonForVisit"
     SECRET_TEXT_KEY = "KeyTextLLM"
     SECRET_TEXT_VENDOR = "VendorTextLLM"
+    SECRET_CYCLE_TRANSCRIPT_OVERLAP = "CycleTranscriptOverlap"
     #
     PROGRESS_END_OF_MESSAGES = "EOF"
     PROGRESS_SETTING_KEY = "sendProgress"

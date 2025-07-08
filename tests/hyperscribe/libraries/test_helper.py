@@ -115,6 +115,7 @@ def test_chatter():
             send_progress=False,
             commands_policy=AccessPolicy(policy=False, items=[]),
             staffers_policy=AccessPolicy(policy=False, items=[]),
+            cycle_transcript_overlap=37,
         ), memory_log)
         assert memory_log.mock_calls == []
         assert isinstance(result, exp_class)
@@ -146,6 +147,7 @@ def test_audio2texter():
             send_progress=False,
             commands_policy=AccessPolicy(policy=False, items=[]),
             staffers_policy=AccessPolicy(policy=False, items=[]),
+            cycle_transcript_overlap=37,
         ), memory_log)
         assert memory_log.mock_calls == []
         assert isinstance(result, exp_class)

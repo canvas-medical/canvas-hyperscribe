@@ -88,6 +88,7 @@ The `secrets` are stored in the Canvas instance database and can be upsert in `h
 | `CommandsPolicy`           | `y`, `yes` or `1`               | the commands of `CommandsList` are allowed (`y`) or excluded (`n`)                                                                                          |
 | `StaffersList`             | `key1 key2, key3`               | list of staffer keys, related to the `StaffersPolicy` value                                                                                                 |
 | `StaffersPolicy`           | `y`, `yes` or `1`               | the staffers of `StaffersList` are allowed (`y`) or excluded (`n`)                                                                                          |
+| `CycleTranscriptOverlap`   | `100`                           | the numbers of words from the end of the last audio chunk provided to the LLM when generating the transcript from the audio                                 |
 
 To use the Canvas services provided by the SDK (`OntologiesHttp` and `ScienceHttp` from `canvas_sdk.utils.http`), set to empty the related secrets (
 `OntologiesHost` and `ScienceHost`).

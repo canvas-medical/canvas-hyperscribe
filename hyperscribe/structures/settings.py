@@ -21,6 +21,7 @@ class Settings(NamedTuple):
     send_progress: bool
     commands_policy: AccessPolicy
     staffers_policy: AccessPolicy
+    cycle_transcript_overlap: int
 
     @classmethod
     def from_dictionary(cls, dictionary: dict) -> Settings:
@@ -48,9 +49,22 @@ class Settings(NamedTuple):
             staffers_policy=AccessPolicy(
                 policy=cls.is_true(dictionary.get(Constants.SECRET_STAFFERS_POLICY)),
                 items=cls.list_from(dictionary.get(Constants.SECRET_STAFFERS_LIST)),
-            )
+            ),
+            cycle_transcript_overlap=cls.clamp_int(
+                dictionary.get(Constants.SECRET_CYCLE_TRANSCRIPT_OVERLAP),
+                Constants.CYCLE_TRANSCRIPT_OVERLAP_MIN,
+                Constants.CYCLE_TRANSCRIPT_OVERLAP_MAX,
+                Constants.CYCLE_TRANSCRIPT_OVERLAP_DEFAULT,
+            ),
         )
 
+    @classmethod
+    def clamp_int(cls, value: int | str | None, low: int, high: int, default: int) -> int:
+        if isinstance(value, str) and value.isdigit():
+            value = int(value)
+        if isinstance(value, int):
+            return min(max(value, low), high)
+        return default
 
     @classmethod
     def is_true(cls, string: str | None) -> bool:
