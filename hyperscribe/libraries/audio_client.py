@@ -3,8 +3,7 @@ import requests
 
 from base64 import b64decode
 from requests import Response
-from logger import log
-from typing import NamedTuple
+from typing import NamedTuple, List
 
 from canvas_sdk.handlers.simple_api import api
 from canvas_sdk.caching.plugins import get_cache
@@ -210,7 +209,7 @@ class AudioClient:
         return f"hyperscribe.sessions.{patient_id}.{note_id}"
 
     @classmethod
-    def get_sessions(cls, patient_id, note_id):
+    def get_sessions(cls, patient_id, note_id) -> List[CachedAudioSession]:
         key = cls.sessions_key(patient_id, note_id)
         return cls.cache.get(key, default=[])
 
