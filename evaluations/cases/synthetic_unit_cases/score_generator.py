@@ -7,6 +7,10 @@ from hyperscribe.structures.vendor_key import VendorKey
 from hyperscribe.structures.settings import Settings
 from hyperscribe.libraries.memory_log import MemoryLog
 
+def _load_json(p: Path) -> Any:
+        with Path(p).expanduser().open() as f:
+            return json.load(f)
+        
 class NoteGrader:
     def __init__(self,
                  vendor_key: VendorKey,
@@ -19,12 +23,7 @@ class NoteGrader:
         self.output_path = Path(output_path).expanduser()
         self.rubric = _load_json(self.rubric_path)
         self.note   = _load_json(self.note_path)
-
-    @classmethod
-    def _load_json(p: Path) -> Any:
-        with Path(p).expanduser().open() as f:
-            return json.load(f)
-        
+                   
     def _build_llm(self) -> LlmOpenai:
         llm = LlmOpenai(
             MemoryLog.dev_null_instance(),
