@@ -14,7 +14,6 @@ from hyperscribe.structures.settings import Settings
 from hyperscribe.libraries.memory_log import MemoryLog
 from evaluations.constants import Constants
 
-
 class TranscriptGenerator:
     def __init__(self, vendor_key: VendorKey, input_profiles_path: str, output_root_path: str) -> None:
         self.vendor_key = vendor_key
