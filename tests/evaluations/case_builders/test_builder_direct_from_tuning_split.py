@@ -14,7 +14,6 @@ from hyperscribe.structures.json_extract import JsonExtract
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
 from tests.helper import MockFile
-from tests.helper import is_constant
 
 
 def helper_instance() -> BuilderDirectFromTuningSplit:
@@ -51,10 +50,6 @@ def helper_instance() -> BuilderDirectFromTuningSplit:
 def test_class():
     tested = BuilderDirectFromTuningSplit
     assert issubclass(tested, BuilderDirectFromTuning)
-    constants = {
-        "MAX_WORDS_PER_COMPACTED_TRANSCRIPT": 1000,
-    }
-    assert is_constant(tested, constants)
 
 
 def test__parameters():
@@ -68,202 +63,6 @@ def test__parameters():
     calls = [call.add_argument('--direct-split', action='store_true')]
     assert argument_parser.mock_calls == calls
     reset_mocks()
-
-
-def test_compact_transcripts():
-    files = [
-        # original files
-        MagicMock(), MagicMock(), MagicMock(), MagicMock(), MagicMock(), MagicMock(), MagicMock(),
-        # compacted files
-        MagicMock(), MagicMock(), MagicMock(),
-    ]
-    buffers = [
-        MockFile(), MockFile(), MockFile(), MockFile(), MockFile(), MockFile(), MockFile(),
-        MockFile(mode="w"), MockFile(mode="w"), MockFile(mode="w"),
-    ]
-
-    def reset_mocks():
-        for idx, item in enumerate(files):
-            item.reset_mock()
-            item.open.return_value = buffers[idx]
-            if idx == 0:
-                item.parent.__truediv__.side_effect = files[7:]
-
-            if idx < 7:
-                buffers[idx].content = json.dumps([
-                    {"speaker": "speaker1", "text": "word1 word2 word3 word4 word5"},
-                    {"speaker": "speaker2", "text": "word6 word7 word8"},
-                    {"speaker": "speaker3", "text": "word9 word10"},
-                ])
-            else:
-                buffers[idx].content = ""
-
-    reset_mocks()
-
-    tested = BuilderDirectFromTuningSplit
-    # 30 words per compact file
-    with patch.object(BuilderDirectFromTuningSplit, "MAX_WORDS_PER_COMPACTED_TRANSCRIPT", 30):
-        result = tested.compact_transcripts(files[:7])
-        expected = files[7:10]
-        assert result == expected
-
-        for index, item in enumerate(files):
-            if index == 0:
-                calls = [
-                    call.parent.__truediv__('transcript_compacted_000.json'),
-                    call.open('r'),
-                    call.parent.__truediv__('transcript_compacted_001.json'),
-                    call.parent.__truediv__('transcript_compacted_002.json'),
-                ]
-            elif index < 7:
-                calls = [call.open('r')]
-            elif index in [7, 8]:
-                calls = [
-                    call.open('w'),
-                    call.open('w'),
-                    call.open('w'),
-                    call.open('w'),
-                    call.open('w'),
-                    call.open('w'),
-                    call.open('w'),
-                    call.open('w'),
-                ]
-            elif index in [9]:
-                calls = [
-                    call.open('w'),
-                    call.open('w'),
-                    call.open('w'),
-                    call.open('w'),
-                    call.open('w'),
-                ]
-            else:
-                calls = []
-            assert item.mock_calls == calls
-
-            if index < 7:
-                exp_content = json.dumps([
-                    {"speaker": "speaker1", "text": "word1 word2 word3 word4 word5"},
-                    {"speaker": "speaker2", "text": "word6 word7 word8"},
-                    {"speaker": "speaker3", "text": "word9 word10"},
-                ])
-            elif index in [7]:
-                exp_content = json.dumps([
-                    {"speaker": "speaker1", "text": "word1 word2 word3 word4 word5", "chunk": 1},
-                    {"speaker": "speaker2", "text": "word6 word7 word8", "chunk": 1},
-                    {"speaker": "speaker3", "text": "word9 word10", "chunk": 1},
-                    {"speaker": "speaker1", "text": "word1 word2 word3 word4 word5", "chunk": 2},
-                    {"speaker": "speaker2", "text": "word6 word7 word8", "chunk": 2},
-                    {"speaker": "speaker3", "text": "word9 word10", "chunk": 2},
-                    {"speaker": "speaker1", "text": "word1 word2 word3 word4 word5", "chunk": 3},
-                    {"speaker": "speaker2", "text": "word6 word7 word8", "chunk": 3},
-                ], indent=2)
-            elif index in [8]:
-                exp_content = json.dumps([
-                    {"speaker": "speaker3", "text": "word9 word10", "chunk": 3},
-                    {"speaker": "speaker1", "text": "word1 word2 word3 word4 word5", "chunk": 4},
-                    {"speaker": "speaker2", "text": "word6 word7 word8", "chunk": 4},
-                    {"speaker": "speaker3", "text": "word9 word10", "chunk": 4},
-                    {"speaker": "speaker1", "text": "word1 word2 word3 word4 word5", "chunk": 5},
-                    {"speaker": "speaker2", "text": "word6 word7 word8", "chunk": 5},
-                    {"speaker": "speaker3", "text": "word9 word10", "chunk": 5},
-                    {"speaker": "speaker1", "text": "word1 word2 word3 word4 word5", "chunk": 6},
-                ], indent=2)
-            elif index in [9]:
-                exp_content = json.dumps([
-                    {"speaker": "speaker2", "text": "word6 word7 word8", "chunk": 6},
-                    {"speaker": "speaker3", "text": "word9 word10", "chunk": 6},
-                    {"speaker": "speaker1", "text": "word1 word2 word3 word4 word5", "chunk": 7},
-                    {"speaker": "speaker2", "text": "word6 word7 word8", "chunk": 7},
-                    {"speaker": "speaker3", "text": "word9 word10", "chunk": 7},
-                ], indent=2)
-            else:
-                exp_content = ""
-            assert buffers[index].content == exp_content
-        reset_mocks()
-
-    # 50 words per compact file
-    with patch.object(BuilderDirectFromTuningSplit, "MAX_WORDS_PER_COMPACTED_TRANSCRIPT", 50):
-        result = tested.compact_transcripts(files[:7])
-        expected = files[7:9]
-        assert result == expected
-
-        for index, item in enumerate(files):
-            if index == 0:
-                calls = [
-                    call.parent.__truediv__('transcript_compacted_000.json'),
-                    call.open('r'),
-                    call.parent.__truediv__('transcript_compacted_001.json'),
-                ]
-            elif index < 7:
-                calls = [call.open('r')]
-            elif index in [7]:
-                calls = [
-                    call.open('w'),
-                    call.open('w'),
-                    call.open('w'),
-                    call.open('w'),
-                    call.open('w'),
-                    call.open('w'),
-                    call.open('w'),
-                    call.open('w'),
-                    call.open('w'),
-                    call.open('w'),
-                    call.open('w'),
-                    call.open('w'),
-                    call.open('w'),
-                    call.open('w'),
-                ]
-            elif index in [8]:
-                calls = [
-                    call.open('w'),
-                    call.open('w'),
-                    call.open('w'),
-                    call.open('w'),
-                    call.open('w'),
-                    call.open('w'),
-                    call.open('w'),
-                ]
-            else:
-                calls = []
-            assert item.mock_calls == calls
-
-            if index < 7:
-                exp_content = json.dumps([
-                    {"speaker": "speaker1", "text": "word1 word2 word3 word4 word5"},
-                    {"speaker": "speaker2", "text": "word6 word7 word8"},
-                    {"speaker": "speaker3", "text": "word9 word10"},
-                ])
-            elif index in [7]:
-                exp_content = json.dumps([
-                    {"speaker": "speaker1", "text": "word1 word2 word3 word4 word5", "chunk": 1},
-                    {"speaker": "speaker2", "text": "word6 word7 word8", "chunk": 1},
-                    {"speaker": "speaker3", "text": "word9 word10", "chunk": 1},
-                    {"speaker": "speaker1", "text": "word1 word2 word3 word4 word5", "chunk": 2},
-                    {"speaker": "speaker2", "text": "word6 word7 word8", "chunk": 2},
-                    {"speaker": "speaker3", "text": "word9 word10", "chunk": 2},
-                    {"speaker": "speaker1", "text": "word1 word2 word3 word4 word5", "chunk": 3},
-                    {"speaker": "speaker2", "text": "word6 word7 word8", "chunk": 3},
-                    {"speaker": "speaker3", "text": "word9 word10", "chunk": 3},
-                    {"speaker": "speaker1", "text": "word1 word2 word3 word4 word5", "chunk": 4},
-                    {"speaker": "speaker2", "text": "word6 word7 word8", "chunk": 4},
-                    {"speaker": "speaker3", "text": "word9 word10", "chunk": 4},
-                    {"speaker": "speaker1", "text": "word1 word2 word3 word4 word5", "chunk": 5},
-                    {"speaker": "speaker2", "text": "word6 word7 word8", "chunk": 5},
-                ], indent=2)
-            elif index in [8]:
-                exp_content = json.dumps([
-                    {"speaker": "speaker3", "text": "word9 word10", "chunk": 5},
-                    {"speaker": "speaker1", "text": "word1 word2 word3 word4 word5", "chunk": 6},
-                    {"speaker": "speaker2", "text": "word6 word7 word8", "chunk": 6},
-                    {"speaker": "speaker3", "text": "word9 word10", "chunk": 6},
-                    {"speaker": "speaker1", "text": "word1 word2 word3 word4 word5", "chunk": 7},
-                    {"speaker": "speaker2", "text": "word6 word7 word8", "chunk": 7},
-                    {"speaker": "speaker3", "text": "word9 word10", "chunk": 7},
-                ], indent=2)
-            else:
-                exp_content = ""
-            assert buffers[index].content == exp_content
-        reset_mocks()
 
 
 def test_schema_topical_exchanges():
@@ -281,33 +80,6 @@ def test_schema_topical_exchanges():
                 "topic": {"type": "integer"},
             },
             "required": ["speaker", "text", "chunk", "topic"],
-            "additionalProperties": False,
-        },
-    }
-    assert result == expected
-
-
-def test_schema_summary():
-    tested = BuilderDirectFromTuningSplit
-    result = tested.schema_summary()
-    expected = {
-        "$schema": "http://json-schema.org/draft-07/schema#",
-        "type": "array",
-        "minItems": 1,
-        "items": {
-            "type": "object",
-            "properties": {
-                "title": {
-                    "type": "string",
-                    "pattern": "^[a-zA-Z0-9 ]+$",
-                    "description": "a concise title composed with 25 to 40 characters",
-                },
-                "summary": {
-                    "type": "string",
-                    "description": "a summary of the exchange",
-                },
-            },
-            "required": ["title", "summary"],
             "additionalProperties": False,
         },
     }

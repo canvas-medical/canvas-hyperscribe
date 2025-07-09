@@ -5,7 +5,6 @@ from pathlib import Path
 from uuid import uuid4
 
 from evaluations.case_builders.builder_direct_from_tuning import BuilderDirectFromTuning
-from evaluations.structures.case_exchange import CaseExchange
 from evaluations.structures.case_exchange_summary import CaseExchangeSummary
 from evaluations.structures.topical_exchange import TopicalExchange
 from hyperscribe.libraries.audio_interpreter import AudioInterpreter
@@ -16,32 +15,10 @@ from hyperscribe.libraries.memory_log import MemoryLog
 
 
 class BuilderDirectFromTuningSplit(BuilderDirectFromTuning):
-    MAX_WORDS_PER_COMPACTED_TRANSCRIPT = 1000
 
     @classmethod
     def _parameters(cls, parser: ArgumentParser) -> None:
         parser.add_argument("--direct-split", action="store_true")
-
-    @classmethod
-    def compact_transcripts(cls, transcript_files: list[Path]) -> list[Path]:
-        lines: list[CaseExchange] = []
-        folder = transcript_files[0].parent
-        result: list[Path] = [(folder / f"transcript_compacted_000.json")]
-        words = 0
-        for chunk, transcript in enumerate(transcript_files, start=1):
-            with transcript.open("r") as f:
-                for line in CaseExchange.load_from_json_default(json.load(f), chunk):
-                    current = len(line.text.split())
-                    if words + current < cls.MAX_WORDS_PER_COMPACTED_TRANSCRIPT:
-                        words += current
-                        lines.append(line)
-                    else:
-                        result.append(folder / f"transcript_compacted_{len(result):03d}.json")
-                        words = current
-                        lines = [line]
-                    with result[-1].open("w") as f2:
-                        json.dump([line.to_json() for line in lines], f2, indent=2)
-        return result
 
     @classmethod
     def schema_topical_exchanges(cls) -> dict:
@@ -61,30 +38,6 @@ class BuilderDirectFromTuningSplit(BuilderDirectFromTuning):
             },
         }
 
-    @classmethod
-    def schema_summary(cls) -> dict:
-        return {
-            "$schema": "http://json-schema.org/draft-07/schema#",
-            "type": "array",
-            "minItems": 1,
-            "items": {
-                "type": "object",
-                "properties": {
-                    "title": {
-                        "type": "string",
-                        "pattern": "^[a-zA-Z0-9 ]+$",
-                        "description": "a concise title composed with 25 to 40 characters",
-                    },
-                    "summary": {
-                        "type": "string",
-                        "description": "a summary of the exchange",
-                    },
-                },
-                "required": ["title", "summary"],
-                "additionalProperties": False,
-            },
-        }
-
     def _run(self) -> None:
         print(f"collect webm, collate to mp3...")
         mp3_file = self.collated_webm_to_mp3()
@@ -97,8 +50,6 @@ class BuilderDirectFromTuningSplit(BuilderDirectFromTuning):
         chat_transcript = AudioInterpreter(self.settings, self.s3_credentials, cache, self.identification)
         print(f"create transcripts...")
         transcript_files = self.create_transcripts(mp3_files, chat_transcript)
-        # while it is important to keep the transcript generation with the same duration as the actual code,
-        # it is preferable to give wider context to the LLM to identify the different topics
         compacted_transcript_files = self.compact_transcripts(transcript_files)
         print(f"de-identification transcripts...")
         anonymized_transcript_files = self.anonymize_transcripts(compacted_transcript_files)
@@ -143,7 +94,8 @@ class BuilderDirectFromTuningSplit(BuilderDirectFromTuning):
             "```",
             "",
         ])
-        result = CaseExchangeSummary(title=str(uuid4()), summary="")
+        str_uuid = str(uuid4())
+        result = CaseExchangeSummary(title=str_uuid, summary="")
         chatter.set_user_prompt([
             "Coherent topical exchange:",
             "```json",
@@ -160,7 +112,7 @@ class BuilderDirectFromTuningSplit(BuilderDirectFromTuning):
         response = chatter.chat([self.schema_summary()])
         if not response.has_error and (summaries := CaseExchangeSummary.load_from_json(response.content[0])):
             result = CaseExchangeSummary(
-                title=f"{summaries[0].title}_{result.title[:10]}".lower().replace(" ", "_"),
+                title=f"{summaries[0].title}_{str_uuid[:10]}".lower().replace(" ", "_"),
                 summary=summaries[0].summary,
             )
         with topic_summary.open("w") as f:

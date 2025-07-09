@@ -170,7 +170,13 @@ class LlmBase:
                 return JsonExtract(error=str(e), has_error=True, content=[])
 
         if not result:
-            return JsonExtract(error="No JSON markdown found", has_error=True, content=[])
+            return JsonExtract(
+                error="No JSON markdown found. "
+                      "The response should be enclosed within a JSON Markdown block like: \n"
+                      "```json\nJSON OUTPUT HERE\n```",
+                has_error=True,
+                content=[],
+            )
 
         # check against the schemas
         for idx, (returned, validation) in enumerate(zip(result, schemas or [])):

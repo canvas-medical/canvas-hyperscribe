@@ -32,6 +32,7 @@ from hyperscribe.structures.settings import Settings
 
 
 class BuilderDirectFromTuning:
+    MAX_WORDS_PER_COMPACTED_TRANSCRIPT = 1000
 
     @classmethod
     def _parameters(cls, parser: ArgumentParser) -> None:
@@ -334,3 +335,48 @@ class BuilderDirectFromTuning:
                 "additionalProperties": False,
             },
         }
+
+    @classmethod
+    def schema_summary(cls) -> dict:
+        return {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "array",
+            "minItems": 1,
+            "items": {
+                "type": "object",
+                "properties": {
+                    "title": {
+                        "type": "string",
+                        "pattern": "^[a-zA-Z0-9 ]+$",
+                        "description": "a concise title composed with 25 to 40 characters",
+                    },
+                    "summary": {
+                        "type": "string",
+                        "description": "a summary of the exchange",
+                    },
+                },
+                "required": ["title", "summary"],
+                "additionalProperties": False,
+            },
+        }
+
+    @classmethod
+    def compact_transcripts(cls, transcript_files: list[Path]) -> list[Path]:
+        lines: list[CaseExchange] = []
+        folder = transcript_files[0].parent
+        result: list[Path] = [(folder / f"transcript_compacted_000.json")]
+        words = 0
+        for chunk, transcript in enumerate(transcript_files, start=1):
+            with transcript.open("r") as f:
+                for line in CaseExchange.load_from_json_default(json.load(f), chunk):
+                    current = len(line.text.split())
+                    if words + current < cls.MAX_WORDS_PER_COMPACTED_TRANSCRIPT:
+                        words += current
+                        lines.append(line)
+                    else:
+                        result.append(folder / f"transcript_compacted_{len(result):03d}.json")
+                        words = current
+                        lines = [line]
+                    with result[-1].open("w") as f2:
+                        json.dump([line.to_json() for line in lines], f2, indent=2)
+        return result

@@ -589,7 +589,9 @@ def test_extract_json_from(json_validator):
     ])
     result = tested.extract_json_from(content, [])
     expected = JsonExtract(
-        error='No JSON markdown found',
+        error='No JSON markdown found. '
+              'The response should be enclosed within a JSON Markdown block like: \n'
+              '```json\nJSON OUTPUT HERE\n```',
         has_error=True,
         content=[],
     )
