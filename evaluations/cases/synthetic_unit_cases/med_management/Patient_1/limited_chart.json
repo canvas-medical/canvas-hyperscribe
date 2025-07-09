@@ -3,7 +3,7 @@
   "conditionHistory": [],
   "currentAllergies": [
     {
-      "uuid": "314b0e38-7fa7-4636-badd-d090360d952f",
+      "uuid": "67c9ac67-4197-49e0-8b86-8e1915ec3f2d",
       "label": "Shellfish allergy",
       "code": "Z91.013"
     }
@@ -12,9 +12,9 @@
   "currentGoals": [],
   "currentMedications": [
     {
-      "uuid": "2d6777a6-18d4-4c55-8427-900d99f02bc5",
-      "label": "Atovaquone 250 mg / Proguanil 100 mg oral tablet",
-      "code": "838059"
+      "uuid": "fd42bbc9-9284-4d57-a1e9-862a51bdd62e",
+      "label": "Atovaquone-proguanil 250 mg / 100 mg oral tablet",
+      "code": "203788"
     }
   ],
   "familyHistory": [],

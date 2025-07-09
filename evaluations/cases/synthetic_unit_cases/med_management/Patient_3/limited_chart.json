@@ -1,15 +1,15 @@
 {
-  "demographicStr": "The patient is a woman, born on January 1, 1989 (age 35)",
+  "demographicStr": "the patient is a 35-year-old woman (age 35)",
   "conditionHistory": [],
   "currentAllergies": [],
   "currentConditions": [
     {
-      "uuid": "6332527f-4143-40a3-b95d-6726690e34bd",
+      "uuid": "386c187c-8217-498e-9e6b-95fa9452bcde",
       "label": "Crohn's disease, unspecified, without complications",
       "code": "K50.90"
     },
     {
-      "uuid": "084c0c6a-28cf-4e7b-b4c4-2e2fde93e13c",
+      "uuid": "c870971f-8104-448a-b35a-33676b01a5be",
       "label": "Pregnant state, incidental",
       "code": "Z33.1"
     }
@@ -17,24 +17,24 @@
   "currentGoals": [],
   "currentMedications": [
     {
-      "uuid": "5953e64d-f104-43b3-aa3f-1f9108b74f52",
-      "label": "Adalimumab 40 mg/0.8 mL subcutaneous solution syringe",
-      "code": "1154295"
+      "uuid": "0feffb2b-6f2b-4579-9e6e-18c805277799",
+      "label": "Adalimumab 40 mg/0.8 mL subcutaneous solution",
+      "code": "199332"
     },
     {
-      "uuid": "b9325f71-bce9-4e5d-9680-8e9dba081091",
-      "label": "Prenatal multivitamin, oral",
-      "code": "861291"
+      "uuid": "191f867f-4619-4754-aa4b-d8322943a98e",
+      "label": "Prenatal multivitamin oral tablet",
+      "code": "181957"
     },
     {
-      "uuid": "2e4d3470-83ea-4b98-9518-602b690e1a5b",
+      "uuid": "1d90091b-611d-4c42-8505-034d678f789f",
       "label": "Aspirin 81 mg oral tablet",
-      "code": "161"
+      "code": "1191"
     },
     {
-      "uuid": "5de090b7-47c0-44c6-b3cd-55751b6cec67",
+      "uuid": "d6ee2ad3-e83e-42e9-8357-3812eb6f8e94",
       "label": "Ondansetron 8 mg oral tablet",
-      "code": "197361"
+      "code": "87815"
     }
   ],
   "familyHistory": [],

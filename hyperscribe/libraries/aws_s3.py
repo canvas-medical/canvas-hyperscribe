@@ -1,7 +1,3 @@
-'''
-If credentials are invalid or S3 returns an error, return [] rather than raising,
-so that callers can treat missing or transient conditions as “no objects found.”
-'''
 from datetime import datetime, UTC
 from hashlib import sha256
 from hmac import new as hmac_new
@@ -143,7 +139,7 @@ class AwsS3:
             response_text = response.content.decode('utf-8')
             
             if response.status_code != HTTPStatus.OK.value:
-                return []
+                return 
         
             contents_pattern = re_compile(r'<Contents>(.*?)</Contents>', DOTALL)
             for content_match in contents_pattern.finditer(response_text):

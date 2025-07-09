@@ -51,9 +51,6 @@ class LlmBase:
     def set_model_prompt(self, text: list[str]) -> None:
         self.prompts.append(LlmTurn(role=self.ROLE_MODEL, text=text))
 
-    def clear_prompts(self) -> None:
-        self.prompts = []
-
     def add_audio(self, audio: bytes, audio_format: str) -> None:
         raise NotImplementedError()
 
