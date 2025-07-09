@@ -40,6 +40,7 @@ def test_constants():
     # PREFIX exists (even if None)
     assert hasattr(CaptureView, 'PREFIX')
 
+
 @patch.object(Authenticator, 'check')
 def test_authenticate(check):
     view = helper_instance()

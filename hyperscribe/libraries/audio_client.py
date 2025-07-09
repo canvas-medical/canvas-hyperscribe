@@ -122,6 +122,22 @@ class CachedAudioSession(NamedTuple):
 class AudioClient:
     cache = get_cache()
 
+    def __eq__(self, other) -> bool:
+        return (
+            isinstance(other, AudioClient) and
+            self.base_url == other.base_url and
+            self.registration_key == other.registration_key and
+            self.instance == other.instance and
+            self.instance_key == other.instance_key
+        )
+
+    def __repr__(self) -> str:
+        registration_key = 'None' if self.registration_key is None else self.registration_key
+        instance = 'None' if self.instance is None else self.instance
+        instance_key = 'None' if self.instance_key is None else self.instance_key
+        return (f"AudioClient(base_url='{self.base_url}', registration_key={registration_key}, "
+                f"instance={instance}, instance_key={instance_key}")
+
     def __init__(self, 
                  base_url: str, 
                  registration_key: str | None = None, 
