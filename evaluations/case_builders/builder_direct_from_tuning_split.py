@@ -5,6 +5,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from evaluations.case_builders.builder_direct_from_tuning import BuilderDirectFromTuning
+from evaluations.structures.case_exchange import CaseExchange
 from evaluations.structures.case_exchange_summary import CaseExchangeSummary
 from evaluations.structures.topical_exchange import TopicalExchange
 from hyperscribe.libraries.audio_interpreter import AudioInterpreter
@@ -12,7 +13,6 @@ from hyperscribe.libraries.helper import Helper
 from hyperscribe.libraries.implemented_commands import ImplementedCommands
 from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.libraries.memory_log import MemoryLog
-from hyperscribe.structures.line import Line
 
 
 class BuilderDirectFromTuningSplit(BuilderDirectFromTuning):
@@ -24,13 +24,13 @@ class BuilderDirectFromTuningSplit(BuilderDirectFromTuning):
 
     @classmethod
     def compact_transcripts(cls, transcript_files: list[Path]) -> list[Path]:
-        lines: list[Line] = []
+        lines: list[CaseExchange] = []
         folder = transcript_files[0].parent
         result: list[Path] = [(folder / f"transcript_compacted_000.json")]
         words = 0
-        for transcript in transcript_files:
+        for chunk, transcript in enumerate(transcript_files, start=1):
             with transcript.open("r") as f:
-                for line in Line.load_from_json(json.load(f)):
+                for line in CaseExchange.load_from_json_default(json.load(f), chunk):
                     current = len(line.text.split())
                     if words + current < cls.MAX_WORDS_PER_COMPACTED_TRANSCRIPT:
                         words += current
@@ -172,8 +172,8 @@ class BuilderDirectFromTuningSplit(BuilderDirectFromTuning):
         memory_log = MemoryLog.instance(self.identification, "detect_topical_exchanges", self.s3_credentials)
         schema_topical_exchanges = self.schema_topical_exchanges()
 
-        for chunk, transcript in enumerate(transcript_files):
-            topic_detection = transcript.parent / f"topic_detection_{chunk:03d}.json"
+        for fragment, transcript in enumerate(transcript_files, start=1):
+            topic_detection = transcript.parent / f"topic_detection_{fragment:03d}.json"
             if topic_detection.exists() and not self.force_refresh:
                 with topic_detection.open("r") as f:
                     result.extend(TopicalExchange.load_from_json(json.load(f)))
@@ -183,22 +183,22 @@ class BuilderDirectFromTuningSplit(BuilderDirectFromTuning):
             chatter.set_system_prompt([
                 "The conversation is in the medical context, and related to a visit of a patient with a healthcare provider.",
                 "",
-                "The conversation is divided into sequential chunks of several seconds each.",
+                "The conversation is divided into sequential fragment of several seconds each.",
                 "",
                 "Your task is to segment the conversation into coherent sets of topical medical exchanges.",
                 "This means:",
                 "* Each set should correspond to a distinct medical topic.",
                 "* Non-medical content (e.g., small talk, greetings) should be included in the current medical topic set but should not initiate a new topic on its own.",
                 "",
-                "For each new chunk, you will be given:",
-                "* The transcript of the current chunk.",
+                "For each new fragment, you will be given:",
+                "* The transcript of the current fragment.",
                 "* The last previously identified topic exchange.",
                 "",
                 "",
                 "Your job is to:",
-                "* Determine whether the current chunk introduces a new medical topic.",
+                "* Determine whether the current fragment introduces a new medical topic.",
                 "* If it does, increment the 'topic' field by one (1) for the exchanges starting from this new topic.",
-                "* Topic shifts may occur anywhere within the chunk, not necessarily at the beginning.",
+                "* Topic shifts may occur anywhere within the fragment, not necessarily at the beginning.",
                 "",
                 "Be precise and consistent. Only mark a new topic when the medical focus clearly changes.",
                 "",
@@ -222,7 +222,7 @@ class BuilderDirectFromTuningSplit(BuilderDirectFromTuning):
                 ])
             with transcript.open("r") as f:
                 chatter.set_user_prompt([
-                    f"The chunk #{chunk} of the discussion is:",
+                    f"The fragment of the discussion is:",
                     "```json",
                     f.read(),
                     "```",

@@ -583,14 +583,14 @@ def test_create_transcripts():
             exp_content = [{"speaker": f"theSpeaker{index + 1}", "text": f"theText{index + 1}"}]
             assert json.loads(json_buffers[index].content) == exp_content
 
-        for index, mock_file in enumerate(mock_audio_files):
+        for index, mock_file in enumerate(mock_audio_files, start=1):
             calls = [
                 call.parent.__truediv__(f"transcript_{index:03d}.json"),
                 call.open('rb'),
             ]
             assert mock_file.mock_calls == calls
-            exp_content = f"audio content {index}".encode('utf-8')
-            assert audio_buffers[index].content == exp_content
+            exp_content = f"audio content {index - 1}".encode('utf-8')
+            assert audio_buffers[index - 1].content == exp_content
         reset_mocks()
 
     # not forced refresh and some json does exist
@@ -639,13 +639,13 @@ def test_create_transcripts():
     assert json_buffers[2].content == ""
 
     calls = [
-        call.parent.__truediv__("transcript_000.json"),
+        call.parent.__truediv__("transcript_001.json"),
         call.open('rb'),
     ]
     assert mock_audio_files[0].mock_calls == calls
-    calls = [call.parent.__truediv__("transcript_001.json")]
-    assert mock_audio_files[1].mock_calls == calls
     calls = [call.parent.__truediv__("transcript_002.json")]
+    assert mock_audio_files[1].mock_calls == calls
+    calls = [call.parent.__truediv__("transcript_003.json")]
     assert mock_audio_files[2].mock_calls == calls
 
     for index, mock_file in enumerate(mock_audio_files):
@@ -1282,10 +1282,11 @@ def test_schema_anonymization():
         "type": "array",
         "items": {
             "type": "object",
-            "required": ["speaker", "text"],
+            "required": ["speaker", "text", "chunk"],
             "properties": {
                 "speaker": {"type": "string", "minLength": 1},
                 "text": {"type": "string"},
+                "chunk": {"type": "integer"},
             },
             "additionalProperties": False,
         },

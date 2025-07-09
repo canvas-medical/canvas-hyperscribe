@@ -27,6 +27,21 @@ def test_load_from_json():
     assert result == expected
 
 
+def test_load_from_json_default():
+    tested = CaseExchange
+    result = tested.load_from_json_default([
+        {"speaker": "theSpeaker1", "text": "theText1"},
+        {"speaker": "theSpeaker2", "text": "theText2"},
+        {"speaker": "theSpeaker1", "text": "theText3", "chunk": 2},
+    ], 7)
+    expected = [
+        CaseExchange(speaker="theSpeaker1", text="theText1", chunk=7),
+        CaseExchange(speaker="theSpeaker2", text="theText2", chunk=7),
+        CaseExchange(speaker="theSpeaker1", text="theText3", chunk=2),
+    ]
+    assert result == expected
+
+
 def test_to_json():
     tested = CaseExchange(speaker="theSpeaker", text="theText", chunk=7)
     result = tested.to_json()

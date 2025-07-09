@@ -148,33 +148,33 @@ def test_compact_transcripts():
                 ])
             elif index in [7]:
                 exp_content = json.dumps([
-                    {"speaker": "speaker1", "text": "word1 word2 word3 word4 word5"},
-                    {"speaker": "speaker2", "text": "word6 word7 word8"},
-                    {"speaker": "speaker3", "text": "word9 word10"},
-                    {"speaker": "speaker1", "text": "word1 word2 word3 word4 word5"},
-                    {"speaker": "speaker2", "text": "word6 word7 word8"},
-                    {"speaker": "speaker3", "text": "word9 word10"},
-                    {"speaker": "speaker1", "text": "word1 word2 word3 word4 word5"},
-                    {"speaker": "speaker2", "text": "word6 word7 word8"},
+                    {"speaker": "speaker1", "text": "word1 word2 word3 word4 word5", "chunk": 1},
+                    {"speaker": "speaker2", "text": "word6 word7 word8", "chunk": 1},
+                    {"speaker": "speaker3", "text": "word9 word10", "chunk": 1},
+                    {"speaker": "speaker1", "text": "word1 word2 word3 word4 word5", "chunk": 2},
+                    {"speaker": "speaker2", "text": "word6 word7 word8", "chunk": 2},
+                    {"speaker": "speaker3", "text": "word9 word10", "chunk": 2},
+                    {"speaker": "speaker1", "text": "word1 word2 word3 word4 word5", "chunk": 3},
+                    {"speaker": "speaker2", "text": "word6 word7 word8", "chunk": 3},
                 ], indent=2)
             elif index in [8]:
                 exp_content = json.dumps([
-                    {"speaker": "speaker3", "text": "word9 word10"},
-                    {"speaker": "speaker1", "text": "word1 word2 word3 word4 word5"},
-                    {"speaker": "speaker2", "text": "word6 word7 word8"},
-                    {"speaker": "speaker3", "text": "word9 word10"},
-                    {"speaker": "speaker1", "text": "word1 word2 word3 word4 word5"},
-                    {"speaker": "speaker2", "text": "word6 word7 word8"},
-                    {"speaker": "speaker3", "text": "word9 word10"},
-                    {"speaker": "speaker1", "text": "word1 word2 word3 word4 word5"},
+                    {"speaker": "speaker3", "text": "word9 word10", "chunk": 3},
+                    {"speaker": "speaker1", "text": "word1 word2 word3 word4 word5", "chunk": 4},
+                    {"speaker": "speaker2", "text": "word6 word7 word8", "chunk": 4},
+                    {"speaker": "speaker3", "text": "word9 word10", "chunk": 4},
+                    {"speaker": "speaker1", "text": "word1 word2 word3 word4 word5", "chunk": 5},
+                    {"speaker": "speaker2", "text": "word6 word7 word8", "chunk": 5},
+                    {"speaker": "speaker3", "text": "word9 word10", "chunk": 5},
+                    {"speaker": "speaker1", "text": "word1 word2 word3 word4 word5", "chunk": 6},
                 ], indent=2)
             elif index in [9]:
                 exp_content = json.dumps([
-                    {"speaker": "speaker2", "text": "word6 word7 word8"},
-                    {"speaker": "speaker3", "text": "word9 word10"},
-                    {"speaker": "speaker1", "text": "word1 word2 word3 word4 word5"},
-                    {"speaker": "speaker2", "text": "word6 word7 word8"},
-                    {"speaker": "speaker3", "text": "word9 word10"},
+                    {"speaker": "speaker2", "text": "word6 word7 word8", "chunk": 6},
+                    {"speaker": "speaker3", "text": "word9 word10", "chunk": 6},
+                    {"speaker": "speaker1", "text": "word1 word2 word3 word4 word5", "chunk": 7},
+                    {"speaker": "speaker2", "text": "word6 word7 word8", "chunk": 7},
+                    {"speaker": "speaker3", "text": "word9 word10", "chunk": 7},
                 ], indent=2)
             else:
                 exp_content = ""
@@ -188,7 +188,6 @@ def test_compact_transcripts():
         assert result == expected
 
         for index, item in enumerate(files):
-            print("---->>", index)
             if index == 0:
                 calls = [
                     call.parent.__truediv__('transcript_compacted_000.json'),
@@ -236,30 +235,30 @@ def test_compact_transcripts():
                 ])
             elif index in [7]:
                 exp_content = json.dumps([
-                    {"speaker": "speaker1", "text": "word1 word2 word3 word4 word5"},
-                    {"speaker": "speaker2", "text": "word6 word7 word8"},
-                    {"speaker": "speaker3", "text": "word9 word10"},
-                    {"speaker": "speaker1", "text": "word1 word2 word3 word4 word5"},
-                    {"speaker": "speaker2", "text": "word6 word7 word8"},
-                    {"speaker": "speaker3", "text": "word9 word10"},
-                    {"speaker": "speaker1", "text": "word1 word2 word3 word4 word5"},
-                    {"speaker": "speaker2", "text": "word6 word7 word8"},
-                    {"speaker": "speaker3", "text": "word9 word10"},
-                    {"speaker": "speaker1", "text": "word1 word2 word3 word4 word5"},
-                    {"speaker": "speaker2", "text": "word6 word7 word8"},
-                    {"speaker": "speaker3", "text": "word9 word10"},
-                    {"speaker": "speaker1", "text": "word1 word2 word3 word4 word5"},
-                    {"speaker": "speaker2", "text": "word6 word7 word8"},
+                    {"speaker": "speaker1", "text": "word1 word2 word3 word4 word5", "chunk": 1},
+                    {"speaker": "speaker2", "text": "word6 word7 word8", "chunk": 1},
+                    {"speaker": "speaker3", "text": "word9 word10", "chunk": 1},
+                    {"speaker": "speaker1", "text": "word1 word2 word3 word4 word5", "chunk": 2},
+                    {"speaker": "speaker2", "text": "word6 word7 word8", "chunk": 2},
+                    {"speaker": "speaker3", "text": "word9 word10", "chunk": 2},
+                    {"speaker": "speaker1", "text": "word1 word2 word3 word4 word5", "chunk": 3},
+                    {"speaker": "speaker2", "text": "word6 word7 word8", "chunk": 3},
+                    {"speaker": "speaker3", "text": "word9 word10", "chunk": 3},
+                    {"speaker": "speaker1", "text": "word1 word2 word3 word4 word5", "chunk": 4},
+                    {"speaker": "speaker2", "text": "word6 word7 word8", "chunk": 4},
+                    {"speaker": "speaker3", "text": "word9 word10", "chunk": 4},
+                    {"speaker": "speaker1", "text": "word1 word2 word3 word4 word5", "chunk": 5},
+                    {"speaker": "speaker2", "text": "word6 word7 word8", "chunk": 5},
                 ], indent=2)
             elif index in [8]:
                 exp_content = json.dumps([
-                    {"speaker": "speaker3", "text": "word9 word10"},
-                    {"speaker": "speaker1", "text": "word1 word2 word3 word4 word5"},
-                    {"speaker": "speaker2", "text": "word6 word7 word8"},
-                    {"speaker": "speaker3", "text": "word9 word10"},
-                    {"speaker": "speaker1", "text": "word1 word2 word3 word4 word5"},
-                    {"speaker": "speaker2", "text": "word6 word7 word8"},
-                    {"speaker": "speaker3", "text": "word9 word10"},
+                    {"speaker": "speaker3", "text": "word9 word10", "chunk": 5},
+                    {"speaker": "speaker1", "text": "word1 word2 word3 word4 word5", "chunk": 6},
+                    {"speaker": "speaker2", "text": "word6 word7 word8", "chunk": 6},
+                    {"speaker": "speaker3", "text": "word9 word10", "chunk": 6},
+                    {"speaker": "speaker1", "text": "word1 word2 word3 word4 word5", "chunk": 7},
+                    {"speaker": "speaker2", "text": "word6 word7 word8", "chunk": 7},
+                    {"speaker": "speaker3", "text": "word9 word10", "chunk": 7},
                 ], indent=2)
             else:
                 exp_content = ""
@@ -686,7 +685,7 @@ def test_detect_topical_exchanges(schema_topical_exchanges, memory_log, helper):
     system_prompt = [
         'The conversation is in the medical context, and related to a visit of a patient with a healthcare provider.',
         '',
-        'The conversation is divided into sequential chunks of several seconds each.',
+        'The conversation is divided into sequential fragment of several seconds each.',
         '',
         'Your task is to segment the conversation into coherent sets of topical medical exchanges.',
         'This means:',
@@ -694,15 +693,15 @@ def test_detect_topical_exchanges(schema_topical_exchanges, memory_log, helper):
         '* Non-medical content (e.g., small talk, greetings) should be included in the current medical topic '
         'set but should not initiate a new topic on its own.',
         '',
-        'For each new chunk, you will be given:',
-        '* The transcript of the current chunk.',
+        'For each new fragment, you will be given:',
+        '* The transcript of the current fragment.',
         '* The last previously identified topic exchange.',
         '',
         '',
         'Your job is to:',
-        '* Determine whether the current chunk introduces a new medical topic.',
+        '* Determine whether the current fragment introduces a new medical topic.',
         "* If it does, increment the 'topic' field by one (1) for the exchanges starting from this new topic.",
-        '* Topic shifts may occur anywhere within the chunk, not necessarily at the beginning.',
+        '* Topic shifts may occur anywhere within the fragment, not necessarily at the beginning.',
         '',
         'Be precise and consistent. Only mark a new topic when the medical focus clearly changes.',
         '',
@@ -714,7 +713,7 @@ def test_detect_topical_exchanges(schema_topical_exchanges, memory_log, helper):
     ]
     user_prompts = [
         [
-            'The chunk #0 of the discussion is:',
+            'The fragment of the discussion is:',
             '```json',
             '[{"speaker": "theSpeaker0", "text": "theText0", "chunk": 0, "topic": 0}]',
             '```',
@@ -733,7 +732,7 @@ def test_detect_topical_exchanges(schema_topical_exchanges, memory_log, helper):
             'This is just for the context, so do not repeat it in your answer.',
         ],
         [
-            'The chunk #1 of the discussion is:',
+            'The fragment of the discussion is:',
             '```json',
             '[{"speaker": "theSpeaker1", "text": "theText1", "chunk": 1, "topic": 1}]',
             '```',
@@ -756,7 +755,7 @@ def test_detect_topical_exchanges(schema_topical_exchanges, memory_log, helper):
             'This is just for the context, so do not repeat it in your answer.',
         ],
         [
-            'The chunk #2 of the discussion is:',
+            'The fragment of the discussion is:',
             '```json',
             '[{"speaker": "theSpeaker2", "text": "theText2", "chunk": 2, "topic": 2}]',
             '```', '',
@@ -837,7 +836,7 @@ def test_detect_topical_exchanges(schema_topical_exchanges, memory_log, helper):
         for index, file in enumerate(files):
             if index < 3:
                 calls = [
-                    call.parent.__truediv__(f'topic_detection_{index:03d}.json'),
+                    call.parent.__truediv__(f'topic_detection_{index + 1:03d}.json'),
                     call.open('r'),
                 ]
             else:
@@ -908,7 +907,7 @@ def test_detect_topical_exchanges(schema_topical_exchanges, memory_log, helper):
     for index, file in enumerate(files):
         if index < 3:
             calls = [
-                call.parent.__truediv__(f'topic_detection_{index:03d}.json'),
+                call.parent.__truediv__(f'topic_detection_{index + 1:03d}.json'),
             ]
         else:
             calls = [

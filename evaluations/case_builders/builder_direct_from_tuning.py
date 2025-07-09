@@ -141,7 +141,7 @@ class BuilderDirectFromTuning:
     def create_transcripts(self, mp3_files: list[Path], interpreter: AudioInterpreter) -> list[Path]:
         result: list[Path] = []
         last_exchange: list[Line] = []
-        for chunk, mp3_file in enumerate(mp3_files):
+        for chunk, mp3_file in enumerate(mp3_files, 1):
             json_file = mp3_file.parent / f"transcript_{chunk:03d}.json"
             if self.force_refresh or not json_file.exists():
                 with mp3_file.open("rb") as f:
@@ -303,10 +303,11 @@ class BuilderDirectFromTuning:
             "type": "array",
             "items": {
                 "type": "object",
-                "required": ["speaker", "text"],
+                "required": ["speaker", "text", "chunk"],
                 "properties": {
                     "speaker": {"type": "string", "minLength": 1},
                     "text": {"type": "string"},
+                    "chunk": {"type": "integer"},
                 },
                 "additionalProperties": False,
             },
