@@ -4,7 +4,7 @@ import re
 import os
 import random
 import argparse
-from typing import Optional, List, Tuple, Any, cast
+from typing import List, Tuple, Any, cast
 from json import JSONDecodeError
 
 from hyperscribe.llms.llm_openai_o3 import LlmOpenaiO3
@@ -12,70 +12,10 @@ from hyperscribe.structures.llm_turn import LlmTurn
 from hyperscribe.structures.vendor_key import VendorKey
 from hyperscribe.structures.settings import Settings
 from hyperscribe.libraries.memory_log import MemoryLog
+from evaluations.constants import Constants
 
-class TGConstants:
-    TURN_BUCKETS = {
-        "short": (2, 4),      
-        "medium": (6, 8),
-        "long": (10, 14)
-    }
-
-    MOOD_POOL = [
-        "patient is frustrated", "patient is tearful", "patient is embarrassed",
-        "patient is defensive", "clinician is concerned", "clinician is rushed",
-        "clinician is warm", "clinician is brief"
-    ]
-
-    PRESSURE_POOL = [
-        "time pressure on the visit", "insurance denied prior authorization",
-        "formulary change", "refill limit reached", "patient traveling soon",
-        "side‑effect report just came in"
-    ]
-
-    CLINICIAN_PERSONAS = [
-        "warm and chatty", "brief and efficient", "cautious and inquisitive",
-        "over‑explainer"
-    ]
-
-    PATIENT_PERSONAS = [
-        "anxious and talkative", "confused and forgetful",
-        "assertive and informed", "agreeable but vague"
-    ]
-
-    FORBIDDEN_CLOSINGS = {
-        "okay thanks", "thanks for coming", "take care", "bye for now",
-        "we'll follow up", "see you next time"
-    }
-
-def _safe_json_load(txt: str) -> Tuple[Optional[Any], Optional[str]]:
-    """Return (data, err_msg).  data is None if still invalid."""
-    def attempt(s: str) -> Tuple[Optional[Any], Optional[str]]:
-        try:
-            return json.loads(s), None
-        except JSONDecodeError as e:
-            return None, str(e)
-
-    data, err = attempt(txt)
-    if data:
-        return data, None
-
-    m = re.search(r"[\\[{]", txt)
-    if m:
-        data, err = attempt(txt[m.start():])
-        if data:
-            return data, None
-
-    stripped = re.sub(r",\s+(?=[}\]])", "", txt)
-    data, err = attempt(stripped)
-    if data:
-        return data, None
-
-    data, err = attempt(stripped.rstrip("'\"` \n"))
-    return data, err
 
 class TranscriptGenerator:
-    """Generate mid‑conversation transcript snippets with controlled variation."""
-
     def __init__(self, vendor_key: VendorKey, input_profiles_path: str, output_root_path: str) -> None:
         self.vendor_key = vendor_key
         self.input_profiles_path = Path(input_profiles_path).expanduser()
@@ -95,27 +35,46 @@ class TranscriptGenerator:
             with_audit=False
         )
 
+    def _safe_json_load(self, txt: str) -> Tuple[Any | None, str | None]:
+        def attempt(s: str) -> Tuple[Any | None, str | None]:
+            try:
+                return json.loads(s), None
+            except JSONDecodeError as e:
+                return None, str(e)
+
+        data, err = attempt(txt)
+        if data:
+            return data, None
+
+        m = re.search(r"[\\[{]", txt)
+        if m:
+            data, err = attempt(txt[m.start():])
+            if data:
+                return data, None
+
+        stripped = re.sub(r",\s+(?=[}\]])", "", txt)
+        data, err = attempt(stripped)
+        if data:
+            return data, None
+
+        return attempt(stripped.rstrip("'\"` \n"))
+
     def _random_bucket(self) -> str:
-        return random.choice(list(TGConstants.TURN_BUCKETS.keys()))
+        return random.choice(list(Constants.TURN_BUCKETS.keys()))
 
     def _make_spec(self) -> dict[str, Any]:
         bucket = self._random_bucket()
-        lo, hi = TGConstants.TURN_BUCKETS[bucket]
+        lo, hi = Constants.TURN_BUCKETS[bucket]
         turn_total = random.randint(lo, hi)
 
         first = random.choice(["Clinician", "Patient"])
         other = "Patient" if first == "Clinician" else "Clinician"
-        speaker_sequence: List[str] = [first]
-        for _ in range(turn_total - 1):
-            speaker_sequence.append(random.choice([first, other]))
-
-        #randomized ratio between 1:2 to 2:1. 
+        speaker_sequence = [first] + [random.choice([first, other]) for _ in range(turn_total - 1)]
         ratio = round(random.uniform(0.5, 2.0), 2)
-
-        mood = random.sample(TGConstants.MOOD_POOL, k=2)
-        pressure = random.choice(TGConstants.PRESSURE_POOL)
-        clinician_style = random.choice(TGConstants.CLINICIAN_PERSONAS)
-        patient_style = random.choice(TGConstants.PATIENT_PERSONAS)
+        mood = random.sample(Constants.MOOD_POOL, k=2)
+        pressure = random.choice(Constants.PRESSURE_POOL)
+        clinician_style = random.choice(Constants.CLINICIAN_PERSONAS)
+        patient_style = random.choice(Constants.PATIENT_PERSONAS)
 
         return {
             "turn_total": turn_total,
@@ -125,7 +84,7 @@ class TranscriptGenerator:
             "pressure": pressure,
             "clinician_style": clinician_style,
             "patient_style": patient_style,
-            "bucket": bucket
+            "bucket": bucket,
         }
 
     def _build_prompt(self, profile_text: str, spec: dict) -> List[LlmTurn]:
@@ -165,7 +124,7 @@ class TranscriptGenerator:
         ]
         return [
             LlmTurn(role="system", text=system_lines),
-            LlmTurn(role="user",  text=user_lines)
+            LlmTurn(role="user", text=user_lines)
         ]
 
     def generate_transcript_for_profile(self, profile_text: str) -> Tuple[list[Any], dict[str, Any], str]:
@@ -177,25 +136,21 @@ class TranscriptGenerator:
         raw = llm.request().response
         cleaned = re.sub(r"```(?:json)?\n?|\\n?```", "", raw).strip()
 
-        transcript, err = _safe_json_load(cleaned)
+        transcript, err = self._safe_json_load(cleaned)
         if transcript is None:
-            # fallback placeholder + raw text file
             print("Transcript generation formatting error, look at spec audit.")
             transcript = [{"speaker": "SYSTEM", "text": "RAW_LLM_OUTPUT_NOT_JSON"}]
-            transcript.append({"speaker": "LLM_RAW", "text": cleaned[:5000]})
-            spec["json_error"] = err  # record parse error
+            transcript.append({"speaker": "LLM_RAW", "text": cleaned[:Constants.RAW_TEXT_CUTOFF]})
+            spec["json_error"] = err
 
         if transcript and isinstance(transcript, list) and "text" in transcript[0]:
             self.seen_openings.add(transcript[0]["text"].strip().lower())
 
         return transcript, spec, cleaned
 
-    def run(self, start_index: int = 1, limit: int | None = None) -> None:
+    def run(self, start_index: int, limit: int) -> None:
         items = list(self.profiles.items())
-        #slicing based on start_index and limit flags in cases of partial run fails.
-        items = items[start_index - 1:] 
-        if limit:
-            items = items[:limit]
+        items = items[start_index - 1:start_index - 1 + limit]
 
         for patient_name, profile_text in items:
             safe_name = re.sub(r"\W+", "_", patient_name)
@@ -205,28 +160,27 @@ class TranscriptGenerator:
             print(f"Generating transcript for {patient_name}")
             transcript, spec, raw_txt = self.generate_transcript_for_profile(profile_text)
 
-            # save transcript + spec
             (patient_dir / "transcript.json").write_text(json.dumps(transcript, indent=2))
             (patient_dir / "spec.json").write_text(json.dumps(spec, indent=2))
-
-            #keeping raw file just in case for debugging. 
             (patient_dir / "raw_transcript.txt").write_text(raw_txt)
 
             print("Saved => transcript.json, spec.json, raw_transcript.txt")
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--profiles", type=str, required=True)
+    parser.add_argument("--output", type=str, required=True)
+    parser.add_argument("--start", type=int, required=True)
+    parser.add_argument("--limit", type=int, required=True)
+    args = parser.parse_args()
+
     settings = Settings.from_dictionary(os.environ)
     vendor_key = settings.llm_text
 
     generator = TranscriptGenerator(
         vendor_key=vendor_key,
-        input_profiles_path="~/canvas-hyperscribe/evaluations/cases/synthetic_unit_cases/patient_profiles_test.json",
-        output_root_path="~/canvas-hyperscribe/evaluations/cases/synthetic_unit_cases/"
+        input_profiles_path=args.profiles,
+        output_root_path=args.output
     )
-    # pass --limit N via CLI if desired
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--limit", type=int, default=None)
-    parser.add_argument("--start", type=int, default=1,   help="start at patient N (1-based)")
-    args = parser.parse_args()
     generator.run(start_index=args.start, limit=args.limit)

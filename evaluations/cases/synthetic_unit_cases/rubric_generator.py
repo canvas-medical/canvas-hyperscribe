@@ -17,7 +17,7 @@ class RubricGenerator:
             self.vendor_key.api_key, 
             with_audit=False)
 
-    @staticmethod
+    @classmethod
     def load_json(path: Path) -> list[dict[str, Any]]:
         with path.open("r") as f:
             return cast(list[dict[str, Any]], json.load(f))
@@ -25,18 +25,13 @@ class RubricGenerator:
     def build_prompt(self, transcript: list[dict[str, Any]],
             chart: list[dict[str, Any]],
             canvas_context: list[dict[str, Any]]) -> None:
-        self.llm.add_prompt(LlmTurn(
-            role='system',
-            text=[
+        self.llm.set_system_prompt([
                 "You are a clinical informatics expert working with a senior physician to build innovative medical education software. "
                 "You specialize in designing case-specific rubrics to evaluate how faithfully a medical scribe note "
                 "reflects the conversation between a clinician and patient, as recorded in a transcript, and any relevant information in the patient's chart."
-            ]
-        ))
+            ])
 
-        self.llm.add_prompt(LlmTurn(
-            role='user',
-            text=[
+        self.llm.set_user_prompt([
                 "Your task is to design a grading rubric for evaluating the fidelity of a medical scribe note. "
                 "Fidelity is defined as the degree to which the note reflects exactly what was said or implied"
                 "in the transcript, using relevant context from the chart. Do not judge the clinical quality of"
@@ -85,8 +80,7 @@ class RubricGenerator:
                 "--- BEGIN CANVAS CONTEXT JSON ---",
                 json.dumps(canvas_context),
                 "--- END CANVAS CONTEXT JSON ---"
-            ]
-        ))
+            ])
 
     def generate(self, transcript_path: Path, chart_path: Path, canvas_context_path: Path, output_path: Path) -> None:
         transcript = self.load_json(transcript_path)
