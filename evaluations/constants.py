@@ -23,8 +23,6 @@ class Constants:
     OPTION_STORE_LOGS = "--store-logs"
     OPTION_END2END = "--end2end"
     # environment variables
-    # -- used to identify the running CANVAS instance
-    CUSTOMER_IDENTIFIER = "CUSTOMER_IDENTIFIER"
     # -- credentials to access the PostGreSQL database storing the evaluation test results
     EVALUATIONS_DB_NAME = "EVALUATIONS_DB_NAME"
     EVALUATIONS_DB_USERNAME = "EVALUATIONS_DB_USERNAME"

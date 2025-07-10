@@ -28,8 +28,6 @@ def test_constants():
         "OPTION_STORE_LOGS": "--store-logs",
         "OPTION_END2END": "--end2end",
         #
-        "CUSTOMER_IDENTIFIER": "CUSTOMER_IDENTIFIER",
-        #
         "EVALUATIONS_DB_NAME": "EVALUATIONS_DB_NAME",
         "EVALUATIONS_DB_USERNAME": "EVALUATIONS_DB_USERNAME",
         "EVALUATIONS_DB_PASSWORD": "EVALUATIONS_DB_PASSWORD",

@@ -192,9 +192,6 @@ class BuilderBase:
             summary["command"]
             for summary in cls._summary_generated_commands(recorder)
         ]
-        print("------")
-        print(commands)
-        print("------")
         if not commands:
             return
 
