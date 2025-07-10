@@ -1,0 +1,52 @@
+[
+  {
+    "criterion": "Reward for accurately documenting tretinoin regimen including concentration (0.025%), pea-sized amount, bedtime use after washing, and application only on dry skin.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing clinician counseling about expected dryness, mild burning, and possible acne flare during the first month of tretinoin therapy.",
+    "weight": 8,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for including instructions to apply fragrance-free moisturizer each morning and use SPF 30 sunscreen when running outside.",
+    "weight": 8,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for noting that one tube of tretinoin should last eight weeks and that no early refills are approved.",
+    "weight": 8,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for accurately recording albuterol dosing as 'as needed,' two puffs, with a maximum frequency of every four hours.",
+    "weight": 12,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting the patient\u2019s concern about forgetting application steps and the question about skipping tretinoin if it stings.",
+    "weight": 8,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting the patient\u2019s report that his inhaler is empty, the pharmacy has no refills, and he feels lost about next steps.",
+    "weight": 8,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for overall completeness of the note, ensuring all clinician instructions and patient concerns from the encounter are represented.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for chart-copy fidelity, using exact medication names, strengths, and demographic details without introducing errors or unrelated chart data.",
+    "weight": 8,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for adding, altering, or omitting any instruction, symptom, or detail that is not supported by the transcript or chart.",
+    "weight": 10,
+    "sense": "negative"
+  }
+]

@@ -1,0 +1,57 @@
+[
+  {
+    "rationale": "HPI not captured; no mention of nasal stinging, pink blood or loratadine sleepiness.",
+    "satisfaction": 0,
+    "score": 0.0
+  },
+  {
+    "rationale": "No documentation of nasal-spray technique education.",
+    "satisfaction": 0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Saline-spray recommendation absent.",
+    "satisfaction": 0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Changed fluticasone to inhaler 2 puffs BID; no loratadine guidance.",
+    "satisfaction": 0,
+    "score": 0.0
+  },
+  {
+    "rationale": "No follow-up advice regarding recurrent bleeding.",
+    "satisfaction": 0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Medication list altered and partly inaccurate; includes new albuterol; strengths/frequencies not chart-matched.",
+    "satisfaction": 15,
+    "score": 1.5
+  },
+  {
+    "rationale": "No reassurance about benign nature of bleed documented.",
+    "satisfaction": 0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Note lacks core sections and is largely incomplete.",
+    "satisfaction": 10,
+    "score": 0.5
+  },
+  {
+    "rationale": "Multiple key details omitted (symptoms, instructions, follow-up).",
+    "satisfaction": 10,
+    "score": -9.0
+  },
+  {
+    "rationale": "Introduced new prescriptions and doses not in transcript.",
+    "satisfaction": 0,
+    "score": -10.0
+  },
+  {
+    "rationale": "Included unrelated albuterol and inhaler rinse advice.",
+    "satisfaction": 10,
+    "score": -4.5
+  }
+]

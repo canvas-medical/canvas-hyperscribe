@@ -1,7 +1,7 @@
 import json
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
-from evaluations.auditors.auditor_file import AuditorFile
+from evaluations.auditors.auditor_store import AuditorStore
 from evaluations.case_builders.builder_base import BuilderBase
 from evaluations.constants import Constants
 from evaluations.datastores.sqllite.store_cases import StoreCases
@@ -32,7 +32,7 @@ class BuilderFromChartTranscript(BuilderBase):
         return parser.parse_args()
 
     @classmethod
-    def _run(cls, parameters: Namespace, recorder: AuditorFile, identification: IdentificationParameters) -> None:
+    def _run(cls, parameters: Namespace, recorder: AuditorStore, identification: IdentificationParameters) -> None:
         with parameters.chart.open("r") as f:
             chart_data = json.load(f)
         limited_cache = LimitedCache.load_from_json(chart_data)
@@ -53,8 +53,8 @@ class BuilderFromChartTranscript(BuilderBase):
         ))
 
         chatter = AudioInterpreter(
-            HelperEvaluation.settings(),
-            HelperEvaluation.aws_s3_credentials(),
+            recorder.settings,
+            recorder.s3_credentials,
             limited_cache,
             identification
         )
@@ -71,8 +71,9 @@ class BuilderFromChartTranscript(BuilderBase):
             for cycle in range(parameters.cycles):
                 start = cycle * length
                 discussion.set_cycle(cycle + 1)
+                new_store = AuditorStore(parameters.case, cycle, recorder.settings, recorder.s3_credentials)
                 prev, _ = Commander.transcript2commands(
-                    AuditorFile(parameters.case, cycle),
+                    new_store,
                     transcript[start:start + length],
                     chatter,
                     previous

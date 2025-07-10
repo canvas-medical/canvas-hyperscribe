@@ -1,0 +1,131 @@
+import json, os, re, argparse
+from pathlib import Path
+from typing import Any, Dict, List, cast
+
+from hyperscribe.structures.vendor_key import VendorKey
+from hyperscribe.structures.settings    import Settings
+from evaluations.case_builders.synthetic_json_helper import generate_json
+
+class PatientProfileGenerator:
+    def __init__(self, vendor_key: VendorKey, output_path_str: str) -> None:
+        self.vendor_key    = vendor_key
+        self.output_path   = Path(output_path_str).expanduser()
+        self.seen_scenarios: List[str]    = []
+        self.all_profiles:   Dict[str,str] = {}
+
+    def _summarize_scenario(self, narrative: str) -> str:
+        return narrative.split(".")[0][:100]
+
+    def _save_combined(self) -> None:
+        self.output_path.parent.mkdir(parents=True, exist_ok=True)
+        with self.output_path.open("w") as f:
+            json.dump(self.all_profiles, f, indent=2)
+        print(f"Saved {len(self.all_profiles)} profiles to {self.output_path}")
+
+    def _save_individuals(self) -> None:
+        base_dir = self.output_path.parent
+        for name, narrative in self.all_profiles.items():
+            dir_name = re.sub(r"\s+", "_", name.strip())
+            dir_path = base_dir / dir_name
+            dir_path.mkdir(parents=True, exist_ok=True)
+            file_path = dir_path / "profile.json"
+            with file_path.open("w") as f:
+                json.dump({name: narrative}, f, indent=2)
+            print(f"Saved profile for {name} to {file_path}")
+
+    def schema_batch(self, count: int) -> Dict[str,Any]:
+        """
+        JSON Schema requiring exactly `count` keys of the form "Patient <number>"
+        with string values.
+        """
+        return {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "minProperties": count,
+            "maxProperties": count,
+            "patternProperties": {
+                r"^Patient\s\d+$": { "type": "string" }
+            },
+            "additionalProperties": False
+        }
+
+    def generate_batch(self, batch_num: int, count: int) -> Dict[str,str]:
+        # 1) Prepare schema + prompts
+        schema = self.schema_batch(count)
+
+        system_prompt = [
+            "You are a clinical informatics expert generating synthetic patient profiles "
+            "for testing medication management AI systems. Format your response strictly "
+            "according to this JSON Schema:",
+            "```json",
+            json.dumps(schema, indent=2),
+            "```",
+        ]
+
+        user_prompt = [
+            f"Create a JSON object with {count} key-value pairs labeled "
+            f"\"Patient {1 + (batch_num-1)*count}\" through \"Patient {batch_num*count}\". "
+            "Each value must be a 3-to-5-sentence medication-history narrative "
+            "written for a broad audience (≈ 40-60 plain-English words).",
+            "",
+            "Include **at least two** LOW-complexity patients "
+            "(single renewal, first-time Rx, or simple dose tweak). Other patients may be moderate "
+            "or high complexity, guided by the diversity checklist below:",
+            "- Age bands: <18, 18-30, 30-50, 50-70, >70.",
+            "- Social context: homelessness, language barrier, uninsured, rural isolation, etc.",
+            "- Novel drug classes: GLP-1 agonists, oral TKIs, depot antipsychotics, inhaled steroids, biologics, antivirals, contraception, chemo, herbals.",
+            "- Edge-case themes: pregnancy, QT risk, REMS, dialysis, polypharmacy/deprescribing, travel medicine, etc.",
+            "",
+            f"Already-seen motifs → {', '.join(self.seen_scenarios) if self.seen_scenarios else 'None yet'}. "
+            "**Avoid** re-using templates like ACE-inhibitor-to-ARB cough, long-term warfarin INR drift, or COPD tiotropium boilerplate.",
+            "",
+            "Write in clear prose with minimal jargon. If a medical abbreviation is unavoidable, "
+            "spell it out the first time (e.g., “twice-daily (BID)”). Prefer full words: “by mouth” "
+            "over “PO”, “under the skin” over “SC”. Vary openings: lead with social detail, "
+            "medication list, or family history.",
+            "",
+            "Each narrative MUST include:",
+            "• Current medicines in plain words, with some cases not having complete details.",
+            "• A scenario involving medication management—straightforward new prescriptions, simple dose adjustments, or complex edge cases involving risky medications, polypharmacy, or social barriers.",
+            "• Any key allergy, condition, or social barrier.",
+            "",
+            "Do NOT write SOAP notes, vital signs, or assessments.",
+            "Return **raw JSON only** – no markdown, headings, or commentary."
+        ]
+
+        batch = cast(Dict[str, str], generate_json(
+            vendor_key=self.vendor_key,
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            schema=schema,
+            retries=3))
+
+        for name, content in batch.items():
+            self.seen_scenarios.append(self._summarize_scenario(content))
+            self.all_profiles[name] = content
+
+        return batch
+
+    def run(self, batches: int, batch_size: int) -> None:
+        for i in range(1, batches + 1):
+            print(f"Generating batch {i}…")
+            self.generate_batch(i, batch_size)
+        self._save_combined()
+        self._save_individuals()
+
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Generate synthetic patient-profile JSON batches.")
+    parser.add_argument("--batches",    type=int, required=True, help="Number of batches")
+    parser.add_argument("--batch-size", type=int, required=True, help="Profiles per batch")
+    parser.add_argument("--output",     type=str, required=True, help="Combined JSON output path")
+    args = parser.parse_args()
+
+    settings   = Settings.from_dictionary(dict(os.environ))
+    vendor_key = settings.llm_text
+
+    generator = PatientProfileGenerator(vendor_key, args.output)
+    generator.run(batches=args.batches, batch_size=args.batch_size)
+
+if __name__ == "__main__":
+    main()

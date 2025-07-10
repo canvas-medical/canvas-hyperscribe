@@ -1,4 +1,3 @@
-from typing import Optional
 from hyperscribe.structures.vendor_key import VendorKey
 from tests.helper import is_namedtuple
 

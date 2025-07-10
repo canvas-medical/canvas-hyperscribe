@@ -34,5 +34,31 @@ def test_constants():
         "PARAMETERS2COMMAND": "parameters2command",
         "STAGED_QUESTIONNAIRES": "staged_questionnaires",
         "TRANSCRIPT2INSTRUCTIONS": "transcript2instructions",
+        "POSITIVE_VALUE": "positive", 
+        "RAW_TEXT_CUTOFF": 5000,
+        "TURN_BUCKETS": {
+            "short": (2, 4),
+            "medium": (6, 8),
+            "long": (10, 14),
+            },
+        "MOOD_POOL": [
+        "patient is frustrated", "patient is tearful", "patient is embarrassed",
+        "patient is defensive", "clinician is concerned", "clinician is rushed",
+        "clinician is warm", "clinician is brief"
+        ],
+        "PRESSURE_POOL": [
+            "time pressure on the visit", "insurance denied prior authorization",
+            "formulary change", "refill limit reached", "patient traveling soon",
+            "side‑effect report just came in"
+        ],
+        "CLINICIAN_PERSONAS": [
+        "warm and chatty", "brief and efficient", "cautious and inquisitive",
+        "over‑explainer"
+        ],
+
+        "PATIENT_PERSONAS": [
+            "anxious and talkative", "confused and forgetful",
+            "assertive and informed", "agreeable but vague"
+        ]
     }
     assert is_constant(tested, constants)

@@ -1,0 +1,28 @@
+{
+  "demographicStr": "the patient is a woman, born on January 1, 1977 (age 47)",
+  "conditionHistory": [],
+  "currentAllergies": [
+    {
+      "uuid": "821a76da-3f8b-4912-8517-ac26fe587cc4",
+      "label": "Penicillin",
+      "code": "294354007"
+    }
+  ],
+  "currentConditions": [
+    {
+      "uuid": "f311d9c9-4a08-40e9-8288-8fce9b7a37cb",
+      "label": "Essential (primary) hypertension",
+      "code": "I10"
+    }
+  ],
+  "currentGoals": [],
+  "currentMedications": [
+    {
+      "uuid": "0e12799d-5fd6-432f-960f-b2d4da1ef6b8",
+      "label": "Lisinopril 40 mg tablet",
+      "code": "197361"
+    }
+  ],
+  "familyHistory": [],
+  "surgeryHistory": []
+}

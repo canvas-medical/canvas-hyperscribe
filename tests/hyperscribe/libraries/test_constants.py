@@ -31,7 +31,7 @@ def test_constants():
         #
         "FAUX_NOTE_UUID": "_NoteUuid",
         "FAUX_PATIENT_UUID": "_PatientUuid",
-        "FAUX_PROVIDER_UUID": "4150cd20de8a470aa570a852859ac87e",
+        "FAUX_PROVIDER_UUID": "_ProviderUuid",
         "SQLITE_LAB_TESTS_DATABASE": "generic_lab_tests.db",
         #
         "SCHEMA_KEY_ADJUST_PRESCRIPTION": "adjustPrescription",
@@ -70,8 +70,6 @@ def test_constants():
         "CUSTOMER_IDENTIFIER": "CUSTOMER_IDENTIFIER",
         "SECRET_TEXT_VENDOR": "VendorTextLLM",
         "SECRET_TEXT_KEY": "KeyTextLLM",
-        "SECRET_TEXT_MODEL": "TEXT_MODEL",
-        "SECRET_TEXT_TEMP": "TEXT_TEMPERATURE",
         "SECRET_AUDIO_VENDOR": "VendorAudioLLM",
         "SECRET_AUDIO_KEY": "KeyAudioLLM",
         "SECRET_SCIENCE_HOST": "ScienceHost",

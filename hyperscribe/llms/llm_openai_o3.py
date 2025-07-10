@@ -16,7 +16,7 @@ class LlmOpenaiO3(LlmOpenai):
         super().__init__(memory_log, api_key, Constants.OPENAI_CHAT_TEXT_O3, with_audit)
         self.temperature = temperature
 
-    def to_dict(self, for_log: bool) -> dict:  # type: ignore[override]
+    def to_dict(self, for_log: bool) -> dict:
         result = super().to_dict(for_log)
         result.pop("modalities", None)
         return result

@@ -1,0 +1,52 @@
+[
+  {
+    "rationale": "Note covers only oral contraceptive instructions; misses most other clinician directives.",
+    "satisfaction": 15,
+    "score": 4.5
+  },
+  {
+    "rationale": "No mention of any travel dupilumab storage details.",
+    "satisfaction": 0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Includes a daily alarm suggestion but omits levothyroxine timing, empty-stomach rule, and full 24-hour window advice.",
+    "satisfaction": 20,
+    "score": 1.6
+  },
+  {
+    "rationale": "Vacation override refills, dupilumab replacement, and PA tasks absent.",
+    "satisfaction": 0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Customs letter creation and placement instructions not documented.",
+    "satisfaction": 0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Sharps disposal plan completely omitted.",
+    "satisfaction": 0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Current med list not reproduced; fidelity cannot be confirmed.",
+    "satisfaction": 20,
+    "score": 2.0
+  },
+  {
+    "rationale": "No clear fabrications detected beyond possible redundant OC prescriptions; overall acceptable.",
+    "satisfaction": 70,
+    "score": -3.0
+  },
+  {
+    "rationale": "Multiple major instructions missing, so high omission penalty.",
+    "satisfaction": 5,
+    "score": -4.75
+  },
+  {
+    "rationale": "No conflicting doses or conditions noted.",
+    "satisfaction": 80,
+    "score": -0.4
+  }
+]
