@@ -1,4 +1,5 @@
 import pytest
+from hashlib import md5
 from unittest import mock
 from hyperscribe.libraries.audio_client import AudioClient, CachedAudioSession, Response
 
@@ -30,6 +31,41 @@ def the_client() -> AudioClient:
         instance='theInstance',
         instance_key='theSharedSecret'
     )
+
+
+def test_webm_prefix():
+    assert md5(AudioClient.WEBM_PREFIX).hexdigest() == '8ae25a98db40517c9f2c5ccb2e066abd'
+
+
+def test___eq__():
+    one_client = AudioClient(
+        base_url='https://theAudioServer.com', 
+        registration_key='theRegKey', 
+        instance='theInstance',
+        instance_key='theSharedSecret'
+    )
+    another_client = AudioClient(
+        base_url='https://theAudioServer.com', 
+        registration_key='theRegKey', 
+        instance='theInstance',
+        instance_key='theSharedSecret'
+    )
+    assert one_client is not another_client
+    assert one_client == another_client
+
+
+def test___repr__(the_client):
+    expected = (f"AudioClient(base_url='{the_client.base_url}', registration_key='{the_client.registration_key}', "
+                f"instance='{the_client.instance}', instance_key='{the_client.instance_key}'")
+    result = str(the_client)
+    assert result == expected
+    
+    the_client.registration_key = None
+    expected_with_none = (f"AudioClient(base_url='{the_client.base_url}', registration_key={the_client.registration_key}, "
+                f"instance='{the_client.instance}', instance_key='{the_client.instance_key}'")
+    result_with_none = str(the_client)
+    assert result_with_none == expected_with_none
+    
 
 
 def test_register_customer(the_client):
