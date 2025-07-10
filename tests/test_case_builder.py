@@ -1,5 +1,4 @@
 from unittest.mock import patch, call
-import sys
 from case_builder import CaseBuilder
 from evaluations.case_builders.builder_audit_url import BuilderAuditUrl
 from evaluations.case_builders.builder_delete import BuilderDelete
@@ -21,15 +20,6 @@ from evaluations.case_builders.builder_from_chart_transcript import BuilderFromC
 @patch.object(BuilderFromMp3, "run")
 @patch.object(BuilderDelete, "run")
 
-@patch.object(BuilderDirectFromTuningFull, "run")
-@patch.object(BuilderDirectFromTuningSplit, "run")
-@patch.object(BuilderFromChartTranscript, "run")
-@patch.object(BuilderSummarize, "run")
-@patch.object(BuilderAuditUrl, "run")
-@patch.object(BuilderFromTuning, "run")
-@patch.object(BuilderFromTranscript, "run")
-@patch.object(BuilderFromMp3, "run")
-@patch.object(BuilderDelete, "run")
 def test_run(
     run_delete,
     run_mp3,
