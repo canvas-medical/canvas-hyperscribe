@@ -1,4 +1,4 @@
-import sys #added for rubric command that operates here. 
+import sys
 from sys import argv
 
 from evaluations.case_builders.builder_audit_url import BuilderAuditUrl
