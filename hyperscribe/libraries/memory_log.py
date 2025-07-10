@@ -32,6 +32,12 @@ class MemoryLog:
         ])
 
     @classmethod
+    def dev_null_instance(cls):
+        identification = IdentificationParameters(patient_uuid='', note_uuid='', provider_uuid='', canvas_instance='local')
+        instance = cls(identification, 'local')
+        return instance
+
+    @classmethod
     def instance(cls, identification: IdentificationParameters, label: str, s3_credentials: AwsS3Credentials) -> MemoryLog:
         instance = cls(identification, label)
         instance.s3_credentials = s3_credentials

@@ -23,7 +23,7 @@ class ReviewerButton(ActionButton):
         note = Note.objects.get(dbid=self.event.context['note_id'])
         presigned_url = Authenticator.presigned_url(
             self.secrets[Constants.SECRET_API_SIGNING_KEY],
-            "/plugin-io/api/hyperscribe/reviewer",
+            f"{Constants.BASE_ROUTE}/reviewer",
             {
                 "patient_id": str(note.patient.id),
                 "note_id": str(note.id),

@@ -11,6 +11,7 @@ from canvas_sdk.v1.data import TaskComment, Note, Command, TaskLabel
 from logger import log
 
 from hyperscribe.handlers.commander import Commander
+from hyperscribe.libraries.audio_client import AudioClient, CachedAudioSession
 from hyperscribe.libraries.cached_sdk import CachedSdk
 from hyperscribe.libraries.implemented_commands import ImplementedCommands
 from hyperscribe.structures.access_policy import AccessPolicy
@@ -34,6 +35,21 @@ def test_constants():
         "RESPONDS_TO": ["TASK_COMMENT_CREATED"],
     }
     assert is_constant(tested, constants)
+
+
+@pytest.fixture
+def the_audio_client() -> AudioClient:
+    return AudioClient(
+        base_url='https://theAudioServer.com', 
+        registration_key=None, 
+        instance='theTestEnv',
+        instance_key='theAudioHostSharedSecret'
+    )
+
+
+@pytest.fixture
+def the_session() -> CachedAudioSession:
+    return CachedAudioSession('theSessionId', 'theUserToken', 'theLoggedInUserId')
 
 
 @patch("hyperscribe.handlers.commander.thread_cleanup")
@@ -84,7 +100,8 @@ def test_compute(
         progress,
         llm_turns_store,
         mock_datetime,
-        monkeypatch
+        monkeypatch,
+        the_audio_client
 ):
     monkeypatch.setattr("hyperscribe.handlers.commander.version", "theVersion")
 
@@ -136,7 +153,8 @@ def test_compute(
     )
     date_x = datetime(2025, 5, 9, 12, 34, 21, tzinfo=timezone.utc)
     secrets = {
-        "AudioHost": "theAudioHost",
+        "AudioHost": "https://theAudioServer.com",
+        "AudioHostSharedSecret": "theAudioHostSharedSecret",
         "VendorTextLLM": "textVendor",
         "KeyTextLLM": "textAPIKey",
         "VendorAudioLLM": "audioVendor",
@@ -261,7 +279,7 @@ def test_compute(
     ]
     assert result == expected
 
-    calls = [call(identification, settings, aws_s3_credentials, "theAudioHost", 7)]
+    calls = [call(identification, settings, aws_s3_credentials, the_audio_client, 7)]
     assert compute_audio.mock_calls == calls
     calls = [call.get(id='taskUuid')]
     assert task_comment_db.mock_calls == calls
@@ -326,7 +344,7 @@ def test_compute(
     ]
     assert result == expected
 
-    calls = [call(identification, settings, aws_s3_credentials, "theAudioHost", 7)]
+    calls = [call(identification, settings, aws_s3_credentials, the_audio_client, 7)]
     assert compute_audio.mock_calls == calls
     calls = [call.get(id='taskUuid')]
     assert task_comment_db.mock_calls == calls
@@ -368,30 +386,31 @@ def test_compute(
 @patch('hyperscribe.handlers.commander.LimitedCache')
 @patch('hyperscribe.handlers.commander.AudioInterpreter')
 @patch('hyperscribe.handlers.commander.Auditor')
+@patch.object(AudioClient, "get_audio_chunk")
 @patch.object(CachedSdk, "save")
 @patch.object(CachedSdk, "get_discussion")
 @patch.object(Command, "objects")
 @patch.object(Commander, 'existing_commands_to_coded_items')
 @patch.object(Commander, 'existing_commands_to_instructions')
 @patch.object(Commander, 'audio2commands')
-@patch.object(Commander, 'retrieve_audios')
 def test_compute_audio(
-        retrieve_audios,
         audio2commands,
         existing_commands_to_instructions,
         existing_commands_to_coded_items,
         command_db,
         cache_get_discussion,
         cache_save,
+        mock_get_audio_chunk,
         auditor,
         audio_interpreter,
         limited_cache,
         memory_log,
         progress,
         aws_s3,
+        the_audio_client,
+        the_session
 ):
     def reset_mocks():
-        retrieve_audios.reset_mock()
         audio2commands.reset_mock()
         existing_commands_to_instructions.reset_mock()
         existing_commands_to_coded_items.reset_mock()
@@ -404,6 +423,7 @@ def test_compute_audio(
         memory_log.reset_mock()
         progress.reset_mock()
         aws_s3.reset_mock()
+        mock_get_audio_chunk.reset_mock()
 
     identification = IdentificationParameters(
         patient_uuid="patientUuid",
@@ -433,7 +453,6 @@ def test_compute_audio(
         cycle_transcript_overlap=37,
     )
     # no more audio
-    retrieve_audios.side_effect = [[]]
     audio2commands.side_effect = []
     existing_commands_to_instructions.side_effect = []
     existing_commands_to_coded_items.side_effect = []
@@ -445,7 +464,9 @@ def test_compute_audio(
     aws_s3.return_value.is_ready.side_effect = []
 
     tested = Commander
-    result = tested.compute_audio(identification, settings, aws_s3_credentials, "theAudioHost", 3)
+    mock_get_audio_chunk.return_value = b''
+    result = tested.compute_audio(identification, settings, aws_s3_credentials, the_audio_client, 3)
+    mock_get_audio_chunk.assert_called_once_with(identification.patient_uuid, identification.note_uuid, 3)
     expected = (False, [])
     assert result == expected
 
@@ -454,8 +475,6 @@ def test_compute_audio(
         call.instance().output('--> audio chunks: 0'),
     ]
     assert memory_log.mock_calls == calls
-    calls = [call('theAudioHost', 'patientUuid', 'noteUuid', 3)]
-    assert retrieve_audios.mock_calls == calls
     assert audio2commands.mock_calls == []
     assert existing_commands_to_instructions.mock_calls == []
     assert existing_commands_to_coded_items.mock_calls == []
@@ -535,7 +554,6 @@ def test_compute_audio(
         discussion.cycle = 7
         discussion.previous_instructions = instructions[2:]
         discussion.previous_transcript = [Line(speaker='speaker0', text="some text")]
-        retrieve_audios.side_effect = [[b"audio1", b"audio2"]]
         audio2commands.side_effect = [(exp_instructions, exp_effects, "other last words.")]
         existing_commands_to_instructions.side_effect = [instructions]
         existing_commands_to_coded_items.side_effect = ["stagedCommands"]
@@ -547,7 +565,9 @@ def test_compute_audio(
         aws_s3.return_value.is_ready.side_effect = [is_ready]
         memory_log.end_session.side_effect = ["flushedMemoryLog"]
         tested = Commander
-        result = tested.compute_audio(identification, settings, aws_s3_credentials, "theAudioHost", 3)
+        mock_get_audio_chunk.return_value = b'raw-audio-bytes'
+        result = tested.compute_audio(identification, settings, aws_s3_credentials, the_audio_client, 3)
+        mock_get_audio_chunk.assert_called_once_with(identification.patient_uuid, identification.note_uuid, 3)
         expected = (True, exp_effects)
         assert result == expected
 
@@ -557,7 +577,7 @@ def test_compute_audio(
 
         calls = [
             call.instance(identification, "main", aws_s3_credentials),
-            call.instance().output("--> audio chunks: 2"),
+            call.instance().output("--> audio chunks: 1"),
             call.instance().output("<===  note: noteUuid ===>"),
             call.instance().output("Structured RfV: True"),
             call.instance().output("Audit LLM Decisions: False"),
@@ -579,10 +599,9 @@ def test_compute_audio(
             calls.append(call.end_session("noteUuid"))
         assert memory_log.mock_calls == calls
         calls = [call('theAudioHost', 'patientUuid', 'noteUuid', 3)]
-        assert retrieve_audios.mock_calls == calls
         calls = [call(
             'AuditorInstance',
-            [b'audio1', b'audio2'],
+            [b'raw-audio-bytes'],
             'AudioInterpreterInstance',
             instructions,
             [Line(speaker='speaker0', text='some text')],
@@ -623,39 +642,6 @@ def test_compute_audio(
         if is_ready:
             calls.append(call().upload_text_to_s3('hyperscribe-canvasInstance/finals/2025-03-10/patientUuid-noteUuid/03.log', "flushedMemoryLog"))
         assert aws_s3.mock_calls == calls
-        reset_mocks()
-
-
-@patch.object(Commander, "get_audio")
-def test_retrieve_audios(get_audio):
-    def reset_mocks():
-        get_audio.reset_mock()
-
-    tested = Commander
-
-    # no more audio
-    get_audio.side_effect = [b""]
-    result = tested.retrieve_audios("theHost", "patientUuid", "noteUuid", 3)
-    assert result == []
-    calls = [call('theHost/audio/patientUuid/noteUuid/3')]
-    assert get_audio.mock_calls == calls
-    reset_mocks()
-
-    # some audio
-    with patch.object(Commander, "MAX_PREVIOUS_AUDIOS", 2):
-        get_audio.side_effect = [b"call 1", b"call 2", b"call 3", b"call 4"]
-        result = tested.retrieve_audios("theHost", "patientUuid", "noteUuid", 3)
-        assert result == [
-            b'call 2',
-            b'call 3',
-            b'call 1',
-        ]
-        calls = [
-            call('theHost/audio/patientUuid/noteUuid/3'),
-            call('theHost/audio/patientUuid/noteUuid/1'),
-            call('theHost/audio/patientUuid/noteUuid/2'),
-        ]
-        assert get_audio.mock_calls == calls
         reset_mocks()
 
 
@@ -2183,42 +2169,4 @@ def test_existing_commands_to_coded_items(command_list):
     ]
     assert mock_commands[1].mock_calls == calls
     assert mock_commands[2].mock_calls == calls
-    reset_mocks()
-
-
-@patch.object(log, "info")
-@patch.object(requests, "get")
-def test_get_audio(get, info):
-    def reset_mocks():
-        get.reset_mock()
-        info.reset_mock()
-
-    tested = Commander
-    # no error
-    get.return_value.status_code = 200
-    get.return_value.content = b"theResponse"
-    result = tested.get_audio("theUrl")
-    assert result == b"theResponse"
-    calls = [call('theUrl', timeout=300)]
-    assert get.mock_calls == calls
-    calls = [
-        call(' ---> audio url: theUrl'),
-        call('           code: 200'),
-        call('        content: 11'),
-    ]
-    assert info.mock_calls == calls
-    reset_mocks()
-    # with error
-    get.return_value.status_code = 202
-    get.return_value.content = b"theResponse"
-    result = tested.get_audio("theUrl")
-    assert result == b""
-    calls = [call('theUrl', timeout=300)]
-    assert get.mock_calls == calls
-    calls = [
-        call(' ---> audio url: theUrl'),
-        call('           code: 202'),
-        call('        content: 11'),
-    ]
-    assert info.mock_calls == calls
     reset_mocks()
