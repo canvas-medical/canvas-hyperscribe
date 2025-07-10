@@ -1,0 +1,57 @@
+[
+  {
+    "instruction": "Refill of Buprenorphine 8 mg / naloxone 2 mg sublingual film, emergency five-day supply issued.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.refill",
+      "class": "RefillCommand",
+      "attributes": {
+        "days_supply": 5,
+        "prescriber_id": "4150cd20de8a470aa570a852859ac87e",
+        "fdb_code": "",
+        "sig": "Take as directed by your healthcare provider.",
+        "substitutions": "not_allowed",
+        "type_to_dispense": {
+          "representative_ndc": "",
+          "ncpdp_quantity_qualifier_code": ""
+        }
+      }
+    }
+  },
+  {
+    "instruction": "Keep the blister packs tucked inside your jacket pocket overnight to prevent damage from cold temperatures.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "comment": "Keep the blister packs tucked inside your jacket pocket overnight to prevent damage from cold temperatures."
+      }
+    }
+  },
+  {
+    "instruction": "Massage or apply a warm compress to the injection site to ease the knot.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "coding": {
+          "system": "http://snomed.info/sct",
+          "code": "429531000124103",
+          "display": "Education about long term compression therapy"
+        },
+        "comment": "Massage or apply a warm compress to the injection site to ease the knot."
+      }
+    }
+  },
+  {
+    "instruction": "Nudge the lockbox team this afternoon for the patient.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.task",
+      "class": "TaskCommand",
+      "attributes": {
+        "comment": "Nudge the lockbox team this afternoon for the patient.",
+        "title": "Nudge the lockbox team for the patient",
+        "due_date": "2025-06-27"
+      }
+    }
+  }
+]

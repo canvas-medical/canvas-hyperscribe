@@ -1,0 +1,70 @@
+[
+  {
+    "instruction": "Change the prescription of Azithromycin 250 mg oral tablet to 250 mg daily.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.adjust_prescription",
+      "class": "AdjustPrescriptionCommand",
+      "attributes": {
+        "substitutions": "allowed",
+        "sig": "250 mg daily",
+        "new_fdb_code": "",
+        "days_supply": 0,
+        "fdb_code": "",
+        "prescriber_id": "4150cd20de8a470aa570a852859ac87e",
+        "type_to_dispense": {
+          "representative_ndc": "",
+          "ncpdp_quantity_qualifier_code": ""
+        }
+      }
+    }
+  },
+  {
+    "instruction": "Order potassium labs for tomorrow to monitor QT interval.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.lab_order",
+      "class": "LabOrderCommand",
+      "attributes": {
+        "diagnosis_codes": [
+          "I4581"
+        ],
+        "ordering_provider_key": "4150cd20de8a470aa570a852859ac87e",
+        "fasting_required": false,
+        "comment": "Order potassium labs to monitor QT interval.",
+        "tests_order_codes": []
+      }
+    }
+  },
+  {
+    "instruction": "Repeat ECG in forty-eight hours to monitor QT interval.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.imaging_order",
+      "class": "ImagingOrderCommand",
+      "attributes": {
+        "diagnosis_codes": [
+          "I498"
+        ],
+        "ordering_provider_key": "4150cd20de8a470aa570a852859ac87e",
+        "additional_details": "Please focus on the QT interval for any signs of prolongation.",
+        "priority": "Routine",
+        "linked_items_urns": [],
+        "image_code": "93000",
+        "comment": "Repeat ECG in forty-eight hours to monitor QT interval."
+      }
+    }
+  },
+  {
+    "instruction": "Keep osimertinib 80 mg with breakfast, metoprolol unchanged, skip any extra electrolytes, and buzz staff if flutter returns.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "coding": {
+          "system": "http://snomed.info/sct",
+          "code": "396074002",
+          "display": "Medication administration education"
+        },
+        "comment": "Keep osimertinib 80 mg with breakfast."
+      }
+    }
+  }
+]

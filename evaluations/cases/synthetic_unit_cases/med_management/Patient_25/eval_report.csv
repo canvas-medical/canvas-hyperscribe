@@ -1,0 +1,16 @@
+Criterion #,Criterion,Max Score,Satisfaction (%),Score Awarded,Rationale
+1,Reward for accurately documenting that the nilotinib regimen remains 300 mg twice daily with the specified fasting window (no food 2 h before and 1 h after).,15,5.0,0.75,No mention of nilotinib dose or fasting window.
+2,"Reward for capturing the patient’s report of no dizziness, no fainting, and a single episode of heart flutter yesterday.",10,0.0,0.0,"Symptoms (no dizziness/fainting, heart flutter) not documented."
+3,Reward for noting that dextromethorphan cough syrup has been completely discontinued.,8,0.0,0.0,Discontinuation of dextromethorphan not recorded.
+4,Reward for recording today’s blood-pressure reading of 132/78 taken by the village nurse.,6,85.0,5.1,BP 132/78 captured but note omits that it was taken by village nurse.
+5,Reward for documenting that the patient has not missed any doses of lisinopril or simvastatin.,6,0.0,0.0,No statement regarding missed doses of lisinopril or simvastatin.
+6,Reward for including the patient’s concern about the cancelled ECG and potential danger of skipping a month.,6,0.0,0.0,Patient concern about cancelled ECG not included.
+7,Reward for documenting that the urgent-care ECG was cancelled and the clinician will reroute the ECG to Monday morning in oncology.,15,80.0,12.0,"ECG rescheduled to Monday oncology noted, but original urgent-care cancellation not explicitly stated."
+8,"Reward for capturing the instruction to hold simvastatin tonight and the prescription change to pravastatin 40 mg, including that a fax will be sent.",20,30.0,6.0,"Simvastatin stop documented, but no instruction to hold tonight, no pravastatin 40 mg, no fax detail."
+9,"Reward for noting that the insurance authorization appeal for the second month of nilotinib is in progress/""in limbo"" and that an appeal file was opened.",10,0.0,0.0,Insurance appeal status for nilotinib not mentioned.
+10,"Reward for referencing pertinent chart context (64-year-old male with CML, current meds list) only insofar as it illuminates the encounter, without importing unrelated chart sections.",8,40.0,3.2,"No irrelevant chart data added, but also lacks helpful context such as CML history."
+11,"Reward for overall completeness—i.e., the note captures all clinically relevant statements, decisions, patient concerns, and plans present in the transcript without significant omissions.",25,25.0,6.25,Note captures only 3 of many clinically relevant items; overall incomplete.
+12,"Penalize for omitting or misrepresenting any of the key actions or instructions (e.g., ECG reroute, pravastatin switch) that were explicitly stated.",20,20.0,-16.0,"Multiple key actions omitted (pravastatin switch, nilotinib regimen, etc.)."
+13,"Penalize for fabricating clinical content, advice, diagnoses, lab orders, or reasoning not present or implied in the transcript.",20,90.0,-2.0,No fabricated diagnoses or advice detected.
+14,"Penalize for selectively copying irrelevant chart details (e.g., empty family/surgical history) or introducing chart data that was not referenced during the encounter.",15,95.0,-0.75,No irrelevant chart sections copied.
+15,"Penalize for contradicting factual details from the transcript (wrong doses, incorrect blood pressure, misstated symptoms, etc.).",20,90.0,-2.0,No contradictions to transcript present.

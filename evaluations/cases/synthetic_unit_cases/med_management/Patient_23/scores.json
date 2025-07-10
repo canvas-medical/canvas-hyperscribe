@@ -1,0 +1,52 @@
+[
+  {
+    "rationale": "Note clearly states BG >250, afternoon fuzziness, and nocturnal thirst, matching patient wording.",
+    "satisfaction": 90.0,
+    "score": 9.0
+  },
+  {
+    "rationale": "Includes metformin adherence problems and tablet-splitting, but omits full baseline dose (1000 mg BID) and glipizide 10 mg breakfast dose.",
+    "satisfaction": 45.0,
+    "score": 6.75
+  },
+  {
+    "rationale": "Has AE call instructions but omits semaglutide 0.25 mg starter pen, sample wording, and dial-press-hold 10 s technique.",
+    "satisfaction": 30.0,
+    "score": 4.5
+  },
+  {
+    "rationale": "Late-dose rules (<48 h inject, >48 h skip, never double) documented verbatim.",
+    "satisfaction": 95.0,
+    "score": 9.5
+  },
+  {
+    "rationale": "Morning metformin reduced to 500 mg with food recorded; coupon/bridge not mentioned.",
+    "satisfaction": 70.0,
+    "score": 7.0
+  },
+  {
+    "rationale": "Recheck in 2 weeks, call if <80 mg/dL, consider glipizide 5 mg or stop\u2014all captured.",
+    "satisfaction": 90.0,
+    "score": 10.8
+  },
+  {
+    "rationale": "Both texting daughter and pharmacy-app reminder included exactly.",
+    "satisfaction": 95.0,
+    "score": 4.75
+  },
+  {
+    "rationale": "Major decisions present, but misses semaglutide dose/technique and initial glipizide regimen; overall mostly complete.",
+    "satisfaction": 60.0,
+    "score": 12.0
+  },
+  {
+    "rationale": "No evidence of chart-derived conflicting doses; recorded info aligns with spoken plan.",
+    "satisfaction": 90.0,
+    "score": -1.8
+  },
+  {
+    "rationale": "Some clinically relevant omissions (semaglutide details, glipizide dose) but no fabrications.",
+    "satisfaction": 50.0,
+    "score": -7.5
+  }
+]

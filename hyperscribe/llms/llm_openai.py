@@ -9,7 +9,6 @@ from requests import post as requests_post
 from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.http_response import HttpResponse
 
-
 class LlmOpenai(LlmBase):
 
     def add_audio(self, audio: bytes, audio_format: str) -> None:
@@ -104,3 +103,4 @@ class LlmOpenai(LlmBase):
             verify=True,
         )
         return HttpResponse(code=request.status_code, response=request.text)
+

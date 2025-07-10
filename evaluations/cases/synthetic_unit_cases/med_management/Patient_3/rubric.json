@@ -1,0 +1,72 @@
+[
+  {
+    "criterion": "Reward for explicitly documenting the insurer\u2019s denial of the adalimumab refill during pregnancy and the clinician\u2019s plan to complete a peer-to-peer appeal by Friday.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for recording that the patient has exactly two adalimumab pens/syringes remaining.",
+    "weight": 6,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing the patient-reported injection-site outcome (only a small bruise, no redness, severe bruising, or cramping).",
+    "weight": 5,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for noting the patient\u2019s concerns about placental transfer of the drug and potential infant anemia, as well as the gestational age of 14 weeks.",
+    "weight": 7,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for faithfully documenting the clinician\u2019s dosing guidance: no three-week interval extension, permissible 48-hour delay, and desire to maintain serum trough > 5 \u00b5g/mL before reverting to Saturday-morning injections.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for stating that the patient remains on adalimumab 40 mg subcutaneously with no dose escalation and that she self-monitors temperature, stool frequency, and fetal movement daily.",
+    "weight": 7,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for including negative symptom review (no fevers, joint pain, or visual changes) and the one-day dose delay that triggered transient bowel symptoms.",
+    "weight": 6,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting counseling about prenatal vitamin with lunch, low-dose aspirin at bedtime, recommendation to start doxylamine-pyridoxine, optional ginger chews, and advice to increase water/fiber to offset ondansetron-induced constipation.",
+    "weight": 12,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing administrative tasks and resources: clinician will submit electronic appeal with OB letter and AGA guidelines, mark as urgent, expect insurer response within 72 business hours, seek temporary override and voucher for two pens, give manufacturer QR code, instruct patient to confirm pharmacy portal within 24 h, and upload bilingual injection calendar for patient review.",
+    "weight": 14,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for noting the patient\u2019s request for medication names written in Chinese characters for the pharmacy.",
+    "weight": 4,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for overall completeness: the note accurately reflects most clinically and administratively relevant details from the transcript without significant omissions.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for introducing clinical information, recommendations, diagnoses, or rationale not present in either the transcript or the chart (fabrication).",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for selectively or inaccurately copying chart data that are unrelated to today\u2019s encounter (e.g., adding extraneous historical conditions, outdated meds, or irrelevant ROS elements).",
+    "weight": 8,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for omitting or distorting key numerical or time-sensitive details (e.g., number of pens left, 48-hour delay limit, 14-week gestation, 72-hour insurer deadline).",
+    "weight": 11,
+    "sense": "negative"
+  }
+]

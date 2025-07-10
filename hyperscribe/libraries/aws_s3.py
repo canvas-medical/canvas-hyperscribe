@@ -5,7 +5,7 @@ from http import HTTPStatus
 from re import compile as re_compile, DOTALL, search as re_search
 from urllib.parse import quote
 
-from requests import get as requests_get, put as requests_put, Response
+from requests import get as requests_get, put as requests_put, Response, HTTPError
 
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.aws_s3_object import AwsS3Object
@@ -110,17 +110,30 @@ class AwsS3:
     def list_s3_objects(self, prefix: str) -> list[AwsS3Object]:
         result: list[AwsS3Object] = []
         if not self.is_ready():
-            return result
-        params: dict[str, int | str] = {
-            'list-type': 2,
-            'prefix': prefix,
-        }
-        headers = self.headers('', params=params)
-        endpoint = f"https://{headers['Host']}"
-        response = requests_get(endpoint, params=params, headers=headers)
-        if response.status_code == HTTPStatus.OK.value:
+            return []
+
+        continuation_token = None
+        truncated_pattern = re_compile(r"<IsTruncated>(true|false)</IsTruncated>")
+        token_pattern = re_compile(r"<NextContinuationToken>(.*?)</NextContinuationToken>")
+        
+        while True:
+            params: dict[str, int | str] = {
+                'list-type': 2,
+                'prefix': prefix,
+            }
+            if continuation_token:
+                params["continuation-token"] = continuation_token
+            
+            headers = self.headers('', params=params)
+            endpoint = f"https://{headers['Host']}"
+            response = requests_get(endpoint, params=params, headers=headers)
+            response_text = response.content.decode('utf-8')
+            
+            if response.status_code != HTTPStatus.OK.value:
+                return result
+        
             contents_pattern = re_compile(r'<Contents>(.*?)</Contents>', DOTALL)
-            for content_match in contents_pattern.finditer(response.content.decode('utf-8')):
+            for content_match in contents_pattern.finditer(response_text):
                 content_xml = content_match.group(1)
                 key_match = re_search(r'<Key>(.*?)</Key>', content_xml)
                 size_match = re_search(r'<Size>(.*?)</Size>', content_xml)
@@ -132,6 +145,16 @@ class AwsS3:
                         size=int(size_match.group(1)),
                         last_modified=datetime.fromisoformat(modified_match.group(1)),
                     ))
+
+            truncated_match = truncated_pattern.search(response_text)
+            is_truncated = truncated_match and truncated_match.group(1) == "true"
+            if is_truncated:
+                token_match = token_pattern.search(response_text)
+                if not token_match:
+                    break
+                continuation_token = token_match.group(1)
+            else:
+                break
 
         return result
 

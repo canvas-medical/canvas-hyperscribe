@@ -1,0 +1,22 @@
+{
+  "demographicStr": "the patient is a man, born on January 1, 1949 (age 75)",
+  "conditionHistory": [],
+  "currentAllergies": [],
+  "currentConditions": [
+    {
+      "uuid": "c41bf738-0cbd-4e0f-a9d3-57d25b45f6f1",
+      "label": "Hypothyroidism, unspecified",
+      "code": "E03.9"
+    }
+  ],
+  "currentGoals": [],
+  "currentMedications": [
+    {
+      "uuid": "b38bcb8e-fa16-4b8a-9cd1-3be9ef49dd62",
+      "label": "Levothyroxine sodium 88 microgram tablet",
+      "code": "312615"
+    }
+  ],
+  "familyHistory": [],
+  "surgeryHistory": []
+}

@@ -1,0 +1,27 @@
+{
+  "turn_total": 13,
+  "speaker_sequence": [
+    "Clinician",
+    "Clinician",
+    "Patient",
+    "Clinician",
+    "Clinician",
+    "Clinician",
+    "Clinician",
+    "Clinician",
+    "Clinician",
+    "Patient",
+    "Patient",
+    "Clinician",
+    "Clinician"
+  ],
+  "ratio": 1.69,
+  "mood": [
+    "clinician is rushed",
+    "patient is tearful"
+  ],
+  "pressure": "time pressure on the visit",
+  "clinician_style": "brief and efficient",
+  "patient_style": "assertive and informed",
+  "bucket": "long"
+}

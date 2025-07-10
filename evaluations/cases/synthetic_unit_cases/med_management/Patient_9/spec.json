@@ -1,0 +1,16 @@
+{
+  "turn_total": 2,
+  "speaker_sequence": [
+    "Clinician",
+    "Patient"
+  ],
+  "ratio": 1.24,
+  "mood": [
+    "clinician is warm",
+    "patient is defensive"
+  ],
+  "pressure": "time pressure on the visit",
+  "clinician_style": "over\u2011explainer",
+  "patient_style": "anxious and talkative",
+  "bucket": "short"
+}

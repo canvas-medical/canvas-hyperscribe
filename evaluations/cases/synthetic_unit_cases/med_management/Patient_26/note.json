@@ -1,0 +1,33 @@
+[
+  {
+    "instruction": "Assign nurse to log each actuation (\"hit\") of the patient\u2019s budesonide-formoterol inhaler so remaining doses can be tracked accurately.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.task",
+      "class": "TaskCommand",
+      "attributes": {
+        "due_date": null,
+        "comment": "Track each inhaler \u201chit\u201d so remaining doses can be monitored accurately.",
+        "assign_to": null,
+        "title": "Log each actuation of patient\u2019s budesonide-formoterol inhaler"
+      }
+    }
+  },
+  {
+    "instruction": "Refill budesonide-formoterol 80 mcg-4.5 mcg inhalation, 2 puffs twice daily, 5-week supply (additional canister[s]) for mild intermittent asthma, anticipating possible supply disruption.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.refill",
+      "class": "RefillCommand",
+      "attributes": {
+        "fdb_code": "",
+        "substitutions": "allowed",
+        "days_supply": 35,
+        "prescriber_id": "4150cd20de8a470aa570a852859ac87e",
+        "sig": "2 puffs twice daily",
+        "type_to_dispense": {
+          "representative_ndc": "",
+          "ncpdp_quantity_qualifier_code": ""
+        }
+      }
+    }
+  }
+]

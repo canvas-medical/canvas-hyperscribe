@@ -1,0 +1,16 @@
+Criterion #,Criterion,Max Score,Satisfaction (%),Score Awarded,Rationale
+1,Reward for accurately documenting the patient’s ongoing dolutegravir-lamivudine 50 mg/300 mg once-daily morning regimen exactly as stated.,10,0.0,0.0,Dolutegravir-lamivudine regimen not mentioned at all.
+2,"Reward for capturing the cabozantinib 60 mg nightly plan, including with food and spaced at least two hours from omeprazole/antacid.",15,0.0,0.0,"Cabozantinib dose, nightly timing, food and spacing instructions entirely absent."
+3,"Reward for recording the clinician’s QT-monitoring strategy: potassium >4.0 mEq/L, magnesium >2.0 mg/dL, and scheduled monthly ECG with cardiology on the first Thursday.",15,40.0,6.0,"Monthly ECG noted but electrolyte targets (>4 K, >2 Mg) omitted."
+4,Reward for specifying the new prescription of magnesium glycinate 400 mg at bedtime and noting its non-laxative intent.,15,90.0,13.5,"Magnesium glycinate 400 mg bedtime with ""no laxative effect"" captured accurately."
+5,"Reward for documenting the baseline lab order (potassium, magnesium, creatinine) to be drawn today.",10,95.0,9.5,"Baseline potassium, magnesium, creatinine lab order documented clearly."
+6,Reward for including travel-related dosing instructions: keep pills on home time and maintain a 12-hour gap if crossing midnight.,8,90.0,7.2,Travel instruction to keep pills on home time and keep 12-hour gap included verbatim.
+7,"Reward for listing the side-effect watch items (jaw pain, hand-foot redness, mouth sores, chest flutter) with the ‘call before next dose’ instruction.",8,95.0,7.6,All listed side-effects and ‘call before next dose’ advice captured.
+8,"Reward for documenting the patient’s report of first cabozantinib dose, perceived heartbeat skip, and phone ECG reading of QTc 105 ms.",8,0.0,0.0,Patient’s first-dose experience and QTc 105 ms not documented.
+9,Reward for noting the patient’s continued aspirin 81 mg use and concern about bleeding risk.,8,0.0,0.0,Aspirin 81 mg continuation and bleeding concern not mentioned.
+10,Reward for capturing the patient’s questions about magnesium formulation choice and loss of medications at customs/missed doses.,5,0.0,0.0,Patient questions about magnesium form and customs-related missed doses not recorded.
+11,Reward for overall completeness: the note covers all major clinician instructions and patient concerns present in the transcript without significant omissions.,20,40.0,8.0,Note covers roughly half of clinician instructions; several major items missing.
+12,"Penalize for omitting or misstating key medication details (dose, frequency, timing) that were explicitly provided.",15,20.0,-12.0,"Multiple key medication details omitted, so penalty applies."
+13,"Penalize for introducing new clinical recommendations, assessments, or decisions that were not spoken or implied in the transcript.",15,90.0,-1.5,No new or unspoken clinical recommendations introduced.
+14,"Penalize for selectively or inaccurately copying chart information unrelated to this encounter (e.g., unrelated past conditions, unused medication list items).",10,80.0,-2.0,Minor unrelated dx code (F99) but no extensive chart copying; small concern.
+15,"Penalize for fabricating symptoms, lab values, or reasoning not present in the transcript.",10,95.0,-0.5,"No fabricated symptoms, labs, or reasoning detected."

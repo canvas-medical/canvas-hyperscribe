@@ -1,0 +1,33 @@
+{
+  "demographicStr": "The patient is a man, born on January 1, 1942 (age 82)",
+  "conditionHistory": [],
+  "currentAllergies": [
+    {
+      "uuid": "c4afd687-7251-47a0-858c-50e6844b047f",
+      "label": "Penicillin",
+      "code": "70618"
+    }
+  ],
+  "currentConditions": [
+    {
+      "uuid": "f67ee18a-acd1-4a01-a229-3ead9ee89501",
+      "label": "Herpes zoster without complications",
+      "code": "B02.9"
+    }
+  ],
+  "currentGoals": [],
+  "currentMedications": [
+    {
+      "uuid": "543eb979-5876-4c5a-a1f7-9ac8a5385bf5",
+      "label": "Valacyclovir 1 g oral tablet",
+      "code": "752601"
+    },
+    {
+      "uuid": "d0f6f602-0872-4e7b-b6e2-159acfa4d1a1",
+      "label": "Vitamin D3 1000 IU chewable tablet",
+      "code": "617320"
+    }
+  ],
+  "familyHistory": [],
+  "surgeryHistory": []
+}

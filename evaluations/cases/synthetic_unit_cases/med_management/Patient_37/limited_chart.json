@@ -1,0 +1,27 @@
+{
+  "demographicStr": "the patient is a boy, age 12",
+  "conditionHistory": [],
+  "currentAllergies": [],
+  "currentConditions": [
+    {
+      "uuid": "58101e1c-03ec-4205-8549-eecb63881161",
+      "label": "Mild persistent asthma, uncomplicated",
+      "code": "J45.30"
+    }
+  ],
+  "currentGoals": [],
+  "currentMedications": [
+    {
+      "uuid": "0e9e49f9-4e27-4e17-841d-299585ee6c55",
+      "label": "Fluticasone propionate 44 mcg/actuation inhalation aerosol",
+      "code": "197627"
+    },
+    {
+      "uuid": "b77d0303-9cd0-471b-bcfa-543dcdd8db70",
+      "label": "Chewable multivitamin",
+      "code": "171032"
+    }
+  ],
+  "familyHistory": [],
+  "surgeryHistory": []
+}

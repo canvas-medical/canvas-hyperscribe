@@ -1,0 +1,42 @@
+[
+  {
+    "instruction": "If a meal is delayed more than three hours, wait until you have at least a snack with some fat, like nuts or yogurt, before taking the medication. Taking it without food cuts absorption in half.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "coding": {
+          "system": "http://snomed.info/sct",
+          "code": "230091007",
+          "display": "Advice to change fat intake"
+        },
+        "comment": "If a meal is delayed more than three hours, wait until you have at least a snack with some fat, like nuts or yogurt, before taking the medication. Taking it without food cuts absorption in half."
+      }
+    }
+  },
+  {
+    "instruction": "Shellfish allergy does not overlap with this drug, but carrying an antihistamine like Benadryl in your kit is still wise.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "coding": {
+          "system": "http://snomed.info/sct",
+          "code": "183084005",
+          "display": "Patient advised to buy medical kit"
+        },
+        "comment": "Carrying an antihistamine like Benadryl in your kit is still wise."
+      }
+    }
+  },
+  {
+    "instruction": "Vivid dreams are rare with atovaquone-proguanil; more common with mefloquine, so you should be fine.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "comment": "Vivid dreams are rare with atovaquone-proguanil; more common with mefloquine, so you should be fine."
+      }
+    }
+  }
+]

@@ -1,0 +1,72 @@
+[
+  {
+    "criterion": "Reward for accurately documenting laboratory results: A1C decreased from 8.6% to 7.7% and creatinine remained 1.0 mg/dL, exactly as stated in the transcript.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing the medication plan to escalate semaglutide from 0.25 mg to 0.5 mg next Sunday, including the specific injection instructions (thigh site, hold button 10 seconds, refrigerate pen cap for reuse).",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting the hypoglycemia episode (meter reading 62 mg/dL), the use of two glucose tablets, clinician attribution to delayed breakfast after glyburide discontinuation, and the instruction to keep glucose tabs in the sax case.",
+    "weight": 12,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for noting insurance issues: prior-authorization rejection, provision of three sample pens covering twelve weeks, and clinician task to fax an appeal.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for recording continuation of aspirin 81 mg daily with no generic substitution and guidance about bruising (call if purple patches exceed a guitar pick or if nosebleeds persist).",
+    "weight": 8,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for stating that the sulfonamide allergy will be flagged on every electronic prescription.",
+    "weight": 5,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for including the patient's report of tinnitus spike and clinician acknowledgment/uncertainty about its cause.",
+    "weight": 5,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting that glaucoma eye-drops ran out early due to spillage and that a new prescription date is needed.",
+    "weight": 6,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing glucometer usability instructions related to hearing loss (activate vibration alert and brighten display).",
+    "weight": 4,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for noting follow-up plans: repeat labs and ophthalmology check scheduled in six weeks.",
+    "weight": 5,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting reassurance regarding possible interaction between semaglutide and lisinopril on kidney function and citing stable creatinine to support this.",
+    "weight": 4,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for overall completeness: the note captures all major decisions, patient concerns, instructions, and follow-up items discussed in the transcript without significant omissions.",
+    "weight": 12,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for omitting or inaccurately representing key dosage or timing details of the semaglutide escalation plan (e.g., wrong dose, wrong start date, missing injection instructions).",
+    "weight": 10,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for introducing information not present or implied in the transcript or relevant chart context (e.g., additional conditions, medications, lab values, social history) or for indiscriminate copying of chart data unrelated to this encounter.",
+    "weight": 8,
+    "sense": "negative"
+  }
+]

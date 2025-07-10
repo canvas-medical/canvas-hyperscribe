@@ -1,0 +1,52 @@
+[
+  {
+    "criterion": "Reward for clearly documenting today's administration of risperidone-ER 25 mg intramuscular injection to the deltoid, including that it provides four-week coverage.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for noting the clinician\u2019s explicit instruction that the patient should take NO oral risperidone tablets during the next four weeks unless otherwise messaged.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing the patient\u2019s report of missed tablets and brand/color change confusion, plus the clinician\u2019s reassurance that the white generic 2-mg tablet is equivalent and instructions to recycle any bottle predating today.",
+    "weight": 8,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for recording the melatonin discussion: accidental 10 mg (two gummies), clinician statement that this is safe, and guidance to limit future dosing to one 5 mg gummy to avoid daytime grogginess.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting the ordered labs (prolactin, kidney, liver panels) with the specific date and timing window: Tuesday the 14th before 3 p.m.",
+    "weight": 12,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for including the behavioral reminders suggested (set two phone alarms and consult Disability Services for a visual reminder board).",
+    "weight": 5,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for reflecting the patient\u2019s reported sleep disturbance despite melatonin in the history of present illness.",
+    "weight": 5,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for overall completeness and accuracy: the note faithfully summarizes all clinically relevant statements and instructions from the transcript without omission or distortion.",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for adding, altering, or omitting substantive information (e.g., different doses, additional medications, diagnoses, or plans) that was not stated or implied in the transcript.",
+    "weight": 10,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for copying chart information that conflicts with or is irrelevant to the transcript (e.g., listing melatonin as 3 mg tablets, detailing unrelated chronic conditions, or importing stock ROS/PE not discussed).",
+    "weight": 5,
+    "sense": "negative"
+  }
+]

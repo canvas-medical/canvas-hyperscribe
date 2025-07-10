@@ -1,0 +1,32 @@
+{
+  "demographicStr": "the patient is a woman, born on January 1, 1956 (age 68)",
+  "conditionHistory": [],
+  "currentAllergies": [],
+  "currentConditions": [
+    {
+      "uuid": "a2ff1969-37f2-49d6-a818-a7b3a276485c",
+      "label": "Malignant neoplasm of lung, unspecified bronchus or lung",
+      "code": "C34.90"
+    }
+  ],
+  "currentGoals": [],
+  "currentMedications": [
+    {
+      "uuid": "642222e0-3b95-40c6-bf4d-34dd6306773b",
+      "label": "Osimertinib 40 mg oral tablet",
+      "code": "1990102"
+    },
+    {
+      "uuid": "b7ebfaeb-8de7-4c97-ac6d-8685856b2e67",
+      "label": "Aspirin 81 mg oral tablet",
+      "code": "1191"
+    },
+    {
+      "uuid": "3a3ae31c-651e-4dc1-845d-2f1f78fde63f",
+      "label": "Atorvastatin 40 mg oral tablet",
+      "code": "617311"
+    }
+  ],
+  "familyHistory": [],
+  "surgeryHistory": []
+}

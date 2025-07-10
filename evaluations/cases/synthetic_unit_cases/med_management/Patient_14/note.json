@@ -1,0 +1,44 @@
+[
+  {
+    "instruction": "Stop Gabapentin 300 mg capsule after three nights of 200 mg at bedtime due to potential side effects and monitoring of symptoms.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.stop_medication",
+      "class": "StopMedicationCommand",
+      "attributes": {
+        "medication_id": "29ea3835-bc91-4ace-b0bf-eca167cbc93c",
+        "rationale": "due to potential side effects and monitoring of symptoms"
+      }
+    }
+  },
+  {
+    "instruction": "Order a CBC to be drawn before next week\u2019s visit due to the combination of turmeric and aspirin. No fasting required.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.lab_order",
+      "class": "LabOrderCommand",
+      "attributes": {
+        "diagnosis_codes": [
+          "R011"
+        ],
+        "comment": "Order CBC due to turmeric and aspirin combination before next visit.",
+        "tests_order_codes": [],
+        "fasting_required": false,
+        "ordering_provider_key": "4150cd20de8a470aa570a852859ac87e"
+      }
+    }
+  },
+  {
+    "instruction": "Write down bedtime, wake-up, and any groggy spells in a spiral notebook.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "comment": "Write down bedtime, wake-up, and any groggy spells in a spiral notebook.",
+        "coding": {
+          "system": "http://snomed.info/sct",
+          "code": "223447008",
+          "display": "Advice to document signs and symptoms"
+        }
+      }
+    }
+  }
+]

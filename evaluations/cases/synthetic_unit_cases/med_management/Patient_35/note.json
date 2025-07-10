@@ -1,0 +1,65 @@
+[
+  {
+    "instruction": "Homelessness",
+    "command": {
+      "module": "canvas_sdk.commands.commands.assess",
+      "class": "AssessCommand",
+      "attributes": {
+        "condition_id": "7e8f59c8-c914-4f75-9b18-3a9583f54d0d",
+        "background": "",
+        "narrative": "",
+        "status": null
+      }
+    }
+  },
+  {
+    "instruction": "Track bleeding in the phone app and take up to 600 mg ibuprofen every six hours with food if cramps occur.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "coding": {
+          "system": "http://snomed.info/sct",
+          "code": "223447008",
+          "display": "Advice to document signs and symptoms"
+        },
+        "comment": "Track bleeding in the phone app"
+      }
+    }
+  },
+  {
+    "instruction": "If the implant site shows warmth, redness, or pus, come in for a check-up and possible antibiotic change.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "comment": "If the implant site shows warmth, redness, or pus, come in for a check-up and possible antibiotic change."
+      }
+    }
+  },
+  {
+    "instruction": "Keep ibuprofen intake under 2,400 mg per day and stop if experiencing stomach burns or black stools.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "coding": {
+          "system": "http://snomed.info/sct",
+          "code": "223420003",
+          "display": "Advice about drug dosage"
+        },
+        "comment": "Keep ibuprofen intake under 2,400 mg per day and stop if experiencing stomach burns or black stools."
+      }
+    }
+  },
+  {
+    "instruction": "Patient is couch-surfing and lost the wallet card with implant removal date. The bandage on the implant site looks yellow at the edge, possibly due to dried iodine. Patient's phone is not working, affecting reminders. Patient is concerned about potential pregnancy if the first seven days of implant use are missed. The implant site is itchy, and the patient is worried about infection due to a penicillin allergy.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.history_present_illness",
+      "class": "HistoryOfPresentIllnessCommand",
+      "attributes": {
+        "narrative": "Patient is couch-surfing and lost the wallet card with implant removal date. The bandage on the implant site looks yellow at the edge, possibly due to dried iodine. Patient's phone is not working, affecting reminders. Patient is concerned about potential pregnancy if the first seven days of implant use are missed. The implant site is itchy, and the patient is worried about infection due to a penicillin allergy."
+      }
+    }
+  }
+]

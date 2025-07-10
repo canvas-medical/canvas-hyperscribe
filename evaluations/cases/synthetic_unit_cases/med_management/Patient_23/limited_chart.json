@@ -1,0 +1,38 @@
+{
+  "demographicStr": "the patient is a Vietnamese-speaking woman, born on January 1, 1979 (age 45)",
+  "conditionHistory": [],
+  "currentAllergies": [],
+  "currentConditions": [
+    {
+      "uuid": "4f212a3f-d945-4a44-8300-b4a16ef324de",
+      "label": "Type 2 diabetes mellitus without complications",
+      "code": "E11.9"
+    }
+  ],
+  "currentGoals": [
+    {
+      "uuid": "48a31f30-1546-4aaf-afbd-23cc23ce464a",
+      "label": "Improve blood sugar control",
+      "code": ""
+    }
+  ],
+  "currentMedications": [
+    {
+      "uuid": "41a924f6-ef72-4a21-be6a-6384f7d65167",
+      "label": "Metformin 500 mg tablet",
+      "code": "860975"
+    },
+    {
+      "uuid": "e50bce7a-3e8d-42e1-aff4-5cf80900f9d7",
+      "label": "Glipizide 5 mg tablet",
+      "code": "197361"
+    },
+    {
+      "uuid": "a93538b6-55d3-4e63-8d6c-3bda5370df03",
+      "label": "Semaglutide 2 mg/mL injection",
+      "code": "1990178"
+    }
+  ],
+  "familyHistory": [],
+  "surgeryHistory": []
+}

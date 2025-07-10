@@ -1,0 +1,39 @@
+{
+  "demographicStr": "the patient is a woman, born on January 1, 1982 (age 42)",
+  "conditionHistory": [],
+  "currentAllergies": [
+    {
+      "uuid": "04cf7ae3-6f33-48e6-9e22-950c9930d107",
+      "label": "Allergy to shellfish",
+      "code": "300913006"
+    }
+  ],
+  "currentConditions": [
+    {
+      "uuid": "cc58a183-fbfe-4421-8c63-f854d60cbd41",
+      "label": "Overweight",
+      "code": "E66.3"
+    },
+    {
+      "uuid": "9fc1ee01-fb38-4df4-9dc8-baa36e7b8d55",
+      "label": "Prediabetes",
+      "code": "R73.03"
+    }
+  ],
+  "currentGoals": [
+    {
+      "uuid": "079288cd-a018-44b2-b92e-f2537a065b2c",
+      "label": "Weight loss",
+      "code": ""
+    }
+  ],
+  "currentMedications": [
+    {
+      "uuid": "1ba199c1-feae-4d4c-b12b-ed885fb17ef2",
+      "label": "Semaglutide 0.25 mg/0.5 mL subcutaneous solution pen injector",
+      "code": "2436708"
+    }
+  ],
+  "familyHistory": [],
+  "surgeryHistory": []
+}

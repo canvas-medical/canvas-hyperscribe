@@ -1,0 +1,20 @@
+{
+  "turn_total": 6,
+  "speaker_sequence": [
+    "Clinician",
+    "Clinician",
+    "Clinician",
+    "Clinician",
+    "Clinician",
+    "Clinician"
+  ],
+  "ratio": 0.58,
+  "mood": [
+    "patient is defensive",
+    "clinician is concerned"
+  ],
+  "pressure": "side\u2011effect report just came in",
+  "clinician_style": "brief and efficient",
+  "patient_style": "assertive and informed",
+  "bucket": "medium"
+}

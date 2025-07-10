@@ -1,0 +1,79 @@
+[
+  {
+    "instruction": "Magnesium glycinate 400 mg at bedtime, no laxative effect.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.prescribe",
+      "class": "PrescribeCommand",
+      "attributes": {
+        "refills": 2,
+        "prescriber_id": "4150cd20de8a470aa570a852859ac87e",
+        "sig": "Take 1 tablet by mouth daily.",
+        "substitutions": "allowed",
+        "fdb_code": "557830",
+        "days_supply": 30,
+        "note_to_pharmacist": "Dispense 30 tablets for a 30-day supply. Allow 2 refills.",
+        "quantity_to_dispense": "30.00",
+        "type_to_dispense": {
+          "representative_ndc": "55571002301",
+          "ncpdp_quantity_qualifier_code": "C48542"
+        }
+      }
+    }
+  },
+  {
+    "instruction": "Baseline labs: potassium, magnesium, creatinine. One quick tube, no fasting required.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.lab_order",
+      "class": "LabOrderCommand",
+      "attributes": {
+        "ordering_provider_key": "4150cd20de8a470aa570a852859ac87e",
+        "tests_order_codes": [],
+        "fasting_required": false,
+        "comment": "Baseline labs ordered, no fasting required.",
+        "diagnosis_codes": [
+          "F99"
+        ]
+      }
+    }
+  },
+  {
+    "instruction": "Keep pills on home-time during flights; maintain a twelve-hour gap if a leg crosses midnight.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "coding": {
+          "system": "http://snomed.info/sct",
+          "code": "394835006",
+          "display": "Patient medication advice"
+        },
+        "comment": "Keep pills on home-time during flights; maintain a twelve-hour gap if a leg crosses midnight."
+      }
+    }
+  },
+  {
+    "instruction": "Watch for side effects: jaw pain, hand-foot redness, mouth sores, or any flutter in the chest. Call before the next dose if these occur.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "coding": {
+          "system": "http://snomed.info/sct",
+          "code": "223451005",
+          "display": "Advice to report signs and symptoms"
+        },
+        "comment": "Watch for side effects: jaw pain, hand-foot redness, mouth sores, or any flutter in the chest. Call before the next dose if these occur."
+      }
+    }
+  },
+  {
+    "instruction": "ECG with cardiology on the first Thursday of each month, five minutes, in and out.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.plan",
+      "class": "PlanCommand",
+      "attributes": {
+        "narrative": "ECG with cardiology on the first Thursday of each month, five minutes, in and out."
+      }
+    }
+  }
+]

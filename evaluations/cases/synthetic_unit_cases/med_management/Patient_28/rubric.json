@@ -1,0 +1,52 @@
+[
+  {
+    "criterion": "Reward for accurately documenting the semaglutide refill barrier, including pharmacy block, clinician's urgent prior authorization fax, confirmation of one unused pen remaining, and the seven-day buffer while awaiting insurance approval",
+    "weight": 30,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing the lisinopril adherence discussion: reduced dose to 10 mg once daily, shared-shelf mix-ups, instruction to label the blue-numbered blister pack with patient initials",
+    "weight": 25,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for recording the patient's shoulder soreness after injection and the clinician's advice to ice for ten minutes and rotate injection sites to the abdomen next time",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for noting the patient's living situation (halfway house) and related medication storage challenges as expressed in the encounter",
+    "weight": 8,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for including current medication names and dosages from the chart only when they match the transcript (semaglutide weekly, lisinopril 10 mg daily) and omitting unrelated chart details",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for overall completeness: the note should comprehensively reflect all clinically relevant statements and instructions present in the transcript without substantive omissions",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for omitting any major item from the encounter such as the semaglutide prior-auth plan, lisinopril dosing/labeling instructions, or injection-site care advice",
+    "weight": 20,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for fabricating or importing clinical content not present or implied in the transcript or chart (e.g., new diagnoses, lab orders, lifestyle counseling not discussed)",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for incorrectly stating medication dosages, frequencies, or timelines compared with what was said (e.g., recording lisinopril 20 mg or semaglutide used twice weekly)",
+    "weight": 20,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for indiscriminate copying of irrelevant chart information such as unrelated conditions, goals, or template sections that were not referenced in the transcript",
+    "weight": 10,
+    "sense": "negative"
+  }
+]

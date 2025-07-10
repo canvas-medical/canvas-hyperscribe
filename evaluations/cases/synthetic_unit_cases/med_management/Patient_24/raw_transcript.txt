@@ -1,0 +1,30 @@
+[
+  {
+    "speaker": "Clinician",
+    "text": "So, Malik, the pharmacy swapped in the new orange fluticasone canister because the old 110-microgram one fell off the formulary last week; this one shoots 220 micrograms per puff. What that means is just one puff in the morning and one puff at night, same schedule, but you’ll get double the medicine with each spray. It should calm the wheeze faster, and you don’t have to take two puffs anymore."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Also, I slipped a clear spacer into your bag; think of it like a hallway that gives the mist time to break up, so you can inhale in a single slow breath. Pop the inhaler into the blue end, shake once, puff, then breathe in for four seconds, hold for five, and you’re done—way quicker than fiddling with two sprays."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Now, you told me the locker line sometimes closes before lights-out, and that’s when the evening dose slips, right? Let’s brainstorm: could we keep the spacer and inhaler with the night supervisor, or maybe set a phone alarm that reminds you to grab them right after dinner before the lockers shut?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Um… yeah, I, I try, but the line gets super long and everyone watches if you ask to cut, and I feel stupid because it’s just for my ‘stupid’ inhaler. Last night I waited and then the guard said, ‘lights out,’ so I just went to bed. I woke up coughing and my chest felt tight. I don’t wanna mess up and make Mom worry. If I carry it around the littler kids might take it, and my phone is dead half the time, so alarms don’t always buzz."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Okay, first, it’s not stupid at all, you’re taking care of your lungs. How about we stash the inhaler in the nurses’ cabinet instead of the locker? They stay open until 10 p.m., which beats the guard’s cutoff. I can write a quick note so the staff knows it’s yours and lets you step in, no questions, even if the hallway’s crowded."
+  },
+  {
+    "speaker": "Patient",
+    "text": "That might work. I can, uh, ask Ms. Tanya, she’s nice. Will the medicine taste different now that it’s stronger? Sometimes after I puff I get this weird scratchy voice and the kids tease me, like ‘frog throat.’ And Mom said steroids can make you, um, chunky—am I gonna blow up like a balloon if it’s double?"
+  },
+  {
+    "speaker": "Clinician",
+    "text": "The medicine hasn’t changed taste; it’s the same powder in a bigger puff. Frog voice happens when leftover spray sticks to your throat, so after every dose swish water, gargle ten seconds, and spit—no gulping. The dose is still tiny compared with pills, so it won’t bulk you up. If your voice stays raspy or you see white spots, let me know and we’ll check for thrush."
+  }
+]

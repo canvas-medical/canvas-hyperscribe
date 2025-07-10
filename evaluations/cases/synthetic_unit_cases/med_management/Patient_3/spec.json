@@ -1,0 +1,26 @@
+{
+  "turn_total": 12,
+  "speaker_sequence": [
+    "Clinician",
+    "Patient",
+    "Patient",
+    "Patient",
+    "Clinician",
+    "Patient",
+    "Patient",
+    "Patient",
+    "Clinician",
+    "Patient",
+    "Clinician",
+    "Clinician"
+  ],
+  "ratio": 1.35,
+  "mood": [
+    "clinician is rushed",
+    "patient is defensive"
+  ],
+  "pressure": "insurance denied prior authorization",
+  "clinician_style": "over\u2011explainer",
+  "patient_style": "assertive and informed",
+  "bucket": "long"
+}

@@ -1,0 +1,62 @@
+[
+  {
+    "criterion": "Reward for clearly documenting the patient's chief complaint of sudden purple bruises on the arm and her worry that medication timing or dosing errors (aspirin doubling, skipped folic acid, methotrexate taken Wednesday instead of Tuesday) may be the cause.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing the clinician's reassurance and step-by-step review of each medication schedule: aspirin 81 mg with breakfast only, methotrexate 10 mg once weekly on Tuesday morning with water, and folic acid 1 mg daily.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting the instruction that the next adalimumab injection is due Friday before lunch and should not be taken on the same day as methotrexate.",
+    "weight": 8,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for accurately recording the new prednisone taper plan: start 10 mg tomorrow, then decrease by 1 mg every 5 days.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for noting the clinician's monitoring and safety instructions: photograph and call same day if any bruise exceeds a quarter in size or feels warm.",
+    "weight": 8,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for including the advice to keep a blood-pressure log because prednisone can elevate readings, and that amlodipine 5 mg nightly remains unchanged.",
+    "weight": 8,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting the task sent to the visiting nurse to recolor the pill organizer (blue for steroids, yellow for methotrexate).",
+    "weight": 6,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for noting the patient's requests/questions (large-print taper chart, using leftover 5 mg prednisone tablets, cosmetic cover-up for bruises, extra Tylenol) without inventing clinician responses that are not in the transcript.",
+    "weight": 5,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for overall completeness: the note captures virtually all clinically pertinent information, decisions, instructions, and patient concerns expressed in the transcript.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for omitting or materially altering any key medication instruction or schedule (aspirin dose, methotrexate day/dose, folic acid daily, adalimumab timing, prednisone taper).",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for fabricating clinician answers, plans, lab orders, diagnoses, or recommendations that do not appear in the transcript (e.g., advising on Tylenol dosage, approving old prednisone tablets, or recommending makeup products).",
+    "weight": 10,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for copying chart information that was not referenced in the encounter (e.g., unrelated past conditions, full demographic block) or listing medications/conditions not discussed, thereby diluting fidelity.",
+    "weight": 7,
+    "sense": "negative"
+  }
+]

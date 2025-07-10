@@ -1,0 +1,58 @@
+[
+  {
+    "speaker": "Patient",
+    "text": "I, uh, know it’s just allergy stuff, but I feel silly asking—my eyes keep leaking already—could I get a whole-year refill so I don’t keep bugging you every few weeks?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "I also, um, wanted to stash an extra bottle in my locker at school because practice runs late and I forget to take it at home sometimes."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Sure thing, Alex. Before I click the refill button, a pharmacy alert just pinged my screen saying you reported feeling groggy after a dose last month. Can we unpack that for a sec?"
+  },
+  {
+    "speaker": "Clinician",
+    "text": "I know you’re juggling school, soccer, and living with your grandparents, so I want to be sure the pill isn’t tripping you up during classes or on the field."
+  },
+  {
+    "speaker": "Patient",
+    "text": "Yeah, the day after I doubled up—because I forgot the morning one—I felt kinda spacey and almost nodded off in English. I’m embarrassed because it was just allergies and everyone noticed on the bus ride home."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Got it. Loratadine is usually non-drowsy, but stacking two ten-milligram tablets can definitely make you feel foggy. Let’s stick to one daily and set a phone reminder, sound good?"
+  },
+  {
+    "speaker": "Clinician",
+    "text": "About the year-long supply, I can write 90 tablets with three refills; that satisfies insurance and keeps you covered till next spring. We’ll label one bottle for home, one for your locker."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Any other meds, supplements, or even those energy drinks the team passes around? I just want to rule out hidden ingredients that might mix badly."
+  },
+  {
+    "speaker": "Patient",
+    "text": "No, I swear, just water and the occasional sports drink. My grandma keeps asking if I need vitamins, but I haven’t taken anything else. I’m more worried about losing the pills if the locker gets broken into again this year."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "I hear you. How about we split the supply into smaller blister packs—ten pills each—so even if one goes missing you’re not out a whole bottle? Your grandparents can keep the extras."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "I’ll also print a quick one-page sheet with the dose, purpose, and side-effect red flags—sleepiness, rash, or racing heart—so teachers or the coach know what’s normal."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "The pharmacy just asked me to confirm your weight; they flag doses above ten milligrams for kids under thirty kilos. You’re, what, about 140 pounds now, right?"
+  },
+  {
+    "speaker": "Clinician",
+    "text": "If that’s correct, no adjustment needed. I’ll send the e-prescription in the next minute, but before I hit 'submit,' anything else about allergies we haven’t covered?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Um, maybe just one thing—I get a little wheezy on the first really cold practice in March. Should I keep using my cousin’s old inhaler or is that bad idea?"
+  }
+]

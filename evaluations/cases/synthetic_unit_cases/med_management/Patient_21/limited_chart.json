@@ -1,0 +1,42 @@
+{
+  "demographicStr": "the patient is a woman, born on January 1, 1943 (age 81)",
+  "conditionHistory": [],
+  "currentAllergies": [],
+  "currentConditions": [
+    {
+      "uuid": "48799afa-2f0b-4530-87df-7d7285e00f1f",
+      "label": "Rheumatoid arthritis, unspecified",
+      "code": "M06.9"
+    }
+  ],
+  "currentGoals": [],
+  "currentMedications": [
+    {
+      "uuid": "854570bb-85ef-4186-bb2f-0280e3b96b99",
+      "label": "Methotrexate 2.5 mg tablet",
+      "code": "6848"
+    },
+    {
+      "uuid": "caef7915-d069-4f4e-9b1a-11d1312c51d9",
+      "label": "Folic Acid 1 mg tablet",
+      "code": "5640"
+    },
+    {
+      "uuid": "ab2ab7a0-0606-402c-8f91-aae8a452f3c6",
+      "label": "Aspirin 81 mg tablet",
+      "code": "1191"
+    },
+    {
+      "uuid": "6f3c6afb-441a-4412-8f99-bfb87c0d9beb",
+      "label": "Amlodipine 5 mg tablet",
+      "code": "197361"
+    },
+    {
+      "uuid": "e747e02f-9c56-464a-9e43-964b9d122983",
+      "label": "Adalimumab 40 mg/0.8 mL subcutaneous solution",
+      "code": "1110398"
+    }
+  ],
+  "familyHistory": [],
+  "surgeryHistory": []
+}

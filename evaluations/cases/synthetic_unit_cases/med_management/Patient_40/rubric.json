@@ -1,0 +1,62 @@
+[
+  {
+    "criterion": "Reward for accurately documenting continuation of semaglutide at 0.5 mg subcutaneously every Sunday, including instruction to refrigerate until 30 minutes before use",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting complete cessation of glyburide and the instruction to pack it away to avoid accidental use",
+    "weight": 12,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing the full atovaquone/proguanil malaria\u2010prophylaxis regimen: start the morning before embarkation, take one tablet daily with food or milk, and continue for seven days after returning",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for recording clinician advice to take the malaria pill with at least a cracker if a full meal is missed",
+    "weight": 6,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for noting the warning signs (nausea, yellow eyes, low-sugar shakiness) and the instruction to check glucose first and email the clinician",
+    "weight": 8,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting the pharmacy pen color change, cost increase explanation, pending insurance appeal, and provision of two free replacement boxes at the ship\u2019s infirmary",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for including storage guidance to keep pens needle-side up in the cabin refrigerator",
+    "weight": 5,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing the patient-reported hypoglycemic episode (glucose 84 mg/dL), worries about mixing pens or dropping them, skipped meals on excursions, and overall travel-related stress",
+    "weight": 7,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for correctly citing relevant chart context: 67-year-old woman with type 2 diabetes (E11.9) without adding unrelated chart details",
+    "weight": 4,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for overall completeness\u2014note reflects the vast majority of clinically relevant statements and instructions from the transcript without omission",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for importing chart data that was not referenced in the conversation (e.g., atorvastatin, aspirin, goals) or omitting key elements while adding irrelevant ones",
+    "weight": 8,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for fabricating, altering, or embellishing medication names, dosages, schedules, patient statements, or clinician instructions not supported by the transcript or chart",
+    "weight": 10,
+    "sense": "negative"
+  }
+]

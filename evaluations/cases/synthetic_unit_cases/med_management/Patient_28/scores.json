@@ -1,0 +1,52 @@
+[
+  {
+    "rationale": "Includes pharmacy block reason and urgent prior-auth fax but omits note of one unused pen and the 7-day buffer.",
+    "satisfaction": 60.0,
+    "score": 18.0
+  },
+  {
+    "rationale": "Documents reduced lisinopril dose to 10 mg daily but omits shared-shelf mix-up details and labeling instructions.",
+    "satisfaction": 40.0,
+    "score": 10.0
+  },
+  {
+    "rationale": "Records shoulder soreness advice: ice 10 min and rotate to abdomen; essentially complete.",
+    "satisfaction": 90.0,
+    "score": 13.5
+  },
+  {
+    "rationale": "No mention of halfway-house living situation or storage challenges.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Lists only semaglutide weekly and lisinopril 10 mg, matching transcript and adds no unrelated meds.",
+    "satisfaction": 90.0,
+    "score": 9.0
+  },
+  {
+    "rationale": "Note captures several key points but misses living situation and some medication adherence details, so moderately incomplete.",
+    "satisfaction": 50.0,
+    "score": 10.0
+  },
+  {
+    "rationale": "Major omission of lisinopril labeling instructions and living-situation context triggers penalty.",
+    "satisfaction": 30.0,
+    "score": -14.0
+  },
+  {
+    "rationale": "No fabricated diagnoses or instructions beyond transcript content.",
+    "satisfaction": 90.0,
+    "score": -1.5
+  },
+  {
+    "rationale": "Medication doses and frequencies recorded accurately; no discrepancies detected.",
+    "satisfaction": 95.0,
+    "score": -1.0
+  },
+  {
+    "rationale": "Does not copy irrelevant chart sections or unrelated conditions.",
+    "satisfaction": 95.0,
+    "score": -0.5
+  }
+]

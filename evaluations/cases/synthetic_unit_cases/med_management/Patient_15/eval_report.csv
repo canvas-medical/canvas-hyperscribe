@@ -1,0 +1,13 @@
+Criterion #,Criterion,Max Score,Satisfaction (%),Score Awarded,Rationale
+1,Reward for accurately documenting the borderline QT interval alert of 470 ms that prompted the discussion,15,20.0,3.0,QT prolongation mentioned but exact value 470 ms and the alert itself are not documented.
+2,Reward for capturing the patient's reported episode of chest flutter with ear ringing yesterday and the absence of new dizziness or palpitations today,10,10.0,1.0,Yesterday’s chest flutter with ear ringing and today’s absence of dizziness/palpitations are not captured.
+3,Reward for recording the clinician's decision to reduce azithromycin dosage to 250 mg daily,20,90.0,18.0,"Azithromycin dose explicitly changed to 250 mg daily, matching clinician decision."
+4,Reward for documenting the order for serum potassium labs to be drawn the next day,10,90.0,9.0,Potassium lab for tomorrow clearly ordered with rationale to monitor QT.
+5,Reward for documenting the plan to repeat an ECG in 48 hours,10,90.0,9.0,Instruction to repeat ECG in 48 hours is documented with appropriate details.
+6,Reward for correctly noting continuation of osimertinib 80 mg with breakfast and metoprolol unchanged,10,85.0,8.5,Continuation of osimertinib 80 mg with breakfast and metoprolol unchanged is stated.
+7,Reward for including specific patient instructions: skip extra electrolytes and notify staff if flutter recurs,5,90.0,4.5,Specific instructions to skip extra electrolytes and contact staff if flutter recurs are included.
+8,Reward for reflecting the patient's expressed concerns about QT-prolonging medications and not wanting additional pills,5,0.0,0.0,No mention of patient’s concern about QT-prolonging drugs or avoiding more pills.
+9,"Reward for overall completeness—note captures all major symptoms, decisions, orders, instructions, and concerns present in the transcript",15,60.0,9.0,"Major orders and instructions present, but key symptoms and QT value missing, so partially complete."
+10,"Penalize for copying irrelevant chart content (e.g., listing unrelated medications such as multivitamin or acetaminophen, or conditions not discussed)",10,95.0,-0.5,Note does not include unrelated meds or conditions; no irrelevant chart content copied.
+11,Penalize for adding fabricated or speculative information not stated or implied in the transcript or chart,15,95.0,-0.75,No fabricated or speculative information detected; content aligns with likely transcript.
+12,Penalize for omitting or misstating key quantitative details such as the QT value (470 ms) or medication dosages/timing,10,30.0,-7.0,"QT value (470 ms) omitted, a key quantitative detail; other dosages correct."
