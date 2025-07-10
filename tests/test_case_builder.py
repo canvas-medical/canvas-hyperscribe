@@ -1,4 +1,5 @@
 from unittest.mock import patch, call
+
 from case_builder import CaseBuilder
 from evaluations.case_builders.builder_audit_url import BuilderAuditUrl
 from evaluations.case_builders.builder_delete import BuilderDelete
@@ -19,7 +20,6 @@ from evaluations.case_builders.builder_from_chart_transcript import BuilderFromC
 @patch.object(BuilderFromTranscript, "run")
 @patch.object(BuilderFromMp3, "run")
 @patch.object(BuilderDelete, "run")
-
 def test_run(
     run_delete,
     run_mp3,
@@ -44,24 +44,24 @@ def test_run(
         run_direct_full.reset_mock()
 
     tests = [
-        (['--delete'], "", [call()], [], [], [], [], [], [], []),
-        (['--mp3'], "", [], [call()], [], [], [], [], [], []),
-        (['--transcript'], "", [], [], [call()], [], [], [], [], []),
-        (['--tuning-json'], "", [], [], [], [call()], [], [], [], []),
-        (['--audit'], "", [], [], [], [], [call()], [], [], []),
-        (['--summarize'], "", [], [], [], [], [], [call()], [], []),
-        (['--direct-split'], "", [], [], [], [], [], [], [call()], []),
-        (['--direct-full'], "", [], [], [], [], [], [], [], [call()]),
-        (['--chart-transcript'], "", [], [], [], [], [], [call()], [], []),
-        ([], "no explicit action to perform\n", [], [], [], [], [], [], [], []),
+        (['--delete'], "", [call()], [], [], [], [], [], [], [], []),
+        (['--transcript'], "", [], [call()], [], [], [], [], [], [], []),
+        (['--tuning-json'], "", [], [], [call()], [], [], [], [], [], []),
+        (['--mp3'], "", [], [], [], [call()], [], [], [], [], []),
+        (['--audit'], "", [], [], [], [], [call()], [], [], [], []),
+        (['--summarize'], "", [], [], [], [], [], [call()], [], [], []),
+        (['--chart', '--transcript'], "", [], [], [], [], [], [], [call()], [], []),
+        (['--direct-split'], "", [], [], [], [], [], [], [], [call()], []),
+        (['--direct-full'], "", [], [], [], [], [], [], [], [], [call()]),
+        ([], "no explicit action to perform\n", [], [], [], [], [], [], [], [], []),
     ]
 
-    for (arguments, exp_out, call_delete, call_mp3, call_transcript, call_tuning,
-        call_audit, call_summarize, call_chart_transcript, call_direct_split, call_direct_full) in tests:
-        tested = CaseBuilder()
-        tested.run(arguments)
+    for (arguments, exp_out, call_delete, call_transcript, call_tuning, call_mp3, 
+         call_audit, call_summarize, call_chart_transcript, call_direct_split, call_direct_full,) in tests:
+        CaseBuilder.run(arguments)
 
-        assert capsys.readouterr().out == exp_out
+        result = capsys.readouterr().out
+        assert result == exp_out
         assert run_delete.mock_calls == call_delete
         assert run_mp3.mock_calls == call_mp3
         assert run_transcript.mock_calls == call_transcript
