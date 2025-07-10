@@ -118,12 +118,14 @@ def test_case_id(case_store):
 
 
 @patch('evaluations.auditors.auditor_postgres.GeneratedNoteStore')
+@patch.object(AuditorPostgres, 'get_plugin_commit')
 @patch.object(AuditorPostgres, 'case_id')
-def test_generated_note_id(case_id, generated_note_store):
+def test_generated_note_id(case_id, get_plugin_commit, generated_note_store):
     mock_settings = MagicMock()
 
     def reset_mocks():
         case_id.reset_mock()
+        get_plugin_commit.reset_mock()
         generated_note_store.reset_mock()
         mock_settings.reset_mock()
 
@@ -135,6 +137,7 @@ def test_generated_note_id(case_id, generated_note_store):
     mock_settings.llm_text_model.side_effect = ["theTextModel"]
     mock_settings.cycle_transcript_overlap = 37
     case_id.side_effect = [47]
+    get_plugin_commit.side_effect = ["abc123"]
     generated_note_store.return_value.insert.side_effect = [GeneratedNoteRecord(case_id=111, id=333)]
 
     result = tested.generated_note_id()
@@ -153,7 +156,7 @@ def test_generated_note_id(case_id, generated_note_store):
             text_llm_vendor='theTextVendor',
             text_llm_name='theTextModel',
             note_json=[],
-            hyperscribe_version='',
+            hyperscribe_version="abc123",
             staged_questionnaires={},
             transcript2instructions={},
             instruction2parameters={},
@@ -166,11 +169,14 @@ def test_generated_note_id(case_id, generated_note_store):
     assert generated_note_store.mock_calls == calls
     calls = [call.llm_text_model()]
     assert mock_settings.mock_calls == calls
+    calls = [call()]
+    assert get_plugin_commit.mock_calls == calls
     reset_mocks()
 
     #
     mock_settings.llm_text_model.side_effect = []
     case_id.side_effect = []
+    get_plugin_commit.return_value.insert.side_effect = []
     generated_note_store.return_value.insert.side_effect = []
 
     result = tested.generated_note_id()
@@ -180,6 +186,7 @@ def test_generated_note_id(case_id, generated_note_store):
     assert case_id.mock_calls == []
     assert generated_note_store.mock_calls == []
     assert mock_settings.mock_calls == []
+    assert get_plugin_commit.mock_calls == []
     reset_mocks()
 
 
@@ -453,4 +460,20 @@ def test_full_transcript(case_id, case_store):
         call().get_transcript(333),
     ]
     assert case_store.mock_calls == calls
+    reset_mocks()
+
+
+@patch('evaluations.auditors.auditor_postgres.check_output')
+def test_get_plugin_commit(check_output):
+    def reset_mocks():
+        check_output.reset_mock()
+
+    tested = AuditorPostgres
+    check_output.side_effect = [b"\t abc123 \n"]
+    result = tested.get_plugin_commit()
+    expected = "abc123"
+    assert result == expected
+
+    calls = [call(['git', 'rev-parse', '--short', 'HEAD'])]
+    assert check_output.mock_calls == calls
     reset_mocks()

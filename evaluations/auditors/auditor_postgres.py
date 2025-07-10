@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from subprocess import check_output
+
 from evaluations.auditors.auditor_store import AuditorStore
 from evaluations.constants import Constants as EvaluationConstants
 from evaluations.datastores.postgres.case import Case as CaseStore
@@ -8,7 +10,6 @@ from evaluations.structures.enums.case_status import CaseStatus
 from evaluations.structures.postgres_credentials import PostgresCredentials
 from evaluations.structures.records.case import Case as CaseRecord
 from evaluations.structures.records.generated_note import GeneratedNote as GeneratedNoteRecord
-from hyperscribe.libraries.constants import Constants as HyperscribeConstants
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.line import Line
 from hyperscribe.structures.settings import Settings
@@ -44,7 +45,7 @@ class AuditorPostgres(AuditorStore):
                 cycle_transcript_overlap=self.settings.cycle_transcript_overlap,
                 text_llm_vendor=self.settings.llm_text.vendor,
                 text_llm_name=self.settings.llm_text_model(),
-                hyperscribe_version="",  # TODO <-- commit or version declared in the manifest
+                hyperscribe_version=self.get_plugin_commit(),
                 failed=True,  # <-- will be changed to False at the end
             )).id
         return self._generated_note_id
@@ -103,3 +104,7 @@ class AuditorPostgres(AuditorStore):
 
     def full_transcript(self) -> dict[str, list[Line]]:
         return CaseStore(self.postgres_credentials).get_transcript(self.case_id())
+
+    @classmethod
+    def get_plugin_commit(cls) -> str:
+        return check_output(['git', 'rev-parse', '--short', 'HEAD']).decode('ascii').strip()
