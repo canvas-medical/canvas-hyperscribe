@@ -1,0 +1,52 @@
+[
+  {
+    "rationale": "Tretinoin regimen not mentioned at all.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "No counseling on expected dryness, burning, or flare.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "No moisturizer or sunscreen instructions documented.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "No information about tube duration or refills.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Albuterol dosing absent.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Patient worry about forgetting steps or skipping dose not documented.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "No report of empty inhaler or refill concerns captured.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Note omits nearly all encounter content; extremely incomplete.",
+    "satisfaction": 5.0,
+    "score": 0.75
+  },
+  {
+    "rationale": "Introduces unrelated drug information; poor fidelity to chart.",
+    "satisfaction": 10.0,
+    "score": 0.8
+  },
+  {
+    "rationale": "Multiple unsupported additions; significant omissions.",
+    "satisfaction": 20.0,
+    "score": -8.0
+  }
+]

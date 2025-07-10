@@ -1,0 +1,17 @@
+{
+  "turn_total": 3,
+  "speaker_sequence": [
+    "Clinician",
+    "Clinician",
+    "Clinician"
+  ],
+  "ratio": 1.96,
+  "mood": [
+    "patient is tearful",
+    "clinician is concerned"
+  ],
+  "pressure": "refill limit reached",
+  "clinician_style": "warm and chatty",
+  "patient_style": "anxious and talkative",
+  "bucket": "short"
+}

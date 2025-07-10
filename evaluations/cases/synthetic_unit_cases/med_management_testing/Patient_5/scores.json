@@ -1,0 +1,52 @@
+[
+  {
+    "rationale": "Note contains no atorvastatin dose change or aspirin continuation.",
+    "satisfaction": 0,
+    "score": 0.0
+  },
+  {
+    "rationale": "No instructions given for leftover 10 mg pills.",
+    "satisfaction": 0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Patient concerns about brand, liver, muscle not documented.",
+    "satisfaction": 0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Statin side-effect review and denials absent.",
+    "satisfaction": 0,
+    "score": 0.0
+  },
+  {
+    "rationale": "No liver enzyme lab orders or contingency plan recorded.",
+    "satisfaction": 0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Lifestyle advice such as dose logging or plant-based diet not included.",
+    "satisfaction": 0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Relevant chart data about 67-year-old male with hyperlipidemia and med list missing.",
+    "satisfaction": 0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Major elements of today\u2019s plan entirely omitted, producing a misleading note.",
+    "satisfaction": 5,
+    "score": -28.5
+  },
+  {
+    "rationale": "Medication list not updated; unrelated data added, risking fabrication.",
+    "satisfaction": 5,
+    "score": -19.0
+  },
+  {
+    "rationale": "Information is organized but unrelated to encounter; moderate clarity.",
+    "satisfaction": 30,
+    "score": 2.4
+  }
+]

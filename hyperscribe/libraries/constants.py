@@ -70,8 +70,6 @@ class Constants:
     SECRET_AUDIO_KEY = "KeyAudioLLM"
     SECRET_AUDIO_VENDOR = "VendorAudioLLM"
     SECRET_AUDIT_LLM = "AuditLLMDecisions"
-    SECRET_TEXT_MODEL = "TEXT_MODEL"
-    SECRET_TEXT_TEMP  = "TEXT_TEMPERATURE"
     SECRET_AWS_BUCKET_LOGS = "AwsBucketLogs"
     SECRET_AWS_BUCKET_TUNING = "AwsBucketTuning"
     SECRET_AWS_KEY = "AwsKey"

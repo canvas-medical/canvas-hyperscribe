@@ -167,18 +167,6 @@ def test_attempt_requests(request):
     assert memory_log.mock_calls == calls
     reset_mocks()
 
-def test_clear_prompts():
-    memory_log = MagicMock()
-    lb = LlmBase(memory_log, "apiKey", "model", False)
-    lb.prompts = [
-        LlmTurn(role="system", text=["a"]),
-        LlmTurn(role="user", text=["b"]),
-    ]
-    assert lb.prompts
-    lb.clear_prompts()
-    assert lb.prompts == []
-
-
 @patch.object(LlmBase, "extract_json_from")
 @patch.object(LlmBase, "attempt_requests")
 def test_chat(attempt_requests, extract_json_from):

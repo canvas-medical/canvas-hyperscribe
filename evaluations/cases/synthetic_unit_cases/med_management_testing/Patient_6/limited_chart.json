@@ -1,0 +1,48 @@
+{
+  "demographicStr": "the patient is a woman, born on January 1, 1986 (age 38)",
+  "conditionHistory": [],
+  "currentAllergies": [],
+  "currentConditions": [
+    {
+      "uuid": "c26f4343-1d48-4c47-b650-a3bbb11a2e96",
+      "label": "Severe eosinophilic asthma",
+      "code": "J45.50"
+    },
+    {
+      "uuid": "880b4f43-2d58-425d-ba69-180cb3f694c8",
+      "label": "Hypothyroidism, unspecified",
+      "code": "E03.9"
+    }
+  ],
+  "currentGoals": [
+    {
+      "uuid": "7850b84a-d9b0-4f5e-bcb7-c59d21f213be",
+      "label": "Maintain optimal control of severe asthma",
+      "code": ""
+    }
+  ],
+  "currentMedications": [
+    {
+      "uuid": "b2dc7531-5239-4018-8c63-a791904e91fc",
+      "label": "Budesonide-formoterol 160 mcg-4.5 mcg/actuation inhaler",
+      "code": "213826"
+    },
+    {
+      "uuid": "00985c50-3dfa-4386-bfa0-379012ffbd10",
+      "label": "Dupilumab 300 mg/2 mL prefilled syringe",
+      "code": "1962647"
+    },
+    {
+      "uuid": "60a43474-407a-4434-838e-8ee2c29ad0c7",
+      "label": "Levothyroxine sodium tablet",
+      "code": "861757"
+    },
+    {
+      "uuid": "58a77fb8-9e57-4fd1-8f58-b50930b65574",
+      "label": "Oral contraceptive pill, ethinyl estradiol/levonorgestrel",
+      "code": "197361"
+    }
+  ],
+  "familyHistory": [],
+  "surgeryHistory": []
+}

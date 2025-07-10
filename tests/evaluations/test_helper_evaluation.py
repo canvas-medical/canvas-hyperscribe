@@ -403,7 +403,7 @@ def test_nuanced_differences(settings, get_canvas_instance, chatter, memory_log)
     identification = IdentificationParameters(
         patient_uuid="_PatientUuid",
         note_uuid="_NoteUuid",
-        provider_uuid="4150cd20de8a470aa570a852859ac87e",
+        provider_uuid="_ProviderUuid",
         canvas_instance="theCanvasInstance",
     )
 

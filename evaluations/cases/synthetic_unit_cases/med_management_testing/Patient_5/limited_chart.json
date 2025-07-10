@@ -1,0 +1,39 @@
+{
+  "demographicStr": "the patient is a man, age 67",
+  "conditionHistory": [],
+  "currentAllergies": [
+    {
+      "uuid": "1540bc55-38d6-4965-8bb1-13188a7730c2",
+      "label": "Sulfonamide (sulfa) drugs",
+      "code": "418922004"
+    }
+  ],
+  "currentConditions": [
+    {
+      "uuid": "56e5eb55-4161-4db0-a010-c6f1e2112eeb",
+      "label": "Hyperlipidemia, unspecified",
+      "code": "E78.5"
+    }
+  ],
+  "currentGoals": [
+    {
+      "uuid": "c0bd2ff6-3fe3-44b6-a333-38b97f32d626",
+      "label": "Achieve target cholesterol level",
+      "code": ""
+    }
+  ],
+  "currentMedications": [
+    {
+      "uuid": "cd72ca9e-1283-4230-b37c-816f41a90a55",
+      "label": "Atorvastatin 20 mg tablet",
+      "code": "833709"
+    },
+    {
+      "uuid": "2510b402-6c8c-4da4-8ea3-3ae234cd6b5e",
+      "label": "Aspirin 81 mg tablet",
+      "code": "1191"
+    }
+  ],
+  "familyHistory": [],
+  "surgeryHistory": []
+}

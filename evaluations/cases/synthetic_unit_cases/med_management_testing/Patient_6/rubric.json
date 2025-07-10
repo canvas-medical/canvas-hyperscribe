@@ -1,0 +1,52 @@
+[
+  {
+    "criterion": "Reward for comprehensive capture of all key clinician instructions, orders, and patient concerns discussed in the encounter (overall completeness).",
+    "weight": 30,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for accurately documenting all travel-specific dupilumab storage guidance, including injection timing on travel morning, TSA insulated bag allowance, solid gel pack requirements, temperature-excursion sheet, and backup instant ice packs.",
+    "weight": 12,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for correctly recording the levothyroxine 30-minute daily time-shift plan, empty-stomach rule, and oral contraceptive 24-hour dosing window with watch alarm advice.",
+    "weight": 8,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for detailing the vacation-override refill of budesonide-formoterol, one-time replacement dupilumab order, and staff-initiated prior authorization tasks.",
+    "weight": 12,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting the customs letter generation process and instruction to place printed copies with medication supply and passport.",
+    "weight": 6,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing the sharps disposal plan using a palm-size screw-top vitamin bottle and the warning against re-capping needles.",
+    "weight": 5,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for accurately listing current medications and chronic conditions exactly as shown in the chart without unauthorized additions, deletions, or dosage changes (chart-copy fidelity).",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for introducing information, conclusions, or recommendations not present in either the transcript or the chart (fabrication).",
+    "weight": 10,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for omitting any major clinician instruction, order, or significant patient concern that could affect care or logistics.",
+    "weight": 5,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for documenting data that conflicts with chart entries (e.g., incorrect medication names, doses, or diagnoses).",
+    "weight": 2,
+    "sense": "negative"
+  }
+]

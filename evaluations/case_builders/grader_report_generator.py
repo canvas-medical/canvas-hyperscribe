@@ -6,7 +6,7 @@ from typing import Any, cast
 
 class EvalReportGenerator:
     @classmethod
-    def load_json(path: Path) -> list[dict[str, Any]]:
+    def load_json(cls, path: Path) -> list[dict[str, Any]]:
         with path.open('r') as f:
             return cast(list[dict[str, Any]], json.load(f))
 

@@ -1,0 +1,54 @@
+[
+  {
+    "speaker": "Clinician",
+    "text": "Okay, quick check: you\u2019re flying in eight days, right? We need to pin down dupilumab storage, customs letters, plus refill timing for the budesonide-formoterol. What\u2019s your current injector stock level?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Right now I have three pens in the fridge, all unexpired. The next shot lands the morning we leave, so I was thinking of injecting early to avoid hauling four. The airline website is vague; it just says declare medications. I\u2019ve read blogs where people\u2019s ice packs melted during layovers, and I\u2019m worried the drug will degrade before we even reach customs in Madrid. Also, I can\u2019t just pop into a pharmacy in the mountains if something goes wrong. The inhaler is easier\u2014I\u2019ve got two fresh canisters\u2014but I\u2019m not sure about the levothyroxine because the time-zone flip will have me taking it at 2 pm local. Am I overthinking this?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "And, uh, one more thing I\u2019m embarrassed about: the sharps disposal. My cousin said European hotels won\u2019t let you toss needles in regular trash, and I don\u2019t want housekeeping to freak out. Should I pack a travel sharps tube or can the pen needle go back on and stay until we get home? I\u2019m trying to be responsible, but the space in my backpack is tight because of the hiking gear and the rescue inhaler spacer."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Not overthinking at all. I\u2019d rather you plan than scramble abroad. Keep the schedule: inject on travel morning, not earlier. TSA allows insulated bag with solid frozen gel packs present."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Ask pharmacy for a printed \u2018temperature excursion\u2019 sheet; that shows stability up to 77\u00b0F for 14 hours, which covers layovers. Pack two instant ice packs in case security confiscates gel."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Customs letter: I\u2019ll generate one now, we\u2019ll sign electronically, and you print two copies. Put one with the pens, one with your passport. That usually speeds EU checkpoints quite nicely."
+  },
+  {
+    "speaker": "Patient",
+    "text": "Good, that helps. For the thyroid pills, jet-lag always messes me up. If I take them at what would be 6 a.m. Colorado time, it lands smack during the group tour. Could I shift gradually this week\u2014maybe thirty minutes earlier each day\u2014so by the time we land I\u2019m already synced? I don\u2019t want hypo symptoms while hiking out there either, okay?"
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Yes, titrating earlier is fine. Shift thirty minutes each morning, stop at local 6 a.m. Make sure you still take it on an empty stomach, then wait thirty minutes before breakfast."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Regarding oral contraceptives, crossing time zones doesn\u2019t affect efficacy so long as you don\u2019t exceed 24 hours between doses. Set an alarm on your watch, not the unreliable cell network."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "For sharps, bring a palm-size screw-top vitamin bottle; security accepts it, and European pharmacies will recycle it later. Re-capping the needle is risky for you and housekeeping back home."
+  },
+  {
+    "speaker": "Patient",
+    "text": "Cool, I\u2019ll raid the supplement drawer. Last logistical piece: my village pharmacy can only send one inhaler at a time. We\u2019ll be gone five weeks. Could you authorize mail-order for three inhalers and maybe one extra dupilumab in case of breakage? I\u2019ll pay out-of-pocket if needed to avoid any panic."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "I can send a vacation-override script today; insurer usually grants 60-day supply for travel. I\u2019ll also write a one-time replacement pen order marked \u2018lost/damaged\u2019 to cover accidents on the trip."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "You\u2019ll need prior authorization faxed; our staff will push it this afternoon. If approval lags, we can loan samples. Please email me once flights are booked so I time refills."
+  }
+]

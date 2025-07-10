@@ -1,0 +1,47 @@
+[
+  {
+    "criterion": "Reward for clearly documenting the lisinopril up-titration to 40 mg orally once every morning starting the next day, matching dosage, timing, and \"with or without food\" wording from the visit.",
+    "weight": 25,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for recording the refill/dispensing plan (90-day supply with two refills, pharmacist swaps to larger-strength tablet, pharmacy computer cut-off explanation) exactly as described.",
+    "weight": 12,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for listing all stated warning signs and call instructions (persistent dry cough, light-headedness on standing, ankle swelling, vague \"feels off,\" after-hours paging) without additions or omissions.",
+    "weight": 18,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing lifestyle and adherence guidance: sip water to avoid dehydration potency, bring pill bottle for same-morning kidney panel, weekly email of BP log photo, 8 a.m. phone alarm, and single-dose catch-up rule.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for accurate inclusion of relevant chart data (47-year-old female, essential hypertension, penicillin allergy, current lisinopril) without altering, deleting, or inventing chart elements.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for overall completeness and logical structure so that every clinically pertinent statement or instruction from the encounter appears somewhere in the note.",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for omitting any major medication change, monitoring instruction, side-effect warning, follow-up action, or refill detail that was explicitly stated.",
+    "weight": 20,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for adding or inferring clinical facts, diagnoses, medications, tests, or advice not present in the transcript or chart.",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for copying large, irrelevant, or outdated portions of the chart verbatim, or misreporting chart data (e.g., wrong allergy or condition).",
+    "weight": 10,
+    "sense": "negative"
+  }
+]

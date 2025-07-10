@@ -1,0 +1,58 @@
+{
+  "demographicStr": "the patient is a woman, born on January 1, 1952 (age 72)",
+  "conditionHistory": [],
+  "currentAllergies": [],
+  "currentConditions": [
+    {
+      "uuid": "b814e598-d98f-4593-b3ef-8f079d98e4d8",
+      "label": "Type 2 diabetes mellitus without complications",
+      "code": "E11.9"
+    },
+    {
+      "uuid": "be49b267-1d6c-4d1b-896f-5d3c42b2759a",
+      "label": "Essential (primary) hypertension",
+      "code": "I10"
+    },
+    {
+      "uuid": "620539ac-d555-4720-b7eb-1033c5a0d610",
+      "label": "Hyperlipidemia, unspecified",
+      "code": "E78.5"
+    }
+  ],
+  "currentGoals": [
+    {
+      "uuid": "8e2449e0-2ab7-4228-b6b7-e9a2170674c3",
+      "label": "Improve blood sugar control",
+      "code": ""
+    }
+  ],
+  "currentMedications": [
+    {
+      "uuid": "62b5017f-ea9d-45af-8be6-3422f2718154",
+      "label": "Metformin 500 mg oral tablet",
+      "code": "860975"
+    },
+    {
+      "uuid": "6494e05a-d571-49be-982d-73639400909d",
+      "label": "Glipizide 5 mg oral tablet",
+      "code": "197361"
+    },
+    {
+      "uuid": "93a8b8b4-527c-4ee3-894d-3f5c35db3c1c",
+      "label": "Lisinopril 10 mg oral tablet",
+      "code": "861006"
+    },
+    {
+      "uuid": "5421994c-1639-435c-a386-9cef21b95ed9",
+      "label": "Simvastatin 20 mg oral tablet",
+      "code": "617314"
+    },
+    {
+      "uuid": "fa58287d-ba25-45d8-9746-a4547e48be69",
+      "label": "Semaglutide 2 mg/1.5 mL injection pen",
+      "code": "1991915"
+    }
+  ],
+  "familyHistory": [],
+  "surgeryHistory": []
+}

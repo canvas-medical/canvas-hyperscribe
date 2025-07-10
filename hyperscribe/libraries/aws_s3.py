@@ -130,7 +130,7 @@ class AwsS3:
             response_text = response.content.decode('utf-8')
             
             if response.status_code != HTTPStatus.OK.value:
-                return 
+                return result
         
             contents_pattern = re_compile(r'<Contents>(.*?)</Contents>', DOTALL)
             for content_match in contents_pattern.finditer(response_text):

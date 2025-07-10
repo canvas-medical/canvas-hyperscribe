@@ -1,0 +1,32 @@
+{
+  "demographicStr": "the patient is a man, born on January 1, 2008 (age 16)",
+  "conditionHistory": [],
+  "currentAllergies": [],
+  "currentConditions": [
+    {
+      "uuid": "a01ad169-9a57-472f-810d-095e20a51930",
+      "label": "Acne vulgaris",
+      "code": "L70.0"
+    },
+    {
+      "uuid": "0638e32a-05f4-4732-9c31-3b7d52b6bf2a",
+      "label": "Asthma, unspecified",
+      "code": "J45.909"
+    }
+  ],
+  "currentGoals": [],
+  "currentMedications": [
+    {
+      "uuid": "c1be2ad0-1fc9-4e6a-a194-4dfb12cc3109",
+      "label": "Tretinoin 0.025% topical cream",
+      "code": "197361"
+    },
+    {
+      "uuid": "9b9f2bed-e478-4bf5-813f-7ae1c66a61ab",
+      "label": "Albuterol 90 mcg/actuation inhalation aerosol",
+      "code": "329528"
+    }
+  ],
+  "familyHistory": [],
+  "surgeryHistory": []
+}

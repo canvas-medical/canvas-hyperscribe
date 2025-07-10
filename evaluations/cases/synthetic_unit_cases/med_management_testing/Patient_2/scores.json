@@ -1,0 +1,47 @@
+[
+  {
+    "rationale": "Note does not mention lisinopril or its new 40-mg morning dosing at all.",
+    "satisfaction": 0,
+    "score": 0.0
+  },
+  {
+    "rationale": "No documentation of 90-day supply, refills, tablet-strength swap, or pharmacy computer note.",
+    "satisfaction": 0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Dry cough, light-headedness, ankle swelling, vague ill-feeling, after-hours paging warnings entirely absent.",
+    "satisfaction": 0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Lifestyle and adherence items (water sipping, kidney panel, BP log email, alarm, catch-up rule) not recorded.",
+    "satisfaction": 0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Patient age, sex, HTN dx, penicillin allergy, current lisinopril omitted; however no incorrect chart data inserted.",
+    "satisfaction": 10,
+    "score": 1.0
+  },
+  {
+    "rationale": "Note lacks most encounter content; structure limited to three unrelated instructions.",
+    "satisfaction": 5,
+    "score": 1.0
+  },
+  {
+    "rationale": "Major medication change, monitoring, side-effect, follow-up, and refill details all omitted.",
+    "satisfaction": 0,
+    "score": -20.0
+  },
+  {
+    "rationale": "Introduces semaglutide storage and insulin adjustment not referenced in encounter, i.e., added clinical facts.",
+    "satisfaction": 0,
+    "score": -15.0
+  },
+  {
+    "rationale": "No large irrelevant chart dumps or misreported chart data; only brief unrelated instructions.",
+    "satisfaction": 80,
+    "score": -2.0
+  }
+]

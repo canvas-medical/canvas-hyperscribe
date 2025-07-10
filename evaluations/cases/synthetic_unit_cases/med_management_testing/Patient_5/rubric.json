@@ -1,0 +1,52 @@
+[
+  {
+    "criterion": "Reward for accurately documenting the medication change: switch from 10 mg to 20 mg atorvastatin the same night the mail-order arrives, to be taken with the evening meal, no tablet splitting, and continuation of 81 mg aspirin",
+    "weight": 25,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for recording explicit instructions on handling leftover 10 mg pills (either discarding via police drop box or taking two 10 mg tablets nightly until the 20 mg supply arrives, without mixing strengths on the same evening)",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing the patient\u2019s expressed worries about brand substitutions, liver injury, and muscle breakdown, as well as the clinician\u2019s reassurance and plan to monitor",
+    "weight": 8,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for noting the review of potential statin side effects (dark urine, unusual fatigue, muscle tenderness) and the patient\u2019s denial of these symptoms aside from heartburn",
+    "weight": 8,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting the ordered liver enzyme labs for June and the contingent plan to repeat labs at three months if a manufacturer switch occurs",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for including lifestyle and self-management advice: dose-logging in a notebook and continuation of plant-based lunches to potentiate LDL lowering",
+    "weight": 5,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for correctly incorporating relevant chart data (67-year-old male, sulfonamide allergy, current hyperlipidemia diagnosis, existing medications) without alteration",
+    "weight": 6,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for omitting any major element of today\u2019s plan, patient concerns, or instructions, resulting in an incomplete or misleading note",
+    "weight": 30,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for copying chart information inaccurately, fabricating data not present in the chart or transcript, or failing to update the medication list to reflect the new atorvastatin dose",
+    "weight": 20,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Reward for presenting information in a clear, organized manner that mirrors the sequence and emphasis of the encounter",
+    "weight": 8,
+    "sense": "positive"
+  }
+]
