@@ -87,9 +87,9 @@ def test_capture_get(monkeypatch):
     # three URLs generated
     assert len(urls) == 3
     expected_routes = [
-        f"{Constants.BASE_ROUTE}/progress",
-        f"{Constants.BASE_ROUTE}/capture/new-session/p/n",
-        f"{Constants.BASE_ROUTE}/audio/p/n",
+        f"{Constants.PLUGIN_API_BASE_ROUTE}/progress",
+        f"{Constants.PLUGIN_API_BASE_ROUTE}/capture/new-session/p/n",
+        f"{Constants.PLUGIN_API_BASE_ROUTE}/audio/p/n",
     ]
     assert [u[0] for u in urls] == expected_routes
 

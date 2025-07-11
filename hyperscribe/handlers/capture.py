@@ -34,18 +34,18 @@ class CaptureView(SimpleAPI):
         
         progress_url = Authenticator.presigned_url(
             self.secrets[Constants.SECRET_API_SIGNING_KEY],
-            f"{Constants.BASE_ROUTE}/progress",
+            f"{Constants.PLUGIN_API_BASE_ROUTE}/progress",
             {"note_id": note_id},
         )
 
         new_session_url = Authenticator.presigned_url(
             self.secrets[Constants.SECRET_API_SIGNING_KEY],
-            f"{Constants.BASE_ROUTE}/capture/new-session/{patient_id}/{note_id}"
+            f"{Constants.PLUGIN_API_BASE_ROUTE}/capture/new-session/{patient_id}/{note_id}"
         )
 
         save_audio_url = Authenticator.presigned_url(
             self.secrets[Constants.SECRET_API_SIGNING_KEY],
-            f"{Constants.BASE_ROUTE}/audio/{patient_id}/{note_id}"
+            f"{Constants.PLUGIN_API_BASE_ROUTE}/audio/{patient_id}/{note_id}"
         )
 
         context = {

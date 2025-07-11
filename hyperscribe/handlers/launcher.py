@@ -28,7 +28,7 @@ class Launcher(ActionButton):
 
         presigned_url = Authenticator.presigned_url(
             self.secrets[Constants.SECRET_API_SIGNING_KEY],
-            f"{Constants.BASE_ROUTE}/capture/{patient_id}/{note_id}",
+            f"{Constants.PLUGIN_API_BASE_ROUTE}/capture/{patient_id}/{note_id}",
             {},
         )
 

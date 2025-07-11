@@ -27,7 +27,7 @@ class BuilderAuditUrl:
         if client_s3.is_ready():
             presigned_url = Authenticator.presigned_url(
                 HelperEvaluation.settings().api_signing_key,
-                f"{Constants.BASE_ROUTE}/reviewer",
+                f"{Constants.PLUGIN_API_BASE_ROUTE}/reviewer",
                 {
                     "patient_id": patient_uuid,
                     "note_id": note_uuid,

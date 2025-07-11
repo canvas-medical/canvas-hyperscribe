@@ -229,7 +229,7 @@ class BuilderBase:
     def _post_commands(cls, commands: list[dict]) -> Response:
         url = Authenticator.presigned_url(
             HelperEvaluation.settings().api_signing_key,
-            f"{HelperEvaluation.get_canvas_host()}{HyperscribeConstants.BASE_ROUTE}/case_builder",
+            f"{HelperEvaluation.get_canvas_host()}{HyperscribeConstants.PLUGIN_API_BASE_ROUTE}/case_builder",
             {},
         )
         return requests_post(
