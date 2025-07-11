@@ -138,11 +138,11 @@ class CaptureView(SimpleAPI):
     def audio_chunk_post(self) -> list[Response | Effect]:       
         form_data = self.request.form_data()
         if 'audio' not in form_data:
-            return Response(b"No audio file part in the request", 400)
+            return [Response(b"No audio file part in the request", 400)]
         
         audio_form_part = form_data['audio']
         if not audio_form_part.is_file():
-            return Response(b"The audio form part is not a file", 422)
+            return [Response(b"The audio form part is not a file", 422)]
 
         log.info(f"audio_form_part.name: {audio_form_part.name}")
         log.info(f"audio_form_part.filename: {audio_form_part.filename}")

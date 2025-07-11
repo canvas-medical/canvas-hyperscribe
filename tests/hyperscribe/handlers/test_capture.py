@@ -118,7 +118,9 @@ def test_audio_chunk_post(save_chunk):
     view = helper_instance()
     # missing file part
     view.request = SimpleNamespace(path_params={'patient_id':'p','note_id':'n'}, form_data=lambda: {})
-    resp = view.audio_chunk_post()
+    result = view.audio_chunk_post()
+    assert isinstance(result, list)
+    resp = result[0]
     assert isinstance(resp, Response) and resp.status_code == 400
 
     # non-file part
@@ -129,7 +131,9 @@ def test_audio_chunk_post(save_chunk):
         content_type = 'audio/test'
         def is_file(self): return False
     view.request = SimpleNamespace(path_params={'patient_id':'p','note_id':'n'}, form_data=lambda: {'audio': Part()})
-    resp = view.audio_chunk_post()
+    result = view.audio_chunk_post()
+    assert isinstance(result, list)
+    resp = result[0]
     assert isinstance(resp, Response) and resp.status_code == 422
 
     # save error (returns list)
