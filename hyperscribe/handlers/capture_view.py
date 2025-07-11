@@ -40,12 +40,12 @@ class CaptureView(SimpleAPI):
 
         new_session_url = Authenticator.presigned_url(
             self.secrets[Constants.SECRET_API_SIGNING_KEY],
-            f"{Constants.PLUGIN_API_BASE_ROUTE}/capture/new-session/{patient_id}/{note_id}"
+            f"{Constants.PLUGIN_API_BASE_ROUTE}/capture/new-session/{patient_id}/{note_id}",
         )
 
         save_audio_url = Authenticator.presigned_url(
             self.secrets[Constants.SECRET_API_SIGNING_KEY],
-            f"{Constants.PLUGIN_API_BASE_ROUTE}/audio/{patient_id}/{note_id}"
+            f"{Constants.PLUGIN_API_BASE_ROUTE}/audio/{patient_id}/{note_id}",
         )
 
         context = {
@@ -74,7 +74,7 @@ class CaptureView(SimpleAPI):
         audio_client = AudioClient(
             base_url=self.secrets[Constants.SECRET_AUDIO_HOST],
             instance=self.environment[Constants.CUSTOMER_IDENTIFIER],
-            instance_key=self.secrets[Constants.SECRET_AUDIO_HOST_PRE_SHARED_KEY]
+            instance_key=self.secrets[Constants.SECRET_AUDIO_HOST_PRE_SHARED_KEY],
         )
 
         logged_in_user_id = self.request.headers.get("canvas-logged-in-user-id")
@@ -97,7 +97,7 @@ class CaptureView(SimpleAPI):
         comment_text = json.dumps({
             'note_id': note_id, 
             'patient_id': patient_id, 
-            'chunk_index': 1
+            'chunk_index': 1,
         })
 
         # TODO: handle timezone, this appears wrong in the UI, 
@@ -111,7 +111,7 @@ class CaptureView(SimpleAPI):
             "Task",
             "extension": [{
                 "url": "http://schemas.canvasmedical.com/fhir/extensions/task-group",
-                "valueReference": {"reference": f"Group/{team_id}"}
+                "valueReference": {"reference": f"Group/{team_id}"},
             }],
             "status": "requested",
             "intent": "unknown",
@@ -123,7 +123,7 @@ class CaptureView(SimpleAPI):
             "note": [{
                 "authorReference": {"reference": f"Practitioner/{staff_id}"},
                 "time": now_timestamp,
-                "text": comment_text
+                "text": comment_text,
             }],
             "input": [{"type": {"text": "label"}, "valueString": "Encounter Copilot"}]
         }
@@ -152,7 +152,7 @@ class CaptureView(SimpleAPI):
         audio_client = AudioClient(
             base_url=self.secrets[Constants.SECRET_AUDIO_HOST],
             instance=self.environment[Constants.CUSTOMER_IDENTIFIER],
-            instance_key=self.secrets[Constants.SECRET_AUDIO_HOST_PRE_SHARED_KEY]
+            instance_key=self.secrets[Constants.SECRET_AUDIO_HOST_PRE_SHARED_KEY],
         )
         patient_id = self.request.path_params["patient_id"]
         note_id = self.request.path_params["note_id"]       
