@@ -115,7 +115,7 @@ class CaptureView(SimpleAPI):
             }],
             "status": "requested",
             "intent": "unknown",
-            "description": "Encounter Copilot",
+            "description": Constants.LABEL_ENCOUNTER_COPILOT,
             "for": {"reference": f"Patient/{patient_id}"},
             "authoredOn": now_timestamp,
             "requester": {"reference": f"Practitioner/{staff_id}"},
@@ -125,7 +125,7 @@ class CaptureView(SimpleAPI):
                 "time": now_timestamp,
                 "text": comment_text,
             }],
-            "input": [{"type": {"text": "label"}, "valueString": "Encounter Copilot"}]
+            "input": [{"type": {"text": "label"}, "valueString": Constants.LABEL_ENCOUNTER_COPILOT}]
         }
         t0 = time()
         # TODO: move to utils.http once issue below is solved
