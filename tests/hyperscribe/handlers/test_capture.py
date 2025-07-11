@@ -5,8 +5,8 @@ from unittest.mock import patch
 from canvas_sdk.effects.simple_api import Response, HTMLResponse
 from canvas_sdk.handlers.simple_api import SimpleAPI, Credentials
 
-import hyperscribe.handlers.capture as capture
-from hyperscribe.handlers.capture import CaptureView
+import hyperscribe.handlers.capture_view as capture_view
+from hyperscribe.handlers.capture_view import CaptureView
 from hyperscribe.libraries.constants import Constants
 from hyperscribe.libraries.authenticator import Authenticator
 from hyperscribe.libraries.audio_client import AudioClient
@@ -73,7 +73,7 @@ def test_capture_get(monkeypatch):
     urls = []
     monkeypatch.setattr(Authenticator, 'presigned_url',
                         lambda key, url, params=None: urls.append((url, params)) or 'url')
-    monkeypatch.setattr(capture, 'render_to_string', lambda tmpl, ctx: '<html/>')
+    monkeypatch.setattr(capture_view, 'render_to_string', lambda tmpl, ctx: '<html/>')
 
     result = view.capture_get()
     assert isinstance(result, list) and len(result) == 1
@@ -96,7 +96,7 @@ def test_capture_get(monkeypatch):
 @patch.object(AudioClient, 'get_user_token', return_value='ut')
 @patch.object(AudioClient, 'create_session', return_value='sid')
 @patch.object(AudioClient, 'add_session')
-@patch('hyperscribe.handlers.capture.Staff.objects.get', return_value=SimpleNamespace(id='staffid'))
+@patch('hyperscribe.handlers.capture_view.Staff.objects.get', return_value=SimpleNamespace(id='staffid'))
 def test_new_session_post(get_staff, add_sess, create_sess, get_utok, monkeypatch):
     view = helper_instance()
     view.request = SimpleNamespace(
@@ -104,7 +104,7 @@ def test_new_session_post(get_staff, add_sess, create_sess, get_utok, monkeypatc
         headers={'canvas-logged-in-user-id': 'u'}
     )
     fake = SimpleNamespace(content=b'ok', status_code=201)
-    monkeypatch.setattr(capture.requests, 'post', lambda url, json, headers: fake)
+    monkeypatch.setattr(capture_view.requests, 'post', lambda url, json, headers: fake)
 
     result = view.new_session_post()
     assert isinstance(result, list) and len(result) == 1

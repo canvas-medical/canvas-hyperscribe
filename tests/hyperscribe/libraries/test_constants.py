@@ -90,7 +90,7 @@ def test_constants():
         "PROGRESS_SETTING_KEY": "sendProgress",
         "PROGRESS_EXPIRATION_SECONDS": 7200,
         #
-        "BASE_ROUTE": "/plugin-io/api/hyperscribe",
+        "PLUGIN_API_BASE_ROUTE": "/plugin-io/api/hyperscribe",
         "COPILOTS_TEAM_FHIR_GROUP_ID": "CopilotsTeamFHIRGroupId",
         "FUMAGE_BEARER_TOKEN": "FumageBearerToken",
         "SECRET_AUDIO_HOST_PRE_SHARED_KEY": "AudioHostSharedSecret",

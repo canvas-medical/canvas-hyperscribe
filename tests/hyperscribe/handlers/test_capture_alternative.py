@@ -1,20 +1,20 @@
 import pytest
 from http import HTTPStatus
 from types import SimpleNamespace
-from hyperscribe.handlers import capture
+from hyperscribe.handlers import capture_view
 from hyperscribe.libraries.constants import Constants
 from hyperscribe.libraries.authenticator import Authenticator
 from hyperscribe.libraries.audio_client import AudioClient
 from canvas_sdk.effects.simple_api import Response, HTMLResponse
 
 # Disable route matching in BaseHandler to simplify instantiation
-capture.CaptureView._ROUTES = {}
+capture_view.CaptureView._ROUTES = {}
 
 @pytest.fixture
 def view():
     # Instantiate with dummy event to satisfy BaseHandler
     event = SimpleNamespace(context={'method':'GET'})
-    v = capture.CaptureView(event)
+    v = capture_view.CaptureView(event)
     v.secrets = {
         Constants.SECRET_API_SIGNING_KEY: 'signkey',
         Constants.SECRET_AUDIO_HOST: 'https://audio',
@@ -49,7 +49,7 @@ def test_authenticate(monkeypatch, view):
 def test_capture_get_renders_html(monkeypatch, view):
     view.request = make_request(path_params={'patient_id': 'p', 'note_id': 'n'})
     monkeypatch.setattr(Authenticator, 'presigned_url', lambda s, url, params=None: 'url')
-    monkeypatch.setattr(capture, 'render_to_string', lambda tmpl, ctx: '<html>')
+    monkeypatch.setattr(capture_view, 'render_to_string', lambda tmpl, ctx: '<html>')
     resp = unwrap(view.capture_get())
     assert resp.status_code == HTTPStatus.OK
     content = getattr(resp, 'content', None) or getattr(resp, 'body', None)
@@ -66,9 +66,9 @@ def test_new_session_post(monkeypatch, view):
     monkeypatch.setattr(AudioClient, 'get_user_token', lambda self, uid: 'ut')
     monkeypatch.setattr(AudioClient, 'create_session', lambda self, ut, meta: 'sid')
     monkeypatch.setattr(AudioClient, 'add_session', lambda self, p, n, s, uid, ut: None)
-    monkeypatch.setattr(capture.Staff.objects, 'get', lambda dbid: SimpleNamespace(id='staff'))
+    monkeypatch.setattr(capture_view.Staff.objects, 'get', lambda dbid: SimpleNamespace(id='staff'))
     fake_resp = SimpleNamespace(content=b'ok', status_code=201)
-    monkeypatch.setattr(capture.requests, 'post', lambda url, json, headers: fake_resp)
+    monkeypatch.setattr(capture_view.requests, 'post', lambda url, json, headers: fake_resp)
     resp = unwrap(view.new_session_post())
     assert resp.status_code == 201
     assert resp.content == b'ok'
