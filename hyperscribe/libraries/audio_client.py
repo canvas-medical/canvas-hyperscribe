@@ -3,16 +3,12 @@ import requests
 
 from base64 import b64decode
 from requests import Response
-from typing import NamedTuple, List
+from typing import List
 
 from canvas_sdk.handlers.simple_api import api
 from canvas_sdk.caching.plugins import get_cache
 
-
-class CachedAudioSession(NamedTuple):
-    session_id: str
-    user_token: str
-    logged_in_user_id: str
+from hyperscribe.structures.cached_audio_session import CachedAudioSession
 
 
 class AudioClient:
