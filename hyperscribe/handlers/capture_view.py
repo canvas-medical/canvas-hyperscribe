@@ -93,7 +93,7 @@ class CaptureView(SimpleAPI):
         # The above doesn't work because the FHIR group id is not the team.id
         # and the FHIR group id is not exposed in the data model :/
 
-        staff_id = Staff.objects.get(dbid=1).id
+        staff_id = Staff.objects.get(dbid=Constants.CANVAS_BOT_DBID).id
         comment_text = json.dumps({
             'note_id': note_id, 
             'patient_id': patient_id, 
