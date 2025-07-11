@@ -115,7 +115,7 @@ class AudioClient:
         "biLjxMuBCGhA3/QFHFHls9qnkfpSwiSE+JuwdIDsIdQgzIAh6tT9vmSiZLuFZvru0hEr"
     )
     
-    cache = get_cache()
+    plugin_cache = get_cache()
 
     def __eq__(self, other) -> bool:
         return (
@@ -222,7 +222,7 @@ class AudioClient:
     @classmethod
     def get_sessions(cls, patient_id, note_id) -> List[CachedAudioSession]:
         key = cls.sessions_key(patient_id, note_id)
-        return cls.cache.get(key, default=[])
+        return cls.plugin_cache.get(key, default=[])
 
     @classmethod
     def get_latest_session(cls, patient_id: str, note_id: str) -> CachedAudioSession | None:
@@ -242,4 +242,4 @@ class AudioClient:
         new_session = CachedAudioSession(session_id, user_token, logged_in_user_id)
         sessions.append(new_session)
         key = cls.sessions_key(patient_id, note_id)
-        cls.cache.set(key, sessions)
+        cls.plugin_cache.set(key, sessions)

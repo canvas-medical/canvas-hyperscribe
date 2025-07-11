@@ -176,7 +176,7 @@ def test_get_sessions(the_session: CachedAudioSession):
     expected_key = f"hyperscribe.sessions.{patient_id}.{note_id}"
     expected_sessions = [the_session]
 
-    with mock.patch.object(AudioClient, "cache") as mock_cache:
+    with mock.patch.object(AudioClient, "plugin_cache") as mock_cache:
         mock_cache.get.return_value = expected_sessions
         sessions = AudioClient.get_sessions(patient_id, note_id)
         mock_cache.get.assert_called_once_with(expected_key, default=[])
@@ -189,7 +189,7 @@ def test_get_latest_session(the_session: CachedAudioSession):
     expected_key = f"hyperscribe.sessions.{patient_id}.{note_id}"
     expected_sessions = [the_session]
 
-    with mock.patch.object(AudioClient, "cache") as mock_cache:
+    with mock.patch.object(AudioClient, "plugin_cache") as mock_cache:
         mock_cache.get.return_value = expected_sessions
         latest_session = AudioClient.get_latest_session(patient_id, note_id)
         mock_cache.get.assert_called_once_with(expected_key, default=[])
@@ -197,7 +197,7 @@ def test_get_latest_session(the_session: CachedAudioSession):
 
 
 def test_get_latest_session_missing(the_session: CachedAudioSession):
-    with mock.patch.object(AudioClient, "cache") as mock_cache:
+    with mock.patch.object(AudioClient, "plugin_cache") as mock_cache:
         mock_cache.get.return_value = None
         latest_session = AudioClient.get_latest_session("thePatientId", "theNoteId")
         mock_cache.get.assert_called_once_with(
@@ -207,7 +207,7 @@ def test_get_latest_session_missing(the_session: CachedAudioSession):
 
 def test_add_session(the_session):
     with mock.patch(f'{AUDIO_CLIENT_IMPORT_PATH}.get_sessions', return_value=[]), \
-         mock.patch(f'{AUDIO_CLIENT_IMPORT_PATH}.cache') as mock_cache:
+         mock.patch(f'{AUDIO_CLIENT_IMPORT_PATH}.plugin_cache') as mock_cache:
         AudioClient.add_session('thePatientKey', 'theNoteId', the_session.session_id, 
                                 the_session.logged_in_user_id, the_session.user_token)
         key = AudioClient.sessions_key('thePatientKey', 'theNoteId')
