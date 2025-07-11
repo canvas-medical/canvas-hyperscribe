@@ -83,10 +83,10 @@ class Commander(BaseProtocol):
         memory_log = MemoryLog.instance(identification, Constants.MEMORY_LOG_LABEL, aws_s3)
         memory_log.output(f"SDK: {version} - Text: {self.secrets[Constants.SECRET_TEXT_LLM_VENDOR]} - Audio: {self.secrets[Constants.SECRET_AUDIO_LLM_VENDOR]}")
         
-        audio_client = AudioClient(
-            base_url=self.secrets[Constants.SECRET_AUDIO_HOST],
-            instance=self.environment[Constants.CUSTOMER_IDENTIFIER],
-            instance_key=self.secrets[Constants.SECRET_AUDIO_HOST_PRE_SHARED_KEY]
+        audio_client = AudioClient.for_operation(
+            self.secrets[Constants.SECRET_AUDIO_HOST],
+            self.environment[Constants.CUSTOMER_IDENTIFIER],
+            self.secrets[Constants.SECRET_AUDIO_HOST_PRE_SHARED_KEY]
         )
         
         had_audio, effects = self.compute_audio(identification, settings, aws_s3, audio_client, information.chunk_index)

@@ -71,10 +71,10 @@ class CaptureView(SimpleAPI):
         # 2. Create a new session
         # 3. Create a new task (to trigger the commander)
 
-        audio_client = AudioClient(
-            base_url=self.secrets[Constants.SECRET_AUDIO_HOST],
-            instance=self.environment[Constants.CUSTOMER_IDENTIFIER],
-            instance_key=self.secrets[Constants.SECRET_AUDIO_HOST_PRE_SHARED_KEY],
+        audio_client = AudioClient.for_operation(
+            self.secrets[Constants.SECRET_AUDIO_HOST],
+            self.environment[Constants.CUSTOMER_IDENTIFIER],
+            self.secrets[Constants.SECRET_AUDIO_HOST_PRE_SHARED_KEY],
         )
 
         logged_in_user_id = self.request.headers.get("canvas-logged-in-user-id")
@@ -149,10 +149,10 @@ class CaptureView(SimpleAPI):
         log.info(f"len(audio_form_part.content): {len(audio_form_part.content)}")
         log.info(f"audio_form_part.content_type: {audio_form_part.content_type}")
 
-        audio_client = AudioClient(
-            base_url=self.secrets[Constants.SECRET_AUDIO_HOST],
-            instance=self.environment[Constants.CUSTOMER_IDENTIFIER],
-            instance_key=self.secrets[Constants.SECRET_AUDIO_HOST_PRE_SHARED_KEY],
+        audio_client = AudioClient.for_operation(
+            self.secrets[Constants.SECRET_AUDIO_HOST],
+            self.environment[Constants.CUSTOMER_IDENTIFIER],
+            self.secrets[Constants.SECRET_AUDIO_HOST_PRE_SHARED_KEY],
         )
         patient_id = self.request.path_params["patient_id"]
         note_id = self.request.path_params["note_id"]       

@@ -39,12 +39,7 @@ def test_constants():
 
 @pytest.fixture
 def the_audio_client() -> AudioClient:
-    return AudioClient(
-        base_url='https://theAudioServer.com', 
-        registration_key=None, 
-        instance='theTestEnv',
-        instance_key='theAudioHostSharedSecret'
-    )
+    return AudioClient.for_operation('https://theAudioServer.com', 'theTestEnv', 'theAudioHostSharedSecret')
 
 
 @pytest.fixture

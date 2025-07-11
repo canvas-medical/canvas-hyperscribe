@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import re
 import requests
 
@@ -133,11 +135,19 @@ class AudioClient:
         return (f"AudioClient(base_url='{self.base_url}', registration_key={registration_key}, "
                 f"instance={instance}, instance_key={instance_key}")
 
+    @classmethod
+    def for_registration(cls, base_url: str, registration_key: str) -> AudioClient:
+        return AudioClient(base_url, registration_key, None, None)
+
+    @classmethod
+    def for_operation(cls, base_url: str, instance: str, instance_key: str) -> AudioClient:
+        return AudioClient(base_url, None, instance, instance_key)
+
     def __init__(self, 
                  base_url: str, 
-                 registration_key: str | None = None, 
-                 instance: str | None = None,
-                 instance_key: str | None = None
+                 registration_key: str | None, 
+                 instance: str | None,
+                 instance_key: str | None,
                  ): 
         self.base_url = base_url
         self.registration_key = registration_key
