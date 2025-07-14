@@ -9,6 +9,9 @@ import pytest
 from requests import Response
 
 from evaluations.case_builders.builder_direct_from_tuning import BuilderDirectFromTuning
+from evaluations.structures.anonymization import Anonymization
+from evaluations.structures.anonymization_error import AnonymizationError
+from evaluations.structures.anonymization_substitution import AnonymizationSubstitution
 from evaluations.structures.case_exchange import CaseExchange
 from evaluations.structures.case_exchange_summary import CaseExchangeSummary
 from evaluations.structures.records.real_world_case import RealWorldCase as RecordRealWorldCase
@@ -58,6 +61,7 @@ def test_class():
     tested = BuilderDirectFromTuning
     constants = {
         "MAX_WORDS_PER_COMPACTED_TRANSCRIPT": 1000,
+        "MAX_ANONYMIZATION_ATTEMPTS": 3,
     }
     assert is_constant(tested, constants)
 
@@ -996,11 +1000,9 @@ def test_split_audio(ffmpeg):
     reset_mocks()
 
 
-@patch("evaluations.case_builders.builder_direct_from_tuning.Helper")
 @patch("evaluations.case_builders.builder_direct_from_tuning.MemoryLog")
-@patch.object(BuilderDirectFromTuning, "schema_changes")
-@patch.object(BuilderDirectFromTuning, "schema_anonymization")
-def test_anonymize_transcripts(schema_anonymization, schema_changes, memory_log, helper):
+@patch.object(BuilderDirectFromTuning, "anonymize_transcripts_chat")
+def test_anonymize_transcripts(anonymize_transcripts_chat, memory_log):
     files = [
         # original transcripts
         MagicMock(), MagicMock(), MagicMock(),
@@ -1013,10 +1015,8 @@ def test_anonymize_transcripts(schema_anonymization, schema_changes, memory_log,
     ]
 
     def reset_mocks():
-        schema_anonymization.reset_mock()
-        schema_changes.reset_mock()
+        anonymize_transcripts_chat.reset_mock()
         memory_log.reset_mock()
-        helper.reset_mock()
         for idx, item in enumerate(files):
             item.reset_mock()
             item.open.return_value = buffers[idx]
@@ -1027,94 +1027,9 @@ def test_anonymize_transcripts(schema_anonymization, schema_changes, memory_log,
                     "speaker": f"theSpeaker{idx}",
                     "text": f"theText{idx}",
                     "chunk": idx,
-                    "topic": idx,
                 }])
 
     reset_mocks()
-
-    system_prompt = [
-        "You are a medical transcript anonymization specialist with expertise in healthcare privacy compliance."
-        "",
-        "Your task is to remove all personally identifiable information (PII) from medical transcripts while preserving "
-        "complete clinical context and medical accuracy through realistic replacements.",
-        "",
-        "**Anonymization Approach**",
-        "Use realistic, plausible substitutions rather than placeholders:",
-        "- Replace names with culturally appropriate alternatives of similar length/structure",
-        "- Substitute locations with comparable geographic areas (similar urban/rural, climate, healthcare infrastructure)",
-        "- Change dates while maintaining temporal relationships and seasonal context when medically relevant",
-        "- Replace specific institutions with similar types (community hospital → regional medical center)",
-        "",
-        "**Medical Preservation Requirements**",
-        "- Maintain ALL clinical terminology, symptoms, diagnoses, differential diagnoses",
-        "- Preserve exact medication names, dosages, frequencies, routes of administration",
-        "- Keep all vital signs, laboratory values, imaging results, and measurements unchanged",
-        "- Retain medical history details, surgical history, family medical history",
-        "- Preserve healthcare provider specialties and their clinical roles",
-        "- Maintain treatment timelines and follow-up schedules precisely",
-        "- Keep allergies, adverse reactions, and contraindications intact",
-        "",
-        "Format the anonymized transcript following the JSON Schema:",
-        "```json",
-        '{\n "schema": "anonymization"\n}',
-        '```',
-        "",
-        "**Global Consistency**: Use identical replacements for the exact same entity throughout the entire transcript.",
-        "But, two different entities cannot use the same anonymization replacement.",
-        "",
-        "",
-        "In a second JSON Markdown block, format the report of the changes following the JSON Schema:",
-        "```json",
-        '{\n "schema": "changes"\n}',
-        "```",
-        "",
-    ]
-    user_prompts = [
-        [
-            "Please anonymize the following medical transcript while preserving all clinical information:",
-            "```json",
-            '[{"speaker": "theSpeaker0", "text": "theText0", "chunk": 0, "topic": 0}]',
-            "```",
-            "",
-            "Follow rigorously the instructions and provide both JSON Markdown code block using the mentioned JSON Schemas.",
-        ],
-        [
-            "Please anonymize the following medical transcript while preserving all clinical information:",
-            "```json",
-            '[{"speaker": "theSpeaker1", "text": "theText1", "chunk": 1, "topic": 1}]',
-            "```",
-            "",
-            "Follow rigorously the instructions and provide both JSON Markdown code block using the mentioned JSON Schemas.",
-        ],
-        [
-            "The anonymized entities so far are:",
-            "```json",
-            '[\n {\n  "originalEntity": "theOriginal1",\n  "anonymizedWith": "theAnonymized1"\n }\n]',
-            "```",
-            "",
-            "Include this list in your response to be sure you are not using the same anonymization value for different entities.",
-        ],
-        [
-            "Please anonymize the following medical transcript while preserving all clinical information:",
-            "```json",
-            '[{"speaker": "theSpeaker2", "text": "theText2", "chunk": 2, "topic": 2}]',
-            "```",
-            "",
-            "Follow rigorously the instructions and provide both JSON Markdown code block using the mentioned JSON Schemas.",
-        ],
-        [
-            "The anonymized entities so far are:",
-            "```json",
-            '['
-            '\n {\n  "originalEntity": "theOriginal1",\n  "anonymizedWith": "theAnonymized1"\n },'
-            '\n {\n  "originalEntity": "theOriginal2",\n  "anonymizedWith": "theAnonymized2"\n },'
-            '\n {\n  "originalEntity": "theOriginal3",\n  "anonymizedWith": "theAnonymized3"\n }'
-            '\n]',
-            "```",
-            "",
-            "Include this list in your response to be sure you are not using the same anonymization value for different entities.",
-        ],
-    ]
 
     tested = helper_instance()
 
@@ -1125,80 +1040,70 @@ def test_anonymize_transcripts(schema_anonymization, schema_changes, memory_log,
             item.exists.side_effect = [test]
 
         memory_log.instance.side_effect = ["theMemoryLog"]
-        schema_anonymization.side_effect = [{"schema": "anonymization"}]
-        schema_changes.side_effect = [{"schema": "changes"}]
-        helper.chatter.return_value.chat.side_effect = [
-            JsonExtract(error="", has_error=False, content=[
-                [
-                    {"speaker": "theSpeaker1", "text": "theText1", "chunk": 1, "topic": 1},
-                    {"speaker": "theSpeaker1", "text": "theText2", "chunk": 1, "topic": 1},
-                    {"speaker": "theSpeaker2", "text": "theText3", "chunk": 1, "topic": 2},
+        anonymize_transcripts_chat.side_effect = [
+            Anonymization(
+                source=[],
+                result=[
+                    CaseExchange(speaker="theSpeaker1", text="theText1", chunk=1),
+                    CaseExchange(speaker="theSpeaker1", text="theText2", chunk=1),
+                    CaseExchange(speaker="theSpeaker2", text="theText3", chunk=1),
                 ],
-                [
-                    {"originalEntity": "theOriginal1", "anonymizedWith": "theAnonymized1"},
+                substitutions=[
+                    AnonymizationSubstitution(original_entity="theOriginal1", anonymized_with="theAnonymized1"),
                 ]
-            ]),
-            JsonExtract(error="", has_error=False, content=[
-                [
-                    {"speaker": "theSpeaker1", "text": "theText1", "chunk": 2, "topic": 2},
-                    {"speaker": "theSpeaker1", "text": "theText2", "chunk": 2, "topic": 2},
-                    {"speaker": "theSpeaker2", "text": "theText3", "chunk": 2, "topic": 2},
+            ),
+            Anonymization(
+                source=[],
+                result=[
+                    CaseExchange(speaker="theSpeaker1", text="theText1", chunk=2),
+                    CaseExchange(speaker="theSpeaker1", text="theText2", chunk=2),
+                    CaseExchange(speaker="theSpeaker2", text="theText3", chunk=2),
                 ],
-                [
-                    {"originalEntity": "theOriginal1", "anonymizedWith": "theAnonymized1"},
-                    {"originalEntity": "theOriginal2", "anonymizedWith": "theAnonymized2"},
-                    {"originalEntity": "theOriginal3", "anonymizedWith": "theAnonymized3"},
+                substitutions=[
+                    AnonymizationSubstitution(original_entity="theOriginal1", anonymized_with="theAnonymized1"),
+                    AnonymizationSubstitution(original_entity="theOriginal2", anonymized_with="theAnonymized2"),
+                    AnonymizationSubstitution(original_entity="theOriginal3", anonymized_with="theAnonymized3"),
                 ]
-            ]),
-            JsonExtract(error="", has_error=False, content=[
-                [
-                    {"speaker": "theSpeaker1", "text": "theText1", "chunk": 3, "topic": 2},
-                    {"speaker": "theSpeaker1", "text": "theText2", "chunk": 3, "topic": 3},
-                    {"speaker": "theSpeaker2", "text": "theText3", "chunk": 3, "topic": 4},
+            ),
+            Anonymization(
+                source=[],
+                result=[
+                    CaseExchange(speaker="theSpeaker1", text="theText1", chunk=3),
+                    CaseExchange(speaker="theSpeaker1", text="theText2", chunk=3),
+                    CaseExchange(speaker="theSpeaker2", text="theText3", chunk=3),
                 ],
-                [
-                    {"originalEntity": "theOriginal1", "anonymizedWith": "theAnonymized1"},
-                    {"originalEntity": "theOriginal2", "anonymizedWith": "theAnonymized2"},
-                    {"originalEntity": "theOriginal3", "anonymizedWith": "theAnonymized3"},
-                    {"originalEntity": "theOriginal4", "anonymizedWith": "theAnonymized4"},
+                substitutions=[
+                    AnonymizationSubstitution(original_entity="theOriginal1", anonymized_with="theAnonymized1"),
+                    AnonymizationSubstitution(original_entity="theOriginal2", anonymized_with="theAnonymized2"),
+                    AnonymizationSubstitution(original_entity="theOriginal3", anonymized_with="theAnonymized3"),
+                    AnonymizationSubstitution(original_entity="theOriginal4", anonymized_with="theAnonymized4"),
                 ]
-            ]),
+            ),
         ]
 
         result = tested.anonymize_transcripts(files[:3])
         expected = files[3:]
         assert result == expected
 
-        calls = [call()]
-        assert schema_anonymization.mock_calls == calls
-        assert schema_changes.mock_calls == calls
+        calls = [
+            call('theMemoryLog', files[0], []),
+            call('theMemoryLog', files[1], [
+                AnonymizationSubstitution(original_entity="theOriginal1", anonymized_with="theAnonymized1"),
+            ]),
+            call('theMemoryLog', files[2], [
+                AnonymizationSubstitution(original_entity="theOriginal1", anonymized_with="theAnonymized1"),
+                AnonymizationSubstitution(original_entity="theOriginal2", anonymized_with="theAnonymized2"),
+                AnonymizationSubstitution(original_entity="theOriginal3", anonymized_with="theAnonymized3"),
+            ]),
+        ]
+        assert anonymize_transcripts_chat.mock_calls == calls
         calls = [call.instance(tested.identification, 'anonymize_transcript', tested.s3_credentials)]
         assert memory_log.mock_calls == calls
-        calls = [
-            call.chatter(tested.settings, 'theMemoryLog'),
-            call.chatter().set_system_prompt(system_prompt),
-            call.chatter().set_user_prompt(user_prompts[0]),
-            call.chatter().chat([{'schema': 'anonymization'}, {'schema': 'changes'}]),
-            #
-            call.chatter(tested.settings, 'theMemoryLog'),
-            call.chatter().set_system_prompt(system_prompt),
-            call.chatter().set_user_prompt(user_prompts[1]),
-            call.chatter().set_user_prompt(user_prompts[2]),
-            call.chatter().chat([{'schema': 'anonymization'}, {'schema': 'changes'}]),
-            #
-            call.chatter(tested.settings, 'theMemoryLog'),
-            call.chatter().set_system_prompt(system_prompt),
-            call.chatter().set_user_prompt(user_prompts[3]),
-            call.chatter().set_user_prompt(user_prompts[4]),
-            call.chatter().chat([{'schema': 'anonymization'}, {'schema': 'changes'}]),
-        ]
-        assert helper.mock_calls == calls
 
         for index, file in enumerate(files):
             if index < 3:
                 calls = [
                     call.parent.__truediv__(f'transcript_anonymized_{index:03d}.json'),
-                    call.open('r'),
                 ]
             else:
                 calls = [
@@ -1208,31 +1113,31 @@ def test_anonymize_transcripts(schema_anonymization, schema_changes, memory_log,
             assert files[index].mock_calls == calls
 
             if index < 3:
-                exp_content = json.dumps([{"speaker": f"theSpeaker{index}", "text": f"theText{index}", "chunk": index, "topic": index}])
+                exp_content = json.dumps([{"speaker": f"theSpeaker{index}", "text": f"theText{index}", "chunk": index}])
             elif index == 3:
                 exp_content = json.dumps(
                     [
-                        {"speaker": "theSpeaker1", "text": "theText1", "chunk": 1, "topic": 1},
-                        {"speaker": "theSpeaker1", "text": "theText2", "chunk": 1, "topic": 1},
-                        {"speaker": "theSpeaker2", "text": "theText3", "chunk": 1, "topic": 2},
+                        {"speaker": "theSpeaker1", "text": "theText1", "chunk": 1},
+                        {"speaker": "theSpeaker1", "text": "theText2", "chunk": 1},
+                        {"speaker": "theSpeaker2", "text": "theText3", "chunk": 1},
                     ],
                     indent=2,
                 )
             elif index == 4:
                 exp_content = json.dumps(
                     [
-                        {"speaker": "theSpeaker1", "text": "theText1", "chunk": 2, "topic": 2},
-                        {"speaker": "theSpeaker1", "text": "theText2", "chunk": 2, "topic": 2},
-                        {"speaker": "theSpeaker2", "text": "theText3", "chunk": 2, "topic": 2},
+                        {"speaker": "theSpeaker1", "text": "theText1", "chunk": 2},
+                        {"speaker": "theSpeaker1", "text": "theText2", "chunk": 2},
+                        {"speaker": "theSpeaker2", "text": "theText3", "chunk": 2},
                     ],
                     indent=2,
                 )
             else:
                 exp_content = json.dumps(
                     [
-                        {"speaker": "theSpeaker1", "text": "theText1", "chunk": 3, "topic": 2},
-                        {"speaker": "theSpeaker1", "text": "theText2", "chunk": 3, "topic": 3},
-                        {"speaker": "theSpeaker2", "text": "theText3", "chunk": 3, "topic": 4},
+                        {"speaker": "theSpeaker1", "text": "theText1", "chunk": 3},
+                        {"speaker": "theSpeaker1", "text": "theText2", "chunk": 3},
+                        {"speaker": "theSpeaker2", "text": "theText3", "chunk": 3},
                     ],
                     indent=2,
                 )
@@ -1248,20 +1153,15 @@ def test_anonymize_transcripts(schema_anonymization, schema_changes, memory_log,
         item.mode = "r"
 
     memory_log.instance.side_effect = ["theMemoryLog"]
-    schema_anonymization.side_effect = [{"schema": "anonymization"}]
-    schema_changes.side_effect = [{"schema": "changes"}]
-    helper.chatter.return_value.chat.side_effect = []
 
     result = tested.anonymize_transcripts(files[:3])
     expected = files[3:]
     assert result == expected
 
-    calls = [call()]
-    assert schema_anonymization.mock_calls == calls
-    assert schema_changes.mock_calls == calls
+    calls = []
+    assert anonymize_transcripts_chat.mock_calls == calls
     calls = [call.instance(tested.identification, 'anonymize_transcript', tested.s3_credentials)]
     assert memory_log.mock_calls == calls
-    assert helper.mock_calls == []
 
     for index, file in enumerate(files):
         if index < 3:
@@ -1275,12 +1175,517 @@ def test_anonymize_transcripts(schema_anonymization, schema_changes, memory_log,
         assert files[index].mock_calls == calls
 
         if index < 3:
-            exp_content = json.dumps([{"speaker": f"theSpeaker{index}", "text": f"theText{index}", "chunk": index, "topic": index}])
+            exp_content = json.dumps([{"speaker": f"theSpeaker{index}", "text": f"theText{index}", "chunk": index}])
         else:
             exp_content = ""
         assert buffers[index].content == exp_content
     reset_mocks()
 
+
+@patch("evaluations.case_builders.builder_direct_from_tuning.Helper")
+@patch.object(BuilderDirectFromTuning, "anonymize_transcripts_check")
+@patch.object(BuilderDirectFromTuning, "schema_changes")
+@patch.object(BuilderDirectFromTuning, "schema_anonymization")
+def test_anonymize_transcripts_chat(schema_anonymization, schema_changes, anonymize_transcripts_check, helper):
+    memory_log = MagicMock()
+    transcript = MagicMock()
+    buffer = MockFile()
+
+    def reset_mocks():
+        schema_anonymization.reset_mock()
+        schema_changes.reset_mock()
+        anonymize_transcripts_check.reset_mock()
+        helper.reset_mock()
+        memory_log.reset_mock()
+        transcript.reset_mock()
+        transcript.open.return_value = buffer
+        buffer.content = json.dumps([
+            {"speaker": "theSpeaker1", "text": "theText1", "chunk": 3},
+            {"speaker": "theSpeaker1", "text": "theText2", "chunk": 3},
+            {"speaker": "theSpeaker2", "text": "theText3", "chunk": 4},
+        ])
+        transcript.as_posix.side_effect = ["theTranscriptPosix"]
+
+    reset_mocks()
+
+    exchange_123 = [
+        CaseExchange(speaker='theSpeaker1', text='theText1', chunk=3),
+        CaseExchange(speaker='theSpeaker1', text='theText2', chunk=3),
+        CaseExchange(speaker='theSpeaker2', text='theText3', chunk=4),
+    ]
+    exchange_xyz = [
+        CaseExchange(speaker='theSpeaker1', text='theTextX', chunk=3),
+        CaseExchange(speaker='theSpeaker1', text='theTextY', chunk=3),
+        CaseExchange(speaker='theSpeaker2', text='theTextZ', chunk=4),
+    ]
+    exchange_abc = [
+        CaseExchange(speaker='theSpeaker1', text='theTextA', chunk=3),
+        CaseExchange(speaker='theSpeaker1', text='theTextB', chunk=3),
+        CaseExchange(speaker='theSpeaker2', text='theTextC', chunk=4),
+    ]
+    exchange_efg = [
+        CaseExchange(speaker='theSpeaker1', text='theTextE', chunk=3),
+        CaseExchange(speaker='theSpeaker1', text='theTextF', chunk=3),
+        CaseExchange(speaker='theSpeaker2', text='theTextG', chunk=4),
+    ]
+    substitutions = [
+        AnonymizationSubstitution(original_entity='theOriginal1', anonymized_with='theAnonymized1'),
+        AnonymizationSubstitution(original_entity='theOriginal2', anonymized_with='theAnonymized2'),
+        AnonymizationSubstitution(original_entity='theOriginal3', anonymized_with='theAnonymized3'),
+        AnonymizationSubstitution(original_entity='theOriginal4', anonymized_with='theAnonymized4'),
+    ]
+
+    system_prompt = [
+        'You are a medical transcript anonymization specialist with expertise in healthcare privacy compliance.',
+        'Your task is to remove all personally identifiable information (PII) from medical transcripts while '
+        'preserving complete clinical context and medical accuracy through realistic replacements.',
+        '',
+        '**Anonymization Approach**',
+        'Use realistic, plausible substitutions rather than placeholders:',
+        '- Replace names with culturally appropriate alternatives of similar length/structure',
+        '- Substitute locations with comparable geographic areas (similar urban/rural, climate, healthcare infrastructure)',
+        '- Change dates, several days, and times while maintaining temporal relationships and seasonal context when medically relevant',
+        '- Replace specific institutions with similar types (community hospital → regional medical center)',
+        '- Replace any identification numbers, including but not limited to, zip code, phone, fax, social security, '
+        'medical record, license plate, account, serial numbers, IP address, code',
+        '- Generalize any other unique identifying numbers, characteristics, or codes that could be used to identify '
+        'the individual or their household',
+        '',
+        '',
+        '**Medical Preservation Requirements**',
+        '- Maintain ALL clinical terminology, symptoms, diagnoses, differential diagnoses',
+        '- Preserve exact medication names, dosages, frequencies, routes of administration',
+        '- Keep all vital signs, laboratory values, imaging results, and measurements unchanged',
+        '- Retain medical history details, surgical history, family medical history',
+        '- Preserve healthcare provider specialties and their clinical roles',
+        '- Maintain treatment timelines and follow-up schedules precisely',
+        '- Keep allergies, adverse reactions, and contraindications intact',
+        '',
+        'Format the anonymized transcript following the JSON Schema:',
+        '```json', '{\n "schema": "anonymization"\n}',
+        '```',
+        '',
+        '**Global Consistency**: Use identical replacements for the exact same entity throughout the entire transcript.',
+        'But, two different entities cannot use the same anonymization replacement.',
+        '',
+        '',
+        'In a second JSON Markdown block, format the report of the changes following the JSON Schema:',
+        '```json',
+        '{\n "schema": "changes"\n}',
+        '```',
+        '',
+    ]
+    user_prompts = {
+        "firstRound": [
+            'Please anonymize the following medical transcript while preserving all clinical information:',
+            '```json',
+            '[{"speaker": "theSpeaker1", "text": "theText1", "chunk": 3}, '
+            '{"speaker": "theSpeaker1", "text": "theText2", "chunk": 3}, '
+            '{"speaker": "theSpeaker2", "text": "theText3", "chunk": 4}]',
+            '```',
+            '',
+            'Follow rigorously the instructions and provide both JSON Markdown code blocks using the mentioned JSON Schemas.',
+        ],
+        "usedAnonymizations": [
+            'Continue to used these anonymized entities:',
+            '```json',
+            '[\n '
+            '{\n  "originalEntity": "theOriginal1",\n  "anonymizedWith": "theAnonymized1"\n },\n '
+            '{\n  "originalEntity": "theOriginal3",\n  "anonymizedWith": "theAnonymized3"\n }\n]',
+            '```',
+            '',
+            'Also, include this list with any new substitution in your response to ensure you will used '
+            'the sames substitutions for uniquely the exact same entities (which means for the dates, '
+            'provide the full dates, not just the day of week)',
+        ],
+        "firstError": [
+            'Here is the list of the errors you made in regards to the anonymization:',
+            '```json',
+            '[\n "error1",\n "error2"\n]',
+            '```',
+            '',
+            'While still following rigorously the initial instructions, correct your response and provide both '
+            'JSON Markdown code blocks using the mentioned JSON Schemas.',
+        ],
+        "secondError": [
+            'Here is the list of the errors you made in regards to the anonymization:',
+            '```json',
+            '[\n "error3"\n]',
+            '```',
+            '',
+            'While still following rigorously the initial instructions, correct your response and provide both '
+            'JSON Markdown code blocks using the mentioned JSON Schemas.',
+        ],
+    }
+    model_prompts = {
+        "firstResponse": [
+            '```json',
+            '[\n '
+            '{\n  "speaker": "theSpeaker1",\n  "text": "theTextX",\n  "chunk": 3\n },\n '
+            '{\n  "speaker": "theSpeaker1",\n  "text": "theTextY",\n  "chunk": 3\n },\n '
+            '{\n  "speaker": "theSpeaker2",\n  "text": "theTextZ",\n  "chunk": 4\n }\n]',
+            '```',
+            '```json',
+            '[\n '
+            '{\n  "originalEntity": "theOriginal1",\n  "anonymizedWith": "theAnonymized1"\n },\n '
+            '{\n  "originalEntity": "theOriginal2",\n  "anonymizedWith": "theAnonymized2"\n }\n]',
+            '```',
+        ],
+        "secondResponse": [
+            '```json',
+            '[\n '
+            '{\n  "speaker": "theSpeaker1",\n  "text": "theTextA",\n  "chunk": 3\n },\n '
+            '{\n  "speaker": "theSpeaker1",\n  "text": "theTextB",\n  "chunk": 3\n },\n '
+            '{\n  "speaker": "theSpeaker2",\n  "text": "theTextC",\n  "chunk": 4\n }\n]',
+            '```',
+            '```json',
+            '[\n '
+            '{\n  "originalEntity": "theOriginal1",\n  "anonymizedWith": "theAnonymized1"\n },\n '
+            '{\n  "originalEntity": "theOriginal3",\n  "anonymizedWith": "theAnonymized3"\n }\n]',
+            '```',
+        ],
+    }
+    tested = helper_instance()
+
+    # no error
+    schema_anonymization.side_effect = [{"schema": "anonymization"}]
+    schema_changes.side_effect = [{"schema": "changes"}]
+    anonymize_transcripts_check.side_effect = [AnonymizationError(has_errors=False, errors=[])]
+    helper.chatter.return_value.chat.side_effect = [
+        JsonExtract(error="", has_error=False, content=[
+            [
+                {"speaker": "theSpeaker1", "text": "theTextX", "chunk": 3},
+                {"speaker": "theSpeaker1", "text": "theTextY", "chunk": 3},
+                {"speaker": "theSpeaker2", "text": "theTextZ", "chunk": 4},
+            ],
+            [
+                {"originalEntity": "theOriginal1", "anonymizedWith": "theAnonymized1"},
+                {"originalEntity": "theOriginal2", "anonymizedWith": "theAnonymized2"},
+            ],
+        ]),
+    ]
+
+    result = tested.anonymize_transcripts_chat(memory_log, transcript, [substitutions[i] for i in [0, 2]])
+    expected = Anonymization(source=exchange_123, result=exchange_xyz, substitutions=[substitutions[i] for i in [0, 1]])
+    assert result == expected
+
+    calls = [call()]
+    assert schema_anonymization.mock_calls == calls
+    calls = [call()]
+    assert schema_changes.mock_calls == calls
+    calls = [call(memory_log, expected)]
+    assert anonymize_transcripts_check.mock_calls == calls
+    calls = [
+        call.chatter(tested.settings, memory_log),
+        call.chatter().set_system_prompt(system_prompt),
+        call.chatter().set_user_prompt(user_prompts["firstRound"]),
+        call.chatter().set_user_prompt(user_prompts["usedAnonymizations"]),
+        call.chatter().chat([{'schema': 'anonymization'}, {'schema': 'changes'}]),
+    ]
+    assert helper.mock_calls == calls
+    assert memory_log.mock_calls == []
+    calls = [call.open('r')]
+    assert transcript.mock_calls == calls
+    reset_mocks()
+
+    # two errors
+    # -- max error 3
+    with patch.object(BuilderDirectFromTuning, "MAX_ANONYMIZATION_ATTEMPTS", 3):
+        schema_anonymization.side_effect = [{"schema": "anonymization"}]
+        schema_changes.side_effect = [{"schema": "changes"}]
+        anonymize_transcripts_check.side_effect = [
+            AnonymizationError(has_errors=True, errors=["error1", "error2"]),
+            AnonymizationError(has_errors=True, errors=["error3"]),
+            AnonymizationError(has_errors=False, errors=[]),
+        ]
+        helper.chatter.return_value.chat.side_effect = [
+            JsonExtract(error="", has_error=False, content=[
+                [
+                    {"speaker": "theSpeaker1", "text": "theTextX", "chunk": 3},
+                    {"speaker": "theSpeaker1", "text": "theTextY", "chunk": 3},
+                    {"speaker": "theSpeaker2", "text": "theTextZ", "chunk": 4},
+                ],
+                [
+                    {"originalEntity": "theOriginal1", "anonymizedWith": "theAnonymized1"},
+                    {"originalEntity": "theOriginal2", "anonymizedWith": "theAnonymized2"},
+                ],
+            ]),
+            JsonExtract(error="", has_error=False, content=[
+                [
+                    {"speaker": "theSpeaker1", "text": "theTextA", "chunk": 3},
+                    {"speaker": "theSpeaker1", "text": "theTextB", "chunk": 3},
+                    {"speaker": "theSpeaker2", "text": "theTextC", "chunk": 4},
+                ],
+                [
+                    {"originalEntity": "theOriginal1", "anonymizedWith": "theAnonymized1"},
+                    {"originalEntity": "theOriginal3", "anonymizedWith": "theAnonymized3"},
+                ],
+            ]),
+            JsonExtract(error="", has_error=False, content=[
+                [
+                    {"speaker": "theSpeaker1", "text": "theTextE", "chunk": 3},
+                    {"speaker": "theSpeaker1", "text": "theTextF", "chunk": 3},
+                    {"speaker": "theSpeaker2", "text": "theTextG", "chunk": 4},
+                ],
+                [
+                    {"originalEntity": "theOriginal1", "anonymizedWith": "theAnonymized1"},
+                    {"originalEntity": "theOriginal4", "anonymizedWith": "theAnonymized4"},
+                ],
+            ]),
+        ]
+
+        result = tested.anonymize_transcripts_chat(memory_log, transcript, [])
+        expected = Anonymization(
+            source=exchange_123,
+            result=exchange_efg,
+            substitutions=[substitutions[i] for i in [0, 3]])
+        assert result == expected
+
+        calls = [call()]
+        assert schema_anonymization.mock_calls == calls
+        calls = [call()]
+        assert schema_changes.mock_calls == calls
+        calls = [
+            call(memory_log, Anonymization(
+                source=exchange_123,
+                result=exchange_xyz,
+                substitutions=[substitutions[i] for i in [0, 1]])),
+            call(memory_log, Anonymization(
+                source=exchange_123,
+                result=exchange_abc,
+                substitutions=[substitutions[i] for i in [0, 2]])),
+            call(memory_log, expected),
+        ]
+        assert anonymize_transcripts_check.mock_calls == calls
+        calls = [
+            call.chatter(tested.settings, memory_log),
+            call.chatter().set_system_prompt(system_prompt),
+            call.chatter().set_user_prompt(user_prompts["firstRound"]),
+            call.chatter().chat([{'schema': 'anonymization'}, {'schema': 'changes'}]),
+            call.chatter().set_model_prompt(model_prompts["firstResponse"]),
+            call.chatter().set_user_prompt(user_prompts["firstError"]),
+            call.chatter().chat([{'schema': 'anonymization'}, {'schema': 'changes'}]),
+            call.chatter().set_model_prompt(model_prompts["secondResponse"]),
+            call.chatter().set_user_prompt(user_prompts["secondError"]),
+            call.chatter().chat([{'schema': 'anonymization'}, {'schema': 'changes'}]),
+        ]
+        assert helper.mock_calls == calls
+        assert memory_log.mock_calls == []
+        calls = [call.open('r')]
+        assert transcript.mock_calls == calls
+        reset_mocks()
+    # -- max error 2
+    with pytest.raises(Exception) as e:
+        with patch.object(BuilderDirectFromTuning, "MAX_ANONYMIZATION_ATTEMPTS", 2):
+            schema_anonymization.side_effect = [{"schema": "anonymization"}]
+            schema_changes.side_effect = [{"schema": "changes"}]
+            anonymize_transcripts_check.side_effect = [
+                AnonymizationError(has_errors=True, errors=["error1", "error2"]),
+                AnonymizationError(has_errors=True, errors=["error3"]),
+                AnonymizationError(has_errors=False, errors=[]),
+            ]
+            helper.chatter.return_value.chat.side_effect = [
+                JsonExtract(error="", has_error=False, content=[
+                    [
+                        {"speaker": "theSpeaker1", "text": "theTextX", "chunk": 3},
+                        {"speaker": "theSpeaker1", "text": "theTextY", "chunk": 3},
+                        {"speaker": "theSpeaker2", "text": "theTextZ", "chunk": 4},
+                    ],
+                    [
+                        {"originalEntity": "theOriginal1", "anonymizedWith": "theAnonymized1"},
+                        {"originalEntity": "theOriginal2", "anonymizedWith": "theAnonymized2"},
+                    ],
+                ]),
+                JsonExtract(error="", has_error=False, content=[
+                    [
+                        {"speaker": "theSpeaker1", "text": "theTextA", "chunk": 3},
+                        {"speaker": "theSpeaker1", "text": "theTextB", "chunk": 3},
+                        {"speaker": "theSpeaker2", "text": "theTextC", "chunk": 4},
+                    ],
+                    [
+                        {"originalEntity": "theOriginal1", "anonymizedWith": "theAnonymized1"},
+                        {"originalEntity": "theOriginal3", "anonymizedWith": "theAnonymized3"},
+                    ],
+                ]),
+                JsonExtract(error="", has_error=False, content=[
+                    [
+                        {"speaker": "theSpeaker1", "text": "theTextE", "chunk": 3},
+                        {"speaker": "theSpeaker1", "text": "theTextF", "chunk": 3},
+                        {"speaker": "theSpeaker2", "text": "theTextG", "chunk": 4},
+                    ],
+                    [
+                        {"originalEntity": "theOriginal1", "anonymizedWith": "theAnonymized1"},
+                        {"originalEntity": "theOriginal4", "anonymizedWith": "theAnonymized4"},
+                    ],
+                ]),
+            ]
+
+            result = tested.anonymize_transcripts_chat(memory_log, transcript, [])
+            expected = Anonymization(
+                source=exchange_123,
+                result=exchange_efg,
+                substitutions=[substitutions[i] for i in [0, 3]])
+            assert result == expected
+
+            calls = [call()]
+            assert schema_anonymization.mock_calls == calls
+            calls = [call()]
+            assert schema_changes.mock_calls == calls
+            calls = [
+                call(memory_log, Anonymization(
+                    source=exchange_123,
+                    result=exchange_xyz,
+                    substitutions=[substitutions[i] for i in [0, 1]])),
+                call(memory_log, Anonymization(
+                    source=exchange_123,
+                    result=exchange_abc,
+                    substitutions=[substitutions[i] for i in [0, 2]])),
+                call(memory_log, expected),
+            ]
+            assert anonymize_transcripts_check.mock_calls == calls
+            calls = [
+                call.chatter(tested.settings, memory_log),
+                call.chatter().set_system_prompt(system_prompt),
+                call.chatter().set_user_prompt(user_prompts["firstRound"]),
+                call.chatter().chat([{'schema': 'anonymization'}, {'schema': 'changes'}]),
+                call.chatter().set_model_prompt(model_prompts["firstResponse"]),
+                call.chatter().set_user_prompt(user_prompts["firstError"]),
+                call.chatter().chat([{'schema': 'anonymization'}, {'schema': 'changes'}]),
+                call.chatter().set_model_prompt(model_prompts["secondResponse"]),
+                call.chatter().set_user_prompt(user_prompts["secondError"]),
+                call.chatter().chat([{'schema': 'anonymization'}, {'schema': 'changes'}]),
+            ]
+            assert helper.mock_calls == calls
+            assert memory_log.mock_calls == []
+            calls = [call.open('r')]
+            assert transcript.mock_calls == calls
+            reset_mocks()
+    exp_error = "Could not anonymize transcript: theTranscriptPosix"
+    assert str(e.value) == exp_error
+
+
+@patch("evaluations.case_builders.builder_direct_from_tuning.Helper")
+@patch.object(BuilderDirectFromTuning, "schema_errors")
+def test_anonymize_transcripts_check(schema_errors, helper):
+    memory_log = MagicMock()
+
+    def reset_mocks():
+        schema_errors.reset_mock()
+        helper.reset_mock()
+        memory_log.reset_mock()
+
+    system_prompt = [
+        'You are a validator of medical transcript anonymization with expertise in healthcare privacy compliance.',
+        '',
+        'The user will submit two transcripts: the original and the anonymized version.',
+        '',
+        'Your task is to identify any violations of anonymization rules based on the following principles:',
+        '',
+        'Any identifying information relating to an individual or to relatives, employers, or household members must be '
+        '**replaced with realistic, synthetic alternatives** that do **not allow anyone to identify the actual individuals**. '
+        'These replacements must be:',
+        '', '- Plausible and coherent in context,', '- Non-traceable to the real identities,',
+        "- Not obviously artificial (e.g. 'XXX' or 'Redacted' are invalid replacements).",
+        '',
+        "Substitution of identifiers with realistic but non-identifying values is considered fully compliant. "
+        "You must **not report an error** if the original identifier was correctly substituted in a way that "
+        "protects the individual's identity.",
+        '', 'Only report an error when:',
+        '- The original identifier remains in the anonymized transcript,',
+        '- The replacement is unrealistic or placeholder-like,',
+        '- The replacement is still obviously identifying the real people,',
+        '- The rules listed below are otherwise **blatantly** violated.',
+        '',
+        'The following identifiers **must** be anonymized through valid substitution:',
+        '',
+        '(A) Names;  ',
+        '(B) All geographic subdivisions smaller than a State, including street address, city, county, '
+        'precinct, zip code, and their equivalent geocodes;  ',
+        '(C) All elements of dates (except year) for dates directly related to an individual, including '
+        'birth date, admission date, discharge date, date of death;  ',
+        '(D) Telephone numbers;  ',
+        '(E) Fax numbers;  ',
+        '(F) Electronic mail addresses;  ',
+        '(G) Social security numbers;  ',
+        '(H) Medical record numbers;  ',
+        '(I) Health plan beneficiary numbers;  ',
+        '(J) Account numbers;  ',
+        '(K) Certificate/license numbers;  ',
+        '(L) Vehicle identifiers and serial numbers, including license plate numbers;  ',
+        '(M) Device identifiers and serial numbers;  ',
+        '(N) Web Universal Resource Locators (URLs);  ',
+        '(O) Internet Protocol (IP) address numbers;  ',
+        '(P) Any other unique identifying number, characteristic, or code.',
+        '',
+        'Format your output strictly using this JSON Schema:',
+        '```json',
+        '"theSchemaErrors"',
+        '```',
+        '',
+    ]
+    user_prompt = [
+        'The original transcript is:',
+        '```json',
+        '[{"speaker": "theSpeaker1", "text": "theText1", "chunk": 3},'
+        ' {"speaker": "theSpeaker1", "text": "theText2", "chunk": 3},'
+        ' {"speaker": "theSpeaker2", "text": "theText3", "chunk": 4}]',
+        '```',
+        '',
+        'The anonymized transcript is:',
+        '```json',
+        '[{"speaker": "theSpeaker1", "text": "theTextX", "chunk": 3},'
+        ' {"speaker": "theSpeaker1", "text": "theTextY", "chunk": 3},'
+        ' {"speaker": "theSpeaker2", "text": "theTextZ", "chunk": 4}]',
+        '```',
+        '',
+        'Follow rigorously the instructions and report any broken rules using the mentioned JSON Schema.',
+        'If there is no issues, just send back an empty list in the JSON Markdown block.',
+    ]
+
+    tested = helper_instance()
+
+    tests = [
+        (
+            JsonExtract(has_error=False, error="", content=[[]]),
+            AnonymizationError(has_errors=False, errors=[])),
+        (
+            JsonExtract(has_error=False, error="", content=[["error1", "error2"]]),
+            AnonymizationError(has_errors=True, errors=["error1", "error2"])),
+    ]
+    for side_effect, expected in tests:
+        schema_errors.side_effect = ["theSchemaErrors"]
+        helper.chatter.return_value.chat.side_effect = [side_effect]
+
+        anonymization = Anonymization(
+            source=[
+                CaseExchange(speaker='theSpeaker1', text='theText1', chunk=3),
+                CaseExchange(speaker='theSpeaker1', text='theText2', chunk=3),
+                CaseExchange(speaker='theSpeaker2', text='theText3', chunk=4),
+            ],
+            result=[
+                CaseExchange(speaker='theSpeaker1', text='theTextX', chunk=3),
+                CaseExchange(speaker='theSpeaker1', text='theTextY', chunk=3),
+                CaseExchange(speaker='theSpeaker2', text='theTextZ', chunk=4),
+            ],
+            substitutions=[
+                AnonymizationSubstitution(original_entity='theOriginal1', anonymized_with='theAnonymized1'),
+            ],
+        )
+
+        result = tested.anonymize_transcripts_check(memory_log, anonymization)
+        assert result == expected
+
+        calls = [call()]
+        assert schema_errors.mock_calls == calls
+        calls = [
+            call.chatter(tested.settings, memory_log),
+            call.chatter().set_system_prompt(system_prompt),
+            call.chatter().set_user_prompt(user_prompt),
+            call.chatter().chat(['theSchemaErrors']),
+        ]
+        assert helper.mock_calls == calls
+        assert memory_log.mock_calls == []
+        reset_mocks()
 
 def test_schema_anonymization():
     tested = BuilderDirectFromTuning
@@ -1319,6 +1724,27 @@ def test_schema_changes():
                 "anonymizedWith": {
                     "type": "string",
                     "description": "value of the replacement ; two different entities cannot use the same anonymization",
+                },
+            },
+            "additionalProperties": False,
+        },
+    }
+    assert result == expected
+
+
+def test_schema_errors():
+    tested = BuilderDirectFromTuning
+    result = tested.schema_errors()
+    expected = {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "array",
+        "items": {
+            "type": "object",
+            "required": ["errorExplanation"],
+            "properties": {
+                "errorExplanation": {
+                    "type": "string",
+                    "description": "full explanation of the deidentification error, including the related text source and the broken rules",
                 },
             },
             "additionalProperties": False,

@@ -12,6 +12,9 @@ from evaluations.auditors.auditor_postgres import AuditorPostgres
 from evaluations.constants import Constants as EvaluationConstants
 from evaluations.datastores.postgres.real_world_case import RealWorldCase as RealWorldCaseStore
 from evaluations.helper_evaluation import HelperEvaluation
+from evaluations.structures.anonymization import Anonymization
+from evaluations.structures.anonymization_error import AnonymizationError
+from evaluations.structures.anonymization_substitution import AnonymizationSubstitution
 from evaluations.structures.case_exchange import CaseExchange
 from evaluations.structures.case_exchange_summary import CaseExchangeSummary
 from evaluations.structures.records.real_world_case import RealWorldCase as RealWordCaseRecord
@@ -33,6 +36,7 @@ from hyperscribe.structures.settings import Settings
 
 class BuilderDirectFromTuning:
     MAX_WORDS_PER_COMPACTED_TRANSCRIPT = 1000
+    MAX_ANONYMIZATION_ATTEMPTS = 3
 
     @classmethod
     def _parameters(cls, parser: ArgumentParser) -> None:
@@ -218,84 +222,206 @@ class BuilderDirectFromTuning:
     def anonymize_transcripts(self, transcript_files: list[Path]) -> list[Path]:
         result: list[Path] = []
         memory_log = MemoryLog.instance(self.identification, "anonymize_transcript", self.s3_credentials)
-        schema_anonymization = self.schema_anonymization()
-        schema_changes = self.schema_changes()
 
-        used_anonymizations: dict = {}
+        used_anonymizations: dict[str, AnonymizationSubstitution] = {}
         for chunk, transcript in enumerate(transcript_files):
             anonymized = transcript.parent / f"transcript_anonymized_{chunk:03d}.json"
             result.append(anonymized)
             if anonymized.exists() and not self.force_refresh:
                 continue
 
-            chatter = Helper.chatter(self.settings, memory_log)
-            chatter.set_system_prompt([
-                "You are a medical transcript anonymization specialist with expertise in healthcare privacy compliance."
-                "",
-                "Your task is to remove all personally identifiable information (PII) from medical transcripts while preserving "
-                "complete clinical context and medical accuracy through realistic replacements.",
-                "",
-                "**Anonymization Approach**",
-                "Use realistic, plausible substitutions rather than placeholders:",
-                "- Replace names with culturally appropriate alternatives of similar length/structure",
-                "- Substitute locations with comparable geographic areas (similar urban/rural, climate, healthcare infrastructure)",
-                "- Change dates while maintaining temporal relationships and seasonal context when medically relevant",
-                "- Replace specific institutions with similar types (community hospital → regional medical center)",
-                "",
-                "**Medical Preservation Requirements**",
-                "- Maintain ALL clinical terminology, symptoms, diagnoses, differential diagnoses",
-                "- Preserve exact medication names, dosages, frequencies, routes of administration",
-                "- Keep all vital signs, laboratory values, imaging results, and measurements unchanged",
-                "- Retain medical history details, surgical history, family medical history",
-                "- Preserve healthcare provider specialties and their clinical roles",
-                "- Maintain treatment timelines and follow-up schedules precisely",
-                "- Keep allergies, adverse reactions, and contraindications intact",
-                "",
-                "Format the anonymized transcript following the JSON Schema:",
-                "```json",
-                json.dumps(schema_anonymization, indent=1),
-                "```",
-                "",
-                "**Global Consistency**: Use identical replacements for the exact same entity throughout the entire transcript.",
-                "But, two different entities cannot use the same anonymization replacement.",
-                "",
-                "",
-                "In a second JSON Markdown block, format the report of the changes following the JSON Schema:",
-                "```json",
-                json.dumps(schema_changes, indent=1),
-                "```",
-                "",
-            ])
-
-            with transcript.open("r") as f:
-                chatter.set_user_prompt([
-                    "Please anonymize the following medical transcript while preserving all clinical information:",
-                    "```json",
-                    f.read(),
-                    "```",
-                    "",
-                    "Follow rigorously the instructions and provide both JSON Markdown code block using the mentioned JSON Schemas.",
-                ])
-                if used_anonymizations:
-                    chatter.set_user_prompt([
-                        "The anonymized entities so far are:",
-                        "```json",
-                        json.dumps(list(used_anonymizations.values()), indent=1),
-                        "```",
-                        "",
-                        "Include this list in your response to be sure you are not using the same anonymization value for different entities.",
-                    ])
-
-                response = chatter.chat([schema_anonymization, schema_changes])
-                # the anonymized transcript
-                with anonymized.open("w") as f2:
-                    json.dump(response.content[0], f2, indent=2)
-                # the used anonymization
-                last_anonymizations = response.content[1]
-                for anonymization in last_anonymizations:
-                    used_anonymizations[anonymization["originalEntity"]] = anonymization
+            anonymization = self.anonymize_transcripts_chat(memory_log, transcript, list(used_anonymizations.values()))
+            with anonymized.open("w") as f2:
+                json.dump([exchange.to_json() for exchange in anonymization.result], f2, indent=2)
+            # the used anonymization
+            for substitution in anonymization.substitutions:
+                used_anonymizations[substitution.original_entity] = substitution
 
         return result
+
+    def anonymize_transcripts_chat(
+            self,
+            memory_log: MemoryLog,
+            transcript: Path,
+            used_anonymizations: list[AnonymizationSubstitution],
+    ) -> Anonymization:
+        schema_anonymization = self.schema_anonymization()
+        schema_changes = self.schema_changes()
+
+        chatter = Helper.chatter(self.settings, memory_log)
+        chatter.set_system_prompt([
+            "You are a medical transcript anonymization specialist with expertise in healthcare privacy compliance."
+            "",
+            "Your task is to remove all personally identifiable information (PII) from medical transcripts "
+            "while preserving complete clinical context and medical accuracy through realistic replacements.",
+            "",
+            "**Anonymization Approach**",
+            "Use realistic, plausible substitutions rather than placeholders:",
+            "- Replace names with culturally appropriate alternatives of similar length/structure",
+            "- Substitute locations with comparable geographic areas "
+            "(similar urban/rural, climate, healthcare infrastructure)",
+            "- Change dates, several days, and times while maintaining temporal relationships and seasonal context when medically relevant",
+            "- Replace specific institutions with similar types (community hospital → regional medical center)",
+            "- Replace any identification numbers, including but not limited to, zip code, phone, fax, "
+            "social security, medical record, license plate, account, serial numbers, IP address, code",
+            "- Generalize any other unique identifying numbers, characteristics, or codes "
+            "that could be used to identify the individual or their household",
+            "",
+            "",
+            "**Medical Preservation Requirements**",
+            "- Maintain ALL clinical terminology, symptoms, diagnoses, differential diagnoses",
+            "- Preserve exact medication names, dosages, frequencies, routes of administration",
+            "- Keep all vital signs, laboratory values, imaging results, and measurements unchanged",
+            "- Retain medical history details, surgical history, family medical history",
+            "- Preserve healthcare provider specialties and their clinical roles",
+            "- Maintain treatment timelines and follow-up schedules precisely",
+            "- Keep allergies, adverse reactions, and contraindications intact",
+            "",
+            "Format the anonymized transcript following the JSON Schema:",
+            "```json",
+            json.dumps(schema_anonymization, indent=1),
+            "```",
+            "",
+            "**Global Consistency**: Use identical replacements for the exact same entity "
+            "throughout the entire transcript.",
+            "But, two different entities cannot use the same anonymization replacement.",
+            "",
+            "",
+            "In a second JSON Markdown block, format the report of the changes following the JSON Schema:",
+            "```json",
+            json.dumps(schema_changes, indent=1),
+            "```",
+            "",
+        ])
+
+        with transcript.open("r") as f:
+            source = f.read()
+            chatter.set_user_prompt([
+                "Please anonymize the following medical transcript while preserving all clinical information:",
+                "```json",
+                source,
+                "```",
+                "",
+                "Follow rigorously the instructions and provide both JSON Markdown code blocks using "
+                "the mentioned JSON Schemas.",
+            ])
+            if used_anonymizations:
+                chatter.set_user_prompt([
+                    "Continue to used these anonymized entities:",
+                    "```json",
+                    json.dumps([used.to_json() for used in used_anonymizations], indent=1),
+                    "```",
+                    "",
+                    "Also, include this list with any new substitution in your response to ensure you will used "
+                    "the sames substitutions for uniquely the exact same entities (which means for the dates, "
+                    "provide the full dates, not just the day of week)",
+                ])
+
+            for _ in range(self.MAX_ANONYMIZATION_ATTEMPTS):
+                response = chatter.chat([schema_anonymization, schema_changes])
+                result = Anonymization(
+                    source=CaseExchange.load_from_json(json.loads(source)),
+                    result=CaseExchange.load_from_json(response.content[0]),
+                    substitutions=AnonymizationSubstitution.load_from_json(response.content[1]),
+                )
+                errors = self.anonymize_transcripts_check(memory_log, result)
+                if not errors.has_errors:
+                    break
+                chatter.set_model_prompt([
+                    "```json",
+                    json.dumps(response.content[0], indent=1),
+                    "```",
+                    "```json",
+                    json.dumps(response.content[1], indent=1),
+                    "```",
+                ])
+                chatter.set_user_prompt([
+                    "Here is the list of the errors you made in regards to the anonymization:",
+                    "```json",
+                    json.dumps(errors.errors, indent=1),
+                    "```",
+                    "",
+                    "While still following rigorously the initial instructions, correct your response and provide both JSON Markdown code blocks using "
+                    "the mentioned JSON Schemas.",
+                ])
+            else:
+                raise RuntimeError(f"Could not anonymize transcript: {transcript.as_posix()}")
+
+            return result
+
+    def anonymize_transcripts_check(self, memory_log: MemoryLog, anonymization: Anonymization) -> AnonymizationError:
+        schema_errors = self.schema_errors()
+
+        chatter = Helper.chatter(self.settings, memory_log)
+        chatter.set_system_prompt([
+            "You are a validator of medical transcript anonymization with expertise in healthcare privacy compliance.",
+            "",
+            "The user will submit two transcripts: the original and the anonymized version.",
+            "",
+            "Your task is to identify any violations of anonymization rules based on the following principles:",
+            "",
+            "Any identifying information relating to an individual or to relatives, employers, or household members "
+            "must be **replaced with realistic, synthetic alternatives** that do **not allow anyone to identify the "
+            "actual individuals**. These replacements must be:",
+            "",
+            "- Plausible and coherent in context,",
+            "- Non-traceable to the real identities,",
+            "- Not obviously artificial (e.g. 'XXX' or 'Redacted' are invalid replacements).",
+            "",
+            "Substitution of identifiers with realistic but non-identifying values is considered fully compliant. "
+            "You must **not report an error** if the original identifier was correctly substituted in a way that "
+            "protects the individual's identity.",
+            "",
+            "Only report an error when:",
+            "- The original identifier remains in the anonymized transcript,",
+            "- The replacement is unrealistic or placeholder-like,",
+            "- The replacement is still obviously identifying the real people,",
+            "- The rules listed below are otherwise **blatantly** violated.",
+            "",
+            "The following identifiers **must** be anonymized through valid substitution:",
+            "",
+            "(A) Names;  ",
+            "(B) All geographic subdivisions smaller than a State, including street address, city, county, precinct, zip code, and their equivalent geocodes;  ",
+            "(C) All elements of dates (except year) for dates directly related to an individual, including birth date, admission date, discharge date, date of death;  ",
+            "(D) Telephone numbers;  ",
+            "(E) Fax numbers;  ",
+            "(F) Electronic mail addresses;  ",
+            "(G) Social security numbers;  ",
+            "(H) Medical record numbers;  ",
+            "(I) Health plan beneficiary numbers;  ",
+            "(J) Account numbers;  ",
+            "(K) Certificate/license numbers;  ",
+            "(L) Vehicle identifiers and serial numbers, including license plate numbers;  ",
+            "(M) Device identifiers and serial numbers;  ",
+            "(N) Web Universal Resource Locators (URLs);  ",
+            "(O) Internet Protocol (IP) address numbers;  ",
+            "(P) Any other unique identifying number, characteristic, or code.",
+            "",
+            "Format your output strictly using this JSON Schema:",
+            "```json",
+            json.dumps(schema_errors, indent=1),
+            "```",
+            "",
+        ])
+        chatter.set_user_prompt([
+            "The original transcript is:",
+            "```json",
+            json.dumps([exchange.to_json() for exchange in anonymization.source]),
+            "```",
+            "",
+            "The anonymized transcript is:",
+            "```json",
+            json.dumps([exchange.to_json() for exchange in anonymization.result]),
+            "```",
+            "",
+            "Follow rigorously the instructions and report any broken rules using the mentioned JSON Schema.",
+            "If there is no issues, just send back an empty list in the JSON Markdown block.",
+        ])
+        response = chatter.chat([schema_errors])
+        return AnonymizationError(
+            has_errors=bool(len(response.content[0]) > 0),
+            errors=response.content[0],
+        )
 
     @classmethod
     def schema_anonymization(cls) -> dict:
@@ -330,6 +456,24 @@ class BuilderDirectFromTuning:
                     "anonymizedWith": {
                         "type": "string",
                         "description": "value of the replacement ; two different entities cannot use the same anonymization",
+                    },
+                },
+                "additionalProperties": False,
+            },
+        }
+
+    @classmethod
+    def schema_errors(cls) -> dict:
+        return {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["errorExplanation"],
+                "properties": {
+                    "errorExplanation": {
+                        "type": "string",
+                        "description": "full explanation of the deidentification error, including the related text source and the broken rules",
                     },
                 },
                 "additionalProperties": False,

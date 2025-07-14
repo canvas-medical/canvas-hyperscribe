@@ -40,8 +40,8 @@ def is_constant(cls, constants: dict) -> bool:
 
 
 def compare_sql(left: str, right: str) -> bool:
-    cleaned_left = sub("\s+", " ", left).strip()
-    cleaned_right = sub("\s+", " ", right).strip()
+    cleaned_left = sub(r"\s+", " ", left).strip()
+    cleaned_right = sub(r"\s+", " ", right).strip()
     if cleaned_left == cleaned_right:
         return True
     assert cleaned_left == cleaned_right, f">{cleaned_left}<"
