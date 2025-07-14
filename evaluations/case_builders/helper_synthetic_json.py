@@ -8,7 +8,7 @@ from hyperscribe.structures.http_response import HttpResponse
 
 class HelperSyntheticJson:
     def generate_json(vendor_key: VendorKey, system_prompt: List[str], user_prompt: List[str],
-        schema: Dict[str, Any], retries: int = 3) -> Any:
+        schema: Dict[str, Any], retries: int) -> None:
         """
         1) Starts on the O3 client
         2) Sends system + user prompts

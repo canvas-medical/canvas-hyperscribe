@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Tuple, cast
 from hyperscribe.structures.vendor_key import VendorKey
 from hyperscribe.structures.settings    import Settings
 from hyperscribe.libraries.limited_cache import LimitedCache
-from evaluations.case_builders.synthetic_json_helper import generate_json
+from evaluations.case_builders.helper_synthetic_json import HelperSyntheticJson
 
 class ChartGenerator:
     def __init__(self,
@@ -54,7 +54,7 @@ class ChartGenerator:
             "Everything in the chart must be retrospective and factual."]
         
         schema = self.schema_chart()
-        chart_json = cast(Dict[str, Any], generate_json(
+        chart_json = cast(Dict[str, Any], HelperSyntheticJson.generate_json(
             vendor_key=self.vendor_key,
             system_prompt=system_prompt,
             user_prompt=user_prompt,

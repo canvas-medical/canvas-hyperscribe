@@ -4,12 +4,12 @@ from typing import Any, Dict, List, cast
 
 from hyperscribe.structures.vendor_key import VendorKey
 from hyperscribe.structures.settings    import Settings
-from evaluations.case_builders.synthetic_json_helper import generate_json
+from evaluations.case_builders.helper_synthetic_json import HelperSyntheticJson
 
 class PatientProfileGenerator:
     def __init__(self, vendor_key: VendorKey, output_path_str: str) -> None:
-        self.vendor_key    = vendor_key
-        self.output_path   = Path(output_path_str).expanduser()
+        self.vendor_key = vendor_key
+        self.output_path = output_path_str
         self.seen_scenarios: List[str]    = []
         self.all_profiles:   Dict[str,str] = {}
 
@@ -50,7 +50,6 @@ class PatientProfileGenerator:
         }
 
     def generate_batch(self, batch_num: int, count: int) -> Dict[str,str]:
-        # 1) Prepare schema + prompts
         schema = self.schema_batch(count)
 
         system_prompt = [
@@ -93,7 +92,7 @@ class PatientProfileGenerator:
             "Return **raw JSON only** – no markdown, headings, or commentary."
         ]
 
-        batch = cast(Dict[str, str], generate_json(
+        batch = cast(Dict[str, str], HelperSyntheticJson.generate_json(
             vendor_key=self.vendor_key,
             system_prompt=system_prompt,
             user_prompt=user_prompt,
@@ -118,7 +117,7 @@ def main() -> None:
         description="Generate synthetic patient-profile JSON batches.")
     parser.add_argument("--batches",    type=int, required=True, help="Number of batches")
     parser.add_argument("--batch-size", type=int, required=True, help="Profiles per batch")
-    parser.add_argument("--output",     type=str, required=True, help="Combined JSON output path")
+    parser.add_argument("--output",     type=Path, required=True, help="Combined JSON output path")
     args = parser.parse_args()
 
     settings   = Settings.from_dictionary(dict(os.environ))

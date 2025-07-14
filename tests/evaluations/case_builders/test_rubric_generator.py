@@ -7,7 +7,7 @@ from unittest.mock import patch, MagicMock
 from evaluations.case_builders.rubric_generator import main, RubricGenerator
 from hyperscribe.structures.vendor_key import VendorKey
 from hyperscribe.structures.settings    import Settings
-from evaluations.case_builders.synthetic_json_helper import generate_json
+from evaluations.case_builders.helper_synthetic_json import generate_json
 
 @pytest.fixture
 def tmp_paths(tmp_path):

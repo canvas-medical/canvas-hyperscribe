@@ -2,7 +2,7 @@ import json, sys, pytest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 from hyperscribe.structures.vendor_key import VendorKey
-from evaluations.case_builders.synthetic_json_helper import generate_json
+from evaluations.case_builders.helper_synthetic_json import generate_json
 
 @patch("evaluations.case_builders.synthetic_json_helper.LlmOpenaiO3")
 def test_generate_json_success(mock_llm_cls, tmp_path):
