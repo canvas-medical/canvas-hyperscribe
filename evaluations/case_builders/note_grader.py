@@ -3,9 +3,10 @@ from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
 from hyperscribe.structures.vendor_key import VendorKey
-from hyperscribe.structures.settings    import Settings
+from hyperscribe.structures.settings import Settings
 from evaluations.case_builders.helper_synthetic_json import HelperSyntheticJson
 from evaluations.constants import Constants
+from evaluations.helper_evaluation import HelperEvaluation
 from evaluations.structures.rubric_criterion import RubricCriterion
 from evaluations.structures.graded_criterion import GradedCriterion
 
@@ -113,20 +114,13 @@ class NoteGrader:
         parser.add_argument("--output", type=Path, required=True, help="Where to save grading JSON")
         args = parser.parse_args()
 
-        settings   = Settings.from_dictionary(dict(os.environ))
+        settings = HelperEvaluation.settings()
         vendor_key = settings.llm_text
 
         rubric = [RubricCriterion(**c) for c in NoteGrader.load_json(args.rubric)]
-        note   = NoteGrader.load_json(args.note)
+        note = NoteGrader.load_json(args.note)
 
-        grader = NoteGrader(
-            vendor_key=vendor_key,
-            rubric=rubric,
-            note=note,
-            output_path=args.output
-        )
-        grader.run()
-
+        NoteGrader(vendor_key=vendor_key, rubric=rubric, note=note, output_path=args.output).run()
 
 if __name__ == "__main__":
     NoteGrader.main()

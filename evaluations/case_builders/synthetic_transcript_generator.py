@@ -3,23 +3,25 @@ from pathlib import Path
 from typing import Any, Dict, List, Tuple, cast
 
 from hyperscribe.structures.vendor_key import VendorKey
-from hyperscribe.structures.settings    import Settings
-from evaluations.case_builders.helper_synthetic_json import generate_json
+from evaluations.helper_evaluation import HelperEvaluation
+from evaluations.case_builders.helper_synthetic_json import HelperSyntheticJson
 from evaluations.constants import Constants
 
-class TranscriptGenerator:
-    def __init__(self, vendor_key: VendorKey, input_path: str, output_root: str) -> None:
+class SyntheticTranscriptGenerator:
+    def __init__(self, vendor_key: VendorKey, input_path: Path, output_path: Path) -> None:
         self.vendor_key  = vendor_key
-        self.input_path  = Path(input_path).expanduser()
-        self.output_root = Path(output_root).expanduser()
-        self.output_root.mkdir(parents=True, exist_ok=True)
+        self.input_path  = input_path
+        self.output_path = output_path
+        self.output_path.mkdir(parents=True, exist_ok=True)
         self.profiles    = self._load_profiles()
         self.seen_openings: set[str] = set()
 
+    @classmethod
     def _load_profiles(self) -> Dict[str,str]:
         with self.input_path.open() as f:
             return cast(Dict[str, str], json.load(f))
 
+    @classmethod
     def _random_bucket(self) -> str:
         return random.choice(list(Constants.TURN_BUCKETS.keys()))
 
@@ -47,8 +49,8 @@ class TranscriptGenerator:
         }
 
     def _build_prompt(self, profile_text: str, spec: Dict[str,Any]) -> Tuple[List[str], List[str]]:
-        # system lines
-        sys_lines = [
+        #system lines
+        system_lines = [
             "You are simulating a real outpatient medication-management discussion.",
             "Return ONLY a raw JSON array of turns with 'speaker' and 'text'.",
             "Start mid-conversation, no greetings.",
@@ -57,7 +59,7 @@ class TranscriptGenerator:
             "Use plain language with occasional natural hesitations (e.g., 'uh', 'I mean')."
         ]
         if self.seen_openings:
-            sys_lines.append(
+            system_lines.append(
                 "Avoid starting with any of these previous first lines: "
                 + ", ".join(sorted(self.seen_openings))
             )
@@ -83,12 +85,12 @@ class TranscriptGenerator:
             "Return ONLY valid JSON — start with [ and end with ] — no other text."
         ]
 
-        return sys_lines, user_lines
+        return system_lines, user_lines
 
     def generate_transcript_for_profile(self, profile_text: str) -> Tuple[List[Dict[str,str]], Dict[str,Any]]:
         # 1) build spec & prompts
         spec = self._make_spec()
-        sys_lines, user_lines = self._build_prompt(profile_text, spec)
+        system_lines, user_lines = self._build_prompt(profile_text, spec)
 
         # 2) JSON schema for an array of exactly turn_total items
         schema = {
@@ -107,12 +109,12 @@ class TranscriptGenerator:
             }
         }
 
-        transcript = generate_json(
+        transcript = HelperSyntheticJson.generate_json(
             vendor_key=self.vendor_key,
-            system_prompt=sys_lines,
+            system_prompt=system_lines,
             user_prompt=user_lines,
             schema=schema,
-            retries=3
+            retries=3 #EDIT THIS FOR MAGIC NUMBER.
         )
 
         first = transcript[0].get("text", "").strip().lower()
@@ -126,7 +128,7 @@ class TranscriptGenerator:
 
         for patient_name, profile_text in slice_:
             safe_name = re.sub(r"\W+", "_", patient_name)
-            patient_dir = self.output_root / safe_name
+            patient_dir = self.output_path / safe_name
             patient_dir.mkdir(parents=True, exist_ok=True)
 
             print(f"Generating transcript for {patient_name}…")
@@ -138,24 +140,21 @@ class TranscriptGenerator:
                 json.dumps(spec, indent=2))
             print(f"Saved => {patient_dir/'transcript.json'}, {patient_dir/'spec.json'}")
 
-def main() -> None:
-    parser = argparse.ArgumentParser(
-        description="Generate synthetic transcripts from patient profiles."
-    )
-    parser.add_argument("--input",  type=Path, required=True, help="Path to profiles JSON")
-    parser.add_argument("--output", type=Path, required=True, help="Directory for outputs")
-    parser.add_argument("--start",  type=int, required=True, help="1-based start index")
-    parser.add_argument("--limit",  type=int, required=True, help="Number of profiles")
-    args = parser.parse_args()
+    def main() -> None:
+        parser = argparse.ArgumentParser(
+            description="Generate synthetic transcripts from patient profiles.")
+        parser.add_argument("--input",  type=Path, required=True, help="Path to profiles JSON")
+        parser.add_argument("--output", type=Path, required=True, help="Directory for outputs")
+        parser.add_argument("--start",  type=int, required=True, help="1-based start index")
+        parser.add_argument("--limit",  type=int, required=True, help="Number of profiles")
+        args = parser.parse_args()
 
-    settings = Settings.from_dictionary(dict(os.environ))
-    vendor_key = settings.llm_text
+        settings = HelperEvaluation.settings()
+        vendor_key = settings.llm_text
 
-    gen = TranscriptGenerator(
-        vendor_key=vendor_key,
-        input_path=args.input,
-        output_root=args.output)
-    gen.run(start_index=args.start, limit=args.limit)
+        SyntheticTranscriptGenerator(vendor_key=vendor_key, input_path=args.input, output_path=args.output,
+            start_index=args.start, limit=args.limit).run()
+
 
 if __name__ == "__main__":
-    main()
+    SyntheticTranscriptGenerator.main()

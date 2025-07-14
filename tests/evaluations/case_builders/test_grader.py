@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 from unittest.mock import patch, MagicMock
 
-from evaluations.case_builders.grader import main, NoteGrader
+from evaluations.case_builders.note_grader import NoteGrader
 from hyperscribe.structures.vendor_key import VendorKey
 from evaluations.structures.rubric_criterion import RubricCriterion
 from evaluations.constants import Constants
@@ -82,7 +82,7 @@ def test_run_raises_on_generate_failure(mock_generate_json, tmp_files):
     mock_generate_json.assert_called_once()
 
 def test_main_parses_args_and_invokes_run(monkeypatch, tmp_path):
-    tested = main
+    tested = NoteGrader.main
 
     dummy_settings = MagicMock()
     dummy_settings.llm_text = VendorKey(vendor="test", api_key="MY_API_KEY")
