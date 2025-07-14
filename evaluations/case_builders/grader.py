@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Tuple
 
 from hyperscribe.structures.vendor_key import VendorKey
 from hyperscribe.structures.settings    import Settings
-from evaluations.case_builders.helper_synthetic_json import generate_json
+from evaluations.case_builders.helper_synthetic_json import HelperSyntheticJson
 from evaluations.constants import Constants
 from evaluations.structures.rubric_criterion import RubricCriterion
 from evaluations.structures.graded_criterion import GradedCriterion
@@ -79,8 +79,7 @@ class NoteGrader:
 
         print("Grading …")
 
-        # 1) JSON-schema-backed LLM call with 3 retries
-        parsed = generate_json(
+        parsed = HelperSyntheticJson.generate_json(
             vendor_key   = self.vendor_key,
             system_prompt= sys_prompt,
             user_prompt  = user_prompt,

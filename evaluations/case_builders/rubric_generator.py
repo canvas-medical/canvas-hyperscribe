@@ -4,7 +4,7 @@ from typing import Any, Dict, List
 
 from hyperscribe.structures.vendor_key import VendorKey
 from hyperscribe.structures.settings    import Settings
-from evaluations.case_builders.synthetic_json_helper import generate_json
+from evaluations.case_builders.helper_synthetic_json import generate_json
 
 class RubricGenerator:
     def __init__(self, vendor_key: VendorKey) -> None:

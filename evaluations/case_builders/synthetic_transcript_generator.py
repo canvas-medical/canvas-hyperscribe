@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Tuple, cast
 
 from hyperscribe.structures.vendor_key import VendorKey
 from hyperscribe.structures.settings    import Settings
-from evaluations.case_builders.synthetic_json_helper import generate_json
+from evaluations.case_builders.helper_synthetic_json import generate_json
 from evaluations.constants import Constants
 
 class TranscriptGenerator:
@@ -25,8 +25,8 @@ class TranscriptGenerator:
 
     def _make_spec(self) -> Dict[str,Any]:
         bucket = self._random_bucket()
-        lo, hi = Constants.TURN_BUCKETS[bucket]
-        turn_total = random.randint(lo, hi)
+        low, high = Constants.TURN_BUCKETS[bucket]
+        turn_total = random.randint(low, high)
 
         first = random.choice(["Clinician","Patient"])
         other = "Patient" if first=="Clinician" else "Clinician"

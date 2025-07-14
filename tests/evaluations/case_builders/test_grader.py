@@ -8,7 +8,7 @@ from evaluations.case_builders.grader import main, NoteGrader
 from hyperscribe.structures.vendor_key import VendorKey
 from evaluations.structures.rubric_criterion import RubricCriterion
 from evaluations.constants import Constants
-from evaluations.case_builders.synthetic_json_helper import generate_json
+from evaluations.case_builders.helper_synthetic_json import generate_json
 
 @pytest.fixture
 def tmp_files(tmp_path):
