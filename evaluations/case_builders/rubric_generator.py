@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 from hyperscribe.structures.vendor_key import VendorKey
-from hyperscribe.structures.settings    import Settings
+from evaluations.helper_evaluation import HelperEvaluation
 from evaluations.case_builders.helper_synthetic_json import generate_json
 
 class RubricGenerator:
@@ -15,6 +15,7 @@ class RubricGenerator:
         with path.open("r") as f:
             return json.load(f)
 
+    @classmethod
     def schema_rubric(self) -> Dict[str, Any]:
         """
         JSON Schema for an array of rubric criteria objects:
@@ -93,24 +94,23 @@ class RubricGenerator:
             json.dump(rubric_list, f, indent=2)
         print(f"Wrote rubric to {output_path}")
 
-def main() -> None:
-    parser = argparse.ArgumentParser(
-        description="Generate a fidelity-focused rubric for a medical scribe note.")
-    parser.add_argument("transcript_path", type=Path, help="Path to transcript.json")
-    parser.add_argument("chart_path", type=Path, help="Path to limited_chart.json")
-    parser.add_argument("canvas_context_path", type=Path, help="Path to canvas_context.json")
-    parser.add_argument("output_path", type=Path, help="Where to save rubric.json")
-    args = parser.parse_args()
+    def main() -> None:
+        parser = argparse.ArgumentParser(
+            description="Generate a fidelity-focused rubric for a medical scribe note.")
+        parser.add_argument("transcript_path", type=Path, help="Path to transcript.json")
+        parser.add_argument("chart_path", type=Path, help="Path to limited_chart.json")
+        parser.add_argument("canvas_context_path", type=Path, help="Path to canvas_context.json")
+        parser.add_argument("output_path", type=Path, help="Where to save rubric.json")
+        args = parser.parse_args()
 
-    settings = Settings.from_dictionary(dict(os.environ))
-    vendor_key = settings.llm_text
+        settings = HelperEvaluation.settings()
+        vendor_key = settings.llm_text
 
-    gen = RubricGenerator(vendor_key)
-    gen.generate(
-        transcript_path=args.transcript_path,
-        chart_path=args.chart_path,
-        canvas_context_path=args.canvas_context_path,
-        output_path=args.output_path)
+        RubricGenerator(vendor_key).generate(
+            transcript_path=args.transcript_path,
+            chart_path=args.chart_path,
+            canvas_context_path=args.canvas_context_path,
+            output_path=args.output_path)
 
 if __name__ == "__main__":
-    main()
+    RubricGenerator.main()

@@ -3,16 +3,17 @@ from pathlib import Path
 from typing import Any, Dict, List, cast
 
 from hyperscribe.structures.vendor_key import VendorKey
-from hyperscribe.structures.settings    import Settings
+from evaluations.helper_evaluation import HelperEvaluation
 from evaluations.case_builders.helper_synthetic_json import HelperSyntheticJson
 
-class PatientProfileGenerator:
+class SyntheticProfileGenerator:
     def __init__(self, vendor_key: VendorKey, output_path_str: str) -> None:
         self.vendor_key = vendor_key
         self.output_path = output_path_str
         self.seen_scenarios: List[str]    = []
         self.all_profiles:   Dict[str,str] = {}
 
+    @classmethod
     def _summarize_scenario(self, narrative: str) -> str:
         return narrative.split(".")[0][:100]
 
@@ -112,19 +113,22 @@ class PatientProfileGenerator:
         self._save_combined()
         self._save_individuals()
 
-def main() -> None:
-    parser = argparse.ArgumentParser(
-        description="Generate synthetic patient-profile JSON batches.")
-    parser.add_argument("--batches",    type=int, required=True, help="Number of batches")
-    parser.add_argument("--batch-size", type=int, required=True, help="Profiles per batch")
-    parser.add_argument("--output",     type=Path, required=True, help="Combined JSON output path")
-    args = parser.parse_args()
+    def main() -> None:
+        parser = argparse.ArgumentParser(
+            description="Generate synthetic patient-profile JSON batches.")
+        parser.add_argument("--batches",    type=int, required=True, help="Number of batches")
+        parser.add_argument("--batch-size", type=int, required=True, help="Profiles per batch")
+        parser.add_argument("--output",     type=Path, required=True, help="Combined JSON output path")
+        args = parser.parse_args()
 
-    settings   = Settings.from_dictionary(dict(os.environ))
-    vendor_key = settings.llm_text
+        directory=Path(args.output)
+        if not directory.exists():
+            pass #FIX THIS LATER.
 
-    generator = PatientProfileGenerator(vendor_key, args.output)
-    generator.run(batches=args.batches, batch_size=args.batch_size)
+        settings = HelperEvaluation.settings()
+        vendor_key = settings.llm_text 
+
+        SyntheticProfileGenerator(vendor_key, args.output).run(batches=args.batches, batch_size=args.batch_size)
 
 if __name__ == "__main__":
-    main()
+    SyntheticProfileGenerator.main()

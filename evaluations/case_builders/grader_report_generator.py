@@ -4,7 +4,7 @@ import csv
 from pathlib import Path
 from typing import Any, cast
 
-class EvalReportGenerator:
+class GraderReportGenerator:
     @classmethod
     def load_json(cls, path: Path) -> list[dict[str, Any]]:
         with path.open('r') as f:
@@ -43,4 +43,4 @@ class EvalReportGenerator:
         print(f"Wrote CSV report to {args.out}")
 
 if __name__ == "__main__":
-    EvalReportGenerator.run()
+    GraderReportGenerator.run()

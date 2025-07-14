@@ -82,7 +82,7 @@ def test_to_dict():
     assert result == expected
     assert memory_log.mock_calls == []
 
-def test_to_dict_no_prompts_with_audio_raises():
+def test_to_dict__no_prompts_with_audio_raises():
     memory_log = MagicMock()
     tested = LlmGoogle(memory_log, "googleKey", "theModel", False)
     with pytest.raises(IndexError):

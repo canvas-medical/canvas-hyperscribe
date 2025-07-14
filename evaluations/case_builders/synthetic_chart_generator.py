@@ -3,11 +3,11 @@ from pathlib import Path
 from typing import Any, Dict, List, Tuple, cast
 
 from hyperscribe.structures.vendor_key import VendorKey
-from hyperscribe.structures.settings    import Settings
 from hyperscribe.libraries.limited_cache import LimitedCache
+from evaluations.helper_evaluation import HelperEvaluation
 from evaluations.case_builders.helper_synthetic_json import HelperSyntheticJson
 
-class ChartGenerator:
+class SyntheticChartGenerator:
     def __init__(self,
         vendor_key: VendorKey,
         profiles: Dict[str, str],
@@ -24,6 +24,7 @@ class ChartGenerator:
     def load_json(cls, path: Path) -> Dict[str, Any]:
         with path.open("r") as f:
             return cast(Dict[str, Any], json.load(f))
+
 
     def schema_chart(self) -> Dict[str, Any]:
         """A minimal JSON Schema object that is further validated in validate_chart()."""
@@ -63,12 +64,14 @@ class ChartGenerator:
 
         return chart_json
 
+    @classmethod
     def validate_chart(self, chart_json: Dict[str, Any]) -> None:
         try:
             LimitedCache.load_from_json(chart_json)
         except Exception as e:
             raise ValueError(f"Invalid limited_chart.json structure: {e}")
 
+    @classmethod
     def assign_valid_uuids(self, obj: Any) -> Any:
         stack: List[Tuple[Any, Any]] = [(None, obj)]
         while stack:
@@ -116,18 +119,16 @@ def main() -> None:
         help="Path to representative limited_chart.json example")
     args = parser.parse_args()
 
-    settings = Settings.from_dictionary(dict(os.environ))
+    settings = HelperEvaluation.settings()
     vendor_key = settings.llm_text
+    profiles = SyntheticChartGenerator.load_json(args.input)
+    example_chart = SyntheticChartGenerator.load_json(args.example)
 
-    profiles = ChartGenerator.load_json(args.input)
-    example_chart = ChartGenerator.load_json(args.example)
-
-    generator = ChartGenerator(
+    generator = SyntheticChartGenerator(
         vendor_key=vendor_key,
         profiles=profiles,
         output=args.output,
-        example_chart=example_chart
-    )
+        example_chart=example_chart)
     generator.run_range(start=args.start, limit=args.limit)
 
 if __name__ == "__main__":
