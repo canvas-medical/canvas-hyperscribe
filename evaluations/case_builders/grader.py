@@ -1,12 +1,11 @@
-#!/usr/bin/env python3
 import json, os, argparse
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
 from hyperscribe.structures.vendor_key import VendorKey
 from hyperscribe.structures.settings    import Settings
-from evaluations.case_builders.synthetic_json_helper import generate_json
-from evaluations.constants              import Constants
+from evaluations.case_builders.helper_synthetic_json import generate_json
+from evaluations.constants import Constants
 from evaluations.structures.rubric_criterion import RubricCriterion
 from evaluations.structures.graded_criterion import GradedCriterion
 
@@ -108,27 +107,27 @@ class NoteGrader:
         print("Saved grading result in", self.output_path)
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description="Grade a note against a rubric.")
-    parser.add_argument("--rubric", type=Path, required=True, help="Path to rubric.json")
-    parser.add_argument("--note",   type=Path, required=True, help="Path to note.json")
-    parser.add_argument("--output", type=Path, required=True, help="Where to save grading JSON")
-    args = parser.parse_args()
+    def main() -> None:
+        parser = argparse.ArgumentParser(description="Grade a note against a rubric.")
+        parser.add_argument("--rubric", type=Path, required=True, help="Path to rubric.json")
+        parser.add_argument("--note",   type=Path, required=True, help="Path to note.json")
+        parser.add_argument("--output", type=Path, required=True, help="Where to save grading JSON")
+        args = parser.parse_args()
 
-    settings   = Settings.from_dictionary(dict(os.environ))
-    vendor_key = settings.llm_text
+        settings   = Settings.from_dictionary(dict(os.environ))
+        vendor_key = settings.llm_text
 
-    rubric = [RubricCriterion(**c) for c in NoteGrader.load_json(args.rubric)]
-    note   = NoteGrader.load_json(args.note)
+        rubric = [RubricCriterion(**c) for c in NoteGrader.load_json(args.rubric)]
+        note   = NoteGrader.load_json(args.note)
 
-    grader = NoteGrader(
-        vendor_key=vendor_key,
-        rubric=rubric,
-        note=note,
-        output_path=args.output
-    )
-    grader.run()
+        grader = NoteGrader(
+            vendor_key=vendor_key,
+            rubric=rubric,
+            note=note,
+            output_path=args.output
+        )
+        grader.run()
 
 
 if __name__ == "__main__":
-    main()
+    NoteGrader.main()
