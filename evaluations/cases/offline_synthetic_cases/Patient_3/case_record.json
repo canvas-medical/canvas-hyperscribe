@@ -1,0 +1,71 @@
+{
+  "name": "short_traveling_male_age_55_med_management_47bdc3",
+  "transcript": [
+    {
+      "speaker": "Clinician",
+      "text": "Please let him know I\u2019ve ordered the 0.25-mg semaglutide pen. He\u2019ll inject once on Tuesday evenings right after dialysis, not before, so the fluid shift doesn\u2019t amplify nausea. Metformin stays discontinued. Remind him carvedilol 12.5 mg twice daily, sevelamer 800 mg with each meal, and the rosuvastatin 20 mg at bedtime stay unchanged. If he feels queasy, he can halve the next meal, sip ginger tea, and call if vomiting lasts more than one day."
+    },
+    {
+      "speaker": "Clinician",
+      "text": "Also, ask whether his travel plans will interrupt dialysis; if he\u2019s flying, airports can, uh, delay refrigerated meds. The pen is stable at room temperature for 28 days, but he should still keep it in the carry-on, not checked luggage. Weight may drop in the first two weeks\u2014under ten pounds is fine; more than that, or dizziness, and I\u2019ll need a quick tele-visit. Have him keep a daily glucose log."
+    }
+  ],
+  "limited_chart": {
+    "demographicStr": "the patient is a man, born on January 1, 1969 (age 55)",
+    "conditionHistory": [],
+    "currentAllergies": [],
+    "currentConditions": [
+      {
+        "uuid": "22f13d35-4b2f-49e7-9a13-3b1964a190e5",
+        "label": "Type 2 diabetes mellitus without complications",
+        "code": "E11.9"
+      },
+      {
+        "uuid": "df43f2b8-0891-411e-a634-c3a73b9ac077",
+        "label": "End stage renal disease on dialysis",
+        "code": "N18.6"
+      }
+    ],
+    "currentGoals": [
+      {
+        "uuid": "c41b4002-d0ab-46b1-806c-9b34314bdcf4",
+        "label": "Improve blood sugar control with weekly semaglutide",
+        "code": ""
+      },
+      {
+        "uuid": "c5ef16c1-ee03-41f3-b23b-7c77ab4ad656",
+        "label": "Monitor nausea and weight changes around dialysis sessions",
+        "code": ""
+      }
+    ],
+    "currentMedications": [
+      {
+        "uuid": "2b58f16e-7fb9-4582-adad-f4bdc52d3b3f",
+        "label": "Semaglutide 2 mg/1.6 mL subcutaneous solution (weekly injection)",
+        "code": "2052075"
+      },
+      {
+        "uuid": "1532953b-89f5-4d26-a217-c31215106188",
+        "label": "Carvedilol 25 mg oral tablet",
+        "code": "197865"
+      },
+      {
+        "uuid": "8d6e2bcc-4a35-4545-af99-1a7dcabe86d4",
+        "label": "Sevelamer carbonate 800 mg oral tablet",
+        "code": "247503"
+      },
+      {
+        "uuid": "f7f0d556-0293-44ea-8e37-8fe78a69c669",
+        "label": "Atorvastatin 20 mg oral tablet (nightly)",
+        "code": "83367"
+      }
+    ],
+    "familyHistory": [],
+    "surgeryHistory": []
+  },
+  "profile": "During evening dialysis, a 55-year-old man with limited English reviews his medications through an interpreter. Metformin was stopped, and today the nephrologist begins weekly semaglutide injections to curb persistent high sugar. He also takes carvedilol, sevelamer, and a nightly statin; no drug allergies, but nausea and weight change will be monitored around dialysis timings.",
+  "validation_status": "GENERATION",
+  "batch_identifier": "med_management",
+  "tags": {},
+  "id": 0
+}

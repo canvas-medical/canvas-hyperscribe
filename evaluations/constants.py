@@ -1,3 +1,9 @@
+from evaluations.structures.enums.synthetic_case_mood import SyntheticCaseMood
+from evaluations.structures.enums.synthetic_case_pressure import SyntheticCasePressure
+from evaluations.structures.enums.synthetic_case_clinician_style import SyntheticCaseClinicianStyle
+from evaluations.structures.enums.synthetic_case_patient_style import SyntheticCasePatientStyle
+from evaluations.structures.enums.synthetic_case_turn_buckets import SyntheticCaseTurnBuckets
+
 class Constants:
     # case meta-information
     GROUP_COMMON = "common"
@@ -52,15 +58,55 @@ class Constants:
     PRESSURE_POOL = [
         "time pressure on the visit", "insurance denied prior authorization",
         "formulary change", "refill limit reached", "patient traveling soon",
-        "side‑effect report just came in"
+        "side effect report just came in"
     ]
 
     CLINICIAN_PERSONAS = [
         "warm and chatty", "brief and efficient", "cautious and inquisitive",
-        "over‑explainer"
+        "over explainer"
     ]
 
     PATIENT_PERSONAS = [
         "anxious and talkative", "confused and forgetful",
         "assertive and informed", "agreeable but vague"
     ]
+
+    MOOD_MAP = {
+    "patient is frustrated": SyntheticCaseMood.PATIENT_FRUSTRATED,
+    "patient is tearful": SyntheticCaseMood.PATIENT_TEARFUL,
+    "patient is embarrassed": SyntheticCaseMood.PATIENT_EMBARRASSED,
+    "patient is defensive": SyntheticCaseMood.PATIENT_DEFENSIVE,
+    "clinician is concerned": SyntheticCaseMood.CLINICIAN_CONCERNED,
+    "clinician is rushed": SyntheticCaseMood.CLINICIAN_RUSHED,
+    "clinician is warm": SyntheticCaseMood.CLINICIAN_WARM,
+    "clinician is brief": SyntheticCaseMood.CLINICIAN_BRIEF,
+    }
+
+    PRESSURE_MAP = {
+        "time pressure on the visit": SyntheticCasePressure.TIME_PRESSURE,
+        "insurance denied prior authorization": SyntheticCasePressure.DENIED_AUTH,
+        "formulary change": SyntheticCasePressure.FORMULARY,
+        "refill limit reached": SyntheticCasePressure.REFILL_LIMIT,
+        "patient traveling soon": SyntheticCasePressure.TRAVELING,
+        "side effect report just came in": SyntheticCasePressure.SIDE_EFFECT,
+    }
+
+    CLINICIAN_STYLE_MAP = {
+        "warm and chatty": SyntheticCaseClinicianStyle.WARM_CHATTY,
+        "brief and efficient": SyntheticCaseClinicianStyle.BRIEF_EFFICIENT,
+        "cautious and inquisitive": SyntheticCaseClinicianStyle.CAUTIOUS_INQUISITIVE,
+        "over explainer": SyntheticCaseClinicianStyle.OVER_EXPLAIN,
+    }
+
+    PATIENT_STYLE_MAP = {
+        "anxious and talkative": SyntheticCasePatientStyle.ANXIOUS_TALKATIVE,
+        "confused and forgetful": SyntheticCasePatientStyle.CONFUSED_FORGETFUL,
+        "assertive and informed": SyntheticCasePatientStyle.ASSERTIVE_INFORMED,
+        "agreeable but vague": SyntheticCasePatientStyle.AGREEABLE_VAGUE,
+    }
+
+    TURN_BUCKETS_MAP = {
+        "short": SyntheticCaseTurnBuckets.SHORT,
+        "medium": SyntheticCaseTurnBuckets.MEDIUM,
+        "long": SyntheticCaseTurnBuckets.LONG,
+    }

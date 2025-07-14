@@ -1,0 +1,22 @@
+{
+  "case_id": 0,
+  "category": "med_management",
+  "turn_total": 2,
+  "speaker_sequence": [
+    "Clinician",
+    "Clinician"
+  ],
+  "clinician_to_patient_turn_ratio": 0.97,
+  "mood": [
+    "clinician_warm",
+    "patient_defensive"
+  ],
+  "pressure": "traveling",
+  "clinician_style": "brief_efficient",
+  "patient_style": "assertive_informed",
+  "turn_buckets": "short",
+  "duration": 0.0,
+  "text_llm_vendor": "OpenAI",
+  "text_llm_name": "o3",
+  "id": 0
+}

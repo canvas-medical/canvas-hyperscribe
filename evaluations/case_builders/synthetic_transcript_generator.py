@@ -1,38 +1,28 @@
-import json, os, re, argparse, random
-from pathlib import Path
-from typing import Any, Dict, List, Tuple, cast
+import json
+import random
+from typing import Any, Dict, List, Tuple
 
 from hyperscribe.structures.vendor_key import VendorKey
-from hyperscribe.structures.settings    import Settings
 from evaluations.case_builders.synthetic_json_helper import generate_json
 from evaluations.constants import Constants
 
 class TranscriptGenerator:
-    def __init__(self, vendor_key: VendorKey, input_path: str, output_root: str) -> None:
-        self.vendor_key  = vendor_key
-        self.input_path  = Path(input_path).expanduser()
-        self.output_root = Path(output_root).expanduser()
-        self.output_root.mkdir(parents=True, exist_ok=True)
-        self.profiles    = self._load_profiles()
+    def __init__(self, vendor_key: VendorKey) -> None:
+        self.vendor_key = vendor_key
         self.seen_openings: set[str] = set()
-
-    def _load_profiles(self) -> Dict[str,str]:
-        with self.input_path.open() as f:
-            return cast(Dict[str, str], json.load(f))
 
     def _random_bucket(self) -> str:
         return random.choice(list(Constants.TURN_BUCKETS.keys()))
 
-    def _make_spec(self) -> Dict[str,Any]:
+    def _make_spec(self) -> Dict[str, Any]:
         bucket = self._random_bucket()
         lo, hi = Constants.TURN_BUCKETS[bucket]
         turn_total = random.randint(lo, hi)
 
-        first = random.choice(["Clinician","Patient"])
-        other = "Patient" if first=="Clinician" else "Clinician"
+        first = random.choice(["Clinician", "Patient"])
+        other = "Patient" if first == "Clinician" else "Clinician"
         speaker_sequence = [first] + [
-            random.choice([first, other]) 
-            for _ in range(turn_total - 1)
+            random.choice([first, other]) for _ in range(turn_total - 1)
         ]
 
         return {
@@ -46,9 +36,8 @@ class TranscriptGenerator:
             "bucket": bucket
         }
 
-    def _build_prompt(self, profile_text: str, spec: Dict[str,Any]) -> Tuple[List[str], List[str]]:
-        # system lines
-        sys_lines = [
+    def _build_prompt(self, profile_text: str, spec: Dict[str, Any]) -> Tuple[List[str], List[str]]:
+        system_prompt = [
             "You are simulating a real outpatient medication-management discussion.",
             "Return ONLY a raw JSON array of turns with 'speaker' and 'text'.",
             "Start mid-conversation, no greetings.",
@@ -57,12 +46,12 @@ class TranscriptGenerator:
             "Use plain language with occasional natural hesitations (e.g., 'uh', 'I mean')."
         ]
         if self.seen_openings:
-            sys_lines.append(
-                "Avoid starting with any of these previous first lines: "
-                + ", ".join(sorted(self.seen_openings))
+            system_prompt.append(
+                "Avoid starting with any of these previous first lines: " +
+                ", ".join(sorted(self.seen_openings))
             )
 
-        user_lines = [
+        user_prompt = [
             f"Patient profile: {profile_text}",
             "--- TRANSCRIPT SPEC ---",
             json.dumps({
@@ -70,10 +59,10 @@ class TranscriptGenerator:
                 "speaker_sequence": spec["speaker_sequence"],
                 "target_C_to_P_word_ratio": spec["ratio"]
             }),
-            "Moods: " + ", ".join(spec["mood"]),
-            "External pressure: " + spec["pressure"],
-            f"Clinician persona: {spec['clinician_style']}",
-            f"Patient persona: {spec['patient_style']}",
+            "Moods: " + ", ".join(m.value for m in spec["mood"]),
+            "External pressure: " + spec["pressure"].value,
+            f"Clinician persona: {spec['clinician_style'].value}",
+            f"Patient persona: {spec['patient_style'].value}",
             "Instructions:",
             "1. Follow the speaker sequence exactly (same order and length).",
             "2. Strive for the requested word-ratio ±10%.",
@@ -83,14 +72,20 @@ class TranscriptGenerator:
             "Return ONLY valid JSON — start with [ and end with ] — no other text."
         ]
 
-        return sys_lines, user_lines
+        return system_prompt, user_prompt
 
-    def generate_transcript_for_profile(self, profile_text: str) -> Tuple[List[Dict[str,str]], Dict[str,Any]]:
-        # 1) build spec & prompts
+
+    def generate_transcript_for_profile(
+        self, profile_text: str
+    ) -> Tuple[List[Dict[str, str]], Dict[str, Any]]:
         spec = self._make_spec()
-        sys_lines, user_lines = self._build_prompt(profile_text, spec)
+        spec["mood"] = [Constants.MOOD_MAP[m] for m in spec["mood"]]
+        spec["pressure"] = Constants.PRESSURE_MAP[spec["pressure"]]
+        spec["clinician_style"] = Constants.CLINICIAN_STYLE_MAP[spec["clinician_style"]]
+        spec["patient_style"] = Constants.PATIENT_STYLE_MAP[spec["patient_style"]]
+        spec["bucket"] = Constants.TURN_BUCKETS_MAP[spec["bucket"]]
+        system_prompt, user_prompt = self._build_prompt(profile_text, spec)
 
-        # 2) JSON schema for an array of exactly turn_total items
         schema = {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "type": "array",
@@ -100,62 +95,22 @@ class TranscriptGenerator:
                 "type": "object",
                 "properties": {
                     "speaker": {"type": "string"},
-                    "text":    {"type": "string"}
+                    "text": {"type": "string"}
                 },
                 "required": ["speaker", "text"],
                 "additionalProperties": False
             }
         }
 
-        transcript = generate_json(
+        transcript: List[Dict[str, str]] = generate_json(
             vendor_key=self.vendor_key,
-            system_prompt=sys_lines,
-            user_prompt=user_lines,
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
             schema=schema,
             retries=3
         )
 
-        first = transcript[0].get("text", "").strip().lower()
-        self.seen_openings.add(first)
+        first_line = transcript[0].get("text", "").strip().lower()
+        self.seen_openings.add(first_line)
 
         return transcript, spec
-
-    def run(self, start_index: int, limit: int) -> None:
-        items = list(self.profiles.items())
-        slice_ = items[start_index-1 : start_index-1 + limit]
-
-        for patient_name, profile_text in slice_:
-            safe_name = re.sub(r"\W+", "_", patient_name)
-            patient_dir = self.output_root / safe_name
-            patient_dir.mkdir(parents=True, exist_ok=True)
-
-            print(f"Generating transcript for {patient_name}…")
-            transcript, spec = self.generate_transcript_for_profile(profile_text)
-
-            (patient_dir / "transcript.json").write_text(
-                json.dumps(transcript, indent=2))
-            (patient_dir / "spec.json").write_text(
-                json.dumps(spec, indent=2))
-            print(f"Saved => {patient_dir/'transcript.json'}, {patient_dir/'spec.json'}")
-
-def main() -> None:
-    parser = argparse.ArgumentParser(
-        description="Generate synthetic transcripts from patient profiles."
-    )
-    parser.add_argument("--input",  type=Path, required=True, help="Path to profiles JSON")
-    parser.add_argument("--output", type=Path, required=True, help="Directory for outputs")
-    parser.add_argument("--start",  type=int, required=True, help="1-based start index")
-    parser.add_argument("--limit",  type=int, required=True, help="Number of profiles")
-    args = parser.parse_args()
-
-    settings = Settings.from_dictionary(dict(os.environ))
-    vendor_key = settings.llm_text
-
-    gen = TranscriptGenerator(
-        vendor_key=vendor_key,
-        input_path=args.input,
-        output_root=args.output)
-    gen.run(start_index=args.start, limit=args.limit)
-
-if __name__ == "__main__":
-    main()

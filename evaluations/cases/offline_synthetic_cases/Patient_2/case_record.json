@@ -1,0 +1,99 @@
+{
+  "name": "long_refill_limit_male_age_68_med_management_b64ebf",
+  "transcript": [
+    {
+      "speaker": "Patient",
+      "text": "Doc, my pill bottle is down to three tablets, and the mail truck can\u2019t reach the ranch until next week. I need you to renew my daily 75-microgram levothyroxine before I run out."
+    },
+    {
+      "speaker": "Clinician",
+      "text": "Understood, Mr. Alvarez. I\u2019ll place an emergency refill today, but first, have you missed any doses or noticed fatigue, weight change, palpitations, or swelling since your last supply was shipped about three months ago?"
+    },
+    {
+      "speaker": "Clinician",
+      "text": "Also, are you still taking the same generic tablet first thing in the morning, at least thirty minutes before coffee or breakfast, and waiting four hours before any calcium or other supplements again?"
+    },
+    {
+      "speaker": "Clinician",
+      "text": "Because the insurer recently tightened refill limits, I\u2019m allowed to send only a 30-day bridge locally unless we have a current TSH. When was your last blood test, do you recall, sir?"
+    },
+    {
+      "speaker": "Clinician",
+      "text": "If you\u2019re unsure, I\u2019ll reorder labs today and fax the bridge script to the small-town pharmacy. Once the TSH returns, we can reopen the 90-day mail order cycle for you."
+    },
+    {
+      "speaker": "Patient",
+      "text": "Uh, I honestly can\u2019t remember the last draw; the nurse usually calls me. Internet\u2019s been spotty, and the nearest clinic is sixty miles, so scheduling is tricky lately."
+    },
+    {
+      "speaker": "Clinician",
+      "text": "No problem. I\u2019ll mark it stat, and the lab can text you a QR code, but if that fails, just drive in whenever you\u2019re refueling; no appointment needed for a TSH."
+    },
+    {
+      "speaker": "Patient",
+      "text": "Okay, that helps. I think the calf supplement I bought has calcium\u2014could that mess things up if I take everything together before chores each morning?"
+    },
+    {
+      "speaker": "Patient",
+      "text": "Come to think of it, I sometimes wash the thyroid pill down with almond milk because my well water tastes rusty. Does that count as food and interfere with absorption?"
+    },
+    {
+      "speaker": "Clinician",
+      "text": "Yes, almond milk contains calcium, so please switch to water for the pill, then wait at least thirty minutes. Keep calcium or fortified drinks two to four hours later."
+    },
+    {
+      "speaker": "Patient",
+      "text": "Got it, but separating by four hours feels tough on ranch days; could I set a phone alarm, or is two hours enough if I forget?"
+    },
+    {
+      "speaker": "Patient",
+      "text": "Also, when I haul hay overnight, I sometimes miss the morning dose and take it at lunch instead. Is that worse than doubling up the next day or not?"
+    },
+    {
+      "speaker": "Patient",
+      "text": "And about storage\u2014these triple-digit summers bake the mailboxes. If the tablets sit in 110-degree heat for hours, do they lose strength, or am I safe hauling them inside?"
+    }
+  ],
+  "limited_chart": {
+    "demographicStr": "The patient is a man, born on January 1, 1956 (age 68)",
+    "conditionHistory": [],
+    "currentAllergies": [],
+    "currentConditions": [
+      {
+        "uuid": "b7d1ad41-77cd-45de-b49a-f9f9a2476aa0",
+        "label": "Hypothyroidism, unspecified",
+        "code": "E03.9"
+      },
+      {
+        "uuid": "d2144cce-e063-49a1-8bdb-6ca542549a4a",
+        "label": "Lactose intolerance",
+        "code": "E73.9"
+      }
+    ],
+    "currentGoals": [],
+    "currentMedications": [
+      {
+        "uuid": "3d168262-8687-4c98-8453-64d88e86f4d8",
+        "label": "Levothyroxine sodium 75 microgram oral tablet",
+        "code": "197361"
+      },
+      {
+        "uuid": "2f26f6ac-2471-4927-b618-30774c0bd988",
+        "label": "Aspirin 81 mg oral tablet",
+        "code": "1191"
+      },
+      {
+        "uuid": "ddf7427d-d8e0-4320-b6f9-4b4578f930b4",
+        "label": "Calcium carbonate 600 mg and vitamin D3 400 unit oral tablet",
+        "code": "861192"
+      }
+    ],
+    "familyHistory": [],
+    "surgeryHistory": []
+  },
+  "profile": "Retired truck driver, age 68, lives on a remote ranch with patchy internet access. He requests a renewal of his once-daily 75 microgram levothyroxine because the mail-order bottle is almost empty. Primary medicines are levothyroxine, low-dose aspirin, and calcium with vitamin D; no changes except thyroid dose consistency. He is lactose intolerant but has no drug allergies.",
+  "validation_status": "GENERATION",
+  "batch_identifier": "med_management",
+  "tags": {},
+  "id": 0
+}

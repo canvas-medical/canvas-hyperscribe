@@ -8,7 +8,7 @@ from hyperscribe.structures.line import Line
 
 class Case(NamedTuple):
     name: str
-    transcript: dict[str, list[Line]] = {}
+    transcript: list[dict[str, str]] = []
     limited_chart: dict = {}
     profile: str = ""
     validation_status: CaseStatus = CaseStatus.GENERATION

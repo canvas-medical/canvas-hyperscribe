@@ -1,0 +1,65 @@
+{
+  "name": "medium_time_pressure_female_age_24_med_management_bcfe95",
+  "transcript": [
+    {
+      "speaker": "Patient",
+      "text": "So, um, I lost the campus insurance last month and, uh, I\u2019d really like to start the regular combination pill\u2014the one with ethinyl estradiol and levonorgestrel\u2014before my coverage fully lapses. I\u2019m not totally sure what dose I need."
+    },
+    {
+      "speaker": "Clinician",
+      "text": "Absolutely, I can help. I know we\u2019re tight on time, so here\u2019s the gist: starter pack is 30 \u00b5g ethinyl estradiol with 150 \u00b5g levonorgestrel, one tablet daily, same time."
+    },
+    {
+      "speaker": "Patient",
+      "text": "Okay, that sounds straightforward, but I\u2019m, I mean, kind of scattered lately. What happens if I forget a pill? And, uh, the internet freaked me out about weight gain and blood clots\u2014should I be worried since I play softball twice a week?"
+    },
+    {
+      "speaker": "Clinician",
+      "text": "Missing one pill under 24 hours? Take it when you remember and keep going; no backup needed. Two or more, condoms seven days."
+    },
+    {
+      "speaker": "Clinician",
+      "text": "Most notice lighter periods, maybe sore breasts first months. Real weight gain is rare; stay active like you already do. Watch for severe leg pain."
+    },
+    {
+      "speaker": "Clinician",
+      "text": "Set a daily phone alarm; stick the pack beside your toothbrush\u2014visual cue helps forgetful brains. Generic costs about ten dollars at big-box pharmacies, no insurance."
+    },
+    {
+      "speaker": "Clinician",
+      "text": "I\u2019ll order three packs today, plus refills, so gaps won\u2019t happen. Start Sunday after period; use condoms first week too."
+    }
+  ],
+  "limited_chart": {
+    "demographicStr": "the patient is a woman, born on January 1, 2000 (age 24)",
+    "conditionHistory": [],
+    "currentAllergies": [
+      {
+        "uuid": "fcd46308-003e-4d9f-9ea0-69dd7bdce7f7",
+        "label": "Penicillin allergy",
+        "code": "91936005"
+      }
+    ],
+    "currentConditions": [],
+    "currentGoals": [],
+    "currentMedications": [
+      {
+        "uuid": "43c0963d-6fac-4941-a647-989fb5b0367b",
+        "label": "Multivitamin, unspecified formulation",
+        "code": "935536"
+      },
+      {
+        "uuid": "162073d3-6f2f-4cec-ad38-aa9456762596",
+        "label": "Ibuprofen 200 mg tablet",
+        "code": "3439"
+      }
+    ],
+    "familyHistory": [],
+    "surgeryHistory": []
+  },
+  "profile": "A 24-year-old graduate student juggling two jobs recently lost her campus insurance. She asks for her first combined birth-control pill containing ethinyl estradiol and levonorgestrel. Current medicines are only a daily multivitamin and occasional ibuprofen after softball practice. She recalls a mild childhood penicillin rash but no other allergies; no chronic conditions noted.",
+  "validation_status": "GENERATION",
+  "batch_identifier": "med_management",
+  "tags": {},
+  "id": 0
+}

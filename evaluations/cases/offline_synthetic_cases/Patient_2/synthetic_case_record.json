@@ -1,0 +1,33 @@
+{
+  "case_id": 0,
+  "category": "med_management",
+  "turn_total": 13,
+  "speaker_sequence": [
+    "Patient",
+    "Clinician",
+    "Clinician",
+    "Clinician",
+    "Clinician",
+    "Patient",
+    "Clinician",
+    "Patient",
+    "Patient",
+    "Clinician",
+    "Patient",
+    "Patient",
+    "Patient"
+  ],
+  "clinician_to_patient_turn_ratio": 0.96,
+  "mood": [
+    "clinician_warm",
+    "clinician_brief"
+  ],
+  "pressure": "refill_limit",
+  "clinician_style": "brief_efficient",
+  "patient_style": "confused_forgetful",
+  "turn_buckets": "long",
+  "duration": 0.0,
+  "text_llm_vendor": "OpenAI",
+  "text_llm_name": "o3",
+  "id": 0
+}
