@@ -8,12 +8,8 @@ from evaluations.helper_evaluation import HelperEvaluation
 from evaluations.case_builders.helper_synthetic_json import HelperSyntheticJson
 
 class SyntheticChartGenerator:
-    def __init__(self,
-        vendor_key: VendorKey,
-        profiles: Dict[str, str],
-        output: Path,
-        example_chart: Dict[str, Any]
-    ):
+    def __init__(self, vendor_key: VendorKey, profiles: Dict[str, str],
+        output: Path, example_chart: Dict[str, Any]):
         self.vendor_key = vendor_key
         self.profiles = profiles
         self.output = output
@@ -27,40 +23,49 @@ class SyntheticChartGenerator:
 
 
     def schema_chart(self) -> Dict[str, Any]:
-        """A minimal JSON Schema object that is further validated in validate_chart()."""
-        return {
+        """Build a JSON Schema that enforces top-level keys in example_chart"""
+        schema = {
             "$schema": "http://json-schema.org/draft-07/schema#",
-            "type": "object"
+            "type": "object",
+            "properties": {k: {"type": "array"} for k in self.example_chart.keys()},
+            "required":  list(self.example_chart.keys()),
+            "additionalProperties": False,
         }
+        return schema
 
     def generate_chart_for_profile(self, profile_text: str) -> Dict[str, Any]:
-        system_prompt = [
-            "You are generating a Canvas Medical compatible limited_chart.json "
+        schema = self.schema_chart()
+
+        system_prompt: List[str] = [
+            "You are generating a Canvas‑compatible `limited_chart.json` "
             "for a synthetic patient.",
-            "Your output must match the JSON structure provided. Do not add unrelated fields or categories.",
-            "Leave any unrelated categories as empty arrays. Do not fabricate information "
-            "beyond what the patient profile describes."]
+            "Return your answer as JSON inside a fenced ```json ... ``` block.",
+            "Only include fields shown in the example structure; leave irrelevant "
+            "categories as empty arrays.",]
         
-        user_prompt = [
+        user_prompt: List[str] = [
             f"Patient profile: {profile_text}",
-            "Here is an example structure:",
+            "",
+            "Here is the required JSON structure:",
             "```json",
             json.dumps(self.example_chart, indent=2),
             "```",
-            "Generate a valid limited_chart.json for this patient. "
-            "Only output raw JSON — no markdown, no commentary.",
-            "Be strict about including only information that is clearly **already known** in the profile.",
-            "Include only conditions the patient **has had or is diagnosed with**, not symptoms or possibilities.",
-            "Include only medications the patient is **actually taking**, not ones they might take.",
-            "Everything in the chart must be retrospective and factual."]
+            "",
+            "Your JSON **must** conform to the following JSON Schema:",
+            "```json",
+            json.dumps(schema, indent=2),
+            "```",
+            "",
+            "Be strict:",
+            "• Include only conditions the patient *has or was diagnosed with*.",
+            "• Include only medications the patient *is actually taking*.",
+            "• Do not fabricate information beyond the profile.",]
         
-        schema = self.schema_chart()
         chart_json = cast(Dict[str, Any], HelperSyntheticJson.generate_json(
             vendor_key=self.vendor_key,
             system_prompt=system_prompt,
             user_prompt=user_prompt,
-            schema=schema,
-            retries=3))
+            schema=schema,))
 
         return chart_json
 
@@ -104,32 +109,32 @@ class SyntheticChartGenerator:
                 json.dump(chart, f, indent=2)
             print(f"Saved limited_chart.json to {out_path}")
 
-def main() -> None:
-    parser = argparse.ArgumentParser(
-        description="Generate Canvas-compatible limited_chart.json files.")
-    parser.add_argument("--input",  type=Path, required=True,
-        help="Path to combined profiles JSON")
-    parser.add_argument("--output", type=Path, required=True,
-        help="Directory to write per-patient folders")
-    parser.add_argument("--start", type=int, default=1,
-        help="1-based index of first profile to process")
-    parser.add_argument( "--limit", type=int, required=True,
-        help="Number of profiles to generate charts for")
-    parser.add_argument("--example", type=Path, required=True,
-        help="Path to representative limited_chart.json example")
-    args = parser.parse_args()
+    def main() -> None:
+        parser = argparse.ArgumentParser(
+            description="Generate Canvas-compatible limited_chart.json files.")
+        parser.add_argument("--input",  type=Path, required=True,
+            help="Path to combined profiles JSON")
+        parser.add_argument("--output", type=Path, required=True,
+            help="Directory to write per-patient folders")
+        parser.add_argument("--start", type=int, default=1,
+            help="1-based index of first profile to process")
+        parser.add_argument( "--limit", type=int, required=True,
+            help="Number of profiles to generate charts for")
+        parser.add_argument("--example", type=Path, required=True,
+            help="Path to representative limited_chart.json example")
+        args = parser.parse_args()
 
-    settings = HelperEvaluation.settings()
-    vendor_key = settings.llm_text
-    profiles = SyntheticChartGenerator.load_json(args.input)
-    example_chart = SyntheticChartGenerator.load_json(args.example)
+        settings = HelperEvaluation.settings()
+        vendor_key = settings.llm_text
+        profiles = SyntheticChartGenerator.load_json(args.input)
+        example_chart = SyntheticChartGenerator.load_json(args.example)
 
-    generator = SyntheticChartGenerator(
-        vendor_key=vendor_key,
-        profiles=profiles,
-        output=args.output,
-        example_chart=example_chart)
-    generator.run_range(start=args.start, limit=args.limit)
+        generator = SyntheticChartGenerator(
+            vendor_key=vendor_key,
+            profiles=profiles,
+            output=args.output,
+            example_chart=example_chart)
+        generator.run_range(start=args.start, limit=args.limit)
 
 if __name__ == "__main__":
-    main()
+    SyntheticChartGenerator.main()

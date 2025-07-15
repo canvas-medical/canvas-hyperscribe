@@ -1,80 +1,60 @@
 import re, json, sys, jsonschema
+from __future__ import annotations
 from pathlib import Path
 from typing import Any, Dict, List
 from hyperscribe.llms.llm_openai_o3 import LlmOpenaiO3
 from hyperscribe.libraries.memory_log import MemoryLog
 from hyperscribe.structures.vendor_key import VendorKey
-from hyperscribe.structures.http_response import HttpResponse
 
 class HelperSyntheticJson:
-    def generate_json(vendor_key: VendorKey, system_prompt: List[str], user_prompt: List[str],
-        schema: Dict[str, Any], retries: int) -> None:
+    _FENCE_RE = re.compile(r"```(?:json)?\s*(.*?)\s*```", re.DOTALL | re.IGNORECASE)
+
+    @staticmethod
+    def _extract_json_block(text: str) -> str:
         """
-        1) Starts on the O3 client
-        2) Sends system + user prompts
-        3) Schema validation
-        4) If error, concat last output and error into prompts and retry
-        5) After retries failures, saves the last raw JSON to invalid_output.json and exits
+        If *text* contains a fenced ```json … ``` block, return its contents;
+        otherwise return *text* unchanged.
         """
-        llm = LlmOpenaiO3(
-            MemoryLog.dev_null_instance(),
-            vendor_key.api_key,
-            with_audit=False)
+        match = HelperSyntheticJson._FENCE_RE.search(text)
+        return (match.group(1) if match else text).strip()
 
-        initial_system = system_prompt.copy()
-        initial_user   = user_prompt.copy()
-        error_prompt: List[str] = []
-        last_clean = ""
+    @staticmethod
+    def generate_json(vendor_key: VendorKey, system_prompt: List[str],
+        user_prompt: List[str], schema: Dict[str, Any],) -> Any:
+        """
+        1) Creates an O3 LLM client.
+        2) Sends *system_prompt* and *user_prompt* (lists of strings).
+        3) Extracts the JSON payload from a fenced block or raw output.
+        4) Validates the payload against *schema* with jsonschema.
+        5) On validation failure, writes the raw output to invalid_output.json
+           and exits with status 1.
+        """
+        llm = LlmOpenaiO3(MemoryLog.dev_null_instance(), vendor_key.api_key,
+            with_audit=False, temperature=1.0)
 
-        for attempt in range(retries):
-            if attempt == 0:
-                llm.set_system_prompt(initial_system)
-                llm.set_user_prompt(initial_user)
-            else:
-                combined_user = (
-                    initial_user
-                    + ["--- Previous assistant output ---"]
-                    + response.response.splitlines()
-                    + error_prompt
-                )
-                llm.set_system_prompt(initial_system)
-                llm.set_user_prompt(combined_user)
+        llm.set_system_prompt(system_prompt)
+        llm.set_user_prompt(user_prompt)
 
-            response: HttpResponse = llm.request()
-            raw = response.response
-            cleaned  = re.sub(r'```(?:json)?\n?|\n?```', '', raw).strip()
-            last_clean = cleaned
-            try:
-                parsed = json.loads(cleaned)
-            except json.JSONDecodeError as e:
-                error_prompt = [
-                    "Your previous response has the following errors:",
-                    "```text",
-                    str(e),
-                    "```",
-                    "",
-                    "Please, correct your answer following rigorously "
-                    "the initial request and the mandatory response format."
-                ]
-                continue
-            try:
-                jsonschema.validate(parsed, schema)
-                return parsed
-            except jsonschema.ValidationError as e:
-                error_prompt = [
-                    "Your previous response has the following errors:",
-                    "```text",
-                    str(e),
-                    "```",
-                    "",
-                    "Please, correct your answer following rigorously the initial request "
-                    "and the mandatory response format."
-                ]
-                continue
+        result = llm.chat()
 
-        #if we've reached here, we just need to exit and write the text.
-        error_file = Path("invalid_output.json")
-        error_file.write_text(last_clean)
-        print(f"Failed to generate valid JSON after {retries} attempts. "
-            f"Saved invalid JSON to {error_file}")
-        sys.exit(1)
+        #check lower-level issues.
+        if result.has_error:
+            error_file = Path("invalid_output.json")
+            error_file.write_text(result.error)
+            print("LlmBase.chat() returned an error; raw message saved to", error_file)
+            sys.exit(1)
+
+        #extract JSON from fenced block if present, otherwise exit in error file.
+        json_text = HelperSyntheticJson._extract_json_block(result.content)
+
+        try:
+            parsed = json.loads(json_text)
+            jsonschema.validate(instance=parsed, schema=schema)
+            return parsed
+
+        except Exception as e:
+            error_file = Path("invalid_output.json")
+            error_file.write_text(result.content)
+            print("Generated output failed JSON‑schema validation (", e, ").")
+            print("Saved invalid output to", error_file)
+            sys.exit(1)

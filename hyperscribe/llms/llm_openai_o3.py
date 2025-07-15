@@ -10,8 +10,8 @@ class LlmOpenaiO3(LlmOpenai):
         memory_log: MemoryLog,
         api_key: str,
         *,
-        with_audit: bool = False,
-        temperature: float = 1.0,
+        with_audit: bool,
+        temperature: float,
     ):
         super().__init__(memory_log, api_key, Constants.OPENAI_CHAT_TEXT_O3, with_audit)
         self.temperature = temperature

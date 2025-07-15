@@ -14,7 +14,7 @@ class SyntheticProfileGenerator:
         self.all_profiles:   Dict[str,str] = {}
 
     @classmethod
-    def _summarize_scenario(self, narrative: str) -> str:
+    def _extract_initial_fragment(self, narrative: str) -> str:
         return narrative.split(".")[0][:100]
 
     def _save_combined(self) -> None:
@@ -34,16 +34,12 @@ class SyntheticProfileGenerator:
                 json.dump({name: narrative}, f, indent=2)
             print(f"Saved profile for {name} to {file_path}")
 
-    def schema_batch(self, count: int) -> Dict[str,Any]:
-        """
-        JSON Schema requiring exactly `count` keys of the form "Patient <number>"
-        with string values.
-        """
+    def schema_batch(self, count_patients: int) -> Dict[str,Any]:
         return {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "type": "object",
-            "minProperties": count,
-            "maxProperties": count,
+            "minProperties": count_patients,
+            "maxProperties": count_patients,
             "patternProperties": {
                 r"^Patient\s\d+$": { "type": "string" }
             },
@@ -53,10 +49,11 @@ class SyntheticProfileGenerator:
     def generate_batch(self, batch_num: int, count: int) -> Dict[str,str]:
         schema = self.schema_batch(count)
 
-        system_prompt = [
-            "You are a clinical informatics expert generating synthetic patient profiles "
-            "for testing medication management AI systems. Format your response strictly "
-            "according to this JSON Schema:",
+        system_prompt: List[str] = [
+            "You are a clinical‑informatics expert generating synthetic patient "
+            "profiles for testing medication‑management AI systems.",
+            "Return your answer as JSON inside a fenced ```json ... ``` block.",
+            "The response **must** conform to the following JSON Schema:",
             "```json",
             json.dumps(schema, indent=2),
             "```",
@@ -90,7 +87,8 @@ class SyntheticProfileGenerator:
             "• Any key allergy, condition, or social barrier.",
             "",
             "Do NOT write SOAP notes, vital signs, or assessments.",
-            "Return **raw JSON only** – no markdown, headings, or commentary."
+            "",
+            "Wrap the JSON in a fenced ```json block and output nothing else.",
         ]
 
         batch = cast(Dict[str, str], HelperSyntheticJson.generate_json(
@@ -101,7 +99,7 @@ class SyntheticProfileGenerator:
             retries=3))
 
         for name, content in batch.items():
-            self.seen_scenarios.append(self._summarize_scenario(content))
+            self.seen_scenarios.append(self._extract_initial_fragment(content))
             self.all_profiles[name] = content
 
         return batch
@@ -123,7 +121,7 @@ class SyntheticProfileGenerator:
 
         directory=Path(args.output)
         if not directory.exists():
-            pass #FIX THIS LATER.
+            directory.mkdir(parents=True, exist_ok=True)
 
         settings = HelperEvaluation.settings()
         vendor_key = settings.llm_text 

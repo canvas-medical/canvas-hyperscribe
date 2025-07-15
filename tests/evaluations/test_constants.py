@@ -35,7 +35,6 @@ def test_constants():
         "STAGED_QUESTIONNAIRES": "staged_questionnaires",
         "TRANSCRIPT2INSTRUCTIONS": "transcript2instructions",
         "POSITIVE_VALUE": "positive", 
-        "RAW_TEXT_CUTOFF": 5000,
         "TURN_BUCKETS": {
             "short": (2, 4),
             "medium": (6, 8),

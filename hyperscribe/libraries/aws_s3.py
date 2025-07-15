@@ -125,7 +125,8 @@ class AwsS3:
         truncated_pattern = re_compile(r"<IsTruncated>(true|false)</IsTruncated>")
         token_pattern = re_compile(r"<NextContinuationToken>(.*?)</NextContinuationToken>")
         
-        while True:
+        is_truncated = True
+        while is_truncated:
             params: dict[str, int | str] = {
                 'list-type': 2,
                 'prefix': prefix,
@@ -160,11 +161,10 @@ class AwsS3:
             is_truncated = truncated_match and truncated_match.group(1) == "true"
             if is_truncated:
                 token_match = token_pattern.search(response_text)
-                if not token_match:
+                if token_match:
+                    continuation_token = token_match.group(1)
+                else:
                     break
-                continuation_token = token_match.group(1)
-            else:
-                break
 
         return result
 

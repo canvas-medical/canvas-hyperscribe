@@ -1,4 +1,4 @@
-import json, pytest
+import json
 from unittest.mock import patch, call, MagicMock
 from hyperscribe.llms.llm_openai import LlmOpenai 
 from hyperscribe.llms.llm_openai_o3 import LlmOpenaiO3
