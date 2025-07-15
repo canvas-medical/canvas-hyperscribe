@@ -1,9 +1,8 @@
+from __future__ import annotations
 import json, argparse
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
-
 from hyperscribe.structures.vendor_key import VendorKey
-from hyperscribe.structures.settings import Settings
 from evaluations.case_builders.helper_synthetic_json import HelperSyntheticJson
 from evaluations.constants import Constants
 from evaluations.helper_evaluation import HelperEvaluation

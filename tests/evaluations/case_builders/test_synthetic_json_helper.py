@@ -2,7 +2,7 @@ import json, sys, pytest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 from hyperscribe.structures.vendor_key import VendorKey
-from evaluations.case_builders.helper_synthetic_json import generate_json
+from evaluations.case_builders.helper_synthetic_json import HelperSyntheticJson
 
 @patch("evaluations.case_builders.synthetic_json_helper.LlmOpenaiO3")
 def test_generate_json_success(mock_llm_cls, tmp_path):
@@ -14,13 +14,11 @@ def test_generate_json_success(mock_llm_cls, tmp_path):
     mock_llm.request.return_value = mock_response
     mock_llm_cls.return_value = mock_llm
 
-    tested = generate_json(
+    tested = HelperSyntheticJson.generate_json(
         vendor_key=VendorKey("openai", "dummy_key"),
         system_prompt=["System prompt"],
         user_prompt=["User prompt"],
-        schema={"type": "object", "properties": {"key": {"type": "string"}}, "required": ["key"]},
-        retries=2
-    )
+        schema={"type": "object", "properties": {"key": {"type": "string"}}, "required": ["key"]},)
 
     assert tested == expected
     mock_llm.set_system_prompt.assert_called_once_with(["System prompt"])
@@ -41,12 +39,11 @@ def test_generate_json_invalid_json_then_valid(mock_llm_cls, tmp_path):
     mock_llm.request.side_effect = [first_response, second_response]
     mock_llm_cls.return_value = mock_llm
 
-    tested = generate_json(
+    tested = HelperSyntheticJson.generate_json(
         vendor_key=VendorKey("openai", "retry_key"),
         system_prompt=["sys"],
         user_prompt=["user"],
-        schema={"type": "object", "properties": {"key": {"type": "string"}}, "required": ["key"]},
-        retries=2)
+        schema={"type": "object", "properties": {"key": {"type": "string"}}, "required": ["key"]},)
 
     assert tested == expected
     assert mock_llm.request.call_count == 2
@@ -73,12 +70,11 @@ def test_generate_json_validation_error_then_success(mock_llm_cls):
         "properties": {"key": {"type": "string"}},
         "required": ["key"]}
 
-    tested = generate_json(
+    tested = HelperSyntheticJson.generate_json(
         vendor_key=VendorKey("openai", "retry_val"),
         system_prompt=["sys"],
         user_prompt=["user"],
-        schema=schema,
-        retries=2)
+        schema=schema,)
 
     assert tested == valid
     assert mock_llm.request.call_count == 2
@@ -99,13 +95,11 @@ def test_generate_json_fails_and_writes_file(mock_llm_cls, tmp_path):
     # Patch Path to point to tmp_path
     with patch("evaluations.case_builders.synthetic_json_helper.Path", return_value=invalid_file):
         with pytest.raises(SystemExit) as exc:
-            generate_json(
+            HelperSyntheticJson.generate_json(
                 vendor_key=VendorKey("openai", "fail_key"),
                 system_prompt=["sys"],
                 user_prompt=["user"],
-                schema={"type": "object", "properties": {"x": {"type": "string"}}, "required": ["x"]},
-                retries=2
-            )
+                schema={"type": "object", "properties": {"x": {"type": "string"}}, "required": ["x"]},)
 
     assert exc.value.code == 1
     assert invalid_file.exists()

@@ -1,7 +1,7 @@
 import json, uuid, sys, pytest
 from pathlib import Path
 from unittest.mock import patch, MagicMock
-from evaluations.case_builders.synthetic_chart_generator import main, ChartGenerator
+from evaluations.case_builders.synthetic_chart_generator import SyntheticChartGenerator
 from hyperscribe.structures.vendor_key import VendorKey
 from hyperscribe.structures.settings import Settings
 
@@ -11,7 +11,7 @@ def test_init_assigns_attributes():
     expected_output = Path("/tmp/outdir")
     expected_example = {"foo": "bar"}
 
-    tested = ChartGenerator(expected_vendor_key, expected_profiles, expected_output, expected_example)
+    tested = SyntheticChartGenerator(expected_vendor_key, expected_profiles, expected_output, expected_example)
 
     assert tested.vendor_key == expected_vendor_key
     assert tested.profiles == expected_profiles
@@ -19,7 +19,7 @@ def test_init_assigns_attributes():
     assert tested.example_chart == expected_example
 
 def test_load_json_reads_json_file(tmp_path):
-    tested = ChartGenerator
+    tested = SyntheticChartGenerator()
     expected = {"a": 1, "b": 2}
     path = tmp_path / "data.json"
     path.write_text(json.dumps(expected))
@@ -30,7 +30,7 @@ def test_load_json_reads_json_file(tmp_path):
 @patch("evaluations.case_builders.synthetic_chart_generator.generate_json", return_value={"cond": ["X"]})
 def test_generate_chart_for_profile_uses_generate_json(mock_generate, tmp_path):
     tested_key = VendorKey(vendor="openai", api_key="LLMKEY")
-    tested = ChartGenerator(tested_key, {}, tmp_path, {"example": "chart"})
+    tested = SyntheticChartGenerator(tested_key, {}, tmp_path, {"example": "chart"})
 
     result = tested.generate_chart_for_profile("irrelevant profile")
     expected = {"cond": ["X"]}
@@ -46,14 +46,14 @@ def test_generate_chart_for_profile_uses_generate_json(mock_generate, tmp_path):
 
 @patch("evaluations.case_builders.synthetic_chart_generator.LimitedCache.load_from_json")
 def test_validate_chart_calls_limited_cache(mock_load):
-    tested = ChartGenerator(VendorKey("v", "k"), {}, Path("/"), {})
+    tested = SyntheticChartGenerator(VendorKey("v", "k"), {}, Path("/"), {})
     tested_chart = {"foo": "bar"}
     tested.validate_chart(tested_chart)
     mock_load.assert_called_once_with(tested_chart)
 
 @patch("evaluations.case_builders.synthetic_chart_generator.LimitedCache.load_from_json", side_effect=Exception("boom"))
 def test_validate_chart_raises_value_error_on_invalid_structure(mock_load):
-    tested = ChartGenerator(VendorKey("v", "k"), {}, Path("/"), {})
+    tested = SyntheticChartGenerator(VendorKey("v", "k"), {}, Path("/"), {})
     tested_chart = {"bad": True}
 
     with pytest.raises(ValueError) as exc:
@@ -62,7 +62,7 @@ def test_validate_chart_raises_value_error_on_invalid_structure(mock_load):
     mock_load.assert_called_once_with(tested_chart)
 
 def test_assign_valid_uuids_replaces_uuid_keys():
-    tested = ChartGenerator(VendorKey("v", "k"), {}, Path("/"), {})
+    tested = SyntheticChartGenerator(VendorKey("v", "k"), {}, Path("/"), {})
     input_chart = {
         "uuid": "old",
         "nested": [{"uuid": "old2"}, {"not_uuid": 123}]
@@ -77,15 +77,15 @@ def test_assign_valid_uuids_replaces_uuid_keys():
     uuid.UUID(nested_uuid)
     assert result["nested"][1]["not_uuid"] == 123
 
-@patch.object(ChartGenerator, "assign_valid_uuids")
-@patch.object(ChartGenerator, "validate_chart")
-@patch.object(ChartGenerator, "generate_chart_for_profile")
+@patch.object(SyntheticChartGenerator, "assign_valid_uuids")
+@patch.object(SyntheticChartGenerator, "validate_chart")
+@patch.object(SyntheticChartGenerator, "generate_chart_for_profile")
 def test_run_range_creates_directories_and_writes_chart(
     mock_generate, mock_validate, mock_assign, tmp_path, capsys
 ):
     profiles = {"P1*": "text1", "P2!": "text2"}
     output = tmp_path / "out"
-    tested = ChartGenerator(VendorKey("v", "k"), profiles, output, {})
+    tested = SyntheticChartGenerator(VendorKey("v", "k"), profiles, output, {})
 
     fake_chart = {"some": "data"}
     mock_generate.side_effect = [fake_chart, fake_chart]
@@ -112,7 +112,7 @@ def test_run_range_creates_directories_and_writes_chart(
     assert "Saved limited_chart.json to" in out
 
 def test_main_parses_args_and_invokes_run_range(tmp_path, monkeypatch):
-    tested = main
+    tested = SyntheticChartGenerator.main()
 
     dummy_settings = MagicMock()
     dummy_settings.llm_text = VendorKey(vendor="test", api_key="MY_API_KEY")
@@ -134,7 +134,7 @@ def test_main_parses_args_and_invokes_run_range(tmp_path, monkeypatch):
     def fake_load(cls, path):
         load_calls.append(path)
         return json.loads(path.read_text())
-    monkeypatch.setattr(ChartGenerator, "load_json", classmethod(fake_load))
+    monkeypatch.setattr(SyntheticChartGenerator, "load_json", classmethod(fake_load))
 
     run_args = {}
 
@@ -142,7 +142,7 @@ def test_main_parses_args_and_invokes_run_range(tmp_path, monkeypatch):
         run_args["self"] = self
         run_args["start"] = start
         run_args["limit"] = limit
-    monkeypatch.setattr(ChartGenerator, "run_range", fake_run_range)
+    monkeypatch.setattr(SyntheticChartGenerator, "run_range", fake_run_range)
 
     monkeypatch.setattr(sys, "argv", [
         "prog",
@@ -155,7 +155,7 @@ def test_main_parses_args_and_invokes_run_range(tmp_path, monkeypatch):
     tested()
 
     assert load_calls == [profiles_file, example_file]
-    assert isinstance(run_args["self"], ChartGenerator)
+    assert isinstance(run_args["self"], SyntheticChartGenerator)
     assert run_args["self"].vendor_key.api_key == "MY_API_KEY"
     assert run_args["start"] == 1
     assert run_args["limit"] == 3

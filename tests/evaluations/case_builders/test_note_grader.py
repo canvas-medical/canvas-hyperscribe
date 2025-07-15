@@ -23,7 +23,7 @@ def tmp_files(tmp_path):
     note_path.write_text(json.dumps(note))
     return rubric_path, note_path, output_path, rubric, note
 
-@patch("evaluations.case_builders.grader.generate_json")
+@patch("evaluations.case_builders.note_grader.generate_json")
 def test_run_happy_path(mock_generate_json, tmp_files):
     rubric_path, note_path, output_path, rubric, note = tmp_files
 
@@ -31,7 +31,7 @@ def test_run_happy_path(mock_generate_json, tmp_files):
         {"rationale": "good", "satisfaction": 80.0,  "score": 16.0},
         {"rationale": "bad",  "satisfaction": 25.0, "score": -22.5},
     ]
-    mock_generate_json.return_value = [
+    mock_generate_json.side_effect = [
         {"rationale": "good", "satisfaction": 80},
         {"rationale": "bad",  "satisfaction": 25},
     ]
@@ -54,7 +54,7 @@ def test_run_happy_path(mock_generate_json, tmp_files):
     assert schema["minItems"] == len(rubric)
     assert schema["maxItems"] == len(rubric)
 
-@patch("evaluations.case_builders.grader.generate_json", side_effect=SystemExit(1))
+@patch("evaluations.case_builders.note_grader.generate_json", side_effect=SystemExit(1))
 def test_run_raises_on_generate_failure(mock_generate_json, tmp_files):
     rubric_path, note_path, output_path, rubric, note = tmp_files
 
