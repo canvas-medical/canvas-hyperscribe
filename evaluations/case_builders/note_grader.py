@@ -1,4 +1,4 @@
-import json, os, argparse
+import json, argparse
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
@@ -12,16 +12,11 @@ from evaluations.structures.graded_criterion import GradedCriterion
 
 
 class NoteGrader:
-    def __init__(
-        self,
-        vendor_key: VendorKey,
-        rubric: List[RubricCriterion],
-        note: Dict[str, Any],
-        output_path: Path
-    ) -> None:
+    def __init__(self, vendor_key: VendorKey, rubric: List[RubricCriterion], 
+                 note: Dict[str, Any], output_path: Path) -> None:
         self.vendor_key = vendor_key
-        self.rubric     = rubric
-        self.note       = note
+        self.rubric = rubric
+        self.note = note
         self.output_path= output_path
 
     @staticmethod
@@ -32,7 +27,7 @@ class NoteGrader:
     def schema_scores(self) -> Dict[str, Any]:
         """
         JSON Schema for the grader output: an array exactly len(rubric) long,
-        each with 'rationale': str and 'satisfaction': number 0–100.
+        each with 'rationale': str and 'satisfaction': integer 0–100.
         """
         count = len(self.rubric)
         return {
@@ -43,8 +38,9 @@ class NoteGrader:
             "items": {
                 "type": "object",
                 "properties": {
+                    "id": {"type": "integer"},
                     "rationale":   {"type": "string"},
-                    "satisfaction":{"type": "number", "minimum": 0, "maximum": 100}
+                    "satisfaction":{"type": "integer", "minimum": 0, "maximum": 100}
                 },
                 "required": ["rationale", "satisfaction"],
                 "additionalProperties": False
@@ -52,25 +48,32 @@ class NoteGrader:
         }
 
     def build_prompts(self) -> Tuple[List[str], List[str]]:
-        system_prompt = [
-            "You are a clinical documentation grading assistant.",
-            "You help evaluate medical scribe notes using structured rubrics."
-        ]
+        """Returns system‑prompt and user‑prompt as single strings, joined with new lines."""
 
-        user_prompt = [
-            "Given the rubric and the hyperscribe output below, return a JSON array "
-            "where each item corresponds to one rubric criterion in the same order. "
-            "Keys per item:\n"
-            "- 'rationale': short explanation\n"
-            "- 'satisfaction': float 0-100",
-            "Output ONLY raw JSON (start with [, end with ]). No markdown or commentary.",
-            "--- BEGIN RUBRIC JSON ---",
-            json.dumps([c._asdict() for c in self.rubric]),
-            "--- END RUBRIC JSON ---",
-            "--- BEGIN HYPERSCRIBE OUTPUT JSON ---",
-            json.dumps(self.note),
-            "--- END HYPERSCRIBE OUTPUT JSON ---"
-        ]
+        system_prompt = "\n".join([
+            "You are a clinical‑documentation grading assistant.",
+            "You evaluate medical‑scribe notes using structured rubrics.",
+            "The JSON response MUST satisfy the following JSON‑Schema:"
+            "",
+            json.dumps(self.schema_scores(), indent=2),])
+
+        user_prompt = "\n".join([
+            "Given the rubric and the Hyperscribe output below, return **only** a "
+            "JSON array where each element corresponds to the rubric criteria in "
+            "order.",
+            "",
+            "Each element keys:",
+            "  • rationale    : str  – short explanation",
+            "  • satisfaction : int – 0 to 100",
+            "",
+            "Wrap the JSON in a fenced ```json ``` block to avoid extra tokens.",
+            "",
+            "---- BEGIN RUBRIC JSON ----",
+            json.dumps([c._asdict() for c in self.rubric], indent=2),
+            "---- END RUBRIC JSON ----",
+            "---- BEGIN HYPERSCRIBE OUTPUT JSON ----",
+            json.dumps(self.note, indent=2),
+            "---- END HYPERSCRIBE OUTPUT JSON ----",])
 
         return system_prompt, user_prompt
 
@@ -81,25 +84,23 @@ class NoteGrader:
         print("Grading …")
 
         parsed = HelperSyntheticJson.generate_json(
-            vendor_key   = self.vendor_key,
-            system_prompt= sys_prompt,
-            user_prompt  = user_prompt,
-            schema       = schema,
-            retries      = 3
-        )
+            vendor_key = self.vendor_key,
+            system_prompt = sys_prompt,
+            user_prompt = user_prompt,
+            schema = schema,)
 
         llm_results = [GradedCriterion(**r) for r in parsed]
 
         final = []
-        for crit, res in zip(self.rubric, llm_results):
-            if crit.sense == Constants.POSITIVE_VALUE:
-                score = round(crit.weight * (res.satisfaction / 100), 2)
+        for criteria, result in zip(self.rubric, llm_results):
+            if criteria.sense == Constants.POSITIVE_VALUE:
+                score = round(criteria.weight * (result.satisfaction / 100), 2)
             else:
-                score = -round(crit.weight * (1 - (res.satisfaction / 100)), 2)
+                score = -round(criteria.weight * (1 - (result.satisfaction / 100)), 2)
 
             final.append({
-                "rationale":   res.rationale,
-                "satisfaction":res.satisfaction,
+                "rationale":   result.rationale,
+                "satisfaction":result.satisfaction,
                 "score":       score
             })
 
@@ -120,7 +121,7 @@ class NoteGrader:
         rubric = [RubricCriterion(**c) for c in NoteGrader.load_json(args.rubric)]
         note = NoteGrader.load_json(args.note)
 
-        NoteGrader(vendor_key=vendor_key, rubric=rubric, note=note, output_path=args.output).run()
+        NoteGrader(vendor_key, rubric, note, output_path=args.output).run()
 
 if __name__ == "__main__":
     NoteGrader.main()

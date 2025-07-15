@@ -7,8 +7,6 @@ from unittest.mock import patch, MagicMock
 from evaluations.case_builders.note_grader import NoteGrader
 from hyperscribe.structures.vendor_key import VendorKey
 from evaluations.structures.rubric_criterion import RubricCriterion
-from evaluations.constants import Constants
-from evaluations.case_builders.helper_synthetic_json import generate_json
 
 @pytest.fixture
 def tmp_files(tmp_path):
@@ -40,14 +38,8 @@ def test_run_happy_path(mock_generate_json, tmp_files):
 
     vendor_key = VendorKey(vendor="openai", api_key="KEY")
     rubric_objs = [RubricCriterion(**item) for item in rubric]
-    tested = NoteGrader(
-        vendor_key=vendor_key,
-        rubric=rubric_objs,
-        note=note,
-        output_path=output_path
-    )
-
-    tested.run()
+    NoteGrader(vendor_key=vendor_key, rubric=rubric_objs,
+        note=note, output_path=output_path).run()
 
     result = json.loads(output_path.read_text())
     assert result == expected

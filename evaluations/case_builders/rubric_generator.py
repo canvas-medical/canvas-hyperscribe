@@ -1,10 +1,10 @@
-import os, json, argparse
+import json, argparse
 from pathlib import Path
 from typing import Any, Dict, List
 
 from hyperscribe.structures.vendor_key import VendorKey
 from evaluations.helper_evaluation import HelperEvaluation
-from evaluations.case_builders.helper_synthetic_json import generate_json
+from evaluations.case_builders.helper_synthetic_json import HelperSyntheticJson
 
 class RubricGenerator:
     def __init__(self, vendor_key: VendorKey) -> None:
@@ -39,37 +39,44 @@ class RubricGenerator:
             }
         }
 
-    def generate(self, transcript_path: Path, chart_path: Path, canvas_context_path: Path, output_path: Path) -> None:
+    def generate(self, transcript_path: Path, chart_path: Path,
+        canvas_context_path: Path, output_path: Path,) -> None:
         transcript = self.load_json(transcript_path)
         chart = self.load_json(chart_path)
         canvas_context = self.load_json(canvas_context_path)
+        schema = self.schema_rubric()
 
         system_prompt: List[str] = [
-            "You are a clinical informatics expert working with a senior physician "
-            "to build innovative medical education software. You specialize in designing "
-            "case-specific rubrics to evaluate how faithfully a medical scribe note "
-            "reflects the conversation and chart."
-        ]
+            "You are a clinical‑informatics expert working with a senior physician "
+            "to design case‑specific rubrics that assess how faithfully a medical "
+            "scribe note reflects the transcript and chart.",
+            "Return your answer as JSON inside a fenced ```json ... ``` block.",]
 
         user_prompt: List[str] = [
-            "Your task is to design a grading rubric for evaluating the fidelity of a medical scribe note. "
-            "Fidelity is defined as the degree to which the note reflects exactly what was said or implied "
-            "in the transcript, using relevant context from the chart. Do not judge clinical decisions — "
-            "only documentation fidelity.",
+            "Task: design a grading rubric for *documentation fidelity*.",
             "",
-            "You must follow this three-step reasoning but only output the final JSON array:",
-            "1. Identify key events/statements in transcript/chart.",
-            "2. Pick which items an ideal scribe should capture.",
-            "3. Write the rubric as a JSON array of criteria objects.",
+            "Definition of fidelity: how accurately the note captures what was said "
+            "or implied in the transcript, using relevant context from the chart. "
+            "Do not judge clinical decisions—only documentation fidelity.",
             "",
-            "Each criterion object must have keys:",
-            "- criterion    (clear, verifiable fidelity-focused text)",
-            "- weight       (integer 0–100)",
-            "- sense        (\"positive\" or \"negative\")",
+            "Follow three steps internally, but output **only** the final rubric:",
+            "  1. Identify key events/statements in transcript & chart.",
+            "  2. Decide what an ideal scribe must capture.",
+            "  3. Produce the rubric as a JSON array of objects.",
             "",
-            "Each criterion text must start with “Reward for” or “Penalize for”.",
-            "Include at least one on overall completeness and one on chart-copy fidelity.",
-            "Do NOT include markdown, commentary, or intermediate steps—only the JSON array.",
+            "Each object keys:",
+            "  • criterion (string) — must start with “Reward for” or “Penalize for”",
+            "  • weight    (int 0‑100)",
+            "  • sense     (\"positive\" | \"negative\")",
+            "",
+            "Include at least one criterion on overall completeness and one on chart‑copy fidelity.",
+            "",
+            "Your JSON **must** conform to the following JSON Schema:",
+            "```json",
+            json.dumps(schema, indent=2),
+            "```",
+            "",
+            "Wrap the JSON array in a fenced ```json block and output nothing else.",
             "",
             "--- BEGIN TRANSCRIPT JSON ---",
             json.dumps(transcript),
@@ -79,19 +86,15 @@ class RubricGenerator:
             "--- END CHART JSON ---",
             "--- BEGIN CANVAS CONTEXT JSON ---",
             json.dumps(canvas_context),
-            "--- END CANVAS CONTEXT JSON ---"
-        ]
+            "--- END CANVAS CONTEXT JSON ---",]
 
-
-        rubric_list = generate_json(
+        rubric_list = HelperSyntheticJson.generate_json(
             vendor_key=self.vendor_key,
             system_prompt=system_prompt,
             user_prompt=user_prompt,
-            schema=self.schema_rubric(),
-            retries=3)
+            schema=schema,)
 
-        with output_path.open("w") as f:
-            json.dump(rubric_list, f, indent=2)
+        output_path.write_text(json.dumps(rubric_list, indent=2))
         print(f"Wrote rubric to {output_path}")
 
     def main() -> None:
