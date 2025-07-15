@@ -2,7 +2,7 @@ import json, sys, pytest
 from pathlib import Path
 from unittest.mock import patch, call, MagicMock
 
-from evaluations.case_builders.synthetic_profile_generator import main, PatientProfileGenerator
+from evaluations.case_builders.synthetic_profile_generator import SyntheticProfileGenerator
 from hyperscribe.libraries.constants import Constants
 from hyperscribe.structures.vendor_key import VendorKey
 from hyperscribe.structures.settings import Settings
@@ -26,14 +26,14 @@ def vendor_key():
     return VendorKey(vendor="openai", api_key="MY_KEY")
 
 def test_init_initializes_generator(tmp_path, vendor_key):
-    tested = PatientProfileGenerator(vendor_key, str(tmp_path / "combined.json"))
+    tested = SyntheticProfileGenerator(vendor_key, str(tmp_path / "combined.json"))
     assert tested.vendor_key == vendor_key
     assert tested.output_path == (tmp_path / "combined.json").expanduser()
     assert tested.seen_scenarios == []
     assert tested.all_profiles == {}
 
 def test__summarize_scenario(vendor_key):
-    tested = PatientProfileGenerator(vendor_key, "out.json")
+    tested = SyntheticProfileGenerator(vendor_key, "out.json")
     narrative = "First sentence. Second sentence."
     expected = "First sentence"
     result = tested._summarize_scenario(narrative)
@@ -41,7 +41,7 @@ def test__summarize_scenario(vendor_key):
 
 def test__save_combined(tmp_path, dummy_profiles, vendor_key):
     out_file = tmp_path / "combined.json"
-    tested = PatientProfileGenerator(vendor_key, str(out_file))
+    tested = SyntheticProfileGenerator(vendor_key, str(out_file))
     tested.all_profiles = dummy_profiles
     tested._save_combined()
     result = json.loads(out_file.read_text())
@@ -50,7 +50,7 @@ def test__save_combined(tmp_path, dummy_profiles, vendor_key):
 
 def test__save_individuals(tmp_path, dummy_profiles, vendor_key):
     out_file = tmp_path / "combined.json"
-    tested = PatientProfileGenerator(vendor_key, str(out_file))
+    tested = SyntheticProfileGenerator(vendor_key, str(out_file))
     tested.all_profiles = dummy_profiles
     tested._save_individuals()
 
@@ -68,7 +68,7 @@ def test_generate_batch_parses_llm_json(mock_generate_json, fake_llm_response, v
     expected = fake_llm_response(n)
     mock_generate_json.return_value = expected
 
-    tested = PatientProfileGenerator(vendor_key, "out.json")
+    tested = SyntheticProfileGenerator(vendor_key, "out.json")
     batch_num = 2
     count = n
 
@@ -87,11 +87,11 @@ def test_generate_batch_parses_llm_json(mock_generate_json, fake_llm_response, v
     assert schema["minProperties"] == count
     assert schema["maxProperties"] == count
 
-@patch.object(PatientProfileGenerator, "_save_individuals")
-@patch.object(PatientProfileGenerator, "_save_combined")
-@patch.object(PatientProfileGenerator, "generate_batch")
+@patch.object(SyntheticProfileGenerator, "_save_individuals")
+@patch.object(SyntheticProfileGenerator, "_save_combined")
+@patch.object(SyntheticProfileGenerator, "generate_batch")
 def test_run(mock_generate_batch, mock_save_combined, mock_save_individuals, vendor_key):
-    tested = PatientProfileGenerator(vendor_key, "out.json")
+    tested = SyntheticProfileGenerator(vendor_key, "out.json")
     batches = 2
     batch_size = 5
     mock_generate_batch.return_value = {}
@@ -103,9 +103,9 @@ def test_run(mock_generate_batch, mock_save_combined, mock_save_individuals, ven
     mock_save_combined.assert_called_once_with()
     mock_save_individuals.assert_called_once_with()
 
-@patch.object(PatientProfileGenerator, "run")
+@patch.object(SyntheticProfileGenerator, "run")
 def test_main_parses_args_and_invokes_generator(mock_run, tmp_path, monkeypatch):
-    tested = main
+    tested = SyntheticProfileGenerator.main()
 
     dummy_settings = MagicMock()
     dummy_settings.llm_text = VendorKey("openai", "MAIN_KEY")

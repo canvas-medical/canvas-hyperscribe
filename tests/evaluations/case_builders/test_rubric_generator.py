@@ -4,10 +4,10 @@ import pytest
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
-from evaluations.case_builders.rubric_generator import main, RubricGenerator
+from evaluations.case_builders.rubric_generator import RubricGenerator
 from hyperscribe.structures.vendor_key import VendorKey
 from hyperscribe.structures.settings    import Settings
-from evaluations.case_builders.helper_synthetic_json import generate_json
+from evaluations.case_builders.helper_synthetic_json import HelperSyntheticJson
 
 @pytest.fixture
 def tmp_paths(tmp_path):
@@ -69,7 +69,7 @@ def test_generate_fallback_propagates_exit(mock_generate_json, tmp_paths):
     mock_generate_json.assert_called_once()
 
 def test_main_parses_args_and_invokes_generate(tmp_path, monkeypatch):
-    tested = main
+    tested = RubricGenerator.main()
 
     dummy_settings = MagicMock()
     dummy_settings.llm_text = VendorKey("openai", "MYKEY")

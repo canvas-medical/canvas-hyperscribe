@@ -1,6 +1,6 @@
 import json, sys, csv, pytest
 from pathlib import Path
-from evaluations.case_builders.grader_report_generator import EvalReportGenerator
+from evaluations.case_builders.grader_report_generator import GraderReportGenerator
 
 def _write_json(tmp_path: Path, data, filename: str) -> Path:
     path = tmp_path / filename
@@ -8,14 +8,14 @@ def _write_json(tmp_path: Path, data, filename: str) -> Path:
     return path
 
 def test_load_json_reads_list_of_dicts(tmp_path):
-    tested = EvalReportGenerator
+    tested = GraderReportGenerator
     expected = [{"foo": 123}, {"bar": 456}]
     path = _write_json(tmp_path, expected, "test.json")
     result = tested.load_json(path)
     assert result == expected
 
 def test_run_writes_csv_with_proper_rounding(tmp_path, capsys, monkeypatch):
-    tested = EvalReportGenerator
+    tested = GraderReportGenerator
     rubric = [
         {"criterion": "First",  "weight": 3},
         {"criterion": "Second", "weight": 7},]
@@ -73,7 +73,7 @@ def test_run_writes_csv_with_proper_rounding(tmp_path, capsys, monkeypatch):
 
 def test_run_raises_on_length_mismatch(tmp_path, monkeypatch):
     #length mismatch
-    tested = EvalReportGenerator
+    tested = GraderReportGenerator
     rubric = [{"criterion": "X", "weight": 5}]
     scores = [
         {"satisfaction": 1, "score": 1, "rationale": "x"},
@@ -95,7 +95,7 @@ def test_run_raises_on_length_mismatch(tmp_path, monkeypatch):
     assert "Rubric and score arrays must have the same length." in str(exc.value)
 
 def test_run_calls_load_json_exactly_twice(tmp_path, monkeypatch):
-    tested = EvalReportGenerator
+    tested = GraderReportGenerator
     calls = []
     def fake_load_json(cls, path):
         calls.append(path)
@@ -121,7 +121,7 @@ def test_run_calls_load_json_exactly_twice(tmp_path, monkeypatch):
         "--out",    str(out_csv),
     ])
 
-    EvalReportGenerator.run()
+    GraderReportGenerator.run()
     expected = ["rubric.json", "scores.json"]
     result = [path.name for path in calls]
     assert result == expected

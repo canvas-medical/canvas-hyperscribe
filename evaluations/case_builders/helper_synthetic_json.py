@@ -1,5 +1,5 @@
-import re, json, sys, jsonschema
 from __future__ import annotations
+import re, json, sys, jsonschema
 from pathlib import Path
 from typing import Any, Dict, List
 from hyperscribe.llms.llm_openai_o3 import LlmOpenaiO3
