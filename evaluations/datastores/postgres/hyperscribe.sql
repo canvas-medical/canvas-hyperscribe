@@ -48,6 +48,7 @@ CREATE TABLE public.real_world_case
     customer_identifier         text      NOT NULL,
     patient_note_hash           text      NOT NULL,
     topical_exchange_identifier text      NOT NULL,
+    publishable                 boolean   NOT NULL,
     start_time                  real      NOT NULL,
     end_time                    real      NOT NULL,
     duration                    real      NOT NULL,

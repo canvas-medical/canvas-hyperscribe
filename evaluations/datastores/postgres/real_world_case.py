@@ -13,6 +13,7 @@ class RealWorldCase(Postgres):
             "customer_identifier": case.customer_identifier,
             "patient_note_hash": case.patient_note_hash,
             "topical_exchange_identifier": case.topical_exchange_identifier,
+            "publishable": case.publishable,
             "start_time": case.start_time,
             "end_time": case.end_time,
             "duration": case.duration,
@@ -30,6 +31,7 @@ class RealWorldCase(Postgres):
                       "customer_identifier"=%(customer_identifier)s,
                       "patient_note_hash"=%(patient_note_hash)s,
                       "topical_exchange_identifier"=%(topical_exchange_identifier)s,
+                      "publishable"=%(publishable)s,
                       "start_time"=%(start_time)s,
                       "end_time"=%(end_time)s,
                       "duration"=%(duration)s,
@@ -40,6 +42,7 @@ class RealWorldCase(Postgres):
                       "customer_identifier" <> %(customer_identifier)s OR
                       "patient_note_hash" <> %(patient_note_hash)s OR
                       "topical_exchange_identifier" <> %(topical_exchange_identifier)s OR
+                      "publishable" <> %(publishable)s OR
                       "start_time" <> %(start_time)s OR
                       "end_time" <> %(end_time)s OR
                       "duration" <> %(duration)s OR
@@ -49,10 +52,10 @@ class RealWorldCase(Postgres):
         else:
             sql = """
                   INSERT INTO "real_world_case" ("created", "updated", "case_id", "customer_identifier", "patient_note_hash",
-                                                 "topical_exchange_identifier",
+                                                 "topical_exchange_identifier", "publishable",
                                                  "start_time", "end_time", "duration", "audio_llm_vendor", "audio_llm_name")
                   VALUES (%(now)s, %(now)s, %(case_id)s, %(customer_identifier)s,
-                          %(patient_note_hash)s, %(topical_exchange_identifier)s,
+                          %(patient_note_hash)s, %(topical_exchange_identifier)s, %(publishable)s,
                           %(start_time)s, %(end_time)s, %(duration)s, %(audio_llm_vendor)s, %(audio_llm_name)s) RETURNING id"""
 
         return Record(
@@ -61,6 +64,7 @@ class RealWorldCase(Postgres):
             customer_identifier=case.customer_identifier,
             patient_note_hash=case.patient_note_hash,
             topical_exchange_identifier=case.topical_exchange_identifier,
+            publishable=case.publishable,
             start_time=case.start_time,
             end_time=case.end_time,
             duration=case.duration,

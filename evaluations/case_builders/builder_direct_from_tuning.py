@@ -118,6 +118,7 @@ class BuilderDirectFromTuning:
             customer_identifier=self.identification.canvas_instance,
             patient_note_hash=f"patient_{self.identification.patient_uuid}/note_{self.identification.note_uuid}",
             topical_exchange_identifier=case_summary.title,
+            publishable=False,
             start_time=0.0,
             end_time=0.0,
             duration=0.0,

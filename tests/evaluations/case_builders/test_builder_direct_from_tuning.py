@@ -426,6 +426,7 @@ def test_generate_case(
                 customer_identifier='canvasInstance',
                 patient_note_hash='patient_patientUuid/note_noteUuid',
                 topical_exchange_identifier='theTitle',
+                publishable=False,
                 start_time=0.0,
                 end_time=0.0,
                 duration=0.0,
