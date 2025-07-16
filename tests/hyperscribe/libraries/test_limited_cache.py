@@ -1538,11 +1538,11 @@ def test_load_from_json():
 
     assert result.patient_uuid == "_PatientUuid"
     assert result._staged_commands == {
-        "keyX": [CodedItem(code="code1", label="label1", uuid="uuid1")],
+        "keyX": [CodedItem(code="code1", label="label1", uuid="xyz0000")],
         "keyY": [],
         "keyZ": [
-            CodedItem(code="code3", label="label3", uuid="uuid3"),
-            CodedItem(code="code2", label="label2", uuid="uuid2"),
+            CodedItem(code="code3", label="label3", uuid="xyz2000"),
+            CodedItem(code="code2", label="label2", uuid="xyz2001"),
         ],
     }
     assert result.demographic__str__(True) == "theDemographic"

@@ -43,7 +43,7 @@ def helper_instance() -> BuilderDirectFromTuningFull:
         provider_uuid="providerUuid",
         canvas_instance="canvasInstance",
     )
-    return BuilderDirectFromTuningFull(settings, s3_credentials, identification, Path("/some/path"), 45, True)
+    return BuilderDirectFromTuningFull(settings, s3_credentials, identification, Path("/some/path"), 45, True, True)
 
 
 def test_class():

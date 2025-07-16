@@ -231,7 +231,7 @@ def test_found_instructions(get_json, upsert_json):
                 'instructions': {
                     'initial': [
                         {
-                            'uuid': '>?<',
+                            'uuid': 'uuid1',
                             'index': 0,
                             'instruction': 'theInstruction1',
                             'information': 'theInformation0',
@@ -241,7 +241,7 @@ def test_found_instructions(get_json, upsert_json):
                     ],
                     'result': [
                         {
-                            'uuid': '>?<',
+                            'uuid': 'uuid1',
                             'index': 0,
                             'instruction': 'theInstruction1',
                             'information': 'theInformation1',
@@ -249,7 +249,7 @@ def test_found_instructions(get_json, upsert_json):
                             'isUpdated': True,
                         },
                         {
-                            'uuid': '>?<',
+                            'uuid': 'uuid2',
                             'index': 1,
                             'instruction': 'theInstruction2',
                             'information': 'theInformation2',
@@ -257,7 +257,7 @@ def test_found_instructions(get_json, upsert_json):
                             'isUpdated': False,
                         },
                         {
-                            'uuid': '>?<',
+                            'uuid': 'uuid3',
                             'index': 2,
                             'instruction': 'theInstruction3',
                             'information': 'theInformation3',
@@ -651,7 +651,7 @@ def test_computed_questionnaires(get_json, upsert_json):
                 ],
                 "instructions": [
                     {
-                        'uuid': '>?<',
+                        'uuid': 'uuid1',
                         'index': 0,
                         'instruction': 'theInstruction1',
                         'information': 'theInformation1',
@@ -659,7 +659,7 @@ def test_computed_questionnaires(get_json, upsert_json):
                         'isUpdated': True,
                     },
                     {
-                        'uuid': '>?<',
+                        'uuid': 'uuid2',
                         'index': 1,
                         'instruction': 'theInstruction2',
                         'information': 'theInformation2',
@@ -667,7 +667,7 @@ def test_computed_questionnaires(get_json, upsert_json):
                         'isUpdated': True,
                     },
                     {
-                        'uuid': '>?<',
+                        'uuid': 'uuid3',
                         'index': 2,
                         'instruction': 'theInstruction3',
                         'information': 'theInformation3',

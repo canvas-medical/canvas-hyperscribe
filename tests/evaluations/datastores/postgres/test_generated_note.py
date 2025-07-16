@@ -23,6 +23,33 @@ def test_class():
     assert issubclass(GeneratedNote, Postgres)
 
 
+@patch.object(GeneratedNote, "_select")
+def test_last_run_for(select):
+    def reset_mock():
+        select.reset_mock()
+
+    tested = helper_instance()
+
+    tests = [
+        ([], (0, 0)),
+        ([{"case_id": 123, "generated_note_id": 456}], (123, 456)),
+    ]
+    for select_side_effect, expected in tests:
+        select.side_effect = [select_side_effect]
+        result = tested.last_run_for("theCase")
+        assert result == expected
+
+        assert len(select.mock_calls) == 1
+        sql, params = select.mock_calls[0].args
+        exp_sql = ('SELECT c."id" AS "case_id", MAX(gn."id") AS "generated_note_id" '
+                   'FROM "case" c JOIN generated_note gn ON c.id = gn.case_id '
+                   'WHERE c."name" = %(name)s '
+                   'GROUP BY c."id"')
+        assert compare_sql(sql, exp_sql)
+        exp_params = {"name": "theCase"}
+        assert params == exp_params
+        reset_mock()
+
 @patch("evaluations.datastores.postgres.generated_note.datetime", wraps=datetime)
 @patch.object(GeneratedNote, "_alter")
 def test_insert(alter, mock_datetime):

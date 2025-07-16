@@ -7,6 +7,16 @@ from evaluations.structures.records.generated_note import GeneratedNote as Recor
 
 
 class GeneratedNote(Postgres):
+    def last_run_for(self, case_name: str) -> tuple[int, int]:
+        sql: LiteralString = """
+                             SELECT c."id" AS "case_id", MAX(gn."id") AS "generated_note_id"
+                             FROM "case" c
+                                      JOIN generated_note gn ON c.id = gn.case_id
+                             WHERE c."name" = %(name)s
+                             GROUP BY c."id" """
+        for record in self._select(sql, {"name": case_name}):
+            return int(record["case_id"]), int(record["generated_note_id"])
+        return 0, 0
 
     def insert(self, case: Record) -> Record:
         params = {

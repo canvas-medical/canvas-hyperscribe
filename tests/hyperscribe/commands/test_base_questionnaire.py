@@ -523,6 +523,24 @@ def test_update_from_transcript(include_skipped):
     assert mock_chatter.mock_calls == calls
     reset_mocks()
 
+    # invalid question definition
+    instruction = Instruction(
+        uuid="theUuid",
+        index=0,
+        instruction="theInstruction",
+        information="something",
+        is_new=False,
+        is_updated=True,
+    )
+    include_skipped.side_effect = []
+    mock_chatter.single_conversation.side_effect = []
+    result = tested.update_from_transcript(discussion, instruction, mock_chatter)
+    assert result is None
+    assert include_skipped.mock_calls == []
+    assert mock_chatter.mock_calls == []
+    reset_mocks()
+
+
 
 @patch.object(BaseQuestionnaire, 'sdk_command')
 def test_command_from_questionnaire(sdk_command):

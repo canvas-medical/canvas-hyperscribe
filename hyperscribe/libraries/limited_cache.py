@@ -392,8 +392,11 @@ class LimitedCache:
     @classmethod
     def load_from_json(cls, cache: dict) -> LimitedCache:
         staged_commands = {
-            key: [CodedItem.load_from_json(i) for i in commands]
-            for key, commands in cache.get("stagedCommands", {}).items()
+            key: [
+                CodedItem.load_from_json(cmd | {"uuid": f"xyz{idx * 1000 + num:04d}"})
+                for num, cmd in enumerate(commands)
+            ]
+            for idx, (key, commands) in enumerate(cache.get("stagedCommands", {}).items())
         }
 
         result = cls(Constants.FAUX_PATIENT_UUID, Constants.FAUX_PROVIDER_UUID, staged_commands)

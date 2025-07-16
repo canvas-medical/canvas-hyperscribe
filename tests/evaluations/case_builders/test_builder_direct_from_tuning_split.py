@@ -44,7 +44,7 @@ def helper_instance() -> BuilderDirectFromTuningSplit:
         provider_uuid="providerUuid",
         canvas_instance="canvasInstance",
     )
-    return BuilderDirectFromTuningSplit(settings, s3_credentials, identification, Path("/some/path"), 45, True)
+    return BuilderDirectFromTuningSplit(settings, s3_credentials, identification, Path("/some/path"), 45, True, True)
 
 
 def test_class():

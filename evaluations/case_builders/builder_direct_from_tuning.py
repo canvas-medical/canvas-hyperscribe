@@ -10,6 +10,7 @@ import ffmpeg
 
 from evaluations.auditors.auditor_postgres import AuditorPostgres
 from evaluations.constants import Constants as EvaluationConstants
+from evaluations.datastores.postgres.generated_note import GeneratedNote
 from evaluations.datastores.postgres.real_world_case import RealWorldCase as RealWorldCaseStore
 from evaluations.helper_evaluation import HelperEvaluation
 from evaluations.structures.anonymization import Anonymization
@@ -53,6 +54,7 @@ class BuilderDirectFromTuning:
         parser.add_argument("--path_temp_files", type=str, help="Folder to store temporary files, if provided, most existing files will be reused")
         parser.add_argument("--cycle_duration", type=int, required=True, help="Duration of each cycle, i.e. the duration of the audio chunks")
         parser.add_argument("--force_refresh", action="store_true", help="Force refresh the temporary files")
+        parser.add_argument("--force_rerun", action="store_true", help="Force rerun the cases generation")
         cls._parameters(parser)
         return parser.parse_args()
 
@@ -79,6 +81,7 @@ class BuilderDirectFromTuning:
                 output_dir,
                 parameters.cycle_duration,
                 parameters.force_refresh,
+                parameters.force_rerun,
             )
             instance._run()
 
@@ -90,6 +93,7 @@ class BuilderDirectFromTuning:
             output_dir: Path,
             cycle_duration: int,
             force_refresh: bool,
+            force_rerun: bool,
     ) -> None:
         self.settings = settings
         self.s3_credentials = s3_credentials
@@ -97,6 +101,7 @@ class BuilderDirectFromTuning:
         self.output_dir = output_dir
         self.cycle_duration = cycle_duration
         self.force_refresh = force_refresh
+        self.force_rerun = force_rerun
 
     def generate_case(
             self,
@@ -106,11 +111,17 @@ class BuilderDirectFromTuning:
     ) -> list[Instruction]:
         credentials = HelperEvaluation.postgres_credentials()
 
+        auditor = AuditorPostgres(case_summary.title, 0, self.settings, self.s3_credentials, credentials)
+        case_id, generated_note_id = GeneratedNote(credentials).last_run_for(case_summary.title)
+        if case_id and generated_note_id and self.force_rerun is False:
+            auditor._case_id = case_id
+            auditor._generated_note_id = generated_note_id
+            return auditor.summarized_generated_commands_as_instructions()
+
         chatter = AudioInterpreter(self.settings, self.s3_credentials, limited_cache, self.identification)
         previous = limited_cache.staged_commands_as_instructions(ImplementedCommands.schema_key2instruction())
         discussion = CachedSdk.get_discussion(chatter.identification.note_uuid)
 
-        auditor = AuditorPostgres(case_summary.title, 0, self.settings, self.s3_credentials, credentials)
         auditor.case_prepare()
         auditor.case_update_limited_cache(limited_cache.to_json(True))
         RealWorldCaseStore(credentials).upsert(RealWordCaseRecord(

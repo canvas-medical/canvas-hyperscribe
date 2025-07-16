@@ -124,7 +124,12 @@ class BaseQuestionnaire(Base):
             instruction: Instruction,
             chatter: LlmBase,
     ) -> QuestionnaireDefinition | None:
-        questionnaire = QuestionnaireDefinition.load_from(json.loads(instruction.information))
+        # TODO identify the questionnaire on the fly and provide the actual definition
+        try:
+            json_data = json.loads(instruction.information)
+        except json.JSONDecodeError:
+            return None
+        questionnaire = QuestionnaireDefinition.load_from(json_data)
         system_prompt = [
             "The conversation is in the context of a clinical encounter between patient and licensed healthcare provider.",
             f"The healthcare provider is editing a questionnaire '{questionnaire.name}', potentially without notifying the patient to prevent biased answers.",

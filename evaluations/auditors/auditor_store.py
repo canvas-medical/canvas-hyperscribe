@@ -78,11 +78,11 @@ class AuditorStore(Auditor):
             "transcript": [line.to_json() for line in transcript],
             "instructions": {
                 "initial": [
-                    instruction.to_json(True) | {"uuid": Constants.IGNORED_KEY_VALUE}
+                    instruction.to_json(True)  # | {"uuid": Constants.IGNORED_KEY_VALUE}
                     for instruction in initial_instructions
                 ],
                 "result": [
-                    instruction.to_json(False) | {"uuid": Constants.IGNORED_KEY_VALUE}
+                    instruction.to_json(False)  # | {"uuid": Constants.IGNORED_KEY_VALUE}
                     for instruction in cumulated_instructions
                 ],
             },
@@ -139,7 +139,7 @@ class AuditorStore(Auditor):
         content[self.cycle_key] = {
             "transcript": [line.to_json() for line in transcript],
             "instructions": [
-                instruction.to_json(False) | {"uuid": Constants.IGNORED_KEY_VALUE}
+                instruction.to_json(False)  # |  {"uuid": Constants.IGNORED_KEY_VALUE}
                 for instruction in initial_instructions
             ],
             "commands": [
