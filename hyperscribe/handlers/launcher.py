@@ -24,26 +24,18 @@ class Launcher(ActionButton):
 
     def handle(self) -> list[Effect]:
         note_id = str(Note.objects.get(dbid=self.event.context['note_id']).id)
-        audio_server_base_url = self.secrets[Constants.SECRET_AUDIO_HOST].rstrip('/')
         patient_id = self.target
-        identification = IdentificationParameters(
-            patient_uuid=patient_id,
-            note_uuid=note_id,
-            provider_uuid='N/A',  # this field is not used within this handle() method
-            canvas_instance=self.environment[Constants.CUSTOMER_IDENTIFIER],
+
+        presigned_url = Authenticator.presigned_url(
+            self.secrets[Constants.SECRET_API_SIGNING_KEY],
+            f"{Constants.PLUGIN_API_BASE_ROUTE}/capture/{patient_id}/{note_id}",
+            {},
         )
-        encoded_params = urlencode({
-            "interval": self.secrets[Constants.SECRET_AUDIO_INTERVAL],
-            "end_flag": Constants.PROGRESS_END_OF_MESSAGES,
-            "progress": Authenticator.presigned_url(
-                self.secrets[Constants.SECRET_API_SIGNING_KEY],
-                f"{identification.canvas_host()}/plugin-io/api/hyperscribe/progress",
-                {"note_id": note_id},
-            ),
-        })
+
         hyperscribe_pane = LaunchModalEffect(
-            url=f"{audio_server_base_url}/capture/{patient_id}/{note_id}?{encoded_params}",
-            target=LaunchModalEffect.TargetType.RIGHT_CHART_PANE
+            url=presigned_url,
+            target=LaunchModalEffect.TargetType.RIGHT_CHART_PANE,
+            title="Hyperscribe"
         )
         return [hyperscribe_pane.apply()]
 
