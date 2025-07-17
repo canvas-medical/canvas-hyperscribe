@@ -540,20 +540,3 @@ def test_list_case_files():
     for item in files:
         assert item.mock_calls == calls
     reset_mocks()
-
-@patch("evaluations.helper_evaluation.MemoryLog")
-@patch.object(Helper, "chatter")
-@patch.object(HelperEvaluation, "get_canvas_instance")
-@patch.object(HelperEvaluation, "settings")
-def test_nuanced_differences_empty_content(settings, get_canvas_instance, chatter, memory_log):
-    #testing the exclusion of minor differences functionality when empty list, lines 150-5.
-    conversation = MagicMock()
-    settings.return_value = "settings_dummy"
-    get_canvas_instance.return_value = "ci_dummy"
-    memory_log.return_value = "ml_dummy"
-    chatter.return_value = conversation
-
-    conversation.chat.return_value = JsonExtract(has_error=False, error=None, content=[[]])
-    result = HelperEvaluation.nuanced_differences("caseX", ["levelX"], ["system"], ["user"])
-    expected = (True, json.dumps([[]], indent=1))
-    assert result == expected

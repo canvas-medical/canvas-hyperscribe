@@ -349,6 +349,103 @@ def test_list_s3_objects(is_ready, headers, requests_get):
         assert requests_get.mock_calls == []
         rest_mocks()
 
+@patch("hyperscribe.libraries.aws_s3.requests_get")
+@patch.object(AwsS3, "headers")
+@patch.object(AwsS3, "is_ready")
+def test_list_s3_objects__with_continuation(is_ready, headers, requests_get):
+    
+    # prepare client
+    creds = AwsS3Credentials(
+        aws_key="theKey", aws_secret="theSecret",
+        region="theRegion", bucket="theBucket"
+    )
+    client = AwsS3(creds)
+    is_ready.return_value = True
+    headers.return_value = {"Host": "theHost"}
+    xml = (Path(__file__).parent / "list_s3_files.xml").read_text(encoding="utf-8")
+
+    xml1 = re.sub(
+        r"<IsTruncated>false</IsTruncated>",
+        "<IsTruncated>true</IsTruncated>\n<NextContinuationToken>tok123</NextContinuationToken>",
+        xml
+    ).encode("utf-8")
+    xml2 = xml.encode("utf-8")
+
+    # two mock responses
+    resp1 = MagicMock()
+    resp1.status_code = 200
+    resp1.content = xml1
+
+    resp2 = MagicMock()
+    resp2.status_code = 200
+    resp2.content = xml2
+
+    requests_get.side_effect = [resp1, resp2]
+    objs = client.list_s3_objects("some/prefix")
+    assert len(objs) == 6
+    assert all(isinstance(o, AwsS3Object) for o in objs)
+    assert is_ready.mock_calls == [call()]
+    assert headers.mock_calls == [
+        call("", params={"list-type": 2, "prefix": "some/prefix"}),
+        call("", params={"list-type": 2, "prefix": "some/prefix", "continuation-token": "tok123"}),
+    ]
+    assert requests_get.mock_calls == [
+        call(
+            "https://theHost",
+            params={"list-type": 2, "prefix": "some/prefix"},
+            headers={"Host": "theHost"},
+        ),
+        call(
+            "https://theHost",
+            params={"list-type": 2, "prefix": "some/prefix", "continuation-token": "tok123"},
+            headers={"Host": "theHost"},
+        ),
+    ]
+
+'''
+Simulates IsTruncated=true, but without a NextContinuationToken, 
+should can trigger break after one page. 
+'''
+@patch("hyperscribe.libraries.aws_s3.requests_get")
+@patch.object(AwsS3, "headers")
+@patch.object(AwsS3, "is_ready")
+def test_list_s3_objects__truncated_without_token(is_ready, headers, requests_get):
+    creds = AwsS3Credentials(
+        aws_key="theKey", aws_secret="theSecret",
+        region="theRegion", bucket="theBucket"
+    )
+    client = AwsS3(creds)
+
+    is_ready.return_value = True
+    headers.return_value = {"Host": "theHost"}
+
+    # load XML and force <IsTruncated>true</IsTruncated> but remove any NextContinuationToken
+    xml = (Path(__file__).parent / "list_s3_files.xml").read_text(encoding="utf-8")
+    xml_trunc = re.sub(
+        r"<IsTruncated>false</IsTruncated>",
+        "<IsTruncated>true</IsTruncated>",
+        xml
+    ).encode("utf-8")
+
+    resp = MagicMock()
+    resp.status_code = 200
+    resp.content = xml_trunc
+    requests_get.return_value = resp
+
+    objs = client.list_s3_objects("some/prefix")
+    assert len(objs) == 3
+    assert all(isinstance(o, AwsS3Object) for o in objs)
+    assert is_ready.mock_calls == [call()]
+    assert headers.mock_calls == [
+        call("", params={"list-type": 2, "prefix": "some/prefix"})
+    ]
+    assert requests_get.mock_calls == [
+        call(
+            "https://theHost",
+            params={"list-type": 2, "prefix": "some/prefix"},
+            headers={"Host": "theHost"},
+        )
+    ]
 
 @patch("hyperscribe.libraries.aws_s3.datetime", wraps=datetime)
 @patch.object(AwsS3, "is_ready")
@@ -412,99 +509,3 @@ def test_generate_presigned_url(is_ready, mock_datetime):
 S3 returns IsTruncated=true with NextContinuationToken,
 leading to just a second page fetch.
 '''
-    
-@patch("hyperscribe.libraries.aws_s3.requests_get")
-@patch.object(AwsS3, "headers")
-@patch.object(AwsS3, "is_ready")
-def test_list_s3_objects_with_continuation(is_ready, headers, requests_get):
-    
-    # prepare client
-    creds = AwsS3Credentials(
-        aws_key="theKey", aws_secret="theSecret",
-        region="theRegion", bucket="theBucket"
-    )
-    client = AwsS3(creds)
-    is_ready.return_value = True
-    headers.return_value = {"Host": "theHost"}
-    xml = (Path(__file__).parent / "list_s3_files.xml").read_text(encoding="utf-8")
-
-    xml1 = re.sub(
-        r"<IsTruncated>false</IsTruncated>",
-        "<IsTruncated>true</IsTruncated>\n<NextContinuationToken>tok123</NextContinuationToken>",
-        xml
-    ).encode("utf-8")
-    xml2 = xml.encode("utf-8")
-
-    # two mock responses
-    resp1 = MagicMock()
-    resp1.status_code = 200
-    resp1.content = xml1
-
-    resp2 = MagicMock()
-    resp2.status_code = 200
-    resp2.content = xml2
-
-    requests_get.side_effect = [resp1, resp2]
-    objs = client.list_s3_objects("some/prefix")
-    assert len(objs) == 6
-    assert all(isinstance(o, AwsS3Object) for o in objs)
-    assert headers.mock_calls == [
-        call("", params={"list-type": 2, "prefix": "some/prefix"}),
-        call("", params={"list-type": 2, "prefix": "some/prefix", "continuation-token": "tok123"}),
-    ]
-    assert requests_get.mock_calls == [
-        call(
-            "https://theHost",
-            params={"list-type": 2, "prefix": "some/prefix"},
-            headers={"Host": "theHost"},
-        ),
-        call(
-            "https://theHost",
-            params={"list-type": 2, "prefix": "some/prefix", "continuation-token": "tok123"},
-            headers={"Host": "theHost"},
-        ),
-    ]
-
-'''
-Simulates IsTruncated=true, but without a NextContinuationToken, 
-should can trigger break after one page. 
-'''
-@patch("hyperscribe.libraries.aws_s3.requests_get")
-@patch.object(AwsS3, "headers")
-@patch.object(AwsS3, "is_ready")
-def test_list_s3_objects_truncated_without_token(is_ready, headers, requests_get):
-    creds = AwsS3Credentials(
-        aws_key="theKey", aws_secret="theSecret",
-        region="theRegion", bucket="theBucket"
-    )
-    client = AwsS3(creds)
-
-    is_ready.return_value = True
-    headers.return_value = {"Host": "theHost"}
-
-    # load XML and force <IsTruncated>true</IsTruncated> but remove any NextContinuationToken
-    xml = (Path(__file__).parent / "list_s3_files.xml").read_text(encoding="utf-8")
-    xml_trunc = re.sub(
-        r"<IsTruncated>false</IsTruncated>",
-        "<IsTruncated>true</IsTruncated>",
-        xml
-    ).encode("utf-8")
-
-    resp = MagicMock()
-    resp.status_code = 200
-    resp.content = xml_trunc
-    requests_get.return_value = resp
-
-    objs = client.list_s3_objects("some/prefix")
-    assert len(objs) == 3
-    assert all(isinstance(o, AwsS3Object) for o in objs)
-    assert headers.mock_calls == [
-        call("", params={"list-type": 2, "prefix": "some/prefix"})
-    ]
-    assert requests_get.mock_calls == [
-        call(
-            "https://theHost",
-            params={"list-type": 2, "prefix": "some/prefix"},
-            headers={"Host": "theHost"},
-        )
-    ]

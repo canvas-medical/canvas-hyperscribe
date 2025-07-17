@@ -46,17 +46,15 @@ class NoteGrader:
             }
         }
 
-    def build_prompts(self) -> Tuple[List[str], List[str]]:
+    def build_prompts(self) -> Tuple[list[str], list[str]]:
         """Returns system‑prompt and user‑prompt as single strings, joined with new lines."""
 
-        system_prompt = "\n".join([
-            "You are a clinical‑documentation grading assistant.",
+        system_prompt = ["You are a clinical‑documentation grading assistant.",
             "You evaluate medical‑scribe notes using structured rubrics.",
-            "The JSON response MUST satisfy the following JSON‑Schema:"
-            "",
-            json.dumps(self.schema_scores(), indent=2),])
+            "The JSON response MUST satisfy the following JSON‑Schema:",
+            json.dumps(self.schema_scores(), indent=2)]
 
-        user_prompt = "\n".join([
+        user_prompt = [
             "Given the rubric and the Hyperscribe output below, return **only** a "
             "JSON array where each element corresponds to the rubric criteria in "
             "order.",
@@ -72,7 +70,7 @@ class NoteGrader:
             "---- END RUBRIC JSON ----",
             "---- BEGIN HYPERSCRIBE OUTPUT JSON ----",
             json.dumps(self.note, indent=2),
-            "---- END HYPERSCRIBE OUTPUT JSON ----",])
+            "---- END HYPERSCRIBE OUTPUT JSON ----",]
 
         return system_prompt, user_prompt
 
@@ -86,7 +84,7 @@ class NoteGrader:
             vendor_key = self.vendor_key,
             system_prompt = sys_prompt,
             user_prompt = user_prompt,
-            schema = schema,)
+            schema = schema)
 
         llm_results = [GradedCriterion(**r) for r in parsed]
 
@@ -106,7 +104,7 @@ class NoteGrader:
         self.output_path.write_text(json.dumps(final, indent=2))
         print("Saved grading result in", self.output_path)
 
-
+    @staticmethod
     def main() -> None:
         parser = argparse.ArgumentParser(description="Grade a note against a rubric.")
         parser.add_argument("--rubric", type=Path, required=True, help="Path to rubric.json")

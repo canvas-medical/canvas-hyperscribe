@@ -148,7 +148,7 @@ class AwsS3:
                     ))
 
             truncated_match = truncated_pattern.search(response_text)
-            is_truncated = truncated_match and truncated_match.group(1) == "true"
+            is_truncated = bool(truncated_match and truncated_match.group(1) == "true")
             if is_truncated:
                 token_match = token_pattern.search(response_text)
                 if token_match:

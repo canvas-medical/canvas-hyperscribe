@@ -1,26 +1,15 @@
 from __future__ import annotations
-import re, json, sys, jsonschema
+import json, sys, jsonschema
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict
 from hyperscribe.llms.llm_openai_o3 import LlmOpenaiO3
 from hyperscribe.libraries.memory_log import MemoryLog
 from hyperscribe.structures.vendor_key import VendorKey
 
 class HelperSyntheticJson:
-    _FENCE_RE = re.compile(r"```(?:json)?\s*(.*?)\s*```", re.DOTALL | re.IGNORECASE)
-
     @staticmethod
-    def _extract_json_block(text: str) -> str:
-        """
-        If *text* contains a fenced ```json … ``` block, return its contents;
-        otherwise return *text* unchanged.
-        """
-        match = HelperSyntheticJson._FENCE_RE.search(text)
-        return (match.group(1) if match else text).strip()
-
-    @staticmethod
-    def generate_json(vendor_key: VendorKey, system_prompt: List[str],
-        user_prompt: List[str], schema: Dict[str, Any],) -> Any:
+    def generate_json(vendor_key: VendorKey, system_prompt: list[str],
+        user_prompt: list[str], schema: Dict[str, Any],) -> Any:
         """
         1) Creates an O3 LLM client.
         2) Sends *system_prompt* and *user_prompt* (lists of strings).
@@ -35,26 +24,20 @@ class HelperSyntheticJson:
         llm.set_system_prompt(system_prompt)
         llm.set_user_prompt(user_prompt)
 
-        result = llm.chat()
+        result = llm.chat(schemas=[schema])
 
-        #check lower-level issues.
         if result.has_error:
-            error_file = Path("invalid_output.json")
-            error_file.write_text(result.error)
-            print("LlmBase.chat() returned an error; raw message saved to", error_file)
+            Path("invalid_output.json").write_text(result.error)
+            print("LlmBase.chat() returned an error; error message saved to invalid_output.json")
             sys.exit(1)
 
-        #extract JSON from fenced block if present, otherwise exit in error file.
-        json_text = HelperSyntheticJson._extract_json_block(result.content)
+        parsed = result.content[0]
 
         try:
-            parsed = json.loads(json_text)
             jsonschema.validate(instance=parsed, schema=schema)
-            return parsed
-
-        except Exception as e:
-            error_file = Path("invalid_output.json")
-            error_file.write_text(result.content)
+        except jsonschema.exceptions.ValidationError as e:
+            Path("invalid_output.json").write_text(json.dumps(parsed))
             print("Generated output failed JSON‑schema validation (", e, ").")
-            print("Saved invalid output to", error_file)
             sys.exit(1)
+
+        return parsed

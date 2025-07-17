@@ -8,3 +8,4 @@ def test_class():
         "api_key": str,
     }
     assert is_namedtuple(tested, fields)
+    

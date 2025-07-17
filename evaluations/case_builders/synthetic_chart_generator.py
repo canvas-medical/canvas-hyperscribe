@@ -65,7 +65,7 @@ class SyntheticChartGenerator:
             vendor_key=self.vendor_key,
             system_prompt=system_prompt,
             user_prompt=user_prompt,
-            schema=schema,))
+            schema=schema))
 
         return chart_json
 
@@ -109,6 +109,7 @@ class SyntheticChartGenerator:
                 json.dump(chart, f, indent=2)
             print(f"Saved limited_chart.json to {out_path}")
 
+    @staticmethod
     def main() -> None:
         parser = argparse.ArgumentParser(
             description="Generate Canvas-compatible limited_chart.json files.")
