@@ -110,7 +110,7 @@ class AwsS3:
     def list_s3_objects(self, prefix: str) -> list[AwsS3Object]:
         result: list[AwsS3Object] = []
         if not self.is_ready():
-            return []
+            return result
 
         continuation_token = None
         truncated_pattern = re_compile(r"<IsTruncated>(true|false)</IsTruncated>")
