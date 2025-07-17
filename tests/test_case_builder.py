@@ -56,8 +56,17 @@ def test_run(
         ([], "no explicit action to perform\n", [], [], [], [], [], [], [], [], []),
     ]
 
-    for (arguments, exp_out, call_delete, call_transcript, call_tuning, call_mp3, 
-         call_audit, call_summarize, call_chart_transcript, call_direct_split, call_direct_full,) in tests:
+    for (arguments, 
+         exp_out, 
+         call_delete, 
+         call_transcript, 
+         call_tuning, 
+         call_mp3, 
+         call_audit, 
+         call_summarize, 
+         call_chart_transcript, 
+         call_direct_split, 
+         call_direct_full) in tests:
         CaseBuilder.run(arguments)
 
         result = capsys.readouterr().out

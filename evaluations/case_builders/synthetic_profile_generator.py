@@ -7,9 +7,9 @@ from evaluations.helper_evaluation import HelperEvaluation
 from evaluations.case_builders.helper_synthetic_json import HelperSyntheticJson
 
 class SyntheticProfileGenerator:
-    def __init__(self, vendor_key: VendorKey, output_path_str: str) -> None:
+    def __init__(self, vendor_key: VendorKey, output_path: Path) -> None:
         self.vendor_key = vendor_key
-        self.output_path = output_path_str
+        self.output_path = output_path
         self.seen_scenarios: List[str]    = []
         self.all_profiles:   Dict[str,str] = {}
 
@@ -95,8 +95,7 @@ class SyntheticProfileGenerator:
             vendor_key=self.vendor_key,
             system_prompt=system_prompt,
             user_prompt=user_prompt,
-            schema=schema,
-            retries=3))
+            schema=schema))
 
         for name, content in batch.items():
             self.seen_scenarios.append(self._extract_initial_fragment(content))
@@ -111,6 +110,7 @@ class SyntheticProfileGenerator:
         self._save_combined()
         self._save_individuals()
 
+    @staticmethod
     def main() -> None:
         parser = argparse.ArgumentParser(
             description="Generate synthetic patient-profile JSON batches.")
@@ -119,9 +119,8 @@ class SyntheticProfileGenerator:
         parser.add_argument("--output",     type=Path, required=True, help="Combined JSON output path")
         args = parser.parse_args()
 
-        directory=Path(args.output)
-        if not directory.exists():
-            directory.mkdir(parents=True, exist_ok=True)
+        output_path=Path(args.output)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
 
         settings = HelperEvaluation.settings()
         vendor_key = settings.llm_text 

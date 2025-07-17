@@ -1,10 +1,11 @@
 import json
 import sys
 from pathlib import Path
+from argparse import Namespace
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, call
 
-from evaluations.case_builders.note_grader import NoteGrader
+from evaluations.case_builders.note_grader import NoteGrader, HelperEvaluation
 from hyperscribe.structures.vendor_key import VendorKey
 from evaluations.structures.rubric_criterion import RubricCriterion
 
@@ -23,39 +24,45 @@ def tmp_files(tmp_path):
     note_path.write_text(json.dumps(note))
     return rubric_path, note_path, output_path, rubric, note
 
-@patch("evaluations.case_builders.note_grader.generate_json")
-def test_run_happy_path(mock_generate_json, tmp_files):
+@patch("evaluations.case_builders.note_grader.HelperSyntheticJson.generate_json")
+def test_run__success(mock_generate_json, tmp_files):
     rubric_path, note_path, output_path, rubric, note = tmp_files
 
     expected = [
         {"rationale": "good", "satisfaction": 80.0,  "score": 16.0},
         {"rationale": "bad",  "satisfaction": 25.0, "score": -22.5},
     ]
-    mock_generate_json.side_effect = [
-        {"rationale": "good", "satisfaction": 80},
-        {"rationale": "bad",  "satisfaction": 25},
-    ]
+    mock_generate_json.side_effect = [[
+        {"id": 0, "rationale": "good", "satisfaction": 80},
+        {"id": 1, "rationale": "bad",  "satisfaction": 25},
+    ]]
 
     vendor_key = VendorKey(vendor="openai", api_key="KEY")
     rubric_objs = [RubricCriterion(**item) for item in rubric]
-    NoteGrader(vendor_key=vendor_key, rubric=rubric_objs,
-        note=note, output_path=output_path).run()
+    grader = NoteGrader(vendor_key=vendor_key, rubric=rubric_objs,
+        note=note, output_path=output_path)
+
+    system_prompt, user_prompt = grader.build_prompts()
+    schema = grader.schema_scores()
+    grader.run()
 
     result = json.loads(output_path.read_text())
+    expected = [
+        {"rationale": "good", "satisfaction": 80, "score": 16.0},
+        {"rationale": "bad",  "satisfaction": 25, "score": -22.5},
+    ]
     assert result == expected
 
-    # Ensure generate_json was called once with correct kwargs
-    mock_generate_json.assert_called_once()
-    _, kwargs = mock_generate_json.call_args
-    assert kwargs["vendor_key"] is vendor_key
-    assert kwargs["retries"] == 3
+    # ensure generate_json got exactly the call we expected
+    expected_call = call(
+        vendor_key=vendor_key,
+        system_prompt=system_prompt,
+        user_prompt=user_prompt,
+        schema=schema)
+    assert mock_generate_json.mock_calls == [expected_call]
 
-    schema = kwargs["schema"]
-    assert schema["minItems"] == len(rubric)
-    assert schema["maxItems"] == len(rubric)
-
-@patch("evaluations.case_builders.note_grader.generate_json", side_effect=SystemExit(1))
-def test_run_raises_on_generate_failure(mock_generate_json, tmp_files):
+@patch("evaluations.case_builders.note_grader.HelperSyntheticJson.generate_json", side_effect=SystemExit(1))
+def test_run__raises_on_generate_failure(mock_generate_json, tmp_files):
     rubric_path, note_path, output_path, rubric, note = tmp_files
 
     vendor_key = VendorKey(vendor="openai", api_key="KEY")
@@ -73,43 +80,39 @@ def test_run_raises_on_generate_failure(mock_generate_json, tmp_files):
     assert exc_info.value.code == 1
     mock_generate_json.assert_called_once()
 
-def test_main_parses_args_and_invokes_run(monkeypatch, tmp_path):
-    tested = NoteGrader.main
-
+def test_main(tmp_path):
     dummy_settings = MagicMock()
     dummy_settings.llm_text = VendorKey(vendor="test", api_key="MY_API_KEY")
-    monkeypatch.setattr(
-        "evaluations.case_builders.grader.Settings.from_dictionary",
-        classmethod(lambda cls, env: dummy_settings)
-    )
 
     rubric_data = [{"criterion": "X", "weight": 1, "sense": "positive"}]
-    note_data = {"foo": "bar"}
-
+    note_data   = {"foo": "bar"}
     rubric_file = tmp_path / "rubric.json"
-    note_file = tmp_path / "note.json"
-    out_file = tmp_path / "out.json"
+    note_file   = tmp_path / "note.json"
+    out_file    = tmp_path / "out.json"
     rubric_file.write_text(json.dumps(rubric_data))
     note_file.write_text(json.dumps(note_data))
 
-    run_calls = {}
+    fake_args = Namespace(
+        rubric=rubric_file,
+        note=note_file,
+        output=out_file)
 
+    run_calls = {}
     def fake_run(self):
-        run_calls["self"] = self
+        run_calls["inst"] = self
         run_calls["called"] = True
 
-    monkeypatch.setattr(NoteGrader, "run", fake_run)
+    with patch.object(HelperEvaluation, "settings", classmethod(lambda cls: dummy_settings)), \
+         patch("evaluations.case_builders.note_grader.argparse.ArgumentParser.parse_args", return_value=fake_args), \
+         patch.object(NoteGrader, "run", fake_run):
+         NoteGrader.main()
 
-    monkeypatch.setattr(sys, "argv", [
-        "prog",
-        "--rubric", str(rubric_file),
-        "--note",   str(note_file),
-        "--output", str(out_file),
-    ])
-
-    tested()
-
-    #testing calls
     assert run_calls.get("called") is True
-    assert isinstance(run_calls["self"], NoteGrader)
-    assert run_calls["self"].vendor_key.api_key == "MY_API_KEY"
+    inst = run_calls["inst"]
+    assert isinstance(inst, NoteGrader)
+    assert inst.vendor_key.api_key == "MY_API_KEY"
+
+    # confirm it read & wrapped the rubric correctly
+    assert inst.rubric == [RubricCriterion(**rubric_data[0])]
+    assert inst.note == note_data
+    assert inst.output_path == out_file

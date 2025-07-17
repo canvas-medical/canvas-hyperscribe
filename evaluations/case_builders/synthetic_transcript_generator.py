@@ -118,7 +118,7 @@ class SyntheticTranscriptGenerator:
             vendor_key=self.vendor_key,
             system_prompt=system_lines,
             user_prompt=user_lines,
-            schema=schema,)
+            schema=schema)
 
         first_line = transcript[0].get("text", "").strip().lower()
         self.seen_openings.add(first_line)
@@ -140,7 +140,8 @@ class SyntheticTranscriptGenerator:
             (patient_dir / "transcript.json").write_text(json.dumps(transcript, indent=2))
             (patient_dir / "spec.json").write_text(json.dumps(spec, indent=2))
             print(f"Saved => {patient_dir/'transcript.json'}, {patient_dir/'spec.json'}")
-
+    
+    @staticmethod
     def main() -> None:
         parser = argparse.ArgumentParser(
             description="Generate synthetic transcripts from patient profiles.")

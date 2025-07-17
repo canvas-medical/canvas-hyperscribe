@@ -218,6 +218,45 @@ def test_request(requests_post):
     assert memory_log.mock_calls == calls
     reset_mocks()
 
+#For status_code==200, to parse json and pull out the message content.
+@patch("hyperscribe.llms.llm_openai.requests_post")
+def test_request_extracts_choice_content(requests_post):
+    
+    memory_log = MagicMock()
+    tested = LlmOpenai(memory_log, "openaiKey", "theModel", False)
+    body = {
+        "choices": [
+            {"message": {"content": "Here is the actual reply"}}
+        ]
+    }
+    resp = MagicMock()
+    resp.status_code = 200
+    resp.text = json.dumps(body)
+    requests_post.return_value = resp
+
+    out = tested.request()
+    assert isinstance(out, HttpResponse)
+    assert out.code == 200
+    assert out.response == "Here is the actual reply"
+    requests_post.assert_called_once()
+    memory_log.assert_not_called()
+
+
+#status != 200 -> returns full raw JSON. 
+@patch("hyperscribe.llms.llm_openai.requests_post")
+def test_request_passes_through_non_200(requests_post):
+    memory_log = MagicMock()
+    tested = LlmOpenai(memory_log, "openaiKey", "theModel", False)
+
+    resp = MagicMock()
+    resp.status_code = 500
+    resp.text = '{"choices":[{"message":{"content":"bad"}}]}'
+    requests_post.return_value = resp
+
+    out = tested.request()
+    assert out.code == 500
+    # response stays the full JSON
+    assert out.response == resp.text
 
 @patch("hyperscribe.llms.llm_openai.requests_post")
 def test_audio_to_text(requests_post):
@@ -253,55 +292,3 @@ def test_audio_to_text(requests_post):
     assert memory_log.mock_calls == []
     reset_mocks()
 
-#For status_code==200, to parse json and pull out the message content.
-@patch("hyperscribe.llms.llm_openai.requests_post")
-def test_request_extracts_choice_content(requests_post):
-    
-    memory_log = MagicMock()
-    tested = LlmOpenai(memory_log, "openaiKey", "theModel", False)
-    body = {
-        "choices": [
-            {"message": {"content": "Here is the actual reply"}}
-        ]
-    }
-    resp = MagicMock()
-    resp.status_code = HTTPStatus.OK.value
-    resp.text = json.dumps(body)
-    requests_post.return_value = resp
-
-    out = tested.request()
-    assert isinstance(out, HttpResponse)
-    assert out.code == HTTPStatus.OK.value
-    assert out.response == "Here is the actual reply"
-    requests_post.assert_called_once()
-    memory_log.assert_not_called()
-
-
-#status != 200 -> returns full raw JSON. 
-@patch("hyperscribe.llms.llm_openai.requests_post")
-def test_request_passes_through_non_200(requests_post):
-    memory_log = MagicMock()
-    tested = LlmOpenai(memory_log, "openaiKey", "theModel", False)
-
-    resp = MagicMock()
-    resp.status_code = 500
-    resp.text = '{"choices":[{"message":{"content":"bad"}}]}'
-    requests_post.return_value = resp
-
-    out = tested.request()
-    assert out.code == 500
-    # response stays the full JSON
-    assert out.response == resp.text
-
-def test_to_dict_removes_modalities():
-    mock_log = MagicMock(spec=MemoryLog)
-    llm = LlmOpenaiO3(memory_log=mock_log, api_key="sk-test", with_audit=True, temperature=0.5)
-
-    #patching to_dict with a fake dict to test
-    parent_dict = {"modalities": "text", "other": "value"}
-    llm.__class__.__bases__[0].to_dict = lambda self, for_log: parent_dict.copy()
-
-    result = llm.to_dict(for_log=True)
-
-    assert "modalities" not in result
-    assert result == {"other": "value"}

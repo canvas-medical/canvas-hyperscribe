@@ -1,45 +1,46 @@
-import json
-import sys
-import pytest
+import json, pytest
 from pathlib import Path
-from unittest.mock import patch, MagicMock
-
-from evaluations.case_builders.rubric_generator import RubricGenerator
+from argparse import Namespace
+from unittest.mock import patch, call, ANY, MagicMock
+from evaluations.case_builders.rubric_generator import RubricGenerator, HelperEvaluation
 from hyperscribe.structures.vendor_key import VendorKey
-from hyperscribe.structures.settings    import Settings
+from hyperscribe.structures.settings import Settings
 from evaluations.case_builders.helper_synthetic_json import HelperSyntheticJson
 
 @pytest.fixture
 def tmp_paths(tmp_path):
-    transcript = tmp_path / "transcript.json"
-    chart      = tmp_path / "chart.json"
-    context    = tmp_path / "ctx.json"
-    transcript.write_text(json.dumps([{"speaker": "Clinician", "text": "Hi"}]))
-    chart.write_text(json.dumps({"meds": []}))
-    context.write_text(json.dumps({"foo": "bar"}))
-    return transcript, chart, context, tmp_path / "rubric_out.json"
+    transcript_path = tmp_path / "transcript.json"
+    chart_path = tmp_path / "chart.json"
+    canvas_context_path = tmp_path / "canvas_context.json"
+    output_path = tmp_path / "rubric_out.json"
 
-def test_load_json_reads_file(tmp_path):
-    tested = RubricGenerator
+    transcript_path.write_text(json.dumps([{"speaker": "Clinician", "text": "Hi"}]))
+    chart_path.write_text(json.dumps({"meds": []}))
+    canvas_context_path.write_text(json.dumps({"foo": "bar"}))
+
+    return transcript_path, chart_path, canvas_context_path, output_path
+
+def test_load_json(tmp_path):
     expected = {"hello": "world"}
     path = tmp_path / "sample.json"
     path.write_text(json.dumps(expected))
 
-    result = tested.load_json(path)
+    result = RubricGenerator.load_json(path)
     assert result == expected
 
-def test_schema_rubric_structure():
+def test_schema_rubric():
     tested = RubricGenerator(VendorKey("openai", "KEY"))
-    result = tested.schema_rubric()
+    schema = tested.schema_rubric()
 
-    assert result["type"] == "array"
-    assert result["minItems"] == 1
-    expected_props = {"criterion", "weight", "sense"}
-    assert set(result["items"]["properties"]) == expected_props
-    assert set(result["items"]["required"]) == expected_props
+    assert schema["type"] == "array"
+    assert schema["minItems"] == 1
+    props = set(schema["items"]["properties"])
+    required = set(schema["items"]["required"])
+    assert props == {"criterion", "weight", "sense"}
+    assert required == props
 
-@patch("evaluations.case_builders.rubric_generator.generate_json")
-def test_generate_success_writes_output(mock_generate_json, tmp_paths):
+@patch("evaluations.case_builders.rubric_generator.HelperSyntheticJson.generate_json")
+def test_generate__success(mock_generate_json, tmp_paths):
     transcript, chart, context, output_path = tmp_paths
     expected = [{"criterion": "Reward X", "weight": 10, "sense": "positive"}]
     mock_generate_json.return_value = expected
@@ -50,16 +51,24 @@ def test_generate_success_writes_output(mock_generate_json, tmp_paths):
     result = json.loads(output_path.read_text())
     assert result == expected
 
-    mock_generate_json.assert_called_once()
+    calls = mock_generate_json.mock_calls
+    assert calls == [
+        call(
+            vendor_key=tested.vendor_key,
+            system_prompt=ANY,
+            user_prompt=ANY,
+            schema=tested.schema_rubric()
+        )
+    ]
+    #check for keyword arguments.
     _, kwargs = mock_generate_json.call_args
-    assert kwargs["vendor_key"].api_key == "KEY"
-    assert isinstance(kwargs["system_prompt"], list)
-    assert isinstance(kwargs["user_prompt"], list)
-    assert kwargs["schema"] == tested.schema_rubric()
-    assert kwargs["retries"] == 3
+    assert kwargs['vendor_key'] == tested.vendor_key
+    assert 'system_prompt' in kwargs
+    assert 'user_prompt' in kwargs
+    assert kwargs['schema'] == tested.schema_rubric()
 
-@patch("evaluations.case_builders.rubric_generator.generate_json", side_effect=SystemExit(1))
-def test_generate_fallback_propagates_exit(mock_generate_json, tmp_paths):
+@patch("evaluations.case_builders.rubric_generator.HelperSyntheticJson.generate_json", side_effect=SystemExit(1))
+def test_generate__fallback(mock_generate_json, tmp_paths):
     transcript, chart, context, output_path = tmp_paths
     tested = RubricGenerator(VendorKey("openai", "KEY"))
 
@@ -68,41 +77,36 @@ def test_generate_fallback_propagates_exit(mock_generate_json, tmp_paths):
     assert exc.value.code == 1
     mock_generate_json.assert_called_once()
 
-def test_main_parses_args_and_invokes_generate(tmp_path, monkeypatch):
-    tested = RubricGenerator.main()
+def test_main(tmp_paths):
+    transcript_path, chart_path, context_path, output_path = tmp_paths
+    fake_args = Namespace(
+        transcript_path=transcript_path,
+        chart_path=chart_path,
+        canvas_context_path=context_path,
+        output_path=output_path,
+    )
 
     dummy_settings = MagicMock()
     dummy_settings.llm_text = VendorKey("openai", "MYKEY")
-    monkeypatch.setattr(Settings, "from_dictionary", classmethod(lambda cls, env: dummy_settings))
+    call_info = {}
 
-    transcript = tmp_path / "transcript.json"; transcript.write_text(json.dumps([]))
-    chart = tmp_path / "chart.json"; chart.write_text(json.dumps({}))
-    context = tmp_path / "ctx.json"; context.write_text(json.dumps({}))
-    out = tmp_path / "out.json"
+    def fake_generate(self, *, transcript_path, chart_path, canvas_context_path, output_path):
+        call_info["self"]                = self
+        call_info["transcript_path"]     = transcript_path
+        call_info["chart_path"]          = chart_path
+        call_info["canvas_context_path"] = canvas_context_path
+        call_info["output_path"]         = output_path
+        call_info["called"]              = True
 
-    call_args = {}
-    def fake_generate(self, transcript_path, chart_path, canvas_context_path, output_path):
-        call_args["self"] = self
-        call_args["transcript_path"] = transcript_path
-        call_args["chart_path"] = chart_path
-        call_args["canvas_context_path"] = canvas_context_path
-        call_args["output_path"] = output_path
-        call_args["called"] = True
+    with patch("evaluations.case_builders.rubric_generator.argparse.ArgumentParser.parse_args",
+               return_value=fake_args), \
+         patch.object(HelperEvaluation, "settings", classmethod(lambda cls: dummy_settings)), \
+         patch.object(RubricGenerator, "generate", fake_generate):
+         RubricGenerator.main()
 
-    monkeypatch.setattr(RubricGenerator, "generate", fake_generate)
-    monkeypatch.setattr(sys, "argv", [
-        "prog",
-        str(transcript),
-        str(chart),
-        str(context),
-        str(out),
-    ])
-
-    tested()
-
-    assert call_args["called"] is True
-    assert isinstance(call_args["self"], RubricGenerator)
-    assert call_args["transcript_path"] == transcript
-    assert call_args["chart_path"] == chart
-    assert call_args["canvas_context_path"] == context
-    assert call_args["output_path"] == out
+    assert call_info.get("called") is True
+    assert isinstance(call_info["self"], RubricGenerator)
+    assert call_info["transcript_path"] == transcript_path
+    assert call_info["chart_path"] == chart_path
+    assert call_info["canvas_context_path"] == context_path
+    assert call_info["output_path"] == output_path
