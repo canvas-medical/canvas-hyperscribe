@@ -112,8 +112,8 @@ def test_generate_batch(mock_generate_json, fake_llm_response, vendor_key: Vendo
     ]
 
     expected_user_prompt = [
-        f"Create a JSON object with {count} key-value pairs labeled "
-        f"\"Patient {1 + (batch_num-1)*count}\" through \"Patient {batch_num*count}\". "
+        f"Create a JSON object with 3 key-value pairs labeled "
+        f"\"Patient 4\" through \"Patient 6\". "
         "Each value must be a 3-to-5-sentence medication-history narrative "
         "written for a broad audience (≈ 40-60 plain-English words).",
         "",

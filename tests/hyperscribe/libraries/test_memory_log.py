@@ -52,6 +52,16 @@ def test_end_session():
         assert memory_log.ENTRIES == {}
 
 
+def test_dev_null_instance():
+    tested = MemoryLog
+    result = tested.dev_null_instance()
+
+    assert isinstance(result, MemoryLog)
+    expected_identification = IdentificationParameters(patient_uuid='', note_uuid='', provider_uuid='', canvas_instance='local')
+    assert result.identification == expected_identification
+    assert result.label == "local"
+
+
 def test_instance():
     aws_s3 = AwsS3Credentials(aws_key="theAwsKey", aws_secret="theAwsSecret", region="theRegion", bucket="theBucket")
     identification = IdentificationParameters(

@@ -1,10 +1,8 @@
 import json, random, argparse, pytest
 from argparse import Namespace
 from pathlib import Path
-from argparse import ArgumentParser, Namespace
 from unittest.mock import patch, MagicMock, call
 from evaluations.case_builders.synthetic_transcript_generator import SyntheticTranscriptGenerator, HelperSyntheticJson
-from evaluations.helper_evaluation import HelperEvaluation
 from hyperscribe.structures.vendor_key import VendorKey
 from evaluations.constants import Constants as SpecConstants
 
@@ -15,9 +13,9 @@ def create_fake_profiles_file(tmp_path: Path) -> Path:
 
 def _expected_system_prompt(seen_openings=None):
     lines = [
-        "You are simulating a real outpatient medication‑management discussion.",
+        "You are simulating a real outpatient medication-management discussion.",
         "Return your answer as JSON inside a fenced ```json ... ``` block.",
-        "Start mid‑conversation, no greetings. End mid‑topic, no farewells.",
+        "Start mid-conversation, no greetings. End mid-topic, no farewells.",
         "Follow the speaker sequence *exactly* and aim for the target C:P word ratio ±10%.",
         "Use plain language with occasional natural hesitations (e.g., “uh”, “I mean”).",
     ]
@@ -207,7 +205,6 @@ def test_generate_transcript_for_profile__success(mock_generate_json, mock_make_
         schema=expected_schema,
     )
     assert mock_generate_json.mock_calls == [expected_call]
-
     assert transcript == expected_transcript
     assert "sample text" in tested.seen_openings
 
