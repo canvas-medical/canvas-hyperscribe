@@ -1,7 +1,7 @@
 from __future__ import annotations
 import json, argparse
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any, Tuple
 from hyperscribe.structures.vendor_key import VendorKey
 from evaluations.case_builders.helper_synthetic_json import HelperSyntheticJson
 from evaluations.constants import Constants
@@ -11,8 +11,8 @@ from evaluations.structures.graded_criterion import GradedCriterion
 
 
 class NoteGrader:
-    def __init__(self, vendor_key: VendorKey, rubric: List[RubricCriterion], 
-                 note: Dict[str, Any], output_path: Path) -> None:
+    def __init__(self, vendor_key: VendorKey, rubric: list[RubricCriterion], 
+                 note: dict[str, Any], output_path: Path) -> None:
         self.vendor_key = vendor_key
         self.rubric = rubric
         self.note = note
@@ -23,10 +23,10 @@ class NoteGrader:
         with path.open() as f:
             return json.load(f)
 
-    def schema_scores(self) -> Dict[str, Any]:
+    def schema_scores(self) -> dict[str, Any]:
         """
         JSON Schema for the grader output: an array exactly len(rubric) long,
-        each with 'rationale': str and 'satisfaction': integer 0–100.
+        each with 'rationale': str and 'satisfaction': integer 0-100.
         """
         count = len(self.rubric)
         return {
@@ -52,7 +52,7 @@ class NoteGrader:
         }
 
     def build_prompts(self) -> Tuple[list[str], list[str]]:
-        """Returns system‑prompt and user‑prompt as single strings, joined with new lines."""
+        """Returns system-prompt and user-prompt as single strings, joined with new lines."""
 
         system_prompt = ["You are a clinical-documentation grading assistant.",
             "You evaluate medical-scribe notes using structured rubrics.",

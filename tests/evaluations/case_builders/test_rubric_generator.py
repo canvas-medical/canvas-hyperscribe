@@ -112,11 +112,6 @@ def test_generate__success(mock_generate_json, tmp_paths):
             "--- BEGIN CANVAS CONTEXT JSON ---",
            context.read_text(),
             "--- END CANVAS CONTEXT JSON ---",]
-    
-    expected_system_prompt_md5 = hashlib.md5("\n".join(expected_system_prompt).encode()).hexdigest()
-    expected_user_prompt_md5 = hashlib.md5("\n".join(expected_user_prompt).encode()).hexdigest()
-    tested_system_prompt_md5 = hashlib.md5("\n".join(kwargs['system_prompt']).encode()).hexdigest()
-    tested_user_prompt_md5 = hashlib.md5("\n".join(kwargs['user_prompt']).encode()).hexdigest()
 
     assert kwargs["system_prompt"] == expected_system_prompt
     assert kwargs["user_prompt"] == expected_user_prompt

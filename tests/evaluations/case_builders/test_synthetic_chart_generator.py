@@ -64,15 +64,12 @@ def test_generate_chart_for_profile(mock_generate_json, tmp_path):
 
     kwargs = mock_generate_json.call_args.kwargs
     expected_schema = tested.schema_chart()
-    assert kwargs["vendor_key"] == tested_key
-    assert kwargs["schema"] == expected_schema
 
     expected_system_prompt = [
         "You are generating a Canvas‑compatible `limited_chart.json` for a synthetic patient.",
         "Return your answer as JSON inside a fenced ```json ... ``` block.",
         "Only include fields shown in the example structure; leave irrelevant categories as empty arrays.",
     ]
-    assert kwargs["system_prompt"] == expected_system_prompt
         
     expected_user_prompt = [
         f"Patient profile: {profile_text}",
@@ -92,7 +89,6 @@ def test_generate_chart_for_profile(mock_generate_json, tmp_path):
         "• Include only medications the patient *is actually taking*.",
         "• Do not fabricate information beyond the profile.",
     ]
-    assert kwargs["user_prompt"] == expected_user_prompt
 
     expected_call = call(
         vendor_key=tested_key,
@@ -144,10 +140,6 @@ def test_run_range(mock_assign, mock_validate, mock_generate, tmp_path, capsys):
     tested = SyntheticChartGenerator(VendorKey("v", "k"), profiles, output_dir, {})
 
     tested.run_range(1, 2)
-
-    assert mock_generate.call_count == 2
-    assert mock_validate.call_count == 2
-    assert mock_assign.call_count == 2
 
     #verifying calls for generate_chart_for_profile, validate, and assign.
     expected_generate_calls = [call("text1"), call("text2")]

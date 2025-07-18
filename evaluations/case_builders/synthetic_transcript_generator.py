@@ -1,7 +1,7 @@
 from __future__ import annotations
 import json, re, argparse, random
 from pathlib import Path
-from typing import Any, Dict, List, Tuple, cast
+from typing import Any, Tuple, cast
 
 from hyperscribe.structures.vendor_key import VendorKey
 from evaluations.helper_evaluation import HelperEvaluation
@@ -17,15 +17,15 @@ class SyntheticTranscriptGenerator:
         self.profiles = self._load_profiles()
         self.seen_openings: set[str] = set()
 
-    def _load_profiles(self) -> Dict[str, str]:
+    def _load_profiles(self) -> dict[str, str]:
         with self.input_path.open() as f:
-            return cast(Dict[str, str], json.load(f))
+            return cast(dict[str, str], json.load(f))
 
     @staticmethod
     def _random_bucket() -> str:
         return random.choice(list(Constants.TURN_BUCKETS.keys()))
 
-    def _make_spec(self) -> Dict[str, Any]:
+    def _make_spec(self) -> dict[str, Any]:
         bucket = self._random_bucket()
         low, high = Constants.TURN_BUCKETS[bucket]
         turn_total = random.randint(low, high)
@@ -45,7 +45,7 @@ class SyntheticTranscriptGenerator:
             "bucket": bucket,
         }
     
-    def schema_transcript(self, spec: Dict[str, Any]) -> Dict[str, Any]:
+    def schema_transcript(self, spec: dict[str, Any]) -> dict[str, Any]:
         """Build a JSON Schema that enforces JSON transcript structure."""
         schema = {
             "$schema": "http://json-schema.org/draft-07/schema#",
@@ -66,12 +66,12 @@ class SyntheticTranscriptGenerator:
         }
         return schema
 
-    def _build_prompt(self, profile_text: str, spec: Dict[str, Any],
-        schema: Dict[str, Any],) -> Tuple[List[str], List[str]]:
+    def _build_prompt(self, profile_text: str, spec: dict[str, Any],
+        schema: dict[str, Any],) -> Tuple[list[str], list[str]]:
         system_lines = [
-            "You are simulating a real outpatient medication‑management discussion.",
+            "You are simulating a real outpatient medication-management discussion.",
             "Return your answer as JSON inside a fenced ```json ... ``` block.",
-            "Start mid‑conversation, no greetings. End mid‑topic, no farewells.",
+            "Start mid-conversation, no greetings. End mid-topic, no farewells.",
             "Follow the speaker sequence *exactly* and aim for the target C:P word ratio ±10%.",
             "Use plain language with occasional natural hesitations (e.g., “uh”, “I mean”).",
         ]
@@ -113,7 +113,7 @@ class SyntheticTranscriptGenerator:
         return system_lines, user_lines
 
     def generate_transcript_for_profile(self, profile_text: str
-        ) -> Tuple[List[Dict[str, str]], Dict[str, Any]]:
+        ) -> Tuple[list[dict[str, str]], dict[str, Any]]:
         spec = self._make_spec()
         schema = self.schema_transcript(spec)
 

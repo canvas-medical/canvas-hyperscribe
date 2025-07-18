@@ -1,6 +1,6 @@
-import json, os, re, argparse
+import json, re, argparse
 from pathlib import Path
-from typing import Any, Dict, List, cast
+from typing import Any, cast
 
 from hyperscribe.structures.vendor_key import VendorKey
 from evaluations.helper_evaluation import HelperEvaluation
@@ -10,8 +10,8 @@ class SyntheticProfileGenerator:
     def __init__(self, vendor_key: VendorKey, output_path: Path) -> None:
         self.vendor_key = vendor_key
         self.output_path = output_path
-        self.seen_scenarios: List[str]    = []
-        self.all_profiles:   Dict[str,str] = {}
+        self.seen_scenarios: list[str]    = []
+        self.all_profiles: dict[str,str] = {}
 
     @classmethod
     def _extract_initial_fragment(cls, narrative: str) -> str:
@@ -35,7 +35,7 @@ class SyntheticProfileGenerator:
                 json.dump({name: narrative}, f, indent=2)
             print(f"Saved profile for {name} to {file_path}")
 
-    def schema_batch(self, count_patients: int) -> Dict[str,Any]:
+    def schema_batch(self, count_patients: int) -> dict[str,Any]:
         return {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "type": "object",
@@ -48,7 +48,7 @@ class SyntheticProfileGenerator:
             "additionalProperties": False
         }
 
-    def generate_batch(self, batch_num: int, count: int) -> Dict[str,str]:
+    def generate_batch(self, batch_num: int, count: int) -> dict[str,str]:
         schema = self.schema_batch(count)
 
         system_prompt: list[str] = [
@@ -93,7 +93,7 @@ class SyntheticProfileGenerator:
             "Wrap the JSON in a fenced ```json block and output nothing else.",
         ]
 
-        batch = cast(Dict[str, str], HelperSyntheticJson.generate_json(
+        batch = cast(dict[str, str], HelperSyntheticJson.generate_json(
             vendor_key=self.vendor_key,
             system_prompt=system_prompt,
             user_prompt=user_prompt,

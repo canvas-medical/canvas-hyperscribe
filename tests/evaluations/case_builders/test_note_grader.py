@@ -39,8 +39,8 @@ def test_schema_rubric(tmp_files):
     expected = {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "type": "array",
-            "minItems": len(rubric),
-            "maxItems": len(rubric),
+            "minItems": 2,
+            "maxItems": 2,
             "items": {
                 "type": "object",
                 "properties": {

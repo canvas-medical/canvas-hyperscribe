@@ -1,6 +1,6 @@
 import json, argparse
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 from hyperscribe.structures.vendor_key import VendorKey
 from evaluations.helper_evaluation import HelperEvaluation
@@ -17,7 +17,7 @@ class RubricGenerator:
             return json.load(f)
 
     @classmethod
-    def schema_rubric(cls) -> Dict[str, Any]:
+    def schema_rubric(cls) -> dict[str, Any]:
         """
         JSON Schema for an array of rubric criteria objects:
         - criterion: string

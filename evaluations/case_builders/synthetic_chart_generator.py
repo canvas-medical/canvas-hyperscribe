@@ -1,6 +1,6 @@
 import json, re, uuid, argparse
 from pathlib import Path
-from typing import Any, Dict, List, Tuple, cast
+from typing import Any, Tuple, cast
 
 from hyperscribe.structures.vendor_key import VendorKey
 from hyperscribe.libraries.limited_cache import LimitedCache
@@ -8,8 +8,8 @@ from evaluations.helper_evaluation import HelperEvaluation
 from evaluations.case_builders.helper_synthetic_json import HelperSyntheticJson
 
 class SyntheticChartGenerator:
-    def __init__(self, vendor_key: VendorKey, profiles: Dict[str, str],
-        output: Path, example_chart: Dict[str, Any]):
+    def __init__(self, vendor_key: VendorKey, profiles: dict[str, str],
+        output: Path, example_chart: dict[str, Any]):
         self.vendor_key = vendor_key
         self.profiles = profiles
         self.output = output
@@ -17,12 +17,12 @@ class SyntheticChartGenerator:
         self.output.mkdir(parents=True, exist_ok=True)
 
     @classmethod
-    def load_json(cls, path: Path) -> Dict[str, Any]:
+    def load_json(cls, path: Path) -> dict[str, Any]:
         with path.open("r") as f:
-            return cast(Dict[str, Any], json.load(f))
+            return cast(dict[str, Any], json.load(f))
 
 
-    def schema_chart(self) -> Dict[str, Any]:
+    def schema_chart(self) -> dict[str, Any]:
         """Build a JSON Schema that enforces top-level keys in example_chart"""
         
         properties = {k: {"type": "array"} for k in self.example_chart.keys()}
@@ -38,7 +38,7 @@ class SyntheticChartGenerator:
         }
         return schema
 
-    def generate_chart_for_profile(self, profile_text: str) -> Dict[str, Any]:
+    def generate_chart_for_profile(self, profile_text: str) -> dict[str, Any]:
         schema = self.schema_chart()
 
         system_prompt: list[str] = [
@@ -66,7 +66,7 @@ class SyntheticChartGenerator:
             "• Include only medications the patient *is actually taking*.",
             "• Do not fabricate information beyond the profile.",]
         
-        chart_json = cast(Dict[str, Any], HelperSyntheticJson.generate_json(
+        chart_json = cast(dict[str, Any], HelperSyntheticJson.generate_json(
             vendor_key=self.vendor_key,
             system_prompt=system_prompt,
             user_prompt=user_prompt,
@@ -75,7 +75,7 @@ class SyntheticChartGenerator:
         return chart_json
 
     @classmethod
-    def validate_chart(cls, chart_json: Dict[str, Any]) -> None:
+    def validate_chart(cls, chart_json: dict[str, Any]) -> None:
         try:
             LimitedCache.load_from_json(chart_json)
         except Exception as e:
@@ -83,7 +83,7 @@ class SyntheticChartGenerator:
 
     @classmethod
     def assign_valid_uuids(cls, obj: Any) -> Any:
-        stack: List[Tuple[Any, Any]] = [(None, obj)]
+        stack: list[Tuple[Any, Any]] = [(None, obj)]
         while stack:
             parent, current = stack.pop()
             if isinstance(current, dict):
