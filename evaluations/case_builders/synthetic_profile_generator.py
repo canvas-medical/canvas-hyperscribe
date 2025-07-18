@@ -14,14 +14,15 @@ class SyntheticProfileGenerator:
         self.all_profiles:   Dict[str,str] = {}
 
     @classmethod
-    def _extract_initial_fragment(self, narrative: str) -> str:
+    def _extract_initial_fragment(cls, narrative: str) -> str:
         return narrative.split(".")[0][:100]
 
-    def _save_combined(self) -> None:
-        self.output_path.parent.mkdir(parents=True, exist_ok=True)
-        with self.output_path.open("w") as f:
-            json.dump(self.all_profiles, f, indent=2)
-        print(f"Saved {len(self.all_profiles)} profiles to {self.output_path}")
+    @classmethod
+    def _save_combined(cls) -> None:
+        cls.output_path.parent.mkdir(parents=True, exist_ok=True)
+        with cls.output_path.open("w") as f:
+            json.dump(cls.all_profiles, f, indent=2)
+        print(f"Saved {len(cls.all_profiles)} profiles to {cls.output_path}")
 
     def _save_individuals(self) -> None:
         base_dir = self.output_path.parent
@@ -41,7 +42,8 @@ class SyntheticProfileGenerator:
             "minProperties": count_patients,
             "maxProperties": count_patients,
             "patternProperties": {
-                r"^Patient\s\d+$": { "type": "string" }
+                r"^Patient\s\d+$": { "type": "string",
+                                    "description": "patient profile"}
             },
             "additionalProperties": False
         }
@@ -49,7 +51,7 @@ class SyntheticProfileGenerator:
     def generate_batch(self, batch_num: int, count: int) -> Dict[str,str]:
         schema = self.schema_batch(count)
 
-        system_prompt: List[str] = [
+        system_prompt: list[str] = [
             "You are a clinical‑informatics expert generating synthetic patient "
             "profiles for testing medication‑management AI systems.",
             "Return your answer as JSON inside a fenced ```json ... ``` block.",

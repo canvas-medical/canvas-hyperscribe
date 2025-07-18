@@ -1,11 +1,9 @@
-import json, pytest
-from pathlib import Path
+import json, pytest, hashlib
 from argparse import Namespace
 from unittest.mock import patch, call, ANY, MagicMock
 from evaluations.case_builders.rubric_generator import RubricGenerator, HelperEvaluation
+from evaluations.constants import Constants
 from hyperscribe.structures.vendor_key import VendorKey
-from hyperscribe.structures.settings import Settings
-from evaluations.case_builders.helper_synthetic_json import HelperSyntheticJson
 
 @pytest.fixture
 def tmp_paths(tmp_path):
@@ -30,14 +28,29 @@ def test_load_json(tmp_path):
 
 def test_schema_rubric():
     tested = RubricGenerator(VendorKey("openai", "KEY"))
-    schema = tested.schema_rubric()
-
-    assert schema["type"] == "array"
-    assert schema["minItems"] == 1
-    props = set(schema["items"]["properties"])
-    required = set(schema["items"]["required"])
-    assert props == {"criterion", "weight", "sense"}
-    assert required == props
+    result = tested.schema_rubric()
+    expected = {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "array",
+            "minItems": 1,
+            "items": {
+                "type": "object",
+                "properties": {
+                    "criterion": {"type": "string",
+                                  "description": "dimension of note being evaluated"},
+                    "weight":    {"type": "integer", 
+                                  "description": "how much criterion is worth", 
+                                  "minimum": 0, "maximum": 100},
+                    "sense":     {"type": "string", 
+                                  "description": "positive or negative direction",
+                                  "enum": [Constants.POSITIVE_VALUE, Constants.NEGATIVE_VALUE]}
+                },
+                "required": ["criterion", "weight", "sense"],
+                "additionalProperties": False
+            }
+        }
+    
+    assert result == expected
 
 @patch("evaluations.case_builders.rubric_generator.HelperSyntheticJson.generate_json")
 def test_generate__success(mock_generate_json, tmp_paths):
@@ -63,9 +76,51 @@ def test_generate__success(mock_generate_json, tmp_paths):
     #check for keyword arguments.
     _, kwargs = mock_generate_json.call_args
     assert kwargs['vendor_key'] == tested.vendor_key
-    assert 'system_prompt' in kwargs
-    assert 'user_prompt' in kwargs
     assert kwargs['schema'] == tested.schema_rubric()
+
+    expected_system_prompt: list[str] = [
+            "You are a clinical informatics expert working with a senior physician "
+            "to design case-specific rubrics that assess how faithfully a medical "
+            "scribe note reflects the transcript and chart.",
+            "Return your answer as JSON inside a fenced ```json ... ``` block."]
+
+    expected_user_prompt: list[str] = [
+            "Task: design a grading rubric for *documentation fidelity*.",
+            "Definition of fidelity: how accurately the note captures what was said "
+            "or implied in the transcript, using relevant context from the chart. "
+            "Do not judge clinical decisions—only documentation fidelity.",
+            "Follow three steps internally, but output **only** the final rubric:",
+            " 1. Identify key events/statements in transcript & chart.",
+            " 2. Decide what an ideal scribe must capture.",
+            " 3. Produce the rubric as a JSON array of objects.",
+            "Each object keys:",
+            " - criterion (string) — must start with with \"Reward for\" or \"Penalize for\"",
+            " - weight    (int 0-100)",
+            " - sense     (\"positive\" | \"negative\")",
+            "Include at least one criterion on overall completeness and one on chart-copy fidelity.",
+            "Your JSON **must** conform to the following JSON Schema:",
+            "```json",
+            json.dumps(tested.schema_rubric(), indent=2),
+            "```",
+            "Wrap the JSON array in a fenced ```json block and output nothing else.",
+            "--- BEGIN TRANSCRIPT JSON ---",
+            transcript.read_text(),
+            "--- END TRANSCRIPT JSON ---",
+            "--- BEGIN CHART JSON ---",
+            chart.read_text(),
+            "--- END CHART JSON ---",
+            "--- BEGIN CANVAS CONTEXT JSON ---",
+           context.read_text(),
+            "--- END CANVAS CONTEXT JSON ---",]
+    
+    expected_system_prompt_md5 = hashlib.md5("\n".join(expected_system_prompt).encode()).hexdigest()
+    expected_user_prompt_md5 = hashlib.md5("\n".join(expected_user_prompt).encode()).hexdigest()
+    tested_system_prompt_md5 = hashlib.md5("\n".join(kwargs['system_prompt']).encode()).hexdigest()
+    tested_user_prompt_md5 = hashlib.md5("\n".join(kwargs['user_prompt']).encode()).hexdigest()
+
+    assert kwargs["system_prompt"] == expected_system_prompt
+    assert kwargs["user_prompt"] == expected_user_prompt
+    
 
 @patch("evaluations.case_builders.rubric_generator.HelperSyntheticJson.generate_json", side_effect=SystemExit(1))
 def test_generate__fallback(mock_generate_json, tmp_paths):

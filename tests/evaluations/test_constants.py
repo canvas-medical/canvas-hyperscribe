@@ -39,7 +39,8 @@ def test_constants():
         "PARAMETERS2COMMAND": "parameters2command",
         "STAGED_QUESTIONNAIRES": "staged_questionnaires",
         "TRANSCRIPT2INSTRUCTIONS": "transcript2instructions",
-        "POSITIVE_VALUE": "positive", 
+        "POSITIVE_VALUE": "positive",
+        "NEGATIVE_VALUE": "negative", 
         "TURN_BUCKETS": {
             "short": (2, 4),
             "medium": (6, 8),

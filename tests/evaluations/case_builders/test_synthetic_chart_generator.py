@@ -1,4 +1,4 @@
-import json, uuid, pytest
+import json, uuid, pytest, hashlib
 from pathlib import Path
 from argparse import Namespace, ArgumentParser
 from unittest.mock import patch, MagicMock, call
@@ -27,35 +27,77 @@ def test_load_json(tmp_path):
     result = SyntheticChartGenerator.load_json(data_file)
     assert result == expected
 
-def test_schema_chart_returns_schema():
+def test_schema_chart():
     example_chart = {"cond": [], "meds": []}
     tested = SyntheticChartGenerator(
         VendorKey("vendor", "key"), {}, Path("."), example_chart)
 
     result_schema = tested.schema_chart()
-    expected_keys = set(example_chart.keys())
 
+    assert result_schema["description"] == "example Canvas-compatible chart"
     assert result_schema["type"] == "object"
-    assert set(result_schema["properties"].keys()) == expected_keys
-    assert result_schema["required"] == list(example_chart.keys())
     assert result_schema["additionalProperties"] is False
+
+    #properties assertion (including description)
+    properties = result_schema["properties"]
+    assert set(properties.keys()) == {"cond", "meds", "description"}
+    assert properties["cond"] == {"type": "array"}
+    assert properties["meds"] == {"type": "array"}
+    assert properties["description"] == {"type": "string"}
+    assert set(result_schema["required"]) == {"cond", "meds"}
+    assert "description" not in result_schema["required"]
+
 
 @patch("evaluations.case_builders.synthetic_chart_generator.HelperSyntheticJson.generate_json")
 def test_generate_chart_for_profile(mock_generate_json, tmp_path):
     tested_key = VendorKey(vendor="openai", api_key="LLMKEY")
-    tested = SyntheticChartGenerator(tested_key, {}, tmp_path, {"example": "chart"})
+    dummy_chart = {"example": "chart"}
+    dummy_profiles =  profiles = {"P1*": "text1", "P2!": "text2"}
+    tested = SyntheticChartGenerator(tested_key, dummy_profiles, tmp_path, dummy_chart)
 
+    profile_text = "irrelevant profile"
     expected_chart = {"cond": ["X"], "meds": []}
     mock_generate_json.side_effect = [expected_chart]
 
-    result = tested.generate_chart_for_profile("irrelevant profile")
+    result = tested.generate_chart_for_profile(profile_text)
     assert result == expected_chart
 
+    kwargs = mock_generate_json.call_args.kwargs
     expected_schema = tested.schema_chart()
+    assert kwargs["vendor_key"] == tested_key
+    assert kwargs["schema"] == expected_schema
+
+    expected_system_prompt = [
+        "You are generating a Canvas‑compatible `limited_chart.json` for a synthetic patient.",
+        "Return your answer as JSON inside a fenced ```json ... ``` block.",
+        "Only include fields shown in the example structure; leave irrelevant categories as empty arrays.",
+    ]
+    assert kwargs["system_prompt"] == expected_system_prompt
+        
+    expected_user_prompt = [
+        f"Patient profile: {profile_text}",
+        "",
+        "Here is the required JSON structure:",
+        "```json",
+        json.dumps(dummy_chart, indent=2),
+        "```",
+        "",
+        "Your JSON **must** conform to the following JSON Schema:",
+        "```json",
+        json.dumps(expected_schema, indent=2),
+        "```",
+        "",
+        "Be strict:",
+        "• Include only conditions the patient *has or was diagnosed with*.",
+        "• Include only medications the patient *is actually taking*.",
+        "• Do not fabricate information beyond the profile.",
+    ]
+    assert kwargs["user_prompt"] == expected_user_prompt
+
     expected_call = call(
         vendor_key=tested_key,
-        system_prompt=mock_generate_json.call_args.kwargs["system_prompt"],
-        user_prompt=mock_generate_json.call_args.kwargs["user_prompt"],
+        system_prompt=expected_system_prompt,
+        user_prompt=expected_user_prompt,
         schema=expected_schema
     )
     assert mock_generate_json.mock_calls == [expected_call]
@@ -93,9 +135,9 @@ def test_assign_valid_uuids():
     assert result["nested"][1]["not_uuid"] == 123
 
 
-@patch.object(SyntheticChartGenerator, "generate_chart_for_profile", side_effect=[{"some": "data"}, {"some": "data"}])
+@patch.object(SyntheticChartGenerator, "generate_chart_for_profile", side_effect=[{"some": "data1"}, {"some": "data2"}])
 @patch.object(SyntheticChartGenerator, "validate_chart")
-@patch.object(SyntheticChartGenerator, "assign_valid_uuids", side_effect=lambda obj: {"assigned": True})
+@patch.object(SyntheticChartGenerator, "assign_valid_uuids", side_effect=lambda chart: {"assigned": chart["some"]})
 def test_run_range(mock_assign, mock_validate, mock_generate, tmp_path, capsys):
     profiles = {"P1*": "text1", "P2!": "text2"}
     output_dir = tmp_path / "out"
@@ -107,13 +149,20 @@ def test_run_range(mock_assign, mock_validate, mock_generate, tmp_path, capsys):
     assert mock_validate.call_count == 2
     assert mock_assign.call_count == 2
 
-    for raw_name in profiles:
+    #verifying calls for generate_chart_for_profile, validate, and assign.
+    expected_generate_calls = [call("text1"), call("text2")]
+    assert mock_generate.mock_calls == expected_generate_calls
+
+    expected_validate_calls = [call({"some": "data1"}), call({"some": "data2"})]
+    assert mock_validate.mock_calls == expected_validate_calls
+
+    expected_assign_calls = [call({"some": "data1"}), call({"some": "data2"})]
+    assert mock_assign.mock_calls == expected_assign_calls
+
+    for raw_name, expected_value in zip(profiles, ["data1", "data2"]):
         safe_name = "".join(c if c.isalnum() else "_" for c in raw_name)
-        folder = output_dir / safe_name
-        assert folder.exists()
-        chart_file = folder / "limited_chart.json"
-        assert chart_file.exists()
-        assert json.loads(chart_file.read_text()) == {"assigned": True}
+        chart_file = output_dir / safe_name / "limited_chart.json"
+        assert json.loads(chart_file.read_text()) == {"assigned": expected_value}
 
     output = capsys.readouterr().out
     assert "Generating limited_chart.json for P1*" in output

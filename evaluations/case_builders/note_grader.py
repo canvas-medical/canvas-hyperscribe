@@ -37,11 +37,16 @@ class NoteGrader:
             "items": {
                 "type": "object",
                 "properties": {
-                    "id": {"type": "integer"},
-                    "rationale":   {"type": "string"},
-                    "satisfaction":{"type": "integer", "minimum": 0, "maximum": 100}
+                    "id": {"type": "integer",
+                           "description": "index to match criteria"},
+                    "rationale": {"type": "string",
+                                  "description": "reasoning for satisfaction score"},
+                    "satisfaction":{"type": "integer", 
+                                    "description": "note grade",
+                                    "minimum": 0, 
+                                    "maximum": 100}
                 },
-                "required": ["rationale", "satisfaction"],
+                "required": ["id", "rationale", "satisfaction"],
                 "additionalProperties": False
             }
         }
@@ -49,9 +54,9 @@ class NoteGrader:
     def build_prompts(self) -> Tuple[list[str], list[str]]:
         """Returns system‑prompt and user‑prompt as single strings, joined with new lines."""
 
-        system_prompt = ["You are a clinical‑documentation grading assistant.",
-            "You evaluate medical‑scribe notes using structured rubrics.",
-            "The JSON response MUST satisfy the following JSON‑Schema:",
+        system_prompt = ["You are a clinical-documentation grading assistant.",
+            "You evaluate medical-scribe notes using structured rubrics.",
+            "The JSON response MUST satisfy the following JSON-Schema:",
             json.dumps(self.schema_scores(), indent=2)]
 
         user_prompt = [
@@ -60,8 +65,9 @@ class NoteGrader:
             "order.",
             "",
             "Each element keys:",
-            "  • rationale    : str  – short explanation",
-            "  • satisfaction : int – 0 to 100",
+            " - id: int to index based on the criteria",
+            " - rationale : str - short explanation",
+            " - satisfaction : int - 0 to 100",
             "",
             "Wrap the JSON in a fenced ```json ``` block to avoid extra tokens.",
             "",
@@ -75,14 +81,14 @@ class NoteGrader:
         return system_prompt, user_prompt
 
     def run(self) -> None:
-        sys_prompt, user_prompt = self.build_prompts()
+        system_prompt, user_prompt = self.build_prompts()
         schema = self.schema_scores()
 
         print("Grading …")
 
         parsed = HelperSyntheticJson.generate_json(
             vendor_key = self.vendor_key,
-            system_prompt = sys_prompt,
+            system_prompt = system_prompt,
             user_prompt = user_prompt,
             schema = schema)
 
@@ -96,6 +102,7 @@ class NoteGrader:
                 score = -round(criteria.weight * (1 - (result.satisfaction / 100)), 2)
 
             final.append({
+                "id": result.id,
                 "rationale":   result.rationale,
                 "satisfaction":result.satisfaction,
                 "score":       score
