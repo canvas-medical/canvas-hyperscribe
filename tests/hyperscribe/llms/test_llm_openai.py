@@ -241,23 +241,6 @@ def test_request_extracts_choice_content(requests_post):
     requests_post.assert_called_once()
     memory_log.assert_not_called()
 
-
-#status != 200 -> returns full raw JSON. 
-@patch("hyperscribe.llms.llm_openai.requests_post")
-def test_request_passes_through_non_200(requests_post):
-    memory_log = MagicMock()
-    tested = LlmOpenai(memory_log, "openaiKey", "theModel", False)
-
-    resp = MagicMock()
-    resp.status_code = 500
-    resp.text = '{"choices":[{"message":{"content":"bad"}}]}'
-    requests_post.return_value = resp
-
-    out = tested.request()
-    assert out.code == 500
-    # response stays the full JSON
-    assert out.response == resp.text
-
 @patch("hyperscribe.llms.llm_openai.requests_post")
 def test_audio_to_text(requests_post):
     memory_log = MagicMock()

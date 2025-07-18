@@ -502,8 +502,3 @@ def test_generate_presigned_url(is_ready, mock_datetime):
     assert is_ready.mock_calls == calls
     assert mock_datetime.mock_calls == []
     reset_mocks()
-
-'''
-S3 returns IsTruncated=true with NextContinuationToken,
-leading to just a second page fetch.
-'''

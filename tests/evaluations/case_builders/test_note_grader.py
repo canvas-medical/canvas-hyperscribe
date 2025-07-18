@@ -1,6 +1,4 @@
 import json
-import sys
-from pathlib import Path
 from argparse import Namespace
 import pytest
 from unittest.mock import patch, MagicMock, call
@@ -24,13 +22,51 @@ def tmp_files(tmp_path):
     note_path.write_text(json.dumps(note))
     return rubric_path, note_path, output_path, rubric, note
 
+def test_load_json(tmp_path):
+    expected = {"hello": "world"}
+    path = tmp_path / "sample.json"
+    path.write_text(json.dumps(expected))
+
+    result = NoteGrader.load_json(path)
+    assert result == expected
+
+def test_schema_rubric(tmp_files):
+    rubric_path, note_path, output_path, rubric, note = tmp_files
+    tested = NoteGrader(vendor_key=VendorKey("openai", "KEY"), rubric=rubric, note=note,
+        output_path=None)
+
+    result = tested.schema_scores()
+    expected = {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "array",
+            "minItems": len(rubric),
+            "maxItems": len(rubric),
+            "items": {
+                "type": "object",
+                "properties": {
+                    "id": {"type": "integer",
+                           "description": "index to match criteria"},
+                    "rationale": {"type": "string",
+                                  "description": "reasoning for satisfaction score"},
+                    "satisfaction":{"type": "integer", 
+                                    "description": "note grade",
+                                    "minimum": 0, 
+                                    "maximum": 100}
+                },
+                "required": ["id", "rationale", "satisfaction"],
+                "additionalProperties": False
+            }
+        }
+
+    assert result == expected
+
 @patch("evaluations.case_builders.note_grader.HelperSyntheticJson.generate_json")
 def test_run__success(mock_generate_json, tmp_files):
     rubric_path, note_path, output_path, rubric, note = tmp_files
 
     expected = [
-        {"rationale": "good", "satisfaction": 80.0,  "score": 16.0},
-        {"rationale": "bad",  "satisfaction": 25.0, "score": -22.5},
+        {"id": 0, "rationale": "good", "satisfaction": 80.0,  "score": 16.0},
+        {"id": 1, "rationale": "bad",  "satisfaction": 25.0, "score": -22.5},
     ]
     mock_generate_json.side_effect = [[
         {"id": 0, "rationale": "good", "satisfaction": 80},
@@ -47,10 +83,6 @@ def test_run__success(mock_generate_json, tmp_files):
     grader.run()
 
     result = json.loads(output_path.read_text())
-    expected = [
-        {"rationale": "good", "satisfaction": 80, "score": 16.0},
-        {"rationale": "bad",  "satisfaction": 25, "score": -22.5},
-    ]
     assert result == expected
 
     # ensure generate_json got exactly the call we expected
@@ -74,11 +106,21 @@ def test_run__raises_on_generate_failure(mock_generate_json, tmp_files):
         output_path=output_path
     )
 
+    expected_system_prompt, expected_user_prompt = tested.build_prompts()
+    expected_schema = tested.schema_scores()
+
     with pytest.raises(SystemExit) as exc_info:
         tested.run()
 
     assert exc_info.value.code == 1
-    mock_generate_json.assert_called_once()
+
+    expected_call = call(
+        vendor_key=vendor_key,
+        system_prompt=expected_system_prompt,
+        user_prompt=expected_user_prompt,
+        schema=expected_schema
+    )
+    assert mock_generate_json.mock_calls == [expected_call]
 
 def test_main(tmp_path):
     dummy_settings = MagicMock()
@@ -109,10 +151,9 @@ def test_main(tmp_path):
 
     assert run_calls.get("called") is True
     inst = run_calls["inst"]
+     #instance check for each component
     assert isinstance(inst, NoteGrader)
     assert inst.vendor_key.api_key == "MY_API_KEY"
-
-    # confirm it read & wrapped the rubric correctly
     assert inst.rubric == [RubricCriterion(**rubric_data[0])]
     assert inst.note == note_data
     assert inst.output_path == out_file

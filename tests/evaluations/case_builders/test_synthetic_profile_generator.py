@@ -35,8 +35,9 @@ def test_init_initializes_generator(tmp_path, vendor_key: VendorKey):
     assert tested.seen_scenarios == []
     assert tested.all_profiles == {}
 
-def test_extract_initial_fragment(vendor_key: VendorKey):
-    tested = SyntheticProfileGenerator(vendor_key, "out.json")
+def test__extract_initial_fragment(tmp_path, vendor_key: VendorKey):
+    output_path = tmp_path / "out.json"
+    tested = SyntheticProfileGenerator(vendor_key, output_path)
     narrative = "First sentence. Second sentence."
     expected = "First sentence"
     result = tested._extract_initial_fragment(narrative)
@@ -44,13 +45,14 @@ def test_extract_initial_fragment(vendor_key: VendorKey):
 
 
 def test__save_combined(tmp_path, dummy_profiles: dict, vendor_key: VendorKey):
-    out_file = tmp_path / "combined.json"
-    tested = SyntheticProfileGenerator(vendor_key, out_file)
-    tested.all_profiles = dummy_profiles
-    tested._save_combined()
-    result = json.loads(out_file.read_text())
-    expected = dummy_profiles
-    assert result == expected
+    output_path = tmp_path / "combined.json"
+    tested = SyntheticProfileGenerator(vendor_key, output_path)
+    SyntheticProfileGenerator.output_path = output_path
+    SyntheticProfileGenerator.all_profiles = dummy_profiles
+    SyntheticProfileGenerator._save_combined()
+
+    result = json.loads(output_path.read_text())
+    assert result == dummy_profiles
 
 
 def test__save_individuals(tmp_path, dummy_profiles: dict, vendor_key: VendorKey):
@@ -68,18 +70,22 @@ def test__save_individuals(tmp_path, dummy_profiles: dict, vendor_key: VendorKey
         assert result == expected
 
 
-def test_schema_batch(vendor_key: VendorKey):
-    tested = SyntheticProfileGenerator(vendor_key, "out.json")
-    count = 4
-    result = tested.schema_batch(count)
+def test_schema_batch(tmp_path, vendor_key: VendorKey):
+    output_path = tmp_path / "out.json"
+    tested = SyntheticProfileGenerator(vendor_key,output_path)
+    count_patients = 4
+    result = tested.schema_batch(count_patients)
     expected = {
-        "$schema": "http://json-schema.org/draft-07/schema#",
-        "type": "object",
-        "minProperties": count,
-        "maxProperties": count,
-        "patternProperties": {r"^Patient\s\d+$": { "type": "string" }},
-        "additionalProperties": False
-    }
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "minProperties": count_patients,
+            "maxProperties": count_patients,
+            "patternProperties": {
+                r"^Patient\s\d+$": { "type": "string",
+                                    "description": "patient profile"}
+            },
+            "additionalProperties": False
+        }
     assert result == expected
 
 
@@ -94,39 +100,59 @@ def test_generate_batch(mock_generate_json, fake_llm_response, vendor_key: Vendo
     count = 3
 
     result = tested.generate_batch(batch_num, count)
+    schema = tested.schema_batch(count)
+
+    expected_system_prompt = [
+        "You are a clinical‑informatics expert generating synthetic patient profiles for testing medication‑management AI systems.",
+        "Return your answer as JSON inside a fenced ```json ... ``` block.",
+        "The response **must** conform to the following JSON Schema:",
+        "```json",
+        json.dumps(schema, indent=2),
+        "```",
+    ]
+
+    expected_user_prompt = [
+        f"Create a JSON object with {count} key-value pairs labeled "
+        f"\"Patient {1 + (batch_num-1)*count}\" through \"Patient {batch_num*count}\". "
+        "Each value must be a 3-to-5-sentence medication-history narrative "
+        "written for a broad audience (≈ 40-60 plain-English words).",
+        "",
+        "Include **at least two** LOW-complexity patients "
+        "(single renewal, first-time Rx, or simple dose tweak). Other patients may be moderate "
+        "or high complexity, guided by the diversity checklist below:",
+        "- Age bands: <18, 18-30, 30-50, 50-70, >70.",
+        "- Social context: homelessness, language barrier, uninsured, rural isolation, etc.",
+        "- Novel drug classes: GLP-1 agonists, oral TKIs, depot antipsychotics, inhaled steroids, biologics, antivirals, contraception, chemo, herbals.",
+        "- Edge-case themes: pregnancy, QT risk, REMS, dialysis, polypharmacy/deprescribing, travel medicine, etc.",
+        "",
+        "Already-seen motifs → None yet. **Avoid** re-using templates like ACE-inhibitor-to-ARB cough, long-term warfarin INR drift, or COPD tiotropium boilerplate.",
+        "",
+        "Write in clear prose with minimal jargon. If a medical abbreviation is unavoidable, "
+        "spell it out the first time (e.g., “twice-daily (BID)”). Prefer full words: “by mouth” "
+        "over “PO”, “under the skin” over “SC”. Vary openings: lead with social detail, "
+        "medication list, or family history.",
+        "",
+        "Each narrative MUST include:",
+        "• Current medicines in plain words, with some cases not having complete details.",
+        "• A scenario involving medication management—straightforward new prescriptions, simple dose adjustments, or complex edge cases involving risky medications, polypharmacy, or social barriers.",
+        "• Any key allergy, condition, or social barrier.",
+        "",
+        "Do NOT write SOAP notes, vital signs, or assessments.",
+        "",
+        "Wrap the JSON in a fenced ```json block and output nothing else.",
+    ]
+
+    expected_call = call(
+        vendor_key=vendor_key,
+        system_prompt=expected_system_prompt,
+        user_prompt=expected_user_prompt,
+        schema=schema)
+    assert mock_generate_json.mock_calls == [expected_call]
+    
     expected_keys = [f"Patient {i+1}" for i in range(count)]
     assert list(result.keys()) == expected_keys
     assert result == expected
     assert len(tested.seen_scenarios) == count
-    for fragment in tested.seen_scenarios:
-        assert fragment.startswith("Mock narrative")
-
-    calls = [call(vendor_key=vendor_key, system_prompt=ANY,
-            user_prompt=ANY,
-            schema=tested.schema_batch(count))]
-    assert mock_generate_json.mock_calls == calls
-    assert mock_generate_json.call_count == 1
-
-    _, kwargs = mock_generate_json.call_args
-
-    #kwarg validation
-    assert kwargs["vendor_key"] == vendor_key
-    assert kwargs["schema"] == tested.schema_batch(count)
-
-    #system prompt validation
-    system_prompt = kwargs["system_prompt"]
-    assert isinstance(system_prompt, list)
-    assert any("clinical‑informatics expert" in line for line in system_prompt)
-    assert any("```json" in line for line in system_prompt)
-    assert any("http://json-schema.org/draft-07/schema#" in line for line in system_prompt)
-
-    #user prompt validation
-    user_prompt = kwargs["user_prompt"]
-    assert isinstance(user_prompt, list)
-    assert any("LOW-complexity patients" in line for line in user_prompt)
-    assert any("JSON object with" in line for line in user_prompt)
-    assert any("Each narrative MUST include" in line for line in user_prompt)
-    assert any("Do NOT write SOAP notes" in line for line in user_prompt)
 
 @patch.object(SyntheticProfileGenerator, "_save_individuals")
 @patch.object(SyntheticProfileGenerator, "_save_combined")
@@ -137,10 +163,10 @@ def test_run(mock_generate_batch, mock_save_combined, mock_save_individuals, ven
     batch_size = 5
     tested.run(batches=batches, batch_size=batch_size)
 
-    expected_calls = [call(i, batch_size) for i in range(1, batches + 1)]
-    mock_generate_batch.assert_has_calls(expected_calls, any_order=False)
-    mock_save_combined.assert_called_once()
-    mock_save_individuals.assert_called_once()
+    expected_generate_calls = [call(i, batch_size) for i in range(1, batches + 1)]
+    assert mock_generate_batch.mock_calls == expected_generate_calls
+    assert mock_save_combined.mock_calls   == [call()]
+    assert mock_save_individuals.mock_calls == [call()]
 
 def test_main(tmp_path):
     dummy_settings = MagicMock()
@@ -150,7 +176,6 @@ def test_main(tmp_path):
     def fake_run(self, batches, batch_size):
         run_calls.append((self, batches, batch_size))
 
-    #run 1 for no directory
     output_path = tmp_path / "out.json"
     args = Namespace(batches=2, batch_size=5, output=output_path)
 
@@ -165,7 +190,6 @@ def test_main(tmp_path):
 
 
     assert len(run_calls) == 1
-    #call 1
     instance, batches, batch_size = run_calls[0]
     assert isinstance(instance, SyntheticProfileGenerator)
     assert instance.vendor_key.api_key == "MAIN_KEY"

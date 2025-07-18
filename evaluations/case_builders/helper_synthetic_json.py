@@ -1,7 +1,7 @@
 from __future__ import annotations
-import json, sys, jsonschema
+import sys
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 from hyperscribe.llms.llm_openai_o3 import LlmOpenaiO3
 from hyperscribe.libraries.memory_log import MemoryLog
 from hyperscribe.structures.vendor_key import VendorKey
@@ -9,7 +9,7 @@ from hyperscribe.structures.vendor_key import VendorKey
 class HelperSyntheticJson:
     @staticmethod
     def generate_json(vendor_key: VendorKey, system_prompt: list[str],
-        user_prompt: list[str], schema: Dict[str, Any],) -> Any:
+        user_prompt: list[str], schema: dict[str, Any],) -> Any:
         """
         1) Creates an O3 LLM client.
         2) Sends *system_prompt* and *user_prompt* (lists of strings).
@@ -32,12 +32,4 @@ class HelperSyntheticJson:
             sys.exit(1)
 
         parsed = result.content[0]
-
-        try:
-            jsonschema.validate(instance=parsed, schema=schema)
-        except jsonschema.exceptions.ValidationError as e:
-            Path("invalid_output.json").write_text(json.dumps(parsed))
-            print("Generated output failed JSON‑schema validation (", e, ").")
-            sys.exit(1)
-
         return parsed

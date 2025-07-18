@@ -5,7 +5,7 @@ from http import HTTPStatus
 from re import compile as re_compile, DOTALL, search as re_search
 from urllib.parse import quote
 
-from requests import get as requests_get, put as requests_put, Response, HTTPError
+from requests import get as requests_get, put as requests_put, Response
 
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.aws_s3_object import AwsS3Object

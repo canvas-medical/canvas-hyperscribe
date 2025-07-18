@@ -44,6 +44,27 @@ class SyntheticTranscriptGenerator:
             "patient_style": random.choice(Constants.PATIENT_PERSONAS),
             "bucket": bucket,
         }
+    
+    def schema_transcript(self, spec: Dict[str, Any]) -> Dict[str, Any]:
+        """Build a JSON Schema that enforces JSON transcript structure."""
+        schema = {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "array",
+            "minItems": spec["turn_total"],
+            "maxItems": spec["turn_total"],
+            "items": {
+                "type": "object",
+                "properties": {
+                    "speaker": {"type": "string",
+                                "description": "Who is talking for this turn, either 'Clinician' or 'Patient'."},
+                    "text":    {"type": "string",
+                                "description": "Words spoken during the turn."},
+                },
+                "required": ["speaker", "text"],
+                "additionalProperties": False,
+            },
+        }
+        return schema
 
     def _build_prompt(self, profile_text: str, spec: Dict[str, Any],
         schema: Dict[str, Any],) -> Tuple[List[str], List[str]]:
@@ -56,9 +77,7 @@ class SyntheticTranscriptGenerator:
         ]
         if self.seen_openings:
             system_lines.append(
-                "Avoid starting with any of these previous first lines: "
-                + ", ".join(sorted(self.seen_openings))
-            )
+                f"Avoid starting with any of these previous first lines: {', '.join(sorted(self.seen_openings))}")
 
         user_lines = [
             f"Patient profile: {profile_text}",
@@ -71,8 +90,8 @@ class SyntheticTranscriptGenerator:
                 }
             ),
             "",
-            "Moods: " + ", ".join(spec["mood"]),
-            "External pressure: " + spec["pressure"],
+            f"Moods: {', '.join(spec['mood'])}",
+            f"External pressure: {spec['pressure']}",
             f"Clinician persona: {spec['clinician_style']}",
             f"Patient persona: {spec['patient_style']}",
             "",
@@ -96,21 +115,7 @@ class SyntheticTranscriptGenerator:
     def generate_transcript_for_profile(self, profile_text: str
         ) -> Tuple[List[Dict[str, str]], Dict[str, Any]]:
         spec = self._make_spec()
-        schema = {
-            "$schema": "http://json-schema.org/draft-07/schema#",
-            "type": "array",
-            "minItems": spec["turn_total"],
-            "maxItems": spec["turn_total"],
-            "items": {
-                "type": "object",
-                "properties": {
-                    "speaker": {"type": "string"},
-                    "text":    {"type": "string"},
-                },
-                "required": ["speaker", "text"],
-                "additionalProperties": False,
-            },
-        }
+        schema = self.schema_transcript(spec)
 
         system_lines, user_lines = self._build_prompt(profile_text, spec, schema)
 

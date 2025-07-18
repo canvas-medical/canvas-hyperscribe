@@ -1,4 +1,4 @@
-import json, os, re, uuid, argparse
+import json, re, uuid, argparse
 from pathlib import Path
 from typing import Any, Dict, List, Tuple, cast
 
@@ -24,11 +24,16 @@ class SyntheticChartGenerator:
 
     def schema_chart(self) -> Dict[str, Any]:
         """Build a JSON Schema that enforces top-level keys in example_chart"""
+        
+        properties = {k: {"type": "array"} for k in self.example_chart.keys()}
+        properties["description"] = {"type": "string"}
+
         schema = {
             "$schema": "http://json-schema.org/draft-07/schema#",
+            "description": "example Canvas-compatible chart",
             "type": "object",
-            "properties": {k: {"type": "array"} for k in self.example_chart.keys()},
-            "required":  list(self.example_chart.keys()),
+            "properties": properties,
+            "required": list(self.example_chart.keys()),
             "additionalProperties": False,
         }
         return schema
@@ -36,14 +41,14 @@ class SyntheticChartGenerator:
     def generate_chart_for_profile(self, profile_text: str) -> Dict[str, Any]:
         schema = self.schema_chart()
 
-        system_prompt: List[str] = [
+        system_prompt: list[str] = [
             "You are generating a Canvas‑compatible `limited_chart.json` "
             "for a synthetic patient.",
             "Return your answer as JSON inside a fenced ```json ... ``` block.",
             "Only include fields shown in the example structure; leave irrelevant "
             "categories as empty arrays.",]
         
-        user_prompt: List[str] = [
+        user_prompt: list[str] = [
             f"Patient profile: {profile_text}",
             "",
             "Here is the required JSON structure:",
@@ -70,14 +75,14 @@ class SyntheticChartGenerator:
         return chart_json
 
     @classmethod
-    def validate_chart(self, chart_json: Dict[str, Any]) -> None:
+    def validate_chart(cls, chart_json: Dict[str, Any]) -> None:
         try:
             LimitedCache.load_from_json(chart_json)
         except Exception as e:
             raise ValueError(f"Invalid limited_chart.json structure: {e}")
 
     @classmethod
-    def assign_valid_uuids(self, obj: Any) -> Any:
+    def assign_valid_uuids(cls, obj: Any) -> Any:
         stack: List[Tuple[Any, Any]] = [(None, obj)]
         while stack:
             parent, current = stack.pop()

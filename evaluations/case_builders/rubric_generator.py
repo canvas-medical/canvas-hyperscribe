@@ -1,10 +1,11 @@
 import json, argparse
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 from hyperscribe.structures.vendor_key import VendorKey
 from evaluations.helper_evaluation import HelperEvaluation
 from evaluations.case_builders.helper_synthetic_json import HelperSyntheticJson
+from evaluations.constants import Constants
 
 class RubricGenerator:
     def __init__(self, vendor_key: VendorKey) -> None:
@@ -16,11 +17,11 @@ class RubricGenerator:
             return json.load(f)
 
     @classmethod
-    def schema_rubric(self) -> Dict[str, Any]:
+    def schema_rubric(cls) -> Dict[str, Any]:
         """
         JSON Schema for an array of rubric criteria objects:
         - criterion: string
-        - weight: integer 0–100
+        - weight: integer 0-100
         - sense: "positive" or "negative"
         """
         return {
@@ -30,9 +31,14 @@ class RubricGenerator:
             "items": {
                 "type": "object",
                 "properties": {
-                    "criterion": {"type": "string"},
-                    "weight":    {"type": "integer", "minimum": 0, "maximum": 100},
-                    "sense":     {"type": "string", "enum": ["positive", "negative"]}
+                    "criterion": {"type": "string",
+                                  "description": "dimension of note being evaluated"},
+                    "weight":    {"type": "integer", 
+                                  "description": "how much criterion is worth", 
+                                  "minimum": 0, "maximum": 100},
+                    "sense":     {"type": "string", 
+                                  "description": "positive or negative direction",
+                                  "enum": [Constants.POSITIVE_VALUE, Constants.NEGATIVE_VALUE]}
                 },
                 "required": ["criterion", "weight", "sense"],
                 "additionalProperties": False
@@ -47,8 +53,8 @@ class RubricGenerator:
         schema = self.schema_rubric()
 
         system_prompt: list[str] = [
-            "You are a clinical‑informatics expert working with a senior physician "
-            "to design case‑specific rubrics that assess how faithfully a medical "
+            "You are a clinical informatics expert working with a senior physician "
+            "to design case-specific rubrics that assess how faithfully a medical "
             "scribe note reflects the transcript and chart.",
             "Return your answer as JSON inside a fenced ```json ... ``` block."]
 
@@ -58,14 +64,14 @@ class RubricGenerator:
             "or implied in the transcript, using relevant context from the chart. "
             "Do not judge clinical decisions—only documentation fidelity.",
             "Follow three steps internally, but output **only** the final rubric:",
-            "  1. Identify key events/statements in transcript & chart.",
-            "  2. Decide what an ideal scribe must capture.",
-            "  3. Produce the rubric as a JSON array of objects.",
+            " 1. Identify key events/statements in transcript & chart.",
+            " 2. Decide what an ideal scribe must capture.",
+            " 3. Produce the rubric as a JSON array of objects.",
             "Each object keys:",
-            "  • criterion (string) — must start with “Reward for” or “Penalize for”",
-            "  • weight    (int 0‑100)",
-            "  • sense     (\"positive\" | \"negative\")",
-            "Include at least one criterion on overall completeness and one on chart‑copy fidelity.",
+            " - criterion (string) — must start with with \"Reward for\" or \"Penalize for\"",
+            " - weight    (int 0-100)",
+            " - sense     (\"positive\" | \"negative\")",
+            "Include at least one criterion on overall completeness and one on chart-copy fidelity.",
             "Your JSON **must** conform to the following JSON Schema:",
             "```json",
             json.dumps(schema, indent=2),
