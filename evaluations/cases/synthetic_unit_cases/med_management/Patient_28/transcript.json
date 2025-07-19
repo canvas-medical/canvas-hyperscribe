@@ -1,0 +1,18 @@
+[
+  {
+    "speaker": "Patient",
+    "text": "Look, I thought the weekly shot meant fewer hassles, but the pharmacy says I\u2019m out of refills already, and the halfway house nurse keeps nagging me about missed lisinopril."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Okay, let me untangle this. The refill block shows because the auto-approve covered only the first four pens; I\u2019ve already faxed a new prior-auth and marked it urgent. You still have one unused pen in the fridge, correct? That gives us seven more days while insurance flips the switch."
+  },
+  {
+    "speaker": "Patient",
+    "text": "I swear I\u2019m taking the pills, but sometimes the boxes get mixed up on the common shelf. And, uh, my shoulder still aches after the last shot."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "For the lisinopril, remember we halved the strength to ten milligrams once every morning; the blister pack with blue numbers is yours\u2014write your initials on it so roommates can\u2019t grab it by mistake. The shoulder soreness is common; ice for ten minutes and rotate sites, maybe abdomen next time."
+  }
+]

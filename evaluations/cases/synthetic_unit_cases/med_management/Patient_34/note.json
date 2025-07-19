@@ -1,0 +1,83 @@
+[
+  {
+    "instruction": "Reported calf soreness and dark urine after the second atovaquone-proguanil dose. Concern for myopathy due to atorvastatin.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.history_present_illness",
+      "class": "HistoryOfPresentIllnessCommand",
+      "attributes": {
+        "narrative": "The patient reported calf soreness and dark urine after the second dose of atovaquone-proguanil, raising concern for myopathy due to atorvastatin."
+      }
+    }
+  },
+  {
+    "instruction": "Stop atorvastatin due to potential myopathy and risk of rhabdomyolysis, especially if nirmatrelvir-ritonavir is started.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.stop_medication",
+      "class": "StopMedicationCommand",
+      "attributes": {
+        "medication_id": "43870497-c69c-488c-b436-dd50d2d111f3",
+        "rationale": "Stop atorvastatin due to potential myopathy and risk of rhabdomyolysis, especially if nirmatrelvir-ritonavir is started."
+      }
+    }
+  },
+  {
+    "instruction": "Continue taking the malaria pill (atovaquone-proguanil), double water intake to about three liters daily, and log any muscle weakness or cola-colored urine.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "coding": {
+          "system": "http://snomed.info/sct",
+          "code": "4761000124103",
+          "display": "Recommendation to continue a medication"
+        },
+        "comment": "Continue taking the malaria pill (atovaquone-proguanil)."
+      }
+    }
+  },
+  {
+    "instruction": "If pain exceeds five out of ten or urine remains brown for more than six hours, hold all suspect medications, start oral rehydration salts, and contact the river post for evacuation.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "coding": {
+          "system": "http://snomed.info/sct",
+          "code": "396080005",
+          "display": "Medication side effects education"
+        },
+        "comment": "If pain exceeds five out of ten or urine remains brown for more than six hours, hold all suspect medications, start oral rehydration salts, and contact the river post for evacuation."
+      }
+    }
+  },
+  {
+    "instruction": "Avoid grapefruit due to interaction with atorvastatin; stick to oranges or bottled juice.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "coding": {
+          "system": "http://snomed.info/sct",
+          "code": "428381000124102",
+          "display": "Medication interaction with food education"
+        },
+        "comment": "Avoid grapefruit due to interaction with atorvastatin; stick to oranges or bottled juice."
+      }
+    }
+  },
+  {
+    "instruction": "Pack albuterol in a zip bag with silica gel to prevent valve clogging. Use two puffs only if wheezing occurs. If used more than twice a week, contact the mission doctor for reassessment.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "coding": {
+          "system": "http://snomed.info/sct",
+          "code": "698530005",
+          "display": "Education about safe storage and management of medication"
+        },
+        "comment": "Pack albuterol in a zip bag with silica gel to prevent valve clogging."
+      }
+    }
+  }
+]

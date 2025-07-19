@@ -1,0 +1,72 @@
+[
+  {
+    "rationale": "Did not state 40 mg SC every 14 days nor mention next dose due Sunday.",
+    "satisfaction": 5.0,
+    "score": 0.75
+  },
+  {
+    "rationale": "No room-temperature wait, 90\u00b0 angle, site, 10-second hold, or sharps disposal documented.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Notes literature safety but omits explicit decision wording and \u201c>10,000 pregnancies\u201d figure.",
+    "satisfaction": 60.0,
+    "score": 6.0
+  },
+  {
+    "rationale": "Prenatal vitamin dose and anti-nausea tip absent.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Includes redness/bruising >quarter, fever >100.4 \u00b0F, sudden abdominal pain, and \u2018call clinic first\u2019.",
+    "satisfaction": 95.0,
+    "score": 9.5
+  },
+  {
+    "rationale": "Verifies BP and labetalol 100 mg BID after two readings >140/90 with OB ok, but omits stopping lisinopril.",
+    "satisfaction": 75.0,
+    "score": 11.25
+  },
+  {
+    "rationale": "Records home BP 145/92 and associated pounding headaches.",
+    "satisfaction": 95.0,
+    "score": 6.65
+  },
+  {
+    "rationale": "Captures patient anxiety about pharmacist\u2019s warning on adalimumab in pregnancy.",
+    "satisfaction": 90.0,
+    "score": 4.5
+  },
+  {
+    "rationale": "No mention of FedEx delay or fear of missing Sunday dose.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "States patient is 24 weeks pregnant.",
+    "satisfaction": 100.0,
+    "score": 5.0
+  },
+  {
+    "rationale": "Important elements missing (adalimumab regimen, prenatal vitamin, FedEx issue) but core issues covered.",
+    "satisfaction": 60.0,
+    "score": 7.8
+  },
+  {
+    "rationale": "No unsupported information identified.",
+    "satisfaction": 95.0,
+    "score": -1.0
+  },
+  {
+    "rationale": "All numerical details presented match transcript; no errors noted.",
+    "satisfaction": 95.0,
+    "score": -0.75
+  },
+  {
+    "rationale": "Note stays focused on discussed problems and includes pregnancy status; no irrelevant data copied.",
+    "satisfaction": 90.0,
+    "score": -1.0
+  }
+]

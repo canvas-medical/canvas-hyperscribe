@@ -1,0 +1,52 @@
+[
+  {
+    "criterion": "Reward for accurately documenting the new prescription: generic 20 \u00b5g ethinyl estradiol / 100 \u00b5g levonorgestrel, one tablet daily, continuous use (no 7-day break), and instruction to start tonight mid-cycle.",
+    "weight": 25,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing dosing-time guidance: anchor dose to a fixed clock time (e.g., 5 p.m.) regardless of shift work.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for recording missed-pill advice: up to 12 h late still effective; >12 h late\u2014take missed pill immediately (even two in one day) and use condoms for 7 days.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for listing discussed side-effects (mild nausea, spotting, breast tenderness) and serious warning signs (leg pain, chest pressure, migraine with visual changes) plus instruction to skip next pill and call provider if they occur.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for including smoking counseling: patient smokes a few cigarettes; advised to keep under five/day, stay hydrated, clot risk comment, and patient inquiry about switching to nicotine gum.",
+    "weight": 8,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting follow-up plan (revisit at 3 months) and task for clinician to submit new insurance claim tomorrow.",
+    "weight": 7,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for noting patient\u2019s financial concern ($30 copay) and desire to purchase one pack at a time.",
+    "weight": 5,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for overall completeness: note captures all salient decisions, counseling points, and patient concerns from the transcript without significant omission or distortion.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for importing chart data not referenced in the conversation (e.g., vitamin D prescription, unrelated history) or omitting relevant chart context that was referenced (current tobacco use).",
+    "weight": 8,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for altering, fabricating, or contradicting spoken details\u2014especially prescription strength, dosing schedule, start date, late-pill protocol, or side-effect warnings.",
+    "weight": 12,
+    "sense": "negative"
+  }
+]

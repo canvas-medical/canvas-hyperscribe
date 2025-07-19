@@ -1,0 +1,17 @@
+{
+  "turn_total": 3,
+  "speaker_sequence": [
+    "Clinician",
+    "Clinician",
+    "Patient"
+  ],
+  "ratio": 1.98,
+  "mood": [
+    "clinician is rushed",
+    "patient is frustrated"
+  ],
+  "pressure": "time pressure on the visit",
+  "clinician_style": "over\u2011explainer",
+  "patient_style": "assertive and informed",
+  "bucket": "short"
+}

@@ -1,0 +1,22 @@
+{
+  "turn_total": 8,
+  "speaker_sequence": [
+    "Patient",
+    "Clinician",
+    "Patient",
+    "Clinician",
+    "Patient",
+    "Patient",
+    "Clinician",
+    "Clinician"
+  ],
+  "ratio": 1.7,
+  "mood": [
+    "patient is tearful",
+    "clinician is concerned"
+  ],
+  "pressure": "insurance denied prior authorization",
+  "clinician_style": "cautious and inquisitive",
+  "patient_style": "confused and forgetful",
+  "bucket": "medium"
+}

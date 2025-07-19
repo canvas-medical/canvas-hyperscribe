@@ -1,0 +1,18 @@
+[
+  {
+    "speaker": "Clinician",
+    "text": "Mrs. Akiko, a side-effect alert just flagged a borderline QT of 470 ms; any new dizziness or pounding heart today?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Well, I read the pamphlet, and it said the pill could, uh, mess with my heartbeat, so when the nurse mentioned that 470 number I got scared. Yesterday during bingo I felt this flutter in my chest, like a bird, and my ears rang. I told them, but they just wrote it down and walked off. I’m already on that metoprolol which slows things, and the furosemide makes me pee all day; I don’t want any more pills piled on. And I know azithromycin can stretch the QT too—why didn’t anyone warn me before they started it? If my heart stops because two drugs are fighting, it’s on the chart, and I’m the one who pays, not the committee."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "I hear you. We’re halving azithromycin to 250 mg daily, adding potassium labs tomorrow, and repeating ECG in forty-eight hours."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Meanwhile, keep osimertinib 80 mg with breakfast, metoprolol unchanged, skip any extra electrolytes, and buzz staff if flutter returns."
+  }
+]

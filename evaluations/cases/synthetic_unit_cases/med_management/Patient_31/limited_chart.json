@@ -1,0 +1,22 @@
+{
+  "demographicStr": "the patient is a man, born on January 1, 2007 (age 17)",
+  "conditionHistory": [],
+  "currentAllergies": [],
+  "currentConditions": [
+    {
+      "uuid": "7c6fac64-0791-4aa0-85a5-1830afe70896",
+      "label": "Allergic rhinitis due to pollen",
+      "code": "J30.1"
+    }
+  ],
+  "currentGoals": [],
+  "currentMedications": [
+    {
+      "uuid": "8f98fd4b-db53-45cf-8017-0a0f5383640a",
+      "label": "Loratadine 10 mg tablet",
+      "code": "617457"
+    }
+  ],
+  "familyHistory": [],
+  "surgeryHistory": []
+}

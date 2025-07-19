@@ -1,0 +1,38 @@
+{
+  "demographicStr": "the patient is a man, born on January 1, 1960 (age 64)",
+  "conditionHistory": [],
+  "currentAllergies": [],
+  "currentConditions": [
+    {
+      "uuid": "df2c2a90-0e03-4263-8683-2a5c3d056fb0",
+      "label": "Chronic myeloid leukemia, BCR-ABL positive",
+      "code": "C92.10"
+    }
+  ],
+  "currentGoals": [
+    {
+      "uuid": "114aeca7-3959-4508-a698-f6720c581074",
+      "label": "Maintain safe QT interval during nilotinib therapy",
+      "code": ""
+    }
+  ],
+  "currentMedications": [
+    {
+      "uuid": "62e38005-8562-4713-976d-3c7de79e95df",
+      "label": "Nilotinib 200 mg capsule",
+      "code": "106540"
+    },
+    {
+      "uuid": "c296827a-0a4b-4791-a8b8-5066ee620ac6",
+      "label": "Lisinopril tablet",
+      "code": "29046"
+    },
+    {
+      "uuid": "330badff-56e4-4edf-bd94-99343686871f",
+      "label": "Simvastatin tablet",
+      "code": "36567"
+    }
+  ],
+  "familyHistory": [],
+  "surgeryHistory": []
+}

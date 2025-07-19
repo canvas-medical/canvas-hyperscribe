@@ -10,7 +10,6 @@ from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
 
-
 def test_str2datetime():
     tested = Helper
     tests = [
@@ -154,3 +153,5 @@ def test_audio2texter():
         assert result.api_key == "audioKey"
         assert result.model == exp_model
         assert result.memory_log == memory_log
+
+

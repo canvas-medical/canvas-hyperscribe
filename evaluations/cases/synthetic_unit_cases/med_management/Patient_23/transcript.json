@@ -1,0 +1,34 @@
+[
+  {
+    "speaker": "Patient",
+    "text": "I keep pricking my finger and the numbers are still above 250. Did I, um, do something wrong with the rice portions? My head feels fuzzy in the afternoons and I feel thirsty all night."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Let me walk through what we know. Your glucose logs show fasting values 220\u2013260 even though you take metformin 1000 mg twice a day and glipizide 10 mg with breakfast. Insurance, frustratingly, denied semaglutide, but I pulled a 0.25 mg starter pen from samples\u2014one shot every Sunday. Dial, press, hold ten seconds. If nausea, burping, or a red welt bigger than a coin appears, call the clinic right away."
+  },
+  {
+    "speaker": "Patient",
+    "text": "My daughter wrote Sunday on the calendar, but what if I forget and take it Monday morning? Do I skip or, uh, take two days in a row? I don't remember."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "If it\u2019s less than 48 hours late, go ahead and inject as soon as you remember, then return to the usual Sunday slot. More than 48 hours, skip and wait for the next scheduled Sunday\u2014never double. I\u2019ll text your daughter a reminder link, and we can set the pharmacy app to chirp Saturday night."
+  },
+  {
+    "speaker": "Patient",
+    "text": "Uh, the metformin sometimes runs out before payday, and I miss two or three doses. Is that why my sugar shoots so high lately maybe?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Also my stomach burns when I swallow the big white tablet, so sometimes I take only one instead of two. I didn't tell the other doctor because I felt ashamed."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Okay, thanks for saying that. We can cut the morning metformin pill in half to 500 mg with food; that often eases the burn. Keep the night dose whole. I\u2019ll send a coupon to bridge the refill gap so no doses get missed during next month."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "One more detail: glipizide can cause low sugar once semaglutide starts working. I plan to recheck finger-sticks in two weeks; if any reading drops under 80, call me, and we\u2019ll lower glipizide to 5 mg or stop it outright even in the middle of the night."
+  }
+]

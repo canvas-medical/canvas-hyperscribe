@@ -1,0 +1,26 @@
+[
+  {
+    "speaker": "Patient",
+    "text": "Ever since the nurse handed me that new blister pack, I keep checking the days, uh, to be sure I don\u2019t miss one. Today is Friday, so that means two more pills after breakfast, right? The rash still burns at night, and I\u2019m scared I\u2019ll need more than five days."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Yes, you\u2019re on track: one 1-gram valacyclovir tablet after breakfast today, another Saturday, the last one Sunday morning, then you\u2019re done. Keep swallowing with a full glass of water; it lessens that burning you feel. Typical hiccups are mild nausea or a little headache\u2014very few folks your age get anything worse. No need for nighttime doses."
+  },
+  {
+    "speaker": "Patient",
+    "text": "And, um, the vitamin D chew\u2014 it\u2019s shaped like a little orange square\u2014 do I still take that at lunch while I\u2019m on this antiviral? I don\u2019t want anything fighting with the shingles medicine. The caregiver said spacing them an hour is fine, but I want to hear it from you."
+  },
+  {
+    "speaker": "Patient",
+    "text": "Also, they wrote \u201cno penicillin\u201d in red on my chart, and that\u2019s the only drug I ever reacted to. The word \u201ccyclovir\u201d looks kind of similar to amoxicillin in my head. Could this pill cause the same throat swelling I had years ago, or am I safe?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "One more thing: the pharmacist mentioned the home might switch suppliers next week because of a formulary shake-up. If the tablets change color or shape before I finish the pack, should I keep taking them, or stop and call? I don\u2019t want to mix up doses."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "The vitamin D chew is fine right after lunch\u2014 it won\u2019t clash, even if you chew it. Valacyclovir shares no chemistry with penicillin, so the old throat swelling can\u2019t repeat here. If the pharmacy swaps brands mid-course, the imprint code will change, but potency won\u2019t; keep taking one per blister slot and alert staff, not stop."
+  }
+]

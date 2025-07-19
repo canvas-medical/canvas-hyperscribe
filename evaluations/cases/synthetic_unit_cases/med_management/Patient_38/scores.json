@@ -1,0 +1,82 @@
+[
+  {
+    "rationale": "Explicitly states \u201cAdministered 25 mg of long-acting risperidone in the patient\u2019s right arm.\u201d",
+    "satisfaction": 95.0,
+    "score": 14.25
+  },
+  {
+    "rationale": "No mention of moving furosemide dose to 10 a.m. or stated goals.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Includes dizziness and ringing in ears but omits emotional distress reference to shoes/water pill.",
+    "satisfaction": 40.0,
+    "score": 4.0
+  },
+  {
+    "rationale": "\u201cOrdered baseline ECG and electrolytes\u201d captured verbatim.",
+    "satisfaction": 100.0,
+    "score": 10.0
+  },
+  {
+    "rationale": "Conditional KCl 20 mEq after supper if K<4 mEq/L documented exactly.",
+    "satisfaction": 100.0,
+    "score": 8.0
+  },
+  {
+    "rationale": "Instructions to aides about stand-by assist, slow position changes, and daily BP recording all present.",
+    "satisfaction": 95.0,
+    "score": 7.6
+  },
+  {
+    "rationale": "States next injection day 28 and dose reduction trigger if >2 naps.",
+    "satisfaction": 100.0,
+    "score": 8.0
+  },
+  {
+    "rationale": "Notes ongoing hallucinations but lacks patient\u2019s request to advance injection and clinician explanation.",
+    "satisfaction": 30.0,
+    "score": 3.0
+  },
+  {
+    "rationale": "Records QT concern and plan for daily pulse checks & weekly ECG; omits reassurance of low risk.",
+    "satisfaction": 70.0,
+    "score": 7.0
+  },
+  {
+    "rationale": "No documentation of grandson interpreter or nurse witness.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Medication list with timing not included at all.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Major decisions captured, but several key elements (furosemide change, interpreter, med list) missing.",
+    "satisfaction": 50.0,
+    "score": 10.0
+  },
+  {
+    "rationale": "Multiple high-value omissions lowering fidelity.",
+    "satisfaction": 30.0,
+    "score": -14.0
+  },
+  {
+    "rationale": "No new unsupported clinical content added.",
+    "satisfaction": 90.0,
+    "score": -1.5
+  },
+  {
+    "rationale": "Does not add irrelevant chart history or meds.",
+    "satisfaction": 95.0,
+    "score": -0.5
+  },
+  {
+    "rationale": "No obvious fabricated patient or clinician statements detected.",
+    "satisfaction": 85.0,
+    "score": -1.5
+  }
+]

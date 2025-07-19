@@ -1,0 +1,28 @@
+{
+  "demographicStr": "the patient is a boy, born on January 1, 2013 (age 11)",
+  "conditionHistory": [],
+  "currentAllergies": [],
+  "currentConditions": [
+    {
+      "uuid": "11b413ce-ac7a-4b1f-8577-bbc6601fd62b",
+      "label": "Unspecified asthma, uncomplicated",
+      "code": "J45.909"
+    }
+  ],
+  "currentGoals": [
+    {
+      "uuid": "2ac5c6f5-4a85-4633-87eb-cfc2aded35c5",
+      "label": "Improve asthma control and medication adherence",
+      "code": ""
+    }
+  ],
+  "currentMedications": [
+    {
+      "uuid": "d4c7af3c-6df2-477b-889e-8abe32a8b806",
+      "label": "Fluticasone propionate 110 mcg/actuation inhalation aerosol, 1 puff twice daily with spacer",
+      "code": "310798"
+    }
+  ],
+  "familyHistory": [],
+  "surgeryHistory": []
+}

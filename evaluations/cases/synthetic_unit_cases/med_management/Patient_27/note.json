@@ -1,0 +1,74 @@
+[
+  {
+    "instruction": "Change the prescription of Risperidone 25 mg intramuscular suspension, extended release, administered today, covering for four weeks. No tablets unless otherwise instructed.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.adjust_prescription",
+      "class": "AdjustPrescriptionCommand",
+      "attributes": {
+        "type_to_dispense": {
+          "representative_ndc": "",
+          "ncpdp_quantity_qualifier_code": ""
+        },
+        "prescriber_id": "4150cd20de8a470aa570a852859ac87e",
+        "fdb_code": "",
+        "substitutions": "not_allowed",
+        "new_fdb_code": "",
+        "sig": "Administered today, covering for four weeks. No tablets unless otherwise instructed.",
+        "days_supply": 28
+      }
+    }
+  },
+  {
+    "instruction": "Keep melatonin intake to one gummy (5 mg) per night to avoid blurring daytime focus.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "coding": {
+          "system": "http://snomed.info/sct",
+          "code": "230089004",
+          "display": "Advice to change nutrient intake"
+        },
+        "comment": "Keep melatonin intake to one gummy (5 mg) per night to avoid blurring daytime focus."
+      }
+    }
+  },
+  {
+    "instruction": "Recycle any medication bottle that predates today's prescription to avoid double medicating.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "comment": "Recycle any medication bottle that predates today's prescription to avoid double medicating."
+      }
+    }
+  },
+  {
+    "instruction": "Order labs for Tuesday the 14th, anytime before 3 p.m., to check prolactin, kidney, and liver panels.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.lab_order",
+      "class": "LabOrderCommand",
+      "attributes": {
+        "tests_order_codes": [],
+        "ordering_provider_key": "4150cd20de8a470aa570a852859ac87e",
+        "comment": "Order labs to check prolactin, kidney, and liver panels.",
+        "fasting_required": false,
+        "diagnosis_codes": [
+          "E221"
+        ]
+      }
+    }
+  },
+  {
+    "instruction": "Set two phone alarms and ask Disability Services for a visual reminder board for the lab appointment.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.task",
+      "class": "TaskCommand",
+      "attributes": {
+        "comment": "",
+        "title": "Set two phone alarms for the lab appointment",
+        "due_date": null
+      }
+    }
+  }
+]

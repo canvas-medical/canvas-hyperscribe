@@ -1,0 +1,27 @@
+{
+  "demographicStr": "the patient is a girl, born on January 1, 2014 (age 10)",
+  "conditionHistory": [],
+  "currentAllergies": [],
+  "currentConditions": [
+    {
+      "uuid": "aabfd49e-5a88-4eee-9554-1a8018699e39",
+      "label": "Mild persistent asthma, uncomplicated",
+      "code": "J45.30"
+    }
+  ],
+  "currentGoals": [],
+  "currentMedications": [
+    {
+      "uuid": "77ff17ca-c68f-4daf-96c2-2de0eb46f947",
+      "label": "Fluticasone propionate 44 mcg/actuation inhalation aerosol, inhale 1 puff twice daily",
+      "code": "197362"
+    },
+    {
+      "uuid": "b5f5885d-65b7-4d1f-924f-81b0f0b9ca93",
+      "label": "Albuterol 90 mcg/actuation inhalation aerosol, inhale as needed during sports",
+      "code": "208140"
+    }
+  ],
+  "familyHistory": [],
+  "surgeryHistory": []
+}

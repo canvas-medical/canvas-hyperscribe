@@ -1,0 +1,14 @@
+[
+  {
+    "speaker": "Patient",
+    "text": "I’m really sorry, I, uh, already messed up the pack. Missed two pills during finals, doubled up, and now I’m spotting everywhere; my legs feel heavy when I sprint and I’m freaking out. Is this ruining my workouts or my health?"
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Okay, deep breath, Kayla. Missing two active pills and then doubling causes the spotting; it’s nuisance, not muscle-killer. From tonight, take one blue tablet at 9 p.m., no doses. Because you skipped more than 48 hours, add condoms for seven days. If any pill is over 24 hours late, swallow it immediately, continue the pack, and restart seven-day condom clock. Expected side effects include breast tenderness, mild water weight, mood flutter—settle by the second pack and don’t hurt VO₂ max. But calf pain or sudden chest tightness means ER, no apologies. Tie the pill to tooth-brushing, set two alarms, and keep a backup strip in your gear bag."
+  },
+  {
+    "speaker": "Patient",
+    "text": "Okay, but what if I forget again? My roommate’s schedule is different every day, and I don’t eat dinner at the dorm. Can I set an alarm, or switch to something that won’t mess me up if I slip?"
+  }
+]

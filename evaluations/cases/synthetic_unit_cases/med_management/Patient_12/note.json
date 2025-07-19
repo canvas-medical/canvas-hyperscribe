@@ -1,0 +1,96 @@
+[
+  {
+    "instruction": "Change the prescription of Paliperidone palmitate extended-release injectable suspension, monthly depot, to 156 milligrams, administered in the left deltoid with a fifteen-second push. The patient should not need risperidone tablets anymore.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.adjust_prescription",
+      "class": "AdjustPrescriptionCommand",
+      "attributes": {
+        "fdb_code": "",
+        "substitutions": "not_allowed",
+        "prescriber_id": "4150cd20de8a470aa570a852859ac87e",
+        "sig": "156 milligrams, administered in the left deltoid with a fifteen-second push",
+        "type_to_dispense": {
+          "representative_ndc": "",
+          "ncpdp_quantity_qualifier_code": ""
+        },
+        "days_supply": 30,
+        "new_fdb_code": ""
+      }
+    }
+  },
+  {
+    "instruction": "A cold pack should be applied ten minutes on, ten off, for the first evening to reduce swelling at the injection site.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "comment": "A cold pack should be applied ten minutes on, ten off, for the first evening to reduce swelling at the injection site."
+      }
+    }
+  },
+  {
+    "instruction": "Maintain hydration and salt balance to lower the risk of dizziness when standing.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "coding": {
+          "system": "http://snomed.info/sct",
+          "code": "710553000",
+          "display": "Education about fluid balance"
+        },
+        "comment": "Maintain hydration and salt balance to lower the risk of dizziness when standing."
+      }
+    }
+  },
+  {
+    "instruction": "A prolactin check is ordered for the next visit. The patient should report any chest tenderness or fluid leakage early.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.lab_order",
+      "class": "LabOrderCommand",
+      "attributes": {
+        "ordering_provider_key": "4150cd20de8a470aa570a852859ac87e",
+        "tests_order_codes": [],
+        "comment": "Monitor prolactin levels due to symptoms of chest tenderness or fluid leakage.",
+        "fasting_required": false,
+        "diagnosis_codes": [
+          "E221"
+        ]
+      }
+    }
+  },
+  {
+    "instruction": "Ping the mobile outreach team in Pima County and pre-authorize a walk-in for the patient on day twenty-eight, give or take two days.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.task",
+      "class": "TaskCommand",
+      "attributes": {
+        "comment": "Ping the mobile outreach team in Pima County and pre-authorize a walk-in for the patient on day twenty-eight, give or take two days.",
+        "due_date": "2025-07-25",
+        "assign_to": null,
+        "labels": null,
+        "title": "Pre-authorize walk-in for patient"
+      }
+    }
+  },
+  {
+    "instruction": "Administration of the first paliperidone shot and management of schizophrenia symptoms.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.reason_for_visit",
+      "class": "ReasonForVisitCommand",
+      "attributes": {
+        "comment": "Administration of the first paliperidone shot and management of schizophrenia symptoms."
+      }
+    }
+  },
+  {
+    "instruction": "The patient received the first paliperidone shot in the left deltoid, 156 milligrams, with a fifteen-second push. The patient is concerned about missing the next shot due to travel plans and potential return of symptoms. The patient reports the arm feeling hot and tight post-injection.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.history_present_illness",
+      "class": "HistoryOfPresentIllnessCommand",
+      "attributes": {
+        "narrative": "The patient received the first paliperidone shot in the left deltoid, 156 milligrams, with a fifteen-second push. The patient is concerned about missing the next shot due to travel plans and potential return of symptoms. The patient reports the arm feeling hot and tight post-injection."
+      }
+    }
+  }
+]

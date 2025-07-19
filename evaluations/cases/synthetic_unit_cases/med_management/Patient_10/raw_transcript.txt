@@ -1,0 +1,50 @@
+[
+  {
+    "speaker": "Patient",
+    "text": "Look, the shot stung way more this time, and I'm already nodding off in math class. If this keeps up I'm gonna fall behind again. Are you sure this dose isn’t too high, or is there something I can do so I’m not half-asleep all day?"
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Your serum levels last month came back smack in the mid-therapeutic range, so I don’t want to drop the 400-mg injection yet. The drowsiness usually peaks the first 48 hours, then tapers. Try taking the shot right after school next month; that way the heaviest effect hits overnight. If you’re still sleepy past Sunday, text the nurse line— we can add a morning 5-mg modafinil sample for a week while we reassess."
+  },
+  {
+    "speaker": "Patient",
+    "text": "Modafinil sounds okay, but the foster mom says any new pills mean another permission form, and that drags. Plus the weight— I’m up eight pounds since the first shot. Nobody told me I’d need bigger jeans this fast."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "I hear you, and I’m watching that curve. Aripiprazole is lighter on weight gain than risperidone, but puberty plus cafeteria pizza can add up. Let’s get you a dietitian consult; we can bill it under the injection visit so no extra paperwork. Meanwhile, track sugary drinks in the Daylio app—I need screenshots next appointment. If the scale keeps climbing more than two pounds a month, we’ll switch to the 300-mg dose or consider once-daily cariprazine."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Quick logistics: today is April fifth, so the next depot is due no later than May third— that’s four weeks minus two days to give us clinic flexibility. I already sent a reminder to your phone and to the foster parent portal. If school changes again, bring the new address right away; the dose must stay within a five-day window or the medicine level dips and symptoms can spike back."
+  },
+  {
+    "speaker": "Patient",
+    "text": "Fine, but the last appointment got moved and the Uber voucher expired. I can’t keep missing chemistry just because rides fall through. If the timing’s that strict, can you set it up at the school nurse’s office instead? I need something that actually works with my day."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "I already called district health; their nurse can administer the depot, but we need a refrigerator log and a one-page standing order signed by me. I’ll fax that today; you just have to show up with the vial in a cooler pack. I’ll text the barcode for pickup so the pharmacy releases it to you without an adult present."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Side-effect watch: if sleepiness drags past day three, or if your pants jump another inch in the waist, message me through the portal; don’t wait for the next visit. And remember, sudden restlessness—like you can’t sit still in class—could be akathisia, not ADHD. That’s treatable, but only if I hear about it early. A brisk walk after lunch can blunt it too."
+  },
+  {
+    "speaker": "Patient",
+    "text": "Okay, but akathisia sounds exactly like me after two energy drinks, so how am I supposed to tell the difference? And will any of this show up on that random drug screen the new principal keeps threatening us with?"
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Good questions. Akathisia feels internal—like your muscles are screaming to move—even when caffeine wears off; write down when it hits and how long. As for drug tests, aripiprazole isn’t a controlled substance and won’t flag positive. If the screen uses a broad immunoassay, it could rarely cross-react, but I’ll issue a letter stating the prescription so you’re covered."
+  },
+  {
+    "speaker": "Patient",
+    "text": "Letter’s good. Just email it, because printers in the group home are always broken. One more thing: does the vitamin D do anything to help the meds, or is it just there so my bloodwork looks nice?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "And, uh, if the school nurse can’t keep the vial cold, can I stash it in my locker with an ice pack, or will that wreck the shot? I don’t want to mess this up."
+  }
+]

@@ -1,0 +1,27 @@
+{
+  "demographicStr": "The patient is a woman, born on January 1, 1996 (age 28)",
+  "conditionHistory": [],
+  "currentAllergies": [],
+  "currentConditions": [
+    {
+      "uuid": "b59dc21f-d98c-4f6b-9a8d-e66943f15579",
+      "label": "Current tobacco use",
+      "code": "Z72.0"
+    }
+  ],
+  "currentGoals": [],
+  "currentMedications": [
+    {
+      "uuid": "5af7eca5-7ea1-4a5a-bf25-a826e4fbbae0",
+      "label": "Ethinyl estradiol 0.02 mg / levonorgestrel 0.1 mg oral tablet",
+      "code": "197361"
+    },
+    {
+      "uuid": "4d06caa3-89dd-42e9-a787-15e77e34dad3",
+      "label": "Cholecalciferol 25 mcg (1000 IU) oral tablet (vitamin D3)",
+      "code": "617311"
+    }
+  ],
+  "familyHistory": [],
+  "surgeryHistory": []
+}

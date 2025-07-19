@@ -111,16 +111,30 @@ class AwsS3:
         result: list[AwsS3Object] = []
         if not self.is_ready():
             return result
-        params: dict[str, int | str] = {
-            'list-type': 2,
-            'prefix': prefix,
-        }
-        headers = self.headers('', params=params)
-        endpoint = f"https://{headers['Host']}"
-        response = requests_get(endpoint, params=params, headers=headers)
-        if response.status_code == HTTPStatus.OK.value:
+
+        continuation_token = None
+        truncated_pattern = re_compile(r"<IsTruncated>(true|false)</IsTruncated>")
+        token_pattern = re_compile(r"<NextContinuationToken>(.*?)</NextContinuationToken>")
+        
+        is_truncated = True
+        while is_truncated:
+            params: dict[str, int | str] = {
+                'list-type': 2,
+                'prefix': prefix,
+            }
+            if continuation_token:
+                params["continuation-token"] = continuation_token
+            
+            headers = self.headers('', params=params)
+            endpoint = f"https://{headers['Host']}"
+            response = requests_get(endpoint, params=params, headers=headers)
+            response_text = response.content.decode('utf-8')
+            
+            if response.status_code != HTTPStatus.OK.value:
+                return result
+        
             contents_pattern = re_compile(r'<Contents>(.*?)</Contents>', DOTALL)
-            for content_match in contents_pattern.finditer(response.content.decode('utf-8')):
+            for content_match in contents_pattern.finditer(response_text):
                 content_xml = content_match.group(1)
                 key_match = re_search(r'<Key>(.*?)</Key>', content_xml)
                 size_match = re_search(r'<Size>(.*?)</Size>', content_xml)
@@ -132,6 +146,15 @@ class AwsS3:
                         size=int(size_match.group(1)),
                         last_modified=datetime.fromisoformat(modified_match.group(1)),
                     ))
+
+            truncated_match = truncated_pattern.search(response_text)
+            is_truncated = bool(truncated_match and truncated_match.group(1) == "true")
+            if is_truncated:
+                token_match = token_pattern.search(response_text)
+                if token_match:
+                    continuation_token = token_match.group(1)
+                else:
+                    break
 
         return result
 

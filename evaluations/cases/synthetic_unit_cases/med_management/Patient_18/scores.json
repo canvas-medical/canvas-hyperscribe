@@ -1,0 +1,72 @@
+[
+  {
+    "rationale": "No mention of insurance denial, oral-failure requirement, appeal, or 6-week decision window.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Includes 36\u201346 \u00b0F range and \u2018never freeze,\u2019 but omits two 0.25-mg sample pens and 8-week supply detail.",
+    "satisfaction": 40.0,
+    "score": 4.0
+  },
+  {
+    "rationale": "Clearly states 0.25 mg weekly \u00d74 weeks, then 0.5 mg if tolerated.",
+    "satisfaction": 100.0,
+    "score": 12.0
+  },
+  {
+    "rationale": "Documents gel pack for travel, insulated sleeve, butter-shelf horizontal storage and zip pouch, but omits \u2018Do Not Touch\u2019 family notice.",
+    "satisfaction": 80.0,
+    "score": 8.0
+  },
+  {
+    "rationale": "No patient concerns (nausea, hypoglycemia, BP, etc.) recorded.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Orders fasting glucose every other morning with cutoff <80, but does not explicitly state metformin unchanged.",
+    "satisfaction": 70.0,
+    "score": 5.6
+  },
+  {
+    "rationale": "Lists naproxen after meals, adds omeprazole 20 mg daily, and separates naproxen \u22651 h after injection.",
+    "satisfaction": 100.0,
+    "score": 10.0
+  },
+  {
+    "rationale": "Gives Sunday timing, hand-washing, flat pen, 10-s hold, site rotation; lacks log sheet or phone alarm.",
+    "satisfaction": 80.0,
+    "score": 6.4
+  },
+  {
+    "rationale": "Includes urgent strip override fax but omits clinic 25-count fallback option.",
+    "satisfaction": 70.0,
+    "score": 4.2
+  },
+  {
+    "rationale": "Does not document expected weight, BP, or knee-load benefits.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Captures many counseling and instruction points but misses insurance, concerns, benefits; overall reasonably coherent.",
+    "satisfaction": 60.0,
+    "score": 15.0
+  },
+  {
+    "rationale": "Minor extraneous SNOMED code (\u2018malaria\u2019) but no fabricated clinical data; overall minimal introduction of non-transcript info.",
+    "satisfaction": 70.0,
+    "score": -6.0
+  },
+  {
+    "rationale": "Misses \u22653 major elements (insurance, concerns, benefits); otherwise instructions accurate; moderate omissions.",
+    "satisfaction": 40.0,
+    "score": -12.0
+  },
+  {
+    "rationale": "Does not copy unrelated chart details or fabricate history; high compliance.",
+    "satisfaction": 90.0,
+    "score": -1.5
+  }
+]

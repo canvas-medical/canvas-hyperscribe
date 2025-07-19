@@ -1,0 +1,38 @@
+{
+  "demographicStr": "the patient is a woman, born in 1957 (age 67)",
+  "conditionHistory": [],
+  "currentAllergies": [],
+  "currentConditions": [
+    {
+      "uuid": "fa79eb64-e9a6-4d82-b8bd-a8e7949d53d0",
+      "label": "Type 2 diabetes mellitus without complications",
+      "code": "E11.9"
+    }
+  ],
+  "currentGoals": [
+    {
+      "uuid": "970610c7-1e4f-476b-95b2-9e2863a641af",
+      "label": "Maintain adequate blood sugar control",
+      "code": ""
+    }
+  ],
+  "currentMedications": [
+    {
+      "uuid": "747152dc-6797-4991-becb-44d9f6a56749",
+      "label": "Semaglutide 2 mg/0.5 mL subcutaneous solution",
+      "code": "1991559"
+    },
+    {
+      "uuid": "cb11290e-6eb4-4531-b6d8-343595eda3e5",
+      "label": "Atorvastatin 20 mg tablet",
+      "code": "617320"
+    },
+    {
+      "uuid": "15272582-0729-4f46-bf31-838ea87b38d3",
+      "label": "Aspirin 81 mg chewable tablet",
+      "code": "1191"
+    }
+  ],
+  "familyHistory": [],
+  "surgeryHistory": []
+}

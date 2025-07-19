@@ -1,0 +1,26 @@
+[
+  {
+    "speaker": "Clinician",
+    "text": "Okay, quick recap, Bryce: we bumped your Pulmicort Flexhaler from 200 to 400 micrograms twice a day until the smoke clears. Take two inhalations in the morning and two again right before bed, aiming for about a twelve-hour gap. You still have the spacer, right? Any chest tightness or rescue albuterol use on yesterday's bus ride?"
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Also, with the dose jump, hoarseness and mouth thrush creep up. Please rinse, gargle, and spit after each set of puffs. If you taste metal or feel voice cracks, ping the clinic right away; we can scale back once the fires settle."
+  },
+  {
+    "speaker": "Patient",
+    "text": "Uh, I think I still have some of the old 200 cartridges in my backpack, and I kinda mixed them with the new ones because the labels look the same. I’m not totally sure which I used this morning. I usually rinse, but on the bus I skip it so people don’t stare. No tightness today, just a scratchy throat."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Got it. First, toss the half-empty 200s so the colors can’t trick you. I’ll fax the pharmacy for two fresh 400-microgram cartridges—one spare for the trip. Keep them zipped in a dry pouch; heat ruins the powder. Since you miss rinsing on the bus, swish when you reach school’s restroom instead."
+  },
+  {
+    "speaker": "Patient",
+    "text": "Okay, that helps. The community nurse usually hands me refills, but I’m leaving for the basketball tourney Friday and won’t be back for five days. If the weather stalls the bus, I might miss the pickup. Is it, uh, awful if I stretch the morning dose to afternoon those days? I don’t want to text you from the road unless it’s serious, or anything really."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Plan B: bring the inhaler on court, take one puff at noon if travel throws off timing, then finish the second puff at bedtime. That keeps your lungs coated without overdosing. Call if rescue hits four sprays."
+  }
+]

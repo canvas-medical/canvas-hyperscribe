@@ -1,0 +1,81 @@
+[
+  {
+    "instruction": "Slide the next dose of Adalimumab 40 mg/0.8 mL subcutaneous solution syringe by 48 hours, then return to the usual Saturday-morning rhythm once the pharmacy ships.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.adjust_prescription",
+      "class": "AdjustPrescriptionCommand",
+      "attributes": {
+        "new_fdb_code": "",
+        "substitutions": "not_allowed",
+        "type_to_dispense": {
+          "representative_ndc": "",
+          "ncpdp_quantity_qualifier_code": ""
+        },
+        "days_supply": 0,
+        "sig": "Slide the next dose by 48 hours, then return to the usual Saturday-morning rhythm once the pharmacy ships.",
+        "fdb_code": "",
+        "prescriber_id": "4150cd20de8a470aa570a852859ac87e"
+      }
+    }
+  },
+  {
+    "instruction": "Keep the prenatal vitamin with lunch instead of breakfast; take low-dose aspirin right before bed. For nausea, try doxylamine-pyridoxine first. Increase water and a fiber supplement to offset any ondansetron.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "coding": {
+          "system": "http://snomed.info/sct",
+          "code": "289182003",
+          "display": "Advice to change vitamin intake"
+        },
+        "comment": "Keep the prenatal vitamin with lunch instead of breakfast"
+      }
+    }
+  },
+  {
+    "instruction": "Submit the electronic appeal tonight with the OB's letter attached, highlight the American Gastroenterological Association pregnancy guidelines, and flag it 'urgent'.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.task",
+      "class": "TaskCommand",
+      "attributes": {
+        "labels": null,
+        "due_date": "2025-06-27",
+        "title": "Submit electronic appeal with OB's letter",
+        "comment": "Highlight the American Gastroenterological Association pregnancy guidelines"
+      }
+    }
+  },
+  {
+    "instruction": "Upload the bilingual injection calendar to the patient portal tonight.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.task",
+      "class": "TaskCommand",
+      "attributes": {
+        "title": "Upload the bilingual injection calendar",
+        "comment": "Upload the bilingual injection calendar to the patient portal tonight.",
+        "due_date": "2025-06-27"
+      }
+    }
+  },
+  {
+    "instruction": "The patient is 14 weeks pregnant and concerned about the insurance denial of Adalimumab due to pregnancy. She has two syringes left and experienced a small bruise after the last injection. She postponed last week's dose by one day due to travel, which caused bowel issues. The prenatal vitamin causes nausea, and ondansetron causes constipation. She is worried about the timing of aspirin and its effects on bruising and the baby.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.history_present_illness",
+      "class": "HistoryOfPresentIllnessCommand",
+      "attributes": {
+        "narrative": "The patient is 14 weeks pregnant and concerned about the insurance denial of Adalimumab due to pregnancy. She has two syringes left and experienced a small bruise after the last injection. She postponed last week's dose by one day due to travel, which caused bowel issues. The prenatal vitamin causes nausea, and ondansetron causes constipation. She is worried about the timing of aspirin and its effects on bruising and the baby."
+      }
+    }
+  },
+  {
+    "instruction": "Discuss insurance denial of Adalimumab, manage Crohn's disease during pregnancy, and address medication side effects.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.reason_for_visit",
+      "class": "ReasonForVisitCommand",
+      "attributes": {
+        "comment": "Discuss insurance denial of Adalimumab, manage Crohn's disease during pregnancy, and address medication side effects."
+      }
+    }
+  }
+]

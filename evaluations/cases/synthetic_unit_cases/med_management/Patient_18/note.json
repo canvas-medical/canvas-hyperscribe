@@ -1,0 +1,114 @@
+[
+  {
+    "instruction": "Change the prescription of Semaglutide 1 mg/mL subcutaneous injection (weekly) to a starter dose of 0.25 mg once weekly for four weeks, then increase to 0.5 mg if tolerated.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.adjust_prescription",
+      "class": "AdjustPrescriptionCommand",
+      "attributes": {
+        "fdb_code": "",
+        "prescriber_id": "4150cd20de8a470aa570a852859ac87e",
+        "type_to_dispense": {
+          "representative_ndc": "",
+          "ncpdp_quantity_qualifier_code": ""
+        },
+        "days_supply": 28,
+        "new_fdb_code": "",
+        "substitutions": "allowed",
+        "sig": "Start with 0.25 mg once weekly for four weeks, then increase to 0.5 mg if tolerated."
+      }
+    }
+  },
+  {
+    "instruction": "Keep semaglutide pens between 36 and 46 degrees; use a small gel pack in your purse but never freeze it.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "coding": {
+          "system": "http://snomed.info/sct",
+          "code": "698530005",
+          "display": "Education about safe storage and management of medication"
+        },
+        "comment": "Keep semaglutide pens between 36 and 46 degrees; use a small gel pack in your purse but never freeze it."
+      }
+    }
+  },
+  {
+    "instruction": "Check fasting sugar every other morning and note anything below 80.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "coding": {
+          "system": "http://snomed.info/sct",
+          "code": "398773005",
+          "display": "Health education - diabetes self-monitoring"
+        },
+        "comment": "Check fasting sugar every other morning and note anything below 80."
+      }
+    }
+  },
+  {
+    "instruction": "Take naproxen only after a meal and add 20 mg omeprazole each morning. Space naproxen at least one hour after the semaglutide shot.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "comment": "Take naproxen only after a meal and add 20 mg omeprazole each morning. Space naproxen at least one hour after the semaglutide shot."
+      }
+    }
+  },
+  {
+    "instruction": "For semaglutide injection: Sunday morning, wash hands, twist the gray cap off, press the pen flat against belly skin at least two inches from the navel, and hold the button until you hear the second click\u2014about ten seconds. Rotate sites each week.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "coding": {
+          "system": "http://snomed.info/sct",
+          "code": "710573005",
+          "display": "Demonstration of subcutaneous injection technique"
+        },
+        "comment": "For semaglutide injection: Sunday morning, wash hands, twist the gray cap off, press the pen flat against belly skin at least two inches from the navel, and hold the button until you hear the second click\u2014about ten seconds. Rotate sites each week."
+      }
+    }
+  },
+  {
+    "instruction": "Store the semaglutide pen in a small insulated lunch sleeve with a room-temperature pack during travel.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "coding": {
+          "system": "http://snomed.info/sct",
+          "code": "171074006",
+          "display": "Requires protection against malaria"
+        },
+        "comment": "Store the semaglutide pen in a small insulated lunch sleeve with a room-temperature pack during travel."
+      }
+    }
+  },
+  {
+    "instruction": "Fax an urgent strip override to the pharmacy, marking 'GLP-1 start.'",
+    "command": {
+      "module": "canvas_sdk.commands.commands.task",
+      "class": "TaskCommand",
+      "attributes": {
+        "comment": "",
+        "labels": null,
+        "due_date": "2025-06-27",
+        "title": "Fax an urgent strip override to the pharmacy"
+      }
+    }
+  },
+  {
+    "instruction": "Store each semaglutide pen horizontally in the butter shelf of the fridge, inside the zip pouch provided. Tape the instruction card to the fridge door.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "comment": "Store each semaglutide pen horizontally in the butter shelf of the fridge, inside the zip pouch provided. Tape the instruction card to the fridge door."
+      }
+    }
+  }
+]

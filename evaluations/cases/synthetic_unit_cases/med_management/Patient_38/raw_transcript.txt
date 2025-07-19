@@ -1,0 +1,15 @@
+[
+  {"speaker":"Clinician","text":"João, please pass this on: we just delivered 25 milligrams of long-acting risperidone in her right arm—any sudden chest flutter, severe sleepiness, or stiffness yet?"},
+  {"speaker":"Clinician","text":"Also check: her furosemide 20 mg was at noon, aspirin 81 mg with supper, vitamin D after breakfast—any dizziness when she stood up for dinner yesterday?"},
+  {"speaker":"Patient","text":"Grandma says she felt her head spin when the nurse walked her to the bathroom last night and the floor looked like waves. She’s crying now because ringing in her ears kept her awake, but she wants the water pill so her shoes fit."},
+  {"speaker":"Clinician","text":"Let’s slide the furosemide to 10 a.m. so it clears before evening; that often trims night-time light-headed spells and gives her time to rehydrate with lunch."},
+  {"speaker":"Clinician","text":"Any palpitations, thumping in her chest, or brief black-outs since the shot went in, even for just a few seconds?"},
+  {"speaker":"Clinician","text":"I ordered baseline ECG and electrolytes; if potassium dips below four we’ll start potassium chloride 20 mEq after supper daily."},
+  {"speaker":"Clinician","text":"Please remind aides: stand-by assist for walks, slow position changes, record each blood-pressure reading in the binder daily."},
+  {"speaker":"Clinician","text":"Next risperidone injection lands on day 28; if daytime drowsiness tops two naps, call me and we’ll reduce to 12.5 mg instead."},
+  {"speaker":"Clinician","text":"Document that the grandson interpreted today; facility nurse signs as witness, thanks for her help too."},
+  {"speaker":"Patient","text":"She says the naps are okay, but the shouting shadows in the corner still scare her at 3 a.m. She wonders, through tears, if the dose can be bumped sooner so she can sleep without waking the hall ever again please."},
+  {"speaker":"Patient","text":"Also, I read online—she insists I ask—could the water pill and risperidone together stretch the QT even more? She’s afraid her heart will stop while everyone else is asleep back in the old wing tonight."},
+  {"speaker":"Clinician","text":"Steady-state needs two injections; jumping early muddies safety data, so let’s hold. Her hallucinations should fade by week two as plasma plateaus and sleep stabilizes."},
+  {"speaker":"Clinician","text":"For QT, combo is low risk, but daily pulse checks and weekly ECG for month one will catch surprises early."}
+]

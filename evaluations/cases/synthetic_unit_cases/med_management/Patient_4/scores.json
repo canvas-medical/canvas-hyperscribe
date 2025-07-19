@@ -1,0 +1,47 @@
+[
+  {
+    "rationale": "Dose changed to 220 mcg with same 2-puff BID sig, but prior 110 mcg reference and voucher plan not documented.",
+    "satisfaction": 60.0,
+    "score": 15.0
+  },
+  {
+    "rationale": "Lists hoarseness, white patches, sore throat and rinse/spit instruction, but omits advising patient to call if these occur.",
+    "satisfaction": 80.0,
+    "score": 12.0
+  },
+  {
+    "rationale": "Clearly instructs to keep albuterol on hand and limit total to 4\u20136 puffs/24 h.",
+    "satisfaction": 95.0,
+    "score": 14.25
+  },
+  {
+    "rationale": "No mention of nighttime cough, scratchy throat, spacer use, inconsistent rinsing, or 8 puffs use last night.",
+    "satisfaction": 10.0,
+    "score": 1.0
+  },
+  {
+    "rationale": "Travel plans, in-flight flare concern, and nebulizer vs inhaler question entirely absent.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Assessment section not present; mild persistent asthma diagnosis not stated.",
+    "satisfaction": 10.0,
+    "score": 0.5
+  },
+  {
+    "rationale": "Does not import irrelevant chart data and correctly updates fluticasone strength, so no penalty issues noted.",
+    "satisfaction": 95.0,
+    "score": -0.5
+  },
+  {
+    "rationale": "No fabricated orders or recommendations detected.",
+    "satisfaction": 95.0,
+    "score": -0.75
+  },
+  {
+    "rationale": "Captures main medication changes and some counseling, but misses several key history elements, travel concern, and diagnosis, so overall completeness is moderate.",
+    "satisfaction": 50.0,
+    "score": 10.0
+  }
+]

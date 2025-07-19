@@ -1,0 +1,85 @@
+[
+  {
+    "instruction": "Patient reports blood glucose levels above 250, feeling fuzzy in the afternoons, and feeling thirsty at night. Patient sometimes misses metformin doses due to running out before payday and experiences stomach burning when swallowing the tablet, leading to taking only one instead of two.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.history_present_illness",
+      "class": "HistoryOfPresentIllnessCommand",
+      "attributes": {
+        "narrative": "Patient reports blood glucose levels above 250, feeling fuzzy in the afternoons, and feeling thirsty at night. Patient sometimes misses metformin doses due to running out before payday and experiences stomach burning when swallowing the tablet, leading to taking only one instead of two."
+      }
+    }
+  },
+  {
+    "instruction": "Change the morning dose of Metformin 500 mg tablet to 500 mg with food to ease stomach burning, while keeping the night dose whole.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.adjust_prescription",
+      "class": "AdjustPrescriptionCommand",
+      "attributes": {
+        "type_to_dispense": {
+          "representative_ndc": "",
+          "ncpdp_quantity_qualifier_code": ""
+        },
+        "sig": "Take 500 mg with food in the morning to ease stomach burning, keep the night dose whole.",
+        "fdb_code": "",
+        "substitutions": "allowed",
+        "new_fdb_code": "",
+        "days_supply": 30,
+        "prescriber_id": "4150cd20de8a470aa570a852859ac87e"
+      }
+    }
+  },
+  {
+    "instruction": "If semaglutide injection is less than 48 hours late, inject as soon as remembered and return to the usual Sunday schedule. If more than 48 hours late, skip and wait for the next scheduled Sunday. Never double the dose.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "coding": {
+          "system": "http://snomed.info/sct",
+          "code": "385790000",
+          "display": "Injection administration education"
+        },
+        "comment": "If semaglutide injection is less than 48 hours late, inject as soon as remembered and return to the usual Sunday schedule. If more than 48 hours late, skip and wait for the next scheduled Sunday. Never double the dose."
+      }
+    }
+  },
+  {
+    "instruction": "Call the clinic if nausea, burping, or a red welt bigger than a coin appears after semaglutide injection.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "coding": {
+          "system": "http://snomed.info/sct",
+          "code": "304981009",
+          "display": "Advice about contacting someone"
+        },
+        "comment": "Call the clinic if nausea, burping, or a red welt bigger than a coin appears after semaglutide injection."
+      }
+    }
+  },
+  {
+    "instruction": "Text the patient's daughter a reminder link for semaglutide injection and set the pharmacy app to chirp Saturday night.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.task",
+      "class": "TaskCommand",
+      "attributes": {
+        "assign_to": null,
+        "due_date": "2025-06-28",
+        "title": "Text reminder link for semaglutide injection",
+        "labels": null,
+        "comment": "Set the pharmacy app to chirp Saturday night."
+      }
+    }
+  },
+  {
+    "instruction": "Recheck finger-stick blood glucose levels in two weeks. If any reading drops under 80, consider lowering glipizide to 5 mg or stopping it.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.plan",
+      "class": "PlanCommand",
+      "attributes": {
+        "narrative": "Recheck finger-stick blood glucose levels in two weeks. If any reading drops under 80, consider lowering glipizide to 5 mg or stopping it."
+      }
+    }
+  }
+]

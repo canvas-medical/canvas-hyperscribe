@@ -1,0 +1,34 @@
+[
+  {
+    "speaker": "Clinician",
+    "text": "So, through the interpreter, I'm double-checking: you're drawing up 0.25 milligrams of semaglutide every Sunday morning, right?"
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Store it in the fridge door, not the freezer, and start a new pen after four doses."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "If nausea hits, sip ginger tea and eat small dry crackers before injecting, rather than skipping."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Also, because you’d like to conceive, we’ll stop semaglutide the moment a home test turns positive."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Insurance pushed back, saying weight-loss drugs aren’t essential; I filed an urgent appeal, but approval may take ten days."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Meanwhile, you still have the starter pen, so no missed doses should occur this month."
+  },
+  {
+    "speaker": "Patient",
+    "text": "Um, through the interpreter, I’ll try to explain—yesterday the sugar numbers were jumping around, 168 before dal bhat, then I forgot to prick after lunch because a rush job came in, and by bedtime the meter said 212. I did take my usual forty units, but my stomach felt heavy, almost queasy, like when the bus ride is too long. The new shot, I mean semaglutide, makes me less hungry, which is nice, yet the scale barely moved. And I’m worried if the pharmacy delays again; I can’t keep asking my cousin to chase papers. What if the pen runs out early? Money is tight, you know, already."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Could you walk me through yesterday’s readings—pre-breakfast, after lunch, and at bedtime—so I can adjust your insulin?"
+  }
+]

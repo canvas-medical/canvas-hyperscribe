@@ -1,0 +1,52 @@
+[
+  {
+    "rationale": "Sig recorded as \"2 puffs twice daily,\" which conveys the same dosing as morning and night but omits that explicit wording.",
+    "satisfaction": 80.0,
+    "score": 12.0
+  },
+  {
+    "rationale": "No mention that a new, unopened canister arrived or its differing blue-white appearance.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Formulary swap/color-change explanation absent from note.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Clinician\u2019s question about throat scratchiness/shakes not documented.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Explicit task created for nurse to log each inhaler actuation; fully captured.",
+    "satisfaction": 90.0,
+    "score": 9.0
+  },
+  {
+    "rationale": "Refill set for 5-week supply and notes possible disruption, but does not capture dialogue about deciding spare dose quantity.",
+    "satisfaction": 70.0,
+    "score": 8.4
+  },
+  {
+    "rationale": "Patient\u2019s worry about knowing when inhaler is empty, including 40-click reference, not included.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Note captures a few key points (dose, nurse logging, 5-week supply) but omits several major discussion items; overall incomplete.",
+    "satisfaction": 30.0,
+    "score": 3.0
+  },
+  {
+    "rationale": "No extraneous diagnoses, vitals, or instructions added; minimal unsubstantiated info.",
+    "satisfaction": 90.0,
+    "score": -1.2
+  },
+  {
+    "rationale": "Did not copy irrelevant chart sections or misstate chart data.",
+    "satisfaction": 95.0,
+    "score": -0.25
+  }
+]

@@ -1,0 +1,57 @@
+[
+  {
+    "criterion": "Reward for accurately documenting the prescribed oral contraceptive details exactly as stated (28 active tablets containing 20 \u00b5g ethinyl-estradiol/100 \u00b5g levonorgestrel, start tonight even if bleeding, one pill daily with first snack after night shift, continuous use with no breaks, set an alarm).",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing the insurance narrative: patient paid out-of-pocket after initial brand denial, clinician has filed electronic appeal, and will switch to a $12 generic at Costco if denial persists.",
+    "weight": 12,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for including the patient\u2019s expressed financial worry about future affordability and night-shift driving context.",
+    "weight": 8,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting all dosing-timing counseling: no stretching/splitting packs, acceptable three-hour window, immediate single catch-up if late, never double doses.",
+    "weight": 12,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for listing expected side effects (mild nausea, breast tenderness, brown spotting) and the serious warning signs requiring ER (sharp calf pain, crushing chest pressure).",
+    "weight": 12,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for recording guidance on monitoring heavy flow (soaking hourly) and contacting the portal if still present by week eight, plus advice to keep a backup pad.",
+    "weight": 6,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for noting the patient\u2019s pre-existing carsickness, fear of added nausea, and request for alternative options.",
+    "weight": 6,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting the penicillin allergy and clinician\u2019s clarification that it is unrelated to clot risk.",
+    "weight": 6,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for overall completeness: the note captures the majority of clinically relevant dialogue elements without omissions or distortions and weaves them into a coherent encounter summary.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for fabricating, altering, or omitting information that was neither stated nor implied in the transcript (e.g., new diagnoses, lab orders, altered dosages).",
+    "weight": 10,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for indiscriminate or inaccurate copying from the chart\u2014such as importing unrelated conditions, medications, or histories\u2014or for failing to include chart elements directly referenced in the conversation (e.g., existing heavy menstrual bleeding diagnosis, documented penicillin allergy).",
+    "weight": 8,
+    "sense": "negative"
+  }
+]

@@ -1,0 +1,32 @@
+{
+  "demographicStr": "the patient is a woman, age 22",
+  "conditionHistory": [],
+  "currentAllergies": [],
+  "currentConditions": [
+    {
+      "uuid": "f22f0962-e8ac-49d2-9141-2d35a850063b",
+      "label": "Bipolar disorder, unspecified",
+      "code": "F31.9"
+    },
+    {
+      "uuid": "fcaae5e8-3984-4270-91b2-d236609e36d0",
+      "label": "Deafness, unspecified",
+      "code": "H91.90"
+    }
+  ],
+  "currentGoals": [],
+  "currentMedications": [
+    {
+      "uuid": "f6271df3-efee-490e-999c-8101096af159",
+      "label": "Risperidone 25 mg intramuscular suspension, extended release",
+      "code": "1790917"
+    },
+    {
+      "uuid": "33a2a7cb-fa5f-4da3-b3a6-0b498dd0c4b8",
+      "label": "Melatonin 3 mg oral tablet (OTC)",
+      "code": "131014"
+    }
+  ],
+  "familyHistory": [],
+  "surgeryHistory": []
+}

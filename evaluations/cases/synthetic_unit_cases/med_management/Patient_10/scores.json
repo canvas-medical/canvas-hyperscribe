@@ -1,0 +1,77 @@
+[
+  {
+    "rationale": "Only drowsiness complaint documented; injection-site sting and 8-lb weight gain absent.",
+    "satisfaction": 30.0,
+    "score": 3.0
+  },
+  {
+    "rationale": "Note references continuing 400-mg depot but omits serum-level comment and explicit decision reasoning.",
+    "satisfaction": 50.0,
+    "score": 5.0
+  },
+  {
+    "rationale": "Clearly records plan to give 400-mg injection after school so peak drowsiness occurs overnight.",
+    "satisfaction": 90.0,
+    "score": 7.2
+  },
+  {
+    "rationale": "Gives instruction to report sleepiness past day three but lacks nurse-line detail and modafinil contingency.",
+    "satisfaction": 60.0,
+    "score": 6.0
+  },
+  {
+    "rationale": "Includes sugary-drink tracking with screenshots; misses dietitian referral and billing note.",
+    "satisfaction": 50.0,
+    "score": 4.0
+  },
+  {
+    "rationale": "No escalation threshold or alternate dose/medication options documented.",
+    "satisfaction": 5.0,
+    "score": 0.35
+  },
+  {
+    "rationale": "States deadline (May 3) and reminders; 5-day window emphasis missing.",
+    "satisfaction": 80.0,
+    "score": 8.0
+  },
+  {
+    "rationale": "Standing-order fax captured; refrigerator log, cooler pack, barcode pickup instructions omitted.",
+    "satisfaction": 45.0,
+    "score": 4.05
+  },
+  {
+    "rationale": "Advises to report prolonged drowsiness, waist gain, akathisia; brisk-walk suggestion absent.",
+    "satisfaction": 80.0,
+    "score": 6.4
+  },
+  {
+    "rationale": "Documents letter for drug screen assurance as directed.",
+    "satisfaction": 90.0,
+    "score": 5.4
+  },
+  {
+    "rationale": "Transportation concern and address-change instruction not mentioned.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Note captures several key elements but leaves multiple plan details out.",
+    "satisfaction": 60.0,
+    "score": 9.0
+  },
+  {
+    "rationale": "Multiple omissions of required plan elements present, so penalty applies.",
+    "satisfaction": 30.0,
+    "score": -8.4
+  },
+  {
+    "rationale": "No unspoken diagnoses, meds, or extra orders introduced.",
+    "satisfaction": 95.0,
+    "score": -0.75
+  },
+  {
+    "rationale": "No irrelevant past history or boilerplate copied; focused content only.",
+    "satisfaction": 95.0,
+    "score": -0.5
+  }
+]

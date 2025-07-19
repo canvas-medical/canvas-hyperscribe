@@ -1,0 +1,30 @@
+[
+  {
+    "speaker": "Patient",
+    "text": "Look, the envelope came today but the pills are a different shade of peach and the label says 88 micrograms, not 100. Did they mess up, or did you? And if the roads shut tomorrow, I'm stuck with whatever’s here, so I need to know before I swallow anything."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "I hear the worry, Mr. Ruiz. The color changed because the pharmacy had to switch to Mylan’s 88-microgram tablet after the formulary dropped the old brand last week. Your TSH dipped below 0.3, so we lowered the dose on purpose; the pill strength printed there is correct. Everything else—shape, fillers, release profile—meets FDA bioequivalence."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Take one tablet first thing, on an empty stomach, then wait at least thirty minutes before coffee or breakfast—same routine you know. If you accidentally take the old 100-microgram pill, don't double back; just resume 88 μg the next morning. Store the bottle above 59 °F; freezing by the window can weaken potency over time."
+  },
+  {
+    "speaker": "Patient",
+    "text": "Okay, but I’ve still got half a bottle of the 100s. When the snow piles up I lose track of dates—could I split them in half if the mail truck doesn’t make it? And honestly, I forget if I took it some mornings. Would two by mistake hurt me?"
+  },
+  {
+    "speaker": "Clinician",
+    "text": "No splitting, unfortunately; the coating isn’t even and you’d get unpredictable dosing. I’m arranging a safety stock: three extra weeks shipped priority before the road closes. For memory slips, set your phone alarm or, better yet, a seven-slot pillbox you load every Sunday. If you do double-dose, you might feel jittery, a bit sweaty, but it usually settles—call me if palpitations last more than a few hours."
+  },
+  {
+    "speaker": "Patient",
+    "text": "Last thing: my skin’s been drier and I’m cramping in my calves at night. Is that the thyroid changing or just winter? I’m drinking water, but the leg thing wakes me up, and then I forget the pill entirely because I fall back asleep."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Dry skin fits more with colder air and wood-stove heat; true hypo symptoms would show up only after weeks at the lower dose. Night cramps could be low magnesium—try 400 mg before bed unless your kidney doc ever said otherwise. I’ll re-check labs in six weeks and adjust if needed."
+  }
+]

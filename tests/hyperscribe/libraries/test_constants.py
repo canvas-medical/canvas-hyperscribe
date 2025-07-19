@@ -24,6 +24,7 @@ def test_constants():
         "MEMORY_LOG_LABEL": "main",
         "OPENAI_CHAT_AUDIO": "gpt-4o-audio-preview",
         "OPENAI_CHAT_TEXT": "gpt-4o",
+        "OPENAI_CHAT_TEXT_O3": "o3",
         "VENDOR_ANTHROPIC": "Anthropic",
         "VENDOR_GOOGLE": "Google",
         "VENDOR_OPENAI": "OpenAI",

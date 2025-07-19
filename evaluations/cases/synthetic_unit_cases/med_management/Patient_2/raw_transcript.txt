@@ -1,0 +1,34 @@
+[
+  {
+    "speaker": "Clinician",
+    "text": "Okay, so let's double-check your insulin schedule with the new semaglutide on board to be sure nothing overlaps and your sugars stay in the safe zone, especially overnight."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Since we've stopped glyburide, plan on a bedtime snack; the basal glargine dose stays 26 units until we review logs."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "About refills, my nurse will call every fourth Thursday; if the weather blocks delivery you can still pick-up at the co-op dropbox."
+  },
+  {
+    "speaker": "Patient",
+    "text": "Look, I’ve been farming forty years and juggling meds too, but honestly this weekly shot worries me. The paper says nausea and maybe weight loss, yet I can’t afford to be dizzy on the tractor. Driving two hours for a needle each month is fine, but if the fridge fails again I’ll lose the pen and the insulin together. And with glyburide gone, what if my after-lunch numbers spike while I’m out in the south field? I need something practical, not fancy clinic talk—just tell me, plain, how to keep everything straight when the days get really long and hot."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "I hear you, and it’s a fair concern. Semaglutide can cause queasy feelings early on, but starting at 0.25 mg should keep that pretty mild for most."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "To protect the pen, store it in the small cooler you already use for vaccines; I’ll send gel packs with the shipment too."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "If mid-day sugars climb above 200, call; we can add two units of rapid insulin before lunch right."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Let’s fax the lab slip today and set a six-week phone review then."
+  }
+]

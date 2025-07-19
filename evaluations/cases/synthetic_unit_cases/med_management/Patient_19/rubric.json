@@ -1,0 +1,72 @@
+[
+  {
+    "criterion": "Reward for documenting that the patient\u2019s long-acting aripiprazole injection is due on Friday",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing the patient\u2019s report of soreness/lump at the prior injection site and the clinician\u2019s advice to massage or use warm compresses",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for recording buprenorphine-naloxone adherence details: only four films left, possible missed dose after dropping pack, and patient\u2019s withdrawal check (restlessness, no chills/goosebumps)",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for noting the patient\u2019s concern about nighttime cold (~32 \u00b0F) affecting films and the clinician\u2019s education that damage occurs below 15 \u00b0F with instruction to keep films in jacket pocket",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for including the patient\u2019s observation that films sometimes taste extra bitter and query whether this relates to naloxone or cold exposure",
+    "weight": 5,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting pharmacy limit until next week and clinician action to issue an emergency 5-day buprenorphine card",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing discussion about the lockbox (patient awaiting call) and clinician plan to nudge the lockbox team",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for reflecting the patient\u2019s current living situation (sleeping/parking by the river) as context for medication storage challenges",
+    "weight": 5,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for accurately listing current medications (aripiprazole IM 400 mg, buprenorphine 8 mg / naloxone 2 mg films) without adding medications not in chart or transcript",
+    "weight": 5,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for overall completeness\u2014note incorporates all major history, assessment elements, and plan items discussed in the encounter",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for omitting any major plan element (e.g., emergency 5-day card, lockbox follow-up, injection site advice, temperature guidance) that was clearly stated in the transcript",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for introducing diagnoses, symptoms, medications, or plans that were not mentioned or implied in the transcript or chart",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for inaccurately altering quantitative or factual details (e.g., wrong due date for injection, misquoting temperature threshold, wrong medication counts)",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for copying irrelevant or bulk chart data (e.g., unrelated allergies, past conditions, template ROS) that were not referenced in the encounter",
+    "weight": 10,
+    "sense": "negative"
+  }
+]

@@ -1,0 +1,74 @@
+[
+  {
+    "instruction": "Change the prescription of Atorvastatin to 20 mg oral tablet, with supper.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.adjust_prescription",
+      "class": "AdjustPrescriptionCommand",
+      "attributes": {
+        "fdb_code": "",
+        "type_to_dispense": {
+          "representative_ndc": "",
+          "ncpdp_quantity_qualifier_code": ""
+        },
+        "prescriber_id": "4150cd20de8a470aa570a852859ac87e",
+        "new_fdb_code": "",
+        "substitutions": "allowed",
+        "days_supply": 30,
+        "sig": "20 mg oral tablet, with supper"
+      }
+    }
+  },
+  {
+    "instruction": "Refill of Osimertinib 40 mg oral tablet, one daily with water, morning preferred, nothing to eat for an hour.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.refill",
+      "class": "RefillCommand",
+      "attributes": {
+        "fdb_code": "",
+        "type_to_dispense": {
+          "representative_ndc": "",
+          "ncpdp_quantity_qualifier_code": ""
+        },
+        "prescriber_id": "4150cd20de8a470aa570a852859ac87e",
+        "substitutions": "not_allowed",
+        "days_supply": null,
+        "sig": "Take one tablet daily with water, morning preferred, nothing to eat for an hour."
+      }
+    }
+  },
+  {
+    "instruction": "Do not split the osimertinib tablets; the coating matters for absorption.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "comment": "Do not split the osimertinib tablets; the coating matters for absorption."
+      }
+    }
+  },
+  {
+    "instruction": "Avoid grapefruit and St. John's wort as they increase serum levels.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "coding": {
+          "system": "http://snomed.info/sct",
+          "code": "223435002",
+          "display": "Recommendation to avoid behavior"
+        },
+        "comment": "Avoid grapefruit and St. John's wort as they increase serum levels."
+      }
+    }
+  },
+  {
+    "instruction": "Log any dizzy episodes, palpitations, or calf cramps.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "comment": "Log any dizzy episodes, palpitations, or calf cramps."
+      }
+    }
+  }
+]

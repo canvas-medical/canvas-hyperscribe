@@ -1,0 +1,57 @@
+[
+  {
+    "rationale": "States that patient requested a year-long refill, but does not mention the wish to avoid repeated refills or the plan to keep an extra bottle in the school locker.",
+    "satisfaction": 60.0,
+    "score": 7.2
+  },
+  {
+    "rationale": "Captures patient grogginess after doubling dose, but omits the pharmacy alert entirely.",
+    "satisfaction": 55.0,
+    "score": 6.6
+  },
+  {
+    "rationale": "Includes direction to keep taking one 10-mg tablet daily and a phone-reminder instruction; fully covers this guidance.",
+    "satisfaction": 90.0,
+    "score": 9.0
+  },
+  {
+    "rationale": "Lists 90 tablets with three refills, but leaves out the explicit instruction for separate bottles for home and locker.",
+    "satisfaction": 75.0,
+    "score": 9.0
+  },
+  {
+    "rationale": "Documents both splitting supply into 10-pill blister packs and providing a one-page side-effect sheet, exactly as requested.",
+    "satisfaction": 100.0,
+    "score": 8.0
+  },
+  {
+    "rationale": "No medication/supplement review or denial of other substances is recorded.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Weight of 140 lb is documented, but note lacks clinician statement that 10 mg dose is appropriate.",
+    "satisfaction": 60.0,
+    "score": 4.8
+  },
+  {
+    "rationale": "Mentions wheezing during early-season practice, but not the use of cousin\u2019s old inhaler.",
+    "satisfaction": 50.0,
+    "score": 3.0
+  },
+  {
+    "rationale": "Most key elements are present, but several omissions (pharmacy alert, med review, inhaler use, explicit refill reasons) reduce completeness.",
+    "satisfaction": 65.0,
+    "score": 9.75
+  },
+  {
+    "rationale": "No incorrect medication details or fabricated clinical facts detected; only minor contextual additions.",
+    "satisfaction": 85.0,
+    "score": -2.25
+  },
+  {
+    "rationale": "Does not copy irrelevant chart data and does include current loratadine prescription; no related issues found.",
+    "satisfaction": 95.0,
+    "score": -0.3
+  }
+]

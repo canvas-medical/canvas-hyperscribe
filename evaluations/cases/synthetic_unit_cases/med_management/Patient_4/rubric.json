@@ -1,0 +1,47 @@
+[
+  {
+    "criterion": "Reward for accurately documenting the increase of fluticasone dose from 110 mcg to 220 mcg, unchanged frequency (2 puffs BID), and the plan to provide a voucher for pickup tomorrow.",
+    "weight": 25,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing the specific side-effect counseling: hoarseness, oral thrush (white patches), sore throat; instruction to rinse and spit after each dose; and to call if these occur.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for recording albuterol guidance: keep inhaler on person and limit total use to 4\u20136 puffs in 24 hours.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting patient-reported symptoms and adherence issues: persistent nighttime cough, scratchy throat, use of spacer, inconsistent rinsing, 8 puffs albuterol last night.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for including patient travel context and concerns: upcoming Sunday dawn flight, worry about in-flight flare, question about nebulizer vs. inhaler puffs.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for noting existing diagnosis of mild persistent asthma from the chart as part of the assessment without adding unrelated conditions.",
+    "weight": 5,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for importing chart data not referenced in the visit (e.g., unrelated goals, empty histories, full medication list without relevance) or failing to update fluticasone strength if copied.",
+    "weight": 10,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for introducing fabricated information, recommendations, or orders not present or implied in the transcript (e.g., prescribing nebulizer, new medications, labs).",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Reward for overall completeness: the note reflects all major clinical statements, decisions, patient concerns, and instructions from the transcript without significant omissions.",
+    "weight": 20,
+    "sense": "positive"
+  }
+]

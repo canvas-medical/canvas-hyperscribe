@@ -1,0 +1,26 @@
+[
+  {
+    "speaker": "Clinician",
+    "text": "Mr. Alvarez, the authorization appeal for your second month of nilotinib is still in limbo, so I have to keep this quick. You\u2019re still on 300 mg twice daily, empty stomach\u2014no food two hours before, one hour after, correct? Any palpitations, faint spells, or new cramps since the last ECG? Also, please remind me: did you completely stop the dextromethorphan syrup, and have you skipped any lisinopril or simvastatin doses?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Yes, still doing 300 twice a day, and I wait the full fasting window. No dizziness, but I did feel one flutter yesterday evening."
+  },
+  {
+    "speaker": "Patient",
+    "text": "I quit the cough syrup completely; just drinking tea now. The village nurse took my blood pressure this morning\u2014132 over 78\u2014and I haven't missed any lisinopril or simvastatin."
+  },
+  {
+    "speaker": "Patient",
+    "text": "But the urgent-care clinic cancelled next week\u2019s ECG because insurance won't pay their technician overtime. If I skip a month, is that dangerous?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "Also, online forums warn me simvastatin could raise nilotinib levels. Should I cut the statin dose, or switch to something else before the next refill?"
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Hold the statin tonight; I\u2019ll fax a switch to pravastatin 40 mg. I\u2019ll reroute the ECG to Monday morning here in oncology\u2014no delay. Insurance appeal file opened."
+  }
+]

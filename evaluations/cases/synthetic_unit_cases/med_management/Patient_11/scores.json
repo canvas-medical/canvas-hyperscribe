@@ -1,0 +1,52 @@
+[
+  {
+    "rationale": "Includes dose (1 puff) and frequency (twice daily) but omits specific timing (morning before school, night after brushing).",
+    "satisfaction": 60.0,
+    "score": 7.2
+  },
+  {
+    "rationale": "No mention of pharmacy refill block or 3-day gap.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Canister status and forgotten spare inhaler not documented.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "No comments on throat side effects or gargling routine.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Albuterol pre-soccer use not captured.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Patient\u2019s question about running out of fluticasone not included.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Lists fluticasone for asthma, but misses age, gender, asthma severity; no unrelated data added.",
+    "satisfaction": 40.0,
+    "score": 3.2
+  },
+  {
+    "rationale": "Note is very sparse, omitting most key statements and numbers from encounter.",
+    "satisfaction": 20.0,
+    "score": 3.2
+  },
+  {
+    "rationale": "No extraneous chart information inserted.",
+    "satisfaction": 95.0,
+    "score": -0.5
+  },
+  {
+    "rationale": "Significant omissions of encounter details; no fabrication, but major missing facts warrant penalty.",
+    "satisfaction": 25.0,
+    "score": -7.5
+  }
+]

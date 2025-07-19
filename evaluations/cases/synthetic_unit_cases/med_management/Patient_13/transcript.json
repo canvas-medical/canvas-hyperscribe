@@ -1,0 +1,34 @@
+[
+  {
+    "speaker": "Clinician",
+    "text": "Quick status update: the prior-auth bounced overnight, so while I\u2019m filing an appeal I grabbed two sample pens from the fridge\u2014that buys us eight weeks at 0.25 mg. Keep each pen between 36 and 46 degrees; a small ice pack in your laptop bag is fine, just don\u2019t let it touch bare metal or freeze. First shot lands Sunday morning: pinch a belly fold, hold the button ten seconds, then dab with alcohol. Rotate sites each week\u2014left, right, thigh, arm\u2014to dodge bruises. Log the dose in your calendar; if you end up more than 48 hours late, skip and wait for the next scheduled Sunday."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Side-effect roadmap, just so nothing blindsides you: the common stuff is queasy stomach, mild burpy reflux, and, uh, slower bathroom trips. Start meals with protein, sip water, and stop eating when you feel two-thirds full\u2014that trims the nausea by half in most people. Acetaminophen beats ibuprofen if a headache creeps in. Your shellfish allergy isn\u2019t a problem; semaglutide is synthetic and has no crustacean excipients. Check fasting glucose once a week; if readings dip under 70, text me. After four injections we reassess: if weight\u2019s moving and side-effects behave, we climb to 0.5 mg, otherwise we park at the starter dose longer."
+  },
+  {
+    "speaker": "Patient",
+    "text": "Wait\u2014the insurance said no? My high-deductible plan can\u2019t cover that. Roughly how much per pen if the appeal fails? And at work the fridge is jammed; is a lunch bag with one ice pack until noon okay?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "If the scale stalls, I get discouraged fast. Does the drug just plateau, or do most people need the higher dose to keep losing after the first few pounds?"
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Appeal timing: I\u2019ll fax charts tonight, call the reviewer tomorrow, and loop you in once I hear. Worst-case cash price is around 900 dollars a pen, but some discount portals drop it near 300\u2014still awful, I know. Weight stalls happen; often it\u2019s sodium water, not real fat, so we wait two weeks before deciding on the 0.5 mg bump. For storage, a soft lunch cooler with one frozen gel pack keeps safe temps six to eight hours, even in crammed office fridges."
+  },
+  {
+    "speaker": "Patient",
+    "text": "Could we move up sooner if my fasting sugar stays around 115? And do I need finger-sticks, or will a pharmacy CGM coupon be enough?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "I\u2019m vegetarian\u2014mostly lentils and tofu. Mom says low protein will slow weight loss. Should I add shakes, or does semaglutide not really care about macros?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "One more thing: I\u2019m flying to Denver next month; flight is four hours. Do the pens need a cooler, or is cabin temperature fine for that long?"
+  }
+]

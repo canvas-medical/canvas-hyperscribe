@@ -1,0 +1,31 @@
+{
+  "demographicStr": "the patient is a woman, born in 1966 (age 58)",
+  "conditionHistory": [],
+  "currentAllergies": [],
+  "currentConditions": [],
+  "currentGoals": [],
+  "currentMedications": [
+    {
+      "uuid": "43870497-c69c-488c-b436-dd50d2d111f3",
+      "label": "Atorvastatin tablet",
+      "code": "83367"
+    },
+    {
+      "uuid": "e96dd776-6ae3-4eb4-a3f9-8d37a2ad659a",
+      "label": "Hydrochlorothiazide tablet",
+      "code": "5480"
+    },
+    {
+      "uuid": "e146d883-d28b-4b25-bea6-0cc9f7caf93d",
+      "label": "Albuterol inhaler",
+      "code": "435"
+    },
+    {
+      "uuid": "2597515d-12a2-4004-8458-5ffb21320dbd",
+      "label": "Atovaquone / Proguanil tablet",
+      "code": "311129"
+    }
+  ],
+  "familyHistory": [],
+  "surgeryHistory": []
+}

@@ -1,0 +1,62 @@
+[
+  {
+    "criterion": "Reward for accurately documenting the borderline QT interval alert of 470 ms that prompted the discussion",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing the patient's reported episode of chest flutter with ear ringing yesterday and the absence of new dizziness or palpitations today",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for recording the clinician's decision to reduce azithromycin dosage to 250 mg daily",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting the order for serum potassium labs to be drawn the next day",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting the plan to repeat an ECG in 48 hours",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for correctly noting continuation of osimertinib 80 mg with breakfast and metoprolol unchanged",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for including specific patient instructions: skip extra electrolytes and notify staff if flutter recurs",
+    "weight": 5,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for reflecting the patient's expressed concerns about QT-prolonging medications and not wanting additional pills",
+    "weight": 5,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for overall completeness\u2014note captures all major symptoms, decisions, orders, instructions, and concerns present in the transcript",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for copying irrelevant chart content (e.g., listing unrelated medications such as multivitamin or acetaminophen, or conditions not discussed)",
+    "weight": 10,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for adding fabricated or speculative information not stated or implied in the transcript or chart",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for omitting or misstating key quantitative details such as the QT value (470 ms) or medication dosages/timing",
+    "weight": 10,
+    "sense": "negative"
+  }
+]

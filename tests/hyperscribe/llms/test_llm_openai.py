@@ -1,8 +1,10 @@
 import json
 from unittest.mock import patch, call, MagicMock
-
-from hyperscribe.llms.llm_openai import LlmOpenai
+from hyperscribe.llms.llm_openai import LlmOpenai 
+from hyperscribe.llms.llm_openai_o3 import LlmOpenaiO3
 from hyperscribe.structures.http_response import HttpResponse
+from hyperscribe.libraries.memory_log import MemoryLog
+from http import HTTPStatus
 
 
 def test_add_audio():
@@ -202,6 +204,28 @@ def test_request(requests_post):
     assert memory_log.mock_calls == calls
     reset_mocks()
 
+#For status_code==200, to parse json and pull out the message content.
+@patch("hyperscribe.llms.llm_openai.requests_post")
+def test_request_extracts_choice_content(requests_post):
+    
+    memory_log = MagicMock()
+    tested = LlmOpenai(memory_log, "openaiKey", "theModel", False)
+    body = {
+        "choices": [
+            {"message": {"content": "Here is the actual reply"}}
+        ]
+    }
+    resp = MagicMock()
+    resp.status_code = 200
+    resp.text = json.dumps(body)
+    requests_post.return_value = resp
+
+    out = tested.request()
+    assert isinstance(out, HttpResponse)
+    assert out.code == 200
+    assert out.response == "Here is the actual reply"
+    requests_post.assert_called_once()
+    memory_log.assert_not_called()
 
 @patch("hyperscribe.llms.llm_openai.requests_post")
 def test_audio_to_text(requests_post):
@@ -236,3 +260,4 @@ def test_audio_to_text(requests_post):
     assert requests_post.mock_calls == calls
     assert memory_log.mock_calls == []
     reset_mocks()
+

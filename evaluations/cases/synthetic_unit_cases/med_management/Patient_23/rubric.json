@@ -1,0 +1,52 @@
+[
+  {
+    "criterion": "Reward for documenting the patient-reported finger-stick glucose values (>250) and associated symptoms (afternoon fuzzy head, nocturnal thirst) exactly as expressed in the encounter",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for accurately recording the CURRENT diabetes medication regimen described during the visit (metformin 1000 mg twice daily, glipizide 10 mg with breakfast) and the adherence issues of missed doses and dose-splitting due to cost and stomach burn",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for noting initiation of a semaglutide 0.25 mg weekly starter pen sample, including administration technique (dial, press, hold 10 s) and adverse-event call instructions",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing the late-dose guidance for semaglutide (inject if <48 h late, otherwise skip and never double dose)",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting the adjustment of the morning metformin dose to 500 mg with food and the issuance of a coupon to bridge refill gaps",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for recording the plan to monitor for hypoglycemia: recheck finger-sticks in two weeks and call if any reading <80 mg/dL, with potential glipizide reduction to 5 mg or discontinuation",
+    "weight": 12,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for including supportive reminder actions (texting daughter a reminder link and setting a pharmacy-app alert)",
+    "weight": 5,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for overall completeness and fidelity: the note captures all major statements, decisions, and instructions from the transcript without significant omissions or distortions",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for copying medication names or dosages from the pre-visit chart that conflict with what was actually stated (e.g., metformin 500 mg or glipizide 5 mg instead of the spoken 1000 mg BID / 10 mg)",
+    "weight": 18,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for introducing fabricated information or omitting any clinically significant element explicitly or implicitly present in the transcript (e.g., adding unrelated diagnoses, labs, or instructions not discussed)",
+    "weight": 15,
+    "sense": "negative"
+  }
+]

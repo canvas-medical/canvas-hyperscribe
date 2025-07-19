@@ -1,0 +1,77 @@
+[
+  {
+    "criterion": "Reward for accurately documenting the patient\u2019s ongoing dolutegravir-lamivudine 50 mg/300 mg once-daily morning regimen exactly as stated.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing the cabozantinib 60 mg nightly plan, including with food and spaced at least two hours from omeprazole/antacid.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for recording the clinician\u2019s QT-monitoring strategy: potassium >4.0 mEq/L, magnesium >2.0 mg/dL, and scheduled monthly ECG with cardiology on the first Thursday.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for specifying the new prescription of magnesium glycinate 400 mg at bedtime and noting its non-laxative intent.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting the baseline lab order (potassium, magnesium, creatinine) to be drawn today.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for including travel-related dosing instructions: keep pills on home time and maintain a 12-hour gap if crossing midnight.",
+    "weight": 8,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for listing the side-effect watch items (jaw pain, hand-foot redness, mouth sores, chest flutter) with the \u2018call before next dose\u2019 instruction.",
+    "weight": 8,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting the patient\u2019s report of first cabozantinib dose, perceived heartbeat skip, and phone ECG reading of QTc 105 ms.",
+    "weight": 8,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for noting the patient\u2019s continued aspirin 81 mg use and concern about bleeding risk.",
+    "weight": 8,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing the patient\u2019s questions about magnesium formulation choice and loss of medications at customs/missed doses.",
+    "weight": 5,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for overall completeness: the note covers all major clinician instructions and patient concerns present in the transcript without significant omissions.",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for omitting or misstating key medication details (dose, frequency, timing) that were explicitly provided.",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for introducing new clinical recommendations, assessments, or decisions that were not spoken or implied in the transcript.",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for selectively or inaccurately copying chart information unrelated to this encounter (e.g., unrelated past conditions, unused medication list items).",
+    "weight": 10,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for fabricating symptoms, lab values, or reasoning not present in the transcript.",
+    "weight": 10,
+    "sense": "negative"
+  }
+]

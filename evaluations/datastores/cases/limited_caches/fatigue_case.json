@@ -1,0 +1,197 @@
+{
+  "stagedCommands": {},
+  "demographicStr": "the patient is a boy, born on <DOB REDACTED> (age 2) and weight 35.00 pounds",
+  "conditionHistory": [],
+  "currentAllergies": [
+    {
+      "uuid": "011ec113-9693-4ad4-9ccd-4c4dc8483169",
+      "label": "Penicillins",
+      "code": "476"
+    }
+  ],
+  "currentConditions": [],
+  "currentGoals": [],
+  "currentMedications": [],
+  "existingNoteTypes": [
+    {
+      "uuid": "57624304-23a6-4328-af94-a3383c3350f1",
+      "label": "Eye Check",
+      "code": "eye001"
+    },
+    {
+      "uuid": "11eb73f0-bfe8-4153-b2bf-54bf7fde7a26",
+      "label": "Emergency",
+      "code": "amb001"
+    },
+    {
+      "uuid": "61130843-d8d5-43e0-a073-61ef5231c77d",
+      "label": "Coffee Chat",
+      "code": "coffee01"
+    },
+    {
+      "uuid": "24f794c5-abec-4979-8b5e-a7d5c23dd5c7",
+      "label": "Phone call",
+      "code": "185317003"
+    },
+    {
+      "uuid": "4381f64a-3d13-442e-8ded-8ad7f25ab87b",
+      "label": "Office visit",
+      "code": "308335008"
+    },
+    {
+      "uuid": "5a7501fc-f606-4d56-a82c-0b0a0f9d022e",
+      "label": "Home visit",
+      "code": "439708006"
+    },
+    {
+      "uuid": "7a0bc69b-250c-494a-82fb-4c6544f0a447",
+      "label": "Therapy",
+      "code": "010101"
+    },
+    {
+      "uuid": "ab4fc954-4c70-4f91-b4d4-3c73dab41c5b",
+      "label": "Non-licensed Visit NB",
+      "code": "Non-licensed Visit NB"
+    },
+    {
+      "uuid": "5675589f-0946-4f2e-873c-dad7754356af",
+      "label": "Group Session",
+      "code": "Internal1"
+    },
+    {
+      "uuid": "262480dc-9a9c-4fb3-a9af-116e70aef341",
+      "label": "Lab visit",
+      "code": "31108002"
+    },
+    {
+      "uuid": "a4b7b089-6d86-4396-a70b-f988aff9b342",
+      "label": "Adminstrative Block",
+      "code": "Adminstrative Block"
+    },
+    {
+      "uuid": "47acfd01-3170-4300-83c8-9b54faf58bbe",
+      "label": "Inpatient visit",
+      "code": "53923005"
+    },
+    {
+      "uuid": "2676d572-fae9-4e6c-b70f-39de734ebcb1",
+      "label": "Care Coordination",
+      "code": "Jess 2"
+    },
+    {
+      "uuid": "156852f2-345f-4678-b189-a676cbbcd5ab",
+      "label": "Travel Time",
+      "code": "j1"
+    },
+    {
+      "uuid": "2e526981-7ac5-416c-929e-6cbe7ba1620b",
+      "label": "Chart Review",
+      "code": "j2"
+    },
+    {
+      "uuid": "55c17d64-6b6b-4557-9a10-d5693dfc78ea",
+      "label": "Team Lunch",
+      "code": "J4"
+    },
+    {
+      "uuid": "d7dc0ab0-011b-49e5-9175-19f7177e36be",
+      "label": "Telehealth",
+      "code": "448337001"
+    },
+    {
+      "uuid": "3e2ff0f3-fbf1-47ee-9d9f-4f0bb9b01b1e",
+      "label": "Behavioral Note",
+      "code": "1010101"
+    }
+  ],
+  "existingReasonForVisit": [
+    {
+      "uuid": "d571d236-96a0-4094-b769-efda96591e3f",
+      "label": "Cancer - Scheduled Informational Encounter with Care Advocate",
+      "code": "CC-SCHEDULEDCA"
+    },
+    {
+      "uuid": "9761a9c4-0269-4413-96f4-7f0356897436",
+      "label": "Alyssa was here",
+      "code": "LYS_01"
+    },
+    {
+      "uuid": "05927825-e28d-4b36-95ba-233e14a8e574",
+      "label": "NEW",
+      "code": "94940"
+    },
+    {
+      "uuid": "c9e7e8b7-3cb7-41fe-880c-39df6e54387f",
+      "label": "Group Therapy",
+      "code": "grouptherapyrfv1"
+    },
+    {
+      "uuid": "da9b6417-7aad-4b81-8d9f-4c02866ba567",
+      "label": "Heart Failure",
+      "code": "HEART FAILURE"
+    },
+    {
+      "uuid": "93d32c18-b4b9-4c4d-8108-5eac1bb6e237",
+      "label": "Initial Referral",
+      "code": "INITIAL REFERRAL"
+    },
+    {
+      "uuid": "b2c42365-54eb-4856-892c-5465e28250e7",
+      "label": "Sebastian Test",
+      "code": "j1"
+    },
+    {
+      "uuid": "de32063c-a2bc-4f11-8ed8-129f7288a30c",
+      "label": "Sick Visit",
+      "code": "1111329048234"
+    },
+    {
+      "uuid": "fe0321b3-524c-4072-948d-e630aa31e0c8",
+      "label": "Established Patient",
+      "code": "1"
+    },
+    {
+      "uuid": "3ffa6b71-303f-4f84-9660-66e4e136acff",
+      "label": "Review Hospitalization/ED visit",
+      "code": "code"
+    },
+    {
+      "uuid": "120de727-9f33-4b49-b685-28434b6509ff",
+      "label": "annual follow up",
+      "code": "0"
+    },
+    {
+      "uuid": "5d1f9c9f-cab1-4f0f-b3e9-8fcdbffe4c4e",
+      "label": "New Patient Welcome",
+      "code": "10"
+    },
+    {
+      "uuid": "45afd6c7-5477-41b5-a8d1-06ffa64e6ea8",
+      "label": "Colonoscopy",
+      "code": "45378"
+    },
+    {
+      "uuid": "8ad363a7-6af7-4a09-8a23-16c62d3c53ca",
+      "label": "Welcome Visit",
+      "code": "10101"
+    },
+    {
+      "uuid": "431fea30-8270-41b0-869d-818b84d0016d",
+      "label": "New Patient",
+      "code": "NP"
+    },
+    {
+      "uuid": "085eaa80-a073-4dc9-a37d-9453baec9d0f",
+      "label": "Follow Up",
+      "code": "123"
+    },
+    {
+      "uuid": "1cad2e7a-7b38-4524-bce6-81fb01e1c5ae",
+      "label": "Extraction",
+      "code": "EXT"
+    }
+  ],
+  "familyHistory": [],
+  "surgeryHistory": [],
+  "chargeDescriptions": []
+}

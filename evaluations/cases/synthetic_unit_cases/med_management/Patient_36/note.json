@@ -1,0 +1,93 @@
+[
+  {
+    "instruction": "Medication: Combined estrogen-progestin oral contraceptive pill with 20 micrograms of ethinyl estradiol and 100 micrograms of levonorgestrel. Directions: Swallow one tablet every day with the first snack after the night shift, no breaks. Start tonight even if bleeding. Dosage: 20 micrograms of ethinyl estradiol and 100 micrograms of levonorgestrel per tablet. Duration: Continuous use.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.prescribe",
+      "class": "PrescribeCommand",
+      "attributes": {
+        "refills": 13,
+        "substitutions": "allowed",
+        "quantity_to_dispense": "392.00",
+        "days_supply": 365,
+        "sig": "Take 1 tablet by mouth daily at the same time each day, continuously without a break between packs.",
+        "fdb_code": "580154",
+        "note_to_pharmacist": "Dispense a total of 14 packs to cover a 365-day supply.",
+        "prescriber_id": "4150cd20de8a470aa570a852859ac87e",
+        "type_to_dispense": {
+          "representative_ndc": "50102012003",
+          "ncpdp_quantity_qualifier_code": "C48542"
+        }
+      }
+    }
+  },
+  {
+    "instruction": "Set an alarm to ensure daily dosing of the contraceptive pill.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "comment": "Set an alarm to ensure daily dosing of the contraceptive pill."
+      }
+    }
+  },
+  {
+    "instruction": "Do not stretch or split packs of the contraceptive pill; maintain steady daily dosing.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "coding": {
+          "system": "http://snomed.info/sct",
+          "code": "44651004",
+          "display": "Contraceptive use education"
+        },
+        "comment": "Do not stretch or split packs of the contraceptive pill; maintain steady daily dosing."
+      }
+    }
+  },
+  {
+    "instruction": "Watch for side effects: mild nausea, breast soreness, and tiny brown spotting in the first two months. Seek emergency care for sharp calf pain or crushing chest pressure.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "coding": {
+          "system": "http://snomed.info/sct",
+          "code": "223451005",
+          "display": "Advice to report signs and symptoms"
+        },
+        "comment": "Watch for side effects: mild nausea, breast soreness, and tiny brown spotting in the first two months. Seek emergency care for sharp calf pain or crushing chest pressure."
+      }
+    }
+  },
+  {
+    "instruction": "Keep a backup pad handy. If flow is soaking through hourly by week eight, contact the clinician through the portal.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "coding": {
+          "system": "http://snomed.info/sct",
+          "code": "304981009",
+          "display": "Advice about contacting someone"
+        },
+        "comment": "Keep a backup pad handy. If flow is soaking through hourly by week eight, contact the clinician through the portal."
+      }
+    }
+  },
+  {
+    "instruction": "Take one contraceptive pill within a three-hour window. If missed, take one immediately but never double doses.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "coding": {
+          "system": "http://snomed.info/sct",
+          "code": "395667001",
+          "display": "Progestogen only oral contraceptive education"
+        },
+        "comment": "Take one contraceptive pill within a three-hour window. If missed, take one immediately but never double doses."
+      }
+    }
+  }
+]

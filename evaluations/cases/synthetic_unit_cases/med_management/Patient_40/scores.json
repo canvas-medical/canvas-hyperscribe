@@ -1,0 +1,62 @@
+[
+  {
+    "rationale": "Semaglutide continuation, dose, schedule, and refrigeration instructions are entirely missing from the note.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "No mention of stopping glyburide or packing it away.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Captures start the morning before embarkation, daily dosing with food/milk, and seven-day post-return continuation accurately.",
+    "satisfaction": 95.0,
+    "score": 14.25
+  },
+  {
+    "rationale": "Explicitly documents taking the malaria pill with a cracker if a meal is missed.",
+    "satisfaction": 90.0,
+    "score": 5.4
+  },
+  {
+    "rationale": "Warning signs and glucose-check/email instructions are absent.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "No documentation of pen color change, cost explanation, insurance appeal, or free replacement boxes.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Includes storage guidance to keep pens needle-side up in the cabin fridge.",
+    "satisfaction": 95.0,
+    "score": 4.75
+  },
+  {
+    "rationale": "Hypoglycemic episode, excursion meal skips, pen-mixing worries, and travel stress not captured.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Does not state patient age, diabetes diagnosis code, or other pertinent chart context.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Note includes only three of the many clinically relevant items; overall completeness poor.",
+    "satisfaction": 20.0,
+    "score": 4.0
+  },
+  {
+    "rationale": "Key elements omitted and one unrelated ketone-strip SNOMED code added; moderate penalty.",
+    "satisfaction": 30.0,
+    "score": -5.6
+  },
+  {
+    "rationale": "No fabricated dosages or major false statements; minor extraneous detail only.",
+    "satisfaction": 80.0,
+    "score": -2.0
+  }
+]

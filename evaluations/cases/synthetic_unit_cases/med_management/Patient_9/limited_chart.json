@@ -1,0 +1,52 @@
+{
+  "demographicStr": "the patient is a man, age 63",
+  "conditionHistory": [],
+  "currentAllergies": [],
+  "currentConditions": [
+    {
+      "uuid": "a099e605-95a3-4eb5-a2fd-c80541504238",
+      "label": "Human immunodeficiency virus (HIV) disease",
+      "code": "B20"
+    },
+    {
+      "uuid": "62980fd0-e0ca-4e6c-a013-12f9953b413d",
+      "label": "Malignant neoplasm of kidney, unspecified (renal cell carcinoma)",
+      "code": "C64.9"
+    }
+  ],
+  "currentGoals": [],
+  "currentMedications": [
+    {
+      "uuid": "246ad040-a00d-4103-be16-4eb5a830dcdd",
+      "label": "Dolutegravir 50 mg oral tablet",
+      "code": "1483589"
+    },
+    {
+      "uuid": "ccd98d71-4fa5-4859-9653-a64caecf6a35",
+      "label": "Lamivudine 300 mg oral tablet",
+      "code": "310798"
+    },
+    {
+      "uuid": "5e898167-b710-497c-8812-0826c371c1af",
+      "label": "Amlodipine 5 mg oral tablet",
+      "code": "197361"
+    },
+    {
+      "uuid": "5c65abd4-5754-459e-8e61-5f50c9ba5cc5",
+      "label": "Aspirin 81 mg oral tablet",
+      "code": "1049630"
+    },
+    {
+      "uuid": "fdebe91f-d7fe-474a-82d8-9c3eda83defa",
+      "label": "Omeprazole 20 mg delayed release capsule",
+      "code": "209459"
+    },
+    {
+      "uuid": "e2e16d7b-8667-4c80-a0d8-ab2e95f43f25",
+      "label": "Cabozantinib 60 mg oral tablet",
+      "code": "1519882"
+    }
+  ],
+  "familyHistory": [],
+  "surgeryHistory": []
+}

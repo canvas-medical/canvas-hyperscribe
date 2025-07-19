@@ -1,0 +1,119 @@
+[
+  {
+    "instruction": "Change the prescription of Semaglutide 0.25 mg/0.5 mL subcutaneous solution pen injector, with directions to inject once weekly on Sunday morning, rotating sites each week, and to log the dose in the calendar. If more than 48 hours late, skip and wait for the next scheduled Sunday. Duration is eight weeks.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.adjust_prescription",
+      "class": "AdjustPrescriptionCommand",
+      "attributes": {
+        "prescriber_id": "4150cd20de8a470aa570a852859ac87e",
+        "sig": "Inject once weekly on Sunday morning, rotating sites each week, and log the dose in the calendar. If more than 48 hours late, skip and wait for the next scheduled Sunday.",
+        "days_supply": 56,
+        "type_to_dispense": {
+          "representative_ndc": "",
+          "ncpdp_quantity_qualifier_code": ""
+        },
+        "fdb_code": "",
+        "new_fdb_code": "",
+        "substitutions": "not_allowed"
+      }
+    }
+  },
+  {
+    "instruction": "Keep each pen between 36 and 46 degrees; a small ice pack in a laptop bag is fine, just don\u2019t let it touch bare metal or freeze.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "coding": {
+          "system": "http://snomed.info/sct",
+          "code": "698530005",
+          "display": "Education about safe storage and management of medication"
+        },
+        "comment": "Keep each pen between 36 and 46 degrees; a small ice pack in a laptop bag is fine, just don\u2019t let it touch bare metal or freeze."
+      }
+    }
+  },
+  {
+    "instruction": "Start meals with protein, sip water, and stop eating when feeling two-thirds full to reduce nausea. Use acetaminophen instead of ibuprofen for headaches.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "coding": {
+          "system": "http://snomed.info/sct",
+          "code": "710881000",
+          "display": "Education about eating pattern"
+        },
+        "comment": "Start meals with protein, sip water, and stop eating when feeling two-thirds full to reduce nausea."
+      }
+    }
+  },
+  {
+    "instruction": "Check fasting glucose once a week; if readings dip under 70, text the clinician.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "coding": {
+          "system": "http://snomed.info/sct",
+          "code": "401069007",
+          "display": "Advice about blood glucose control"
+        },
+        "comment": "Check fasting glucose once a week; if readings dip under 70, text the clinician."
+      }
+    }
+  },
+  {
+    "instruction": "After four injections, reassess the situation: if weight is moving and side-effects are manageable, increase to 0.5 mg; otherwise, continue with the starter dose.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.plan",
+      "class": "PlanCommand",
+      "attributes": {
+        "narrative": "After four injections, reassess the situation: if weight is moving and side-effects are manageable, increase to 0.5 mg; otherwise, continue with the starter dose."
+      }
+    }
+  },
+  {
+    "instruction": "Clinician to fax charts tonight, call the reviewer tomorrow, and update the patient once there is news on the appeal.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.task",
+      "class": "TaskCommand",
+      "attributes": {
+        "assign_to": null,
+        "title": "Fax charts",
+        "comment": "Clinician to fax charts tonight.",
+        "due_date": "2025-06-27"
+      }
+    }
+  },
+  {
+    "instruction": "For storage, a soft lunch cooler with one frozen gel pack keeps safe temperatures for six to eight hours, even in crammed office fridges.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "coding": {
+          "system": "http://snomed.info/sct",
+          "code": "310403001",
+          "display": "Advice about temperature control"
+        },
+        "comment": "For storage, a soft lunch cooler with one frozen gel pack keeps safe temperatures for six to eight hours, even in crammed office fridges."
+      }
+    }
+  },
+  {
+    "instruction": "For a four-hour flight, pens do not need a cooler; cabin temperature is fine.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "coding": {
+          "system": "http://snomed.info/sct",
+          "code": "171071003",
+          "display": "Advice on foreign travel"
+        },
+        "comment": "For a four-hour flight, pens do not need a cooler; cabin temperature is fine."
+      }
+    }
+  }
+]

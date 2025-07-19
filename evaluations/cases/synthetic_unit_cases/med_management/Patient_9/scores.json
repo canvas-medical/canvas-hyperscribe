@@ -1,0 +1,77 @@
+[
+  {
+    "rationale": "Dolutegravir-lamivudine regimen not mentioned at all.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Cabozantinib dose, nightly timing, food and spacing instructions entirely absent.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Monthly ECG noted but electrolyte targets (>4 K, >2 Mg) omitted.",
+    "satisfaction": 40.0,
+    "score": 6.0
+  },
+  {
+    "rationale": "Magnesium glycinate 400 mg bedtime with \"no laxative effect\" captured accurately.",
+    "satisfaction": 90.0,
+    "score": 13.5
+  },
+  {
+    "rationale": "Baseline potassium, magnesium, creatinine lab order documented clearly.",
+    "satisfaction": 95.0,
+    "score": 9.5
+  },
+  {
+    "rationale": "Travel instruction to keep pills on home time and keep 12-hour gap included verbatim.",
+    "satisfaction": 90.0,
+    "score": 7.2
+  },
+  {
+    "rationale": "All listed side-effects and \u2018call before next dose\u2019 advice captured.",
+    "satisfaction": 95.0,
+    "score": 7.6
+  },
+  {
+    "rationale": "Patient\u2019s first-dose experience and QTc 105 ms not documented.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Aspirin 81 mg continuation and bleeding concern not mentioned.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Patient questions about magnesium form and customs-related missed doses not recorded.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Note covers roughly half of clinician instructions; several major items missing.",
+    "satisfaction": 40.0,
+    "score": 8.0
+  },
+  {
+    "rationale": "Multiple key medication details omitted, so penalty applies.",
+    "satisfaction": 20.0,
+    "score": -12.0
+  },
+  {
+    "rationale": "No new or unspoken clinical recommendations introduced.",
+    "satisfaction": 90.0,
+    "score": -1.5
+  },
+  {
+    "rationale": "Minor unrelated dx code (F99) but no extensive chart copying; small concern.",
+    "satisfaction": 80.0,
+    "score": -2.0
+  },
+  {
+    "rationale": "No fabricated symptoms, labs, or reasoning detected.",
+    "satisfaction": 95.0,
+    "score": -0.5
+  }
+]
