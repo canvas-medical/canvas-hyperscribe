@@ -10,6 +10,7 @@ from hyperscribe.libraries.constants import Constants
 from hyperscribe.libraries.implemented_commands import ImplementedCommands
 from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.structures.identification_parameters import IdentificationParameters
+from hyperscribe.structures.line import Line
 
 
 class CaseRunner:
@@ -17,7 +18,7 @@ class CaseRunner:
     def parameters(cls) -> Namespace:
         parser = ArgumentParser(description="Run the case based on the local settings")
         parser.add_argument("--case", type=str, required=True, help="The case to run")
-        parser.add_argument("--cycles", type=int, required=True, help="Split the transcript in as many cycles")
+        parser.add_argument("--cycles", type=int, default=0, help="Split the transcript in as many cycles, use the stored cycles if not provided.")
         return parser.parse_args()
 
     @classmethod
@@ -29,12 +30,7 @@ class CaseRunner:
             print(f"Case '{parameters.case}' not generated yet")
             return
         auditor = HelperEvaluation.get_auditor(parameters.case, 0)
-        full_transcript = [
-            line
-            for key, lines in auditor.full_transcript().items()
-            for line in lines
-        ]
-        cycles = min(max(1, parameters.cycles), len(full_transcript))
+        full_transcript = cls.prepare_cycles(auditor.full_transcript(), parameters.cycles)
 
         identification = IdentificationParameters(
             patient_uuid=Constants.FAUX_PATIENT_UUID,
@@ -48,14 +44,9 @@ class CaseRunner:
         previous = limited_cache.staged_commands_as_instructions(ImplementedCommands.schema_key2instruction())
         discussion = CachedSdk.get_discussion(chatter.identification.note_uuid)
         # run the cycles
-        length, extra = divmod(len(full_transcript), cycles)
-        length += (1 if extra else 0)
         errors: dict = {}
         try:
-            for cycle in range(cycles):
-                idx = cycle * length
-                transcript = full_transcript[idx:idx + length]
-                cycle += 1
+            for cycle, transcript in enumerate(full_transcript.values(), start=1):
                 discussion.set_cycle(cycle)
                 auditor.set_cycle(cycle)
                 previous, _ = Commander.transcript2commands(auditor, transcript, chatter, previous)
@@ -63,6 +54,26 @@ class CaseRunner:
             errors = HelperEvaluation.trace_error(e)
         finally:
             auditor.case_finalize(errors)
+
+    @classmethod
+    def prepare_cycles(cls, full_transcript: dict[str, list[Line]], cycles: int) -> dict[str, list[Line]]:
+        if cycles <= 0:
+            return full_transcript
+
+        uncycled_transcript = [
+            line
+            for key, lines in full_transcript.items()
+            for line in lines
+        ]
+        fenced_cycles = min(max(1, cycles), len(uncycled_transcript))
+        length, extra = divmod(len(uncycled_transcript), fenced_cycles)
+        result = {}
+        start = 0
+        for cycle in range(fenced_cycles):
+            size = length + (1 if cycle < extra else 0)
+            result[f"cycle_{(cycle + 1):03d}"] = uncycled_transcript[start:start + size]
+            start += size
+        return result
 
 if __name__ == "__main__":
     CaseRunner.run()
