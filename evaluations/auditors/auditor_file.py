@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime
 from pathlib import Path
+from random import randint
 
 from evaluations.auditors.auditor_store import AuditorStore
 from evaluations.constants import Constants as EvaluationConstants
@@ -108,6 +110,9 @@ class AuditorFile(AuditorStore):
             key: Line.load_from_json(lines)
             for key, lines in content.items()
         }
+
+    def note_uuid(self) -> str:
+        return f"note{datetime.now().strftime('%Y%m%d%H%M%S')}x{randint(1000, 9999)}"
 
     @classmethod
     def already_generated(cls, case: str) -> bool:

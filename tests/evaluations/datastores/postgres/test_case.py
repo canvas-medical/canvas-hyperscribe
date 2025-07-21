@@ -48,6 +48,36 @@ def test_all_names(select):
 
 
 @patch.object(Case, "_select")
+def test_get_first_n_cases(select):
+    def reset_mock():
+        select.reset_mock()
+
+    tested = helper_instance()
+
+    tests = [
+        (5, [{"name": "case1"}, {"name": "case2"}, {"name": "case3"}], ["case1", "case2", "case3"]),
+        (2, [{"name": "case1"}, {"name": "case2"}], ["case1", "case2"]),
+        (10, [], []),
+        (1, [{"name": "case1"}], ["case1"]),
+    ]
+    for n, records, expected in tests:
+        select.side_effect = [records]
+        result = tested.get_first_n_cases(n)
+        assert result == expected
+
+        assert len(select.mock_calls) == 1
+        sql, params = select.mock_calls[0].args
+        exp_sql = ('SELECT "name" '
+                   'FROM "case" '
+                   'ORDER BY "id" '
+                   'LIMIT %(limit)s')
+        assert compare_sql(sql, exp_sql)
+        exp_params = {"limit": n}
+        assert params == exp_params
+        reset_mock()
+
+
+@patch.object(Case, "_select")
 def test_get_id(select):
     def reset_mock():
         select.reset_mock()

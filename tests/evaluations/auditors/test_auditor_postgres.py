@@ -463,6 +463,29 @@ def test_full_transcript(case_id, case_store):
     reset_mocks()
 
 
+@patch.object(AuditorPostgres, 'case_id')
+@patch.object(AuditorPostgres, 'generated_note_id')
+def test_note_uuid(generated_note_id, case_id):
+    def reset_mocks():
+        case_id.reset_mock()
+        generated_note_id.reset_mock()
+
+    tested = helper_instance()
+
+    case_id.side_effect = [123]
+    generated_note_id.side_effect = [456]
+
+    result = tested.note_uuid()
+    expected = "0000000123x0000000456"
+    assert result == expected
+
+    calls = [call()]
+    assert case_id.mock_calls == calls
+    calls = [call()]
+    assert generated_note_id.mock_calls == calls
+    reset_mocks()
+
+
 @patch('evaluations.auditors.auditor_postgres.check_output')
 def test_get_plugin_commit(check_output):
     def reset_mocks():

@@ -34,7 +34,7 @@ class CaseRunner:
 
         identification = IdentificationParameters(
             patient_uuid=Constants.FAUX_PATIENT_UUID,
-            note_uuid=Constants.FAUX_NOTE_UUID,
+            note_uuid=auditor.note_uuid(),
             provider_uuid=Constants.FAUX_PROVIDER_UUID,
             canvas_instance="runner-environment",
         )

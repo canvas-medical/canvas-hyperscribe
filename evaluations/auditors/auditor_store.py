@@ -50,6 +50,9 @@ class AuditorStore(Auditor):
     def full_transcript(self) -> dict[str, list[Line]]:
         raise NotImplementedError
 
+    def note_uuid(self) -> str:
+        raise NotImplementedError
+
     def set_cycle(self, cycle: int) -> None:
         self.cycle = max(0, self.cycle, cycle)
         self.cycle_key = f"{Constants.CASE_CYCLE_SUFFIX}_{self.cycle:03d}"

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime
 from pathlib import Path
 from unittest.mock import patch, call, MagicMock
 
@@ -446,6 +447,34 @@ def test_full_transcript(get_json):
     assert folder.mock_calls == []
     calls = [call('audio2transcript')]
     assert get_json.mock_calls == calls
+    reset_mocks()
+
+
+@patch("evaluations.auditors.auditor_file.datetime", wraps=datetime)
+@patch("evaluations.auditors.auditor_file.randint")
+def test_note_uuid(randint_mock, datetime_mock):
+    def reset_mocks():
+        randint_mock.reset_mock()
+        datetime_mock.reset_mock()
+
+    folder, tested = helper_instance()
+
+    mock_now = MagicMock()
+    mock_now.strftime.side_effect = ["20250721143045"]
+    datetime_mock.now.side_effect = [mock_now]
+    randint_mock.side_effect = [5678]
+
+    result = tested.note_uuid()
+    expected = "note20250721143045x5678"
+    assert result == expected
+
+    assert folder.mock_calls == []
+    calls = [call.now()]
+    assert datetime_mock.mock_calls == calls
+    calls = [call('%Y%m%d%H%M%S')]
+    assert mock_now.strftime.mock_calls == calls
+    calls = [call(1000, 9999)]
+    assert randint_mock.mock_calls == calls
     reset_mocks()
 
 

@@ -70,7 +70,7 @@ def test_run(
 
     identification = IdentificationParameters(
         patient_uuid='_PatientUuid',
-        note_uuid='_NoteUuid',
+        note_uuid='theNoteUuid',
         provider_uuid='_ProviderUuid',
         canvas_instance='runner-environment',
     )
@@ -94,6 +94,7 @@ def test_run(
     helper.get_auditor.side_effect = []
     mock_auditor.limited_chart.side_effect = []
     mock_auditor.full_transcript.side_effect = []
+    mock_auditor.note_uuid.side_effect = []
     mock_auditor.settings = "theSettings"
     mock_auditor.s3_credentials = "theAwsCredentials"
     audio_interpreter.side_effect = []
@@ -141,6 +142,7 @@ def test_run(
     helper.get_auditor.side_effect = [mock_auditor]
     mock_auditor.limited_chart.side_effect = [{"limited": "chart"}]
     mock_auditor.full_transcript.side_effect = ["theFullTranscript"]
+    mock_auditor.note_uuid.side_effect = ["theNoteUuid"]
     mock_auditor.settings = "theSettings"
     mock_auditor.s3_credentials = "theAwsCredentials"
     audio_interpreter.side_effect = [mock_chatter]
@@ -163,7 +165,7 @@ def test_run(
     ]
     assert load_from_json.mock_calls == calls
     calls = [
-        call('_NoteUuid'),
+        call('theNoteUuid'),
         call().set_cycle(1),
         call().set_cycle(2),
         call().set_cycle(3),
@@ -186,6 +188,7 @@ def test_run(
     assert mock_chatter.mock_calls == []
     calls = [
         call.full_transcript(),
+        call.note_uuid(),
         call.limited_chart(),
         call.set_cycle(1),
         call.set_cycle(2),
@@ -214,6 +217,7 @@ def test_run(
     helper.trace_error.side_effect = [{"error": "test"}]
     mock_auditor.limited_chart.side_effect = [{"limited": "chart"}]
     mock_auditor.full_transcript.side_effect = ["theFullTranscript"]
+    mock_auditor.note_uuid.side_effect = ["theNoteUuid"]
     mock_auditor.settings = "theSettings"
     mock_auditor.s3_credentials = "theAwsCredentials"
     audio_interpreter.side_effect = [mock_chatter]
@@ -236,7 +240,7 @@ def test_run(
     ]
     assert load_from_json.mock_calls == calls
     calls = [
-        call('_NoteUuid'),
+        call('theNoteUuid'),
         call().set_cycle(1),
         call().set_cycle(2),
     ]
@@ -258,6 +262,7 @@ def test_run(
     assert mock_chatter.mock_calls == []
     calls = [
         call.full_transcript(),
+        call.note_uuid(),
         call.limited_chart(),
         call.set_cycle(1),
         call.set_cycle(2),

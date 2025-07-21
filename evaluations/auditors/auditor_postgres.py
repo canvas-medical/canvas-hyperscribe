@@ -105,6 +105,9 @@ class AuditorPostgres(AuditorStore):
     def full_transcript(self) -> dict[str, list[Line]]:
         return CaseStore(self.postgres_credentials).get_transcript(self.case_id())
 
+    def note_uuid(self) -> str:
+        return f"{self.case_id():010d}x{self.generated_note_id():010d}"
+
     @classmethod
     def get_plugin_commit(cls) -> str:
         return check_output(['git', 'rev-parse', '--short', 'HEAD']).decode('ascii').strip()

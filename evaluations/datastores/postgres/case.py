@@ -22,6 +22,14 @@ class Case(Postgres):
                              ORDER BY "name" """
         return [record["name"] for record in self._select(sql, {})]
 
+    def get_first_n_cases(self, n: int) -> list[str]:
+        sql: LiteralString = """
+                             SELECT "name"
+                             FROM "case"
+                             ORDER BY "id"
+                             LIMIT %(limit)s """
+        return [record["name"] for record in self._select(sql, {"limit": n})]
+
     def get_id(self, name: str) -> int:
         sql: LiteralString = """
                              SELECT "id"

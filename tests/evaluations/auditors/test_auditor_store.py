@@ -138,6 +138,12 @@ def test_full_transcript():
         _ = tested.full_transcript()
 
 
+def test_note_uuid():
+    tested = helper_instance()
+    with pytest.raises(NotImplementedError):
+        _ = tested.note_uuid()
+
+
 def test_set_cycle():
     tested = helper_instance()
     tests = [
