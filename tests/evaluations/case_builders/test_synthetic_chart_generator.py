@@ -3,9 +3,8 @@ from pathlib import Path
 from argparse import Namespace, ArgumentParser
 from unittest.mock import patch, MagicMock, call
 from typing import Any
-from evaluations.case_builders.synthetic_chart_generator import SyntheticChartGenerator, HelperEvaluation, HelperSyntheticJson
+from evaluations.case_builders.synthetic_chart_generator import SyntheticChartGenerator, HelperEvaluation
 from hyperscribe.structures.vendor_key import VendorKey
-from hyperscribe.libraries.limited_cache import LimitedCache
 
 def test_init():
     expected_vendor_key = VendorKey(vendor="openai", api_key="API_KEY_123")

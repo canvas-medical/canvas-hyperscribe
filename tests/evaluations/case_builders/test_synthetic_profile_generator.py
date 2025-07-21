@@ -25,7 +25,7 @@ def vendor_key():
     return VendorKey(vendor="openai", api_key="MY_KEY")
 
 
-def test_init_initializes_generator(tmp_path, vendor_key: VendorKey):
+def test_init(tmp_path, vendor_key: VendorKey):
     output_path = tmp_path / "combined.json"
     tested = SyntheticProfileGenerator(vendor_key, output_path)
     expected_path = (tmp_path / "combined.json")
