@@ -52,11 +52,15 @@ def test_schema_rubric():
     
     assert result == expected
 
+
+@patch.object(RubricGenerator, "schema_rubric")
 @patch("evaluations.case_builders.rubric_generator.HelperSyntheticJson.generate_json")
-def test_generate__success(mock_generate_json, tmp_paths):
+def test_generate__success(mock_generate_json, mock_schema_rubric, tmp_paths):
     transcript, chart, context, output_path = tmp_paths
     expected = [{"criterion": "Reward X", "weight": 10, "sense": "positive"}]
     mock_generate_json.return_value = expected
+    expected_schema = {"expected": "schema"}
+    mock_schema_rubric.side_effect = lambda: expected_schema
 
     tested = RubricGenerator(VendorKey("openai", "KEY"))
     tested.generate(transcript, chart, context, output_path=output_path)
@@ -64,57 +68,16 @@ def test_generate__success(mock_generate_json, tmp_paths):
     result = json.loads(output_path.read_text())
     assert result == expected
 
-    calls = mock_generate_json.mock_calls
-    assert calls == [
-        call(
-            vendor_key=tested.vendor_key,
-            system_prompt=ANY,
-            user_prompt=ANY,
-            schema=tested.schema_rubric()
-        )
-    ]
-    #check for keyword arguments.
     _, kwargs = mock_generate_json.call_args
-    assert kwargs['vendor_key'] == tested.vendor_key
-    assert kwargs['schema'] == tested.schema_rubric()
+    expected_system_md5 = "a32a64e63443ef0f076080b5be3873d9"
+    expected_user_md5 = "aa9784cf40795731b20103b58a884fc7"
+    result_system_md5 = hashlib.md5("\n".join(kwargs["system_prompt"]).encode()).hexdigest()
+    result_user_md5 = hashlib.md5("\n".join(kwargs["user_prompt"]).encode()).hexdigest()
 
-    expected_system_prompt: list[str] = [
-            "You are a clinical informatics expert working with a senior physician "
-            "to design case-specific rubrics that assess how faithfully a medical "
-            "scribe note reflects the transcript and chart.",
-            "Return your answer as JSON inside a fenced ```json ... ``` block."]
-
-    expected_user_prompt: list[str] = [
-            "Task: design a grading rubric for *documentation fidelity*.",
-            "Definition of fidelity: how accurately the note captures what was said "
-            "or implied in the transcript, using relevant context from the chart. "
-            "Do not judge clinical decisions—only documentation fidelity.",
-            "Follow three steps internally, but output **only** the final rubric:",
-            " 1. Identify key events/statements in transcript & chart.",
-            " 2. Decide what an ideal scribe must capture.",
-            " 3. Produce the rubric as a JSON array of objects.",
-            "Each object keys:",
-            " - criterion (string) — must start with with \"Reward for\" or \"Penalize for\"",
-            " - weight    (int 0-100)",
-            " - sense     (\"positive\" | \"negative\")",
-            "Include at least one criterion on overall completeness and one on chart-copy fidelity.",
-            "Your JSON **must** conform to the following JSON Schema:",
-            "```json",
-            json.dumps(tested.schema_rubric(), indent=2),
-            "```",
-            "Wrap the JSON array in a fenced ```json block and output nothing else.",
-            "--- BEGIN TRANSCRIPT JSON ---",
-            transcript.read_text(),
-            "--- END TRANSCRIPT JSON ---",
-            "--- BEGIN CHART JSON ---",
-            chart.read_text(),
-            "--- END CHART JSON ---",
-            "--- BEGIN CANVAS CONTEXT JSON ---",
-           context.read_text(),
-            "--- END CANVAS CONTEXT JSON ---",]
-
-    assert kwargs["system_prompt"] == expected_system_prompt
-    assert kwargs["user_prompt"] == expected_user_prompt
+    assert kwargs["vendor_key"] == tested.vendor_key
+    assert kwargs["schema"] == expected_schema
+    assert result_system_md5 == expected_system_md5
+    assert result_user_md5 == expected_user_md5
     
 
 @patch("evaluations.case_builders.rubric_generator.HelperSyntheticJson.generate_json", side_effect=SystemExit(1))

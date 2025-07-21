@@ -1,6 +1,5 @@
-import json, sys, re, pytest
-from pathlib import Path
-from unittest.mock import patch, call, MagicMock, ANY
+import json, re, pytest, hashlib
+from unittest.mock import patch, call, MagicMock
 from argparse import ArgumentParser, Namespace
 from evaluations.case_builders.synthetic_profile_generator import SyntheticProfileGenerator, HelperEvaluation
 from hyperscribe.libraries.constants import Constants
@@ -47,9 +46,9 @@ def test__extract_initial_fragment(tmp_path, vendor_key: VendorKey):
 def test__save_combined(tmp_path, dummy_profiles: dict, vendor_key: VendorKey):
     output_path = tmp_path / "combined.json"
     tested = SyntheticProfileGenerator(vendor_key, output_path)
-    SyntheticProfileGenerator.output_path = output_path
-    SyntheticProfileGenerator.all_profiles = dummy_profiles
-    SyntheticProfileGenerator._save_combined()
+    tested.output_path = output_path
+    tested.all_profiles = dummy_profiles
+    tested._save_combined()
 
     result = json.loads(output_path.read_text())
     assert result == dummy_profiles
@@ -88,9 +87,9 @@ def test_schema_batch(tmp_path, vendor_key: VendorKey):
         }
     assert result == expected
 
-
+@patch.object(SyntheticProfileGenerator, "schema_batch")
 @patch("evaluations.case_builders.synthetic_profile_generator.HelperSyntheticJson.generate_json")
-def test_generate_batch(mock_generate_json, fake_llm_response, vendor_key: VendorKey):
+def test_generate_batch(mock_generate_json, mock_schema_batch, fake_llm_response, vendor_key: VendorKey):
     n = 3
     expected = fake_llm_response(n)
     mock_generate_json.return_value = expected
@@ -98,56 +97,22 @@ def test_generate_batch(mock_generate_json, fake_llm_response, vendor_key: Vendo
     tested = SyntheticProfileGenerator(vendor_key, "out.json")
     batch_num = 2
     count = 3
+    expected_schema = {"expected": "schema"}
+    mock_schema_batch.side_effect = lambda count: expected_schema
 
     result = tested.generate_batch(batch_num, count)
-    schema = tested.schema_batch(count)
+    _, kwargs = mock_generate_json.call_args
 
-    expected_system_prompt = [
-        "You are a clinical‑informatics expert generating synthetic patient profiles for testing medication‑management AI systems.",
-        "Return your answer as JSON inside a fenced ```json ... ``` block.",
-        "The response **must** conform to the following JSON Schema:",
-        "```json",
-        json.dumps(schema, indent=2),
-        "```",
-    ]
+    #reference hex digest with the patched schema_batch, must be re-digested if prompts change.
+    expected_system_md5 = "d4d9c1999dcff7d0cff01745aa3da589"
+    expected_user_md5 = "b3435eae8d1a3700c841178446de8c83"
+    result_system_md5 = hashlib.md5("\n".join(kwargs["system_prompt"]).encode()).hexdigest()
+    result_user_md5 = hashlib.md5("\n".join(kwargs["user_prompt"]).encode()).hexdigest()
 
-    expected_user_prompt = [
-        f"Create a JSON object with 3 key-value pairs labeled "
-        f"\"Patient 4\" through \"Patient 6\". "
-        "Each value must be a 3-to-5-sentence medication-history narrative "
-        "written for a broad audience (≈ 40-60 plain-English words).",
-        "",
-        "Include **at least two** LOW-complexity patients "
-        "(single renewal, first-time Rx, or simple dose tweak). Other patients may be moderate "
-        "or high complexity, guided by the diversity checklist below:",
-        "- Age bands: <18, 18-30, 30-50, 50-70, >70.",
-        "- Social context: homelessness, language barrier, uninsured, rural isolation, etc.",
-        "- Novel drug classes: GLP-1 agonists, oral TKIs, depot antipsychotics, inhaled steroids, biologics, antivirals, contraception, chemo, herbals.",
-        "- Edge-case themes: pregnancy, QT risk, REMS, dialysis, polypharmacy/deprescribing, travel medicine, etc.",
-        "",
-        "Already-seen motifs → None yet. **Avoid** re-using templates like ACE-inhibitor-to-ARB cough, long-term warfarin INR drift, or COPD tiotropium boilerplate.",
-        "",
-        "Write in clear prose with minimal jargon. If a medical abbreviation is unavoidable, "
-        "spell it out the first time (e.g., “twice-daily (BID)”). Prefer full words: “by mouth” "
-        "over “PO”, “under the skin” over “SC”. Vary openings: lead with social detail, "
-        "medication list, or family history.",
-        "",
-        "Each narrative MUST include:",
-        "• Current medicines in plain words, with some cases not having complete details.",
-        "• A scenario involving medication management—straightforward new prescriptions, simple dose adjustments, or complex edge cases involving risky medications, polypharmacy, or social barriers.",
-        "• Any key allergy, condition, or social barrier.",
-        "",
-        "Do NOT write SOAP notes, vital signs, or assessments.",
-        "",
-        "Wrap the JSON in a fenced ```json block and output nothing else.",
-    ]
-
-    expected_call = call(
-        vendor_key=vendor_key,
-        system_prompt=expected_system_prompt,
-        user_prompt=expected_user_prompt,
-        schema=schema)
-    assert mock_generate_json.mock_calls == [expected_call]
+    assert result_system_md5 == expected_system_md5
+    assert result_user_md5 == expected_user_md5
+    assert kwargs["vendor_key"] == vendor_key
+    assert kwargs["schema"] == expected_schema
     
     expected_keys = [f"Patient {i+1}" for i in range(count)]
     assert list(result.keys()) == expected_keys

@@ -17,7 +17,6 @@ class SyntheticProfileGenerator:
     def _extract_initial_fragment(cls, narrative: str) -> str:
         return narrative.split(".")[0][:100]
 
-    @classmethod
     def _save_combined(cls) -> None:
         cls.output_path.parent.mkdir(parents=True, exist_ok=True)
         with cls.output_path.open("w") as f:

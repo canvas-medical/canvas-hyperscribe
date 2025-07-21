@@ -23,26 +23,39 @@ class SyntheticChartGenerator:
 
 
     def schema_chart(self) -> dict[str, Any]:
-        """Build a JSON Schema that enforces top-level keys in example_chart"""
-        
-        properties = {k: {"type": "array"} for k in self.example_chart.keys()}
-        properties["description"] = {"type": "string"}
+        """Build a JSON Schema that enforces top‑level keys in example_chart."""
+        #readable descriptions for each top-level key
+        _DESCRIPTIONS = {
+            "demographicStr":   "string describing patient demographics",
+            "conditionHistory": "patient history of conditions",
+            "currentAllergies": "current allergies for the patient",
+            "currentConditions": "current patient conditions and diagnoses",
+            "currentMedications": "current patient medications being taken",
+            "currentGoals": "current treatment goals for the patient",
+            "familyHistory":   "any history of family care or illness",
+            "surgeryHistory":  "any history of surgical care or operations",
+        }
 
-        schema = {
+        properties = {
+            key: {"type": "array" if isinstance(value, list) else "string",
+                "description": _DESCRIPTIONS.get(key, "")}
+            for key, value in self.example_chart.items()
+        }
+
+        return {
             "$schema": "http://json-schema.org/draft-07/schema#",
-            "description": "example Canvas-compatible chart",
+            "description": "Example Canvas-compatible chart",
             "type": "object",
             "properties": properties,
             "required": list(self.example_chart.keys()),
             "additionalProperties": False,
         }
-        return schema
 
     def generate_chart_for_profile(self, profile_text: str) -> dict[str, Any]:
         schema = self.schema_chart()
 
         system_prompt: list[str] = [
-            "You are generating a Canvas‑compatible `limited_chart.json` "
+            "You are generating a Canvas-compatible `limited_chart.json` "
             "for a synthetic patient.",
             "Return your answer as JSON inside a fenced ```json ... ``` block.",
             "Only include fields shown in the example structure; leave irrelevant "

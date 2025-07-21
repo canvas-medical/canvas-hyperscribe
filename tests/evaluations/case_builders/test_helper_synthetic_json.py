@@ -1,6 +1,6 @@
 import pytest
 from pathlib import Path
-from unittest.mock import MagicMock, patch, call, ANY
+from unittest.mock import MagicMock, patch, call
 from hyperscribe.structures.vendor_key import VendorKey
 from evaluations.case_builders.helper_synthetic_json import HelperSyntheticJson, MemoryLog
 
@@ -55,14 +55,14 @@ def test_generate_json__parses_fenced_json(mock_llm_cls, memory_log, tmp_path):
 
     result = HelperSyntheticJson.generate_json(
         vendor_key=VendorKey("openai", "dummy"),
-        system_prompt=["sys"],
+        system_prompt=["system"],
         user_prompt=["user"],
         schema=schema)
     assert result == expected
 
     expected_calls = [
         call("MemoryLogInstance", "dummy", with_audit=False, temperature=1.0),
-        call().set_system_prompt(["sys"]),
+        call().set_system_prompt(["system"]),
         call().set_user_prompt(["user"]),
         call().chat(schemas=[schema]),
     ]
@@ -88,14 +88,14 @@ def test_generate_json__chat_error_exits(mock_llm_cls, memory_log, tmp_path):
         with pytest.raises(SystemExit):
             HelperSyntheticJson.generate_json(
                 vendor_key=VendorKey("openai", "dummy"),
-                system_prompt=["sys"],
+                system_prompt=["system"],
                 user_prompt=["user"],
                 schema=schema,
             )
 
     expected_calls = [
         call("MemoryLogInstance", "dummy", with_audit=False, temperature=1.0),
-        call().set_system_prompt(["sys"]),
+        call().set_system_prompt(["system"]),
         call().set_user_prompt(["user"]),
         call().chat(schemas=[schema]),
     ]

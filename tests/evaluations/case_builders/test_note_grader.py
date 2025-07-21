@@ -1,6 +1,5 @@
-import json
+import json, pytest, hashlib
 from argparse import Namespace
-import pytest
 from unittest.mock import patch, MagicMock, call
 
 from evaluations.case_builders.note_grader import NoteGrader, HelperEvaluation
@@ -30,7 +29,7 @@ def test_load_json(tmp_path):
     result = NoteGrader.load_json(path)
     assert result == expected
 
-def test_schema_rubric(tmp_files):
+def test_schema_scores(tmp_files):
     rubric_path, note_path, output_path, rubric, note = tmp_files
     tested = NoteGrader(vendor_key=VendorKey("openai", "KEY"), rubric=rubric, note=note,
         output_path=None)
@@ -60,8 +59,31 @@ def test_schema_rubric(tmp_files):
 
     assert result == expected
 
+@patch.object(NoteGrader, "schema_scores")
+def test_build_prompts(mock_schema_scores, tmp_files):
+    rubric_path, note_path, output_path, rubric, note = tmp_files
+    vendor_key = VendorKey(vendor="openai", api_key="KEY")
+    rubric_objs = [RubricCriterion(**item) for item in rubric]
+    tested = NoteGrader(vendor_key, rubric_objs, note, output_path)
+    expected_schema = {"type": "array"}
+    mock_schema_scores.side_effect = lambda: expected_schema
+
+
+    result_system_lines, result_user_lines = tested.build_prompts()
+    expected_system_md5 = "83ffb4b2602834cb84415885685311cc"
+    expected_user_md5 = "a5094e3da8bdeea48d768b26024ef00a"
+
+    result_system_md5 = hashlib.md5("\n".join(result_system_lines).encode()).hexdigest()
+    result_user_md5 = hashlib.md5("\n".join(result_user_lines).encode()).hexdigest()
+
+    assert result_system_md5 == expected_system_md5
+    assert result_user_md5 == expected_user_md5
+
+
+@patch.object(NoteGrader, "build_prompts", return_value=(["System Prompt"], ["User Prompt"]))
+@patch.object(NoteGrader, "schema_scores")
 @patch("evaluations.case_builders.note_grader.HelperSyntheticJson.generate_json")
-def test_run__success(mock_generate_json, tmp_files):
+def test_run__success(mock_generate_json, mock_schema_scores, mock_build_prompts, tmp_files):
     rubric_path, note_path, output_path, rubric, note = tmp_files
 
     expected = [
@@ -75,26 +97,28 @@ def test_run__success(mock_generate_json, tmp_files):
 
     vendor_key = VendorKey(vendor="openai", api_key="KEY")
     rubric_objs = [RubricCriterion(**item) for item in rubric]
-    grader = NoteGrader(vendor_key=vendor_key, rubric=rubric_objs,
-        note=note, output_path=output_path)
-
-    system_prompt, user_prompt = grader.build_prompts()
-    schema = grader.schema_scores()
+    expected_schema = {"type": "array"}
+    mock_schema_scores.side_effect = lambda: expected_schema
+    grader = NoteGrader(vendor_key, rubric_objs, note, output_path)
     grader.run()
 
     result = json.loads(output_path.read_text())
     assert result == expected
 
     # ensure generate_json got exactly the call we expected
+    assert mock_generate_json.call_count == 1
     expected_call = call(
         vendor_key=vendor_key,
-        system_prompt=system_prompt,
-        user_prompt=user_prompt,
-        schema=schema)
+        system_prompt=["System Prompt"],
+        user_prompt=["User Prompt"],
+        schema=expected_schema)
     assert mock_generate_json.mock_calls == [expected_call]
 
+
+@patch.object(NoteGrader, "build_prompts", return_value=(["System Prompt"], ["User Prompt"]))
+@patch.object(NoteGrader, "schema_scores")
 @patch("evaluations.case_builders.note_grader.HelperSyntheticJson.generate_json", side_effect=SystemExit(1))
-def test_run__raises_on_generate_failure(mock_generate_json, tmp_files):
+def test_run__raises_on_generate_failure(mock_generate_json, mock_schema_scores, mock_build_prompts, tmp_files):
     rubric_path, note_path, output_path, rubric, note = tmp_files
 
     vendor_key = VendorKey(vendor="openai", api_key="KEY")
@@ -106,18 +130,18 @@ def test_run__raises_on_generate_failure(mock_generate_json, tmp_files):
         output_path=output_path
     )
 
-    expected_system_prompt, expected_user_prompt = tested.build_prompts()
-    expected_schema = tested.schema_scores()
+    expected_schema = {"type": "array"}
+    mock_schema_scores.side_effect = lambda: expected_schema
 
     with pytest.raises(SystemExit) as exc_info:
         tested.run()
 
     assert exc_info.value.code == 1
-
+    assert mock_generate_json.call_count == 1
     expected_call = call(
         vendor_key=vendor_key,
-        system_prompt=expected_system_prompt,
-        user_prompt=expected_user_prompt,
+        system_prompt=["System Prompt"],
+        user_prompt=["User Prompt"],
         schema=expected_schema
     )
     assert mock_generate_json.mock_calls == [expected_call]

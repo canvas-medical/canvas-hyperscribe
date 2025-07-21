@@ -1,4 +1,4 @@
-import json, random, argparse, pytest
+import json, random, argparse, pytest, hashlib
 from argparse import Namespace
 from pathlib import Path
 from unittest.mock import patch, MagicMock, call
@@ -11,54 +11,6 @@ def create_fake_profiles_file(tmp_path: Path) -> Path:
     fake_profiles.write_text(json.dumps({"Patient 1": "AAA", "Patient 2": "BBB"}))
     return fake_profiles
 
-def _expected_system_prompt(seen_openings=None):
-    lines = [
-        "You are simulating a real outpatient medication-management discussion.",
-        "Return your answer as JSON inside a fenced ```json ... ``` block.",
-        "Start mid-conversation, no greetings. End mid-topic, no farewells.",
-        "Follow the speaker sequence *exactly* and aim for the target C:P word ratio ±10%.",
-        "Use plain language with occasional natural hesitations (e.g., “uh”, “I mean”).",
-    ]
-    if seen_openings:
-        lines.append(
-            f"Avoid starting with any of these previous first lines: {', '.join(sorted(seen_openings))}"
-        )
-    return lines
-
-
-def _expected_user_prompt(profile_text, spec, schema):
-    return [
-        f"Patient profile: {profile_text}",
-        "--- TRANSCRIPT SPEC ---",
-        json.dumps(
-            {
-                "turn_total": spec["turn_total"],
-                "speaker_sequence": spec["speaker_sequence"],
-                "target_C_to_P_word_ratio": spec["ratio"],
-            }
-        ),
-        "",
-        f"Moods: {', '.join(spec['mood'])}",
-        f"External pressure: {spec['pressure']}",
-        f"Clinician persona: {spec['clinician_style']}",
-        f"Patient persona: {spec['patient_style']}",
-        "",
-        "Instructions:",
-        "1. Follow the speaker sequence exactly (same order and length).",
-        "2. Hit the requested word ratio ±10%.",
-        "3. Embed the mood, pressure, and personas naturally.",
-        "4. Focus on medication details—dose changes, side‑effects, adherence, etc.",
-        "5. No concluding pleasantries.",
-        "",
-        "Your JSON **must** conform to the following JSON Schema:",
-        "```json",
-        json.dumps(schema, indent=2),
-        "```",
-        "",
-        "Wrap the JSON array in a fenced ```json block and output nothing else.",
-    ]
-
-
 def test__load_profiles(tmp_path):
     data = {"Alice": "profile1", "Bob": "profile2"}
     profiles_file = tmp_path / "profiles.json"
@@ -68,11 +20,19 @@ def test__load_profiles(tmp_path):
     result = SyntheticTranscriptGenerator._load_profiles(dummy)
     assert result == data
 
-def test__random_bucket():
-    valid_keys = set(SpecConstants.TURN_BUCKETS.keys())
-    tested = {SyntheticTranscriptGenerator._random_bucket() for _ in range(50)}
-    assert tested.issubset(valid_keys)
-    assert tested
+@patch("evaluations.case_builders.synthetic_transcript_generator.random.choice")
+def test__random_bucket(mock_choice):
+    expected_keys = list(SpecConstants.TURN_BUCKETS.keys())
+    forced_returns = expected_keys
+    mock_choice.side_effect = forced_returns
+
+    results = [SyntheticTranscriptGenerator._random_bucket() for _ in range(3)]
+    assert results == forced_returns
+    assert all(result in expected_keys for result in results)
+
+    #mock calls
+    expected_calls = [call(expected_keys) for _ in range(3)]
+    assert mock_choice.mock_calls == expected_calls
 
 
 @patch.object(random, "uniform", return_value=1.25)
@@ -121,13 +81,13 @@ def test_schema_transcript(tmp_path):
     vendor_key = VendorKey(vendor="openai", api_key="MY_KEY")
     profiles = create_fake_profiles_file(tmp_path)
     tested = SyntheticTranscriptGenerator(vendor_key, profiles, tmp_path)
-    spec = tested._make_spec()
+    spec = {"turn_total": 37}
     result = tested.schema_transcript(spec)
     expected = {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "type": "array",
-            "minItems": spec["turn_total"],
-            "maxItems": spec["turn_total"],
+            "minItems": 37,
+            "maxItems": 37,
             "items": {
                 "type": "object",
                 "properties": {
@@ -142,9 +102,9 @@ def test_schema_transcript(tmp_path):
         }
     assert result == expected
 
+
 def test__build_prompt(tmp_path):
     tested = SyntheticTranscriptGenerator(VendorKey("openai", "MY_KEY"), create_fake_profiles_file(tmp_path), tmp_path)
-    tested.seen_openings.add("previous first line")
 
     spec = {
         "turn_total": 2,
@@ -155,17 +115,28 @@ def test__build_prompt(tmp_path):
         "clinician_style": "",
         "patient_style": "",
     }
+    schema = {"type": "array"}
+
+    system_prompt_no_previous, _ = tested._build_prompt("profile text", spec, schema)
+    assert "Avoid starting with any of these previous first lines:" not in "\n".join(system_prompt_no_previous)
+
+    tested.seen_openings.add("previous first line")
+    system_prompt_previous_lines, user_prompt_previous_lines = tested._build_prompt("profile text", spec, schema)
     
-    dummy_schema = {"type": "array"}
-    system_lines, user_lines = tested._build_prompt("profile text", spec, dummy_schema)
+    combined_sys = "\n".join(system_prompt_previous_lines)
+    assert "Avoid starting with any of these previous first lines: previous first line" in combined_sys
+    expected_system_md5 = "8407fd613773ae1c4494989d79fd4588"
+    expected_user_md5   = "6257d98e369d9359b5900eec00953b5a"
+    result_system_md5 = hashlib.md5("\n".join(system_prompt_previous_lines).encode()).hexdigest()
+    result_user_md5 = hashlib.md5("\n".join(user_prompt_previous_lines).encode()).hexdigest()
 
-    assert system_lines == _expected_system_prompt({"previous first line"})
-    assert user_lines == _expected_user_prompt("profile text", spec, dummy_schema)
-
-    combined_system = "\n".join(system_lines)
-    assert ("Avoid starting with any of these previous first lines: previous first line" in combined_system)
+    assert result_system_md5 == expected_system_md5
+    assert result_user_md5 == expected_user_md5
 
 
+@patch.object(SyntheticTranscriptGenerator, "schema_transcript")
+@patch.object(SyntheticTranscriptGenerator, "_build_prompt",
+    return_value=(["System Prompt"], ["User Prompt"]))
 @patch.object(SyntheticTranscriptGenerator, "_make_spec",
     return_value={
         "bucket": "short",
@@ -177,38 +148,30 @@ def test__build_prompt(tmp_path):
         "clinician_style": "",
         "patient_style": ""})
 @patch.object(HelperSyntheticJson, "generate_json", return_value=[{"speaker": "Clinician", "text": "Sample text"}])
-def test_generate_transcript_for_profile__success(mock_generate_json, mock_make_spec, tmp_path):
+def test_generate_transcript_for_profile__success(mock_generate_json, mock_make_spec, mock_build_prompt, mock_schema_transcript, tmp_path):
     profiles = create_fake_profiles_file(tmp_path)
-    output_dir = tmp_path / "output"
     tested = SyntheticTranscriptGenerator(
-        vendor_key=VendorKey("openai", "KEY"), input_path=profiles, output_path=output_dir)
+        vendor_key=VendorKey("openai", "KEY"), input_path=profiles, output_path=tmp_path)
 
     profile_text = "Sample profile"
+    expected_schema = {"type": "array"}
+    mock_schema_transcript.side_effect = lambda spec: expected_schema
     transcript, spec = tested.generate_transcript_for_profile(profile_text)
-    expected_transcript = [{"speaker": "Clinician", "text": "Sample text"}]
 
-    # Build the expected schema & prompts exactly as the generator would
-    expected_schema = tested.schema_transcript(spec)
-    expected_system_prompt = _expected_system_prompt()  # seen_openings empty on first call
-    expected_user_prompt = _expected_user_prompt(profile_text, spec, expected_schema)
-
-    kwargs = mock_generate_json.call_args.kwargs
+    _, kwargs = mock_generate_json.call_args
     assert kwargs["vendor_key"] == tested.vendor_key
     assert kwargs["schema"] == expected_schema
-    assert kwargs["system_prompt"] == expected_system_prompt
-    assert kwargs["user_prompt"] == expected_user_prompt
+    assert kwargs["system_prompt"] == ["System Prompt"]
+    assert kwargs["user_prompt"] == ["User Prompt"]
 
-    expected_call = call(
-        vendor_key=tested.vendor_key,
-        system_prompt=expected_system_prompt,
-        user_prompt=expected_user_prompt,
-        schema=expected_schema,
-    )
-    assert mock_generate_json.mock_calls == [expected_call]
+    expected_transcript = [{"speaker": "Clinician", "text": "Sample text"}]
     assert transcript == expected_transcript
     assert "sample text" in tested.seen_openings
 
 
+@patch.object(SyntheticTranscriptGenerator, "schema_transcript")
+@patch.object(SyntheticTranscriptGenerator, "_build_prompt",
+    return_value=(["System Prompt"], ["User Prompt"]))
 @patch.object(SyntheticTranscriptGenerator, "_make_spec",
     return_value={
         "bucket": "short",
@@ -220,30 +183,26 @@ def test_generate_transcript_for_profile__success(mock_generate_json, mock_make_
         "clinician_style": "",
         "patient_style": "",})
 @patch.object(HelperSyntheticJson, "generate_json", side_effect=ValueError("Invalid JSON"))
-def test_generate_transcript_for_profile__bad_json_raises(mock_generate_json, mock_make_spec, tmp_path):
+def test_generate_transcript_for_profile__bad_json_raises(mock_generate_json, mock_make_spec, mock_build_prompt, mock_schema_transcript, tmp_path):
     profiles = create_fake_profiles_file(tmp_path)
     vendor_key=VendorKey("openai", "KEY")
     tested = SyntheticTranscriptGenerator(vendor_key, input_path=profiles, output_path=tmp_path)
-
+    expected_schema = {"type": "array"}
+    mock_schema_transcript.side_effect = lambda spec: expected_schema
     profile_text = "Sample profile"
     with pytest.raises(ValueError) as exc_info:
         tested.generate_transcript_for_profile(profile_text)
     assert "Invalid JSON" in str(exc_info.value)
 
-    # reconstruct the spec and schema used (from our patched return value)
-    spec = mock_make_spec.return_value
-    expected_schema = tested.schema_transcript(spec)
-    expected_system_prompt = _expected_system_prompt()
-    expected_user_prompt = _expected_user_prompt(profile_text, spec, expected_schema)
+    _, kwargs = mock_generate_json.call_args
+    assert kwargs["vendor_key"] == tested.vendor_key
+    assert kwargs["schema"] == expected_schema
+    assert kwargs["system_prompt"] == ["System Prompt"]
+    assert kwargs["user_prompt"] == ["User Prompt"]
 
-    expected_call = call(
-        vendor_key=tested.vendor_key,
-        system_prompt=expected_system_prompt,
-        user_prompt=expected_user_prompt,
-        schema=expected_schema,
-    )
-    assert mock_generate_json.mock_calls == [expected_call]
-
+@patch.object(SyntheticTranscriptGenerator, "schema_transcript")
+@patch.object(SyntheticTranscriptGenerator, "_build_prompt",
+    return_value=(["System Prompt"], ["User Prompt"]))
 @patch.object(SyntheticTranscriptGenerator, "_make_spec",
     return_value={
         "bucket": "short",
@@ -255,29 +214,25 @@ def test_generate_transcript_for_profile__bad_json_raises(mock_generate_json, mo
         "clinician_style": "",
         "patient_style": ""})
 @patch.object(HelperSyntheticJson, "generate_json", return_value=[{"speaker": "Clinician", "text": "Content"}])
-def test_run(mock_generate_json, mock_make_spec, tmp_path):
+def test_run(mock_generate_json, mock_make_spec, mock_build_prompt, mock_schema_transcript, tmp_path):
     input_file = create_fake_profiles_file(tmp_path)
     output_dir = tmp_path / "output"
     tested = SyntheticTranscriptGenerator(
         vendor_key=VendorKey("openai", "KEY"), input_path=input_file, output_path=output_dir)
+    expected_schema = {"type": "array"}
+    mock_schema_transcript.side_effect = lambda spec: expected_schema
 
     #patient 2
     tested.run(start_index=2, limit=1)
     result_directory = output_dir / "Patient_2"
     assert (result_directory / "transcript.json").exists()
     assert (result_directory / "spec.json").exists()
-    spec = mock_make_spec.return_value
-    expected_schema = tested.schema_transcript(spec)
-    expected_system_prompt = _expected_system_prompt()
-    expected_user_prompt = _expected_user_prompt("BBB", spec, expected_schema)
 
-    expected_call = call(
-        vendor_key=tested.vendor_key,
-        system_prompt=expected_system_prompt,
-        user_prompt=expected_user_prompt,
-        schema=expected_schema,
-    )
-    assert mock_generate_json.mock_calls == [expected_call]
+    _, kwargs = mock_generate_json.call_args
+    assert kwargs["vendor_key"] == tested.vendor_key
+    assert kwargs["schema"] == expected_schema
+    assert kwargs["system_prompt"] == ["System Prompt"]
+    assert kwargs["user_prompt"] == ["User Prompt"]
 
 @patch("evaluations.case_builders.synthetic_transcript_generator.SyntheticTranscriptGenerator")
 @patch("evaluations.case_builders.synthetic_transcript_generator.HelperEvaluation.settings")

@@ -28,75 +28,51 @@ def test_load_json(tmp_path):
     assert result == expected
 
 def test_schema_chart():
-    example_chart = {"cond": [], "meds": []}
+    #one key that maps to description string, one that doesn't. 
+    example_chart = {"demographicStr": "", "customData": []}
     tested = SyntheticChartGenerator(
         VendorKey("vendor", "key"), {}, Path("."), example_chart)
 
     result_schema = tested.schema_chart()
 
-    assert result_schema["description"] == "example Canvas-compatible chart"
+    assert result_schema["description"] == "Example Canvas-compatible chart"
     assert result_schema["type"] == "object"
     assert result_schema["additionalProperties"] is False
+    assert set(result_schema["required"]) == {"demographicStr", "customData"}
 
-    #properties assertion (including description)
     properties = result_schema["properties"]
-    assert set(properties.keys()) == {"cond", "meds", "description"}
-    assert properties["cond"] == {"type": "array"}
-    assert properties["meds"] == {"type": "array"}
-    assert properties["description"] == {"type": "string"}
-    assert set(result_schema["required"]) == {"cond", "meds"}
-    assert "description" not in result_schema["required"]
+    assert set(properties.keys()) == {"demographicStr", "customData"}
+    #a correct description string appended, as well as an empty one.
+    assert properties["demographicStr"] == {"type": "string", "description": "string describing patient demographics"}
+    assert properties["customData"] == {"type": "array", "description": ""}
 
-
+@patch.object(SyntheticChartGenerator, "schema_chart")
 @patch("evaluations.case_builders.synthetic_chart_generator.HelperSyntheticJson.generate_json")
-def test_generate_chart_for_profile(mock_generate_json, tmp_path):
+def test_generate_chart_for_profile(mock_generate_json, mock_schema_chart, tmp_path):
     tested_key = VendorKey(vendor="openai", api_key="LLMKEY")
     dummy_chart = {"example": "chart"}
-    dummy_profiles =  profiles = {"P1*": "text1", "P2!": "text2"}
+    dummy_profiles = {"P1*": "text1", "P2!": "text2"}
     tested = SyntheticChartGenerator(tested_key, dummy_profiles, tmp_path, dummy_chart)
 
     profile_text = "irrelevant profile"
     expected_chart = {"cond": ["X"], "meds": []}
     mock_generate_json.side_effect = [expected_chart]
+    expected_schema = {"$schema": "http://json-schema.org/draft-07/schema#", "type": "object"}
+    mock_schema_chart.side_effect = lambda: expected_schema
 
     result = tested.generate_chart_for_profile(profile_text)
     assert result == expected_chart
 
-    kwargs = mock_generate_json.call_args.kwargs
-    expected_schema = tested.schema_chart()
+    _, kwargs = mock_generate_json.call_args
+    expected_system_md5 = "4ef06113c42ee7128cc08b0695e481f5"
+    expected_user_md5 = "f41d7b662491c25024a3c8193b376981"
+    result_system_md5 = hashlib.md5("\n".join(kwargs["system_prompt"]).encode()).hexdigest()
+    result_user_md5 = hashlib.md5("\n".join(kwargs["user_prompt"]).encode()).hexdigest()
 
-    expected_system_prompt = [
-        "You are generating a Canvas‑compatible `limited_chart.json` for a synthetic patient.",
-        "Return your answer as JSON inside a fenced ```json ... ``` block.",
-        "Only include fields shown in the example structure; leave irrelevant categories as empty arrays.",
-    ]
-        
-    expected_user_prompt = [
-        f"Patient profile: {profile_text}",
-        "",
-        "Here is the required JSON structure:",
-        "```json",
-        json.dumps(dummy_chart, indent=2),
-        "```",
-        "",
-        "Your JSON **must** conform to the following JSON Schema:",
-        "```json",
-        json.dumps(expected_schema, indent=2),
-        "```",
-        "",
-        "Be strict:",
-        "• Include only conditions the patient *has or was diagnosed with*.",
-        "• Include only medications the patient *is actually taking*.",
-        "• Do not fabricate information beyond the profile.",
-    ]
-
-    expected_call = call(
-        vendor_key=tested_key,
-        system_prompt=expected_system_prompt,
-        user_prompt=expected_user_prompt,
-        schema=expected_schema
-    )
-    assert mock_generate_json.mock_calls == [expected_call]
+    assert result_system_md5 == expected_system_md5
+    assert result_user_md5 == expected_user_md5
+    assert kwargs["vendor_key"] == tested.vendor_key
+    assert kwargs["schema"] == expected_schema
 
 @patch("evaluations.case_builders.synthetic_chart_generator.LimitedCache.load_from_json")
 def test_validate_chart__success(mock_load):

@@ -45,9 +45,10 @@ class SyntheticTranscriptGenerator:
             "bucket": bucket,
         }
     
-    def schema_transcript(self, spec: dict[str, Any]) -> dict[str, Any]:
+    @classmethod
+    def schema_transcript(cls, spec: dict[str, Any]) -> dict[str, Any]:
         """Build a JSON Schema that enforces JSON transcript structure."""
-        schema = {
+        return {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "type": "array",
             "minItems": spec["turn_total"],
@@ -64,7 +65,6 @@ class SyntheticTranscriptGenerator:
                 "additionalProperties": False,
             },
         }
-        return schema
 
     def _build_prompt(self, profile_text: str, spec: dict[str, Any],
         schema: dict[str, Any],) -> Tuple[list[str], list[str]]:
@@ -99,7 +99,7 @@ class SyntheticTranscriptGenerator:
             "1. Follow the speaker sequence exactly (same order and length).",
             "2. Hit the requested word ratio ±10%.",
             "3. Embed the mood, pressure, and personas naturally.",
-            "4. Focus on medication details—dose changes, side‑effects, adherence, etc.",
+            "4. Focus on medication details—dose changes, side-effects, adherence, etc.",
             "5. No concluding pleasantries.",
             "",
             "Your JSON **must** conform to the following JSON Schema:",
