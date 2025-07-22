@@ -18,7 +18,12 @@ class CaseRunner:
     def parameters(cls) -> Namespace:
         parser = ArgumentParser(description="Run the case based on the local settings")
         parser.add_argument("--case", type=str, required=True, help="The case to run")
-        parser.add_argument("--cycles", type=int, default=0, help="Split the transcript in as many cycles, use the stored cycles if not provided.")
+        parser.add_argument(
+            "--cycles",
+            type=int,
+            default=0,
+            help="Split the transcript in as many cycles, use the stored cycles if not provided.",
+        )
         return parser.parse_args()
 
     @classmethod
@@ -60,20 +65,17 @@ class CaseRunner:
         if cycles <= 0:
             return full_transcript
 
-        uncycled_transcript = [
-            line
-            for key, lines in full_transcript.items()
-            for line in lines
-        ]
+        uncycled_transcript = [line for key, lines in full_transcript.items() for line in lines]
         fenced_cycles = min(max(1, cycles), len(uncycled_transcript))
         length, extra = divmod(len(uncycled_transcript), fenced_cycles)
         result = {}
         start = 0
         for cycle in range(fenced_cycles):
             size = length + (1 if cycle < extra else 0)
-            result[f"cycle_{(cycle + 1):03d}"] = uncycled_transcript[start:start + size]
+            result[f"cycle_{(cycle + 1):03d}"] = uncycled_transcript[start : start + size]
             start += size
         return result
+
 
 if __name__ == "__main__":
     CaseRunner.run()

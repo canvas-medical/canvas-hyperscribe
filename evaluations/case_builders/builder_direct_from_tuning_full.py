@@ -13,7 +13,6 @@ from hyperscribe.libraries.memory_log import MemoryLog
 
 
 class BuilderDirectFromTuningFull(BuilderDirectFromTuning):
-
     @classmethod
     def _parameters(cls, parser: ArgumentParser) -> None:
         parser.add_argument("--direct-full", action="store_true")
@@ -59,49 +58,53 @@ class BuilderDirectFromTuningFull(BuilderDirectFromTuning):
                 continue
 
             chatter = Helper.chatter(self.settings, memory_log)
-            chatter.set_system_prompt([
-                "The conversation is in the medical context, and related to a visit of a patient with a healthcare provider.",
-                "",
-                "Your task is to give meaningful title and summary to the *whole* discussion.",
-                "",
-                "But because the conversation is too long, it has been divided into sequential fragment of several seconds each, "
-                "so the user will provide you the title and summary defined so far when giving you a new fragment.",
-                "",
-                "The title should be as concise as possible, composed of about 25 to 40 characters.",
-                "",
-                "Format your response following the JSON Schema:",
-                "```json",
-                json.dumps(schema_summary, indent=1),
-                "```",
-                "",
-            ])
+            chatter.set_system_prompt(
+                [
+                    "The conversation is in the medical context, and related to a visit of a patient with a "
+                    "healthcare provider.",
+                    "",
+                    "Your task is to give meaningful title and summary to the *whole* discussion.",
+                    "",
+                    "But because the conversation is too long, it has been divided into sequential fragment of "
+                    "several seconds each, "
+                    "so the user will provide you the title and summary defined so far when giving you a new fragment.",
+                    "",
+                    "The title should be as concise as possible, composed of about 25 to 40 characters.",
+                    "",
+                    "Format your response following the JSON Schema:",
+                    "```json",
+                    json.dumps(schema_summary, indent=1),
+                    "```",
+                    "",
+                ],
+            )
             if fragment > 1:
                 previous = result[fragment - 2]
-                chatter.set_user_prompt([
-                    "Here how to describe the discussion so far:",
-                    previous.summary,
-                    "",
-                ])
+                chatter.set_user_prompt(["Here how to describe the discussion so far:", previous.summary, ""])
             with transcript.open("r") as f:
-                chatter.set_user_prompt([
-                    f"The fragment of the discussion is:",
-                    "```json",
-                    f.read(),
-                    "```",
-                    "",
-                    "Follow rigorously the instructions and provide the requested information using "
-                    "the mentioned JSON Schema within a Markdown code block:",
-                    "```json",
-                    "YOUR JSON OUTPUT HERE",
-                    "```",
-                ])
+                chatter.set_user_prompt(
+                    [
+                        f"The fragment of the discussion is:",
+                        "```json",
+                        f.read(),
+                        "```",
+                        "",
+                        "Follow rigorously the instructions and provide the requested information using "
+                        "the mentioned JSON Schema within a Markdown code block:",
+                        "```json",
+                        "YOUR JSON OUTPUT HERE",
+                        "```",
+                    ],
+                )
                 response = chatter.chat([schema_summary])
 
                 last = CaseExchangeSummary.load_from_json(response.content[0])[-1]
-                result.append(CaseExchangeSummary(
-                    title=f"{last.title}_{str_uuid[:10]}".lower().replace(" ", "_"),
-                    summary=last.summary,
-                ))
+                result.append(
+                    CaseExchangeSummary(
+                        title=f"{last.title}_{str_uuid[:10]}".lower().replace(" ", "_"),
+                        summary=last.summary,
+                    ),
+                )
                 with summary_detection.open("w") as f2:
                     json.dump([summary.to_json() for summary in result], f2, indent=2)
 

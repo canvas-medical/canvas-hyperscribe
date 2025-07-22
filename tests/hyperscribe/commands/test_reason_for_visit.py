@@ -56,18 +56,12 @@ def test_staged_command_extract():
     tested = ReasonForVisit
     tests = [
         ({}, None),
-        ({
-             "coding": {"text": "theStructuredRfV"},
-             "comment": "theComment"
-         }, CodedItem(label="theStructuredRfV", code="", uuid="")),
-        ({
-             "coding": {"text": ""},
-             "comment": "theComment"
-         }, CodedItem(label="theComment", code="", uuid="")),
-        ({
-             "coding": {"text": ""},
-             "comment": ""
-         }, None),
+        (
+            {"coding": {"text": "theStructuredRfV"}, "comment": "theComment"},
+            CodedItem(label="theStructuredRfV", code="", uuid=""),
+        ),
+        ({"coding": {"text": ""}, "comment": "theComment"}, CodedItem(label="theComment", code="", uuid="")),
+        ({"coding": {"text": ""}, "comment": ""}, None),
     ]
     for data, expected in tests:
         result = tested.staged_command_extract(data)
@@ -101,16 +95,11 @@ def test_command_from_json(existing_reason_for_visits):
         "information": "theInformation",
         "is_new": False,
         "is_updated": True,
-        "parameters": {
-            "reasonForVisit": "theReasonForVisit",
-        },
+        "parameters": {"reasonForVisit": "theReasonForVisit"},
     }
     instruction = InstructionWithParameters(**arguments)
     result = tested.command_from_json(instruction, chatter)
-    command = ReasonForVisitCommand(
-        comment="theReasonForVisit",
-        note_uuid="noteUuid",
-    )
+    command = ReasonForVisitCommand(comment="theReasonForVisit", note_uuid="noteUuid")
     expected = InstructionWithCommand(**(arguments | {"command": command}))
     assert result == expected
     assert existing_reason_for_visits.mock_calls == []
@@ -119,11 +108,7 @@ def test_command_from_json(existing_reason_for_visits):
 
     # with structured RfV
     tested = helper_instance(structured_rfv=True)
-    tests = [
-        (1, "theUuid2", True),
-        (2, "theUuid3", True),
-        (4, None, False),
-    ]
+    tests = [(1, "theUuid2", True), (2, "theUuid3", True), (4, None, False)]
     for idx, exp_uuid, exp_structured in tests:
         existing_reason_for_visits.side_effect = [reason_for_visits]
         arguments = {
@@ -133,17 +118,11 @@ def test_command_from_json(existing_reason_for_visits):
             "information": "theInformation",
             "is_new": False,
             "is_updated": True,
-            "parameters": {
-                "reasonForVisit": "theReasonForVisit",
-                "reasonForVisitIndex": idx,
-            },
+            "parameters": {"reasonForVisit": "theReasonForVisit", "reasonForVisitIndex": idx},
         }
         instruction = InstructionWithParameters(**arguments)
         result = tested.command_from_json(instruction, chatter)
-        command = ReasonForVisitCommand(
-            comment="theReasonForVisit",
-            note_uuid="noteUuid",
-        )
+        command = ReasonForVisitCommand(comment="theReasonForVisit", note_uuid="noteUuid")
         if exp_structured:
             command.structured = exp_structured
         if exp_uuid:
@@ -171,9 +150,7 @@ def test_command_parameters(existing_reason_for_visits):
     tested = helper_instance(structured_rfv=False)
     existing_reason_for_visits.side_effect = []
     result = tested.command_parameters()
-    expected = {
-        "reasonForVisit": "extremely concise description of the reason or impetus for the visit, as free text",
-    }
+    expected = {"reasonForVisit": "extremely concise description of the reason or impetus for the visit, as free text"}
     assert result == expected
     assert existing_reason_for_visits.mock_calls == []
     reset_mocks()
@@ -207,10 +184,12 @@ def test_instruction_description(existing_reason_for_visits):
     tested = helper_instance(structured_rfv=False)
     existing_reason_for_visits.side_effect = []
     result = tested.instruction_description()
-    expected = ("Patient's reported reason or impetus for the visit, extremely concise. "
-                "There can be multiple reasons within an instruction, "
-                "but only one such instruction in the whole discussion. "
-                "So, if one was already found, simply update it by intelligently merging all reasons.")
+    expected = (
+        "Patient's reported reason or impetus for the visit, extremely concise. "
+        "There can be multiple reasons within an instruction, "
+        "but only one such instruction in the whole discussion. "
+        "So, if one was already found, simply update it by intelligently merging all reasons."
+    )
     assert result == expected
     assert existing_reason_for_visits.mock_calls == []
     reset_mocks()
@@ -219,9 +198,11 @@ def test_instruction_description(existing_reason_for_visits):
     tested = helper_instance(structured_rfv=True)
     existing_reason_for_visits.side_effect = [reason_for_visits]
     result = tested.instruction_description()
-    expected = ("Patient's reported reason or impetus for the visit within: display1, display2, display3. "
-                "There can be only one such instruction in the whole discussion. "
-                "So, if one was already found, simply update it by intelligently.")
+    expected = (
+        "Patient's reported reason or impetus for the visit within: display1, display2, display3. "
+        "There can be only one such instruction in the whole discussion. "
+        "So, if one was already found, simply update it by intelligently."
+    )
     assert result == expected
     calls = [call()]
     assert existing_reason_for_visits.mock_calls == calls

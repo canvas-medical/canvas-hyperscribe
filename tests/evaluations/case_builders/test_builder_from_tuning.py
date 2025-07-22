@@ -29,8 +29,19 @@ def test__parameters(argument_parser):
     calls = [
         call(description="Build the files of the evaluation tests against a patient based on the provided files"),
         call().add_argument("--case", type=str, required=True, help="Evaluation case"),
-        call().add_argument("--tuning-json", required=True, type=BuilderFromTuning.validate_files, help="JSON file with the limited cache content"),
-        call().add_argument("--tuning-mp3", required=True, nargs='+', type=BuilderFromTuning.validate_files, help="MP3 files of the discussion"),
+        call().add_argument(
+            "--tuning-json",
+            required=True,
+            type=BuilderFromTuning.validate_files,
+            help="JSON file with the limited cache content",
+        ),
+        call().add_argument(
+            "--tuning-mp3",
+            required=True,
+            nargs="+",
+            type=BuilderFromTuning.validate_files,
+            help="MP3 files of the discussion",
+        ),
         call().parse_args(),
     ]
     assert argument_parser.mock_calls == calls
@@ -42,14 +53,7 @@ def test__parameters(argument_parser):
 @patch("evaluations.case_builders.builder_from_tuning.ImplementedCommands")
 @patch("evaluations.case_builders.builder_from_tuning.LimitedCache")
 @patch.object(BuilderFromTuning, "_run_cycle")
-def test__run(
-        run_cycle,
-        limited_cache,
-        implemented_commands,
-        cached_discussion,
-        audio_interpreter,
-        capsys,
-):
+def test__run(run_cycle, limited_cache, implemented_commands, cached_discussion, audio_interpreter, capsys):
     recorder = MagicMock()
     mock_limited_cache = MagicMock()
     mock_json_file = MagicMock()
@@ -67,7 +71,7 @@ def test__run(
         for idx, item in enumerate(mock_mp3_files):
             item.reset_mock()
             item.name = f"audio file {idx}"
-            item.open.return_value.__enter__.return_value.read.side_effect = [f"audio content {idx}".encode('utf-8')]
+            item.open.return_value.__enter__.return_value.read.side_effect = [f"audio content {idx}".encode("utf-8")]
 
     instructions = [
         Instruction(
@@ -91,20 +95,26 @@ def test__run(
     tested = BuilderFromTuning
     reset_mocks()
     tests = [
-        (2, [
-            [b'audio content 0'],
-            [b'audio content 0', b'audio content 1'],
-            [b'audio content 0', b'audio content 1', b'audio content 2'],
-            [b'audio content 1', b'audio content 2', b'audio content 3'],
-            [b'audio content 2', b'audio content 3', b'audio content 4'],
-        ]),
-        (0, [
-            [b'audio content 0'],
-            [b'audio content 1'],
-            [b'audio content 2'],
-            [b'audio content 3'],
-            [b'audio content 4'],
-        ]),
+        (
+            2,
+            [
+                [b"audio content 0"],
+                [b"audio content 0", b"audio content 1"],
+                [b"audio content 0", b"audio content 1", b"audio content 2"],
+                [b"audio content 1", b"audio content 2", b"audio content 3"],
+                [b"audio content 2", b"audio content 3", b"audio content 4"],
+            ],
+        ),
+        (
+            0,
+            [
+                [b"audio content 0"],
+                [b"audio content 1"],
+                [b"audio content 2"],
+                [b"audio content 3"],
+                [b"audio content 4"],
+            ],
+        ),
     ]
     for max_previous_audios, exp_combined in tests:
         with patch.object(Commander, "MAX_PREVIOUS_AUDIOS", max_previous_audios):
@@ -142,15 +152,15 @@ def test__run(
             tested._run(parameters, recorder, identification)
 
             exp_out = [
-                'Evaluation Case: theCase',
-                'JSON file: theJsonFile',
-                'MP3 files:',
-                '- audio file 0',
-                '- audio file 1',
-                '- audio file 2',
-                '- audio file 3',
-                '- audio file 4',
-                '',
+                "Evaluation Case: theCase",
+                "JSON file: theJsonFile",
+                "MP3 files:",
+                "- audio file 0",
+                "- audio file 1",
+                "- audio file 2",
+                "- audio file 3",
+                "- audio file 4",
+                "",
             ]
             assert capsys.readouterr().out == "\n".join(exp_out)
 
@@ -165,15 +175,12 @@ def test__run(
                 call.set_cycle(5),
             ]
             assert recorder.mock_calls == calls
-            calls = [
-                call.to_json(True),
-                call.staged_commands_as_instructions("schemaKey2instruction"),
-            ]
+            calls = [call.to_json(True), call.staged_commands_as_instructions("schemaKey2instruction")]
             assert mock_limited_cache.mock_calls == calls
             calls = [call.schema_key2instruction()]
             assert implemented_commands.mock_calls == calls
             calls = [
-                call.get_discussion('theNoteUuid'),
+                call.get_discussion("theNoteUuid"),
                 call.get_discussion().set_cycle(1),
                 call.get_discussion().set_cycle(2),
                 call.get_discussion().set_cycle(3),
@@ -192,14 +199,14 @@ def test__run(
             ]
             assert run_cycle.mock_calls == calls
             calls = [
-                call.open('r'),
+                call.open("r"),
                 call.open().__enter__(),
                 call.open().__enter__().read(),
                 call.open().__exit__(None, None, None),
             ]
             assert mock_json_file.mock_calls == calls
             calls = [
-                call.open('rb'),
+                call.open("rb"),
                 call.open().__enter__(),
                 call.open().__enter__().read(),
                 call.open().__exit__(None, None, None),

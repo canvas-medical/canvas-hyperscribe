@@ -57,22 +57,28 @@ def test_staged_command_extract():
     tested = Goal
     tests = [
         ({}, None),
-        ({
-             "due_date": "2025-02-27",
-             "priority": "medium-priority",
-             "progress": "theProgress",
-             "start_date": "2025-02-26",
-             "goal_statement": "theGoal",
-             "achievement_status": "improving"
-         }, CodedItem(label="theGoal", code="", uuid="")),
-        ({
-             "due_date": "2025-02-27",
-             "priority": "medium-priority",
-             "progress": "theProgress",
-             "start_date": "2025-02-26",
-             "goal_statement": "",
-             "achievement_status": "improving"
-         }, None),
+        (
+            {
+                "due_date": "2025-02-27",
+                "priority": "medium-priority",
+                "progress": "theProgress",
+                "start_date": "2025-02-26",
+                "goal_statement": "theGoal",
+                "achievement_status": "improving",
+            },
+            CodedItem(label="theGoal", code="", uuid=""),
+        ),
+        (
+            {
+                "due_date": "2025-02-27",
+                "priority": "medium-priority",
+                "progress": "theProgress",
+                "start_date": "2025-02-26",
+                "goal_statement": "",
+                "achievement_status": "improving",
+            },
+            None,
+        ),
     ]
     for data, expected in tests:
         result = tested.staged_command_extract(data)
@@ -124,7 +130,8 @@ def test_command_parameters():
         "goal": "title of the goal, as free text",
         "startDate": "YYYY-MM-DD",
         "dueDate": "YYYY-MM-DD",
-        "status": "one of: in-progress/improving/worsening/no-change/achieved/sustaining/not-achieved/no-progress/not-attainable",
+        "status": "one of: in-progress/improving/worsening/no-change/achieved/sustaining/not-achieved/"
+        "no-progress/not-attainable",
         "priority": "one of: high-priority/medium-priority/low-priority",
         "progressAndBarriers": "progress and barriers, as free text",
     }
@@ -134,8 +141,10 @@ def test_command_parameters():
 def test_instruction_description():
     tested = helper_instance()
     result = tested.instruction_description()
-    expected = ("Defined goal set by the provider, including due date and priority. "
-                "There can be only one goal per instruction, and no instruction in the lack of.")
+    expected = (
+        "Defined goal set by the provider, including due date and priority. "
+        "There can be only one goal per instruction, and no instruction in the lack of."
+    )
     assert result == expected
 
 
@@ -150,10 +159,7 @@ def test_instruction_constraints(current_goals):
         CodedItem(uuid="theUuid2", label="display2a", code="CODE45"),
         CodedItem(uuid="theUuid3", label="display3a", code="CODE9876"),
     ]
-    tests = [
-        ([], ""),
-        (goals, '"Goal" cannot include: "display1a", "display2a", "display3a"'),
-    ]
+    tests = [([], ""), (goals, '"Goal" cannot include: "display1a", "display2a", "display3a"')]
     for side_effect, expected in tests:
         current_goals.side_effect = [side_effect]
         result = tested.instruction_constraints()

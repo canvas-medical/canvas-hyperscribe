@@ -16,19 +16,16 @@ class TuningLauncher(ActionButton):
     BUTTON_KEY = "HYPERSCRIBE_TUNING_LAUNCHER"
     BUTTON_LOCATION = ActionButton.ButtonLocation.NOTE_HEADER
 
-    RESPONDS_TO = [
-        EventType.Name(EventType.SHOW_NOTE_HEADER_BUTTON),
-        EventType.Name(EventType.ACTION_BUTTON_CLICKED)
-    ]
+    RESPONDS_TO = [EventType.Name(EventType.SHOW_NOTE_HEADER_BUTTON), EventType.Name(EventType.ACTION_BUTTON_CLICKED)]
 
     def handle(self) -> list[Effect]:
         interval = self.secrets[Constants.SECRET_AUDIO_INTERVAL]
-        note_id = str(Note.objects.get(dbid=self.event.context['note_id']).id)
+        note_id = str(Note.objects.get(dbid=self.event.context["note_id"]).id)
         patient_id = self.target
 
         ts = str(int(time()))
         hash_arg = ts + self.secrets[Constants.SECRET_API_SIGNING_KEY]
-        sig = sha256(hash_arg.encode('utf-8')).hexdigest()
+        sig = sha256(hash_arg.encode("utf-8")).hexdigest()
         params = f"note_id={note_id}&patient_id={patient_id}&interval={interval}&ts={ts}&sig={sig}"
         tuning_ui = LaunchModalEffect(
             url=f"/plugin-io/api/hyperscribe/archive?{params}",
@@ -41,5 +38,5 @@ class TuningLauncher(ActionButton):
         staff_id = self.context.get("user", {}).get("id", "")
         result = False
         if settings.is_tuning and settings.staffers_policy.is_allowed(staff_id):
-            result = CurrentNoteStateEvent.objects.get(note_id=self.event.context['note_id']).editable()
+            result = CurrentNoteStateEvent.objects.get(note_id=self.event.context["note_id"]).editable()
         return result

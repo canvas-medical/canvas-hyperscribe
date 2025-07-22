@@ -59,36 +59,51 @@ def test_staged_command_extract():
     tested = MedicalHistory
     tests = [
         ({}, None),
-        ({
-             "comments": "theComment",
-             "approximate_end_date": {"date": "endDate"},
-             "past_medical_history": {"text": "theCondition"},
-             "approximate_start_date": {"date": "startDate"},
-         }, CodedItem(label="theCondition: from startDate to endDate (theComment)", code="", uuid="")),
-        ({
-             "comments": "theComment",
-             "approximate_end_date": {"date": "endDate"},
-             "past_medical_history": {"text": ""},
-             "approximate_start_date": {"date": "startDate"},
-         }, None),
-        ({
-             "comments": "",
-             "approximate_end_date": {"date": "endDate"},
-             "past_medical_history": {"text": "theCondition"},
-             "approximate_start_date": {"date": "startDate"},
-         }, CodedItem(label="theCondition: from startDate to endDate (n/a)", code="", uuid="")),
-        ({
-             "comments": "theComment",
-             "approximate_end_date": {"date": "endDate"},
-             "past_medical_history": {"text": "theCondition"},
-             "approximate_start_date": {"date": ""},
-         }, CodedItem(label="theCondition: from n/a to endDate (theComment)", code="", uuid="")),
-        ({
-             "comments": "theComment",
-             "approximate_end_date": {"date": ""},
-             "past_medical_history": {"text": "theCondition"},
-             "approximate_start_date": {"date": "startDate"},
-         }, CodedItem(label="theCondition: from startDate to n/a (theComment)", code="", uuid="")),
+        (
+            {
+                "comments": "theComment",
+                "approximate_end_date": {"date": "endDate"},
+                "past_medical_history": {"text": "theCondition"},
+                "approximate_start_date": {"date": "startDate"},
+            },
+            CodedItem(label="theCondition: from startDate to endDate (theComment)", code="", uuid=""),
+        ),
+        (
+            {
+                "comments": "theComment",
+                "approximate_end_date": {"date": "endDate"},
+                "past_medical_history": {"text": ""},
+                "approximate_start_date": {"date": "startDate"},
+            },
+            None,
+        ),
+        (
+            {
+                "comments": "",
+                "approximate_end_date": {"date": "endDate"},
+                "past_medical_history": {"text": "theCondition"},
+                "approximate_start_date": {"date": "startDate"},
+            },
+            CodedItem(label="theCondition: from startDate to endDate (n/a)", code="", uuid=""),
+        ),
+        (
+            {
+                "comments": "theComment",
+                "approximate_end_date": {"date": "endDate"},
+                "past_medical_history": {"text": "theCondition"},
+                "approximate_start_date": {"date": ""},
+            },
+            CodedItem(label="theCondition: from n/a to endDate (theComment)", code="", uuid=""),
+        ),
+        (
+            {
+                "comments": "theComment",
+                "approximate_end_date": {"date": ""},
+                "past_medical_history": {"text": "theCondition"},
+                "approximate_start_date": {"date": "startDate"},
+            },
+            CodedItem(label="theCondition: from startDate to n/a (theComment)", code="", uuid=""),
+        ),
     ]
     for data, expected in tests:
         result = tested.staged_command_extract(data)
@@ -113,38 +128,40 @@ def test_command_from_json(medical_histories):
         "",
     ]
     user_prompt = [
-        'Here is the comment provided by the healthcare provider in regards to the condition of a patient:',
-        '```text',
-        'keywords: keyword1,keyword2,keyword3',
-        ' -- ',
-        'theComment',
-        '```',
-        'Among the following conditions, identify the most relevant one:',
-        '',
-        ' * labelA (ICD10: code123)\n * labelB (ICD10: code369)\n * labelC (ICD10: code752)',
-        '',
-        'Please, present your findings in a JSON format within a Markdown code block like:',
-        '```json',
+        "Here is the comment provided by the healthcare provider in regards to the condition of a patient:",
+        "```text",
+        "keywords: keyword1,keyword2,keyword3",
+        " -- ",
+        "theComment",
+        "```",
+        "Among the following conditions, identify the most relevant one:",
+        "",
+        " * labelA (ICD10: code123)\n * labelB (ICD10: code369)\n * labelC (ICD10: code752)",
+        "",
+        "Please, present your findings in a JSON format within a Markdown code block like:",
+        "```json",
         '[{"ICD10": "the ICD-10 code", "label": "the label"}]',
-        '```',
-        '',
+        "```",
+        "",
     ]
-    schemas = [{
-        '$schema': 'http://json-schema.org/draft-07/schema#',
-        'type': 'array',
-        'items': {
-            'type': 'object',
-            'properties': {
-                'ICD10': {'type': 'string', 'minLength': 1},
-                'label': {'type': 'string', 'minLength': 1},
+    schemas = [
+        {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "ICD10": {"type": "string", "minLength": 1},
+                    "label": {"type": "string", "minLength": 1},
+                },
+                "required": ["ICD10", "label"],
+                "additionalProperties": False,
             },
-            'required': ['ICD10', 'label'],
-            'additionalProperties': False,
+            "minItems": 1,
+            "maxItems": 1,
         },
-        'minItems': 1,
-        'maxItems': 1,
-    }]
-    keywords = ['keyword1', 'keyword2', 'keyword3']
+    ]
+    keywords = ["keyword1", "keyword2", "keyword3"]
     tested = helper_instance()
 
     arguments = {
@@ -155,10 +172,10 @@ def test_command_from_json(medical_histories):
         "is_new": False,
         "is_updated": True,
         "parameters": {
-            'keywords': 'keyword1,keyword2,keyword3',
+            "keywords": "keyword1,keyword2,keyword3",
             "approximateStartDate": "2018-03-15",
             "approximateEndDate": "2021-07-19",
-            'comments': 'theComment',
+            "comments": "theComment",
         },
     }
     conditions = [
@@ -183,7 +200,7 @@ def test_command_from_json(medical_histories):
     )
     expected = InstructionWithCommand(**(arguments | {"command": command}))
     assert result == expected
-    calls = [call('scienceHost', keywords)]
+    calls = [call("scienceHost", keywords)]
     assert medical_histories.mock_calls == calls
     calls = [call.single_conversation(system_prompt, user_prompt, schemas, instruction)]
     assert chatter.mock_calls == calls
@@ -203,7 +220,7 @@ def test_command_from_json(medical_histories):
     )
     expected = InstructionWithCommand(**(arguments | {"command": command}))
     assert result == expected
-    calls = [call('scienceHost', keywords)]
+    calls = [call("scienceHost", keywords)]
     assert medical_histories.mock_calls == calls
     calls = [call.single_conversation(system_prompt, user_prompt, schemas, instruction)]
     assert chatter.mock_calls == calls
@@ -223,7 +240,7 @@ def test_command_from_json(medical_histories):
     )
     expected = InstructionWithCommand(**(arguments | {"command": command}))
     assert result == expected
-    calls = [call('scienceHost', keywords)]
+    calls = [call("scienceHost", keywords)]
     assert medical_histories.mock_calls == calls
     assert chatter.mock_calls == []
     reset_mocks()
@@ -245,8 +262,7 @@ def test_command_parameters():
 def test_instruction_description():
     tested = helper_instance()
     result = tested.instruction_description()
-    expected = ("Any past condition. "
-                "There can be only one condition per instruction, and no instruction in the lack of.")
+    expected = "Any past condition. There can be only one condition per instruction, and no instruction in the lack of."
     assert result == expected
 
 
@@ -262,10 +278,7 @@ def test_instruction_constraints(condition_history):
         CodedItem(uuid="theUuid2", label="display2a", code="CODE45"),
         CodedItem(uuid="theUuid3", label="display3a", code="CODE98.76"),
     ]
-    tests = [
-        (conditions, "'MedicalHistory' cannot include: display1a, display2a, display3a."),
-        ([], ""),
-    ]
+    tests = [(conditions, "'MedicalHistory' cannot include: display1a, display2a, display3a."), ([], "")]
     for side_effect, expected in tests:
         condition_history.side_effect = [side_effect]
         result = tested.instruction_constraints()

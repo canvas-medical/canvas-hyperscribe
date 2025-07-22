@@ -17,12 +17,14 @@ class AwsS3:
 
     @classmethod
     def querystring(cls, params: dict | None) -> str:
-        result = ''
+        result = ""
         if isinstance(params, dict):
-            result = '&'.join([
-                f"{quote(k, safe=cls.SAFE_CHARACTERS)}={quote(str(v), safe=cls.SAFE_CHARACTERS)}"
-                for k, v in sorted(params.items())
-            ])
+            result = "&".join(
+                [
+                    f"{quote(k, safe=cls.SAFE_CHARACTERS)}={quote(str(v), safe=cls.SAFE_CHARACTERS)}"
+                    for k, v in sorted(params.items())
+                ],
+            )
         return result
 
     def __init__(self, credentials: AwsS3Credentials) -> None:
@@ -41,42 +43,49 @@ class AwsS3:
         date_stamp = amz_date[:8]
         credential_scope = f"{date_stamp}/{self.region}/s3/aws4_request"
 
-        k_date = hmac_new(('AWS4' + self.aws_secret).encode('utf-8'), date_stamp.encode('utf-8'), sha256).digest()
-        k_region = hmac_new(k_date, self.region.encode('utf-8'), sha256).digest()
-        k_service = hmac_new(k_region, b's3', sha256).digest()
-        k_signing = hmac_new(k_service, b'aws4_request', sha256).digest()
-        string_to_sign = f"{self.ALGORITHM}\n{amz_date}\n{credential_scope}\n{sha256(canonical_request.encode('utf-8')).hexdigest()}"
-        signature = hmac_new(k_signing, string_to_sign.encode('utf-8'), sha256).hexdigest()
+        k_date = hmac_new(("AWS4" + self.aws_secret).encode("utf-8"), date_stamp.encode("utf-8"), sha256).digest()
+        k_region = hmac_new(k_date, self.region.encode("utf-8"), sha256).digest()
+        k_service = hmac_new(k_region, b"s3", sha256).digest()
+        k_signing = hmac_new(k_service, b"aws4_request", sha256).digest()
+        string_to_sign = (
+            f"{self.ALGORITHM}\n{amz_date}\n{credential_scope}\n{sha256(canonical_request.encode('utf-8')).hexdigest()}"
+        )
+        signature = hmac_new(k_signing, string_to_sign.encode("utf-8"), sha256).hexdigest()
 
         return credential_scope, signature
 
     def headers(self, object_key: str, data: tuple[bytes, str] | None = None, params: dict | None = None) -> dict:
-        method = 'PUT'
+        method = "PUT"
         if not data:
-            method = 'GET'
-            data = b'', ''
+            method = "GET"
+            data = b"", ""
         binary_data, content_type = data
 
         host = self.get_host()
-        amz_date = datetime.now(UTC).strftime('%Y%m%dT%H%M%SZ')
+        amz_date = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
         payload_hash = sha256(binary_data).hexdigest()
         canonical_uri = f"/{quote(object_key)}"
         canonical_headers = f"host:{host}\nx-amz-content-sha256:{payload_hash}\nx-amz-date:{amz_date}\n"
-        signed_headers = 'host;x-amz-content-sha256;x-amz-date'
+        signed_headers = "host;x-amz-content-sha256;x-amz-date"
         if content_type:
             canonical_headers = f"content-type:{content_type}\n{canonical_headers}"
-            signed_headers = f'content-type;{signed_headers}'
+            signed_headers = f"content-type;{signed_headers}"
 
         canonical_querystring = self.querystring(params)
-        canonical_request = f"{method}\n{canonical_uri}\n{canonical_querystring}\n{canonical_headers}\n{signed_headers}\n{payload_hash}"
+        canonical_request = (
+            f"{method}\n{canonical_uri}\n{canonical_querystring}\n{canonical_headers}\n{signed_headers}\n{payload_hash}"
+        )
 
         credential_scope, signature = self.get_signature_key(amz_date, canonical_request)
-        authorization_header = f"{self.ALGORITHM} Credential={self.aws_key}/{credential_scope}, SignedHeaders={signed_headers}, Signature={signature}"
+        authorization_header = (
+            f"{self.ALGORITHM} Credential={self.aws_key}/{credential_scope}, "
+            f"SignedHeaders={signed_headers}, Signature={signature}"
+        )
         return {
-            'Host': host,
-            'x-amz-date': amz_date,
-            'x-amz-content-sha256': payload_hash,
-            'Authorization': authorization_header,
+            "Host": host,
+            "x-amz-date": amz_date,
+            "x-amz-content-sha256": payload_hash,
+            "Authorization": authorization_header,
         }
 
     def access_s3_object(self, object_key: str) -> Response:
@@ -91,8 +100,8 @@ class AwsS3:
             return Response()
         content_type = "text/plain"
         headers = self.headers(object_key, (data.encode(), content_type)) | {
-            'Content-Type': content_type,
-            'Content-Length': str(len(data)),
+            "Content-Type": content_type,
+            "Content-Length": str(len(data)),
         }
         endpoint = f"https://{headers['Host']}/{object_key}"
         return requests_put(endpoint, headers=headers, data=data)
@@ -101,8 +110,8 @@ class AwsS3:
         if not self.is_ready():
             return Response()
         headers = self.headers(object_key, (binary_data, content_type)) | {
-            'Content-Type': content_type,
-            'Content-Length': str(len(binary_data)),
+            "Content-Type": content_type,
+            "Content-Length": str(len(binary_data)),
         }
         endpoint = f"https://{headers['Host']}/{object_key}"
         return requests_put(endpoint, headers=headers, data=binary_data)
@@ -111,27 +120,26 @@ class AwsS3:
         result: list[AwsS3Object] = []
         if not self.is_ready():
             return result
-        params: dict[str, int | str] = {
-            'list-type': 2,
-            'prefix': prefix,
-        }
-        headers = self.headers('', params=params)
+        params: dict[str, int | str] = {"list-type": 2, "prefix": prefix}
+        headers = self.headers("", params=params)
         endpoint = f"https://{headers['Host']}"
         response = requests_get(endpoint, params=params, headers=headers)
         if response.status_code == HTTPStatus.OK.value:
-            contents_pattern = re_compile(r'<Contents>(.*?)</Contents>', DOTALL)
-            for content_match in contents_pattern.finditer(response.content.decode('utf-8')):
+            contents_pattern = re_compile(r"<Contents>(.*?)</Contents>", DOTALL)
+            for content_match in contents_pattern.finditer(response.content.decode("utf-8")):
                 content_xml = content_match.group(1)
-                key_match = re_search(r'<Key>(.*?)</Key>', content_xml)
-                size_match = re_search(r'<Size>(.*?)</Size>', content_xml)
-                modified_match = re_search(r'<LastModified>(.*?)</LastModified>', content_xml)
+                key_match = re_search(r"<Key>(.*?)</Key>", content_xml)
+                size_match = re_search(r"<Size>(.*?)</Size>", content_xml)
+                modified_match = re_search(r"<LastModified>(.*?)</LastModified>", content_xml)
 
                 if key_match and size_match and modified_match:
-                    result.append(AwsS3Object(
-                        key=key_match.group(1),
-                        size=int(size_match.group(1)),
-                        last_modified=datetime.fromisoformat(modified_match.group(1)),
-                    ))
+                    result.append(
+                        AwsS3Object(
+                            key=key_match.group(1),
+                            size=int(size_match.group(1)),
+                            last_modified=datetime.fromisoformat(modified_match.group(1)),
+                        ),
+                    )
 
         return result
 
@@ -139,27 +147,29 @@ class AwsS3:
         if not self.is_ready():
             return ""
 
-        method = 'GET'
+        method = "GET"
         host = self.get_host()
-        amz_date = datetime.now(UTC).strftime('%Y%m%dT%H%M%SZ')
-        payload_hash = 'UNSIGNED-PAYLOAD'
+        amz_date = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+        payload_hash = "UNSIGNED-PAYLOAD"
         canonical_uri = f"/{quote(object_key)}"
         canonical_headers = f"host:{host}\n"
-        signed_headers = 'host'
+        signed_headers = "host"
 
         params = {
-            'X-Amz-Algorithm': self.ALGORITHM,
-            'X-Amz-Credential': f"{self.aws_key}/{amz_date[:8]}/{self.region}/s3/aws4_request",
-            'X-Amz-Date': amz_date,
-            'X-Amz-Expires': str(expiration),
-            'X-Amz-SignedHeaders': signed_headers,
-            'X-Amz-Content-Sha256': payload_hash,
+            "X-Amz-Algorithm": self.ALGORITHM,
+            "X-Amz-Credential": f"{self.aws_key}/{amz_date[:8]}/{self.region}/s3/aws4_request",
+            "X-Amz-Date": amz_date,
+            "X-Amz-Expires": str(expiration),
+            "X-Amz-SignedHeaders": signed_headers,
+            "X-Amz-Content-Sha256": payload_hash,
         }
         canonical_querystring = self.querystring(params)
-        canonical_request = f"{method}\n{canonical_uri}\n{canonical_querystring}\n{canonical_headers}\n{signed_headers}\n{payload_hash}"
+        canonical_request = (
+            f"{method}\n{canonical_uri}\n{canonical_querystring}\n{canonical_headers}\n{signed_headers}\n{payload_hash}"
+        )
 
         _, signature = self.get_signature_key(amz_date, canonical_request)
-        params['X-Amz-Signature'] = signature
+        params["X-Amz-Signature"] = signature
 
         querystring = self.querystring(params)
         presigned_url = f"https://{host}/{quote(object_key)}?{querystring}"

@@ -23,20 +23,8 @@ class TopicalExchange(CaseExchange):
         ]
 
     def to_json(self) -> dict:
-        return {
-            "speaker": self.speaker,
-            "text": self.text,
-            "chunk": self.chunk,
-            "topic": self.topic,
-        }
+        return {"speaker": self.speaker, "text": self.text, "chunk": self.chunk, "topic": self.topic}
 
     @classmethod
     def case_exchange_from(cls, exchange: list[TopicalExchange]) -> list[CaseExchange]:
-        return [
-            CaseExchange(
-                speaker=line.speaker,
-                text=line.text,
-                chunk=line.chunk,
-            )
-            for line in exchange
-        ]
+        return [CaseExchange(speaker=line.speaker, text=line.text, chunk=line.chunk) for line in exchange]

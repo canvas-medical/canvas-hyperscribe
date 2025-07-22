@@ -20,15 +20,15 @@ from evaluations.case_builders.builder_summarize import BuilderSummarize
 @patch.object(BuilderFromMp3, "run")
 @patch.object(BuilderDelete, "run")
 def test_run(
-        run_delete,
-        run_mp3,
-        run_transcript,
-        run_tuning,
-        run_audit,
-        run_summarize,
-        run_direct_split,
-        run_direct_full,
-        capsys,
+    run_delete,
+    run_mp3,
+    run_transcript,
+    run_tuning,
+    run_audit,
+    run_summarize,
+    run_direct_split,
+    run_direct_full,
+    capsys,
 ):
     def reset_mocks():
         run_delete.reset_mock()
@@ -41,28 +41,28 @@ def test_run(
         run_direct_full.reset_mock()
 
     tests = [
-        (['--delete'], "", [call()], [], [], [], [], [], [], []),
-        (['--transcript'], "", [], [call()], [], [], [], [], [], []),
-        (['--tuning-json'], "", [], [], [call()], [], [], [], [], []),
-        (['--mp3'], "", [], [], [], [call()], [], [], [], []),
-        (['--audit'], "", [], [], [], [], [call()], [], [], []),
-        (['--summarize'], "", [], [], [], [], [], [call()], [], []),
-        (['--direct-split'], "", [], [], [], [], [], [], [call()], []),
-        (['--direct-full'], "", [], [], [], [], [], [], [], [call()]),
+        (["--delete"], "", [call()], [], [], [], [], [], [], []),
+        (["--transcript"], "", [], [call()], [], [], [], [], [], []),
+        (["--tuning-json"], "", [], [], [call()], [], [], [], [], []),
+        (["--mp3"], "", [], [], [], [call()], [], [], [], []),
+        (["--audit"], "", [], [], [], [], [call()], [], [], []),
+        (["--summarize"], "", [], [], [], [], [], [call()], [], []),
+        (["--direct-split"], "", [], [], [], [], [], [], [call()], []),
+        (["--direct-full"], "", [], [], [], [], [], [], [], [call()]),
         ([], "no explicit action to perform\n", [], [], [], [], [], [], [], []),
     ]
     tested = CaseBuilder
     for (
-            arguments,
-            exp_out,
-            call_delete,
-            call_transcript,
-            call_tuning,
-            call_mp3,
-            call_audit,
-            call_summarize,
-            call_direct_split,
-            call_direct_full,
+        arguments,
+        exp_out,
+        call_delete,
+        call_transcript,
+        call_tuning,
+        call_mp3,
+        call_audit,
+        call_summarize,
+        call_direct_split,
+        call_direct_full,
     ) in tests:
         tested.run(arguments)
 

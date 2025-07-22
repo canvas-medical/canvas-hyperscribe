@@ -50,13 +50,7 @@ class ImplementedCommands:
 
     @classmethod
     def questionnaire_command_name_list(cls) -> list[str]:
-        return [
-            c.class_name() for c in [
-                PhysicalExam,
-                Questionnaire,
-                ReviewOfSystem,
-                StructuredAssessment,
-            ]]
+        return [c.class_name() for c in [PhysicalExam, Questionnaire, ReviewOfSystem, StructuredAssessment]]
 
     @classmethod
     def command_list(cls) -> list[Type[Base]]:
@@ -98,7 +92,4 @@ class ImplementedCommands:
 
     @classmethod
     def schema_key2instruction(cls) -> dict[str, str]:
-        return {
-            command_class.schema_key(): command_class.class_name()
-            for command_class in cls.command_list()
-        }
+        return {command_class.schema_key(): command_class.class_name() for command_class in cls.command_list()}

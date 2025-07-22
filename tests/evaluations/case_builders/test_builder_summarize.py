@@ -26,10 +26,11 @@ def test_parameters(argument_parser):
     assert argument_parser.mock_calls == calls
     reset_mocks()
 
+
 @patch("evaluations.case_builders.builder_summarize.browser_open")
 @patch("evaluations.case_builders.builder_summarize.HelperEvaluation")
 @patch.object(BuilderSummarize, "_parameters")
-def test_run(parameters, helper, browser_open, ):
+def test_run(parameters, helper, browser_open):
     def reset_mocks():
         parameters.reset_mock()
         helper.reset_mock()
@@ -44,11 +45,8 @@ def test_run(parameters, helper, browser_open, ):
 
     calls = [call()]
     assert parameters.mock_calls == calls
-    calls = [
-        call.get_auditor("theCase", 0),
-        call.get_auditor().generate_html_summary(),
-    ]
+    calls = [call.get_auditor("theCase", 0), call.get_auditor().generate_html_summary()]
     assert helper.mock_calls == calls
-    calls = [call('file:///from/the/root/file.html')]
+    calls = [call("file:///from/the/root/file.html")]
     assert browser_open.mock_calls == calls
     reset_mocks()

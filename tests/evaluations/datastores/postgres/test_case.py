@@ -39,9 +39,7 @@ def test_all_names(select):
 
     assert len(select.mock_calls) == 1
     sql, params = select.mock_calls[0].args
-    exp_sql = ('SELECT "name" '
-               'FROM "case" '
-               'ORDER BY "name"')
+    exp_sql = 'SELECT "name" FROM "case" ORDER BY "name"'
     assert compare_sql(sql, exp_sql)
     assert params == {}
     reset_mock()
@@ -67,10 +65,7 @@ def test_get_first_n_cases(select):
 
         assert len(select.mock_calls) == 1
         sql, params = select.mock_calls[0].args
-        exp_sql = ('SELECT "name" '
-                   'FROM "case" '
-                   'ORDER BY "id" '
-                   'LIMIT %(limit)s')
+        exp_sql = 'SELECT "name" FROM "case" ORDER BY "id" LIMIT %(limit)s'
         assert compare_sql(sql, exp_sql)
         exp_params = {"limit": n}
         assert params == exp_params
@@ -84,10 +79,7 @@ def test_get_id(select):
 
     tested = helper_instance()
 
-    test = [
-        ([{"id": 34}], 34),
-        ([], 0),
-    ]
+    test = [([{"id": 34}], 34), ([], 0)]
     for records, expected in test:
         select.side_effect = [records]
         result = tested.get_id("theCase")
@@ -95,9 +87,7 @@ def test_get_id(select):
 
         assert len(select.mock_calls) == 1
         sql, params = select.mock_calls[0].args
-        exp_sql = ('SELECT "id" '
-                   'FROM "case" '
-                   'WHERE "name" = %(name)s')
+        exp_sql = 'SELECT "id" FROM "case" WHERE "name" = %(name)s'
         assert compare_sql(sql, exp_sql)
         exp_params = {"name": "theCase"}
         assert params == exp_params
@@ -111,10 +101,7 @@ def test_get_limited_chart(select):
 
     tested = helper_instance()
 
-    test = [
-        ([{"limited_chart": {"limited": "chart"}}], {"limited": "chart"}),
-        ([], {}),
-    ]
+    test = [([{"limited_chart": {"limited": "chart"}}], {"limited": "chart"}), ([], {})]
     for records, expected in test:
         select.side_effect = [records]
         result = tested.get_limited_chart(34)
@@ -122,9 +109,7 @@ def test_get_limited_chart(select):
 
         assert len(select.mock_calls) == 1
         sql, params = select.mock_calls[0].args
-        exp_sql = ('SELECT "limited_chart" '
-                   'FROM "case" '
-                   'WHERE "id" = %(case_id)s')
+        exp_sql = 'SELECT "limited_chart" FROM "case" WHERE "id" = %(case_id)s'
         assert compare_sql(sql, exp_sql)
         exp_params = {"case_id": 34}
         assert params == exp_params
@@ -139,29 +124,28 @@ def test_get_transcript(select):
     tested = helper_instance()
 
     test = [
-        ([
-             {
-                 "transcript": {
-                     "cycle_001": [
-                         {"speaker": "theSpeaker1", "text": "theText1"},
-                         {"speaker": "theSpeaker2", "text": "theText2"},
-                         {},
-                     ],
-                     "cycle_002": [
-                         {"speaker": "theSpeaker3", "text": "theText3"},
-                     ],
-                 }
-             },
-         ], {
-             "cycle_001": [
-                 Line(speaker="theSpeaker1", text="theText1"),
-                 Line(speaker="theSpeaker2", text="theText2"),
-                 Line(speaker="", text=""),
-             ],
-             "cycle_002": [
-                 Line(speaker="theSpeaker3", text="theText3"),
-             ],
-         }),
+        (
+            [
+                {
+                    "transcript": {
+                        "cycle_001": [
+                            {"speaker": "theSpeaker1", "text": "theText1"},
+                            {"speaker": "theSpeaker2", "text": "theText2"},
+                            {},
+                        ],
+                        "cycle_002": [{"speaker": "theSpeaker3", "text": "theText3"}],
+                    },
+                },
+            ],
+            {
+                "cycle_001": [
+                    Line(speaker="theSpeaker1", text="theText1"),
+                    Line(speaker="theSpeaker2", text="theText2"),
+                    Line(speaker="", text=""),
+                ],
+                "cycle_002": [Line(speaker="theSpeaker3", text="theText3")],
+            },
+        ),
         ([], {}),
     ]
     for records, expected in test:
@@ -171,9 +155,7 @@ def test_get_transcript(select):
 
         assert len(select.mock_calls) == 1
         sql, params = select.mock_calls[0].args
-        exp_sql = ('SELECT "transcript" '
-                   'FROM "case" '
-                   'WHERE "id" = %(case_id)s')
+        exp_sql = 'SELECT "transcript" FROM "case" WHERE "id" = %(case_id)s'
         assert compare_sql(sql, exp_sql)
         exp_params = {"case_id": 34}
         assert params == exp_params
@@ -188,44 +170,43 @@ def test_get_case(select):
     tested = helper_instance()
     tests = [
         ([], Record(name="theName")),
-        ([{
-            "name": "theName",
-            "transcript": {
-                "cycle_001": [
-                    {"speaker": "theSpeaker1", "text": "theText1"},
-                    {"speaker": "theSpeaker2", "text": "theText2"},
-                    {},
-                ],
-                "cycle_002": [
-                    {"speaker": "theSpeaker3", "text": "theText3"},
-                ],
-            },
-            "limited_chart": {"limited": "chart"},
-            "profile": "theProfile",
-            "validation_status": "review",
-            "batch_identifier": "theBatchIdentifier",
-            "tags": {"tag1": "tag1", "tag2": "tag2"},
-            "id": 147,
-        }],
-         Record(
-             name="theName",
-             transcript={
-                 "cycle_001": [
-                 Line(speaker="theSpeaker1", text="theText1"),
-                 Line(speaker="theSpeaker2", text="theText2"),
-                 Line(speaker="", text=""),
-                 ],
-                 "cycle_002": [
-                 Line(speaker="theSpeaker3", text="theText3"),
-             ],
-             },
-             limited_chart={"limited": "chart"},
-             profile="theProfile",
-             validation_status=CaseStatus.REVIEW,
-             batch_identifier="theBatchIdentifier",
-             tags={"tag1": "tag1", "tag2": "tag2"},
-             id=147,
-         )
+        (
+            [
+                {
+                    "name": "theName",
+                    "transcript": {
+                        "cycle_001": [
+                            {"speaker": "theSpeaker1", "text": "theText1"},
+                            {"speaker": "theSpeaker2", "text": "theText2"},
+                            {},
+                        ],
+                        "cycle_002": [{"speaker": "theSpeaker3", "text": "theText3"}],
+                    },
+                    "limited_chart": {"limited": "chart"},
+                    "profile": "theProfile",
+                    "validation_status": "review",
+                    "batch_identifier": "theBatchIdentifier",
+                    "tags": {"tag1": "tag1", "tag2": "tag2"},
+                    "id": 147,
+                },
+            ],
+            Record(
+                name="theName",
+                transcript={
+                    "cycle_001": [
+                        Line(speaker="theSpeaker1", text="theText1"),
+                        Line(speaker="theSpeaker2", text="theText2"),
+                        Line(speaker="", text=""),
+                    ],
+                    "cycle_002": [Line(speaker="theSpeaker3", text="theText3")],
+                },
+                limited_chart={"limited": "chart"},
+                profile="theProfile",
+                validation_status=CaseStatus.REVIEW,
+                batch_identifier="theBatchIdentifier",
+                tags={"tag1": "tag1", "tag2": "tag2"},
+                id=147,
+            ),
         ),
     ]
     for records, expected in tests:
@@ -235,10 +216,12 @@ def test_get_case(select):
 
         assert len(select.mock_calls) == 1
         sql, params = select.mock_calls[0].args
-        exp_sql = ('SELECT "id", "name", "transcript", "limited_chart", "profile",'
-                   ' "validation_status", "batch_identifier", "tags" '
-                   'FROM "case" '
-                   'WHERE "name" = %(name)s')
+        exp_sql = (
+            'SELECT "id", "name", "transcript", "limited_chart", "profile",'
+            ' "validation_status", "batch_identifier", "tags" '
+            'FROM "case" '
+            'WHERE "name" = %(name)s'
+        )
         assert compare_sql(sql, exp_sql)
         exp_params = {"name": "theName"}
         assert params == exp_params
@@ -263,9 +246,7 @@ def test_upsert(select, alter, mock_datetime):
                 Line(speaker="theSpeaker2", text="theText2"),
                 Line(speaker="", text=""),
             ],
-            "cycle_002": [
-                Line(speaker="theSpeaker3", text="theText3"),
-            ],
+            "cycle_002": [Line(speaker="theSpeaker3", text="theText3")],
         },
         limited_chart={"limited": "chart"},
         profile="theProfile",
@@ -282,9 +263,7 @@ def test_upsert(select, alter, mock_datetime):
                 Line(speaker="theSpeaker2", text="theText2"),
                 Line(speaker="", text=""),
             ],
-            "cycle_002": [
-                Line(speaker="theSpeaker3", text="theText3"),
-            ],
+            "cycle_002": [Line(speaker="theSpeaker3", text="theText3")],
         },
         limited_chart={"limited": "chart"},
         profile="theProfile",
@@ -314,23 +293,25 @@ def test_upsert(select, alter, mock_datetime):
     assert params == exp_params
     assert len(alter.mock_calls) == 1
     sql, params, involved_id = alter.mock_calls[0].args
-    exp_sql = ('INSERT INTO "case" ("created", "updated", "name", "transcript", "limited_chart", '
-               ' "profile", "validation_status", "batch_identifier", "tags") '
-               'VALUES (%(now)s, %(now)s, %(name)s, %(transcript)s, %(limited_chart)s, '
-               ' %(profile)s, %(validation_status)s, %(batch_identifier)s, %(tags)s) '
-               'RETURNING id')
+    exp_sql = (
+        'INSERT INTO "case" ("created", "updated", "name", "transcript", "limited_chart", '
+        ' "profile", "validation_status", "batch_identifier", "tags") '
+        "VALUES (%(now)s, %(now)s, %(name)s, %(transcript)s, %(limited_chart)s, "
+        " %(profile)s, %(validation_status)s, %(batch_identifier)s, %(tags)s) "
+        "RETURNING id"
+    )
     assert compare_sql(sql, exp_sql)
     exp_params = {
-        'batch_identifier': 'theBatchIdentifier',
-        'limited_chart': '{"limited":"chart"}',
-        'name': 'theName',
-        'now': date_0,
-        'profile': 'theProfile',
-        'tags': '{"tag1":"tag1","tag2":"tag2"}',
-        'transcript': '{"cycle_001":[{"speaker":"theSpeaker1","text":"theText1"},'
-                      '{"speaker":"theSpeaker2","text":"theText2"},{"speaker":"","text":""}],'
-                      '"cycle_002":[{"speaker":"theSpeaker3","text":"theText3"}]}',
-        'validation_status': 'review',
+        "batch_identifier": "theBatchIdentifier",
+        "limited_chart": '{"limited":"chart"}',
+        "name": "theName",
+        "now": date_0,
+        "profile": "theProfile",
+        "tags": '{"tag1":"tag1","tag2":"tag2"}',
+        "transcript": '{"cycle_001":[{"speaker":"theSpeaker1","text":"theText1"},'
+        '{"speaker":"theSpeaker2","text":"theText2"},{"speaker":"","text":""}],'
+        '"cycle_002":[{"speaker":"theSpeaker3","text":"theText3"}]}',
+        "validation_status": "review",
     }
     assert params == exp_params
     assert involved_id is None
@@ -355,30 +336,36 @@ def test_upsert(select, alter, mock_datetime):
     assert params == exp_params
     assert len(alter.mock_calls) == 1
     sql, params, involved_id = alter.mock_calls[0].args
-    exp_sql = ('UPDATE "case" SET "updated"=%(now)s, "name"=%(name)s, "transcript"=%(transcript)s, "limited_chart"=%(limited_chart)s, '
-               '"profile"=%(profile)s, "validation_status"=%(validation_status)s, "batch_identifier"=%(batch_identifier)s, '
-               '"tags"=%(tags)s '
-               'WHERE "id" = %(id)s AND ( "name" != %(name)s'
-               ' OR MD5("transcript"::text) != %(transcript_md5)s'
-               ' OR MD5("limited_chart"::text) != %(limited_chart_md5)s'
-               ' OR "profile" != %(profile)s'
-               ' OR "validation_status" != %(validation_status)s'
-               ' OR "batch_identifier" != %(batch_identifier)s'
-               ' OR MD5("tags"::text) != %(tags_md5)s )')
+    exp_sql = (
+        'UPDATE "case" SET "updated"=%(now)s, "name"=%(name)s, "transcript"=%(transcript)s, '
+        '"limited_chart"=%(limited_chart)s, "profile"=%(profile)s, "validation_status"=%(validation_status)s, '
+        '"batch_identifier"=%(batch_identifier)s, "tags"=%(tags)s '
+        'WHERE "id" = %(id)s AND ( "name" != %(name)s'
+        ' OR MD5("transcript"::text) != %(transcript_md5)s'
+        ' OR MD5("limited_chart"::text) != %(limited_chart_md5)s'
+        ' OR "profile" != %(profile)s'
+        ' OR "validation_status" != %(validation_status)s'
+        ' OR "batch_identifier" != %(batch_identifier)s'
+        ' OR MD5("tags"::text) != %(tags_md5)s )'
+    )
     assert compare_sql(sql, exp_sql)
     exp_params = {
-        'batch_identifier': 'theBatchIdentifier',
-        'id': 147,
-        'limited_chart': '{"limited":"chart"}',
-        'limited_chart_md5': '940793dd3b4d27e6d56dbec1e1ba59ed',
-        'name': 'theName',
-        'now': date_0,
-        'profile': 'theProfile',
-        'tags': '{"tag1":"tag1","tag2":"tag2"}',
-        'tags_md5': 'd4e924bd09088665e5dd1403881a7f09',
-        'transcript': '{"cycle_001":[{"speaker":"theSpeaker1","text":"theText1"},{"speaker":"theSpeaker2","text":"theText2"},{"speaker":"","text":""}],"cycle_002":[{"speaker":"theSpeaker3","text":"theText3"}]}',
-        'transcript_md5': '5d164dbf3550fdf5531b449c69d9cae9',
-        'validation_status': 'review',
+        "batch_identifier": "theBatchIdentifier",
+        "id": 147,
+        "limited_chart": '{"limited":"chart"}',
+        "limited_chart_md5": "940793dd3b4d27e6d56dbec1e1ba59ed",
+        "name": "theName",
+        "now": date_0,
+        "profile": "theProfile",
+        "tags": '{"tag1":"tag1","tag2":"tag2"}',
+        "tags_md5": "d4e924bd09088665e5dd1403881a7f09",
+        "transcript": '{"cycle_001":['
+        '{"speaker":"theSpeaker1","text":"theText1"},'
+        '{"speaker":"theSpeaker2","text":"theText2"},'
+        '{"speaker":"","text":""}],'
+        '"cycle_002":[{"speaker":"theSpeaker3","text":"theText3"}]}',
+        "transcript_md5": "5d164dbf3550fdf5531b449c69d9cae9",
+        "validation_status": "review",
     }
     assert params == exp_params
     assert involved_id == 147
@@ -393,6 +380,6 @@ def test_update_fields(update_fields):
     tested = helper_instance()
     tested.update_fields(34, {"theField": "theValue"})
 
-    calls = [call('case', Record, 34, {'theField': 'theValue'})]
+    calls = [call("case", Record, 34, {"theField": "theValue"})]
     assert update_fields.mock_calls == calls
     reset_mock()

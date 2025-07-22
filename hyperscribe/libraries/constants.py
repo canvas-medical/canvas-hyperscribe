@@ -8,12 +8,14 @@ class Constants:
     DISCUSSION_CACHED_DURATION = 90  # minutes before a discussion is cleared
     GOOGLE_CHAT_ALL = "models/gemini-2.0-flash"  # LLM model used for speech to text and text completion
     LABEL_ENCOUNTER_COPILOT = "Encounter Copilot"
-    MAX_AUDIO_INTERVAL_SECONDS = '15'
+    MAX_AUDIO_INTERVAL_SECONDS = "15"
     MAX_AUTHENTICATION_TIME = 3600
     MAX_ATTEMPTS_LLM_HTTP = 3
     MAX_ATTEMPTS_LLM_JSON = 3
     MAX_ATTEMPTS_CANVAS_SERVICES = 3
-    MAX_CHARGE_DESCRIPTIONS = 500  # limit to the charge descriptions submitted to the LLM to retrieve the CPT code of a Perform command
+    MAX_CHARGE_DESCRIPTIONS = (
+        500  # limit to the charge descriptions submitted to the LLM to retrieve the CPT code of a Perform command
+    )
     MAX_WORKERS = 10  # max parallel executions
     MEMORY_LOG_LABEL = "main"
     OPENAI_CHAT_AUDIO = "gpt-4o-audio-preview"  # LLM model used for speech to text

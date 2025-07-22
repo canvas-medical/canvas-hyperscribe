@@ -36,27 +36,37 @@ class StoreResults(Postgres):
 
     def statistics_per_test(self) -> list[StatisticTest]:
         sql = """
-              SELECT "case_name", "test_name", SUM(CASE WHEN "passed" = True THEN 1 ELSE 0 END) / "cycles" AS "passed_count"
+              SELECT "case_name", "test_name",
+                     SUM(CASE WHEN "passed" = True THEN 1 ELSE 0 END) / "cycles" AS "passed_count"
               FROM "results"
               WHERE "cycles" > 0
               GROUP BY "case_name", "test_name", "cycles"
               ORDER BY 1, 2"""
         return [
             StatisticTest(
-                case_name=record['case_name'],
-                test_name=record['test_name'],
-                passed_count=record['passed_count'],
+                case_name=record["case_name"],
+                test_name=record["test_name"],
+                passed_count=record["passed_count"],
             )
             for record in self._select(sql, {})
         ]
 
     def statistics_end2end(self) -> list[StatisticEnd2End]:
         sql = """
-              SELECT "case_name", SUM("full_run") AS "full_run", SUM("full_passed") AS "end2end", COUNT(distinct "run_uuid") AS "run_count"
+              SELECT "case_name",
+                     SUM("full_run")            AS "full_run",
+                     SUM("full_passed")         AS "end2end",
+                     COUNT(distinct "run_uuid") AS "run_count"
               FROM (SELECT "case_name",
                            "run_uuid",
-                           (CASE WHEN SUM(CASE WHEN "passed" = True THEN 1 ELSE 0 END) = COUNT(1) THEN 1 ELSE 0 END) AS "full_passed",
-                           (CASE WHEN MAX("cycle") = -1 THEN 1 ELSE 0 END)                                           AS "full_run"
+                           (CASE
+                                WHEN SUM(CASE WHEN "passed" = True THEN 1 ELSE 0 END) = COUNT(1)
+                                    THEN 1
+                                ELSE 0 END) AS "full_passed",
+                           (CASE
+                                WHEN MAX("cycle") = -1
+                                    THEN 1
+                                ELSE 0 END) AS "full_run"
                     FROM "results"
                     GROUP BY "case_name", "run_uuid")
               GROUP BY "case_name"

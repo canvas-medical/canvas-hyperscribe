@@ -73,7 +73,7 @@ class Settings(NamedTuple):
     @classmethod
     def list_from(cls, string: str | None) -> list:
         if isinstance(string, str):
-            return sorted(re.findall(r'[a-zA-Z0-9]+', string))
+            return sorted(re.findall(r"[a-zA-Z0-9]+", string))
         return []
 
     def llm_audio_model(self) -> str:

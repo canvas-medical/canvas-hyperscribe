@@ -56,27 +56,23 @@ def test_staged_command_extract():
     tested = ResolveCondition
     tests = [
         ({}, None),
-        ({
-             "condition": {},
-             "narrative": "better",
-             "background": "theBackground",
-         }, None),
-        ({
-             "condition": {
-                 "text": "theCondition",
-                 "annotations": ["theCode"],
-             },
-             "narrative": "theNarrative",
-             "background": "theBackground",
-         }, CodedItem(label="theCondition: theNarrative", code="", uuid="")),
-        ({
-             "condition": {
-                 "text": "theCondition",
-                 "annotations": ["theCode"],
-             },
-             "narrative": "",
-             "background": "theBackground",
-         }, CodedItem(label="theCondition: ", code="", uuid="")),
+        ({"condition": {}, "narrative": "better", "background": "theBackground"}, None),
+        (
+            {
+                "condition": {"text": "theCondition", "annotations": ["theCode"]},
+                "narrative": "theNarrative",
+                "background": "theBackground",
+            },
+            CodedItem(label="theCondition: theNarrative", code="", uuid=""),
+        ),
+        (
+            {
+                "condition": {"text": "theCondition", "annotations": ["theCode"]},
+                "narrative": "",
+                "background": "theBackground",
+            },
+            CodedItem(label="theCondition: ", code="", uuid=""),
+        ),
     ]
     for data, expected in tests:
         result = tested.staged_command_extract(data)
@@ -100,11 +96,7 @@ def test_command_from_json(current_conditions):
         CodedItem(uuid="theUuid2", label="display2a", code="CODE45"),
         CodedItem(uuid="theUuid3", label="display3a", code="CODE98.76"),
     ]
-    tests = [
-        (1, "theUuid2"),
-        (2, "theUuid3"),
-        (4, ""),
-    ]
+    tests = [(1, "theUuid2"), (2, "theUuid3"), (4, "")]
     for idx, exp_uuid in tests:
         current_conditions.side_effect = [conditions, conditions]
         arguments = {
@@ -114,19 +106,11 @@ def test_command_from_json(current_conditions):
             "information": "theInformation",
             "is_new": False,
             "is_updated": True,
-            "parameters": {
-                'condition': 'display2a',
-                'conditionIndex': idx,
-                'rationale': 'theRationale',
-            },
+            "parameters": {"condition": "display2a", "conditionIndex": idx, "rationale": "theRationale"},
         }
         instruction = InstructionWithParameters(**arguments)
         result = tested.command_from_json(instruction, chatter)
-        command = ResolveConditionCommand(
-            condition_id=exp_uuid,
-            rationale="theRationale",
-            note_uuid="noteUuid",
-        )
+        command = ResolveConditionCommand(condition_id=exp_uuid, rationale="theRationale", note_uuid="noteUuid")
         expected = InstructionWithCommand(**(arguments | {"command": command}))
         assert result == expected
         calls = [call()]
@@ -149,7 +133,7 @@ def test_command_parameters(current_conditions):
     current_conditions.side_effect = [conditions]
     result = tested.command_parameters()
     expected = {
-        'condition': 'one of: display1a (index: 0)/display2a (index: 1)/display3a (index: 2)',
+        "condition": "one of: display1a (index: 0)/display2a (index: 1)/display3a (index: 2)",
         "conditionIndex": "index of the Condition to set as resolved, or -1, as integer",
         "rationale": "rationale to set the condition as resolved, as free text",
     }
@@ -172,8 +156,10 @@ def test_instruction_description(current_conditions):
     ]
     current_conditions.side_effect = [conditions]
     result = tested.instruction_description()
-    expected = ("Set as resolved a previously diagnosed condition (display1a, display2a, display3a). "
-                "There can be only one resolved condition per instruction, and no instruction in the lack of.")
+    expected = (
+        "Set as resolved a previously diagnosed condition (display1a, display2a, display3a). "
+        "There can be only one resolved condition per instruction, and no instruction in the lack of."
+    )
     assert result == expected
     calls = [call()]
     assert current_conditions.mock_calls == calls
@@ -193,10 +179,12 @@ def test_instruction_constraints(current_conditions):
     ]
     current_conditions.side_effect = [conditions]
     result = tested.instruction_constraints()
-    expected = ("'ResolveCondition' has to be related to one of the following conditions: "
-                "display1a (ICD-10: CODE12.3), "
-                "display2a (ICD-10: CODE45), "
-                "display3a (ICD-10: CODE98.76)")
+    expected = (
+        "'ResolveCondition' has to be related to one of the following conditions: "
+        "display1a (ICD-10: CODE12.3), "
+        "display2a (ICD-10: CODE45), "
+        "display3a (ICD-10: CODE98.76)"
+    )
     assert result == expected
     calls = [call()]
     assert current_conditions.mock_calls == calls
@@ -214,10 +202,7 @@ def test_is_available(current_conditions):
         CodedItem(uuid="theUuid2", label="display2a", code="CODE45"),
         CodedItem(uuid="theUuid3", label="display3a", code="CODE98.76"),
     ]
-    tests = [
-        (conditions, True),
-        ([], False),
-    ]
+    tests = [(conditions, True), ([], False)]
     for side_effect, expected in tests:
         current_conditions.side_effect = [side_effect]
         result = tested.is_available()

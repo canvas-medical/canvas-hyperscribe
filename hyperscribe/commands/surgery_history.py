@@ -23,11 +23,15 @@ class SurgeryHistory(Base):
         comment = data.get("comment") or "n/a"
         on_date = (data.get("approximate_date") or {}).get("date") or "n/a"
         if surgery := (data.get("past_surgical_history") or {}).get("text"):
-            code = str((data.get('past_surgical_history') or {}).get("value") or "")
+            code = str((data.get("past_surgical_history") or {}).get("value") or "")
             return CodedItem(label=f"{surgery}: {comment} (on: {on_date})", code=code, uuid="")
         return None
 
-    def command_from_json(self, instruction: InstructionWithParameters, chatter: LlmBase) -> InstructionWithCommand | None:
+    def command_from_json(
+        self,
+        instruction: InstructionWithParameters,
+        chatter: LlmBase,
+    ) -> InstructionWithCommand | None:
         result = PastSurgicalHistoryCommand(
             approximate_date=Helper.str2date(instruction.parameters["approximateDate"]),
             comment=instruction.parameters["comment"],
@@ -44,21 +48,21 @@ class SurgeryHistory(Base):
                 "",
             ]
             user_prompt = [
-                'Here is the comment provided by the healthcare provider in regards to the surgery of a patient:',
-                '```text',
+                "Here is the comment provided by the healthcare provider in regards to the surgery of a patient:",
+                "```text",
                 f"keywords: {instruction.parameters['keywords']}",
                 " -- ",
                 instruction.parameters["comment"],
-                '```',
-                'Among the following surgeries, identify the most relevant one:',
-                '',
-                "\n".join(f' * {concept.term} ({concept.concept_id})' for concept in concepts),
-                '',
-                'Please, present your findings in a JSON format within a Markdown code block like:',
-                '```json',
+                "```",
+                "Among the following surgeries, identify the most relevant one:",
+                "",
+                "\n".join(f" * {concept.term} ({concept.concept_id})" for concept in concepts),
+                "",
+                "Please, present your findings in a JSON format within a Markdown code block like:",
+                "```json",
                 json.dumps([{"conceptId": "the concept ID", "term": "the expression"}]),
-                '```',
-                '',
+                "```",
+                "",
             ]
             schemas = JsonSchema.get(["selector_concept"])
             if response := chatter.single_conversation(system_prompt, user_prompt, schemas, instruction):
@@ -74,8 +78,7 @@ class SurgeryHistory(Base):
         }
 
     def instruction_description(self) -> str:
-        return ("Any past surgery. "
-                "There can be only one surgery per instruction, and no instruction in the lack of.")
+        return "Any past surgery. There can be only one surgery per instruction, and no instruction in the lack of."
 
     def instruction_constraints(self) -> str:
         result = ""

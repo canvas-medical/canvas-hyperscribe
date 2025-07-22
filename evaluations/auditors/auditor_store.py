@@ -63,17 +63,14 @@ class AuditorStore(Auditor):
             self.upsert_audio(audio_file, audio)
 
         label = Constants.AUDIO2TRANSCRIPT
-        self.upsert_json(
-            label,
-            {self.cycle_key: [line.to_json() for line in transcript]},
-        )
+        self.upsert_json(label, {self.cycle_key: [line.to_json() for line in transcript]})
         return True
 
     def found_instructions(
-            self,
-            transcript: list[Line],
-            initial_instructions: list[Instruction],
-            cumulated_instructions: list[Instruction],
+        self,
+        transcript: list[Line],
+        initial_instructions: list[Instruction],
+        cumulated_instructions: list[Instruction],
     ) -> bool:
         label = Constants.TRANSCRIPT2INSTRUCTIONS
         content = self.get_json(label)
@@ -97,10 +94,7 @@ class AuditorStore(Auditor):
         label = Constants.INSTRUCTION2PARAMETERS
         content: dict = self.get_json(label)
         if self.cycle_key not in content:
-            content[self.cycle_key] = {
-                "instructions": [],
-                "parameters": [],
-            }
+            content[self.cycle_key] = {"instructions": [], "parameters": []}
         for instruction in instructions:
             content[self.cycle_key]["instructions"].append(instruction.to_json(False))
             content[self.cycle_key]["parameters"].append(instruction.parameters)
@@ -112,30 +106,26 @@ class AuditorStore(Auditor):
         label = Constants.PARAMETERS2COMMAND
         content: dict = self.get_json(label)
         if self.cycle_key not in content:
-            content[self.cycle_key] = {
-                "instructions": [],
-                "parameters": [],
-                "commands": [],
-            }
+            content[self.cycle_key] = {"instructions": [], "parameters": [], "commands": []}
         for instruction in instructions:
             content[self.cycle_key]["instructions"].append(instruction.to_json(False))
             content[self.cycle_key]["parameters"].append(instruction.parameters)
-            content[self.cycle_key]["commands"].append({
-                "module": instruction.command.__module__,
-                "class": instruction.command.__class__.__name__,
-                "attributes": instruction.command.values | {
-                    "command_uuid": Constants.IGNORED_KEY_VALUE,
-                    "note_uuid": Constants.IGNORED_KEY_VALUE,
+            content[self.cycle_key]["commands"].append(
+                {
+                    "module": instruction.command.__module__,
+                    "class": instruction.command.__class__.__name__,
+                    "attributes": instruction.command.values
+                    | {"command_uuid": Constants.IGNORED_KEY_VALUE, "note_uuid": Constants.IGNORED_KEY_VALUE},
                 },
-            })
+            )
         self.upsert_json(label, content)
         return True
 
     def computed_questionnaires(
-            self,
-            transcript: list[Line],
-            initial_instructions: list[Instruction],
-            instructions_with_command: list[InstructionWithCommand],
+        self,
+        transcript: list[Line],
+        initial_instructions: list[Instruction],
+        instructions_with_command: list[InstructionWithCommand],
     ) -> bool:
         label = Constants.STAGED_QUESTIONNAIRES
         content = self.get_json(label)
@@ -149,10 +139,8 @@ class AuditorStore(Auditor):
                 {
                     "module": instruction.command.__module__,
                     "class": instruction.command.__class__.__name__,
-                    "attributes": instruction.command.values | {
-                        "command_uuid": Constants.IGNORED_KEY_VALUE,
-                        "note_uuid": Constants.IGNORED_KEY_VALUE,
-                    },
+                    "attributes": instruction.command.values
+                    | {"command_uuid": Constants.IGNORED_KEY_VALUE, "note_uuid": Constants.IGNORED_KEY_VALUE},
                 }
                 for instruction in instructions_with_command
             ],
@@ -195,10 +183,13 @@ class AuditorStore(Auditor):
                     response = responses[f"question-{question['dbid']}"]
 
                     if question["type"] == ResponseOption.TYPE_CHECKBOX:
-                        attributes[question["label"]] = ", ".join([
-                            f'{item["text"]} ({item["comment"]})' if item["comment"] else item["text"]
-                            for item in response if item["selected"]
-                        ])
+                        attributes[question["label"]] = ", ".join(
+                            [
+                                f"{item['text']} ({item['comment']})" if item["comment"] else item["text"]
+                                for item in response
+                                if item["selected"]
+                            ],
+                        )
                     elif question["type"] == ResponseOption.TYPE_RADIO:
                         for item in question["responses"]:
                             if item["dbid"] == response:
@@ -209,12 +200,8 @@ class AuditorStore(Auditor):
                         attributes[question["label"]] = response
 
                 result[f"questionnaire_{index:02d}"] = {
-                    "instruction": f'{instruction["instruction"]}: {questionnaire["name"]}',
-                    "command": {
-                        "module": command["module"],
-                        "class": command["class"],
-                        "attributes": attributes,
-                    },
+                    "instruction": f"{instruction['instruction']}: {questionnaire['name']}",
+                    "command": {"module": command["module"], "class": command["class"], "attributes": attributes},
                 }
         return list(result.values())
 
@@ -282,8 +269,5 @@ class AuditorStore(Auditor):
         data = json.dumps(self.summarized_generated_commands())
         with template_file.open("r") as source:
             with NamedTemporaryFile(delete=False, suffix=".html", mode="w") as target:
-                target.write(source
-                             .read()
-                             .replace("{{theCase}}", self.case)
-                             .replace("{{theData}}", data))
+                target.write(source.read().replace("{{theCase}}", self.case).replace("{{theData}}", data))
                 return Path(target.name)

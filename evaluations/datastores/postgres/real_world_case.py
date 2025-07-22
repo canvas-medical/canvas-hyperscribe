@@ -51,12 +51,14 @@ class RealWorldCase(Postgres):
             break
         else:
             sql = """
-                  INSERT INTO "real_world_case" ("created", "updated", "case_id", "customer_identifier", "patient_note_hash",
-                                                 "topical_exchange_identifier", "publishable",
-                                                 "start_time", "end_time", "duration", "audio_llm_vendor", "audio_llm_name")
+                  INSERT INTO "real_world_case" ("created", "updated", "case_id", "customer_identifier",
+                                                 "patient_note_hash", "topical_exchange_identifier", "publishable",
+                                                 "start_time", "end_time", "duration", "audio_llm_vendor",
+                                                 "audio_llm_name")
                   VALUES (%(now)s, %(now)s, %(case_id)s, %(customer_identifier)s,
                           %(patient_note_hash)s, %(topical_exchange_identifier)s, %(publishable)s,
-                          %(start_time)s, %(end_time)s, %(duration)s, %(audio_llm_vendor)s, %(audio_llm_name)s) RETURNING id"""
+                          %(start_time)s, %(end_time)s, %(duration)s, %(audio_llm_vendor)s,
+                          %(audio_llm_name)s) RETURNING id"""
 
         return Record(
             id=self._alter(sql, params, involved_id),

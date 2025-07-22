@@ -19,25 +19,34 @@ class Refill(Base):
     @classmethod
     def staged_command_extract(cls, data: dict) -> None | CodedItem:
         if (prescribe := data.get("prescribe")) and (text := prescribe.get("text")):
-            sig = data.get('sig') or "n/a"
-            refills = data.get('refills') or "n/a"
-            quantity_to_dispense = data.get('quantity_to_dispense') or "n/a"
-            days_supply = data.get('days_supply') or "n/a"
-            substitution = data.get('substitutions') or "n/a"
-            indications = "/".join([
-                indication
-                for question in (data.get("indications") or [])
-                if (indication := question.get("text"))
-            ]) or "n/a"
+            sig = data.get("sig") or "n/a"
+            refills = data.get("refills") or "n/a"
+            quantity_to_dispense = data.get("quantity_to_dispense") or "n/a"
+            days_supply = data.get("days_supply") or "n/a"
+            substitution = data.get("substitutions") or "n/a"
+            indications = (
+                "/".join(
+                    [
+                        indication
+                        for question in (data.get("indications") or [])
+                        if (indication := question.get("text"))
+                    ],
+                )
+                or "n/a"
+            )
             return CodedItem(
                 label=f"{text}: {sig} (dispense: {quantity_to_dispense}, supply days: {days_supply}, "
-                      f"refills: {refills}, substitution: {substitution}, related conditions: {indications})",
+                f"refills: {refills}, substitution: {substitution}, related conditions: {indications})",
                 code="",
                 uuid="",
             )
         return None
 
-    def command_from_json(self, instruction: InstructionWithParameters, chatter: LlmBase) -> InstructionWithCommand | None:
+    def command_from_json(
+        self,
+        instruction: InstructionWithParameters,
+        chatter: LlmBase,
+    ) -> InstructionWithCommand | None:
         result = RefillCommand(
             sig=instruction.parameters["sig"],
             days_supply=instruction.parameters["suppliedDays"],
@@ -55,7 +64,9 @@ class Refill(Base):
 
     def command_parameters(self) -> dict:
         substitutions = "/".join([status.value for status in PrescribeCommand.Substitutions])
-        medications = "/".join([f'{medication.label} (index: {idx})' for idx, medication in enumerate(self.cache.current_medications())])
+        medications = "/".join(
+            [f"{medication.label} (index: {idx})" for idx, medication in enumerate(self.cache.current_medications())],
+        )
         return {
             "medication": f"one of: {medications}",
             "medicationIndex": "index of the medication to refill, as integer",
@@ -66,12 +77,20 @@ class Refill(Base):
         }
 
     def instruction_description(self) -> str:
-        text = ", ".join([f'{medication.label}' for medication in self.cache.current_medications()])
-        return (f"Refill of a current medication ({text}), including the directions, the duration, the targeted condition and the dosage. "
-                "There can be only one refill per instruction, and no instruction in the lack of.")
+        text = ", ".join([f"{medication.label}" for medication in self.cache.current_medications()])
+        return (
+            f"Refill of a current medication ({text}), including the directions, the duration, "
+            f"the targeted condition and the dosage. "
+            "There can be only one refill per instruction, and no instruction in the lack of."
+        )
 
     def instruction_constraints(self) -> str:
-        text = ", ".join([f'{medication.label} (RxNorm: {medication.code_rx_norm})' for medication in self.cache.current_medications()])
+        text = ", ".join(
+            [
+                f"{medication.label} (RxNorm: {medication.code_rx_norm})"
+                for medication in self.cache.current_medications()
+            ],
+        )
         return f"'{self.class_name()}' has to be related to one of the following medications: {text}"
 
     def is_available(self) -> bool:

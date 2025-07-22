@@ -6,7 +6,6 @@ from hyperscribe.libraries.aws_s3 import AwsS3
 
 
 class BuilderAuditUrl:
-
     @classmethod
     def _parameters(cls) -> Namespace:
         parser = ArgumentParser(description="Generate the URL to access the audit logs.")
@@ -27,10 +26,7 @@ class BuilderAuditUrl:
             presigned_url = Authenticator.presigned_url(
                 HelperEvaluation.settings().api_signing_key,
                 "/plugin-io/api/hyperscribe/reviewer",
-                {
-                    "patient_id": patient_uuid,
-                    "note_id": note_uuid,
-                },
+                {"patient_id": patient_uuid, "note_id": note_uuid},
             )
             print("audits can be seen with:")
             print("")

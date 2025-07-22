@@ -5,22 +5,16 @@ JSON_SCHEMAS: dict[str, dict] = {
         "items": {
             "type": "object",
             "properties": {
-                "key": {
-                    "type": "string",
-                    "description": "the referenced key",
-                },
+                "key": {"type": "string", "description": "the referenced key"},
                 "keyPath": {
                     "type": "string",
                     "description": "the JSON path of the referenced key from the root if there is more than one object",
                 },
-                "rationale": {
-                    "type": "string",
-                    "description": "the rationale of the provided value",
-                },
+                "rationale": {"type": "string", "description": "the rationale of the provided value"},
             },
             "required": ["key", "rationale"],
             "additionalProperties": False,
-        }
+        },
     },
     "audit_with_value": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -30,30 +24,19 @@ JSON_SCHEMAS: dict[str, dict] = {
             "items": {
                 "type": "object",
                 "properties": {
-                    "key": {
-                        "type": "string",
-                        "description": "the referenced key"
-                    },
-                    "value": {
-                        "description": "the provided value"
-                    },
-                    "rationale": {
-                        "type": "string",
-                        "description": "the rationale of the provided value"
-                    }
+                    "key": {"type": "string", "description": "the referenced key"},
+                    "value": {"description": "the provided value"},
+                    "rationale": {"type": "string", "description": "the rationale of the provided value"},
                 },
                 "required": ["key", "value", "rationale"],
                 "additionalProperties": False,
-            }
-        }
+            },
+        },
     },
     "generic_parameters": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "array",
-        "items": {
-            "type": "object",
-            "additionalProperties": True,
-        }
+        "items": {"type": "object", "additionalProperties": True},
     },
     "prescription_dosage": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -77,10 +60,7 @@ JSON_SCHEMAS: dict[str, dict] = {
         "type": "array",
         "items": {
             "type": "object",
-            "properties": {
-                "conceptId": {"type": "string", "minLength": 1},
-                "term": {"type": "string", "minLength": 1},
-            },
+            "properties": {"conceptId": {"type": "string", "minLength": 1}, "term": {"type": "string", "minLength": 1}},
             "required": ["conceptId", "term"],
             "additionalProperties": False,
         },
@@ -92,10 +72,7 @@ JSON_SCHEMAS: dict[str, dict] = {
         "type": "array",
         "items": {
             "type": "object",
-            "properties": {
-                "ICD10": {"type": "string", "minLength": 1},
-                "label": {"type": "string", "minLength": 1},
-            },
+            "properties": {"ICD10": {"type": "string", "minLength": 1}, "label": {"type": "string", "minLength": 1}},
             "required": ["ICD10", "label"],
             "additionalProperties": False,
         },
@@ -108,18 +85,12 @@ JSON_SCHEMAS: dict[str, dict] = {
         "items": {
             "type": "object",
             "properties": {
-                "index": {
-                    "type": "integer",
-                    "description": "the index as provided in the list",
-                },
-                "contact": {
-                    "type": "string",
-                    "description": "the contact information as provided in the list",
-                },
+                "index": {"type": "integer", "description": "the index as provided in the list"},
+                "contact": {"type": "string", "description": "the contact information as provided in the list"},
             },
             "required": ["index", "contact"],
             "additionalProperties": False,
-        }
+        },
     },
     "selector_fdb_code": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -141,10 +112,7 @@ JSON_SCHEMAS: dict[str, dict] = {
         "type": "array",
         "items": {
             "type": "object",
-            "properties": {
-                "code": {"type": "string", "minLength": 1},
-                "label": {"type": "string", "minLength": 1},
-            },
+            "properties": {"code": {"type": "string", "minLength": 1}, "label": {"type": "string", "minLength": 1}},
             "required": ["code", "label"],
             "additionalProperties": False,
         },
@@ -156,10 +124,7 @@ JSON_SCHEMAS: dict[str, dict] = {
         "type": "array",
         "items": {
             "type": "object",
-            "properties": {
-                "labelId": {"type": "integer", "minimum": 1},
-                "name": {"type": "string", "minLength": 1},
-            },
+            "properties": {"labelId": {"type": "integer", "minimum": 1}, "name": {"type": "string", "minLength": 1}},
             "required": ["labelId", "name"],
             "additionalProperties": False,
         },
@@ -171,10 +136,7 @@ JSON_SCHEMAS: dict[str, dict] = {
         "type": "array",
         "items": {
             "type": "object",
-            "properties": {
-                "staffId": {"type": "integer", "minimum": 1},
-                "name": {"type": "string", "minLength": 1},
-            },
+            "properties": {"staffId": {"type": "integer", "minimum": 1}, "name": {"type": "string", "minLength": 1}},
             "required": ["staffId", "name"],
             "additionalProperties": False,
         },
@@ -214,7 +176,6 @@ JSON_SCHEMAS: dict[str, dict] = {
 
 
 class JsonSchema:
-
     @classmethod
     def get(cls, keys: list[str]) -> list[dict]:
         return [JSON_SCHEMAS[key] for key in keys if key in JSON_SCHEMAS]

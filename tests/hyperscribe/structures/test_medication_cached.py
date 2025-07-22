@@ -17,12 +17,12 @@ def test_class():
 
 def test_to_dict():
     tested = MedicationCached(
-        uuid='theUuid',
-        label='theLabel',
-        code_rx_norm='theCodeRxNorm',
-        code_fdb='theCodeFdb',
-        national_drug_code='theNationalDrugCode',
-        potency_unit_code='thePotencyUnitCode',
+        uuid="theUuid",
+        label="theLabel",
+        code_rx_norm="theCodeRxNorm",
+        code_fdb="theCodeFdb",
+        national_drug_code="theNationalDrugCode",
+        potency_unit_code="thePotencyUnitCode",
     )
     result = tested.to_dict()
     expected = {
@@ -39,35 +39,33 @@ def test_to_dict():
 def test_load_from_json():
     tested = MedicationCached
     # old version
-    result = tested.load_from_json({
-        "uuid": "theUuid",
-        "label": "theLabel",
-        "code": "theCode",
-    })
+    result = tested.load_from_json({"uuid": "theUuid", "label": "theLabel", "code": "theCode"})
     expected = MedicationCached(
-        uuid='theUuid',
-        label='theLabel',
-        code_rx_norm='theCode',
-        code_fdb='',
-        national_drug_code='',
-        potency_unit_code='',
+        uuid="theUuid",
+        label="theLabel",
+        code_rx_norm="theCode",
+        code_fdb="",
+        national_drug_code="",
+        potency_unit_code="",
     )
     assert result == expected
     # new version
-    result = tested.load_from_json({
-        "uuid": "theUuid",
-        "label": "theLabel",
-        "codeRxNorm": "theCodeRxNorm",
-        "codeFdb": "theCodeFdb",
-        "nationalDrugCode": "theNationalDrugCode",
-        "potencyUnitCode": "thePotencyUnitCode",
-    })
+    result = tested.load_from_json(
+        {
+            "uuid": "theUuid",
+            "label": "theLabel",
+            "codeRxNorm": "theCodeRxNorm",
+            "codeFdb": "theCodeFdb",
+            "nationalDrugCode": "theNationalDrugCode",
+            "potencyUnitCode": "thePotencyUnitCode",
+        },
+    )
     expected = MedicationCached(
-        uuid='theUuid',
-        label='theLabel',
-        code_rx_norm='theCodeRxNorm',
-        code_fdb='theCodeFdb',
-        national_drug_code='theNationalDrugCode',
-        potency_unit_code='thePotencyUnitCode',
+        uuid="theUuid",
+        label="theLabel",
+        code_rx_norm="theCodeRxNorm",
+        code_fdb="theCodeFdb",
+        national_drug_code="theNationalDrugCode",
+        potency_unit_code="thePotencyUnitCode",
     )
     assert result == expected

@@ -62,86 +62,74 @@ def test_staged_command_extract():
     tested = AdjustPrescription
     tests = [
         ({}, None),
-        ({
-             "sig": "theSig",
-             "refills": 2,
-             "prescribe": {
-                 "text": "theOldMedication",
-                 "value": 292907,
-             },
-             "change_medication_to": {
-                 "text": "theNewMedication",
-                 "value": 292911,
-             },
-             "days_supply": 7,
-             "indications": [
-                 {"text": "theIndication1"},
-                 {"text": "theIndication2"},
-                 {"text": "theIndication3"},
-             ],
-             "substitutions": "allowed",
-             "note_to_pharmacist": "theNoteToPharmacist",
-             "quantity_to_dispense": "3"
-         }, CodedItem(
-            label="theOldMedication to theNewMedication: theSig (dispense: 3, supply days: 7, refills: 2, substitution: allowed, related conditions: theIndication1/theIndication2/theIndication3)",
-            code="292907",
-            uuid="",
-        )),
-        ({
-             "sig": "theSig",
-             "refills": 2,
-             "prescribe": {
-                 "text": "",
-                 "value": 292907,
-             },
-             "days_supply": 7,
-             "indications": [
-                 {"text": "theIndication1"},
-                 {"text": "theIndication2"},
-                 {"text": "theIndication3"},
-             ],
-             "substitutions": "allowed",
-             "note_to_pharmacist": "theNoteToPharmacist",
-             "quantity_to_dispense": "3"
-         }, None),
-        ({
-             "sig": "",
-             "refills": None,
-             "prescribe": {
-                 "text": "theMedication",
-                 "value": None,
-             },
-             "days_supply": None,
-             "indications": [
-                 {"text": "theIndication1"},
-                 {"text": "theIndication2"},
-                 {"text": "theIndication3"},
-             ],
-             "substitutions": None,
-             "note_to_pharmacist": "theNoteToPharmacist",
-             "quantity_to_dispense": None
-         }, CodedItem(
-            label="theMedication: n/a (dispense: n/a, supply days: n/a, refills: n/a, substitution: n/a, related conditions: theIndication1/theIndication2/theIndication3)",
-            code="",
-            uuid="",
-        )),
-        ({
-             "sig": "",
-             "refills": None,
-             "prescribe": {
-                 "text": "theMedication",
-                 "value": None,
-             },
-             "days_supply": None,
-             "indications": [],
-             "substitutions": None,
-             "note_to_pharmacist": "theNoteToPharmacist",
-             "quantity_to_dispense": None
-         }, CodedItem(
-            label="theMedication: n/a (dispense: n/a, supply days: n/a, refills: n/a, substitution: n/a, related conditions: n/a)",
-            code="",
-            uuid="",
-        )),
+        (
+            {
+                "sig": "theSig",
+                "refills": 2,
+                "prescribe": {"text": "theOldMedication", "value": 292907},
+                "change_medication_to": {"text": "theNewMedication", "value": 292911},
+                "days_supply": 7,
+                "indications": [{"text": "theIndication1"}, {"text": "theIndication2"}, {"text": "theIndication3"}],
+                "substitutions": "allowed",
+                "note_to_pharmacist": "theNoteToPharmacist",
+                "quantity_to_dispense": "3",
+            },
+            CodedItem(
+                label="theOldMedication to theNewMedication: theSig (dispense: 3, supply days: 7, refills: 2, "
+                "substitution: allowed, related conditions: theIndication1/theIndication2/theIndication3)",
+                code="292907",
+                uuid="",
+            ),
+        ),
+        (
+            {
+                "sig": "theSig",
+                "refills": 2,
+                "prescribe": {"text": "", "value": 292907},
+                "days_supply": 7,
+                "indications": [{"text": "theIndication1"}, {"text": "theIndication2"}, {"text": "theIndication3"}],
+                "substitutions": "allowed",
+                "note_to_pharmacist": "theNoteToPharmacist",
+                "quantity_to_dispense": "3",
+            },
+            None,
+        ),
+        (
+            {
+                "sig": "",
+                "refills": None,
+                "prescribe": {"text": "theMedication", "value": None},
+                "days_supply": None,
+                "indications": [{"text": "theIndication1"}, {"text": "theIndication2"}, {"text": "theIndication3"}],
+                "substitutions": None,
+                "note_to_pharmacist": "theNoteToPharmacist",
+                "quantity_to_dispense": None,
+            },
+            CodedItem(
+                label="theMedication: n/a (dispense: n/a, supply days: n/a, refills: n/a, substitution: n/a, "
+                "related conditions: theIndication1/theIndication2/theIndication3)",
+                code="",
+                uuid="",
+            ),
+        ),
+        (
+            {
+                "sig": "",
+                "refills": None,
+                "prescribe": {"text": "theMedication", "value": None},
+                "days_supply": None,
+                "indications": [],
+                "substitutions": None,
+                "note_to_pharmacist": "theNoteToPharmacist",
+                "quantity_to_dispense": None,
+            },
+            CodedItem(
+                label="theMedication: n/a (dispense: n/a, supply days: n/a, refills: n/a, substitution: n/a, "
+                "related conditions: n/a)",
+                code="",
+                uuid="",
+            ),
+        ),
     ]
     for data, expected in tests:
         result = tested.staged_command_extract(data)
@@ -171,19 +159,20 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
         fdb_code="code369",
         description="labelB",
         quantities=[
-        MedicationDetailQuantity(
-            quantity="7",
-            representative_ndc="ndc1",
-            ncpdp_quantity_qualifier_code="qualifier1",
-            ncpdp_quantity_qualifier_description="description1",
-        ),
-        MedicationDetailQuantity(
-            quantity="3",
-            representative_ndc="ndc2",
-            ncpdp_quantity_qualifier_code="qualifier2",
-            ncpdp_quantity_qualifier_description="description2",
-        ),
-    ])
+            MedicationDetailQuantity(
+                quantity="7",
+                representative_ndc="ndc1",
+                ncpdp_quantity_qualifier_code="qualifier1",
+                ncpdp_quantity_qualifier_description="description1",
+            ),
+            MedicationDetailQuantity(
+                quantity="3",
+                representative_ndc="ndc2",
+                ncpdp_quantity_qualifier_code="qualifier2",
+                ncpdp_quantity_qualifier_description="description2",
+            ),
+        ],
+    )
     conditions = [
         CodedItem(uuid="theUuid1", label="display1a", code="CODE12.3"),
         CodedItem(uuid="theUuid2", label="display2a", code="CODE45"),
@@ -231,14 +220,14 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
         "is_new": False,
         "is_updated": True,
         "parameters": {
-            'oldMedication': 'display2a',
-            'oldMedicationIndex': -1,
+            "oldMedication": "display2a",
+            "oldMedicationIndex": -1,
             "newMedication": {
                 "keywords": "keyword1,keyword2,keyword3",
                 "brandNames": "brand1,brand2,brand3,brand4",
                 "sameAsCurrent": False,
             },
-            'sig': 'theSig',
+            "sig": "theSig",
             "suppliedDays": 11,
             "substitution": "not_allowed",
             "comment": "theComment",
@@ -256,7 +245,13 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
     expected = InstructionWithCommand(**(arguments | {"command": command}))
     assert result == expected
     assert current_conditions.mock_calls == []
-    calls = [call(instruction, chatter, MedicationSearch(comment='theComment', keywords=keywords, brand_names=brands, related_condition=''))]
+    calls = [
+        call(
+            instruction,
+            chatter,
+            MedicationSearch(comment="theComment", keywords=keywords, brand_names=brands, related_condition=""),
+        ),
+    ]
     assert medications_from.mock_calls == calls
     calls = [call(instruction, chatter, "theComment", command, medication_record)]
     assert set_medication_dosage.mock_calls == calls
@@ -277,14 +272,14 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
         "is_new": False,
         "is_updated": True,
         "parameters": {
-            'oldMedication': 'display2a',
-            'oldMedicationIndex': 1,
+            "oldMedication": "display2a",
+            "oldMedicationIndex": 1,
             "newMedication": {
                 "keywords": "keyword1,keyword2,keyword3",
                 "brandNames": "brand1,brand2,brand3,brand4",
                 "sameAsCurrent": False,
             },
-            'sig': 'theSig',
+            "sig": "theSig",
             "suppliedDays": 11,
             "substitution": "not_allowed",
             "comment": "theComment",
@@ -293,12 +288,9 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
     instruction = InstructionWithParameters(**arguments)
     result = tested.command_from_json(instruction, chatter)
     command = AdjustPrescriptionCommand(
-        fdb_code='fdb2',
-        new_fdb_code='fdb2',
-        type_to_dispense=ClinicalQuantity(
-            representative_ndc='ndc2',
-            ncpdp_quantity_qualifier_code='puc2',
-        ),
+        fdb_code="fdb2",
+        new_fdb_code="fdb2",
+        type_to_dispense=ClinicalQuantity(representative_ndc="ndc2", ncpdp_quantity_qualifier_code="puc2"),
         sig="theSig",
         days_supply=11,
         substitutions=AdjustPrescriptionCommand.Substitutions.NOT_ALLOWED,
@@ -308,7 +300,13 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
     expected = InstructionWithCommand(**(arguments | {"command": command}))
     assert result == expected
     assert current_conditions.mock_calls == []
-    calls = [call(instruction, chatter, MedicationSearch(comment='theComment', keywords=keywords, brand_names=brands, related_condition=''))]
+    calls = [
+        call(
+            instruction,
+            chatter,
+            MedicationSearch(comment="theComment", keywords=keywords, brand_names=brands, related_condition=""),
+        ),
+    ]
     assert medications_from.mock_calls == calls
     calls = [call(instruction, chatter, "theComment", command, medication_record)]
     assert set_medication_dosage.mock_calls == calls
@@ -330,14 +328,14 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
         "is_new": False,
         "is_updated": True,
         "parameters": {
-            'oldMedication': 'display2a',
-            'oldMedicationIndex': 1,
+            "oldMedication": "display2a",
+            "oldMedicationIndex": 1,
             "newMedication": {
                 "keywords": "keyword1,keyword2,keyword3",
                 "brandNames": "brand1,brand2,brand3,brand4",
                 "sameAsCurrent": True,
             },
-            'sig': 'theSig',
+            "sig": "theSig",
             "suppliedDays": 11,
             "substitution": "not_allowed",
             "comment": "theComment",
@@ -346,12 +344,9 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
     instruction = InstructionWithParameters(**arguments)
     result = tested.command_from_json(instruction, chatter)
     command = AdjustPrescriptionCommand(
-        fdb_code='fdb2',
-        new_fdb_code='fdb2',
-        type_to_dispense=ClinicalQuantity(
-            representative_ndc='ndc2',
-            ncpdp_quantity_qualifier_code='puc2',
-        ),
+        fdb_code="fdb2",
+        new_fdb_code="fdb2",
+        type_to_dispense=ClinicalQuantity(representative_ndc="ndc2", ncpdp_quantity_qualifier_code="puc2"),
         sig="theSig",
         days_supply=11,
         substitutions=AdjustPrescriptionCommand.Substitutions.NOT_ALLOWED,
@@ -381,14 +376,14 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
         "is_new": False,
         "is_updated": True,
         "parameters": {
-            'oldMedication': 'display2a',
-            'oldMedicationIndex': 1,
+            "oldMedication": "display2a",
+            "oldMedicationIndex": 1,
             "newMedication": {
                 "keywords": "keyword1,keyword2,keyword3",
                 "brandNames": "brand1,brand2,brand3,brand4",
                 "sameAsCurrent": False,
             },
-            'sig': 'theSig',
+            "sig": "theSig",
             "suppliedDays": 11,
             "substitution": "not_allowed",
             "comment": "theComment",
@@ -397,12 +392,9 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
     instruction = InstructionWithParameters(**arguments)
     result = tested.command_from_json(instruction, chatter)
     command = AdjustPrescriptionCommand(
-        fdb_code='fdb2',
-        new_fdb_code='fdb2',
-        type_to_dispense=ClinicalQuantity(
-            representative_ndc='ndc2',
-            ncpdp_quantity_qualifier_code='puc2',
-        ),
+        fdb_code="fdb2",
+        new_fdb_code="fdb2",
+        type_to_dispense=ClinicalQuantity(representative_ndc="ndc2", ncpdp_quantity_qualifier_code="puc2"),
         sig="theSig",
         days_supply=11,
         substitutions=PrescribeCommand.Substitutions.NOT_ALLOWED,
@@ -412,7 +404,13 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
     expected = InstructionWithCommand(**(arguments | {"command": command}))
     assert result == expected
     assert current_conditions.mock_calls == []
-    calls = [call(instruction, chatter, MedicationSearch(comment='theComment', keywords=keywords, brand_names=brands, related_condition=''))]
+    calls = [
+        call(
+            instruction,
+            chatter,
+            MedicationSearch(comment="theComment", keywords=keywords, brand_names=brands, related_condition=""),
+        ),
+    ]
     assert medications_from.mock_calls == calls
     assert set_medication_dosage.mock_calls == []
     calls = [call()]
@@ -456,12 +454,12 @@ def test_command_parameters(current_medications):
     current_medications.side_effect = [medications]
     result = tested.command_parameters()
     expected = {
-        'oldMedication': 'one of: display1 (index: 0)/display2 (index: 1)/display3 (index: 2)',
+        "oldMedication": "one of: display1 (index: 0)/display2 (index: 1)/display3 (index: 2)",
         "oldMedicationIndex": "index of the medication to change, or -1, as integer",
         "newMedication": {
             "keywords": "comma separated keywords of up to 5 synonyms of the new medication to prescribe",
             "brandNames": "comma separated of known medication names related to the keywords",
-            "sameAsCurrent": "same medication as current one, mandatory, True or False, as boolean"
+            "sameAsCurrent": "same medication as current one, mandatory, True or False, as boolean",
         },
         "sig": "directions, as free text",
         "suppliedDays": "duration of the treatment in days, as integer",
@@ -508,9 +506,11 @@ def test_instruction_description(current_medications):
     ]
     current_medications.side_effect = [medications]
     result = tested.instruction_description()
-    expected = ("Change the prescription of a current medication (display1, display2, display3), "
-                "including the new medication, the directions, the duration and the dosage. "
-                "There can be only one change of prescription per instruction, and no instruction in the lack of.")
+    expected = (
+        "Change the prescription of a current medication (display1, display2, display3), "
+        "including the new medication, the directions, the duration and the dosage. "
+        "There can be only one change of prescription per instruction, and no instruction in the lack of."
+    )
     assert result == expected
     calls = [call()]
     assert current_medications.mock_calls == calls
@@ -551,10 +551,12 @@ def test_instruction_constraints(current_medications):
     ]
     current_medications.side_effect = [medications]
     result = tested.instruction_constraints()
-    expected = ("'AdjustPrescription' has to be related to one of the following medications: "
-                "display1 (RxNorm: rxNorm1), "
-                "display2 (RxNorm: rxNorm2), "
-                "display3 (RxNorm: rxNorm3)")
+    expected = (
+        "'AdjustPrescription' has to be related to one of the following medications: "
+        "display1 (RxNorm: rxNorm1), "
+        "display2 (RxNorm: rxNorm2), "
+        "display3 (RxNorm: rxNorm3)"
+    )
     assert result == expected
     calls = [call()]
     assert current_medications.mock_calls == calls
@@ -593,10 +595,7 @@ def test_is_available(current_medications):
             potency_unit_code="puc4",
         ),
     ]
-    tests = [
-        (medications, True),
-        ([], False),
-    ]
+    tests = [(medications, True), ([], False)]
     for side_effect, expected in tests:
         current_medications.side_effect = [side_effect]
         result = tested.is_available()

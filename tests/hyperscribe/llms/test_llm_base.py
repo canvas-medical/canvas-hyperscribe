@@ -13,11 +13,7 @@ from tests.helper import is_constant
 
 def test_constants():
     tested = LlmBase
-    constants = {
-        "ROLE_SYSTEM": "system",
-        "ROLE_USER": "user",
-        "ROLE_MODEL": "model",
-    }
+    constants = {"ROLE_SYSTEM": "system", "ROLE_USER": "user", "ROLE_MODEL": "model"}
     assert is_constant(tested, constants)
 
 
@@ -83,10 +79,7 @@ def test_set_system_prompt():
     tested.prompts = [LlmTurn(role="user", text=["line 1", "line 2"])]
     tested.set_system_prompt(["line 3"])
     result = tested.prompts
-    expected = [
-        LlmTurn(role="system", text=["line 3"]),
-        LlmTurn(role="user", text=["line 1", "line 2"]),
-    ]
+    expected = [LlmTurn(role="system", text=["line 3"]), LlmTurn(role="user", text=["line 1", "line 2"])]
     assert result == expected
     assert memory_log.mock_calls == []
 
@@ -163,7 +156,7 @@ def test_attempt_requests(request):
     assert result == expected
     calls = [call(), call(), call()]
     assert request.mock_calls == calls
-    calls = [call.log('error: Http error: max attempts (3) exceeded')]
+    calls = [call.log("error: Http error: max attempts (3) exceeded")]
     assert memory_log.mock_calls == calls
     reset_mocks()
 
@@ -192,11 +185,7 @@ def test_chat(attempt_requests, extract_json_from):
     calls = [call(3)]
     assert attempt_requests.mock_calls == calls
     assert extract_json_from.mock_calls == []
-    calls = [
-        call.log('-- CHAT BEGINS --'),
-        call.log('--- CHAT ENDS ---'),
-        call.store_so_far(),
-    ]
+    calls = [call.log("-- CHAT BEGINS --"), call.log("--- CHAT ENDS ---"), call.store_so_far()]
     assert memory_log.mock_calls == calls
     reset_mocks()
 
@@ -215,38 +204,36 @@ def test_chat(attempt_requests, extract_json_from):
     assert result == expected
 
     exp_prompts = [
-        LlmTurn(role='model', text=['response1:', 'line1', 'line2']),
-        LlmTurn(role='user', text=[
-            'Your previous response has the following errors:',
-            '```text',
-            'some error1',
-            '```',
-            '',
-            'Please, correct your answer following rigorously the initial request and the mandatory response format.',
-        ]),
+        LlmTurn(role="model", text=["response1:", "line1", "line2"]),
+        LlmTurn(
+            role="user",
+            text=[
+                "Your previous response has the following errors:",
+                "```text",
+                "some error1",
+                "```",
+                "",
+                "Please, correct your answer following rigorously the initial request and the mandatory "
+                "response format.",
+            ],
+        ),
     ]
     assert tested.prompts == exp_prompts
     tested.prompts = []
 
-    calls = [
-        call(3),
-        call(3),
-    ]
+    calls = [call(3), call(3)]
     assert attempt_requests.mock_calls == calls
-    calls = [
-        call('response1:\nline1\nline2', []),
-        call('response2:\nline3\nline4', []),
-    ]
+    calls = [call("response1:\nline1\nline2", []), call("response2:\nline3\nline4", [])]
     assert extract_json_from.mock_calls == calls
     calls = [
-        call.log('-- CHAT BEGINS --'),
-        call.log('--- CHAT ENDS ---'),
+        call.log("-- CHAT BEGINS --"),
+        call.log("--- CHAT ENDS ---"),
         call.store_so_far(),
-        call.log('-- CHAT BEGINS --'),
-        call.log('result->>'),
+        call.log("-- CHAT BEGINS --"),
+        call.log("result->>"),
         call.log('[\n  "line1",\n  "line2"\n]'),
-        call.log('<<-'),
-        call.log('--- CHAT ENDS ---'),
+        call.log("<<-"),
+        call.log("--- CHAT ENDS ---"),
         call.store_so_far(),
     ]
     assert memory_log.mock_calls == calls
@@ -268,62 +255,70 @@ def test_chat(attempt_requests, extract_json_from):
     assert result == expected
 
     exp_prompts = [
-        LlmTurn(role='model', text=['response1:', 'line1', 'line2']),
-        LlmTurn(role='user', text=[
-            'Your previous response has the following errors:',
-            '```text',
-            'some error1',
-            '```',
-            '',
-            'Please, correct your answer following rigorously the initial request and the mandatory response format.',
-        ]),
-        LlmTurn(role='model', text=['response2:', 'line3', 'line4']),
-        LlmTurn(role='user', text=[
-            'Your previous response has the following errors:',
-            '```text',
-            'some error2',
-            '```',
-            '',
-            'Please, correct your answer following rigorously the initial request and the mandatory response format.',
-        ]),
-        LlmTurn(role='model', text=['response3:', 'line5', 'line6']),
-        LlmTurn(role='user', text=[
-            'Your previous response has the following errors:',
-            '```text',
-            'some error3',
-            '```',
-            '',
-            'Please, correct your answer following rigorously the initial request and the mandatory response format.',
-        ]),
+        LlmTurn(role="model", text=["response1:", "line1", "line2"]),
+        LlmTurn(
+            role="user",
+            text=[
+                "Your previous response has the following errors:",
+                "```text",
+                "some error1",
+                "```",
+                "",
+                "Please, correct your answer following rigorously the initial request and "
+                "the mandatory response format.",
+            ],
+        ),
+        LlmTurn(role="model", text=["response2:", "line3", "line4"]),
+        LlmTurn(
+            role="user",
+            text=[
+                "Your previous response has the following errors:",
+                "```text",
+                "some error2",
+                "```",
+                "",
+                "Please, correct your answer following rigorously the initial request and "
+                "the mandatory response format.",
+            ],
+        ),
+        LlmTurn(role="model", text=["response3:", "line5", "line6"]),
+        LlmTurn(
+            role="user",
+            text=[
+                "Your previous response has the following errors:",
+                "```text",
+                "some error3",
+                "```",
+                "",
+                "Please, correct your answer following rigorously the initial request and "
+                "the mandatory response format.",
+            ],
+        ),
     ]
     assert tested.prompts == exp_prompts
     tested.prompts = []
 
-    calls = [
-        call(3),
-        call(3),
-        call(3),
-    ]
+    calls = [call(3), call(3), call(3)]
     assert attempt_requests.mock_calls == calls
     calls = [
-        call('response1:\nline1\nline2', []),
-        call('response2:\nline3\nline4', []),
-        call('response3:\nline5\nline6', []),
+        call("response1:\nline1\nline2", []),
+        call("response2:\nline3\nline4", []),
+        call("response3:\nline5\nline6", []),
     ]
     assert extract_json_from.mock_calls == calls
     calls = [
-        call.log('-- CHAT BEGINS --'),
-        call.log('--- CHAT ENDS ---'),
+        call.log("-- CHAT BEGINS --"),
+        call.log("--- CHAT ENDS ---"),
         call.store_so_far(),
-        call.log('-- CHAT BEGINS --'),
-        call.log('result->>'),
+        call.log("-- CHAT BEGINS --"),
+        call.log("result->>"),
         call.log('[\n  "line1",\n  "line2"\n]'),
-        call.log('<<-'),
-        call.log('--- CHAT ENDS ---'),
+        call.log("<<-"),
+        call.log("--- CHAT ENDS ---"),
         call.store_so_far(),
-        call.log('-- CHAT BEGINS --'),
-        call.log('error: JSON incorrect: max attempts (3) exceeded'),
-        call.log('--- CHAT ENDS ---'),
+        call.log("-- CHAT BEGINS --"),
+        call.log("error: JSON incorrect: max attempts (3) exceeded"),
+        call.log("--- CHAT ENDS ---"),
         call.store_so_far(),
     ]
     assert memory_log.mock_calls == calls
@@ -362,7 +357,7 @@ def test_single_conversation(chat, set_system_prompt, set_user_prompt, store_llm
     assert set_system_prompt.mock_calls == calls
     calls = [call(user_prompt)]
     assert set_user_prompt.mock_calls == calls
-    calls = [call([['theContent1'], ['theContent2']], None)]
+    calls = [call([["theContent1"], ["theContent2"]], None)]
     assert store_llm_turns.mock_calls == calls
     assert memory_log.mock_calls == []
     reset_mocks()
@@ -377,7 +372,7 @@ def test_single_conversation(chat, set_system_prompt, set_user_prompt, store_llm
     assert set_system_prompt.mock_calls == calls
     calls = [call(user_prompt)]
     assert set_user_prompt.mock_calls == calls
-    calls = [call(['theContent'], None)]
+    calls = [call(["theContent"], None)]
     assert store_llm_turns.mock_calls == calls
     assert memory_log.mock_calls == []
     reset_mocks()
@@ -385,7 +380,14 @@ def test_single_conversation(chat, set_system_prompt, set_user_prompt, store_llm
     # -- with instruction
     for with_audit in [True, False]:
         tested = LlmBase(memory_log, "theApiKey", "theModel", with_audit)
-        instruction = Instruction(uuid="theUuid", index=0, instruction="Second", information="theInformation", is_new=False, is_updated=True)
+        instruction = Instruction(
+            uuid="theUuid",
+            index=0,
+            instruction="Second",
+            information="theInformation",
+            is_new=False,
+            is_updated=True,
+        )
         chat.side_effect = [JsonExtract(error="theError", has_error=False, content=[["theContent1"], ["theAudit"]])]
         result = tested.single_conversation(system_prompt, user_prompt, schemas[:1], instruction)
         assert result == ["theContent1"]
@@ -393,9 +395,9 @@ def test_single_conversation(chat, set_system_prompt, set_user_prompt, store_llm
         assert chat.mock_calls == calls
         calls = [call(system_prompt)]
         assert set_system_prompt.mock_calls == calls
-        calls = [call(['theUserPrompt'])]
+        calls = [call(["theUserPrompt"])]
         assert set_user_prompt.mock_calls == calls
-        calls = [call(['theContent1'], instruction)]
+        calls = [call(["theContent1"], instruction)]
         assert store_llm_turns.mock_calls == calls
         assert memory_log.mock_calls == []
         reset_mocks()
@@ -450,7 +452,7 @@ def test_store_llm_turns(discussion_store):
         LlmTurn(role="user", text=["textUser2"]),
         LlmTurn(role="model", text=["textModel2"]),
         LlmTurn(role="user", text=["textUser3"]),
-        LlmTurn(role="model", text=['```json', '["line1", "line2"]', '```']),
+        LlmTurn(role="model", text=["```json", '["line1", "line2"]', "```"]),
     ]
 
     # no audit
@@ -467,19 +469,13 @@ def test_store_llm_turns(discussion_store):
     tested.prompts = prompts
     # -- with instruction
     tested.store_llm_turns(["line1", "line2"], instruction)
-    calls = [
-        call.instance('theAwsS3', 'theIdentification'),
-        call.instance().store('theInstruction', 7, exp_turns),
-    ]
+    calls = [call.instance("theAwsS3", "theIdentification"), call.instance().store("theInstruction", 7, exp_turns)]
     assert discussion_store.mock_calls == calls
     assert memory_log.mock_calls == []
     reset_mocks()
     # -- with no instruction
     tested.store_llm_turns(["line1", "line2"], None)
-    calls = [
-        call.instance('theAwsS3', 'theIdentification'),
-        call.instance().store('theLabel', -1, exp_turns),
-    ]
+    calls = [call.instance("theAwsS3", "theIdentification"), call.instance().store("theLabel", -1, exp_turns)]
     assert discussion_store.mock_calls == calls
     assert memory_log.mock_calls == []
     reset_mocks()
@@ -492,10 +488,7 @@ def test_json_validator():
         "minItems": 1,
         "items": {
             "type": "object",
-            "properties": {
-                "a": {"type": "integer", "minimum": 5},
-                "b": {"type": "string", "minLength": 2},
-            },
+            "properties": {"a": {"type": "integer", "minimum": 5}, "b": {"type": "string", "minLength": 2}},
             "required": ["a", "b"],
             "additionalProperties": False,
         },
@@ -525,73 +518,60 @@ def test_extract_json_from(json_validator):
     json_validator.side_effect = []
     # no error
     # -- multiple JSON
-    content = "\n".join([
-        "response:",
-        "```json",
-        json.dumps(["item1", "item2"]),
-        "```",
-        "",
-        "```json",
-        json.dumps(["item3"]),
-        "```",
-        "",
-        "```json",
-        json.dumps(["item4"]),
-        "```",
-        "",
-        "end.",
-    ])
-    result = tested.extract_json_from(content, [])
-    expected = JsonExtract(
-        error="",
-        has_error=False,
-        content=[
-            ["item1", "item2"],
-            ["item3"],
-            ["item4"],
+    content = "\n".join(
+        [
+            "response:",
+            "```json",
+            json.dumps(["item1", "item2"]),
+            "```",
+            "",
+            "```json",
+            json.dumps(["item3"]),
+            "```",
+            "",
+            "```json",
+            json.dumps(["item4"]),
+            "```",
+            "",
+            "end.",
         ],
     )
+    result = tested.extract_json_from(content, [])
+    expected = JsonExtract(error="", has_error=False, content=[["item1", "item2"], ["item3"], ["item4"]])
     assert result == expected
     assert json_validator.mock_calls == []
 
     # error
     # -- JSON with error
-    content = "\n".join([
-        "response:",
-        "```json",
-        json.dumps(["item1", "item2"]),
-        "```",
-        "",
-        "```json",
-        "[\"item3\"",
-        "```",
-        "",
-        "```json",
-        json.dumps(["item4"]),
-        "```",
-        "",
-        "end.",
-    ])
-    result = tested.extract_json_from(content, [])
-    expected = JsonExtract(
-        error="Expecting ',' delimiter: line 1 column 9 (char 8)",
-        has_error=True,
-        content=[],
+    content = "\n".join(
+        [
+            "response:",
+            "```json",
+            json.dumps(["item1", "item2"]),
+            "```",
+            "",
+            "```json",
+            '["item3"',
+            "```",
+            "",
+            "```json",
+            json.dumps(["item4"]),
+            "```",
+            "",
+            "end.",
+        ],
     )
+    result = tested.extract_json_from(content, [])
+    expected = JsonExtract(error="Expecting ',' delimiter: line 1 column 9 (char 8)", has_error=True, content=[])
     assert result == expected
     assert json_validator.mock_calls == []
     # -- no JSON
-    content = "\n".join([
-        "response:",
-        json.dumps(["item1", "item2"]),
-        "",
-        "end.",
-    ])
+    content = "\n".join(["response:", json.dumps(["item1", "item2"]), "", "end."])
     result = tested.extract_json_from(content, [])
     expected = JsonExtract(
-        error='No JSON markdown found. '
-              'The response should be enclosed within a JSON Markdown block like: \n'
-              '```json\nJSON OUTPUT HERE\n```',
+        error="No JSON markdown found. "
+        "The response should be enclosed within a JSON Markdown block like: \n"
+        "```json\nJSON OUTPUT HERE\n```",
         has_error=True,
         content=[],
     )
@@ -599,50 +579,37 @@ def test_extract_json_from(json_validator):
     assert json_validator.mock_calls == []
 
     # --> with schema provided <--
-    content = "\n".join([
-        "response:",
-        "```json",
-        json.dumps(["item1", "item2"]),
-        "```",
-        "",
-        "```json",
-        json.dumps(["item3"]),
-        "```",
-        "",
-        "```json",
-        json.dumps(["item4"]),
-        "```",
-        "",
-        "end.",
-    ])
+    content = "\n".join(
+        [
+            "response:",
+            "```json",
+            json.dumps(["item1", "item2"]),
+            "```",
+            "",
+            "```json",
+            json.dumps(["item3"]),
+            "```",
+            "",
+            "```json",
+            json.dumps(["item4"]),
+            "```",
+            "",
+            "end.",
+        ],
+    )
     # no error
     json_validator.side_effect = ["", "", ""]
     result = tested.extract_json_from(content, ["schemaA", "schemaB", "schemaC", "schemaD"])
-    expected = JsonExtract(
-        error="",
-        has_error=False,
-        content=[
-            ["item1", "item2"],
-            ["item3"],
-            ["item4"],
-        ],
-    )
+    expected = JsonExtract(error="", has_error=False, content=[["item1", "item2"], ["item3"], ["item4"]])
     assert result == expected
-    calls = [
-        call(['item1', 'item2'], 'schemaA'),
-        call(['item3'], 'schemaB'),
-        call(['item4'], 'schemaC'),
-    ]
+    calls = [call(["item1", "item2"], "schemaA"), call(["item3"], "schemaB"), call(["item4"], "schemaC")]
     assert json_validator.mock_calls == calls
     reset_mocks()
     # with error
     json_validator.side_effect = ["", "this is an error", ""]
     result = tested.extract_json_from(content, ["schemaA", "schemaB", "schemaC", "schemaD"])
-    expected = JsonExtract(error='in the JSON #2:this is an error', has_error=True, content=[])
+    expected = JsonExtract(error="in the JSON #2:this is an error", has_error=True, content=[])
     assert result == expected
-    calls = [
-        call(['item1', 'item2'], 'schemaA'),
-        call(['item3'], 'schemaB'),
-    ]
+    calls = [call(["item1", "item2"], "schemaA"), call(["item3"], "schemaB")]
     assert json_validator.mock_calls == calls
     reset_mocks()

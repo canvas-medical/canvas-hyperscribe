@@ -37,14 +37,15 @@ class GeneratedNote(Postgres):
             "errors": json.dumps(case.errors),
         }
         sql = """
-              INSERT INTO "generated_note" ("created", "updated", "case_id", "cycle_duration", "cycle_count", "cycle_transcript_overlap",
-                                            "text_llm_vendor", "text_llm_name", "note_json", "hyperscribe_version",
-                                            "staged_questionnaires", "transcript2instructions", "instruction2parameters", "parameters2command",
-                                            "failed", "errors")
+              INSERT INTO "generated_note" ("created", "updated", "case_id", "cycle_duration", "cycle_count",
+                                            "cycle_transcript_overlap", "text_llm_vendor", "text_llm_name",
+                                            "note_json", "hyperscribe_version", "staged_questionnaires",
+                                            "transcript2instructions", "instruction2parameters",
+                                            "parameters2command", "failed", "errors")
               VALUES (%(now)s, %(now)s, %(case_id)s, %(cycle_duration)s, %(cycle_count)s, %(cycle_transcript_overlap)s,
                       %(text_llm_vendor)s, %(text_llm_name)s, %(note_json)s, %(hyperscribe_version)s,
-                      %(staged_questionnaires)s, %(transcript2instructions)s, %(instruction2parameters)s, %(parameters2command)s,
-                      %(failed)s, %(errors)s) RETURNING id"""
+                      %(staged_questionnaires)s, %(transcript2instructions)s, %(instruction2parameters)s,
+                      %(parameters2command)s, %(failed)s, %(errors)s) RETURNING id"""
         return Record(
             id=self._alter(sql, params, None),
             case_id=case.case_id,

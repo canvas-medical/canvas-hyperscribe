@@ -11,27 +11,21 @@ from hyperscribe.structures.line import Line
 
 
 def test_staged_questionnaires(
-        staged_questionnaires: tuple[str, str, Path],
-        allowed_levels: list,
-        audio_interpreter: AudioInterpreter,
-        capsys: pytest.CaptureFixture[str],
-        request: pytest.FixtureRequest,
+    staged_questionnaires: tuple[str, str, Path],
+    allowed_levels: list,
+    audio_interpreter: AudioInterpreter,
+    capsys: pytest.CaptureFixture[str],
+    request: pytest.FixtureRequest,
 ) -> None:
-    runner_staged_questionnaires(
-        staged_questionnaires,
-        allowed_levels,
-        audio_interpreter,
-        capsys,
-        request,
-    )
+    runner_staged_questionnaires(staged_questionnaires, allowed_levels, audio_interpreter, capsys, request)
 
 
 def runner_staged_questionnaires(
-        staged_questionnaires: tuple[str, str, Path],
-        allowed_levels: list,
-        audio_interpreter: AudioInterpreter,
-        capsys: pytest.CaptureFixture[str],
-        request: pytest.FixtureRequest,
+    staged_questionnaires: tuple[str, str, Path],
+    allowed_levels: list,
+    audio_interpreter: AudioInterpreter,
+    capsys: pytest.CaptureFixture[str],
+    request: pytest.FixtureRequest,
 ) -> None:
     case, cycle, json_file = staged_questionnaires
     content = json.load(json_file.open("r"))[cycle]
@@ -52,10 +46,7 @@ def runner_staged_questionnaires(
         assert command.__class__.__name__ == expected[idx]["class"], error_label
         assert isinstance(command, QuestionnaireCommand), error_label
 
-        forced = {
-            "note_uuid": "theNoteUuid",
-            "command_uuid": "theCommandUuid",
-        }
+        forced = {"note_uuid": "theNoteUuid", "command_uuid": "theCommandUuid"}
         automated = command.values | forced
         reviewed = expected[idx]["attributes"] | forced
 

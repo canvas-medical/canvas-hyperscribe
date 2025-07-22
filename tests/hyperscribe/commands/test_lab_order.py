@@ -56,50 +56,49 @@ def test_staged_command_extract():
     tested = LabOrder
     tests = [
         ({}, None),
-        ({
-             "tests": [
-                 {"text": "test1"},
-                 {"text": "test2"},
-                 {"text": "test3"},
-             ],
-             "comment": "theComment",
-             "diagnosis": [
-                 {"text": "diagnose1"},
-                 {"text": "diagnose2"},
-             ],
-             "fasting_status": True,
-         }, CodedItem(label="test1/test2/test3: theComment (fasting: yes, diagnosis: diagnose1/diagnose2)", code="", uuid="")),
-        ({
-             "tests": [],
-             "comment": "theComment",
-             "diagnosis": [
-                 {"text": "diagnose1"},
-                 {"text": "diagnose2"},
-             ],
-             "fasting_status": True,
-         }, None),
-        ({
-             "tests": [{"text": "test1"}],
-             "comment": "",
-             "diagnosis": [{"text": "diagnose1"}],
-             "fasting_status": False,
-         }, CodedItem(label="test1: n/a (fasting: no, diagnosis: diagnose1)", code="", uuid="")),
-        ({
-             "tests": [{"text": "test1"}],
-             "comment": "",
-             "diagnosis": [],
-             "fasting_status": False,
-         }, CodedItem(label="test1: n/a (fasting: no, diagnosis: n/a)", code="", uuid="")),
-        ({
-             "tests": [{"text": "test1"}],
-             "comment": "",
-             "diagnosis": [{"text": "diagnose1"}],
-         }, CodedItem(label="test1: n/a (fasting: n/a, diagnosis: diagnose1)", code="", uuid="")),
-        ({
-             "tests": [{"text": "test1"}],
-             "comment": "",
-             "diagnosis": "[]",
-         }, CodedItem(label="test1: n/a (fasting: n/a, diagnosis: n/a)", code="", uuid="")),
+        (
+            {
+                "tests": [{"text": "test1"}, {"text": "test2"}, {"text": "test3"}],
+                "comment": "theComment",
+                "diagnosis": [{"text": "diagnose1"}, {"text": "diagnose2"}],
+                "fasting_status": True,
+            },
+            CodedItem(
+                label="test1/test2/test3: theComment (fasting: yes, diagnosis: diagnose1/diagnose2)",
+                code="",
+                uuid="",
+            ),
+        ),
+        (
+            {
+                "tests": [],
+                "comment": "theComment",
+                "diagnosis": [{"text": "diagnose1"}, {"text": "diagnose2"}],
+                "fasting_status": True,
+            },
+            None,
+        ),
+        (
+            {
+                "tests": [{"text": "test1"}],
+                "comment": "",
+                "diagnosis": [{"text": "diagnose1"}],
+                "fasting_status": False,
+            },
+            CodedItem(label="test1: n/a (fasting: no, diagnosis: diagnose1)", code="", uuid=""),
+        ),
+        (
+            {"tests": [{"text": "test1"}], "comment": "", "diagnosis": [], "fasting_status": False},
+            CodedItem(label="test1: n/a (fasting: no, diagnosis: n/a)", code="", uuid=""),
+        ),
+        (
+            {"tests": [{"text": "test1"}], "comment": "", "diagnosis": [{"text": "diagnose1"}]},
+            CodedItem(label="test1: n/a (fasting: n/a, diagnosis: diagnose1)", code="", uuid=""),
+        ),
+        (
+            {"tests": [{"text": "test1"}], "comment": "", "diagnosis": "[]"},
+            CodedItem(label="test1: n/a (fasting: n/a, diagnosis: n/a)", code="", uuid=""),
+        ),
     ]
     for data, expected in tests:
         result = tested.staged_command_extract(data)
@@ -109,14 +108,10 @@ def test_staged_command_extract():
             assert result == expected
 
 
-@patch.object(LimitedCache, 'preferred_lab_partner')
+@patch.object(LimitedCache, "preferred_lab_partner")
 @patch.object(SelectorChat, "lab_test_from")
 @patch.object(SelectorChat, "condition_from")
-def test_command_from_json(
-        condition_from,
-        lab_test_from,
-        preferred_lab_partner,
-):
+def test_command_from_json(condition_from, lab_test_from, preferred_lab_partner):
     chatter = MagicMock()
 
     def reset_mocks():
@@ -127,8 +122,10 @@ def test_command_from_json(
 
     tested = helper_instance()
 
-    comment = ("A very long comment to see that it is truncated after 127 characters. "
-               "That is to go over the 127 characters, just in the middle of the sentence.")
+    comment = (
+        "A very long comment to see that it is truncated after 127 characters. "
+        "That is to go over the 127 characters, just in the middle of the sentence."
+    )
     arguments = {
         "uuid": "theUuid",
         "index": 7,
@@ -159,10 +156,10 @@ def test_command_from_json(
                 ordering_provider_key="providerUuid",
                 fasting_required=True,
                 comment="A very long comment to see that it is truncated after 127 characters. "
-                        "That is to go over the 127 characters, just in the middle",
+                "That is to go over the 127 characters, just in the middle",
                 note_uuid="noteUuid",
                 tests_order_codes=[],
-                diagnosis_codes=['icd1', 'icd3'],
+                diagnosis_codes=["icd1", "icd3"],
             ),
         ),
         (
@@ -172,12 +169,12 @@ def test_command_from_json(
                 ordering_provider_key="providerUuid",
                 fasting_required=True,
                 comment="A very long comment to see that it is truncated after 127 characters. "
-                        "That is to go over the 127 characters, just in the middle",
+                "That is to go over the 127 characters, just in the middle",
                 note_uuid="noteUuid",
-                tests_order_codes=['code2', 'code4'],
-                diagnosis_codes=['icd1', 'icd3'],
+                tests_order_codes=["code2", "code4"],
+                diagnosis_codes=["icd1", "icd3"],
             ),
-        )
+        ),
     ]
     for lab_partner, expected in tests:
         condition_from.side_effect = [
@@ -203,17 +200,41 @@ def test_command_from_json(
         assert result.command.diagnosis_codes == expected.diagnosis_codes
 
         calls = [
-            call(instruction, chatter, tested.settings, ['condition1', 'condition2'], ['icd1', 'icd2'], comment),
-            call(instruction, chatter, tested.settings, ['condition3'], ['icd3'], comment),
-            call(instruction, chatter, tested.settings, ['condition4'], ['icd4'], comment),
+            call(instruction, chatter, tested.settings, ["condition1", "condition2"], ["icd1", "icd2"], comment),
+            call(instruction, chatter, tested.settings, ["condition3"], ["icd3"], comment),
+            call(instruction, chatter, tested.settings, ["condition4"], ["icd4"], comment),
         ]
         assert condition_from.mock_calls == calls
         calls = []
         if lab_partner.uuid:
             calls = [
-                call(instruction, chatter, tested.cache, 'theLabPartner', ['lab1', 'lab2'], comment, ['condition1', 'condition4']),
-                call(instruction, chatter, tested.cache, 'theLabPartner', ['lab3'], comment, ['condition1', 'condition4']),
-                call(instruction, chatter, tested.cache, 'theLabPartner', ['lab4'], comment, ['condition1', 'condition4']),
+                call(
+                    instruction,
+                    chatter,
+                    tested.cache,
+                    "theLabPartner",
+                    ["lab1", "lab2"],
+                    comment,
+                    ["condition1", "condition4"],
+                ),
+                call(
+                    instruction,
+                    chatter,
+                    tested.cache,
+                    "theLabPartner",
+                    ["lab3"],
+                    comment,
+                    ["condition1", "condition4"],
+                ),
+                call(
+                    instruction,
+                    chatter,
+                    tested.cache,
+                    "theLabPartner",
+                    ["lab4"],
+                    comment,
+                    ["condition1", "condition4"],
+                ),
             ]
         assert lab_test_from.mock_calls == calls
         calls = [call()]
@@ -226,14 +247,11 @@ def test_command_parameters():
     tested = helper_instance()
     result = tested.command_parameters()
     expected = {
-        "labOrders": [
-            {
-                "labOrderKeywords": "comma separated keywords of up to 5 synonyms of each lab test to order",
-            },
-        ],
+        "labOrders": [{"labOrderKeywords": "comma separated keywords of up to 5 synonyms of each lab test to order"}],
         "conditions": [
             {
-                "conditionKeywords": "comma separated keywords of up to 5 synonyms of each condition targeted by the lab tests",
+                "conditionKeywords": "comma separated keywords of up to 5 synonyms of each condition "
+                "targeted by the lab tests",
                 "ICD10": "comma separated keywords of up to 5 ICD-10 codes of each condition targeted by the lab test",
             },
         ],
@@ -246,10 +264,12 @@ def test_command_parameters():
 def test_instruction_description():
     tested = helper_instance()
     result = tested.instruction_description()
-    expected = ("Lab tests ordered, including the directions and the targeted conditions. "
-                "There can be several lab orders in an instruction with the fasting requirement for the whole instruction "
-                "and all necessary information for each lab order, "
-                "and no instruction in the lack of.")
+    expected = (
+        "Lab tests ordered, including the directions and the targeted conditions. "
+        "There can be several lab orders in an instruction with the fasting requirement for the whole instruction "
+        "and all necessary information for each lab order, "
+        "and no instruction in the lack of."
+    )
     assert result == expected
 
 

@@ -31,8 +31,8 @@ def pytest_runtest_makereport(item, call):
         test_name = report.location[2]
         case_name = "n/a"
         cycle = -1
-        pattern_end2end = rf'test_(.+?)\[([^\]]+?)\]'
-        pattern_details = rf'test_detail_(.+?)\[(.+)_{Constants.CASE_CYCLE_SUFFIX}_(\d+)\]'
+        pattern_end2end = rf"test_(.+?)\[([^\]]+?)\]"
+        pattern_details = rf"test_detail_(.+?)\[(.+)_{Constants.CASE_CYCLE_SUFFIX}_(\d+)\]"
         if result := match(pattern_details, report.location[2]):
             test_name = result.group(1)
             case_name = result.group(2)
@@ -45,11 +45,11 @@ def pytest_runtest_makereport(item, call):
         errors = ""
         if report.failed and call.excinfo is not None:
             errors = "\n".join(
-                [str(call.excinfo.value), "---"] +
-                [value for name, value in item.user_properties if name == "llmExplanation"]
+                [str(call.excinfo.value), "---"]
+                + [value for name, value in item.user_properties if name == "llmExplanation"],
             )
 
-        plugin_commit = check_output(['git', 'rev-parse', '--short', 'HEAD']).decode('ascii').strip()
+        plugin_commit = check_output(["git", "rev-parse", "--short", "HEAD"]).decode("ascii").strip()
 
         StoreResults.insert(
             EvaluationResult(
@@ -75,12 +75,7 @@ def pytest_addoption(parser):
         default=",".join([Constants.DIFFERENCE_LEVEL_MINOR, Constants.DIFFERENCE_LEVEL_MODERATE]),
         help="Coma seperated list of the levels of meaning difference that are accepted",
     )
-    parser.addoption(
-        Constants.OPTION_PATIENT_UUID,
-        action="store",
-        default="",
-        help="patient uuid to consider",
-    )
+    parser.addoption(Constants.OPTION_PATIENT_UUID, action="store", default="", help="patient uuid to consider")
     parser.addoption(
         Constants.OPTION_PRINT_LOGS,
         action="store_true",
@@ -93,27 +88,20 @@ def pytest_addoption(parser):
         default=False,
         help="Store the logs in the configured AWS S3 bucket",
     )
-    parser.addoption(
-        Constants.OPTION_END2END,
-        action="store_true",
-        default=False,
-        help="Run the end2end tests",
-    )
+    parser.addoption(Constants.OPTION_END2END, action="store_true", default=False, help="Run the end2end tests")
 
 
 def pytest_collection_modifyitems(session, config, items):
     list_evaluation_tests = {
-        'test_audio2transcript.py',
-        'test_end2end.py',
-        'test_instruction2parameters.py',
-        'test_parameters2command.py',
-        'test_staged_questionnaires.py',
-        'test_transcript2instructions.py',
+        "test_audio2transcript.py",
+        "test_end2end.py",
+        "test_instruction2parameters.py",
+        "test_parameters2command.py",
+        "test_staged_questionnaires.py",
+        "test_transcript2instructions.py",
     }
     test_files = {
-        filename
-        for item in items
-        if (filename := Path(item.location[0]).name) and filename in list_evaluation_tests
+        filename for item in items if (filename := Path(item.location[0]).name) and filename in list_evaluation_tests
     }
     if test_files:
         config.unique_session_id = str(uuid.uuid4())
@@ -132,15 +120,12 @@ def pytest_collection_modifyitems(session, config, items):
         deselected = [
             item
             for item in items
-            if (item.name.startswith("test_end2end") and not end2end) or (not item.name.startswith("test_end2end") and end2end)
+            if (item.name.startswith("test_end2end") and not end2end)
+            or (not item.name.startswith("test_end2end") and end2end)
         ]
         if deselected:
             config.hook.pytest_deselected(items=deselected)
-        items[:] = [
-            item
-            for item in items
-            if item.name.startswith("test_end2end") is end2end
-        ]
+        items[:] = [item for item in items if item.name.startswith("test_end2end") is end2end]
 
 
 def pytest_unconfigure(config):
@@ -152,10 +137,7 @@ def pytest_unconfigure(config):
 
 @pytest.fixture
 def allowed_levels(request):
-    return [
-        level.strip()
-        for level in request.config.getoption(Constants.OPTION_DIFFERENCE_LEVELS).split(",")
-    ]
+    return [level.strip() for level in request.config.getoption(Constants.OPTION_DIFFERENCE_LEVELS).split(",")]
 
 
 @pytest.fixture
@@ -191,23 +173,23 @@ def audio_interpreter(request):
 
 
 def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
-    step = 'end2end_folder'
+    step = "end2end_folder"
     if step in metafunc.fixturenames:
-        cases_dir = Path(__file__).parent / 'evaluations/cases'
+        cases_dir = Path(__file__).parent / "evaluations/cases"
         folders: list[Path] = []
 
-        for case_folder in cases_dir.glob('*'):
+        for case_folder in cases_dir.glob("*"):
             if case_folder.is_dir() is False:
                 continue
             folders.append(case_folder)
 
         metafunc.parametrize(step, folders, ids=lambda path: path.stem)
 
-    step = 'audio2transcript_files'
+    step = "audio2transcript_files"
     if step in metafunc.fixturenames:
         parameters: list[tuple[str, str, list[Path], Path]] = []
         if metafunc.function.__name__.startswith("test_detail_"):
-            folder = Path(__file__).parent / 'evaluations/cases'
+            folder = Path(__file__).parent / "evaluations/cases"
         else:
             folder = Path(__file__).parent / "evaluations/situational/audio2transcript/"
 
@@ -234,17 +216,12 @@ def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
 
         metafunc.parametrize(step, parameters, ids=lambda path: f"{path[0]}_{path[1]}")
 
-    steps = [
-        'transcript2instructions',
-        'instruction2parameters',
-        'parameters2command',
-        'staged_questionnaires',
-    ]
+    steps = ["transcript2instructions", "instruction2parameters", "parameters2command", "staged_questionnaires"]
     for step in steps:
         if step in metafunc.fixturenames:
             json_files: list[tuple[str, Path]] = []
             if metafunc.function.__name__.startswith("test_detail_"):
-                folder = Path(__file__).parent / 'evaluations/cases'
+                folder = Path(__file__).parent / "evaluations/cases"
                 for case in folder.glob("*"):
                     if case.is_dir() is False:
                         continue
@@ -254,7 +231,7 @@ def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
                     json_files.append((case.stem, json_file))
             else:
                 folder = Path(__file__).parent / f"evaluations/situational/{step}/"
-                for json_file in folder.glob('*.json'):
+                for json_file in folder.glob("*.json"):
                     json_files.append((json_file.stem, json_file))
             files = [
                 (case_name, cycle, json_file)

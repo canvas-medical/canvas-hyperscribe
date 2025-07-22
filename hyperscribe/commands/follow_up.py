@@ -26,7 +26,11 @@ class FollowUp(Base):
             return CodedItem(label=f"{on_date}: {reason_for_visit} ({encounter})", code="", uuid="")
         return None
 
-    def command_from_json(self, instruction: InstructionWithParameters, chatter: LlmBase) -> InstructionWithCommand | None:
+    def command_from_json(
+        self,
+        instruction: InstructionWithParameters,
+        chatter: LlmBase,
+    ) -> InstructionWithCommand | None:
         result = FollowUpCommand(
             note_uuid=self.identification.note_uuid,
             structured=False,
@@ -41,7 +45,11 @@ class FollowUp(Base):
         result.note_type_id = self.cache.existing_note_types()[idx].uuid
         #
         if "reasonForVisitIndex" in instruction.parameters:
-            if 0 <= (idx := instruction.parameters["reasonForVisitIndex"]) < len(existing := self.cache.existing_reason_for_visits()):
+            if (
+                0
+                <= (idx := instruction.parameters["reasonForVisitIndex"])
+                < len(existing := self.cache.existing_reason_for_visits())
+            ):
                 result.structured = True
                 result.reason_for_visit = existing[idx].uuid
 
@@ -66,9 +74,11 @@ class FollowUp(Base):
         } | reason_for_visit
 
     def instruction_description(self) -> str:
-        return ("Any follow up encounter, either virtually or in person. "
-                "There can be only one such instruction in the whole discussion, "
-                "so if one was already found, just update it by intelligently merging all key information.")
+        return (
+            "Any follow up encounter, either virtually or in person. "
+            "There can be only one such instruction in the whole discussion, "
+            "so if one was already found, just update it by intelligently merging all key information."
+        )
 
     def instruction_constraints(self) -> str:
         return ""

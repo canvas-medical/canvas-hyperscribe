@@ -21,51 +21,45 @@ class Vitals(Base):
             return CodedItem(label=text, code="", uuid="")
         return None
 
-    def command_from_json(self, instruction: InstructionWithParameters, chatter: LlmBase) -> InstructionWithCommand | None:
-
-        return InstructionWithCommand.add_command(instruction, VitalsCommand(
-            height=self.valid_or_none(
-                VitalsCommand,
-                "height",
-                instruction.parameters["height"]["inches"],
+    def command_from_json(
+        self,
+        instruction: InstructionWithParameters,
+        chatter: LlmBase,
+    ) -> InstructionWithCommand | None:
+        return InstructionWithCommand.add_command(
+            instruction,
+            VitalsCommand(
+                height=self.valid_or_none(VitalsCommand, "height", instruction.parameters["height"]["inches"]),
+                weight_lbs=self.valid_or_none(VitalsCommand, "weight_lbs", instruction.parameters["weight"]["pounds"]),
+                waist_circumference=self.valid_or_none(
+                    VitalsCommand,
+                    "waist_circumference",
+                    instruction.parameters["waistCircumference"]["centimeters"],
+                ),
+                body_temperature=self.valid_or_none(
+                    VitalsCommand,
+                    "body_temperature",
+                    instruction.parameters["temperature"]["fahrenheit"],
+                ),
+                blood_pressure_systole=self.valid_or_none(
+                    VitalsCommand,
+                    "blood_pressure_systole",
+                    instruction.parameters["bloodPressure"]["systolicPressure"],
+                ),
+                blood_pressure_diastole=self.valid_or_none(
+                    VitalsCommand,
+                    "blood_pressure_diastole",
+                    instruction.parameters["bloodPressure"]["diastolicPressure"],
+                ),
+                pulse=self.valid_or_none(VitalsCommand, "pulse", instruction.parameters["pulseRate"]["beatPerMinute"]),
+                respiration_rate=self.valid_or_none(
+                    VitalsCommand,
+                    "respiration_rate",
+                    instruction.parameters["respirationRate"]["beatPerMinute"],
+                ),
+                note_uuid=self.identification.note_uuid,
             ),
-            weight_lbs=self.valid_or_none(
-                VitalsCommand,
-                "weight_lbs",
-                instruction.parameters["weight"]["pounds"],
-            ),
-            waist_circumference=self.valid_or_none(
-                VitalsCommand,
-                "waist_circumference",
-                instruction.parameters["waistCircumference"]["centimeters"],
-            ),
-            body_temperature=self.valid_or_none(
-                VitalsCommand,
-                "body_temperature",
-                instruction.parameters["temperature"]["fahrenheit"],
-            ),
-            blood_pressure_systole=self.valid_or_none(
-                VitalsCommand,
-                "blood_pressure_systole",
-                instruction.parameters["bloodPressure"]["systolicPressure"],
-            ),
-            blood_pressure_diastole=self.valid_or_none(
-                VitalsCommand,
-                "blood_pressure_diastole",
-                instruction.parameters["bloodPressure"]["diastolicPressure"],
-            ),
-            pulse=self.valid_or_none(
-                VitalsCommand,
-                "pulse",
-                instruction.parameters["pulseRate"]["beatPerMinute"],
-            ),
-            respiration_rate=self.valid_or_none(
-                VitalsCommand,
-                "respiration_rate",
-                instruction.parameters["respirationRate"]["beatPerMinute"],
-            ),
-            note_uuid=self.identification.note_uuid,
-        ))
+        )
 
     def command_parameters(self) -> dict:
         return {
@@ -80,8 +74,11 @@ class Vitals(Base):
         }
 
     def instruction_description(self) -> str:
-        return ("Vital sign measurements (height, weight, waist circumference, temperature, blood pressure, pulse rate, respiration rate). "
-                "All measurements should be combined in one instruction.")
+        return (
+            "Vital sign measurements (height, weight, waist circumference, "
+            "temperature, blood pressure, pulse rate, respiration rate). "
+            "All measurements should be combined in one instruction."
+        )
 
     def instruction_constraints(self) -> str:
         return ""

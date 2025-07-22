@@ -59,18 +59,12 @@ def test_staged_command_extract():
     tested = Medication
     tests = [
         ({}, None),
-        ({
-             "sig": "theSig",
-             "medication": {"text": "theMedication"}
-         }, CodedItem(label="theMedication: theSig", code="", uuid="")),
-        ({
-             "sig": "theSig",
-             "medication": {"text": ""}
-         }, None),
-        ({
-             "sig": "",
-             "medication": {"text": "theMedication"}
-         }, CodedItem(label="theMedication: n/a", code="", uuid="")),
+        (
+            {"sig": "theSig", "medication": {"text": "theMedication"}},
+            CodedItem(label="theMedication: theSig", code="", uuid=""),
+        ),
+        ({"sig": "theSig", "medication": {"text": ""}}, None),
+        ({"sig": "", "medication": {"text": "theMedication"}}, CodedItem(label="theMedication: n/a", code="", uuid="")),
     ]
     for data, expected in tests:
         result = tested.staged_command_extract(data)
@@ -95,38 +89,41 @@ def test_command_from_json(medication_details):
         "",
     ]
     user_prompt = [
-        'Here is the comment provided by the healthcare provider in regards to the prescription:',
-        '```text',
-        'keywords: keyword1,keyword2,keyword3',
-        ' -- ',
-        'theSig',
-        '```',
-        '', 'Among the following medications, identify the most relevant one:',
-        '',
-        ' * labelA (fdbCode: code123)\n * labelB (fdbCode: code369)\n * labelC (fdbCode: code752)',
-        '',
-        'Please, present your findings in a JSON format within a Markdown code block like:',
-        '```json',
+        "Here is the comment provided by the healthcare provider in regards to the prescription:",
+        "```text",
+        "keywords: keyword1,keyword2,keyword3",
+        " -- ",
+        "theSig",
+        "```",
+        "",
+        "Among the following medications, identify the most relevant one:",
+        "",
+        " * labelA (fdbCode: code123)\n * labelB (fdbCode: code369)\n * labelC (fdbCode: code752)",
+        "",
+        "Please, present your findings in a JSON format within a Markdown code block like:",
+        "```json",
         '[{"fdbCode": "the fdb code, as int", "description": "the description"}]',
-        '```',
-        '',
+        "```",
+        "",
     ]
-    schemas = [{
-        '$schema': 'http://json-schema.org/draft-07/schema#',
-        'type': 'array',
-        'items': {
-            'type': 'object',
-            'properties': {
-                'fdbCode': {'type': 'integer', 'minimum': 1},
-                'description': {'type': 'string', 'minLength': 1},
+    schemas = [
+        {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "fdbCode": {"type": "integer", "minimum": 1},
+                    "description": {"type": "string", "minLength": 1},
+                },
+                "required": ["fdbCode", "description"],
+                "additionalProperties": False,
             },
-            'required': ['fdbCode', 'description'],
-            'additionalProperties': False,
+            "minItems": 1,
+            "maxItems": 1,
         },
-        'minItems': 1,
-        'maxItems': 1,
-    }]
-    keywords = ['keyword1', 'keyword2', 'keyword3']
+    ]
+    keywords = ["keyword1", "keyword2", "keyword3"]
     tested = helper_instance()
 
     arguments = {
@@ -136,10 +133,7 @@ def test_command_from_json(medication_details):
         "information": "theInformation",
         "is_new": False,
         "is_updated": True,
-        "parameters": {
-            'keywords': 'keyword1,keyword2,keyword3',
-            'sig': 'theSig',
-        },
+        "parameters": {"keywords": "keyword1,keyword2,keyword3", "sig": "theSig"},
     }
     medications = [
         MedicationDetail(fdb_code="code123", description="labelA", quantities=[]),
@@ -153,14 +147,10 @@ def test_command_from_json(medication_details):
 
     instruction = InstructionWithParameters(**arguments)
     result = tested.command_from_json(instruction, chatter)
-    command = MedicationStatementCommand(
-        sig="theSig",
-        fdb_code="code369",
-        note_uuid="noteUuid",
-    )
+    command = MedicationStatementCommand(sig="theSig", fdb_code="code369", note_uuid="noteUuid")
     expected = InstructionWithCommand(**(arguments | {"command": command}))
     assert result == expected
-    calls = [call('scienceHost', keywords)]
+    calls = [call("scienceHost", keywords)]
     assert medication_details.mock_calls == calls
     calls = [call.single_conversation(system_prompt, user_prompt, schemas, instruction)]
     assert chatter.mock_calls == calls
@@ -171,13 +161,10 @@ def test_command_from_json(medication_details):
     chatter.single_conversation.side_effect = [[]]
 
     result = tested.command_from_json(instruction, chatter)
-    command = MedicationStatementCommand(
-        sig="theSig",
-        note_uuid="noteUuid",
-    )
+    command = MedicationStatementCommand(sig="theSig", note_uuid="noteUuid")
     expected = InstructionWithCommand(**(arguments | {"command": command}))
     assert result == expected
-    calls = [call('scienceHost', keywords)]
+    calls = [call("scienceHost", keywords)]
     assert medication_details.mock_calls == calls
     calls = [call.single_conversation(system_prompt, user_prompt, schemas, instruction)]
     assert chatter.mock_calls == calls
@@ -188,13 +175,10 @@ def test_command_from_json(medication_details):
     chatter.single_conversation.side_effect = [[]]
 
     result = tested.command_from_json(instruction, chatter)
-    command = MedicationStatementCommand(
-        sig="theSig",
-        note_uuid="noteUuid",
-    )
+    command = MedicationStatementCommand(sig="theSig", note_uuid="noteUuid")
     expected = InstructionWithCommand(**(arguments | {"command": command}))
     assert result == expected
-    calls = [call('scienceHost', keywords)]
+    calls = [call("scienceHost", keywords)]
     assert medication_details.mock_calls == calls
     assert chatter.mock_calls == []
     reset_mocks()
@@ -213,8 +197,9 @@ def test_command_parameters():
 def test_instruction_description():
     tested = helper_instance()
     result = tested.instruction_description()
-    expected = ("Current medication. "
-                "There can be only one medication per instruction, and no instruction in the lack of.")
+    expected = (
+        "Current medication. There can be only one medication per instruction, and no instruction in the lack of."
+    )
     assert result == expected
 
 
@@ -251,10 +236,7 @@ def test_instruction_constraints(current_medications):
             potency_unit_code="puc3",
         ),
     ]
-    tests = [
-        (medications, "'Medication' cannot include: display1, display2, display3."),
-        ([], ""),
-    ]
+    tests = [(medications, "'Medication' cannot include: display1, display2, display3."), ([], "")]
     for side_effect, expected in tests:
         current_medications.side_effect = [side_effect]
         result = tested.instruction_constraints()

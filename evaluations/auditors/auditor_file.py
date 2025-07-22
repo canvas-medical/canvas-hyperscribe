@@ -20,49 +20,56 @@ class AuditorFile(AuditorStore):
     SUMMARY_JSON_FILE = "summary.json"
     SUMMARY_HTML_FILE = "summary.html"
 
-
     @classmethod
     def default_folder_base(cls) -> Path:
         return Path(__file__).parent.parent / "cases"
 
-    def __init__(self, case: str, cycle: int, settings: Settings, s3_credentials: AwsS3Credentials, folder_base: Path) -> None:
+    def __init__(
+        self,
+        case: str,
+        cycle: int,
+        settings: Settings,
+        s3_credentials: AwsS3Credentials,
+        folder_base: Path,
+    ) -> None:
         super().__init__(case, cycle, settings, s3_credentials)
         self.folder = folder_base / case
 
     def case_prepare(self) -> None:
         if self.folder.exists() is False:
             self.folder.mkdir()
-        FileSystemCase.upsert(EvaluationCase(
-            case_name=self.case,
-            description=self.case,
-        ))
+        FileSystemCase.upsert(EvaluationCase(case_name=self.case, description=self.case))
 
     def case_update_limited_cache(self, limited_cache: dict) -> None:
         case = FileSystemCase.get(self.case)
-        FileSystemCase.upsert(EvaluationCase(
-            environment=case.environment,
-            patient_uuid=case.patient_uuid,
-            limited_cache=limited_cache,
-            case_type=case.case_type,
-            case_group=case.case_group,
-            case_name=case.case_name,
-            cycles=case.cycles,
-            description=case.description,
-        ))
+        FileSystemCase.upsert(
+            EvaluationCase(
+                environment=case.environment,
+                patient_uuid=case.patient_uuid,
+                limited_cache=limited_cache,
+                case_type=case.case_type,
+                case_group=case.case_group,
+                case_name=case.case_name,
+                cycles=case.cycles,
+                description=case.description,
+            ),
+        )
 
     def case_finalize(self, errors: dict) -> None:
         # update the cycles
         case = FileSystemCase.get(self.case)
-        FileSystemCase.upsert(EvaluationCase(
-            environment=case.environment,
-            patient_uuid=case.patient_uuid,
-            limited_cache=case.limited_cache,
-            case_type=case.case_type,
-            case_group=case.case_group,
-            case_name=case.case_name,
-            cycles=self.cycle,
-            description=case.description,
-        ))
+        FileSystemCase.upsert(
+            EvaluationCase(
+                environment=case.environment,
+                patient_uuid=case.patient_uuid,
+                limited_cache=case.limited_cache,
+                case_type=case.case_type,
+                case_group=case.case_group,
+                case_name=case.case_name,
+                cycles=self.cycle,
+                description=case.description,
+            ),
+        )
         # generate the HTML
         data = self.summarized_generated_commands()
         result = self.folder / self.SUMMARY_JSON_FILE
@@ -106,10 +113,7 @@ class AuditorFile(AuditorStore):
 
     def full_transcript(self) -> dict[str, list[Line]]:
         content = self.get_json(EvaluationConstants.AUDIO2TRANSCRIPT)
-        return {
-            key: Line.load_from_json(lines)
-            for key, lines in content.items()
-        }
+        return {key: Line.load_from_json(lines) for key, lines in content.items()}
 
     def note_uuid(self) -> str:
         return f"note{datetime.now().strftime('%Y%m%d%H%M%S')}x{randint(1000, 9999)}"

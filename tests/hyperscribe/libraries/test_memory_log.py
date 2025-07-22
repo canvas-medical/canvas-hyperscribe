@@ -31,21 +31,9 @@ def test_end_session():
 
         #
         memory_log.ENTRIES = {
-            "noteUuid_1": {
-                "label3": ["r", "s"],
-                "label2": ["x", "y"],
-                "label1": ["m", "n"],
-            },
-            "noteUuid_2": {
-                "label1": ["m", "n"],
-                "label2": ["x", "y"],
-                "label3": ["r", "s"],
-            },
-            "noteUuid_3": {
-                "label2": ["x", "y"],
-                "label1": ["m", "n"],
-                "label3": [],
-            },
+            "noteUuid_1": {"label3": ["r", "s"], "label2": ["x", "y"], "label1": ["m", "n"]},
+            "noteUuid_2": {"label1": ["m", "n"], "label2": ["x", "y"], "label3": ["r", "s"]},
+            "noteUuid_3": {"label2": ["x", "y"], "label1": ["m", "n"], "label3": []},
             "noteUuid_4": {},
         }
         result = tested.end_session("noteUuid_2")
@@ -133,20 +121,15 @@ def test_log(mock_datetime):
         expected = {
             "noteUuid": {
                 "theLabel": [
-                    '2025-03-06T07:53:21+00:00: message1',
-                    '2025-03-06T11:53:37+00:00: message2',
-                    '2025-03-06T19:11:51+00:00: message3',
-
+                    "2025-03-06T07:53:21+00:00: message1",
+                    "2025-03-06T11:53:37+00:00: message2",
+                    "2025-03-06T19:11:51+00:00: message3",
                 ],
             },
         }
         assert memory_log.ENTRIES == expected
 
-        calls = [
-            call.now(timezone.utc),
-            call.now(timezone.utc),
-            call.now(timezone.utc),
-        ]
+        calls = [call.now(timezone.utc), call.now(timezone.utc), call.now(timezone.utc)]
         assert mock_datetime.mock_calls == calls
         reset_mocks()
         MemoryLog.end_session("noteUuid")
@@ -182,26 +165,17 @@ def test_output(mock_datetime, log):
         expected = {
             "noteUuid": {
                 "theLabel": [
-                    '2025-03-06T07:53:21+00:00: message1',
-                    '2025-03-06T11:53:37+00:00: message2',
-                    '2025-03-06T19:11:51+00:00: message3',
-
+                    "2025-03-06T07:53:21+00:00: message1",
+                    "2025-03-06T11:53:37+00:00: message2",
+                    "2025-03-06T19:11:51+00:00: message3",
                 ],
             },
         }
         assert memory_log.ENTRIES == expected
 
-        calls = [
-            call.now(timezone.utc),
-            call.now(timezone.utc),
-            call.now(timezone.utc),
-        ]
+        calls = [call.now(timezone.utc), call.now(timezone.utc), call.now(timezone.utc)]
         assert mock_datetime.mock_calls == calls
-        calls = [
-            call.info('message1'),
-            call.info('message2'),
-            call.info('message3'),
-        ]
+        calls = [call.info("message1"), call.info("message2"), call.info("message3")]
         assert log.mock_calls == calls
         reset_mocks()
         MemoryLog.end_session("noteUuid")
@@ -233,16 +207,12 @@ def test_logs(mock_datetime):
     tested.log("message2")
     tested.log("message3")
     result = tested.logs()
-    expected = ('2025-03-06T07:53:21+00:00: message1'
-                '\n2025-03-06T11:53:37+00:00: message2'
-                '\n2025-03-06T19:11:51+00:00: message3')
+    expected = (
+        "2025-03-06T07:53:21+00:00: message1\n2025-03-06T11:53:37+00:00: message2\n2025-03-06T19:11:51+00:00: message3"
+    )
     assert result == expected
 
-    calls = [
-        call.now(timezone.utc),
-        call.now(timezone.utc),
-        call.now(timezone.utc),
-    ]
+    calls = [call.now(timezone.utc), call.now(timezone.utc), call.now(timezone.utc)]
     assert mock_datetime.mock_calls == calls
     reset_mocks()
     MemoryLog.end_session("noteUuid")
@@ -262,10 +232,10 @@ def test_store_so_far(aws_s3, get_discussion):
         canvas_instance="canvasInstance",
     )
     aws_s3_credentials = AwsS3Credentials(
-        aws_key='theKey',
-        aws_secret='theSecret',
-        region='theRegion',
-        bucket='theBucket',
+        aws_key="theKey",
+        aws_secret="theSecret",
+        region="theRegion",
+        bucket="theBucket",
     )
     tested = MemoryLog(identification, "theLabel")
     tested.s3_credentials = aws_s3_credentials
@@ -273,10 +243,7 @@ def test_store_so_far(aws_s3, get_discussion):
     aws_s3.return_value.is_ready.side_effect = [False]
     get_discussion.side_effect = []
     tested.store_so_far()
-    calls = [
-        call(aws_s3_credentials),
-        call().is_ready(),
-    ]
+    calls = [call(aws_s3_credentials), call().is_ready()]
     assert aws_s3.mock_calls == calls
     assert get_discussion.mock_calls == []
     reset_mocks()

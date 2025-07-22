@@ -24,11 +24,12 @@ class Medication(Base):
             return CodedItem(label=f"{text}: {sig}", code="", uuid="")
         return None
 
-    def command_from_json(self, instruction: InstructionWithParameters, chatter: LlmBase) -> InstructionWithCommand | None:
-        result = MedicationStatementCommand(
-            sig=instruction.parameters["sig"],
-            note_uuid=self.identification.note_uuid,
-        )
+    def command_from_json(
+        self,
+        instruction: InstructionWithParameters,
+        chatter: LlmBase,
+    ) -> InstructionWithCommand | None:
+        result = MedicationStatementCommand(sig=instruction.parameters["sig"], note_uuid=self.identification.note_uuid)
         # retrieve existing medications defined in Canvas Science
         expressions = instruction.parameters["keywords"].split(",")
         if medications := CanvasScience.medication_details(self.settings.science_host, expressions):
@@ -36,26 +37,29 @@ class Medication(Base):
             system_prompt = [
                 "The conversation is in the medical context.",
                 "",
-                "Your task is to identify the most relevant medication to prescribe to a patient out of a list of medications.",
+                "Your task is to identify the most relevant medication to prescribe to a patient "
+                "out of a list of medications.",
                 "",
             ]
             user_prompt = [
-                'Here is the comment provided by the healthcare provider in regards to the prescription:',
-                '```text',
+                "Here is the comment provided by the healthcare provider in regards to the prescription:",
+                "```text",
                 f"keywords: {instruction.parameters['keywords']}",
                 " -- ",
                 instruction.parameters["sig"],
-                '```',
+                "```",
                 "",
-                'Among the following medications, identify the most relevant one:',
-                '',
-                "\n".join(f' * {medication.description} (fdbCode: {medication.fdb_code})' for medication in medications),
-                '',
-                'Please, present your findings in a JSON format within a Markdown code block like:',
-                '```json',
+                "Among the following medications, identify the most relevant one:",
+                "",
+                "\n".join(
+                    f" * {medication.description} (fdbCode: {medication.fdb_code})" for medication in medications
+                ),
+                "",
+                "Please, present your findings in a JSON format within a Markdown code block like:",
+                "```json",
                 json.dumps([{"fdbCode": "the fdb code, as int", "description": "the description"}]),
-                '```',
-                '',
+                "```",
+                "",
             ]
             schemas = JsonSchema.get(["selector_fdb_code"])
             if response := chatter.single_conversation(system_prompt, user_prompt, schemas, instruction):
@@ -69,8 +73,9 @@ class Medication(Base):
         }
 
     def instruction_description(self) -> str:
-        return ("Current medication. "
-                "There can be only one medication per instruction, and no instruction in the lack of.")
+        return (
+            "Current medication. There can be only one medication per instruction, and no instruction in the lack of."
+        )
 
     def instruction_constraints(self) -> str:
         result = ""

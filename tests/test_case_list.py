@@ -17,13 +17,15 @@ def test_run(mock_all, capsys):
 
     calls = [call()]
     assert mock_all.mock_calls == calls
-    exp_out = "\n".join([
-        "------------------------------------------------------------------",
-        "| environment | group | type | case | patient UUID | description |",
-        "------------------------------------------------------------------",
-        "------------------------------------------------------------------",
-        "",
-    ])
+    exp_out = "\n".join(
+        [
+            "------------------------------------------------------------------",
+            "| environment | group | type | case | patient UUID | description |",
+            "------------------------------------------------------------------",
+            "------------------------------------------------------------------",
+            "",
+        ],
+    )
     assert capsys.readouterr().out == exp_out
     reset_mocks()
 
@@ -54,21 +56,23 @@ def test_run(mock_all, capsys):
                 case_name="theCaseName3",
                 description="theDescription3",
             ),
-        ]
+        ],
     ]
     tested.run()
 
     calls = [call()]
     assert mock_all.mock_calls == calls
-    exp_out = "\n".join([
-        "---------------------------------------------------------------------------------------------",
-        "| environment     | group     | type     | case         | patient UUID    | description     |",
-        "---------------------------------------------------------------------------------------------",
-        "| theEnvironment1 | theGroup1 | theType1 | theCaseName1 | thePatientUuid1 | theDescription1 |",
-        "| theEnvironment2 | theGroup2 | theType2 | theCaseName2 | thePatientUuid2 | theDescription2 |",
-        "| theEnvironment3 | theGroup3 | theType3 | theCaseName3 | thePatientUuid3 | theDescription3 |",
-        "---------------------------------------------------------------------------------------------",
-        "",
-    ])
+    exp_out = "\n".join(
+        [
+            "---------------------------------------------------------------------------------------------",
+            "| environment     | group     | type     | case         | patient UUID    | description     |",
+            "---------------------------------------------------------------------------------------------",
+            "| theEnvironment1 | theGroup1 | theType1 | theCaseName1 | thePatientUuid1 | theDescription1 |",
+            "| theEnvironment2 | theGroup2 | theType2 | theCaseName2 | thePatientUuid2 | theDescription2 |",
+            "| theEnvironment3 | theGroup3 | theType3 | theCaseName3 | thePatientUuid3 | theDescription3 |",
+            "---------------------------------------------------------------------------------------------",
+            "",
+        ],
+    )
     assert capsys.readouterr().out == exp_out
     reset_mocks()

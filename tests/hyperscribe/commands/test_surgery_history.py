@@ -59,46 +59,46 @@ def test_staged_command_extract():
     tested = SurgeryHistory
     tests = [
         ({}, None),
-        ({
-             "comment": "theComment",
-             "approximate_date": {"date": "theDate"},
-             "past_surgical_history": {
-                 "text": "theSurgery",
-                 "value": 40653006,
-             }
-         }, CodedItem(label="theSurgery: theComment (on: theDate)", code="40653006", uuid="")),
-        ({
-             "comment": "theComment",
-             "approximate_date": {"date": "theDate"},
-             "past_surgical_history": {
-                 "text": "",
-                 "value": 40653006,
-             }
-         }, None),
-        ({
-             "comment": "theComment",
-             "approximate_date": {"date": ""},
-             "past_surgical_history": {
-                 "text": "theSurgery",
-                 "value": 40653006,
-             }
-         }, CodedItem(label="theSurgery: theComment (on: n/a)", code="40653006", uuid="")),
-        ({
-             "comment": "",
-             "approximate_date": {"date": "theDate"},
-             "past_surgical_history": {
-                 "text": "theSurgery",
-                 "value": 40653006,
-             }
-         }, CodedItem(label="theSurgery: n/a (on: theDate)", code="40653006", uuid="")),
-        ({
-             "comment": "theComment",
-             "approximate_date": {"date": "theDate"},
-             "past_surgical_history": {
-                 "text": "theSurgery",
-                 "value": 40653006,
-             }
-         }, CodedItem(label="theSurgery: theComment (on: theDate)", code="40653006", uuid="")),
+        (
+            {
+                "comment": "theComment",
+                "approximate_date": {"date": "theDate"},
+                "past_surgical_history": {"text": "theSurgery", "value": 40653006},
+            },
+            CodedItem(label="theSurgery: theComment (on: theDate)", code="40653006", uuid=""),
+        ),
+        (
+            {
+                "comment": "theComment",
+                "approximate_date": {"date": "theDate"},
+                "past_surgical_history": {"text": "", "value": 40653006},
+            },
+            None,
+        ),
+        (
+            {
+                "comment": "theComment",
+                "approximate_date": {"date": ""},
+                "past_surgical_history": {"text": "theSurgery", "value": 40653006},
+            },
+            CodedItem(label="theSurgery: theComment (on: n/a)", code="40653006", uuid=""),
+        ),
+        (
+            {
+                "comment": "",
+                "approximate_date": {"date": "theDate"},
+                "past_surgical_history": {"text": "theSurgery", "value": 40653006},
+            },
+            CodedItem(label="theSurgery: n/a (on: theDate)", code="40653006", uuid=""),
+        ),
+        (
+            {
+                "comment": "theComment",
+                "approximate_date": {"date": "theDate"},
+                "past_surgical_history": {"text": "theSurgery", "value": 40653006},
+            },
+            CodedItem(label="theSurgery: theComment (on: theDate)", code="40653006", uuid=""),
+        ),
     ]
     for data, expected in tests:
         result = tested.staged_command_extract(data)
@@ -123,36 +123,40 @@ def test_command_from_json(surgical_histories):
         "",
     ]
     user_prompt = [
-        'Here is the comment provided by the healthcare provider in regards to the surgery of a patient:',
-        '```text',
-        'keywords: keyword1,keyword2,keyword3',
-        ' -- ',
-        'theComment',
-        '```',
-        'Among the following surgeries, identify the most relevant one:',
-        '',
-        ' * termA (123)\n * termB (369)\n * termC (752)',
-        '',
-        'Please, present your findings in a JSON format within a Markdown code block like:',
-        '```json',
+        "Here is the comment provided by the healthcare provider in regards to the surgery of a patient:",
+        "```text",
+        "keywords: keyword1,keyword2,keyword3",
+        " -- ",
+        "theComment",
+        "```",
+        "Among the following surgeries, identify the most relevant one:",
+        "",
+        " * termA (123)\n * termB (369)\n * termC (752)",
+        "",
+        "Please, present your findings in a JSON format within a Markdown code block like:",
+        "```json",
         '[{"conceptId": "the concept ID", "term": "the expression"}]',
-        '```',
-        '',
+        "```",
+        "",
     ]
-    schemas = [{
-        '$schema': 'http://json-schema.org/draft-07/schema#',
-        'type': 'array',
-        'items': {
-            'type': 'object',
-            'properties': {'conceptId': {'type': 'string', 'minLength': 1},
-                           'term': {'type': 'string', 'minLength': 1},
-                           },
-            'required': ['conceptId', 'term'],
-            'additionalProperties': False,
-        }, 'minItems': 1,
-        'maxItems': 1,
-    }]
-    keywords = ['keyword1', 'keyword2', 'keyword3']
+    schemas = [
+        {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "conceptId": {"type": "string", "minLength": 1},
+                    "term": {"type": "string", "minLength": 1},
+                },
+                "required": ["conceptId", "term"],
+                "additionalProperties": False,
+            },
+            "minItems": 1,
+            "maxItems": 1,
+        },
+    ]
+    keywords = ["keyword1", "keyword2", "keyword3"]
     tested = helper_instance()
 
     arguments = {
@@ -163,7 +167,7 @@ def test_command_from_json(surgical_histories):
         "is_new": False,
         "is_updated": True,
         "parameters": {
-            'keywords': 'keyword1,keyword2,keyword3',
+            "keywords": "keyword1,keyword2,keyword3",
             "approximateDate": "2017-05-21",
             "comment": "theComment",
         },
@@ -188,7 +192,7 @@ def test_command_from_json(surgical_histories):
     )
     expected = InstructionWithCommand(**(arguments | {"command": command}))
     assert result == expected
-    calls = [call('scienceHost', keywords)]
+    calls = [call("scienceHost", keywords)]
     assert surgical_histories.mock_calls == calls
     calls = [call.single_conversation(system_prompt, user_prompt, schemas, instruction)]
     assert chatter.mock_calls == calls
@@ -199,14 +203,10 @@ def test_command_from_json(surgical_histories):
     chatter.single_conversation.side_effect = [[]]
 
     result = tested.command_from_json(instruction, chatter)
-    command = PastSurgicalHistoryCommand(
-        approximate_date=date(2017, 5, 21),
-        comment="theComment",
-        note_uuid="noteUuid",
-    )
+    command = PastSurgicalHistoryCommand(approximate_date=date(2017, 5, 21), comment="theComment", note_uuid="noteUuid")
     expected = InstructionWithCommand(**(arguments | {"command": command}))
     assert result == expected
-    calls = [call('scienceHost', keywords)]
+    calls = [call("scienceHost", keywords)]
     assert surgical_histories.mock_calls == calls
     calls = [call.single_conversation(system_prompt, user_prompt, schemas, instruction)]
     assert chatter.mock_calls == calls
@@ -217,14 +217,10 @@ def test_command_from_json(surgical_histories):
     chatter.single_conversation.side_effect = [[]]
 
     result = tested.command_from_json(instruction, chatter)
-    command = PastSurgicalHistoryCommand(
-        approximate_date=date(2017, 5, 21),
-        comment="theComment",
-        note_uuid="noteUuid",
-    )
+    command = PastSurgicalHistoryCommand(approximate_date=date(2017, 5, 21), comment="theComment", note_uuid="noteUuid")
     expected = InstructionWithCommand(**(arguments | {"command": command}))
     assert result == expected
-    calls = [call('scienceHost', keywords)]
+    calls = [call("scienceHost", keywords)]
     assert surgical_histories.mock_calls == calls
     assert chatter.mock_calls == []
     reset_mocks()
@@ -244,8 +240,7 @@ def test_command_parameters():
 def test_instruction_description():
     tested = helper_instance()
     result = tested.instruction_description()
-    expected = ("Any past surgery. "
-                "There can be only one surgery per instruction, and no instruction in the lack of.")
+    expected = "Any past surgery. There can be only one surgery per instruction, and no instruction in the lack of."
     assert result == expected
 
 
@@ -260,10 +255,7 @@ def test_instruction_constraints(surgery_history):
         CodedItem(uuid="theUuid2", label="display2a", code="CODE45"),
         CodedItem(uuid="theUuid3", label="display3a", code="CODE9876"),
     ]
-    tests = [
-        ([], ""),
-        (surgeries, '"SurgeryHistory" cannot include: "display1a", "display2a", "display3a".'),
-    ]
+    tests = [([], ""), (surgeries, '"SurgeryHistory" cannot include: "display1a", "display2a", "display3a".')]
     for side_effect, expected in tests:
         surgery_history.side_effect = [side_effect]
         result = tested.instruction_constraints()

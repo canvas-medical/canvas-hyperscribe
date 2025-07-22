@@ -88,14 +88,17 @@ class LlmBase:
 
             # JSON error
             self.set_model_prompt(response.response.splitlines())
-            self.set_user_prompt([
-                "Your previous response has the following errors:",
-                "```text",
-                result.error,
-                "```",
-                "",
-                "Please, correct your answer following rigorously the initial request and the mandatory response format."
-            ])
+            self.set_user_prompt(
+                [
+                    "Your previous response has the following errors:",
+                    "```text",
+                    result.error,
+                    "```",
+                    "",
+                    "Please, correct your answer following rigorously the initial request and "
+                    "the mandatory response format.",
+                ],
+            )
         else:
             result = JsonExtract(
                 has_error=True,
@@ -108,7 +111,13 @@ class LlmBase:
         self.memory_log.store_so_far()
         return result
 
-    def single_conversation(self, system_prompt: list[str], user_prompt: list[str], schemas: list, instruction: Instruction | None) -> list:
+    def single_conversation(
+        self,
+        system_prompt: list[str],
+        user_prompt: list[str],
+        schemas: list,
+        instruction: Instruction | None,
+    ) -> list:
         used_schemas = [s for s in schemas]
         used_prompt = [s for s in user_prompt]
 
@@ -135,10 +144,11 @@ class LlmBase:
         turns = [turn for turn in self.prompts]
         turns.append(LlmTurn(role=self.ROLE_MODEL, text=["```json", json.dumps(model_prompt), "```"]))
 
-        LlmTurnsStore.instance(
-            self.memory_log.s3_credentials,
-            self.memory_log.identification,
-        ).store(label, index, turns)
+        LlmTurnsStore.instance(self.memory_log.s3_credentials, self.memory_log.identification).store(
+            label,
+            index,
+            turns,
+        )
 
     @classmethod
     def json_validator(cls, response: list, json_schema: dict) -> str:
@@ -172,8 +182,8 @@ class LlmBase:
         if not result:
             return JsonExtract(
                 error="No JSON markdown found. "
-                      "The response should be enclosed within a JSON Markdown block like: \n"
-                      "```json\nJSON OUTPUT HERE\n```",
+                "The response should be enclosed within a JSON Markdown block like: \n"
+                "```json\nJSON OUTPUT HERE\n```",
                 has_error=True,
                 content=[],
             )

@@ -20,10 +20,7 @@ class Case(NamedTuple):
     def load_record(cls, data: dict) -> Case:
         return Case(
             name=data["name"],
-            transcript={
-                key: Line.load_from_json(lines)
-                for key, lines in data["transcript"].items()
-            },
+            transcript={key: Line.load_from_json(lines) for key, lines in data["transcript"].items()},
             limited_chart=data["limited_chart"],
             profile=data["profile"],
             validation_status=CaseStatus(data["validation_status"]),

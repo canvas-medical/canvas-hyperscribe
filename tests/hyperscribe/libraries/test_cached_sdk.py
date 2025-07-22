@@ -89,31 +89,31 @@ def test_save(get_cache):
         the_cache.reset_mock()
 
     cached_dict = {
-        'created': '2025-06-12T14:33:21.123456+00:00',
-        'updated': '2025-06-12T14:33:37.123456+00:00',
-        'cycle': 7,
-        'note_uuid': 'theNoteUuid',
-        'previous_instructions': [
+        "created": "2025-06-12T14:33:21.123456+00:00",
+        "updated": "2025-06-12T14:33:37.123456+00:00",
+        "cycle": 7,
+        "note_uuid": "theNoteUuid",
+        "previous_instructions": [
             {
-                'uuid': 'uuid1',
-                'index': 0,
-                'instruction': 'theInstruction1',
-                'information': 'theInformation1',
-                'isNew': False,
-                'isUpdated': True,
+                "uuid": "uuid1",
+                "index": 0,
+                "instruction": "theInstruction1",
+                "information": "theInformation1",
+                "isNew": False,
+                "isUpdated": True,
             },
             {
-                'uuid': 'uuid2',
-                'index': 1,
-                'instruction': 'theInstruction2',
-                'information': 'theInformation2',
-                'isNew': True,
-                'isUpdated': False,
+                "uuid": "uuid2",
+                "index": 1,
+                "instruction": "theInstruction2",
+                "information": "theInformation2",
+                "isNew": True,
+                "isUpdated": False,
             },
         ],
-        'previous_transcript': [
-            {"speaker": "speaker1", "text": 'some words'},
-            {"speaker": "speaker2", "text": 'other words'},
+        "previous_transcript": [
+            {"speaker": "speaker1", "text": "some words"},
+            {"speaker": "speaker2", "text": "other words"},
         ],
     }
 
@@ -137,11 +137,11 @@ def test_save(get_cache):
             information="theInformation2",
             is_new=True,
             is_updated=False,
-        )
+        ),
     ]
     tested.previous_transcript = [
-        Line(speaker="speaker1", text='some words'),
-        Line(speaker="speaker2", text='other words'),
+        Line(speaker="speaker1", text="some words"),
+        Line(speaker="speaker2", text="other words"),
     ]
     with patch.object(cached_sdk, "CACHED", {}):
         # cache exists
@@ -152,7 +152,7 @@ def test_save(get_cache):
 
         calls = [call()]
         assert get_cache.mock_calls == calls
-        calls = [call.set('theNoteUuid', cached_dict)]
+        calls = [call.set("theNoteUuid", cached_dict)]
         assert the_cache.mock_calls == calls
         reset_mocks()
 
@@ -160,7 +160,7 @@ def test_save(get_cache):
         get_cache.side_effect = [None]
         tested.save()
 
-        assert cached_sdk.CACHED == {'theNoteUuid': cached_dict}
+        assert cached_sdk.CACHED == {"theNoteUuid": cached_dict}
 
         calls = [call()]
         assert get_cache.mock_calls == calls
@@ -189,40 +189,40 @@ def test_to_json():
             information="theInformation2",
             is_new=True,
             is_updated=False,
-        )
+        ),
     ]
     tested.previous_transcript = [
-        Line(speaker="speaker1", text='some words'),
-        Line(speaker="speaker2", text='other words'),
+        Line(speaker="speaker1", text="some words"),
+        Line(speaker="speaker2", text="other words"),
     ]
 
     result = tested.to_json()
     expected = {
-        'created': '2025-06-12T14:33:21.123456+00:00',
-        'updated': '2025-06-12T14:33:37.123456+00:00',
-        'cycle': 7,
-        'note_uuid': 'theNoteUuid',
-        'previous_instructions': [
+        "created": "2025-06-12T14:33:21.123456+00:00",
+        "updated": "2025-06-12T14:33:37.123456+00:00",
+        "cycle": 7,
+        "note_uuid": "theNoteUuid",
+        "previous_instructions": [
             {
-                'uuid': 'uuid1',
-                'index': 0,
-                'instruction': 'theInstruction1',
-                'information': 'theInformation1',
-                'isNew': False,
-                'isUpdated': True,
+                "uuid": "uuid1",
+                "index": 0,
+                "instruction": "theInstruction1",
+                "information": "theInformation1",
+                "isNew": False,
+                "isUpdated": True,
             },
             {
-                'uuid': 'uuid2',
-                'index': 1,
-                'instruction': 'theInstruction2',
-                'information': 'theInformation2',
-                'isNew': True,
-                'isUpdated': False,
+                "uuid": "uuid2",
+                "index": 1,
+                "instruction": "theInstruction2",
+                "information": "theInformation2",
+                "isNew": True,
+                "isUpdated": False,
             },
         ],
-        'previous_transcript': [
-            {"speaker": "speaker1", "text": 'some words'},
-            {"speaker": "speaker2", "text": 'other words'},
+        "previous_transcript": [
+            {"speaker": "speaker1", "text": "some words"},
+            {"speaker": "speaker2", "text": "other words"},
         ],
     }
     assert result == expected
@@ -236,31 +236,31 @@ def test_get_discussion(get_cache, mock_datetime):
         mock_datetime.reset_mock()
 
     cached_dict = {
-        'created': '2025-06-12T14:33:21.123456+00:00',
-        'updated': '2025-06-12T14:33:37.123456+00:00',
-        'cycle': 7,
-        'note_uuid': 'theNoteUuid',
-        'previous_instructions': [
+        "created": "2025-06-12T14:33:21.123456+00:00",
+        "updated": "2025-06-12T14:33:37.123456+00:00",
+        "cycle": 7,
+        "note_uuid": "theNoteUuid",
+        "previous_instructions": [
             {
-                'uuid': 'uuid1',
-                'index': 0,
-                'instruction': 'theInstruction1',
-                'information': 'theInformation1',
-                'isNew': False,
-                'isUpdated': True,
+                "uuid": "uuid1",
+                "index": 0,
+                "instruction": "theInstruction1",
+                "information": "theInformation1",
+                "isNew": False,
+                "isUpdated": True,
             },
             {
-                'uuid': 'uuid2',
-                'index': 1,
-                'instruction': 'theInstruction2',
-                'information': 'theInformation2',
-                'isNew': True,
-                'isUpdated': False,
+                "uuid": "uuid2",
+                "index": 1,
+                "instruction": "theInstruction2",
+                "information": "theInformation2",
+                "isNew": True,
+                "isUpdated": False,
             },
         ],
-        'previous_transcript': [
-            {"speaker": "speaker1", "text": 'some words'},
-            {"speaker": "speaker2", "text": 'other words'},
+        "previous_transcript": [
+            {"speaker": "speaker1", "text": "some words"},
+            {"speaker": "speaker2", "text": "other words"},
         ],
     }
     instructions = [
@@ -279,12 +279,9 @@ def test_get_discussion(get_cache, mock_datetime):
             information="theInformation2",
             is_new=True,
             is_updated=False,
-        )
+        ),
     ]
-    lines = [
-        Line(speaker="speaker1", text='some words'),
-        Line(speaker="speaker2", text='other words'),
-    ]
+    lines = [Line(speaker="speaker1", text="some words"), Line(speaker="speaker2", text="other words")]
 
     date_0 = datetime(2025, 6, 12, 14, 33, 51, 123456, tzinfo=timezone.utc)
     date_1 = datetime(2025, 6, 12, 14, 33, 21, 123456, tzinfo=timezone.utc)
@@ -295,7 +292,7 @@ def test_get_discussion(get_cache, mock_datetime):
     with patch.object(cached_sdk, "CACHED", {}):
         # cache exists
         # -- key exists
-        get_cache.side_effect = [{'theNoteUuid': cached_dict}]
+        get_cache.side_effect = [{"theNoteUuid": cached_dict}]
         mock_datetime.now.side_effect = [date_0]
         result = tested.get_discussion("theNoteUuid")
         assert isinstance(result, CachedSdk)
@@ -309,8 +306,8 @@ def test_get_discussion(get_cache, mock_datetime):
         assert get_cache.mock_calls == calls
         calls = [
             call.now(timezone.utc),
-            call.fromisoformat('2025-06-12T14:33:21.123456+00:00'),
-            call.fromisoformat('2025-06-12T14:33:37.123456+00:00'),
+            call.fromisoformat("2025-06-12T14:33:21.123456+00:00"),
+            call.fromisoformat("2025-06-12T14:33:37.123456+00:00"),
         ]
         assert mock_datetime.mock_calls == calls
         reset_mocks()
@@ -335,7 +332,7 @@ def test_get_discussion(get_cache, mock_datetime):
         # cache does not exist
         # -- key exists
         get_cache.side_effect = [None]
-        cached_sdk.CACHED = {'theNoteUuid': cached_dict}
+        cached_sdk.CACHED = {"theNoteUuid": cached_dict}
         mock_datetime.now.side_effect = [date_0]
         result = tested.get_discussion("theNoteUuid")
         assert isinstance(result, CachedSdk)
@@ -349,8 +346,8 @@ def test_get_discussion(get_cache, mock_datetime):
         assert get_cache.mock_calls == calls
         calls = [
             call.now(timezone.utc),
-            call.fromisoformat('2025-06-12T14:33:21.123456+00:00'),
-            call.fromisoformat('2025-06-12T14:33:37.123456+00:00'),
+            call.fromisoformat("2025-06-12T14:33:21.123456+00:00"),
+            call.fromisoformat("2025-06-12T14:33:37.123456+00:00"),
         ]
         assert mock_datetime.mock_calls == calls
         reset_mocks()
@@ -378,34 +375,36 @@ def test_load_from_json():
     date_1 = datetime(2025, 6, 12, 14, 33, 21, 123456, tzinfo=timezone.utc)
     date_2 = datetime(2025, 6, 12, 14, 33, 37, 123456, tzinfo=timezone.utc)
     tested = CachedSdk
-    result = tested.load_from_json({
-        'created': '2025-06-12T14:33:21.123456+00:00',
-        'updated': '2025-06-12T14:33:37.123456+00:00',
-        'cycle': 7,
-        'note_uuid': 'theNoteUuid',
-        'previous_instructions': [
-            {
-                'uuid': 'uuid1',
-                'index': 0,
-                'instruction': 'theInstruction1',
-                'information': 'theInformation1',
-                'isNew': False,
-                'isUpdated': True,
-            },
-            {
-                'uuid': 'uuid2',
-                'index': 1,
-                'instruction': 'theInstruction2',
-                'information': 'theInformation2',
-                'isNew': True,
-                'isUpdated': False,
-            },
-        ],
-        'previous_transcript': [
-            {"speaker": "speaker1", "text": 'some words'},
-            {"speaker": "speaker2", "text": 'other words'},
-        ],
-    })
+    result = tested.load_from_json(
+        {
+            "created": "2025-06-12T14:33:21.123456+00:00",
+            "updated": "2025-06-12T14:33:37.123456+00:00",
+            "cycle": 7,
+            "note_uuid": "theNoteUuid",
+            "previous_instructions": [
+                {
+                    "uuid": "uuid1",
+                    "index": 0,
+                    "instruction": "theInstruction1",
+                    "information": "theInformation1",
+                    "isNew": False,
+                    "isUpdated": True,
+                },
+                {
+                    "uuid": "uuid2",
+                    "index": 1,
+                    "instruction": "theInstruction2",
+                    "information": "theInformation2",
+                    "isNew": True,
+                    "isUpdated": False,
+                },
+            ],
+            "previous_transcript": [
+                {"speaker": "speaker1", "text": "some words"},
+                {"speaker": "speaker2", "text": "other words"},
+            ],
+        },
+    )
     assert isinstance(result, CachedSdk)
     assert result.created == date_1
     assert result.updated == date_2
@@ -426,9 +425,9 @@ def test_load_from_json():
             information="theInformation2",
             is_new=True,
             is_updated=False,
-        )
+        ),
     ]
     assert result.previous_transcript == [
-        Line(speaker="speaker1", text='some words'),
-        Line(speaker="speaker2", text='other words'),
+        Line(speaker="speaker1", text="some words"),
+        Line(speaker="speaker2", text="other words"),
     ]

@@ -58,19 +58,12 @@ def test_staged_command_extract():
     tested = FamilyHistory
     tests = [
         ({}, None),
-        ({
-             "relative": {"text": "theRelative"},
-             "family_history": {"text": "theFamilyHistory"}
-         }, CodedItem(label="theRelative: theFamilyHistory", code="", uuid="")),
-        ({
-             "relative": {"text": "theRelative"},
-             "family_history": {"text": ""}
-         }, None),
-        ({
-             "relative": {"text": ""},
-             "family_history": {"text": "theFamilyHistory"}
-         }, None),
-
+        (
+            {"relative": {"text": "theRelative"}, "family_history": {"text": "theFamilyHistory"}},
+            CodedItem(label="theRelative: theFamilyHistory", code="", uuid=""),
+        ),
+        ({"relative": {"text": "theRelative"}, "family_history": {"text": ""}}, None),
+        ({"relative": {"text": ""}, "family_history": {"text": "theFamilyHistory"}}, None),
     ]
     for data, expected in tests:
         result = tested.staged_command_extract(data)
@@ -95,37 +88,40 @@ def test_command_from_json(family_histories):
         "",
     ]
     user_prompt = [
-        'Here is the note provided by the healthcare provider in regards to the condition of a patient:',
-        '```text',
-        'keywords: keyword1,keyword2,keyword3',
-        ' -- ',
-        'theNote',
-        '```',
-        'Among the following conditions, identify the most relevant one:',
-        '',
-        ' * termA (123)\n * termB (369)\n * termC (752)',
-        '',
-        'Please, present your findings in a JSON format within a Markdown code block like:',
-        '```json', '[{"conceptId": "the concept ID", "term": "the expression"}]',
-        '```',
-        '',
+        "Here is the note provided by the healthcare provider in regards to the condition of a patient:",
+        "```text",
+        "keywords: keyword1,keyword2,keyword3",
+        " -- ",
+        "theNote",
+        "```",
+        "Among the following conditions, identify the most relevant one:",
+        "",
+        " * termA (123)\n * termB (369)\n * termC (752)",
+        "",
+        "Please, present your findings in a JSON format within a Markdown code block like:",
+        "```json",
+        '[{"conceptId": "the concept ID", "term": "the expression"}]',
+        "```",
+        "",
     ]
-    schemas = [{
-        '$schema': 'http://json-schema.org/draft-07/schema#',
-        'type': 'array',
-        'items': {
-            'type': 'object',
-            'properties': {
-                'conceptId': {'type': 'string', 'minLength': 1},
-                'term': {'type': 'string', 'minLength': 1},
+    schemas = [
+        {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "conceptId": {"type": "string", "minLength": 1},
+                    "term": {"type": "string", "minLength": 1},
+                },
+                "required": ["conceptId", "term"],
+                "additionalProperties": False,
             },
-            'required': ['conceptId', 'term'],
-            'additionalProperties': False,
+            "minItems": 1,
+            "maxItems": 1,
         },
-        'minItems': 1,
-        'maxItems': 1,
-    }]
-    keywords = ['keyword1', 'keyword2', 'keyword3']
+    ]
+    keywords = ["keyword1", "keyword2", "keyword3"]
     tested = helper_instance()
 
     arguments = {
@@ -135,11 +131,7 @@ def test_command_from_json(family_histories):
         "information": "theInformation",
         "is_new": False,
         "is_updated": True,
-        "parameters": {
-            'keywords': 'keyword1,keyword2,keyword3',
-            'relative': 'sibling',
-            'note': 'theNote',
-        },
+        "parameters": {"keywords": "keyword1,keyword2,keyword3", "relative": "sibling", "note": "theNote"},
     }
     medical_concepts = [
         MedicalConcept(concept_id=123, term="termA"),
@@ -153,15 +145,10 @@ def test_command_from_json(family_histories):
 
     instruction = InstructionWithParameters(**arguments)
     result = tested.command_from_json(instruction, chatter)
-    command = FamilyHistoryCommand(
-        relative="sibling",
-        note="theNote",
-        family_history="termB",
-        note_uuid="noteUuid",
-    )
+    command = FamilyHistoryCommand(relative="sibling", note="theNote", family_history="termB", note_uuid="noteUuid")
     expected = InstructionWithCommand(**(arguments | {"command": command}))
     assert result == expected
-    calls = [call('scienceHost', keywords)]
+    calls = [call("scienceHost", keywords)]
     assert family_histories.mock_calls == calls
     calls = [call.single_conversation(system_prompt, user_prompt, schemas, instruction)]
     assert chatter.mock_calls == calls
@@ -172,14 +159,10 @@ def test_command_from_json(family_histories):
     chatter.single_conversation.side_effect = [[]]
 
     result = tested.command_from_json(instruction, chatter)
-    command = FamilyHistoryCommand(
-        relative="sibling",
-        note="theNote",
-        note_uuid="noteUuid",
-    )
+    command = FamilyHistoryCommand(relative="sibling", note="theNote", note_uuid="noteUuid")
     expected = InstructionWithCommand(**(arguments | {"command": command}))
     assert result == expected
-    calls = [call('scienceHost', keywords)]
+    calls = [call("scienceHost", keywords)]
     assert family_histories.mock_calls == calls
     calls = [call.single_conversation(system_prompt, user_prompt, schemas, instruction)]
     assert chatter.mock_calls == calls
@@ -190,14 +173,10 @@ def test_command_from_json(family_histories):
     chatter.single_conversation.side_effect = [[]]
 
     result = tested.command_from_json(instruction, chatter)
-    command = FamilyHistoryCommand(
-        relative="sibling",
-        note="theNote",
-        note_uuid="noteUuid",
-    )
+    command = FamilyHistoryCommand(relative="sibling", note="theNote", note_uuid="noteUuid")
     expected = InstructionWithCommand(**(arguments | {"command": command}))
     assert result == expected
-    calls = [call('scienceHost', keywords)]
+    calls = [call("scienceHost", keywords)]
     assert family_histories.mock_calls == calls
     assert chatter.mock_calls == []
     reset_mocks()
@@ -217,9 +196,11 @@ def test_command_parameters():
 def test_instruction_description():
     tested = helper_instance()
     result = tested.instruction_description()
-    expected = ("Any relevant condition of a relative among: "
-                "father, mother, parent, child, brother, sister, sibling, grand-parent, grand-father, grand-mother. "
-                "There can be only one condition per relative per instruction, and no instruction in the lack of.")
+    expected = (
+        "Any relevant condition of a relative among: "
+        "father, mother, parent, child, brother, sister, sibling, grand-parent, grand-father, grand-mother. "
+        "There can be only one condition per relative per instruction, and no instruction in the lack of."
+    )
     assert result == expected
 
 
@@ -235,10 +216,7 @@ def test_instruction_constraints(family_history):
         CodedItem(uuid="theUuid2", label="display2a", code="CODE45"),
         CodedItem(uuid="theUuid3", label="display3a", code="CODE9876"),
     ]
-    tests = [
-        (allergies, '"FamilyHistory" cannot include: display1a, display2a, display3a.'),
-        ([], ""),
-    ]
+    tests = [(allergies, '"FamilyHistory" cannot include: display1a, display2a, display3a.'), ([], "")]
     for side_effect, expected in tests:
         family_history.side_effect = [side_effect]
         result = tested.instruction_constraints()

@@ -19,13 +19,12 @@ from hyperscribe.structures.settings import Settings
 
 
 class AudioInterpreter:
-
     def __init__(
-            self,
-            settings: Settings,
-            s3_credentials: AwsS3Credentials,
-            cache: LimitedCache,
-            identification: IdentificationParameters,
+        self,
+        settings: Settings,
+        s3_credentials: AwsS3Credentials,
+        cache: LimitedCache,
+        identification: IdentificationParameters,
     ) -> None:
         self.is_local_data = cache.is_local_data
         self.settings = settings
@@ -35,8 +34,8 @@ class AudioInterpreter:
             instance
             for command_class in ImplementedCommands.command_list()
             if (instance := command_class(settings, cache, identification))
-               and self.settings.commands_policy.is_allowed(instance.class_name())
-               and instance.is_available()
+            and self.settings.commands_policy.is_allowed(instance.class_name())
+            and instance.is_available()
         ]
 
     def common_instructions(self) -> list[Base]:
@@ -66,54 +65,67 @@ class AudioInterpreter:
             self.settings,
             MemoryLog.instance(self.identification, "audio2transcript", self.s3_credentials),
         )
-        conversation.set_system_prompt([
-            "The conversation is in the medical context, and related to a visit of a patient with a healthcare provider.",
-            "",
-            "Your task is to transcribe what was said, regardless of whether the audio recordings were of dialogue during the visit or monologue after the visit.",
-            "",
-        ])
+        conversation.set_system_prompt(
+            [
+                "The conversation is in the medical context, and related to a visit of a patient with a "
+                "healthcare provider.",
+                "",
+                "Your task is to transcribe what was said, regardless of whether the audio recordings were "
+                "of dialogue during the visit or monologue after the visit.",
+                "",
+            ],
+        )
         previous_transcript = ""
         if transcript_tail:
-            previous_transcript = "\n".join([
-                "The previous segment finished with:",
+            previous_transcript = "\n".join(
+                [
+                    "The previous segment finished with:",
+                    "```json",
+                    json.dumps([line.to_json() for line in transcript_tail], indent=1),
+                    "```",
+                    "",
+                ],
+            )
+        conversation.set_user_prompt(
+            [
+                "The recording takes place in a medical setting, specifically related to a patient's visit "
+                "with a clinician.",
+                "",
+                "These audio files contain recordings of a single visit.",
+                "There is no overlap between the segments, so they should be regarded as a continuous flow "
+                "and analyzed at once.",
+                previous_transcript,
+                "Your task is to:",
+                "1. label each voice if multiple voices are present.",
+                "2. transcribe each speaker's words with maximum accuracy.",
+                "",
+                "Present your findings in a JSON format within a Markdown code block:",
                 "```json",
-                json.dumps([line.to_json() for line in transcript_tail], indent=1),
+                json.dumps(
+                    [
+                        {
+                            "voice": "voice_1/voice_2/.../voice_N",
+                            "text": "the verbatim transcription of what the speaker said",
+                        },
+                    ],
+                    indent=1,
+                ),
                 "```",
                 "",
-            ])
-        conversation.set_user_prompt([
-            "The recording takes place in a medical setting, specifically related to a patient's visit with a clinician.",
-            "",
-            "These audio files contain recordings of a single visit.",
-            "There is no overlap between the segments, so they should be regarded as a continuous flow and analyzed at once.",
-            previous_transcript,
-            'Your task is to:',
-            "1. label each voice if multiple voices are present.",
-            "2. transcribe each speaker's words with maximum accuracy.",
-            "",
-            "Present your findings in a JSON format within a Markdown code block:",
-            "```json",
-            json.dumps([
-                {
-                    "voice": "voice_1/voice_2/.../voice_N",
-                    "text": "the verbatim transcription of what the speaker said",
-                }
-            ], indent=1),
-            "```",
-            "",
-            "Then, review the discussion from the top and distinguish the role of the voices (patient, clinician, nurse, parents...) in the conversation, if there is only voice, assume this is the clinician",
-            "",
-            "Present your findings in a JSON format within a Markdown code block:",
-            "```json",
-            json.dumps([
-                {
-                    "speaker": "Patient/Clinician/Nurse/...",
-                    "voice": "voice_1/voice_2/.../voice_N",
-                }
-            ], indent=1),
-            "```",
-            "",
-        ])
+                "Then, review the discussion from the top and distinguish the role of the voices "
+                "(patient, clinician, nurse, parents...) in the conversation, if there is only voice, "
+                "assume this is the clinician",
+                "",
+                "Present your findings in a JSON format within a Markdown code block:",
+                "```json",
+                json.dumps(
+                    [{"speaker": "Patient/Clinician/Nurse/...", "voice": "voice_1/voice_2/.../voice_N"}],
+                    indent=1,
+                ),
+                "```",
+                "",
+            ],
+        )
 
         extension = "mp3"
         for audio in audio_chunks:
@@ -123,46 +135,33 @@ class AudioInterpreter:
         if response.has_error:
             return response
         if len(response.content) < 2:
-            return JsonExtract(
-                has_error=True,
-                error="partial response",
-                content=response.content,
-            )
+            return JsonExtract(has_error=True, error="partial response", content=response.content)
 
         discussion = response.content[0]
-        speakers = {
-            speaker["voice"]: speaker["speaker"]
-            for speaker in response.content[1]
-        }
+        speakers = {speaker["voice"]: speaker["speaker"] for speaker in response.content[1]}
         return JsonExtract(
             has_error=False,
             error="",
-            content=[
-                {
-                    "speaker": speakers[text["voice"]],
-                    "text": text["text"],
-                }
-                for text in discussion
-            ],
+            content=[{"speaker": speakers[text["voice"]], "text": text["text"]} for text in discussion],
         )
-
 
     def detect_instructions(self, discussion: list[Line], known_instructions: list[Instruction]) -> list:
         common_instructions = self.common_instructions()
         schema = self.json_schema([item.class_name() for item in common_instructions])
         definitions = [
-            {
-                "instruction": item.class_name(),
-                "information": item.instruction_description(),
-            }
+            {"instruction": item.class_name(), "information": item.instruction_description()}
             for item in common_instructions
         ]
         system_prompt = [
-            "The conversation is in the context of a clinical encounter between patient and licensed healthcare provider.",
+            "The conversation is in the context of a clinical encounter between patient and licensed "
+            "healthcare provider.",
             "The user will submit the transcript of the visit of a patient with the healthcare provider.",
-            "The user needs to extract and store the relevant information in their software using structured commands as described below.",
-            "Your task is to help the user by identifying the relevant instructions and their linked information, regardless of their location in the transcript.",
-            "If any portion of the transcript is small talk, chit chat, or side bar with no discernible connection to health concerns, then it should be ignored."
+            "The user needs to extract and store the relevant information in their software using structured "
+            "commands as described below.",
+            "Your task is to help the user by identifying the relevant instructions and their linked information, "
+            "regardless of their location in the transcript.",
+            "If any portion of the transcript is small talk, chit chat, or side bar with no discernible "
+            "connection to health concerns, then it should be ignored."
             "",
             "The instructions are limited to the following:",
             "```json",
@@ -186,19 +185,25 @@ class AudioInterpreter:
         ]
         if known_instructions:
             content = [instruction.to_json(True) for instruction in known_instructions]
-            user_prompt.extend([
-                "From among all previous segments of the transcript, the following instructions were identified:",
-                "```json",
-                json.dumps(content, indent=1),
-                "```",
-                # "You must always return the previous instructions, such that you return a cumulative collection of instructions.",
-                # "You must not omit them in your response. If there is information in the transcript that is relevant to a prior "
-                # "instruction, then you can use it to update the contents of the instruction, but you must not omit any "
-                # "prior instruction from your response.",
-                "If there is information in the transcript that is relevant to a prior instruction deemed updatable, "
-                "then you can use it to update the contents of the instruction rather than creating a new one.",
-                "But, in all cases, you must provide each and every new, updated and unchanged instructions.",
-            ])
+            user_prompt.extend(
+                [
+                    "From among all previous segments of the transcript, the following instructions were identified:",
+                    "```json",
+                    json.dumps(content, indent=1),
+                    "```",
+                    # "You must always return the previous instructions, such that you return a cumulative
+                    # collection of instructions.",
+                    # "You must not omit them in your response. If there is information in the transcript
+                    # that is relevant to a prior "
+                    # "instruction, then you can use it to update the contents of the instruction, but you
+                    # must not omit any "
+                    # "prior instruction from your response.",
+                    "If there is information in the transcript that is relevant to a prior instruction "
+                    "deemed updatable, "
+                    "then you can use it to update the contents of the instruction rather than creating a new one.",
+                    "But, in all cases, you must provide each and every new, updated and unchanged instructions.",
+                ],
+            )
         chatter = Helper.chatter(
             self.settings,
             MemoryLog.instance(self.identification, "transcript2instructions", self.s3_credentials),
@@ -207,10 +212,7 @@ class AudioInterpreter:
 
         # check that the known instructions are still present (only one chance)
         request_correction = False
-        cumulated_instructions = {
-            instruction.uuid: instruction
-            for instruction in Instruction.load_from_json(result)
-        }
+        cumulated_instructions = {instruction.uuid: instruction for instruction in Instruction.load_from_json(result)}
         for instruction in known_instructions:
             if instruction.uuid not in cumulated_instructions:
                 request_correction = True
@@ -223,7 +225,8 @@ class AudioInterpreter:
             chatter.set_model_prompt(["```json", json.dumps(result), "```"])
             user_prompt = [
                 "Your response did not include the instructions identified before.",
-                "Correct your response to provide, in the requested format, ALL new, updated and unchanged instructions.",
+                "Correct your response to provide, in the requested format, "
+                "ALL new, updated and unchanged instructions.",
             ]
             result = chatter.single_conversation(system_prompt, user_prompt, [schema], None)
 
@@ -231,13 +234,14 @@ class AudioInterpreter:
         instructions = Instruction.load_from_json(result)
         if result and (constraints := self.instruction_constraints(instructions)):
             chatter.set_model_prompt(["```json", json.dumps(result), "```"])
-            user_prompt = [
-                "Review your response and be sure to follow these constraints:",
-            ]
+            user_prompt = ["Review your response and be sure to follow these constraints:"]
             for constraint in constraints:
                 user_prompt.append(f" * {constraint}")
             user_prompt.append("")
-            user_prompt.append("Return the original JSON if valid, or provide a corrected version to follow the constraints if needed.")
+            user_prompt.append(
+                "Return the original JSON if valid, or provide a corrected version to follow the constraints "
+                "if needed.",
+            )
             user_prompt.append("")
             result = chatter.single_conversation(system_prompt, user_prompt, [schema], None)
         return result
@@ -248,15 +252,19 @@ class AudioInterpreter:
         structures = self.command_structures()
 
         system_prompt = [
-            "The conversation is in the context of a clinical encounter between patient and licensed healthcare provider.",
-            "During the encounter, the user has identified instructions with key information to record in its software.",
-            "The user will submit an instruction and the linked information grounded in the transcript, as well as the structure of the associated command.",
+            "The conversation is in the context of a clinical encounter between patient and licensed "
+            "healthcare provider.",
+            "During the encounter, the user has identified instructions with key information to record "
+            "in its software.",
+            "The user will submit an instruction and the linked information grounded in the transcript, as well "
+            "as the structure of the associated command.",
             "Your task is to help the user by writing correctly detailed data for the structured command.",
-            "Unless explicitly instructed otherwise for a specific command, you must not make up or refer to any details of any kind that are not explicitly present in the transcript or prior instructions.",
+            "Unless explicitly instructed otherwise for a specific command, you must not make up or refer to "
+            "any details of any kind that are not explicitly present in the transcript or prior instructions.",
             "",
             "Your response has to be a JSON Markdown block encapsulating the filled structure.",
             "",
-            f"Please, note that now is {datetime.now().isoformat()}."
+            f"Please, note that now is {datetime.now().isoformat()}.",
         ]
         user_prompt = [
             "Based on the text:",
@@ -278,7 +286,11 @@ class AudioInterpreter:
         if response:
             result = InstructionWithParameters.add_parameters(instruction, response[0])
         if result:
-            Progress.send_to_user(self.identification, self.settings, f"parameters identified for {instruction.instruction}")
+            Progress.send_to_user(
+                self.identification,
+                self.settings,
+                f"parameters identified for {instruction.instruction}",
+            )
         return result
 
     def create_sdk_command_from(self, direction: InstructionWithParameters) -> InstructionWithCommand | None:
@@ -289,7 +301,11 @@ class AudioInterpreter:
                 chatter = Helper.chatter(self.settings, memory_log)
                 result = instance.command_from_json(direction, chatter)
                 if result:
-                    Progress.send_to_user(self.identification, self.settings, f"command generated for {direction.instruction}")
+                    Progress.send_to_user(
+                        self.identification,
+                        self.settings,
+                        f"command generated for {direction.instruction}",
+                    )
                 return result
         return None
 
@@ -319,26 +335,18 @@ class AudioInterpreter:
     @classmethod
     def json_schema(cls, commands: list[str]) -> dict:
         properties = {
-            "uuid": {
-                "type": "string",
-                "description": "a unique identifier in this discussion",
-            },
+            "uuid": {"type": "string", "description": "a unique identifier in this discussion"},
             "index": {
                 "type": "integer",
                 "description": "the 0-based appearance order of the instruction in this discussion",
             },
-            "instruction": {
-                "type": "string",
-                "enum": commands,
-            },
+            "instruction": {"type": "string", "enum": commands},
             "information": {
                 "type": "string",
-                "description": "all relevant information extracted from the discussion explaining and/or defining the instruction",
+                "description": "all relevant information extracted from the discussion explaining and/or "
+                "defining the instruction",
             },
-            "isNew": {
-                "type": "boolean",
-                "description": "the instruction is new to the discussion",
-            },
+            "isNew": {"type": "boolean", "description": "the instruction is new to the discussion"},
             "isUpdated": {
                 "type": "boolean",
                 "description": "the instruction is an update of an instruction previously identified in the discussion",
@@ -349,10 +357,5 @@ class AudioInterpreter:
         return {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "type": "array",
-            "items": {
-                "type": "object",
-                "properties": properties,
-                "required": required,
-                "additionalProperties": False,
-            }
+            "items": {"type": "object", "properties": properties, "required": required, "additionalProperties": False},
         }

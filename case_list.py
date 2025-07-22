@@ -2,7 +2,6 @@ from evaluations.datastores.filesystem.case import Case as FileSystemCase
 
 
 class CaseList:
-
     @classmethod
     def run(cls) -> None:
         headers = {

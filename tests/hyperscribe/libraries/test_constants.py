@@ -14,7 +14,7 @@ def test_constants():
         "DISCUSSION_CACHED_DURATION": 90,
         "GOOGLE_CHAT_ALL": "models/gemini-2.0-flash",
         "LABEL_ENCOUNTER_COPILOT": "Encounter Copilot",
-        "MAX_AUDIO_INTERVAL_SECONDS": '15',
+        "MAX_AUDIO_INTERVAL_SECONDS": "15",
         "MAX_AUTHENTICATION_TIME": 3600,
         "MAX_ATTEMPTS_LLM_HTTP": 3,
         "MAX_ATTEMPTS_LLM_JSON": 3,

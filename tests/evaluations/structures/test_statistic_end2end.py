@@ -4,10 +4,5 @@ from tests.helper import is_namedtuple
 
 def test_class():
     tested = StatisticEnd2End
-    fields = {
-        "case_name": str,
-        "run_count": int,
-        "full_run": int,
-        "end2end": int,
-    }
+    fields = {"case_name": str, "run_count": int, "full_run": int, "end2end": int}
     assert is_namedtuple(tested, fields)

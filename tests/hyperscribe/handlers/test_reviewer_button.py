@@ -32,8 +32,8 @@ def test_constants():
 
 
 @patch.object(Note, "objects")
-@patch('hyperscribe.handlers.reviewer_button.Authenticator')
-@patch('hyperscribe.handlers.reviewer_button.LaunchModalEffect')
+@patch("hyperscribe.handlers.reviewer_button.Authenticator")
+@patch("hyperscribe.handlers.reviewer_button.LaunchModalEffect")
 def test_handle(launch_model_effect, authenticator, note_db):
     def reset_mocks():
         launch_model_effect.reset_mock()
@@ -42,39 +42,32 @@ def test_handle(launch_model_effect, authenticator, note_db):
 
     event = Event(EventRequest(context='{"note_id":"noteId"}'))
     event.target = TargetType(id="targetId", type=Patient)
-    secrets = {
-        "APISigningKey": "theApiSigningKey",
-    }
-    environment = {
-        "CUSTOMER_IDENTIFIER": "theTestEnv",
-    }
+    secrets = {"APISigningKey": "theApiSigningKey"}
+    environment = {"CUSTOMER_IDENTIFIER": "theTestEnv"}
     tested = ReviewerButton(event, secrets, environment)
 
     authenticator.presigned_url.side_effect = ["preSignedUrl"]
     launch_model_effect.return_value.apply.side_effect = [Effect(type="LOG", payload="SomePayload")]
     launch_model_effect.TargetType.NEW_WINDOW = "new_window"
-    note_db.get.side_effect = [Note(
-        id="uuidNote",
-        patient=Patient(id="uuidPatient"),
-        provider=Staff(id="uuidProvider"),
-    )]
+    note_db.get.side_effect = [
+        Note(id="uuidNote", patient=Patient(id="uuidPatient"), provider=Staff(id="uuidProvider")),
+    ]
 
     result = tested.handle()
     expected = [Effect(type="LOG", payload="SomePayload")]
     assert result == expected
 
-    calls = [call.presigned_url(
-        'theApiSigningKey',
-        '/plugin-io/api/hyperscribe/reviewer',
-        {'patient_id': 'uuidPatient', 'note_id': 'uuidNote'},
-    )]
-    assert authenticator.mock_calls == calls
     calls = [
-        call(url='preSignedUrl', target='new_window'),
-        call().apply(),
+        call.presigned_url(
+            "theApiSigningKey",
+            "/plugin-io/api/hyperscribe/reviewer",
+            {"patient_id": "uuidPatient", "note_id": "uuidNote"},
+        ),
     ]
+    assert authenticator.mock_calls == calls
+    calls = [call(url="preSignedUrl", target="new_window"), call().apply()]
     assert launch_model_effect.mock_calls == calls
-    calls = [call.get(dbid='noteId')]
+    calls = [call.get(dbid="noteId")]
     assert note_db.mock_calls == calls
 
     reset_mocks()
@@ -127,9 +120,6 @@ def test_visible(last_note_state_event_db):
 
             calls = []
             if expected:
-                calls = [
-                    call.get(note_id=778),
-                    call.get().editable(),
-                ]
+                calls = [call.get(note_id=778), call.get().editable()]
             assert last_note_state_event_db.mock_calls == calls
             reset_mocks()

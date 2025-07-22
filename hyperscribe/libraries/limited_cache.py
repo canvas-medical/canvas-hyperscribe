@@ -7,10 +7,18 @@ from typing import Any
 
 from canvas_sdk.commands.constants import CodeSystems
 from canvas_sdk.v1.data import (
-    AllergyIntolerance, Command, Condition,
-    Medication, NoteType, Observation, Patient,
-    PracticeLocation, ReasonForVisitSettingCoding,
-    Staff, TaskLabel)
+    AllergyIntolerance,
+    Command,
+    Condition,
+    Medication,
+    NoteType,
+    Observation,
+    Patient,
+    PracticeLocation,
+    ReasonForVisitSettingCoding,
+    Staff,
+    TaskLabel,
+)
 from canvas_sdk.v1.data.condition import ClinicalStatus
 from canvas_sdk.v1.data.lab import LabPartner
 from canvas_sdk.v1.data.lab import LabPartnerTest
@@ -29,7 +37,12 @@ from hyperscribe.structures.medication_cached import MedicationCached
 
 
 class LimitedCache:
-    def __init__(self, patient_uuid: str, provider_uuid: str, staged_commands_to_coded_items: dict[str, list[CodedItem]]):
+    def __init__(
+        self,
+        patient_uuid: str,
+        provider_uuid: str,
+        staged_commands_to_coded_items: dict[str, list[CodedItem]],
+    ):
         self.patient_uuid = patient_uuid
         self.provider_uuid = provider_uuid
         self._settings: dict = {}
@@ -62,6 +75,7 @@ class LimitedCache:
             if self._local_data:
                 from pathlib import Path
                 import sqlite3  # <-- the import is forbidden in the plugin context
+
                 with sqlite3.connect(Path(__file__).parent / Constants.SQLITE_LAB_TESTS_DATABASE) as conn:
                     conn.row_factory = sqlite3.Row
                     cursor = conn.cursor()
@@ -74,21 +88,13 @@ class LimitedCache:
                     sql += " ORDER BY `dbid`"
                     cursor.execute(sql, parameters)
                     for row in cursor.fetchall():
-                        self._lab_tests[key].append(CodedItem(
-                            uuid="",
-                            label=row["order_name"],
-                            code=row["order_code"],
-                        ))
+                        self._lab_tests[key].append(CodedItem(uuid="", label=row["order_name"], code=row["order_code"]))
             else:
-                query = (LabPartnerTest.objects
-                         .filter(lab_partner__name=lab_partner)
-                         .filter(reduce(and_, (Q(keywords__icontains=kw) for kw in keywords))))
+                query = LabPartnerTest.objects.filter(lab_partner__name=lab_partner).filter(
+                    reduce(and_, (Q(keywords__icontains=kw) for kw in keywords)),
+                )
                 for test in query:
-                    self._lab_tests[key].append(CodedItem(
-                        uuid="",
-                        label=test.order_name,
-                        code=test.order_code,
-                    ))
+                    self._lab_tests[key].append(CodedItem(uuid="", label=test.order_name, code=test.order_code))
         return self._lab_tests[key]
 
     def charge_descriptions(self) -> list[ChargeDescription]:
@@ -114,16 +120,17 @@ class LimitedCache:
         statuses = [ClinicalStatus.ACTIVE, ClinicalStatus.RESOLVED]
         systems = [CodeSystems.ICD10, CodeSystems.SNOMED]
         conditions = Condition.objects.committed().for_patient(self.patient_uuid).filter(clinical_status__in=statuses)
-        for condition in conditions.order_by('-dbid'):
+        for condition in conditions.order_by("-dbid"):
             case = Case(When(system=CodeSystems.ICD10, then=Value(1)), When(system=CodeSystems.SNOMED, then=Value(2)))
-            coding = condition.codings.filter(system__in=systems).annotate(system_order=case).order_by("system_order").first()
+            coding = (
+                condition.codings.filter(system__in=systems)
+                .annotate(system_order=case)
+                .order_by("system_order")
+                .first()
+            )
 
             if coding:
-                item = CodedItem(
-                    uuid=str(condition.id),
-                    label=coding.display,
-                    code=Helper.icd10_add_dot(coding.code),
-                )
+                item = CodedItem(uuid=str(condition.id), label=coding.display, code=Helper.icd10_add_dot(coding.code))
                 if condition.clinical_status == ClinicalStatus.ACTIVE:
                     self._conditions.append(item)
                 elif condition.clinical_status == ClinicalStatus.RESOLVED and condition.surgical is False:
@@ -131,7 +138,11 @@ class LimitedCache:
                 elif condition.clinical_status == ClinicalStatus.RESOLVED and condition.surgical is True:
                     self._surgery_history.append(item)
 
-    def add_instructions_as_staged_commands(self, instructions: list[Instruction], schema_key2instruction: dict) -> None:
+    def add_instructions_as_staged_commands(
+        self,
+        instructions: list[Instruction],
+        schema_key2instruction: dict,
+    ) -> None:
         # it is not correct to assimilate the Instruction.information to command.label, but this is the closest
         instruction2schema_key = {item: key for key, item in schema_key2instruction.items()}
         for instruction in instructions:
@@ -149,17 +160,13 @@ class LimitedCache:
                     )
                     break
             else:
-                self._staged_commands[schema_key].append(CodedItem(
-                    uuid=instruction.uuid,
-                    label=instruction.information,
-                    code="",
-                ))
+                self._staged_commands[schema_key].append(
+                    CodedItem(uuid=instruction.uuid, label=instruction.information, code=""),
+                )
 
     def staged_commands_of(self, schema_keys: list[str]) -> list[CodedItem]:
         return [
-            command
-            for key, commands in self._staged_commands.items() if key in schema_keys
-            for command in commands
+            command for key, commands in self._staged_commands.items() if key in schema_keys for command in commands
         ]
 
     def staged_commands_as_instructions(self, schema_key2instruction: dict) -> list[Instruction]:
@@ -176,7 +183,7 @@ class LimitedCache:
                         information=command.label,
                         is_new=True,
                         is_updated=False,
-                    )
+                    ),
                 )
         return result
 
@@ -184,13 +191,17 @@ class LimitedCache:
         if self._goals is None:
             self._goals = []
             # ATTENTION below code should not be used since there is no way to know if a goal is already closed
-            commands = Command.objects.filter(patient__id=self.patient_uuid, schema_key="goal").order_by('-dbid')
+            commands = Command.objects.filter(patient__id=self.patient_uuid, schema_key="goal").order_by("-dbid")
             for command in commands:
-                self._goals.append(CodedItem(
-                    uuid=str(command.id),
-                    label=command.data["goal_statement"],
-                    code=str(command.dbid),  # TODO should be "", waiting for https://github.com/canvas-medical/canvas-plugins/issues/338
-                ))
+                self._goals.append(
+                    CodedItem(
+                        uuid=str(command.id),
+                        label=command.data["goal_statement"],
+                        code=str(
+                            command.dbid,
+                        ),  # TODO should be "", waiting for https://github.com/canvas-medical/canvas-plugins/issues/338
+                    ),
+                )
         return self._goals
 
     def current_conditions(self) -> list[CodedItem]:
@@ -202,7 +213,7 @@ class LimitedCache:
         if self._medications is None:
             self._medications = []
             medications = Medication.objects.committed().for_patient(self.patient_uuid).filter(status=Status.ACTIVE)
-            for medication in medications.order_by('-dbid'):
+            for medication in medications.order_by("-dbid"):
                 label = ""
                 code_rx_norm = ""
                 code_fdb = ""
@@ -214,28 +225,28 @@ class LimitedCache:
                         label = coding.display
                         code_fdb = coding.code
 
-                self._medications.append(MedicationCached(
-                    uuid=str(medication.id),
-                    label=label,
-                    code_rx_norm=code_rx_norm,
-                    code_fdb=code_fdb,
-                    national_drug_code=medication.national_drug_code,
-                    potency_unit_code=medication.potency_unit_code,
-                ))
+                self._medications.append(
+                    MedicationCached(
+                        uuid=str(medication.id),
+                        label=label,
+                        code_rx_norm=code_rx_norm,
+                        code_fdb=code_fdb,
+                        national_drug_code=medication.national_drug_code,
+                        potency_unit_code=medication.potency_unit_code,
+                    ),
+                )
         return self._medications
 
     def current_allergies(self) -> list[CodedItem]:
         if self._allergies is None:
             self._allergies = []
-            allergies = AllergyIntolerance.objects.committed().for_patient(self.patient_uuid).filter(status=Status.ACTIVE)
-            for allergy in allergies.order_by('-dbid'):
+            allergies = (
+                AllergyIntolerance.objects.committed().for_patient(self.patient_uuid).filter(status=Status.ACTIVE)
+            )
+            for allergy in allergies.order_by("-dbid"):
                 for coding in allergy.codings.all():
                     if coding.system == CodeSystems.FDB:
-                        self._allergies.append(CodedItem(
-                            uuid=str(allergy.id),
-                            label=coding.display,
-                            code=coding.code,
-                        ))
+                        self._allergies.append(CodedItem(uuid=str(allergy.id), label=coding.display, code=coding.code))
         return self._allergies
 
     def family_history(self) -> list[CodedItem]:
@@ -256,46 +267,34 @@ class LimitedCache:
     def existing_note_types(self) -> list[CodedItem]:
         if self._note_type is None:
             self._note_type = []
-            note_types = NoteType.objects.filter(is_active=True, is_visible=True, is_scheduleable=True).order_by('-dbid')
+            note_types = NoteType.objects.filter(is_active=True, is_visible=True, is_scheduleable=True).order_by(
+                "-dbid",
+            )
             for note_type in note_types:
-                self._note_type.append(CodedItem(
-                    uuid=str(note_type.id),
-                    label=note_type.name,
-                    code=note_type.code,
-                ))
+                self._note_type.append(CodedItem(uuid=str(note_type.id), label=note_type.name, code=note_type.code))
         return self._note_type
 
     def existing_reason_for_visits(self) -> list[CodedItem]:
         if self._reason_for_visit is None:
             self._reason_for_visit = []
-            for rfv in ReasonForVisitSettingCoding.objects.order_by('-dbid'):
-                self._reason_for_visit.append(CodedItem(
-                    uuid=str(rfv.id),
-                    label=rfv.display,
-                    code=rfv.code,
-                ))
+            for rfv in ReasonForVisitSettingCoding.objects.order_by("-dbid"):
+                self._reason_for_visit.append(CodedItem(uuid=str(rfv.id), label=rfv.display, code=rfv.code))
         return self._reason_for_visit
 
     def existing_staff_members(self) -> list[CodedItem]:
         if self._staff_members is None:
             self._staff_members = []
             for staff in Staff.objects.filter(active=True).order_by("last_name"):
-                self._staff_members.append(CodedItem(
-                    uuid=str(staff.dbid),
-                    label=f"{staff.first_name} {staff.last_name}",
-                    code="",
-                ))
+                self._staff_members.append(
+                    CodedItem(uuid=str(staff.dbid), label=f"{staff.first_name} {staff.last_name}", code=""),
+                )
         return self._staff_members
 
     def existing_task_labels(self) -> list[CodedItem]:
         if self._task_labels is None:
             self._task_labels = []
             for task in TaskLabel.objects.filter(active=True).order_by("name"):
-                self._task_labels.append(CodedItem(
-                    uuid=str(task.dbid),
-                    label=task.name,
-                    code="",
-                ))
+                self._task_labels.append(CodedItem(uuid=str(task.dbid), label=task.name, code=""))
         return self._task_labels
 
     def demographic__str__(self, obfuscate: bool) -> str:
@@ -307,10 +306,16 @@ class LimitedCache:
             if obfuscate:
                 dob = "<DOB REDACTED>"  # principal of minimum disclosure
             today = date.today()
-            age = today.year - patient.birth_date.year - ((today.month, today.day) < (patient.birth_date.month, patient.birth_date.day))
+            age = (
+                today.year
+                - patient.birth_date.year
+                - ((today.month, today.day) < (patient.birth_date.month, patient.birth_date.day))
+            )
             age_str = str(age)
             if age < 2:
-                age_str = f"{(today.year - patient.birth_date.year) * 12 + today.month - patient.birth_date.month} months"
+                age_str = (
+                    f"{(today.year - patient.birth_date.year) * 12 + today.month - patient.birth_date.month} months"
+                )
                 sex_at_birth = "baby girl" if is_female else "baby boy"
             elif age < 20:
                 sex_at_birth = "girl" if is_female else "boy"
@@ -321,10 +326,12 @@ class LimitedCache:
 
             self._demographic = f"the patient is a {sex_at_birth}, born on {dob} (age {age_str})"
 
-            weight = Observation.objects.for_patient(
-                self.patient_uuid).filter(
-                name="weight", category="vital-signs").order_by(
-                "-effective_datetime").first()
+            weight = (
+                Observation.objects.for_patient(self.patient_uuid)
+                .filter(name="weight", category="vital-signs")
+                .order_by("-effective_datetime")
+                .first()
+            )
             if weight and weight.value:
                 ratio = 1 / 1
                 if weight.units == "oz":
@@ -354,22 +361,14 @@ class LimitedCache:
             lab_partner = LabPartner.objects.filter(name=preferred_lab).first()
             if lab_partner is not None:
                 lab_partner_uuid = str(lab_partner.id)
-            self._preferred_lab_partner = CodedItem(
-                uuid=lab_partner_uuid,
-                label=preferred_lab,
-                code="",
-            )
+            self._preferred_lab_partner = CodedItem(uuid=lab_partner_uuid, label=preferred_lab, code="")
         return self._preferred_lab_partner
 
     def to_json(self, obfuscate: bool) -> dict:
         return {
-            "stagedCommands": {
-                key: [i.to_dict() for i in commands]
-                for key, commands in self._staged_commands.items()
-            },
+            "stagedCommands": {key: [i.to_dict() for i in commands] for key, commands in self._staged_commands.items()},
             "settings": {
-                setting: self.practice_setting(setting)
-                for setting in ["preferredLabPartner", "serviceAreaZipCodes"]
+                setting: self.practice_setting(setting) for setting in ["preferredLabPartner", "serviceAreaZipCodes"]
             },  # force the setting fetch
             "demographicStr": self.demographic__str__(obfuscate),
             #
@@ -408,7 +407,9 @@ class LimitedCache:
         result._conditions = [CodedItem.load_from_json(i) for i in cache.get("currentConditions", [])]
         result._goals = [CodedItem.load_from_json(i) for i in cache.get("currentGoals", [])]
         result._medications = [MedicationCached.load_from_json(i) for i in cache.get("currentMedications", [])]
-        result._preferred_lab_partner = CodedItem.load_from_json(cache.get("preferredLabPartner", {"uuid": "", "label": "", "code": ""}))
+        result._preferred_lab_partner = CodedItem.load_from_json(
+            cache.get("preferredLabPartner", {"uuid": "", "label": "", "code": ""}),
+        )
         result._note_type = [CodedItem.load_from_json(i) for i in cache.get("existingNoteTypes", [])]
         result._staff_members = []
         result._task_labels = [CodedItem.load_from_json(i) for i in cache.get("existingTaskLabels", [])]

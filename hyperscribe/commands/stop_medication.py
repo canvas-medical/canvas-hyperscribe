@@ -20,7 +20,11 @@ class StopMedication(Base):
             return CodedItem(label=f"{medication}: {rationale}", code="", uuid="")
         return None
 
-    def command_from_json(self, instruction: InstructionWithParameters, chatter: LlmBase) -> InstructionWithCommand | None:
+    def command_from_json(
+        self,
+        instruction: InstructionWithParameters,
+        chatter: LlmBase,
+    ) -> InstructionWithCommand | None:
         result = StopMedicationCommand(
             rationale=instruction.parameters["rationale"],
             note_uuid=self.identification.note_uuid,
@@ -30,7 +34,9 @@ class StopMedication(Base):
         return InstructionWithCommand.add_command(instruction, result)
 
     def command_parameters(self) -> dict:
-        medications = "/".join([f'{medication.label} (index: {idx})' for idx, medication in enumerate(self.cache.current_medications())])
+        medications = "/".join(
+            [f"{medication.label} (index: {idx})" for idx, medication in enumerate(self.cache.current_medications())],
+        )
         return {
             "medication": f"one of: {medications}",
             "medicationIndex": "index of the medication to stop, or -1, as integer",
@@ -38,8 +44,11 @@ class StopMedication(Base):
         }
 
     def instruction_description(self) -> str:
-        return ("Stop a medication. "
-                "There can be only one medication, with the rationale, to stop per instruction, and no instruction in the lack of.")
+        return (
+            "Stop a medication. "
+            "There can be only one medication, with the rationale, to stop per instruction, "
+            "and no instruction in the lack of."
+        )
 
     def instruction_constraints(self) -> str:
         text = ", ".join([medication.label for medication in self.cache.current_medications()])

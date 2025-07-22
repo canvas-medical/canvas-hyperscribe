@@ -5,7 +5,6 @@ from evaluations.helper_evaluation import HelperEvaluation
 
 
 class BuilderSummarize:
-
     @classmethod
     def _parameters(cls) -> Namespace:
         parser = ArgumentParser(description="Generate a single document with all instructions and generated commands")

@@ -11,13 +11,9 @@ from hyperscribe.structures.http_response import HttpResponse
 
 
 class LlmOpenai(LlmBase):
-
     def add_audio(self, audio: bytes, audio_format: str) -> None:
         if audio:
-            self.audios.append({
-                "format": audio_format,
-                "data": b64encode(audio).decode("utf-8"),
-            })
+            self.audios.append({"format": audio_format, "data": b64encode(audio).decode("utf-8")})
 
     def to_dict(self, for_log: bool) -> dict:
         roles = {
@@ -26,25 +22,14 @@ class LlmOpenai(LlmBase):
             self.ROLE_MODEL: "assistant",
         }
         messages: list[dict] = [
-            {
-                "role": roles[prompt.role],
-                "content": [{"type": "text", "text": "\n".join(prompt.text)}],
-            }
+            {"role": roles[prompt.role], "content": [{"type": "text", "text": "\n".join(prompt.text)}]}
             for prompt in self.prompts
         ]
         # on the first user input, add the audio, if any
         for audio in self.audios:
-            messages[1]["content"].append({
-                "type": "input_audio",
-                "input_audio": "some audio" if for_log else audio,
-            })
+            messages[1]["content"].append({"type": "input_audio", "input_audio": "some audio" if for_log else audio})
 
-        return {
-            "model": self.model,
-            "modalities": ["text"],
-            "messages": messages,
-            "temperature": self.temperature,
-        }
+        return {"model": self.model, "modalities": ["text"], "messages": messages, "temperature": self.temperature}
 
     def request(self) -> HttpResponse:
         url = "https://api.openai.com/v1/chat/completions"
@@ -56,14 +41,7 @@ class LlmOpenai(LlmBase):
         data = json.dumps(self.to_dict(False))
         self.memory_log.log("--- request begins:")
         self.memory_log.log(json.dumps(self.to_dict(True), indent=2))
-        request = requests_post(
-            url,
-            headers=headers,
-            params={},
-            data=data,
-            verify=True,
-            timeout=None,
-        )
+        request = requests_post(url, headers=headers, params={}, data=data, verify=True, timeout=None)
         self.memory_log.log(f"status code: {request.status_code}")
         self.memory_log.log(request.text)
         self.memory_log.log("--- request ends ---")
@@ -80,9 +58,7 @@ class LlmOpenai(LlmBase):
         language = "en"
         response_format = "text"
         url = "https://api.openai.com/v1/audio/transcriptions"
-        prompt = [
-            "The conversation is in the medical context.",
-        ]
+        prompt = ["The conversation is in the medical context."]
         data = {
             "model": default_model,
             "language": language,
@@ -95,12 +71,5 @@ class LlmOpenai(LlmBase):
             "Authorization": f"Bearer {self.api_key}",
         }
         files = {"file": ("audio.mp3", audio, "application/octet-stream")}
-        request = requests_post(
-            url,
-            headers=headers,
-            params={},
-            data=data,
-            files=files,
-            verify=True,
-        )
+        request = requests_post(url, headers=headers, params={}, data=data, files=files, verify=True)
         return HttpResponse(code=request.status_code, response=request.text)

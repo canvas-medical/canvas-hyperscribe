@@ -18,25 +18,32 @@ class CloseGoal(Base):
     @classmethod
     def staged_command_extract(cls, data: dict) -> None | CodedItem:
         if text := (data.get("goal_id") or {}).get("text"):
-            return CodedItem(label=f'{text} ({data.get("progress") or "n/a"})', code="", uuid="")
+            return CodedItem(label=f"{text} ({data.get('progress') or 'n/a'})", code="", uuid="")
         return None
 
-    def command_from_json(self, instruction: InstructionWithParameters, chatter: LlmBase) -> InstructionWithCommand | None:
+    def command_from_json(
+        self,
+        instruction: InstructionWithParameters,
+        chatter: LlmBase,
+    ) -> InstructionWithCommand | None:
         goal_uuid = "0"
         if 0 <= (idx := instruction.parameters["goalIndex"]) < len(current := self.cache.current_goals()):
             # TODO should be  goal_uuid = current[idx].uuid, waiting for https://github.com/canvas-medical/canvas-plugins/issues/338
             goal_uuid = current[idx].code
 
-        return InstructionWithCommand.add_command(instruction, CloseGoalCommand(
-            # TODO should be goal_id=goal_uuid, waiting for https://github.com/canvas-medical/canvas-plugins/issues/338
-            goal_id=int(goal_uuid),
-            achievement_status=Helper.enum_or_none(instruction.parameters["status"], GoalCommand.AchievementStatus),
-            progress=instruction.parameters["progressAndBarriers"],
-            note_uuid=self.identification.note_uuid,
-        ))
+        return InstructionWithCommand.add_command(
+            instruction,
+            CloseGoalCommand(
+                # TODO should be goal_id=goal_uuid, waiting for https://github.com/canvas-medical/canvas-plugins/issues/338
+                goal_id=int(goal_uuid),
+                achievement_status=Helper.enum_or_none(instruction.parameters["status"], GoalCommand.AchievementStatus),
+                progress=instruction.parameters["progressAndBarriers"],
+                note_uuid=self.identification.note_uuid,
+            ),
+        )
 
     def command_parameters(self) -> dict:
-        goals = "/".join([f'{goal.label} (index: {idx})' for idx, goal in enumerate(self.cache.current_goals())])
+        goals = "/".join([f"{goal.label} (index: {idx})" for idx, goal in enumerate(self.cache.current_goals())])
         statuses = "/".join([status.value for status in GoalCommand.AchievementStatus])
         return {
             "goal": f"one of: {goals}",

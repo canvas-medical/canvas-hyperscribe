@@ -19,11 +19,18 @@ class HistoryOfPresentIllness(Base):
             return CodedItem(label=narrative, code="", uuid="")
         return None
 
-    def command_from_json(self, instruction: InstructionWithParameters, chatter: LlmBase) -> InstructionWithCommand | None:
-        return InstructionWithCommand.add_command(instruction, HistoryOfPresentIllnessCommand(
-            narrative=instruction.parameters["narrative"],
-            note_uuid=self.identification.note_uuid,
-        ))
+    def command_from_json(
+        self,
+        instruction: InstructionWithParameters,
+        chatter: LlmBase,
+    ) -> InstructionWithCommand | None:
+        return InstructionWithCommand.add_command(
+            instruction,
+            HistoryOfPresentIllnessCommand(
+                narrative=instruction.parameters["narrative"],
+                note_uuid=self.identification.note_uuid,
+            ),
+        )
 
     def command_parameters(self) -> dict:
         return {
@@ -31,9 +38,12 @@ class HistoryOfPresentIllness(Base):
         }
 
     def instruction_description(self) -> str:
-        return ("Highlights of the patient's symptoms and surrounding events and observations. "
-                "There can be multiple highlights within an instruction, but only one such instruction in the whole discussion. "
-                "So, if one was already found, simply update it by intelligently merging all key highlights.")
+        return (
+            "Highlights of the patient's symptoms and surrounding events and observations. "
+            "There can be multiple highlights within an instruction, but only one such instruction in the "
+            "whole discussion. "
+            "So, if one was already found, simply update it by intelligently merging all key highlights."
+        )
 
     def instruction_constraints(self) -> str:
         return ""

@@ -22,15 +22,17 @@ class Task(Base):
         comment = data.get("comment") or "n/a"
         due_date = data.get("due_date") or "n/a"
         if task := data.get("title"):
-            labels = "/".join([
-                label
-                for item in data.get("labels") or []
-                if (label := item.get("text"))
-            ]) or "n/a"
+            labels = "/".join([label for item in data.get("labels") or [] if (label := item.get("text"))]) or "n/a"
             return CodedItem(label=f"{task}: {comment} (due on: {due_date}, labels: {labels})", code="", uuid="")
         return None
 
-    def select_staff(self, instruction: InstructionWithParameters, chatter: LlmBase, assigned_to: str, comment: str) -> None | TaskAssigner:
+    def select_staff(
+        self,
+        instruction: InstructionWithParameters,
+        chatter: LlmBase,
+        assigned_to: str,
+        comment: str,
+    ) -> None | TaskAssigner:
         staff_members = self.cache.existing_staff_members()
         if not staff_members:
             return None
@@ -42,23 +44,23 @@ class Task(Base):
             "",
         ]
         user_prompt = [
-            'Here is the comment provided by the healthcare provider in regards to the task:',
-            '```text',
+            "Here is the comment provided by the healthcare provider in regards to the task:",
+            "```text",
             f"assign to: {assigned_to}",
             " -- ",
-            f'comment: {comment}',
+            f"comment: {comment}",
             "",
-            '```',
+            "```",
             "",
-            'Among the following staff members, identify the most relevant one:',
-            '',
-            "\n".join(f' * {staff.label} (staffId: {staff.uuid})' for staff in staff_members),
-            '',
-            'Please, present your findings in a JSON format within a Markdown code block like:',
-            '```json',
+            "Among the following staff members, identify the most relevant one:",
+            "",
+            "\n".join(f" * {staff.label} (staffId: {staff.uuid})" for staff in staff_members),
+            "",
+            "Please, present your findings in a JSON format within a Markdown code block like:",
+            "```json",
             json.dumps([{"staffId": "the staff member id, as int", "name": "the name of the staff member"}]),
-            '```',
-            '',
+            "```",
+            "",
         ]
         schemas = JsonSchema.get(["selector_staff"])
         if response := chatter.single_conversation(system_prompt, user_prompt, schemas, instruction):
@@ -66,7 +68,13 @@ class Task(Base):
             return TaskAssigner(to=AssigneeType.STAFF, id=staff_id)
         return None
 
-    def select_labels(self, instruction: InstructionWithParameters, chatter: LlmBase, labels: str, comment: str) -> None | list[str]:
+    def select_labels(
+        self,
+        instruction: InstructionWithParameters,
+        chatter: LlmBase,
+        labels: str,
+        comment: str,
+    ) -> None | list[str]:
         task_labels = self.cache.existing_task_labels()
         if not task_labels:
             return None
@@ -78,30 +86,34 @@ class Task(Base):
             "",
         ]
         user_prompt = [
-            'Here is the comment provided by the healthcare provider in regards to the task:',
-            '```text',
+            "Here is the comment provided by the healthcare provider in regards to the task:",
+            "```text",
             f"labels: {labels}",
             " -- ",
-            f'comment: {comment}',
+            f"comment: {comment}",
             "",
-            '```',
+            "```",
             "",
-            'Among the following labels, identify all the most relevant to characterized the task:',
-            '',
-            "\n".join(f' * {label.label} (labelId: {label.uuid})' for label in task_labels),
-            '',
-            'Please, present your findings in a JSON format within a Markdown code block like:',
-            '```json',
+            "Among the following labels, identify all the most relevant to characterized the task:",
+            "",
+            "\n".join(f" * {label.label} (labelId: {label.uuid})" for label in task_labels),
+            "",
+            "Please, present your findings in a JSON format within a Markdown code block like:",
+            "```json",
             json.dumps([{"labelId": "the label id, as int", "name": "the name of the label"}]),
-            '```',
-            '',
+            "```",
+            "",
         ]
         schemas = JsonSchema.get(["selector_label"])
         if response := chatter.single_conversation(system_prompt, user_prompt, schemas, instruction):
             return [label["name"] for label in response]
         return None
 
-    def command_from_json(self, instruction: InstructionWithParameters, chatter: LlmBase) -> InstructionWithCommand | None:
+    def command_from_json(
+        self,
+        instruction: InstructionWithParameters,
+        chatter: LlmBase,
+    ) -> InstructionWithCommand | None:
         result = TaskCommand(
             title=instruction.parameters["title"],
             due_date=Helper.str2date(instruction.parameters["dueDate"]),
@@ -109,10 +121,20 @@ class Task(Base):
             note_uuid=self.identification.note_uuid,
         )
         if instruction.parameters["assignTo"]:
-            result.assign_to = self.select_staff(instruction, chatter, instruction.parameters["assignTo"], instruction.parameters["comment"])
+            result.assign_to = self.select_staff(
+                instruction,
+                chatter,
+                instruction.parameters["assignTo"],
+                instruction.parameters["comment"],
+            )
 
         if instruction.parameters["labels"]:
-            result.labels = self.select_labels(instruction, chatter, instruction.parameters["labels"], instruction.parameters["comment"])
+            result.labels = self.select_labels(
+                instruction,
+                chatter,
+                instruction.parameters["labels"],
+                instruction.parameters["comment"],
+            )
 
         return InstructionWithCommand.add_command(instruction, result)
 
@@ -126,9 +148,11 @@ class Task(Base):
         }
 
     def instruction_description(self) -> str:
-        return ("Specific task assigned to someone at the healthcare facility, including the speaking clinician. "
-                "A task might include a due date and a specific assignee. "
-                "There can be only one task per instruction, and no instruction in the lack of.")
+        return (
+            "Specific task assigned to someone at the healthcare facility, including the speaking clinician. "
+            "A task might include a due date and a specific assignee. "
+            "There can be only one task per instruction, and no instruction in the lack of."
+        )
 
     def instruction_constraints(self) -> str:
         return ""

@@ -32,14 +32,15 @@ class HelperEvaluation:
             code_name = frame.f_code.co_name
             code_line = frame.f_lineno
             variables = getargvalues(frame).locals
-            steps.append(f'{code_file}.{code_name}:{code_line}')
+            steps.append(f"{code_file}.{code_name}:{code_line}")
             trace = trace.tb_next
 
         return {
-            'error': str(error),
-            'files': steps,
-            'variables': {variable: pformat(value) for variable, value in variables.items()},
+            "error": str(error),
+            "files": steps,
+            "variables": {variable: pformat(value) for variable, value in variables.items()},
         }
+
     @classmethod
     def get_auditor(cls, case: str, cycle: int) -> AuditorStore:
         settings = HelperEvaluation.settings()
@@ -99,25 +100,35 @@ class HelperEvaluation:
                     "difference": {"type": "string", "description": "description of the difference between the JSONs"},
                 },
                 "required": ["level", "difference"],
-            }
+            },
         }
 
     @classmethod
-    def json_nuanced_differences(cls, case: str, accepted_levels: list[str], result_json: str, expected_json: str) -> tuple[bool, str]:
+    def json_nuanced_differences(
+        cls,
+        case: str,
+        accepted_levels: list[str],
+        result_json: str,
+        expected_json: str,
+    ) -> tuple[bool, str]:
         system_prompt = [
             "The user will provides two JSON objects.",
             "Your task is compare them and report the discrepancies as a JSON list in a Markdown block like:",
             "```json",
-            json.dumps([
-                {
-                    "level": f'one of: {",".join(Constants.DIFFERENCE_LEVELS)}',
-                    "difference": "description of the difference between the JSONs",
-                }
-            ]),
+            json.dumps(
+                [
+                    {
+                        "level": f"one of: {','.join(Constants.DIFFERENCE_LEVELS)}",
+                        "difference": "description of the difference between the JSONs",
+                    },
+                ],
+            ),
             "```",
             "",
-            # "All text values should be considered on the levels scale in order to solely express the meaning differences.",
-            "All text values should be evaluated together and on the level scale to effectively convey the impact of the changes in meaning from a medical point of view.",
+            # "All text values should be considered on the levels scale in order to solely express the meaning
+            # differences.",
+            "All text values should be evaluated together and on the level scale to effectively convey the impact "
+            "of the changes in meaning from a medical point of view.",
             f"Any key with the value '{Constants.IGNORED_KEY_VALUE}' should be ignored.",
             "Unless otherwise specified, dates and numbers must be presented identically.",
         ]
@@ -137,17 +148,26 @@ class HelperEvaluation:
         return cls.nuanced_differences(case, accepted_levels, system_prompt, user_prompt)
 
     @classmethod
-    def text_nuanced_differences(cls, case: str, accepted_levels: list[str], result_text: str, expected_text: str) -> tuple[bool, str]:
+    def text_nuanced_differences(
+        cls,
+        case: str,
+        accepted_levels: list[str],
+        result_text: str,
+        expected_text: str,
+    ) -> tuple[bool, str]:
         system_prompt = [
             "The user will provides two texts.",
-            "Your task is compare them *solely* from a medical meaning point of view and report the discrepancies as a JSON list in a Markdown block like:",
+            "Your task is compare them *solely* from a medical meaning point of view and report the discrepancies "
+            "as a JSON list in a Markdown block like:",
             "```json",
-            json.dumps([
-                {
-                    "level": f'one of: {",".join(Constants.DIFFERENCE_LEVELS)}',
-                    "difference": "description of the difference between the texts",
-                }
-            ]),
+            json.dumps(
+                [
+                    {
+                        "level": f"one of: {','.join(Constants.DIFFERENCE_LEVELS)}",
+                        "difference": "description of the difference between the texts",
+                    },
+                ],
+            ),
             "```",
         ]
         user_prompt = [
@@ -166,7 +186,13 @@ class HelperEvaluation:
         return cls.nuanced_differences(case, accepted_levels, system_prompt, user_prompt)
 
     @classmethod
-    def nuanced_differences(cls, case: str, accepted_levels: list[str], system_prompt: list[str], user_prompt: list[str]) -> tuple[bool, str]:
+    def nuanced_differences(
+        cls,
+        case: str,
+        accepted_levels: list[str],
+        system_prompt: list[str],
+        user_prompt: list[str],
+    ) -> tuple[bool, str]:
         identification = IdentificationParameters(
             patient_uuid=HyperscribeConstants.FAUX_PATIENT_UUID,
             note_uuid=HyperscribeConstants.FAUX_NOTE_UUID,
@@ -181,9 +207,7 @@ class HelperEvaluation:
             return False, f"encountered error: {chat.error}"
 
         excluded_minor_differences = [
-            difference
-            for difference in chat.content[0]
-            if difference["level"] not in accepted_levels
+            difference for difference in chat.content[0] if difference["level"] not in accepted_levels
         ]
         return bool(excluded_minor_differences == []), json.dumps(chat.content, indent=1)
 
@@ -191,7 +215,7 @@ class HelperEvaluation:
     def list_case_files(cls, folder: Path) -> list[tuple[str, str, Path]]:
         return [
             (json_file.stem, cycle, json_file)
-            for json_file in folder.glob('*.json')
+            for json_file in folder.glob("*.json")
             for cycle in json.load(json_file.open("r")).keys()
             if cycle.startswith(Constants.CASE_CYCLE_SUFFIX)
         ]

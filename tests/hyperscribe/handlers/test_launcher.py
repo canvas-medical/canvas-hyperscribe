@@ -31,8 +31,8 @@ def test_constants():
 
 
 @patch.object(Note, "objects")
-@patch('hyperscribe.handlers.launcher.Authenticator')
-@patch('hyperscribe.handlers.launcher.LaunchModalEffect')
+@patch("hyperscribe.handlers.launcher.Authenticator")
+@patch("hyperscribe.handlers.launcher.LaunchModalEffect")
 def test_handle(launch_model_effect, authenticator, note_db):
     def reset_mocks():
         launch_model_effect.reset_mock()
@@ -59,23 +59,24 @@ def test_handle(launch_model_effect, authenticator, note_db):
 
     calls = [
         call(
-            url='https://the.audio.server/path/to/audios/capture/targetId/uuidNote?'
-                'interval=7&'
-                'end_flag=EOF&'
-                'progress=https%3A%2F%2Fthe.presigned.url%3Fparam1%3Dvalue1%26param2%3Dvalue2',
-            target='right_chart_pane'),
+            url="https://the.audio.server/path/to/audios/capture/targetId/uuidNote?"
+            "interval=7&"
+            "end_flag=EOF&"
+            "progress=https%3A%2F%2Fthe.presigned.url%3Fparam1%3Dvalue1%26param2%3Dvalue2",
+            target="right_chart_pane",
+        ),
         call().apply(),
     ]
     assert launch_model_effect.mock_calls == calls
     calls = [
         call.presigned_url(
-            'theApiSigningKey',
-            'https://theTestEnv.canvasmedical.com/plugin-io/api/hyperscribe/progress',
-            {'note_id': 'uuidNote'},
-        )
+            "theApiSigningKey",
+            "https://theTestEnv.canvasmedical.com/plugin-io/api/hyperscribe/progress",
+            {"note_id": "uuidNote"},
+        ),
     ]
     assert authenticator.mock_calls == calls
-    calls = [call.get(dbid='noteId')]
+    calls = [call.get(dbid="noteId")]
     assert note_db.mock_calls == calls
     reset_mocks()
 
@@ -96,7 +97,6 @@ def test_visible(last_note_state_event_db):
         ("yes", "userId", "yes", False),
         ("yes", "anotherId", "yes", False),
         ("no", "otherId", "yes", False),
-
     ]
     for policy, staff_id, tuning, expected in tests:
         for editable in [True, False]:
@@ -127,9 +127,6 @@ def test_visible(last_note_state_event_db):
 
             calls = []
             if expected:
-                calls = [
-                    call.get(note_id=778),
-                    call.get().editable(),
-                ]
+                calls = [call.get(note_id=778), call.get().editable()]
             assert last_note_state_event_db.mock_calls == calls
             reset_mocks()

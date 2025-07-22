@@ -8,7 +8,6 @@ from hyperscribe.structures.settings import Settings
 
 
 class Base:
-
     def __init__(self, settings: Settings, cache: LimitedCache, identification: IdentificationParameters):
         self.settings = settings
         self.identification = identification
@@ -26,7 +25,11 @@ class Base:
     def staged_command_extract(cls, data: dict) -> CodedItem | None:
         raise NotImplementedError
 
-    def command_from_json(self, instruction: InstructionWithParameters, chatter: LlmBase) -> InstructionWithCommand | None:
+    def command_from_json(
+        self,
+        instruction: InstructionWithParameters,
+        chatter: LlmBase,
+    ) -> InstructionWithCommand | None:
         raise NotImplementedError
 
     def command_parameters(self) -> dict:

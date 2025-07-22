@@ -13,38 +13,42 @@ from evaluations.structures.statistic_test import StatisticTest
 def test__create_table_sql():
     tested = StoreResults
     result = tested._create_table_sql()
-    expected = ("CREATE TABLE IF NOT EXISTS results ("
-                "`id` INTEGER PRIMARY KEY AUTOINCREMENT,"
-                "`created` DATETIME NOT NULL,"
-                "`run_uuid` TEXT NOT NULL,"
-                "`plugin_commit` TEXT NOT NULL,"
-                "`case_type` TEXT NOT NULL,"
-                "`case_group` TEXT NOT NULL,"
-                "`case_name` TEXT NOT NULL,"
-                "`cycles` INT NOT NULL,"
-                "`cycle` INT NOT NULL,"
-                "`test_name` TEXT NOT NULL,"
-                "`milliseconds` REAL NOT NULL,"
-                "`passed` INTEGER NOT NULL,"
-                "`errors` TEXT NOT NULL)")
+    expected = (
+        "CREATE TABLE IF NOT EXISTS results ("
+        "`id` INTEGER PRIMARY KEY AUTOINCREMENT,"
+        "`created` DATETIME NOT NULL,"
+        "`run_uuid` TEXT NOT NULL,"
+        "`plugin_commit` TEXT NOT NULL,"
+        "`case_type` TEXT NOT NULL,"
+        "`case_group` TEXT NOT NULL,"
+        "`case_name` TEXT NOT NULL,"
+        "`cycles` INT NOT NULL,"
+        "`cycle` INT NOT NULL,"
+        "`test_name` TEXT NOT NULL,"
+        "`milliseconds` REAL NOT NULL,"
+        "`passed` INTEGER NOT NULL,"
+        "`errors` TEXT NOT NULL)"
+    )
     assert result == expected
 
 
 def test__insert_sql():
     tested = StoreResults
     result = tested._insert_sql()
-    expected = ("INSERT INTO results (`created`,`run_uuid`,`plugin_commit`,`case_type`,`case_group`,`case_name`,"
-                "`cycles`,`cycle`,`test_name`,`milliseconds`,`passed`,`errors`) "
-                "VALUES (:now,:uuid,:commit,:type,:group,:name,:cycles,:cycle,:test,:duration,:passed,:errors)")
+    expected = (
+        "INSERT INTO results (`created`,`run_uuid`,`plugin_commit`,`case_type`,`case_group`,`case_name`,"
+        "`cycles`,`cycle`,`test_name`,`milliseconds`,`passed`,`errors`) "
+        "VALUES (:now,:uuid,:commit,:type,:group,:name,:cycles,:cycle,:test,:duration,:passed,:errors)"
+    )
     assert result == expected
 
 
 def test__db_path():
     tested = StoreResults
-    with patch('evaluations.datastores.sqllite.store_results.Path') as mock_path:
-        mock_path.side_effect = [Path('/a/b/c/d/e/f/g/theFile.py')]
+    with patch("evaluations.datastores.sqllite.store_results.Path") as mock_path:
+        mock_path.side_effect = [Path("/a/b/c/d/e/f/g/theFile.py")]
         result = tested._db_path()
-        assert result == Path('/a/b/c/evaluation_results.db')
+        assert result == Path("/a/b/c/evaluation_results.db")
 
 
 @patch("evaluations.datastores.sqllite.store_results.datetime", wraps=datetime)
@@ -81,20 +85,24 @@ def test_insert(insert, mock_datetime):
     )
     calls = [call.now(UTC)]
     assert mock_datetime.mock_calls == calls
-    calls = [call({
-        "now": date_0,
-        "uuid": "theRunUuid",
-        "commit": "theCommitUuid",
-        "type": "theType",
-        "group": "theGroup",
-        "name": "theCaseName",
-        "cycles": 9,
-        "cycle": 7,
-        "test": "theTestName",
-        "duration": 123456.7,
-        "passed": False,
-        "errors": "theErrors",
-    })]
+    calls = [
+        call(
+            {
+                "now": date_0,
+                "uuid": "theRunUuid",
+                "commit": "theCommitUuid",
+                "type": "theType",
+                "group": "theGroup",
+                "name": "theCaseName",
+                "cycles": 9,
+                "cycle": 7,
+                "test": "theTestName",
+                "duration": 123456.7,
+                "passed": False,
+                "errors": "theErrors",
+            },
+        ),
+    ]
     assert insert.mock_calls == calls
     reset_mocks()
 
@@ -123,14 +131,14 @@ def test_statistics_per_test(db_path):
 
         result = tested.statistics_per_test()
         expected = [
-            StatisticTest(case_name='theCase1', test_name='audio2transcript', passed_count=0),
-            StatisticTest(case_name='theCase1', test_name='instruction2parameters', passed_count=1),
-            StatisticTest(case_name='theCase1', test_name='parameters2command', passed_count=0),
-            StatisticTest(case_name='theCase1', test_name='transcript2instructions', passed_count=1),
-            StatisticTest(case_name='theCase2', test_name='instruction2parameters', passed_count=0),
-            StatisticTest(case_name='theCase2', test_name='parameters2command', passed_count=0),
-            StatisticTest(case_name='theCase2', test_name='transcript2instructions', passed_count=0),
-            StatisticTest(case_name='theCase3', test_name='theTest', passed_count=0),
+            StatisticTest(case_name="theCase1", test_name="audio2transcript", passed_count=0),
+            StatisticTest(case_name="theCase1", test_name="instruction2parameters", passed_count=1),
+            StatisticTest(case_name="theCase1", test_name="parameters2command", passed_count=0),
+            StatisticTest(case_name="theCase1", test_name="transcript2instructions", passed_count=1),
+            StatisticTest(case_name="theCase2", test_name="instruction2parameters", passed_count=0),
+            StatisticTest(case_name="theCase2", test_name="parameters2command", passed_count=0),
+            StatisticTest(case_name="theCase2", test_name="transcript2instructions", passed_count=0),
+            StatisticTest(case_name="theCase3", test_name="theTest", passed_count=0),
         ]
         assert result == expected
 
@@ -163,9 +171,9 @@ def test_statistics_end2end(db_path):
 
         result = tested.statistics_end2end()
         expected = [
-            StatisticEnd2End(case_name='theCase1', run_count=2, full_run=0, end2end=2),
-            StatisticEnd2End(case_name='theCase2', run_count=1, full_run=0, end2end=0),
-            StatisticEnd2End(case_name='theCase3', run_count=1, full_run=0, end2end=1),
+            StatisticEnd2End(case_name="theCase1", run_count=2, full_run=0, end2end=2),
+            StatisticEnd2End(case_name="theCase2", run_count=1, full_run=0, end2end=0),
+            StatisticEnd2End(case_name="theCase3", run_count=1, full_run=0, end2end=1),
         ]
         assert result == expected
 

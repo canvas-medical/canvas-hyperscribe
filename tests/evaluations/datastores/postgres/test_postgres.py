@@ -24,7 +24,7 @@ def helper_instance() -> Postgres:
 def test_constant_dumps():
     tested = Postgres
     tests = [
-        ({}, '{}'),
+        ({}, "{}"),
         ({"b": "word1", "c": "word2", "a": "word3"}, '{"a":"word3","b":"word1","c":"word2"}'),
         ({"b": "word1", "a": "word3", "c": "word2"}, '{"a":"word3","b":"word1","c":"word2"}'),
     ]
@@ -44,6 +44,7 @@ def test_md5_from():
         result = tested.md5_from(data)
         assert result == expected, f"---> {data}"
 
+
 def test___init__():
     credentials = PostgresCredentials(
         database="theDatabase",
@@ -56,7 +57,7 @@ def test___init__():
     assert tested.credentials == credentials
 
 
-@patch('evaluations.datastores.postgres.postgres.connect')
+@patch("evaluations.datastores.postgres.postgres.connect")
 def test__select(connect):
     mock_connection = MagicMock()
     mock_cursor = MagicMock()
@@ -70,21 +71,11 @@ def test__select(connect):
 
     connect.return_value.__enter__.side_effect = [mock_connection]
     mock_connection.cursor.return_value.__enter__.side_effect = [mock_cursor]
-    mock_cursor.description = [
-        ["field_1", "meta_1"],
-        ["field_2", "meta_2"],
-        ["field_3", "meta_3"],
-    ]
+    mock_cursor.description = [["field_1", "meta_1"], ["field_2", "meta_2"], ["field_3", "meta_3"]]
     mock_cursor.fetchall.side_effect = [
-        [
-            ["value_1_a", "value_2_a", "value_3_a"],
-            ["value_1_b", "value_2_b", "value_3_b"],
-        ],
+        [["value_1_a", "value_2_a", "value_3_a"], ["value_1_b", "value_2_b", "value_3_b"]],
     ]
-    result = [
-        row
-        for row in tested._select("theSQL", {"key": "value"})
-    ]
+    result = [row for row in tested._select("theSQL", {"key": "value"})]
     expected = [
         {"field_1": "value_1_a", "field_2": "value_2_a", "field_3": "value_3_a"},
         {"field_1": "value_1_b", "field_2": "value_2_b", "field_3": "value_3_b"},
@@ -92,27 +83,19 @@ def test__select(connect):
     assert result == expected
 
     calls = [
-        call(dbname='theDatabase', host='theHost', user='theUser', password='thePassword', port=1234),
+        call(dbname="theDatabase", host="theHost", user="theUser", password="thePassword", port=1234),
         call().__enter__(),
         call().__exit__(None, None, None),
     ]
     assert connect.mock_calls == calls
-    calls = [
-        call.cursor(),
-        call.cursor().__enter__(),
-        call.commit(),
-        call.cursor().__exit__(None, None, None),
-    ]
+    calls = [call.cursor(), call.cursor().__enter__(), call.commit(), call.cursor().__exit__(None, None, None)]
     assert mock_connection.mock_calls == calls
-    calls = [
-        call.execute(sqlist.SQL('theSQL'), {'key': 'value'}),
-        call.fetchall(),
-    ]
+    calls = [call.execute(sqlist.SQL("theSQL"), {"key": "value"}), call.fetchall()]
     assert mock_cursor.mock_calls == calls
     reset_mocks()
 
 
-@patch('evaluations.datastores.postgres.postgres.connect')
+@patch("evaluations.datastores.postgres.postgres.connect")
 def test__alter(connect):
     mock_connection = MagicMock()
     mock_cursor = MagicMock()
@@ -124,11 +107,7 @@ def test__alter(connect):
 
     tested = helper_instance()
 
-    tests = [
-        (None, [[36]], 36),
-        (37, [], 37),
-        (None, [[]], 0),
-    ]
+    tests = [(None, [[36]], 36), (37, [], 37), (None, [[]], 0)]
     for involved_id, fetch_one, expected in tests:
         connect.return_value.__enter__.side_effect = [mock_connection]
         mock_connection.cursor.return_value.__enter__.side_effect = [mock_cursor]
@@ -137,21 +116,14 @@ def test__alter(connect):
         assert result == expected
 
         calls = [
-            call(dbname='theDatabase', host='theHost', user='theUser', password='thePassword', port=1234),
+            call(dbname="theDatabase", host="theHost", user="theUser", password="thePassword", port=1234),
             call().__enter__(),
             call().__exit__(None, None, None),
         ]
         assert connect.mock_calls == calls
-        calls = [
-            call.cursor(),
-            call.cursor().__enter__(),
-            call.commit(),
-            call.cursor().__exit__(None, None, None),
-        ]
+        calls = [call.cursor(), call.cursor().__enter__(), call.commit(), call.cursor().__exit__(None, None, None)]
         assert mock_connection.mock_calls == calls
-        calls = [
-            call.execute(sqlist.SQL('theSQL'), {'key': 'value'}),
-        ]
+        calls = [call.execute(sqlist.SQL("theSQL"), {"key": "value"})]
         if fetch_one:
             calls.append(call.fetchone())
         assert mock_cursor.mock_calls == calls
@@ -189,7 +161,7 @@ def test_update_fields(alter, mock_datetime):
             'UPDATE "theTable" '
             'SET "updated"=%(now)s, "field_1" = %(field_1)s '
             'WHERE "id" = %(id)s AND ("field_1"!=%(field_1)s)',
-            {'field_1': True, 'id': 347, 'now': date_0}
+            {"field_1": True, "id": 347, "now": date_0},
         ),
         # json field
         (
@@ -198,37 +170,26 @@ def test_update_fields(alter, mock_datetime):
             'UPDATE "theTable" '
             'SET "updated"=%(now)s, "field_2" = %(field_2)s '
             'WHERE "id" = %(id)s AND (MD5("field_2"::text)!=%(field_2_md5)s)',
-            {
-                'field_2': '{"key":"data"}',
-                'field_2_md5': 'f992a945d8f807fe5fd55afeecd9ac4b',
-                'id': 347,
-                'now': date_0,
-            }
+            {"field_2": '{"key":"data"}', "field_2_md5": "f992a945d8f807fe5fd55afeecd9ac4b", "id": 347, "now": date_0},
         ),
         # several fields
         (
-            {
-                "field_1": True,
-                "field_2": {"key2": "data2"},
-                "field_3": 11,
-                "field_4": "text",
-                "field_5": EnumTest.TEST,
-            },
+            {"field_1": True, "field_2": {"key2": "data2"}, "field_3": 11, "field_4": "text", "field_5": EnumTest.TEST},
             1,
             'UPDATE "theTable" SET "updated"=%(now)s, "field_1" = %(field_1)s, "field_2" = %(field_2)s,'
             ' "field_3" = %(field_3)s, "field_4" = %(field_4)s, "field_5" = %(field_5)s '
             'WHERE "id" = %(id)s AND ("field_1"!=%(field_1)s OR MD5("field_2"::text)!=%(field_2_md5)s'
             ' OR "field_3"!=%(field_3)s OR "field_4"!=%(field_4)s OR "field_5"!=%(field_5)s)',
             {
-                'field_1': True,
-                'field_2': '{"key2":"data2"}',
-                'field_2_md5': 'd0391c6b7fb7500a5ec69a3eff6b3725',
-                'field_3': 11,
-                'field_4': 'text',
-                'field_5': 'test',
-                'id': 347,
-                'now': date_0,
-            }
+                "field_1": True,
+                "field_2": '{"key2":"data2"}',
+                "field_2_md5": "d0391c6b7fb7500a5ec69a3eff6b3725",
+                "field_3": 11,
+                "field_4": "text",
+                "field_5": "test",
+                "id": 347,
+                "now": date_0,
+            },
         ),
     ]
 

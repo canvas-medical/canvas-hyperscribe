@@ -18,13 +18,13 @@ from hyperscribe.structures.settings import Settings
 class LlmDecisionsReviewer:
     @classmethod
     def review(
-            cls,
-            identification: IdentificationParameters,
-            settings: Settings,
-            credentials: AwsS3Credentials,
-            command2uuid: dict,
-            created: datetime,
-            cycles: int,
+        cls,
+        identification: IdentificationParameters,
+        settings: Settings,
+        credentials: AwsS3Credentials,
+        command2uuid: dict,
+        created: datetime,
+        cycles: int,
     ) -> None:
         if settings.audit_llm is False:
             return
@@ -63,36 +63,43 @@ class LlmDecisionsReviewer:
                 if incremented_step.lower().startswith("transcript2instructions"):
                     details.append("Mention specific parts of the transcript to support the rationale.")
                     if increment > 0:
-                        details.append("Report only the items with changed value between your last response and the ones you provided before.")
+                        details.append(
+                            "Report only the items with changed value between your last response and the ones you "
+                            "provided before.",
+                        )
                 if incremented_step.lower().startswith("questionnaire"):
-                    details.append("Report only the items with changed value and mention specific parts of the transcript to support the rationale.")
+                    details.append(
+                        "Report only the items with changed value and mention specific parts of the transcript to "
+                        "support the rationale.",
+                    )
 
                 audit_schema = JsonSchema.get(["audit_with_value"])[0]
                 user_prompt = [
-                    "Your task is now to explain the rationale of each and every value you have provided, citing any text or value you used.",
+                    "Your task is now to explain the rationale of each and every value you have provided, citing "
+                    "any text or value you used.",
                     "\n".join(details),
-                    "Present the reasoning behind each and every value you provided, your response should be a JSON following this JSON Schema:",
+                    "Present the reasoning behind each and every value you provided, your response should be a JSON "
+                    "following this JSON Schema:",
                     "```json",
                     json.dumps(audit_schema),
                     "```",
                     "",
                 ]
-                audit = chatter.single_conversation(
-                    system_prompt,
-                    user_prompt,
-                    [audit_schema],
-                    None,
+                audit = chatter.single_conversation(system_prompt, user_prompt, [audit_schema], None)
+                result.append(
+                    {
+                        "uuid": command2uuid.get(indexed_command) or incremented_step,
+                        "command": indexed_command,
+                        "increment": increment,
+                        "decision": model_prompt,
+                        "audit": audit,
+                    },
                 )
-                result.append({
-                    "uuid": command2uuid.get(indexed_command) or incremented_step,
-                    "command": indexed_command,
-                    "increment": increment,
-                    "decision": model_prompt,
-                    "audit": audit,
-                })
-            store_path = (f"hyperscribe-{identification.canvas_instance}/"
-                          "audits/"
-                          f"{identification.note_uuid}/"
-                          f"final_audit_{cycle:02d}.log")
+            store_path = (
+                f"hyperscribe-{identification.canvas_instance}/"
+                "audits/"
+                f"{identification.note_uuid}/"
+                f"final_audit_{cycle:02d}.log"
+            )
             client_s3.upload_text_to_s3(store_path, json.dumps(result, indent=2))
         Progress.send_to_user(identification, settings, "audits done")

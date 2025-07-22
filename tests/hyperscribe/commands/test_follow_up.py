@@ -57,41 +57,56 @@ def test_staged_command_extract():
     tested = FollowUp
     tests = [
         ({}, None),
-        ({
-             "coding": {"text": "theStructuredRfV"},
-             "comment": "theComment",
-             "note_type": {"text": "theNoteType"},
-             "requested_date": {"date": "theDate"},
-             "reason_for_visit": "theReasonForVisit"
-         }, CodedItem(label="theDate: theStructuredRfV (theNoteType)", code="", uuid="")),
-        ({
-             "coding": {"text": "theStructuredRfV"},
-             "comment": "theComment",
-             "note_type": {"text": "theNoteType"},
-             "requested_date": {"date": ""},
-             "reason_for_visit": "theReasonForVisit"
-         }, None),
-        ({
-             "coding": {"text": ""},
-             "comment": "theComment",
-             "note_type": {"text": "theNoteType"},
-             "requested_date": {"date": "theDate"},
-             "reason_for_visit": "theReasonForVisit"
-         }, CodedItem(label="theDate: theReasonForVisit (theNoteType)", code="", uuid="")),
-        ({
-             "coding": {"text": ""},
-             "comment": "theComment",
-             "note_type": {"text": "theNoteType"},
-             "requested_date": {"date": "theDate"},
-             "reason_for_visit": ""
-         }, None),
-        ({
-             "coding": {"text": ""},
-             "comment": "theComment",
-             "note_type": {"text": "theNoteType"},
-             "requested_date": {"date": ""},
-             "reason_for_visit": "theReasonForVisit"
-         }, None),
+        (
+            {
+                "coding": {"text": "theStructuredRfV"},
+                "comment": "theComment",
+                "note_type": {"text": "theNoteType"},
+                "requested_date": {"date": "theDate"},
+                "reason_for_visit": "theReasonForVisit",
+            },
+            CodedItem(label="theDate: theStructuredRfV (theNoteType)", code="", uuid=""),
+        ),
+        (
+            {
+                "coding": {"text": "theStructuredRfV"},
+                "comment": "theComment",
+                "note_type": {"text": "theNoteType"},
+                "requested_date": {"date": ""},
+                "reason_for_visit": "theReasonForVisit",
+            },
+            None,
+        ),
+        (
+            {
+                "coding": {"text": ""},
+                "comment": "theComment",
+                "note_type": {"text": "theNoteType"},
+                "requested_date": {"date": "theDate"},
+                "reason_for_visit": "theReasonForVisit",
+            },
+            CodedItem(label="theDate: theReasonForVisit (theNoteType)", code="", uuid=""),
+        ),
+        (
+            {
+                "coding": {"text": ""},
+                "comment": "theComment",
+                "note_type": {"text": "theNoteType"},
+                "requested_date": {"date": "theDate"},
+                "reason_for_visit": "",
+            },
+            None,
+        ),
+        (
+            {
+                "coding": {"text": ""},
+                "comment": "theComment",
+                "note_type": {"text": "theNoteType"},
+                "requested_date": {"date": ""},
+                "reason_for_visit": "theReasonForVisit",
+            },
+            None,
+        ),
     ]
     for data, expected in tests:
         result = tested.staged_command_extract(data)
@@ -167,11 +182,7 @@ def test_command_from_json(existing_note_types, existing_reason_for_visits):
 
     # with structured RfV
     tested = helper_instance(structured_rfv=True)
-    tests = [
-        (1, "theUuidY", True),
-        (2, "theUuidZ", True),
-        (4, None, False),
-    ]
+    tests = [(1, "theUuidY", True), (2, "theUuidZ", True), (4, None, False)]
     for idx, exp_uuid, exp_structured in tests:
         existing_note_types.side_effect = [visit_types, visit_types]
         existing_reason_for_visits.side_effect = [reason_for_visits]
@@ -271,9 +282,11 @@ def test_command_parameters(existing_note_types, existing_reason_for_visits):
 def test_instruction_description():
     tested = helper_instance()
     result = tested.instruction_description()
-    expected = ("Any follow up encounter, either virtually or in person."
-                " There can be only one such instruction in the whole discussion, "
-                "so if one was already found, just update it by intelligently merging all key information.")
+    expected = (
+        "Any follow up encounter, either virtually or in person."
+        " There can be only one such instruction in the whole discussion, "
+        "so if one was already found, just update it by intelligently merging all key information."
+    )
     assert result == expected
 
 
@@ -297,11 +310,13 @@ def test_is_available(note_types):
     assert note_types.mock_calls == calls
     reset_mocks()
     #
-    note_types.side_effect = [[
-        CodedItem(uuid="theUuid1", label="display1a", code="CODE123"),
-        CodedItem(uuid="theUuid2", label="display2a", code="CODE45"),
-        CodedItem(uuid="theUuid3", label="display3a", code="CODE9876"),
-    ]]
+    note_types.side_effect = [
+        [
+            CodedItem(uuid="theUuid1", label="display1a", code="CODE123"),
+            CodedItem(uuid="theUuid2", label="display2a", code="CODE45"),
+            CodedItem(uuid="theUuid3", label="display3a", code="CODE9876"),
+        ],
+    ]
     result = tested.is_available()
     assert result is True
     calls = [call()]

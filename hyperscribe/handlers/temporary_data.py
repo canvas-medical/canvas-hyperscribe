@@ -4,6 +4,7 @@ from django.db.models import Model
 
 # ATTENTION temporary data access to the Charge Description Master view
 
+
 class ChargeDescriptionMaster(Model):
     class Meta:
         managed = False

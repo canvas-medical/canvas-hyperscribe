@@ -27,8 +27,16 @@ dev = [
 ]
 
 [tool.ruff]
-select = ["F401", "W292"]  # Unused imports + missing final newline
-ignore = []
-fix = true
+line-length = 120
 
-# [tool.ruff.format] section disabled to prevent formatting changes
+[tool.ruff.lint]
+select = ["F401", "W292", "W291", "Q000", "E111", "E117", "E501"]  # Unused imports, trailing newlines, trailing whitespace, quotes, indentation, line length
+ignore = []
+fixable = ["ALL"]
+
+[tool.ruff.format]
+# Only apply specific formatting rules
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"
+skip-magic-trailing-comma = false

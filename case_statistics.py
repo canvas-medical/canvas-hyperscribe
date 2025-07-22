@@ -2,7 +2,6 @@ from evaluations.datastores.store_results import StoreResults
 
 
 class CaseStatistics:
-
     @classmethod
     def run(cls) -> None:
         headers = [

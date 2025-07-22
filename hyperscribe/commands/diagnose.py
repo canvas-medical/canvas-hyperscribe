@@ -22,26 +22,29 @@ class Diagnose(Base):
             return CodedItem(label=f"{label} ({assessment})", code=code, uuid="")
         return None
 
-    def command_from_json(self, instruction: InstructionWithParameters, chatter: LlmBase) -> InstructionWithCommand | None:
+    def command_from_json(
+        self,
+        instruction: InstructionWithParameters,
+        chatter: LlmBase,
+    ) -> InstructionWithCommand | None:
         icd10_code = SelectorChat.condition_from(
             instruction,
             chatter,
             self.settings,
             instruction.parameters["keywords"].split(","),
             instruction.parameters["ICD10"].split(","),
-            "\n".join([
-                instruction.parameters["rationale"],
-                "",
-                instruction.parameters["assessment"],
-            ]),
+            "\n".join([instruction.parameters["rationale"], "", instruction.parameters["assessment"]]),
         )
-        return InstructionWithCommand.add_command(instruction, DiagnoseCommand(
-            icd10_code=icd10_code.code,
-            background=instruction.parameters["rationale"],
-            approximate_date_of_onset=Helper.str2date(instruction.parameters["onsetDate"]),
-            today_assessment=instruction.parameters["assessment"],
-            note_uuid=self.identification.note_uuid,
-        ))
+        return InstructionWithCommand.add_command(
+            instruction,
+            DiagnoseCommand(
+                icd10_code=icd10_code.code,
+                background=instruction.parameters["rationale"],
+                approximate_date_of_onset=Helper.str2date(instruction.parameters["onsetDate"]),
+                today_assessment=instruction.parameters["assessment"],
+                note_uuid=self.identification.note_uuid,
+            ),
+        )
 
     def command_parameters(self) -> dict:
         return {
@@ -53,12 +56,14 @@ class Diagnose(Base):
         }
 
     def instruction_description(self) -> str:
-        return ("Medical condition identified by the provider, including reasoning, current assessment, and onset date. "
-                "There is one instruction per condition, and no instruction in the lack of.")
+        return (
+            "Medical condition identified by the provider, including reasoning, current assessment, and onset date. "
+            "There is one instruction per condition, and no instruction in the lack of."
+        )
 
     def instruction_constraints(self) -> str:
         result = ""
-        if text := ", ".join([f'{condition.label}' for condition in self.cache.current_conditions()]):
+        if text := ", ".join([f"{condition.label}" for condition in self.cache.current_conditions()]):
             result = f"'{self.class_name()}' cannot include: {text}."
         return result
 

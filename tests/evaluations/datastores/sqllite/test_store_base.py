@@ -46,12 +46,13 @@ def test__insert(db_path, create_table_sql, insert_sql):
         create_table_sql.reset_mock()
         insert_sql.reset_mock()
 
-    sql_create = ("CREATE TABLE IF NOT EXISTS test ("
-                  "`id` INTEGER PRIMARY KEY AUTOINCREMENT,"
-                  "`field_1` TEXT NOT NULL,"
-                  "`field_2` INTEGER NOT NULL)")
-    sql_insert = ("INSERT INTO `test` (`field_1`,`field_2`) "
-                  "VALUES (:field_1, :field_2)")
+    sql_create = (
+        "CREATE TABLE IF NOT EXISTS test ("
+        "`id` INTEGER PRIMARY KEY AUTOINCREMENT,"
+        "`field_1` TEXT NOT NULL,"
+        "`field_2` INTEGER NOT NULL)"
+    )
+    sql_insert = "INSERT INTO `test` (`field_1`,`field_2`) VALUES (:field_1, :field_2)"
     tested = StoreBase
     with NamedTemporaryFile(delete=True) as temp_file:
         db_path.return_value = Path(temp_file.name)
@@ -67,11 +68,7 @@ def test__insert(db_path, create_table_sql, insert_sql):
         reset_mocks()
 
         result = [
-            {
-                "id": record["id"],
-                "field_1": record["field_1"],
-                "field_2": record["field_2"],
-            }
+            {"id": record["id"], "field_1": record["field_1"], "field_2": record["field_2"]}
             for record in tested._select("SELECT * FROM test ORDER BY `id`", {})
         ]
         expected = [{"id": 1, "field_1": "valueA", "field_2": 3}]
@@ -87,17 +84,10 @@ def test__insert(db_path, create_table_sql, insert_sql):
         reset_mocks()
 
         result = [
-            {
-                "id": record["id"],
-                "field_1": record["field_1"],
-                "field_2": record["field_2"],
-            }
+            {"id": record["id"], "field_1": record["field_1"], "field_2": record["field_2"]}
             for record in tested._select("SELECT * FROM test ORDER BY `id`", {})
         ]
-        expected = [
-            {"id": 1, "field_1": "valueA", "field_2": 3},
-            {"id": 2, "field_1": "valueB", "field_2": 7},
-        ]
+        expected = [{"id": 1, "field_1": "valueA", "field_2": 3}, {"id": 2, "field_1": "valueB", "field_2": 7}]
         assert result == expected
         reset_mocks()
 
@@ -113,14 +103,14 @@ def test__upsert(db_path, create_table_sql, insert_sql, update_sql):
         insert_sql.reset_mock()
         update_sql.reset_mock()
 
-    sql_create = ("CREATE TABLE IF NOT EXISTS test ("
-                  "`id` INTEGER PRIMARY KEY AUTOINCREMENT,"
-                  "`field_1` TEXT NOT NULL,"
-                  "`field_2` INTEGER NOT NULL)")
-    sql_insert = ("INSERT INTO `test` (`id`,`field_1`,`field_2`) "
-                  "VALUES (:id,:field_1, :field_2)")
-    sql_update = ("UPDATE `test` SET `field_1`=:field_1,`field_2`=:field_2 "
-                  "WHERE `id`=:id")
+    sql_create = (
+        "CREATE TABLE IF NOT EXISTS test ("
+        "`id` INTEGER PRIMARY KEY AUTOINCREMENT,"
+        "`field_1` TEXT NOT NULL,"
+        "`field_2` INTEGER NOT NULL)"
+    )
+    sql_insert = "INSERT INTO `test` (`id`,`field_1`,`field_2`) VALUES (:id,:field_1, :field_2)"
+    sql_update = "UPDATE `test` SET `field_1`=:field_1,`field_2`=:field_2 WHERE `id`=:id"
     tested = StoreBase
     with NamedTemporaryFile(delete=True) as temp_file:
         db_path.return_value = Path(temp_file.name)
@@ -133,31 +123,26 @@ def test__upsert(db_path, create_table_sql, insert_sql, update_sql):
                 {"field_1": "valueA", "field_2": 3, "id": 1},
                 [call()],
                 [call()],
-                [{"id": 1, "field_1": "valueA", "field_2": 3}]),
+                [{"id": 1, "field_1": "valueA", "field_2": 3}],
+            ),
             (
                 {"field_1": "valueB", "field_2": 7, "id": 2},
                 [call()],
                 [call()],
-                [
-                    {"id": 1, "field_1": "valueA", "field_2": 3},
-                    {"field_1": "valueB", "field_2": 7, "id": 2},
-                ]),
+                [{"id": 1, "field_1": "valueA", "field_2": 3}, {"field_1": "valueB", "field_2": 7, "id": 2}],
+            ),
             (
                 {"field_1": "valueB", "field_2": 8, "id": 2},
                 [call()],
                 [],
-                [
-                    {"id": 1, "field_1": "valueA", "field_2": 3},
-                    {"field_1": "valueB", "field_2": 8, "id": 2},
-                ]),
+                [{"id": 1, "field_1": "valueA", "field_2": 3}, {"field_1": "valueB", "field_2": 8, "id": 2}],
+            ),
             (
                 {"field_1": "valueC", "field_2": 3, "id": 1},
                 [call()],
                 [],
-                [
-                    {"id": 1, "field_1": "valueC", "field_2": 3},
-                    {"field_1": "valueB", "field_2": 8, "id": 2},
-                ]),
+                [{"id": 1, "field_1": "valueC", "field_2": 3}, {"field_1": "valueB", "field_2": 8, "id": 2}],
+            ),
         ]
         for parameters, exp_calls_update, exp_calls_insert, exp_records in tests:
             tested._upsert(parameters)
@@ -168,11 +153,7 @@ def test__upsert(db_path, create_table_sql, insert_sql, update_sql):
             reset_mocks()
 
             result = [
-                {
-                    "id": record["id"],
-                    "field_1": record["field_1"],
-                    "field_2": record["field_2"],
-                }
+                {"id": record["id"], "field_1": record["field_1"], "field_2": record["field_2"]}
                 for record in tested._select("SELECT * FROM test ORDER BY `id`", {})
             ]
             assert result == exp_records
@@ -190,12 +171,13 @@ def test__delete(db_path, create_table_sql, insert_sql, delete_sql):
         insert_sql.reset_mock()
         delete_sql.reset_mock()
 
-    sql_create = ("CREATE TABLE IF NOT EXISTS test ("
-                  "`id` INTEGER PRIMARY KEY AUTOINCREMENT,"
-                  "`field_1` TEXT NOT NULL,"
-                  "`field_2` INTEGER NOT NULL)")
-    sql_insert = ("INSERT INTO `test` (`field_1`,`field_2`) "
-                  "VALUES (:field_1, :field_2)")
+    sql_create = (
+        "CREATE TABLE IF NOT EXISTS test ("
+        "`id` INTEGER PRIMARY KEY AUTOINCREMENT,"
+        "`field_1` TEXT NOT NULL,"
+        "`field_2` INTEGER NOT NULL)"
+    )
+    sql_insert = "INSERT INTO `test` (`field_1`,`field_2`) VALUES (:field_1, :field_2)"
     sql_delete = "DELETE FROM `test` WHERE `id`=:id"
 
     tested = StoreBase
@@ -216,17 +198,10 @@ def test__delete(db_path, create_table_sql, insert_sql, delete_sql):
         reset_mocks()
 
         result = [
-            {
-                "id": record["id"],
-                "field_1": record["field_1"],
-                "field_2": record["field_2"],
-            }
+            {"id": record["id"], "field_1": record["field_1"], "field_2": record["field_2"]}
             for record in tested._select("SELECT * FROM test ORDER BY `id`", {})
         ]
-        expected = [
-            {"id": 1, "field_1": "valueA", "field_2": 3},
-            {"id": 2, "field_1": "valueB", "field_2": 7},
-        ]
+        expected = [{"id": 1, "field_1": "valueA", "field_2": 3}, {"id": 2, "field_1": "valueB", "field_2": 7}]
         assert result == expected
         reset_mocks()
 
@@ -246,11 +221,7 @@ def test__delete(db_path, create_table_sql, insert_sql, delete_sql):
             reset_mocks()
 
             result = [
-                {
-                    "id": record["id"],
-                    "field_1": record["field_1"],
-                    "field_2": record["field_2"],
-                }
+                {"id": record["id"], "field_1": record["field_1"], "field_2": record["field_2"]}
                 for record in tested._select("SELECT * FROM test ORDER BY `id`", {})
             ]
             assert result == exp_records
@@ -266,12 +237,13 @@ def test__select(db_path, create_table_sql, insert_sql):
         create_table_sql.reset_mock()
         insert_sql.reset_mock()
 
-    sql_create = ("CREATE TABLE IF NOT EXISTS test ("
-                  "`id` INTEGER PRIMARY KEY AUTOINCREMENT,"
-                  "`field_1` TEXT NOT NULL,"
-                  "`field_2` INTEGER NOT NULL)")
-    sql_insert = ("INSERT INTO `test` (`field_1`,`field_2`) "
-                  "VALUES (:field_1, :field_2)")
+    sql_create = (
+        "CREATE TABLE IF NOT EXISTS test ("
+        "`id` INTEGER PRIMARY KEY AUTOINCREMENT,"
+        "`field_1` TEXT NOT NULL,"
+        "`field_2` INTEGER NOT NULL)"
+    )
+    sql_insert = "INSERT INTO `test` (`field_1`,`field_2`) VALUES (:field_1, :field_2)"
 
     tested = StoreBase
     with NamedTemporaryFile(delete=True) as temp_file:
@@ -299,25 +271,16 @@ def test__select(db_path, create_table_sql, insert_sql):
                     {"id": 1, "field_1": "valueA", "field_2": 3},
                     {"id": 2, "field_1": "valueB", "field_2": 7},
                     {"id": 3, "field_1": "valueC", "field_2": 6},
-                ]
+                ],
             ),
             (
                 "SELECT `id`, `field_1` FROM test WHERE `field_2`<:max ORDER BY `id`",
                 {"max": 7},
                 ["id", "field_1"],
-                [
-                    {"id": 1, "field_1": "valueA"},
-                    {"id": 3, "field_1": "valueC"},
-                ]
+                [{"id": 1, "field_1": "valueA"}, {"id": 3, "field_1": "valueC"}],
             ),
         ]
         for sql, parameters, exp_fields, exp_records in tests:
-            result = [
-                {
-                    field: record[field]
-                    for field in exp_fields
-                }
-                for record in tested._select(sql, parameters)
-            ]
+            result = [{field: record[field] for field in exp_fields} for record in tested._select(sql, parameters)]
             assert result == exp_records
             reset_mocks()

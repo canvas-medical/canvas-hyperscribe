@@ -33,7 +33,7 @@ def test_constants():
 
 @patch("hyperscribe.handlers.tuning_launcher.time", wraps=time)
 @patch.object(Note, "objects")
-@patch('hyperscribe.handlers.tuning_launcher.LaunchModalEffect')
+@patch("hyperscribe.handlers.tuning_launcher.LaunchModalEffect")
 def test_handle(launch_model_effect, note_db, mock_time):
     def reset_mocks():
         launch_model_effect.reset_mock()
@@ -48,10 +48,7 @@ def test_handle(launch_model_effect, note_db, mock_time):
 
     event = Event(EventRequest(context='{"note_id":"noteId"}'))
     event.target = TargetType(id="targetId", type=Patient)
-    secrets = {
-        "AudioIntervalSeconds": 7,
-        "APISigningKey": "theApiSigningKey",
-    }
+    secrets = {"AudioIntervalSeconds": 7, "APISigningKey": "theApiSigningKey"}
     tested = TuningLauncher(event, secrets)
     result = tested.handle()
     expected = [Effect(type="LOG", payload="SomePayload")]
@@ -59,18 +56,18 @@ def test_handle(launch_model_effect, note_db, mock_time):
 
     calls = [
         call(
-            url='/plugin-io/api/hyperscribe/archive'
-                '?note_id=uuidNote'
-                '&patient_id=targetId'
-                '&interval=7'
-                '&ts=1741964291'
-                '&sig=ceb81ba49d3a2f950b0327a9af6a6fe7677994b8467ba076f9953a9171b9728a',
-            target='new_window',
+            url="/plugin-io/api/hyperscribe/archive"
+            "?note_id=uuidNote"
+            "&patient_id=targetId"
+            "&interval=7"
+            "&ts=1741964291"
+            "&sig=ceb81ba49d3a2f950b0327a9af6a6fe7677994b8467ba076f9953a9171b9728a",
+            target="new_window",
         ),
         call().apply(),
     ]
     assert launch_model_effect.mock_calls == calls
-    calls = [call.get(dbid='noteId')]
+    calls = [call.get(dbid="noteId")]
     assert note_db.mock_calls == calls
     calls = [call()]
     assert mock_time.mock_calls == calls
@@ -123,9 +120,6 @@ def test_visible(last_note_state_event_db):
 
             calls = []
             if expected:
-                calls = [
-                    call.get(note_id=778),
-                    call.get().editable(),
-                ]
+                calls = [call.get(note_id=778), call.get().editable()]
             assert last_note_state_event_db.mock_calls == calls
             reset_mocks()

@@ -4,12 +4,7 @@ from tests.helper import is_namedtuple
 
 def test_class():
     tested = Response
-    fields = {
-        "dbid": int,
-        "value": str | int,
-        "selected": bool,
-        "comment": str | None,
-    }
+    fields = {"dbid": int, "value": str | int, "selected": bool, "comment": str | None}
     assert is_namedtuple(tested, fields)
 
 

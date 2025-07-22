@@ -62,7 +62,7 @@ def test_command_from_json():
             information="theInformation",
             is_new=False,
             is_updated=True,
-            parameters={'key': "value"},
+            parameters={"key": "value"},
         )
         _ = tested.command_from_json(instruction, chatter)
     assert chatter.mock_calls == []

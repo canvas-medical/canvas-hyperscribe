@@ -30,7 +30,6 @@ from hyperscribe.structures.settings import Settings
 
 
 class BuilderBase:
-
     @classmethod
     def validate_files(cls, file_path: str) -> Path:
         file = Path(file_path)
@@ -88,7 +87,10 @@ class BuilderBase:
         print(f"Summary can be viewed at: {recorder.generate_html_summary().as_uri()}")
 
         if (client_s3 := AwsS3(recorder.s3_credentials)) and client_s3.is_ready():
-            remote_path = f"hyperscribe-{identification.canvas_instance}/finals/{datetime.now(UTC).date().isoformat()}/{parameters.case}.log"
+            remote_path = (
+                f"hyperscribe-{identification.canvas_instance}/finals/"
+                f"{datetime.now(UTC).date().isoformat()}/{parameters.case}.log"
+            )
             client_s3.upload_text_to_s3(remote_path, MemoryLog.end_session(identification.note_uuid))
             print(f"Logs saved in: {remote_path}")
 
@@ -106,20 +108,15 @@ class BuilderBase:
 
     @classmethod
     def _run_cycle(
-            cls,
-            auditor: AuditorStore,
-            audios: list[bytes],
-            chatter: AudioInterpreter,
-            previous_instructions: list[Instruction],
-            previous_transcript: list[Line],
+        cls,
+        auditor: AuditorStore,
+        audios: list[bytes],
+        chatter: AudioInterpreter,
+        previous_instructions: list[Instruction],
+        previous_transcript: list[Line],
     ) -> Tuple[list[Instruction], list[Line]]:
         if transcript := auditor.transcript():
-            instructions, _ = Commander.transcript2commands(
-                auditor,
-                transcript,
-                chatter,
-                previous_instructions,
-            )
+            instructions, _ = Commander.transcript2commands(auditor, transcript, chatter, previous_instructions)
             end_of_transcript: list[Line] = []
         else:
             instructions, _, end_of_transcript = Commander.audio2commands(
@@ -142,11 +139,7 @@ class BuilderBase:
         return LimitedCache(
             identification.patient_uuid,
             identification.provider_uuid,
-            Commander.existing_commands_to_coded_items(
-                current_commands,
-                settings.commands_policy,
-                True,
-            ),
+            Commander.existing_commands_to_coded_items(current_commands, settings.commands_policy, True),
         )
 
     @classmethod
@@ -166,10 +159,7 @@ class BuilderBase:
         cycles = recorder.get_json(EvaluationConstants.STAGED_QUESTIONNAIRES)
         if values := list(cycles.values()):
             for index, command in enumerate(values[-1]["commands"]):
-                result[f"questionnaire_{index:02d}"] = {
-                    "instruction": "n/a",
-                    "command": cls._remove_uuids(command),
-                }
+                result[f"questionnaire_{index:02d}"] = {"instruction": "n/a", "command": cls._remove_uuids(command)}
 
         return list(result.values())
 
@@ -179,19 +169,19 @@ class BuilderBase:
             "module": command["module"],
             "class": command["class"],
             "attributes": {
-                key: value
-                for key, value in command["attributes"].items()
-                if key not in ("note_uuid", "command_uuid")
+                key: value for key, value in command["attributes"].items() if key not in ("note_uuid", "command_uuid")
             },
         }
 
     @classmethod
-    def _render_in_ui(cls, recorder: AuditorStore, identification: IdentificationParameters, limited_cache: LimitedCache) -> None:
+    def _render_in_ui(
+        cls,
+        recorder: AuditorStore,
+        identification: IdentificationParameters,
+        limited_cache: LimitedCache,
+    ) -> None:
         result: list[dict] = []
-        commands = [
-            summary["command"]
-            for summary in cls._summary_generated_commands(recorder)
-        ]
+        commands = [summary["command"] for summary in cls._summary_generated_commands(recorder)]
         if not commands:
             return
 
@@ -234,6 +224,5 @@ class BuilderBase:
             headers={"Content-Type": "application/json"},
             json=commands,
             verify=True,
-            timeout=
-            None,
+            timeout=None,
         )

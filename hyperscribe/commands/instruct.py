@@ -25,11 +25,12 @@ class Instruct(Base):
             return CodedItem(label=f"{instruct} ({narrative})", code="", uuid="")
         return None
 
-    def command_from_json(self, instruction: InstructionWithParameters, chatter: LlmBase) -> InstructionWithCommand | None:
-        result = InstructCommand(
-            comment=instruction.parameters["comment"],
-            note_uuid=self.identification.note_uuid,
-        )
+    def command_from_json(
+        self,
+        instruction: InstructionWithParameters,
+        chatter: LlmBase,
+    ) -> InstructionWithCommand | None:
+        result = InstructCommand(comment=instruction.parameters["comment"], note_uuid=self.identification.note_uuid)
         # retrieve existing instructions defined in Canvas Science
         expressions = instruction.parameters["keywords"].split(",")
         if concepts := CanvasScience.instructions(self.settings.science_host, expressions):
@@ -41,21 +42,21 @@ class Instruct(Base):
                 "",
             ]
             user_prompt = [
-                'Here is the description of a direction instructed by a healthcare provider to a patient:',
-                '```text',
+                "Here is the description of a direction instructed by a healthcare provider to a patient:",
+                "```text",
                 f"keywords: {instruction.parameters['keywords']}",
                 " -- ",
                 instruction.parameters["comment"],
-                '```',
-                'Among the following expressions, identify the most relevant one:',
-                '',
-                "\n".join(f' * {concept.term} ({concept.concept_id})' for concept in concepts),
-                '',
-                'Please, present your findings in a JSON format within a Markdown code block like:',
-                '```json',
+                "```",
+                "Among the following expressions, identify the most relevant one:",
+                "",
+                "\n".join(f" * {concept.term} ({concept.concept_id})" for concept in concepts),
+                "",
+                "Please, present your findings in a JSON format within a Markdown code block like:",
+                "```json",
                 json.dumps([{"conceptId": "the concept ID", "term": "the expression"}]),
-                '```',
-                '',
+                "```",
+                "",
             ]
             schemas = JsonSchema.get(["selector_concept"])
             if response := chatter.single_conversation(system_prompt, user_prompt, schemas, instruction):
@@ -74,8 +75,10 @@ class Instruct(Base):
         }
 
     def instruction_description(self) -> str:
-        return ("Specific or standard direction. "
-                "There can be only one direction per instruction, and no instruction in the lack of.")
+        return (
+            "Specific or standard direction. "
+            "There can be only one direction per instruction, and no instruction in the lack of."
+        )
 
     def instruction_constraints(self) -> str:
         return ""

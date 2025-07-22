@@ -72,95 +72,97 @@ def test_medications_from(demographic, current_allergies, staged_commands_of, me
     ]
     user_prompts = {
         "with_conditions": [
-            'Here is the comment provided by the healthcare provider in regards to the prescription:',
-            '```text',
-            'keywords: keyword1, keyword2, keyword3',
-            ' -- ',
-            'theComment',
-            '```',
-            '',
+            "Here is the comment provided by the healthcare provider in regards to the prescription:",
+            "```text",
+            "keywords: keyword1, keyword2, keyword3",
+            " -- ",
+            "theComment",
+            "```",
+            "",
             "The prescription is intended to the patient's condition: theCondition.",
-            '',
-            'The choice of the medication has to also take into account that:',
-            ' - the patient has this demographic,',
+            "",
+            "The choice of the medication has to also take into account that:",
+            " - the patient has this demographic,",
             " - the patient's medical record contains no information about allergies.",
-            '',
-            'Among the following medications, identify the most appropriate option:',
-            '',
-            ' * labelA (fdbCode: code123)\n * labelB (fdbCode: code369)\n * labelC (fdbCode: code752)',
-            '',
-            'Please, present your findings in a JSON format within a Markdown code block like:',
-            '```json',
+            "",
+            "Among the following medications, identify the most appropriate option:",
+            "",
+            " * labelA (fdbCode: code123)\n * labelB (fdbCode: code369)\n * labelC (fdbCode: code752)",
+            "",
+            "Please, present your findings in a JSON format within a Markdown code block like:",
+            "```json",
             '[{"fdbCode": "the fdb code, as int", "description": "the description"}]',
-            '```',
-            '',
+            "```",
+            "",
         ],
         "no_condition": [
-            'Here is the comment provided by the healthcare provider in regards to the prescription:',
-            '```text',
-            'keywords: keyword1, keyword2, keyword3',
-            ' -- ',
-            'theComment',
-            '```',
-            '',
-            '',
-            '',
-            'The choice of the medication has to also take into account that:',
-            ' - the patient has this demographic,',
+            "Here is the comment provided by the healthcare provider in regards to the prescription:",
+            "```text",
+            "keywords: keyword1, keyword2, keyword3",
+            " -- ",
+            "theComment",
+            "```",
+            "",
+            "",
+            "",
+            "The choice of the medication has to also take into account that:",
+            " - the patient has this demographic,",
             " - the patient's medical record contains no information about allergies.",
-            '',
-            'Among the following medications, identify the most appropriate option:',
-            '',
-            ' * labelA (fdbCode: code123)\n * labelB (fdbCode: code369)\n * labelC (fdbCode: code752)',
-            '',
-            'Please, present your findings in a JSON format within a Markdown code block like:',
-            '```json',
+            "",
+            "Among the following medications, identify the most appropriate option:",
+            "",
+            " * labelA (fdbCode: code123)\n * labelB (fdbCode: code369)\n * labelC (fdbCode: code752)",
+            "",
+            "Please, present your findings in a JSON format within a Markdown code block like:",
+            "```json",
             '[{"fdbCode": "the fdb code, as int", "description": "the description"}]',
-            '```',
-            '',
+            "```",
+            "",
         ],
         "with_allergies": [
-            'Here is the comment provided by the healthcare provider in regards to the prescription:',
-            '```text',
-            'keywords: keyword1, keyword2, keyword3',
-            ' -- ',
-            'theComment',
-            '```',
-            '',
-            '',
-            '',
-            'The choice of the medication has to also take into account that:',
-            ' - the patient has this demographic,',
-            ' - the patient is allergic to:\n * allergy1\n * allergy2\n * allergy3.',
-            '',
-            'Among the following medications, identify the most appropriate option:',
-            '',
-            ' * labelA (fdbCode: code123)\n * labelB (fdbCode: code369)\n * labelC (fdbCode: code752)',
-            '',
-            'Please, present your findings in a JSON format within a Markdown code block like:',
-            '```json',
+            "Here is the comment provided by the healthcare provider in regards to the prescription:",
+            "```text",
+            "keywords: keyword1, keyword2, keyword3",
+            " -- ",
+            "theComment",
+            "```",
+            "",
+            "",
+            "",
+            "The choice of the medication has to also take into account that:",
+            " - the patient has this demographic,",
+            " - the patient is allergic to:\n * allergy1\n * allergy2\n * allergy3.",
+            "",
+            "Among the following medications, identify the most appropriate option:",
+            "",
+            " * labelA (fdbCode: code123)\n * labelB (fdbCode: code369)\n * labelC (fdbCode: code752)",
+            "",
+            "Please, present your findings in a JSON format within a Markdown code block like:",
+            "```json",
             '[{"fdbCode": "the fdb code, as int", "description": "the description"}]',
-            '```',
-            '',
+            "```",
+            "",
         ],
     }
-    schemas = [{
-        '$schema': 'http://json-schema.org/draft-07/schema#',
-        'type': 'array',
-        'items': {
-            'type': 'object',
-            'properties': {
-                'fdbCode': {'type': 'integer', 'minimum': 1},
-                'description': {'type': 'string', 'minLength': 1},
+    schemas = [
+        {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "fdbCode": {"type": "integer", "minimum": 1},
+                    "description": {"type": "string", "minLength": 1},
+                },
+                "required": ["fdbCode", "description"],
+                "additionalProperties": False,
             },
-            'required': ['fdbCode', 'description'],
-            'additionalProperties': False,
+            "minItems": 1,
+            "maxItems": 1,
         },
-        'minItems': 1,
-        'maxItems': 1,
-    }]
-    keywords = ['keyword1', 'keyword2', 'keyword3']
-    brands = ['brand1', 'brand2', 'brand3', 'brand4']
+    ]
+    keywords = ["keyword1", "keyword2", "keyword3"]
+    brands = ["brand1", "brand2", "brand3", "brand4"]
     medications = [
         MedicationDetail(fdb_code="code123", description="labelA", quantities=[]),
         MedicationDetail(fdb_code="code369", description="labelB", quantities=[]),
@@ -178,7 +180,7 @@ def test_medications_from(demographic, current_allergies, staged_commands_of, me
         information="theInformation",
         is_new=False,
         is_updated=True,
-        parameters={'key': "value"},
+        parameters={"key": "value"},
     )
 
     tested = helper_instance()
@@ -205,7 +207,7 @@ def test_medications_from(demographic, current_allergies, staged_commands_of, me
     assert current_allergies.mock_calls == calls
     calls = [call(["allergy"])]
     assert staged_commands_of.mock_calls == calls
-    calls = [call('scienceHost', brands)]
+    calls = [call("scienceHost", brands)]
     assert medication_details.mock_calls == calls
     calls = [call.single_conversation(system_prompt, user_prompts["with_conditions"], schemas, instruction)]
     assert chatter.mock_calls == calls
@@ -217,12 +219,7 @@ def test_medications_from(demographic, current_allergies, staged_commands_of, me
     staged_commands_of.side_effect = [[]]
     medication_details.side_effect = [medications]
     chatter.single_conversation.side_effect = [[{"fdbCode": "code369", "description": "labelB"}]]
-    search = MedicationSearch(
-        comment="theComment",
-        keywords=keywords,
-        brand_names=brands,
-        related_condition="",
-    )
+    search = MedicationSearch(comment="theComment", keywords=keywords, brand_names=brands, related_condition="")
     result = tested.medications_from(instruction, chatter, search)
     expected = [MedicationDetail(fdb_code="code369", description="labelB", quantities=[])]
     assert result == expected
@@ -233,7 +230,7 @@ def test_medications_from(demographic, current_allergies, staged_commands_of, me
     assert current_allergies.mock_calls == calls
     calls = [call(["allergy"])]
     assert staged_commands_of.mock_calls == calls
-    calls = [call('scienceHost', brands)]
+    calls = [call("scienceHost", brands)]
     assert medication_details.mock_calls == calls
     calls = [call.single_conversation(system_prompt, user_prompts["no_condition"], schemas, instruction)]
     assert chatter.mock_calls == calls
@@ -245,12 +242,7 @@ def test_medications_from(demographic, current_allergies, staged_commands_of, me
     staged_commands_of.side_effect = [allergies[2:]]
     medication_details.side_effect = [medications]
     chatter.single_conversation.side_effect = [[{"fdbCode": "code369", "description": "labelB"}]]
-    search = MedicationSearch(
-        comment="theComment",
-        keywords=keywords,
-        brand_names=brands,
-        related_condition="",
-    )
+    search = MedicationSearch(comment="theComment", keywords=keywords, brand_names=brands, related_condition="")
     result = tested.medications_from(instruction, chatter, search)
     expected = [MedicationDetail(fdb_code="code369", description="labelB", quantities=[])]
     assert result == expected
@@ -261,7 +253,7 @@ def test_medications_from(demographic, current_allergies, staged_commands_of, me
     assert current_allergies.mock_calls == calls
     calls = [call(["allergy"])]
     assert staged_commands_of.mock_calls == calls
-    calls = [call('scienceHost', brands)]
+    calls = [call("scienceHost", brands)]
     assert medication_details.mock_calls == calls
     calls = [call.single_conversation(system_prompt, user_prompts["with_allergies"], schemas, instruction)]
     assert chatter.mock_calls == calls
@@ -273,12 +265,7 @@ def test_medications_from(demographic, current_allergies, staged_commands_of, me
     staged_commands_of.side_effect = [[]]
     medication_details.side_effect = [medications]
     chatter.single_conversation.side_effect = [[]]
-    search = MedicationSearch(
-        comment="theComment",
-        keywords=keywords,
-        brand_names=brands,
-        related_condition="",
-    )
+    search = MedicationSearch(comment="theComment", keywords=keywords, brand_names=brands, related_condition="")
     result = tested.medications_from(instruction, chatter, search)
     assert result == []
 
@@ -288,7 +275,7 @@ def test_medications_from(demographic, current_allergies, staged_commands_of, me
     assert current_allergies.mock_calls == calls
     calls = [call(["allergy"])]
     assert staged_commands_of.mock_calls == calls
-    calls = [call('scienceHost', brands)]
+    calls = [call("scienceHost", brands)]
     assert medication_details.mock_calls == calls
     calls = [call.single_conversation(system_prompt, user_prompts["no_condition"], schemas, instruction)]
     assert chatter.mock_calls == calls
@@ -312,7 +299,7 @@ def test_medications_from(demographic, current_allergies, staged_commands_of, me
     assert demographic.mock_calls == []
     assert current_allergies.mock_calls == []
     assert staged_commands_of.mock_calls == []
-    calls = [call('scienceHost', brands)]
+    calls = [call("scienceHost", brands)]
     assert medication_details.mock_calls == calls
     assert chatter.mock_calls == []
     reset_mocks()
@@ -333,46 +320,50 @@ def test_set_medication_dosage(demographic):
         "",
     ]
     user_prompt = [
-        'Here is the comment provided by the healthcare provider in regards to the prescription of the medication labelB:',
-        '```text',
-        'theComment',
-        '```',
-        '',
-        'The medication is provided as 7, description1.',
-        '',
-        'Based on this information, what are the quantity to dispense and the number of refills in order to fulfill the 11 supply days?',
-        '',
-        'The exact quantities and refill have to also take into account that the patient has this demographic.',
-        '',
-        'Please, present your findings in a JSON format within a Markdown code block like:',
-        '```json',
+        "Here is the comment provided by the healthcare provider in regards to the prescription of the "
+        "medication labelB:",
+        "```text",
+        "theComment",
+        "```",
+        "",
+        "The medication is provided as 7, description1.",
+        "",
+        "Based on this information, what are the quantity to dispense and the number of refills in order "
+        "to fulfill the 11 supply days?",
+        "",
+        "The exact quantities and refill have to also take into account that the patient has this demographic.",
+        "",
+        "Please, present your findings in a JSON format within a Markdown code block like:",
+        "```json",
         '[{"quantityToDispense": "mandatory, quantity to dispense, as float", '
         '"refills": "mandatory, refills allowed, as integer", '
         '"noteToPharmacist": "note to the pharmacist, as free text", '
         '"informationToPatient": "directions to the patient on how to use the medication, specifying the quantity, '
-        'the form (e.g. tablets, drops, puffs, etc), '
-        'the frequency and/or max daily frequency, and '
+        "the form (e.g. tablets, drops, puffs, etc), "
+        "the frequency and/or max daily frequency, and "
         'the route of use (e.g. by mouth, applied to skin, dropped in eye, etc), as free text"}]',
-        '```',
-        '',
+        "```",
+        "",
     ]
-    schemas = [{
-        '$schema': 'http://json-schema.org/draft-07/schema#',
-        'type': 'array',
-        'items': {
-            'type': 'object',
-            'properties': {
-                'quantityToDispense': {'type': 'number', 'exclusiveMinimum': 0},
-                'refills': {'type': 'integer', 'minimum': 0},
-                'noteToPharmacist': {'type': 'string'},
-                'informationToPatient': {'type': 'string', 'minLength': 1},
+    schemas = [
+        {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "quantityToDispense": {"type": "number", "exclusiveMinimum": 0},
+                    "refills": {"type": "integer", "minimum": 0},
+                    "noteToPharmacist": {"type": "string"},
+                    "informationToPatient": {"type": "string", "minLength": 1},
+                },
+                "required": ["quantityToDispense", "refills", "informationToPatient"],
+                "additionalProperties": False,
             },
-            'required': ['quantityToDispense', 'refills', 'informationToPatient'],
-            'additionalProperties': False,
+            "minItems": 1,
+            "maxItems": 1,
         },
-        'minItems': 1,
-        'maxItems': 1,
-    }]
+    ]
     medication = MedicationDetail(
         fdb_code="code369",
         description="labelB",
@@ -401,15 +392,12 @@ def test_set_medication_dosage(demographic):
             PrescribeCommand(
                 days_supply=11,
                 fdb_code="code369",
-                type_to_dispense={
-                    'representative_ndc': 'ndc1',
-                    'ncpdp_quantity_qualifier_code': 'qualifier1',
-                },
+                type_to_dispense={"representative_ndc": "ndc1", "ncpdp_quantity_qualifier_code": "qualifier1"},
                 quantity_to_dispense=Decimal("8.3"),
                 refills=3,
                 note_to_pharmacist="theNoteToPharmacist",
                 sig="theInformationToPatient",
-            )
+            ),
         ),
         (
             AdjustPrescriptionCommand(days_supply=11, fdb_code="code985"),
@@ -417,15 +405,12 @@ def test_set_medication_dosage(demographic):
                 days_supply=11,
                 fdb_code="code985",
                 new_fdb_code="code369",
-                type_to_dispense={
-                    'representative_ndc': 'ndc1',
-                    'ncpdp_quantity_qualifier_code': 'qualifier1',
-                },
+                type_to_dispense={"representative_ndc": "ndc1", "ncpdp_quantity_qualifier_code": "qualifier1"},
                 quantity_to_dispense=Decimal("8.3"),
                 refills=3,
                 note_to_pharmacist="theNoteToPharmacist",
                 sig="theInformationToPatient",
-            )
+            ),
         ),
     ]
     instruction = InstructionWithParameters(
@@ -435,16 +420,20 @@ def test_set_medication_dosage(demographic):
         information="theInformation",
         is_new=False,
         is_updated=True,
-        parameters={'key': "value"},
+        parameters={"key": "value"},
     )
     for command, expected in tests:
         demographic.side_effect = ["the patient has this demographic"]
-        chatter.single_conversation.side_effect = [[{
-            "quantityToDispense": "8.3",
-            "refills": 3,
-            "noteToPharmacist": "theNoteToPharmacist",
-            "informationToPatient": "theInformationToPatient",
-        }]]
+        chatter.single_conversation.side_effect = [
+            [
+                {
+                    "quantityToDispense": "8.3",
+                    "refills": 3,
+                    "noteToPharmacist": "theNoteToPharmacist",
+                    "informationToPatient": "theInformationToPatient",
+                },
+            ],
+        ]
         tested.set_medication_dosage(instruction, chatter, "theComment", command, medication)
         assert command == expected
 
@@ -462,10 +451,7 @@ def test_set_medication_dosage(demographic):
     expected = PrescribeCommand(
         days_supply=11,
         fdb_code="code369",
-        type_to_dispense={
-            'representative_ndc': 'ndc1',
-            'ncpdp_quantity_qualifier_code': 'qualifier1',
-        },
+        type_to_dispense={"representative_ndc": "ndc1", "ncpdp_quantity_qualifier_code": "qualifier1"},
     )
     assert command == expected
 

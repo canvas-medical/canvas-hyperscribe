@@ -10,10 +10,7 @@ from tests.helper import is_constant
 
 def test_constants():
     tested = AwsS3
-    constants = {
-        "ALGORITHM": "AWS4-HMAC-SHA256",
-        "SAFE_CHARACTERS": "-._~",
-    }
+    constants = {"ALGORITHM": "AWS4-HMAC-SHA256", "SAFE_CHARACTERS": "-._~"}
     assert is_constant(tested, constants)
 
 
@@ -21,13 +18,10 @@ def test_querystring():
     test = AwsS3
     tests = [
         ({}, ""),
-        ({
-             "key-2": "value 2",
-             "key.3": "value 3",
-             "key_1": "value 1",
-             "key~4": "value 4",
-             "key 5": "value 5",
-         }, "key%205=value%205&key-2=value%202&key.3=value%203&key_1=value%201&key~4=value%204"),
+        (
+            {"key-2": "value 2", "key.3": "value 3", "key_1": "value 1", "key~4": "value 4", "key 5": "value 5"},
+            "key%205=value%205&key-2=value%202&key.3=value%203&key_1=value%201&key~4=value%204",
+        ),
     ]
     for params, expected in tests:
         result = test.querystring(params)
@@ -70,7 +64,10 @@ def test_get_signature_key():
     credentials = AwsS3Credentials(aws_key="theKey", aws_secret="theSecret", region="theRegion", bucket="theBucket")
     test = AwsS3(credentials)
     result = test.get_signature_key("20250507T205533Z", "the\nCanonical\nRequest")
-    expected = ('20250507/theRegion/s3/aws4_request', '687fc36b6c415ba9a62fe9484f50977a41d7eb4fed38c81882f2082b3e68deb3')
+    expected = (
+        "20250507/theRegion/s3/aws4_request",
+        "687fc36b6c415ba9a62fe9484f50977a41d7eb4fed38c81882f2082b3e68deb3",
+    )
     assert result == expected
 
 
@@ -88,12 +85,12 @@ def test_headers(mock_datetime):
             None,
             None,
             {
-                'Host': 'theBucket.s3.theRegion.amazonaws.com',
-                'x-amz-date': '20250304T042137Z',
-                'x-amz-content-sha256': 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
-                'Authorization': 'AWS4-HMAC-SHA256 Credential=theKey/20250304/theRegion/s3/aws4_request, '
-                                 'SignedHeaders=host;x-amz-content-sha256;x-amz-date, '
-                                 'Signature=b27dbd89b557fa3ab76a2fed7debd220accadf2c3f13e40585fa8a7d2897cd4a',
+                "Host": "theBucket.s3.theRegion.amazonaws.com",
+                "x-amz-date": "20250304T042137Z",
+                "x-amz-content-sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "Authorization": "AWS4-HMAC-SHA256 Credential=theKey/20250304/theRegion/s3/aws4_request, "
+                "SignedHeaders=host;x-amz-content-sha256;x-amz-date, "
+                "Signature=b27dbd89b557fa3ab76a2fed7debd220accadf2c3f13e40585fa8a7d2897cd4a",
             },
         ),
         (
@@ -101,12 +98,12 @@ def test_headers(mock_datetime):
             (b"some data", "theContentType"),
             None,
             {
-                'Host': 'theBucket.s3.theRegion.amazonaws.com',
-                'x-amz-content-sha256': '1307990e6ba5ca145eb35e99182a9bec46531bc54ddf656a602c780fa0240dee',
-                'x-amz-date': '20250304T042137Z',
-                'Authorization': 'AWS4-HMAC-SHA256 Credential=theKey/20250304/theRegion/s3/aws4_request, '
-                                 'SignedHeaders=content-type;host;x-amz-content-sha256;x-amz-date, '
-                                 'Signature=f7dfb75a719bbf2a32d4eb659e078359aee412bebfc9693374eeb0954cd7d064',
+                "Host": "theBucket.s3.theRegion.amazonaws.com",
+                "x-amz-content-sha256": "1307990e6ba5ca145eb35e99182a9bec46531bc54ddf656a602c780fa0240dee",
+                "x-amz-date": "20250304T042137Z",
+                "Authorization": "AWS4-HMAC-SHA256 Credential=theKey/20250304/theRegion/s3/aws4_request, "
+                "SignedHeaders=content-type;host;x-amz-content-sha256;x-amz-date, "
+                "Signature=f7dfb75a719bbf2a32d4eb659e078359aee412bebfc9693374eeb0954cd7d064",
             },
         ),
         (
@@ -114,12 +111,12 @@ def test_headers(mock_datetime):
             None,
             {"key1": "value1", "key2": "value2", "key3": "value3"},
             {
-                'Host': 'theBucket.s3.theRegion.amazonaws.com',
-                'x-amz-date': '20250304T042137Z',
-                'x-amz-content-sha256': 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
-                'Authorization': 'AWS4-HMAC-SHA256 Credential=theKey/20250304/theRegion/s3/aws4_request, '
-                                 'SignedHeaders=host;x-amz-content-sha256;x-amz-date, '
-                                 'Signature=806e7a20a731ca20c61e303739ec40f85de365de0ffa1aff18cbb66497995a10',
+                "Host": "theBucket.s3.theRegion.amazonaws.com",
+                "x-amz-date": "20250304T042137Z",
+                "x-amz-content-sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "Authorization": "AWS4-HMAC-SHA256 Credential=theKey/20250304/theRegion/s3/aws4_request, "
+                "SignedHeaders=host;x-amz-content-sha256;x-amz-date, "
+                "Signature=806e7a20a731ca20c61e303739ec40f85de365de0ffa1aff18cbb66497995a10",
             },
         ),
         (
@@ -127,12 +124,12 @@ def test_headers(mock_datetime):
             (b"some data", "theContentType"),
             {"key1": "value1", "key2": "value2", "key3": "value3"},
             {
-                'Host': 'theBucket.s3.theRegion.amazonaws.com',
-                'x-amz-content-sha256': '1307990e6ba5ca145eb35e99182a9bec46531bc54ddf656a602c780fa0240dee',
-                'x-amz-date': '20250304T042137Z',
-                'Authorization': 'AWS4-HMAC-SHA256 Credential=theKey/20250304/theRegion/s3/aws4_request, '
-                                 'SignedHeaders=content-type;host;x-amz-content-sha256;x-amz-date, '
-                                 'Signature=58a0beb8ea42b2523bf13aff8555019e62fc0aadf6ec84a84fdc723a14cea812',
+                "Host": "theBucket.s3.theRegion.amazonaws.com",
+                "x-amz-content-sha256": "1307990e6ba5ca145eb35e99182a9bec46531bc54ddf656a602c780fa0240dee",
+                "x-amz-date": "20250304T042137Z",
+                "Authorization": "AWS4-HMAC-SHA256 Credential=theKey/20250304/theRegion/s3/aws4_request, "
+                "SignedHeaders=content-type;host;x-amz-content-sha256;x-amz-date, "
+                "Signature=58a0beb8ea42b2523bf13aff8555019e62fc0aadf6ec84a84fdc723a14cea812",
             },
         ),
     ]
@@ -167,12 +164,9 @@ def test_access_s3_object(is_ready, headers, requests_get):
 
     calls = [call()]
     assert is_ready.mock_calls == calls
-    calls = [call('theObjectKey')]
+    calls = [call("theObjectKey")]
     assert headers.mock_calls == calls
-    calls = [call(
-        'https://theHost/theObjectKey',
-        headers={'Host': 'theHost', 'someKey': 'someValue'},
-    )]
+    calls = [call("https://theHost/theObjectKey", headers={"Host": "theHost", "someKey": "someValue"})]
     assert requests_get.mock_calls == calls
     rest_mocks()
     # not ready
@@ -209,18 +203,15 @@ def test_upload_text_to_s3(is_ready, headers, requests_put):
 
     calls = [call()]
     assert is_ready.mock_calls == calls
-    calls = [call('theObjectKey', (b'someData', "text/plain"))]
+    calls = [call("theObjectKey", (b"someData", "text/plain"))]
     assert headers.mock_calls == calls
-    calls = [call(
-        'https://theHost/theObjectKey',
-        headers={
-            'Host': 'theHost',
-            'someKey': 'someValue',
-            'Content-Type': "text/plain",
-            'Content-Length': '8',
-        },
-        data='someData',
-    )]
+    calls = [
+        call(
+            "https://theHost/theObjectKey",
+            headers={"Host": "theHost", "someKey": "someValue", "Content-Type": "text/plain", "Content-Length": "8"},
+            data="someData",
+        ),
+    ]
     assert requests_put.mock_calls == calls
     rest_mocks()
     # not ready
@@ -257,18 +248,20 @@ def test_upload_binary_to_s3(is_ready, headers, requests_put):
 
     calls = [call()]
     assert is_ready.mock_calls == calls
-    calls = [call('theObjectKey', (b'someData', 'theContentType'))]
+    calls = [call("theObjectKey", (b"someData", "theContentType"))]
     assert headers.mock_calls == calls
-    calls = [call(
-        'https://theHost/theObjectKey',
-        headers={
-            'Host': 'theHost',
-            'someKey': 'someValue',
-            'Content-Type': 'theContentType',
-            'Content-Length': '8',
-        },
-        data=b'someData',
-    )]
+    calls = [
+        call(
+            "https://theHost/theObjectKey",
+            headers={
+                "Host": "theHost",
+                "someKey": "someValue",
+                "Content-Type": "theContentType",
+                "Content-Length": "8",
+            },
+            data=b"someData",
+        ),
+    ]
     assert requests_put.mock_calls == calls
     rest_mocks()
     # not ready
@@ -298,23 +291,26 @@ def test_list_s3_objects(is_ready, headers, requests_get):
     test = AwsS3(credentials)
     tests = [
         (500, []),
-        (200, [
-            AwsS3Object(
-                key="2025-03-03/00616.mp3",
-                last_modified=datetime(2025, 3, 3, 23, 48, 45, tzinfo=timezone.utc),
-                size=4785236,
-            ),
-            AwsS3Object(
-                key="2025-03-03/00617.mp3",
-                last_modified=datetime(2025, 3, 3, 23, 49, 3, tzinfo=timezone.utc),
-                size=3526124,
-            ),
-            AwsS3Object(
-                key="from_plugin4",
-                last_modified=datetime(2025, 3, 4, 12, 1, 11, tzinfo=timezone.utc),
-                size=43,
-            ),
-        ]),
+        (
+            200,
+            [
+                AwsS3Object(
+                    key="2025-03-03/00616.mp3",
+                    last_modified=datetime(2025, 3, 3, 23, 48, 45, tzinfo=timezone.utc),
+                    size=4785236,
+                ),
+                AwsS3Object(
+                    key="2025-03-03/00617.mp3",
+                    last_modified=datetime(2025, 3, 3, 23, 49, 3, tzinfo=timezone.utc),
+                    size=3526124,
+                ),
+                AwsS3Object(
+                    key="from_plugin4",
+                    last_modified=datetime(2025, 3, 4, 12, 1, 11, tzinfo=timezone.utc),
+                    size=43,
+                ),
+            ],
+        ),
     ]
     for status_code, expected in tests:
         # ready
@@ -330,11 +326,13 @@ def test_list_s3_objects(is_ready, headers, requests_get):
         assert is_ready.mock_calls == calls
         calls = [call("", params={"list-type": 2, "prefix": "some/prefix"})]
         assert headers.mock_calls == calls
-        calls = [call(
-            "https://theHost",
-            params={"list-type": 2, "prefix": "some/prefix"},
-            headers={"Host": "theHost", "someKey": "someValue"},
-        )]
+        calls = [
+            call(
+                "https://theHost",
+                params={"list-type": 2, "prefix": "some/prefix"},
+                headers={"Host": "theHost", "someKey": "someValue"},
+            ),
+        ]
         assert requests_get.mock_calls == calls
         rest_mocks()
         # not ready

@@ -21,23 +21,29 @@ class Immunize(Base):
             return CodedItem(label=f"{immunization}: {sig_original} ({manufacturer})", code="", uuid="")
         return None
 
-    def command_from_json(self, instruction: InstructionWithParameters, chatter: LlmBase) -> InstructionWithCommand | None:
+    def command_from_json(
+        self,
+        instruction: InstructionWithParameters,
+        chatter: LlmBase,
+    ) -> InstructionWithCommand | None:
         # TODO change to ImmunizeCommand when implemented
-        return InstructionWithCommand.add_command(instruction, InstructCommand(
-            instruction="Advice to read information",
-            comment=f'{instruction.parameters["sig"]} - {instruction.parameters["immunize"]}',
-            note_uuid=self.identification.note_uuid,
-        ))
+        return InstructionWithCommand.add_command(
+            instruction,
+            InstructCommand(
+                instruction="Advice to read information",
+                comment=f"{instruction.parameters['sig']} - {instruction.parameters['immunize']}",
+                note_uuid=self.identification.note_uuid,
+            ),
+        )
 
     def command_parameters(self) -> dict:
-        return {
-            "immunize": "medical name of the immunization and its CPT code",
-            "sig": "directions, as free text",
-        }
+        return {"immunize": "medical name of the immunization and its CPT code", "sig": "directions, as free text"}
 
     def instruction_description(self) -> str:
-        return ("Immunization or vaccine to be administered. "
-                "There can be only one immunization per instruction, and no instruction in the lack of.")
+        return (
+            "Immunization or vaccine to be administered. "
+            "There can be only one immunization per instruction, and no instruction in the lack of."
+        )
 
     def instruction_constraints(self) -> str:
         return ""

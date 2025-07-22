@@ -19,20 +19,24 @@ class Plan(Base):
             return CodedItem(label=text, code="", uuid="")
         return None
 
-    def command_from_json(self, instruction: InstructionWithParameters, chatter: LlmBase) -> InstructionWithCommand | None:
-        return InstructionWithCommand.add_command(instruction, PlanCommand(
-            narrative=instruction.parameters["plan"],
-            note_uuid=self.identification.note_uuid,
-        ))
+    def command_from_json(
+        self,
+        instruction: InstructionWithParameters,
+        chatter: LlmBase,
+    ) -> InstructionWithCommand | None:
+        return InstructionWithCommand.add_command(
+            instruction,
+            PlanCommand(narrative=instruction.parameters["plan"], note_uuid=self.identification.note_uuid),
+        )
 
     def command_parameters(self) -> dict:
-        return {
-            "plan": "description of the plan, as free text",
-        }
+        return {"plan": "description of the plan, as free text"}
 
     def instruction_description(self) -> str:
-        return ("Defined plan for future patient visits. "
-                "There can be only one plan per instruction, and no instruction in the lack of.")
+        return (
+            "Defined plan for future patient visits. "
+            "There can be only one plan per instruction, and no instruction in the lack of."
+        )
 
     def instruction_constraints(self) -> str:
         return ""

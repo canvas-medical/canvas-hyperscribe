@@ -32,32 +32,17 @@ def test_parameters(argument_parser):
 
 @patch("evaluations.case_builders.builder_delete.DatastoreCase")
 @patch.object(BuilderDelete, "_parameters")
-def test_run(
-        parameters,
-        datastore_case,
-        capsys,
-        monkeypatch,
-):
+def test_run(parameters, datastore_case, capsys, monkeypatch):
     def reset_mocks():
         parameters.reset_mock()
         datastore_case.reset_mock()
 
-
     tested = BuilderDelete()
 
     # all cases?
-    tests = [
-        ("danger", True),
-        ("anything", False),
-    ]
+    tests = [("danger", True), ("anything", False)]
     for env_value, done in tests:
-        datastore_case.all_names.side_effect = [
-            [
-                "theCaseName1",
-                "theCaseName2",
-                "theCaseName3",
-            ]
-        ]
+        datastore_case.all_names.side_effect = [["theCaseName1", "theCaseName2", "theCaseName3"]]
         monkeypatch.setenv("CanDeleteAllCases", env_value)
         parameters.side_effect = [Namespace(case="", all=True, audios=False)]
         tested.run()
@@ -67,16 +52,17 @@ def test_run(
                 "Evaluation Case 'theCaseName1' deleted\n"
                 "Evaluation Case 'theCaseName2' deleted\n"
                 "Evaluation Case 'theCaseName3' deleted\n",
-                "")
+                "",
+            )
             assert capsys.readouterr() == exp_out
 
             calls = [call()]
             assert parameters.mock_calls == calls
             calls = [
                 call.all_names(),
-                call.delete('theCaseName1', False),
-                call.delete('theCaseName2', False),
-                call.delete('theCaseName3', False),
+                call.delete("theCaseName1", False),
+                call.delete("theCaseName2", False),
+                call.delete("theCaseName3", False),
             ]
             assert datastore_case.mock_calls == calls
         else:
@@ -99,7 +85,7 @@ def test_run(
 
         calls = [call()]
         assert parameters.mock_calls == calls
-        calls = [call.delete('theCase', audios)]
+        calls = [call.delete("theCase", audios)]
         assert datastore_case.mock_calls == calls
         reset_mocks()
 

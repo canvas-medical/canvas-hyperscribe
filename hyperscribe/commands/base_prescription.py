@@ -15,20 +15,27 @@ from hyperscribe.structures.medication_search import MedicationSearch
 
 
 class BasePrescription(Base):
-
-    def medications_from(self, instruction: InstructionWithParameters, chatter: LlmBase, search: MedicationSearch) -> list[MedicationDetail]:
+    def medications_from(
+        self,
+        instruction: InstructionWithParameters,
+        chatter: LlmBase,
+        search: MedicationSearch,
+    ) -> list[MedicationDetail]:
         result: list[MedicationDetail] = []
         if medications := CanvasScience.medication_details(self.settings.science_host, search.brand_names):
             prompt_condition = ""
             if search.related_condition:
-                prompt_condition = f'The prescription is intended to the patient\'s condition: {search.related_condition}.'
+                prompt_condition = (
+                    f"The prescription is intended to the patient's condition: {search.related_condition}."
+                )
 
-            allergies = '\n * '.join([
-                a.label
-                for a in
-                self.cache.current_allergies() +
-                self.cache.staged_commands_of([Constants.SCHEMA_KEY_ALLERGY])
-            ])
+            allergies = "\n * ".join(
+                [
+                    a.label
+                    for a in self.cache.current_allergies()
+                    + self.cache.staged_commands_of([Constants.SCHEMA_KEY_ALLERGY])
+                ],
+            )
             if allergies:
                 prompt_allergy = f"the patient is allergic to:\n * {allergies}"
             else:
@@ -38,7 +45,8 @@ class BasePrescription(Base):
             system_prompt = [
                 "The conversation is in the medical context.",
                 "",
-                "Your task is to identify the most relevant medication to prescribe to a patient out of a list of medications.",
+                "Your task is to identify the most relevant medication to prescribe to a patient out "
+                "of a list of medications.",
                 "",
             ]
             user_prompt = [
@@ -57,7 +65,9 @@ class BasePrescription(Base):
                 "",
                 "Among the following medications, identify the most appropriate option:",
                 "",
-                "\n".join(f' * {medication.description} (fdbCode: {medication.fdb_code})' for medication in medications),
+                "\n".join(
+                    f" * {medication.description} (fdbCode: {medication.fdb_code})" for medication in medications
+                ),
                 "",
                 "Please, present your findings in a JSON format within a Markdown code block like:",
                 "```json",
@@ -73,12 +83,12 @@ class BasePrescription(Base):
         return result
 
     def set_medication_dosage(
-            self,
-            instruction: InstructionWithParameters,
-            chatter: LlmBase,
-            comment: str,
-            command: PrescribeCommand | AdjustPrescriptionCommand,
-            medication: MedicationDetail,
+        self,
+        instruction: InstructionWithParameters,
+        chatter: LlmBase,
+        comment: str,
+        command: PrescribeCommand | AdjustPrescriptionCommand,
+        medication: MedicationDetail,
     ) -> None:
         quantity = medication.quantities[0]  # ATTENTION forced to the first option (only for simplicity 2025-01-14)
 
@@ -110,24 +120,30 @@ class BasePrescription(Base):
             "Based on this information, what are the quantity to dispense and the number of refills in order to "
             f"fulfill the {command.days_supply} supply days?",
             "",
-            f"The exact quantities and refill have to also take into account that {self.cache.demographic__str__(False)}.",
+            "The exact quantities and refill have to also take into account that "
+            f"{self.cache.demographic__str__(False)}.",
             "",
             "Please, present your findings in a JSON format within a Markdown code block like:",
             "```json",
-            json.dumps([{
-                "quantityToDispense": "mandatory, quantity to dispense, as float",
-                "refills": "mandatory, refills allowed, as integer",
-                "noteToPharmacist": "note to the pharmacist, as free text",
-                "informationToPatient": "directions to the patient on how to use the medication, specifying the quantity, "
-                                        "the form (e.g. tablets, drops, puffs, etc), the frequency and/or max daily frequency, "
-                                        "and the route of use (e.g. by mouth, applied to skin, dropped in eye, etc), as free text",
-            }]),
+            json.dumps(
+                [
+                    {
+                        "quantityToDispense": "mandatory, quantity to dispense, as float",
+                        "refills": "mandatory, refills allowed, as integer",
+                        "noteToPharmacist": "note to the pharmacist, as free text",
+                        "informationToPatient": "directions to the patient on how to use the medication, "
+                        "specifying the quantity, "
+                        "the form (e.g. tablets, drops, puffs, etc), the frequency and/or max daily frequency, "
+                        "and the route of use (e.g. by mouth, applied to skin, dropped in eye, etc), as free text",
+                    },
+                ],
+            ),
             "```",
             "",
         ]
         schemas = JsonSchema.get(["prescription_dosage"])
         if response := chatter.single_conversation(system_prompt, user_prompt, schemas, instruction):
-            command.quantity_to_dispense = Decimal(response[0]["quantityToDispense"]).quantize(Decimal('0.01'))
+            command.quantity_to_dispense = Decimal(response[0]["quantityToDispense"]).quantize(Decimal("0.01"))
             command.refills = int(response[0]["refills"])
             command.note_to_pharmacist = response[0]["noteToPharmacist"]
             command.sig = response[0]["informationToPatient"]

@@ -11,15 +11,26 @@ from hyperscribe.structures.line import Line
 
 
 class BuilderFromMp3(BuilderBase):
-
     @classmethod
     def _parameters(cls) -> Namespace:
-        parser = ArgumentParser(description="Build the files of the evaluation tests against a patient based on the provided files")
+        parser = ArgumentParser(
+            description="Build the files of the evaluation tests against a patient based on the provided files",
+        )
         parser.add_argument("--patient", type=cls.validate_patient, required=True, help="Patient UUID")
         parser.add_argument("--case", type=str, required=True, help="Evaluation case")
-        parser.add_argument("--mp3", required=True, nargs='+', type=cls.validate_files, help="List of MP3 files")
-        parser.add_argument('--combined', action='store_true', default=False, help="Combine the audio files into a single audio")
-        parser.add_argument("--render", action="store_true", default=False, help="Upsert the commands of the last cycle to the patient's last note")
+        parser.add_argument("--mp3", required=True, nargs="+", type=cls.validate_files, help="List of MP3 files")
+        parser.add_argument(
+            "--combined",
+            action="store_true",
+            default=False,
+            help="Combine the audio files into a single audio",
+        )
+        parser.add_argument(
+            "--render",
+            action="store_true",
+            default=False,
+            help="Upsert the commands of the last cycle to the patient's last note",
+        )
         return parser.parse_args()
 
     @classmethod
@@ -44,13 +55,7 @@ class BuilderFromMp3(BuilderBase):
             discussion.set_cycle(cycle + 1)
             recorder.set_cycle(cycle + 1)
 
-            previous, transcript_tail = cls._run_cycle(
-                recorder,
-                combined,
-                chatter,
-                previous,
-                transcript_tail,
-            )
+            previous, transcript_tail = cls._run_cycle(recorder, combined, chatter, previous, transcript_tail)
 
         if parameters.render:
             cls._render_in_ui(recorder, identification, limited_cache)

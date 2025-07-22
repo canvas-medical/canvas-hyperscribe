@@ -4,7 +4,6 @@ from typing import Generator
 
 
 class StoreBase:
-
     @classmethod
     def _create_table_sql(cls) -> str:
         raise NotImplementedError

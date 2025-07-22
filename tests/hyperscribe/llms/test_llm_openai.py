@@ -26,46 +26,40 @@ def test_to_dict():
     #
     result = tested.to_dict(False)
     expected = {
-        'messages': [
+        "messages": [
+            {"role": "system", "content": [{"text": "line 1\nline 2\nline 3", "type": "text"}]},
             {
-                'role': 'system',
-                'content': [{'text': 'line 1\nline 2\nline 3', 'type': 'text'}],
-            },
-            {
-                'content': [
-                    {'text': 'line 4\nline 5\nline 6', 'type': 'text'},
-                    {'input_audio': {'data': 'YWJj', 'format': 'mp3'}, 'type': 'input_audio'},
-                    {'input_audio': {'data': 'ZGVm', 'format': 'mp3'}, 'type': 'input_audio'},
+                "content": [
+                    {"text": "line 4\nline 5\nline 6", "type": "text"},
+                    {"input_audio": {"data": "YWJj", "format": "mp3"}, "type": "input_audio"},
+                    {"input_audio": {"data": "ZGVm", "format": "mp3"}, "type": "input_audio"},
                 ],
-                'role': 'user',
+                "role": "user",
             },
         ],
-        'modalities': ['text'],
-        'model': 'theModel',
-        'temperature': 0.0,
+        "modalities": ["text"],
+        "model": "theModel",
+        "temperature": 0.0,
     }
     assert result == expected
     assert memory_log.mock_calls == []
     # for log
     result = tested.to_dict(True)
     expected = {
-        'messages': [
+        "messages": [
+            {"role": "system", "content": [{"text": "line 1\nline 2\nline 3", "type": "text"}]},
             {
-                'role': 'system',
-                'content': [{'text': 'line 1\nline 2\nline 3', 'type': 'text'}],
-            },
-            {
-                'content': [
-                    {'text': 'line 4\nline 5\nline 6', 'type': 'text'},
-                    {'input_audio': "some audio", 'type': 'input_audio'},
-                    {'input_audio': "some audio", 'type': 'input_audio'},
+                "content": [
+                    {"text": "line 4\nline 5\nline 6", "type": "text"},
+                    {"input_audio": "some audio", "type": "input_audio"},
+                    {"input_audio": "some audio", "type": "input_audio"},
                 ],
-                'role': 'user',
+                "role": "user",
             },
         ],
-        'modalities': ['text'],
-        'model': 'theModel',
-        'temperature': 0.0,
+        "modalities": ["text"],
+        "model": "theModel",
+        "temperature": 0.0,
     }
     assert result == expected
     assert memory_log.mock_calls == []
@@ -74,33 +68,22 @@ def test_to_dict():
     tested.set_user_prompt(["line 9", "line 10"])
     result = tested.to_dict(False)
     expected = {
-        'messages': [
+        "messages": [
+            {"role": "system", "content": [{"text": "line 1\nline 2\nline 3", "type": "text"}]},
             {
-                'role': 'system',
-                'content': [{'text': 'line 1\nline 2\nline 3', 'type': 'text'}],
-            },
-
-            {
-                'content': [
-                    {'text': 'line 4\nline 5\nline 6', 'type': 'text'},
-                    {'input_audio': {'data': 'YWJj', 'format': 'mp3'}, 'type': 'input_audio'},
-                    {'input_audio': {'data': 'ZGVm', 'format': 'mp3'}, 'type': 'input_audio'},
+                "content": [
+                    {"text": "line 4\nline 5\nline 6", "type": "text"},
+                    {"input_audio": {"data": "YWJj", "format": "mp3"}, "type": "input_audio"},
+                    {"input_audio": {"data": "ZGVm", "format": "mp3"}, "type": "input_audio"},
                 ],
-                'role': 'user',
+                "role": "user",
             },
-            {
-                'role': 'assistant',
-                'content': [{'text': 'line 7\nline 8', 'type': 'text'}],
-            },
-
-            {
-                'role': 'user',
-                'content': [{'text': 'line 9\nline 10', 'type': 'text'}],
-            },
+            {"role": "assistant", "content": [{"text": "line 7\nline 8", "type": "text"}]},
+            {"role": "user", "content": [{"text": "line 9\nline 10", "type": "text"}]},
         ],
-        'modalities': ['text'],
-        'model': 'theModel',
-        'temperature': 0.0,
+        "modalities": ["text"],
+        "model": "theModel",
+        "temperature": 0.0,
     }
     assert result == expected
     assert memory_log.mock_calls == []
@@ -114,29 +97,37 @@ def test_request(requests_post):
         requests_post.reset_mock()
         memory_log.reset_mock()
 
-    response = type("Response", (), {
-        "status_code": 202,
-        "text": json.dumps({
-            "choices": [
+    response = type(
+        "Response",
+        (),
+        {
+            "status_code": 202,
+            "text": json.dumps(
                 {
-                    "message": {
-                        "content": "\n".join([
-                            "response:",
-                            "```json",
-                            json.dumps(["item1", "item2"]),
-                            "```",
-                            "",
-                            "```json",
-                            json.dumps(["item3"]),
-                            "```",
-                            "",
-                            "end.",
-                        ]),
-                    },
+                    "choices": [
+                        {
+                            "message": {
+                                "content": "\n".join(
+                                    [
+                                        "response:",
+                                        "```json",
+                                        json.dumps(["item1", "item2"]),
+                                        "```",
+                                        "",
+                                        "```json",
+                                        json.dumps(["item3"]),
+                                        "```",
+                                        "",
+                                        "end.",
+                                    ],
+                                ),
+                            },
+                        },
+                    ],
                 },
-            ],
-        }),
-    })()
+            ),
+        },
+    )()
     tested = LlmOpenai(memory_log, "openaiKey", "theModel", False)
     # all good
     response.status_code = 200
@@ -146,8 +137,12 @@ def test_request(requests_post):
     )
     calls_request_post = [
         call(
-            'https://api.openai.com/v1/chat/completions',
-            headers={'Content-Type': 'application/json', 'Authorization': 'Bearer openaiKey', 'OpenAI-Beta': 'assistants=v2'},
+            "https://api.openai.com/v1/chat/completions",
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": "Bearer openaiKey",
+                "OpenAI-Beta": "assistants=v2",
+            },
             params={},
             data='{"model": "theModel", "modalities": ["text"], "messages": [], "temperature": 0.0}',
             verify=True,
@@ -159,18 +154,26 @@ def test_request(requests_post):
     assert result == expected
     assert requests_post.mock_calls == calls_request_post
     calls = [
-        call.log('--- request begins:'),
-        call.log('{\n  "model": "theModel",\n  "modalities": [\n    "text"\n  ],\n  "messages": [],\n  "temperature": 0.0\n}'),
-        call.log('status code: 200'),
-        call.log('{"choices": [{"message": {"content": "response:\\n'
-                 '```json\\n'
-                 '[\\"item1\\", \\"item2\\"]\\n'
-                 '```\\n\\n'
-                 '```json\\n'
-                 '[\\"item3\\"]\\n'
-                 '```\\n\\n'
-                 'end."}}]}'),
-        call.log('--- request ends ---'),
+        call.log("--- request begins:"),
+        call.log(
+            "{"
+            '\n  "model": "theModel",'
+            '\n  "modalities": [\n    "text"\n  ],'
+            '\n  "messages": [],'
+            '\n  "temperature": 0.0\n}',
+        ),
+        call.log("status code: 200"),
+        call.log(
+            '{"choices": [{"message": {"content": "response:\\n'
+            "```json\\n"
+            '[\\"item1\\", \\"item2\\"]\\n'
+            "```\\n\\n"
+            "```json\\n"
+            '[\\"item3\\"]\\n'
+            "```\\n\\n"
+            'end."}}]}',
+        ),
+        call.log("--- request ends ---"),
     ]
     assert memory_log.mock_calls == calls
     reset_mocks()
@@ -181,23 +184,34 @@ def test_request(requests_post):
     result = tested.request()
     exp_with_error = HttpResponse(
         code=500,
-        response='{"choices": [{"message": {"content": "response:\\n```json\\n[\\"item1\\", \\"item2\\"]\\n```\\n\\n```json\\n[\\"item3\\"]\\n```\\n\\nend."}}]}',
+        response='{"choices": [{"message": {"content": "response:'
+        "\\n```json"
+        '\\n[\\"item1\\", \\"item2\\"]\\n```\\n\\n```json\\n[\\"item3\\"]'
+        '\\n```\\n\\nend."}}]}',
     )
     assert result == exp_with_error
     assert requests_post.mock_calls == calls_request_post
     calls = [
-        call.log('--- request begins:'),
-        call.log('{\n  "model": "theModel",\n  "modalities": [\n    "text"\n  ],\n  "messages": [],\n  "temperature": 0.0\n}'),
-        call.log('status code: 500'),
-        call.log('{"choices": [{"message": {"content": "response:\\n'
-                 '```json\\n'
-                 '[\\"item1\\", \\"item2\\"]\\n'
-                 '```\\n\\n'
-                 '```json\\n'
-                 '[\\"item3\\"]\\n'
-                 '```\\n\\n'
-                 'end."}}]}'),
-        call.log('--- request ends ---'),
+        call.log("--- request begins:"),
+        call.log(
+            "{"
+            '\n  "model": "theModel",'
+            '\n  "modalities": [\n    "text"\n  ],'
+            '\n  "messages": [],'
+            '\n  "temperature": 0.0\n}',
+        ),
+        call.log("status code: 500"),
+        call.log(
+            '{"choices": [{"message": {"content": "response:\\n'
+            "```json\\n"
+            '[\\"item1\\", \\"item2\\"]\\n'
+            "```\\n\\n"
+            "```json\\n"
+            '[\\"item3\\"]\\n'
+            "```\\n\\n"
+            'end."}}]}',
+        ),
+        call.log("--- request ends ---"),
     ]
     assert memory_log.mock_calls == calls
     reset_mocks()
@@ -220,18 +234,18 @@ def test_audio_to_text(requests_post):
     assert result == expected
     calls = [
         call(
-            'https://api.openai.com/v1/audio/transcriptions',
-            headers={'Authorization': 'Bearer openaiKey'},
+            "https://api.openai.com/v1/audio/transcriptions",
+            headers={"Authorization": "Bearer openaiKey"},
             params={},
             data={
-                'model': 'whisper-1',
-                'language': 'en',
-                'prompt': 'The conversation is in the medical context.',
-                'response_format': 'text',
+                "model": "whisper-1",
+                "language": "en",
+                "prompt": "The conversation is in the medical context.",
+                "response_format": "text",
             },
-            files={'file': ('audio.mp3', b'abc', 'application/octet-stream')},
+            files={"file": ("audio.mp3", b"abc", "application/octet-stream")},
             verify=True,
-        )
+        ),
     ]
     assert requests_post.mock_calls == calls
     assert memory_log.mock_calls == []

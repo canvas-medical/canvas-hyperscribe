@@ -3,14 +3,41 @@ import re
 from typing import Type
 
 from canvas_sdk.commands import (
-    VitalsCommand, QuestionnaireCommand, UpdateGoalCommand, ResolveConditionCommand, MedicationStatementCommand, PastSurgicalHistoryCommand,
-    PlanCommand, ReasonForVisitCommand, ReferCommand, UpdateDiagnosisCommand, TaskCommand, StructuredAssessmentCommand, StopMedicationCommand,
-    ReviewOfSystemsCommand, RemoveAllergyCommand, RefillCommand, PrescribeCommand, PerformCommand, MedicalHistoryCommand, LabOrderCommand,
-    InstructCommand, ImagingOrderCommand, HistoryOfPresentIllnessCommand, GoalCommand, FollowUpCommand, FamilyHistoryCommand, PhysicalExamCommand,
-    DiagnoseCommand, AdjustPrescriptionCommand, CloseGoalCommand, AssessCommand, AllergyCommand
+    VitalsCommand,
+    QuestionnaireCommand,
+    UpdateGoalCommand,
+    ResolveConditionCommand,
+    MedicationStatementCommand,
+    PastSurgicalHistoryCommand,
+    PlanCommand,
+    ReasonForVisitCommand,
+    ReferCommand,
+    UpdateDiagnosisCommand,
+    TaskCommand,
+    StructuredAssessmentCommand,
+    StopMedicationCommand,
+    ReviewOfSystemsCommand,
+    RemoveAllergyCommand,
+    RefillCommand,
+    PrescribeCommand,
+    PerformCommand,
+    MedicalHistoryCommand,
+    LabOrderCommand,
+    InstructCommand,
+    ImagingOrderCommand,
+    HistoryOfPresentIllnessCommand,
+    GoalCommand,
+    FollowUpCommand,
+    FamilyHistoryCommand,
+    PhysicalExamCommand,
+    DiagnoseCommand,
+    AdjustPrescriptionCommand,
+    CloseGoalCommand,
+    AssessCommand,
+    AllergyCommand,
 )
 from canvas_sdk.commands.base import _BaseCommand as BaseCommand
-from canvas_sdk.commands.commands.questionnaire.question import (ResponseOption)
+from canvas_sdk.commands.commands.questionnaire.question import ResponseOption
 from canvas_sdk.effects import Effect
 from canvas_sdk.effects.simple_api import Response
 from canvas_sdk.handlers.simple_api import Credentials, SimpleAPIRoute
@@ -99,11 +126,7 @@ class CaseBuilder(SimpleAPIRoute):
         note_uuid = attributes["note_uuid"]
         payload = {
             "command": command_uuid,
-            "data": {
-                key: value
-                for key, value in attributes.items()
-                if key not in ("command_uuid", "note_uuid")
-            },
+            "data": {key: value for key, value in attributes.items() if key not in ("command_uuid", "note_uuid")},
         }
         prefix = "EDIT"
         if command_uuid is None:
@@ -111,18 +134,12 @@ class CaseBuilder(SimpleAPIRoute):
             payload["note"] = note_uuid
             payload["line_number"] = -1
 
-        return Effect(
-            type=cls.command_type(command_class, prefix),
-            payload=json.dumps(payload),
-        )
+        return Effect(type=cls.command_type(command_class, prefix), payload=json.dumps(payload))
 
     @classmethod
     def questionnaire_command_from(cls, command_class: Type[QuestionnaireCommand], attributes: dict) -> Effect | None:
         questions = attributes["questions"]
-        command_db = Command.objects.filter(
-            id=attributes["command_uuid"],
-            state="staged",
-        ).order_by("dbid").first()
+        command_db = Command.objects.filter(id=attributes["command_uuid"], state="staged").order_by("dbid").first()
 
         if command_db and command_db.schema_key in cls.CLASS_QUESTIONNAIRES.values():
             questionnaire_id = command_db.data["questionnaire"]["value"]

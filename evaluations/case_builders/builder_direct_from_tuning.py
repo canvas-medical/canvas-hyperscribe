@@ -51,8 +51,17 @@ class BuilderDirectFromTuning:
         parser = ArgumentParser(description="Build the case files directly from the tuning files stored in AWS S3")
         parser.add_argument("--patient", type=str, required=True, help="The patient UUID to consider")
         parser.add_argument("--note", type=str, required=True, help="The note UUID to consider")
-        parser.add_argument("--path_temp_files", type=str, help="Folder to store temporary files, if provided, most existing files will be reused")
-        parser.add_argument("--cycle_duration", type=int, required=True, help="Duration of each cycle, i.e. the duration of the audio chunks")
+        parser.add_argument(
+            "--path_temp_files",
+            type=str,
+            help="Folder to store temporary files, if provided, most existing files will be reused",
+        )
+        parser.add_argument(
+            "--cycle_duration",
+            type=int,
+            required=True,
+            help="Duration of each cycle, i.e. the duration of the audio chunks",
+        )
         parser.add_argument("--force_refresh", action="store_true", help="Force refresh the temporary files")
         parser.add_argument("--force_rerun", action="store_true", help="Force rerun the cases generation")
         cls._parameters(parser)
@@ -86,14 +95,14 @@ class BuilderDirectFromTuning:
             instance._run()
 
     def __init__(
-            self,
-            settings: Settings,
-            s3_credentials: AwsS3Credentials,
-            identification: IdentificationParameters,
-            output_dir: Path,
-            cycle_duration: int,
-            force_refresh: bool,
-            force_rerun: bool,
+        self,
+        settings: Settings,
+        s3_credentials: AwsS3Credentials,
+        identification: IdentificationParameters,
+        output_dir: Path,
+        cycle_duration: int,
+        force_refresh: bool,
+        force_rerun: bool,
     ) -> None:
         self.settings = settings
         self.s3_credentials = s3_credentials
@@ -104,10 +113,10 @@ class BuilderDirectFromTuning:
         self.force_rerun = force_rerun
 
     def generate_case(
-            self,
-            limited_cache: LimitedCache,
-            case_summary: CaseExchangeSummary,
-            case_exchanges: list[CaseExchange],
+        self,
+        limited_cache: LimitedCache,
+        case_summary: CaseExchangeSummary,
+        case_exchanges: list[CaseExchange],
     ) -> list[Instruction]:
         credentials = HelperEvaluation.postgres_credentials()
 
@@ -124,18 +133,20 @@ class BuilderDirectFromTuning:
 
         auditor.case_prepare()
         auditor.case_update_limited_cache(limited_cache.to_json(True))
-        RealWorldCaseStore(credentials).upsert(RealWordCaseRecord(
-            case_id=auditor.case_id(),
-            customer_identifier=self.identification.canvas_instance,
-            patient_note_hash=f"patient_{self.identification.patient_uuid}/note_{self.identification.note_uuid}",
-            topical_exchange_identifier=case_summary.title,
-            publishable=False,
-            start_time=0.0,
-            end_time=0.0,
-            duration=0.0,
-            audio_llm_vendor=self.settings.llm_audio.vendor,
-            audio_llm_name=self.settings.llm_audio_model(),
-        ))
+        RealWorldCaseStore(credentials).upsert(
+            RealWordCaseRecord(
+                case_id=auditor.case_id(),
+                customer_identifier=self.identification.canvas_instance,
+                patient_note_hash=f"patient_{self.identification.patient_uuid}/note_{self.identification.note_uuid}",
+                topical_exchange_identifier=case_summary.title,
+                publishable=False,
+                start_time=0.0,
+                end_time=0.0,
+                duration=0.0,
+                audio_llm_vendor=self.settings.llm_audio.vendor,
+                audio_llm_name=self.settings.llm_audio_model(),
+            ),
+        )
         errors: dict = {}
         try:
             cycle = 0
@@ -177,9 +188,11 @@ class BuilderDirectFromTuning:
     def collated_webm_to_mp3(self) -> Path:
         client_s3 = AwsS3(self.s3_credentials)
 
-        s3_folder = (f"hyperscribe-{self.identification.canvas_instance}/"
-                     f"patient_{self.identification.patient_uuid}/"
-                     f"note_{self.identification.note_uuid}")
+        s3_folder = (
+            f"hyperscribe-{self.identification.canvas_instance}/"
+            f"patient_{self.identification.patient_uuid}/"
+            f"note_{self.identification.note_uuid}"
+        )
 
         webm_file = self.output_dir / f"{s3_folder}/note_{self.identification.note_uuid}.webm"
         result = self.output_dir / f"{s3_folder}/note_{self.identification.note_uuid}.mp3"
@@ -201,18 +214,19 @@ class BuilderDirectFromTuning:
                         f.write(f2.read())
 
         if self.force_refresh or result.exists() is False:
-            (ffmpeg
-             .input(webm_file.as_posix())
-             .output(result.as_posix(), acodec='libmp3lame', ar=44100, ab='192k', vn=None)
-             .overwrite_output()
-             .run(overwrite_output=True, quiet=True))
+            (
+                ffmpeg.input(webm_file.as_posix())
+                .output(result.as_posix(), acodec="libmp3lame", ar=44100, ab="192k", vn=None)
+                .overwrite_output()
+                .run(overwrite_output=True, quiet=True)
+            )
         return result
 
     def split_audio(self, audio_file: Path) -> list[Path]:
         result: list[Path] = []
         audio_file_str = audio_file.as_posix()
         probe = ffmpeg.probe(audio_file_str)
-        duration = float(probe['format']['duration'])
+        duration = float(probe["format"]["duration"])
         chunk_index = 1
         chunk_time = 0.0
 
@@ -220,11 +234,12 @@ class BuilderDirectFromTuning:
             end_time = min(chunk_time + self.cycle_duration, duration)
             chunk_file = audio_file.parent / f"{audio_file.stem}_{self.cycle_duration:03d}_{chunk_index:03d}.mp3"
             if self.force_refresh or chunk_file.exists() is False:
-                (ffmpeg
-                 .input(audio_file_str, ss=chunk_time, t=end_time - chunk_time)
-                 .output(chunk_file.as_posix(), acodec='copy')
-                 .overwrite_output()
-                 .run(quiet=True))
+                (
+                    ffmpeg.input(audio_file_str, ss=chunk_time, t=end_time - chunk_time)
+                    .output(chunk_file.as_posix(), acodec="copy")
+                    .overwrite_output()
+                    .run(quiet=True)
+                )
 
             chunk_time = end_time
             chunk_index += 1
@@ -252,82 +267,89 @@ class BuilderDirectFromTuning:
         return result
 
     def anonymize_transcripts_chat(
-            self,
-            memory_log: MemoryLog,
-            transcript: Path,
-            used_anonymizations: list[AnonymizationSubstitution],
+        self,
+        memory_log: MemoryLog,
+        transcript: Path,
+        used_anonymizations: list[AnonymizationSubstitution],
     ) -> Anonymization:
         schema_anonymization = self.schema_anonymization()
         schema_changes = self.schema_changes()
 
         chatter = Helper.chatter(self.settings, memory_log)
-        chatter.set_system_prompt([
-            "You are a medical transcript anonymization specialist with expertise in healthcare privacy compliance."
-            "",
-            "Your task is to remove all personally identifiable information (PII) from medical transcripts "
-            "while preserving complete clinical context and medical accuracy through realistic replacements.",
-            "",
-            "**Anonymization Approach**",
-            "Use realistic, plausible substitutions rather than placeholders:",
-            "- Replace names with culturally appropriate alternatives of similar length/structure",
-            "- Substitute locations with comparable geographic areas "
-            "(similar urban/rural, climate, healthcare infrastructure)",
-            "- Change dates, several days, and times while maintaining temporal relationships and seasonal context when medically relevant",
-            "- Replace specific institutions with similar types (community hospital → regional medical center)",
-            "- Replace any identification numbers, including but not limited to, zip code, phone, fax, "
-            "social security, medical record, license plate, account, serial numbers, IP address, code",
-            "- Generalize any other unique identifying numbers, characteristics, or codes "
-            "that could be used to identify the individual or their household",
-            "",
-            "",
-            "**Medical Preservation Requirements**",
-            "- Maintain ALL clinical terminology, symptoms, diagnoses, differential diagnoses",
-            "- Preserve exact medication names, dosages, frequencies, routes of administration",
-            "- Keep all vital signs, laboratory values, imaging results, and measurements unchanged",
-            "- Retain medical history details, surgical history, family medical history",
-            "- Preserve healthcare provider specialties and their clinical roles",
-            "- Maintain treatment timelines and follow-up schedules precisely",
-            "- Keep allergies, adverse reactions, and contraindications intact",
-            "",
-            "Format the anonymized transcript following the JSON Schema:",
-            "```json",
-            json.dumps(schema_anonymization, indent=1),
-            "```",
-            "",
-            "**Global Consistency**: Use identical replacements for the exact same entity "
-            "throughout the entire transcript.",
-            "But, two different entities cannot use the same anonymization replacement.",
-            "",
-            "",
-            "In a second JSON Markdown block, format the report of the changes following the JSON Schema:",
-            "```json",
-            json.dumps(schema_changes, indent=1),
-            "```",
-            "",
-        ])
+        chatter.set_system_prompt(
+            [
+                "You are a medical transcript anonymization specialist with expertise in healthcare privacy compliance."
+                "",
+                "Your task is to remove all personally identifiable information (PII) from medical transcripts "
+                "while preserving complete clinical context and medical accuracy through realistic replacements.",
+                "",
+                "**Anonymization Approach**",
+                "Use realistic, plausible substitutions rather than placeholders:",
+                "- Replace names with culturally appropriate alternatives of similar length/structure",
+                "- Substitute locations with comparable geographic areas "
+                "(similar urban/rural, climate, healthcare infrastructure)",
+                "- Change dates, several days, and times while maintaining temporal relationships and seasonal "
+                "context when medically relevant",
+                "- Replace specific institutions with similar types (community hospital → regional medical center)",
+                "- Replace any identification numbers, including but not limited to, zip code, phone, fax, "
+                "social security, medical record, license plate, account, serial numbers, IP address, code",
+                "- Generalize any other unique identifying numbers, characteristics, or codes "
+                "that could be used to identify the individual or their household",
+                "",
+                "",
+                "**Medical Preservation Requirements**",
+                "- Maintain ALL clinical terminology, symptoms, diagnoses, differential diagnoses",
+                "- Preserve exact medication names, dosages, frequencies, routes of administration",
+                "- Keep all vital signs, laboratory values, imaging results, and measurements unchanged",
+                "- Retain medical history details, surgical history, family medical history",
+                "- Preserve healthcare provider specialties and their clinical roles",
+                "- Maintain treatment timelines and follow-up schedules precisely",
+                "- Keep allergies, adverse reactions, and contraindications intact",
+                "",
+                "Format the anonymized transcript following the JSON Schema:",
+                "```json",
+                json.dumps(schema_anonymization, indent=1),
+                "```",
+                "",
+                "**Global Consistency**: Use identical replacements for the exact same entity "
+                "throughout the entire transcript.",
+                "But, two different entities cannot use the same anonymization replacement.",
+                "",
+                "",
+                "In a second JSON Markdown block, format the report of the changes following the JSON Schema:",
+                "```json",
+                json.dumps(schema_changes, indent=1),
+                "```",
+                "",
+            ],
+        )
 
         with transcript.open("r") as f:
             source = f.read()
-            chatter.set_user_prompt([
-                "Please anonymize the following medical transcript while preserving all clinical information:",
-                "```json",
-                source,
-                "```",
-                "",
-                "Follow rigorously the instructions and provide both JSON Markdown code blocks using "
-                "the mentioned JSON Schemas.",
-            ])
-            if used_anonymizations:
-                chatter.set_user_prompt([
-                    "Continue to used these anonymized entities:",
+            chatter.set_user_prompt(
+                [
+                    "Please anonymize the following medical transcript while preserving all clinical information:",
                     "```json",
-                    json.dumps([used.to_json() for used in used_anonymizations], indent=1),
+                    source,
                     "```",
                     "",
-                    "Also, include this list with any new substitution in your response to ensure you will used "
-                    "the sames substitutions for uniquely the exact same entities (which means for the dates, "
-                    "provide the full dates, not just the day of week)",
-                ])
+                    "Follow rigorously the instructions and provide both JSON Markdown code blocks using "
+                    "the mentioned JSON Schemas.",
+                ],
+            )
+            if used_anonymizations:
+                chatter.set_user_prompt(
+                    [
+                        "Continue to used these anonymized entities:",
+                        "```json",
+                        json.dumps([used.to_json() for used in used_anonymizations], indent=1),
+                        "```",
+                        "",
+                        "Also, include this list with any new substitution in your response to ensure you will used "
+                        "the sames substitutions for uniquely the exact same entities (which means for the dates, "
+                        "provide the full dates, not just the day of week)",
+                    ],
+                )
 
             for _ in range(self.MAX_ANONYMIZATION_ATTEMPTS):
                 response = chatter.chat([schema_anonymization, schema_changes])
@@ -339,23 +361,28 @@ class BuilderDirectFromTuning:
                 errors = self.anonymize_transcripts_check(memory_log, result)
                 if not errors.has_errors:
                     break
-                chatter.set_model_prompt([
-                    "```json",
-                    json.dumps(response.content[0], indent=1),
-                    "```",
-                    "```json",
-                    json.dumps(response.content[1], indent=1),
-                    "```",
-                ])
-                chatter.set_user_prompt([
-                    "Here is the list of the errors you made in regards to the anonymization:",
-                    "```json",
-                    json.dumps(errors.errors, indent=1),
-                    "```",
-                    "",
-                    "While still following rigorously the initial instructions, correct your response and provide both JSON Markdown code blocks using "
-                    "the mentioned JSON Schemas.",
-                ])
+                chatter.set_model_prompt(
+                    [
+                        "```json",
+                        json.dumps(response.content[0], indent=1),
+                        "```",
+                        "```json",
+                        json.dumps(response.content[1], indent=1),
+                        "```",
+                    ],
+                )
+                chatter.set_user_prompt(
+                    [
+                        "Here is the list of the errors you made in regards to the anonymization:",
+                        "```json",
+                        json.dumps(errors.errors, indent=1),
+                        "```",
+                        "",
+                        "While still following rigorously the initial instructions, correct your response and "
+                        "provide both JSON Markdown code blocks using "
+                        "the mentioned JSON Schemas.",
+                    ],
+                )
             else:
                 raise RuntimeError(f"Could not anonymize transcript: {transcript.as_posix()}")
 
@@ -365,75 +392,79 @@ class BuilderDirectFromTuning:
         schema_errors = self.schema_errors()
 
         chatter = Helper.chatter(self.settings, memory_log)
-        chatter.set_system_prompt([
-            "You are a validator of medical transcript anonymization with expertise in healthcare privacy compliance.",
-            "",
-            "The user will submit two transcripts: the original and the anonymized version.",
-            "",
-            "Your task is to identify any violations of anonymization rules based on the following principles:",
-            "",
-            "Any identifying information relating to an individual or to relatives, employers, or household members "
-            "must be **replaced with realistic, synthetic alternatives** that do **not allow anyone to identify the "
-            "actual individuals**. These replacements must be:",
-            "",
-            "- Plausible and coherent in context,",
-            "- Non-traceable to the real identities,",
-            "- Not obviously artificial (e.g. 'XXX' or 'Redacted' are invalid replacements).",
-            "",
-            "Substitution of identifiers with realistic but non-identifying values is considered fully compliant. "
-            "You must **not report an error** if the original identifier was correctly substituted in a way that "
-            "protects the individual's identity.",
-            "",
-            "Only report an error when:",
-            "- The original identifier remains in the anonymized transcript,",
-            "- The replacement is unrealistic or placeholder-like,",
-            "- The replacement is still obviously identifying the real people,",
-            "- The rules listed below are otherwise **blatantly** violated.",
-            "",
-            "The following identifiers **must** be anonymized through valid substitution:",
-            "",
-            "(A) Names;  ",
-            "(B) All geographic subdivisions smaller than a State, including street address, city, county, precinct, zip code, and their equivalent geocodes;  ",
-            "(C) All elements of dates (except year) for dates directly related to an individual, including birth date, admission date, discharge date, date of death;  ",
-            "(D) Telephone numbers;  ",
-            "(E) Fax numbers;  ",
-            "(F) Electronic mail addresses;  ",
-            "(G) Social security numbers;  ",
-            "(H) Medical record numbers;  ",
-            "(I) Health plan beneficiary numbers;  ",
-            "(J) Account numbers;  ",
-            "(K) Certificate/license numbers;  ",
-            "(L) Vehicle identifiers and serial numbers, including license plate numbers;  ",
-            "(M) Device identifiers and serial numbers;  ",
-            "(N) Web Universal Resource Locators (URLs);  ",
-            "(O) Internet Protocol (IP) address numbers;  ",
-            "(P) Any other unique identifying number, characteristic, or code.",
-            "",
-            "Format your output strictly using this JSON Schema:",
-            "```json",
-            json.dumps(schema_errors, indent=1),
-            "```",
-            "",
-        ])
-        chatter.set_user_prompt([
-            "The original transcript is:",
-            "```json",
-            json.dumps([exchange.to_json() for exchange in anonymization.source]),
-            "```",
-            "",
-            "The anonymized transcript is:",
-            "```json",
-            json.dumps([exchange.to_json() for exchange in anonymization.result]),
-            "```",
-            "",
-            "Follow rigorously the instructions and report any broken rules using the mentioned JSON Schema.",
-            "If there is no issues, just send back an empty list in the JSON Markdown block.",
-        ])
-        response = chatter.chat([schema_errors])
-        return AnonymizationError(
-            has_errors=bool(len(response.content[0]) > 0),
-            errors=response.content[0],
+        chatter.set_system_prompt(
+            [
+                "You are a validator of medical transcript anonymization with expertise in "
+                "healthcare privacy compliance.",
+                "",
+                "The user will submit two transcripts: the original and the anonymized version.",
+                "",
+                "Your task is to identify any violations of anonymization rules based on the following principles:",
+                "",
+                "Any identifying information relating to an individual or to relatives, employers, or household "
+                "members must be **replaced with realistic, synthetic alternatives** that do **not allow anyone "
+                "to identify the actual individuals**. These replacements must be:",
+                "",
+                "- Plausible and coherent in context,",
+                "- Non-traceable to the real identities,",
+                "- Not obviously artificial (e.g. 'XXX' or 'Redacted' are invalid replacements).",
+                "",
+                "Substitution of identifiers with realistic but non-identifying values is considered fully compliant. "
+                "You must **not report an error** if the original identifier was correctly substituted in a way that "
+                "protects the individual's identity.",
+                "",
+                "Only report an error when:",
+                "- The original identifier remains in the anonymized transcript,",
+                "- The replacement is unrealistic or placeholder-like,",
+                "- The replacement is still obviously identifying the real people,",
+                "- The rules listed below are otherwise **blatantly** violated.",
+                "",
+                "The following identifiers **must** be anonymized through valid substitution:",
+                "",
+                "(A) Names;  ",
+                "(B) All geographic subdivisions smaller than a State, including street address, city, county, "
+                "precinct, zip code, and their equivalent geocodes;  ",
+                "(C) All elements of dates (except year) for dates directly related to an individual, "
+                "including birth date, admission date, discharge date, date of death;  ",
+                "(D) Telephone numbers;  ",
+                "(E) Fax numbers;  ",
+                "(F) Electronic mail addresses;  ",
+                "(G) Social security numbers;  ",
+                "(H) Medical record numbers;  ",
+                "(I) Health plan beneficiary numbers;  ",
+                "(J) Account numbers;  ",
+                "(K) Certificate/license numbers;  ",
+                "(L) Vehicle identifiers and serial numbers, including license plate numbers;  ",
+                "(M) Device identifiers and serial numbers;  ",
+                "(N) Web Universal Resource Locators (URLs);  ",
+                "(O) Internet Protocol (IP) address numbers;  ",
+                "(P) Any other unique identifying number, characteristic, or code.",
+                "",
+                "Format your output strictly using this JSON Schema:",
+                "```json",
+                json.dumps(schema_errors, indent=1),
+                "```",
+                "",
+            ],
         )
+        chatter.set_user_prompt(
+            [
+                "The original transcript is:",
+                "```json",
+                json.dumps([exchange.to_json() for exchange in anonymization.source]),
+                "```",
+                "",
+                "The anonymized transcript is:",
+                "```json",
+                json.dumps([exchange.to_json() for exchange in anonymization.result]),
+                "```",
+                "",
+                "Follow rigorously the instructions and report any broken rules using the mentioned JSON Schema.",
+                "If there is no issues, just send back an empty list in the JSON Markdown block.",
+            ],
+        )
+        response = chatter.chat([schema_errors])
+        return AnonymizationError(has_errors=bool(len(response.content[0]) > 0), errors=response.content[0])
 
     @classmethod
     def schema_anonymization(cls) -> dict:
@@ -467,7 +498,8 @@ class BuilderDirectFromTuning:
                     },
                     "anonymizedWith": {
                         "type": "string",
-                        "description": "value of the replacement ; two different entities cannot use the same anonymization",
+                        "description": "value of the replacement ; two different entities cannot "
+                        "use the same anonymization",
                     },
                 },
                 "additionalProperties": False,
@@ -485,7 +517,8 @@ class BuilderDirectFromTuning:
                 "properties": {
                     "errorExplanation": {
                         "type": "string",
-                        "description": "full explanation of the deidentification error, including the related text source and the broken rules",
+                        "description": "full explanation of the deidentification error, "
+                        "including the related text source and the broken rules",
                     },
                 },
                 "additionalProperties": False,
@@ -506,10 +539,7 @@ class BuilderDirectFromTuning:
                         "pattern": "^[a-zA-Z0-9 ]+$",
                         "description": "a concise title composed with 25 to 40 characters",
                     },
-                    "summary": {
-                        "type": "string",
-                        "description": "a summary of the exchange",
-                    },
+                    "summary": {"type": "string", "description": "a summary of the exchange"},
                 },
                 "required": ["title", "summary"],
                 "additionalProperties": False,

@@ -13,7 +13,6 @@ ENTRIES: dict[str, dict[str, list[str]]] = {}  # store the logs sent to AWS S3
 
 
 class MemoryLog:
-
     @classmethod
     def begin_session(cls, note_uuid: str) -> None:
         if note_uuid not in ENTRIES:
@@ -23,16 +22,17 @@ class MemoryLog:
     def end_session(cls, note_uuid: str) -> str:
         if note_uuid not in ENTRIES:
             return ""
-        return "\n".join([
-            "\n".join(l)
-            for l in sorted(
-                [e for e in ENTRIES.pop(note_uuid).values() if e],
-                key=lambda v: v[0],
-            )
-        ])
+        return "\n".join(
+            ["\n".join(l) for l in sorted([e for e in ENTRIES.pop(note_uuid).values() if e], key=lambda v: v[0])],
+        )
 
     @classmethod
-    def instance(cls, identification: IdentificationParameters, label: str, s3_credentials: AwsS3Credentials) -> MemoryLog:
+    def instance(
+        cls,
+        identification: IdentificationParameters,
+        label: str,
+        s3_credentials: AwsS3Credentials,
+    ) -> MemoryLog:
         instance = cls(identification, label)
         instance.s3_credentials = s3_credentials
         return instance
@@ -60,10 +60,12 @@ class MemoryLog:
         client_s3 = AwsS3(self.s3_credentials)
         if client_s3.is_ready():
             cached = CachedSdk.get_discussion(self.identification.note_uuid)
-            log_path = (f"hyperscribe-{self.identification.canvas_instance}/"
-                        "partials/"
-                        f"{cached.creation_day()}/"
-                        f"{self.identification.note_uuid}/"
-                        f"{cached.cycle:02d}/"
-                        f"{self.label}.log")
+            log_path = (
+                f"hyperscribe-{self.identification.canvas_instance}/"
+                "partials/"
+                f"{cached.creation_day()}/"
+                f"{self.identification.note_uuid}/"
+                f"{cached.cycle:02d}/"
+                f"{self.label}.log"
+            )
             client_s3.upload_text_to_s3(log_path, self.logs())

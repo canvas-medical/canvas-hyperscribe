@@ -9,7 +9,6 @@ from evaluations.structures.statistic_case_test import StatisticCaseTest
 
 
 class StoreResults:
-
     @classmethod
     def insert(cls, result: EvaluationResult) -> None:
         sql_store: Type[StoreResultsLite] | StoreResultPostgres = StoreResultsLite

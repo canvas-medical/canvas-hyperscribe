@@ -4,8 +4,5 @@ from tests.helper import is_namedtuple
 
 def test_class():
     tested = Icd10Condition
-    fields = {
-        "code": str,
-        "label": str,
-    }
+    fields = {"code": str, "label": str}
     assert is_namedtuple(tested, fields)

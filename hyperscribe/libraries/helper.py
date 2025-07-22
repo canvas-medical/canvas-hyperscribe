@@ -13,7 +13,6 @@ from hyperscribe.structures.settings import Settings
 
 
 class Helper:
-
     @classmethod
     def str2datetime(cls, string: str | None) -> datetime | None:
         try:

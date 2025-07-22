@@ -13,12 +13,7 @@ def test_constants():
         "DIFFERENCE_LEVEL_MODERATE": "moderate",
         "DIFFERENCE_LEVEL_CRITICAL": "critical",
         "DIFFERENCE_LEVEL_SEVERE": "severe",
-        "DIFFERENCE_LEVELS": [
-            "minor",
-            "moderate",
-            "severe",
-            "critical",
-        ],
+        "DIFFERENCE_LEVELS": ["minor", "moderate", "severe", "critical"],
         "IGNORED_KEY_VALUE": ">?<",
         "CASE_CYCLE_SUFFIX": "cycle",
         #

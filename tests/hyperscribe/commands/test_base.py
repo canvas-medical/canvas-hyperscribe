@@ -96,7 +96,7 @@ def test_command_from_json():
             information="theInformation",
             is_new=False,
             is_updated=True,
-            parameters={'key': "value"},
+            parameters={"key": "value"},
         )
         _ = tested.command_from_json(instruction, chatter)
     assert chatter.mock_calls == []
@@ -124,4 +124,3 @@ def test_is_available():
     tested = helper_instance()
     with pytest.raises(NotImplementedError):
         _ = tested.is_available()
-

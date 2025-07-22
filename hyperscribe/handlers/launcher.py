@@ -17,33 +17,32 @@ class Launcher(ActionButton):
     BUTTON_KEY = "HYPERSCRIBE_LAUNCHER"
     BUTTON_LOCATION = ActionButton.ButtonLocation.NOTE_HEADER
 
-    RESPONDS_TO = [
-        EventType.Name(EventType.SHOW_NOTE_HEADER_BUTTON),
-        EventType.Name(EventType.ACTION_BUTTON_CLICKED)
-    ]
+    RESPONDS_TO = [EventType.Name(EventType.SHOW_NOTE_HEADER_BUTTON), EventType.Name(EventType.ACTION_BUTTON_CLICKED)]
 
     def handle(self) -> list[Effect]:
-        note_id = str(Note.objects.get(dbid=self.event.context['note_id']).id)
-        audio_server_base_url = self.secrets[Constants.SECRET_AUDIO_HOST].rstrip('/')
+        note_id = str(Note.objects.get(dbid=self.event.context["note_id"]).id)
+        audio_server_base_url = self.secrets[Constants.SECRET_AUDIO_HOST].rstrip("/")
         patient_id = self.target
         identification = IdentificationParameters(
             patient_uuid=patient_id,
             note_uuid=note_id,
-            provider_uuid='N/A',  # this field is not used within this handle() method
+            provider_uuid="N/A",  # this field is not used within this handle() method
             canvas_instance=self.environment[Constants.CUSTOMER_IDENTIFIER],
         )
-        encoded_params = urlencode({
-            "interval": self.secrets[Constants.SECRET_AUDIO_INTERVAL],
-            "end_flag": Constants.PROGRESS_END_OF_MESSAGES,
-            "progress": Authenticator.presigned_url(
-                self.secrets[Constants.SECRET_API_SIGNING_KEY],
-                f"{identification.canvas_host()}/plugin-io/api/hyperscribe/progress",
-                {"note_id": note_id},
-            ),
-        })
+        encoded_params = urlencode(
+            {
+                "interval": self.secrets[Constants.SECRET_AUDIO_INTERVAL],
+                "end_flag": Constants.PROGRESS_END_OF_MESSAGES,
+                "progress": Authenticator.presigned_url(
+                    self.secrets[Constants.SECRET_API_SIGNING_KEY],
+                    f"{identification.canvas_host()}/plugin-io/api/hyperscribe/progress",
+                    {"note_id": note_id},
+                ),
+            },
+        )
         hyperscribe_pane = LaunchModalEffect(
             url=f"{audio_server_base_url}/capture/{patient_id}/{note_id}?{encoded_params}",
-            target=LaunchModalEffect.TargetType.RIGHT_CHART_PANE
+            target=LaunchModalEffect.TargetType.RIGHT_CHART_PANE,
         )
         return [hyperscribe_pane.apply()]
 
@@ -52,5 +51,5 @@ class Launcher(ActionButton):
         staff_id = self.context.get("user", {}).get("id", "")
         result = False
         if (not settings.is_tuning) and settings.staffers_policy.is_allowed(staff_id):
-            result = CurrentNoteStateEvent.objects.get(note_id=self.event.context['note_id']).editable()
+            result = CurrentNoteStateEvent.objects.get(note_id=self.event.context["note_id"]).editable()
         return result

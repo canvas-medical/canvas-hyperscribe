@@ -12,22 +12,22 @@ from evaluations.structures.postgres_credentials import PostgresCredentials
 class Postgres:
     @classmethod
     def constant_dumps(cls, data: dict | list) -> str:
-        return json.dumps(data, sort_keys=True, separators=(',', ':'))
+        return json.dumps(data, sort_keys=True, separators=(",", ":"))
 
     @classmethod
     def md5_from(cls, data: str) -> str:
-        return md5(data.encode('utf-8')).hexdigest()
+        return md5(data.encode("utf-8")).hexdigest()
 
     def __init__(self, credentials: PostgresCredentials):
         self.credentials = credentials
 
     def _select(self, sql: LiteralString, params: dict) -> Generator[dict, None, None]:
         with connect(
-                dbname=self.credentials.database,
-                host=self.credentials.host,
-                user=self.credentials.user,
-                password=self.credentials.password,
-                port=self.credentials.port,
+            dbname=self.credentials.database,
+            host=self.credentials.host,
+            user=self.credentials.user,
+            password=self.credentials.password,
+            port=self.credentials.port,
         ) as connection:
             with connection.cursor() as cursor:
                 cursor.execute(sqlist.SQL(sql), params)
@@ -39,12 +39,12 @@ class Postgres:
     def _alter(self, sql: LiteralString, params: dict, involved_id: int | None) -> int:
         # import psycopg
         with connect(
-                dbname=self.credentials.database,
-                host=self.credentials.host,
-                user=self.credentials.user,
-                password=self.credentials.password,
-                port=self.credentials.port,
-                # cursor_factory=psycopg.ClientCursor,
+            dbname=self.credentials.database,
+            host=self.credentials.host,
+            user=self.credentials.user,
+            password=self.credentials.password,
+            port=self.credentials.port,
+            # cursor_factory=psycopg.ClientCursor,
         ) as connection:
             with connection.cursor() as cursor:
                 # print("------")
@@ -59,10 +59,7 @@ class Postgres:
         return involved_id
 
     def _update_fields(self, table: str, record_class: Type, record_id: int, updates: dict) -> None:
-        params: dict = {
-            "now": datetime.now(UTC),
-            "id": record_id,
-        }
+        params: dict = {"now": datetime.now(UTC), "id": record_id}
         sql_where: list[str] = []
         sql_sets: list[str] = ['"updated"=%(now)s']
         for field, value in updates.items():
@@ -82,5 +79,7 @@ class Postgres:
             sql_where.append(where)
 
         if sql_where:
-            sql: LiteralString = f'UPDATE "{table}" SET {", ".join(sql_sets)} WHERE "id" = %(id)s AND ({" OR ".join(sql_where)})'
+            sql: LiteralString = (
+                f'UPDATE "{table}" SET {", ".join(sql_sets)} WHERE "id" = %(id)s AND ({" OR ".join(sql_where)})'
+            )
             self._alter(sql, params, record_id)

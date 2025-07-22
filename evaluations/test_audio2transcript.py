@@ -8,35 +8,29 @@ from hyperscribe.libraries.audio_interpreter import AudioInterpreter
 
 
 def test_audio2transcript(
-        audio2transcript_files: tuple[str, str, list[Path], Path],
-        allowed_levels: list,
-        audio_interpreter: AudioInterpreter,
-        capsys: pytest.CaptureFixture[str],
-        request: pytest.FixtureRequest,
-)-> None:
-    runner_audio2transcript(
-        audio2transcript_files,
-        allowed_levels,
-        audio_interpreter,
-        capsys,
-        request,
-    )
+    audio2transcript_files: tuple[str, str, list[Path], Path],
+    allowed_levels: list,
+    audio_interpreter: AudioInterpreter,
+    capsys: pytest.CaptureFixture[str],
+    request: pytest.FixtureRequest,
+) -> None:
+    runner_audio2transcript(audio2transcript_files, allowed_levels, audio_interpreter, capsys, request)
 
 
 def runner_audio2transcript(
-        audio2transcript_files: tuple[str, str, list[Path], Path],
-        allowed_levels: list,
-        audio_interpreter: AudioInterpreter,
-        capsys: pytest.CaptureFixture[str],
-        request: pytest.FixtureRequest,
-)-> None:
+    audio2transcript_files: tuple[str, str, list[Path], Path],
+    allowed_levels: list,
+    audio_interpreter: AudioInterpreter,
+    capsys: pytest.CaptureFixture[str],
+    request: pytest.FixtureRequest,
+) -> None:
     case, cycle, mp3_files, json_file = audio2transcript_files
     content: list[bytes] = []
     for mp3_file in mp3_files:
         with mp3_file.open("rb") as f:
             content.append(f.read())
 
-    expected = json.load(json_file.open('r')).get(cycle, [])
+    expected = json.load(json_file.open("r")).get(cycle, [])
 
     transcript = audio_interpreter.combine_and_speaker_detection(content, [])
     assert transcript.has_error is False, f"{case}-{cycle}: transcript failed"

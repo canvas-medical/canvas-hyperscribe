@@ -17,91 +17,61 @@ def force_print(message: str, capsys: pytest.CaptureFixture[str]) -> None:
 
 
 def test_detail_audio2transcript(
-        audio2transcript_files: tuple[str, str, list[Path], Path],
-        allowed_levels: list,
-        audio_interpreter: AudioInterpreter,
-        capsys: pytest.CaptureFixture[str],
-        request: pytest.FixtureRequest,
+    audio2transcript_files: tuple[str, str, list[Path], Path],
+    allowed_levels: list,
+    audio_interpreter: AudioInterpreter,
+    capsys: pytest.CaptureFixture[str],
+    request: pytest.FixtureRequest,
 ) -> None:
-    runner_audio2transcript(
-        audio2transcript_files,
-        allowed_levels,
-        audio_interpreter,
-        capsys,
-        request,
-    )
+    runner_audio2transcript(audio2transcript_files, allowed_levels, audio_interpreter, capsys, request)
 
 
 def test_detail_transcript2instructions(
-        transcript2instructions: tuple[str, str, Path],
-        allowed_levels: list,
-        audio_interpreter: AudioInterpreter,
-        capsys: pytest.CaptureFixture[str],
-        request: pytest.FixtureRequest,
+    transcript2instructions: tuple[str, str, Path],
+    allowed_levels: list,
+    audio_interpreter: AudioInterpreter,
+    capsys: pytest.CaptureFixture[str],
+    request: pytest.FixtureRequest,
 ) -> None:
-    runner_transcript2instructions(
-        transcript2instructions,
-        allowed_levels,
-        audio_interpreter,
-        capsys,
-        request,
-    )
+    runner_transcript2instructions(transcript2instructions, allowed_levels, audio_interpreter, capsys, request)
 
 
 def test_detail_instruction2parameters(
-        instruction2parameters: tuple[str, str, Path],
-        allowed_levels: list,
-        audio_interpreter: AudioInterpreter,
-        capsys: pytest.CaptureFixture[str],
-        request: pytest.FixtureRequest,
+    instruction2parameters: tuple[str, str, Path],
+    allowed_levels: list,
+    audio_interpreter: AudioInterpreter,
+    capsys: pytest.CaptureFixture[str],
+    request: pytest.FixtureRequest,
 ) -> None:
-    runner_instruction2parameters(
-        instruction2parameters,
-        allowed_levels,
-        audio_interpreter,
-        capsys,
-        request,
-    )
+    runner_instruction2parameters(instruction2parameters, allowed_levels, audio_interpreter, capsys, request)
 
 
 def test_detail_parameters2command(
-        parameters2command: tuple[str, str, Path],
-        allowed_levels: list,
-        audio_interpreter: AudioInterpreter,
-        capsys: pytest.CaptureFixture[str],
-        request: pytest.FixtureRequest,
+    parameters2command: tuple[str, str, Path],
+    allowed_levels: list,
+    audio_interpreter: AudioInterpreter,
+    capsys: pytest.CaptureFixture[str],
+    request: pytest.FixtureRequest,
 ) -> None:
-    runner_parameters2command(
-        parameters2command,
-        allowed_levels,
-        audio_interpreter,
-        capsys,
-        request,
-    )
+    runner_parameters2command(parameters2command, allowed_levels, audio_interpreter, capsys, request)
 
 
 def test_detail_staged_questionnaires(
-        staged_questionnaires: tuple[str, str, Path],
-        allowed_levels: list,
-        audio_interpreter: AudioInterpreter,
-        capsys: pytest.CaptureFixture[str],
-        request: pytest.FixtureRequest,
+    staged_questionnaires: tuple[str, str, Path],
+    allowed_levels: list,
+    audio_interpreter: AudioInterpreter,
+    capsys: pytest.CaptureFixture[str],
+    request: pytest.FixtureRequest,
 ) -> None:
-    runner_staged_questionnaires(
-        staged_questionnaires,
-        allowed_levels,
-        audio_interpreter,
-        capsys,
-        request,
-    )
+    runner_staged_questionnaires(staged_questionnaires, allowed_levels, audio_interpreter, capsys, request)
 
 
 def test_end2end(
-        end2end_folder: Path,
-        allowed_levels: list,
-        audio_interpreter: AudioInterpreter,
-        capsys: pytest.CaptureFixture[str],
-        request: pytest.FixtureRequest,
+    end2end_folder: Path,
+    allowed_levels: list,
+    audio_interpreter: AudioInterpreter,
+    capsys: pytest.CaptureFixture[str],
+    request: pytest.FixtureRequest,
 ) -> None:
     # TODO refactor to use the AuditorStore rather than the AuditorFile
     # auditor = AuditorFile.default_instance(end2end_folder.stem, 0)

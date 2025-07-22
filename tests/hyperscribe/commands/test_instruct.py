@@ -59,18 +59,15 @@ def test_staged_command_extract():
     tested = Instruct
     tests = [
         ({}, None),
-        ({
-             "instruct": {"text": "theInstruction"},
-             "narrative": "theNarrative"
-         }, CodedItem(label="theInstruction (theNarrative)", code="", uuid="")),
-        ({
-             "instruct": {"text": "theInstruction"},
-             "narrative": ""
-         }, CodedItem(label="theInstruction (n/a)", code="", uuid="")),
-        ({
-             "instruct": {"text": "", },
-             "narrative": "theNarrative"
-         }, None),
+        (
+            {"instruct": {"text": "theInstruction"}, "narrative": "theNarrative"},
+            CodedItem(label="theInstruction (theNarrative)", code="", uuid=""),
+        ),
+        (
+            {"instruct": {"text": "theInstruction"}, "narrative": ""},
+            CodedItem(label="theInstruction (n/a)", code="", uuid=""),
+        ),
+        ({"instruct": {"text": ""}, "narrative": "theNarrative"}, None),
     ]
     for data, expected in tests:
         result = tested.staged_command_extract(data)
@@ -95,38 +92,40 @@ def test_command_from_json(instructions):
         "",
     ]
     user_prompt = [
-        'Here is the description of a direction instructed by a healthcare provider to a patient:',
-        '```text',
-        'keywords: keyword1,keyword2,keyword3',
-        ' -- ',
-        'theComment',
-        '```',
-        'Among the following expressions, identify the most relevant one:',
-        '',
-        ' * termA (123)\n * termB (369)\n * termC (752)',
-        '',
-        'Please, present your findings in a JSON format within a Markdown code block like:',
-        '```json',
+        "Here is the description of a direction instructed by a healthcare provider to a patient:",
+        "```text",
+        "keywords: keyword1,keyword2,keyword3",
+        " -- ",
+        "theComment",
+        "```",
+        "Among the following expressions, identify the most relevant one:",
+        "",
+        " * termA (123)\n * termB (369)\n * termC (752)",
+        "",
+        "Please, present your findings in a JSON format within a Markdown code block like:",
+        "```json",
         '[{"conceptId": "the concept ID", "term": "the expression"}]',
-        '```',
-        '',
+        "```",
+        "",
     ]
-    schemas = [{
-        '$schema': 'http://json-schema.org/draft-07/schema#',
-        'type': 'array',
-        'items': {
-            'type': 'object',
-            'properties': {
-                'conceptId': {'type': 'string', 'minLength': 1},
-                'term': {'type': 'string', 'minLength': 1},
+    schemas = [
+        {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "conceptId": {"type": "string", "minLength": 1},
+                    "term": {"type": "string", "minLength": 1},
+                },
+                "required": ["conceptId", "term"],
+                "additionalProperties": False,
             },
-            'required': ['conceptId', 'term'],
-            'additionalProperties': False,
+            "minItems": 1,
+            "maxItems": 1,
         },
-        'minItems': 1,
-        'maxItems': 1,
-    }]
-    keywords = ['keyword1', 'keyword2', 'keyword3']
+    ]
+    keywords = ["keyword1", "keyword2", "keyword3"]
     tested = helper_instance()
 
     arguments = {
@@ -136,10 +135,7 @@ def test_command_from_json(instructions):
         "information": "theInformation",
         "is_new": False,
         "is_updated": True,
-        "parameters": {
-            'keywords': 'keyword1,keyword2,keyword3',
-            'comment': 'theComment',
-        },
+        "parameters": {"keywords": "keyword1,keyword2,keyword3", "comment": "theComment"},
     }
     medical_concepts = [
         MedicalConcept(concept_id=123, term="termA"),
@@ -154,17 +150,13 @@ def test_command_from_json(instructions):
     instruction = InstructionWithParameters(**arguments)
     result = tested.command_from_json(instruction, chatter)
     command = InstructCommand(
-        coding=Coding(
-            code="369",
-            system="http://snomed.info/sct",
-            display="termB",
-        ),
+        coding=Coding(code="369", system="http://snomed.info/sct", display="termB"),
         comment="theComment",
         note_uuid="noteUuid",
     )
     expected = InstructionWithCommand(**(arguments | {"command": command}))
     assert result == expected
-    calls = [call('scienceHost', keywords)]
+    calls = [call("scienceHost", keywords)]
     assert instructions.mock_calls == calls
     calls = [call.single_conversation(system_prompt, user_prompt, schemas, instruction)]
     assert chatter.mock_calls == calls
@@ -175,13 +167,10 @@ def test_command_from_json(instructions):
     chatter.single_conversation.side_effect = [[]]
 
     result = tested.command_from_json(instruction, chatter)
-    command = InstructCommand(
-        comment="theComment",
-        note_uuid="noteUuid",
-    )
+    command = InstructCommand(comment="theComment", note_uuid="noteUuid")
     expected = InstructionWithCommand(**(arguments | {"command": command}))
     assert result == expected
-    calls = [call('scienceHost', keywords)]
+    calls = [call("scienceHost", keywords)]
     assert instructions.mock_calls == calls
     calls = [call.single_conversation(system_prompt, user_prompt, schemas, instruction)]
     assert chatter.mock_calls == calls
@@ -192,13 +181,10 @@ def test_command_from_json(instructions):
     chatter.single_conversation.side_effect = [[]]
 
     result = tested.command_from_json(instruction, chatter)
-    command = InstructCommand(
-        comment="theComment",
-        note_uuid="noteUuid",
-    )
+    command = InstructCommand(comment="theComment", note_uuid="noteUuid")
     expected = InstructionWithCommand(**(arguments | {"command": command}))
     assert result == expected
-    calls = [call('scienceHost', keywords)]
+    calls = [call("scienceHost", keywords)]
     assert instructions.mock_calls == calls
     assert chatter.mock_calls == []
     reset_mocks()
@@ -217,8 +203,10 @@ def test_command_parameters():
 def test_instruction_description():
     tested = helper_instance()
     result = tested.instruction_description()
-    expected = ("Specific or standard direction. "
-                "There can be only one direction per instruction, and no instruction in the lack of.")
+    expected = (
+        "Specific or standard direction. "
+        "There can be only one direction per instruction, and no instruction in the lack of."
+    )
     assert result == expected
 
 

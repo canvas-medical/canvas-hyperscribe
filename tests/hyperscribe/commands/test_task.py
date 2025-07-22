@@ -57,38 +57,32 @@ def test_staged_command_extract():
     tested = Task
     tests = [
         ({}, None),
-        ({
-             "title": "theTask",
-             "labels": [
-                 {"text": "label1"},
-                 {"text": "label2"},
-                 {"text": "label3"},
-             ],
-             "comment": "theComment",
-             "due_date": "theDate",
-         }, CodedItem(label="theTask: theComment (due on: theDate, labels: label1/label2/label3)", code="", uuid="")),
-        ({
-             "title": "",
-             "labels": [
-                 {"text": "label1"},
-                 {"text": "label2"},
-                 {"text": "label3"},
-             ],
-             "comment": "theComment",
-             "due_date": "theDate",
-         }, None),
-        ({
-             "title": "theTask",
-             "labels": [],
-             "comment": "theComment",
-             "due_date": "theDate",
-         }, CodedItem(label="theTask: theComment (due on: theDate, labels: n/a)", code="", uuid="")),
-        ({
-             "title": "theTask",
-             "labels": [{"text": "label1"}],
-             "comment": "",
-             "due_date": "",
-         }, CodedItem(label="theTask: n/a (due on: n/a, labels: label1)", code="", uuid="")),
+        (
+            {
+                "title": "theTask",
+                "labels": [{"text": "label1"}, {"text": "label2"}, {"text": "label3"}],
+                "comment": "theComment",
+                "due_date": "theDate",
+            },
+            CodedItem(label="theTask: theComment (due on: theDate, labels: label1/label2/label3)", code="", uuid=""),
+        ),
+        (
+            {
+                "title": "",
+                "labels": [{"text": "label1"}, {"text": "label2"}, {"text": "label3"}],
+                "comment": "theComment",
+                "due_date": "theDate",
+            },
+            None,
+        ),
+        (
+            {"title": "theTask", "labels": [], "comment": "theComment", "due_date": "theDate"},
+            CodedItem(label="theTask: theComment (due on: theDate, labels: n/a)", code="", uuid=""),
+        ),
+        (
+            {"title": "theTask", "labels": [{"text": "label1"}], "comment": "", "due_date": ""},
+            CodedItem(label="theTask: n/a (due on: n/a, labels: label1)", code="", uuid=""),
+        ),
     ]
     for data, expected in tests:
         result = tested.staged_command_extract(data)
@@ -98,7 +92,7 @@ def test_staged_command_extract():
             assert result == expected
 
 
-@patch.object(LimitedCache, 'existing_staff_members')
+@patch.object(LimitedCache, "existing_staff_members")
 def test_select_staff(existing_staff_members):
     chatter = MagicMock()
 
@@ -113,39 +107,41 @@ def test_select_staff(existing_staff_members):
         "",
     ]
     user_prompt = [
-        'Here is the comment provided by the healthcare provider in regards to the task:',
-        '```text',
-        'assign to: assignedTo',
-        ' -- ',
-        'comment: theComment',
-        '',
-        '```',
-        '',
-        'Among the following staff members, identify the most relevant one:',
-        '',
-        ' * Joe Smith (staffId: 741)\n * Jane Doe (staffId: 596)\n * Jim Boy (staffId: 963)',
-        '',
-        'Please, present your findings in a JSON format within a Markdown code block like:',
-        '```json',
+        "Here is the comment provided by the healthcare provider in regards to the task:",
+        "```text",
+        "assign to: assignedTo",
+        " -- ",
+        "comment: theComment",
+        "",
+        "```",
+        "",
+        "Among the following staff members, identify the most relevant one:",
+        "",
+        " * Joe Smith (staffId: 741)\n * Jane Doe (staffId: 596)\n * Jim Boy (staffId: 963)",
+        "",
+        "Please, present your findings in a JSON format within a Markdown code block like:",
+        "```json",
         '[{"staffId": "the staff member id, as int", "name": "the name of the staff member"}]',
-        '```',
-        '',
+        "```",
+        "",
     ]
-    schemas = [{
-        '$schema': 'http://json-schema.org/draft-07/schema#',
-        'type': 'array',
-        'items': {
-            'type': 'object',
-            'properties': {
-                'staffId': {'type': 'integer', 'minimum': 1},
-                'name': {'type': 'string', 'minLength': 1},
+    schemas = [
+        {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "staffId": {"type": "integer", "minimum": 1},
+                    "name": {"type": "string", "minLength": 1},
+                },
+                "required": ["staffId", "name"],
+                "additionalProperties": False,
             },
-            'required': ['staffId', 'name'],
-            'additionalProperties': False,
+            "minItems": 1,
+            "maxItems": 1,
         },
-        'minItems': 1,
-        'maxItems': 1,
-    }]
+    ]
 
     instruction = InstructionWithParameters(
         uuid="theUuid",
@@ -154,7 +150,7 @@ def test_select_staff(existing_staff_members):
         information="theInformation",
         is_new=False,
         is_updated=True,
-        parameters={'key': "value"},
+        parameters={"key": "value"},
     )
 
     tested = helper_instance()
@@ -198,7 +194,7 @@ def test_select_staff(existing_staff_members):
     reset_mocks()
 
 
-@patch.object(LimitedCache, 'existing_task_labels')
+@patch.object(LimitedCache, "existing_task_labels")
 def test_select_labels(existing_task_labels):
     chatter = MagicMock()
 
@@ -213,39 +209,41 @@ def test_select_labels(existing_task_labels):
         "",
     ]
     user_prompt = [
-        'Here is the comment provided by the healthcare provider in regards to the task:',
-        '```text',
-        'labels: theLabels',
-        ' -- ',
-        'comment: theComment',
-        '',
-        '```',
-        '',
-        'Among the following labels, identify all the most relevant to characterized the task:',
-        '',
-        ' * Label1 (labelId: 741)\n * Label2 (labelId: 596)\n * Label3 (labelId: 963)',
-        '',
-        'Please, present your findings in a JSON format within a Markdown code block like:',
-        '```json',
+        "Here is the comment provided by the healthcare provider in regards to the task:",
+        "```text",
+        "labels: theLabels",
+        " -- ",
+        "comment: theComment",
+        "",
+        "```",
+        "",
+        "Among the following labels, identify all the most relevant to characterized the task:",
+        "",
+        " * Label1 (labelId: 741)\n * Label2 (labelId: 596)\n * Label3 (labelId: 963)",
+        "",
+        "Please, present your findings in a JSON format within a Markdown code block like:",
+        "```json",
         '[{"labelId": "the label id, as int", "name": "the name of the label"}]',
-        '```',
-        '',
+        "```",
+        "",
     ]
-    schemas = [{
-        '$schema': 'http://json-schema.org/draft-07/schema#',
-        'type': 'array',
-        'items': {
-            'type': 'object',
-            'properties': {
-                'labelId': {'type': 'integer', 'minimum': 1},
-                'name': {'type': 'string', 'minLength': 1},
+    schemas = [
+        {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "labelId": {"type": "integer", "minimum": 1},
+                    "name": {"type": "string", "minLength": 1},
+                },
+                "required": ["labelId", "name"],
+                "additionalProperties": False,
             },
-            'required': ['labelId', 'name'],
-            'additionalProperties': False,
+            "minItems": 1,
+            "maxItems": 1,
         },
-        'minItems': 1,
-        'maxItems': 1,
-    }]
+    ]
     tested = helper_instance()
 
     instruction = InstructionWithParameters(
@@ -255,7 +253,7 @@ def test_select_labels(existing_task_labels):
         information="theInformation",
         is_new=False,
         is_updated=True,
-        parameters={'key': "value"},
+        parameters={"key": "value"},
     )
 
     # no labels
@@ -311,12 +309,7 @@ def test_command_from_json(select_staff, select_labels):
     assignee = TaskAssigner(to=AssigneeType.STAFF, id=584)
     labels = ["label1", "label2"]
 
-    tests = [
-        (assignee, labels),
-        (None, labels),
-        (assignee, None),
-        (None, None),
-    ]
+    tests = [(assignee, labels), (None, labels), (assignee, None), (None, None)]
     for side_effect_staff, side_effect_labels in tests:
         # all parameters
         arguments = {
@@ -348,9 +341,9 @@ def test_command_from_json(select_staff, select_labels):
         )
         expected = InstructionWithCommand(**(arguments | {"command": command}))
         assert result == expected
-        calls = [call(instruction, chatter, "theAssignTo", 'theComment')]
+        calls = [call(instruction, chatter, "theAssignTo", "theComment")]
         assert select_staff.mock_calls == calls
-        calls = [call(instruction, chatter, "theLabels", 'theComment')]
+        calls = [call(instruction, chatter, "theLabels", "theComment")]
         assert select_labels.mock_calls == calls
         assert chatter.mock_calls == []
         reset_mocks()
@@ -385,7 +378,7 @@ def test_command_from_json(select_staff, select_labels):
         expected = InstructionWithCommand(**(arguments | {"command": command}))
         assert result == expected
         assert select_staff.mock_calls == []
-        calls = [call(instruction, chatter, "theLabels", 'theComment')]
+        calls = [call(instruction, chatter, "theLabels", "theComment")]
         assert select_labels.mock_calls == calls
         assert chatter.mock_calls == []
         reset_mocks()
@@ -419,7 +412,7 @@ def test_command_from_json(select_staff, select_labels):
         )
         expected = InstructionWithCommand(**(arguments | {"command": command}))
         assert result == expected
-        calls = [call(instruction, chatter, "theAssignTo", 'theComment')]
+        calls = [call(instruction, chatter, "theAssignTo", "theComment")]
         assert select_staff.mock_calls == calls
         assert select_labels.mock_calls == []
         assert chatter.mock_calls == []
@@ -442,9 +435,11 @@ def test_command_parameters():
 def test_instruction_description():
     tested = helper_instance()
     result = tested.instruction_description()
-    expected = ("Specific task assigned to someone at the healthcare facility, including the speaking clinician. "
-                "A task might include a due date and a specific assignee. "
-                "There can be only one task per instruction, and no instruction in the lack of.")
+    expected = (
+        "Specific task assigned to someone at the healthcare facility, including the speaking clinician. "
+        "A task might include a due date and a specific assignee. "
+        "There can be only one task per instruction, and no instruction in the lack of."
+    )
     assert result == expected
 
 

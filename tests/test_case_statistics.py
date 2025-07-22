@@ -17,13 +17,17 @@ def test_run(case_test_statistics, capsys):
 
     calls = [call()]
     assert case_test_statistics.mock_calls == calls
-    exp_out = "\n".join([
-        "------------------------------------------------------------------------------------------------------------------------------------------",
-        "| case | run count | full run | audio -> questionnaire | audio -> transcript | -> instructions | -> parameters | -> command | end to end |",
-        "------------------------------------------------------------------------------------------------------------------------------------------",
-        "------------------------------------------------------------------------------------------------------------------------------------------",
-        "",
-    ])
+    # fmt: off
+    exp_out = "\n".join(
+        [
+            "------------------------------------------------------------------------------------------------------------------------------------------",
+            "| case | run count | full run | audio -> questionnaire | audio -> transcript | -> instructions | -> parameters | -> command | end to end |",
+            "------------------------------------------------------------------------------------------------------------------------------------------",
+            "------------------------------------------------------------------------------------------------------------------------------------------",
+            "",
+        ],
+    )
+    # fmt: on
     assert capsys.readouterr().out == exp_out
     reset_mocks()
 
@@ -31,7 +35,7 @@ def test_run(case_test_statistics, capsys):
     case_test_statistics.side_effect = [
         [
             StatisticCaseTest(
-                case_name='theCase1',
+                case_name="theCase1",
                 run_count=2,
                 full_run=1,
                 staged_questionnaires=1,
@@ -42,7 +46,7 @@ def test_run(case_test_statistics, capsys):
                 end2end=2,
             ),
             StatisticCaseTest(
-                case_name='theCase2',
+                case_name="theCase2",
                 run_count=1,
                 full_run=0,
                 staged_questionnaires=1,
@@ -53,7 +57,7 @@ def test_run(case_test_statistics, capsys):
                 end2end=0,
             ),
             StatisticCaseTest(
-                case_name='theCase3',
+                case_name="theCase3",
                 run_count=1,
                 full_run=1,
                 staged_questionnaires=-11,
@@ -63,21 +67,25 @@ def test_run(case_test_statistics, capsys):
                 parameters2command=-1,
                 end2end=1,
             ),
-        ]
+        ],
     ]
     tested.run()
 
     calls = [call()]
     assert case_test_statistics.mock_calls == calls
-    exp_out = "\n".join([
-        "----------------------------------------------------------------------------------------------------------------------------------------------",
-        "| case     | run count | full run | audio -> questionnaire | audio -> transcript | -> instructions | -> parameters | -> command | end to end |",
-        "----------------------------------------------------------------------------------------------------------------------------------------------",
-        "| theCase1 |     2     |    1     |           1            |          1          |        2        |       2       |     1      |     2      |",
-        "| theCase2 |     1     |    0     |           1            |                     |        1        |       0       |     1      |     0      |",
-        "| theCase3 |     1     |    1     |                        |                     |                 |               |            |     1      |",
-        "----------------------------------------------------------------------------------------------------------------------------------------------",
-        "",
-    ])
+    # ruff: noqa: E501
+    exp_out = "\n".join(
+        [
+            "----------------------------------------------------------------------------------------------------------------------------------------------",
+            "| case     | run count | full run | audio -> questionnaire | audio -> transcript | -> instructions | -> parameters | -> command | end to end |",
+            "----------------------------------------------------------------------------------------------------------------------------------------------",
+            "| theCase1 |     2     |    1     |           1            |          1          |        2        |       2       |     1      |     2      |",
+            "| theCase2 |     1     |    0     |           1            |                     |        1        |       0       |     1      |     0      |",
+            "| theCase3 |     1     |    1     |                        |                     |                 |               |            |     1      |",
+            "----------------------------------------------------------------------------------------------------------------------------------------------",
+            "",
+        ],
+    )
+    # End of noqa block
     assert capsys.readouterr().out == exp_out
     reset_mocks()
