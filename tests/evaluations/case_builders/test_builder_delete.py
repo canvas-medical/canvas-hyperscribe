@@ -4,7 +4,6 @@ from unittest.mock import patch, call
 from _pytest.capture import CaptureResult
 
 from evaluations.case_builders.builder_delete import BuilderDelete
-from evaluations.structures.evaluation_case import EvaluationCase
 
 
 @patch("evaluations.case_builders.builder_delete.ArgumentParser")

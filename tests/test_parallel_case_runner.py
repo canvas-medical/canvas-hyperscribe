@@ -2,7 +2,6 @@
 from argparse import Namespace
 from unittest.mock import patch, call, MagicMock
 import sys
-from pathlib import Path
 
 from parallel_case_runner import ParallelCaseRunner
 from evaluations.datastores.postgres.case import Case

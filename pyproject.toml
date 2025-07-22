@@ -22,5 +22,13 @@ build-backend = "hatchling.build"
 dev = [
     "pre-commit>=4.2.0",
     "pytest-cov>=6.0.0,<7",
+    "ruff>=0.12.4",
     "types-requests>=2.32.0.20250602",
 ]
+
+[tool.ruff]
+select = ["F401", "W292"]  # Unused imports + missing final newline
+ignore = []
+fix = true
+
+# [tool.ruff.format] section disabled to prevent formatting changes
