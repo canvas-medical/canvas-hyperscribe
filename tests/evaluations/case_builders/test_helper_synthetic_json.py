@@ -11,14 +11,14 @@ def _invalid_path(tmp_path: Path) -> Path:
 
 @patch("evaluations.case_builders.helper_synthetic_json.MemoryLog")
 @patch("evaluations.case_builders.helper_synthetic_json.LlmOpenaiO3")
-def test_generate__json_success(mock_llm_cls, memory_log, tmp_path):
+def test_generate__json_success(mock_llm_cls, mock_memory_log, tmp_path):
     expected = {"key": "value"}
     result_obj = Namespace(has_error=False, content=[expected], error="")
     
     mock_llm = MagicMock()
     mock_llm.chat.return_value = result_obj
     mock_llm_cls.return_value = mock_llm
-    memory_log.dev_null_instance.side_effect = ["MemoryLogInstance"]
+    mock_memory_log.dev_null_instance.side_effect = ["MemoryLogInstance"]
 
     schema = {"type": "object", "properties": {"key": {"type": "string"}}, "required": ["key"]}
     tested = HelperSyntheticJson.generate_json(
@@ -39,7 +39,7 @@ def test_generate__json_success(mock_llm_cls, memory_log, tmp_path):
     assert mock_llm_cls.mock_calls == expected_calls
     assert mock_llm.chat.call_count == 1
     calls = [call.dev_null_instance()]
-    assert memory_log.mock_calls == calls
+    assert mock_memory_log.mock_calls == calls
 
     assert result_obj.has_error is False
     assert result_obj.content == [expected]
