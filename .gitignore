@@ -5,4 +5,5 @@ debug/
 cases_runs/
 .coverage
 .venv
+.claude
 evaluations.db
