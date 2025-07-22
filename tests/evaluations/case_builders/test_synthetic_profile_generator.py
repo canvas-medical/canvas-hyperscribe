@@ -25,7 +25,7 @@ def vendor_key():
     return VendorKey(vendor="openai", api_key="MY_KEY")
 
 
-def test_init(tmp_path, vendor_key: VendorKey):
+def test___init__(tmp_path, vendor_key: VendorKey):
     output_path = tmp_path / "combined.json"
     tested = SyntheticProfileGenerator(vendor_key, output_path)
     expected_path = (tmp_path / "combined.json")
@@ -101,6 +101,7 @@ def test_generate_batch(mock_generate_json, mock_schema_batch, fake_llm_response
     mock_schema_batch.side_effect = lambda count: expected_schema
 
     result = tested.generate_batch(batch_num, count)
+    assert len(mock_generate_json.mock_calls) == 1
     _, kwargs = mock_generate_json.call_args
 
     #reference hex digest with the patched schema_batch, must be re-digested if prompts change.
@@ -113,6 +114,7 @@ def test_generate_batch(mock_generate_json, mock_schema_batch, fake_llm_response
     assert result_user_md5 == expected_user_md5
     assert kwargs["vendor_key"] == vendor_key
     assert kwargs["schema"] == expected_schema
+    assert mock_schema_batch.mock_calls == [call(count)]
     
     expected_keys = [f"Patient {i+1}" for i in range(count)]
     assert list(result.keys()) == expected_keys

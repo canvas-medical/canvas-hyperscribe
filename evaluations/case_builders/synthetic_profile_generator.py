@@ -17,11 +17,11 @@ class SyntheticProfileGenerator:
     def _extract_initial_fragment(cls, narrative: str) -> str:
         return narrative.split(".")[0][:100]
 
-    def _save_combined(cls) -> None:
-        cls.output_path.parent.mkdir(parents=True, exist_ok=True)
-        with cls.output_path.open("w") as f:
-            json.dump(cls.all_profiles, f, indent=2)
-        print(f"Saved {len(cls.all_profiles)} profiles to {cls.output_path}")
+    def _save_combined(self) -> None:
+        self.output_path.parent.mkdir(parents=True, exist_ok=True)
+        with self.output_path.open("w") as f:
+            json.dump(self.all_profiles, f, indent=2)
+        print(f"Saved {len(self.all_profiles)} profiles to {self.output_path}")
 
     def _save_individuals(self) -> None:
         base_dir = self.output_path.parent
@@ -34,7 +34,8 @@ class SyntheticProfileGenerator:
                 json.dump({name: narrative}, f, indent=2)
             print(f"Saved profile for {name} to {file_path}")
 
-    def schema_batch(self, count_patients: int) -> dict[str,Any]:
+    @classmethod
+    def schema_batch(cls, count_patients: int) -> dict[str,Any]:
         return {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "type": "object",
