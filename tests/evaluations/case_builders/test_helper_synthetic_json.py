@@ -1,6 +1,7 @@
 import pytest
 from pathlib import Path
 from unittest.mock import MagicMock, patch, call
+from argparse import Namespace
 from hyperscribe.structures.vendor_key import VendorKey
 from evaluations.case_builders.helper_synthetic_json import HelperSyntheticJson, MemoryLog
 
@@ -12,11 +13,10 @@ def _invalid_path(tmp_path: Path) -> Path:
 @patch("evaluations.case_builders.helper_synthetic_json.LlmOpenaiO3")
 def test_generate__json_success(mock_llm_cls, memory_log, tmp_path):
     expected = {"key": "value"}
-    mock_result = MagicMock()
-    mock_result.has_error = False
-    mock_result.content = [expected]
+    result_obj = Namespace(has_error=False, content=[expected], error="")
+    
     mock_llm = MagicMock()
-    mock_llm.chat.return_value = mock_result
+    mock_llm.chat.return_value = result_obj
     mock_llm_cls.return_value = mock_llm
     memory_log.dev_null_instance.side_effect = ["MemoryLogInstance"]
 
@@ -41,24 +41,28 @@ def test_generate__json_success(mock_llm_cls, memory_log, tmp_path):
     calls = [call.dev_null_instance()]
     assert memory_log.mock_calls == calls
 
+    assert result_obj.has_error is False
+    assert result_obj.content == [expected]
+
 
 @patch("evaluations.case_builders.helper_synthetic_json.MemoryLog")
 @patch("evaluations.case_builders.helper_synthetic_json.LlmOpenaiO3")
-def test_generate_json__parses_fenced_json(mock_llm_cls, memory_log, tmp_path):
+def test_generate_json__parses_fenced_json(mock_llm_cls, mock_memory_log, tmp_path):
     expected = {"foo": 123}
-    mock_result = MagicMock(has_error=False, content=[expected])
+    result_obj = Namespace(has_error=False, content=[expected], error="network fail")
+
     mock_llm = MagicMock()
-    mock_llm.chat.return_value = mock_result
+    mock_llm.chat.side_effect = [result_obj]
     mock_llm_cls.return_value = mock_llm
-    memory_log.dev_null_instance.side_effect = ["MemoryLogInstance"]
+    mock_memory_log.dev_null_instance.side_effect = ["MemoryLogInstance"]
     schema = {"type": "object", "properties": {"foo": {"type": "number"}}, "required": ["foo"]}
 
-    result = HelperSyntheticJson.generate_json(
+    tested = HelperSyntheticJson.generate_json(
         vendor_key=VendorKey("openai", "dummy"),
         system_prompt=["system"],
         user_prompt=["user"],
         schema=schema)
-    assert result == expected
+    assert tested == expected
 
     expected_calls = [
         call("MemoryLogInstance", "dummy", with_audit=False, temperature=1.0),
@@ -69,18 +73,23 @@ def test_generate_json__parses_fenced_json(mock_llm_cls, memory_log, tmp_path):
     assert mock_llm_cls.mock_calls == expected_calls
     assert mock_llm.chat.call_count == 1
     calls = [call.dev_null_instance()]
-    assert memory_log.mock_calls == calls
+    assert mock_memory_log.mock_calls == calls
+
+    assert result_obj.has_error is False
+    assert result_obj.content == [expected]
 
 @patch("evaluations.case_builders.helper_synthetic_json.MemoryLog")
 @patch("evaluations.case_builders.helper_synthetic_json.LlmOpenaiO3")
-def test_generate_json__chat_error_exits(mock_llm_cls, memory_log, tmp_path):
+def test_generate_json__chat_error_exits(mock_llm_cls, mock_memory_log, tmp_path):
     # LLM.chat signals a lower-level error
     schema = {"type": "object", "properties": {"key": {"type": "string"}}, "required": ["key"]}
-    mock_result = MagicMock(has_error=True, content="irrelevant", error="network fail")
+    tested_obj = Namespace(has_error=True, content="irrelevant", error="network fail")
+
     mock_llm = MagicMock()
-    mock_llm.chat.return_value = mock_result
+    mock_llm.chat.side_effect = [tested_obj]
     mock_llm_cls.return_value = mock_llm
-    memory_log.dev_null_instance.side_effect = ["MemoryLogInstance"]
+    mock_memory_log.dev_null_instance.side_effect = ["MemoryLogInstance"]
+
     invalid = _invalid_path(tmp_path)
     with patch("evaluations.case_builders.helper_synthetic_json.Path", return_value=invalid), \
          patch("evaluations.case_builders.helper_synthetic_json.sys.exit", side_effect=SystemExit) as mock_exit:
@@ -102,4 +111,9 @@ def test_generate_json__chat_error_exits(mock_llm_cls, memory_log, tmp_path):
     assert mock_llm_cls.mock_calls == expected_calls
     assert mock_llm.chat.call_count == 1
     calls = [call.dev_null_instance()]
-    assert memory_log.mock_calls == calls
+    assert mock_memory_log.mock_calls == calls
+
+    #system exit invoked, so no content access but check on attributes
+    assert tested_obj.has_error is True
+    assert tested_obj.error == "network fail"
+    assert mock_exit.mock_calls == [call(1)] 
