@@ -1,10 +1,9 @@
-import json, random, argparse, pytest, hashlib
+import json, random, pytest, hashlib
 from argparse import Namespace
 from pathlib import Path
 from unittest.mock import patch, MagicMock, call
 from evaluations.case_builders.synthetic_transcript_generator import SyntheticTranscriptGenerator, HelperSyntheticJson
 from hyperscribe.structures.vendor_key import VendorKey
-from evaluations.constants import Constants as SpecificationConstants
 
 def create_fake_profiles_file(tmp_path: Path) -> Path:
     fake_profiles = tmp_path / "profiles.json"
@@ -22,7 +21,7 @@ def test__load_profiles(tmp_path):
 
 @patch("evaluations.case_builders.synthetic_transcript_generator.random.choice")
 def test__random_bucket(mock_choice):
-    expected_keys = list(SpecificationConstants.TURN_BUCKETS.keys())
+    expected_keys = ["short", "medium", "long"]
     forced_returns = expected_keys
     mock_choice.side_effect = forced_returns
 
@@ -48,12 +47,12 @@ def test__make_specifications(mock_choice, mock_sample, mock_randint, mock_unifo
         ["short"]
         + ["Clinician"]
         + ["Patient"] * 2
-        + [SpecificationConstants.PRESSURE_POOL[0]]
-        + [SpecificationConstants.CLINICIAN_PERSONAS[0]]
-        + [SpecificationConstants.PATIENT_PERSONAS[0]]
+        + ["time pressure on the visit"]
+        + ["warm and chatty"]
+        + ["anxious and talkative"]
     )
 
-    mock_sample.return_value = [SpecificationConstants.MOOD_POOL[0], SpecificationConstants.MOOD_POOL[1]]
+    mock_sample.return_value = ["patient is frustrated", "patient is tearful"]
 
     specifications = tested._make_specifications()
     assert specifications["bucket"] == "short"
@@ -65,17 +64,23 @@ def test__make_specifications(mock_choice, mock_sample, mock_randint, mock_unifo
     assert mock_randint.mock_calls == [call(2, 4)]
     assert mock_uniform.mock_calls == [call(0.5, 2.0)]
 
-    expected_sample_calls = [call(SpecificationConstants.MOOD_POOL, k=2)]
+    expected_sample_calls = [call(["patient is frustrated", "patient is tearful", "patient is embarrassed",
+        "patient is defensive", "clinician is concerned", "clinician is rushed", "clinician is warm", 
+        "clinician is brief"], k=2)]
     assert mock_sample.mock_calls == expected_sample_calls
     
     expected_choice_calls = [
-        call(list(SpecificationConstants.TURN_BUCKETS.keys())),
+        call(["short", "medium", "long"]),
         call(["Clinician", "Patient"]),
         call(["Clinician", "Patient"]),
         call(["Clinician", "Patient"]),
-        call(SpecificationConstants.PRESSURE_POOL),
-        call(SpecificationConstants.CLINICIAN_PERSONAS),
-        call(SpecificationConstants.PATIENT_PERSONAS),
+        call(["time pressure on the visit", "insurance denied prior authorization",
+        "formulary change", "refill limit reached", "patient traveling soon",
+        "side-effect report just came in"]),
+        call(["warm and chatty", "brief and efficient", "cautious and inquisitive",
+        "over-explainer"]),
+        call(["anxious and talkative", "confused and forgetful",
+        "assertive and informed", "agreeable but vague"]),
     ]
     assert mock_choice.mock_calls == expected_choice_calls
 

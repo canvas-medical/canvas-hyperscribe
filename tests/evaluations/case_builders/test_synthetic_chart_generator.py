@@ -1,10 +1,11 @@
-import json, uuid, pytest, hashlib
+import json, uuid, hashlib
 from pathlib import Path
 from argparse import Namespace, ArgumentParser
 from unittest.mock import patch, MagicMock, call
 from typing import Any
 from evaluations.case_builders.synthetic_chart_generator import SyntheticChartGenerator, HelperEvaluation
 from hyperscribe.structures.vendor_key import VendorKey
+from evaluations.constants import Constants
 
 def test___init__():
     expected_vendor_key = VendorKey(vendor="openai", api_key="API_KEY_123")
@@ -26,8 +27,6 @@ def test_load_json(tmp_path):
     result = SyntheticChartGenerator.load_json(data_file)
     assert result == expected
 
-from evaluations.constants import Constants
-
 def test_schema_chart():
     #1: check sample chart with correct keys formats correctly.
     example_chart_known = {key: "" for key in Constants.EXAMPLE_CHART_DESCRIPTIONS}
@@ -44,7 +43,17 @@ def test_schema_chart():
     properties = result_schema["properties"]
     assert set(properties.keys()) == set(example_chart_known.keys())
 
-    for key, expected_desc in Constants.EXAMPLE_CHART_DESCRIPTIONS.items():
+    expected_chart_descriptions = {
+    "demographicStr":   "string describing patient demographics",
+    "conditionHistory": "patient history of conditions",
+    "currentAllergies": "current allergies for the patient",
+    "currentConditions": "current patient conditions and diagnoses",
+    "currentMedications": "current patient medications being taken",
+    "currentGoals": "current treatment goals for the patient",
+    "familyHistory":   "any history of family care or illness",
+    "surgeryHistory":  "any history of surgical care or operations",
+    }   
+    for key, expected_desc in expected_chart_descriptions.items():
         assert properties[key]["description"] == expected_desc
         assert properties[key]["type"] == "string"
 
@@ -105,7 +114,7 @@ def test_validate_chart__invalid_structure(mock_load):
     tested_chart = {"bad": True}
     tested = SyntheticChartGenerator(VendorKey("v", "k"), {}, Path("."), {})
     result = tested.validate_chart(tested_chart)
-    assert result == False
+    assert result is False
     assert mock_load.mock_calls == [call(tested_chart)]
 
 def test_assign_valid_uuids():

@@ -33,14 +33,14 @@ class SyntheticTranscriptGenerator:
         sequence = [random.choice(["Clinician", "Patient"]) for _ in range(turn_total)]
 
         return {
-            "turn_total": turn_total,
-            "speaker_sequence": sequence,
-            "ratio": round(random.uniform(0.5, 2.0), 2),
-            "mood": random.sample(Constants.MOOD_POOL, k=2),
-            "pressure": random.choice(Constants.PRESSURE_POOL),
-            "clinician_style": random.choice(Constants.CLINICIAN_PERSONAS),
-            "patient_style": random.choice(Constants.PATIENT_PERSONAS),
-            "bucket": bucket,
+            Constants.TURN_TOTAL: turn_total,
+            Constants.SPEAKER_SEQUENCE: sequence,
+            Constants.RATIO: round(random.uniform(0.5, 2.0), 2),
+            Constants.MOOD_KEY: random.sample(Constants.MOOD_POOL, k=2),
+            Constants.PRESSURE_KEY: random.choice(Constants.PRESSURE_POOL),
+            Constants.CLINICIAN_STYLE_KEY: random.choice(Constants.CLINICIAN_PERSONAS),
+            Constants.PATIENT_STYLE_KEY: random.choice(Constants.PATIENT_PERSONAS),
+            Constants.BUCKET: bucket,
         }
     
     @classmethod
@@ -82,16 +82,16 @@ class SyntheticTranscriptGenerator:
             "--- TRANSCRIPT SPEC ---",
             json.dumps(
                 {
-                    "turn_total": specifications["turn_total"],
-                    "speaker_sequence": specifications["speaker_sequence"],
-                    "target_C_to_P_word_ratio": specifications["ratio"],
+                    Constants.TURN_TOTAL: specifications[Constants.TURN_TOTAL],
+                    Constants.SPEAKER_SEQUENCE: specifications[Constants.SPEAKER_SEQUENCE],
+                    Constants.TARGET_C_TO_P_WORD_RATIO: specifications[Constants.RATIO],
                 }
             ),
             "",
-            f"Moods: {', '.join(specifications['mood'])}",
-            f"External pressure: {specifications['pressure']}",
-            f"Clinician persona: {specifications['clinician_style']}",
-            f"Patient persona: {specifications['patient_style']}",
+            f"Moods: {', '.join(specifications[Constants.MOOD_KEY])}",
+            f"External pressure: {specifications[Constants.PRESSURE_KEY]}",
+            f"Clinician persona: {specifications[Constants.CLINICIAN_STYLE_KEY]}",
+            f"Patient persona: {specifications[Constants.PATIENT_STYLE_KEY]}",
             "",
             "Instructions:",
             "1. Follow the speaker sequence exactly (same order and length).",

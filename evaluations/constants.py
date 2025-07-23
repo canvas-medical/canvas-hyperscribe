@@ -37,6 +37,15 @@ class Constants:
     TRANSCRIPT2INSTRUCTIONS = "transcript2instructions"
     POSITIVE_VALUE = "positive"
     NEGATIVE_VALUE = "negative"
+    TURN_TOTAL = "turn_total"
+    SPEAKER_SEQUENCE = "speaker_sequence"
+    TARGET_C_TO_P_WORD_RATIO = "target_C_to_P_word_ratio"
+    RATIO = "ratio"
+    MOOD_KEY = "mood"
+    PRESSURE_KEY = "pressure"
+    CLINICIAN_STYLE_KEY = "clinician_style"
+    PATIENT_STYLE_KEY = "patient_style"
+    BUCKET = "bucket"
     TURN_BUCKETS = {
         "short": (2, 4),
         "medium": (6, 8),
