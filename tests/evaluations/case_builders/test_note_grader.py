@@ -165,7 +165,7 @@ def test_main(tmp_path):
 
     run_calls = {}
     def fake_run(self):
-        run_calls["inst"] = self
+        run_calls["instance"] = self
         run_calls["called"] = True
 
     with patch.object(HelperEvaluation, "settings", classmethod(lambda cls: dummy_settings)), \
@@ -174,10 +174,10 @@ def test_main(tmp_path):
          NoteGrader.main()
 
     assert run_calls.get("called") is True
-    inst = run_calls["inst"]
+    instance = run_calls["instance"]
      #instance check for each component
-    assert isinstance(inst, NoteGrader)
-    assert inst.vendor_key.api_key == "MY_API_KEY"
-    assert inst.rubric == [RubricCriterion(**rubric_data[0])]
-    assert inst.note == note_data
-    assert inst.output_path == out_file
+    assert isinstance(instance, NoteGrader)
+    assert instance.vendor_key.api_key == "MY_API_KEY"
+    assert instance.rubric == [RubricCriterion(**rubric_data[0])]
+    assert instance.note == note_data
+    assert instance.output_path == out_file

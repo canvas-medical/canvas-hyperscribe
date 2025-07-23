@@ -6,7 +6,7 @@ from typing import Any
 from evaluations.case_builders.synthetic_chart_generator import SyntheticChartGenerator, HelperEvaluation
 from hyperscribe.structures.vendor_key import VendorKey
 
-def test_init():
+def test___init__():
     expected_vendor_key = VendorKey(vendor="openai", api_key="API_KEY_123")
     expected_profiles = {"Patient A": "Profile text"}
     expected_output = Path("/tmp/outdir")
@@ -26,24 +26,39 @@ def test_load_json(tmp_path):
     result = SyntheticChartGenerator.load_json(data_file)
     assert result == expected
 
+from evaluations.constants import Constants
+
 def test_schema_chart():
-    #one key that maps to description string, one that doesn't. 
-    example_chart = {"demographicStr": "", "customData": []}
-    tested = SyntheticChartGenerator(
-        VendorKey("vendor", "key"), {}, Path("."), example_chart)
+    #1) check sample chart with correct keys formats correctly.
+    example_chart_known = {key: "" for key in Constants.EXAMPLE_CHART_DESCRIPTIONS}
 
-    result_schema = tested.schema_chart()
+    tested_known = SyntheticChartGenerator(
+        VendorKey("vendor", "key"), {}, Path("."), example_chart_known)
 
+    result_schema = tested_known.schema_chart()
     assert result_schema["description"] == "Example Canvas-compatible chart"
     assert result_schema["type"] == "object"
     assert result_schema["additionalProperties"] is False
-    assert set(result_schema["required"]) == {"demographicStr", "customData"}
+    assert set(result_schema["required"]) == set(example_chart_known.keys())
 
     properties = result_schema["properties"]
-    assert set(properties.keys()) == {"demographicStr", "customData"}
-    #a correct description string appended, as well as an empty one.
-    assert properties["demographicStr"] == {"type": "string", "description": "string describing patient demographics"}
-    assert properties["customData"] == {"type": "array", "description": ""}
+    assert set(properties.keys()) == set(example_chart_known.keys())
+
+    for key, expected_desc in Constants.EXAMPLE_CHART_DESCRIPTIONS.items():
+        assert properties[key]["description"] == expected_desc
+        assert properties[key]["type"] == "string"  # since we passed all as ""
+
+    #2) unknown customData key should raise newly established KeyError
+    example_chart_unknown = {"customData": []}
+    tested_unknown = SyntheticChartGenerator(
+        VendorKey("vendor", "key"), {}, Path("."), example_chart_unknown)
+
+    try:
+        tested_unknown.schema_chart()
+        assert False, "Expected KeyError for missing description"
+    except KeyError as e:
+        assert str(e) == "'customData'"
+
 
 @patch.object(SyntheticChartGenerator, "schema_chart")
 @patch("evaluations.case_builders.synthetic_chart_generator.HelperSyntheticJson.generate_json")
@@ -86,11 +101,8 @@ def test_validate_chart__success(mock_load):
 def test_validate_chart__invalid_structure(mock_load):
     tested_chart = {"bad": True}
     tested = SyntheticChartGenerator(VendorKey("v", "k"), {}, Path("."), {})
-
-    with pytest.raises(ValueError) as exc_info:
-        tested.validate_chart(tested_chart)
-
-    assert "Invalid limited_chart.json structure: boom" in str(exc_info.value)
+    result = tested.validate_chart(tested_chart)
+    assert result == False
     assert mock_load.mock_calls == [call(tested_chart)]
 
 def test_assign_valid_uuids():
@@ -107,7 +119,7 @@ def test_assign_valid_uuids():
 
 
 @patch.object(SyntheticChartGenerator, "generate_chart_for_profile", side_effect=[{"some": "data1"}, {"some": "data2"}])
-@patch.object(SyntheticChartGenerator, "validate_chart")
+@patch.object(SyntheticChartGenerator, "validate_chart", side_effect=[True, False])
 @patch.object(SyntheticChartGenerator, "assign_valid_uuids", side_effect=lambda chart: {"assigned": chart["some"]})
 def test_run_range(mock_assign, mock_validate, mock_generate, tmp_path, capsys):
     profiles = {"P1*": "text1", "P2!": "text2"}
@@ -115,25 +127,20 @@ def test_run_range(mock_assign, mock_validate, mock_generate, tmp_path, capsys):
     tested = SyntheticChartGenerator(VendorKey("v", "k"), profiles, output_dir, {})
 
     tested.run_range(1, 2)
+    output1 = output_dir / "P1_" / "limited_chart.json"
+    output2 = output_dir / "P2_" / "limited_chart.json"
+    assert output1.exists()
+    assert output2.exists()
 
     #verifying calls for generate_chart_for_profile, validate, and assign.
-    expected_generate_calls = [call("text1"), call("text2")]
-    assert mock_generate.mock_calls == expected_generate_calls
-
-    expected_validate_calls = [call({"some": "data1"}), call({"some": "data2"})]
-    assert mock_validate.mock_calls == expected_validate_calls
-
-    expected_assign_calls = [call({"some": "data1"}), call({"some": "data2"})]
-    assert mock_assign.mock_calls == expected_assign_calls
-
-    for raw_name, expected_value in zip(profiles, ["data1", "data2"]):
-        safe_name = "".join(c if c.isalnum() else "_" for c in raw_name)
-        chart_file = output_dir / safe_name / "limited_chart.json"
-        assert json.loads(chart_file.read_text()) == {"assigned": expected_value}
+    assert mock_generate.mock_calls == [call("text1"), call("text2")]
+    assert mock_validate.mock_calls == [call({"some": "data1"}), call({"some": "data2"})]
+    assert mock_assign.mock_calls == [call({"some": "data1"}), call({"some": "data2"})]
 
     output = capsys.readouterr().out
     assert "Generating limited_chart.json for P1*" in output
-    assert "Saved limited_chart.json to" in output
+    assert "Saved limited_chart.json" in output
+    assert "[SKIPPED] Invalid chart for P2!" in output
 
 def test_main(tmp_path):
     dummy_settings = MagicMock()

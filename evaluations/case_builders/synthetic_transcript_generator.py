@@ -25,18 +25,16 @@ class SyntheticTranscriptGenerator:
     def _random_bucket() -> str:
         return random.choice(list(Constants.TURN_BUCKETS.keys()))
 
-    def _make_spec(self) -> dict[str, Any]:
+    def _make_specifications(self) -> dict[str, Any]:
         bucket = self._random_bucket()
         low, high = Constants.TURN_BUCKETS[bucket]
         turn_total = random.randint(low, high)
 
-        first  = random.choice(["Clinician", "Patient"])
-        other  = "Patient" if first == "Clinician" else "Clinician"
-        seq    = [first] + [random.choice([first, other]) for _ in range(turn_total - 1)]
+        sequence = [random.choice(["Clinician", "Patient"]) for _ in range(turn_total)]
 
         return {
             "turn_total": turn_total,
-            "speaker_sequence": seq,
+            "speaker_sequence": sequence,
             "ratio": round(random.uniform(0.5, 2.0), 2),
             "mood": random.sample(Constants.MOOD_POOL, k=2),
             "pressure": random.choice(Constants.PRESSURE_POOL),
@@ -46,13 +44,13 @@ class SyntheticTranscriptGenerator:
         }
     
     @classmethod
-    def schema_transcript(cls, spec: dict[str, Any]) -> dict[str, Any]:
+    def schema_transcript(cls, turn_total: int) -> dict[str, Any]:
         """Build a JSON Schema that enforces JSON transcript structure."""
         return {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "type": "array",
-            "minItems": spec["turn_total"],
-            "maxItems": spec["turn_total"],
+            "minItems": turn_total,
+            "maxItems": turn_total,
             "items": {
                 "type": "object",
                 "properties": {
@@ -66,7 +64,7 @@ class SyntheticTranscriptGenerator:
             },
         }
 
-    def _build_prompt(self, profile_text: str, spec: dict[str, Any],
+    def _build_prompt(self, profile_text: str, specifications: dict[str, Any],
         schema: dict[str, Any],) -> Tuple[list[str], list[str]]:
         system_lines = [
             "You are simulating a real outpatient medication-management discussion.",
@@ -84,16 +82,16 @@ class SyntheticTranscriptGenerator:
             "--- TRANSCRIPT SPEC ---",
             json.dumps(
                 {
-                    "turn_total": spec["turn_total"],
-                    "speaker_sequence": spec["speaker_sequence"],
-                    "target_C_to_P_word_ratio": spec["ratio"],
+                    "turn_total": specifications["turn_total"],
+                    "speaker_sequence": specifications["speaker_sequence"],
+                    "target_C_to_P_word_ratio": specifications["ratio"],
                 }
             ),
             "",
-            f"Moods: {', '.join(spec['mood'])}",
-            f"External pressure: {spec['pressure']}",
-            f"Clinician persona: {spec['clinician_style']}",
-            f"Patient persona: {spec['patient_style']}",
+            f"Moods: {', '.join(specifications['mood'])}",
+            f"External pressure: {specifications['pressure']}",
+            f"Clinician persona: {specifications['clinician_style']}",
+            f"Patient persona: {specifications['patient_style']}",
             "",
             "Instructions:",
             "1. Follow the speaker sequence exactly (same order and length).",
@@ -114,10 +112,10 @@ class SyntheticTranscriptGenerator:
 
     def generate_transcript_for_profile(self, profile_text: str
         ) -> Tuple[list[dict[str, str]], dict[str, Any]]:
-        spec = self._make_spec()
-        schema = self.schema_transcript(spec)
+        specifications = self._make_specifications()
+        schema = self.schema_transcript(specifications["turn_total"])
 
-        system_lines, user_lines = self._build_prompt(profile_text, spec, schema)
+        system_lines, user_lines = self._build_prompt(profile_text, specifications, schema)
 
         transcript = HelperSyntheticJson.generate_json(
             vendor_key=self.vendor_key,
@@ -128,7 +126,7 @@ class SyntheticTranscriptGenerator:
         first_line = transcript[0].get("text", "").strip().lower()
         self.seen_openings.add(first_line)
 
-        return transcript, spec
+        return transcript, specifications
 
     def run(self, start_index: int, limit: int) -> None:
         items = list(self.profiles.items())
@@ -140,11 +138,11 @@ class SyntheticTranscriptGenerator:
             patient_dir.mkdir(parents=True, exist_ok=True)
 
             print(f"Generating transcript for {patient_name}…")
-            transcript, spec = self.generate_transcript_for_profile(profile_text)
+            transcript, specifications = self.generate_transcript_for_profile(profile_text)
 
             (patient_dir / "transcript.json").write_text(json.dumps(transcript, indent=2))
-            (patient_dir / "spec.json").write_text(json.dumps(spec, indent=2))
-            print(f"Saved => {patient_dir/'transcript.json'}, {patient_dir/'spec.json'}")
+            (patient_dir / "specifications.json").write_text(json.dumps(specifications, indent=2))
+            print(f"Saved => {patient_dir/'transcript.json'}, {patient_dir/'specifications.json'}")
     
     @staticmethod
     def main() -> None:

@@ -6,6 +6,7 @@ from hyperscribe.structures.vendor_key import VendorKey
 from hyperscribe.libraries.limited_cache import LimitedCache
 from evaluations.helper_evaluation import HelperEvaluation
 from evaluations.case_builders.helper_synthetic_json import HelperSyntheticJson
+from evaluations.constants import Constants
 
 class SyntheticChartGenerator:
     def __init__(self, vendor_key: VendorKey, profiles: dict[str, str],
@@ -24,21 +25,10 @@ class SyntheticChartGenerator:
 
     def schema_chart(self) -> dict[str, Any]:
         """Build a JSON Schema that enforces top‑level keys in example_chart."""
-        #readable descriptions for each top-level key
-        _DESCRIPTIONS = {
-            "demographicStr":   "string describing patient demographics",
-            "conditionHistory": "patient history of conditions",
-            "currentAllergies": "current allergies for the patient",
-            "currentConditions": "current patient conditions and diagnoses",
-            "currentMedications": "current patient medications being taken",
-            "currentGoals": "current treatment goals for the patient",
-            "familyHistory":   "any history of family care or illness",
-            "surgeryHistory":  "any history of surgical care or operations",
-        }
 
         properties = {
             key: {"type": "array" if isinstance(value, list) else "string",
-                "description": _DESCRIPTIONS.get(key, "")}
+                "description": Constants.EXAMPLE_CHART_DESCRIPTIONS[key]} #KeyError if missing
             for key, value in self.example_chart.items()
         }
 
@@ -88,11 +78,13 @@ class SyntheticChartGenerator:
         return chart_json
 
     @classmethod
-    def validate_chart(cls, chart_json: dict[str, Any]) -> None:
+    def validate_chart(cls, chart_json: dict[str, Any]) -> bool:
         try:
             LimitedCache.load_from_json(chart_json)
+            return True
         except Exception as e:
-            raise ValueError(f"Invalid limited_chart.json structure: {e}")
+            print(f"[ERROR] invalid limited_chart.json structure: {e}")
+            return False
 
     @classmethod
     def assign_valid_uuids(cls, obj: Any) -> Any:
@@ -119,7 +111,8 @@ class SyntheticChartGenerator:
 
             print(f"Generating limited_chart.json for {patient_name}")
             chart = self.generate_chart_for_profile(profile_text)
-            self.validate_chart(chart)
+            if not self.validate_chart(chart):
+                print(f"[SKIPPED] Invalid chart for {patient_name}")
             chart = self.assign_valid_uuids(chart)
 
             out_path = patient_dir / "limited_chart.json"

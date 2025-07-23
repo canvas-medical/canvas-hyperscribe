@@ -1,6 +1,6 @@
 import json, pytest, hashlib
 from argparse import Namespace
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, call
 from evaluations.case_builders.rubric_generator import RubricGenerator, HelperEvaluation
 from evaluations.constants import Constants
 from hyperscribe.structures.vendor_key import VendorKey
@@ -43,7 +43,7 @@ def test_schema_rubric():
                                   "minimum": 0, "maximum": 100},
                     "sense":     {"type": "string", 
                                   "description": "positive or negative direction",
-                                  "enum": [Constants.POSITIVE_VALUE, Constants.NEGATIVE_VALUE]}
+                                  "enum": ["positive", "negative"]}
                 },
                 "required": ["criterion", "weight", "sense"],
                 "additionalProperties": False
@@ -68,6 +68,7 @@ def test_generate__success(mock_generate_json, mock_schema_rubric, tmp_paths):
     result = json.loads(output_path.read_text())
     assert result == expected
 
+    assert len(mock_generate_json.mock_calls) == 1
     _, kwargs = mock_generate_json.call_args
     expected_system_md5 = "a32a64e63443ef0f076080b5be3873d9"
     expected_user_md5 = "aa9784cf40795731b20103b58a884fc7"
@@ -78,6 +79,7 @@ def test_generate__success(mock_generate_json, mock_schema_rubric, tmp_paths):
     assert kwargs["schema"] == expected_schema
     assert result_system_md5 == expected_system_md5
     assert result_user_md5 == expected_user_md5
+    assert mock_schema_rubric.mock_calls == [call()]
     
 
 @patch("evaluations.case_builders.rubric_generator.HelperSyntheticJson.generate_json", side_effect=SystemExit(1))

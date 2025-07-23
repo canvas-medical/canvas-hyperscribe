@@ -102,6 +102,11 @@ def test_generate_json__chat_error_exits(mock_llm_cls, mock_memory_log, tmp_path
                 schema=schema,
             )
 
+    #system exit invoked, so no content access but check on attributes
+    assert tested_obj.has_error is True
+    assert tested_obj.error == "network fail"
+    assert mock_exit.mock_calls == [call(1)] 
+
     expected_calls = [
         call("MemoryLogInstance", "dummy", with_audit=False, temperature=1.0),
         call().set_system_prompt(["system"]),
@@ -111,9 +116,4 @@ def test_generate_json__chat_error_exits(mock_llm_cls, mock_memory_log, tmp_path
     assert mock_llm_cls.mock_calls == expected_calls
     assert mock_llm.chat.call_count == 1
     calls = [call.dev_null_instance()]
-    assert mock_memory_log.mock_calls == calls
-
-    #system exit invoked, so no content access but check on attributes
-    assert tested_obj.has_error is True
-    assert tested_obj.error == "network fail"
-    assert mock_exit.mock_calls == [call(1)] 
+    assert mock_memory_log.mock_calls == calls    

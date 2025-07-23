@@ -52,15 +52,26 @@ class Constants:
     PRESSURE_POOL = [
         "time pressure on the visit", "insurance denied prior authorization",
         "formulary change", "refill limit reached", "patient traveling soon",
-        "side‑effect report just came in"
+        "side-effect report just came in"
     ]
 
     CLINICIAN_PERSONAS = [
         "warm and chatty", "brief and efficient", "cautious and inquisitive",
-        "over‑explainer"
+        "over-explainer"
     ]
 
     PATIENT_PERSONAS = [
         "anxious and talkative", "confused and forgetful",
         "assertive and informed", "agreeable but vague"
     ]
+
+    EXAMPLE_CHART_DESCRIPTIONS = {
+            "demographicStr":   "string describing patient demographics",
+            "conditionHistory": "patient history of conditions",
+            "currentAllergies": "current allergies for the patient",
+            "currentConditions": "current patient conditions and diagnoses",
+            "currentMedications": "current patient medications being taken",
+            "currentGoals": "current treatment goals for the patient",
+            "familyHistory":   "any history of family care or illness",
+            "surgeryHistory":  "any history of surgical care or operations",
+        }

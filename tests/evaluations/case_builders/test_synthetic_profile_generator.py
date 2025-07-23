@@ -146,8 +146,8 @@ def test_main(tmp_path):
     output_path = tmp_path / "out.json"
     args = Namespace(batches=2, batch_size=5, output=output_path)
 
-    with patch.object(HelperEvaluation, "settings", new=classmethod(lambda cls: dummy_settings)), \
-         patch.object(ArgumentParser, "parse_args", new=lambda self: args), \
+    with patch.object(HelperEvaluation, "settings", new=classmethod(lambda _: dummy_settings)), \
+         patch.object(ArgumentParser, "parse_args", new=lambda _: args), \
          patch.object(SyntheticProfileGenerator, "run", new=fake_run), \
          patch("pathlib.Path.mkdir") as mock_mkdir_1:
 
