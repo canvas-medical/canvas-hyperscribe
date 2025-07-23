@@ -7,6 +7,7 @@ from evaluations.helper_evaluation import HelperEvaluation
 from evaluations.case_builders.helper_synthetic_json import HelperSyntheticJson
 from evaluations.constants import Constants
 
+
 class RubricGenerator:
     def __init__(self, vendor_key: VendorKey) -> None:
         self.vendor_key = vendor_key
@@ -31,22 +32,34 @@ class RubricGenerator:
             "items": {
                 "type": "object",
                 "properties": {
-                    "criterion": {"type": "string",
-                                  "description": "dimension of note being evaluated"},
-                    "weight":    {"type": "integer", 
-                                  "description": "how much criterion is worth", 
-                                  "minimum": 0, "maximum": 100},
-                    "sense":     {"type": "string", 
-                                  "description": "positive or negative direction",
-                                  "enum": [Constants.POSITIVE_VALUE, Constants.NEGATIVE_VALUE]}
+                    "criterion": {
+                        "type": "string",
+                        "description": "dimension of note being evaluated",
+                    },
+                    "weight": {
+                        "type": "integer",
+                        "description": "how much criterion is worth",
+                        "minimum": 0,
+                        "maximum": 100,
+                    },
+                    "sense": {
+                        "type": "string",
+                        "description": "positive or negative direction",
+                        "enum": [Constants.POSITIVE_VALUE, Constants.NEGATIVE_VALUE],
+                    },
                 },
                 "required": ["criterion", "weight", "sense"],
-                "additionalProperties": False
-            }
+                "additionalProperties": False,
+            },
         }
 
-    def generate(self, transcript_path: Path, chart_path: Path,
-        canvas_context_path: Path, output_path: Path,) -> None:
+    def generate(
+        self,
+        transcript_path: Path,
+        chart_path: Path,
+        canvas_context_path: Path,
+        output_path: Path,
+    ) -> None:
         transcript = self.load_json(transcript_path)
         chart = self.load_json(chart_path)
         canvas_context = self.load_json(canvas_context_path)
@@ -56,7 +69,8 @@ class RubricGenerator:
             "You are a clinical informatics expert working with a senior physician "
             "to design case-specific rubrics that assess how faithfully a medical "
             "scribe note reflects the transcript and chart.",
-            "Return your answer as JSON inside a fenced ```json ... ``` block."]
+            "Return your answer as JSON inside a fenced ```json ... ``` block.",
+        ]
 
         user_prompt: list[str] = [
             "Task: design a grading rubric for *documentation fidelity*.",
@@ -68,7 +82,7 @@ class RubricGenerator:
             " 2. Decide what an ideal scribe must capture.",
             " 3. Produce the rubric as a JSON array of objects.",
             "Each object keys:",
-            " - criterion (string) — must start with with \"Reward for\" or \"Penalize for\"",
+            ' - criterion (string) — must start with with "Reward for" or "Penalize for"',
             " - weight (int 0-100)",
             f"– sense ('{Constants.POSITIVE_VALUE}' | '{Constants.NEGATIVE_VALUE}')",
             "Include at least one criterion on overall completeness and one on chart-copy fidelity.",
@@ -85,21 +99,19 @@ class RubricGenerator:
             "--- END CHART JSON ---",
             "--- BEGIN CANVAS CONTEXT JSON ---",
             json.dumps(canvas_context),
-            "--- END CANVAS CONTEXT JSON ---",]
+            "--- END CANVAS CONTEXT JSON ---",
+        ]
 
         rubric_list = HelperSyntheticJson.generate_json(
-            vendor_key=self.vendor_key,
-            system_prompt=system_prompt,
-            user_prompt=user_prompt,
-            schema=schema)
+            vendor_key=self.vendor_key, system_prompt=system_prompt, user_prompt=user_prompt, schema=schema
+        )
 
         output_path.write_text(json.dumps(rubric_list, indent=2))
         print(f"Wrote rubric to {output_path}")
 
     @staticmethod
     def main() -> None:
-        parser = argparse.ArgumentParser(
-            description="Generate a fidelity-focused rubric for a medical scribe note.")
+        parser = argparse.ArgumentParser(description="Generate a fidelity-focused rubric for a medical scribe note.")
         parser.add_argument("--transcript_path", type=Path, help="Path to transcript.json")
         parser.add_argument("--chart_path", type=Path, help="Path to limited_chart.json")
         parser.add_argument("--canvas_context_path", type=Path, help="Path to canvas_context.json")
@@ -113,7 +125,9 @@ class RubricGenerator:
             transcript_path=args.transcript_path,
             chart_path=args.chart_path,
             canvas_context_path=args.canvas_context_path,
-            output_path=args.output_path)
+            output_path=args.output_path,
+        )
+
 
 if __name__ == "__main__":
     RubricGenerator.main()

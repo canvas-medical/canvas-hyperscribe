@@ -22,20 +22,27 @@ class MemoryLog:
     def end_session(cls, note_uuid: str) -> str:
         if note_uuid not in ENTRIES:
             return ""
-        return "\n".join([
-            "\n".join(l)
-            for l in sorted(
-                [e for e in ENTRIES.pop(note_uuid).values() if e],
-                key=lambda v: v[0],
-            )
-        ])
-    
+        return "\n".join(
+            [
+                "\n".join(l)
+                for l in sorted(
+                    [e for e in ENTRIES.pop(note_uuid).values() if e],
+                    key=lambda v: v[0],
+                )
+            ]
+        )
+
     @classmethod
     def dev_null_instance(cls) -> MemoryLog:
-        identification = IdentificationParameters(patient_uuid='', note_uuid='', provider_uuid='', canvas_instance='local')
-        instance = cls(identification, 'local')
+        identification = IdentificationParameters(
+            patient_uuid="",
+            note_uuid="",
+            provider_uuid="",
+            canvas_instance="local",
+        )
+        instance = cls(identification, "local")
         return instance
-    
+
     @classmethod
     def instance(
         cls,
@@ -55,6 +62,7 @@ class MemoryLog:
             ENTRIES[self.identification.note_uuid] = {}
         if label not in ENTRIES[self.identification.note_uuid]:
             ENTRIES[self.identification.note_uuid][self.label] = []
+        self.current_idx = len(ENTRIES[self.identification.note_uuid][self.label])
 
     def log(self, message: str) -> None:
         ENTRIES[self.identification.note_uuid][self.label].append(f"{datetime.now(UTC).isoformat()}: {message}")
@@ -63,8 +71,8 @@ class MemoryLog:
         self.log(message)
         log.info(message)
 
-    def logs(self) -> str:
-        return "\n".join(ENTRIES[self.identification.note_uuid][self.label])
+    def logs(self, from_index: int, to_index: int) -> str:
+        return "\n".join(ENTRIES[self.identification.note_uuid][self.label][from_index:to_index])
 
     def store_so_far(self) -> None:
         client_s3 = AwsS3(self.s3_credentials)
@@ -78,4 +86,7 @@ class MemoryLog:
                 f"{cached.cycle:02d}/"
                 f"{self.label}.log"
             )
-            client_s3.upload_text_to_s3(log_path, self.logs())
+            from_index = self.current_idx
+            to_index = len(ENTRIES[self.identification.note_uuid][self.label])
+            self.current_idx = to_index
+            client_s3.upload_text_to_s3(log_path, self.logs(from_index, to_index))

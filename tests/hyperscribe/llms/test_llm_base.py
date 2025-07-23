@@ -160,6 +160,7 @@ def test_attempt_requests(request):
     assert memory_log.mock_calls == calls
     reset_mocks()
 
+
 @patch.object(LlmBase, "extract_json_from")
 @patch.object(LlmBase, "attempt_requests")
 def test_chat(attempt_requests, extract_json_from):

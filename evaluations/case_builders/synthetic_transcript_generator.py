@@ -8,10 +8,11 @@ from evaluations.helper_evaluation import HelperEvaluation
 from evaluations.case_builders.helper_synthetic_json import HelperSyntheticJson
 from evaluations.constants import Constants
 
+
 class SyntheticTranscriptGenerator:
     def __init__(self, vendor_key: VendorKey, input_path: Path, output_path: Path) -> None:
-        self.vendor_key  = vendor_key
-        self.input_path  = input_path
+        self.vendor_key = vendor_key
+        self.input_path = input_path
         self.output_path = output_path
         self.output_path.mkdir(parents=True, exist_ok=True)
         self.profiles = self._load_profiles()
@@ -42,7 +43,7 @@ class SyntheticTranscriptGenerator:
             Constants.PATIENT_STYLE_KEY: random.choice(Constants.PATIENT_PERSONAS),
             Constants.BUCKET: bucket,
         }
-    
+
     @classmethod
     def schema_transcript(cls, turn_total: int) -> dict[str, Any]:
         """Build a JSON Schema that enforces JSON transcript structure."""
@@ -54,18 +55,26 @@ class SyntheticTranscriptGenerator:
             "items": {
                 "type": "object",
                 "properties": {
-                    "speaker": {"type": "string",
-                                "description": "Who is talking for this turn, either 'Clinician' or 'Patient'."},
-                    "text":    {"type": "string",
-                                "description": "Words spoken during the turn."},
+                    "speaker": {
+                        "type": "string",
+                        "description": "Who is talking for this turn, either 'Clinician' or 'Patient'.",
+                    },
+                    "text": {
+                        "type": "string",
+                        "description": "Words spoken during the turn.",
+                    },
                 },
                 "required": ["speaker", "text"],
                 "additionalProperties": False,
             },
         }
 
-    def _build_prompt(self, profile_text: str, specifications: dict[str, Any],
-        schema: dict[str, Any],) -> Tuple[list[str], list[str]]:
+    def _build_prompt(
+        self,
+        profile_text: str,
+        specifications: dict[str, Any],
+        schema: dict[str, Any],
+    ) -> Tuple[list[str], list[str]]:
         system_lines = [
             "You are simulating a real outpatient medication-management discussion.",
             "Return your answer as JSON inside a fenced ```json ... ``` block.",
@@ -75,7 +84,8 @@ class SyntheticTranscriptGenerator:
         ]
         if self.seen_openings:
             system_lines.append(
-                f"Avoid starting with any of these previous first lines: {', '.join(sorted(self.seen_openings))}")
+                f"Avoid starting with any of these previous first lines: {', '.join(sorted(self.seen_openings))}"
+            )
 
         user_lines = [
             f"Patient profile: {profile_text}",
@@ -110,8 +120,7 @@ class SyntheticTranscriptGenerator:
 
         return system_lines, user_lines
 
-    def generate_transcript_for_profile(self, profile_text: str
-        ) -> Tuple[list[dict[str, str]], dict[str, Any]]:
+    def generate_transcript_for_profile(self, profile_text: str) -> Tuple[list[dict[str, str]], dict[str, Any]]:
         specifications = self._make_specifications()
         schema = self.schema_transcript(specifications["turn_total"])
 
@@ -121,7 +130,8 @@ class SyntheticTranscriptGenerator:
             vendor_key=self.vendor_key,
             system_prompt=system_lines,
             user_prompt=user_lines,
-            schema=schema)
+            schema=schema,
+        )
 
         first_line = transcript[0].get("text", "").strip().lower()
         self.seen_openings.add(first_line)
@@ -133,7 +143,7 @@ class SyntheticTranscriptGenerator:
         slice_ = items[start_index - 1 : start_index - 1 + limit]
 
         for patient_name, profile_text in slice_:
-            safe_name   = re.sub(r"\W+", "_", patient_name)
+            safe_name = re.sub(r"\W+", "_", patient_name)
             patient_dir = self.output_path / safe_name
             patient_dir.mkdir(parents=True, exist_ok=True)
 
@@ -142,23 +152,21 @@ class SyntheticTranscriptGenerator:
 
             (patient_dir / "transcript.json").write_text(json.dumps(transcript, indent=2))
             (patient_dir / "specifications.json").write_text(json.dumps(specifications, indent=2))
-            print(f"Saved => {patient_dir/'transcript.json'}, {patient_dir/'specifications.json'}")
-    
+            print(f"Saved => {patient_dir / 'transcript.json'}, {patient_dir / 'specifications.json'}")
+
     @staticmethod
     def main() -> None:
-        parser = argparse.ArgumentParser(
-            description="Generate synthetic transcripts from patient profiles.")
-        parser.add_argument("--input",  type=Path, required=True, help="Path to profiles.json")
+        parser = argparse.ArgumentParser(description="Generate synthetic transcripts from patient profiles.")
+        parser.add_argument("--input", type=Path, required=True, help="Path to profiles.json")
         parser.add_argument("--output", type=Path, required=True, help="Directory for outputs")
-        parser.add_argument("--start",  type=int, required=True, help="1‑based start index")
-        parser.add_argument("--limit",  type=int, required=True, help="Number of profiles")
+        parser.add_argument("--start", type=int, required=True, help="1‑based start index")
+        parser.add_argument("--limit", type=int, required=True, help="Number of profiles")
         args = parser.parse_args()
 
-        settings   = HelperEvaluation.settings()
+        settings = HelperEvaluation.settings()
         vendor_key = settings.llm_text
 
-        generator = SyntheticTranscriptGenerator(
-            vendor_key=vendor_key, input_path=args.input, output_path=args.output)
+        generator = SyntheticTranscriptGenerator(vendor_key=vendor_key, input_path=args.input, output_path=args.output)
         generator.run(start_index=args.start, limit=args.limit)
 
 

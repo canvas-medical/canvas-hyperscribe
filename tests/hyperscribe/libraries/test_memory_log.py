@@ -57,7 +57,12 @@ def test_dev_null_instance():
     result = tested.dev_null_instance()
 
     assert isinstance(result, MemoryLog)
-    expected_identification = IdentificationParameters(patient_uuid='', note_uuid='', provider_uuid='', canvas_instance='local')
+    expected_identification = IdentificationParameters(
+        patient_uuid="",
+        note_uuid="",
+        provider_uuid="",
+        canvas_instance="local",
+    )
     assert result.identification == expected_identification
     assert result.label == "local"
 
@@ -85,6 +90,7 @@ def test___init__():
         provider_uuid="providerUuid",
         canvas_instance="canvasInstance",
     )
+    s3_credentials = AwsS3Credentials(aws_key="", aws_secret="", region="", bucket="")
 
     with patch.object(memory_log, "ENTRIES", {}):
         tested = MemoryLog(identification, "theLabel")
@@ -101,6 +107,11 @@ def test___init__():
         tested = MemoryLog(identification, "theLabel")
         expected = {"noteUuid": {"theLabel": []}}
         assert memory_log.ENTRIES == expected
+
+        assert tested.identification == identification
+        assert tested.label == "theLabel"
+        assert tested.s3_credentials == s3_credentials
+        assert tested.current_idx == 0
 
 
 @patch("hyperscribe.libraries.memory_log.datetime", wraps=datetime)
@@ -203,7 +214,7 @@ def test_logs(mock_datetime):
         canvas_instance="canvasInstance",
     )
     tested = MemoryLog(identification, "theLabel")
-    result = tested.logs()
+    result = tested.logs(0, 3)
     expected = ""
     assert result == expected
 
@@ -211,20 +222,47 @@ def test_logs(mock_datetime):
         datetime(2025, 3, 6, 7, 53, 21, tzinfo=timezone.utc),
         datetime(2025, 3, 6, 11, 53, 37, tzinfo=timezone.utc),
         datetime(2025, 3, 6, 19, 11, 51, tzinfo=timezone.utc),
+        datetime(2025, 3, 6, 19, 11, 53, tzinfo=timezone.utc),
+        datetime(2025, 3, 6, 19, 11, 59, tzinfo=timezone.utc),
     ]
 
     tested.log("message1")
     tested.log("message2")
     tested.log("message3")
-    result = tested.logs()
-    expected = (
-        "2025-03-06T07:53:21+00:00: message1\n2025-03-06T11:53:37+00:00: message2\n2025-03-06T19:11:51+00:00: message3"
-    )
-    assert result == expected
-
-    calls = [call.now(timezone.utc), call.now(timezone.utc), call.now(timezone.utc)]
+    tested.log("message4")
+    tested.log("message5")
+    calls = [
+        call.now(timezone.utc),
+        call.now(timezone.utc),
+        call.now(timezone.utc),
+        call.now(timezone.utc),
+        call.now(timezone.utc),
+    ]
     assert mock_datetime.mock_calls == calls
     reset_mocks()
+
+    tests = [
+        (
+            0,
+            3,
+            "2025-03-06T07:53:21+00:00: message1\n"
+            "2025-03-06T11:53:37+00:00: message2\n"
+            "2025-03-06T19:11:51+00:00: message3",
+        ),
+        (1, 3, "2025-03-06T11:53:37+00:00: message2\n2025-03-06T19:11:51+00:00: message3"),
+        (
+            2,
+            5,
+            "2025-03-06T19:11:51+00:00: message3\n"
+            "2025-03-06T19:11:53+00:00: message4\n"
+            "2025-03-06T19:11:59+00:00: message5",
+        ),
+    ]
+    for from_idx, to_idx, expected in tests:
+        result = tested.logs(from_idx, to_idx)
+        assert result == expected, f"---> {from_idx}, {to_idx}"
+        assert mock_datetime.mock_calls == []
+
     MemoryLog.end_session("noteUuid")
 
 
@@ -247,31 +285,50 @@ def test_store_so_far(aws_s3, get_discussion):
         region="theRegion",
         bucket="theBucket",
     )
+    entries = {
+        "noteUuid": {
+            "theLabel": [
+                "2025-03-06T07:53:21+00:00: message1",
+                "2025-03-06T11:53:37+00:00: message2",
+                "2025-03-06T19:11:51+00:00: message3",
+            ],
+        },
+    }
     tested = MemoryLog(identification, "theLabel")
     tested.s3_credentials = aws_s3_credentials
-    #
-    aws_s3.return_value.is_ready.side_effect = [False]
-    get_discussion.side_effect = []
-    tested.store_so_far()
-    calls = [call(aws_s3_credentials), call().is_ready()]
-    assert aws_s3.mock_calls == calls
-    assert get_discussion.mock_calls == []
-    reset_mocks()
-    #
-    cached = CachedSdk("theNoteUuid")
-    cached.created = datetime(2025, 3, 11, 23, 59, 37, tzinfo=timezone.utc)
-    cached.updated = datetime(2025, 3, 12, 0, 38, 21, tzinfo=timezone.utc)
-    cached.cycle = 7
+    with patch.object(memory_log, "ENTRIES", entries):
+        #
+        aws_s3.return_value.is_ready.side_effect = [False]
+        get_discussion.side_effect = []
+        tested.store_so_far()
+        assert tested.current_idx == 0
 
-    aws_s3.return_value.is_ready.side_effect = [True]
-    get_discussion.side_effect = [cached]
-    tested.store_so_far()
-    calls = [
-        call(aws_s3_credentials),
-        call().is_ready(),
-        call().upload_text_to_s3("hyperscribe-canvasInstance/partials/2025-03-11/noteUuid/07/theLabel.log", ""),
-    ]
-    assert aws_s3.mock_calls == calls
-    calls = [call("noteUuid")]
-    assert get_discussion.mock_calls == calls
-    reset_mocks()
+        calls = [call(aws_s3_credentials), call().is_ready()]
+        assert aws_s3.mock_calls == calls
+        assert get_discussion.mock_calls == []
+        reset_mocks()
+        #
+        cached = CachedSdk("theNoteUuid")
+        cached.created = datetime(2025, 3, 11, 23, 59, 37, tzinfo=timezone.utc)
+        cached.updated = datetime(2025, 3, 12, 0, 38, 21, tzinfo=timezone.utc)
+        cached.cycle = 7
+
+        aws_s3.return_value.is_ready.side_effect = [True]
+        get_discussion.side_effect = [cached]
+        tested.store_so_far()
+        assert tested.current_idx == 3
+
+        calls = [
+            call(aws_s3_credentials),
+            call().is_ready(),
+            call().upload_text_to_s3(
+                "hyperscribe-canvasInstance/partials/2025-03-11/noteUuid/07/theLabel.log",
+                "2025-03-06T07:53:21+00:00: message1\n"
+                "2025-03-06T11:53:37+00:00: message2\n"
+                "2025-03-06T19:11:51+00:00: message3",
+            ),
+        ]
+        assert aws_s3.mock_calls == calls
+        calls = [call("noteUuid")]
+        assert get_discussion.mock_calls == calls
+        reset_mocks()

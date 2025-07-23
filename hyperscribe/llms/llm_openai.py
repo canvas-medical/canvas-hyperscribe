@@ -9,6 +9,7 @@ from requests import post as requests_post
 from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.http_response import HttpResponse
 
+
 class LlmOpenai(LlmBase):
     def add_audio(self, audio: bytes, audio_format: str) -> None:
         if audio:
@@ -72,4 +73,3 @@ class LlmOpenai(LlmBase):
         files = {"file": ("audio.mp3", audio, "application/octet-stream")}
         request = requests_post(url, headers=headers, params={}, data=data, files=files, verify=True)
         return HttpResponse(code=request.status_code, response=request.text)
-

@@ -82,11 +82,12 @@ def test_to_dict():
     assert result == expected
     assert memory_log.mock_calls == []
 
+
 def test_to_dict__no_prompts_with_audio_raises():
     memory_log = MagicMock()
     tested = LlmGoogle(memory_log, "googleKey", "theModel", False)
     with pytest.raises(IndexError):
-        _ = tested.to_dict([('audio/mp3', 'uriAudio1')])
+        _ = tested.to_dict([("audio/mp3", "uriAudio1")])
 
 
 @patch("hyperscribe.llms.llm_google.requests_post")

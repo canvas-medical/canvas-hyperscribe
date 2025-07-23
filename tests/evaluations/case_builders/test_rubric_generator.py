@@ -2,8 +2,8 @@ import json, pytest, hashlib
 from argparse import Namespace
 from unittest.mock import patch, MagicMock, call
 from evaluations.case_builders.rubric_generator import RubricGenerator, HelperEvaluation
-from evaluations.constants import Constants
 from hyperscribe.structures.vendor_key import VendorKey
+
 
 @pytest.fixture
 def tmp_paths(tmp_path):
@@ -18,6 +18,7 @@ def tmp_paths(tmp_path):
 
     return transcript_path, chart_path, canvas_context_path, output_path
 
+
 def test_load_json(tmp_path):
     expected = {"hello": "world"}
     path = tmp_path / "sample.json"
@@ -26,30 +27,35 @@ def test_load_json(tmp_path):
     result = RubricGenerator.load_json(path)
     assert result == expected
 
+
 def test_schema_rubric():
     tested = RubricGenerator(VendorKey("openai", "KEY"))
     result = tested.schema_rubric()
     expected = {
-            "$schema": "http://json-schema.org/draft-07/schema#",
-            "type": "array",
-            "minItems": 1,
-            "items": {
-                "type": "object",
-                "properties": {
-                    "criterion": {"type": "string",
-                                  "description": "dimension of note being evaluated"},
-                    "weight":    {"type": "integer", 
-                                  "description": "how much criterion is worth", 
-                                  "minimum": 0, "maximum": 100},
-                    "sense":     {"type": "string", 
-                                  "description": "positive or negative direction",
-                                  "enum": ["positive", "negative"]}
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "array",
+        "minItems": 1,
+        "items": {
+            "type": "object",
+            "properties": {
+                "criterion": {"type": "string", "description": "dimension of note being evaluated"},
+                "weight": {
+                    "type": "integer",
+                    "description": "how much criterion is worth",
+                    "minimum": 0,
+                    "maximum": 100,
                 },
-                "required": ["criterion", "weight", "sense"],
-                "additionalProperties": False
-            }
-        }
-    
+                "sense": {
+                    "type": "string",
+                    "description": "positive or negative direction",
+                    "enum": ["positive", "negative"],
+                },
+            },
+            "required": ["criterion", "weight", "sense"],
+            "additionalProperties": False,
+        },
+    }
+
     assert result == expected
 
 
@@ -80,7 +86,7 @@ def test_generate__success(mock_generate_json, mock_schema_rubric, tmp_paths):
     assert result_system_md5 == expected_system_md5
     assert result_user_md5 == expected_user_md5
     assert mock_schema_rubric.mock_calls == [call()]
-    
+
 
 @patch("evaluations.case_builders.rubric_generator.HelperSyntheticJson.generate_json", side_effect=SystemExit(1))
 def test_generate__fallback(mock_generate_json, tmp_paths):
@@ -91,6 +97,7 @@ def test_generate__fallback(mock_generate_json, tmp_paths):
         tested.generate(transcript, chart, context, output_path=output_path)
     assert exc.value.code == 1
     assert len(mock_generate_json.mock_calls) == 1
+
 
 def test_main(tmp_paths):
     transcript_path, chart_path, context_path, output_path = tmp_paths
@@ -106,18 +113,19 @@ def test_main(tmp_paths):
     call_info = {}
 
     def fake_generate(self, *, transcript_path, chart_path, canvas_context_path, output_path):
-        call_info["self"]                = self
-        call_info["transcript_path"]     = transcript_path
-        call_info["chart_path"]          = chart_path
+        call_info["self"] = self
+        call_info["transcript_path"] = transcript_path
+        call_info["chart_path"] = chart_path
         call_info["canvas_context_path"] = canvas_context_path
-        call_info["output_path"]         = output_path
-        call_info["called"]              = True
+        call_info["output_path"] = output_path
+        call_info["called"] = True
 
-    with patch("evaluations.case_builders.rubric_generator.argparse.ArgumentParser.parse_args",
-               return_value=fake_args), \
-         patch.object(HelperEvaluation, "settings", classmethod(lambda cls: dummy_settings)), \
-         patch.object(RubricGenerator, "generate", fake_generate):
-         RubricGenerator.main()
+    with (
+        patch("evaluations.case_builders.rubric_generator.argparse.ArgumentParser.parse_args", return_value=fake_args),
+        patch.object(HelperEvaluation, "settings", classmethod(lambda cls: dummy_settings)),
+        patch.object(RubricGenerator, "generate", fake_generate),
+    ):
+        RubricGenerator.main()
 
     assert call_info.get("called") is True
     assert isinstance(call_info["self"], RubricGenerator)
