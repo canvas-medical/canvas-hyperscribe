@@ -2,23 +2,25 @@ import json, re, pytest, hashlib
 from unittest.mock import patch, call, MagicMock
 from argparse import ArgumentParser, Namespace
 from evaluations.case_builders.synthetic_profile_generator import SyntheticProfileGenerator, HelperEvaluation
-from hyperscribe.libraries.constants import Constants
 from hyperscribe.structures.vendor_key import VendorKey
-from hyperscribe.structures.settings import Settings
+
 
 @pytest.fixture
 def dummy_profiles():
     return {
         "Patient 1": "Alice takes lisinopril. Simple renewal.",
-        "Patient 2": "Bob switched from metformin to insulin. Complex."
+        "Patient 2": "Bob switched from metformin to insulin. Complex.",
     }
+
 
 @pytest.fixture
 def fake_llm_response():
     def _fake(n_pairs):
-        data = {f"Patient {i+1}": f"Mock narrative {i+1}." for i in range(n_pairs)}
+        data = {f"Patient {i + 1}": f"Mock narrative {i + 1}." for i in range(n_pairs)}
         return data
+
     return _fake
+
 
 @pytest.fixture
 def vendor_key():
@@ -28,11 +30,12 @@ def vendor_key():
 def test___init__(tmp_path, vendor_key: VendorKey):
     output_path = tmp_path / "combined.json"
     tested = SyntheticProfileGenerator(vendor_key, output_path)
-    expected_path = (tmp_path / "combined.json")
+    expected_path = tmp_path / "combined.json"
     assert tested.vendor_key == vendor_key
     assert tested.output_path == expected_path
     assert tested.seen_scenarios == []
     assert tested.all_profiles == {}
+
 
 def test__extract_initial_fragment(tmp_path, vendor_key: VendorKey):
     output_path = tmp_path / "out.json"
@@ -71,21 +74,19 @@ def test__save_individuals(tmp_path, dummy_profiles: dict, vendor_key: VendorKey
 
 def test_schema_batch(tmp_path, vendor_key: VendorKey):
     output_path = tmp_path / "out.json"
-    tested = SyntheticProfileGenerator(vendor_key,output_path)
+    tested = SyntheticProfileGenerator(vendor_key, output_path)
     count_patients = 4
     result = tested.schema_batch(count_patients)
     expected = {
-            "$schema": "http://json-schema.org/draft-07/schema#",
-            "type": "object",
-            "minProperties": count_patients,
-            "maxProperties": count_patients,
-            "patternProperties": {
-                r"^Patient\s\d+$": { "type": "string",
-                                    "description": "patient profile"}
-            },
-            "additionalProperties": False
-        }
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "minProperties": count_patients,
+        "maxProperties": count_patients,
+        "patternProperties": {r"^Patient\s\d+$": {"type": "string", "description": "patient profile"}},
+        "additionalProperties": False,
+    }
     assert result == expected
+
 
 @patch.object(SyntheticProfileGenerator, "schema_batch")
 @patch("evaluations.case_builders.synthetic_profile_generator.HelperSyntheticJson.generate_json")
@@ -104,7 +105,7 @@ def test_generate_batch(mock_generate_json, mock_schema_batch, fake_llm_response
     assert len(mock_generate_json.mock_calls) == 1
     _, kwargs = mock_generate_json.call_args
 
-    #reference hex digest with the patched schema_batch, must be re-digested if prompts change.
+    # reference hex digest with the patched schema_batch, must be re-digested if prompts change.
     expected_system_md5 = "d4d9c1999dcff7d0cff01745aa3da589"
     expected_user_md5 = "b3435eae8d1a3700c841178446de8c83"
     result_system_md5 = hashlib.md5("\n".join(kwargs["system_prompt"]).encode()).hexdigest()
@@ -115,11 +116,12 @@ def test_generate_batch(mock_generate_json, mock_schema_batch, fake_llm_response
     assert kwargs["vendor_key"] == vendor_key
     assert kwargs["schema"] == expected_schema
     assert mock_schema_batch.mock_calls == [call(count)]
-    
-    expected_keys = [f"Patient {i+1}" for i in range(count)]
+
+    expected_keys = [f"Patient {i + 1}" for i in range(count)]
     assert list(result.keys()) == expected_keys
     assert result == expected
     assert len(tested.seen_scenarios) == count
+
 
 @patch.object(SyntheticProfileGenerator, "_save_individuals")
 @patch.object(SyntheticProfileGenerator, "_save_combined")
@@ -132,29 +134,31 @@ def test_run(mock_generate_batch, mock_save_combined, mock_save_individuals, ven
 
     expected_generate_calls = [call(i, batch_size) for i in range(1, batches + 1)]
     assert mock_generate_batch.mock_calls == expected_generate_calls
-    assert mock_save_combined.mock_calls   == [call()]
+    assert mock_save_combined.mock_calls == [call()]
     assert mock_save_individuals.mock_calls == [call()]
+
 
 def test_main(tmp_path):
     dummy_settings = MagicMock()
     dummy_settings.llm_text = VendorKey("openai", "MAIN_KEY")
 
     run_calls = []
+
     def fake_run(self, batches, batch_size):
         run_calls.append((self, batches, batch_size))
 
     output_path = tmp_path / "out.json"
     args = Namespace(batches=2, batch_size=5, output=output_path)
 
-    with patch.object(HelperEvaluation, "settings", new=classmethod(lambda _: dummy_settings)), \
-         patch.object(ArgumentParser, "parse_args", new=lambda _: args), \
-         patch.object(SyntheticProfileGenerator, "run", new=fake_run), \
-         patch("pathlib.Path.mkdir") as mock_mkdir_1:
-
+    with (
+        patch.object(HelperEvaluation, "settings", new=classmethod(lambda _: dummy_settings)),
+        patch.object(ArgumentParser, "parse_args", new=lambda _: args),
+        patch.object(SyntheticProfileGenerator, "run", new=fake_run),
+        patch("pathlib.Path.mkdir") as mock_mkdir_1,
+    ):
         SyntheticProfileGenerator.main()
         expected_calls = [call(parents=True, exist_ok=True)]
         assert mock_mkdir_1.mock_calls == expected_calls
-
 
     assert len(run_calls) == 1
     instance, batches, batch_size = run_calls[0]

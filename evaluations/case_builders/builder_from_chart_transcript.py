@@ -1,11 +1,9 @@
 import json
 from argparse import ArgumentParser, Namespace
-from pathlib import Path
 from evaluations.auditors.auditor_store import AuditorStore
 from evaluations.case_builders.builder_base import BuilderBase
 from evaluations.constants import Constants
 from evaluations.datastores.sqllite.store_cases import StoreCases
-from evaluations.helper_evaluation import HelperEvaluation
 from evaluations.structures.evaluation_case import EvaluationCase
 from hyperscribe.handlers.commander import Commander
 from hyperscribe.libraries.audio_interpreter import AudioInterpreter
@@ -17,7 +15,6 @@ from hyperscribe.structures.line import Line
 
 
 class BuilderFromChartTranscript(BuilderBase):
-
     @classmethod
     def _parameters(cls) -> Namespace:
         types = [Constants.TYPE_SITUATIONAL, Constants.TYPE_GENERAL]
@@ -41,23 +38,20 @@ class BuilderFromChartTranscript(BuilderBase):
             transcript_data = json.load(f)
         transcript = Line.load_from_json(transcript_data)
 
-        StoreCases.upsert(EvaluationCase(
-            environment=identification.canvas_instance,
-            patient_uuid=identification.patient_uuid,
-            limited_cache=chart_data,
-            case_name=parameters.case,
-            case_group=parameters.group,
-            case_type=parameters.type,
-            cycles=max(1, parameters.cycles),
-            description=parameters.case,
-        ))
-
-        chatter = AudioInterpreter(
-            recorder.settings,
-            recorder.s3_credentials,
-            limited_cache,
-            identification
+        StoreCases.upsert(
+            EvaluationCase(
+                environment=identification.canvas_instance,
+                patient_uuid=identification.patient_uuid,
+                limited_cache=chart_data,
+                case_name=parameters.case,
+                case_group=parameters.group,
+                case_type=parameters.type,
+                cycles=max(1, parameters.cycles),
+                description=parameters.case,
+            )
         )
+
+        chatter = AudioInterpreter(recorder.settings, recorder.s3_credentials, limited_cache, identification)
 
         previous = limited_cache.staged_commands_as_instructions(ImplementedCommands.schema_key2instruction())
         discussion = CachedSdk.get_discussion(identification.note_uuid)
@@ -74,9 +68,9 @@ class BuilderFromChartTranscript(BuilderBase):
                 new_store = AuditorStore(parameters.case, cycle, recorder.settings, recorder.s3_credentials)
                 prev, _ = Commander.transcript2commands(
                     new_store,
-                    transcript[start:start + length],
+                    transcript[start : start + length],
                     chatter,
-                    previous
+                    previous,
                 )
                 previous = prev
 

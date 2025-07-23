@@ -22,7 +22,12 @@ class BuilderFromTranscript(BuilderBase):
         parser.add_argument("--case", type=str, required=True, help="Evaluation case")
         parser.add_argument("--transcript", type=cls.validate_files, help="JSON file with transcript")
         parser.add_argument("--cycles", type=int, help="Split the transcript in as many cycles", default=1)
-        parser.add_argument("--render", action="store_true", default=False, help="Upsert the commands of the last cycle to the patient's last note")
+        parser.add_argument(
+            "--render",
+            action="store_true",
+            default=False,
+            help="Upsert the commands of the last cycle to the patient's last note",
+        )
         return parser.parse_args()
 
     @classmethod

@@ -11,12 +11,17 @@ from evaluations.structures.graded_criterion import GradedCriterion
 
 
 class NoteGrader:
-    def __init__(self, vendor_key: VendorKey, rubric: list[RubricCriterion], 
-                 note: dict[str, Any], output_path: Path) -> None:
+    def __init__(
+        self,
+        vendor_key: VendorKey,
+        rubric: list[RubricCriterion],
+        note: dict[str, Any],
+        output_path: Path,
+    ) -> None:
         self.vendor_key = vendor_key
         self.rubric = rubric
         self.note = note
-        self.output_path= output_path
+        self.output_path = output_path
 
     @staticmethod
     def load_json(path: Path) -> Any:
@@ -37,27 +42,39 @@ class NoteGrader:
             "items": {
                 "type": "object",
                 "properties": {
-                    "id": {"type": "integer",
-                           "description": "index to match criteria"},
-                    "rationale": {"type": "string",
-                                  "description": "reasoning for satisfaction score"},
-                    "satisfaction":{"type": "integer", 
-                                    "description": "note grade",
-                                    "minimum": 0, 
-                                    "maximum": 100}
+                    "id": {
+                        "type": "integer",
+                        "description": "index to match criteria",
+                    },
+                    "rationale": {
+                        "type": "string",
+                        "description": "reasoning for satisfaction score",
+                    },
+                    "satisfaction": {
+                        "type": "integer",
+                        "description": "note grade",
+                        "minimum": 0,
+                        "maximum": 100,
+                    },
                 },
-                "required": ["id", "rationale", "satisfaction"],
-                "additionalProperties": False
-            }
+                "required": [
+                    "id",
+                    "rationale",
+                    "satisfaction",
+                ],
+                "additionalProperties": False,
+            },
         }
 
     def build_prompts(self) -> Tuple[list[str], list[str]]:
         """Returns system-prompt and user-prompt as single strings, joined with new lines."""
 
-        system_prompt = ["You are a clinical-documentation grading assistant.",
+        system_prompt = [
+            "You are a clinical-documentation grading assistant.",
             "You evaluate medical-scribe notes using structured rubrics.",
             "The JSON response MUST satisfy the following JSON-Schema:",
-            json.dumps(self.schema_scores(), indent=2)]
+            json.dumps(self.schema_scores(), indent=2),
+        ]
 
         user_prompt = [
             "Given the rubric and the Hyperscribe output below, return **only** a "
@@ -76,7 +93,8 @@ class NoteGrader:
             "---- END RUBRIC JSON ----",
             "---- BEGIN HYPERSCRIBE OUTPUT JSON ----",
             json.dumps(self.note, indent=2),
-            "---- END HYPERSCRIBE OUTPUT JSON ----",]
+            "---- END HYPERSCRIBE OUTPUT JSON ----",
+        ]
 
         return system_prompt, user_prompt
 
@@ -87,10 +105,11 @@ class NoteGrader:
         print("Grading …")
 
         parsed = HelperSyntheticJson.generate_json(
-            vendor_key = self.vendor_key,
-            system_prompt = system_prompt,
-            user_prompt = user_prompt,
-            schema = schema)
+            vendor_key=self.vendor_key,
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            schema=schema,
+        )
 
         llm_results = [GradedCriterion(**r) for r in parsed]
 
@@ -101,12 +120,14 @@ class NoteGrader:
             else:
                 score = -round(criteria.weight * (1 - (result.satisfaction / 100)), 2)
 
-            final.append({
-                "id": result.id,
-                "rationale":   result.rationale,
-                "satisfaction":result.satisfaction,
-                "score":       score
-            })
+            final.append(
+                {
+                    "id": result.id,
+                    "rationale": result.rationale,
+                    "satisfaction": result.satisfaction,
+                    "score": score,
+                }
+            )
 
         self.output_path.write_text(json.dumps(final, indent=2))
         print("Saved grading result in", self.output_path)
@@ -115,7 +136,7 @@ class NoteGrader:
     def main() -> None:
         parser = argparse.ArgumentParser(description="Grade a note against a rubric.")
         parser.add_argument("--rubric", type=Path, required=True, help="Path to rubric.json")
-        parser.add_argument("--note",   type=Path, required=True, help="Path to note.json")
+        parser.add_argument("--note", type=Path, required=True, help="Path to note.json")
         parser.add_argument("--output", type=Path, required=True, help="Where to save grading JSON")
         args = parser.parse_args()
 
@@ -126,6 +147,7 @@ class NoteGrader:
         note = NoteGrader.load_json(args.note)
 
         NoteGrader(vendor_key, rubric, note, output_path=args.output).run()
+
 
 if __name__ == "__main__":
     NoteGrader.main()

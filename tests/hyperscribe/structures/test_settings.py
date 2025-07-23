@@ -164,4 +164,3 @@ def test_list_from():
     for string, expected in tests:
         result = tested.list_from(string)
         assert result == expected, f"---> {string}"
-        

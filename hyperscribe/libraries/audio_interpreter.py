@@ -210,28 +210,18 @@ class AudioInterpreter:
         )
         result = chatter.single_conversation(system_prompt, user_prompt, [schema], None)
 
-        # check that the known instructions are still present (only one chance)
-        request_correction = False
-        cumulated_instructions = {instruction.uuid: instruction for instruction in Instruction.load_from_json(result)}
+        # add back the missing instructions
+        return_uuids = [instruction.uuid for instruction in Instruction.load_from_json(result)]
         for instruction in known_instructions:
-            if instruction.uuid not in cumulated_instructions:
-                request_correction = True
-                break
-            returned = cumulated_instructions[instruction.uuid]
-            if returned.instruction != instruction.instruction:
-                request_correction = True
-                break
-        if request_correction:
-            chatter.set_model_prompt(["```json", json.dumps(result), "```"])
-            user_prompt = [
-                "Your response did not include the instructions identified before.",
-                "Correct your response to provide, in the requested format, "
-                "ALL new, updated and unchanged instructions.",
-            ]
-            result = chatter.single_conversation(system_prompt, user_prompt, [schema], None)
+            if instruction.uuid not in return_uuids:
+                result.append(instruction.to_json(True))
 
-        # limit the constraints to the reported instructions only
-        instructions = Instruction.load_from_json(result)
+        # limit the constraints to the changed instructions only
+        instructions = [
+            instruction
+            for instruction in Instruction.load_from_json(result)
+            if instruction.is_new or instruction.is_updated
+        ]
         if result and (constraints := self.instruction_constraints(instructions)):
             chatter.set_model_prompt(["```json", json.dumps(result), "```"])
             user_prompt = ["Review your response and be sure to follow these constraints:"]

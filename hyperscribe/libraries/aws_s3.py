@@ -124,25 +124,25 @@ class AwsS3:
         continuation_token = None
         truncated_pattern = re_compile(r"<IsTruncated>(true|false)</IsTruncated>")
         token_pattern = re_compile(r"<NextContinuationToken>(.*?)</NextContinuationToken>")
-        
+
         is_truncated = True
         while is_truncated:
             params: dict[str, int | str] = {
-                'list-type': 2,
-                'prefix': prefix,
+                "list-type": 2,
+                "prefix": prefix,
             }
             if continuation_token:
                 params["continuation-token"] = continuation_token
-            
-            headers = self.headers('', params=params)
+
+            headers = self.headers("", params=params)
             endpoint = f"https://{headers['Host']}"
             response = requests_get(endpoint, params=params, headers=headers)
-            response_text = response.content.decode('utf-8')
-            
+            response_text = response.content.decode("utf-8")
+
             if response.status_code != HTTPStatus.OK.value:
                 return result
-        
-            contents_pattern = re_compile(r'<Contents>(.*?)</Contents>', DOTALL)
+
+            contents_pattern = re_compile(r"<Contents>(.*?)</Contents>", DOTALL)
             for content_match in contents_pattern.finditer(response_text):
                 content_xml = content_match.group(1)
                 key_match = re_search(r"<Key>(.*?)</Key>", content_xml)
@@ -150,12 +150,13 @@ class AwsS3:
                 modified_match = re_search(r"<LastModified>(.*?)</LastModified>", content_xml)
 
                 if key_match and size_match and modified_match:
-
-                    result.append(AwsS3Object(
-                        key=key_match.group(1),
-                        size=int(size_match.group(1)),
-                        last_modified=datetime.fromisoformat(modified_match.group(1)),
-                    ))
+                    result.append(
+                        AwsS3Object(
+                            key=key_match.group(1),
+                            size=int(size_match.group(1)),
+                            last_modified=datetime.fromisoformat(modified_match.group(1)),
+                        )
+                    )
 
             truncated_match = truncated_pattern.search(response_text)
             is_truncated = bool(truncated_match and truncated_match.group(1) == "true")

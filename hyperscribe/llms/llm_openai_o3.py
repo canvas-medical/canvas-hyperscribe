@@ -5,6 +5,7 @@ from hyperscribe.libraries.memory_log import MemoryLog
 
 class LlmOpenaiO3(LlmOpenai):
     """Defaults to text-only modalities (same as LlmOpenai4o)"""
+
     def __init__(
         self,
         memory_log: MemoryLog,

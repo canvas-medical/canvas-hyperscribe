@@ -832,20 +832,11 @@ def test_detect_instructions(common_instructions, json_schema, instruction_const
         (
             [
                 # {"uuid": "uuid1", "instruction": "theInstruction1", "index": 0}, <-- forgotten instruction
-                {"uuid": "uuid2", "instruction": "theInstruction2", "index": 1},
-                {"uuid": "uuid3", "instruction": "theInstruction3a", "index": 2},
+                {"uuid": "uuid2", "instruction": "theInstruction2", "index": 1, "isNew": False, "isUpdated": False},
+                {"uuid": "uuid3", "instruction": "theInstruction3a", "index": 2, "isNew": False, "isUpdated": True},
+                {"uuid": "uuid4", "instruction": "theInstruction4", "index": 3, "isNew": True, "isUpdated": False},
             ],
             '[{"uuid": "uuid2", "instruction": "theInstruction2", "index": 1}, '
-            '{"uuid": "uuid3", "instruction": "theInstruction3a", "index": 2}]',
-        ),
-        (
-            [
-                {"uuid": "uuid1", "instruction": "theInstruction1X", "index": 0},  # <-- changed instruction
-                {"uuid": "uuid2", "instruction": "theInstruction2", "index": 1},
-                {"uuid": "uuid3", "instruction": "theInstruction3a", "index": 2},
-            ],
-            '[{"uuid": "uuid1", "instruction": "theInstruction1X", "index": 0}, '
-            '{"uuid": "uuid2", "instruction": "theInstruction2", "index": 1}, '
             '{"uuid": "uuid3", "instruction": "theInstruction3a", "index": 2}]',
         ),
     ]
@@ -853,20 +844,21 @@ def test_detect_instructions(common_instructions, json_schema, instruction_const
         common_instructions.side_effect = [mocks]
         json_schema.side_effect = ["theJsonSchema"]
         instruction_constraints.side_effect = [[]]
-        chatter.return_value.single_conversation.side_effect = [
-            first_response,
-            [
-                {"uuid": "uuid1", "instruction": "theInstruction1", "index": 0},
-                {"uuid": "uuid2", "instruction": "theInstruction2", "index": 1},
-                {"uuid": "uuid3", "instruction": "theInstruction3b", "index": 2},
-            ],
-        ]
+        chatter.return_value.single_conversation.side_effect = [first_response]
         memory_log.side_effect = ["MemoryLogInstance"]
         result = tested.detect_instructions(discussion, known_instructions)
         expected = [
-            {"instruction": "theInstruction1", "uuid": "uuid1", "index": 0},
-            {"instruction": "theInstruction2", "uuid": "uuid2", "index": 1},
-            {"instruction": "theInstruction3b", "uuid": "uuid3", "index": 2},
+            {"instruction": "theInstruction2", "uuid": "uuid2", "index": 1, "isNew": False, "isUpdated": False},
+            {"instruction": "theInstruction3a", "uuid": "uuid3", "index": 2, "isNew": False, "isUpdated": True},
+            {"instruction": "theInstruction4", "uuid": "uuid4", "index": 3, "isNew": True, "isUpdated": False},
+            {
+                "information": "the information 1",
+                "instruction": "theInstruction1",
+                "uuid": "uuid1",
+                "index": 0,
+                "isNew": False,
+                "isUpdated": False,
+            },
         ]
 
         assert result == expected
@@ -878,25 +870,17 @@ def test_detect_instructions(common_instructions, json_schema, instruction_const
             call(
                 [
                     Instruction(
-                        uuid="uuid1",
-                        index=0,
-                        instruction="theInstruction1",
-                        information="",
-                        is_new=True,
-                        is_updated=False,
-                    ),
-                    Instruction(
-                        uuid="uuid2",
-                        index=1,
-                        instruction="theInstruction2",
-                        information="",
-                        is_new=True,
-                        is_updated=False,
-                    ),
-                    Instruction(
                         uuid="uuid3",
                         index=2,
-                        instruction="theInstruction3b",
+                        instruction="theInstruction3a",
+                        information="",
+                        is_new=False,
+                        is_updated=True,
+                    ),
+                    Instruction(
+                        uuid="uuid4",
+                        index=3,
+                        instruction="theInstruction4",
                         information="",
                         is_new=True,
                         is_updated=False,
@@ -908,8 +892,6 @@ def test_detect_instructions(common_instructions, json_schema, instruction_const
         calls = [
             call(settings, "MemoryLogInstance"),
             call().single_conversation(system_prompt, user_prompts["withKnownInstructions"], ["theJsonSchema"], None),
-            call().set_model_prompt(["```json", model_prompt, "```"]),
-            call().single_conversation(system_prompt, user_prompts["withMissingInstructions"], ["theJsonSchema"], None),
         ]
         assert chatter.mock_calls == calls
         calls = [call(tested.identification, "transcript2instructions", aws_credentials)]

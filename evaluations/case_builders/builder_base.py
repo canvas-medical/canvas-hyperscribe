@@ -226,5 +226,3 @@ class BuilderBase:
             verify=True,
             timeout=None,
         )
-    
-

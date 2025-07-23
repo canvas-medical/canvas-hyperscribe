@@ -11,6 +11,7 @@ from evaluations.case_builders.builder_from_tuning import BuilderFromTuning
 from evaluations.case_builders.builder_summarize import BuilderSummarize
 from evaluations.case_builders.builder_from_chart_transcript import BuilderFromChartTranscript
 
+
 @patch.object(BuilderDirectFromTuningFull, "run")
 @patch.object(BuilderDirectFromTuningSplit, "run")
 @patch.object(BuilderFromChartTranscript, "run")
@@ -44,29 +45,31 @@ def test_run(
         run_direct_full.reset_mock()
 
     tests = [
-        (['--delete'], "", [call()], [], [], [], [], [], [], [], []),
-        (['--transcript'], "", [], [call()], [], [], [], [], [], [], []),
-        (['--tuning-json'], "", [], [], [call()], [], [], [], [], [], []),
-        (['--mp3'], "", [], [], [], [call()], [], [], [], [], []),
-        (['--audit'], "", [], [], [], [], [call()], [], [], [], []),
-        (['--summarize'], "", [], [], [], [], [], [call()], [], [], []),
-        (['--chart', '--transcript'], "", [], [], [], [], [], [], [call()], [], []),
-        (['--direct-split'], "", [], [], [], [], [], [], [], [call()], []),
-        (['--direct-full'], "", [], [], [], [], [], [], [], [], [call()]),
+        (["--delete"], "", [call()], [], [], [], [], [], [], [], []),
+        (["--transcript"], "", [], [call()], [], [], [], [], [], [], []),
+        (["--tuning-json"], "", [], [], [call()], [], [], [], [], [], []),
+        (["--mp3"], "", [], [], [], [call()], [], [], [], [], []),
+        (["--audit"], "", [], [], [], [], [call()], [], [], [], []),
+        (["--summarize"], "", [], [], [], [], [], [call()], [], [], []),
+        (["--chart", "--transcript"], "", [], [], [], [], [], [], [call()], [], []),
+        (["--direct-split"], "", [], [], [], [], [], [], [], [call()], []),
+        (["--direct-full"], "", [], [], [], [], [], [], [], [], [call()]),
         ([], "no explicit action to perform\n", [], [], [], [], [], [], [], [], []),
     ]
 
-    for (arguments, 
-         exp_out, 
-         call_delete, 
-         call_transcript, 
-         call_tuning, 
-         call_mp3, 
-         call_audit, 
-         call_summarize, 
-         call_chart_transcript, 
-         call_direct_split, 
-         call_direct_full) in tests:
+    for (
+        arguments,
+        exp_out,
+        call_delete,
+        call_transcript,
+        call_tuning,
+        call_mp3,
+        call_audit,
+        call_summarize,
+        call_chart_transcript,
+        call_direct_split,
+        call_direct_full,
+    ) in tests:
         CaseBuilder.run(arguments)
 
         result = capsys.readouterr().out
