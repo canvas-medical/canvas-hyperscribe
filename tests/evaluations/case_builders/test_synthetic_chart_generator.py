@@ -29,7 +29,7 @@ def test_load_json(tmp_path):
 from evaluations.constants import Constants
 
 def test_schema_chart():
-    #1) check sample chart with correct keys formats correctly.
+    #1: check sample chart with correct keys formats correctly.
     example_chart_known = {key: "" for key in Constants.EXAMPLE_CHART_DESCRIPTIONS}
 
     tested_known = SyntheticChartGenerator(
@@ -46,9 +46,9 @@ def test_schema_chart():
 
     for key, expected_desc in Constants.EXAMPLE_CHART_DESCRIPTIONS.items():
         assert properties[key]["description"] == expected_desc
-        assert properties[key]["type"] == "string"  # since we passed all as ""
+        assert properties[key]["type"] == "string"
 
-    #2) unknown customData key should raise newly established KeyError
+    #2: unknown customData key should raise newly established KeyError
     example_chart_unknown = {"customData": []}
     tested_unknown = SyntheticChartGenerator(
         VendorKey("vendor", "key"), {}, Path("."), example_chart_unknown)
@@ -76,12 +76,15 @@ def test_generate_chart_for_profile(mock_generate_json, mock_schema_chart, tmp_p
 
     result = tested.generate_chart_for_profile(profile_text)
     assert result == expected_chart
+    assert mock_schema_chart.mock_calls == [call()]
 
+    assert len(mock_generate_json.mock_calls) == 1
     _, kwargs = mock_generate_json.call_args
     expected_system_md5 = "4ef06113c42ee7128cc08b0695e481f5"
     expected_user_md5 = "f41d7b662491c25024a3c8193b376981"
     result_system_md5 = hashlib.md5("\n".join(kwargs["system_prompt"]).encode()).hexdigest()
     result_user_md5 = hashlib.md5("\n".join(kwargs["user_prompt"]).encode()).hexdigest()
+    
 
     assert result_system_md5 == expected_system_md5
     assert result_user_md5 == expected_user_md5

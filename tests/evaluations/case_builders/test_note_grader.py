@@ -78,6 +78,7 @@ def test_build_prompts(mock_schema_scores, tmp_files):
 
     assert result_system_md5 == expected_system_md5
     assert result_user_md5 == expected_user_md5
+    assert mock_schema_scores.mock_calls == [call()]
 
 
 @patch.object(NoteGrader, "build_prompts", return_value=(["System Prompt"], ["User Prompt"]))
@@ -105,14 +106,17 @@ def test_run__success(mock_generate_json, mock_schema_scores, mock_build_prompts
     result = json.loads(output_path.read_text())
     assert result == expected
 
+    assert mock_schema_scores.mock_calls == [call()]
+    assert mock_build_prompts.mock_calls == [call()]
+
     # ensure generate_json got exactly the call we expected
     assert mock_generate_json.call_count == 1
-    expected_call = call(
+    expected_call = [call(
         vendor_key=vendor_key,
         system_prompt=["System Prompt"],
         user_prompt=["User Prompt"],
-        schema=expected_schema)
-    assert mock_generate_json.mock_calls == [expected_call]
+        schema=expected_schema)]
+    assert mock_generate_json.mock_calls == expected_call
 
 
 @patch.object(NoteGrader, "build_prompts", return_value=(["System Prompt"], ["User Prompt"]))
@@ -136,6 +140,8 @@ def test_run__raises_on_generate_failure(mock_generate_json, mock_schema_scores,
     with pytest.raises(SystemExit) as exc_info:
         tested.run()
 
+    assert mock_schema_scores.mock_calls == [call()]
+    assert mock_build_prompts.mock_calls == [call()]
     assert exc_info.value.code == 1
     assert mock_generate_json.call_count == 1
     expected_call = call(

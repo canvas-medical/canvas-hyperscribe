@@ -207,7 +207,6 @@ def test_generate_transcript_for_profile__bad_json_raises(mock_generate_json, mo
     assert mock_schema_transcript.mock_calls == [call(1)] #turn_total count from patch.object, int passed instead of dict.
     assert mock_build_prompt.mock_calls == [call("Sample profile", mock_make_specifications.return_value, expected_schema)]
 
-    assert len(mock_generate_json.mock_calls) == 1
     assert mock_generate_json.mock_calls == [call(
         vendor_key=tested.vendor_key,
         schema=expected_schema,

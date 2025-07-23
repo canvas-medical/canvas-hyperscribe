@@ -90,7 +90,7 @@ def test_generate__fallback(mock_generate_json, tmp_paths):
     with pytest.raises(SystemExit) as exc:
         tested.generate(transcript, chart, context, output_path=output_path)
     assert exc.value.code == 1
-    mock_generate_json.assert_called_once()
+    assert len(mock_generate_json.mock_calls) == 1
 
 def test_main(tmp_paths):
     transcript_path, chart_path, context_path, output_path = tmp_paths
