@@ -63,5 +63,18 @@ class SyntheticCase(Postgres):
             """
 
         return SyntheticCaseRecord(
-            id=self._alter(sql, params, involved_id), **{**case._asdict(), "id": involved_id or 0}
+            id=self._alter(sql, params, involved_id),
+            case_id=case.case_id,
+            category=case.category,
+            turn_total=case.turn_total,
+            speaker_sequence=case.speaker_sequence,
+            clinician_to_patient_turn_ratio=case.clinician_to_patient_turn_ratio,
+            mood=case.mood,
+            pressure=case.pressure,
+            clinician_style=case.clinician_style,
+            patient_style=case.patient_style,
+            turn_buckets=case.turn_buckets,
+            duration=case.duration,
+            text_llm_vendor=case.text_llm_vendor,
+            text_llm_name=case.text_llm_name,
         )
