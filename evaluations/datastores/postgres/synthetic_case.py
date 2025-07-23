@@ -62,4 +62,6 @@ class SyntheticCase(Postgres):
                 RETURNING id
             """
 
-        return SyntheticCaseRecord(id=self._alter(sql, params, involved_id), **{**case._asdict(), "id": involved_id or 0})
+        return SyntheticCaseRecord(
+            id=self._alter(sql, params, involved_id), **{**case._asdict(), "id": involved_id or 0}
+        )

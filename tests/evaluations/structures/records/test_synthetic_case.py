@@ -35,11 +35,11 @@ def test_default():
     assert result.turn_total == 0
     assert result.speaker_sequence == ""
     assert result.clinician_to_patient_turn_ratio == 0.0
-    assert result.mood == SyntheticCaseMood.NEUTRAL
-    assert result.pressure == SyntheticCasePressure.NEUTRAL
-    assert result.clinician_style == SyntheticCaseClinicianStyle.NEUTRAL
-    assert result.patient_style == SyntheticCasePatientStyle.NEUTRAL
-    assert result.turn_buckets == SyntheticCaseTurnBuckets.NEUTRAL
+    assert result.mood == SyntheticCaseMood.PATIENT_FRUSTRATED
+    assert result.pressure == SyntheticCasePressure.TIME_PRESSURE
+    assert result.clinician_style == SyntheticCaseClinicianStyle.WARM_CHATTY
+    assert result.patient_style == SyntheticCasePatientStyle.ANXIOUS_TALKATIVE
+    assert result.turn_buckets == SyntheticCaseTurnBuckets.SHORT
     assert result.duration == 0.0
     assert result.text_llm_vendor == ""
     assert result.text_llm_name == ""
