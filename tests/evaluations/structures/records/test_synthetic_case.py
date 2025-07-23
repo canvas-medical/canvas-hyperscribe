@@ -21,8 +21,8 @@ def test_class():
         "patient_style": SyntheticCasePatientStyle,
         "turn_buckets": SyntheticCaseTurnBuckets,
         "duration": float,
-        "audio_llm_vendor": str,
-        "audio_llm_name": str,
+        "text_llm_vendor": str,
+        "text_llm_name": str,
         "id": int,
     }
     assert is_namedtuple(tested, fields)
@@ -41,6 +41,6 @@ def test_default():
     assert result.patient_style == SyntheticCasePatientStyle.NEUTRAL
     assert result.turn_buckets == SyntheticCaseTurnBuckets.NEUTRAL
     assert result.duration == 0.0
-    assert result.audio_llm_vendor == ""
-    assert result.audio_llm_name == ""
+    assert result.text_llm_vendor == ""
+    assert result.text_llm_name == ""
     assert result.id == 0

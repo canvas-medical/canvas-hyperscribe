@@ -19,6 +19,6 @@ class SyntheticCase(NamedTuple):
     patient_style: SyntheticCasePatientStyle = SyntheticCasePatientStyle.NEUTRAL
     turn_buckets: SyntheticCaseTurnBuckets = SyntheticCaseTurnBuckets.NEUTRAL
     duration: float = 0.0
-    audio_llm_vendor: str = ""
-    audio_llm_name: str = ""
+    text_llm_vendor: str = ""
+    text_llm_name: str = ""
     id: int = 0
