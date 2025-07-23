@@ -2,6 +2,6 @@ from enum import Enum
 
 
 class SyntheticCaseTurnBuckets(Enum):
-    NEUTRAL = "neutral"
-    FRIENDLY = "friendly"
-    FORMAL = "formal"
+    SHORT = "short"
+    MEDIUM = "medium"
+    LONG = "long"
