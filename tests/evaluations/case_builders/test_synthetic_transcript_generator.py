@@ -31,7 +31,7 @@ def test__random_bucket(mock_choice):
     results = [SyntheticTranscriptGenerator._random_bucket() for _ in range(3)]
     assert results == expected_keys
     assert all(isinstance(r, SyntheticCaseTurnBuckets) for r in results)
-    
+
     expected_calls = [call(expected_keys) for _ in range(3)]
     assert mock_choice.mock_calls == expected_calls
 
