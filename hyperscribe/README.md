@@ -27,6 +27,7 @@ client_secret=...
 To be able to locally run your code against your remote instance (`my-canvas-host.canvasmedical.com`), create the environment variables:
 
 ```shell
+export IS_SCRIPT=0 # or provide the database access through CANVAS_SDK_DB_URL
 export CANVAS_SDK_DB_NAME="..."
 export CANVAS_SDK_DB_USERNAME="..."
 export CANVAS_SDK_DB_PASSWORD="..."
