@@ -8,6 +8,7 @@ from typing import Any
 from canvas_sdk.commands.constants import CodeSystems
 from canvas_sdk.v1.data import (
     AllergyIntolerance,
+    ChargeDescriptionMaster,
     Command,
     Condition,
     Medication,
@@ -27,7 +28,6 @@ from canvas_sdk.v1.data.patient import SexAtBirth
 from django.db.models import Q
 from django.db.models.expressions import When, Value, Case
 
-from hyperscribe.handlers.temporary_data import ChargeDescriptionMaster
 from hyperscribe.libraries.constants import Constants
 from hyperscribe.libraries.helper import Helper
 from hyperscribe.structures.charge_description import ChargeDescription

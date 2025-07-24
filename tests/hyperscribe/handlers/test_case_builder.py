@@ -341,14 +341,16 @@ def test_questionnaire_command_from(command_db, questionnaire_db):
         },
     }
     questions = [
-        IntegerQuestion(name="question-8", label="theTextQuestion", coding={}, options=[]),
+        IntegerQuestion(id="8", name="question-8", label="theTextQuestion", coding={}, options=[]),
         RadioQuestion(
+            id="9",
             name="question-9",
             label="theTextQuestion",
             coding={},
             options=[ResponseOption(dbid=27), ResponseOption(dbid=28), ResponseOption(dbid=29)],
         ),
         CheckboxQuestion(
+            id="10",
             name="question-10",
             label="theTextQuestion",
             coding={},
@@ -359,8 +361,8 @@ def test_questionnaire_command_from(command_db, questionnaire_db):
                 ResponseOption(dbid=36),
             ],
         ),
-        TextQuestion(name="question-11", label="theTextQuestion", coding={}, options=[]),
-        TextQuestion(name="question-17", label="otherTextQuestion", coding={}, options=[]),
+        TextQuestion(id="11", name="question-11", label="theTextQuestion", coding={}, options=[]),
+        TextQuestion(id="17", name="question-17", label="otherTextQuestion", coding={}, options=[]),
     ]
 
     # there is a matching questionnaire

@@ -67,12 +67,16 @@ class BaseQuestionnaire(Base):
                 for key in options.keys():
                     options[key]["value"] = answers
 
+            skipped = data.get(f"skip-{question['pk']}")
+            if skipped is not None:
+                skipped = not skipped  # the current boolean is inverted in home-app
+
             questions.append(
                 Question(
                     dbid=question["pk"],
                     label=question["label"],
                     type=question_type,
-                    skipped=data.get(f"skip-{question['pk']}"),  # true/false/none
+                    skipped=skipped,  # true/false/none
                     responses=[Response.load_from(option) for option in options.values()],
                 ),
             )
@@ -100,7 +104,12 @@ class BaseQuestionnaire(Base):
             },
         }
         if include_skipped:
-            properties |= {"skipped": {"type": ["boolean", "null"]}}
+            properties |= {
+                "skipped": {
+                    "type": ["boolean", "null"],
+                    "description": "indicates if the question is skipped or used",
+                }
+            }
 
         return {
             "$schema": "http://json-schema.org/draft-07/schema#",
@@ -119,6 +128,7 @@ class BaseQuestionnaire(Base):
             json_data = json.loads(instruction.information)
         except json.JSONDecodeError:
             return None
+        include_skipped = self.include_skipped()
         questionnaire = QuestionnaireDefinition.load_from(json_data)
         system_prompt = [
             "The conversation is in the context of a clinical encounter between patient and licensed "
@@ -147,15 +157,21 @@ class BaseQuestionnaire(Base):
             "",
             f"The questionnaire '{questionnaire.name}' is currently as follow,:",
             "```json",
-            json.dumps(questionnaire.for_llm(self.include_skipped())),
+            json.dumps(questionnaire.for_llm(include_skipped)),
             "```",
             "",
             "Your task is to replace the values of the JSON object as necessary.",
-            "Since the current questionnaire's state is based on previous parts of the transcript, "
-            "the changes should based on explicit information only.",
-            "",
+            "Since the current questionnaire's state is based on previous parts of the transcript, the changes should "
+            "be based on explicit information only.",
         ]
-        schemas = [self.json_schema(self.include_skipped())]
+        if include_skipped:
+            user_prompt.append(
+                "This includes the values of 'skipped', change it to 'false' only if the question "
+                "is obviously answered in the transcript, don't change it at all otherwise."
+            )
+        user_prompt.append("")
+
+        schemas = [self.json_schema(include_skipped)]
         if response := chatter.single_conversation(system_prompt, user_prompt, schemas, instruction):
             return QuestionnaireDefinition.load_from_llm(questionnaire.dbid, questionnaire.name, response)
         return None
@@ -165,6 +181,7 @@ class BaseQuestionnaire(Base):
         command_uuid: str,
         questionnaire: QuestionnaireDefinition,
     ) -> QuestionnaireCommand:
+        include_skipped = self.include_skipped()
         command = self.sdk_command()(note_uuid=self.identification.note_uuid, command_uuid=command_uuid)
         cmd_questions: list[BaseQuestion] = []
         for question in questionnaire.questions:
@@ -173,23 +190,26 @@ class BaseQuestionnaire(Base):
                 for response in question.responses
             ]
             question_name = f"question-{question.dbid}"
+            question_id = str(question.dbid)
             if question.type == QuestionType.TYPE_INTEGER:
-                cmd_question = IntegerQuestion(question_name, question.label, {}, options)
+                cmd_question = IntegerQuestion(question_id, question_name, question.label, {}, options)
                 cmd_question.add_response(integer=int(question.responses[0].value))
             elif question.type == QuestionType.TYPE_CHECKBOX:
-                cmd_question = CheckboxQuestion(question_name, question.label, {}, options)
+                cmd_question = CheckboxQuestion(question_id, question_name, question.label, {}, options)
                 for idx, response in enumerate(question.responses):
                     cmd_question.add_response(option=options[idx], selected=response.selected, comment=response.comment)
             elif question.type == QuestionType.TYPE_RADIO:
-                cmd_question = RadioQuestion(question_name, question.label, {}, options)
+                cmd_question = RadioQuestion(question_id, question_name, question.label, {}, options)
                 for idx, response in enumerate(question.responses):
                     if response.selected:
                         cmd_question.add_response(option=options[idx])
             else:  # question.type == QuestionType.TYPE_TEXT:
-                cmd_question = TextQuestion(question_name, question.label, {}, options)
+                cmd_question = TextQuestion(question_id, question_name, question.label, {}, options)
                 cmd_question.add_response(text=question.responses[0].value)
-
             cmd_questions.append(cmd_question)
+
+            if include_skipped and hasattr(command, "set_question_enabled"):
+                command.set_question_enabled(question_id, question.skipped is False)
 
         # SDK may (should?) offer a more elegant way to provide the responses without accessing the database
         command.questions = cmd_questions
