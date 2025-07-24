@@ -6,6 +6,7 @@ from uuid import uuid5, NAMESPACE_DNS
 
 from canvas_sdk.commands.constants import CodeSystems
 from canvas_sdk.v1.data import (
+    ChargeDescriptionMaster,
     Command,
     Condition,
     ConditionCoding,
@@ -26,7 +27,6 @@ from canvas_sdk.v1.data.lab import LabPartner, LabPartnerTest
 from django.db.models import Q
 from django.db.models.expressions import When, Value, Case
 
-from hyperscribe.handlers.temporary_data import ChargeDescriptionMaster
 from hyperscribe.libraries.constants import Constants
 from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.structures.charge_description import ChargeDescription
