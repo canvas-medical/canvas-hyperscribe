@@ -17,11 +17,16 @@ DROP TYPE IF EXISTS case_status CASCADE;
 
 -- Create types
 CREATE TYPE case_status AS ENUM ('generation', 'review', 'evaluation');
-CREATE TYPE synthetic_case_mood AS ENUM ('neutral', 'happy', 'depressed');
-CREATE TYPE synthetic_case_pressure AS ENUM ('neutral', 'low', 'high');
-CREATE TYPE synthetic_case_clinician_style AS ENUM ('neutral', 'friendly', 'formal');
-CREATE TYPE synthetic_case_patient_style AS ENUM ('neutral', 'friendly', 'formal');
-CREATE TYPE synthetic_case_turn_buckets AS ENUM ('neutral', 'friendly', 'formal');
+CREATE TYPE synthetic_case_mood AS ENUM ('patient is frustrated', 'patient is tearful', 'patient is embarrassed',
+        'patient is defensive', 'clinician is concerned', 'clinician is rushed', 'clinician is warm',
+        'clinician is brief');
+CREATE TYPE synthetic_case_pressure AS ENUM ('time pressure on the visit', 'insurance denied prior authorization',
+        'formulary change', 'refill limit reached', 'patient traveling soon', 'side-effect report just came in');
+CREATE TYPE synthetic_case_clinician_style AS ENUM ('warm and chatty', 'brief and efficient', 
+        'cautious and inquisitive', 'over-explainer');
+CREATE TYPE synthetic_case_patient_style AS ENUM ('anxious and talkative', 'confused and forgetful', 
+        'assertive and informed', 'agreeable but vague');
+CREATE TYPE synthetic_case_turn_buckets AS ENUM ('short', 'medium', 'long');
 CREATE TYPE rubric_validation AS ENUM ('not_evaluated', 'refused', 'accepted');
 
 -- Create tables
@@ -68,7 +73,7 @@ CREATE TABLE public.synthetic_case
     case_id                         serial                         NOT NULL UNIQUE,
     category                        text                           NOT NULL,
     turn_total                      int                            NOT NULL,
-    speaker_sequence                text                           NOT NULL,
+    speaker_sequence                JSON                          NOT NULL,
     clinician_to_patient_turn_ratio real                           NOT NULL,
     mood                            synthetic_case_mood            NOT NULL,
     pressure                        synthetic_case_pressure        NOT NULL,
