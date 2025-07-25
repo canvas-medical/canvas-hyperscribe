@@ -54,14 +54,14 @@ def test__make_specifications(mock_choice, mock_sample, mock_randint, mock_unifo
         + ["anxious and talkative"]
     )
 
-    mock_sample.return_value = ["patient is frustrated", "patient is tearful"]
+    mock_sample.side_effect = [["patient is frustrated", "patient is tearful"]]
 
     specifications = tested._make_specifications()
     assert specifications["bucket"] == SyntheticCaseTurnBuckets.SHORT
     assert specifications["turn_total"] == 3
     assert specifications["speaker_sequence"] == ["Clinician", "Patient", "Patient"]
     assert specifications["ratio"] == 1.25
-    assert specifications["mood"] == mock_sample.return_value
+    assert specifications["mood"] == ["patient is frustrated", "patient is tearful"]
 
     assert mock_randint.mock_calls == [call(2, 4)]
     assert mock_uniform.mock_calls == [call(0.5, 2.0)]
