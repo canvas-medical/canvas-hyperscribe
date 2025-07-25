@@ -1,5 +1,6 @@
 from evaluations.constants import Constants
 from tests.helper import is_constant
+from evaluations.structures.enums.synthetic_case_turn_buckets import SyntheticCaseTurnBuckets
 
 
 def test_constants():
@@ -46,35 +47,10 @@ def test_constants():
         "PATIENT_STYLE_KEY": "patient_style",
         "BUCKET": "bucket",
         "TURN_BUCKETS": {
-            "short": (2, 4),
-            "medium": (6, 8),
-            "long": (10, 14),
+            SyntheticCaseTurnBuckets.SHORT: (2, 4),
+            SyntheticCaseTurnBuckets.MEDIUM: (6, 8),
+            SyntheticCaseTurnBuckets.LONG: (10, 14),
         },
-        "MOOD_POOL": [
-            "patient is frustrated",
-            "patient is tearful",
-            "patient is embarrassed",
-            "patient is defensive",
-            "clinician is concerned",
-            "clinician is rushed",
-            "clinician is warm",
-            "clinician is brief",
-        ],
-        "PRESSURE_POOL": [
-            "time pressure on the visit",
-            "insurance denied prior authorization",
-            "formulary change",
-            "refill limit reached",
-            "patient traveling soon",
-            "side-effect report just came in",
-        ],
-        "CLINICIAN_PERSONAS": ["warm and chatty", "brief and efficient", "cautious and inquisitive", "over-explainer"],
-        "PATIENT_PERSONAS": [
-            "anxious and talkative",
-            "confused and forgetful",
-            "assertive and informed",
-            "agreeable but vague",
-        ],
         "EXAMPLE_CHART_DESCRIPTIONS": {
             "demographicStr": "string describing patient demographics",
             "conditionHistory": "patient history of conditions",

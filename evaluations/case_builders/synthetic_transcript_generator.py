@@ -6,6 +6,11 @@ from typing import Any, Tuple, cast
 from hyperscribe.structures.vendor_key import VendorKey
 from evaluations.helper_evaluation import HelperEvaluation
 from evaluations.case_builders.helper_synthetic_json import HelperSyntheticJson
+from evaluations.structures.enums.synthetic_case_clinician_style import SyntheticCaseClinicianStyle
+from evaluations.structures.enums.synthetic_case_patient_style import SyntheticCasePatientStyle
+from evaluations.structures.enums.synthetic_case_mood import SyntheticCaseMood
+from evaluations.structures.enums.synthetic_case_pressure import SyntheticCasePressure
+from evaluations.structures.enums.synthetic_case_turn_buckets import SyntheticCaseTurnBuckets
 from evaluations.constants import Constants
 
 
@@ -23,8 +28,8 @@ class SyntheticTranscriptGenerator:
             return cast(dict[str, str], json.load(f))
 
     @staticmethod
-    def _random_bucket() -> str:
-        return random.choice(list(Constants.TURN_BUCKETS.keys()))
+    def _random_bucket() -> SyntheticCaseTurnBuckets:
+        return random.choice(list(SyntheticCaseTurnBuckets))
 
     def _make_specifications(self) -> dict[str, Any]:
         bucket = self._random_bucket()
@@ -37,10 +42,14 @@ class SyntheticTranscriptGenerator:
             Constants.TURN_TOTAL: turn_total,
             Constants.SPEAKER_SEQUENCE: sequence,
             Constants.RATIO: round(random.uniform(0.5, 2.0), 2),
-            Constants.MOOD_KEY: random.sample(Constants.MOOD_POOL, k=2),
-            Constants.PRESSURE_KEY: random.choice(Constants.PRESSURE_POOL),
-            Constants.CLINICIAN_STYLE_KEY: random.choice(Constants.CLINICIAN_PERSONAS),
-            Constants.PATIENT_STYLE_KEY: random.choice(Constants.PATIENT_PERSONAS),
+            Constants.MOOD_KEY: random.sample([mood.value for mood in SyntheticCaseMood], k=2),
+            Constants.PRESSURE_KEY: random.choice([pressure.value for pressure in SyntheticCasePressure]),
+            Constants.CLINICIAN_STYLE_KEY: random.choice(
+                [clinician_style.value for clinician_style in SyntheticCaseClinicianStyle]
+            ),
+            Constants.PATIENT_STYLE_KEY: random.choice(
+                [patient_style.value for patient_style in SyntheticCasePatientStyle]
+            ),
             Constants.BUCKET: bucket,
         }
 

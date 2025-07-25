@@ -3,6 +3,8 @@ from argparse import Namespace
 from pathlib import Path
 from unittest.mock import patch, MagicMock, call
 from evaluations.case_builders.synthetic_transcript_generator import SyntheticTranscriptGenerator, HelperSyntheticJson
+from evaluations.structures.enums.synthetic_case_turn_buckets import SyntheticCaseTurnBuckets
+from unittest.mock import call
 from hyperscribe.structures.vendor_key import VendorKey
 
 
@@ -24,15 +26,12 @@ def test__load_profiles(tmp_path):
 
 @patch("evaluations.case_builders.synthetic_transcript_generator.random.choice")
 def test__random_bucket(mock_choice):
-    expected_keys = ["short", "medium", "long"]
-    forced_returns = expected_keys
-    mock_choice.side_effect = forced_returns
-
+    expected_keys = list(SyntheticCaseTurnBuckets)
+    mock_choice.side_effect = expected_keys
     results = [SyntheticTranscriptGenerator._random_bucket() for _ in range(3)]
-    assert results == forced_returns
-    assert all(result in expected_keys for result in results)
+    assert results == expected_keys
+    assert all(isinstance(r, SyntheticCaseTurnBuckets) for r in results)
 
-    # mock calls
     expected_calls = [call(expected_keys) for _ in range(3)]
     assert mock_choice.mock_calls == expected_calls
 
@@ -47,7 +46,7 @@ def test__make_specifications(mock_choice, mock_sample, mock_randint, mock_unifo
     tested = SyntheticTranscriptGenerator(vendor_key, profiles, tmp_path)
 
     mock_choice.side_effect = (
-        ["short"]
+        [SyntheticCaseTurnBuckets.SHORT]
         + ["Clinician"]
         + ["Patient"] * 2
         + ["time pressure on the visit"]
@@ -55,14 +54,14 @@ def test__make_specifications(mock_choice, mock_sample, mock_randint, mock_unifo
         + ["anxious and talkative"]
     )
 
-    mock_sample.return_value = ["patient is frustrated", "patient is tearful"]
+    mock_sample.side_effect = [["patient is frustrated", "patient is tearful"]]
 
     specifications = tested._make_specifications()
-    assert specifications["bucket"] == "short"
+    assert specifications["bucket"] == SyntheticCaseTurnBuckets.SHORT
     assert specifications["turn_total"] == 3
     assert specifications["speaker_sequence"] == ["Clinician", "Patient", "Patient"]
     assert specifications["ratio"] == 1.25
-    assert specifications["mood"] == mock_sample.return_value
+    assert specifications["mood"] == ["patient is frustrated", "patient is tearful"]
 
     assert mock_randint.mock_calls == [call(2, 4)]
     assert mock_uniform.mock_calls == [call(0.5, 2.0)]
@@ -85,7 +84,7 @@ def test__make_specifications(mock_choice, mock_sample, mock_randint, mock_unifo
     assert mock_sample.mock_calls == expected_sample_calls
 
     expected_choice_calls = [
-        call(["short", "medium", "long"]),
+        call(list(SyntheticCaseTurnBuckets)),
         call(["Clinician", "Patient"]),
         call(["Clinician", "Patient"]),
         call(["Clinician", "Patient"]),
