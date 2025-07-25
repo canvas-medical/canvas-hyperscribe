@@ -11,6 +11,7 @@ from hyperscribe.commands.follow_up import FollowUp
 from hyperscribe.commands.goal import Goal
 from hyperscribe.commands.history_of_present_illness import HistoryOfPresentIllness
 from hyperscribe.commands.imaging_order import ImagingOrder
+from hyperscribe.commands.immunization_statement import ImmunizationStatement
 from hyperscribe.commands.immunize import Immunize
 from hyperscribe.commands.instruct import Instruct
 from hyperscribe.commands.lab_order import LabOrder
@@ -65,6 +66,7 @@ class ImplementedCommands:
             Goal,
             HistoryOfPresentIllness,
             ImagingOrder,
+            ImmunizationStatement,
             Immunize,
             Instruct,
             LabOrder,

@@ -9,7 +9,11 @@ class ChargeDescription(NamedTuple):
     cpt_code: str
 
     def to_dict(self) -> dict:
-        return {"fullName": self.full_name, "shortName": self.short_name, "cptCode": self.cpt_code}
+        return {
+            "fullName": self.full_name,
+            "shortName": self.short_name,
+            "cptCode": self.cpt_code,
+        }
 
     @classmethod
     def load_from_json(cls, data: dict) -> ChargeDescription:

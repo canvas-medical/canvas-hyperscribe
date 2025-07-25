@@ -44,6 +44,7 @@ def test_constants():
         "SCHEMA_KEY_GOAL": "goal",
         "SCHEMA_KEY_HISTORY_OF_PRESENT_ILLNESS": "hpi",
         "SCHEMA_KEY_IMAGING_ORDER": "imagingOrder",
+        "SCHEMA_KEY_IMMUNIZATION": "immunizationStatement",
         "SCHEMA_KEY_IMMUNIZE": "immunize",
         "SCHEMA_KEY_INSTRUCT": "instruct",
         "SCHEMA_KEY_LAB_ORDER": "labOrder",

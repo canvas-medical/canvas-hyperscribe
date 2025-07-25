@@ -32,6 +32,7 @@ from hyperscribe.libraries.constants import Constants
 from hyperscribe.libraries.helper import Helper
 from hyperscribe.structures.charge_description import ChargeDescription
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.immunization_cached import ImmunizationCached
 from hyperscribe.structures.instruction import Instruction
 from hyperscribe.structures.medication_cached import MedicationCached
 
@@ -52,6 +53,7 @@ class LimitedCache:
         self._demographic: str | None = None
         self._family_history: list[CodedItem] | None = None
         self._goals: list[CodedItem] | None = None
+        self._immunizations: list[ImmunizationCached] | None = None
         self._medications: list[MedicationCached] | None = None
         self._preferred_lab_partner: CodedItem | None = None
         self._note_type: list[CodedItem] | None = None
@@ -237,6 +239,11 @@ class LimitedCache:
                 )
         return self._medications
 
+    def current_immunizations(self) -> list[ImmunizationCached]:
+        if self._immunizations is None:
+            self._immunizations = []
+        return self._immunizations
+
     def current_allergies(self) -> list[CodedItem]:
         if self._allergies is None:
             self._allergies = []
@@ -376,6 +383,7 @@ class LimitedCache:
             "currentAllergies": [i.to_dict() for i in self.current_allergies()],
             "currentConditions": [i.to_dict() for i in self.current_conditions()],
             "currentGoals": [i.to_dict() for i in self.current_goals()],
+            "currentImmunization": [i.to_dict() for i in self.current_immunizations()],
             "currentMedications": [i.to_dict() for i in self.current_medications()],
             "existingNoteTypes": [i.to_dict() for i in self.existing_note_types()],
             "existingReasonForVisit": [i.to_dict() for i in self.existing_reason_for_visits()],
@@ -406,6 +414,7 @@ class LimitedCache:
         result._allergies = [CodedItem.load_from_json(i) for i in cache.get("currentAllergies", [])]
         result._conditions = [CodedItem.load_from_json(i) for i in cache.get("currentConditions", [])]
         result._goals = [CodedItem.load_from_json(i) for i in cache.get("currentGoals", [])]
+        result._immunizations = [ImmunizationCached.load_from_json(i) for i in cache.get("currentImmunization", [])]
         result._medications = [MedicationCached.load_from_json(i) for i in cache.get("currentMedications", [])]
         result._preferred_lab_partner = CodedItem.load_from_json(
             cache.get("preferredLabPartner", {"uuid": "", "label": "", "code": ""}),

@@ -164,3 +164,59 @@ def test_list_from():
     for string, expected in tests:
         result = tested.list_from(string)
         assert result == expected, f"---> {string}"
+
+
+def test_llm_audio_model():
+    tests = [
+        ("", "gpt-4o-audio-preview"),
+        ("Anthropic", "gpt-4o-audio-preview"),
+        ("Google", "models/gemini-2.0-flash"),
+        ("OpenAI", "gpt-4o-audio-preview"),
+        ("Other", "gpt-4o-audio-preview"),
+    ]
+    for vendor, expected in tests:
+        tested = Settings(
+            llm_text=VendorKey(vendor="textVendor", api_key="textAPIKey"),
+            llm_audio=VendorKey(vendor=vendor, api_key="audioAPIKey"),
+            science_host="theScienceHost",
+            ontologies_host="theOntologiesHost",
+            pre_shared_key="thePreSharedKey",
+            structured_rfv=True,
+            audit_llm=True,
+            is_tuning=True,
+            api_signing_key="theApiSigningKey",
+            send_progress=True,
+            commands_policy=AccessPolicy(policy=True, items=[]),
+            staffers_policy=AccessPolicy(policy=True, items=[]),
+            cycle_transcript_overlap=54,
+        )
+        result = tested.llm_audio_model()
+        assert result == expected, f"---> {vendor}"
+
+
+def test_llm_text_model():
+    tests = [
+        ("", "gpt-4o"),
+        ("Anthropic", "claude-3-5-sonnet-20241022"),
+        ("Google", "models/gemini-2.0-flash"),
+        ("OpenAI", "gpt-4o"),
+        ("Other", "gpt-4o"),
+    ]
+    for vendor, expected in tests:
+        tested = Settings(
+            llm_text=VendorKey(vendor=vendor, api_key="textAPIKey"),
+            llm_audio=VendorKey(vendor="audioVendor", api_key="audioAPIKey"),
+            science_host="theScienceHost",
+            ontologies_host="theOntologiesHost",
+            pre_shared_key="thePreSharedKey",
+            structured_rfv=True,
+            audit_llm=True,
+            is_tuning=True,
+            api_signing_key="theApiSigningKey",
+            send_progress=True,
+            commands_policy=AccessPolicy(policy=True, items=[]),
+            staffers_policy=AccessPolicy(policy=True, items=[]),
+            cycle_transcript_overlap=54,
+        )
+        result = tested.llm_text_model()
+        assert result == expected, f"---> {vendor}"

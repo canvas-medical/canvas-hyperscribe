@@ -31,6 +31,7 @@ from hyperscribe.libraries.constants import Constants
 from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.structures.charge_description import ChargeDescription
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.immunization_cached import ImmunizationCached
 from hyperscribe.structures.instruction import Instruction
 from hyperscribe.structures.medication_cached import MedicationCached
 
@@ -54,6 +55,7 @@ def test___init__():
     assert tested._demographic is None
     assert tested._family_history is None
     assert tested._goals is None
+    assert tested._immunizations is None
     assert tested._medications is None
     assert tested._note_type is None
     assert tested._preferred_lab_partner is None
@@ -584,6 +586,13 @@ def test_current_medications(medication_db, codings_db):
     assert medication_db.mock_calls == []
     assert codings_db.mock_calls == []
     reset_mocks()
+
+
+def test_current_immunizations():
+    tested = LimitedCache("patientUuid", "providerUuid", {})
+    result = tested.current_immunizations()
+    assert result == []
+    assert tested._immunizations == []
 
 
 @patch.object(AllergyIntolerance, "codings")
@@ -1148,6 +1157,7 @@ def test_preferred_lab_partner(lab_partner_db, practice_setting):
 @patch.object(LimitedCache, "existing_reason_for_visits")
 @patch.object(LimitedCache, "existing_note_types")
 @patch.object(LimitedCache, "current_medications")
+@patch.object(LimitedCache, "current_immunizations")
 @patch.object(LimitedCache, "current_goals")
 @patch.object(LimitedCache, "current_conditions")
 @patch.object(LimitedCache, "current_allergies")
@@ -1161,6 +1171,7 @@ def test_to_json(
     current_allergies,
     current_conditions,
     current_goals,
+    current_immunizations,
     current_medications,
     existing_note_types,
     existing_reason_for_visits,
@@ -1178,6 +1189,7 @@ def test_to_json(
         current_allergies.reset_mock()
         current_conditions.reset_mock()
         current_goals.reset_mock()
+        current_immunizations.reset_mock()
         current_medications.reset_mock()
         existing_note_types.reset_mock()
         existing_reason_for_visits.reset_mock()
@@ -1317,6 +1329,7 @@ def test_to_json(
                 {"code": "code005", "label": "label005", "uuid": "uuid005"},
                 {"code": "code105", "label": "label105", "uuid": "uuid105"},
             ],
+            "currentImmunization": [],
             "currentMedications": [
                 {
                     "codeRxNorm": "code076",
@@ -1417,6 +1430,24 @@ def test_load_from_json():
                 {"code": "code005", "label": "label005", "uuid": "uuid005"},
                 {"code": "code105", "label": "label105", "uuid": "uuid105"},
             ],
+            "currentImmunization": [
+                {
+                    "uuid": "uuid321",
+                    "label": "label321",
+                    "codeCpt": "codeCpt321",
+                    "codeCvx": "codeCvx321",
+                    "comments": "theComments321",
+                    "approximateDate": "2025-07-21",
+                },
+                {
+                    "uuid": "uuid323",
+                    "label": "label323",
+                    "codeCpt": "codeCpt323",
+                    "codeCvx": "codeCvx323",
+                    "comments": "theComments323",
+                    "approximateDate": "2025-07-23",
+                },
+            ],
             "currentMedications": [
                 {"code": "code006", "label": "label006", "uuid": "uuid006"},
                 {"code": "code106", "label": "label106", "uuid": "uuid106"},
@@ -1513,6 +1544,24 @@ def test_load_from_json():
     assert result.current_goals() == [
         CodedItem(uuid="uuid005", label="label005", code="code005"),
         CodedItem(uuid="uuid105", label="label105", code="code105"),
+    ]
+    assert result.current_immunizations() == [
+        ImmunizationCached(
+            uuid="uuid321",
+            label="label321",
+            code_cpt="codeCpt321",
+            code_cvx="codeCvx321",
+            comments="theComments321",
+            approximate_date=date(2025, 7, 21),
+        ),
+        ImmunizationCached(
+            uuid="uuid323",
+            label="label323",
+            code_cpt="codeCpt323",
+            code_cvx="codeCvx323",
+            comments="theComments323",
+            approximate_date=date(2025, 7, 23),
+        ),
     ]
     assert result.current_medications() == [
         MedicationCached(

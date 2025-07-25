@@ -7,6 +7,7 @@ from hyperscribe.libraries.canvas_science import CanvasScience
 from hyperscribe.structures.allergy_detail import AllergyDetail
 from hyperscribe.structures.icd10_condition import Icd10Condition
 from hyperscribe.structures.imaging_report import ImagingReport
+from hyperscribe.structures.immunization_detail import ImmunizationDetail
 from hyperscribe.structures.medical_concept import MedicalConcept
 from hyperscribe.structures.medication_detail import MedicationDetail
 from hyperscribe.structures.medication_detail_quantity import MedicationDetailQuantity
@@ -428,6 +429,78 @@ def test_search_allergy(get_attempts):
                 {"dam_allergen_concept_id_description__fts": "expression3"},
                 True,
             ),
+        ]
+        assert get_attempts.mock_calls == calls
+        reset_mocks()
+
+
+@patch.object(CanvasScience, "get_attempts")
+def test_search_immunization(get_attempts):
+    def reset_mocks():
+        get_attempts.reset_mock()
+
+    tested = CanvasScience
+    host = "theHost"
+    shared_key = "theSharedKey"
+    expressions = ["expression1", "expression2", "expression3"]
+
+    concepts = [
+        {
+            "cpt_code": "cptCode1",
+            "cvx_code": "cvxCode1",
+            "long_name": "theLongName1",
+            "medium_name": "theMediumName1",
+            "cvx_description": "theDescription1",
+        },
+        {
+            "cpt_code": "cptCode2",
+            "cvx_code": "cvxCode2",
+            "long_name": "theLongName2",
+            "medium_name": "theMediumName2",
+            "cvx_description": "theDescription2",
+        },
+        {
+            "cpt_code": "cptCode3",
+            "cvx_code": "cvxCode3",
+            "long_name": "theLongName3",
+            "medium_name": "theMediumName3",
+            "cvx_description": "theDescription3",
+        },
+    ]
+    details = [
+        ImmunizationDetail(
+            label="theLongName1",
+            code_cpt="cptCode1",
+            code_cvx="cvxCode1",
+            cvx_description="theDescription1",
+        ),
+        ImmunizationDetail(
+            label="theLongName2",
+            code_cpt="cptCode2",
+            code_cvx="cvxCode2",
+            cvx_description="theDescription2",
+        ),
+        ImmunizationDetail(
+            label="theLongName3",
+            code_cpt="cptCode3",
+            code_cvx="cvxCode3",
+            cvx_description="theDescription3",
+        ),
+    ]
+
+    tests = [
+        ([concepts[0:1], concepts[1:3], []], details),
+        ([[], [], []], []),
+    ]
+    for side_effects, expected in tests:
+        get_attempts.side_effect = side_effects
+        result = tested.search_immunization(host, shared_key, expressions)
+        assert result == expected
+
+        calls = [
+            call("theHost", "theSharedKey", "/cpt/immunization/", {"name_or_code": "expression1"}, True),
+            call("theHost", "theSharedKey", "/cpt/immunization/", {"name_or_code": "expression2"}, True),
+            call("theHost", "theSharedKey", "/cpt/immunization/", {"name_or_code": "expression3"}, True),
         ]
         assert get_attempts.mock_calls == calls
         reset_mocks()

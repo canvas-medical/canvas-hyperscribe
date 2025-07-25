@@ -107,6 +107,21 @@ JSON_SCHEMAS: dict[str, dict] = {
         "minItems": 1,
         "maxItems": 1,
     },
+    "selector_immunization_codes": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "array",
+        "items": {
+            "type": "object",
+            "properties": {
+                "cptCode": {"type": "string", "minimum": 1},
+                "cvxCode": {"type": "string", "minLength": 1},
+            },
+            "required": ["cptCode", "cvxCode"],
+            "additionalProperties": False,
+        },
+        "minItems": 1,
+        "maxItems": 1,
+    },
     "selector_lab_test": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "array",
