@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Script to load synthetic cases from Patient directories into the database.
 Creates records in both the 'case' and 'synthetic_case' tables.
@@ -12,9 +11,12 @@ from typing import Any
 
 from evaluations.datastores.postgres.case import Case as CaseDatastore
 from evaluations.datastores.postgres.synthetic_case import SyntheticCase as SyntheticCaseDatastore
+from evaluations.datastores.postgres.rubric import Rubric as RubricDatastore
 from evaluations.structures.records.case import Case as CaseRecord
 from evaluations.structures.records.synthetic_case import SyntheticCase as SyntheticCaseRecord
+from evaluations.structures.records.rubric import Rubric as RubricRecord
 from evaluations.structures.enums.case_status import CaseStatus
+from evaluations.structures.enums.rubric_validation import RubricValidation
 from evaluations.structures.enums.synthetic_case_mood import SyntheticCaseMood
 from evaluations.structures.enums.synthetic_case_pressure import SyntheticCasePressure
 from evaluations.structures.enums.synthetic_case_clinician_style import SyntheticCaseClinicianStyle
@@ -38,6 +40,7 @@ class SyntheticCaseLoader:
         patient_dir: str,
         case_ds: CaseDatastore,
         synthetic_case_ds: SyntheticCaseDatastore,
+        rubric_ds: RubricDatastore,
         batch_identifier: str,
     ) -> bool:
         """Process a single Patient directory and create database records."""
@@ -45,7 +48,7 @@ class SyntheticCaseLoader:
         print(f"Processing {patient_name}...")
 
         # Check for required files
-        required_files = ["transcript.json", "limited_chart.json", "profile.json", "spec.json"]
+        required_files = ["transcript.json", "limited_chart.json", "profile.json", "spec.json", "rubric.json"]
         for required_file in required_files:
             file_path = Path(patient_dir) / required_file
             if not file_path.exists():
@@ -58,6 +61,7 @@ class SyntheticCaseLoader:
             limited_chart_data = cls.load_json_file(Path(patient_dir) / "limited_chart.json")
             profile_data = cls.load_json_file(Path(patient_dir) / "profile.json")
             spec_data = cls.load_json_file(Path(patient_dir) / "spec.json")
+            rubric_data = cls.load_json_file(Path(patient_dir) / "rubric.json")
 
             # Extract profile text from JSON object
             assert isinstance(profile_data, dict), "profile_data should be a dict"
@@ -106,6 +110,24 @@ class SyntheticCaseLoader:
             # Insert synthetic case record
             created_synthetic_case = synthetic_case_ds.upsert(synthetic_case_record)
             print(f"  Created synthetic case record with ID: {created_synthetic_case.id}")
+
+            # Create rubric record
+            assert isinstance(rubric_data, list), "rubric_data should be a list"
+            rubric_record = RubricRecord(
+                case_id=created_case.id,
+                validation=RubricValidation.NOT_EVALUATED,
+                author="llm",
+                rubric=rubric_data,
+                case_provenance_classification="",
+                comments="",
+                text_llm_vendor="OpenAI",
+                text_llm_name="o3",
+                temperature=1.0,
+            )
+
+            # Insert rubric record
+            created_rubric = rubric_ds.upsert(rubric_record)
+            print(f"  Created rubric record with ID: {created_rubric.id}")
             return True
 
         except Exception as e:
@@ -125,6 +147,7 @@ class SyntheticCaseLoader:
         # Initialize datastores
         case_ds = CaseDatastore(credentials)
         synthetic_case_ds = SyntheticCaseDatastore(credentials)
+        rubric_ds = RubricDatastore(credentials)
 
         # Generate batch identifier from current datetime
         batch_identifier = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M")
@@ -144,7 +167,7 @@ class SyntheticCaseLoader:
         success_count = 0
         for patient_dir in sorted(patient_dirs):
             if Path(patient_dir).is_dir():
-                if cls.process_patient_directory(patient_dir, case_ds, synthetic_case_ds, batch_identifier):
+                if cls.process_patient_directory(patient_dir, case_ds, synthetic_case_ds, rubric_ds, batch_identifier):
                     success_count += 1
 
         print(f"Successfully processed {success_count}/{len(patient_dirs)} directories")

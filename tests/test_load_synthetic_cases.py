@@ -2,11 +2,12 @@ from datetime import UTC
 from pathlib import Path
 from unittest.mock import patch, call, MagicMock, mock_open
 
-from load_synthetic_cases import SyntheticCaseLoader
 from evaluations.datastores.postgres.case import Case as CaseDatastore
+from evaluations.datastores.postgres.rubric import Rubric as RubricDatastore
 from evaluations.datastores.postgres.synthetic_case import SyntheticCase as SyntheticCaseDatastore
 from evaluations.helper_evaluation import HelperEvaluation
 from hyperscribe.structures.line import Line
+from load_synthetic_cases import SyntheticCaseLoader
 
 
 def test_load_json_file():
@@ -47,8 +48,10 @@ def test_load_json_file():
 def test_process_patient_directory(mock_json, mock_line, mock_path, mock_load_json_file, capsys):
     mock_case_ds = MagicMock(spec=CaseDatastore)
     mock_synthetic_case_ds = MagicMock(spec=SyntheticCaseDatastore)
+    mock_rubric_ds = MagicMock(spec=RubricDatastore)
     mock_created_case = MagicMock()
     mock_created_synthetic_case = MagicMock()
+    mock_created_rubric = MagicMock()
 
     def reset_mocks():
         mock_load_json_file.reset_mock()
@@ -57,8 +60,10 @@ def test_process_patient_directory(mock_json, mock_line, mock_path, mock_load_js
         mock_json.reset_mock()
         mock_case_ds.reset_mock()
         mock_synthetic_case_ds.reset_mock()
+        mock_rubric_ds.reset_mock()
         mock_created_case.reset_mock()
         mock_created_synthetic_case.reset_mock()
+        mock_created_rubric.reset_mock()
 
     tested = SyntheticCaseLoader
 
@@ -68,7 +73,13 @@ def test_process_patient_directory(mock_json, mock_line, mock_path, mock_load_js
     mock_path_instance.name = "Patient_1"
     mock_path_instance.__truediv__.return_value.exists.side_effect = [False]
 
-    result = tested.process_patient_directory("/path/to/Patient_1", mock_case_ds, mock_synthetic_case_ds, "batch_id")
+    result = tested.process_patient_directory(
+        "/path/to/Patient_1",
+        mock_case_ds,
+        mock_synthetic_case_ds,
+        mock_rubric_ds,
+        "batch_id",
+    )
     expected = False
     assert result == expected
 
@@ -86,13 +97,14 @@ def test_process_patient_directory(mock_json, mock_line, mock_path, mock_load_js
     assert mock_load_json_file.mock_calls == []
     assert mock_case_ds.mock_calls == []
     assert mock_synthetic_case_ds.mock_calls == []
+    assert mock_rubric_ds.mock_calls == []
     reset_mocks()
 
     # Test successful processing
     mock_path_instance = MagicMock()
     mock_path.return_value = mock_path_instance
     mock_path_instance.name = "Patient_1"
-    mock_path_instance.__truediv__.return_value.exists.side_effect = [True, True, True, True]
+    mock_path_instance.__truediv__.return_value.exists.side_effect = [True, True, True, True, True]
 
     transcript_data = [{"speaker": "Patient", "text": "Hello"}]
     limited_chart_data = {"chart": "data"}
@@ -107,16 +119,25 @@ def test_process_patient_directory(mock_json, mock_line, mock_path, mock_load_js
         "patient_style": "anxious and talkative",
         "bucket": "medium",
     }
+    rubric_data = [
+        {"criterion": "theCriterion1", "weight": 1, "sense": "positive"},
+        {"criterion": "theCriterion2", "weight": 2, "sense": "positive"},
+        {"criterion": "theCriterion3", "weight": 3, "sense": "negative"},
+    ]
 
-    mock_load_json_file.side_effect = [transcript_data, limited_chart_data, profile_data, spec_data]
+    mock_load_json_file.side_effect = [transcript_data, limited_chart_data, profile_data, spec_data, rubric_data]
     mock_line.load_from_json.side_effect = [[Line(speaker="Patient", text="Hello")]]
     mock_json.dumps.side_effect = ["speaker_sequence_json"]
     mock_created_case.id = 123
     mock_case_ds.upsert.side_effect = [mock_created_case]
     mock_created_synthetic_case.id = 456
     mock_synthetic_case_ds.upsert.side_effect = [mock_created_synthetic_case]
+    mock_created_rubric.id = 789
+    mock_rubric_ds.upsert.side_effect = [mock_created_rubric]
 
-    result = tested.process_patient_directory("/path/to/Patient_1", mock_case_ds, mock_synthetic_case_ds, "batch_id")
+    result = tested.process_patient_directory(
+        "/path/to/Patient_1", mock_case_ds, mock_synthetic_case_ds, mock_rubric_ds, "batch_id"
+    )
     expected = True
     assert result == expected
 
@@ -124,6 +145,7 @@ def test_process_patient_directory(mock_json, mock_line, mock_path, mock_load_js
     assert "Processing Patient_1..." in output
     assert "Created case record with ID: 123" in output
     assert "Created synthetic case record with ID: 456" in output
+    assert "Created rubric record with ID: 789" in output
 
     calls = [
         call("/path/to/Patient_1"),
@@ -140,6 +162,9 @@ def test_process_patient_directory(mock_json, mock_line, mock_path, mock_load_js
         call().__truediv__("spec.json"),
         call().__truediv__().exists(),
         call("/path/to/Patient_1"),
+        call().__truediv__("rubric.json"),
+        call().__truediv__().exists(),
+        call("/path/to/Patient_1"),
         call().__truediv__("transcript.json"),
         call("/path/to/Patient_1"),
         call().__truediv__("limited_chart.json"),
@@ -147,10 +172,13 @@ def test_process_patient_directory(mock_json, mock_line, mock_path, mock_load_js
         call().__truediv__("profile.json"),
         call("/path/to/Patient_1"),
         call().__truediv__("spec.json"),
+        call("/path/to/Patient_1"),
+        call().__truediv__("rubric.json"),
     ]
     assert mock_path.mock_calls == calls
 
     calls = [
+        call(mock_path_instance.__truediv__.return_value),
         call(mock_path_instance.__truediv__.return_value),
         call(mock_path_instance.__truediv__.return_value),
         call(mock_path_instance.__truediv__.return_value),
@@ -180,16 +208,30 @@ def test_process_patient_directory(mock_json, mock_line, mock_path, mock_load_js
     assert synthetic_case_arg.text_llm_vendor == "OpenAI"
     assert synthetic_case_arg.text_llm_name == "o3"
 
+    # Verify RubricRecord was created with correct parameters
+    assert mock_rubric_ds.upsert.call_count == 1
+    rubric_arg = mock_rubric_ds.upsert.call_args[0][0]
+    assert rubric_arg.case_id == 123
+    assert rubric_arg.author == "llm"
+    assert rubric_arg.rubric == rubric_data
+    assert rubric_arg.case_provenance_classification == ""
+    assert rubric_arg.comments == ""
+    assert rubric_arg.text_llm_vendor == "OpenAI"
+    assert rubric_arg.text_llm_name == "o3"
+    assert rubric_arg.temperature == 1.0
+
     reset_mocks()
 
     # Test processing error
     mock_path_instance = MagicMock()
     mock_path.return_value = mock_path_instance
     mock_path_instance.name = "Patient_1"
-    mock_path_instance.__truediv__.return_value.exists.side_effect = [True, True, True, True]
+    mock_path_instance.__truediv__.return_value.exists.side_effect = [True, True, True, True, True]
     mock_load_json_file.side_effect = [Exception("JSON error")]
 
-    result = tested.process_patient_directory("/path/to/Patient_1", mock_case_ds, mock_synthetic_case_ds, "batch_id")
+    result = tested.process_patient_directory(
+        "/path/to/Patient_1", mock_case_ds, mock_synthetic_case_ds, mock_rubric_ds, "batch_id"
+    )
     expected = False
     assert result == expected
 
@@ -209,6 +251,7 @@ def test_run(mock_process_patient_directory, mock_postgres_credentials, mock_pat
     mock_credentials = MagicMock()
     mock_case_ds = MagicMock(spec=CaseDatastore)
     mock_synthetic_case_ds = MagicMock(spec=SyntheticCaseDatastore)
+    mock_rubric_ds = MagicMock(spec=RubricDatastore)
 
     def reset_mocks():
         mock_process_patient_directory.reset_mock()
@@ -219,6 +262,7 @@ def test_run(mock_process_patient_directory, mock_postgres_credentials, mock_pat
         mock_credentials.reset_mock()
         mock_case_ds.reset_mock()
         mock_synthetic_case_ds.reset_mock()
+        mock_rubric_ds.reset_mock()
 
     tested = SyntheticCaseLoader
 
@@ -247,14 +291,16 @@ def test_run(mock_process_patient_directory, mock_postgres_credentials, mock_pat
 
     with patch("load_synthetic_cases.CaseDatastore") as mock_case_ds_class:
         with patch("load_synthetic_cases.SyntheticCaseDatastore") as mock_synthetic_case_ds_class:
-            mock_case_ds_class.return_value = mock_case_ds
-            mock_synthetic_case_ds_class.return_value = mock_synthetic_case_ds
-            mock_datetime_instance = MagicMock()
-            mock_datetime_instance.strftime.return_value = "2023-12-01T10:30"
-            mock_datetime.now.return_value = mock_datetime_instance
-            mock_datetime.UTC = UTC
+            with patch("load_synthetic_cases.RubricDatastore") as mock_rubric_ds_class:
+                mock_case_ds_class.return_value = mock_case_ds
+                mock_synthetic_case_ds_class.return_value = mock_synthetic_case_ds
+                mock_rubric_ds_class.return_value = mock_rubric_ds
+                mock_datetime_instance = MagicMock()
+                mock_datetime_instance.strftime.return_value = "2023-12-01T10:30"
+                mock_datetime.now.return_value = mock_datetime_instance
+                mock_datetime.UTC = UTC
 
-            tested.run()
+                tested.run()
 
     output = capsys.readouterr().out
     assert "No Patient directories found matching pattern:" in output
@@ -279,14 +325,16 @@ def test_run(mock_process_patient_directory, mock_postgres_credentials, mock_pat
 
     with patch("load_synthetic_cases.CaseDatastore") as mock_case_ds_class:
         with patch("load_synthetic_cases.SyntheticCaseDatastore") as mock_synthetic_case_ds_class:
-            mock_case_ds_class.return_value = mock_case_ds
-            mock_synthetic_case_ds_class.return_value = mock_synthetic_case_ds
-            mock_datetime_instance = MagicMock()
-            mock_datetime_instance.strftime.return_value = "2023-12-01T10:30"
-            mock_datetime.now.return_value = mock_datetime_instance
-            mock_datetime.UTC = UTC
+            with patch("load_synthetic_cases.RubricDatastore") as mock_rubric_ds_class:
+                mock_case_ds_class.return_value = mock_case_ds
+                mock_synthetic_case_ds_class.return_value = mock_synthetic_case_ds
+                mock_rubric_ds_class.return_value = mock_rubric_ds
+                mock_datetime_instance = MagicMock()
+                mock_datetime_instance.strftime.return_value = "2023-12-01T10:30"
+                mock_datetime.now.return_value = mock_datetime_instance
+                mock_datetime.UTC = UTC
 
-            tested.run()
+                tested.run()
 
     output = capsys.readouterr().out
     assert "Found 3 Patient directories to process" in output
@@ -302,8 +350,8 @@ def test_run(mock_process_patient_directory, mock_postgres_credentials, mock_pat
     calls = [call("Patient_1"), call().is_dir(), call("Patient_2"), call().is_dir(), call("Patient_3"), call().is_dir()]
     assert mock_path.mock_calls == calls
     calls = [
-        call("Patient_1", mock_case_ds, mock_synthetic_case_ds, "2023-12-01T10:30"),
-        call("Patient_2", mock_case_ds, mock_synthetic_case_ds, "2023-12-01T10:30"),
+        call("Patient_1", mock_case_ds, mock_synthetic_case_ds, mock_rubric_ds, "2023-12-01T10:30"),
+        call("Patient_2", mock_case_ds, mock_synthetic_case_ds, mock_rubric_ds, "2023-12-01T10:30"),
     ]
     assert mock_process_patient_directory.mock_calls == calls
     reset_mocks()
