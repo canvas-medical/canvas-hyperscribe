@@ -188,3 +188,43 @@ def test_upsert(constant_dumps, select, alter, mock_datetime):
     assert involved_id == 777
     assert params == exp_params
     reset_mock()
+
+
+@patch.object(Rubric, "_select")
+def test_get_rubric(select):
+    def reset_mock():
+        select.reset_mock()
+
+    tested = helper_instance()
+
+    # Test rubric found
+    rubric_data = [
+        {"criterion": "theCriterion1", "weight": 1, "sense": "positive"},
+        {"criterion": "theCriterion2", "weight": 2, "sense": "positive"},
+    ]
+    select.side_effect = [[{"rubric": rubric_data}]]
+
+    result = tested.get_rubric(123)
+    assert result == rubric_data
+
+    assert len(select.mock_calls) == 1
+    sql, params = select.mock_calls[0].args
+    exp_sql = 'SELECT "rubric" FROM "rubric" WHERE "id" = %(id)s'
+    assert compare_sql(sql, exp_sql)
+    exp_params = {"id": 123}
+    assert params == exp_params
+    reset_mock()
+
+    # Test rubric not found
+    select.side_effect = [[]]
+
+    result = tested.get_rubric(456)
+    assert result == []
+
+    assert len(select.mock_calls) == 1
+    sql, params = select.mock_calls[0].args
+    exp_sql = 'SELECT "rubric" FROM "rubric" WHERE "id" = %(id)s'
+    assert compare_sql(sql, exp_sql)
+    exp_params = {"id": 456}
+    assert params == exp_params
+    reset_mock()

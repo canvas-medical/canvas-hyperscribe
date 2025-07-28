@@ -1,6 +1,6 @@
 import json
 from datetime import datetime, UTC
-from typing import LiteralString, get_type_hints
+from typing import LiteralString, get_type_hints, cast
 
 from evaluations.datastores.postgres.postgres import Postgres
 from evaluations.structures.records.generated_note import GeneratedNote as Record
@@ -36,7 +36,7 @@ class GeneratedNote(Postgres):
             "failed": case.failed,
             "errors": json.dumps(case.errors),
         }
-        sql = """
+        sql: LiteralString = """
               INSERT INTO "generated_note" ("created", "updated", "case_id", "cycle_duration", "cycle_count",
                                             "cycle_transcript_overlap", "text_llm_vendor", "text_llm_name",
                                             "note_json", "hyperscribe_version", "staged_questionnaires",
@@ -90,3 +90,10 @@ class GeneratedNote(Postgres):
                              FROM "generated_note"
                              WHERE "case_id" = %(case_id)s RETURNING "id" """
         self._alter(sql, {"case_id": case_id}, None)
+
+    def get_note_json(self, generated_note_id: int) -> dict:
+        """Get the note_json content for a given generated_note ID."""
+        sql: LiteralString = 'SELECT "note_json" FROM "generated_note" WHERE "id" = %(id)s'
+        for record in self._select(sql, {"id": generated_note_id}):
+            return cast(dict, record["note_json"])
+        return {}

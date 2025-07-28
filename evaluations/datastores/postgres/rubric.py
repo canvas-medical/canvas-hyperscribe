@@ -1,5 +1,5 @@
 from datetime import datetime, UTC
-from typing import LiteralString
+from typing import LiteralString, cast
 
 from evaluations.datastores.postgres.postgres import Postgres
 from evaluations.structures.records.rubric import Rubric as RubricRecord
@@ -72,3 +72,10 @@ class Rubric(Postgres):
             text_llm_name=rubric.text_llm_name,
             temperature=rubric.temperature,
         )
+
+    def get_rubric(self, rubric_id: int) -> list[dict]:
+        """Get the rubric content for a given rubric ID."""
+        sql: LiteralString = 'SELECT "rubric" FROM "rubric" WHERE "id" = %(id)s'
+        for record in self._select(sql, {"id": rubric_id}):
+            return cast(list[dict], record["rubric"])
+        return []
