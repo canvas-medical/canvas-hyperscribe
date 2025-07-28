@@ -12,7 +12,7 @@
     "patient is embarrassed"
   ],
   "pressure": "refill limit reached",
-  "clinician_style": "over\u2011explainer",
+  "clinician_style": "over-explainer",
   "patient_style": "confused and forgetful",
   "bucket": "short"
 }

@@ -22,7 +22,7 @@
     "clinician is warm"
   ],
   "pressure": "insurance denied prior authorization",
-  "clinician_style": "over\u2011explainer",
+  "clinician_style": "over-explainer",
   "patient_style": "assertive and informed",
   "bucket": "long"
 }

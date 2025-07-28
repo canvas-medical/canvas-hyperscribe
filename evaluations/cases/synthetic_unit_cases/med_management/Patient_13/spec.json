@@ -16,7 +16,7 @@
     "clinician is concerned"
   ],
   "pressure": "insurance denied prior authorization",
-  "clinician_style": "over\u2011explainer",
+  "clinician_style": "over-explainer",
   "patient_style": "anxious and talkative",
   "bucket": "medium"
 }

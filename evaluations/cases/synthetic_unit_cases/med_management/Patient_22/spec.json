@@ -11,7 +11,7 @@
     "patient is tearful"
   ],
   "pressure": "time pressure on the visit",
-  "clinician_style": "over\u2011explainer",
+  "clinician_style": "over-explainer",
   "patient_style": "confused and forgetful",
   "bucket": "short"
 }

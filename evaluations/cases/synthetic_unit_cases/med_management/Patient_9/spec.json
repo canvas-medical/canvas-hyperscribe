@@ -10,7 +10,7 @@
     "patient is defensive"
   ],
   "pressure": "time pressure on the visit",
-  "clinician_style": "over\u2011explainer",
+  "clinician_style": "over-explainer",
   "patient_style": "anxious and talkative",
   "bucket": "short"
 }

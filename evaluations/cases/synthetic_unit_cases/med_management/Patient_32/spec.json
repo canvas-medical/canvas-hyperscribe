@@ -11,7 +11,7 @@
     "patient is frustrated"
   ],
   "pressure": "time pressure on the visit",
-  "clinician_style": "over\u2011explainer",
+  "clinician_style": "over-explainer",
   "patient_style": "assertive and informed",
   "bucket": "short"
 }

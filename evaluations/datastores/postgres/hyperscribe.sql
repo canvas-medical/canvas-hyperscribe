@@ -75,7 +75,7 @@ CREATE TABLE public.synthetic_case
     turn_total                      int                            NOT NULL,
     speaker_sequence                JSON                          NOT NULL,
     clinician_to_patient_turn_ratio real                           NOT NULL,
-    mood                            synthetic_case_mood            NOT NULL,
+    mood                            synthetic_case_mood[]          NOT NULL,
     pressure                        synthetic_case_pressure        NOT NULL,
     clinician_style                 synthetic_case_clinician_style NOT NULL,
     patient_style                   synthetic_case_patient_style   NOT NULL,
