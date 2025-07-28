@@ -6,19 +6,32 @@ from uuid import uuid5, NAMESPACE_DNS
 
 from canvas_sdk.commands.constants import CodeSystems
 from canvas_sdk.v1.data import (
-    Command, Condition, ConditionCoding, MedicationCoding,
-    Medication, AllergyIntolerance, AllergyIntoleranceCoding,
-    Patient, Observation, NoteType, ReasonForVisitSettingCoding,
-    Staff, PracticeLocation, PracticeLocationSetting, TaskLabel)
+    ChargeDescriptionMaster,
+    Command,
+    Condition,
+    ConditionCoding,
+    MedicationCoding,
+    Medication,
+    AllergyIntolerance,
+    AllergyIntoleranceCoding,
+    Patient,
+    Observation,
+    NoteType,
+    ReasonForVisitSettingCoding,
+    Staff,
+    PracticeLocation,
+    PracticeLocationSetting,
+    TaskLabel,
+)
 from canvas_sdk.v1.data.lab import LabPartner, LabPartnerTest
 from django.db.models import Q
 from django.db.models.expressions import When, Value, Case
 
-from hyperscribe.handlers.temporary_data import ChargeDescriptionMaster
 from hyperscribe.libraries.constants import Constants
 from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.structures.charge_description import ChargeDescription
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.immunization_cached import ImmunizationCached
 from hyperscribe.structures.instruction import Instruction
 from hyperscribe.structures.medication_cached import MedicationCached
 
@@ -42,6 +55,7 @@ def test___init__():
     assert tested._demographic is None
     assert tested._family_history is None
     assert tested._goals is None
+    assert tested._immunizations is None
     assert tested._medications is None
     assert tested._note_type is None
     assert tested._preferred_lab_partner is None
@@ -87,8 +101,10 @@ def test_lab_tests(lab_test_db, sqlite3_connect):
     assert result == expected
 
     calls = [
-        call.filter(lab_partner__name='theLabPartner'),
-        call.filter().filter(Q(('keywords__icontains', 'word2'), ('keywords__icontains', 'word3'), ('keywords__icontains', 'word1'))),
+        call.filter(lab_partner__name="theLabPartner"),
+        call.filter().filter(
+            Q(("keywords__icontains", "word2"), ("keywords__icontains", "word3"), ("keywords__icontains", "word1")),
+        ),
     ]
     assert lab_test_db.mock_calls == calls
     assert sqlite3_connect.mock_calls == []
@@ -112,8 +128,8 @@ def test_lab_tests(lab_test_db, sqlite3_connect):
     assert result == expected
 
     calls = [
-        call.filter(lab_partner__name='theLabPartner'),
-        call.filter().filter(Q(('keywords__icontains', 'word2'), ('keywords__icontains', 'word1'))),
+        call.filter(lab_partner__name="theLabPartner"),
+        call.filter().filter(Q(("keywords__icontains", "word2"), ("keywords__icontains", "word1"))),
     ]
     assert lab_test_db.mock_calls == calls
     assert sqlite3_connect.mock_calls == []
@@ -134,7 +150,7 @@ def test_lab_tests(lab_test_db, sqlite3_connect):
             {"dbid": 456, "order_code": "code123", "order_name": "labelA"},
             {"dbid": 458, "order_code": "code369", "order_name": "labelB"},
             {"dbid": 486, "order_code": "code752", "order_name": "labelC"},
-        ]
+        ],
     ]
     tested = LimitedCache("patientUuid", "providerUuid", {})
     tested._local_data = True
@@ -143,11 +159,7 @@ def test_lab_tests(lab_test_db, sqlite3_connect):
     assert result == expected
     assert lab_test_db.mock_calls == []
     directory = Path(__file__).parent.as_posix().replace("/tests", "")
-    calls = [
-        call(Path(f'{directory}/generic_lab_tests.db')),
-        call().__enter__(),
-        call().__exit__(None, None, None),
-    ]
+    calls = [call(Path(f"{directory}/generic_lab_tests.db")), call().__enter__(), call().__exit__(None, None, None)]
     assert sqlite3_connect.mock_calls == calls
     calls = [
         call.cursor(),
@@ -158,7 +170,7 @@ def test_lab_tests(lab_test_db, sqlite3_connect):
             " AND `keywords` LIKE :kw_01"
             " AND `keywords` LIKE :kw_02 "
             "ORDER BY `dbid`",
-            {'kw_00': '%word1%', 'kw_01': '%word3%', 'kw_02': '%word2%'},
+            {"kw_00": "%word1%", "kw_01": "%word3%", "kw_02": "%word2%"},
         ),
         call.cursor().fetchall(),
     ]
@@ -171,6 +183,7 @@ def test_lab_tests(lab_test_db, sqlite3_connect):
     assert sqlite3_connect.mock_calls == []
     assert connection.mock_calls == []
     reset_mocks()
+
 
 @patch.object(ChargeDescriptionMaster, "objects")
 def test_charge_descriptions(charge_description_db):
@@ -187,16 +200,14 @@ def test_charge_descriptions(charge_description_db):
         ChargeDescriptionMaster(cpt_code="code754", name="theFullNameD", short_name="theShortNameA"),
     ]
 
-    with patch.object(Constants, 'MAX_CHARGE_DESCRIPTIONS', 99):
+    with patch.object(Constants, "MAX_CHARGE_DESCRIPTIONS", 99):
         # too many records
         charge_description_db.count.side_effect = [100]
         charge_description_db.all.return_value.order_by.side_effect = []
         tested = LimitedCache("patientUuid", "providerUuid", {})
         result = tested.charge_descriptions()
         assert result == []
-        calls = [
-            call.count(),
-        ]
+        calls = [call.count()]
         assert charge_description_db.mock_calls == calls
         reset_mocks()
 
@@ -211,17 +222,13 @@ def test_charge_descriptions(charge_description_db):
         tested = LimitedCache("patientUuid", "providerUuid", {})
         result = tested.charge_descriptions()
         expected = [
-            ChargeDescription(full_name='theFullNameD', short_name='theShortNameA', cpt_code='code754'),
-            ChargeDescription(full_name='theFullNameF', short_name='theShortNameB', cpt_code='code565'),
-            ChargeDescription(full_name='theFullNameG', short_name='theShortNameD', cpt_code='code486'),
-            ChargeDescription(full_name='theFullNameC', short_name='theShortNameC', cpt_code='code752'),
+            ChargeDescription(full_name="theFullNameD", short_name="theShortNameA", cpt_code="code754"),
+            ChargeDescription(full_name="theFullNameF", short_name="theShortNameB", cpt_code="code565"),
+            ChargeDescription(full_name="theFullNameG", short_name="theShortNameD", cpt_code="code486"),
+            ChargeDescription(full_name="theFullNameC", short_name="theShortNameC", cpt_code="code752"),
         ]
         assert result == expected
-        calls = [
-            call.count(),
-            call.all(),
-            call.all().order_by('cpt_code'),
-        ]
+        calls = [call.count(), call.all(), call.all().order_by("cpt_code")]
         assert charge_description_db.mock_calls == calls
         reset_mocks()
 
@@ -231,8 +238,8 @@ def test_charge_descriptions(charge_description_db):
         reset_mocks()
 
 
-@patch.object(Condition, 'codings')
-@patch.object(Condition, 'objects')
+@patch.object(Condition, "codings")
+@patch.object(Condition, "objects")
 def test_retrieve_conditions(condition_db, codings_db):
     def reset_mocks():
         condition_db.reset_mock()
@@ -263,34 +270,37 @@ def test_retrieve_conditions(condition_db, codings_db):
 
     result = tested._conditions
     expected = [
-        CodedItem(uuid='b04965e6-a9bb-591f-8f8a-1adcb2c8dc39', label='display1a', code='CODE12.3'),
-        CodedItem(uuid='c8691da2-158a-5ed6-8537-0e6f140801f2', label='display5a', code='CODE88.88'),
+        CodedItem(uuid="b04965e6-a9bb-591f-8f8a-1adcb2c8dc39", label="display1a", code="CODE12.3"),
+        CodedItem(uuid="c8691da2-158a-5ed6-8537-0e6f140801f2", label="display5a", code="CODE88.88"),
     ]
     assert result == expected
     result = tested._condition_history
     expected = [
-        CodedItem(uuid='4b166dbe-d99d-5091-abdd-95b83330ed3a', label='display4a', code='CODE45'),
-        CodedItem(uuid='6ed955c6-506a-5343-9be4-2c0afae02eef', label='display3a', code='CODE98.76'),
+        CodedItem(uuid="4b166dbe-d99d-5091-abdd-95b83330ed3a", label="display4a", code="CODE45"),
+        CodedItem(uuid="6ed955c6-506a-5343-9be4-2c0afae02eef", label="display3a", code="CODE98.76"),
     ]
     assert result == expected
     result = tested._surgery_history
-    expected = [
-        CodedItem(uuid='98123fde-012f-5ff3-8b50-881449dac91a', label='display2c', code='44'),
-    ]
+    expected = [CodedItem(uuid="98123fde-012f-5ff3-8b50-881449dac91a", label="display2c", code="44")]
     assert result == expected
 
     calls = [
         call.committed(),
-        call.committed().for_patient('patientUuid'),
+        call.committed().for_patient("patientUuid"),
         call.committed().for_patient().filter(clinical_status__in=["active", "resolved"]),
-        call.committed().for_patient().filter().order_by('-dbid'),
+        call.committed().for_patient().filter().order_by("-dbid"),
     ]
     assert condition_db.mock_calls == calls
 
     calls = [
         call.filter(system__in=[CodeSystems.ICD10, CodeSystems.SNOMED]),
-        call.filter().annotate(system_order=Case(When(system=CodeSystems.ICD10, then=Value(1)), When(system=CodeSystems.SNOMED, then=Value(2)))),
-        call.filter().annotate().order_by('system_order'),
+        call.filter().annotate(
+            system_order=Case(
+                When(system=CodeSystems.ICD10, then=Value(1)),
+                When(system=CodeSystems.SNOMED, then=Value(2)),
+            ),
+        ),
+        call.filter().annotate().order_by("system_order"),
         call.filter().annotate().order_by().first(),
     ]
     assert codings_db.mock_calls == calls * 7
@@ -322,17 +332,15 @@ def test_add_instructions_as_staged_commands():
     tested = LimitedCache("patientUuid", "providerUuid", {})
     tested.add_instructions_as_staged_commands(instructions, schema_key2instruction)
     expected = {
-        'keyA': [
-            CodedItem(uuid='uuid0', label='theInformation0', code=''),
-            CodedItem(uuid='uuid1', label='theInformation1', code=''),
+        "keyA": [
+            CodedItem(uuid="uuid0", label="theInformation0", code=""),
+            CodedItem(uuid="uuid1", label="theInformation1", code=""),
         ],
-        'keyB': [
-            CodedItem(uuid='uuid2', label='theInformation2', code=''),
-            CodedItem(uuid='uuid3', label='theInformation3', code=''),
+        "keyB": [
+            CodedItem(uuid="uuid2", label="theInformation2", code=""),
+            CodedItem(uuid="uuid3", label="theInformation3", code=""),
         ],
-        'keyC': [
-            CodedItem(uuid='uuid4', label='theInformation4', code=''),
-        ],
+        "keyC": [CodedItem(uuid="uuid4", label="theInformation4", code="")],
     }
     assert tested._staged_commands == expected
 
@@ -341,38 +349,31 @@ def test_add_instructions_as_staged_commands():
         "patientUuid",
         "providerUuid",
         {
-            'keyA': [
-                CodedItem(uuid='uuid1', label='theInitial1', code='theCode1'),
-                CodedItem(uuid='uuid6', label='theInitial6', code='theCode6'),
+            "keyA": [
+                CodedItem(uuid="uuid1", label="theInitial1", code="theCode1"),
+                CodedItem(uuid="uuid6", label="theInitial6", code="theCode6"),
             ],
-            'keyB': [
-                CodedItem(uuid='uuid2', label='theInitial2', code='theCode2'),
-            ],
-            'keyC': [
-                CodedItem(uuid='uuid5', label='theInitial5', code='theCode5'),
-            ],
-            'keyD': [
-                CodedItem(uuid='uuid7', label='theInitial4', code='theCode4'),
-            ],
-        })
+            "keyB": [CodedItem(uuid="uuid2", label="theInitial2", code="theCode2")],
+            "keyC": [CodedItem(uuid="uuid5", label="theInitial5", code="theCode5")],
+            "keyD": [CodedItem(uuid="uuid7", label="theInitial4", code="theCode4")],
+        },
+    )
     tested.add_instructions_as_staged_commands(instructions, schema_key2instruction)
     expected = {
-        'keyA': [
-            CodedItem(uuid='uuid1', label='theInformation1', code='theCode1'),
-            CodedItem(uuid='uuid6', label='theInitial6', code='theCode6'),
-            CodedItem(uuid='uuid0', label='theInformation0', code=''),
+        "keyA": [
+            CodedItem(uuid="uuid1", label="theInformation1", code="theCode1"),
+            CodedItem(uuid="uuid6", label="theInitial6", code="theCode6"),
+            CodedItem(uuid="uuid0", label="theInformation0", code=""),
         ],
-        'keyB': [
-            CodedItem(uuid='uuid2', label='theInformation2', code='theCode2'),
-            CodedItem(uuid='uuid3', label='theInformation3', code=''),
+        "keyB": [
+            CodedItem(uuid="uuid2", label="theInformation2", code="theCode2"),
+            CodedItem(uuid="uuid3", label="theInformation3", code=""),
         ],
-        'keyC': [
-            CodedItem(uuid='uuid5', label='theInitial5', code='theCode5'),
-            CodedItem(uuid='uuid4', label='theInformation4', code=''),
+        "keyC": [
+            CodedItem(uuid="uuid5", label="theInitial5", code="theCode5"),
+            CodedItem(uuid="uuid4", label="theInformation4", code=""),
         ],
-        'keyD': [
-            CodedItem(uuid='uuid7', label='theInitial4', code='theCode4'),
-        ],
+        "keyD": [CodedItem(uuid="uuid7", label="theInitial4", code="theCode4")],
     }
 
     assert tested._staged_commands == expected
@@ -385,11 +386,7 @@ def test_staged_commands_of():
         CodedItem(code="code2", label="label2", uuid="uuid2"),
     ]
 
-    staged_commands_to_coded_items = {
-        "keyX": [coded_items[0]],
-        "keyY": [],
-        "keyZ": [coded_items[1], coded_items[2]],
-    }
+    staged_commands_to_coded_items = {"keyX": [coded_items[0]], "keyY": [], "keyZ": [coded_items[1], coded_items[2]]}
     tested = LimitedCache("patientUuid", "providerUuid", staged_commands_to_coded_items)
 
     tests = [
@@ -411,38 +408,51 @@ def test_staged_commands_as_instructions():
         CodedItem(code="code2", label="label2", uuid="uuid2"),
     ]
 
-    staged_commands_to_coded_items = {
-        "keyX": [coded_items[0]],
-        "keyY": [],
-        "keyZ": [coded_items[1], coded_items[2]],
-    }
+    staged_commands_to_coded_items = {"keyX": [coded_items[0]], "keyY": [], "keyZ": [coded_items[1], coded_items[2]]}
     tested = LimitedCache("patientUuid", "providerUuid", staged_commands_to_coded_items)
 
-    schema_key2instruction = {
-        "keyX": "Instruction1",
-        "keyY": "Instruction2",
-        "keyZ": "Instruction3",
-    }
+    schema_key2instruction = {"keyX": "Instruction1", "keyY": "Instruction2", "keyZ": "Instruction3"}
     result = tested.staged_commands_as_instructions(schema_key2instruction)
-    expected = Instruction.load_from_json([
-        {'uuid': 'uuid1', 'instruction': 'Instruction1', 'information': 'label1', 'isNew': True, 'isUpdated': False},
-        {'uuid': 'uuid3', 'instruction': 'Instruction3', 'information': 'label3', 'isNew': True, 'isUpdated': False},
-        {'uuid': 'uuid2', 'instruction': 'Instruction3', 'information': 'label2', 'isNew': True, 'isUpdated': False},
-
-    ])
+    expected = Instruction.load_from_json(
+        [
+            {
+                "uuid": "uuid1",
+                "instruction": "Instruction1",
+                "information": "label1",
+                "isNew": True,
+                "isUpdated": False,
+            },
+            {
+                "uuid": "uuid3",
+                "instruction": "Instruction3",
+                "information": "label3",
+                "isNew": True,
+                "isUpdated": False,
+            },
+            {
+                "uuid": "uuid2",
+                "instruction": "Instruction3",
+                "information": "label2",
+                "isNew": True,
+                "isUpdated": False,
+            },
+        ],
+    )
     assert result == expected
 
 
-@patch.object(Command, 'objects')
+@patch.object(Command, "objects")
 def test_current_goals(command_db):
     def reset_mocks():
         command_db.reset_mock()
 
-    command_db.filter.return_value.order_by.side_effect = [[
-        Command(id=uuid5(NAMESPACE_DNS, "1"), dbid=258, data={"goal_statement": "statement1"}),
-        Command(id=uuid5(NAMESPACE_DNS, "2"), dbid=259, data={"goal_statement": "statement2"}),
-        Command(id=uuid5(NAMESPACE_DNS, "3"), dbid=267, data={"goal_statement": "statement3"}),
-    ]]
+    command_db.filter.return_value.order_by.side_effect = [
+        [
+            Command(id=uuid5(NAMESPACE_DNS, "1"), dbid=258, data={"goal_statement": "statement1"}),
+            Command(id=uuid5(NAMESPACE_DNS, "2"), dbid=259, data={"goal_statement": "statement2"}),
+            Command(id=uuid5(NAMESPACE_DNS, "3"), dbid=267, data={"goal_statement": "statement3"}),
+        ],
+    ]
     tested = LimitedCache("patientUuid", "providerUuid", {})
     expected = [
         CodedItem(uuid="b04965e6-a9bb-591f-8f8a-1adcb2c8dc39", code="258", label="statement1"),
@@ -453,10 +463,7 @@ def test_current_goals(command_db):
     result = tested.current_goals()
     assert result == expected
     assert tested._goals == expected
-    calls = [
-        call.filter(patient__id="patientUuid", schema_key="goal"),
-        call.filter().order_by('-dbid'),
-    ]
+    calls = [call.filter(patient__id="patientUuid", schema_key="goal"), call.filter().order_by("-dbid")]
     assert command_db.mock_calls == calls
     reset_mocks()
 
@@ -467,7 +474,7 @@ def test_current_goals(command_db):
     reset_mocks()
 
 
-@patch.object(LimitedCache, 'retrieve_conditions')
+@patch.object(LimitedCache, "retrieve_conditions")
 def test_current_conditions(retrieve_conditions):
     def reset_mocks():
         retrieve_conditions.reset_mock()
@@ -488,8 +495,8 @@ def test_current_conditions(retrieve_conditions):
     reset_mocks()
 
 
-@patch.object(Medication, 'codings')
-@patch.object(Medication, 'objects')
+@patch.object(Medication, "codings")
+@patch.object(Medication, "objects")
 def test_current_medications(medication_db, codings_db):
     def reset_mocks():
         medication_db.reset_mock()
@@ -513,9 +520,7 @@ def test_current_medications(medication_db, codings_db):
             MedicationCoding(system=rx_norm, display="display3a", code="CODE9876"),
             MedicationCoding(system=fdb, display="display3c", code="CODE8976"),
         ],
-        [
-            MedicationCoding(system=fdb, display="display4c", code="CODE5654"),
-        ],
+        [MedicationCoding(system=fdb, display="display4c", code="CODE5654")],
     ]
     medication_db.committed.return_value.for_patient.return_value.filter.return_value.order_by.side_effect = [
         [
@@ -566,9 +571,9 @@ def test_current_medications(medication_db, codings_db):
     assert tested._medications == expected
     calls = [
         call.committed(),
-        call.committed().for_patient('patientUuid'),
+        call.committed().for_patient("patientUuid"),
         call.committed().for_patient().filter(status="active"),
-        call.committed().for_patient().filter().order_by('-dbid'),
+        call.committed().for_patient().filter().order_by("-dbid"),
     ]
     assert medication_db.mock_calls == calls
     calls = [call.all(), call.all(), call.all(), call.all()]
@@ -583,8 +588,15 @@ def test_current_medications(medication_db, codings_db):
     reset_mocks()
 
 
-@patch.object(AllergyIntolerance, 'codings')
-@patch.object(AllergyIntolerance, 'objects')
+def test_current_immunizations():
+    tested = LimitedCache("patientUuid", "providerUuid", {})
+    result = tested.current_immunizations()
+    assert result == []
+    assert tested._immunizations == []
+
+
+@patch.object(AllergyIntolerance, "codings")
+@patch.object(AllergyIntolerance, "objects")
 def test_current_allergies(allergy_db, codings_db):
     def reset_mocks():
         allergy_db.reset_mock()
@@ -622,9 +634,9 @@ def test_current_allergies(allergy_db, codings_db):
     assert tested._allergies == expected
     calls = [
         call.committed(),
-        call.committed().for_patient('patientUuid'),
+        call.committed().for_patient("patientUuid"),
         call.committed().for_patient().filter(status="active"),
-        call.committed().for_patient().filter().order_by('-dbid'),
+        call.committed().for_patient().filter().order_by("-dbid"),
     ]
     assert allergy_db.mock_calls == calls
     calls = [call.all(), call.all(), call.all()]
@@ -650,7 +662,7 @@ def test_family_history():
     assert tested._family_history == []
 
 
-@patch.object(LimitedCache, 'retrieve_conditions')
+@patch.object(LimitedCache, "retrieve_conditions")
 def test_condition_history(retrieve_conditions):
     def reset_mocks():
         retrieve_conditions.reset_mock()
@@ -671,7 +683,7 @@ def test_condition_history(retrieve_conditions):
     reset_mocks()
 
 
-@patch.object(LimitedCache, 'retrieve_conditions')
+@patch.object(LimitedCache, "retrieve_conditions")
 def test_surgery_history(retrieve_conditions):
     def reset_mocks():
         retrieve_conditions.reset_mock()
@@ -692,7 +704,7 @@ def test_surgery_history(retrieve_conditions):
     reset_mocks()
 
 
-@patch.object(NoteType, 'objects')
+@patch.object(NoteType, "objects")
 def test_existing_note_types(note_type_db):
     def reset_mocks():
         note_type_db.reset_mock()
@@ -713,10 +725,7 @@ def test_existing_note_types(note_type_db):
     result = tested.existing_note_types()
     assert result == expected
     assert tested._note_type == expected
-    calls = [
-        call.filter(is_active=True, is_visible=True, is_scheduleable=True),
-        call.filter().order_by('-dbid'),
-    ]
+    calls = [call.filter(is_active=True, is_visible=True, is_scheduleable=True), call.filter().order_by("-dbid")]
     assert note_type_db.mock_calls == calls
     reset_mocks()
 
@@ -727,7 +736,7 @@ def test_existing_note_types(note_type_db):
     reset_mocks()
 
 
-@patch.object(ReasonForVisitSettingCoding, 'objects')
+@patch.object(ReasonForVisitSettingCoding, "objects")
 def test_existing_reason_for_visits(rfv_coding_db):
     def reset_mocks():
         rfv_coding_db.reset_mock()
@@ -748,7 +757,7 @@ def test_existing_reason_for_visits(rfv_coding_db):
     result = tested.existing_reason_for_visits()
     assert result == expected
     assert tested._reason_for_visit == expected
-    calls = [call.order_by('-dbid')]
+    calls = [call.order_by("-dbid")]
     assert rfv_coding_db.mock_calls == calls
     reset_mocks()
 
@@ -759,7 +768,7 @@ def test_existing_reason_for_visits(rfv_coding_db):
     reset_mocks()
 
 
-@patch.object(Staff, 'objects')
+@patch.object(Staff, "objects")
 def test_existing_staff_members(staff_db):
     def reset_mocks():
         staff_db.reset_mock()
@@ -780,10 +789,7 @@ def test_existing_staff_members(staff_db):
     result = tested.existing_staff_members()
     assert result == expected
     assert tested._staff_members == expected
-    calls = [
-        call.filter(active=True),
-        call.filter().order_by('last_name'),
-    ]
+    calls = [call.filter(active=True), call.filter().order_by("last_name")]
     assert staff_db.mock_calls == calls
     reset_mocks()
 
@@ -794,17 +800,13 @@ def test_existing_staff_members(staff_db):
     reset_mocks()
 
 
-@patch.object(TaskLabel, 'objects')
+@patch.object(TaskLabel, "objects")
 def test_existing_task_labels(task_label_db):
     def reset_mocks():
         task_label_db.reset_mock()
 
     task_label_db.filter.return_value.order_by.side_effect = [
-        [
-            TaskLabel(dbid=1245, name="name1"),
-            TaskLabel(dbid=1277, name="name2"),
-            TaskLabel(dbid=1296, name="name3"),
-        ],
+        [TaskLabel(dbid=1245, name="name1"), TaskLabel(dbid=1277, name="name2"), TaskLabel(dbid=1296, name="name3")],
     ]
     tested = LimitedCache("patientUuid", "providerUuid", {})
     expected = [
@@ -815,10 +817,7 @@ def test_existing_task_labels(task_label_db):
     result = tested.existing_task_labels()
     assert result == expected
     assert tested._task_labels == expected
-    calls = [
-        call.filter(active=True),
-        call.filter().order_by('name'),
-    ]
+    calls = [call.filter(active=True), call.filter().order_by("name")]
     assert task_label_db.mock_calls == calls
     reset_mocks()
 
@@ -829,9 +828,9 @@ def test_existing_task_labels(task_label_db):
     reset_mocks()
 
 
-@patch('hyperscribe.libraries.limited_cache.date')
-@patch.object(Observation, 'objects')
-@patch.object(Patient, 'objects')
+@patch("hyperscribe.libraries.limited_cache.date")
+@patch.object(Observation, "objects")
+@patch.object(Patient, "objects")
 def test_demographic__str__(patient_db, observation_db, mock_date):
     def reset_mocks():
         patient_db.reset_mock()
@@ -845,68 +844,66 @@ def test_demographic__str__(patient_db, observation_db, mock_date):
             "F",
             date(1941, 2, 7),
             False,
-            "the patient is a elderly woman, born on February 07, 1941 (age 83) and weight 124.38 pounds"
+            "the patient is a elderly woman, born on February 07, 1941 (age 83) and weight 124.38 pounds",
         ),
         (
             "F",
             date(1941, 2, 7),
             True,
-            "the patient is a elderly woman, born on <DOB REDACTED> (age 83) and weight 124.38 pounds"
+            "the patient is a elderly woman, born on <DOB REDACTED> (age 83) and weight 124.38 pounds",
         ),
         (
             "F",
             date(2000, 2, 7),
             False,
-            "the patient is a woman, born on February 07, 2000 (age 24) and weight 124.38 pounds"
+            "the patient is a woman, born on February 07, 2000 (age 24) and weight 124.38 pounds",
         ),
         (
             "F",
             date(2020, 2, 7),
             False,
-            "the patient is a girl, born on February 07, 2020 (age 4) and weight 124.38 pounds"
+            "the patient is a girl, born on February 07, 2020 (age 4) and weight 124.38 pounds",
         ),
         (
             "F",
             date(2024, 7, 2),
             False,
-            "the patient is a baby girl, born on July 02, 2024 (age 7 months) and weight 124.38 pounds"
+            "the patient is a baby girl, born on July 02, 2024 (age 7 months) and weight 124.38 pounds",
         ),
         (
             "O",
             date(1941, 2, 7),
             False,
-            "the patient is a elderly man, born on February 07, 1941 (age 83) and weight 124.38 pounds"
+            "the patient is a elderly man, born on February 07, 1941 (age 83) and weight 124.38 pounds",
         ),
         (
             "O",
             date(2000, 2, 7),
             False,
-            "the patient is a man, born on February 07, 2000 (age 24) and weight 124.38 pounds"
+            "the patient is a man, born on February 07, 2000 (age 24) and weight 124.38 pounds",
         ),
         (
             "O",
             date(2020, 2, 7),
             False,
-            "the patient is a boy, born on February 07, 2020 (age 4) and weight 124.38 pounds"
+            "the patient is a boy, born on February 07, 2020 (age 4) and weight 124.38 pounds",
         ),
         (
             "O",
             date(2024, 7, 2),
             False,
-            "the patient is a baby boy, born on July 02, 2024 (age 7 months) and weight 124.38 pounds"
+            "the patient is a baby boy, born on July 02, 2024 (age 7 months) and weight 124.38 pounds",
         ),
         (
             "O",
             date(2024, 7, 2),
             True,
-            "the patient is a baby boy, born on <DOB REDACTED> (age 7 months) and weight 124.38 pounds"
+            "the patient is a baby boy, born on <DOB REDACTED> (age 7 months) and weight 124.38 pounds",
         ),
     ]
 
     for sex_at_birth, birth_date, obfuscate, expected in tests:
-        patient_db.get.side_effect = [
-            Patient(sex_at_birth=sex_at_birth, birth_date=birth_date)
-        ]
+        patient_db.get.side_effect = [Patient(sex_at_birth=sex_at_birth, birth_date=birth_date)]
         observation_db.for_patient.return_value.filter.return_value.order_by.return_value.first.side_effect = [
             Observation(units="oz", value="1990"),
         ]
@@ -937,12 +934,8 @@ def test_demographic__str__(patient_db, observation_db, mock_date):
         reset_mocks()
 
     # no weight
-    patient_db.get.side_effect = [
-        Patient(sex_at_birth="F", birth_date=date(2000, 2, 7))
-    ]
-    observation_db.for_patient.return_value.filter.return_value.order_by.return_value.first.side_effect = [
-        None
-    ]
+    patient_db.get.side_effect = [Patient(sex_at_birth="F", birth_date=date(2000, 2, 7))]
+    observation_db.for_patient.return_value.filter.return_value.order_by.return_value.first.side_effect = [None]
     tested = LimitedCache("patientUuid", "providerUuid", {})
     result = tested.demographic__str__(False)
     expected = "the patient is a woman, born on February 07, 2000 (age 24)"
@@ -962,9 +955,7 @@ def test_demographic__str__(patient_db, observation_db, mock_date):
     reset_mocks()
 
     # weight as pounds
-    patient_db.get.side_effect = [
-        Patient(sex_at_birth="F", birth_date=date(2000, 2, 7))
-    ]
+    patient_db.get.side_effect = [Patient(sex_at_birth="F", birth_date=date(2000, 2, 7))]
     observation_db.for_patient.return_value.filter.return_value.order_by.return_value.first.side_effect = [
         Observation(units="any", value="125"),
     ]
@@ -987,9 +978,9 @@ def test_demographic__str__(patient_db, observation_db, mock_date):
     reset_mocks()
 
 
-@patch.object(PracticeLocation, 'settings')
-@patch.object(PracticeLocation, 'objects')
-@patch.object(Staff, 'objects')
+@patch.object(PracticeLocation, "settings")
+@patch.object(PracticeLocation, "objects")
+@patch.object(Staff, "objects")
 def test_practice_setting(staff_db, practice_location_db, practice_settings_db):
     def reset_mocks():
         staff_db.reset_mock()
@@ -1004,7 +995,9 @@ def test_practice_setting(staff_db, practice_location_db, practice_settings_db):
     for idx in range(3):
         staff_db.filter.return_value.first.side_effect = [Staff(primary_practice_location=None)]
         practice_location_db.order_by.return_value.first.side_effect = [PracticeLocation(full_name="theLocation")]
-        practice_settings_db.filter.return_value.order_by.return_value.first.side_effect = [PracticeLocationSetting(value="theValue")]
+        practice_settings_db.filter.return_value.order_by.return_value.first.side_effect = [
+            PracticeLocationSetting(value="theValue"),
+        ]
 
         result = tested.practice_setting("theSetting")
         expected = "theValue"
@@ -1015,29 +1008,23 @@ def test_practice_setting(staff_db, practice_location_db, practice_settings_db):
             assert practice_location_db.mock_calls == []
             assert practice_settings_db.mock_calls == []
         else:
-            calls = [
-                call.filter(id='providerUuid'),
-                call.filter().first(),
-            ]
+            calls = [call.filter(id="providerUuid"), call.filter().first()]
             assert staff_db.mock_calls == calls
-            calls = [
-                call.order_by('dbid'),
-                call.order_by().first(),
-            ]
+            calls = [call.order_by("dbid"), call.order_by().first()]
             assert practice_location_db.mock_calls == calls
-            calls = [
-                call.filter(name='theSetting'),
-                call.filter().order_by('dbid'),
-                call.filter().order_by().first(),
-            ]
+            calls = [call.filter(name="theSetting"), call.filter().order_by("dbid"), call.filter().order_by().first()]
             assert practice_settings_db.mock_calls == calls
         reset_mocks()
     # -- provider has one primary practice
     tested._settings = {}
     for idx in range(3):
-        staff_db.filter.return_value.first.side_effect = [Staff(primary_practice_location=PracticeLocation(full_name="theLocation"))]
+        staff_db.filter.return_value.first.side_effect = [
+            Staff(primary_practice_location=PracticeLocation(full_name="theLocation")),
+        ]
         practice_location_db.order_by.return_value.first.side_effect = []
-        practice_settings_db.filter.return_value.order_by.return_value.first.side_effect = [PracticeLocationSetting(value="theValue")]
+        practice_settings_db.filter.return_value.order_by.return_value.first.side_effect = [
+            PracticeLocationSetting(value="theValue"),
+        ]
 
         result = tested.practice_setting("theSetting")
         expected = "theValue"
@@ -1048,17 +1035,10 @@ def test_practice_setting(staff_db, practice_location_db, practice_settings_db):
             assert practice_location_db.mock_calls == []
             assert practice_settings_db.mock_calls == []
         else:
-            calls = [
-                call.filter(id='providerUuid'),
-                call.filter().first(),
-            ]
+            calls = [call.filter(id="providerUuid"), call.filter().first()]
             assert staff_db.mock_calls == calls
             assert practice_location_db.mock_calls == []
-            calls = [
-                call.filter(name='theSetting'),
-                call.filter().order_by('dbid'),
-                call.filter().order_by().first(),
-            ]
+            calls = [call.filter(name="theSetting"), call.filter().order_by("dbid"), call.filter().order_by().first()]
             assert practice_settings_db.mock_calls == calls
         reset_mocks()
 
@@ -1077,21 +1057,11 @@ def test_practice_setting(staff_db, practice_location_db, practice_settings_db):
             assert practice_location_db.mock_calls == []
             assert practice_settings_db.mock_calls == []
         else:
-            calls = [
-                call.filter(id='providerUuid'),
-                call.filter().first(),
-            ]
+            calls = [call.filter(id="providerUuid"), call.filter().first()]
             assert staff_db.mock_calls == calls
-            calls = [
-                call.order_by('dbid'),
-                call.order_by().first(),
-            ]
+            calls = [call.order_by("dbid"), call.order_by().first()]
             assert practice_location_db.mock_calls == calls
-            calls = [
-                call.filter(name='theSetting'),
-                call.filter().order_by('dbid'),
-                call.filter().order_by().first(),
-            ]
+            calls = [call.filter(name="theSetting"), call.filter().order_by("dbid"), call.filter().order_by().first()]
             assert practice_settings_db.mock_calls == calls
         reset_mocks()
 
@@ -1110,15 +1080,9 @@ def test_practice_setting(staff_db, practice_location_db, practice_settings_db):
             assert practice_location_db.mock_calls == []
             assert practice_settings_db.mock_calls == []
         else:
-            calls = [
-                call.filter(id='providerUuid'),
-                call.filter().first(),
-            ]
+            calls = [call.filter(id="providerUuid"), call.filter().first()]
             assert staff_db.mock_calls == calls
-            calls = [
-                call.order_by('dbid'),
-                call.order_by().first(),
-            ]
+            calls = [call.order_by("dbid"), call.order_by().first()]
             assert practice_location_db.mock_calls == calls
             assert practice_settings_db.mock_calls == []
         reset_mocks()
@@ -1128,7 +1092,9 @@ def test_practice_setting(staff_db, practice_location_db, practice_settings_db):
     for idx in range(3):
         staff_db.filter.return_value.first.side_effect = [None]
         practice_location_db.order_by.return_value.first.side_effect = [PracticeLocation(full_name="theLocation")]
-        practice_settings_db.filter.return_value.order_by.return_value.first.side_effect = [PracticeLocationSetting(value="theValue")]
+        practice_settings_db.filter.return_value.order_by.return_value.first.side_effect = [
+            PracticeLocationSetting(value="theValue"),
+        ]
 
         result = tested.practice_setting("theSetting")
         expected = "theValue"
@@ -1139,26 +1105,16 @@ def test_practice_setting(staff_db, practice_location_db, practice_settings_db):
             assert practice_location_db.mock_calls == []
             assert practice_settings_db.mock_calls == []
         else:
-            calls = [
-                call.filter(id='providerUuid'),
-                call.filter().first(),
-            ]
+            calls = [call.filter(id="providerUuid"), call.filter().first()]
             assert staff_db.mock_calls == calls
-            calls = [
-                call.order_by('dbid'),
-                call.order_by().first(),
-            ]
+            calls = [call.order_by("dbid"), call.order_by().first()]
             assert practice_location_db.mock_calls == calls
-            calls = [
-                call.filter(name='theSetting'),
-                call.filter().order_by('dbid'),
-                call.filter().order_by().first(),
-            ]
+            calls = [call.filter(name="theSetting"), call.filter().order_by("dbid"), call.filter().order_by().first()]
             assert practice_settings_db.mock_calls == calls
         reset_mocks()
 
 
-@patch.object(LimitedCache, 'practice_setting')
+@patch.object(LimitedCache, "practice_setting")
 @patch.object(LabPartner, "objects")
 def test_preferred_lab_partner(lab_partner_db, practice_setting):
     def reset_mocks():
@@ -1185,47 +1141,46 @@ def test_preferred_lab_partner(lab_partner_db, practice_setting):
                 assert lab_partner_db.mock_calls == []
                 assert practice_setting.mock_calls == []
             else:
-                calls = [
-                    call.filter(name='thePreferredLab'),
-                    call.filter().first(),
-                ]
+                calls = [call.filter(name="thePreferredLab"), call.filter().first()]
                 assert lab_partner_db.mock_calls == calls
                 calls = [call("preferredLabPartner")]
                 assert practice_setting.mock_calls == calls
             reset_mocks()
 
 
-@patch.object(LimitedCache, 'existing_staff_members')
-@patch.object(LimitedCache, 'existing_task_labels')
-@patch.object(LimitedCache, 'preferred_lab_partner')
-@patch.object(LimitedCache, 'practice_setting')
-@patch.object(LimitedCache, 'surgery_history')
-@patch.object(LimitedCache, 'family_history')
-@patch.object(LimitedCache, 'existing_reason_for_visits')
-@patch.object(LimitedCache, 'existing_note_types')
-@patch.object(LimitedCache, 'current_medications')
-@patch.object(LimitedCache, 'current_goals')
-@patch.object(LimitedCache, 'current_conditions')
-@patch.object(LimitedCache, 'current_allergies')
-@patch.object(LimitedCache, 'condition_history')
-@patch.object(LimitedCache, 'charge_descriptions')
-@patch.object(LimitedCache, 'demographic__str__')
+@patch.object(LimitedCache, "existing_staff_members")
+@patch.object(LimitedCache, "existing_task_labels")
+@patch.object(LimitedCache, "preferred_lab_partner")
+@patch.object(LimitedCache, "practice_setting")
+@patch.object(LimitedCache, "surgery_history")
+@patch.object(LimitedCache, "family_history")
+@patch.object(LimitedCache, "existing_reason_for_visits")
+@patch.object(LimitedCache, "existing_note_types")
+@patch.object(LimitedCache, "current_medications")
+@patch.object(LimitedCache, "current_immunizations")
+@patch.object(LimitedCache, "current_goals")
+@patch.object(LimitedCache, "current_conditions")
+@patch.object(LimitedCache, "current_allergies")
+@patch.object(LimitedCache, "condition_history")
+@patch.object(LimitedCache, "charge_descriptions")
+@patch.object(LimitedCache, "demographic__str__")
 def test_to_json(
-        demographic,
-        charge_descriptions,
-        condition_history,
-        current_allergies,
-        current_conditions,
-        current_goals,
-        current_medications,
-        existing_note_types,
-        existing_reason_for_visits,
-        family_history,
-        surgery_history,
-        practice_setting,
-        preferred_lab_partner,
-        existing_task_labels,
-        existing_staff_members,
+    demographic,
+    charge_descriptions,
+    condition_history,
+    current_allergies,
+    current_conditions,
+    current_goals,
+    current_immunizations,
+    current_medications,
+    existing_note_types,
+    existing_reason_for_visits,
+    family_history,
+    surgery_history,
+    practice_setting,
+    preferred_lab_partner,
+    existing_task_labels,
+    existing_staff_members,
 ):
     def reset_mocks():
         demographic.reset_mock()
@@ -1234,6 +1189,7 @@ def test_to_json(
         current_allergies.reset_mock()
         current_conditions.reset_mock()
         current_goals.reset_mock()
+        current_immunizations.reset_mock()
         current_medications.reset_mock()
         existing_note_types.reset_mock()
         existing_reason_for_visits.reset_mock()
@@ -1261,102 +1217,120 @@ def test_to_json(
             CodedItem(uuid="uuid054", label="label054", code="code054"),
             CodedItem(uuid="uuid154", label="label154", code="code154"),
         ],
-        "word1 word2": [
-            CodedItem(uuid="uuid157", label="label157", code="code157"),
-        ],
+        "word1 word2": [CodedItem(uuid="uuid157", label="label157", code="code157")],
     }
 
     for obfuscate in [True, False]:
         demographic.side_effect = ["theDemographic"]
-        charge_descriptions.side_effect = [[
-            ChargeDescription(short_name="shortName1", full_name="fullName1", cpt_code="code1"),
-            ChargeDescription(short_name="shortName2", full_name="fullName2", cpt_code="code2"),
-        ]]
-        condition_history.side_effect = [[
-            CodedItem(uuid="uuid002", label="label002", code="code002"),
-            CodedItem(uuid="uuid102", label="label102", code="code102"),
-        ]]
-        current_allergies.side_effect = [[
-            CodedItem(uuid="uuid003", label="label003", code="code003"),
-            CodedItem(uuid="uuid103", label="label103", code="code103"),
-        ]]
-        current_conditions.side_effect = [[
-            CodedItem(uuid="uuid004", label="label004", code="code004"),
-            CodedItem(uuid="uuid104", label="label104", code="code104"),
-        ]]
-        current_goals.side_effect = [[
-            CodedItem(uuid="uuid005", label="label005", code="code005"),
-            CodedItem(uuid="uuid105", label="label105", code="code105"),
-        ]]
-        current_medications.side_effect = [[
-            MedicationCached(
-                uuid="uuid076",
-                label="label076",
-                code_rx_norm="code076",
-                code_fdb="code987",
-                national_drug_code="ndc12",
-                potency_unit_code="puc78",
-            ),
-            MedicationCached(
-                uuid="uuid176",
-                label="label176",
-                code_rx_norm="code176",
-                code_fdb="code998",
-                national_drug_code="ndc17",
-                potency_unit_code="puc56",
-            ),
-        ]]
-        existing_note_types.side_effect = [[
-            CodedItem(uuid="uuid007", label="label007", code="code007"),
-            CodedItem(uuid="uuid107", label="label107", code="code107"),
-        ]]
-        existing_reason_for_visits.side_effect = [[
-            CodedItem(uuid="uuid009", label="label009", code="code009"),
-            CodedItem(uuid="uuid109", label="label109", code="code109"),
-        ]]
-        family_history.side_effect = [[
-            CodedItem(uuid="uuid010", label="label010", code="code010"),
-            CodedItem(uuid="uuid110", label="label110", code="code110"),
-        ]]
-        surgery_history.side_effect = [[
-            CodedItem(uuid="uuid011", label="label011", code="code011"),
-            CodedItem(uuid="uuid111", label="label111", code="code111"),
-        ]]
-        existing_task_labels.side_effect = [[
-            CodedItem(uuid="uuid091", label="label091", code="code091"),
-            CodedItem(uuid="uuid191", label="label191", code="code191"),
-        ]]
-        existing_staff_members.side_effect = [[
-            CodedItem(uuid="uuid037", label="label037", code="code037"),
-            CodedItem(uuid="uuid137", label="label137", code="code137"),
-        ]]
-        practice_setting.side_effect = [
-            "thePreferredLabPartner",
-            "theServiceAreaZipCodes",
+        charge_descriptions.side_effect = [
+            [
+                ChargeDescription(short_name="shortName1", full_name="fullName1", cpt_code="code1"),
+                ChargeDescription(short_name="shortName2", full_name="fullName2", cpt_code="code2"),
+            ],
         ]
-        preferred_lab_partner.side_effect = [
-            CodedItem(uuid="theUuid", label="theLabel", code="theCode"),
+        condition_history.side_effect = [
+            [
+                CodedItem(uuid="uuid002", label="label002", code="code002"),
+                CodedItem(uuid="uuid102", label="label102", code="code102"),
+            ],
         ]
+        current_allergies.side_effect = [
+            [
+                CodedItem(uuid="uuid003", label="label003", code="code003"),
+                CodedItem(uuid="uuid103", label="label103", code="code103"),
+            ],
+        ]
+        current_conditions.side_effect = [
+            [
+                CodedItem(uuid="uuid004", label="label004", code="code004"),
+                CodedItem(uuid="uuid104", label="label104", code="code104"),
+            ],
+        ]
+        current_goals.side_effect = [
+            [
+                CodedItem(uuid="uuid005", label="label005", code="code005"),
+                CodedItem(uuid="uuid105", label="label105", code="code105"),
+            ],
+        ]
+        current_medications.side_effect = [
+            [
+                MedicationCached(
+                    uuid="uuid076",
+                    label="label076",
+                    code_rx_norm="code076",
+                    code_fdb="code987",
+                    national_drug_code="ndc12",
+                    potency_unit_code="puc78",
+                ),
+                MedicationCached(
+                    uuid="uuid176",
+                    label="label176",
+                    code_rx_norm="code176",
+                    code_fdb="code998",
+                    national_drug_code="ndc17",
+                    potency_unit_code="puc56",
+                ),
+            ],
+        ]
+        existing_note_types.side_effect = [
+            [
+                CodedItem(uuid="uuid007", label="label007", code="code007"),
+                CodedItem(uuid="uuid107", label="label107", code="code107"),
+            ],
+        ]
+        existing_reason_for_visits.side_effect = [
+            [
+                CodedItem(uuid="uuid009", label="label009", code="code009"),
+                CodedItem(uuid="uuid109", label="label109", code="code109"),
+            ],
+        ]
+        family_history.side_effect = [
+            [
+                CodedItem(uuid="uuid010", label="label010", code="code010"),
+                CodedItem(uuid="uuid110", label="label110", code="code110"),
+            ],
+        ]
+        surgery_history.side_effect = [
+            [
+                CodedItem(uuid="uuid011", label="label011", code="code011"),
+                CodedItem(uuid="uuid111", label="label111", code="code111"),
+            ],
+        ]
+        existing_task_labels.side_effect = [
+            [
+                CodedItem(uuid="uuid091", label="label091", code="code091"),
+                CodedItem(uuid="uuid191", label="label191", code="code191"),
+            ],
+        ]
+        existing_staff_members.side_effect = [
+            [
+                CodedItem(uuid="uuid037", label="label037", code="code037"),
+                CodedItem(uuid="uuid137", label="label137", code="code137"),
+            ],
+        ]
+        practice_setting.side_effect = ["thePreferredLabPartner", "theServiceAreaZipCodes"]
+        preferred_lab_partner.side_effect = [CodedItem(uuid="theUuid", label="theLabel", code="theCode")]
 
         result = tested.to_json(obfuscate)
         expected = {
-            'conditionHistory': [
-                {'code': 'code002', 'label': 'label002', 'uuid': 'uuid002'},
-                {'code': 'code102', 'label': 'label102', 'uuid': 'uuid102'},
+            "conditionHistory": [
+                {"code": "code002", "label": "label002", "uuid": "uuid002"},
+                {"code": "code102", "label": "label102", "uuid": "uuid102"},
             ],
-            'currentAllergies': [
-                {'code': 'code003', 'label': 'label003', 'uuid': 'uuid003'},
-                {'code': 'code103', 'label': 'label103', 'uuid': 'uuid103'},
+            "currentAllergies": [
+                {"code": "code003", "label": "label003", "uuid": "uuid003"},
+                {"code": "code103", "label": "label103", "uuid": "uuid103"},
             ],
-            'currentConditions': [
-                {'code': 'code004', 'label': 'label004', 'uuid': 'uuid004'},
-                {'code': 'code104', 'label': 'label104', 'uuid': 'uuid104'},
+            "currentConditions": [
+                {"code": "code004", "label": "label004", "uuid": "uuid004"},
+                {"code": "code104", "label": "label104", "uuid": "uuid104"},
             ],
-            'currentGoals': [
-                {'code': 'code005', 'label': 'label005', 'uuid': 'uuid005'},
-                {'code': 'code105', 'label': 'label105', 'uuid': 'uuid105'},
+            "currentGoals": [
+                {"code": "code005", "label": "label005", "uuid": "uuid005"},
+                {"code": "code105", "label": "label105", "uuid": "uuid105"},
             ],
-            'currentMedications': [
+            "currentImmunization": [],
+            "currentMedications": [
                 {
                     "codeRxNorm": "code076",
                     "label": "label076",
@@ -1374,51 +1348,45 @@ def test_to_json(
                     "potencyUnitCode": "puc56",
                 },
             ],
-            'demographicStr': 'theDemographic',
-            'existingNoteTypes': [
-                {'code': 'code007', 'label': 'label007', 'uuid': 'uuid007'},
-                {'code': 'code107', 'label': 'label107', 'uuid': 'uuid107'},
+            "demographicStr": "theDemographic",
+            "existingNoteTypes": [
+                {"code": "code007", "label": "label007", "uuid": "uuid007"},
+                {"code": "code107", "label": "label107", "uuid": "uuid107"},
             ],
-            'existingReasonForVisit': [
-                {'code': 'code009', 'label': 'label009', 'uuid': 'uuid009'},
-                {'code': 'code109', 'label': 'label109', 'uuid': 'uuid109'},
+            "existingReasonForVisit": [
+                {"code": "code009", "label": "label009", "uuid": "uuid009"},
+                {"code": "code109", "label": "label109", "uuid": "uuid109"},
             ],
-            'existingStaffMembers': [],
-            'existingTaskLabels': [
-                {'code': 'code091', 'label': 'label091', 'uuid': 'uuid091'},
-                {'code': 'code191', 'label': 'label191', 'uuid': 'uuid191'},
+            "existingStaffMembers": [],
+            "existingTaskLabels": [
+                {"code": "code091", "label": "label091", "uuid": "uuid091"},
+                {"code": "code191", "label": "label191", "uuid": "uuid191"},
             ],
-            'familyHistory': [
-                {'code': 'code010', 'label': 'label010', 'uuid': 'uuid010'},
-                {'code': 'code110', 'label': 'label110', 'uuid': 'uuid110'},
+            "familyHistory": [
+                {"code": "code010", "label": "label010", "uuid": "uuid010"},
+                {"code": "code110", "label": "label110", "uuid": "uuid110"},
             ],
-            'stagedCommands': {
-                'keyX': [
-                    {'code': 'code1', 'label': 'label1', 'uuid': 'uuid1'},
-                ],
-                'keyY': [],
-                'keyZ': [
-                    {'code': 'code3', 'label': 'label3', 'uuid': 'uuid3'},
-                    {'code': 'code2', 'label': 'label2', 'uuid': 'uuid2'},
+            "stagedCommands": {
+                "keyX": [{"code": "code1", "label": "label1", "uuid": "uuid1"}],
+                "keyY": [],
+                "keyZ": [
+                    {"code": "code3", "label": "label3", "uuid": "uuid3"},
+                    {"code": "code2", "label": "label2", "uuid": "uuid2"},
                 ],
             },
-            'surgeryHistory': [
-                {'code': 'code011', 'label': 'label011', 'uuid': 'uuid011'},
-                {'code': 'code111', 'label': 'label111', 'uuid': 'uuid111'},
+            "surgeryHistory": [
+                {"code": "code011", "label": "label011", "uuid": "uuid011"},
+                {"code": "code111", "label": "label111", "uuid": "uuid111"},
             ],
-            'chargeDescriptions': [
-                {'fullName': 'fullName1', 'shortName': 'shortName1', 'cptCode': 'code1'},
-                {'fullName': 'fullName2', 'shortName': 'shortName2', 'cptCode': 'code2'},
+            "chargeDescriptions": [
+                {"fullName": "fullName1", "shortName": "shortName1", "cptCode": "code1"},
+                {"fullName": "fullName2", "shortName": "shortName2", "cptCode": "code2"},
             ],
             "settings": {
                 "preferredLabPartner": "thePreferredLabPartner",
                 "serviceAreaZipCodes": "theServiceAreaZipCodes",
             },
-            "preferredLabPartner": {
-                "uuid": "theUuid",
-                "label": "theLabel",
-                "code": "theCode",
-            },
+            "preferredLabPartner": {"uuid": "theUuid", "label": "theLabel", "code": "theCode"},
             "labTests": {},
         }
 
@@ -1444,105 +1412,115 @@ def test_to_json(
 
 def test_load_from_json():
     tested = LimitedCache
-    result = tested.load_from_json({
-        "conditionHistory": [
-            {"code": "code002", "label": "label002", "uuid": "uuid002"},
-            {"code": "code102", "label": "label102", "uuid": "uuid102"},
-        ],
-        "currentAllergies": [
-            {"code": "code003", "label": "label003", "uuid": "uuid003"},
-            {"code": "code103", "label": "label103", "uuid": "uuid103"},
-        ],
-        "currentConditions": [
-            {"code": "code004", "label": "label004", "uuid": "uuid004"},
-            {"code": "code104", "label": "label104", "uuid": "uuid104"},
-        ],
-        "currentGoals": [
-            {"code": "code005", "label": "label005", "uuid": "uuid005"},
-            {"code": "code105", "label": "label105", "uuid": "uuid105"},
-        ],
-        "currentMedications": [
-            {"code": "code006", "label": "label006", "uuid": "uuid006"},
-            {"code": "code106", "label": "label106", "uuid": "uuid106"},
-            {
-                "codeRxNorm": "code076",
-                "label": "label076",
-                "uuid": "uuid076",
-                "codeFdb": "code987",
-                "nationalDrugCode": "ndc12",
-                "potencyUnitCode": "puc78",
+    result = tested.load_from_json(
+        {
+            "conditionHistory": [
+                {"code": "code002", "label": "label002", "uuid": "uuid002"},
+                {"code": "code102", "label": "label102", "uuid": "uuid102"},
+            ],
+            "currentAllergies": [
+                {"code": "code003", "label": "label003", "uuid": "uuid003"},
+                {"code": "code103", "label": "label103", "uuid": "uuid103"},
+            ],
+            "currentConditions": [
+                {"code": "code004", "label": "label004", "uuid": "uuid004"},
+                {"code": "code104", "label": "label104", "uuid": "uuid104"},
+            ],
+            "currentGoals": [
+                {"code": "code005", "label": "label005", "uuid": "uuid005"},
+                {"code": "code105", "label": "label105", "uuid": "uuid105"},
+            ],
+            "currentImmunization": [
+                {
+                    "uuid": "uuid321",
+                    "label": "label321",
+                    "codeCpt": "codeCpt321",
+                    "codeCvx": "codeCvx321",
+                    "comments": "theComments321",
+                    "approximateDate": "2025-07-21",
+                },
+                {
+                    "uuid": "uuid323",
+                    "label": "label323",
+                    "codeCpt": "codeCpt323",
+                    "codeCvx": "codeCvx323",
+                    "comments": "theComments323",
+                    "approximateDate": "2025-07-23",
+                },
+            ],
+            "currentMedications": [
+                {"code": "code006", "label": "label006", "uuid": "uuid006"},
+                {"code": "code106", "label": "label106", "uuid": "uuid106"},
+                {
+                    "codeRxNorm": "code076",
+                    "label": "label076",
+                    "uuid": "uuid076",
+                    "codeFdb": "code987",
+                    "nationalDrugCode": "ndc12",
+                    "potencyUnitCode": "puc78",
+                },
+                {
+                    "codeRxNorm": "code176",
+                    "label": "label176",
+                    "uuid": "uuid176",
+                    "codeFdb": "code998",
+                    "nationalDrugCode": "ndc17",
+                    "potencyUnitCode": "puc56",
+                },
+            ],
+            "demographicStr": "theDemographic",
+            "existingNoteTypes": [
+                {"code": "code008", "label": "label008", "uuid": "uuid008"},
+                {"code": "code108", "label": "label108", "uuid": "uuid108"},
+            ],
+            "existingReasonForVisit": [
+                {"code": "code009", "label": "label009", "uuid": "uuid009"},
+                {"code": "code109", "label": "label109", "uuid": "uuid109"},
+            ],
+            "existingStaffMembers": [
+                {"code": "code037", "label": "label037", "uuid": "uuid037"},
+                {"code": "code137", "label": "label137", "uuid": "uuid137"},
+            ],
+            "existingTaskLabels": [
+                {"code": "code091", "label": "label091", "uuid": "uuid091"},
+                {"code": "code191", "label": "label191", "uuid": "uuid191"},
+            ],
+            "familyHistory": [
+                {"code": "code010", "label": "label010", "uuid": "uuid010"},
+                {"code": "code110", "label": "label110", "uuid": "uuid110"},
+            ],
+            "stagedCommands": {
+                "keyX": [{"code": "code1", "label": "label1", "uuid": "uuid1"}],
+                "keyY": [],
+                "keyZ": [
+                    {"code": "code3", "label": "label3", "uuid": "uuid3"},
+                    {"code": "code2", "label": "label2", "uuid": "uuid2"},
+                ],
             },
-            {
-                "codeRxNorm": "code176",
-                "label": "label176",
-                "uuid": "uuid176",
-                "codeFdb": "code998",
-                "nationalDrugCode": "ndc17",
-                "potencyUnitCode": "puc56",
+            "surgeryHistory": [
+                {"code": "code011", "label": "label011", "uuid": "uuid011"},
+                {"code": "code111", "label": "label111", "uuid": "uuid111"},
+            ],
+            "chargeDescriptions": [
+                {"full_name": "fullName1", "short_name": "shortName1", "cpt_code": "code1"},
+                {"fullName": "fullName2", "shortName": "shortName2", "cptCode": "code2"},
+            ],
+            "settings": {
+                "preferredLabPartner": "thePreferredLabPartner",
+                "serviceAreaZipCodes": "theServiceAreaZipCodes",
             },
-        ],
-        "demographicStr": "theDemographic",
-        "existingNoteTypes": [
-            {"code": "code008", "label": "label008", "uuid": "uuid008"},
-            {"code": "code108", "label": "label108", "uuid": "uuid108"},
-        ],
-        "existingReasonForVisit": [
-            {"code": "code009", "label": "label009", "uuid": "uuid009"},
-            {"code": "code109", "label": "label109", "uuid": "uuid109"},
-        ],
-        'existingStaffMembers': [
-            {'code': 'code037', 'label': 'label037', 'uuid': 'uuid037'},
-            {'code': 'code137', 'label': 'label137', 'uuid': 'uuid137'},
-        ],
-        'existingTaskLabels': [
-            {'code': 'code091', 'label': 'label091', 'uuid': 'uuid091'},
-            {'code': 'code191', 'label': 'label191', 'uuid': 'uuid191'},
-        ],
-        "familyHistory": [
-            {"code": "code010", "label": "label010", "uuid": "uuid010"},
-            {"code": "code110", "label": "label110", "uuid": "uuid110"},
-        ],
-        "stagedCommands": {
-            "keyX": [
-                {"code": "code1", "label": "label1", "uuid": "uuid1"},
-            ],
-            "keyY": [],
-            "keyZ": [
-                {"code": "code3", "label": "label3", "uuid": "uuid3"},
-                {"code": "code2", "label": "label2", "uuid": "uuid2"},
-            ],
+            "preferredLabPartner": {"uuid": "theUuid", "label": "theLabel", "code": "theCode"},
+            "labTests": {"word1 word2": [{"code": "code157", "label": "label157", "uuid": "uuid157"}]},
         },
-        "surgeryHistory": [
-            {"code": "code011", "label": "label011", "uuid": "uuid011"},
-            {"code": "code111", "label": "label111", "uuid": "uuid111"},
-        ],
-        "chargeDescriptions": [
-            {"full_name": "fullName1", "short_name": "shortName1", "cpt_code": "code1"},
-            {"fullName": "fullName2", "shortName": "shortName2", "cptCode": "code2"},
-        ],
-        "settings": {
-            "preferredLabPartner": "thePreferredLabPartner",
-            "serviceAreaZipCodes": "theServiceAreaZipCodes",
-        },
-        "preferredLabPartner": {
-            "uuid": "theUuid",
-            "label": "theLabel",
-            "code": "theCode",
-        },
-        "labTests": {
-            "word1 word2": [
-                {"code": "code157", "label": "label157", "uuid": "uuid157"},
-            ],
-        },
-    })
+    )
 
     assert result.patient_uuid == "_PatientUuid"
     assert result._staged_commands == {
-        "keyX": [CodedItem(code="code1", label="label1", uuid="uuid1")],
+        "keyX": [CodedItem(code="code1", label="label1", uuid="xyz0000")],
         "keyY": [],
         "keyZ": [
-            CodedItem(code="code3", label="label3", uuid="uuid3"),
-            CodedItem(code="code2", label="label2", uuid="uuid2"),
+            CodedItem(code="code3", label="label3", uuid="xyz2000"),
+            CodedItem(code="code2", label="label2", uuid="xyz2001"),
         ],
     }
     assert result.demographic__str__(True) == "theDemographic"
@@ -1567,9 +1545,41 @@ def test_load_from_json():
         CodedItem(uuid="uuid005", label="label005", code="code005"),
         CodedItem(uuid="uuid105", label="label105", code="code105"),
     ]
+    assert result.current_immunizations() == [
+        ImmunizationCached(
+            uuid="uuid321",
+            label="label321",
+            code_cpt="codeCpt321",
+            code_cvx="codeCvx321",
+            comments="theComments321",
+            approximate_date=date(2025, 7, 21),
+        ),
+        ImmunizationCached(
+            uuid="uuid323",
+            label="label323",
+            code_cpt="codeCpt323",
+            code_cvx="codeCvx323",
+            comments="theComments323",
+            approximate_date=date(2025, 7, 23),
+        ),
+    ]
     assert result.current_medications() == [
-        MedicationCached(uuid="uuid006", label="label006", code_rx_norm="code006", code_fdb="", national_drug_code="", potency_unit_code=""),
-        MedicationCached(uuid="uuid106", label="label106", code_rx_norm="code106", code_fdb="", national_drug_code="", potency_unit_code=""),
+        MedicationCached(
+            uuid="uuid006",
+            label="label006",
+            code_rx_norm="code006",
+            code_fdb="",
+            national_drug_code="",
+            potency_unit_code="",
+        ),
+        MedicationCached(
+            uuid="uuid106",
+            label="label106",
+            code_rx_norm="code106",
+            code_fdb="",
+            national_drug_code="",
+            potency_unit_code="",
+        ),
         MedicationCached(
             uuid="uuid076",
             label="label076",

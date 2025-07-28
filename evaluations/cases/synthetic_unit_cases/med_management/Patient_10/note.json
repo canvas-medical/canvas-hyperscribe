@@ -1,0 +1,76 @@
+[
+  {
+    "instruction": "Try taking the Aripiprazole 400 mg injection right after school next month to manage drowsiness, allowing the heaviest effect to hit overnight.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "comment": "Try taking the Aripiprazole 400 mg injection right after school next month to manage drowsiness, allowing the heaviest effect to hit overnight.",
+        "coding": {
+          "system": "http://snomed.info/sct",
+          "code": "422037009",
+          "display": "Provider's medication administration instructions"
+        }
+      }
+    }
+  },
+  {
+    "instruction": "Track sugary drinks in the Daylio app and provide screenshots at the next appointment.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "comment": "Track sugary drinks in the Daylio app and provide screenshots at the next appointment.",
+        "coding": {
+          "system": "http://snomed.info/sct",
+          "code": "398773005",
+          "display": "Health education - diabetes self-monitoring"
+        }
+      }
+    }
+  },
+  {
+    "instruction": "Next depot injection is due no later than May third, with a reminder sent to the patient's phone and foster parent portal.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.plan",
+      "class": "PlanCommand",
+      "attributes": {
+        "narrative": "Next depot injection is due no later than May third, with a reminder sent to the patient's phone and foster parent portal."
+      }
+    }
+  },
+  {
+    "instruction": "Fax a one-page standing order signed by the clinician to the district health for the school nurse to administer the depot.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.task",
+      "class": "TaskCommand",
+      "attributes": {
+        "due_date": "2025-06-27",
+        "title": "Fax standing order to district health",
+        "comment": "Fax a one-page standing order signed by the clinician to the district health for the school nurse to administer the depot."
+      }
+    }
+  },
+  {
+    "instruction": "If sleepiness persists past day three or if waist size increases, message through the portal. Sudden restlessness could be akathisia, not ADHD, and should be reported early.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "comment": "If sleepiness persists past day three or if waist size increases, message through the portal. Sudden restlessness could be akathisia, not ADHD, and should be reported early."
+      }
+    }
+  },
+  {
+    "instruction": "Issue a letter stating the prescription to cover the patient in case of a drug screen.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.task",
+      "class": "TaskCommand",
+      "attributes": {
+        "due_date": "2025-06-27",
+        "title": "Issue a letter for prescription coverage",
+        "comment": "State the prescription to cover the patient in case of a drug screen."
+      }
+    }
+  }
+]

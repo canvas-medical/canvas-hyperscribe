@@ -54,10 +54,7 @@ def test_schema_key():
 
 def test_staged_command_extract():
     tested = HistoryOfPresentIllness
-    tests = [
-        ({}, None),
-        ({"narrative": "theNarrative"}, CodedItem(label="theNarrative", code="", uuid="")),
-    ]
+    tests = [({}, None), ({"narrative": "theNarrative"}, CodedItem(label="theNarrative", code="", uuid=""))]
     for data, expected in tests:
         result = tested.staged_command_extract(data)
         if expected is None:
@@ -76,16 +73,11 @@ def test_command_from_json():
         "information": "theInformation",
         "is_new": False,
         "is_updated": True,
-        "parameters": {
-            "narrative": "theNarrative",
-        },
+        "parameters": {"narrative": "theNarrative"},
     }
     instruction = InstructionWithParameters(**arguments)
     result = tested.command_from_json(instruction, chatter)
-    command = HistoryOfPresentIllnessCommand(
-        narrative="theNarrative",
-        note_uuid="noteUuid",
-    )
+    command = HistoryOfPresentIllnessCommand(narrative="theNarrative", note_uuid="noteUuid")
     expected = InstructionWithCommand(**(arguments | {"command": command}))
     assert result == expected
     assert chatter.mock_calls == []
@@ -103,9 +95,12 @@ def test_command_parameters():
 def test_instruction_description():
     tested = helper_instance()
     result = tested.instruction_description()
-    expected = ("Highlights of the patient's symptoms and surrounding events and observations. "
-                "There can be multiple highlights within an instruction, but only one such instruction in the whole discussion. "
-                "So, if one was already found, simply update it by intelligently merging all key highlights.")
+    expected = (
+        "Highlights of the patient's symptoms and surrounding events and observations. "
+        "There can be multiple highlights within an instruction, but only one such instruction in the whole "
+        "discussion. "
+        "So, if one was already found, simply update it by intelligently merging all key highlights."
+    )
     assert result == expected
 
 

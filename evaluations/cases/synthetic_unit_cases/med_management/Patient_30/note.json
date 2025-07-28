@@ -1,0 +1,57 @@
+[
+  {
+    "instruction": "Rash burning at night, concern about medication duration and interaction.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.reason_for_visit",
+      "class": "ReasonForVisitCommand",
+      "attributes": {
+        "comment": "Rash burning at night, concern about medication duration and interaction."
+      }
+    }
+  },
+  {
+    "instruction": "Continue taking valacyclovir as prescribed, one 1-gram tablet after breakfast each day until Sunday. Swallow with a full glass of water.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "comment": "Continue taking valacyclovir as prescribed, one 1-gram tablet after breakfast each day until Sunday. Swallow with a full glass of water.",
+        "coding": {
+          "system": "http://snomed.info/sct",
+          "code": "394835006",
+          "display": "Patient medication advice"
+        }
+      }
+    }
+  },
+  {
+    "instruction": "Take Vitamin D3 chewable tablet right after lunch; it won't interact with valacyclovir.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "comment": "Take Vitamin D3 chewable tablet right after lunch; it won't interact with valacyclovir.",
+        "coding": {
+          "system": "http://snomed.info/sct",
+          "code": "700258004",
+          "display": "Dietary education about vitamin intake"
+        }
+      }
+    }
+  },
+  {
+    "instruction": "If the pharmacy changes the brand of valacyclovir, continue taking the medication as per the blister pack and inform the staff.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "comment": "If the pharmacy changes the brand of valacyclovir, continue taking the medication as per the blister pack and inform the staff.",
+        "coding": {
+          "system": "http://snomed.info/sct",
+          "code": "394835006",
+          "display": "Patient medication advice"
+        }
+      }
+    }
+  }
+]

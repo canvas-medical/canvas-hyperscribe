@@ -15,13 +15,13 @@ from hyperscribe.structures.settings import Settings
 class SelectorChat:
     @classmethod
     def condition_from(
-            cls,
-            instruction: Instruction,
-            chatter: LlmBase,
-            settings: Settings,
-            keywords: list[str],
-            icd10s: list[str],
-            comment: str,
+        cls,
+        instruction: Instruction,
+        chatter: LlmBase,
+        settings: Settings,
+        keywords: list[str],
+        icd10s: list[str],
+        comment: str,
     ) -> CodedItem:
         result = CodedItem(code="", label="", uuid="")
         # retrieve existing conditions defined in Canvas Science
@@ -30,31 +30,34 @@ class SelectorChat:
             system_prompt = [
                 "The conversation is in the medical context.",
                 "",
-                "Your task is to identify the most relevant condition diagnosed for a patient out of a list of conditions.",
+                "Your task is to identify the most relevant condition diagnosed for a patient out "
+                "of a list of conditions.",
                 "",
             ]
             user_prompt = [
-                'Here is the comment provided by the healthcare provider in regards to the diagnosis:',
-                '```text',
+                "Here is the comment provided by the healthcare provider in regards to the diagnosis:",
+                "```text",
                 f"keywords: {', '.join(keywords)}",
                 " -- ",
                 comment,
-                '```',
+                "```",
                 "",
-                'Among the following conditions, identify the most relevant one:',
-                '',
-                "\n".join(f' * {condition.label} (ICD-10: {Helper.icd10_add_dot(condition.code)})' for condition in conditions),
-                '',
-                'Please, present your findings in a JSON format within a Markdown code block like:',
-                '```json',
+                "Among the following conditions, identify the most relevant one:",
+                "",
+                "\n".join(
+                    f" * {condition.label} (ICD-10: {Helper.icd10_add_dot(condition.code)})" for condition in conditions
+                ),
+                "",
+                "Please, present your findings in a JSON format within a Markdown code block like:",
+                "```json",
                 json.dumps([{"ICD10": "the ICD-10 code", "label": "the label"}]),
-                '```',
-                '',
+                "```",
+                "",
             ]
             schemas = JsonSchema.get(["selector_condition"])
             if response := chatter.single_conversation(system_prompt, user_prompt, schemas, instruction):
                 result = CodedItem(
-                    label=response[0]['label'],
+                    label=response[0]["label"],
                     code=Helper.icd10_strip_dot(response[0]["ICD10"]),
                     uuid="",
                 )
@@ -62,14 +65,14 @@ class SelectorChat:
 
     @classmethod
     def lab_test_from(
-            cls,
-            instruction: Instruction,
-            chatter: LlmBase,
-            cache: LimitedCache,
-            lab_partner: str,
-            expressions: list[str],
-            comment: str,
-            conditions: list[str],
+        cls,
+        instruction: Instruction,
+        chatter: LlmBase,
+        cache: LimitedCache,
+        lab_partner: str,
+        expressions: list[str],
+        comment: str,
+        conditions: list[str],
     ) -> CodedItem:
         result = CodedItem(code="", label="", uuid="")
         lab_tests = []
@@ -90,75 +93,68 @@ class SelectorChat:
                 "",
             ]
             user_prompt = [
-                'Here is the comment provided by the healthcare provider in regards to the lab test to be ordered for the patient:',
-                '```text',
+                "Here is the comment provided by the healthcare provider in regards to the lab test to be ordered "
+                "for the patient:",
+                "```text",
                 f"keywords: {', '.join(expressions)}",
                 " -- ",
                 comment,
-                '```',
+                "```",
                 "",
                 prompt_condition,
                 "",
-                'Among the following lab tests, select the most relevant one:',
-                '',
-                "\n".join(f' * {concept.label} (code: {concept.code})' for concept in lab_tests),
-                '',
-                'Please, present your findings in a JSON format within a Markdown code block like:',
-                '```json',
+                "Among the following lab tests, select the most relevant one:",
+                "",
+                "\n".join(f" * {concept.label} (code: {concept.code})" for concept in lab_tests),
+                "",
+                "Please, present your findings in a JSON format within a Markdown code block like:",
+                "```json",
                 json.dumps([{"code": "the lab test code", "label": "the lab test label"}]),
-                '```',
-                '',
+                "```",
+                "",
             ]
             schemas = JsonSchema.get(["selector_lab_test"])
             if response := chatter.single_conversation(system_prompt, user_prompt, schemas, instruction):
-                result = CodedItem(
-                    label=response[0]['label'],
-                    code=response[0]["code"],
-                    uuid="",
-                )
+                result = CodedItem(label=response[0]["label"], code=response[0]["code"], uuid="")
         return result
 
     @classmethod
     def contact_from(
-            cls,
-            instruction: Instruction,
-            chatter: LlmBase,
-            settings: Settings,
-            free_text_information: str,
-            zip_codes: list[str],
+        cls,
+        instruction: Instruction,
+        chatter: LlmBase,
+        settings: Settings,
+        free_text_information: str,
+        zip_codes: list[str],
     ) -> ServiceProvider:
-        result = ServiceProvider(
-            first_name="",
-            last_name="",
-            specialty="",
-            practice_name="",
-        )
+        result = ServiceProvider(first_name="", last_name="", specialty="", practice_name="")
         if contacts := CanvasScience.search_contacts(settings.science_host, free_text_information, zip_codes):
             system_prompt = [
                 "The conversation is in the medical context.",
                 "",
-                "Your task is to identify the most relevant contact in regards of a search specialist out of a list of contacts.",
+                "Your task is to identify the most relevant contact in regards of a search specialist out of "
+                "a list of contacts.",
                 "",
             ]
             user_prompt = [
-                'Here is the comment provided by the healthcare provider in regards to the searched specialist:',
-                '```text',
+                "Here is the comment provided by the healthcare provider in regards to the searched specialist:",
+                "```text",
                 free_text_information,
-                '```',
+                "```",
                 "",
-                'Among the following contacts, identify the most relevant one:',
-                '',
-                "\n".join(f' * {cls.summary_of(contact)} (index: {idx})' for idx, contact in enumerate(contacts)),
-                '',
-                'Please, present your findings in a JSON format within a Markdown code block like:',
-                '```json',
+                "Among the following contacts, identify the most relevant one:",
+                "",
+                "\n".join(f" * {cls.summary_of(contact)} (index: {idx})" for idx, contact in enumerate(contacts)),
+                "",
+                "Please, present your findings in a JSON format within a Markdown code block like:",
+                "```json",
                 json.dumps([{"index": "the index, as integer", "contact": "the contact information"}]),
-                '```',
-                '',
+                "```",
+                "",
             ]
             schemas = JsonSchema.get(["selector_contact"])
             if response := chatter.single_conversation(system_prompt, user_prompt, schemas, instruction):
-                if 0 <= (idx := response[0]['index']) < len(contacts):
+                if 0 <= (idx := response[0]["index"]) < len(contacts):
                     result = contacts[idx]
 
         if not result.first_name:

@@ -11,27 +11,21 @@ from hyperscribe.structures.instruction_with_parameters import InstructionWithPa
 
 
 def test_parameters2command(
-        parameters2command: tuple[str, str, Path],
-        allowed_levels: list,
-        audio_interpreter: AudioInterpreter,
-        capsys: pytest.CaptureFixture[str],
-        request: pytest.FixtureRequest,
+    parameters2command: tuple[str, str, Path],
+    allowed_levels: list,
+    audio_interpreter: AudioInterpreter,
+    capsys: pytest.CaptureFixture[str],
+    request: pytest.FixtureRequest,
 ) -> None:
-    runner_parameters2command(
-        parameters2command,
-        allowed_levels,
-        audio_interpreter,
-        capsys,
-        request,
-    )
+    runner_parameters2command(parameters2command, allowed_levels, audio_interpreter, capsys, request)
 
 
 def runner_parameters2command(
-        parameters2command: tuple[str, str, Path],
-        allowed_levels: list,
-        audio_interpreter: AudioInterpreter,
-        capsys: pytest.CaptureFixture[str],
-        request: pytest.FixtureRequest,
+    parameters2command: tuple[str, str, Path],
+    allowed_levels: list,
+    audio_interpreter: AudioInterpreter,
+    capsys: pytest.CaptureFixture[str],
+    request: pytest.FixtureRequest,
 ) -> None:
     case, cycle, json_file = parameters2command
     content = json.load(json_file.open("r"))[cycle]
@@ -40,7 +34,9 @@ def runner_parameters2command(
     parameters = content["parameters"]
     expected = content["commands"]
     for idx, instruction in enumerate(instructions):
-        response = audio_interpreter.create_sdk_command_from(InstructionWithParameters.add_parameters(instruction, parameters[idx]))
+        response = audio_interpreter.create_sdk_command_from(
+            InstructionWithParameters.add_parameters(instruction, parameters[idx]),
+        )
 
         error_label = f"{case}-{cycle} {instruction.instruction} - {idx:02d}"
         assert response is not None, error_label
@@ -49,10 +45,7 @@ def runner_parameters2command(
         assert command.__class__.__name__ == expected[idx]["class"], error_label
         assert isinstance(command, BaseCommand), error_label
 
-        forced = {
-            "note_uuid": "theNoteUuid",
-            "command_uuid": "theCommandUuid",
-        }
+        forced = {"note_uuid": "theNoteUuid", "command_uuid": "theCommandUuid"}
 
         automated = command.values | forced
         reviewed = expected[idx]["attributes"] | forced

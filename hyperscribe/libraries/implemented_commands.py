@@ -11,6 +11,7 @@ from hyperscribe.commands.follow_up import FollowUp
 from hyperscribe.commands.goal import Goal
 from hyperscribe.commands.history_of_present_illness import HistoryOfPresentIllness
 from hyperscribe.commands.imaging_order import ImagingOrder
+from hyperscribe.commands.immunization_statement import ImmunizationStatement
 from hyperscribe.commands.immunize import Immunize
 from hyperscribe.commands.instruct import Instruct
 from hyperscribe.commands.lab_order import LabOrder
@@ -50,13 +51,7 @@ class ImplementedCommands:
 
     @classmethod
     def questionnaire_command_name_list(cls) -> list[str]:
-        return [
-            c.class_name() for c in [
-                PhysicalExam,
-                Questionnaire,
-                ReviewOfSystem,
-                StructuredAssessment,
-            ]]
+        return [c.class_name() for c in [PhysicalExam, Questionnaire, ReviewOfSystem, StructuredAssessment]]
 
     @classmethod
     def command_list(cls) -> list[Type[Base]]:
@@ -71,6 +66,7 @@ class ImplementedCommands:
             Goal,
             HistoryOfPresentIllness,
             ImagingOrder,
+            ImmunizationStatement,
             Immunize,
             Instruct,
             LabOrder,
@@ -98,7 +94,4 @@ class ImplementedCommands:
 
     @classmethod
     def schema_key2instruction(cls) -> dict[str, str]:
-        return {
-            command_class.schema_key(): command_class.class_name()
-            for command_class in cls.command_list()
-        }
+        return {command_class.schema_key(): command_class.class_name() for command_class in cls.command_list()}

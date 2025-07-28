@@ -22,10 +22,7 @@ from hyperscribe.structures.vendor_key import VendorKey
 
 def test_validate_files():
     tested = BuilderBase
-    tests = [
-        (__file__, Path(__file__), ""),
-        ("nope", None, "'nope' is not a valid file"),
-    ]
+    tests = [(__file__, Path(__file__), ""), ("nope", None, "'nope' is not a valid file")]
     for file, exp_path, exp_error in tests:
         if exp_path is None:
             with pytest.raises(Exception) as e:
@@ -70,6 +67,7 @@ def test__parameters():
     with pytest.raises(NotImplementedError):
         _ = tested._parameters()
 
+
 def test__run():
     auditor = MagicMock()
 
@@ -86,7 +84,8 @@ def test__run():
                 note_uuid="noteUuid",
                 provider_uuid="providerUuid",
                 canvas_instance="canvasInstance",
-            ))
+            ),
+        )
         calls = []
         assert auditor.mock_calls == calls
         reset_mocks()
@@ -103,19 +102,20 @@ def test__run():
 @patch.object(BuilderBase, "_parameters")
 @patch.object(BuilderBase, "_run")
 def test_run(
-        run,
-        parameters,
-        already_generated,
-        aws_s3,
-        builder_audit_url,
-        cached_discussion,
-        helper,
-        llm_decisions_reviewer,
-        memory_log,
-        mock_datetime,
-        capsys,
+    run,
+    parameters,
+    already_generated,
+    aws_s3,
+    builder_audit_url,
+    cached_discussion,
+    helper,
+    llm_decisions_reviewer,
+    memory_log,
+    mock_datetime,
+    capsys,
 ):
     mock_auditor = MagicMock()
+
     def reset_mocks():
         run.reset_mock()
         parameters.reset_mock()
@@ -131,15 +131,15 @@ def test_run(
 
     identifications = {
         "target": IdentificationParameters(
-            patient_uuid='patientUuid',
-            note_uuid='noteUuid',
-            provider_uuid='providerUuid',
+            patient_uuid="patientUuid",
+            note_uuid="noteUuid",
+            provider_uuid="providerUuid",
             canvas_instance="canvasInstance",
         ),
         "generic": IdentificationParameters(
-            patient_uuid='_PatientUuid',
-            note_uuid='_NoteUuid',
-            provider_uuid='_ProviderUuid',
+            patient_uuid="_PatientUuid",
+            note_uuid="_NoteUuid",
+            provider_uuid="_ProviderUuid",
             canvas_instance="canvasInstance",
         ),
     }
@@ -167,10 +167,7 @@ def test_run(
     result = tested.run()
     assert result is None
 
-    exp_out = [
-        "Case 'theCase' already generated",
-        "",
-    ]
+    exp_out = ["Case 'theCase' already generated", ""]
     assert capsys.readouterr().out == "\n".join(exp_out)
 
     assert run.mock_calls == []
@@ -189,18 +186,10 @@ def test_run(
     reset_mocks()
 
     error = RuntimeError("There was an error")
-    tests_error = [
-        (None, False),
-        (error, True),
-    ]
+    tests_error = [(None, False), (error, True)]
     for run_side_effect, has_error in tests_error:
         # auditor is ready
-        tests = [
-            (True, True),
-            (True, False),
-            (False, True),
-            (False, False),
-        ]
+        tests = [(True, True), (True, False), (False, True), (False, False)]
         # -- patient is provided
         for aws_is_ready, audit_llm in tests:
             arguments = Namespace(case="theCase", patient="patientUuid")
@@ -208,9 +197,9 @@ def test_run(
             settings = Settings(
                 llm_text=VendorKey(vendor="theVendorTextLLM", api_key="theKeyTextLLM"),
                 llm_audio=VendorKey(vendor="theVendorAudioLLM", api_key="theKeyAudioLLM"),
-                science_host='theScienceHost',
-                ontologies_host='theOntologiesHost',
-                pre_shared_key='thePreSharedKey',
+                science_host="theScienceHost",
+                ontologies_host="theOntologiesHost",
+                pre_shared_key="thePreSharedKey",
                 structured_rfv=True,
                 audit_llm=audit_llm,
                 is_tuning=False,
@@ -242,59 +231,46 @@ def test_run(
 
             exp_out = ["Summary can be viewed at: summaryHTML.uri"]
             if aws_is_ready:
-                exp_out.append('Logs saved in: hyperscribe-canvasInstance/finals/2025-03-10/theCase.log')
-            exp_out.append('')
+                exp_out.append("Logs saved in: hyperscribe-canvasInstance/finals/2025-03-10/theCase.log")
+            exp_out.append("")
             assert capsys.readouterr().out == "\n".join(exp_out)
             calls = [call(arguments, mock_auditor, identifications["target"])]
             assert run.mock_calls == calls
             calls = [call()]
             assert parameters.mock_calls == calls
             calls = [
-                call.get_note_uuid('patientUuid'),
-                call.get_provider_uuid('patientUuid'),
+                call.get_note_uuid("patientUuid"),
+                call.get_provider_uuid("patientUuid"),
                 call.get_canvas_instance(),
                 call.get_auditor("theCase", 0),
             ]
             if has_error:
-                calls.extend([
-                    call.trace_error(error),
-                ])
+                calls.extend([call.trace_error(error)])
             assert helper.mock_calls == calls
-            calls = [
-                call("awsS3CredentialsInstance1"),
-                call().__bool__(),
-                call().is_ready(),
-            ]
+            calls = [call("awsS3CredentialsInstance1"), call().__bool__(), call().is_ready()]
             if aws_is_ready:
-                calls.append(call().upload_text_to_s3(
-                    'hyperscribe-canvasInstance/finals/2025-03-10/theCase.log',
-                    "flushedMemoryLog"),
+                calls.append(
+                    call().upload_text_to_s3(
+                        "hyperscribe-canvasInstance/finals/2025-03-10/theCase.log",
+                        "flushedMemoryLog",
+                    ),
                 )
             assert aws_s3.mock_calls == calls
             calls = []
             if aws_is_ready and audit_llm:
-                calls = [call.presigned_url('patientUuid', 'noteUuid')]
+                calls = [call.presigned_url("patientUuid", "noteUuid")]
             assert builder_audit_url.mock_calls == calls
             calls = []
             if aws_is_ready and audit_llm:
-                calls = [call.get_discussion('noteUuid')]
+                calls = [call.get_discussion("noteUuid")]
             assert cached_discussion.mock_calls == calls
             calls = []
             if aws_is_ready and audit_llm:
-                calls = [
-                    call.review(
-                        identifications["target"],
-                        settings,
-                        'awsS3CredentialsInstance1',
-                        {},
-                        dates[0],
-                        3,
-                    ),
-                ]
+                calls = [call.review(identifications["target"], settings, "awsS3CredentialsInstance1", {}, dates[0], 3)]
             assert llm_decisions_reviewer.mock_calls == calls
             calls = [call(identifications["target"], "case_builder")]
             if aws_is_ready:
-                calls.append(call.end_session('noteUuid'))
+                calls.append(call.end_session("noteUuid"))
             assert memory_log.mock_calls == calls
             calls = []
             if aws_is_ready:
@@ -302,7 +278,7 @@ def test_run(
             assert mock_datetime.mock_calls == calls
             calls = [
                 call.case_prepare(),
-                call.case_finalize({'error': 'test'} if has_error else {}),
+                call.case_finalize({"error": "test"} if has_error else {}),
                 call.generate_html_summary(),
                 call.generate_html_summary().as_uri(),
             ]
@@ -316,9 +292,9 @@ def test_run(
             settings = Settings(
                 llm_text=VendorKey(vendor="theVendorTextLLM", api_key="theKeyTextLLM"),
                 llm_audio=VendorKey(vendor="theVendorAudioLLM", api_key="theKeyAudioLLM"),
-                science_host='theScienceHost',
-                ontologies_host='theOntologiesHost',
-                pre_shared_key='thePreSharedKey',
+                science_host="theScienceHost",
+                ontologies_host="theOntologiesHost",
+                pre_shared_key="thePreSharedKey",
                 structured_rfv=True,
                 audit_llm=audit_llm,
                 is_tuning=False,
@@ -351,56 +327,44 @@ def test_run(
 
             exp_out = ["Summary can be viewed at: summaryHTML.uri"]
             if aws_is_ready:
-                exp_out.append('Logs saved in: hyperscribe-canvasInstance/finals/2025-03-11/theCase.log')
-            exp_out.append('')
+                exp_out.append("Logs saved in: hyperscribe-canvasInstance/finals/2025-03-11/theCase.log")
+            exp_out.append("")
             assert capsys.readouterr().out == "\n".join(exp_out)
 
             calls = [call(arguments, mock_auditor, identifications["generic"])]
             assert run.mock_calls == calls
             calls = [call()]
             assert parameters.mock_calls == calls
-            calls = [
-                call.get_canvas_instance(),
-                call.get_auditor("theCase", 0),
-            ]
+            calls = [call.get_canvas_instance(), call.get_auditor("theCase", 0)]
             if has_error:
                 calls.extend([call.trace_error(error)])
             assert helper.mock_calls == calls
-            calls = [
-                call("awsS3CredentialsInstance1"),
-                call().__bool__(),
-                call().is_ready(),
-            ]
+            calls = [call("awsS3CredentialsInstance1"), call().__bool__(), call().is_ready()]
             if aws_is_ready:
-                calls.append(call().upload_text_to_s3(
-                    'hyperscribe-canvasInstance/finals/2025-03-11/theCase.log',
-                    "flushedMemoryLog"),
+                calls.append(
+                    call().upload_text_to_s3(
+                        "hyperscribe-canvasInstance/finals/2025-03-11/theCase.log",
+                        "flushedMemoryLog",
+                    ),
                 )
             assert aws_s3.mock_calls == calls
             calls = []
             if aws_is_ready and audit_llm:
-                calls = [call.presigned_url('_PatientUuid', '_NoteUuid')]
+                calls = [call.presigned_url("_PatientUuid", "_NoteUuid")]
             assert builder_audit_url.mock_calls == calls
             calls = []
             if aws_is_ready and audit_llm:
-                calls = [call.get_discussion('_NoteUuid')]
+                calls = [call.get_discussion("_NoteUuid")]
             assert cached_discussion.mock_calls == calls
             calls = []
             if aws_is_ready and audit_llm:
                 calls = [
-                    call.review(
-                        identifications["generic"],
-                        settings,
-                        'awsS3CredentialsInstance1',
-                        {},
-                        dates[0],
-                        3,
-                    ),
+                    call.review(identifications["generic"], settings, "awsS3CredentialsInstance1", {}, dates[0], 3),
                 ]
             assert llm_decisions_reviewer.mock_calls == calls
             calls = [call(identifications["generic"], "case_builder")]
             if aws_is_ready:
-                calls.append(call.end_session('_NoteUuid'))
+                calls.append(call.end_session("_NoteUuid"))
             assert memory_log.mock_calls == calls
             calls = []
             if aws_is_ready:
@@ -408,7 +372,7 @@ def test_run(
             assert mock_datetime.mock_calls == calls
             calls = [
                 call.case_prepare(),
-                call.case_finalize({'error': 'test'} if has_error else {}),
+                call.case_finalize({"error": "test"} if has_error else {}),
                 call.generate_html_summary(),
                 call.generate_html_summary().as_uri(),
             ]
@@ -426,10 +390,7 @@ def test__run_cycle(auditor_store, commander):
         commander.reset_mock()
         chatter.reset_mock()
 
-    audios = [
-        b"audio1",
-        b"audio2",
-    ]
+    audios = [b"audio1", b"audio2"]
     instructions = [
         Instruction(
             uuid="uuid1",
@@ -480,15 +441,7 @@ def test__run_cycle(auditor_store, commander):
 
     calls = [call.transcript()]
     assert auditor_store.mock_calls == calls
-    calls = [
-        call.audio2commands(
-            auditor_store,
-            audios,
-            chatter,
-            instructions[:2],
-            previous,
-        ),
-    ]
+    calls = [call.audio2commands(auditor_store, audios, chatter, instructions[:2], previous)]
     assert commander.mock_calls == calls
     assert chatter.mock_calls == []
     reset_mocks()
@@ -503,20 +456,13 @@ def test__run_cycle(auditor_store, commander):
 
     calls = [call.transcript()]
     assert auditor_store.mock_calls == calls
-    calls = [
-        call.transcript2commands(
-            auditor_store,
-            lines,
-            chatter,
-            instructions[:2],
-        ),
-    ]
+    calls = [call.transcript2commands(auditor_store, lines, chatter, instructions[:2])]
     assert commander.mock_calls == calls
     assert chatter.mock_calls == []
     reset_mocks()
 
 
-@patch.object(Commander, 'existing_commands_to_coded_items')
+@patch.object(Commander, "existing_commands_to_coded_items")
 @patch.object(Command, "objects")
 def test__limited_cache_from(command_db, existing_commands_to_coded_items):
     def reset_mocks():
@@ -536,9 +482,9 @@ def test__limited_cache_from(command_db, existing_commands_to_coded_items):
     settings = Settings(
         llm_text=VendorKey(vendor="theVendorTextLLM", api_key="theKeyTextLLM"),
         llm_audio=VendorKey(vendor="theVendorAudioLLM", api_key="theKeyAudioLLM"),
-        science_host='theScienceHost',
-        ontologies_host='theOntologiesHost',
-        pre_shared_key='thePreSharedKey',
+        science_host="theScienceHost",
+        ontologies_host="theOntologiesHost",
+        pre_shared_key="thePreSharedKey",
         structured_rfv=True,
         audit_llm=False,
         is_tuning=False,
@@ -555,29 +501,21 @@ def test__limited_cache_from(command_db, existing_commands_to_coded_items):
     assert result._staged_commands == {}
 
     calls = [
-        call.filter(patient__id='thePatient', note__id='theNoteUuid', state='staged'),
-        call.filter().order_by('dbid'),
+        call.filter(patient__id="thePatient", note__id="theNoteUuid", state="staged"),
+        call.filter().order_by("dbid"),
     ]
     assert command_db.mock_calls == calls
-    calls = [call(
-        "QuerySetCommands",
-        AccessPolicy(policy=False, items=["Command1", "Command2"]),
-        True,
-    )]
+    calls = [call("QuerySetCommands", AccessPolicy(policy=False, items=["Command1", "Command2"]), True)]
     assert existing_commands_to_coded_items.mock_calls == calls
     reset_mocks()
 
 
 @patch("evaluations.case_builders.builder_base.AuditorStore")
 def test__summary_generated_commands(auditor_store):
-
     def reset_mocks():
         auditor_store.reset_mock()
 
-    exp_auditor_store_calls = [
-        call.get_json('parameters2command'),
-        call.get_json('staged_questionnaires'),
-    ]
+    exp_auditor_store_calls = [call.get_json("parameters2command"), call.get_json("staged_questionnaires")]
 
     tested = BuilderBase
 
@@ -591,13 +529,7 @@ def test__summary_generated_commands(auditor_store):
 
     # there are data for the case
     # -- no commands in the content
-    tests = [
-        {},
-        {
-            "cycle_000": {"instructions": [], "commands": []},
-            "cycle_001": {"instructions": [], "commands": []},
-        },
-    ]
+    tests = [{}, {"cycle_000": {"instructions": [], "commands": []}, "cycle_001": {"instructions": [], "commands": []}}]
     for content in tests:
         auditor_store.get_json.side_effect = [content, content]
 
@@ -610,9 +542,7 @@ def test__summary_generated_commands(auditor_store):
     # -- with commands in the files
     content = {
         "cycle_000": {
-            "instructions": [
-                {"uuid": "uuid1", "information": "theInformation1"},
-            ],
+            "instructions": [{"uuid": "uuid1", "information": "theInformation1"}],
             "commands": [
                 {
                     "module": "theModule1",
@@ -624,7 +554,8 @@ def test__summary_generated_commands(auditor_store):
                         "attributeY": "valueY",
                     },
                 },
-            ]},
+            ],
+        },
         "cycle_001": {
             "instructions": [
                 {"uuid": "uuid1", "information": "theInformation2"},
@@ -634,25 +565,17 @@ def test__summary_generated_commands(auditor_store):
                 {
                     "module": "theModule2",
                     "class": "TheClass2",
-                    "attributes": {
-                        "command_uuid": ">?<",
-                        "note_uuid": ">?<",
-                        "attributeZ": "valueZ",
-                    },
+                    "attributes": {"command_uuid": ">?<", "note_uuid": ">?<", "attributeZ": "valueZ"},
                 },
                 {
                     "module": "theModule3",
                     "class": "TheClass3",
-                    "attributes": {
-                        "command_uuid": ">?<",
-                        "note_uuid": ">?<",
-                    },
+                    "attributes": {"command_uuid": ">?<", "note_uuid": ">?<"},
                 },
-            ]},
-        "cycle_002": {
-            "instructions": [
-                {"uuid": "uuid4", "information": "theInformation4"},
             ],
+        },
+        "cycle_002": {
+            "instructions": [{"uuid": "uuid4", "information": "theInformation4"}],
             "commands": [
                 {
                     "module": "theModule4",
@@ -665,7 +588,8 @@ def test__summary_generated_commands(auditor_store):
                         "attributeC": "valueC",
                     },
                 },
-            ]},
+            ],
+        },
     }
     auditor_store.get_json.side_effect = [content, content]
 
@@ -673,47 +597,26 @@ def test__summary_generated_commands(auditor_store):
     expected = [
         # common
         {
-            'command': {
-                'attributes': {
-                    'attributeZ': 'valueZ',
-                },
-                'class': 'TheClass2',
-                'module': 'theModule2',
-            },
-            'instruction': 'theInformation2',
+            "command": {"attributes": {"attributeZ": "valueZ"}, "class": "TheClass2", "module": "theModule2"},
+            "instruction": "theInformation2",
         },
+        {"command": {"attributes": {}, "class": "TheClass3", "module": "theModule3"}, "instruction": "theInformation3"},
         {
-            'command': {
-                'attributes': {},
-                'class': 'TheClass3',
-                'module': 'theModule3',
+            "command": {
+                "attributes": {"attributeA": "valueA", "attributeB": "valueB", "attributeC": "valueC"},
+                "class": "TheClass4",
+                "module": "theModule4",
             },
-            'instruction': 'theInformation3',
-        },
-        {
-            'command': {
-                'attributes': {
-                    'attributeA': 'valueA',
-                    'attributeB': 'valueB',
-                    'attributeC': 'valueC',
-                },
-                'class': 'TheClass4',
-                'module': 'theModule4',
-            },
-            'instruction': 'theInformation4',
+            "instruction": "theInformation4",
         },
         # questionnaires
         {
-            'command': {
-                'attributes': {
-                    'attributeA': 'valueA',
-                    'attributeB': 'valueB',
-                    'attributeC': 'valueC',
-                },
-                'class': 'TheClass4',
-                'module': 'theModule4',
+            "command": {
+                "attributes": {"attributeA": "valueA", "attributeB": "valueB", "attributeC": "valueC"},
+                "class": "TheClass4",
+                "module": "theModule4",
             },
-            'instruction': 'n/a',
+            "instruction": "n/a",
         },
     ]
 
@@ -726,40 +629,35 @@ def test__summary_generated_commands(auditor_store):
 def test__remove_uuids():
     tested = BuilderBase
     tests = [
-        ({
-             "module": "theModule",
-             "class": "TheClass",
-             "attributes": {
-                 "command_uuid": ">?<",
-                 "note_uuid": ">?<",
-                 "attributeX": "valueX",
-                 "attributeY": "valueY",
-             },
-         },
-         {
-             "module": "theModule",
-             "class": "TheClass",
-             "attributes": {
-                 "attributeX": "valueX",
-                 "attributeY": "valueY",
-             },
-         }),
-        ({
-             "module": "theModule",
-             "class": "TheClass",
-             "attributes": {
-                 "attributeX": "valueX",
-                 "attributeY": "valueY",
-             },
-         },
-         {
-             "module": "theModule",
-             "class": "TheClass",
-             "attributes": {
-                 "attributeX": "valueX",
-                 "attributeY": "valueY",
-             },
-         }),
+        (
+            {
+                "module": "theModule",
+                "class": "TheClass",
+                "attributes": {
+                    "command_uuid": ">?<",
+                    "note_uuid": ">?<",
+                    "attributeX": "valueX",
+                    "attributeY": "valueY",
+                },
+            },
+            {
+                "module": "theModule",
+                "class": "TheClass",
+                "attributes": {"attributeX": "valueX", "attributeY": "valueY"},
+            },
+        ),
+        (
+            {
+                "module": "theModule",
+                "class": "TheClass",
+                "attributes": {"attributeX": "valueX", "attributeY": "valueY"},
+            },
+            {
+                "module": "theModule",
+                "class": "TheClass",
+                "attributes": {"attributeX": "valueX", "attributeY": "valueY"},
+            },
+        ),
     ]
     for command, expected in tests:
         result = tested._remove_uuids(command)
@@ -781,9 +679,9 @@ def test__render_in_ui(summary_generated_commands, post_commands, import_module,
         limited_cache.reset_mock()
 
     identification = IdentificationParameters(
-        patient_uuid='patientUuid',
-        note_uuid='noteUuid',
-        provider_uuid='providerUuid',
+        patient_uuid="patientUuid",
+        note_uuid="noteUuid",
+        provider_uuid="providerUuid",
         canvas_instance="canvasInstance",
     )
     instructions = [
@@ -836,41 +734,20 @@ def test__render_in_ui(summary_generated_commands, post_commands, import_module,
             "command": {
                 "module": "theModule1",
                 "class": "TheClass1",
-                "attributes": {
-                    "attributeX": "valueX",
-                    "attributeY": "valueY",
-                },
+                "attributes": {"attributeX": "valueX", "attributeY": "valueY"},
             },
         },
         {
             "instruction": "instruction2",
-            "command": {
-                "module": "theModule1",
-                "class": "TheClass1",
-                "attributes": {
-                    "attributeZ": "valueZ",
-                },
-            },
-
+            "command": {"module": "theModule1", "class": "TheClass1", "attributes": {"attributeZ": "valueZ"}},
         },
-        {
-            "instruction": "instruction3",
-            "command": {
-                "module": "theModule3",
-                "class": "TheClass3",
-                "attributes": {},
-            },
-        },
+        {"instruction": "instruction3", "command": {"module": "theModule3", "class": "TheClass3", "attributes": {}}},
         {
             "instruction": "instruction4",
             "command": {
                 "module": "theModule4",
                 "class": "TheClass4",
-                "attributes": {
-                    "attributeA": "valueA",
-                    "attributeB": "valueB",
-                    "attributeC": "valueC",
-                },
+                "attributes": {"attributeA": "valueA", "attributeB": "valueB", "attributeC": "valueC"},
             },
         },
     ]
@@ -899,58 +776,50 @@ def test__render_in_ui(summary_generated_commands, post_commands, import_module,
 
     tested._render_in_ui("theCase", identification, limited_cache)
 
-    calls = [call('theCase')]
+    calls = [call("theCase")]
     assert summary_generated_commands.mock_calls == calls
-    calls = [call([
-        {
-            "module": "theModule1",
-            "class": "TheClass1",
-            "attributes": {
-                "command_uuid": "uuid1",
-                "note_uuid": "noteUuid",
-                "attributeX": "valueX",
-                "attributeY": "valueY",
-            },
-        },
-        {
-            "module": "theModule1",
-            "class": "TheClass1",
-            "attributes": {
-                "command_uuid": None,
-                "note_uuid": "noteUuid",
-                "attributeZ": "valueZ",
-            },
-        },
-        {
-            "module": "theModule3",
-            "class": "TheClass3",
-            "attributes": {
-                "command_uuid": None,
-                "note_uuid": "noteUuid",
-            },
-        },
-        {
-            "module": "theModule4",
-            "class": "TheClass4",
-            "attributes": {
-                "command_uuid": "uuid4",
-                "note_uuid": "noteUuid",
-                "attributeA": "valueA",
-                "attributeB": "valueB",
-                "attributeC": "valueC",
-            },
-        },
-    ])]
+    calls = [
+        call(
+            [
+                {
+                    "module": "theModule1",
+                    "class": "TheClass1",
+                    "attributes": {
+                        "command_uuid": "uuid1",
+                        "note_uuid": "noteUuid",
+                        "attributeX": "valueX",
+                        "attributeY": "valueY",
+                    },
+                },
+                {
+                    "module": "theModule1",
+                    "class": "TheClass1",
+                    "attributes": {"command_uuid": None, "note_uuid": "noteUuid", "attributeZ": "valueZ"},
+                },
+                {
+                    "module": "theModule3",
+                    "class": "TheClass3",
+                    "attributes": {"command_uuid": None, "note_uuid": "noteUuid"},
+                },
+                {
+                    "module": "theModule4",
+                    "class": "TheClass4",
+                    "attributes": {
+                        "command_uuid": "uuid4",
+                        "note_uuid": "noteUuid",
+                        "attributeA": "valueA",
+                        "attributeB": "valueB",
+                        "attributeC": "valueC",
+                    },
+                },
+            ],
+        ),
+    ]
     assert post_commands.mock_calls == calls
 
     calls = [call.schema_key2instruction()]
     assert implemented_commands.mock_calls == calls
-    calls = [
-        call("theModule1"),
-        call("theModule1"),
-        call("theModule3"),
-        call("theModule4"),
-    ]
+    calls = [call("theModule1"), call("theModule1"), call("theModule3"), call("theModule4")]
     assert import_module.mock_calls == calls
     calls = [call.staged_commands_as_instructions(schema_key2instruction)]
     assert limited_cache.mock_calls == calls
@@ -969,9 +838,9 @@ def test__post_commands(helper_evaluation, requests_post, authenticator):
     settings = Settings(
         llm_text=VendorKey(vendor="theVendorTextLLM", api_key="theKeyTextLLM"),
         llm_audio=VendorKey(vendor="theVendorAudioLLM", api_key="theKeyAudioLLM"),
-        science_host='theScienceHost',
-        ontologies_host='theOntologiesHost',
-        pre_shared_key='thePreSharedKey',
+        science_host="theScienceHost",
+        ontologies_host="theOntologiesHost",
+        pre_shared_key="thePreSharedKey",
         structured_rfv=True,
         audit_llm=True,
         is_tuning=False,
@@ -992,25 +861,18 @@ def test__post_commands(helper_evaluation, requests_post, authenticator):
     result = tested._post_commands([{"key1": "value1", "key2": "value2"}])
     assert result == "postResponse"
 
-    calls = [
-        call.settings(),
-        call.get_canvas_host(),
-    ]
+    calls = [call.settings(), call.get_canvas_host()]
     assert helper_evaluation.mock_calls == calls
-    calls = [call.presigned_url(
-        'theApiSigningKey',
-        'https://theHost/plugin-io/api/hyperscribe/case_builder',
-        {},
-    )]
+    calls = [call.presigned_url("theApiSigningKey", "https://theHost/plugin-io/api/hyperscribe/case_builder", {})]
     assert authenticator.mock_calls == calls
     calls = [
         call(
-            'thePresignedUrl',
-            headers={'Content-Type': 'application/json'},
-            json=[{'key1': 'value1', 'key2': 'value2'}],
+            "thePresignedUrl",
+            headers={"Content-Type": "application/json"},
+            json=[{"key1": "value1", "key2": "value2"}],
             verify=True,
             timeout=None,
-        )
+        ),
     ]
     assert requests_post.mock_calls == calls
     reset_mocks()

@@ -10,18 +10,11 @@ class Line(NamedTuple):
     @classmethod
     def load_from_json(cls, json_list: list) -> list[Line]:
         return [
-            Line(
-                speaker=json_object.get("speaker", ""),
-                text=json_object.get("text", ""),
-            )
-            for json_object in json_list
+            Line(speaker=json_object.get("speaker", ""), text=json_object.get("text", "")) for json_object in json_list
         ]
 
     def to_json(self) -> dict:
-        return {
-            "speaker": self.speaker,
-            "text": self.text,
-        }
+        return {"speaker": self.speaker, "text": self.text}
 
     @classmethod
     def tail_of(cls, exchange: list[Line], max_words: int) -> list[Line]:
@@ -32,9 +25,9 @@ class Line(NamedTuple):
             if words_count + next_count < max_words:
                 result.insert(0, line)
             else:
-                result.insert(0, Line(
-                    speaker=line.speaker,
-                    text=" ".join(line.text.split()[-1 * (max_words - words_count):]),
-                ))
+                result.insert(
+                    0,
+                    Line(speaker=line.speaker, text=" ".join(line.text.split()[-1 * (max_words - words_count) :])),
+                )
                 break
         return result

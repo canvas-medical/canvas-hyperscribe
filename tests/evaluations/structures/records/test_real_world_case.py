@@ -9,6 +9,7 @@ def test_class():
         "customer_identifier": str,
         "patient_note_hash": str,
         "topical_exchange_identifier": str,
+        "publishable": bool,
         "start_time": float,
         "end_time": float,
         "duration": float,
@@ -25,6 +26,7 @@ def test_default():
     assert result.customer_identifier == ""
     assert result.patient_note_hash == ""
     assert result.topical_exchange_identifier == ""
+    assert result.publishable is False
     assert result.start_time == 0.0
     assert result.end_time == 0.0
     assert result.duration == 0.0

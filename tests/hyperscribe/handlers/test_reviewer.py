@@ -20,9 +20,7 @@ from tests.helper import is_constant
 
 def test_constants():
     tested = Reviewer
-    constants = {
-        "RESPONDS_TO": ["TASK_COMMENT_CREATED"],
-    }
+    constants = {"RESPONDS_TO": ["TASK_COMMENT_CREATED"]}
     assert is_constant(tested, constants)
 
 
@@ -30,12 +28,7 @@ def test_constants():
 @patch.object(Note, "objects")
 @patch.object(TaskComment, "objects")
 @patch.object(Reviewer, "compute_audit_documents")
-def test_compute(
-        compute_audit_documents,
-        task_comment_db,
-        note_db,
-        info,
-):
+def test_compute(compute_audit_documents, task_comment_db, note_db, info):
     mock_comment = MagicMock()
     mock_note = MagicMock()
 
@@ -47,15 +40,12 @@ def test_compute(
         mock_comment.reset_mock()
         mock_note.reset_mock()
 
-    task_labels = [
-        TaskLabel(name="label1"),
-        TaskLabel(name="label2"),
-    ]
+    task_labels = [TaskLabel(name="label1"), TaskLabel(name="label2")]
     identification = IdentificationParameters(
-        patient_uuid='patientUuid',
-        note_uuid='noteUuid',
-        provider_uuid='providerUuid',
-        canvas_instance='theTestEnv',
+        patient_uuid="patientUuid",
+        note_uuid="noteUuid",
+        provider_uuid="providerUuid",
+        canvas_instance="theTestEnv",
     )
     secrets = {
         "VendorTextLLM": "theTextVendor",
@@ -81,14 +71,11 @@ def test_compute(
     assert result == []
 
     assert compute_audit_documents.mock_calls == []
-    calls = [call.get(id='taskUuid')]
+    calls = [call.get(id="taskUuid")]
     assert task_comment_db.mock_calls == calls
     assert note_db.mock_calls == []
     assert info.mock_calls == []
-    calls = [
-        call.task.labels.filter(name='Encounter Copilot'),
-        call.task.labels.filter().first()
-    ]
+    calls = [call.task.labels.filter(name="Encounter Copilot"), call.task.labels.filter().first()]
     assert mock_comment.mock_calls == calls
     assert mock_note.mock_calls == []
     reset_mocks()
@@ -97,11 +84,7 @@ def test_compute(
     # -- the finished date is NOT set
     compute_audit_documents.side_effect = []
     mock_comment.id = "commentUuid"
-    mock_comment.body = json.dumps({
-        "chunk_index": 7,
-        "note_id": "noteUuid",
-        "created": "2025-05-09T12:34:55+00:00",
-    })
+    mock_comment.body = json.dumps({"chunk_index": 7, "note_id": "noteUuid", "created": "2025-05-09T12:34:55+00:00"})
     mock_comment.task.id = "taskUuid"
     mock_comment.task.labels.all.side_effect = [task_labels]
     mock_comment.task.labels.filter.return_value.first.side_effect = ["aTask"]
@@ -111,26 +94,25 @@ def test_compute(
     assert result == []
 
     assert compute_audit_documents.mock_calls == []
-    calls = [call.get(id='taskUuid')]
+    calls = [call.get(id="taskUuid")]
     assert task_comment_db.mock_calls == calls
     assert note_db.mock_calls == []
     assert info.mock_calls == []
-    calls = [
-        call.task.labels.filter(name='Encounter Copilot'),
-        call.task.labels.filter().first()
-    ]
+    calls = [call.task.labels.filter(name="Encounter Copilot"), call.task.labels.filter().first()]
     assert mock_comment.mock_calls == calls
     assert mock_note.mock_calls == []
     reset_mocks()
     # -- the finished date is set
     compute_audit_documents.side_effect = [(True, [Effect(type="LOG", payload="SomePayload")])]
     mock_comment.id = "commentUuid"
-    mock_comment.body = json.dumps({
-        "chunk_index": 7,
-        "note_id": "noteUuid",
-        "created": "2025-05-09T12:34:55+00:00",
-        "finished": "2025-05-09T12:41:17+00:00",
-    })
+    mock_comment.body = json.dumps(
+        {
+            "chunk_index": 7,
+            "note_id": "noteUuid",
+            "created": "2025-05-09T12:34:55+00:00",
+            "finished": "2025-05-09T12:41:17+00:00",
+        },
+    )
     mock_comment.task.id = "taskUuid"
     mock_comment.task.labels.all.side_effect = [task_labels]
     mock_comment.task.labels.filter.return_value.first.side_effect = ["aTask"]
@@ -143,31 +125,23 @@ def test_compute(
     assert result == []
     calls = [call(identification, datetime(2025, 5, 9, 12, 34, 55, tzinfo=UTC), 7)]
     assert compute_audit_documents.mock_calls == calls
-    calls = [call.get(id='taskUuid')]
+    calls = [call.get(id="taskUuid")]
     assert task_comment_db.mock_calls == calls
-    calls = [call.get(id='noteUuid')]
+    calls = [call.get(id="noteUuid")]
     assert note_db.mock_calls == calls
-    calls = [call('  => create the final audit')]
+    calls = [call("  => create the final audit")]
     assert info.mock_calls == calls
-    calls = [
-        call.task.labels.filter(name='Encounter Copilot'),
-        call.task.labels.filter().first()
-    ]
+    calls = [call.task.labels.filter(name="Encounter Copilot"), call.task.labels.filter().first()]
     assert mock_comment.mock_calls == calls
     assert mock_note.mock_calls == []
     reset_mocks()
 
 
-@patch('hyperscribe.handlers.reviewer.LlmDecisionsReviewer')
-@patch('hyperscribe.handlers.reviewer.Progress')
+@patch("hyperscribe.handlers.reviewer.LlmDecisionsReviewer")
+@patch("hyperscribe.handlers.reviewer.Progress")
 @patch.object(Command, "objects")
-@patch.object(ImplementedCommands, 'schema_key2instruction')
-def test_compute_audit_documents(
-        schema_key2instruction,
-        command_db,
-        progress,
-        llm_decisions_reviewer,
-):
+@patch.object(ImplementedCommands, "schema_key2instruction")
+def test_compute_audit_documents(schema_key2instruction, command_db, progress, llm_decisions_reviewer):
     def reset_mocks():
         schema_key2instruction.reset_mock()
         command_db.reset_mock()
@@ -200,17 +174,17 @@ def test_compute_audit_documents(
         canvas_instance="canvasInstance",
     )
     aws_s3_credentials = AwsS3Credentials(
-        aws_key='theKey',
-        aws_secret='theSecret',
-        region='theRegion',
-        bucket='theBucketLogs',
+        aws_key="theKey",
+        aws_secret="theSecret",
+        region="theRegion",
+        bucket="theBucketLogs",
     )
     settings = Settings(
         llm_text=VendorKey(vendor="theVendorTextLLM", api_key="theKeyTextLLM"),
         llm_audio=VendorKey(vendor="theVendorAudioLLM", api_key="theKeyAudioLLM"),
-        science_host='theScienceHost',
-        ontologies_host='theOntologiesHost',
-        pre_shared_key='thePreSharedKey',
+        science_host="theScienceHost",
+        ontologies_host="theOntologiesHost",
+        pre_shared_key="thePreSharedKey",
         structured_rfv=True,
         audit_llm=True,
         is_tuning=False,
@@ -245,18 +219,20 @@ def test_compute_audit_documents(
     assert schema_key2instruction.mock_calls == calls
     calls = [call.send_to_user(identification, settings, "EOF")]
     assert progress.mock_calls == calls
-    calls = [call.review(
-        identification,
-        settings,
-        aws_s3_credentials,
-        {
-            'theInstructionX_00': 'uuid1',
-            'theInstructionY_01': 'uuid2',
-            'theInstructionY_02': 'uuid3',
-            'Questionnaire_03': 'uuid4',
-        },
-        date_x,
-        4,
-    )]
+    calls = [
+        call.review(
+            identification,
+            settings,
+            aws_s3_credentials,
+            {
+                "theInstructionX_00": "uuid1",
+                "theInstructionY_01": "uuid2",
+                "theInstructionY_02": "uuid3",
+                "Questionnaire_03": "uuid4",
+            },
+            date_x,
+            4,
+        ),
+    ]
     assert llm_decisions_reviewer.mock_calls == calls
     reset_mocks()

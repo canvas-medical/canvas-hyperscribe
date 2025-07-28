@@ -24,7 +24,8 @@ from hyperscribe.structures.settings import Settings
 
 class Reviewer(BaseProtocol):
     RESPONDS_TO = [
-        # TODO when https://github.com/canvas-medical/canvas-plugins/issues/600 is fixed, just used the TASK_COMPLETED event
+        # TODO when https://github.com/canvas-medical/canvas-plugins/issues/600 is fixed,
+        #  just used the TASK_COMPLETED event
         EventType.Name(EventType.TASK_COMMENT_CREATED),
         # EventType.Name(EventType.TASK_COMPLETED),
     ]
@@ -52,25 +53,17 @@ class Reviewer(BaseProtocol):
     def compute_audit_documents(self, identification: IdentificationParameters, created: datetime, cycles: int) -> None:
         mapping = ImplementedCommands.schema_key2instruction()
         command2uuid = {
-            LlmTurnsStore.indexed_instruction(
-                mapping[command.schema_key],
-                index,
-            ): str(command.id)
-            for index, command in enumerate(Command.objects.filter(
-                patient__id=identification.patient_uuid,
-                note__id=identification.note_uuid,
-                state="staged",  # <--- TODO use an Enum when provided
-            ).order_by("dbid"))
+            LlmTurnsStore.indexed_instruction(mapping[command.schema_key], index): str(command.id)
+            for index, command in enumerate(
+                Command.objects.filter(
+                    patient__id=identification.patient_uuid,
+                    note__id=identification.note_uuid,
+                    state="staged",  # <--- TODO use an Enum when provided
+                ).order_by("dbid"),
+            )
         }
 
         settings = Settings.from_dictionary(self.secrets | {Constants.PROGRESS_SETTING_KEY: True})
         credentials = AwsS3Credentials.from_dictionary(self.secrets)
-        LlmDecisionsReviewer.review(
-            identification,
-            settings,
-            credentials,
-            command2uuid,
-            created,
-            cycles,
-        )
+        LlmDecisionsReviewer.review(identification, settings, credentials, command2uuid, created, cycles)
         Progress.send_to_user(identification, settings, Constants.PROGRESS_END_OF_MESSAGES)

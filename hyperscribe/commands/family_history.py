@@ -25,7 +25,11 @@ class FamilyHistory(Base):
             return CodedItem(label=f"{relative}: {label}", code="", uuid="")
         return None
 
-    def command_from_json(self, instruction: InstructionWithParameters, chatter: LlmBase) -> InstructionWithCommand | None:
+    def command_from_json(
+        self,
+        instruction: InstructionWithParameters,
+        chatter: LlmBase,
+    ) -> InstructionWithCommand | None:
         result = FamilyHistoryCommand(
             relative=instruction.parameters["relative"],
             note=instruction.parameters["note"],
@@ -42,21 +46,21 @@ class FamilyHistory(Base):
                 "",
             ]
             user_prompt = [
-                'Here is the note provided by the healthcare provider in regards to the condition of a patient:',
-                '```text',
+                "Here is the note provided by the healthcare provider in regards to the condition of a patient:",
+                "```text",
                 f"keywords: {instruction.parameters['keywords']}",
                 " -- ",
                 instruction.parameters["note"],
-                '```',
-                'Among the following conditions, identify the most relevant one:',
-                '',
-                "\n".join(f' * {concept.term} ({concept.concept_id})' for concept in concepts),
-                '',
-                'Please, present your findings in a JSON format within a Markdown code block like:',
-                '```json',
+                "```",
+                "Among the following conditions, identify the most relevant one:",
+                "",
+                "\n".join(f" * {concept.term} ({concept.concept_id})" for concept in concepts),
+                "",
+                "Please, present your findings in a JSON format within a Markdown code block like:",
+                "```json",
                 json.dumps([{"conceptId": "the concept ID", "term": "the expression"}]),
-                '```',
-                '',
+                "```",
+                "",
             ]
             schemas = JsonSchema.get(["selector_concept"])
             if response := chatter.single_conversation(system_prompt, user_prompt, schemas, instruction):
@@ -66,18 +70,21 @@ class FamilyHistory(Base):
     def command_parameters(self) -> dict:
         return {
             "keywords": "comma separated keywords of up to 5 synonyms of the condition",
-            "relative": "one of: father/mother/parent/child/brother/sister/sibling/grand-parent/grand-father/grand-mother",
+            "relative": "one of: father/mother/parent/child/brother/sister/sibling/grand-parent/"
+            "grand-father/grand-mother",
             "note": "description of the condition, as free text",
         }
 
     def instruction_description(self) -> str:
-        return ("Any relevant condition of a relative among: "
-                "father, mother, parent, child, brother, sister, sibling, grand-parent, grand-father, grand-mother. "
-                "There can be only one condition per relative per instruction, and no instruction in the lack of.")
+        return (
+            "Any relevant condition of a relative among: "
+            "father, mother, parent, child, brother, sister, sibling, grand-parent, grand-father, grand-mother. "
+            "There can be only one condition per relative per instruction, and no instruction in the lack of."
+        )
 
     def instruction_constraints(self) -> str:
         result = ""
-        if text := ", ".join([f'{history.label}' for history in self.cache.family_history()]):
+        if text := ", ".join([f"{history.label}" for history in self.cache.family_history()]):
             result = f'"{self.class_name()}" cannot include: {text}.'
         return result
 

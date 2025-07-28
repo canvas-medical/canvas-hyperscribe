@@ -1,0 +1,73 @@
+[
+  {
+    "instruction": "Fluticasone inhaler, 220 micrograms per puff, one puff in the morning and one puff at night, for asthma management.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.prescribe",
+      "class": "PrescribeCommand",
+      "attributes": {
+        "prescriber_id": "4150cd20de8a470aa570a852859ac87e",
+        "quantity_to_dispense": "1.00",
+        "note_to_pharmacist": "Dispense one inhaler for a 30-day supply. Verify the patient's inhalation technique.",
+        "sig": "Use 2 puffs of the inhaler twice daily by mouth for asthma management. Ensure proper inhalation technique.",
+        "icd10_codes": [
+          "J45909"
+        ],
+        "substitutions": "allowed",
+        "fdb_code": "473400",
+        "days_supply": 30,
+        "type_to_dispense": {
+          "representative_ndc": "00173071820",
+          "ncpdp_quantity_qualifier_code": "C48155"
+        },
+        "refills": 11
+      }
+    }
+  },
+  {
+    "instruction": "Use the spacer with the inhaler: pop the inhaler into the blue end, shake once, puff, then breathe in for four seconds, hold for five seconds.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "comment": "Use the spacer with the inhaler: pop the inhaler into the blue end, shake once, puff, then breathe in for four seconds, hold for five seconds."
+      }
+    }
+  },
+  {
+    "instruction": "Swish water, gargle for ten seconds, and spit after every dose to prevent 'frog voice' and potential thrush.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "comment": "Swish water, gargle for ten seconds, and spit after every dose to prevent 'frog voice' and potential thrush.",
+        "coding": {
+          "system": "http://snomed.info/sct",
+          "code": "410283000",
+          "display": "Day care/respite teaching, guidance, and counseling"
+        }
+      }
+    }
+  },
+  {
+    "instruction": "Write a note for the staff to allow Malik access to the nurses' cabinet for his inhaler until 10 p.m.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.task",
+      "class": "TaskCommand",
+      "attributes": {
+        "title": "Allow Malik access to nurses' cabinet for inhaler",
+        "due_date": "2025-06-27",
+        "comment": "Allow Malik access to the nurses' cabinet for his inhaler until 10 p.m."
+      }
+    }
+  },
+  {
+    "instruction": "Patient sometimes misses evening inhaler dose due to locker line closing before lights-out, leading to coughing and chest tightness at night.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.history_present_illness",
+      "class": "HistoryOfPresentIllnessCommand",
+      "attributes": {
+        "narrative": "Patient sometimes misses evening inhaler dose due to locker line closing before lights-out, leading to coughing and chest tightness at night."
+      }
+    }
+  }
+]

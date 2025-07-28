@@ -77,16 +77,11 @@ def test_command_from_json():
         "information": "theInformation",
         "is_new": False,
         "is_updated": True,
-        "parameters": {
-            "plan": "thePlan",
-        },
+        "parameters": {"plan": "thePlan"},
     }
     instruction = InstructionWithParameters(**arguments)
     result = tested.command_from_json(instruction, chatter)
-    command = PlanCommand(
-        narrative="thePlan",
-        note_uuid="noteUuid",
-    )
+    command = PlanCommand(narrative="thePlan", note_uuid="noteUuid")
     expected = InstructionWithCommand(**(arguments | {"command": command}))
     assert result == expected
     assert chatter.mock_calls == []
@@ -95,17 +90,17 @@ def test_command_from_json():
 def test_command_parameters():
     tested = helper_instance()
     result = tested.command_parameters()
-    expected = {
-        "plan": "description of the plan, as free text",
-    }
+    expected = {"plan": "description of the plan, as free text"}
     assert result == expected
 
 
 def test_instruction_description():
     tested = helper_instance()
     result = tested.instruction_description()
-    expected = ("Defined plan for future patient visits. "
-                "There can be only one plan per instruction, and no instruction in the lack of.")
+    expected = (
+        "Defined plan for future patient visits. "
+        "There can be only one plan per instruction, and no instruction in the lack of."
+    )
     assert result == expected
 
 

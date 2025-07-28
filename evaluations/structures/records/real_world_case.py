@@ -1,4 +1,3 @@
-from datetime import datetime
 from typing import NamedTuple
 
 
@@ -7,6 +6,7 @@ class RealWorldCase(NamedTuple):
     customer_identifier: str = ""
     patient_note_hash: str = ""
     topical_exchange_identifier: str = ""
+    publishable: bool = False
     start_time: float = 0.0
     end_time: float = 0.0
     duration: float = 0.0

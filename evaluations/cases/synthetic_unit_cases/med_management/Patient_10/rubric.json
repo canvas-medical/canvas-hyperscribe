@@ -1,0 +1,77 @@
+[
+  {
+    "criterion": "Reward for accurately documenting the patient's reports of increased injection-site sting, pronounced drowsiness that interferes with school, and 8-pound weight gain since starting injections",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for noting clinician\u2019s statement that serum levels are mid-therapeutic and decision to maintain the 400-mg aripiprazole depot (no dose reduction at this time)",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for recording the clinician\u2019s timing strategy: scheduling next injection after school so peak drowsiness occurs overnight",
+    "weight": 8,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing the contingency plan: contact nurse line if sleepiness persists past Sunday and possible one-week 5-mg morning modafinil sample while reassessing",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting weight-management plan: referral to dietitian billed under injection visit, tracking sugary drinks in Daylio with screenshots due next appointment",
+    "weight": 8,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for including escalation criteria for weight gain (>2 lb/month) and options to reduce to 300-mg dose or switch to once-daily cariprazine",
+    "weight": 7,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for accurately stating next depot deadline (no later than 3 May) and importance of staying within a 5-day window; note that reminders were sent to patient phone and foster portal",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for detailing alternate administration at school nurse: need for refrigerator log, one-page standing order to be faxed, patient to bring vial in cooler pack, and barcode text for pharmacy pickup without adult",
+    "weight": 9,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for summarizing side-effect monitoring instructions: report drowsiness beyond 3 days, rapid waist increase, and signs of akathisia; include suggestion of brisk walk as non-pharmacologic aid",
+    "weight": 8,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for noting assurance about drug screening and clinician\u2019s commitment to email prescription letter to patient",
+    "weight": 6,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting patient\u2019s logistical concern about transportation/expired Uber voucher and clinician\u2019s instruction to notify clinic if school address changes",
+    "weight": 4,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for overall completeness: note captures the majority of clinically relevant complaints, clinician reasoning, and plans from the encounter with minimal omissions or extraneous content",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for omitting any major plan element or instruction listed above (e.g., dietitian referral, modafinil contingency, school-nurse administration logistics, follow-up timing)",
+    "weight": 12,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for introducing new diagnoses, medications, test orders, or recommendations not spoken in the transcript",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for copying irrelevant or excessive chart data (e.g., unrelated past medical history, boilerplate ROS) that was not referenced in the encounter",
+    "weight": 10,
+    "sense": "negative"
+  }
+]

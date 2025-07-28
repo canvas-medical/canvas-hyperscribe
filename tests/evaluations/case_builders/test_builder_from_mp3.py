@@ -32,9 +32,25 @@ def test__parameters(argument_parser):
         call(description="Build the files of the evaluation tests against a patient based on the provided files"),
         call().add_argument("--patient", type=BuilderFromMp3.validate_patient, required=True, help="Patient UUID"),
         call().add_argument("--case", type=str, required=True, help="Evaluation case"),
-        call().add_argument("--mp3", required=True, nargs="+", type=BuilderFromMp3.validate_files, help="List of MP3 files"),
-        call().add_argument('--combined', action='store_true', default=False, help="Combine the audio files into a single audio"),
-        call().add_argument('--render', action='store_true', default=False, help="Upsert the commands of the last cycle to the patient's last note"),
+        call().add_argument(
+            "--mp3",
+            required=True,
+            nargs="+",
+            type=BuilderFromMp3.validate_files,
+            help="List of MP3 files",
+        ),
+        call().add_argument(
+            "--combined",
+            action="store_true",
+            default=False,
+            help="Combine the audio files into a single audio",
+        ),
+        call().add_argument(
+            "--render",
+            action="store_true",
+            default=False,
+            help="Upsert the commands of the last cycle to the patient's last note",
+        ),
         call().parse_args(),
     ]
     assert argument_parser.mock_calls == calls
@@ -49,14 +65,14 @@ def test__parameters(argument_parser):
 @patch.object(BuilderFromMp3, "_combined_audios")
 @patch.object(BuilderFromMp3, "_limited_cache_from")
 def test__run(
-        limited_cache_from,
-        combined_audios,
-        run_cycle,
-        render_in_ui,
-        schema_key2instruction,
-        get_discussion,
-        audio_interpreter,
-        capsys,
+    limited_cache_from,
+    combined_audios,
+    run_cycle,
+    render_in_ui,
+    schema_key2instruction,
+    get_discussion,
+    audio_interpreter,
+    capsys,
 ):
     recorder = MagicMock()
     mock_files = [MagicMock(), MagicMock(), MagicMock()]
@@ -100,10 +116,10 @@ def test__run(
         Line(speaker="speaker", text="last words 3"),
     ]
     tests = [
-        ([0, 1, 2], '- audio file 0\n- audio file 1\n- audio file 2', True),
-        ([0, 1, 2], '- audio file 0\n- audio file 1\n- audio file 2', True),
-        ([1], '- audio file 1', False),
-        ([1], '- audio file 1', False),
+        ([0, 1, 2], "- audio file 0\n- audio file 1\n- audio file 2", True),
+        ([0, 1, 2], "- audio file 0\n- audio file 1\n- audio file 2", True),
+        ([1], "- audio file 1", False),
+        ([1], "- audio file 1", False),
     ]
     for files, exp_file_out, is_render in tests:
         limited_cache_from.return_value.to_json.side_effect = [{"key": "value"}]
@@ -111,11 +127,7 @@ def test__run(
         schema_key2instruction.side_effect = ["schemaKey2instruction"]
         recorder.settings = "theSettings"
         recorder.s3_credentials = "theAwsS3Credentials"
-        combined_audios.side_effect = [[
-            [b"audio1"],
-            [b"audio1", b"audio2"],
-            [b"audio2", b"audio3"],
-        ]]
+        combined_audios.side_effect = [[[b"audio1"], [b"audio1", b"audio2"], [b"audio2", b"audio3"]]]
         run_cycle.side_effect = [
             (instructions[:2], lines[0]),
             (instructions[:3], lines[1]),
@@ -130,13 +142,7 @@ def test__run(
         )
         tested._run(parameters, recorder, identification)
 
-        exp_out = [
-            'Patient UUID: thePatientUuid',
-            'Evaluation Case: theCase',
-            'MP3 Files:',
-            exp_file_out,
-            '',
-        ]
+        exp_out = ["Patient UUID: thePatientUuid", "Evaluation Case: theCase", "MP3 Files:", exp_file_out, ""]
         assert capsys.readouterr().out == "\n".join(exp_out)
 
         calls = [
@@ -147,12 +153,7 @@ def test__run(
         assert limited_cache_from.mock_calls == calls
         calls = [call()]
         assert schema_key2instruction.mock_calls == calls
-        calls = [call(
-            "theSettings",
-            "theAwsS3Credentials",
-            limited_cache_from.return_value,
-            identification,
-        )]
+        calls = [call("theSettings", "theAwsS3Credentials", limited_cache_from.return_value, identification)]
         assert audio_interpreter.mock_calls == calls
         calls = [
             call(audio_interpreter.return_value.identification.note_uuid),
@@ -164,9 +165,9 @@ def test__run(
         calls = [call(parameters)]
         assert combined_audios.mock_calls == calls
         calls = [
-            call(recorder, [b'audio1'], audio_interpreter.return_value, instructions[:1], []),
-            call(recorder, [b'audio1', b'audio2'], audio_interpreter.return_value, instructions[:2], lines[0]),
-            call(recorder, [b'audio2', b'audio3'], audio_interpreter.return_value, instructions[:3], lines[1]),
+            call(recorder, [b"audio1"], audio_interpreter.return_value, instructions[:1], []),
+            call(recorder, [b"audio1", b"audio2"], audio_interpreter.return_value, instructions[:2], lines[0]),
+            call(recorder, [b"audio2", b"audio3"], audio_interpreter.return_value, instructions[:3], lines[1]),
         ]
         assert run_cycle.mock_calls == calls
         calls = []
@@ -176,7 +177,7 @@ def test__run(
         for idx, mock_file in enumerate(mock_files):
             assert mock_file.mock_calls == []
         calls = [
-            call.case_update_limited_cache({'key': 'value'}),
+            call.case_update_limited_cache({"key": "value"}),
             call.set_cycle(1),
             call.set_cycle(2),
             call.set_cycle(3),
@@ -191,27 +192,43 @@ def test__combined_audios():
     def reset_mocks():
         for idx, item in enumerate(mock_files):
             item.reset_mock()
-            item.open.return_value.__enter__.return_value.read.side_effect = [f"audio content {idx}".encode('utf-8')]
+            item.open.return_value.__enter__.return_value.read.side_effect = [f"audio content {idx}".encode("utf-8")]
 
     tested = BuilderFromMp3
 
     tests = [
-        (2, True, [[b'audio content 0', b'audio content 1', b'audio content 2', b'audio content 3', b'audio content 4']]),
-        (0, True, [[b'audio content 0', b'audio content 1', b'audio content 2', b'audio content 3', b'audio content 4']]),
-        (2, False, [
-            [b'audio content 0'],
-            [b'audio content 0', b'audio content 1'],
-            [b'audio content 0', b'audio content 1', b'audio content 2'],
-            [b'audio content 1', b'audio content 2', b'audio content 3'],
-            [b'audio content 2', b'audio content 3', b'audio content 4'],
-        ]),
-        (0, False, [
-            [b'audio content 0'],
-            [b'audio content 1'],
-            [b'audio content 2'],
-            [b'audio content 3'],
-            [b'audio content 4'],
-        ]),
+        (
+            2,
+            True,
+            [[b"audio content 0", b"audio content 1", b"audio content 2", b"audio content 3", b"audio content 4"]],
+        ),
+        (
+            0,
+            True,
+            [[b"audio content 0", b"audio content 1", b"audio content 2", b"audio content 3", b"audio content 4"]],
+        ),
+        (
+            2,
+            False,
+            [
+                [b"audio content 0"],
+                [b"audio content 0", b"audio content 1"],
+                [b"audio content 0", b"audio content 1", b"audio content 2"],
+                [b"audio content 1", b"audio content 2", b"audio content 3"],
+                [b"audio content 2", b"audio content 3", b"audio content 4"],
+            ],
+        ),
+        (
+            0,
+            False,
+            [
+                [b"audio content 0"],
+                [b"audio content 1"],
+                [b"audio content 2"],
+                [b"audio content 3"],
+                [b"audio content 4"],
+            ],
+        ),
     ]
     reset_mocks()
     for max_previous_audios, combined, expected in tests:
@@ -228,7 +245,7 @@ def test__combined_audios():
             result = tested._combined_audios(parameters)
             assert result == expected
             calls = [
-                call.open('rb'),
+                call.open("rb"),
                 call.open().__enter__(),
                 call.open().__enter__().read(),
                 call.open().__exit__(None, None, None),

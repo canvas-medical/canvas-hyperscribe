@@ -1,0 +1,38 @@
+{
+  "demographicStr": "the patient is a man, born on January 1, 1986 (age 38)",
+  "conditionHistory": [],
+  "currentAllergies": [
+    {
+      "uuid": "f5159810-3f4d-42bc-8419-a01ef93ce7bd",
+      "label": "Severe sulfonamide allergy",
+      "code": "29462000"
+    }
+  ],
+  "currentConditions": [
+    {
+      "uuid": "cd4732fb-a9bc-4349-8609-56b416b6acd8",
+      "label": "Schizophrenia, unspecified",
+      "code": "F20.9"
+    },
+    {
+      "uuid": "804820b6-5ba1-42fe-a689-da90ea495dfe",
+      "label": "Opioid dependence, uncomplicated",
+      "code": "F11.20"
+    }
+  ],
+  "currentGoals": [],
+  "currentMedications": [
+    {
+      "uuid": "f830e5e7-ea93-46ac-a34b-3758f7b2bba5",
+      "label": "Aripiprazole 400 mg intramuscular injection",
+      "code": "1594403"
+    },
+    {
+      "uuid": "8d664d30-0c20-43ff-a446-ae94034482ee",
+      "label": "Buprenorphine 8 mg / naloxone 2 mg sublingual film",
+      "code": "994131"
+    }
+  ],
+  "familyHistory": [],
+  "surgeryHistory": []
+}

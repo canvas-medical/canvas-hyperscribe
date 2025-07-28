@@ -12,7 +12,6 @@ CACHED: dict[str, dict] = {}
 
 
 class CachedSdk:
-
     def __init__(self, note_uuid: str) -> None:
         self.created: datetime = datetime.now(UTC)
         self.updated: datetime = self.created
@@ -42,10 +41,7 @@ class CachedSdk:
             "updated": self.updated.isoformat(),
             "cycle": self.cycle,
             "note_uuid": self.note_uuid,
-            "previous_instructions": [
-                instruction.to_json(False)
-                for instruction in self.previous_instructions
-            ],
+            "previous_instructions": [instruction.to_json(False) for instruction in self.previous_instructions],
             "previous_transcript": [line.to_json() for line in self.previous_transcript],
         }
 

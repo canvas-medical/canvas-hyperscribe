@@ -1,0 +1,26 @@
+[
+  {
+    "speaker": "Patient",
+    "text": "Ever since the nurse handed me that new blister pack, I keep checking the days, uh, to be sure I don’t miss one. Today is Friday, so that means two more pills after breakfast, right? The rash still burns at night, and I’m scared I’ll need more than five days."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Yes, you’re on track: one 1-gram valacyclovir tablet after breakfast today, another Saturday, the last one Sunday morning, then you’re done. Keep swallowing with a full glass of water; it lessens that burning you feel. Typical hiccups are mild nausea or a little headache—very few folks your age get anything worse. No need for nighttime doses."
+  },
+  {
+    "speaker": "Patient",
+    "text": "And, um, the vitamin D chew— it’s shaped like a little orange square— do I still take that at lunch while I’m on this antiviral? I don’t want anything fighting with the shingles medicine. The caregiver said spacing them an hour is fine, but I want to hear it from you."
+  },
+  {
+    "speaker": "Patient",
+    "text": "Also, they wrote “no penicillin” in red on my chart, and that’s the only drug I ever reacted to. The word “cyclovir” looks kind of similar to amoxicillin in my head. Could this pill cause the same throat swelling I had years ago, or am I safe?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "One more thing: the pharmacist mentioned the home might switch suppliers next week because of a formulary shake-up. If the tablets change color or shape before I finish the pack, should I keep taking them, or stop and call? I don’t want to mix up doses."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "The vitamin D chew is fine right after lunch— it won’t clash, even if you chew it. Valacyclovir shares no chemistry with penicillin, so the old throat swelling can’t repeat here. If the pharmacy swaps brands mid-course, the imprint code will change, but potency won’t; keep taking one per blister slot and alert staff, not stop."
+  }
+]

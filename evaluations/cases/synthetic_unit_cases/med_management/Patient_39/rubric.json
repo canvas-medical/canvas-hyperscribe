@@ -1,0 +1,52 @@
+[
+  {
+    "criterion": "Reward for accurately documenting the patient's report of a one-month lapse in taking bictegravir/emtricitabine/tenofovir and his recent recommitment to daily dosing.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing the specific incident of possible double-dosing (second tablet taken ~10 minutes after a sneeze on the prior day).",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for recording the patient's adherence routine detail that he now takes the HIV pill each day at 8 a.m. using an alarm.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting the patient\u2019s concern about omeprazole lowering tenofovir levels and the three options he asked about (move dose to dinner, switch to famotidine, or tolerate heartburn).",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for noting that chest burning recurs when the patient skips omeprazole.",
+    "weight": 5,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for including the patient\u2019s financial concern about amlodipine: only 5 tablets remain and he requests samples or assistance to avoid blood-pressure spike.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for listing HIV disease and essential hypertension as active problems consistent with both transcript and chart, without adding unrelated conditions.",
+    "weight": 5,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for omitting or misreporting key numerical details from the encounter (e.g., '5 tablets left', '8 a.m. alarm', 'second dose 10 minutes later').",
+    "weight": 10,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for copying chart data that the transcript does not make relevant (e.g., full medication lists, empty allergy sections, boilerplate histories) or for fabricating new information not present in either source.",
+    "weight": 5,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Reward for overall completeness: the note should coherently capture all patient questions, concerns, and requests raised during the encounter without introducing extra content or leaving major items out.",
+    "weight": 20,
+    "sense": "positive"
+  }
+]

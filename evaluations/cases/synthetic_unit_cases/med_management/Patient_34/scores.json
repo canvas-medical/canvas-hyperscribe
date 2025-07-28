@@ -1,0 +1,72 @@
+[
+  {
+    "rationale": "HPI explicitly states \"calf soreness and dark urine after the second dose of atovaquone-proguanil.\"",
+    "satisfaction": 95.0,
+    "score": 9.5
+  },
+  {
+    "rationale": "Note mentions concern for myopathy/rhabdomyolysis from atorvastatin but does not contrast with dehydration.",
+    "satisfaction": 85.0,
+    "score": 6.8
+  },
+  {
+    "rationale": "Captures instruction to stop atorvastatin and cites ritonavir risk, but omits the \"48 h after last dose\" timeframe.",
+    "satisfaction": 70.0,
+    "score": 10.5
+  },
+  {
+    "rationale": "Explicitly instructs patient to continue atovaquone-proguanil.",
+    "satisfaction": 95.0,
+    "score": 4.75
+  },
+  {
+    "rationale": "States \"double water intake to about three liters daily,\" matching directive.",
+    "satisfaction": 95.0,
+    "score": 4.75
+  },
+  {
+    "rationale": "Includes logging muscle weakness/cola-colored urine but misses directive for field nurse daily vitals.",
+    "satisfaction": 60.0,
+    "score": 3.0
+  },
+  {
+    "rationale": "Verbatim records threshold algorithm: pain >5/10 or brown urine >6 h, hold meds, start ORS, contact river post.",
+    "satisfaction": 95.0,
+    "score": 9.5
+  },
+  {
+    "rationale": "Notes grapefruit avoidance with explanation and alternative juices.",
+    "satisfaction": 95.0,
+    "score": 4.75
+  },
+  {
+    "rationale": "Details storage (zip bag, silica gel), dose (two puffs if wheeze), and >2/week notification trigger.",
+    "satisfaction": 95.0,
+    "score": 4.75
+  },
+  {
+    "rationale": "References only relevant meds but omits hydrochlorothiazide, so med list not fully complete.",
+    "satisfaction": 70.0,
+    "score": 3.5
+  },
+  {
+    "rationale": "Captures almost all instructions; minor omissions (48 h statin window, daily vitals, HCTZ mention).",
+    "satisfaction": 80.0,
+    "score": 8.0
+  },
+  {
+    "rationale": "No fabricated vitals, labs, or new diagnoses introduced.",
+    "satisfaction": 98.0,
+    "score": -0.2
+  },
+  {
+    "rationale": "Major plan elements present; only minor timing/vitals details missing.",
+    "satisfaction": 90.0,
+    "score": -1.5
+  },
+  {
+    "rationale": "Does not copy irrelevant chart data or history.",
+    "satisfaction": 100.0,
+    "score": -0.0
+  }
+]

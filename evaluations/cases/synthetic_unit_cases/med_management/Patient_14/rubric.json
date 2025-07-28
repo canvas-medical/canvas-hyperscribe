@@ -1,0 +1,57 @@
+[
+  {
+    "criterion": "Reward for accurately documenting the gabapentin taper: 200 mg at bedtime for the next three nights, then discontinue",
+    "weight": 18,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for including the contingency plan: patient to call if paresthesia returns and may hold at 100 mg instead of stopping completely",
+    "weight": 7,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for correctly recording maintenance medications and related instructions: lisinopril 10 mg in the morning, atorvastatin 40 mg with supper (discard 20 mg leftovers), aspirin 81 mg any time",
+    "weight": 17,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for noting advice to space turmeric-ginger capsules at least four hours away from aspirin to reduce bleeding risk",
+    "weight": 6,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting the CBC lab order to be completed before next week\u2019s visit with no fasting required",
+    "weight": 12,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing the clinician\u2019s plan to send a fresh blister pack of atorvastatin 40 mg",
+    "weight": 6,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for reflecting patient adherence issues and pill-sorting confusion (e.g., swallowing all pills at once, similarity of aspirin and turmeric, caregiving for wife disrupting routine)",
+    "weight": 6,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for including the instruction to log bedtime, wake-up time, and any groggy spells in a notebook",
+    "weight": 6,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for copying medication information from the chart that conflicts with the encounter (e.g., atorvastatin 20 mg, gabapentin 300 mg) or importing unrelated chart data",
+    "weight": 25,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Reward for overall completeness: note captures at least 80 % of clinically relevant details explicitly or implicitly stated in the transcript",
+    "weight": 20,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for significant omissions or fabrications that alter the clinical narrative (e.g., missing taper details, adding unspoken diagnoses)",
+    "weight": 20,
+    "sense": "negative"
+  }
+]

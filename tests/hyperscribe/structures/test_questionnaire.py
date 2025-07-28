@@ -7,11 +7,7 @@ from tests.helper import is_namedtuple
 
 def test_class():
     tested = Questionnaire
-    fields = {
-        "dbid": int,
-        "name": str,
-        "questions": list[Question],
-    }
+    fields = {"dbid": int, "name": str, "questions": list[Question]}
     assert is_namedtuple(tested, fields)
 
 
@@ -39,29 +35,29 @@ def test_to_json():
                 skipped=True,
                 responses=responses[2:3],
             ),
-        ]
+        ],
     )
     result = tested.to_json()
     expected = {
-        'dbid': 123,
-        'name': 'theQuestionnaire',
-        'questions': [
+        "dbid": 123,
+        "name": "theQuestionnaire",
+        "questions": [
             {
-                'dbid': 234,
-                'label': 'theQuestion1',
-                'responses': [
-                    {'dbid': 142, 'selected': True, 'value': 'theResponse1', 'comment': 'theComment1'},
-                    {'dbid': 143, 'selected': False, 'value': 'theResponse2', 'comment': 'theComment2'},
+                "dbid": 234,
+                "label": "theQuestion1",
+                "responses": [
+                    {"dbid": 142, "selected": True, "value": "theResponse1", "comment": "theComment1"},
+                    {"dbid": 143, "selected": False, "value": "theResponse2", "comment": "theComment2"},
                 ],
-                'skipped': False,
-                'type': 'SING',
+                "skipped": False,
+                "type": "SING",
             },
             {
-                'dbid': 345,
-                'label': 'theQuestion2',
-                'responses': [{'dbid': 144, 'selected': True, 'value': 'theResponse3', 'comment': 'theComment3'}],
-                'skipped': True,
-                'type': 'TXT',
+                "dbid": 345,
+                "label": "theQuestion2",
+                "responses": [{"dbid": 144, "selected": True, "value": "theResponse3", "comment": "theComment3"}],
+                "skipped": True,
+                "type": "TXT",
             },
         ],
     }
@@ -110,66 +106,62 @@ def test_for_llm():
                 skipped=False,
                 responses=responses[4:7],
             ),
-        ]
+        ],
     )
     result = tested.for_llm(True)
     expected = [
         {
-            'question': 'theQuestion1',
-            'questionId': 234,
-            'questionType': 'single choice',
-            'responses': [
-                {'responseId': 142, 'selected': True, 'value': 'theResponse1'},
-                {'responseId': 143, 'selected': False, 'value': 'theResponse2'},
+            "question": "theQuestion1",
+            "questionId": 234,
+            "questionType": "single choice",
+            "responses": [
+                {"responseId": 142, "selected": True, "value": "theResponse1"},
+                {"responseId": 143, "selected": False, "value": "theResponse2"},
             ],
-            'skipped': False,
+            "skipped": False,
         },
         {
-            'question': 'theQuestion2',
-            'questionId': 345,
-            'questionType': 'free text',
-            'responses': [
-                {'responseId': 144, 'selected': True, 'value': 'theResponse3'},
-            ],
-            'skipped': True,
+            "question": "theQuestion2",
+            "questionId": 345,
+            "questionType": "free text",
+            "responses": [{"responseId": 144, "selected": True, "value": "theResponse3"}],
+            "skipped": True,
         },
         {
-            'question': 'theQuestion3',
-            'questionId': 369,
-            'questionType': 'integer',
-            'responses': [
-                {'responseId': 145, 'selected': True, 'value': 444},
-            ],
-            'skipped': True,
+            "question": "theQuestion3",
+            "questionId": 369,
+            "questionType": "integer",
+            "responses": [{"responseId": 145, "selected": True, "value": 444}],
+            "skipped": True,
         },
         {
-            'question': 'theQuestion4',
-            'questionId': 371,
-            'questionType': 'multiple choice',
-            'responses': [
+            "question": "theQuestion4",
+            "questionId": 371,
+            "questionType": "multiple choice",
+            "responses": [
                 {
-                    'responseId': 146,
-                    'selected': True,
-                    'value': 'theResponse5',
-                    'comment': 'theComment5',
-                    'description': 'add in the comment key any relevant information expanding the answer',
+                    "responseId": 146,
+                    "selected": True,
+                    "value": "theResponse5",
+                    "comment": "theComment5",
+                    "description": "add in the comment key any relevant information expanding the answer",
                 },
                 {
-                    'responseId': 147,
-                    'selected': True,
-                    'value': 'theResponse6',
-                    'comment': 'theComment6',
-                    'description': 'add in the comment key any relevant information expanding the answer',
+                    "responseId": 147,
+                    "selected": True,
+                    "value": "theResponse6",
+                    "comment": "theComment6",
+                    "description": "add in the comment key any relevant information expanding the answer",
                 },
                 {
-                    'responseId': 148,
-                    'selected': False,
-                    'value': 'theResponse7',
-                    'comment': 'theComment7',
-                    'description': 'add in the comment key any relevant information expanding the answer',
+                    "responseId": 148,
+                    "selected": False,
+                    "value": "theResponse7",
+                    "comment": "theComment7",
+                    "description": "add in the comment key any relevant information expanding the answer",
                 },
             ],
-            'skipped': False,
+            "skipped": False,
         },
     ]
     assert result == expected
@@ -177,55 +169,51 @@ def test_for_llm():
     result = tested.for_llm(False)
     expected = [
         {
-            'question': 'theQuestion1',
-            'questionId': 234,
-            'questionType': 'single choice',
-            'responses': [
-                {'responseId': 142, 'selected': True, 'value': 'theResponse1'},
-                {'responseId': 143, 'selected': False, 'value': 'theResponse2'},
+            "question": "theQuestion1",
+            "questionId": 234,
+            "questionType": "single choice",
+            "responses": [
+                {"responseId": 142, "selected": True, "value": "theResponse1"},
+                {"responseId": 143, "selected": False, "value": "theResponse2"},
             ],
         },
         {
-            'question': 'theQuestion2',
-            'questionId': 345,
-            'questionType': 'free text',
-            'responses': [
-                {'responseId': 144, 'selected': True, 'value': 'theResponse3'},
-            ],
+            "question": "theQuestion2",
+            "questionId": 345,
+            "questionType": "free text",
+            "responses": [{"responseId": 144, "selected": True, "value": "theResponse3"}],
         },
         {
-            'question': 'theQuestion3',
-            'questionId': 369,
-            'questionType': 'integer',
-            'responses': [
-                {'responseId': 145, 'selected': True, 'value': 444},
-            ],
+            "question": "theQuestion3",
+            "questionId": 369,
+            "questionType": "integer",
+            "responses": [{"responseId": 145, "selected": True, "value": 444}],
         },
         {
-            'question': 'theQuestion4',
-            'questionId': 371,
-            'questionType': 'multiple choice',
-            'responses': [
+            "question": "theQuestion4",
+            "questionId": 371,
+            "questionType": "multiple choice",
+            "responses": [
                 {
-                    'responseId': 146,
-                    'selected': True,
-                    'value': 'theResponse5',
-                    'comment': 'theComment5',
-                    'description': 'add in the comment key any relevant information expanding the answer',
+                    "responseId": 146,
+                    "selected": True,
+                    "value": "theResponse5",
+                    "comment": "theComment5",
+                    "description": "add in the comment key any relevant information expanding the answer",
                 },
                 {
-                    'responseId': 147,
-                    'selected': True,
-                    'value': 'theResponse6',
-                    'comment': 'theComment6',
-                    'description': 'add in the comment key any relevant information expanding the answer',
+                    "responseId": 147,
+                    "selected": True,
+                    "value": "theResponse6",
+                    "comment": "theComment6",
+                    "description": "add in the comment key any relevant information expanding the answer",
                 },
                 {
-                    'responseId': 148,
-                    'selected': False,
-                    'value': 'theResponse7',
-                    'comment': 'theComment7',
-                    'description': 'add in the comment key any relevant information expanding the answer',
+                    "responseId": 148,
+                    "selected": False,
+                    "value": "theResponse7",
+                    "comment": "theComment7",
+                    "description": "add in the comment key any relevant information expanding the answer",
                 },
             ],
         },
@@ -240,29 +228,31 @@ def test_load_from():
         Response(dbid=144, value="theResponse3", selected=True, comment="theComment3"),
     ]
     tested = Questionnaire
-    result = tested.load_from({
-        'dbid': 123,
-        'name': 'theQuestionnaire',
-        'questions': [
-            {
-                'dbid': 234,
-                'label': 'theQuestion1',
-                'responses': [
-                    {'dbid': 142, 'selected': True, 'value': 'theResponse1', 'comment': 'theComment1'},
-                    {'dbid': 143, 'selected': False, 'value': 'theResponse2', 'comment': 'theComment2'},
-                ],
-                'skipped': False,
-                'type': 'SING',
-            },
-            {
-                'dbid': 345,
-                'label': 'theQuestion2',
-                'responses': [{'dbid': 144, 'selected': True, 'value': 'theResponse3', 'comment': 'theComment3'}],
-                'skipped': True,
-                'type': 'TXT',
-            },
-        ],
-    })
+    result = tested.load_from(
+        {
+            "dbid": 123,
+            "name": "theQuestionnaire",
+            "questions": [
+                {
+                    "dbid": 234,
+                    "label": "theQuestion1",
+                    "responses": [
+                        {"dbid": 142, "selected": True, "value": "theResponse1", "comment": "theComment1"},
+                        {"dbid": 143, "selected": False, "value": "theResponse2", "comment": "theComment2"},
+                    ],
+                    "skipped": False,
+                    "type": "SING",
+                },
+                {
+                    "dbid": 345,
+                    "label": "theQuestion2",
+                    "responses": [{"dbid": 144, "selected": True, "value": "theResponse3", "comment": "theComment3"}],
+                    "skipped": True,
+                    "type": "TXT",
+                },
+            ],
+        },
+    )
     expected = Questionnaire(
         dbid=123,
         name="theQuestionnaire",
@@ -281,7 +271,7 @@ def test_load_from():
                 skipped=True,
                 responses=responses[2:3],
             ),
-        ]
+        ],
     )
     assert result == expected
 
@@ -299,43 +289,39 @@ def test_load_from_llm():
     tested = Questionnaire
     data = [
         {
-            'question': 'theQuestion1',
-            'questionId': 234,
-            'questionType': 'single choice',
-            'responses': [
-                {'responseId': 142, 'selected': True, 'value': 'theResponse1'},
-                {'responseId': 143, 'selected': False, 'value': 'theResponse2'},
+            "question": "theQuestion1",
+            "questionId": 234,
+            "questionType": "single choice",
+            "responses": [
+                {"responseId": 142, "selected": True, "value": "theResponse1"},
+                {"responseId": 143, "selected": False, "value": "theResponse2"},
             ],
-            'skipped': False,
+            "skipped": False,
         },
         {
-            'question': 'theQuestion2',
-            'questionId': 345,
-            'questionType': 'free text',
-            'responses': [
-                {'responseId': 144, 'selected': True, 'value': 'theResponse3'},
-            ],
-            'skipped': True,
+            "question": "theQuestion2",
+            "questionId": 345,
+            "questionType": "free text",
+            "responses": [{"responseId": 144, "selected": True, "value": "theResponse3"}],
+            "skipped": True,
         },
         {
-            'question': 'theQuestion3',
-            'questionId': 369,
-            'questionType': 'integer',
-            'responses': [
-                {'responseId': 145, 'selected': True, 'value': 444},
-            ],
-            'skipped': True,
+            "question": "theQuestion3",
+            "questionId": 369,
+            "questionType": "integer",
+            "responses": [{"responseId": 145, "selected": True, "value": 444}],
+            "skipped": True,
         },
         {
-            'question': 'theQuestion4',
-            'questionId': 371,
-            'questionType': 'multiple choice',
-            'responses': [
-                {'responseId': 146, 'selected': True, 'value': 'theResponse5', 'comment': 'theComment5'},
-                {'responseId': 147, 'selected': True, 'value': 'theResponse6', 'comment': 'theComment6'},
-                {'responseId': 148, 'selected': False, 'value': 'theResponse7', 'comment': 'theComment7'},
+            "question": "theQuestion4",
+            "questionId": 371,
+            "questionType": "multiple choice",
+            "responses": [
+                {"responseId": 146, "selected": True, "value": "theResponse5", "comment": "theComment5"},
+                {"responseId": 147, "selected": True, "value": "theResponse6", "comment": "theComment6"},
+                {"responseId": 148, "selected": False, "value": "theResponse7", "comment": "theComment7"},
             ],
-            'skipped': False,
+            "skipped": False,
         },
     ]
     result = tested.load_from_llm(123, "theQuestionnaire", data)
@@ -371,6 +357,6 @@ def test_load_from_llm():
                 skipped=False,
                 responses=responses[4:7],
             ),
-        ]
+        ],
     )
     assert result == expected

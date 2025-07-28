@@ -1,0 +1,42 @@
+[
+  {
+    "rationale": "No mention of nightly two-puff regimen documented.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "The note is empty; confusion between purple and blue inhalers not captured.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Patient\u2019s request for education is not recorded.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "No linkage made to existing mild persistent asthma diagnosis.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Controller medication fluticasone propionate not listed.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "All key patient concerns were omitted, so maximum penalty applied.",
+    "satisfaction": 0.0,
+    "score": -20.0
+  },
+  {
+    "rationale": "No irrelevant or fabricated information was included; nothing copied wholesale.",
+    "satisfaction": 100.0,
+    "score": -0.0
+  },
+  {
+    "rationale": "Note is entirely absent, providing no usable clinical information.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  }
+]

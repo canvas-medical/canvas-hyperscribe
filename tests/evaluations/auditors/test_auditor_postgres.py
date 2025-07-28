@@ -18,9 +18,9 @@ def helper_instance() -> AuditorPostgres:
     settings = Settings(
         llm_text=VendorKey(vendor="theVendorTextLLM", api_key="theKeyTextLLM"),
         llm_audio=VendorKey(vendor="theVendorAudioLLM", api_key="theKeyAudioLLM"),
-        science_host='theScienceHost',
-        ontologies_host='theOntologiesHost',
-        pre_shared_key='thePreSharedKey',
+        science_host="theScienceHost",
+        ontologies_host="theOntologiesHost",
+        pre_shared_key="thePreSharedKey",
         structured_rfv=True,
         audit_llm=True,
         is_tuning=False,
@@ -30,12 +30,7 @@ def helper_instance() -> AuditorPostgres:
         staffers_policy=AccessPolicy(policy=False, items=[]),
         cycle_transcript_overlap=37,
     )
-    s3_credentials = AwsS3Credentials(
-        aws_key='theKey',
-        aws_secret='theSecret',
-        region='theRegion',
-        bucket='theBucket',
-    )
+    s3_credentials = AwsS3Credentials(aws_key="theKey", aws_secret="theSecret", region="theRegion", bucket="theBucket")
     psql_credentials = PostgresCredentials(
         database="theDatabase",
         user="theUser",
@@ -55,9 +50,9 @@ def test___init__():
     settings = Settings(
         llm_text=VendorKey(vendor="theVendorTextLLM", api_key="theKeyTextLLM"),
         llm_audio=VendorKey(vendor="theVendorAudioLLM", api_key="theKeyAudioLLM"),
-        science_host='theScienceHost',
-        ontologies_host='theOntologiesHost',
-        pre_shared_key='thePreSharedKey',
+        science_host="theScienceHost",
+        ontologies_host="theOntologiesHost",
+        pre_shared_key="thePreSharedKey",
         structured_rfv=True,
         audit_llm=True,
         is_tuning=False,
@@ -67,12 +62,7 @@ def test___init__():
         staffers_policy=AccessPolicy(policy=False, items=[]),
         cycle_transcript_overlap=37,
     )
-    s3_credentials = AwsS3Credentials(
-        aws_key='theKey',
-        aws_secret='theSecret',
-        region='theRegion',
-        bucket='theBucket',
-    )
+    s3_credentials = AwsS3Credentials(aws_key="theKey", aws_secret="theSecret", region="theRegion", bucket="theBucket")
     psql_credentials = PostgresCredentials(
         database="theDatabase",
         user="theUser",
@@ -89,7 +79,7 @@ def test___init__():
     assert tested.postgres_credentials == psql_credentials
 
 
-@patch('evaluations.auditors.auditor_postgres.CaseStore')
+@patch("evaluations.auditors.auditor_postgres.CaseStore")
 def test_case_id(case_store):
     def reset_mocks():
         case_store.reset_mock()
@@ -101,10 +91,7 @@ def test_case_id(case_store):
     expected = 25
     assert result == expected
 
-    calls = [
-        call(tested.postgres_credentials),
-        call().get_id('theCase'),
-    ]
+    calls = [call(tested.postgres_credentials), call().get_id("theCase")]
     assert case_store.mock_calls == calls
     reset_mocks()
 
@@ -117,13 +104,15 @@ def test_case_id(case_store):
     reset_mocks()
 
 
-@patch('evaluations.auditors.auditor_postgres.GeneratedNoteStore')
-@patch.object(AuditorPostgres, 'case_id')
-def test_generated_note_id(case_id, generated_note_store):
+@patch("evaluations.auditors.auditor_postgres.GeneratedNoteStore")
+@patch.object(AuditorPostgres, "get_plugin_commit")
+@patch.object(AuditorPostgres, "case_id")
+def test_generated_note_id(case_id, get_plugin_commit, generated_note_store):
     mock_settings = MagicMock()
 
     def reset_mocks():
         case_id.reset_mock()
+        get_plugin_commit.reset_mock()
         generated_note_store.reset_mock()
         mock_settings.reset_mock()
 
@@ -135,6 +124,7 @@ def test_generated_note_id(case_id, generated_note_store):
     mock_settings.llm_text_model.side_effect = ["theTextModel"]
     mock_settings.cycle_transcript_overlap = 37
     case_id.side_effect = [47]
+    get_plugin_commit.side_effect = ["abc123"]
     generated_note_store.return_value.insert.side_effect = [GeneratedNoteRecord(case_id=111, id=333)]
 
     result = tested.generated_note_id()
@@ -145,32 +135,37 @@ def test_generated_note_id(case_id, generated_note_store):
     assert case_id.mock_calls == calls
     calls = [
         call(tested.postgres_credentials),
-        call().insert(GeneratedNoteRecord(
-            case_id=47,
-            cycle_duration=0,
-            cycle_count=0,
-            cycle_transcript_overlap=37,
-            text_llm_vendor='theTextVendor',
-            text_llm_name='theTextModel',
-            note_json=[],
-            hyperscribe_version='',
-            staged_questionnaires={},
-            transcript2instructions={},
-            instruction2parameters={},
-            parameters2command={},
-            failed=True,
-            errors={},
-            id=0,
-        )),
+        call().insert(
+            GeneratedNoteRecord(
+                case_id=47,
+                cycle_duration=0,
+                cycle_count=0,
+                cycle_transcript_overlap=37,
+                text_llm_vendor="theTextVendor",
+                text_llm_name="theTextModel",
+                note_json=[],
+                hyperscribe_version="abc123",
+                staged_questionnaires={},
+                transcript2instructions={},
+                instruction2parameters={},
+                parameters2command={},
+                failed=True,
+                errors={},
+                id=0,
+            ),
+        ),
     ]
     assert generated_note_store.mock_calls == calls
     calls = [call.llm_text_model()]
     assert mock_settings.mock_calls == calls
+    calls = [call()]
+    assert get_plugin_commit.mock_calls == calls
     reset_mocks()
 
     #
     mock_settings.llm_text_model.side_effect = []
     case_id.side_effect = []
+    get_plugin_commit.return_value.insert.side_effect = []
     generated_note_store.return_value.insert.side_effect = []
 
     result = tested.generated_note_id()
@@ -180,10 +175,11 @@ def test_generated_note_id(case_id, generated_note_store):
     assert case_id.mock_calls == []
     assert generated_note_store.mock_calls == []
     assert mock_settings.mock_calls == []
+    assert get_plugin_commit.mock_calls == []
     reset_mocks()
 
 
-@patch('evaluations.auditors.auditor_postgres.CaseStore')
+@patch("evaluations.auditors.auditor_postgres.CaseStore")
 def test_case_prepare(case_store):
     def reset_mocks():
         case_store.reset_mock()
@@ -198,17 +194,19 @@ def test_case_prepare(case_store):
 
     calls = [
         call(tested.postgres_credentials),
-        call().get_id('theCase'),
-        call().upsert(CaseRecord(
-            name='theCase',
-            transcript={},
-            limited_chart={},
-            profile='theCase',
-            validation_status=CaseStatus.GENERATION,
-            batch_identifier='',
-            tags={},
-            id=0,
-        )),
+        call().get_id("theCase"),
+        call().upsert(
+            CaseRecord(
+                name="theCase",
+                transcript={},
+                limited_chart={},
+                profile="theCase",
+                validation_status=CaseStatus.GENERATION,
+                batch_identifier="",
+                tags={},
+                id=0,
+            ),
+        ),
     ]
     assert case_store.mock_calls == calls
     reset_mocks()
@@ -221,15 +219,15 @@ def test_case_prepare(case_store):
 
     calls = [
         call(tested.postgres_credentials),
-        call().get_id('theCase'),
-        call().update_fields(145, {'validation_status': CaseStatus.GENERATION}),
+        call().get_id("theCase"),
+        call().update_fields(145, {"validation_status": CaseStatus.GENERATION}),
     ]
     assert case_store.mock_calls == calls
     reset_mocks()
 
 
-@patch('evaluations.auditors.auditor_postgres.CaseStore')
-@patch.object(AuditorPostgres, 'case_id')
+@patch("evaluations.auditors.auditor_postgres.CaseStore")
+@patch.object(AuditorPostgres, "case_id")
 def test_case_update_limited_cache(case_id, case_store):
     def reset_mocks():
         case_id.reset_mock()
@@ -242,17 +240,14 @@ def test_case_update_limited_cache(case_id, case_store):
 
     calls = [call()]
     assert case_id.mock_calls == calls
-    calls = [
-        call(tested.postgres_credentials),
-        call().update_fields(145, {"limited_chart": {"limited": "cache"}}),
-    ]
+    calls = [call(tested.postgres_credentials), call().update_fields(145, {"limited_chart": {"limited": "cache"}})]
     assert case_store.mock_calls == calls
     reset_mocks()
 
 
-@patch('evaluations.auditors.auditor_postgres.GeneratedNoteStore')
-@patch.object(AuditorPostgres, 'summarized_generated_commands')
-@patch.object(AuditorPostgres, 'generated_note_id')
+@patch("evaluations.auditors.auditor_postgres.GeneratedNoteStore")
+@patch.object(AuditorPostgres, "summarized_generated_commands")
+@patch.object(AuditorPostgres, "generated_note_id")
 def test_case_finalize(generated_note_id, summarized_generated_commands, generated_note_store):
     def reset_mocks():
         generated_note_id.reset_mock()
@@ -274,10 +269,10 @@ def test_case_finalize(generated_note_id, summarized_generated_commands, generat
         call().update_fields(
             137,
             {
-                'cycle_count': 7,
-                'note_json': {'summarized': 'commands'},
-                'failed': True,
-                'errors': {"error1": "value1", "error2": "value2"},
+                "cycle_count": 7,
+                "note_json": {"summarized": "commands"},
+                "failed": True,
+                "errors": {"error1": "value1", "error2": "value2"},
             },
         ),
     ]
@@ -289,21 +284,22 @@ def test_upsert_audio():
     tested = helper_instance()
     source = getsource(tested.upsert_audio)
     # Remove the function definition line and whitespace
-    lines = source.split('\n')
+    lines = source.split("\n")
     body_lines = [line.strip() for line in lines[1:] if line.strip()]
 
     # Should only contain ellipsis
-    assert len(body_lines) == 1
-    assert body_lines[0] == '...  # TODO record the audio in the database'
+    assert len(body_lines) == 2
+    assert body_lines[0] == "# TODO record the audio in the database"
+    assert body_lines[1] == "..."
 
     # force the execution
     assert tested.upsert_audio("theLabel", b"audio1") is None
 
 
-@patch('evaluations.auditors.auditor_postgres.GeneratedNoteStore')
-@patch('evaluations.auditors.auditor_postgres.CaseStore')
-@patch.object(AuditorPostgres, 'generated_note_id')
-@patch.object(AuditorPostgres, 'case_id')
+@patch("evaluations.auditors.auditor_postgres.GeneratedNoteStore")
+@patch("evaluations.auditors.auditor_postgres.CaseStore")
+@patch.object(AuditorPostgres, "generated_note_id")
+@patch.object(AuditorPostgres, "case_id")
 def test_upsert_json(case_id, generated_note_id, case_store, generated_note_store):
     def reset_mocks():
         case_id.reset_mock()
@@ -316,9 +312,7 @@ def test_upsert_json(case_id, generated_note_id, case_store, generated_note_stor
     # update the transcript
     case_id.side_effect = [144, 137]
     generated_note_id.side_effect = []
-    case_store.return_value.get_transcript.side_effect = [{
-        "cycle_004": [Line(speaker="aSpeaker", text="aText")]
-    }]
+    case_store.return_value.get_transcript.side_effect = [{"cycle_004": [Line(speaker="aSpeaker", text="aText")]}]
 
     tested.upsert_json("audio2transcript", {"cycle_007": [{"speaker": "theSpeaker", "text": "theText"}]})
 
@@ -328,12 +322,15 @@ def test_upsert_json(case_id, generated_note_id, case_store, generated_note_stor
     calls = [
         call(tested.postgres_credentials),
         call().get_transcript(144),
-        call().update_fields(137, {
-            'transcript': {
-                'cycle_004': [{'speaker': 'aSpeaker', 'text': 'aText'}],
-                'cycle_007': [{'speaker': 'theSpeaker', 'text': 'theText'}],
+        call().update_fields(
+            137,
+            {
+                "transcript": {
+                    "cycle_004": [{"speaker": "aSpeaker", "text": "aText"}],
+                    "cycle_007": [{"speaker": "theSpeaker", "text": "theText"}],
+                },
             },
-        }),
+        ),
     ]
     assert case_store.mock_calls == calls
     assert generated_note_store.mock_calls == []
@@ -352,66 +349,60 @@ def test_upsert_json(case_id, generated_note_id, case_store, generated_note_stor
     assert case_store.mock_calls == []
     calls = [
         call(tested.postgres_credentials),
-        call().update_fields(521, {'another_field': {'cycle_007': [{'key': 'data'}]}}),
+        call().update_fields(521, {"another_field": {"cycle_007": [{"key": "data"}]}}),
     ]
     assert generated_note_store.mock_calls == calls
     reset_mocks()
 
 
-@patch('evaluations.auditors.auditor_postgres.GeneratedNoteStore')
-@patch.object(AuditorPostgres, 'generated_note_id')
+@patch("evaluations.auditors.auditor_postgres.GeneratedNoteStore")
+@patch.object(AuditorPostgres, "generated_note_id")
 def test_get_json(generated_note_id, generated_note_store):
     def reset_mocks():
         generated_note_id.reset_mock()
         generated_note_store.reset_mock()
 
     generated_note_id.side_effect = [333]
-    generated_note_store.return_value.get_field.side_effect = [{'key': 'value'}]
+    generated_note_store.return_value.get_field.side_effect = [{"key": "value"}]
     tested = helper_instance()
     result = tested.get_json("theLabel")
-    expected = {'key': 'value'}
+    expected = {"key": "value"}
     assert result == expected
 
     calls = [call()]
     assert generated_note_id.mock_calls == calls
-    calls = [
-        call(tested.postgres_credentials),
-        call().get_field(333, "theLabel"),
-    ]
+    calls = [call(tested.postgres_credentials), call().get_field(333, "theLabel")]
     assert generated_note_store.mock_calls == calls
     reset_mocks()
 
 
-@patch('evaluations.auditors.auditor_postgres.CaseStore')
-@patch.object(AuditorPostgres, 'case_id')
+@patch("evaluations.auditors.auditor_postgres.CaseStore")
+@patch.object(AuditorPostgres, "case_id")
 def test_limited_chart(case_id, case_store):
     def reset_mocks():
         case_id.reset_mock()
         case_store.reset_mock()
 
     case_id.side_effect = [333]
-    case_store.return_value.get_limited_chart.side_effect = [{'key': 'value'}]
+    case_store.return_value.get_limited_chart.side_effect = [{"key": "value"}]
     tested = helper_instance()
     result = tested.limited_chart()
-    expected = {'key': 'value'}
+    expected = {"key": "value"}
     assert result == expected
 
     calls = [call()]
     assert case_id.mock_calls == calls
-    calls = [
-        call(tested.postgres_credentials),
-        call().get_limited_chart(333),
-    ]
+    calls = [call(tested.postgres_credentials), call().get_limited_chart(333)]
     assert case_store.mock_calls == calls
     reset_mocks()
 
 
-@patch.object(AuditorPostgres, 'full_transcript')
+@patch.object(AuditorPostgres, "full_transcript")
 def test_transcript(full_transcript):
     def reset_mocks():
         full_transcript.reset_mock()
 
-    full_transcript.side_effect = [{'cycle_007': [Line(speaker="aSpeaker", text="aText")]}]
+    full_transcript.side_effect = [{"cycle_007": [Line(speaker="aSpeaker", text="aText")]}]
     tested = helper_instance()
     result = tested.transcript()
     expected = [Line(speaker="aSpeaker", text="aText")]
@@ -421,7 +412,7 @@ def test_transcript(full_transcript):
     assert full_transcript.mock_calls == calls
     reset_mocks()
 
-    full_transcript.side_effect = [{'cycle_006': [Line(speaker="aSpeaker", text="aText")]}]
+    full_transcript.side_effect = [{"cycle_006": [Line(speaker="aSpeaker", text="aText")]}]
     tested = helper_instance()
     result = tested.transcript()
     expected = []
@@ -432,25 +423,61 @@ def test_transcript(full_transcript):
     reset_mocks()
 
 
-@patch('evaluations.auditors.auditor_postgres.CaseStore')
-@patch.object(AuditorPostgres, 'case_id')
+@patch("evaluations.auditors.auditor_postgres.CaseStore")
+@patch.object(AuditorPostgres, "case_id")
 def test_full_transcript(case_id, case_store):
     def reset_mocks():
         case_id.reset_mock()
         case_store.reset_mock()
 
     case_id.side_effect = [333]
-    case_store.return_value.get_transcript.side_effect = [{'cycle_001': [Line(speaker="aSpeaker", text="aText")]}]
+    case_store.return_value.get_transcript.side_effect = [{"cycle_001": [Line(speaker="aSpeaker", text="aText")]}]
     tested = helper_instance()
     result = tested.full_transcript()
-    expected = {'cycle_001': [Line(speaker="aSpeaker", text="aText")]}
+    expected = {"cycle_001": [Line(speaker="aSpeaker", text="aText")]}
     assert result == expected
 
     calls = [call()]
     assert case_id.mock_calls == calls
-    calls = [
-        call(tested.postgres_credentials),
-        call().get_transcript(333),
-    ]
+    calls = [call(tested.postgres_credentials), call().get_transcript(333)]
     assert case_store.mock_calls == calls
+    reset_mocks()
+
+
+@patch.object(AuditorPostgres, "case_id")
+@patch.object(AuditorPostgres, "generated_note_id")
+def test_note_uuid(generated_note_id, case_id):
+    def reset_mocks():
+        case_id.reset_mock()
+        generated_note_id.reset_mock()
+
+    tested = helper_instance()
+
+    case_id.side_effect = [123]
+    generated_note_id.side_effect = [456]
+
+    result = tested.note_uuid()
+    expected = "0000000123x0000000456"
+    assert result == expected
+
+    calls = [call()]
+    assert case_id.mock_calls == calls
+    calls = [call()]
+    assert generated_note_id.mock_calls == calls
+    reset_mocks()
+
+
+@patch("evaluations.auditors.auditor_postgres.check_output")
+def test_get_plugin_commit(check_output):
+    def reset_mocks():
+        check_output.reset_mock()
+
+    tested = AuditorPostgres
+    check_output.side_effect = [b"\t abc123 \n"]
+    result = tested.get_plugin_commit()
+    expected = "abc123"
+    assert result == expected
+
+    calls = [call(["git", "rev-parse", "--short", "HEAD"])]
+    assert check_output.mock_calls == calls
     reset_mocks()

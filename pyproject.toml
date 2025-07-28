@@ -6,7 +6,7 @@ requires-python = ">=3.11,<3.13"
 readme = "README.md"
 dependencies = [
     "pytest (>=8.3.4,<9.0.0)",
-    "canvas>=0.34.0",
+    "canvas==0.47.0",
     "mypy>=1.15.0",
     "ffmpeg-python>=0.2.0",
 ]
@@ -20,6 +20,23 @@ build-backend = "hatchling.build"
 
 [dependency-groups]
 dev = [
+    "pre-commit>=4.2.0",
     "pytest-cov>=6.0.0,<7",
+    "ruff>=0.12.4",
     "types-requests>=2.32.0.20250602",
 ]
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = ["F401", "W292", "W291", "Q000", "E111", "E117", "E501"]  # Unused imports, trailing newlines, trailing whitespace, quotes, indentation, line length
+ignore = []
+fixable = ["ALL"]
+
+[tool.ruff.format]
+# Only apply specific formatting rules
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"
+skip-magic-trailing-comma = false

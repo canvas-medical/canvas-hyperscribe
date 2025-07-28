@@ -59,73 +59,82 @@ def test_staged_command_extract():
     tested = ImagingOrder
     tests = [
         ({}, None),
-        ({
-             "image": {"text": "theImaging"},
-             "comment": "theComment",
-             "priority": "thePriority",
-             "indications": [
-                 {"text": "indication1"},
-                 {"text": "indication2"},
-                 {"text": "indication3"},
-             ],
-             "additional_details": "additionalOrderDetails"
-         }, CodedItem(
-            label="theImaging: theComment (priority: thePriority, related conditions: indication1/indication2/indication3)",
-            code="",
-            uuid="",
-        )),
-        ({
-             "image": {"text": "theImaging"},
-             "comment": "theComment",
-             "priority": "thePriority",
-             "indications": [],
-             "additional_details": "additionalOrderDetails"
-         }, CodedItem(
-            label="theImaging: theComment (priority: thePriority, related conditions: n/a)",
-            code="",
-            uuid="",
-        )),
-        ({
-             "image": {"text": "theImaging"},
-             "comment": "theComment",
-             "priority": "",
-             "indications": [
-                 {"text": "indication1"},
-                 {"text": "indication2"},
-                 {"text": "indication3"},
-             ],
-             "additional_details": "additionalOrderDetails"
-         }, CodedItem(
-            label="theImaging: theComment (priority: n/a, related conditions: indication1/indication2/indication3)",
-            code="",
-            uuid="",
-        )),
-        ({
-             "image": {"text": "theImaging"},
-             "comment": "",
-             "priority": "thePriority",
-             "indications": [
-                 {"text": "indication1"},
-                 {"text": "indication2"},
-                 {"text": "indication3"},
-             ],
-             "additional_details": "additionalOrderDetails"
-         }, CodedItem(
-            label="theImaging: n/a (priority: thePriority, related conditions: indication1/indication2/indication3)",
-            code="",
-            uuid="",
-        )),
-        ({
-             "image": {"text": ""},
-             "comment": "theComment",
-             "priority": "thePriority",
-             "indications": [
-                 {"text": "indication1"},
-                 {"text": "indication2"},
-                 {"text": "indication3"},
-             ],
-             "additional_details": "additionalOrderDetails"
-         }, None),
+        (
+            {
+                "image": {"text": "theImaging"},
+                "comment": "theComment",
+                "priority": "thePriority",
+                "indications": [
+                    {"text": "indication1"},
+                    {"text": "indication2"},
+                    {"text": "indication3"},
+                ],
+                "additional_details": "additionalOrderDetails",
+            },
+            CodedItem(
+                label="theImaging: theComment (priority: thePriority, "
+                "related conditions: indication1/indication2/indication3)",
+                code="",
+                uuid="",
+            ),
+        ),
+        (
+            {
+                "image": {"text": "theImaging"},
+                "comment": "theComment",
+                "priority": "thePriority",
+                "indications": [],
+                "additional_details": "additionalOrderDetails",
+            },
+            CodedItem(
+                label="theImaging: theComment (priority: thePriority, related conditions: n/a)",
+                code="",
+                uuid="",
+            ),
+        ),
+        (
+            {
+                "image": {"text": "theImaging"},
+                "comment": "theComment",
+                "priority": "",
+                "indications": [{"text": "indication1"}, {"text": "indication2"}, {"text": "indication3"}],
+                "additional_details": "additionalOrderDetails",
+            },
+            CodedItem(
+                label="theImaging: theComment (priority: n/a, related conditions: indication1/indication2/indication3)",
+                code="",
+                uuid="",
+            ),
+        ),
+        (
+            {
+                "image": {"text": "theImaging"},
+                "comment": "",
+                "priority": "thePriority",
+                "indications": [
+                    {"text": "indication1"},
+                    {"text": "indication2"},
+                    {"text": "indication3"},
+                ],
+                "additional_details": "additionalOrderDetails",
+            },
+            CodedItem(
+                label="theImaging: n/a (priority: thePriority, "
+                "related conditions: indication1/indication2/indication3)",
+                code="",
+                uuid="",
+            ),
+        ),
+        (
+            {
+                "image": {"text": ""},
+                "comment": "theComment",
+                "priority": "thePriority",
+                "indications": [{"text": "indication1"}, {"text": "indication2"}, {"text": "indication3"}],
+                "additional_details": "additionalOrderDetails",
+            },
+            None,
+        ),
     ]
     for data, expected in tests:
         result = tested.staged_command_extract(data)
@@ -150,7 +159,7 @@ def test_command_from_json(condition_from, search_imagings):
         ImagingReport(code="code2", name="name2"),
         ImagingReport(code="code3", name="name3"),
     ]
-    keywords = ['keyword1', 'keyword2', 'keyword3']
+    keywords = ["keyword1", "keyword2", "keyword3"]
     system_prompt = [
         "The conversation is in the medical context.",
         "",
@@ -176,21 +185,23 @@ def test_command_from_json(condition_from, search_imagings):
         "```",
         "",
     ]
-    schemas = [{
-        '$schema': 'http://json-schema.org/draft-07/schema#',
-        'type': 'array',
-        'items': {
-            'type': 'object',
-            'properties': {
-                'conceptId': {'type': 'string', 'minLength': 1},
-                'term': {'type': 'string', 'minLength': 1},
+    schemas = [
+        {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "conceptId": {"type": "string", "minLength": 1},
+                    "term": {"type": "string", "minLength": 1},
+                },
+                "required": ["conceptId", "term"],
+                "additionalProperties": False,
             },
-            'required': ['conceptId', 'term'],
-            'additionalProperties': False,
+            "minItems": 1,
+            "maxItems": 1,
         },
-        'minItems': 1,
-        'maxItems': 1,
-    }]
+    ]
 
     tested = helper_instance()
 
@@ -226,7 +237,7 @@ def test_command_from_json(condition_from, search_imagings):
     result = tested.command_from_json(instruction, chatter)
     command = ImagingOrderCommand(
         note_uuid="noteUuid",
-        image_code='theCode',
+        image_code="theCode",
         ordering_provider_key="providerUuid",
         diagnosis_codes=["icd1", "icd3"],
         comment="theComment",
@@ -238,12 +249,12 @@ def test_command_from_json(condition_from, search_imagings):
     assert result == expected
 
     calls = [
-        call(instruction, chatter, tested.settings, ['condition1', 'condition2'], ['icd1', 'icd2'], "theComment"),
-        call(instruction, chatter, tested.settings, ['condition3'], ['icd3'], "theComment"),
-        call(instruction, chatter, tested.settings, ['condition4'], ['icd4'], "theComment"),
+        call(instruction, chatter, tested.settings, ["condition1", "condition2"], ["icd1", "icd2"], "theComment"),
+        call(instruction, chatter, tested.settings, ["condition3"], ["icd3"], "theComment"),
+        call(instruction, chatter, tested.settings, ["condition4"], ["icd4"], "theComment"),
     ]
     assert condition_from.mock_calls == calls
-    calls = [call('scienceHost', keywords)]
+    calls = [call("scienceHost", keywords)]
     assert search_imagings.mock_calls == calls
     calls = [call.single_conversation(system_prompt, user_prompt, schemas, instruction)]
     assert chatter.mock_calls == calls
@@ -284,7 +295,7 @@ def test_command_from_json(condition_from, search_imagings):
     assert result == expected
 
     assert condition_from.mock_calls == []
-    calls = [call('scienceHost', keywords)]
+    calls = [call("scienceHost", keywords)]
     assert search_imagings.mock_calls == calls
     calls = [call.single_conversation(system_prompt, user_prompt, schemas, instruction)]
     assert chatter.mock_calls == calls
@@ -325,7 +336,7 @@ def test_command_from_json(condition_from, search_imagings):
     assert result == expected
 
     assert condition_from.mock_calls == []
-    calls = [call('scienceHost', keywords)]
+    calls = [call("scienceHost", keywords)]
     assert search_imagings.mock_calls == calls
     assert chatter.mock_calls == []
     reset_mocks()
@@ -338,7 +349,8 @@ def test_command_parameters():
         "imagingKeywords": "comma separated keywords of up to 5 synonyms of the imaging to order",
         "conditions": [
             {
-                "conditionKeywords": "comma separated keywords of up to 5 synonyms of each condition targeted by the imaging",
+                "conditionKeywords": "comma separated keywords of up to 5 synonyms of each condition "
+                "targeted by the imaging",
                 "ICD10": "comma separated keywords of up to 5 ICD-10 codes of each condition targeted by the imaging",
             },
         ],
@@ -352,8 +364,10 @@ def test_command_parameters():
 def test_instruction_description():
     tested = helper_instance()
     result = tested.instruction_description()
-    expected = ("Imaging ordered, including all necessary comments and the targeted conditions. "
-                "There can be only one imaging order per instruction, and no instruction in the lack of.")
+    expected = (
+        "Imaging ordered, including all necessary comments and the targeted conditions. "
+        "There can be only one imaging order per instruction, and no instruction in the lack of."
+    )
     assert result == expected
 
 

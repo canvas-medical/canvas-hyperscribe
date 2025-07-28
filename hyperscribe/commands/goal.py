@@ -20,16 +20,23 @@ class Goal(Base):
             return CodedItem(label=goal, code="", uuid="")
         return None
 
-    def command_from_json(self, instruction: InstructionWithParameters, chatter: LlmBase) -> InstructionWithCommand | None:
-        return InstructionWithCommand.add_command(instruction, GoalCommand(
-            goal_statement=instruction.parameters["goal"],
-            start_date=Helper.str2date(instruction.parameters["startDate"]),
-            due_date=Helper.str2date(instruction.parameters["dueDate"]),
-            achievement_status=Helper.enum_or_none(instruction.parameters["status"], GoalCommand.AchievementStatus),
-            priority=Helper.enum_or_none(instruction.parameters["priority"], GoalCommand.Priority),
-            progress=instruction.parameters["progressAndBarriers"],
-            note_uuid=self.identification.note_uuid,
-        ))
+    def command_from_json(
+        self,
+        instruction: InstructionWithParameters,
+        chatter: LlmBase,
+    ) -> InstructionWithCommand | None:
+        return InstructionWithCommand.add_command(
+            instruction,
+            GoalCommand(
+                goal_statement=instruction.parameters["goal"],
+                start_date=Helper.str2date(instruction.parameters["startDate"]),
+                due_date=Helper.str2date(instruction.parameters["dueDate"]),
+                achievement_status=Helper.enum_or_none(instruction.parameters["status"], GoalCommand.AchievementStatus),
+                priority=Helper.enum_or_none(instruction.parameters["priority"], GoalCommand.Priority),
+                progress=instruction.parameters["progressAndBarriers"],
+                note_uuid=self.identification.note_uuid,
+            ),
+        )
 
     def command_parameters(self) -> dict:
         statuses = "/".join([status.value for status in GoalCommand.AchievementStatus])
@@ -44,8 +51,10 @@ class Goal(Base):
         }
 
     def instruction_description(self) -> str:
-        return ("Defined goal set by the provider, including due date and priority. "
-                "There can be only one goal per instruction, and no instruction in the lack of.")
+        return (
+            "Defined goal set by the provider, including due date and priority. "
+            "There can be only one goal per instruction, and no instruction in the lack of."
+        )
 
     def instruction_constraints(self) -> str:
         result = ""

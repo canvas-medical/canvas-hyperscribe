@@ -23,6 +23,33 @@ def test_class():
     assert issubclass(GeneratedNote, Postgres)
 
 
+@patch.object(GeneratedNote, "_select")
+def test_last_run_for(select):
+    def reset_mock():
+        select.reset_mock()
+
+    tested = helper_instance()
+
+    tests = [([], (0, 0)), ([{"case_id": 123, "generated_note_id": 456}], (123, 456))]
+    for select_side_effect, expected in tests:
+        select.side_effect = [select_side_effect]
+        result = tested.last_run_for("theCase")
+        assert result == expected
+
+        assert len(select.mock_calls) == 1
+        sql, params = select.mock_calls[0].args
+        exp_sql = (
+            'SELECT c."id" AS "case_id", MAX(gn."id") AS "generated_note_id" '
+            'FROM "case" c JOIN generated_note gn ON c.id = gn.case_id '
+            'WHERE c."name" = %(name)s '
+            'GROUP BY c."id"'
+        )
+        assert compare_sql(sql, exp_sql)
+        exp_params = {"name": "theCase"}
+        assert params == exp_params
+        reset_mock()
+
+
 @patch("evaluations.datastores.postgres.generated_note.datetime", wraps=datetime)
 @patch.object(GeneratedNote, "_alter")
 def test_insert(alter, mock_datetime):
@@ -79,32 +106,35 @@ def test_insert(alter, mock_datetime):
 
     assert len(alter.mock_calls) == 1
     sql, params, involved_id = alter.mock_calls[0].args
-    exp_sql = ('INSERT INTO "generated_note" ("created", "updated", "case_id", "cycle_duration", "cycle_count", '
-               ' "cycle_transcript_overlap", "text_llm_vendor", "text_llm_name", "note_json", "hyperscribe_version", '
-               ' "staged_questionnaires", "transcript2instructions", "instruction2parameters", '
-               ' "parameters2command", "failed", "errors") '
-               'VALUES (%(now)s, %(now)s, %(case_id)s, %(cycle_duration)s, %(cycle_count)s, '
-               ' %(cycle_transcript_overlap)s, %(text_llm_vendor)s, %(text_llm_name)s, %(note_json)s, %(hyperscribe_version)s, '
-               ' %(staged_questionnaires)s, %(transcript2instructions)s, %(instruction2parameters)s, '
-               ' %(parameters2command)s, %(failed)s, %(errors)s) '
-               'RETURNING id')
+    exp_sql = (
+        'INSERT INTO "generated_note" ("created", "updated", "case_id", "cycle_duration", "cycle_count", '
+        ' "cycle_transcript_overlap", "text_llm_vendor", "text_llm_name", "note_json", "hyperscribe_version", '
+        ' "staged_questionnaires", "transcript2instructions", "instruction2parameters", '
+        ' "parameters2command", "failed", "errors") '
+        "VALUES (%(now)s, %(now)s, %(case_id)s, %(cycle_duration)s, %(cycle_count)s, "
+        " %(cycle_transcript_overlap)s, %(text_llm_vendor)s, %(text_llm_name)s, "
+        " %(note_json)s, %(hyperscribe_version)s, "
+        " %(staged_questionnaires)s, %(transcript2instructions)s, %(instruction2parameters)s, "
+        " %(parameters2command)s, %(failed)s, %(errors)s) "
+        "RETURNING id"
+    )
     assert compare_sql(sql, exp_sql)
     exp_params = {
-        'case_id': 741,
-        'cycle_count': 7,
-        'cycle_duration': 35,
-        'cycle_transcript_overlap': 57,
-        'errors': '{"case": "errors"}',
-        'failed': True,
-        'hyperscribe_version': 'theHyperscribeVersion',
-        'instruction2parameters': '{"case": "instruction2parameters"}',
-        'note_json': '["note1", "note2"]',
-        'now': date_0,
-        'parameters2command': '{"case": "parameters2command"}',
-        'staged_questionnaires': '{"case": "staged_questionnaires"}',
-        'text_llm_name': 'theTextLlmName',
-        'text_llm_vendor': 'theTextLlmVendor',
-        'transcript2instructions': '{"case": "transcript2instructions"}',
+        "case_id": 741,
+        "cycle_count": 7,
+        "cycle_duration": 35,
+        "cycle_transcript_overlap": 57,
+        "errors": '{"case": "errors"}',
+        "failed": True,
+        "hyperscribe_version": "theHyperscribeVersion",
+        "instruction2parameters": '{"case": "instruction2parameters"}',
+        "note_json": '["note1", "note2"]',
+        "now": date_0,
+        "parameters2command": '{"case": "parameters2command"}',
+        "staged_questionnaires": '{"case": "staged_questionnaires"}',
+        "text_llm_name": "theTextLlmName",
+        "text_llm_vendor": "theTextLlmVendor",
+        "transcript2instructions": '{"case": "transcript2instructions"}',
     }
     assert params == exp_params
     assert involved_id is None
@@ -119,7 +149,7 @@ def test_update_fields(update_fields):
     tested = helper_instance()
     tested.update_fields(34, {"theField": "theValue"})
 
-    calls = [call('generated_note', Record, 34, {'theField': 'theValue'})]
+    calls = [call("generated_note", Record, 34, {"theField": "theValue"})]
     assert update_fields.mock_calls == calls
     reset_mock()
 
@@ -144,7 +174,7 @@ def test_get_field(select):
             {},
             1,
             'SELECT "parameters2command" FROM "generated_note" WHERE "id" = %(id)s',
-            {'id': 347}
+            {"id": 347},
         ),
         # -- record
         (
@@ -153,7 +183,7 @@ def test_get_field(select):
             {"key": "data"},
             1,
             'SELECT "parameters2command" FROM "generated_note" WHERE "id" = %(id)s',
-            {'id': 347}
+            {"id": 347},
         ),
     ]
 
@@ -179,10 +209,7 @@ def test_runs_count_for(select):
 
     tested = helper_instance()
 
-    test = [
-        ([{"count": 11}], 11),
-        ([], 0),
-    ]
+    test = [([{"count": 11}], 11), ([], 0)]
     for records, expected in test:
         select.side_effect = [records]
         result = tested.runs_count_for(34)
@@ -190,9 +217,7 @@ def test_runs_count_for(select):
 
         assert len(select.mock_calls) == 1
         sql, params = select.mock_calls[0].args
-        exp_sql = ('SELECT COUNT("id") AS "count" '
-                   'FROM "generated_note" '
-                   'WHERE "case_id" = %(case_id)s')
+        exp_sql = 'SELECT COUNT("id") AS "count" FROM "generated_note" WHERE "case_id" = %(case_id)s'
         assert compare_sql(sql, exp_sql)
         exp_params = {"case_id": 34}
         assert params == exp_params
@@ -210,8 +235,7 @@ def test_delete_for(alter):
 
     assert len(alter.mock_calls) == 1
     sql, params, involved_id = alter.mock_calls[0].args
-    exp_sql = ('DELETE FROM "generated_note" '
-               'WHERE "case_id" = %(case_id)s RETURNING "id"')
+    exp_sql = 'DELETE FROM "generated_note" WHERE "case_id" = %(case_id)s RETURNING "id"'
     assert compare_sql(sql, exp_sql)
     exp_params = {"case_id": 34}
     assert params == exp_params

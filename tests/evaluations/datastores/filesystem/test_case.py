@@ -8,18 +8,15 @@ from evaluations.structures.evaluation_case import EvaluationCase
 
 def test__db_path():
     tested = Case
-    with patch('evaluations.datastores.filesystem.case.Path') as mock_path:
-        mock_path.side_effect = [Path('/a/b/c/d/e/theFile.py')]
+    with patch("evaluations.datastores.filesystem.case.Path") as mock_path:
+        mock_path.side_effect = [Path("/a/b/c/d/e/theFile.py")]
         result = tested._db_path()
-        assert result == Path('/a/b/c/datastores/cases')
+        assert result == Path("/a/b/c/datastores/cases")
 
 
 @patch.object(Case, "_db_path")
 def test_upsert(db_path):
-    mock_files = [
-        MagicMock(),
-        MagicMock(),
-    ]
+    mock_files = [MagicMock(), MagicMock()]
 
     def reset_mocks():
         db_path.reset_mock()
@@ -30,28 +27,32 @@ def test_upsert(db_path):
 
     db_path.return_value.__truediv__.side_effect = mock_files
 
-    tested.upsert(EvaluationCase(
-        environment="theEnvironment",
-        patient_uuid="thePatientUuid",
-        limited_cache={"key": "theLimitedCache"},
-        case_type="theType",
-        case_group="theGroup",
-        case_name="theCaseName",
-        cycles=7,
-        description="theDescription",
-    ))
+    tested.upsert(
+        EvaluationCase(
+            environment="theEnvironment",
+            patient_uuid="thePatientUuid",
+            limited_cache={"key": "theLimitedCache"},
+            case_type="theType",
+            case_group="theGroup",
+            case_name="theCaseName",
+            cycles=7,
+            description="theDescription",
+        ),
+    )
     calls = [
         call(),
-        call().__truediv__('theCaseName.json'),
+        call().__truediv__("theCaseName.json"),
         call(),
-        call().__truediv__('limited_caches/theCaseName.json'),
+        call().__truediv__("limited_caches/theCaseName.json"),
     ]
     assert db_path.mock_calls == calls
     calls = [
-        call.open(mode='w'),
+        call.open(mode="w"),
         call.open().__enter__(),
-        call.open().__enter__().write(
-            '{\n'
+        call.open()
+        .__enter__()
+        .write(
+            "{\n"
             '  "environment": "theEnvironment",\n'
             '  "patientUuid": "thePatientUuid",\n'
             '  "caseType": "theType",\n'
@@ -59,19 +60,15 @@ def test_upsert(db_path):
             '  "caseName": "theCaseName",\n'
             '  "cycles": 7,\n'
             '  "description": "theDescription"\n'
-            '}'
+            "}",
         ),
         call.open().__exit__(None, None, None),
     ]
     assert mock_files[0].mock_calls == calls
     calls = [
-        call.open(mode='w'),
+        call.open(mode="w"),
         call.open().__enter__(),
-        call.open().__enter__().write(
-            '{\n'
-            '  "key": "theLimitedCache"\n'
-            '}'
-        ),
+        call.open().__enter__().write('{\n  "key": "theLimitedCache"\n}'),
         call.open().__exit__(None, None, None),
     ]
     assert mock_files[1].mock_calls == calls
@@ -80,10 +77,7 @@ def test_upsert(db_path):
 
 @patch.object(Case, "_db_path")
 def test_delete(db_path):
-    mock_files = [
-        MagicMock(),
-        MagicMock(),
-    ]
+    mock_files = [MagicMock(), MagicMock()]
 
     def reset_mocks():
         db_path.reset_mock()
@@ -100,14 +94,12 @@ def test_delete(db_path):
         tested.delete("theCaseName")
         calls = [
             call(),
-            call().__truediv__('theCaseName.json'),
+            call().__truediv__("theCaseName.json"),
             call(),
-            call().__truediv__('limited_caches/theCaseName.json'),
+            call().__truediv__("limited_caches/theCaseName.json"),
         ]
         assert db_path.mock_calls == calls
-        calls = [
-            call.exists(),
-        ]
+        calls = [call.exists()]
         if exists:
             calls.append(call.unlink())
         for file in mock_files:
@@ -117,10 +109,7 @@ def test_delete(db_path):
 
 @patch.object(Case, "_db_path")
 def test_get(db_path):
-    mock_files = [
-        MagicMock(),
-        MagicMock(),
-    ]
+    mock_files = [MagicMock(), MagicMock()]
 
     def reset_mocks():
         db_path.reset_mock()
@@ -129,40 +118,56 @@ def test_get(db_path):
 
     tested = Case
 
-    data = json.dumps({
-        "environment": "theEnvironment",
-        "patientUuid": "thePatientUuid",
-        "caseType": "theCaseType",
-        "caseGroup": "theCaseGroup",
-        "caseName": "theCaseName",
-        "cycles": 7,
-        "description": "theDescription",
-    })
+    data = json.dumps(
+        {
+            "environment": "theEnvironment",
+            "patientUuid": "thePatientUuid",
+            "caseType": "theCaseType",
+            "caseGroup": "theCaseGroup",
+            "caseName": "theCaseName",
+            "cycles": 7,
+            "description": "theDescription",
+        },
+    )
     cache = json.dumps({"key": "theLimitedCache"})
 
     tests = [
         ("theCaseName", False, False, [], [], EvaluationCase()),
         ("theCaseName", False, True, [], [cache], EvaluationCase()),
-        ("theCaseName", True, True, [data], [cache], EvaluationCase(
-            environment="theEnvironment",
-            patient_uuid="thePatientUuid",
-            case_type="theCaseType",
-            case_group="theCaseGroup",
-            case_name="theCaseName",
-            cycles=7,
-            description="theDescription",
-            limited_cache={"key": "theLimitedCache"},
-        )),
-        ("theCaseName", True, False, [data], [], EvaluationCase(
-            environment="theEnvironment",
-            patient_uuid="thePatientUuid",
-            case_type="theCaseType",
-            case_group="theCaseGroup",
-            case_name="theCaseName",
-            cycles=7,
-            description="theDescription",
-            limited_cache={},
-        )),
+        (
+            "theCaseName",
+            True,
+            True,
+            [data],
+            [cache],
+            EvaluationCase(
+                environment="theEnvironment",
+                patient_uuid="thePatientUuid",
+                case_type="theCaseType",
+                case_group="theCaseGroup",
+                case_name="theCaseName",
+                cycles=7,
+                description="theDescription",
+                limited_cache={"key": "theLimitedCache"},
+            ),
+        ),
+        (
+            "theCaseName",
+            True,
+            False,
+            [data],
+            [],
+            EvaluationCase(
+                environment="theEnvironment",
+                patient_uuid="thePatientUuid",
+                case_type="theCaseType",
+                case_group="theCaseGroup",
+                case_name="theCaseName",
+                cycles=7,
+                description="theDescription",
+                limited_cache={},
+            ),
+        ),
     ]
     for case_name, case_exists, cache_exists, side_effect_case, side_effect_cache, expected in tests:
         db_path.return_value.__truediv__.side_effect = mock_files
@@ -176,9 +181,9 @@ def test_get(db_path):
 
         calls = [
             call(),
-            call().__truediv__('theCaseName.json'),
+            call().__truediv__("theCaseName.json"),
             call(),
-            call().__truediv__('limited_caches/theCaseName.json'),
+            call().__truediv__("limited_caches/theCaseName.json"),
         ]
         assert db_path.mock_calls == calls
         calls = [call.exists()]
@@ -194,11 +199,7 @@ def test_get(db_path):
 
 @patch.object(Case, "_db_path")
 def test_all(db_path):
-    mock_files = [
-        MagicMock(),
-        MagicMock(),
-        MagicMock(),
-    ]
+    mock_files = [MagicMock(), MagicMock(), MagicMock()]
 
     def reset_mocks():
         db_path.reset_mock()
@@ -207,15 +208,20 @@ def test_all(db_path):
 
     tested = Case
 
-    data = [json.dumps({
-        "environment": f"theEnvironment{i:02d}",
-        "patientUuid": f"thePatientUuid{i:02d}",
-        "caseType": f"theCaseType{i:02d}",
-        "caseGroup": f"theCaseGroup{i:02d}",
-        "caseName": f"theCaseName{i:02d}",
-        "cycles": 2 * i + 1,
-        "description": f"theDescription{i:02d}",
-    }) for i in range(3)]
+    data = [
+        json.dumps(
+            {
+                "environment": f"theEnvironment{i:02d}",
+                "patientUuid": f"thePatientUuid{i:02d}",
+                "caseType": f"theCaseType{i:02d}",
+                "caseGroup": f"theCaseGroup{i:02d}",
+                "caseName": f"theCaseName{i:02d}",
+                "cycles": 2 * i + 1,
+                "description": f"theDescription{i:02d}",
+            },
+        )
+        for i in range(3)
+    ]
     expected = [
         EvaluationCase(
             environment=f"theEnvironment{i:02d}",
@@ -234,10 +240,7 @@ def test_all(db_path):
 
     result = tested.all()
     assert result == []
-    calls = [
-        call(),
-        call().glob('*.json'),
-    ]
+    calls = [call(), call().glob("*.json")]
     assert db_path.mock_calls == calls
     reset_mocks()
     # with files
@@ -247,10 +250,7 @@ def test_all(db_path):
 
     result = tested.all()
     assert result == expected
-    calls = [
-        call(),
-        call().glob('*.json'),
-    ]
+    calls = [call(), call().glob("*.json")]
     assert db_path.mock_calls == calls
     calls = [call.read_text()]
     for file in mock_files:

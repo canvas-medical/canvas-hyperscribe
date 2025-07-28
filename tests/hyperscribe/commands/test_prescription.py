@@ -59,82 +59,77 @@ def test_staged_command_extract():
     tested = Prescription
     tests = [
         ({}, None),
-        ({
-             "sig": "theSig",
-             "refills": 2,
-             "prescribe": {
-                 "text": "theMedication",
-                 "value": 292907,
-             },
-             "days_supply": 7,
-             "indications": [
-                 {"text": "theIndication1"},
-                 {"text": "theIndication2"},
-                 {"text": "theIndication3"},
-             ],
-             "substitutions": "allowed",
-             "note_to_pharmacist": "theNoteToPharmacist",
-             "quantity_to_dispense": "3"
-         }, CodedItem(
-            label="theMedication: theSig (dispense: 3, supply days: 7, refills: 2, substitution: allowed, related conditions: theIndication1/theIndication2/theIndication3)",
-            code="292907",
-            uuid="",
-        )),
-        ({
-             "sig": "theSig",
-             "refills": 2,
-             "prescribe": {
-                 "text": "",
-                 "value": 292907,
-             },
-             "days_supply": 7,
-             "indications": [
-                 {"text": "theIndication1"},
-                 {"text": "theIndication2"},
-                 {"text": "theIndication3"},
-             ],
-             "substitutions": "allowed",
-             "note_to_pharmacist": "theNoteToPharmacist",
-             "quantity_to_dispense": "3"
-         }, None),
-        ({
-             "sig": "",
-             "refills": None,
-             "prescribe": {
-                 "text": "theMedication",
-                 "value": None,
-             },
-             "days_supply": None,
-             "indications": [
-                 {"text": "theIndication1"},
-                 {"text": "theIndication2"},
-                 {"text": "theIndication3"},
-             ],
-             "substitutions": None,
-             "note_to_pharmacist": "theNoteToPharmacist",
-             "quantity_to_dispense": None
-         }, CodedItem(
-            label="theMedication: n/a (dispense: n/a, supply days: n/a, refills: n/a, substitution: n/a, related conditions: theIndication1/theIndication2/theIndication3)",
-            code="",
-            uuid="",
-        )),
-        ({
-             "sig": "",
-             "refills": None,
-             "prescribe": {
-                 "text": "theMedication",
-                 "value": None,
-             },
-             "days_supply": None,
-             "indications": [],
-             "substitutions": None,
-             "note_to_pharmacist": "theNoteToPharmacist",
-             "quantity_to_dispense": None
-         }, CodedItem(
-            label="theMedication: n/a (dispense: n/a, supply days: n/a, refills: n/a, substitution: n/a, related conditions: n/a)",
-            code="",
-            uuid="",
-        )),
+        (
+            {
+                "sig": "theSig",
+                "refills": 2,
+                "prescribe": {"text": "theMedication", "value": 292907},
+                "days_supply": 7,
+                "indications": [
+                    {"text": "theIndication1"},
+                    {"text": "theIndication2"},
+                    {"text": "theIndication3"},
+                ],
+                "substitutions": "allowed",
+                "note_to_pharmacist": "theNoteToPharmacist",
+                "quantity_to_dispense": "3",
+            },
+            CodedItem(
+                label="theMedication: theSig (dispense: 3, supply days: 7, refills: 2, substitution: allowed, "
+                "related conditions: theIndication1/theIndication2/theIndication3)",
+                code="292907",
+                uuid="",
+            ),
+        ),
+        (
+            {
+                "sig": "theSig",
+                "refills": 2,
+                "prescribe": {"text": "", "value": 292907},
+                "days_supply": 7,
+                "indications": [{"text": "theIndication1"}, {"text": "theIndication2"}, {"text": "theIndication3"}],
+                "substitutions": "allowed",
+                "note_to_pharmacist": "theNoteToPharmacist",
+                "quantity_to_dispense": "3",
+            },
+            None,
+        ),
+        (
+            {
+                "sig": "",
+                "refills": None,
+                "prescribe": {"text": "theMedication", "value": None},
+                "days_supply": None,
+                "indications": [{"text": "theIndication1"}, {"text": "theIndication2"}, {"text": "theIndication3"}],
+                "substitutions": None,
+                "note_to_pharmacist": "theNoteToPharmacist",
+                "quantity_to_dispense": None,
+            },
+            CodedItem(
+                label="theMedication: n/a (dispense: n/a, supply days: n/a, refills: n/a, substitution: n/a, "
+                "related conditions: theIndication1/theIndication2/theIndication3)",
+                code="",
+                uuid="",
+            ),
+        ),
+        (
+            {
+                "sig": "",
+                "refills": None,
+                "prescribe": {"text": "theMedication", "value": None},
+                "days_supply": None,
+                "indications": [],
+                "substitutions": None,
+                "note_to_pharmacist": "theNoteToPharmacist",
+                "quantity_to_dispense": None,
+            },
+            CodedItem(
+                label="theMedication: n/a (dispense: n/a, supply days: n/a, refills: n/a, substitution: n/a, "
+                "related conditions: n/a)",
+                code="",
+                uuid="",
+            ),
+        ),
     ]
     for data, expected in tests:
         result = tested.staged_command_extract(data)
@@ -158,20 +153,24 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
 
     tested = helper_instance()
 
-    medication = MedicationDetail(fdb_code="code369", description="labelB", quantities=[
-        MedicationDetailQuantity(
-            quantity="7",
-            representative_ndc="ndc1",
-            ncpdp_quantity_qualifier_code="qualifier1",
-            ncpdp_quantity_qualifier_description="description1",
-        ),
-        MedicationDetailQuantity(
-            quantity="3",
-            representative_ndc="ndc2",
-            ncpdp_quantity_qualifier_code="qualifier2",
-            ncpdp_quantity_qualifier_description="description2",
-        ),
-    ])
+    medication = MedicationDetail(
+        fdb_code="code369",
+        description="labelB",
+        quantities=[
+            MedicationDetailQuantity(
+                quantity="7",
+                representative_ndc="ndc1",
+                ncpdp_quantity_qualifier_code="qualifier1",
+                ncpdp_quantity_qualifier_description="description1",
+            ),
+            MedicationDetailQuantity(
+                quantity="3",
+                representative_ndc="ndc2",
+                ncpdp_quantity_qualifier_code="qualifier2",
+                ncpdp_quantity_qualifier_description="description2",
+            ),
+        ],
+    )
     conditions = [
         CodedItem(uuid="theUuid1", label="display1a", code="CODE12.3"),
         CodedItem(uuid="theUuid2", label="display2a", code="CODE45"),
@@ -198,9 +197,9 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
             "is_new": False,
             "is_updated": True,
             "parameters": {
-                'keywords': 'keyword1,keyword2,keyword3',
+                "keywords": "keyword1,keyword2,keyword3",
                 "medicationNames": "brand1,brand2,brand3,brand4",
-                'sig': 'theSig',
+                "sig": "theSig",
                 "suppliedDays": 11,
                 "substitution": "not_allowed",
                 "comment": "theComment",
@@ -222,16 +221,18 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
         expected = InstructionWithCommand(**(arguments | {"command": command}))
         assert result == expected, f"----> {idx}"
         assert current_conditions.mock_calls == condition_calls
-        calls = [call(
-            instruction,
-            chatter,
-            MedicationSearch(
-                comment="theComment",
-                keywords=keywords,
-                brand_names=brands,
-                related_condition=condition_label,
+        calls = [
+            call(
+                instruction,
+                chatter,
+                MedicationSearch(
+                    comment="theComment",
+                    keywords=keywords,
+                    brand_names=brands,
+                    related_condition=condition_label,
+                ),
             ),
-        )]
+        ]
         assert medications_from.mock_calls == calls
         calls = [call(instruction, chatter, "theComment", command, medication)]
         assert set_medication_dosage.mock_calls == calls
@@ -250,9 +251,9 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
         "is_new": False,
         "is_updated": True,
         "parameters": {
-            'keywords': 'keyword1,keyword2,keyword3',
+            "keywords": "keyword1,keyword2,keyword3",
             "medicationNames": "brand1,brand2,brand3,brand4",
-            'sig': 'theSig',
+            "sig": "theSig",
             "suppliedDays": 11,
             "substitution": "not_allowed",
             "comment": "theComment",
@@ -270,16 +271,13 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
     expected = InstructionWithCommand(**(arguments | {"command": command}))
     assert result == expected
     assert current_conditions.mock_calls == []
-    calls = [call(
-        instruction,
-        chatter,
-        MedicationSearch(
-            comment="theComment",
-            keywords=keywords,
-            brand_names=brands,
-            related_condition="",
+    calls = [
+        call(
+            instruction,
+            chatter,
+            MedicationSearch(comment="theComment", keywords=keywords, brand_names=brands, related_condition=""),
         ),
-    )]
+    ]
     assert medications_from.mock_calls == calls
     calls = [call(instruction, chatter, "theComment", command, medication)]
     assert set_medication_dosage.mock_calls == calls
@@ -298,9 +296,9 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
         "is_new": False,
         "is_updated": True,
         "parameters": {
-            'keywords': 'keyword1,keyword2,keyword3',
+            "keywords": "keyword1,keyword2,keyword3",
             "medicationNames": "brand1,brand2,brand3,brand4",
-            'sig': 'theSig',
+            "sig": "theSig",
             "suppliedDays": 11,
             "substitution": "not_allowed",
             "comment": "theComment",
@@ -318,16 +316,13 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
     expected = InstructionWithCommand(**(arguments | {"command": command}))
     assert result == expected
     assert current_conditions.mock_calls == []
-    calls = [call(
-        instruction,
-        chatter,
-        MedicationSearch(
-            comment="theComment",
-            keywords=keywords,
-            brand_names=brands,
-            related_condition="",
+    calls = [
+        call(
+            instruction,
+            chatter,
+            MedicationSearch(comment="theComment", keywords=keywords, brand_names=brands, related_condition=""),
         ),
-    )]
+    ]
     assert medications_from.mock_calls == calls
     assert set_medication_dosage.mock_calls == []
     assert chatter.mock_calls == []
@@ -347,24 +342,35 @@ def test_command_parameters(current_conditions):
         CodedItem(uuid="theUuid3", label="display3a", code="CODE98.76"),
     ]
     tests = [
-        (conditions, {
-            "keywords": "comma separated list of up to 5 relevant drugs to consider prescribing",
-            "medicationNames": "comma separated list of known medication names, generics and brands, related to the keywords",
-            "sig": "directions, as free text",
-            "suppliedDays": "mandatory, duration of the treatment in days either as mentioned, or following the standard practices, as integer",
-            "substitution": "one of: allowed/not_allowed",
-            "comment": "rationale of the prescription including all important words, as free text",
-            "condition": "None or, one of: display1a (index: 0)/display2a (index: 1)/display3a (index: 2)",
-            "conditionIndex": "index of the condition for which the medication is prescribed, as integer or -1 if the prescription is not related to any listed condition",
-        }),
-        ([], {
-            "keywords": "comma separated list of up to 5 relevant drugs to consider prescribing",
-            "medicationNames": "comma separated list of known medication names, generics and brands, related to the keywords",
-            "sig": "directions, as free text",
-            "suppliedDays": "mandatory, duration of the treatment in days either as mentioned, or following the standard practices, as integer",
-            "substitution": "one of: allowed/not_allowed",
-            "comment": "rationale of the prescription including all important words, as free text",
-        }),
+        (
+            conditions,
+            {
+                "keywords": "comma separated list of up to 5 relevant drugs to consider prescribing",
+                "medicationNames": "comma separated list of known medication names, generics and brands, related to "
+                "the keywords",
+                "sig": "directions, as free text",
+                "suppliedDays": "mandatory, duration of the treatment in days either as mentioned, or following the "
+                "standard practices, as integer",
+                "substitution": "one of: allowed/not_allowed",
+                "comment": "rationale of the prescription including all important words, as free text",
+                "condition": "None or, one of: display1a (index: 0)/display2a (index: 1)/display3a (index: 2)",
+                "conditionIndex": "index of the condition for which the medication is prescribed, as integer or -1 "
+                "if the prescription is not related to any listed condition",
+            },
+        ),
+        (
+            [],
+            {
+                "keywords": "comma separated list of up to 5 relevant drugs to consider prescribing",
+                "medicationNames": "comma separated list of known medication names, generics and brands, "
+                "related to the keywords",
+                "sig": "directions, as free text",
+                "suppliedDays": "mandatory, duration of the treatment in days either as mentioned, or following "
+                "the standard practices, as integer",
+                "substitution": "one of: allowed/not_allowed",
+                "comment": "rationale of the prescription including all important words, as free text",
+            },
+        ),
     ]
     for side_effect, expected in tests:
         current_conditions.side_effect = [side_effect]
@@ -378,9 +384,11 @@ def test_command_parameters(current_conditions):
 def test_instruction_description():
     tested = helper_instance()
     result = tested.instruction_description()
-    expected = ("Medication prescription, including the directions, the duration, the targeted condition and the dosage. "
-                "Create as many instructions as necessary as there can be only one prescribed item per instruction, "
-                "and no instruction in the lack of.")
+    expected = (
+        "Medication prescription, including the directions, the duration, the targeted condition and the dosage. "
+        "Create as many instructions as necessary as there can be only one prescribed item per instruction, "
+        "and no instruction in the lack of."
+    )
     assert result == expected
 
 

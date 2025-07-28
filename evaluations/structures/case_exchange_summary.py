@@ -9,16 +9,7 @@ class CaseExchangeSummary(NamedTuple):
 
     @classmethod
     def load_from_json(cls, json_list: list) -> list[CaseExchangeSummary]:
-        return [
-            cls(
-                title=json_object["title"],
-                summary=json_object["summary"],
-            )
-            for json_object in json_list
-        ]
+        return [cls(title=json_object["title"], summary=json_object["summary"]) for json_object in json_list]
 
     def to_json(self) -> dict:
-        return {
-            "title": self.title,
-            "summary": self.summary,
-        }
+        return {"title": self.title, "summary": self.summary}

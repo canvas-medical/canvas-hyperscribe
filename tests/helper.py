@@ -7,19 +7,19 @@ from typing import get_type_hints
 
 def is_namedtuple(cls, fields: dict) -> bool:
     return (
-            issubclass(cls, tuple)
-            and hasattr(cls, '_fields')
-            and isinstance(cls._fields, tuple)
-            and len([field for field in cls._fields if field in fields]) == len(fields.keys())
-            and get_type_hints(cls) == fields
+        issubclass(cls, tuple)
+        and hasattr(cls, "_fields")
+        and isinstance(cls._fields, tuple)
+        and len([field for field in cls._fields if field in fields]) == len(fields.keys())
+        and get_type_hints(cls) == fields
     )
 
 
 def is_dataclass(cls, fields: dict) -> bool:
     return (
-            dataclass_is_dataclass(cls)
-            and len([field for field in dataclass_fields(cls) if field.name in fields]) == len(fields.keys())
-            and all(fields[field.name] == field.type for field in dataclass_fields(cls))
+        dataclass_is_dataclass(cls)
+        and len([field for field in dataclass_fields(cls) if field.name in fields]) == len(fields.keys())
+        and all(fields[field.name] == field.type for field in dataclass_fields(cls))
     )
 
 
@@ -50,15 +50,15 @@ def is_constant(cls, constants: dict) -> bool:
 
 
 def compare_sql(left: str, right: str) -> bool:
-    cleaned_left = sub("\s+", " ", left).strip()
-    cleaned_right = sub("\s+", " ", right).strip()
+    cleaned_left = sub(r"\s+", " ", left).strip()
+    cleaned_right = sub(r"\s+", " ", right).strip()
     if cleaned_left == cleaned_right:
         return True
     assert cleaned_left == cleaned_right, f">{cleaned_left}<"
     return False
 
-class MockFile:
 
+class MockFile:
     def __init__(self, content: str | bytes = "", mode: str = ""):
         self.content = content
         self.mode = mode
@@ -70,8 +70,7 @@ class MockFile:
         self.content = self.content + text
         return len(text)
 
-    def close(self):
-        ...
+    def close(self): ...
 
     def __enter__(self):
         if "w" in self.mode and "+" not in self.mode:

@@ -18,37 +18,56 @@ class Refer(Base):
     @classmethod
     def staged_command_extract(cls, data: dict) -> None | CodedItem:
         if (refer_to := data.get("refer_to")) and (text := refer_to.get("text")):
-            priority = data.get('priority') or "n/a"
-            question = data.get('clinical_question') or "n/a"
-            notes_to_specialist = data.get('notes_to_specialist') or "n/a"
-            indications = "/".join([
-                indication
-                for question in (data.get("indications") or [])
-                if (indication := question.get("text"))
-            ]) or "n/a"
-            documents = "/".join([
-                document
-                for included in (data.get("documents_to_include") or [])
-                if (document := included.get("text"))
-            ]) or "n/a"
+            priority = data.get("priority") or "n/a"
+            question = data.get("clinical_question") or "n/a"
+            notes_to_specialist = data.get("notes_to_specialist") or "n/a"
+            indications = (
+                "/".join(
+                    [
+                        indication
+                        for question in (data.get("indications") or [])
+                        if (indication := question.get("text"))
+                    ],
+                )
+                or "n/a"
+            )
+            documents = (
+                "/".join(
+                    [
+                        document
+                        for included in (data.get("documents_to_include") or [])
+                        if (document := included.get("text"))
+                    ],
+                )
+                or "n/a"
+            )
             return CodedItem(
                 label=f"referred to {text}: {notes_to_specialist} (priority: {priority}, question: {question}, "
-                      f"documents: {documents}, related conditions: {indications})",
+                f"documents: {documents}, related conditions: {indications})",
                 code="",
                 uuid="",
             )
         return None
 
-    def command_from_json(self, instruction: InstructionWithParameters, chatter: LlmBase) -> InstructionWithCommand | None:
+    def command_from_json(
+        self,
+        instruction: InstructionWithParameters,
+        chatter: LlmBase,
+    ) -> InstructionWithCommand | None:
         zip_codes = self.cache.practice_setting("serviceAreaZipCodes")
         information = instruction.parameters["referredServiceProvider"]["specialty"]
         if names := instruction.parameters["referredServiceProvider"]["names"]:
-            information = f"{information} {names}"  # <-- the order is important for the search in the Canvas Science service
+            information = (
+                f"{information} {names}"  # <-- the order is important for the search in the Canvas Science service
+            )
 
         provider = SelectorChat.contact_from(instruction, chatter, self.settings, information, zip_codes)
         result = ReferCommand(
             service_provider=provider,
-            clinical_question=Helper.enum_or_none(instruction.parameters["clinicalQuestions"], ReferCommand.ClinicalQuestion),
+            clinical_question=Helper.enum_or_none(
+                instruction.parameters["clinicalQuestions"],
+                ReferCommand.ClinicalQuestion,
+            ),
             priority=Helper.enum_or_none(instruction.parameters["priority"], ReferCommand.Priority),
             notes_to_specialist=instruction.parameters["notesToSpecialist"],
             comment=instruction.parameters["comment"],
@@ -82,20 +101,25 @@ class Refer(Base):
             },
             "clinicalQuestions": f"one of: {questions}",
             "priority": f"one of: {priorities}",
-            "notesToSpecialist": "note or question to be sent to the referred specialist, required, as concise free text",
+            "notesToSpecialist": "note or question to be sent to the referred specialist, required, "
+            "as concise free text",
             "comment": "rationale of the referral, as free text",
             "conditions": [
                 {
-                    "conditionKeywords": "comma separated keywords of up to 5 synonyms of each condition related to the referral",
-                    "ICD10": "comma separated keywords of up to 5 ICD-10 codes of each condition related to the referral",
+                    "conditionKeywords": "comma separated keywords of up to 5 synonyms of each "
+                    "condition related to the referral",
+                    "ICD10": "comma separated keywords of up to 5 ICD-10 codes of each condition "
+                    "related to the referral",
                 },
             ],
         }
 
     def instruction_description(self) -> str:
-        return ("Referral to a specialist, including the rationale and the targeted conditions. "
-                "There can be only one referral in an instruction with all necessary information, "
-                "and no instruction in the lack of.")
+        return (
+            "Referral to a specialist, including the rationale and the targeted conditions. "
+            "There can be only one referral in an instruction with all necessary information, "
+            "and no instruction in the lack of."
+        )
 
     def instruction_constraints(self) -> str:
         return ""

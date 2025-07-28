@@ -3,33 +3,35 @@ from hyperscribe.structures.instruction import Instruction
 
 def test_load_from_json():
     tested = Instruction
-    result = tested.load_from_json([
-        {
-            "uuid": "theUuid1",
-            "index": 0,
-            "instruction": "theInstruction1",
-            "information": "theInformation1",
-            "isNew": False,
-            "isUpdated": True,
-        },
-        {
-            "uuid": "theUuid2",
-            "index": 1,
-            "instruction": "theInstruction2",
-            "information": "theInformation2",
-            "isNew": True,
-            "isUpdated": False,
-        },
-        {},
-        {
-            "uuid": "theUuid3",
-            "index": 2,
-            "instruction": "theInstruction3",
-            "information": "theInformation3",
-            "isNew": False,
-            "isUpdated": True,
-        },
-    ])
+    result = tested.load_from_json(
+        [
+            {
+                "uuid": "theUuid1",
+                "index": 0,
+                "instruction": "theInstruction1",
+                "information": "theInformation1",
+                "isNew": False,
+                "isUpdated": True,
+            },
+            {
+                "uuid": "theUuid2",
+                "index": 1,
+                "instruction": "theInstruction2",
+                "information": "theInformation2",
+                "isNew": True,
+                "isUpdated": False,
+            },
+            {},
+            {
+                "uuid": "theUuid3",
+                "index": 2,
+                "instruction": "theInstruction3",
+                "information": "theInformation3",
+                "isNew": False,
+                "isUpdated": True,
+            },
+        ],
+    )
     expected = [
         Instruction(
             uuid="theUuid1",
@@ -47,14 +49,7 @@ def test_load_from_json():
             is_new=True,
             is_updated=False,
         ),
-        Instruction(
-            uuid="",
-            index=0,
-            instruction="",
-            information="",
-            is_new=True,
-            is_updated=False,
-        ),
+        Instruction(uuid="", index=0, instruction="", information="", is_new=True, is_updated=False),
         Instruction(
             uuid="theUuid3",
             index=3,

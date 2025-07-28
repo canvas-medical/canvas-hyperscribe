@@ -5,7 +5,6 @@ from evaluations.datastores.datastore_case import DatastoreCase
 
 
 class BuilderDelete:
-
     @classmethod
     def _parameters(cls) -> Namespace:
         parser = ArgumentParser(description="Delete all files and case record related to the built case.")

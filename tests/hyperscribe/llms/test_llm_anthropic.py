@@ -58,18 +58,8 @@ def test_to_dict():
                     {"type": "text", "text": "line 4\nline 5\nline 6"},
                 ],
             },
-            {
-                "role": "assistant",
-                "content": [
-                    {"type": "text", "text": "line 7\nline 8"},
-                ],
-            },
-            {
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": "line 9\nline 10"},
-                ],
-            },
+            {"role": "assistant", "content": [{"type": "text", "text": "line 7\nline 8"}]},
+            {"role": "user", "content": [{"type": "text", "text": "line 9\nline 10"}]},
         ],
     }
     assert result == expected
@@ -86,19 +76,16 @@ def test_request(to_dict, requests_post):
         requests_post.reset_mock()
         memory_log.reset_mock()
 
-    response = type("Response", (), {
-        "status_code": 202,
-        "text": json.dumps({
-            "content": [
-                {"text": "\n".join([
-                    '```json',
-                    '["line 1","line 2","line 3"]',
-                    '```',
-                    '',
-                ])},
-            ],
-        }),
-    })()
+    response = type(
+        "Response",
+        (),
+        {
+            "status_code": 202,
+            "text": json.dumps(
+                {"content": [{"text": "\n".join(["```json", '["line 1","line 2","line 3"]', "```", ""])}]},
+            ),
+        },
+    )()
 
     # error
     to_dict.side_effect = [{"key": "valueX"}, {"key": "valueY"}]
@@ -114,25 +101,23 @@ def test_request(to_dict, requests_post):
 
     calls = [call(), call()]
     assert to_dict.mock_calls == calls
-    calls = [call(
-        "https://api.anthropic.com/v1/messages",
-        headers={
-            "Content-Type": "application/json",
-            "anthropic-version": "2023-06-01",
-            "x-api-key": "apiKey",
-        },
-        params={},
-        data='{"key": "valueX"}',
-        verify=True,
-        timeout=None,
-    )]
+    calls = [
+        call(
+            "https://api.anthropic.com/v1/messages",
+            headers={"Content-Type": "application/json", "anthropic-version": "2023-06-01", "x-api-key": "apiKey"},
+            params={},
+            data='{"key": "valueX"}',
+            verify=True,
+            timeout=None,
+        ),
+    ]
     assert requests_post.mock_calls == calls
     calls = [
-        call.log('--- request begins:'),
+        call.log("--- request begins:"),
         call.log('{\n  "key": "valueY"\n}'),
-        call.log('status code: 202'),
+        call.log("status code: 202"),
         call.log('{"content": [{"text": "```json\\n[\\"line 1\\",\\"line 2\\",\\"line 3\\"]\\n```\\n"}]}'),
-        call.log('--- request ends ---'),
+        call.log("--- request ends ---"),
     ]
     assert memory_log.mock_calls == calls
     reset_mocks()
@@ -149,25 +134,23 @@ def test_request(to_dict, requests_post):
 
     calls = [call(), call()]
     assert to_dict.mock_calls == calls
-    calls = [call(
-        "https://api.anthropic.com/v1/messages",
-        headers={
-            "Content-Type": "application/json",
-            "anthropic-version": "2023-06-01",
-            "x-api-key": "apiKey",
-        },
-        params={},
-        data='{"key": "valueA"}',
-        verify=True,
-        timeout=None,
-    )]
+    calls = [
+        call(
+            "https://api.anthropic.com/v1/messages",
+            headers={"Content-Type": "application/json", "anthropic-version": "2023-06-01", "x-api-key": "apiKey"},
+            params={},
+            data='{"key": "valueA"}',
+            verify=True,
+            timeout=None,
+        ),
+    ]
     assert requests_post.mock_calls == calls
     calls = [
-        call.log('--- request begins:'),
+        call.log("--- request begins:"),
         call.log('{\n  "key": "valueB"\n}'),
-        call.log('status code: 200'),
+        call.log("status code: 200"),
         call.log('{"content": [{"text": "```json\\n[\\"line 1\\",\\"line 2\\",\\"line 3\\"]\\n```\\n"}]}'),
-        call.log('--- request ends ---'),
+        call.log("--- request ends ---"),
     ]
     assert memory_log.mock_calls == calls
     reset_mocks()

@@ -1,0 +1,57 @@
+[
+  {
+    "rationale": "Semaglutide is mentioned but the specific 0.25-mg Sunday schedule is missing and an incorrect 2 mg strength is implied.",
+    "satisfaction": 10.0,
+    "score": 1.5
+  },
+  {
+    "rationale": "Clearly states to keep pen in fridge door, not freezer, and to start a new pen after four doses.",
+    "satisfaction": 95.0,
+    "score": 9.5
+  },
+  {
+    "rationale": "Anti-nausea advice about ginger tea and crackers is captured verbatim.",
+    "satisfaction": 100.0,
+    "score": 8.0
+  },
+  {
+    "rationale": "Instruction to stop semaglutide immediately after a positive home pregnancy test is documented.",
+    "satisfaction": 100.0,
+    "score": 12.0
+  },
+  {
+    "rationale": "No mention of insurance denial, urgent appeal, or reassurance about starter pen.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Includes 168 pre-meal, no after-lunch reading, 212 bedtime, and 40-unit bedtime insulin dose.",
+    "satisfaction": 95.0,
+    "score": 11.4
+  },
+  {
+    "rationale": "Records heaviness/queasiness, decreased appetite, minimal weight change, and concerns over pharmacy delays/finances.",
+    "satisfaction": 90.0,
+    "score": 7.2
+  },
+  {
+    "rationale": "Glucose walkthrough is noted but not explicitly tied to clinician request for adjustment guidance.",
+    "satisfaction": 20.0,
+    "score": 1.0
+  },
+  {
+    "rationale": "Several major points captured, but dose info and insurance issues omitted; overall partial completeness.",
+    "satisfaction": 60.0,
+    "score": 6.0
+  },
+  {
+    "rationale": "Minor inaccuracy on dose strength but no large fabricated content or extra orders; mild penalty.",
+    "satisfaction": 60.0,
+    "score": -4.0
+  },
+  {
+    "rationale": "No irrelevant chart dumps or excessive historical data included.",
+    "satisfaction": 95.0,
+    "score": -0.5
+  }
+]

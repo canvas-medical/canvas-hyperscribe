@@ -1,0 +1,43 @@
+{
+  "demographicStr": "the patient is a man, born on January 1, 1946 (age 78)",
+  "conditionHistory": [],
+  "currentAllergies": [],
+  "currentConditions": [
+    {
+      "uuid": "069210a1-ac48-44a9-866f-a60960cb235d",
+      "label": "Type 2 diabetes mellitus without complications",
+      "code": "E11.9"
+    },
+    {
+      "uuid": "f671b551-fd19-4810-baeb-a1649929c07f",
+      "label": "Heart failure, unspecified",
+      "code": "I50.9"
+    },
+    {
+      "uuid": "ef5b88ce-062a-4ce7-81e8-4701c13eed62",
+      "label": "Osteoarthritis, unspecified site",
+      "code": "M19.90"
+    }
+  ],
+  "currentGoals": [
+    {
+      "uuid": "a36e127d-361b-4455-9a84-fa72ff05ad7e",
+      "label": "Reduce hypoglycemia risk after discontinuing glyburide",
+      "code": ""
+    }
+  ],
+  "currentMedications": [
+    {
+      "uuid": "fd440034-a6a0-4069-949d-97149e006ca8",
+      "label": "Insulin glargine 100 unit/mL injectable solution, take at night",
+      "code": "310798"
+    },
+    {
+      "uuid": "c2ec545c-d8f3-4d3e-8245-07f63296889c",
+      "label": "Semaglutide 2 mg/3 mL injectable solution pen, weekly",
+      "code": "1973611"
+    }
+  ],
+  "familyHistory": [],
+  "surgeryHistory": []
+}

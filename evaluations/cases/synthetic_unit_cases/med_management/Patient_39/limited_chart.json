@@ -1,0 +1,43 @@
+{
+  "demographicStr": "the patient is a man, born on January 1, 1978 (age 46)",
+  "conditionHistory": [],
+  "currentAllergies": [],
+  "currentConditions": [
+    {
+      "uuid": "9f38f58a-785d-4650-bf8f-d4f607e5d4a1",
+      "label": "Human immunodeficiency virus [HIV] disease",
+      "code": "B20"
+    },
+    {
+      "uuid": "4be820f4-1740-4f2c-92b5-d5acc961345d",
+      "label": "Essential (primary) hypertension",
+      "code": "I10"
+    }
+  ],
+  "currentGoals": [
+    {
+      "uuid": "a1f22050-bbc5-44a2-9c7c-a794883eb3e2",
+      "label": "Reduce missed doses of HIV medication",
+      "code": ""
+    }
+  ],
+  "currentMedications": [
+    {
+      "uuid": "c4804d87-b71e-4420-9dc1-02150d467d48",
+      "label": "Bictegravir 50 mg / emtricitabine 200 mg / tenofovir alafenamide 25 mg oral tablet",
+      "code": "1973593"
+    },
+    {
+      "uuid": "a118db3e-799d-47e7-83cd-c3b289098d87",
+      "label": "Amlodipine 5 mg oral tablet",
+      "code": "197361"
+    },
+    {
+      "uuid": "107448e0-3383-400e-a7f4-d61978563d04",
+      "label": "Nightly heartburn tablet (unspecified OTC antacid)",
+      "code": ""
+    }
+  ],
+  "familyHistory": [],
+  "surgeryHistory": []
+}

@@ -1,0 +1,30 @@
+[
+  {
+    "speaker": "Clinician",
+    "text": "Okay, Camila, here's the plan. The pill in your hand is 20 µg ethinyl estradiol with 100 µg levonorgestrel, one tablet every day at the same hour; no breaks— the last seven are placebo. Starting tonight is fine. Common side-effects: spotting the first two packs, mild nausea, breast tenderness; serious warning signs would be severe leg pain or chest pressure—call immediately if those happen. Because the clinic’s formulary just switched suppliers, you’ll need a new voucher every 28 days; I’ve queued the prescription at Harbor Pharmacy for six months, but you must request the discount card before each refill. Use ibuprofen only if cramps break through."
+  },
+  {
+    "speaker": "Patient",
+    "text": "Uh, sorry, I keep tearing up—so I just swallow one every day, even when I'm bleeding? I work closing shift till 2 a.m.—what if I forget before the bus ride?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "And, like, if I miss it, do I double up or call you first? The leaflet made that part sound really scary."
+  },
+  {
+    "speaker": "Patient",
+    "text": "Also I'm still spotting today, is that normal so soon? It freaks me out because last month I bled for, uh, ten straight days."
+  },
+  {
+    "speaker": "Patient",
+    "text": "Money-wise, the cashier said the price jumped to sixty dollars unless I have 'Form K'. I don’t even know what that form is right now, honestly."
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Set a daily alarm on your phone for whatever time you can reliably manage— even 2 a.m. is okay as long as it’s consistent. If you’re under twelve hours late, just take the pill; over twelve, take one immediately and another at the usual hour tomorrow, then condoms for seven days. Spotting in the first three packs is expected, but call if you soak more than one pad an hour. For cost, ask Harbor for Form K; it’s the manufacturer coupon— they’ll fax it to me if you forget."
+  },
+  {
+    "speaker": "Patient",
+    "text": "Okay, so alarm, double-up rule, and Form K— got it. I'll try, thank you myself tonight then."
+  }
+]

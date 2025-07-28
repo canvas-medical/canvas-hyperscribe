@@ -1,0 +1,26 @@
+[
+  {
+    "speaker": "Patient",
+    "text": "Um, the nurse called about the ECG in Tucson, said something about the numbers being 'borderline' again?"
+  },
+  {
+    "speaker": "Patient",
+    "text": "I already used the last pill from the Michigan bottle, and the Arizona shipment hasn\u2019t shown up\u2014FedEx says weather delay\u2014should I split tablets?"
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Okay, quick answer first: please do not split the osimertinib; the coating matters for absorption. I\u2019m queuing a same-day local pickup\u2014Walgreens on Speedway has emergency stock, forty-milligram tablets, one daily with water, morning preferred, nothing to eat for an hour. We\u2019ll keep aspirin 81 mg breakfast, atorvastatin 20 mg with supper. I can fax the plan to your cardiologist, but the QT came in at 462 ms, so no change for now."
+  },
+  {
+    "speaker": "Patient",
+    "text": "Okay. I felt a brief dizzy spell on the stairs yesterday."
+  },
+  {
+    "speaker": "Patient",
+    "text": "And, uh, do I still avoid grapefruit with this dose?"
+  },
+  {
+    "speaker": "Clinician",
+    "text": "Yes, ban grapefruit and St. John\u2019s wort; both jack up serum levels. Please log any dizzy episodes, palpitations, or calf cramps."
+  }
+]

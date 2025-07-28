@@ -15,7 +15,6 @@ DISCUSSIONS: dict[str, dict[int, dict[str, int]]] = {}
 
 
 class LlmTurnsStore:
-
     @classmethod
     def end_session(cls, note_uuid: str) -> None:
         if note_uuid in DISCUSSIONS:
@@ -27,23 +26,18 @@ class LlmTurnsStore:
         return LlmTurnsStore(s3_credentials, identification, cached.creation_day(), cached.cycle)
 
     def __init__(
-            self,
-            s3_credentials: AwsS3Credentials,
-            identification: IdentificationParameters,
-            creation_day: str,
-            cycle: int,
+        self,
+        s3_credentials: AwsS3Credentials,
+        identification: IdentificationParameters,
+        creation_day: str,
+        cycle: int,
     ) -> None:
         self.creation_day = creation_day
         self.cycle = cycle
         self.identification = identification
         self.s3_credentials = s3_credentials
 
-    def store(
-            self,
-            instruction: str,
-            index: int,
-            llm_turns: list[LlmTurn],
-    ) -> None:
+    def store(self, instruction: str, index: int, llm_turns: list[LlmTurn]) -> None:
         note_uuid = self.identification.note_uuid
         cycle = self.cycle
         key = instruction
@@ -78,10 +72,7 @@ class LlmTurnsStore:
     def stored_documents(self) -> Iterable[tuple[str, list]]:
         client_s3 = AwsS3(self.s3_credentials)
         if client_s3.is_ready():
-            urls = [
-                document.key
-                for document in client_s3.list_s3_objects(self.store_path())
-            ]
+            urls = [document.key for document in client_s3.list_s3_objects(self.store_path())]
             for url in sorted(urls, key=self.s3_path_sort):
                 response = client_s3.access_s3_object(url)
                 if response.status_code == HTTPStatus.OK.value:
@@ -89,21 +80,23 @@ class LlmTurnsStore:
                     yield step, response.json() or []
 
     def store_path(self) -> str:
-        return (f"hyperscribe-{self.identification.canvas_instance}/"
-                f"llm_turns/"
-                f"{self.creation_day}/"
-                f"{self.identification.note_uuid}/"
-                f"{self.cycle:03d}")
+        return (
+            f"hyperscribe-{self.identification.canvas_instance}/"
+            f"llm_turns/"
+            f"{self.creation_day}/"
+            f"{self.identification.note_uuid}/"
+            f"{self.cycle:03d}"
+        )
 
     @classmethod
     def s3_path_sort(cls, s3_path: str) -> Tuple[int, int]:
-        filename = s3_path.split('/')[-1]
+        filename = s3_path.split("/")[-1]
         first_digits = 999
         last_digits = 999
-        if match := search(r'transcript2instructions_(\d+)', filename):
+        if match := search(r"transcript2instructions_(\d+)", filename):
             first_digits = -1
             last_digits = int(match.group(1))
-        elif match := search(r'_(\d+)_(\d+)', filename):
+        elif match := search(r"_(\d+)_(\d+)", filename):
             first_digits = int(match.group(1))
             last_digits = int(match.group(2))
         return first_digits, last_digits

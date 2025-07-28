@@ -1,0 +1,38 @@
+{
+  "demographicStr": "the patient is a woman, born on January 1, 1982 (age 42)",
+  "conditionHistory": [],
+  "currentAllergies": [],
+  "currentConditions": [
+    {
+      "uuid": "e54f2688-159c-4f31-aab4-75cb1d0508df",
+      "label": "Type 2 diabetes mellitus without complications",
+      "code": "E11.9"
+    }
+  ],
+  "currentGoals": [
+    {
+      "uuid": "d76846fc-c2b5-4de3-b580-0343577e50b9",
+      "label": "Improve blood sugar control",
+      "code": ""
+    }
+  ],
+  "currentMedications": [
+    {
+      "uuid": "6362aa17-e17f-4ae4-854b-210540cfc099",
+      "label": "Metformin 500 mg tablet",
+      "code": "860975"
+    },
+    {
+      "uuid": "fd9a663b-3ac5-487f-b722-5fc8f090568a",
+      "label": "Insulin glargine 100 unit/mL subcutaneous solution",
+      "code": "1794789"
+    },
+    {
+      "uuid": "3ee4adf0-9fa6-4d69-beca-9387258e3796",
+      "label": "Semaglutide 2 mg/1.5 mL subcutaneous solution pen injector",
+      "code": "1973614"
+    }
+  ],
+  "familyHistory": [],
+  "surgeryHistory": []
+}

@@ -15,7 +15,6 @@ from hyperscribe.libraries.memory_log import MemoryLog
 
 
 class BuilderDirectFromTuningSplit(BuilderDirectFromTuning):
-
     @classmethod
     def _parameters(cls, parser: ArgumentParser) -> None:
         parser.add_argument("--direct-split", action="store_true")
@@ -69,11 +68,10 @@ class BuilderDirectFromTuningSplit(BuilderDirectFromTuning):
             cache.add_instructions_as_staged_commands(instructions, key2instruction)
 
     def topical_exchange_summary(
-            self,
-            topic_exchanges: list[TopicalExchange],
-            temporary_folder: Path,
+        self,
+        topic_exchanges: list[TopicalExchange],
+        temporary_folder: Path,
     ) -> CaseExchangeSummary:
-
         topic_summary = temporary_folder / f"topic_summary_{topic_exchanges[0].topic:03d}.json"
         if topic_summary.exists() and not self.force_refresh:
             with topic_summary.open("r") as f:
@@ -81,34 +79,40 @@ class BuilderDirectFromTuningSplit(BuilderDirectFromTuning):
 
         memory_log = MemoryLog.instance(self.identification, "topical_exchange_naming", self.s3_credentials)
         chatter = Helper.chatter(self.settings, memory_log)
-        chatter.set_system_prompt([
-            "The conversation is in the medical context, and related to a visit of a patient with a healthcare provider.",
-            "",
-            "Your task is to give a meaningful title to a provided sub set of the discussion, previously identified as a coherent topical exchange.",
-            "",
-            "The title should be as concise as possible, composed of about 25 to 40 characters.",
-            "",
-            "Format your response following the JSON Schema:",
-            "```json",
-            json.dumps(self.schema_summary(), indent=1),
-            "```",
-            "",
-        ])
+        chatter.set_system_prompt(
+            [
+                "The conversation is in the medical context, and related to a visit of a patient with a "
+                "healthcare provider.",
+                "",
+                "Your task is to give a meaningful title to a provided sub set of the discussion, previously "
+                "identified as a coherent topical exchange.",
+                "",
+                "The title should be as concise as possible, composed of about 25 to 40 characters.",
+                "",
+                "Format your response following the JSON Schema:",
+                "```json",
+                json.dumps(self.schema_summary(), indent=1),
+                "```",
+                "",
+            ],
+        )
         str_uuid = str(uuid4())
         result = CaseExchangeSummary(title=str_uuid, summary="")
-        chatter.set_user_prompt([
-            "Coherent topical exchange:",
-            "```json",
-            json.dumps([line.to_json() for line in topic_exchanges], indent=1),
-            "```",
-            "",
-            "",
-            "Follow rigorously the instructions and provide the requested information using "
-            "the mentioned JSON Schema within a Markdown code block:",
-            "```json",
-            "YOUR JSON OUTPUT HERE",
-            "```",
-        ])
+        chatter.set_user_prompt(
+            [
+                "Coherent topical exchange:",
+                "```json",
+                json.dumps([line.to_json() for line in topic_exchanges], indent=1),
+                "```",
+                "",
+                "",
+                "Follow rigorously the instructions and provide the requested information using "
+                "the mentioned JSON Schema within a Markdown code block:",
+                "```json",
+                "YOUR JSON OUTPUT HERE",
+                "```",
+            ],
+        )
         response = chatter.chat([self.schema_summary()])
         if not response.has_error and (summaries := CaseExchangeSummary.load_from_json(response.content[0])):
             result = CaseExchangeSummary(
@@ -132,59 +136,68 @@ class BuilderDirectFromTuningSplit(BuilderDirectFromTuning):
                 continue
 
             chatter = Helper.chatter(self.settings, memory_log)
-            chatter.set_system_prompt([
-                "The conversation is in the medical context, and related to a visit of a patient with a healthcare provider.",
-                "",
-                "The conversation is divided into sequential fragment of several seconds each.",
-                "",
-                "Your task is to segment the conversation into coherent sets of topical medical exchanges.",
-                "This means:",
-                "* Each set should correspond to a distinct medical topic.",
-                "* Non-medical content (e.g., small talk, greetings) should be included in the current medical topic set but should not initiate a new topic on its own.",
-                "",
-                "For each new fragment, you will be given:",
-                "* The transcript of the current fragment.",
-                "* The last previously identified topic exchange.",
-                "",
-                "",
-                "Your job is to:",
-                "* Determine whether the current fragment introduces a new medical topic.",
-                "* If it does, increment the 'topic' field by one (1) for the exchanges starting from this new topic.",
-                "* Topic shifts may occur anywhere within the fragment, not necessarily at the beginning.",
-                "",
-                "Be precise and consistent. Only mark a new topic when the medical focus clearly changes.",
-                "",
-                "Format your response following the JSON Schema:",
-                "```json",
-                json.dumps(schema_topical_exchanges, indent=1),
-                "```",
-                "",
-            ])
+            chatter.set_system_prompt(
+                [
+                    "The conversation is in the medical context, and related to a visit of a patient with a "
+                    "healthcare provider.",
+                    "",
+                    "The conversation is divided into sequential fragment of several seconds each.",
+                    "",
+                    "Your task is to segment the conversation into coherent sets of topical medical exchanges.",
+                    "This means:",
+                    "* Each set should correspond to a distinct medical topic.",
+                    "* Non-medical content (e.g., small talk, greetings) should be included in the current "
+                    "medical topic set but should not initiate a new topic on its own.",
+                    "",
+                    "For each new fragment, you will be given:",
+                    "* The transcript of the current fragment.",
+                    "* The last previously identified topic exchange.",
+                    "",
+                    "",
+                    "Your job is to:",
+                    "* Determine whether the current fragment introduces a new medical topic.",
+                    "* If it does, increment the 'topic' field by one (1) for the exchanges starting from this "
+                    "new topic.",
+                    "* Topic shifts may occur anywhere within the fragment, not necessarily at the beginning.",
+                    "",
+                    "Be precise and consistent. Only mark a new topic when the medical focus clearly changes.",
+                    "",
+                    "Format your response following the JSON Schema:",
+                    "```json",
+                    json.dumps(schema_topical_exchanges, indent=1),
+                    "```",
+                    "",
+                ],
+            )
             if result:
                 topic_index = result[-1].topic
                 topic_exchange = [topic for topic in result if topic.topic == topic_index]
 
-                chatter.set_user_prompt([
-                    f"Here is the current set of exchanges for the topic #{topic_index:02d}:",
-                    "```json",
-                    json.dumps([topic.to_json() for topic in topic_exchange], indent=1),
-                    "```",
-                    "",
-                    "This is just for the context, so do not repeat it in your answer.",
-                ])
+                chatter.set_user_prompt(
+                    [
+                        f"Here is the current set of exchanges for the topic #{topic_index:02d}:",
+                        "```json",
+                        json.dumps([topic.to_json() for topic in topic_exchange], indent=1),
+                        "```",
+                        "",
+                        "This is just for the context, so do not repeat it in your answer.",
+                    ],
+                )
             with transcript.open("r") as f:
-                chatter.set_user_prompt([
-                    f"The fragment of the discussion is:",
-                    "```json",
-                    f.read(),
-                    "```",
-                    "",
-                    "Follow rigorously the instructions and provide the requested information using "
-                    "the mentioned JSON Schema within a Markdown code block:",
-                    "```json",
-                    "YOUR JSON OUTPUT HERE",
-                    "```",
-                ])
+                chatter.set_user_prompt(
+                    [
+                        f"The fragment of the discussion is:",
+                        "```json",
+                        f.read(),
+                        "```",
+                        "",
+                        "Follow rigorously the instructions and provide the requested information using "
+                        "the mentioned JSON Schema within a Markdown code block:",
+                        "```json",
+                        "YOUR JSON OUTPUT HERE",
+                        "```",
+                    ],
+                )
                 response = chatter.chat([schema_topical_exchanges])
                 topical_exchanges = TopicalExchange.load_from_json(response.content[0])
                 result.extend(topical_exchanges)

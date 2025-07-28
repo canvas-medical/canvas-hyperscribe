@@ -12,15 +12,18 @@ def test_class():
 def test_add_parameters():
     tested = InstructionWithCommand
     command = _BaseCommand()
-    result = tested.add_command(InstructionWithParameters(
-        uuid="theUuid",
-        index=7,
-        instruction="theInstruction",
-        information="theInformation",
-        is_new=True,
-        is_updated=True,
-        parameters={"key": "value"},
-    ), command)
+    result = tested.add_command(
+        InstructionWithParameters(
+            uuid="theUuid",
+            index=7,
+            instruction="theInstruction",
+            information="theInformation",
+            is_new=True,
+            is_updated=True,
+            parameters={"key": "value"},
+        ),
+        command,
+    )
     expected = InstructionWithCommand(
         uuid="theUuid",
         index=7,

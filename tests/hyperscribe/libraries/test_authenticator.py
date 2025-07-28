@@ -13,49 +13,25 @@ def test_check(mock_time):
 
     tests = [
         (
-            {
-                "ts": "1746790419",
-                "sig": "db6ba533682736ca1937979afa2b461c49f659f73cc565e64e00771c77e8d5be",
-            },
+            {"ts": "1746790419", "sig": "db6ba533682736ca1937979afa2b461c49f659f73cc565e64e00771c77e8d5be"},
             60,
             True,
             True,
         ),  # good
         (
-            {
-                "ts": "1746790419",
-                "sig": "db6ba533682736ca1937979afa2b461c49f659f73cc565e64e00771c77e8d5bx",
-            },
+            {"ts": "1746790419", "sig": "db6ba533682736ca1937979afa2b461c49f659f73cc565e64e00771c77e8d5bx"},
             60,
             True,
             False,
         ),  # incorrect
         (
-            {
-                "ts": "1746790419",
-                "sig": "db6ba533682736ca1937979afa2b461c49f659f73cc565e64e00771c77e8d5be",
-            },
+            {"ts": "1746790419", "sig": "db6ba533682736ca1937979afa2b461c49f659f73cc565e64e00771c77e8d5be"},
             59,
             True,
             False,
         ),  # too old
-        (
-            {
-                "sig": "db6ba533682736ca1937979afa2b461c49f659f73cc565e64e00771c77e8d5be",
-            },
-            60,
-            False,
-            False,
-        ),  # missing ts
-        (
-            {
-                "ts": "1746790419",
-            },
-            60,
-            False,
-            False,
-        ),  # missing sig
-
+        ({"sig": "db6ba533682736ca1937979afa2b461c49f659f73cc565e64e00771c77e8d5be"}, 60, False, False),  # missing ts
+        ({"ts": "1746790419"}, 60, False, False),  # missing sig
     ]
 
     secret = "theSecret"

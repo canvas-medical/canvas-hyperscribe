@@ -9,14 +9,17 @@ def test_class():
 
 def test_add_parameters():
     tested = InstructionWithParameters
-    result = tested.add_parameters(Instruction(
-        uuid="theUuid",
-        index=3,
-        instruction="theInstruction",
-        information="theInformation",
-        is_new=True,
-        is_updated=True,
-    ), {"key": "value"})
+    result = tested.add_parameters(
+        Instruction(
+            uuid="theUuid",
+            index=3,
+            instruction="theInstruction",
+            information="theInformation",
+            is_new=True,
+            is_updated=True,
+        ),
+        {"key": "value"},
+    )
     expected = InstructionWithParameters(
         uuid="theUuid",
         index=3,

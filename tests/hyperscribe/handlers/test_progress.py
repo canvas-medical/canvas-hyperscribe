@@ -21,21 +21,27 @@ from tests.helper import is_constant
 
 
 def helper_instance() -> Progress:
-    event = Event(EventRequest(context=json.dumps({
-        "note_id": "noteId",
-        "method": "GET",
-        "path": "/progress",
-        "query_string": "note_id=noteId",
-        "body": "",
-        "headers": {"Host": "theHost"},
-    })))
+    event = Event(
+        EventRequest(
+            context=json.dumps(
+                {
+                    "note_id": "noteId",
+                    "method": "GET",
+                    "path": "/progress",
+                    "query_string": "note_id=noteId",
+                    "body": "",
+                    "headers": {"Host": "theHost"},
+                },
+            ),
+        ),
+    )
     event.target = TargetType(id="targetId", type=Patient)
-    secrets = {
-        "APISigningKey": "theApiSigningKey",
-    }
+    secrets = {"APISigningKey": "theApiSigningKey"}
     environment = {}
     instance = Progress(event, secrets, environment)
-    instance._path_pattern = re.compile(r".*")  # TODO this is a hack, find the right way to create the Archiver instance
+    instance._path_pattern = re.compile(
+        r".*",
+    )  # TODO this is a hack, find the right way to create the Archiver instance
     return instance
 
 
@@ -48,7 +54,7 @@ def test_constants():
     tested = Progress
     constants = {
         "PATH": "/progress",
-        "RESPONDS_TO": ['SIMPLE_API_AUTHENTICATE', 'SIMPLE_API_REQUEST'],  # <--- SimpleAPIBase class
+        "RESPONDS_TO": ["SIMPLE_API_AUTHENTICATE", "SIMPLE_API_REQUEST"],  # <--- SimpleAPIBase class
     }
     assert is_constant(tested, constants)
 
@@ -99,16 +105,11 @@ def test_get(clear, mock_datetime):
             {"message": "EOF", "time": "2025-04-30T18:19:11.123456+00:00"},
             {"message": "the first", "time": "2025-04-30T18:19:07.123456+00:00"},
         ]
-        progress.PROGRESS = {
-            "noteId": messages,
-        }
+        progress.PROGRESS = {"noteId": messages}
         mock_datetime.now.side_effect = [a_date]
 
         result = tested.get()
-        expected = [JSONResponse(content={
-            "time": "2025-05-15T21:06:21+00:00",
-            "messages": messages,
-        })]
+        expected = [JSONResponse(content={"time": "2025-05-15T21:06:21+00:00", "messages": messages})]
         assert result == expected
 
         calls = [call.now(UTC)]
@@ -123,18 +124,10 @@ def test_post():
         tested = helper_instance()
 
         tests = [
-            ("noteId", '{"key": "value1"}', {
-                "noteId": [{"key": "value1"}],
-            }),
-            ("noteId", '{"key": "value2"}', {
-                "noteId": [{"key": "value2"}, {"key": "value1"}],
-            }),
-            ("noteId", '{"key": "value3"}', {
-                "noteId": [{"key": "value3"}, {"key": "value2"}, {"key": "value1"}],
-            }),
-            ("", '{"key": "value4"}', {
-                "noteId": [{"key": "value3"}, {"key": "value2"}, {"key": "value1"}],
-            }),
+            ("noteId", '{"key": "value1"}', {"noteId": [{"key": "value1"}]}),
+            ("noteId", '{"key": "value2"}', {"noteId": [{"key": "value2"}, {"key": "value1"}]}),
+            ("noteId", '{"key": "value3"}', {"noteId": [{"key": "value3"}, {"key": "value2"}, {"key": "value1"}]}),
+            ("", '{"key": "value4"}', {"noteId": [{"key": "value3"}, {"key": "value2"}, {"key": "value1"}]}),
         ]
         for note_id, body, exp_progress in tests:
             tested.request.query_params = {"note_id": note_id}
@@ -217,7 +210,6 @@ def test_send_to_user(requests_post, authenticator, mock_datetime):
         structured_rfv=False,
         audit_llm=False,
         is_tuning=False,
-
         api_signing_key="theApiSigningKey",
         send_progress=True,
         commands_policy=AccessPolicy(policy=False, items=[]),
@@ -231,19 +223,21 @@ def test_send_to_user(requests_post, authenticator, mock_datetime):
 
     calls = [
         call.presigned_url(
-            'theApiSigningKey',
-            'https://canvasInstance.canvasmedical.com/plugin-io/api/hyperscribe/progress',
-            {'note_id': 'noteUuid'},
-        )
+            "theApiSigningKey",
+            "https://canvasInstance.canvasmedical.com/plugin-io/api/hyperscribe/progress",
+            {"note_id": "noteUuid"},
+        ),
     ]
     assert authenticator.mock_calls == calls
-    calls = [call(
-        "thePresignedUrl",
-        headers={'Content-Type': 'application/json'},
-        json={'time': '2025-05-15T11:17:31+00:00', 'message': 'theMessage'},
-        verify=True,
-        timeout=None,
-    )]
+    calls = [
+        call(
+            "thePresignedUrl",
+            headers={"Content-Type": "application/json"},
+            json={"time": "2025-05-15T11:17:31+00:00", "message": "theMessage"},
+            verify=True,
+            timeout=None,
+        ),
+    ]
     assert requests_post.mock_calls == calls
     calls = [call.now(UTC)]
     assert mock_datetime.mock_calls == calls
@@ -259,7 +253,6 @@ def test_send_to_user(requests_post, authenticator, mock_datetime):
         structured_rfv=False,
         audit_llm=False,
         is_tuning=False,
-
         api_signing_key="theApiSigningKey",
         send_progress=False,
         commands_policy=AccessPolicy(policy=False, items=[]),

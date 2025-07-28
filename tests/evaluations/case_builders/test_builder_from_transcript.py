@@ -29,11 +29,25 @@ def test__parameters(argument_parser):
 
     calls = [
         call(description="Build the files of the evaluation tests against a patient based on the provided files"),
-        call().add_argument("--patient", type=BuilderFromTranscript.validate_patient, required=True, help="Patient UUID"),
+        call().add_argument(
+            "--patient",
+            type=BuilderFromTranscript.validate_patient,
+            required=True,
+            help="Patient UUID",
+        ),
         call().add_argument("--case", type=str, required=True, help="Evaluation case"),
-        call().add_argument("--transcript", type=BuilderFromTranscript.validate_files, help="JSON file with transcript"),
+        call().add_argument(
+            "--transcript",
+            type=BuilderFromTranscript.validate_files,
+            help="JSON file with transcript",
+        ),
         call().add_argument("--cycles", type=int, help="Split the transcript in as many cycles", default=1),
-        call().add_argument('--render', action='store_true', default=False, help="Upsert the commands of the last cycle to the patient's last note"),
+        call().add_argument(
+            "--render",
+            action="store_true",
+            default=False,
+            help="Upsert the commands of the last cycle to the patient's last note",
+        ),
         call().parse_args(),
     ]
     assert argument_parser.mock_calls == calls
@@ -47,13 +61,13 @@ def test__parameters(argument_parser):
 @patch.object(BuilderFromTranscript, "_render_in_ui")
 @patch.object(BuilderFromTranscript, "_limited_cache_from")
 def test__run(
-        limited_cache_from,
-        render_in_ui,
-        schema_key2instruction,
-        audio_interpreter,
-        commander,
-        cached_discussion,
-        capsys,
+    limited_cache_from,
+    render_in_ui,
+    schema_key2instruction,
+    audio_interpreter,
+    commander,
+    cached_discussion,
+    capsys,
 ):
     mock_file = MagicMock()
     recorder = MagicMock()
@@ -104,7 +118,7 @@ def test__run(
             information="theInformation2",
             is_new=False,
             is_updated=True,
-        )
+        ),
     ]
     identification = IdentificationParameters(
         patient_uuid="thePatient",
@@ -113,25 +127,18 @@ def test__run(
         canvas_instance="theCanvasInstance",
     )
     audio_interpreter.return_value.identification = identification
-    exp_out = [
-        'Patient UUID: thePatientUuid',
-        'Evaluation Case: theCase',
-        'JSON file: theFile',
-    ]
+    exp_out = ["Patient UUID: thePatientUuid", "Evaluation Case: theCase", "JSON file: theFile"]
     exp_limited_cache = [
         call(identification, "theSettings"),
         call().to_json(True),
         call().staged_commands_as_instructions("schemaKey2instruction"),
     ]
     exp_schema_key2instruction = [call()]
-    exp_audio_interpreter = [call(
-        "theSettings",
-        "theAwsS3Credentials",
-        limited_cache_from.return_value,
-        identification,
-    )]
+    exp_audio_interpreter = [
+        call("theSettings", "theAwsS3Credentials", limited_cache_from.return_value, identification),
+    ]
     exp_mock_file = [
-        call.open('r'),
+        call.open("r"),
         call.open().__enter__(),
         call.open().__enter__().read(),
         call.open().__exit__(None, None, None),
@@ -141,17 +148,9 @@ def test__run(
     limited_cache_from.return_value.to_json.side_effect = [{"key": "value"}]
     limited_cache_from.return_value.staged_commands_as_instructions.side_effect = [instructions]
     schema_key2instruction.side_effect = ["schemaKey2instruction"]
-    mock_file.open.return_value.__enter__.return_value.read.side_effect = [
-        json.dumps([l.to_json() for l in lines]),
-    ]
+    mock_file.open.return_value.__enter__.return_value.read.side_effect = [json.dumps([l.to_json() for l in lines])]
     commander.transcript2commands.side_effect = [(["previous1"], ["effects1"])]
-    parameters = Namespace(
-        patient="thePatientUuid",
-        case="theCase",
-        transcript=mock_file,
-        cycles=1,
-        render=True,
-    )
+    parameters = Namespace(patient="thePatientUuid", case="theCase", transcript=mock_file, cycles=1, render=True)
     tested._run(parameters, recorder, identification)
 
     assert capsys.readouterr().out == "\n".join(exp_out + ["Cycles: 1", ""])
@@ -160,33 +159,30 @@ def test__run(
     assert render_in_ui.mock_calls == calls
     assert schema_key2instruction.mock_calls == exp_schema_key2instruction
     assert audio_interpreter.mock_calls == exp_audio_interpreter
-    calls = [call.transcript2commands(
-        recorder,
-        lines,
-        audio_interpreter.return_value,
-        instructions,
-    )]
+    calls = [call.transcript2commands(recorder, lines, audio_interpreter.return_value, instructions)]
     assert commander.mock_calls == calls
-    calls = [
-        call.get_discussion('theNoteUuid'),
-        call.get_discussion().set_cycle(1),
-    ]
+    calls = [call.get_discussion("theNoteUuid"), call.get_discussion().set_cycle(1)]
     assert cached_discussion.mock_calls == calls
     assert mock_file.mock_calls == exp_mock_file
     calls = [
-        call.case_update_limited_cache({'key': 'value'}),
+        call.case_update_limited_cache({"key": "value"}),
         call.set_cycle(1),
-        call.upsert_json('audio2transcript', {'theCycleKey': [
-            {'speaker': 'speakerA', 'text': 'text1'},
-            {'speaker': 'speakerB', 'text': 'text2'},
-            {'speaker': 'speakerA', 'text': 'text3'},
-            {'speaker': 'speakerA', 'text': 'text4'},
-            {'speaker': 'speakerB', 'text': 'text5'},
-            {'speaker': 'speakerB', 'text': 'text6'},
-            {'speaker': 'speakerB', 'text': 'text7'},
-            {'speaker': 'speakerA', 'text': 'text8'},
-            {'speaker': 'speakerA', 'text': 'text9'},
-        ]}),
+        call.upsert_json(
+            "audio2transcript",
+            {
+                "theCycleKey": [
+                    {"speaker": "speakerA", "text": "text1"},
+                    {"speaker": "speakerB", "text": "text2"},
+                    {"speaker": "speakerA", "text": "text3"},
+                    {"speaker": "speakerA", "text": "text4"},
+                    {"speaker": "speakerB", "text": "text5"},
+                    {"speaker": "speakerB", "text": "text6"},
+                    {"speaker": "speakerB", "text": "text7"},
+                    {"speaker": "speakerA", "text": "text8"},
+                    {"speaker": "speakerA", "text": "text9"},
+                ],
+            },
+        ),
     ]
     assert recorder.mock_calls == calls
     reset_mocks()
@@ -195,13 +191,8 @@ def test__run(
     limited_cache_from.return_value.to_json.side_effect = [{"key": "value"}]
     limited_cache_from.return_value.staged_commands_as_instructions.side_effect = [instructions]
     schema_key2instruction.side_effect = ["schemaKey2instruction"]
-    mock_file.open.return_value.__enter__.return_value.read.side_effect = [
-        json.dumps([l.to_json() for l in lines]),
-    ]
-    commander.transcript2commands.side_effect = [
-        (["previous1"], ["effects1"]),
-        (["previous2"], ["effects2"]),
-    ]
+    mock_file.open.return_value.__enter__.return_value.read.side_effect = [json.dumps([l.to_json() for l in lines])]
+    commander.transcript2commands.side_effect = [(["previous1"], ["effects1"]), (["previous2"], ["effects2"])]
     parameters = Namespace(
         patient="thePatientUuid",
         case="theCase",
@@ -218,44 +209,40 @@ def test__run(
     assert schema_key2instruction.mock_calls == exp_schema_key2instruction
     assert audio_interpreter.mock_calls == exp_audio_interpreter
     calls = [
-        call.transcript2commands(
-            recorder,
-            lines[:5],
-            audio_interpreter.return_value,
-            instructions,
-        ),
-        call.transcript2commands(
-            recorder,
-            lines[5:],
-            audio_interpreter.return_value,
-            ["previous1"],
-        ),
+        call.transcript2commands(recorder, lines[:5], audio_interpreter.return_value, instructions),
+        call.transcript2commands(recorder, lines[5:], audio_interpreter.return_value, ["previous1"]),
     ]
     assert commander.mock_calls == calls
-    calls = [
-        call.get_discussion('theNoteUuid'),
-        call.get_discussion().set_cycle(1),
-        call.get_discussion().set_cycle(2),
-    ]
+    calls = [call.get_discussion("theNoteUuid"), call.get_discussion().set_cycle(1), call.get_discussion().set_cycle(2)]
     assert cached_discussion.mock_calls == calls
     assert mock_file.mock_calls == exp_mock_file
     calls = [
-        call.case_update_limited_cache({'key': 'value'}),
+        call.case_update_limited_cache({"key": "value"}),
         call.set_cycle(1),
-        call.upsert_json('audio2transcript', {'theCycleKey': [
-            {'speaker': 'speakerA', 'text': 'text1'},
-            {'speaker': 'speakerB', 'text': 'text2'},
-            {'speaker': 'speakerA', 'text': 'text3'},
-            {'speaker': 'speakerA', 'text': 'text4'},
-            {'speaker': 'speakerB', 'text': 'text5'},
-        ]}),
+        call.upsert_json(
+            "audio2transcript",
+            {
+                "theCycleKey": [
+                    {"speaker": "speakerA", "text": "text1"},
+                    {"speaker": "speakerB", "text": "text2"},
+                    {"speaker": "speakerA", "text": "text3"},
+                    {"speaker": "speakerA", "text": "text4"},
+                    {"speaker": "speakerB", "text": "text5"},
+                ],
+            },
+        ),
         call.set_cycle(2),
-        call.upsert_json('audio2transcript', {'theCycleKey': [
-            {'speaker': 'speakerB', 'text': 'text6'},
-            {'speaker': 'speakerB', 'text': 'text7'},
-            {'speaker': 'speakerA', 'text': 'text8'},
-            {'speaker': 'speakerA', 'text': 'text9'},
-        ]}),
+        call.upsert_json(
+            "audio2transcript",
+            {
+                "theCycleKey": [
+                    {"speaker": "speakerB", "text": "text6"},
+                    {"speaker": "speakerB", "text": "text7"},
+                    {"speaker": "speakerA", "text": "text8"},
+                    {"speaker": "speakerA", "text": "text9"},
+                ],
+            },
+        ),
     ]
     assert recorder.mock_calls == calls
     reset_mocks()
@@ -264,21 +251,13 @@ def test__run(
     limited_cache_from.return_value.to_json.side_effect = [{"key": "value"}]
     limited_cache_from.return_value.staged_commands_as_instructions.side_effect = [instructions]
     schema_key2instruction.side_effect = ["schemaKey2instruction"]
-    mock_file.open.return_value.__enter__.return_value.read.side_effect = [
-        json.dumps([l.to_json() for l in lines]),
-    ]
+    mock_file.open.return_value.__enter__.return_value.read.side_effect = [json.dumps([l.to_json() for l in lines])]
     commander.transcript2commands.side_effect = [
         (["previous1"], ["effects1"]),
         (["previous2"], ["effects2"]),
         (["previous3"], ["effects3"]),
     ]
-    parameters = Namespace(
-        patient="thePatientUuid",
-        case="theCase",
-        transcript=mock_file,
-        cycles=3,
-        render=True,
-    )
+    parameters = Namespace(patient="thePatientUuid", case="theCase", transcript=mock_file, cycles=3, render=True)
     tested._run(parameters, recorder, identification)
 
     assert capsys.readouterr().out == "\n".join(exp_out + ["Cycles: 3", ""])
@@ -288,28 +267,13 @@ def test__run(
     assert schema_key2instruction.mock_calls == exp_schema_key2instruction
     assert audio_interpreter.mock_calls == exp_audio_interpreter
     calls = [
-        call.transcript2commands(
-            recorder,
-            lines[:3],
-            audio_interpreter.return_value,
-            instructions,
-        ),
-        call.transcript2commands(
-            recorder,
-            lines[3:6],
-            audio_interpreter.return_value,
-            ["previous1"],
-        ),
-        call.transcript2commands(
-            recorder,
-            lines[6:],
-            audio_interpreter.return_value,
-            ["previous2"],
-        ),
+        call.transcript2commands(recorder, lines[:3], audio_interpreter.return_value, instructions),
+        call.transcript2commands(recorder, lines[3:6], audio_interpreter.return_value, ["previous1"]),
+        call.transcript2commands(recorder, lines[6:], audio_interpreter.return_value, ["previous2"]),
     ]
     assert commander.mock_calls == calls
     calls = [
-        call.get_discussion('theNoteUuid'),
+        call.get_discussion("theNoteUuid"),
         call.get_discussion().set_cycle(1),
         call.get_discussion().set_cycle(2),
         call.get_discussion().set_cycle(3),
@@ -317,25 +281,40 @@ def test__run(
     assert cached_discussion.mock_calls == calls
     assert mock_file.mock_calls == exp_mock_file
     calls = [
-        call.case_update_limited_cache({'key': 'value'}),
+        call.case_update_limited_cache({"key": "value"}),
         call.set_cycle(1),
-        call.upsert_json('audio2transcript', {'theCycleKey': [
-            {'speaker': 'speakerA', 'text': 'text1'},
-            {'speaker': 'speakerB', 'text': 'text2'},
-            {'speaker': 'speakerA', 'text': 'text3'},
-        ]}),
+        call.upsert_json(
+            "audio2transcript",
+            {
+                "theCycleKey": [
+                    {"speaker": "speakerA", "text": "text1"},
+                    {"speaker": "speakerB", "text": "text2"},
+                    {"speaker": "speakerA", "text": "text3"},
+                ],
+            },
+        ),
         call.set_cycle(2),
-        call.upsert_json('audio2transcript', {'theCycleKey': [
-            {'speaker': 'speakerA', 'text': 'text4'},
-            {'speaker': 'speakerB', 'text': 'text5'},
-            {'speaker': 'speakerB', 'text': 'text6'},
-        ]}),
+        call.upsert_json(
+            "audio2transcript",
+            {
+                "theCycleKey": [
+                    {"speaker": "speakerA", "text": "text4"},
+                    {"speaker": "speakerB", "text": "text5"},
+                    {"speaker": "speakerB", "text": "text6"},
+                ],
+            },
+        ),
         call.set_cycle(3),
-        call.upsert_json('audio2transcript', {'theCycleKey': [
-            {'speaker': 'speakerB', 'text': 'text7'},
-            {'speaker': 'speakerA', 'text': 'text8'},
-            {'speaker': 'speakerA', 'text': 'text9'},
-        ]}),
+        call.upsert_json(
+            "audio2transcript",
+            {
+                "theCycleKey": [
+                    {"speaker": "speakerB", "text": "text7"},
+                    {"speaker": "speakerA", "text": "text8"},
+                    {"speaker": "speakerA", "text": "text9"},
+                ],
+            },
+        ),
     ]
     assert recorder.mock_calls == calls
     reset_mocks()

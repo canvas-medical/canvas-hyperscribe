@@ -1,0 +1,27 @@
+{
+  "demographicStr": "The patient is a man, age 23",
+  "conditionHistory": [],
+  "currentAllergies": [],
+  "currentConditions": [
+    {
+      "uuid": "16a5df60-4468-4bbc-b69f-81a8623228cd",
+      "label": "Schizophrenia, unspecified",
+      "code": "F20.9"
+    }
+  ],
+  "currentGoals": [],
+  "currentMedications": [
+    {
+      "uuid": "69a599dc-1a63-452c-8688-a92ed43a24b9",
+      "label": "Paliperidone palmitate extended-release injectable suspension, monthly depot",
+      "code": "1153953"
+    },
+    {
+      "uuid": "a5c08570-c5c2-493b-a9d9-89e9386b1353",
+      "label": "Nicotine polacrilex 4 mg gum",
+      "code": "617314"
+    }
+  ],
+  "familyHistory": [],
+  "surgeryHistory": []
+}

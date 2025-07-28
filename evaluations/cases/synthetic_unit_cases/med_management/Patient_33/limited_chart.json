@@ -1,0 +1,74 @@
+{
+  "demographicStr": "the patient is a man, born on January 1, 1944 (age 80)",
+  "conditionHistory": [],
+  "currentAllergies": [
+    {
+      "uuid": "e45d932b-b631-47c1-964a-75d6d03bb864",
+      "label": "Allergy to sulfonamide antibiotics",
+      "code": "294627000"
+    }
+  ],
+  "currentConditions": [
+    {
+      "uuid": "84d2c166-b310-4083-9712-faedc75dab8b",
+      "label": "Type 2 diabetes mellitus without complications",
+      "code": "E11.9"
+    },
+    {
+      "uuid": "aee4cb97-057b-4be4-9310-0e6fda7d5ebc",
+      "label": "Essential (primary) hypertension",
+      "code": "I10"
+    },
+    {
+      "uuid": "cc043452-1e11-4172-bdd6-b415ecdd8d19",
+      "label": "Age-related hearing loss, unspecified ear",
+      "code": "H91.91"
+    },
+    {
+      "uuid": "b214d303-d79c-48f7-879f-86cf72522bd6",
+      "label": "Primary open-angle glaucoma, bilateral",
+      "code": "H40.11X4"
+    },
+    {
+      "uuid": "36ec4e39-6f15-42e0-ac08-0d177985ec73",
+      "label": "Hyperlipidemia, unspecified",
+      "code": "E78.5"
+    }
+  ],
+  "currentGoals": [
+    {
+      "uuid": "431c9ba0-32d6-4aa9-9019-b558e220cd5d",
+      "label": "Improve blood sugar control without hypoglycemia",
+      "code": ""
+    }
+  ],
+  "currentMedications": [
+    {
+      "uuid": "4550e283-9ae5-4eb3-83a7-081bab1182a9",
+      "label": "Semaglutide 0.25 mg/0.5 mL subcutaneous solution pen injector, inject weekly",
+      "code": "2147816"
+    },
+    {
+      "uuid": "de4c3a16-2cc7-4f8c-afc5-ef4670cbd772",
+      "label": "Aspirin 81 mg oral tablet, take one tablet daily",
+      "code": "1191"
+    },
+    {
+      "uuid": "b457d8f3-330d-46f0-92ba-23f7d167e6a5",
+      "label": "Atorvastatin 20 mg oral tablet, take one tablet daily",
+      "code": "83367"
+    },
+    {
+      "uuid": "ce23f8d9-efa4-4c81-80c8-cb05956ced61",
+      "label": "Lisinopril 10 mg oral tablet, take one tablet daily",
+      "code": "29046"
+    },
+    {
+      "uuid": "3046c48d-eafe-490a-ac88-98d8dc254385",
+      "label": "Glaucoma eye drops (unspecified formulation), use as directed",
+      "code": "329528"
+    }
+  ],
+  "familyHistory": [],
+  "surgeryHistory": []
+}

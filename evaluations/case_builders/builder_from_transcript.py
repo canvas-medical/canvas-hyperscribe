@@ -13,15 +13,21 @@ from hyperscribe.structures.line import Line
 
 
 class BuilderFromTranscript(BuilderBase):
-
     @classmethod
     def _parameters(cls) -> Namespace:
-        parser = ArgumentParser(description="Build the files of the evaluation tests against a patient based on the provided files")
+        parser = ArgumentParser(
+            description="Build the files of the evaluation tests against a patient based on the provided files",
+        )
         parser.add_argument("--patient", type=cls.validate_patient, required=True, help="Patient UUID")
         parser.add_argument("--case", type=str, required=True, help="Evaluation case")
         parser.add_argument("--transcript", type=cls.validate_files, help="JSON file with transcript")
         parser.add_argument("--cycles", type=int, help="Split the transcript in as many cycles", default=1)
-        parser.add_argument("--render", action="store_true", default=False, help="Upsert the commands of the last cycle to the patient's last note")
+        parser.add_argument(
+            "--render",
+            action="store_true",
+            default=False,
+            help="Upsert the commands of the last cycle to the patient's last note",
+        )
         return parser.parse_args()
 
     @classmethod
@@ -44,7 +50,7 @@ class BuilderFromTranscript(BuilderBase):
         discussion = CachedSdk.get_discussion(chatter.identification.note_uuid)
 
         length, extra = divmod(len(transcript), cycles)
-        length += (1 if extra else 0)
+        length += 1 if extra else 0
 
         for cycle in range(cycles):
             idx = cycle * length
@@ -53,9 +59,9 @@ class BuilderFromTranscript(BuilderBase):
             recorder.set_cycle(cycle)
             recorder.upsert_json(
                 Constants.AUDIO2TRANSCRIPT,
-                {recorder.cycle_key: [line.to_json() for line in transcript[idx:idx + length]]},
+                {recorder.cycle_key: [line.to_json() for line in transcript[idx : idx + length]]},
             )
-            previous, _ = Commander.transcript2commands(recorder, transcript[idx:idx + length], chatter, previous)
+            previous, _ = Commander.transcript2commands(recorder, transcript[idx : idx + length], chatter, previous)
 
         if parameters.render:
             cls._render_in_ui(recorder, identification, limited_cache)

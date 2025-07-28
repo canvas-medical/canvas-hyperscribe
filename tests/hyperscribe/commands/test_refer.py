@@ -58,54 +58,46 @@ def test_staged_command_extract():
     tested = Refer
     tests = [
         ({}, None),
-        ({
-             "priority": "Urgent",
-             "refer_to": {"text": "theReferred"},
-             "indications": [
-                 {"text": "Indication1"},
-                 {"text": "Indication2"},
-                 {"text": "Indication3"},
-             ],
-             "internal_comment": "theComment",
-             "clinical_question": "theClinicalQuestion",
-             "notes_to_specialist": "theNote",
-             "documents_to_include": [
-                 {"text": "Document1"},
-                 {"text": "Document2"},
-                 {"text": "Document3"},
-             ]
-         }, CodedItem(
-            label="referred to theReferred: theNote "
-                  "(priority: Urgent, question: theClinicalQuestion, "
-                  "documents: Document1/Document2/Document3, "
-                  "related conditions: Indication1/Indication2/Indication3)",
-            code="",
-            uuid="",
-        )),
-        ({
-             "refer_to": {"text": "theReferred"},
-         }, CodedItem(
-            label="referred to theReferred: n/a (priority: n/a, question: n/a, documents: n/a, related conditions: n/a)",
-            code="",
-            uuid="",
-        )),
-        ({
-             "priority": "Urgent",
-             "refer_to": {"text": ""},
-             "indications": [
-                 {"text": "Indication1"},
-                 {"text": "Indication2"},
-                 {"text": "Indication3"},
-             ],
-             "internal_comment": "theComment",
-             "clinical_question": "theClinicalQuestion",
-             "notes_to_specialist": "theNote",
-             "documents_to_include": [
-                 {"text": "Document1"},
-                 {"text": "Document2"},
-                 {"text": "Document3"},
-             ]
-         }, None),
+        (
+            {
+                "priority": "Urgent",
+                "refer_to": {"text": "theReferred"},
+                "indications": [{"text": "Indication1"}, {"text": "Indication2"}, {"text": "Indication3"}],
+                "internal_comment": "theComment",
+                "clinical_question": "theClinicalQuestion",
+                "notes_to_specialist": "theNote",
+                "documents_to_include": [{"text": "Document1"}, {"text": "Document2"}, {"text": "Document3"}],
+            },
+            CodedItem(
+                label="referred to theReferred: theNote "
+                "(priority: Urgent, question: theClinicalQuestion, "
+                "documents: Document1/Document2/Document3, "
+                "related conditions: Indication1/Indication2/Indication3)",
+                code="",
+                uuid="",
+            ),
+        ),
+        (
+            {"refer_to": {"text": "theReferred"}},
+            CodedItem(
+                label="referred to theReferred: n/a (priority: n/a, question: n/a, documents: n/a, "
+                "related conditions: n/a)",
+                code="",
+                uuid="",
+            ),
+        ),
+        (
+            {
+                "priority": "Urgent",
+                "refer_to": {"text": ""},
+                "indications": [{"text": "Indication1"}, {"text": "Indication2"}, {"text": "Indication3"}],
+                "internal_comment": "theComment",
+                "clinical_question": "theClinicalQuestion",
+                "notes_to_specialist": "theNote",
+                "documents_to_include": [{"text": "Document1"}, {"text": "Document2"}, {"text": "Document3"}],
+            },
+            None,
+        ),
     ]
     for data, expected in tests:
         result = tested.staged_command_extract(data)
@@ -115,7 +107,7 @@ def test_staged_command_extract():
             assert result == expected
 
 
-@patch.object(LimitedCache, 'practice_setting')
+@patch.object(LimitedCache, "practice_setting")
 @patch.object(SelectorChat, "contact_from")
 @patch.object(SelectorChat, "condition_from")
 def test_command_from_json(condition_from, contact_from, practice_setting):
@@ -137,10 +129,7 @@ def test_command_from_json(condition_from, contact_from, practice_setting):
 
     tested = helper_instance()
 
-    tests = [
-        ("", "theSpecialty"),
-        ("some names", "theSpecialty some names"),
-    ]
+    tests = [("", "theSpecialty"), ("some names", "theSpecialty some names")]
     for names, exp_contact_call in tests:
         arguments = {
             "uuid": "theUuid",
@@ -150,10 +139,7 @@ def test_command_from_json(condition_from, contact_from, practice_setting):
             "is_new": False,
             "is_updated": True,
             "parameters": {
-                "referredServiceProvider": {
-                    "names": names,
-                    "specialty": "theSpecialty",
-                },
+                "referredServiceProvider": {"names": names, "specialty": "theSpecialty"},
                 "clinicalQuestions": "Diagnostic Uncertainty",
                 "priority": "Routine",
                 "notesToSpecialist": "theNoteToTheSpecialist",
@@ -172,7 +158,7 @@ def test_command_from_json(condition_from, contact_from, practice_setting):
             notes_to_specialist="theNoteToTheSpecialist",
             comment="theComment",
             note_uuid="noteUuid",
-            diagnosis_codes=['icd1', 'icd3'],
+            diagnosis_codes=["icd1", "icd3"],
         )
         condition_from.side_effect = [
             CodedItem(uuid="uuid1", label="condition1", code="icd1"),
@@ -188,18 +174,14 @@ def test_command_from_json(condition_from, contact_from, practice_setting):
         assert result == expected
 
         calls = [
-            call(instruction, chatter, tested.settings, ['condition1', 'condition2'], ['icd1', 'icd2'], "theComment"),
-            call(instruction, chatter, tested.settings, ['condition3'], ['icd3'], "theComment"),
-            call(instruction, chatter, tested.settings, ['condition4'], ['icd4'], "theComment"),
+            call(instruction, chatter, tested.settings, ["condition1", "condition2"], ["icd1", "icd2"], "theComment"),
+            call(instruction, chatter, tested.settings, ["condition3"], ["icd3"], "theComment"),
+            call(instruction, chatter, tested.settings, ["condition4"], ["icd4"], "theComment"),
         ]
         assert condition_from.mock_calls == calls
-        calls = [
-            call(instruction, chatter, tested.settings, exp_contact_call, 'thePreferredLab'),
-        ]
+        calls = [call(instruction, chatter, tested.settings, exp_contact_call, "thePreferredLab")]
         assert contact_from.mock_calls == calls
-        calls = [
-            call('serviceAreaZipCodes'),
-        ]
+        calls = [call("serviceAreaZipCodes")]
         assert practice_setting.mock_calls == calls
         assert chatter.mock_calls == []
         reset_mocks()
@@ -213,13 +195,17 @@ def test_command_parameters():
             "names": "the names of the practice and/or of the referred provider, or empty",
             "specialty": "the specialty of the referred provider, required",
         },
-        "clinicalQuestions": "one of: 'Cognitive Assistance (Advice/Guidance)', 'Assistance with Ongoing Management', 'Specialized intervention', 'Diagnostic Uncertainty'",
+        "clinicalQuestions": "one of: 'Cognitive Assistance (Advice/Guidance)', "
+        "'Assistance with Ongoing Management', "
+        "'Specialized intervention', "
+        "'Diagnostic Uncertainty'",
         "priority": "one of: Routine/Urgent",
         "notesToSpecialist": "note or question to be sent to the referred specialist, required, as concise free text",
         "comment": "rationale of the referral, as free text",
         "conditions": [
             {
-                "conditionKeywords": "comma separated keywords of up to 5 synonyms of each condition related to the referral",
+                "conditionKeywords": "comma separated keywords of up to 5 synonyms of each condition "
+                "related to the referral",
                 "ICD10": "comma separated keywords of up to 5 ICD-10 codes of each condition related to the referral",
             },
         ],
@@ -230,9 +216,11 @@ def test_command_parameters():
 def test_instruction_description():
     tested = helper_instance()
     result = tested.instruction_description()
-    expected = ("Referral to a specialist, including the rationale and the targeted conditions. "
-                "There can be only one referral in an instruction with all necessary information, "
-                "and no instruction in the lack of.")
+    expected = (
+        "Referral to a specialist, including the rationale and the targeted conditions. "
+        "There can be only one referral in an instruction with all necessary information, "
+        "and no instruction in the lack of."
+    )
     assert result == expected
 
 

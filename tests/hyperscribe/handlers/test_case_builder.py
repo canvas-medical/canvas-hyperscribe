@@ -5,11 +5,38 @@ from unittest.mock import patch, call, MagicMock
 from canvas_generated.messages.effects_pb2 import Effect
 from canvas_generated.messages.events_pb2 import Event as EventRequest
 from canvas_sdk.commands import (
-    VitalsCommand, QuestionnaireCommand, UpdateGoalCommand, ResolveConditionCommand, MedicationStatementCommand, PastSurgicalHistoryCommand,
-    PlanCommand, ReasonForVisitCommand, ReferCommand, UpdateDiagnosisCommand, TaskCommand, StructuredAssessmentCommand, StopMedicationCommand,
-    ReviewOfSystemsCommand, RemoveAllergyCommand, RefillCommand, PrescribeCommand, PerformCommand, MedicalHistoryCommand, LabOrderCommand,
-    InstructCommand, ImagingOrderCommand, HistoryOfPresentIllnessCommand, GoalCommand, FollowUpCommand, FamilyHistoryCommand, PhysicalExamCommand,
-    DiagnoseCommand, AdjustPrescriptionCommand, CloseGoalCommand, AssessCommand, AllergyCommand
+    VitalsCommand,
+    QuestionnaireCommand,
+    UpdateGoalCommand,
+    ResolveConditionCommand,
+    MedicationStatementCommand,
+    PastSurgicalHistoryCommand,
+    PlanCommand,
+    ReasonForVisitCommand,
+    ReferCommand,
+    UpdateDiagnosisCommand,
+    TaskCommand,
+    StructuredAssessmentCommand,
+    StopMedicationCommand,
+    ReviewOfSystemsCommand,
+    RemoveAllergyCommand,
+    RefillCommand,
+    PrescribeCommand,
+    PerformCommand,
+    MedicalHistoryCommand,
+    LabOrderCommand,
+    InstructCommand,
+    ImagingOrderCommand,
+    HistoryOfPresentIllnessCommand,
+    GoalCommand,
+    FollowUpCommand,
+    FamilyHistoryCommand,
+    PhysicalExamCommand,
+    DiagnoseCommand,
+    AdjustPrescriptionCommand,
+    CloseGoalCommand,
+    AssessCommand,
+    AllergyCommand,
 )
 from canvas_sdk.commands.base import _BaseCommand as BaseCommand
 from canvas_sdk.commands.commands.questionnaire import TextQuestion, IntegerQuestion, CheckboxQuestion, RadioQuestion
@@ -24,20 +51,26 @@ from tests.helper import is_constant
 
 
 def helper_instance() -> CaseBuilder:
-    event = Event(EventRequest(context=json.dumps({
-        "method": "POST",
-        "path": "/case_builder",
-        "query_string": "",
-        "body": "",
-        "headers": {"Host": "theHost"},
-    })))
+    event = Event(
+        EventRequest(
+            context=json.dumps(
+                {
+                    "method": "POST",
+                    "path": "/case_builder",
+                    "query_string": "",
+                    "body": "",
+                    "headers": {"Host": "theHost"},
+                },
+            ),
+        ),
+    )
     event.target = TargetType(id="targetId", type=Patient)
-    secrets = {
-        "APISigningKey": "theApiSigningKey",
-    }
+    secrets = {"APISigningKey": "theApiSigningKey"}
     environment = {}
     instance = CaseBuilder(event, secrets, environment)
-    instance._path_pattern = re.compile(r".*")  # TODO this is a hack, find the right way to create the Archiver instance
+    instance._path_pattern = re.compile(
+        r".*",
+    )  # TODO this is a hack, find the right way to create the Archiver instance
     return instance
 
 
@@ -50,7 +83,7 @@ def test_constants():
     tested = CaseBuilder
     constants = {
         "PATH": "/case_builder",
-        "RESPONDS_TO": ['SIMPLE_API_AUTHENTICATE', 'SIMPLE_API_REQUEST'],  # <--- SimpleAPIBase class
+        "RESPONDS_TO": ["SIMPLE_API_AUTHENTICATE", "SIMPLE_API_REQUEST"],  # <--- SimpleAPIBase class
         "CLASS_COMMANDS": [
             AdjustPrescriptionCommand,
             AllergyCommand,
@@ -120,69 +153,55 @@ def test_post(common_command_from, questionnaire_command_from):
 
     tested = helper_instance()
 
-    commands = json.dumps([
-        {
-            "module": "some.module",
-            "class": "TheClass4",
-            "attributes": {
-                "command_uuid": None,
-                "note_uuid": "theNoteUuid",
-                "attributeA": "valueA",
-                "attributeB": "valueB",
-                "attributeC": "valueC",
+    commands = json.dumps(
+        [
+            {
+                "module": "some.module",
+                "class": "TheClass4",
+                "attributes": {
+                    "command_uuid": None,
+                    "note_uuid": "theNoteUuid",
+                    "attributeA": "valueA",
+                    "attributeB": "valueB",
+                    "attributeC": "valueC",
+                },
             },
-        },
-        {
-            "module": "some.module",
-            "class": "TheClass4",
-            "attributes": {
-                "command_uuid": "theCommandUuidX",
-                "note_uuid": "theNoteUuid",
-                "attributeA": "valueA",
+            {
+                "module": "some.module",
+                "class": "TheClass4",
+                "attributes": {"command_uuid": "theCommandUuidX", "note_uuid": "theNoteUuid", "attributeA": "valueA"},
             },
-        },
-        {
-            "module": "some.module",
-            "class": "TheClass3",
-            "attributes": {
-                "command_uuid": "theCommandUuidY",
-                "note_uuid": "theNoteUuid",
-                "attributeA": "valueA",
-                "attributeB": "valueB",
-                "attributeC": "valueC",
+            {
+                "module": "some.module",
+                "class": "TheClass3",
+                "attributes": {
+                    "command_uuid": "theCommandUuidY",
+                    "note_uuid": "theNoteUuid",
+                    "attributeA": "valueA",
+                    "attributeB": "valueB",
+                    "attributeC": "valueC",
+                },
             },
-        },
-        {
-            "module": "some.module",
-            "class": "TheClass3",
-            "attributes": {
-                "command_uuid": None,
-                "note_uuid": "theNoteUuid",
-                "attributeA": "valueA",
+            {
+                "module": "some.module",
+                "class": "TheClass3",
+                "attributes": {"command_uuid": None, "note_uuid": "theNoteUuid", "attributeA": "valueA"},
             },
-        },
-        {
-            "module": "some.module",
-            "class": "TheClass5",
-            "attributes": {
-                "command_uuid": None,
-                "note_uuid": "theNoteUuid",
-                "attributeA": "valueA",
+            {
+                "module": "some.module",
+                "class": "TheClass5",
+                "attributes": {"command_uuid": None, "note_uuid": "theNoteUuid", "attributeA": "valueA"},
             },
-        },
-    ])
+        ],
+    )
 
-    class TheClass1:
-        ...
+    class TheClass1: ...
 
-    class TheClass2:
-        ...
+    class TheClass2: ...
 
-    class TheClass3:
-        ...
+    class TheClass3: ...
 
-    class TheClass4:
-        ...
+    class TheClass4: ...
 
     with patch.object(CaseBuilder, "CLASS_COMMANDS", [TheClass1, TheClass2, TheClass3, TheClass4]):
         with patch.object(CaseBuilder, "CLASS_QUESTIONNAIRES", {TheClass3: "theKey3"}):
@@ -199,37 +218,34 @@ def test_post(common_command_from, questionnaire_command_from):
             assert result == expected
 
             calls = [
-                call(TheClass4,
-                     {
-                         "command_uuid": None,
-                         "note_uuid": "theNoteUuid",
-                         "attributeA": "valueA",
-                         "attributeB": "valueB",
-                         "attributeC": "valueC",
-                     }),
-                call(TheClass4,
-                     {
-                         "command_uuid": "theCommandUuidX",
-                         "note_uuid": "theNoteUuid",
-                         "attributeA": "valueA",
-                     }),
+                call(
+                    TheClass4,
+                    {
+                        "command_uuid": None,
+                        "note_uuid": "theNoteUuid",
+                        "attributeA": "valueA",
+                        "attributeB": "valueB",
+                        "attributeC": "valueC",
+                    },
+                ),
+                call(
+                    TheClass4,
+                    {"command_uuid": "theCommandUuidX", "note_uuid": "theNoteUuid", "attributeA": "valueA"},
+                ),
             ]
             assert common_command_from.mock_calls == calls
             calls = [
-                call(TheClass3,
-                     {
-                         "command_uuid": "theCommandUuidY",
-                         "note_uuid": "theNoteUuid",
-                         "attributeA": "valueA",
-                         "attributeB": "valueB",
-                         "attributeC": "valueC",
-                     }),
-                call(TheClass3,
-                     {
-                         "command_uuid": None,
-                         "note_uuid": "theNoteUuid",
-                         "attributeA": "valueA",
-                     }),
+                call(
+                    TheClass3,
+                    {
+                        "command_uuid": "theCommandUuidY",
+                        "note_uuid": "theNoteUuid",
+                        "attributeA": "valueA",
+                        "attributeB": "valueB",
+                        "attributeC": "valueC",
+                    },
+                ),
+                call(TheClass3, {"command_uuid": None, "note_uuid": "theNoteUuid", "attributeA": "valueA"}),
             ]
             assert questionnaire_command_from.mock_calls == calls
             reset_mocks()
@@ -251,45 +267,47 @@ def test_common_command_from():
     tested = CaseBuilder
 
     # no command uuid
-    result = tested.common_command_from(ReasonForVisitCommand, {
-        "command_uuid": None,
-        "note_uuid": "theNoteUuid",
-        "attributeA": "valueA",
-        "attributeB": "valueB",
-        "attributeC": "valueC",
-    })
+    result = tested.common_command_from(
+        ReasonForVisitCommand,
+        {
+            "command_uuid": None,
+            "note_uuid": "theNoteUuid",
+            "attributeA": "valueA",
+            "attributeB": "valueB",
+            "attributeC": "valueC",
+        },
+    )
     expected = Effect(
         type="ORIGINATE_REASON_FOR_VISIT_COMMAND",
-        payload=json.dumps({
-            "command": None,
-            "data": {
-                "attributeA": "valueA",
-                "attributeB": "valueB",
-                "attributeC": "valueC",
+        payload=json.dumps(
+            {
+                "command": None,
+                "data": {"attributeA": "valueA", "attributeB": "valueB", "attributeC": "valueC"},
+                "note": "theNoteUuid",
+                "line_number": -1,
             },
-            "note": "theNoteUuid",
-            "line_number": -1,
-        }),
+        ),
     )
     assert result == expected
     # with command uuid
-    result = tested.common_command_from(ReasonForVisitCommand, {
-        "command_uuid": "theCommandUuid",
-        "note_uuid": "theNoteUuid",
-        "attributeA": "valueA",
-        "attributeB": "valueB",
-        "attributeC": "valueC",
-    })
+    result = tested.common_command_from(
+        ReasonForVisitCommand,
+        {
+            "command_uuid": "theCommandUuid",
+            "note_uuid": "theNoteUuid",
+            "attributeA": "valueA",
+            "attributeB": "valueB",
+            "attributeC": "valueC",
+        },
+    )
     expected = Effect(
         type="EDIT_REASON_FOR_VISIT_COMMAND",
-        payload=json.dumps({
-            "command": "theCommandUuid",
-            "data": {
-                "attributeA": "valueA",
-                "attributeB": "valueB",
-                "attributeC": "valueC",
+        payload=json.dumps(
+            {
+                "command": "theCommandUuid",
+                "data": {"attributeA": "valueA", "attributeB": "valueB", "attributeC": "valueC"},
             },
-        }),
+        ),
     )
     assert result == expected
 
@@ -314,52 +332,25 @@ def test_questionnaire_command_from(command_db, questionnaire_db):
             "question-8": 31,
             "question-9": 28,
             "question-10": [
-                {
-                    "text": "theOption33",
-                    "value": 33,
-                    "comment": "",
-                    "selected": False,
-                },
-                {
-                    "text": "theOption34",
-                    "value": 34,
-                    "comment": "some comment",
-                    "selected": True,
-                },
-                {
-                    "text": "theOption35",
-                    "value": 35,
-                    "comment": "",
-                    "selected": False,
-                },
-                {
-                    "text": "theOption36",
-                    "value": 36,
-                    "comment": "",
-                    "selected": False,
-                }
+                {"text": "theOption33", "value": 33, "comment": "", "selected": False},
+                {"text": "theOption34", "value": 34, "comment": "some comment", "selected": True},
+                {"text": "theOption35", "value": 35, "comment": "", "selected": False},
+                {"text": "theOption36", "value": 36, "comment": "", "selected": False},
             ],
-            "question-11": "the text"
+            "question-11": "the text",
         },
     }
     questions = [
-        IntegerQuestion(
-            name="question-8",
-            label="theTextQuestion",
-            coding={},
-            options=[],
-        ),
+        IntegerQuestion(id="8", name="question-8", label="theTextQuestion", coding={}, options=[]),
         RadioQuestion(
+            id="9",
             name="question-9",
             label="theTextQuestion",
             coding={},
-            options=[
-                ResponseOption(dbid=27),
-                ResponseOption(dbid=28),
-                ResponseOption(dbid=29),
-            ],
+            options=[ResponseOption(dbid=27), ResponseOption(dbid=28), ResponseOption(dbid=29)],
         ),
         CheckboxQuestion(
+            id="10",
             name="question-10",
             label="theTextQuestion",
             coding={},
@@ -370,18 +361,8 @@ def test_questionnaire_command_from(command_db, questionnaire_db):
                 ResponseOption(dbid=36),
             ],
         ),
-        TextQuestion(
-            name="question-11",
-            label="theTextQuestion",
-            coding={},
-            options=[],
-        ),
-        TextQuestion(
-            name="question-17",
-            label="otherTextQuestion",
-            coding={},
-            options=[],
-        ),
+        TextQuestion(id="11", name="question-11", label="theTextQuestion", coding={}, options=[]),
+        TextQuestion(id="17", name="question-17", label="otherTextQuestion", coding={}, options=[]),
     ]
 
     # there is a matching questionnaire
@@ -398,15 +379,15 @@ def test_questionnaire_command_from(command_db, questionnaire_db):
         assert result == expected
 
         calls = [
-            call.filter(id='theCommandUuid', state='staged'),
-            call.filter().order_by('dbid'),
+            call.filter(id="theCommandUuid", state="staged"),
+            call.filter().order_by("dbid"),
             call.filter().order_by().first(),
         ]
         assert command_db.mock_calls == calls
         calls = [call.get(dbid=117)]
         assert questionnaire_db.mock_calls == calls
         calls = [
-            call(questionnaire_id='questionnaireUuid', note_uuid='theNoteUuid', command_uuid='theCommandUuid'),
+            call(questionnaire_id="questionnaireUuid", note_uuid="theNoteUuid", command_uuid="theCommandUuid"),
             call().edit(),
         ]
         assert mock_command.mock_calls == calls
@@ -424,8 +405,8 @@ def test_questionnaire_command_from(command_db, questionnaire_db):
     assert result is None
 
     calls = [
-        call.filter(id='theCommandUuid', state='staged'),
-        call.filter().order_by('dbid'),
+        call.filter(id="theCommandUuid", state="staged"),
+        call.filter().order_by("dbid"),
         call.filter().order_by().first(),
     ]
     assert command_db.mock_calls == calls

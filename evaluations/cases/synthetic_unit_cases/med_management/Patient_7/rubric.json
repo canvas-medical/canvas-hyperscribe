@@ -1,0 +1,67 @@
+[
+  {
+    "criterion": "Reward for clearly documenting the patient's initial concern that the pills received are a different color and strength (88 micrograms vs prior 100 micrograms).",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing the clinician's explanation that the dose was intentionally lowered because the patient's TSH fell below 0.3 and the pharmacy switched to Mylan 88-mcg tablets after a formulary change.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for accurately recording the dosing instructions for levothyroxine: take one 88-mcg tablet on an empty stomach and wait at least 30 minutes before coffee or breakfast.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for including the contingency instruction that if the patient accidentally takes a 100-mcg pill, they should NOT double the dose but simply resume 88-mcg the next morning.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for noting the storage guidance to keep the bottle above 59\u00b0F and avoid freezing near a window.",
+    "weight": 5,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting that tablets should not be split and that the clinician is arranging a three-week safety stock shipment before road closures.",
+    "weight": 8,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing counseling on adherence aids (phone alarm, weekly pillbox) and advice about possible symptoms after a double dose (jittery/sweaty) with instruction to call if palpitations persist more than a few hours.",
+    "weight": 8,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for recording the patient's reports of dry skin and nocturnal calf cramps and the clinician's assessment that dry skin is likely due to winter air, cramps may be low magnesium, and not yet a sign of hypothyroidism.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting the recommendation to try 400 mg magnesium before bed unless contraindicated by kidney issues.",
+    "weight": 7,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for noting the plan to re-check thyroid labs in six weeks with possible dose adjustment.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for introducing diagnoses, medications, dosages, or counseling that are not supported by the transcript, or for omitting the intentional dose-reduction rationale.",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for copying irrelevant chart data (e.g., unrelated conditions, allergy lists) or for failing to incorporate pertinent chart context (existing hypothyroidism diagnosis and active 88-mcg levothyroxine) when summarizing the encounter.",
+    "weight": 10,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Reward for overall completeness and fidelity: the note accurately reflects the full sequence of dialogue and embedded decisions without significant omissions, distortions, or fabrications.",
+    "weight": 20,
+    "sense": "positive"
+  }
+]

@@ -53,9 +53,7 @@ def test_schema_key():
 
 def test_staged_command_extract():
     tested = ReviewOfSystem
-    tests = [
-        ({}, None),
-    ]
+    tests = [({}, None)]
     for data, expected in tests:
         result = tested.staged_command_extract(data)
         if expected is None:
@@ -75,7 +73,7 @@ def test_command_from_json():
             information="theInformation",
             is_new=False,
             is_updated=True,
-            parameters={'key': "value"},
+            parameters={"key": "value"},
         )
         _ = tested.command_from_json(instruction, chatter)
     assert chatter.mock_calls == []

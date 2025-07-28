@@ -7,6 +7,16 @@ from evaluations.structures.records.generated_note import GeneratedNote as Recor
 
 
 class GeneratedNote(Postgres):
+    def last_run_for(self, case_name: str) -> tuple[int, int]:
+        sql: LiteralString = """
+                             SELECT c."id" AS "case_id", MAX(gn."id") AS "generated_note_id"
+                             FROM "case" c
+                                      JOIN generated_note gn ON c.id = gn.case_id
+                             WHERE c."name" = %(name)s
+                             GROUP BY c."id" """
+        for record in self._select(sql, {"name": case_name}):
+            return int(record["case_id"]), int(record["generated_note_id"])
+        return 0, 0
 
     def insert(self, case: Record) -> Record:
         params = {
@@ -27,14 +37,15 @@ class GeneratedNote(Postgres):
             "errors": json.dumps(case.errors),
         }
         sql = """
-              INSERT INTO "generated_note" ("created", "updated", "case_id", "cycle_duration", "cycle_count", "cycle_transcript_overlap",
-                                            "text_llm_vendor", "text_llm_name", "note_json", "hyperscribe_version",
-                                            "staged_questionnaires", "transcript2instructions", "instruction2parameters", "parameters2command",
-                                            "failed", "errors")
+              INSERT INTO "generated_note" ("created", "updated", "case_id", "cycle_duration", "cycle_count",
+                                            "cycle_transcript_overlap", "text_llm_vendor", "text_llm_name",
+                                            "note_json", "hyperscribe_version", "staged_questionnaires",
+                                            "transcript2instructions", "instruction2parameters",
+                                            "parameters2command", "failed", "errors")
               VALUES (%(now)s, %(now)s, %(case_id)s, %(cycle_duration)s, %(cycle_count)s, %(cycle_transcript_overlap)s,
                       %(text_llm_vendor)s, %(text_llm_name)s, %(note_json)s, %(hyperscribe_version)s,
-                      %(staged_questionnaires)s, %(transcript2instructions)s, %(instruction2parameters)s, %(parameters2command)s,
-                      %(failed)s, %(errors)s) RETURNING id"""
+                      %(staged_questionnaires)s, %(transcript2instructions)s, %(instruction2parameters)s,
+                      %(parameters2command)s, %(failed)s, %(errors)s) RETURNING id"""
         return Record(
             id=self._alter(sql, params, None),
             case_id=case.case_id,

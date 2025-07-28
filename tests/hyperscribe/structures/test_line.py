@@ -4,21 +4,20 @@ from tests.helper import is_namedtuple
 
 def test_class():
     tested = Line
-    fields = {
-        "speaker": str,
-        "text": str,
-    }
+    fields = {"speaker": str, "text": str}
     assert is_namedtuple(tested, fields)
 
 
 def test_load_from_json():
     tested = Line
-    result = tested.load_from_json([
-        {"speaker": "theSpeaker1", "text": "theText1"},
-        {"speaker": "theSpeaker2", "text": "theText2"},
-        {},
-        {"speaker": "theSpeaker3", "text": "theText3"},
-    ])
+    result = tested.load_from_json(
+        [
+            {"speaker": "theSpeaker1", "text": "theText1"},
+            {"speaker": "theSpeaker2", "text": "theText2"},
+            {},
+            {"speaker": "theSpeaker3", "text": "theText3"},
+        ],
+    )
     expected = [
         Line(speaker="theSpeaker1", text="theText1"),
         Line(speaker="theSpeaker2", text="theText2"),
@@ -31,10 +30,7 @@ def test_load_from_json():
 def test_to_json():
     tested = Line(speaker="theSpeaker", text="theText")
     result = tested.to_json()
-    expected = {
-        "speaker": "theSpeaker",
-        "text": "theText",
-    }
+    expected = {"speaker": "theSpeaker", "text": "theText"}
     assert expected == result
 
 
@@ -61,9 +57,7 @@ def test_tail_of():
     assert result == expected
     #
     result = tested.tail_of(exchange, 33)
-    expected = [
-        Line(speaker="theSpeaker1", text=" ".join([f"word{i:02d}" for i in range((37 - 33), 37)])),
-    ]
+    expected = [Line(speaker="theSpeaker1", text=" ".join([f"word{i:02d}" for i in range((37 - 33), 37)]))]
     assert result == expected
     #
     result = tested.tail_of(exchange, 330)

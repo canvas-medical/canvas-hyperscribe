@@ -54,30 +54,25 @@ def test_run(parameters, presigned_url):
 @patch("evaluations.case_builders.builder_audit_url.Authenticator")
 @patch("evaluations.case_builders.builder_audit_url.HelperEvaluation")
 @patch("evaluations.case_builders.builder_audit_url.AwsS3")
-def test_presigned_url(
-        aws_s3,
-        helper,
-        authenticator,
-        capsys,
-):
+def test_presigned_url(aws_s3, helper, authenticator, capsys):
     def reset_mocks():
         aws_s3.reset_mock()
         helper.reset_mock()
         authenticator.reset_mock()
 
     aws_s3_credentials = AwsS3Credentials(
-        aws_key='theKey',
-        aws_secret='theSecret',
-        region='theRegion',
-        bucket='theBucket',
+        aws_key="theKey",
+        aws_secret="theSecret",
+        region="theRegion",
+        bucket="theBucket",
     )
 
     settings = Settings(
         llm_text=VendorKey(vendor="theVendorTextLLM", api_key="theKeyTextLLM"),
         llm_audio=VendorKey(vendor="theVendorAudioLLM", api_key="theKeyAudioLLM"),
-        science_host='theScienceHost',
-        ontologies_host='theOntologiesHost',
-        pre_shared_key='thePreSharedKey',
+        science_host="theScienceHost",
+        ontologies_host="theOntologiesHost",
+        pre_shared_key="thePreSharedKey",
         structured_rfv=True,
         audit_llm=False,
         is_tuning=False,
@@ -101,10 +96,7 @@ def test_presigned_url(
     exp_out = CaptureResult("audits cannot be seen with without proper AWS S3 credentials\n", "")
     assert capsys.readouterr() == exp_out
 
-    calls = [
-        call(aws_s3_credentials),
-        call().is_ready(),
-    ]
+    calls = [call(aws_s3_credentials), call().is_ready()]
     assert aws_s3.mock_calls == calls
     calls = [call.aws_s3_credentials()]
     assert helper.mock_calls == calls
@@ -121,33 +113,33 @@ def test_presigned_url(
 
     tested.presigned_url("thePatient", "theNote")
 
-    exp_out = CaptureResult("\n".join([
-        "audits can be seen with:",
+    exp_out = CaptureResult(
+        "\n".join(
+            [
+                "audits can be seen with:",
+                "",
+                "https://canvasInstance/presignedUrl",
+                "",
+                "to regenerate the URL, run the command:",
+                " uv run python case_builder.py --audit --patient thePatient --note theNote",
+                "",
+                "",
+            ],
+        ),
         "",
-        "https://canvasInstance/presignedUrl",
-        "",
-        "to regenerate the URL, run the command:",
-        " uv run python case_builder.py --audit --patient thePatient --note theNote",
-        "",
-        "",
-    ]), "")
+    )
     assert capsys.readouterr() == exp_out
 
-    calls = [
-        call(aws_s3_credentials),
-        call().is_ready(),
-    ]
+    calls = [call(aws_s3_credentials), call().is_ready()]
     assert aws_s3.mock_calls == calls
-    calls = [
-        call.aws_s3_credentials(),
-        call.settings(),
-        call.get_canvas_host(),
-    ]
+    calls = [call.aws_s3_credentials(), call.settings(), call.get_canvas_host()]
     assert helper.mock_calls == calls
-    calls = [call.presigned_url(
-        'theApiSigningKey',
-        '/plugin-io/api/hyperscribe/reviewer',
-        {'patient_id': 'thePatient', 'note_id': 'theNote'},
-    )]
+    calls = [
+        call.presigned_url(
+            "theApiSigningKey",
+            "/plugin-io/api/hyperscribe/reviewer",
+            {"patient_id": "thePatient", "note_id": "theNote"},
+        ),
+    ]
     assert authenticator.mock_calls == calls
     reset_mocks()

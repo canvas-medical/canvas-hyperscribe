@@ -22,13 +22,21 @@ class ReasonForVisit(Base):
             return CodedItem(label=reason_for_visit, code="", uuid="")
         return None
 
-    def command_from_json(self, instruction: InstructionWithParameters, chatter: LlmBase) -> InstructionWithCommand | None:
+    def command_from_json(
+        self,
+        instruction: InstructionWithParameters,
+        chatter: LlmBase,
+    ) -> InstructionWithCommand | None:
         result = ReasonForVisitCommand(
             comment=instruction.parameters["reasonForVisit"],
             note_uuid=self.identification.note_uuid,
         )
         if "reasonForVisitIndex" in instruction.parameters:
-            if 0 <= (idx := instruction.parameters["reasonForVisitIndex"]) < len(existing := self.cache.existing_reason_for_visits()):
+            if (
+                0
+                <= (idx := instruction.parameters["reasonForVisitIndex"])
+                < len(existing := self.cache.existing_reason_for_visits())
+            ):
                 result.structured = True
                 result.coding = existing[idx].uuid
 
@@ -41,21 +49,23 @@ class ReasonForVisit(Base):
                 "reasonForVisit": f"one of: {options}",
                 "reasonForVisitIndex": "the index of the reason for visit, as integer",
             }
-        return {
-            "reasonForVisit": "extremely concise description of the reason or impetus for the visit, as free text",
-        }
+        return {"reasonForVisit": "extremely concise description of the reason or impetus for the visit, as free text"}
 
     def instruction_description(self) -> str:
         if self.settings.structured_rfv:
             text = ", ".join([r.label for r in self.cache.existing_reason_for_visits()])
-            return (f"Patient's reported reason or impetus for the visit within: {text}. "
-                    "There can be only one such instruction in the whole discussion. "
-                    "So, if one was already found, simply update it by intelligently.")
+            return (
+                f"Patient's reported reason or impetus for the visit within: {text}. "
+                "There can be only one such instruction in the whole discussion. "
+                "So, if one was already found, simply update it by intelligently."
+            )
 
-        return ("Patient's reported reason or impetus for the visit, extremely concise. "
-                "There can be multiple reasons within an instruction, "
-                "but only one such instruction in the whole discussion. "
-                "So, if one was already found, simply update it by intelligently merging all reasons.")
+        return (
+            "Patient's reported reason or impetus for the visit, extremely concise. "
+            "There can be multiple reasons within an instruction, "
+            "but only one such instruction in the whole discussion. "
+            "So, if one was already found, simply update it by intelligently merging all reasons."
+        )
 
     def instruction_constraints(self) -> str:
         if self.settings.structured_rfv:

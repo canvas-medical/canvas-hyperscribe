@@ -18,30 +18,28 @@ from hyperscribe.structures.vendor_key import VendorKey
 
 def test_trace_error():
     def mistake(a_dict: dict, b_dict: dict, various: str):
-        return a_dict['a'] == b_dict['x'] == various
+        return a_dict["a"] == b_dict["x"] == various
 
     file_path = Path(__file__).as_posix()
     tested = HelperEvaluation
     try:
-        mistake({'a': 1, 'secret': 'SecretA'}, {'b': 2}, 'random var')
+        mistake({"a": 1, "secret": "SecretA"}, {"b": 2}, "random var")
         assert False  # <-- ensure we go in the exception`
     except Exception as error:
         result = tested.trace_error(error)
         expected = {
-            'error': "'x'",
-            'files': [
-                f'{file_path}.test_trace_error:29',
-                f'{file_path}.mistake:21',
-            ],
-            'variables': {'a_dict': "{'a': 1, 'secret': 'SecretA'}", 'b_dict': "{'b': 2}", 'various': "'random var'"},
+            "error": "'x'",
+            "files": [f"{file_path}.test_trace_error:29", f"{file_path}.mistake:21"],
+            "variables": {"a_dict": "{'a': 1, 'secret': 'SecretA'}", "b_dict": "{'b': 2}", "various": "'random var'"},
         }
         assert result == expected
 
-@patch('evaluations.helper_evaluation.AuditorFile')
-@patch('evaluations.helper_evaluation.AuditorPostgres')
-@patch.object(HelperEvaluation, 'postgres_credentials')
-@patch.object(HelperEvaluation, 'aws_s3_credentials')
-@patch.object(HelperEvaluation, 'settings')
+
+@patch("evaluations.helper_evaluation.AuditorFile")
+@patch("evaluations.helper_evaluation.AuditorPostgres")
+@patch.object(HelperEvaluation, "postgres_credentials")
+@patch.object(HelperEvaluation, "aws_s3_credentials")
+@patch.object(HelperEvaluation, "settings")
 def test_get_auditor(settings, s3_credentials, psql_credentials, auditor_postgres, auditor_file):
     def reset_mocks():
         settings.reset_mock()
@@ -68,7 +66,7 @@ def test_get_auditor(settings, s3_credentials, psql_credentials, auditor_postgre
             assert auditor_postgres.mock_calls == []
             calls = [
                 call.default_folder_base(),
-                call('theCase', 7, 'theSettings', 'theS3Credentials', 'theDefaultFolder'),
+                call("theCase", 7, "theSettings", "theS3Credentials", "theDefaultFolder"),
             ]
             assert auditor_file.mock_calls == calls
 
@@ -79,6 +77,7 @@ def test_get_auditor(settings, s3_credentials, psql_credentials, auditor_postgre
         calls = [call(), call().is_ready()]
         assert psql_credentials.mock_calls == calls
         reset_mocks()
+
 
 def test_settings(monkeypatch):
     monkeypatch.setenv("VendorTextLLM", "textVendor")
@@ -93,13 +92,7 @@ def test_settings(monkeypatch):
     monkeypatch.setenv("StaffersList", "41, 32 56")
     monkeypatch.setenv("CycleTranscriptOverlap", "37")
 
-    tests = [
-        ("y", True),
-        ("yes", True),
-        ("1", True),
-        ("n", False),
-        ("", False),
-    ]
+    tests = [("y", True), ("yes", True), ("1", True), ("n", False), ("", False)]
     for env_variable, exp_bool in tests:
         monkeypatch.setenv("StructuredReasonForVisit", env_variable)
         monkeypatch.setenv("AuditLLMDecisions", env_variable)
@@ -135,12 +128,7 @@ def test_aws_s3_credentials(monkeypatch):
 
     tested = HelperEvaluation
     result = tested.aws_s3_credentials()
-    expected = AwsS3Credentials(
-        aws_key="theKey",
-        aws_secret="theSecret",
-        region="theRegion",
-        bucket="theBucketLogs",
-    )
+    expected = AwsS3Credentials(aws_key="theKey", aws_secret="theSecret", region="theRegion", bucket="theBucketLogs")
     assert result == expected
 
 
@@ -152,12 +140,7 @@ def test_aws_s3_credentials_tuning(monkeypatch):
 
     tested = HelperEvaluation
     result = tested.aws_s3_credentials_tuning()
-    expected = AwsS3Credentials(
-        aws_key="theKey",
-        aws_secret="theSecret",
-        region="theRegion",
-        bucket="theBucketTuning",
-    )
+    expected = AwsS3Credentials(aws_key="theKey", aws_secret="theSecret", region="theRegion", bucket="theBucketTuning")
     assert result == expected
 
 
@@ -196,11 +179,7 @@ def test_get_note_uuid(note_db):
     expected = "noteUuid"
     assert result == expected
 
-    calls = [
-        call.filter(patient__id='patientUuid'),
-        call.filter().order_by('-dbid'),
-        call.filter().order_by().first()
-    ]
+    calls = [call.filter(patient__id="patientUuid"), call.filter().order_by("-dbid"), call.filter().order_by().first()]
     assert note_db.mock_calls == calls
     assert mock_note.mock_calls == []
     reset_mocks()
@@ -222,11 +201,7 @@ def test_get_provider_uuid(note_db):
     expected = "providerUuid"
     assert result == expected
 
-    calls = [
-        call.filter(patient__id='patientUuid'),
-        call.filter().order_by('-dbid'),
-        call.filter().order_by().first()
-    ]
+    calls = [call.filter(patient__id="patientUuid"), call.filter().order_by("-dbid"), call.filter().order_by().first()]
     assert note_db.mock_calls == calls
     assert mock_note.mock_calls == []
     reset_mocks()
@@ -250,7 +225,7 @@ def test_get_canvas_host(monkeypatch):
     monkeypatch.setenv("CUSTOMER_IDENTIFIER", "theCanvasInstance")
     tested = HelperEvaluation
     result = tested.get_canvas_host()
-    expected = "https://theCanvasInstance"
+    expected = "https://theCanvasInstance.canvasmedical.com"
     assert result == expected
 
     monkeypatch.setenv("CUSTOMER_IDENTIFIER", "local")
@@ -262,7 +237,7 @@ def test_get_canvas_host(monkeypatch):
     monkeypatch.delenv("CUSTOMER_IDENTIFIER")
     tested = HelperEvaluation
     result = tested.get_canvas_host()
-    expected = "https://EvaluationBuilderInstance"
+    expected = "https://EvaluationBuilderInstance.canvasmedical.com"
     assert result == expected
 
 
@@ -279,7 +254,7 @@ def test_json_schema_differences():
                 "difference": {"type": "string", "description": "description of the difference between the JSONs"},
             },
             "required": ["level", "difference"],
-        }
+        },
     }
     assert result == expected
 
@@ -294,10 +269,12 @@ def test_json_nuanced_differences(nuanced_differences):
         "The user will provides two JSON objects.",
         "Your task is compare them and report the discrepancies as a JSON list in a Markdown block like:",
         "```json",
-        '[{"level": "one of: minor,moderate,severe,critical", "difference": "description of the difference between the JSONs"}]',
+        '[{"level": "one of: minor,moderate,severe,critical", '
+        '"difference": "description of the difference between the JSONs"}]',
         "```",
         "",
-        "All text values should be evaluated together and on the level scale to effectively convey the impact of the changes in meaning from a medical point of view.",
+        "All text values should be evaluated together and on the level scale to effectively convey the impact of "
+        "the changes in meaning from a medical point of view.",
         "Any key with the value '>?<' should be ignored.",
         "Unless otherwise specified, dates and numbers must be presented identically.",
     ]
@@ -339,9 +316,11 @@ def test_text_nuanced_differences(nuanced_differences):
     accepted_levels = ["level1", "level2"]
     system_prompt = [
         "The user will provides two texts.",
-        "Your task is compare them *solely* from a medical meaning point of view and report the discrepancies as a JSON list in a Markdown block like:",
+        "Your task is compare them *solely* from a medical meaning point of view and report the discrepancies as a "
+        "JSON list in a Markdown block like:",
         "```json",
-        '[{"level": "one of: minor,moderate,severe,critical", "difference": "description of the difference between the texts"}]',
+        '[{"level": "one of: minor,moderate,severe,critical", '
+        '"difference": "description of the difference between the texts"}]',
         "```",
     ]
     user_prompt = [
@@ -360,12 +339,7 @@ def test_text_nuanced_differences(nuanced_differences):
 
     nuanced_differences.side_effect = [(True, "some text")]
     tested = HelperEvaluation
-    result = tested.text_nuanced_differences(
-        "theCase",
-        ["level1", "level2"],
-        "theResultText",
-        "theExpectedText",
-    )
+    result = tested.text_nuanced_differences("theCase", ["level1", "level2"], "theResultText", "theExpectedText")
     expected = (True, "some text")
     assert result == expected
 
@@ -398,7 +372,7 @@ def test_nuanced_differences(settings, get_canvas_instance, chatter, memory_log)
                 "difference": {"type": "string", "description": "description of the difference between the JSONs"},
             },
             "required": ["level", "difference"],
-        }
+        },
     }
     identification = IdentificationParameters(
         patient_uuid="_PatientUuid",
@@ -438,11 +412,7 @@ def test_nuanced_differences(settings, get_canvas_instance, chatter, memory_log)
     assert memory_log.mock_calls == calls
     calls = [call("theSettings", "MemoryLogInstance")]
     assert chatter.mock_calls == calls
-    calls = [
-        call.set_system_prompt(system_prompt),
-        call.set_user_prompt(user_prompt),
-        call.chat([schema]),
-    ]
+    calls = [call.set_system_prompt(system_prompt), call.set_user_prompt(user_prompt), call.chat([schema])]
     assert conversation.mock_calls == calls
     reset_mocks()
 
@@ -464,11 +434,7 @@ def test_nuanced_differences(settings, get_canvas_instance, chatter, memory_log)
     assert memory_log.mock_calls == calls
     calls = [call("theSettings", "MemoryLogInstance")]
     assert chatter.mock_calls == calls
-    calls = [
-        call.set_system_prompt(system_prompt),
-        call.set_user_prompt(user_prompt),
-        call.chat([schema]),
-    ]
+    calls = [call.set_system_prompt(system_prompt), call.set_user_prompt(user_prompt), call.chat([schema])]
     assert conversation.mock_calls == calls
     reset_mocks()
     # -- differences out of the accepted levels
@@ -488,22 +454,14 @@ def test_nuanced_differences(settings, get_canvas_instance, chatter, memory_log)
     assert memory_log.mock_calls == calls
     calls = [call("theSettings", "MemoryLogInstance")]
     assert chatter.mock_calls == calls
-    calls = [
-        call.set_system_prompt(system_prompt),
-        call.set_user_prompt(user_prompt),
-        call.chat([schema]),
-    ]
+    calls = [call.set_system_prompt(system_prompt), call.set_user_prompt(user_prompt), call.chat([schema])]
     assert conversation.mock_calls == calls
     reset_mocks()
 
 
 def test_list_case_files():
     path = MagicMock()
-    files = [
-        MagicMock(stem="file1"),
-        MagicMock(stem="file2"),
-        MagicMock(stem="file3"),
-    ]
+    files = [MagicMock(stem="file1"), MagicMock(stem="file2"), MagicMock(stem="file3")]
 
     def reset_mocks():
         path.reset_mock()
@@ -516,7 +474,7 @@ def test_list_case_files():
     path.glob.side_effect = [[]]
     result = tested.list_case_files(path)
     assert result == []
-    calls = [call.glob('*.json')]
+    calls = [call.glob("*.json")]
     assert path.mock_calls == calls
     reset_mocks()
 
@@ -527,16 +485,12 @@ def test_list_case_files():
     files[2].open.side_effect = [StringIO(json.dumps({}))]
 
     result = tested.list_case_files(path)
-    expected = [
-        ('file1', 'cycle_002', files[0]),
-        ('file1', 'cycle_001', files[0]),
-        ('file2', 'cycle_003', files[1]),
-    ]
+    expected = [("file1", "cycle_002", files[0]), ("file1", "cycle_001", files[0]), ("file2", "cycle_003", files[1])]
 
     assert result == expected
-    calls = [call.glob('*.json')]
+    calls = [call.glob("*.json")]
     assert path.mock_calls == calls
-    calls = [call.open('r')]
+    calls = [call.open("r")]
     for item in files:
         assert item.mock_calls == calls
     reset_mocks()

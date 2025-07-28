@@ -58,27 +58,38 @@ def test_staged_command_extract():
     tested = Diagnose
     tests = [
         ({}, None),
-        ({
-             "diagnose": {"text": "theDiagnosis", "value": "theCode"},
-             "background": "theBackground",
-             "today_assessment": "theAssessment",
-         }, CodedItem(label="theDiagnosis (theAssessment)", code="theCode", uuid="")),
-        ({
-             "diagnose": {"text": "theDiagnosis", "value": "theCode"},
-             "background": "theBackground",
-             "today_assessment": "",
-         }, CodedItem(label="theDiagnosis (n/a)", code="theCode", uuid="")),
-        ({
-             "diagnose": {"text": "", "value": "theCode"},
-             "background": "theBackground",
-             "today_assessment": "theAssessment",
-         }, None),
-        ({
-             "diagnose": {"text": "theDiagnosis", "value": ""},
-             "background": "theBackground",
-             "today_assessment": "theAssessment",
-         }, None),
-
+        (
+            {
+                "diagnose": {"text": "theDiagnosis", "value": "theCode"},
+                "background": "theBackground",
+                "today_assessment": "theAssessment",
+            },
+            CodedItem(label="theDiagnosis (theAssessment)", code="theCode", uuid=""),
+        ),
+        (
+            {
+                "diagnose": {"text": "theDiagnosis", "value": "theCode"},
+                "background": "theBackground",
+                "today_assessment": "",
+            },
+            CodedItem(label="theDiagnosis (n/a)", code="theCode", uuid=""),
+        ),
+        (
+            {
+                "diagnose": {"text": "", "value": "theCode"},
+                "background": "theBackground",
+                "today_assessment": "theAssessment",
+            },
+            None,
+        ),
+        (
+            {
+                "diagnose": {"text": "theDiagnosis", "value": ""},
+                "background": "theBackground",
+                "today_assessment": "theAssessment",
+            },
+            None,
+        ),
     ]
     for data, expected in tests:
         result = tested.staged_command_extract(data)
@@ -155,8 +166,10 @@ def test_command_parameters():
 def test_instruction_description():
     tested = helper_instance()
     result = tested.instruction_description()
-    expected = ("Medical condition identified by the provider, including reasoning, current assessment, and onset date. "
-                "There is one instruction per condition, and no instruction in the lack of.")
+    expected = (
+        "Medical condition identified by the provider, including reasoning, current assessment, and onset date. "
+        "There is one instruction per condition, and no instruction in the lack of."
+    )
     assert result == expected
 
 
@@ -171,10 +184,7 @@ def test_instruction_constraints(current_conditions):
         CodedItem(uuid="theUuid2", label="display2a", code="CODE45"),
         CodedItem(uuid="theUuid3", label="display3a", code="CODE98.76"),
     ]
-    tests = [
-        (conditions, "'Diagnose' cannot include: display1a, display2a, display3a."),
-        ([], ""),
-    ]
+    tests = [(conditions, "'Diagnose' cannot include: display1a, display2a, display3a."), ([], "")]
     for side_effect, expected in tests:
         current_conditions.side_effect = [side_effect]
         result = tested.instruction_constraints()

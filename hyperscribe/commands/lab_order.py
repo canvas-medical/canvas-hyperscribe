@@ -10,7 +10,6 @@ from hyperscribe.structures.instruction_with_parameters import InstructionWithPa
 
 
 class LabOrder(Base):
-
     @classmethod
     def schema_key(cls) -> str:
         return Constants.SCHEMA_KEY_LAB_ORDER
@@ -25,23 +24,19 @@ class LabOrder(Base):
         if isinstance(list_diagnosis, str):
             list_diagnosis = []
 
-        diagnosis = "/".join([
-            diagnose
-            for item in list_diagnosis
-            if (diagnose := item.get("text"))
-        ]) or "n/a"
+        diagnosis = "/".join([diagnose for item in list_diagnosis if (diagnose := item.get("text"))]) or "n/a"
         comment = data.get("comment") or "n/a"
-        tests = "/".join([
-            test
-            for item in (data.get("tests") or [])
-            if (test := item.get("text"))
-        ])
+        tests = "/".join([test for item in (data.get("tests") or []) if (test := item.get("text"))])
 
         if tests:
             return CodedItem(label=f"{tests}: {comment} (fasting: {fasting}, diagnosis: {diagnosis})", code="", uuid="")
         return None
 
-    def command_from_json(self, instruction: InstructionWithParameters, chatter: LlmBase) -> InstructionWithCommand | None:
+    def command_from_json(
+        self,
+        instruction: InstructionWithParameters,
+        chatter: LlmBase,
+    ) -> InstructionWithCommand | None:
         result = LabOrderCommand(
             ordering_provider_key=self.identification.provider_uuid,
             fasting_required=bool(instruction.parameters["fastingRequired"]),
@@ -87,14 +82,14 @@ class LabOrder(Base):
     def command_parameters(self) -> dict:
         return {
             "labOrders": [
-                {
-                    "labOrderKeywords": "comma separated keywords of up to 5 synonyms of each lab test to order",
-                },
+                {"labOrderKeywords": "comma separated keywords of up to 5 synonyms of each lab test to order"},
             ],
             "conditions": [
                 {
-                    "conditionKeywords": "comma separated keywords of up to 5 synonyms of each condition targeted by the lab tests",
-                    "ICD10": "comma separated keywords of up to 5 ICD-10 codes of each condition targeted by the lab test",
+                    "conditionKeywords": "comma separated keywords of up to 5 synonyms of each condition "
+                    "targeted by the lab tests",
+                    "ICD10": "comma separated keywords of up to 5 ICD-10 codes of each condition targeted "
+                    "by the lab test",
                 },
             ],
             "fastingRequired": "mandatory, True or False, as boolean",
@@ -102,10 +97,12 @@ class LabOrder(Base):
         }
 
     def instruction_description(self) -> str:
-        return ("Lab tests ordered, including the directions and the targeted conditions. "
-                "There can be several lab orders in an instruction with the fasting requirement for the whole instruction "
-                "and all necessary information for each lab order, "
-                "and no instruction in the lack of.")
+        return (
+            "Lab tests ordered, including the directions and the targeted conditions. "
+            "There can be several lab orders in an instruction with the fasting requirement for the whole instruction "
+            "and all necessary information for each lab order, "
+            "and no instruction in the lack of."
+        )
 
     def instruction_constraints(self) -> str:
         return ""

@@ -1,0 +1,62 @@
+[
+  {
+    "criterion": "Reward for accurately documenting the valacyclovir plan exactly as stated: 1-gram tablet after breakfast Friday, another Saturday, last dose Sunday morning, completing the 5-day course.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing the patient\u2019s report of persistent nighttime burning rash and worry about needing more than five days of medication.",
+    "weight": 8,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for including clinician instructions to swallow each valacyclovir dose with a full glass of water, noting expected mild side-effects (nausea, headache) and that no nighttime doses are required.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting the vitamin D chewable discussion: patient question about interaction, clinician reassurance that taking it after lunch is safe and spacing an hour is acceptable.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for recording the penicillin allergy concern and clinician clarification that valacyclovir is chemically unrelated and will not reproduce prior throat swelling.",
+    "weight": 12,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing the potential pharmacy supplier switch and clinician advice to keep taking one pill per blister slot despite color/shape changes, verify imprint code, and alert staff rather than stop.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for correctly listing penicillin as the sole active drug allergy from the chart without adding or omitting allergies.",
+    "weight": 5,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for including medications, conditions, allergies, or historical details not mentioned in the transcript or present in the chart (fabrications).",
+    "weight": 8,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for omitting or misrepresenting key numeric or timing details of the valacyclovir regimen (dose strength, daily timing, remaining days).",
+    "weight": 10,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Reward for overall completeness: the note encompasses all major patient questions, clinician answers, and instructions conveyed in the encounter.",
+    "weight": 8,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for selective or bulk copying of irrelevant chart content (e.g., empty historical sections) that was not referenced in the encounter.",
+    "weight": 4,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for contradictions to the transcript, such as stating penicillin\u2013valacyclovir cross-reactivity or advising the patient to stop medication if tablet appearance changes.",
+    "weight": 10,
+    "sense": "negative"
+  }
+]

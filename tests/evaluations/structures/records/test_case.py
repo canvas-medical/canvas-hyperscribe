@@ -33,25 +33,25 @@ def test_default():
 
 def test_load_record():
     tested = Case
-    result = tested.load_record({
-        "name": "theName",
-        "transcript": {
-            "cycle_001": [
-            {"speaker": "theSpeaker1", "text": "theText1"},
-            {"speaker": "theSpeaker2", "text": "theText2"},
-            {},
-            ],
-            "cycle_002": [
-            {"speaker": "theSpeaker3", "text": "theText3"},
-            ],
+    result = tested.load_record(
+        {
+            "name": "theName",
+            "transcript": {
+                "cycle_001": [
+                    {"speaker": "theSpeaker1", "text": "theText1"},
+                    {"speaker": "theSpeaker2", "text": "theText2"},
+                    {},
+                ],
+                "cycle_002": [{"speaker": "theSpeaker3", "text": "theText3"}],
+            },
+            "limited_chart": {"limited": "chart"},
+            "profile": "theProfile",
+            "validation_status": "evaluation",
+            "batch_identifier": "theBatchIdentifier",
+            "tags": {"tag1": "tag1", "tag2": "tag2"},
+            "id": 147,
         },
-        "limited_chart": {"limited": "chart"},
-        "profile": "theProfile",
-        "validation_status": "evaluation",
-        "batch_identifier": "theBatchIdentifier",
-        "tags": {"tag1": "tag1", "tag2": "tag2"},
-        "id": 147,
-    })
+    )
     expected = Case(
         name="theName",
         transcript={
@@ -60,9 +60,7 @@ def test_load_record():
                 Line(speaker="theSpeaker2", text="theText2"),
                 Line(speaker="", text=""),
             ],
-            "cycle_002": [
-                Line(speaker="theSpeaker3", text="theText3"),
-            ],
+            "cycle_002": [Line(speaker="theSpeaker3", text="theText3")],
         },
         limited_chart={"limited": "chart"},
         profile="theProfile",

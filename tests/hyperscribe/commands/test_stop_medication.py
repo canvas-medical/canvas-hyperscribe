@@ -57,18 +57,15 @@ def test_staged_command_extract():
     tested = StopMedication
     tests = [
         ({}, None),
-        ({
-             "medication": {"text": "theMedication"},
-             "rationale": "theRationale",
-         }, CodedItem(label="theMedication: theRationale", code="", uuid="")),
-        ({
-             "medication": {"text": ""},
-             "rationale": "theRationale",
-         }, None),
-        ({
-             "medication": {"text": "theMedication"},
-             "rationale": "",
-         }, CodedItem(label="theMedication: n/a", code="", uuid="")),
+        (
+            {"medication": {"text": "theMedication"}, "rationale": "theRationale"},
+            CodedItem(label="theMedication: theRationale", code="", uuid=""),
+        ),
+        ({"medication": {"text": ""}, "rationale": "theRationale"}, None),
+        (
+            {"medication": {"text": "theMedication"}, "rationale": ""},
+            CodedItem(label="theMedication: n/a", code="", uuid=""),
+        ),
     ]
     for data, expected in tests:
         result = tested.staged_command_extract(data)
@@ -113,11 +110,7 @@ def test_command_from_json(current_medications):
             potency_unit_code="puc3",
         ),
     ]
-    tests = [
-        (1, "theUuid2"),
-        (2, "theUuid3"),
-        (4, None),
-    ]
+    tests = [(1, "theUuid2"), (2, "theUuid3"), (4, None)]
     for idx, exp_uuid in tests:
         current_medications.side_effect = [medications, medications]
         arguments = {
@@ -127,18 +120,11 @@ def test_command_from_json(current_medications):
             "information": "theInformation",
             "is_new": False,
             "is_updated": True,
-            "parameters": {
-                'medications': 'display2a',
-                'medicationIndex': idx,
-                'rationale': 'theRationale',
-            },
+            "parameters": {"medications": "display2a", "medicationIndex": idx, "rationale": "theRationale"},
         }
         instruction = InstructionWithParameters(**arguments)
         result = tested.command_from_json(instruction, chatter)
-        command = StopMedicationCommand(
-            rationale="theRationale",
-            note_uuid="noteUuid",
-        )
+        command = StopMedicationCommand(rationale="theRationale", note_uuid="noteUuid")
         if exp_uuid is not None:
             command.medication_id = exp_uuid
         expected = InstructionWithCommand(**(arguments | {"command": command}))
@@ -184,7 +170,7 @@ def test_command_parameters(current_medications):
     current_medications.side_effect = [medications]
     result = tested.command_parameters()
     expected = {
-        'medication': 'one of: display1 (index: 0)/display2 (index: 1)/display3 (index: 2)',
+        "medication": "one of: display1 (index: 0)/display2 (index: 1)/display3 (index: 2)",
         "medicationIndex": "index of the medication to stop, or -1, as integer",
         "rationale": "explanation of why the medication is stopped, as free text",
     }
@@ -197,8 +183,11 @@ def test_command_parameters(current_medications):
 def test_instruction_description():
     tested = helper_instance()
     result = tested.instruction_description()
-    expected = ("Stop a medication. "
-                "There can be only one medication, with the rationale, to stop per instruction, and no instruction in the lack of.")
+    expected = (
+        "Stop a medication. "
+        "There can be only one medication, with the rationale, to stop per instruction, "
+        "and no instruction in the lack of."
+    )
     assert result == expected
 
 
@@ -236,8 +225,7 @@ def test_instruction_constraints(current_medications):
     ]
     current_medications.side_effect = [medications]
     result = tested.instruction_constraints()
-    expected = ("'StopMedication' has to be related to one of the following medications: "
-                "display1, display2, display3.")
+    expected = "'StopMedication' has to be related to one of the following medications: display1, display2, display3."
     assert result == expected
     calls = [call()]
     assert current_medications.mock_calls == calls
@@ -276,10 +264,7 @@ def test_is_available(current_medications):
             potency_unit_code="puc3",
         ),
     ]
-    tests = [
-        (medications, True),
-        ([], False),
-    ]
+    tests = [(medications, True), ([], False)]
     for side_effect, expected in tests:
         current_medications.side_effect = [side_effect]
         result = tested.is_available()

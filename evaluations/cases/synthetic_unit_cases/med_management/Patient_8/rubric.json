@@ -1,0 +1,57 @@
+[
+  {
+    "criterion": "Reward for accurately documenting the patient\u2019s current semaglutide dose and schedule (0.25 mg drawn up every Sunday morning) as explicitly confirmed by the clinician.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing the storage and pen-replacement instructions for semaglutide (keep in fridge door, not freezer; start a new pen after four doses).",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for including the anti-nausea guidance given (sip ginger tea and eat small dry crackers before injecting instead of skipping a dose).",
+    "weight": 8,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting the plan to stop semaglutide immediately once a home pregnancy test is positive, reflecting the patient\u2019s desire to conceive.",
+    "weight": 12,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for faithfully recording the insurance denial, clinician\u2019s urgent appeal with ~10-day turnaround, and reassurance that the starter pen will prevent missed doses this month.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing the patient-reported glucose readings (168 before meal, no after-lunch reading, 212 at bedtime) and the bedtime insulin dose of 40 units.",
+    "weight": 12,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for noting the patient\u2019s reported symptoms (stomach heaviness/queasiness, decreased appetite, minimal weight change) and concerns about pharmacy delays and financial strain.",
+    "weight": 8,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting the clinician\u2019s request for a detailed walk-through of yesterday\u2019s glucose readings to guide insulin adjustment.",
+    "weight": 5,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for overall completeness\u2014i.e., the note faithfully reflects all major statements, instructions, and concerns from the transcript while appropriately referencing relevant diabetes history from the chart.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for introducing fabricated or unsubstantiated content (e.g., additional medication changes, lab orders, lifestyle advice, or assessments) not supported by the transcript or chart.",
+    "weight": 10,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for copying irrelevant or excessive chart information (e.g., full medication lists or historical data not referenced in the encounter) that was neither mentioned nor implicitly pertinent.",
+    "weight": 10,
+    "sense": "negative"
+  }
+]

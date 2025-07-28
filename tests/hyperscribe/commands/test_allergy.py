@@ -59,12 +59,7 @@ def test_staged_command_extract():
     tested = Allergy
     tests = [
         ({}, None),
-        ({
-             "allergy": {
-                 "text": "theAllergy",
-                 "value": 123456,
-             },
-         }, CodedItem(label="theAllergy", code="123456", uuid="")),
+        ({"allergy": {"text": "theAllergy", "value": 123456}}, CodedItem(label="theAllergy", code="123456", uuid="")),
     ]
     for data, expected in tests:
         result = tested.staged_command_extract(data)
@@ -83,55 +78,57 @@ def test_command_from_json(search_allergy):
         chatter.reset_mock()
 
     system_prompt = [
-        'The conversation is in the medical context.',
-        '',
-        'Your task is to identify the most relevant allergy of a patient out of a list of allergies.',
-        '',
+        "The conversation is in the medical context.",
+        "",
+        "Your task is to identify the most relevant allergy of a patient out of a list of allergies.",
+        "",
     ]
     user_prompt = [
-        'Here is the comment provided by the healthcare provider in regards to the allergy:',
-        '```text',
-        'keywords: keyword1,keyword2,keyword3',
-        ' -- ',
-        'severity: moderate',
-        '',
-        'theReaction',
-        '```',
-        '',
-        'Among the following allergies, identify the most relevant one:',
-        '',
-        ' * descriptionA (conceptId: 134)\n * descriptionB (conceptId: 167)\n * descriptionC (conceptId: 234)',
-        '',
-        'Please, present your findings in a JSON format within a Markdown code block like:',
-        '```json',
+        "Here is the comment provided by the healthcare provider in regards to the allergy:",
+        "```text",
+        "keywords: keyword1,keyword2,keyword3",
+        " -- ",
+        "severity: moderate",
+        "",
+        "theReaction",
+        "```",
+        "",
+        "Among the following allergies, identify the most relevant one:",
+        "",
+        " * descriptionA (conceptId: 134)\n * descriptionB (conceptId: 167)\n * descriptionC (conceptId: 234)",
+        "",
+        "Please, present your findings in a JSON format within a Markdown code block like:",
+        "```json",
         '[{"conceptId": "the concept id, as int", "term": "the description"}]',
-        '```',
-        '',
+        "```",
+        "",
     ]
-    schemas = [{
-        '$schema': 'http://json-schema.org/draft-07/schema#',
-        'type': 'array',
-        'items': {
-            'type': 'object',
-            'properties': {
-                'conceptId': {'type': 'string', 'minLength': 1},
-                'term': {'type': 'string', 'minLength': 1},
+    schemas = [
+        {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "conceptId": {"type": "string", "minLength": 1},
+                    "term": {"type": "string", "minLength": 1},
+                },
+                "required": ["conceptId", "term"],
+                "additionalProperties": False,
             },
-            'required': ['conceptId', 'term'],
-            'additionalProperties': False,
+            "minItems": 1,
+            "maxItems": 1,
         },
-        'minItems': 1,
-        'maxItems': 1,
-    }]
-    keywords = ['keyword1', 'keyword2', 'keyword3']
+    ]
+    keywords = ["keyword1", "keyword2", "keyword3"]
     tested = helper_instance()
 
     tests = [
-        ('allergy group', 1, 1),
-        ('medication', 2, 1),
-        ('medication', 2, 2),
-        ('ingredient', 6, 1),
-        ('ingredient', 6, 6),
+        ("allergy group", 1, 1),
+        ("medication", 2, 1),
+        ("medication", 2, 2),
+        ("ingredient", 6, 1),
+        ("ingredient", 6, 6),
     ]
     for concept_type, exp_concept_id_type, selected_concept_id_type in tests:
         arguments = {
@@ -142,11 +139,11 @@ def test_command_from_json(search_allergy):
             "is_new": False,
             "is_updated": True,
             "parameters": {
-                'approximateDateOfOnset': '2025-02-04',
-                'keywords': 'keyword1,keyword2,keyword3',
-                'reaction': 'theReaction',
-                'severity': 'moderate',
-                'type': concept_type,
+                "approximateDateOfOnset": "2025-02-04",
+                "keywords": "keyword1,keyword2,keyword3",
+                "reaction": "theReaction",
+                "severity": "moderate",
+                "type": concept_type,
             },
         }
         allergy_details = [
@@ -189,7 +186,7 @@ def test_command_from_json(search_allergy):
         if exp_concept_id_type != 1:
             allergen_types.append(AllergenType(exp_concept_id_type))
 
-        calls = [call('ontologiesHost', 'preSharedKey', keywords, allergen_types)]
+        calls = [call("ontologiesHost", "preSharedKey", keywords, allergen_types)]
         assert search_allergy.mock_calls == calls
         calls = [call.single_conversation(system_prompt, user_prompt, schemas, instruction)]
         assert chatter.mock_calls == calls
@@ -213,7 +210,7 @@ def test_command_from_json(search_allergy):
         if exp_concept_id_type != 1:
             allergen_types.append(AllergenType(exp_concept_id_type))
 
-        calls = [call('ontologiesHost', 'preSharedKey', keywords, allergen_types)]
+        calls = [call("ontologiesHost", "preSharedKey", keywords, allergen_types)]
         assert search_allergy.mock_calls == calls
         calls = [call.single_conversation(system_prompt, user_prompt, schemas, instruction)]
         assert chatter.mock_calls == calls
@@ -237,7 +234,7 @@ def test_command_from_json(search_allergy):
         if exp_concept_id_type != 1:
             allergen_types.append(AllergenType(exp_concept_id_type))
 
-        calls = [call('ontologiesHost', 'preSharedKey', keywords, allergen_types)]
+        calls = [call("ontologiesHost", "preSharedKey", keywords, allergen_types)]
         assert search_allergy.mock_calls == calls
         assert chatter.mock_calls == []
         reset_mocks()
@@ -247,13 +244,13 @@ def test_command_parameters():
     tested = helper_instance()
     result = tested.command_parameters()
     expected = {
-        'approximateDateOfOnset': 'YYYY-MM-DD',
-        'keywords': 'comma separated keywords of up to 5 distinct synonyms of the component '
-                    "related to the allergy or 'NKA' for No Known Allergy or 'NKDA' for No "
-                    'Known Drug Allergy',
-        'reaction': 'description of the reaction, as free text',
-        'severity': 'mandatory, one of: mild/moderate/severe',
-        'type': 'mandatory, one of: allergy group/medication/ingredient',
+        "approximateDateOfOnset": "YYYY-MM-DD",
+        "keywords": "comma separated keywords of up to 5 distinct synonyms of the component "
+        "related to the allergy or 'NKA' for No Known Allergy or 'NKDA' for No "
+        "Known Drug Allergy",
+        "reaction": "description of the reaction, as free text",
+        "severity": "mandatory, one of: mild/moderate/severe",
+        "type": "mandatory, one of: allergy group/medication/ingredient",
     }
     assert result == expected
 
@@ -261,9 +258,11 @@ def test_command_parameters():
 def test_instruction_description():
     tested = helper_instance()
     result = tested.instruction_description()
-    expected = ("Any diagnosed allergy, one instruction per allergy. "
-                "There can be only one allergy per instruction, and no instruction in the lack of. "
-                "But, if it is explicitly said that the patient has no known allergy, add an instruction mentioning it.")
+    expected = (
+        "Any diagnosed allergy, one instruction per allergy. "
+        "There can be only one allergy per instruction, and no instruction in the lack of. "
+        "But, if it is explicitly said that the patient has no known allergy, add an instruction mentioning it."
+    )
     assert result == expected
 
 
@@ -279,10 +278,7 @@ def test_instruction_constraints(current_allergies):
         CodedItem(uuid="theUuid2", label="display2a", code="CODE45"),
         CodedItem(uuid="theUuid3", label="display3a", code="CODE9876"),
     ]
-    tests = [
-        (allergies, "'Allergy' cannot include: display1a, display2a, display3a."),
-        ([], ""),
-    ]
+    tests = [(allergies, "'Allergy' cannot include: display1a, display2a, display3a."), ([], "")]
     for side_effect, expected in tests:
         current_allergies.side_effect = [side_effect]
         result = tested.instruction_constraints()

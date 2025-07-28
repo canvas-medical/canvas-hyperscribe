@@ -1,0 +1,72 @@
+[
+  {
+    "criterion": "Reward for accurately documenting the current adalimumab regimen (40 mg subcutaneous every 14 days) and noting the next dose is due on Sunday.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing the full set of adalimumab self-injection instructions (allow to reach room temperature ~20 minutes, inject at 90\u00b0, thigh or abdomen site, hold 10 seconds, dispose in sharps).",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting the clinician\u2019s decision to continue adalimumab during pregnancy, citing literature of >10,000 pregnancies with no increase in malformations or infections.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for recording that prenatal vitamin remains one tablet with breakfast and that taking it with food may reduce nausea.",
+    "weight": 5,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for including the side-effect checklist the clinician listed (injection-site redness/bruising larger than a quarter, fever >100.4 \u00b0F, sudden abdominal pain) and the instruction to call the office first rather than skipping a dose.",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting the hypertension management plan: lisinopril discontinued, verify today\u2019s blood-pressure readings, and initiate labetalol 100 mg BID if two home readings exceed 140/90 after OB clearance.",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing the patient-reported home blood-pressure of 145/92 with associated pounding headaches.",
+    "weight": 7,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing the patient\u2019s anxiety about the pharmacist\u2019s \u2018may harm unborn baby\u2019 warning on adalimumab.",
+    "weight": 5,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for noting the patient\u2019s concern about FedEx delaying her next pen and the possibility of missing Sunday\u2019s dose and flaring disease.",
+    "weight": 5,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for stating the patient is 24 weeks pregnant, as supported by the chart and relevant to the visit.",
+    "weight": 5,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for overall completeness \u2013 the note accurately summarizes all clinically relevant statements and decisions made during the encounter without significant omissions.",
+    "weight": 13,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for introducing information, assessments, or plans that are not supported by the transcript or chart (fabrications or speculative additions).",
+    "weight": 20,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for misstating or altering numerical details such as medication dose, frequency, gestational age, blood-pressure thresholds, or side-effect parameters.",
+    "weight": 15,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for copying irrelevant or outdated chart information that was not discussed (e.g., unrelated conditions, old surgeries) or for omitting pertinent chart data that was relevant (e.g., pregnancy status).",
+    "weight": 10,
+    "sense": "negative"
+  }
+]

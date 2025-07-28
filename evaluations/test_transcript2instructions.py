@@ -11,27 +11,21 @@ from hyperscribe.structures.line import Line
 
 
 def test_transcript2instructions(
-        transcript2instructions: tuple[str, str, Path],
-        allowed_levels: list,
-        audio_interpreter: AudioInterpreter,
-        capsys: pytest.CaptureFixture[str],
-        request: pytest.FixtureRequest,
+    transcript2instructions: tuple[str, str, Path],
+    allowed_levels: list,
+    audio_interpreter: AudioInterpreter,
+    capsys: pytest.CaptureFixture[str],
+    request: pytest.FixtureRequest,
 ) -> None:
-    runner_transcript2instructions(
-        transcript2instructions,
-        allowed_levels,
-        audio_interpreter,
-        capsys,
-        request,
-    )
+    runner_transcript2instructions(transcript2instructions, allowed_levels, audio_interpreter, capsys, request)
 
 
 def runner_transcript2instructions(
-        transcript2instructions: tuple[str, str, Path],
-        allowed_levels: list,
-        audio_interpreter: AudioInterpreter,
-        capsys: pytest.CaptureFixture[str],
-        request: pytest.FixtureRequest,
+    transcript2instructions: tuple[str, str, Path],
+    allowed_levels: list,
+    audio_interpreter: AudioInterpreter,
+    capsys: pytest.CaptureFixture[str],
+    request: pytest.FixtureRequest,
 ) -> None:
     case, cycle, json_file = transcript2instructions
     content = json.load(json_file.open("r"))[cycle]
@@ -44,7 +38,9 @@ def runner_transcript2instructions(
     response = audio_interpreter.detect_instructions(lines, instructions)
 
     result = Instruction.load_from_json(response)
-    assert len(result) == len(expected), f"{[(i.instruction, i.information) for i in result]} != {[(i.instruction, i.information) for i in expected]}"
+    assert len(result) == len(expected), (
+        f"{[(i.instruction, i.information) for i in result]} != {[(i.instruction, i.information) for i in expected]}"
+    )
 
     # order is not important for instruction of different types,
     # but it is within the same type

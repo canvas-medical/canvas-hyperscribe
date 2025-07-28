@@ -58,30 +58,42 @@ def test_staged_command_extract():
     tested = UpdateDiagnose
     tests = [
         ({}, None),
-        ({
-             "condition": {"text": "theCondition"},
-             "narrative": "theNarrative",
-             "background": "theBackground",
-             "new_condition": {"text": "theNewCondition"}
-         }, CodedItem(label="theCondition to theNewCondition: theNarrative", code="", uuid="")),
-        ({
-             "condition": {"text": ""},
-             "narrative": "theNarrative",
-             "background": "theBackground",
-             "new_condition": {"text": "theNewCondition"}
-         }, None),
-        ({
-             "condition": {"text": "theCondition"},
-             "narrative": "",
-             "background": "theBackground",
-             "new_condition": {"text": "theNewCondition"}
-         }, CodedItem(label="theCondition to theNewCondition: n/a", code="", uuid="")),
-        ({
-             "condition": {"text": "theCondition"},
-             "narrative": "theNarrative",
-             "background": "theBackground",
-             "new_condition": {"text": ""}
-         }, CodedItem(label="theCondition to n/a: theNarrative", code="", uuid="")),
+        (
+            {
+                "condition": {"text": "theCondition"},
+                "narrative": "theNarrative",
+                "background": "theBackground",
+                "new_condition": {"text": "theNewCondition"},
+            },
+            CodedItem(label="theCondition to theNewCondition: theNarrative", code="", uuid=""),
+        ),
+        (
+            {
+                "condition": {"text": ""},
+                "narrative": "theNarrative",
+                "background": "theBackground",
+                "new_condition": {"text": "theNewCondition"},
+            },
+            None,
+        ),
+        (
+            {
+                "condition": {"text": "theCondition"},
+                "narrative": "",
+                "background": "theBackground",
+                "new_condition": {"text": "theNewCondition"},
+            },
+            CodedItem(label="theCondition to theNewCondition: n/a", code="", uuid=""),
+        ),
+        (
+            {
+                "condition": {"text": "theCondition"},
+                "narrative": "theNarrative",
+                "background": "theBackground",
+                "new_condition": {"text": ""},
+            },
+            CodedItem(label="theCondition to n/a: theNarrative", code="", uuid=""),
+        ),
     ]
     for data, expected in tests:
         result = tested.staged_command_extract(data)
@@ -108,48 +120,46 @@ def test_command_from_json(current_conditions, search_conditions):
         "",
     ]
     user_prompt = [
-        'Here is the comment provided by the healthcare provider in regards to the diagnosis:',
-        '```text',
-        'keywords: keyword1,keyword2,keyword3',
-        ' -- ',
-        'theRationale',
-        '',
-        'theAssessment',
-        '```',
-        '',
-        'Among the following conditions, identify the most relevant one:',
-        '',
-        ' * labelA (ICD-10: code12.3)\n * labelB (ICD-10: code36.9)\n * labelC (ICD-10: code75.2)',
-        '',
-        'Please, present your findings in a JSON format within a Markdown code block like:',
-        '```json',
+        "Here is the comment provided by the healthcare provider in regards to the diagnosis:",
+        "```text",
+        "keywords: keyword1,keyword2,keyword3",
+        " -- ",
+        "theRationale",
+        "",
+        "theAssessment",
+        "```",
+        "",
+        "Among the following conditions, identify the most relevant one:",
+        "",
+        " * labelA (ICD-10: code12.3)\n * labelB (ICD-10: code36.9)\n * labelC (ICD-10: code75.2)",
+        "",
+        "Please, present your findings in a JSON format within a Markdown code block like:",
+        "```json",
         '[{"ICD10": "the ICD-10 code", "description": "the description"}]',
-        '```',
-        '',
+        "```",
+        "",
     ]
-    schemas = [{
-        '$schema': 'http://json-schema.org/draft-07/schema#',
-        'type': 'array',
-        'items': {
-            'type': 'object',
-            'properties': {
-                'ICD10': {'type': 'string', 'minLength': 1},
-                'label': {'type': 'string', 'minLength': 1},
+    schemas = [
+        {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "ICD10": {"type": "string", "minLength": 1},
+                    "label": {"type": "string", "minLength": 1},
+                },
+                "required": ["ICD10", "label"],
+                "additionalProperties": False,
             },
-            'required': ['ICD10', 'label'],
-            'additionalProperties': False,
+            "minItems": 1,
+            "maxItems": 1,
         },
-        'minItems': 1,
-        'maxItems': 1,
-    }]
-    keywords = ['keyword1', 'keyword2', 'keyword3', "ICD01", "ICD02", "ICD03"]
+    ]
+    keywords = ["keyword1", "keyword2", "keyword3", "ICD01", "ICD02", "ICD03"]
     tested = helper_instance()
 
-    tests = [
-        (1, "CODE45"),
-        (2, "CODE98.76"),
-        (4, None),
-    ]
+    tests = [(1, "CODE45"), (2, "CODE98.76"), (4, None)]
     for idx, exp_current_icd10 in tests:
         arguments = {
             "uuid": "theUuid",
@@ -159,7 +169,7 @@ def test_command_from_json(current_conditions, search_conditions):
             "is_new": False,
             "is_updated": True,
             "parameters": {
-                'keywords': 'keyword1,keyword2,keyword3',
+                "keywords": "keyword1,keyword2,keyword3",
                 "ICD10": "ICD01,ICD02,ICD03",
                 "previousCondition": "theCondition",
                 "previousConditionIndex": idx,
@@ -189,7 +199,7 @@ def test_command_from_json(current_conditions, search_conditions):
             background="theRationale",
             narrative="theAssessment",
             note_uuid="noteUuid",
-            new_condition_code='code369',
+            new_condition_code="code369",
         )
         if exp_current_icd10:
             command.condition_code = exp_current_icd10
@@ -197,7 +207,7 @@ def test_command_from_json(current_conditions, search_conditions):
         assert result == expected, f"---> {idx}"
         calls = [call()]
         assert current_conditions.mock_calls == calls
-        calls = [call('scienceHost', keywords)]
+        calls = [call("scienceHost", keywords)]
         assert search_conditions.mock_calls == calls
         calls = [call.single_conversation(system_prompt, user_prompt, schemas, instruction)]
         assert chatter.mock_calls == calls
@@ -209,18 +219,14 @@ def test_command_from_json(current_conditions, search_conditions):
         chatter.single_conversation.side_effect = []
 
         result = tested.command_from_json(instruction, chatter)
-        command = UpdateDiagnosisCommand(
-            background="theRationale",
-            narrative="theAssessment",
-            note_uuid="noteUuid",
-        )
+        command = UpdateDiagnosisCommand(background="theRationale", narrative="theAssessment", note_uuid="noteUuid")
         if exp_current_icd10:
             command.condition_code = exp_current_icd10
         expected = InstructionWithCommand(**(arguments | {"command": command}))
         assert result == expected, f"---> {idx}"
         calls = [call()]
         assert current_conditions.mock_calls == calls
-        calls = [call('scienceHost', keywords)]
+        calls = [call("scienceHost", keywords)]
         assert search_conditions.mock_calls == calls
         assert chatter.mock_calls == []
         reset_mocks()
@@ -231,18 +237,14 @@ def test_command_from_json(current_conditions, search_conditions):
         chatter.single_conversation.side_effect = [[]]
 
         result = tested.command_from_json(instruction, chatter)
-        command = UpdateDiagnosisCommand(
-            background="theRationale",
-            narrative="theAssessment",
-            note_uuid="noteUuid",
-        )
+        command = UpdateDiagnosisCommand(background="theRationale", narrative="theAssessment", note_uuid="noteUuid")
         if exp_current_icd10:
             command.condition_code = exp_current_icd10
         expected = InstructionWithCommand(**(arguments | {"command": command}))
         assert result == expected, f"---> {idx}"
         calls = [call()]
         assert current_conditions.mock_calls == calls
-        calls = [call('scienceHost', keywords)]
+        calls = [call("scienceHost", keywords)]
         assert search_conditions.mock_calls == calls
         calls = [call.single_conversation(system_prompt, user_prompt, schemas, instruction)]
         assert chatter.mock_calls == calls
@@ -265,7 +267,7 @@ def test_command_parameters(current_conditions):
     expected = {
         "keywords": "comma separated keywords of up to 5 synonyms of the new diagnosed condition",
         "ICD10": "comma separated keywords of up to 5 ICD-10 codes of the new diagnosed condition",
-        "previousCondition": 'one of: display1a (index: 0)/display2a (index: 1)/display3a (index: 2)',
+        "previousCondition": "one of: display1a (index: 0)/display2a (index: 1)/display3a (index: 2)",
         "previousConditionIndex": "index of the previous Condition, or -1, as integer",
         "rationale": "rationale about the current assessment, as free text",
         "assessment": "today's assessment of the new condition, as free text",
@@ -289,9 +291,11 @@ def test_instruction_description(current_conditions):
     ]
     current_conditions.side_effect = [conditions]
     result = tested.instruction_description()
-    expected = ("Change of a medical condition (display1a, display2a, display3a) identified by the provider, "
-                "including rationale, current assessment. "
-                "There is one instruction per condition change, and no instruction in the lack of.")
+    expected = (
+        "Change of a medical condition (display1a, display2a, display3a) identified by the provider, "
+        "including rationale, current assessment. "
+        "There is one instruction per condition change, and no instruction in the lack of."
+    )
     assert result == expected
     calls = [call()]
     assert current_conditions.mock_calls == calls
@@ -311,10 +315,12 @@ def test_instruction_constraints(current_conditions):
     ]
     current_conditions.side_effect = [conditions]
     result = tested.instruction_constraints()
-    expected = ("'UpdateDiagnose' has to be an update from one of the following conditions: "
-                "display1a (ICD-10: CODE12.3), "
-                "display2a (ICD-10: CODE45), "
-                "display3a (ICD-10: CODE98.76)")
+    expected = (
+        "'UpdateDiagnose' has to be an update from one of the following conditions: "
+        "display1a (ICD-10: CODE12.3), "
+        "display2a (ICD-10: CODE45), "
+        "display3a (ICD-10: CODE98.76)"
+    )
     assert result == expected
     calls = [call()]
     assert current_conditions.mock_calls == calls
@@ -332,10 +338,7 @@ def test_is_available(current_conditions):
         CodedItem(uuid="theUuid2", label="display2a", code="CODE45"),
         CodedItem(uuid="theUuid3", label="display3a", code="CODE98.76"),
     ]
-    tests = [
-        (conditions, True),
-        ([], False),
-    ]
+    tests = [(conditions, True), ([], False)]
     for side_effect, expected in tests:
         current_conditions.side_effect = [side_effect]
         result = tested.is_available()

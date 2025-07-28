@@ -4,7 +4,16 @@ from hyperscribe.structures.instruction import Instruction
 
 
 class InstructionWithParameters(Instruction):
-    def __init__(self, uuid: str, index: int, instruction: str, information: str, is_new: bool, is_updated: bool, parameters: dict):
+    def __init__(
+        self,
+        uuid: str,
+        index: int,
+        instruction: str,
+        information: str,
+        is_new: bool,
+        is_updated: bool,
+        parameters: dict,
+    ):
         super().__init__(uuid, index, instruction, information, is_new, is_updated)
         self.parameters: dict = parameters
 

@@ -7,12 +7,13 @@ from hyperscribe.libraries.canvas_science import CanvasScience
 from hyperscribe.structures.allergy_detail import AllergyDetail
 from hyperscribe.structures.icd10_condition import Icd10Condition
 from hyperscribe.structures.imaging_report import ImagingReport
+from hyperscribe.structures.immunization_detail import ImmunizationDetail
 from hyperscribe.structures.medical_concept import MedicalConcept
 from hyperscribe.structures.medication_detail import MedicationDetail
 from hyperscribe.structures.medication_detail_quantity import MedicationDetailQuantity
 
 
-@patch.object(CanvasScience, 'medical_concept')
+@patch.object(CanvasScience, "medical_concept")
 def test_instructions(medical_concept):
     def reset_mocks():
         medical_concept.reset_mock()
@@ -23,17 +24,12 @@ def test_instructions(medical_concept):
     result = tested.instructions("theHost", ["expression 1", "expression 2"])
     expected = "medical_concept was called"
     assert result == expected
-    calls = [call(
-        "theHost",
-        "/search/instruction",
-        ["expression 1", "expression 2"],
-        MedicalConcept,
-    )]
+    calls = [call("theHost", "/search/instruction", ["expression 1", "expression 2"], MedicalConcept)]
     assert medical_concept.mock_calls == calls
     reset_mocks()
 
 
-@patch.object(CanvasScience, 'medical_concept')
+@patch.object(CanvasScience, "medical_concept")
 def test_family_histories(medical_concept):
     def reset_mocks():
         medical_concept.reset_mock()
@@ -44,17 +40,12 @@ def test_family_histories(medical_concept):
     result = tested.family_histories("theHost", ["expression 1", "expression 2"])
     expected = "medical_concept was called"
     assert result == expected
-    calls = [call(
-        "theHost",
-        "/search/family-history",
-        ["expression 1", "expression 2"],
-        MedicalConcept,
-    )]
+    calls = [call("theHost", "/search/family-history", ["expression 1", "expression 2"], MedicalConcept)]
     assert medical_concept.mock_calls == calls
     reset_mocks()
 
 
-@patch.object(CanvasScience, 'medical_concept')
+@patch.object(CanvasScience, "medical_concept")
 def test_surgical_histories(medical_concept):
     def reset_mocks():
         medical_concept.reset_mock()
@@ -65,17 +56,12 @@ def test_surgical_histories(medical_concept):
     result = tested.surgical_histories("theHost", ["expression 1", "expression 2"])
     expected = "medical_concept was called"
     assert result == expected
-    calls = [call(
-        "theHost",
-        "/search/surgical-history-procedure",
-        ["expression 1", "expression 2"],
-        MedicalConcept,
-    )]
+    calls = [call("theHost", "/search/surgical-history-procedure", ["expression 1", "expression 2"], MedicalConcept)]
     assert medical_concept.mock_calls == calls
     reset_mocks()
 
 
-@patch.object(CanvasScience, 'medical_concept')
+@patch.object(CanvasScience, "medical_concept")
 def test_medical_histories(medical_concept):
     def reset_mocks():
         medical_concept.reset_mock()
@@ -86,17 +72,12 @@ def test_medical_histories(medical_concept):
     result = tested.medical_histories("theHost", ["expression 1", "expression 2"])
     expected = "medical_concept was called"
     assert result == expected
-    calls = [call(
-        "theHost",
-        "/search/medical-history-condition",
-        ["expression 1", "expression 2"],
-        Icd10Condition,
-    )]
+    calls = [call("theHost", "/search/medical-history-condition", ["expression 1", "expression 2"], Icd10Condition)]
     assert medical_concept.mock_calls == calls
     reset_mocks()
 
 
-@patch.object(CanvasScience, 'medical_concept')
+@patch.object(CanvasScience, "medical_concept")
 def test_medication_details(medical_concept):
     def reset_mocks():
         medical_concept.reset_mock()
@@ -107,17 +88,12 @@ def test_medication_details(medical_concept):
     result = tested.medication_details("theHost", ["expression 1", "expression 2"])
     expected = "medical_concept was called"
     assert result == expected
-    calls = [call(
-        "theHost",
-        "/search/grouped-medication",
-        ["expression 1", "expression 2"],
-        MedicationDetail,
-    )]
+    calls = [call("theHost", "/search/grouped-medication", ["expression 1", "expression 2"], MedicationDetail)]
     assert medical_concept.mock_calls == calls
     reset_mocks()
 
 
-@patch.object(CanvasScience, 'medical_concept')
+@patch.object(CanvasScience, "medical_concept")
 def test_search_conditions(medical_concept):
     def reset_mocks():
         medical_concept.reset_mock()
@@ -128,17 +104,12 @@ def test_search_conditions(medical_concept):
     result = tested.search_conditions("theHost", ["expression 1", "expression 2"])
     expected = "medical_concept was called"
     assert result == expected
-    calls = [call(
-        "theHost",
-        "/search/condition",
-        ["expression 1", "expression 2"],
-        Icd10Condition,
-    )]
+    calls = [call("theHost", "/search/condition", ["expression 1", "expression 2"], Icd10Condition)]
     assert medical_concept.mock_calls == calls
     reset_mocks()
 
 
-@patch.object(CanvasScience, 'medical_concept')
+@patch.object(CanvasScience, "medical_concept")
 def test_search_imagings(medical_concept):
     def reset_mocks():
         medical_concept.reset_mock()
@@ -149,17 +120,12 @@ def test_search_imagings(medical_concept):
     result = tested.search_imagings("theHost", ["expression 1", "expression 2"])
     expected = "medical_concept was called"
     assert result == expected
-    calls = [call(
-        "theHost",
-        "/parse-templates/imaging-reports",
-        ["expression 1", "expression 2"],
-        ImagingReport,
-    )]
+    calls = [call("theHost", "/parse-templates/imaging-reports", ["expression 1", "expression 2"], ImagingReport)]
     assert medical_concept.mock_calls == calls
     reset_mocks()
 
 
-@patch.object(CanvasScience, 'get_attempts')
+@patch.object(CanvasScience, "get_attempts")
 def test_medical_concept(get_attempts):
     def reset_mocks():
         get_attempts.reset_mock()
@@ -182,15 +148,12 @@ def test_medical_concept(get_attempts):
                 MedicalConcept(concept_id=123, term="termA"),
                 MedicalConcept(concept_id=369, term="termB"),
                 MedicalConcept(concept_id=752, term="termC"),
-            ]
+            ],
         ),
         (
             Icd10Condition,
             [
-                [
-                    {"icd10_code": "code123", "icd10_text": "labelA"},
-                    {"icd10_code": "code369", "icd10_text": "labelB"},
-                ],
+                [{"icd10_code": "code123", "icd10_text": "labelA"}, {"icd10_code": "code369", "icd10_text": "labelB"}],
                 [{"icd10_code": "code752", "icd10_text": "labelC"}],
                 [],
             ],
@@ -198,7 +161,7 @@ def test_medical_concept(get_attempts):
                 Icd10Condition(code="code123", label="labelA"),
                 Icd10Condition(code="code369", label="labelB"),
                 Icd10Condition(code="code752", label="labelC"),
-            ]
+            ],
         ),
         (
             MedicationDetail,
@@ -222,11 +185,7 @@ def test_medical_concept(get_attempts):
                             },
                         ],
                     },
-                    {
-                        "med_medication_id": 369,
-                        "description_and_quantity": "labelB",
-                        "clinical_quantities": [],
-                    },
+                    {"med_medication_id": 369, "description_and_quantity": "labelB", "clinical_quantities": []},
                 ],
                 [
                     {
@@ -263,12 +222,7 @@ def test_medical_concept(get_attempts):
                         ),
                     ],
                 ),
-                MedicationDetail(
-                    fdb_code="369",
-                    description="labelB",
-                    quantities=[
-                    ],
-                ),
+                MedicationDetail(fdb_code="369", description="labelB", quantities=[]),
                 MedicationDetail(
                     fdb_code="752",
                     description="labelC",
@@ -281,7 +235,7 @@ def test_medical_concept(get_attempts):
                         ),
                     ],
                 ),
-            ]
+            ],
         ),
         (
             ImagingReport,
@@ -299,7 +253,7 @@ def test_medical_concept(get_attempts):
                                 "code": "codeFieldA1",
                                 "label": "Comment",
                                 "units": None,
-                                "required": False
+                                "required": False,
                             },
                         ],
                         "name": "NameA",
@@ -310,7 +264,7 @@ def test_medical_concept(get_attempts):
                         "active": True,
                         "custom": False,
                         "long_name": "LongNameA",
-                        "rank": 10
+                        "rank": 10,
                     },
                     {
                         "id": 5587,
@@ -323,7 +277,7 @@ def test_medical_concept(get_attempts):
                         "active": True,
                         "custom": True,
                         "long_name": "LongNameB",
-                        "rank": 10
+                        "rank": 10,
                     },
                 ],
                 [
@@ -338,7 +292,7 @@ def test_medical_concept(get_attempts):
                         "active": False,
                         "custom": False,
                         "long_name": "LongNameB",
-                        "rank": 10
+                        "rank": 10,
                     },
                 ],
                 [],
@@ -364,7 +318,7 @@ def test_medical_concept(get_attempts):
         reset_mocks()
 
 
-@patch.object(CanvasScience, 'get_attempts')
+@patch.object(CanvasScience, "get_attempts")
 def test_search_allergy(get_attempts):
     def reset_mocks():
         get_attempts.reset_mock()
@@ -407,29 +361,46 @@ def test_search_allergy(get_attempts):
         },
     ]
     details = [
-        AllergyDetail(concept_id_value=134, concept_id_description="descriptionA", concept_type="conceptTypeA", concept_id_type=1),
-        AllergyDetail(concept_id_value=167, concept_id_description="descriptionB", concept_type="conceptTypeB", concept_id_type=1),
-        AllergyDetail(concept_id_value=234, concept_id_description="descriptionC", concept_type="conceptTypeC", concept_id_type=2),
-        AllergyDetail(concept_id_value=334, concept_id_description="descriptionD", concept_type="conceptTypeD", concept_id_type=6),
-        AllergyDetail(concept_id_value=267, concept_id_description="descriptionE", concept_type="conceptTypeE", concept_id_type=2),
+        AllergyDetail(
+            concept_id_value=134,
+            concept_id_description="descriptionA",
+            concept_type="conceptTypeA",
+            concept_id_type=1,
+        ),
+        AllergyDetail(
+            concept_id_value=167,
+            concept_id_description="descriptionB",
+            concept_type="conceptTypeB",
+            concept_id_type=1,
+        ),
+        AllergyDetail(
+            concept_id_value=234,
+            concept_id_description="descriptionC",
+            concept_type="conceptTypeC",
+            concept_id_type=2,
+        ),
+        AllergyDetail(
+            concept_id_value=334,
+            concept_id_description="descriptionD",
+            concept_type="conceptTypeD",
+            concept_id_type=6,
+        ),
+        AllergyDetail(
+            concept_id_value=267,
+            concept_id_description="descriptionE",
+            concept_type="conceptTypeE",
+            concept_id_type=2,
+        ),
     ]
 
     tests = [
-        (
-            [AllergenType.ALLERGEN_GROUP],
-            [concepts[:4], [], concepts[4:]],
-            [details[i] for i in [0, 1]]
-        ),
+        ([AllergenType.ALLERGEN_GROUP], [concepts[:4], [], concepts[4:]], [details[i] for i in [0, 1]]),
         (
             [AllergenType.ALLERGEN_GROUP, AllergenType.INGREDIENT],
             [concepts[:4], [], concepts[4:]],
-            [details[i] for i in [0, 1, 3]]
+            [details[i] for i in [0, 1, 3]],
         ),
-        (
-            [AllergenType.MEDICATION],
-            [concepts[:4], [], concepts[4:]],
-            [details[i] for i in [2, 4]]
-        ),
+        ([AllergenType.MEDICATION], [concepts[:4], [], concepts[4:]], [details[i] for i in [2, 4]]),
     ]
     for concept_types, side_effects, expected in tests:
         get_attempts.side_effect = side_effects
@@ -437,15 +408,105 @@ def test_search_allergy(get_attempts):
         assert result == expected
 
         calls = [
-            call("theHost", "theSharedKey", "/fdb/allergy/", {"dam_allergen_concept_id_description__fts": "expression1"}, True),
-            call("theHost", "theSharedKey", "/fdb/allergy/", {"dam_allergen_concept_id_description__fts": "expression2"}, True),
-            call("theHost", "theSharedKey", "/fdb/allergy/", {"dam_allergen_concept_id_description__fts": "expression3"}, True),
+            call(
+                "theHost",
+                "theSharedKey",
+                "/fdb/allergy/",
+                {"dam_allergen_concept_id_description__fts": "expression1"},
+                True,
+            ),
+            call(
+                "theHost",
+                "theSharedKey",
+                "/fdb/allergy/",
+                {"dam_allergen_concept_id_description__fts": "expression2"},
+                True,
+            ),
+            call(
+                "theHost",
+                "theSharedKey",
+                "/fdb/allergy/",
+                {"dam_allergen_concept_id_description__fts": "expression3"},
+                True,
+            ),
         ]
         assert get_attempts.mock_calls == calls
         reset_mocks()
 
 
-@patch.object(CanvasScience, 'get_attempts')
+@patch.object(CanvasScience, "get_attempts")
+def test_search_immunization(get_attempts):
+    def reset_mocks():
+        get_attempts.reset_mock()
+
+    tested = CanvasScience
+    host = "theHost"
+    shared_key = "theSharedKey"
+    expressions = ["expression1", "expression2", "expression3"]
+
+    concepts = [
+        {
+            "cpt_code": "cptCode1",
+            "cvx_code": "cvxCode1",
+            "long_name": "theLongName1",
+            "medium_name": "theMediumName1",
+            "cvx_description": "theDescription1",
+        },
+        {
+            "cpt_code": "cptCode2",
+            "cvx_code": "cvxCode2",
+            "long_name": "theLongName2",
+            "medium_name": "theMediumName2",
+            "cvx_description": "theDescription2",
+        },
+        {
+            "cpt_code": "cptCode3",
+            "cvx_code": "cvxCode3",
+            "long_name": "theLongName3",
+            "medium_name": "theMediumName3",
+            "cvx_description": "theDescription3",
+        },
+    ]
+    details = [
+        ImmunizationDetail(
+            label="theLongName1",
+            code_cpt="cptCode1",
+            code_cvx="cvxCode1",
+            cvx_description="theDescription1",
+        ),
+        ImmunizationDetail(
+            label="theLongName2",
+            code_cpt="cptCode2",
+            code_cvx="cvxCode2",
+            cvx_description="theDescription2",
+        ),
+        ImmunizationDetail(
+            label="theLongName3",
+            code_cpt="cptCode3",
+            code_cvx="cvxCode3",
+            cvx_description="theDescription3",
+        ),
+    ]
+
+    tests = [
+        ([concepts[0:1], concepts[1:3], []], details),
+        ([[], [], []], []),
+    ]
+    for side_effects, expected in tests:
+        get_attempts.side_effect = side_effects
+        result = tested.search_immunization(host, shared_key, expressions)
+        assert result == expected
+
+        calls = [
+            call("theHost", "theSharedKey", "/cpt/immunization/", {"name_or_code": "expression1"}, True),
+            call("theHost", "theSharedKey", "/cpt/immunization/", {"name_or_code": "expression2"}, True),
+            call("theHost", "theSharedKey", "/cpt/immunization/", {"name_or_code": "expression3"}, True),
+        ]
+        assert get_attempts.mock_calls == calls
+        reset_mocks()
+
+
+@patch.object(CanvasScience, "get_attempts")
 def test_search_contacts(get_attempts):
     def reset_mocks():
         get_attempts.reset_mock()
@@ -503,20 +564,8 @@ def test_search_contacts(get_attempts):
     result = tested.search_contacts(host, "theFree Text Information", [])
     assert result == expected
     calls = [
-        call(
-            "theHost",
-            "",
-            "/contacts/",
-            {"search": "theFree Text Information", "format": "json", "limit": 10},
-            False,
-        ),
-        call(
-            "theHost",
-            "",
-            "/contacts/",
-            {"search": "theFree Text", "format": "json", "limit": 10},
-            False,
-        ),
+        call("theHost", "", "/contacts/", {"search": "theFree Text Information", "format": "json", "limit": 10}, False),
+        call("theHost", "", "/contacts/", {"search": "theFree Text", "format": "json", "limit": 10}, False),
     ]
     assert get_attempts.mock_calls == calls
     reset_mocks()
@@ -541,12 +590,7 @@ def test_search_contacts(get_attempts):
             "theHost",
             "",
             "/contacts/",
-            {
-                "search": "theFree Text",
-                "business_postal_code__in": "zip1,zip2",
-                "format": "json",
-                "limit": 10,
-            },
+            {"search": "theFree Text", "business_postal_code__in": "zip1,zip2", "format": "json", "limit": 10},
             False,
         ),
     ]
@@ -557,36 +601,18 @@ def test_search_contacts(get_attempts):
     result = tested.search_contacts(host, "theFree Text Information", [])
     assert result == []
     calls = [
-        call(
-            "theHost",
-            "",
-            "/contacts/",
-            {"search": "theFree Text Information", "format": "json", "limit": 10},
-            False,
-        ),
-        call(
-            "theHost",
-            "",
-            "/contacts/",
-            {"search": "theFree Text", "format": "json", "limit": 10},
-            False,
-        ),
-        call(
-            "theHost",
-            "",
-            "/contacts/",
-            {"search": "theFree", "format": "json", "limit": 10},
-            False,
-        ),
+        call("theHost", "", "/contacts/", {"search": "theFree Text Information", "format": "json", "limit": 10}, False),
+        call("theHost", "", "/contacts/", {"search": "theFree Text", "format": "json", "limit": 10}, False),
+        call("theHost", "", "/contacts/", {"search": "theFree", "format": "json", "limit": 10}, False),
     ]
     assert get_attempts.mock_calls == calls
     reset_mocks()
 
 
-@patch('hyperscribe.libraries.canvas_science.ontologies_http')
-@patch('hyperscribe.libraries.canvas_science.science_http')
-@patch('hyperscribe.libraries.canvas_science.log')
-@patch('hyperscribe.libraries.canvas_science.requests_get')
+@patch("hyperscribe.libraries.canvas_science.ontologies_http")
+@patch("hyperscribe.libraries.canvas_science.science_http")
+@patch("hyperscribe.libraries.canvas_science.log")
+@patch("hyperscribe.libraries.canvas_science.requests_get")
 def test_get_attempts(requests_get, log, science, ontologies):
     def reset_mocks():
         requests_get.reset_mock()
@@ -596,8 +622,8 @@ def test_get_attempts(requests_get, log, science, ontologies):
 
     tested = CanvasScience
 
-    headers_no_key = {'Content-Type': 'application/json'}
-    headers_with_key = {'Content-Type': 'application/json', 'Authorization': 'thePreSharedKey'}
+    headers_no_key = {"Content-Type": "application/json"}
+    headers_with_key = {"Content-Type": "application/json", "Authorization": "thePreSharedKey"}
     params = {"param": "value"}
 
     # too many attempts
@@ -649,9 +675,7 @@ def test_get_attempts(requests_get, log, science, ontologies):
         call("theHost/theUrl", headers=headers_with_key, params=params, verify=True),
     ]
     assert requests_get.mock_calls == calls
-    calls = [
-        call.info("get response code: 401 - /theUrl"),
-    ]
+    calls = [call.info("get response code: 401 - /theUrl")]
     assert log.mock_calls == calls
     assert science.mock_calls == []
     assert ontologies.mock_calls == []
@@ -667,9 +691,7 @@ def test_get_attempts(requests_get, log, science, ontologies):
     result = tested.get_attempts("", "thePreSharedKey", "/theUrl", params, True)
     assert result == ["mock list 2"]
     assert requests_get.mock_calls == []
-    calls = [
-        call.info("get response code: 401 - /theUrl?param=value"),
-    ]
+    calls = [call.info("get response code: 401 - /theUrl?param=value")]
     assert log.mock_calls == calls
     assert science.mock_calls == []
     calls = [
@@ -689,9 +711,7 @@ def test_get_attempts(requests_get, log, science, ontologies):
     result = tested.get_attempts("", "thePreSharedKey", "/theUrl", params, False)
     assert result == ["mock list 2"]
     assert requests_get.mock_calls == []
-    calls = [
-        call.info("get response code: 401 - /theUrl?param=value"),
-    ]
+    calls = [call.info("get response code: 401 - /theUrl?param=value")]
     assert log.mock_calls == calls
     calls = [
         call.get_json("/theUrl?param=value", headers_with_key),
@@ -710,14 +730,9 @@ def test_get_attempts(requests_get, log, science, ontologies):
     result = tested.get_attempts("", "", "/theUrl", {}, False)
     assert result == ["mock list 2"]
     assert requests_get.mock_calls == []
-    calls = [
-        call.info("get response code: 401 - /theUrl"),
-    ]
+    calls = [call.info("get response code: 401 - /theUrl")]
     assert log.mock_calls == calls
-    calls = [
-        call.get_json("/theUrl", headers_no_key),
-        call.get_json("/theUrl", headers_no_key),
-    ]
+    calls = [call.get_json("/theUrl", headers_no_key), call.get_json("/theUrl", headers_no_key)]
     assert science.mock_calls == calls
     assert ontologies.mock_calls == []
     reset_mocks()

@@ -1,0 +1,37 @@
+{
+  "demographicStr": "the patient is a woman, born on January 1, 1990 (age 34)",
+  "conditionHistory": [],
+  "currentAllergies": [],
+  "currentConditions": [
+    {
+      "uuid": "da800955-97a4-491d-b30f-0e719702d93b",
+      "label": "Crohn's disease, unspecified, without complications",
+      "code": "K50.90"
+    },
+    {
+      "uuid": "8e94082a-7628-4632-b73d-4b6792147b8a",
+      "label": "Essential (primary) hypertension",
+      "code": "I10"
+    },
+    {
+      "uuid": "8af10a1a-82d6-4610-b695-e4801d2e50f8",
+      "label": "24 weeks gestation of pregnancy",
+      "code": "Z3A.24"
+    }
+  ],
+  "currentGoals": [],
+  "currentMedications": [
+    {
+      "uuid": "6b44ed11-7c3d-45e0-bd1f-0ef3e089c640",
+      "label": "Adalimumab 40 mg/0.4 mL subcutaneous solution syringe",
+      "code": "1111921"
+    },
+    {
+      "uuid": "ca18ce82-5494-4938-b0e7-471460ec4e59",
+      "label": "Prenatal multivitamin tablet",
+      "code": "313776"
+    }
+  ],
+  "familyHistory": [],
+  "surgeryHistory": []
+}

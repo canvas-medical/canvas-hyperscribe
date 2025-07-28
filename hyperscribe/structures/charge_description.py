@@ -14,6 +14,7 @@ class ChargeDescription(NamedTuple):
             "shortName": self.short_name,
             "cptCode": self.cpt_code,
         }
+
     @classmethod
     def load_from_json(cls, data: dict) -> ChargeDescription:
         return cls(

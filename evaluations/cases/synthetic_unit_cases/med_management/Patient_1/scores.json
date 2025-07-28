@@ -1,0 +1,62 @@
+[
+  {
+    "rationale": "No mention of once-daily largest-meal dosing or 2-days-before/7-days-after schedule",
+    "satisfaction": 0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Insurance/formulary reassurance not documented",
+    "satisfaction": 0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Pill-appearance concern and labeling strategies absent",
+    "satisfaction": 0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Includes snack-with-fat and delayed-meal guidance, but does not clearly say tie dose to largest meal",
+    "satisfaction": 70,
+    "score": 10.5
+  },
+  {
+    "rationale": "Irregular-meal/3 a.m. flight scenario and reminder use not recorded",
+    "satisfaction": 0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Shellfish allergy counseling with antihistamine advice fully captured",
+    "satisfaction": 100,
+    "score": 10.0
+  },
+  {
+    "rationale": "Note states vivid dreams rare with this drug vs mefloquine",
+    "satisfaction": 100,
+    "score": 10.0
+  },
+  {
+    "rationale": "No demographic details referenced but also no extraneous chart data; partial credit",
+    "satisfaction": 50,
+    "score": 5.0
+  },
+  {
+    "rationale": "Major counseling points missing; overall incomplete",
+    "satisfaction": 20,
+    "score": 6.0
+  },
+  {
+    "rationale": "Key dosing schedule omitted\u2192significant violation",
+    "satisfaction": 20,
+    "score": -20.0
+  },
+  {
+    "rationale": "No fabricated side effects or other content",
+    "satisfaction": 100,
+    "score": -0.0
+  },
+  {
+    "rationale": "No irrelevant chart information copied",
+    "satisfaction": 100,
+    "score": -0.0
+  }
+]

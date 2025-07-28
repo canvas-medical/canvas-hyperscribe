@@ -1,0 +1,22 @@
+{
+  "demographicStr": "the patient is a woman, born on January 1, 2000 (age 24)",
+  "conditionHistory": [],
+  "currentAllergies": [
+    {
+      "uuid": "67c9ac67-4197-49e0-8b86-8e1915ec3f2d",
+      "label": "Shellfish allergy",
+      "code": "Z91.013"
+    }
+  ],
+  "currentConditions": [],
+  "currentGoals": [],
+  "currentMedications": [
+    {
+      "uuid": "fd42bbc9-9284-4d57-a1e9-862a51bdd62e",
+      "label": "Atovaquone-proguanil 250 mg / 100 mg oral tablet",
+      "code": "203788"
+    }
+  ],
+  "familyHistory": [],
+  "surgeryHistory": []
+}

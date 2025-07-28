@@ -2,8 +2,14 @@ import json
 from typing import Type
 
 from canvas_sdk.commands.commands.questionnaire import QuestionnaireCommand
-from canvas_sdk.commands.commands.questionnaire.question import (TextQuestion, IntegerQuestion, CheckboxQuestion, ResponseOption, RadioQuestion,
-                                                                 BaseQuestion)
+from canvas_sdk.commands.commands.questionnaire.question import (
+    TextQuestion,
+    IntegerQuestion,
+    CheckboxQuestion,
+    ResponseOption,
+    RadioQuestion,
+    BaseQuestion,
+)
 
 from hyperscribe.commands.base import Base
 from hyperscribe.llms.llm_base import LlmBase
@@ -40,11 +46,7 @@ class BaseQuestionnaire(Base):
                 default = {"value": ""}
 
             options = {
-                str(o["pk"]): {
-                                  "dbid": o["pk"],
-                                  "value": o["label"],
-                                  "selected": False,
-                              } | default
+                str(o["pk"]): {"dbid": o["pk"], "value": o["label"], "selected": False} | default
                 for o in question["options"]
             }
 
@@ -65,18 +67,20 @@ class BaseQuestionnaire(Base):
                 for key in options.keys():
                     options[key]["value"] = answers
 
-            questions.append(Question(
-                dbid=question["pk"],
-                label=question["label"],
-                type=question_type,
-                skipped=data.get(f'skip-{question["pk"]}'),  # true/false/none
-                responses=[Response.load_from(option) for option in options.values()],
-            ))
-        result = QuestionnaireDefinition(
-            name=questionnaire["name"],
-            dbid=questionnaire["pk"],
-            questions=questions,
-        )
+            skipped = data.get(f"skip-{question['pk']}")
+            if skipped is not None:
+                skipped = not skipped  # the current boolean is inverted in home-app
+
+            questions.append(
+                Question(
+                    dbid=question["pk"],
+                    label=question["label"],
+                    type=question_type,
+                    skipped=skipped,  # true/false/none
+                    responses=[Response.load_from(option) for option in options.values()],
+                ),
+            )
+        result = QuestionnaireDefinition(name=questionnaire["name"], dbid=questionnaire["pk"], questions=questions)
         return CodedItem(label=json.dumps(result.to_json()), code="", uuid="")
 
     @classmethod
@@ -84,10 +88,7 @@ class BaseQuestionnaire(Base):
         properties = {
             "questionId": {"type": "integer"},
             "question": {"type": "string"},
-            "questionType": {
-                "type": "string",
-                "enum": list(QuestionType.llm_readable().values()),
-            },
+            "questionType": {"type": "string", "enum": list(QuestionType.llm_readable().values())},
             "responses": {
                 "type": "array",
                 "items": {
@@ -96,46 +97,54 @@ class BaseQuestionnaire(Base):
                         "responseId": {"type": "integer"},
                         "value": {"type": "string"},
                         "selected": {"type": "boolean"},
-                        "comment": {
-                            "type": "string",
-                            "description": "any relevant information expanding the answer",
-                        },
+                        "comment": {"type": "string", "description": "any relevant information expanding the answer"},
                     },
                     "required": ["responseId", "value", "selected"],
-                }
-            }
+                },
+            },
         }
         if include_skipped:
-            properties |= {"skipped": {"type": ["boolean", "null"]}}
+            properties |= {
+                "skipped": {
+                    "type": ["boolean", "null"],
+                    "description": "indicates if the question is skipped or used",
+                }
+            }
 
         return {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "type": "array",
-            "items": {
-                "type": "object",
-                "properties": properties,
-                "required": list(properties.keys()),
-            }
+            "items": {"type": "object", "properties": properties, "required": list(properties.keys())},
         }
 
     def update_from_transcript(
-            self,
-            discussion: list[Line],
-            instruction: Instruction,
-            chatter: LlmBase,
+        self,
+        discussion: list[Line],
+        instruction: Instruction,
+        chatter: LlmBase,
     ) -> QuestionnaireDefinition | None:
-        questionnaire = QuestionnaireDefinition.load_from(json.loads(instruction.information))
+        # TODO identify the questionnaire on the fly and provide the actual definition
+        try:
+            json_data = json.loads(instruction.information)
+        except json.JSONDecodeError:
+            return None
+        include_skipped = self.include_skipped()
+        questionnaire = QuestionnaireDefinition.load_from(json_data)
         system_prompt = [
-            "The conversation is in the context of a clinical encounter between patient and licensed healthcare provider.",
-            f"The healthcare provider is editing a questionnaire '{questionnaire.name}', potentially without notifying the patient to prevent biased answers.",
+            "The conversation is in the context of a clinical encounter between patient and licensed "
+            "healthcare provider.",
+            f"The healthcare provider is editing a questionnaire '{questionnaire.name}', potentially without "
+            f"notifying the patient to prevent biased answers.",
             "The user will submit two JSON Markdown blocks:",
             "- the current state of the questionnaire,",
             "- a partial transcript of the visit of a patient with the healthcare provider.",
             "",
-            "Your task is to identifying from the transcript which questions the healthcare provider is referencing and what responses the patient is giving.",
+            "Your task is to identifying from the transcript which questions the healthcare provider is "
+            "referencing and what responses the patient is giving.",
             "Since this is only a part of the transcript, it may have no reference to the questionnaire at all.",
             "",
-            "Your response must be the JSON Markdown block of the questionnaire, with all the necessary changes to reflect the transcript content.",
+            "Your response must be the JSON Markdown block of the questionnaire, with all the necessary "
+            "changes to reflect the transcript content.",
             "",
         ]
         transcript = json.dumps([line.to_json() for line in discussion], indent=1)
@@ -148,64 +157,59 @@ class BaseQuestionnaire(Base):
             "",
             f"The questionnaire '{questionnaire.name}' is currently as follow,:",
             "```json",
-            json.dumps(questionnaire.for_llm(self.include_skipped())),
+            json.dumps(questionnaire.for_llm(include_skipped)),
             "```",
             "",
             "Your task is to replace the values of the JSON object as necessary.",
-            "Since the current questionnaire's state is based on previous parts of the transcript, the changes should based on explicit information only.",
-            "",
+            "Since the current questionnaire's state is based on previous parts of the transcript, the changes should "
+            "be based on explicit information only.",
         ]
-        schemas = [self.json_schema(self.include_skipped())]
-        if response := chatter.single_conversation(system_prompt, user_prompt, schemas, instruction):
-            return QuestionnaireDefinition.load_from_llm(
-                questionnaire.dbid,
-                questionnaire.name,
-                response,
+        if include_skipped:
+            user_prompt.append(
+                "This includes the values of 'skipped', change it to 'false' only if the question "
+                "is obviously answered in the transcript, don't change it at all otherwise."
             )
+        user_prompt.append("")
+
+        schemas = [self.json_schema(include_skipped)]
+        if response := chatter.single_conversation(system_prompt, user_prompt, schemas, instruction):
+            return QuestionnaireDefinition.load_from_llm(questionnaire.dbid, questionnaire.name, response)
         return None
 
     def command_from_questionnaire(
-            self,
-            command_uuid: str,
-            questionnaire: QuestionnaireDefinition,
+        self,
+        command_uuid: str,
+        questionnaire: QuestionnaireDefinition,
     ) -> QuestionnaireCommand:
-        command = self.sdk_command()(
-            note_uuid=self.identification.note_uuid,
-            command_uuid=command_uuid,
-        )
+        include_skipped = self.include_skipped()
+        command = self.sdk_command()(note_uuid=self.identification.note_uuid, command_uuid=command_uuid)
         cmd_questions: list[BaseQuestion] = []
         for question in questionnaire.questions:
             options = [
-                ResponseOption(
-                    dbid=response.dbid,
-                    name=response.value,
-                    value=response.value,
-                    code=response.value,
-                )
+                ResponseOption(dbid=response.dbid, name=response.value, value=response.value, code=response.value)
                 for response in question.responses
             ]
             question_name = f"question-{question.dbid}"
+            question_id = str(question.dbid)
             if question.type == QuestionType.TYPE_INTEGER:
-                cmd_question = IntegerQuestion(question_name, question.label, {}, options)
+                cmd_question = IntegerQuestion(question_id, question_name, question.label, {}, options)
                 cmd_question.add_response(integer=int(question.responses[0].value))
             elif question.type == QuestionType.TYPE_CHECKBOX:
-                cmd_question = CheckboxQuestion(question_name, question.label, {}, options)
+                cmd_question = CheckboxQuestion(question_id, question_name, question.label, {}, options)
                 for idx, response in enumerate(question.responses):
-                    cmd_question.add_response(
-                        option=options[idx],
-                        selected=response.selected,
-                        comment=response.comment,
-                    )
+                    cmd_question.add_response(option=options[idx], selected=response.selected, comment=response.comment)
             elif question.type == QuestionType.TYPE_RADIO:
-                cmd_question = RadioQuestion(question_name, question.label, {}, options)
+                cmd_question = RadioQuestion(question_id, question_name, question.label, {}, options)
                 for idx, response in enumerate(question.responses):
                     if response.selected:
                         cmd_question.add_response(option=options[idx])
             else:  # question.type == QuestionType.TYPE_TEXT:
-                cmd_question = TextQuestion(question_name, question.label, {}, options)
+                cmd_question = TextQuestion(question_id, question_name, question.label, {}, options)
                 cmd_question.add_response(text=question.responses[0].value)
-
             cmd_questions.append(cmd_question)
+
+            if include_skipped and hasattr(command, "set_question_enabled"):
+                command.set_question_enabled(question_id, question.skipped is False)
 
         # SDK may (should?) offer a more elegant way to provide the responses without accessing the database
         command.questions = cmd_questions
@@ -213,7 +217,11 @@ class BaseQuestionnaire(Base):
         return command
 
     # vvv methods should not be called: calling them will raise an exception
-    # def command_from_json(self, instruction: InstructionWithParameters, chatter: LlmBase) -> InstructionWithCommand | None:
+    # def command_from_json(
+    #         self,
+    #         instruction: InstructionWithParameters,
+    #         chatter: LlmBase,
+    # ) -> InstructionWithCommand | None:
     #     return None
     #
     # def command_parameters(self) -> dict:

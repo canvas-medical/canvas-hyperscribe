@@ -1,0 +1,80 @@
+[
+  {
+    "instruction": "Pulmicort Flexhaler 400 micrograms, two inhalations in the morning and two at bedtime, approximately twelve hours apart, until the smoke clears.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.prescribe",
+      "class": "PrescribeCommand",
+      "attributes": {
+        "fdb_code": "549796",
+        "sig": "Inhale 2 puffs twice daily by mouth using the Pulmicort Flexhaler to manage respiratory symptoms due to smoke exposure.",
+        "prescriber_id": "4150cd20de8a470aa570a852859ac87e",
+        "refills": 0,
+        "type_to_dispense": {
+          "representative_ndc": "61269050906",
+          "ncpdp_quantity_qualifier_code": "C64933"
+        },
+        "note_to_pharmacist": "Dispense one Pulmicort Flexhaler 90 mcg/actuation for a 7-day supply.",
+        "days_supply": 7,
+        "quantity_to_dispense": "1.00",
+        "substitutions": "not_allowed"
+      }
+    }
+  },
+  {
+    "instruction": "Rinse, gargle, and spit after each set of puffs to prevent hoarseness and mouth thrush. If metallic taste or voice cracks occur, contact the clinic.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "comment": "Rinse, gargle, and spit after each set of puffs to prevent hoarseness and mouth thrush."
+      }
+    }
+  },
+  {
+    "instruction": "Dispose of half-empty 200 microgram cartridges to avoid confusion. Keep new 400 microgram cartridges in a dry pouch to prevent heat damage.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "comment": "Dispose of half-empty 200 microgram cartridges to avoid confusion."
+      }
+    }
+  },
+  {
+    "instruction": "Fax the pharmacy for two fresh 400-microgram cartridges, including one spare for the trip.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.task",
+      "class": "TaskCommand",
+      "attributes": {
+        "due_date": "2025-06-27",
+        "comment": "Include one spare cartridge for the trip.",
+        "title": "Fax pharmacy for two 400-microgram cartridges"
+      }
+    }
+  },
+  {
+    "instruction": "If unable to rinse after inhalation on the bus, swish when reaching the school's restroom.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.instruct",
+      "class": "InstructCommand",
+      "attributes": {
+        "comment": "If unable to rinse after inhalation on the bus, swish when reaching the school's restroom.",
+        "coding": {
+          "system": "http://snomed.info/sct",
+          "code": "243091006",
+          "display": "Orofacial defect cleansing education"
+        }
+      }
+    }
+  },
+  {
+    "instruction": "If travel disrupts dosing schedule, take one puff at noon and the second at bedtime. Call if rescue inhaler is used four times.",
+    "command": {
+      "module": "canvas_sdk.commands.commands.plan",
+      "class": "PlanCommand",
+      "attributes": {
+        "narrative": "If travel disrupts dosing schedule, take one puff at noon and the second at bedtime. Call if rescue inhaler is used four times."
+      }
+    }
+  }
+]

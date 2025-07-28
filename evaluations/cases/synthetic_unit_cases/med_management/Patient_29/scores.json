@@ -1,0 +1,47 @@
+[
+  {
+    "rationale": "Includes 40 mg once-daily, empty-stomach, morning dosing and \u201cdo not split\u201d instruction, but omits Walgreens Speedway same-day pickup detail.",
+    "satisfaction": 75.0,
+    "score": 15.0
+  },
+  {
+    "rationale": "Lists atorvastatin 20 mg with supper correctly, but fails to mention aspirin 81 mg with breakfast.",
+    "satisfaction": 50.0,
+    "score": 7.5
+  },
+  {
+    "rationale": "Does not introduce unmentioned drugs or conflicting doses; atorvastatin dose matches transcript.",
+    "satisfaction": 90.0,
+    "score": -1.5
+  },
+  {
+    "rationale": "No mention of QT 462 ms, \u2018borderline\u2019 comment, decision, or fax plan.",
+    "satisfaction": 0.0,
+    "score": 0.0
+  },
+  {
+    "rationale": "Provides instruction to log dizzy spells/palpitations/calf cramps, but does not record the patient\u2019s reported dizziness episode itself.",
+    "satisfaction": 70.0,
+    "score": 7.0
+  },
+  {
+    "rationale": "Explicitly warns to avoid grapefruit and St. John\u2019s wort.",
+    "satisfaction": 100.0,
+    "score": 10.0
+  },
+  {
+    "rationale": "Captures tablet-splitting question but omits medication supply delay details.",
+    "satisfaction": 40.0,
+    "score": 2.0
+  },
+  {
+    "rationale": "Note covers several key points but misses ECG/QT plan, aspirin, and supply issue; some content present but not fully comprehensive.",
+    "satisfaction": 50.0,
+    "score": 12.5
+  },
+  {
+    "rationale": "No fabricated diagnoses or additional clinical reasoning observed.",
+    "satisfaction": 95.0,
+    "score": -0.5
+  }
+]

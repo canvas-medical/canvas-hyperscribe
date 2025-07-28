@@ -29,23 +29,11 @@ class ReviewerDisplay(SimpleAPIRoute):
         client_s3 = AwsS3(credentials)
         if client_s3.is_ready() and (note_uuid := self.request.query_params.get("note_id")):
             canvas_instance = self.environment[Constants.CUSTOMER_IDENTIFIER]
-            store_path = (f"hyperscribe-{canvas_instance}/"
-                          "audits/"
-                          f"{note_uuid}/")
+            store_path = f"hyperscribe-{canvas_instance}/audits/{note_uuid}/"
             url_list = [
-                client_s3.generate_presigned_url(
-                    document.key,
-                    Constants.AWS3_LINK_EXPIRATION_SECONDS,
-                )
+                client_s3.generate_presigned_url(document.key, Constants.AWS3_LINK_EXPIRATION_SECONDS)
                 for document in client_s3.list_s3_objects(store_path)
             ]
 
-        context = {
-            "url_list": json.dumps(url_list),
-        }
-        return [
-            HTMLResponse(
-                render_to_string('templates/reviewer.html', context),
-                status_code=HTTPStatus.OK,
-            )
-        ]
+        context = {"url_list": json.dumps(url_list)}
+        return [HTMLResponse(render_to_string("templates/reviewer.html", context), status_code=HTTPStatus.OK)]

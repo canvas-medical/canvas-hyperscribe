@@ -1,0 +1,45 @@
+{
+  "demographicStr": "the patient is a woman, born on January 1, 1997 (age 27)",
+  "conditionHistory": [],
+  "currentAllergies": [
+    {
+      "uuid": "b35be765-7f16-4a48-a685-083c5cdb1229",
+      "label": "Allergy to penicillin",
+      "code": "Z88.0"
+    }
+  ],
+  "currentConditions": [
+    {
+      "uuid": "7e8f59c8-c914-4f75-9b18-3a9583f54d0d",
+      "label": "Homelessness",
+      "code": "Z59.0"
+    }
+  ],
+  "currentGoals": [
+    {
+      "uuid": "b4786a7a-ffc1-4299-93e2-8fbbd63c531c",
+      "label": "Long-term reliable contraception",
+      "code": ""
+    }
+  ],
+  "currentMedications": [
+    {
+      "uuid": "345a70cb-76b2-4836-84b0-c11d0c992321",
+      "label": "Etonogestrel 68 mg subdermal implant",
+      "code": "197361"
+    },
+    {
+      "uuid": "1e2718c9-f56b-42fc-ab25-bc2b0eb97a53",
+      "label": "Ibuprofen 200 mg oral tablet as needed for menstrual cramps",
+      "code": "5640"
+    }
+  ],
+  "familyHistory": [],
+  "surgeryHistory": [
+    {
+      "uuid": "23907e53-f2f5-494d-900b-ad6c61f5602a",
+      "label": "Insertion of subdermal contraceptive implant",
+      "code": "0JH804Z"
+    }
+  ]
+}

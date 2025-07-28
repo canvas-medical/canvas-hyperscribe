@@ -17,25 +17,35 @@ class UpdateGoal(Base):
     @classmethod
     def staged_command_extract(cls, data: dict) -> None | CodedItem:
         if (progress := data.get("progress")) and (goal := data.get("goal_statement", {}).get("text")):
-            return CodedItem(label=f'{goal}: {progress}', code="", uuid="")
+            return CodedItem(label=f"{goal}: {progress}", code="", uuid="")
         return None
 
-    def command_from_json(self, instruction: InstructionWithParameters, chatter: LlmBase) -> InstructionWithCommand | None:
+    def command_from_json(
+        self,
+        instruction: InstructionWithParameters,
+        chatter: LlmBase,
+    ) -> InstructionWithCommand | None:
         goal_uuid = ""
         if 0 <= (idx := instruction.parameters["goalIndex"]) < len(current := self.cache.current_goals()):
             goal_uuid = current[idx].uuid
 
-        return InstructionWithCommand.add_command(instruction, UpdateGoalCommand(
-            goal_id=goal_uuid,
-            due_date=Helper.str2datetime(instruction.parameters["dueDate"]),
-            achievement_status=Helper.enum_or_none(instruction.parameters["status"], UpdateGoalCommand.AchievementStatus),
-            priority=Helper.enum_or_none(instruction.parameters["priority"], UpdateGoalCommand.Priority),
-            progress=instruction.parameters["progressAndBarriers"],
-            note_uuid=self.identification.note_uuid,
-        ))
+        return InstructionWithCommand.add_command(
+            instruction,
+            UpdateGoalCommand(
+                goal_id=goal_uuid,
+                due_date=Helper.str2datetime(instruction.parameters["dueDate"]),
+                achievement_status=Helper.enum_or_none(
+                    instruction.parameters["status"],
+                    UpdateGoalCommand.AchievementStatus,
+                ),
+                priority=Helper.enum_or_none(instruction.parameters["priority"], UpdateGoalCommand.Priority),
+                progress=instruction.parameters["progressAndBarriers"],
+                note_uuid=self.identification.note_uuid,
+            ),
+        )
 
     def command_parameters(self) -> dict:
-        goals = "/".join([f'{goal.label} (index: {idx})' for idx, goal in enumerate(self.cache.current_goals())])
+        goals = "/".join([f"{goal.label} (index: {idx})" for idx, goal in enumerate(self.cache.current_goals())])
         statuses = "/".join([status.value for status in UpdateGoalCommand.AchievementStatus])
         priorities = "/".join([status.value for status in UpdateGoalCommand.Priority])
         return {

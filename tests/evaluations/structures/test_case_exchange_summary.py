@@ -4,20 +4,19 @@ from tests.helper import is_namedtuple
 
 def test_class():
     tested = CaseExchangeSummary
-    fields = {
-        "title": str,
-        "summary": str,
-    }
+    fields = {"title": str, "summary": str}
     assert is_namedtuple(tested, fields)
 
 
 def test_load_from_json():
     tested = CaseExchangeSummary
-    result = tested.load_from_json([
-        {"title": "theTitle1", "summary": "theSummary1"},
-        {"title": "theTitle2", "summary": "theSummary2"},
-        {"title": "theTitle3", "summary": "theSummary3"},
-    ])
+    result = tested.load_from_json(
+        [
+            {"title": "theTitle1", "summary": "theSummary1"},
+            {"title": "theTitle2", "summary": "theSummary2"},
+            {"title": "theTitle3", "summary": "theSummary3"},
+        ],
+    )
     expected = [
         CaseExchangeSummary(title="theTitle1", summary="theSummary1"),
         CaseExchangeSummary(title="theTitle2", summary="theSummary2"),

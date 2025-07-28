@@ -6,13 +6,7 @@ from tests.helper import is_namedtuple
 
 def test_class():
     tested = Question
-    fields = {
-        "dbid": int,
-        "label": str,
-        "type": QuestionType,
-        "skipped": bool | None,
-        "responses": list[Response],
-    }
+    fields = {"dbid": int, "label": str, "type": QuestionType, "skipped": bool | None, "responses": list[Response]}
     assert is_namedtuple(tested, fields)
 
 
@@ -25,18 +19,18 @@ def test_to_json():
         responses=[
             Response(dbid=234, value="456", selected=False, comment="theComment"),
             Response(dbid=456, value=789, selected=True, comment="aComment"),
-        ]
+        ],
     )
     result = tested.to_json()
     expected = {
-        'dbid': 123,
-        'label': 'theQuestion',
-        'responses': [
-            {'dbid': 234, 'selected': False, 'value': '456', 'comment': 'theComment'},
-            {'dbid': 456, 'selected': True, 'value': 789, 'comment': 'aComment'},
+        "dbid": 123,
+        "label": "theQuestion",
+        "responses": [
+            {"dbid": 234, "selected": False, "value": "456", "comment": "theComment"},
+            {"dbid": 456, "selected": True, "value": 789, "comment": "aComment"},
         ],
-        'skipped': False,
-        'type': 'SING',
+        "skipped": False,
+        "type": "SING",
     }
     assert result == expected
 
@@ -47,78 +41,74 @@ def test_for_llm():
             QuestionType.TYPE_RADIO,
             True,
             {
-                'questionId': 123,
-                'question': 'theQuestion',
-                'responses': [
-                    {'responseId': 234, 'selected': False, 'value': '456'},
-                    {'responseId': 456, 'selected': True, 'value': 789},
+                "questionId": 123,
+                "question": "theQuestion",
+                "responses": [
+                    {"responseId": 234, "selected": False, "value": "456"},
+                    {"responseId": 456, "selected": True, "value": 789},
                 ],
-                'skipped': False,
-                'questionType': 'single choice',
-            }
+                "skipped": False,
+                "questionType": "single choice",
+            },
         ),
         (
             QuestionType.TYPE_RADIO,
             False,
             {
-                'questionId': 123,
-                'question': 'theQuestion',
-                'responses': [
-                    {'responseId': 234, 'selected': False, 'value': '456'},
-                    {'responseId': 456, 'selected': True, 'value': 789},
+                "questionId": 123,
+                "question": "theQuestion",
+                "responses": [
+                    {"responseId": 234, "selected": False, "value": "456"},
+                    {"responseId": 456, "selected": True, "value": 789},
                 ],
-                'questionType': 'single choice',
-            }
+                "questionType": "single choice",
+            },
         ),
         (
             QuestionType.TYPE_CHECKBOX,
             False,
             {
-                'questionId': 123,
-                'question': 'theQuestion',
-                'responses': [
+                "questionId": 123,
+                "question": "theQuestion",
+                "responses": [
                     {
-                        'responseId': 234,
-                        'selected': False,
-                        'value': '456',
-                        'comment': 'theComment',
+                        "responseId": 234,
+                        "selected": False,
+                        "value": "456",
+                        "comment": "theComment",
                         "description": "add in the comment key any relevant information expanding the answer",
                     },
                     {
-                        'responseId': 456,
-                        'selected': True,
-                        'value': 789,
-                        'comment': 'aComment',
+                        "responseId": 456,
+                        "selected": True,
+                        "value": 789,
+                        "comment": "aComment",
                         "description": "add in the comment key any relevant information expanding the answer",
                     },
                 ],
-                'questionType': 'multiple choice',
-            }
+                "questionType": "multiple choice",
+            },
         ),
         (
             QuestionType.TYPE_TEXT,
             False,
             {
-                'questionId': 123,
-                'question': 'theQuestion',
-                'responses': [
-                    {'responseId': 234, 'selected': True, 'value': '456'},
-                ],
-                'questionType': 'free text',
-            }
+                "questionId": 123,
+                "question": "theQuestion",
+                "responses": [{"responseId": 234, "selected": True, "value": "456"}],
+                "questionType": "free text",
+            },
         ),
         (
             QuestionType.TYPE_INTEGER,
             True,
             {
-                'questionId': 123,
-                'question': 'theQuestion',
-                'responses': [
-                    {'responseId': 234, 'selected': True, 'value': '456'},
-                ],
-                'skipped': False,
-                'questionType': 'integer',
-            }
+                "questionId": 123,
+                "question": "theQuestion",
+                "responses": [{"responseId": 234, "selected": True, "value": "456"}],
+                "skipped": False,
+                "questionType": "integer",
+            },
         ),
     ]
     for idx, (question_type, include_skipped, expected) in enumerate(tests):
@@ -130,7 +120,7 @@ def test_for_llm():
             responses=[
                 Response(dbid=234, value="456", selected=False, comment="theComment"),
                 Response(dbid=456, value=789, selected=True, comment="aComment"),
-            ]
+            ],
         )
         result = tested.for_llm(include_skipped)
         assert result == expected, f"---> {idx}"
@@ -138,16 +128,18 @@ def test_for_llm():
 
 def test_load_from():
     tested = Question
-    result = tested.load_from({
-        'dbid': 123,
-        'label': 'theQuestion',
-        'responses': [
-            {'dbid': 234, 'selected': False, 'value': '456', 'comment': 'theComment'},
-            {'dbid': 456, 'selected': True, 'value': 789, 'comment': 'aComment'},
-        ],
-        'skipped': False,
-        'type': 'SING',
-    })
+    result = tested.load_from(
+        {
+            "dbid": 123,
+            "label": "theQuestion",
+            "responses": [
+                {"dbid": 234, "selected": False, "value": "456", "comment": "theComment"},
+                {"dbid": 456, "selected": True, "value": 789, "comment": "aComment"},
+            ],
+            "skipped": False,
+            "type": "SING",
+        },
+    )
     expected = Question(
         dbid=123,
         label="theQuestion",
@@ -156,7 +148,7 @@ def test_load_from():
         responses=[
             Response(dbid=234, value="456", selected=False, comment="theComment"),
             Response(dbid=456, value=789, selected=True, comment="aComment"),
-        ]
+        ],
     )
     assert result == expected
 
@@ -177,70 +169,66 @@ def test_load_from_llm():
             True,
             responses_no_comment,
             {
-                'questionId': 123,
-                'question': 'theQuestion',
-                'responses': [
-                    {'responseId': 234, 'selected': False, 'value': '456'},
-                    {'responseId': 456, 'selected': True, 'value': 789},
+                "questionId": 123,
+                "question": "theQuestion",
+                "responses": [
+                    {"responseId": 234, "selected": False, "value": "456"},
+                    {"responseId": 456, "selected": True, "value": 789},
                 ],
-                'skipped': True,
-                'questionType': 'single choice',
-            }
+                "skipped": True,
+                "questionType": "single choice",
+            },
         ),
         (
             QuestionType.TYPE_RADIO,
             None,
             responses_no_comment,
             {
-                'questionId': 123,
-                'question': 'theQuestion',
-                'responses': [
-                    {'responseId': 234, 'selected': False, 'value': '456'},
-                    {'responseId': 456, 'selected': True, 'value': 789},
+                "questionId": 123,
+                "question": "theQuestion",
+                "responses": [
+                    {"responseId": 234, "selected": False, "value": "456"},
+                    {"responseId": 456, "selected": True, "value": 789},
                 ],
-                'questionType': 'single choice',
-            }
+                "questionType": "single choice",
+            },
         ),
         (
             QuestionType.TYPE_CHECKBOX,
             None,
             responses_with_comment,
             {
-                'questionId': 123,
-                'question': 'theQuestion',
-                'responses': [
-                    {'responseId': 234, 'selected': False, 'value': '456', 'comment': 'theComment'},
-                    {'responseId': 456, 'selected': True, 'value': 789, 'comment': 'aComment'},
+                "questionId": 123,
+                "question": "theQuestion",
+                "responses": [
+                    {"responseId": 234, "selected": False, "value": "456", "comment": "theComment"},
+                    {"responseId": 456, "selected": True, "value": 789, "comment": "aComment"},
                 ],
-                'questionType': 'multiple choice',
-            }
+                "questionType": "multiple choice",
+            },
         ),
         (
             QuestionType.TYPE_TEXT,
             None,
             responses_no_comment[:1],
             {
-                'questionId': 123,
-                'question': 'theQuestion',
-                'responses': [
-                    {'responseId': 234, 'selected': False, 'value': '456'},
-                ],
-                'questionType': 'free text',
-            }
+                "questionId": 123,
+                "question": "theQuestion",
+                "responses": [{"responseId": 234, "selected": False, "value": "456"}],
+                "questionType": "free text",
+            },
         ),
         (
             QuestionType.TYPE_INTEGER,
             False,
             responses_no_comment[:1],
             {
-                'questionId': 123,
-                'question': 'theQuestion',
-                'responses': [
-                    {'responseId': 234, 'selected': False, 'value': '456'},
-                ],
-                'skipped': False,
-                'questionType': 'integer',
-            }
+                "questionId": 123,
+                "question": "theQuestion",
+                "responses": [{"responseId": 234, "selected": False, "value": "456"}],
+                "skipped": False,
+                "questionType": "integer",
+            },
         ),
     ]
     for idx, (exp_question_type, exp_include_skipped, exp_responses, data) in enumerate(tests):

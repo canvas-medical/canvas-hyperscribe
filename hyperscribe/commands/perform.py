@@ -23,7 +23,11 @@ class Perform(Base):
             return CodedItem(label=f"{text}: {notes}", code="", uuid="")
         return None
 
-    def command_from_json(self, instruction: InstructionWithParameters, chatter: LlmBase) -> InstructionWithCommand | None:
+    def command_from_json(
+        self,
+        instruction: InstructionWithParameters,
+        chatter: LlmBase,
+    ) -> InstructionWithCommand | None:
         result = PerformCommand(
             cpt_code="",
             notes=instruction.parameters["comment"],
@@ -35,26 +39,28 @@ class Perform(Base):
             system_prompt = [
                 "The conversation is in the medical context.",
                 "",
-                "Your task is to select the most relevant procedure performed on a patient out of a list of procedures.",
+                "Your task is to select the most relevant procedure performed on a patient "
+                "out of a list of procedures.",
                 "",
             ]
             user_prompt = [
-                'Here is the comment provided by the healthcare provider in regards to the procedure performed on the patient:',
-                '```text',
-                f'keywords: {instruction.parameters["procedureKeywords"]}',
+                "Here is the comment provided by the healthcare provider in regards to the procedure performed "
+                "on the patient:",
+                "```text",
+                f"keywords: {instruction.parameters['procedureKeywords']}",
                 " -- ",
                 instruction.parameters["comment"],
-                '```',
+                "```",
                 "",
-                'Among the following procedures, select the most relevant one:',
-                '',
-                "\n".join(f' * {concept.short_name} (code: {concept.cpt_code})' for concept in charges),
-                '',
-                'Please, present your findings in a JSON format within a Markdown code block like:',
-                '```json',
+                "Among the following procedures, select the most relevant one:",
+                "",
+                "\n".join(f" * {concept.short_name} (code: {concept.cpt_code})" for concept in charges),
+                "",
+                "Please, present your findings in a JSON format within a Markdown code block like:",
+                "```json",
                 json.dumps([{"code": "the procedure code", "label": "the procedure label"}]),
-                '```',
-                '',
+                "```",
+                "",
             ]
             schemas = JsonSchema.get(["selector_lab_test"])
             if response := chatter.single_conversation(system_prompt, user_prompt, schemas, instruction):
@@ -69,8 +75,10 @@ class Perform(Base):
         }
 
     def instruction_description(self) -> str:
-        return ("Medical procedure, which is not an auscultation, performed during the encounter. "
-                "There can be only one procedure performed per instruction, and no instruction in the lack of.")
+        return (
+            "Medical procedure, which is not an auscultation, performed during the encounter. "
+            "There can be only one procedure performed per instruction, and no instruction in the lack of."
+        )
 
     def instruction_constraints(self) -> str:
         return f'"{self.class_name()}" supports only one procedure per instruction, auscultation are prohibited.'

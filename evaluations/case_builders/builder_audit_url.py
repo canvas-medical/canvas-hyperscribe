@@ -7,7 +7,6 @@ from hyperscribe.libraries.constants import Constants
 
 
 class BuilderAuditUrl:
-
     @classmethod
     def _parameters(cls) -> Namespace:
         parser = ArgumentParser(description="Generate the URL to access the audit logs.")
@@ -28,10 +27,7 @@ class BuilderAuditUrl:
             presigned_url = Authenticator.presigned_url(
                 HelperEvaluation.settings().api_signing_key,
                 f"{Constants.PLUGIN_API_BASE_ROUTE}/reviewer",
-                {
-                    "patient_id": patient_uuid,
-                    "note_id": note_uuid,
-                },
+                {"patient_id": patient_uuid, "note_id": note_uuid},
             )
             print("audits can be seen with:")
             print("")

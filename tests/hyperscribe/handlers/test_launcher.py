@@ -6,7 +6,8 @@ from canvas_generated.messages.events_pb2 import Event as EventRequest
 from canvas_sdk.events import Event
 from canvas_sdk.events.base import TargetType
 from canvas_sdk.handlers.action_button import ActionButton
-from canvas_sdk.v1.data import Note, Patient
+from canvas_sdk.v1.data.patient import Patient
+from canvas_sdk.v1.data.note import Note, CurrentNoteStateEvent
 
 from hyperscribe.handlers.launcher import Launcher
 from tests.helper import is_constant
@@ -30,8 +31,8 @@ def test_constants():
 
 
 @patch.object(Note, "objects")
-@patch('hyperscribe.handlers.launcher.Authenticator')
-@patch('hyperscribe.handlers.launcher.LaunchModalEffect')
+@patch("hyperscribe.handlers.launcher.Authenticator")
+@patch("hyperscribe.handlers.launcher.LaunchModalEffect")
 def test_handle(launch_modal_effect, authenticator, note_db):
     def reset_mocks():
         launch_modal_effect.reset_mock()
@@ -72,12 +73,16 @@ def test_handle(launch_modal_effect, authenticator, note_db):
         )
     ]
     assert authenticator.mock_calls == calls
-    calls = [call.get(dbid='noteId')]
+    calls = [call.get(dbid="noteId")]
     assert note_db.mock_calls == calls
     reset_mocks()
 
 
-def test_visible():
+@patch.object(CurrentNoteStateEvent, "objects")
+def test_visible(last_note_state_event_db):
+    def reset_mocks():
+        last_note_state_event_db.reset_mock()
+
     tests = [
         ("yes", "userId", "no", True),
         ("yes", "anotherId", "no", True),
@@ -89,29 +94,36 @@ def test_visible():
         ("yes", "userId", "yes", False),
         ("yes", "anotherId", "yes", False),
         ("no", "otherId", "yes", False),
-
     ]
     for policy, staff_id, tuning, expected in tests:
-        event = Event(EventRequest(context=json.dumps({"note_id": "noteId", "user": {"id": staff_id}})))
-        secrets = {
-            "AudioHost": "theAudioHost",
-            "KeyTextLLM": "theKeyTextLLM",
-            "VendorTextLLM": "theVendorTextLLM",
-            "KeyAudioLLM": "theKeyAudioLLM",
-            "VendorAudioLLM": "theVendorAudioLLM",
-            "ScienceHost": "theScienceHost",
-            "OntologiesHost": "theOntologiesHost",
-            "PreSharedKey": "thePreSharedKey",
-            "StructuredReasonForVisit": "yes",
-            "AuditLLMDecisions": "no",
-            "IsTuning": tuning,
-            "AwsKey": "theKey",
-            "AwsSecret": "theSecret",
-            "AwsRegion": "theRegion",
-            "AwsBucketLogs": "theBucketLogs",
-            "APISigningKey": "theApiSigningKey",
-            "StaffersList": "userId, anotherId",
-            "StaffersPolicy": policy,
-        }
-        tested = Launcher(event, secrets)
-        assert tested.visible() is expected
+        for editable in [True, False]:
+            last_note_state_event_db.get.return_value.editable.side_effect = [editable]
+            event = Event(EventRequest(context=json.dumps({"note_id": 778, "user": {"id": staff_id}})))
+            secrets = {
+                "AudioHost": "theAudioHost",
+                "KeyTextLLM": "theKeyTextLLM",
+                "VendorTextLLM": "theVendorTextLLM",
+                "KeyAudioLLM": "theKeyAudioLLM",
+                "VendorAudioLLM": "theVendorAudioLLM",
+                "ScienceHost": "theScienceHost",
+                "OntologiesHost": "theOntologiesHost",
+                "PreSharedKey": "thePreSharedKey",
+                "StructuredReasonForVisit": "yes",
+                "AuditLLMDecisions": "no",
+                "IsTuning": tuning,
+                "AwsKey": "theKey",
+                "AwsSecret": "theSecret",
+                "AwsRegion": "theRegion",
+                "AwsBucketLogs": "theBucketLogs",
+                "APISigningKey": "theApiSigningKey",
+                "StaffersList": "userId, anotherId",
+                "StaffersPolicy": policy,
+            }
+            tested = Launcher(event, secrets)
+            assert tested.visible() is (expected and editable)
+
+            calls = []
+            if expected:
+                calls = [call.get(note_id=778), call.get().editable()]
+            assert last_note_state_event_db.mock_calls == calls
+            reset_mocks()

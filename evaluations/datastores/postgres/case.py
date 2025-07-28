@@ -7,7 +7,6 @@ from hyperscribe.structures.line import Line
 
 
 class Case(Postgres):
-
     # def delete(self, case: str) -> None:
     #     sql: LiteralString = """
     #                          DELETE
@@ -21,6 +20,14 @@ class Case(Postgres):
                              FROM "case"
                              ORDER BY "name" """
         return [record["name"] for record in self._select(sql, {})]
+
+    def get_first_n_cases(self, n: int) -> list[str]:
+        sql: LiteralString = """
+                             SELECT "name"
+                             FROM "case"
+                             ORDER BY "id"
+                             LIMIT %(limit)s """
+        return [record["name"] for record in self._select(sql, {"limit": n})]
 
     def get_id(self, name: str) -> int:
         sql: LiteralString = """
@@ -46,10 +53,7 @@ class Case(Postgres):
                              FROM "case"
                              WHERE "id" = %(case_id)s"""
         for record in self._select(sql, {"case_id": case_id}):
-            return {
-                cycle_key: Line.load_from_json(lines)
-                for cycle_key, lines in record["transcript"].items()
-            }
+            return {cycle_key: Line.load_from_json(lines) for cycle_key, lines in record["transcript"].items()}
         return {}
 
     def get_case(self, name: str) -> Record:
@@ -72,10 +76,9 @@ class Case(Postgres):
         params = {
             "now": datetime.now(UTC),
             "name": case.name,
-            "transcript": self.constant_dumps({
-                key: [line.to_json() for line in lines]
-                for key, lines in case.transcript.items()
-            }),
+            "transcript": self.constant_dumps(
+                {key: [line.to_json() for line in lines] for key, lines in case.transcript.items()},
+            ),
             "limited_chart": self.constant_dumps(case.limited_chart),
             "profile": case.profile,
             "validation_status": case.validation_status.value,

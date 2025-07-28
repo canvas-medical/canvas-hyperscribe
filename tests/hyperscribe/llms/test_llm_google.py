@@ -1,6 +1,6 @@
 import json
 from unittest.mock import patch, call, MagicMock
-
+import pytest
 from hyperscribe.llms.llm_google import LlmGoogle
 from hyperscribe.structures.http_response import HttpResponse
 
@@ -18,10 +18,7 @@ def test_add_audio():
     tested.add_audio(b"the audio1", "mp3")
     tested.add_audio(b"the audio2", "wav")
     result = tested.audios
-    expected = [
-        {"format": "audio/mp3", "data": b"the audio1", },
-        {"format": "audio/wav", "data": b"the audio2", },
-    ]
+    expected = [{"format": "audio/mp3", "data": b"the audio1"}, {"format": "audio/wav", "data": b"the audio2"}]
     assert result == expected
     assert memory_log.mock_calls == []
 
@@ -35,28 +32,18 @@ def test_to_dict():
     #
     result = tested.to_dict([])
     expected = {
-        'contents': [
-            {
-                "role": "user",
-                "parts": [
-                    {"text": "line 1\nline 2\nline 3"},
-                    {"text": "line 4\nline 5\nline 6"},
-                ],
-            },
+        "contents": [
+            {"role": "user", "parts": [{"text": "line 1\nline 2\nline 3"}, {"text": "line 4\nline 5\nline 6"}]},
         ],
-        "generationConfig": {'temperature': 0.0},
+        "generationConfig": {"temperature": 0.0},
     }
     assert result == expected
     assert memory_log.mock_calls == []
 
     # with audio
-    result = tested.to_dict([
-        ('audio/mp3', 'uriAudio1'),
-        ('audio/wav', 'uriAudio2'),
-        ('audio/mp3', 'uriAudio3'),
-    ])
+    result = tested.to_dict([("audio/mp3", "uriAudio1"), ("audio/wav", "uriAudio2"), ("audio/mp3", "uriAudio3")])
     expected = {
-        'contents': [
+        "contents": [
             {
                 "role": "user",
                 "parts": [
@@ -68,7 +55,7 @@ def test_to_dict():
                 ],
             },
         ],
-        "generationConfig": {'temperature': 0.0},
+        "generationConfig": {"temperature": 0.0},
     }
     assert result == expected
     assert memory_log.mock_calls == []
@@ -76,9 +63,9 @@ def test_to_dict():
     # with an exchange with the model
     tested.set_model_prompt(["line 7", "line 8"])
     tested.set_user_prompt(["line 9", "line 10"])
-    result = tested.to_dict([('audio/mp3', 'uriAudio1')])
+    result = tested.to_dict([("audio/mp3", "uriAudio1")])
     expected = {
-        'contents': [
+        "contents": [
             {
                 "role": "user",
                 "parts": [
@@ -87,23 +74,20 @@ def test_to_dict():
                     {"file_data": {"mime_type": "audio/mp3", "file_uri": "uriAudio1"}},
                 ],
             },
-            {
-                "role": "model",
-                "parts": [
-                    {"text": "line 7\nline 8"},
-                ],
-            },
-            {
-                "role": "user",
-                "parts": [
-                    {"text": "line 9\nline 10"},
-                ],
-            },
+            {"role": "model", "parts": [{"text": "line 7\nline 8"}]},
+            {"role": "user", "parts": [{"text": "line 9\nline 10"}]},
         ],
-        "generationConfig": {'temperature': 0.0},
+        "generationConfig": {"temperature": 0.0},
     }
     assert result == expected
     assert memory_log.mock_calls == []
+
+
+def test_to_dict__no_prompts_with_audio_raises():
+    memory_log = MagicMock()
+    tested = LlmGoogle(memory_log, "googleKey", "theModel", False)
+    with pytest.raises(IndexError):
+        _ = tested.to_dict([("audio/mp3", "uriAudio1")])
 
 
 @patch("hyperscribe.llms.llm_google.requests_post")
@@ -126,27 +110,23 @@ def test_upload_audio(requests_post):
     assert result == expected
     calls = [
         call(
-            'https://generativelanguage.googleapis.com/upload/v1beta/files?key=googleKey',
+            "https://generativelanguage.googleapis.com/upload/v1beta/files?key=googleKey",
             headers={
-                'X-Goog-Upload-Protocol': 'resumable',
-                'X-Goog-Upload-Command': 'start',
-                'X-Goog-Upload-Header-Content-Length': '10',
-                'X-Goog-Upload-Header-Content-Type': 'mp3',
-                'Content-Type': 'application/json',
+                "X-Goog-Upload-Protocol": "resumable",
+                "X-Goog-Upload-Command": "start",
+                "X-Goog-Upload-Header-Content-Length": "10",
+                "X-Goog-Upload-Header-Content-Type": "mp3",
+                "Content-Type": "application/json",
             },
             data='{"file": {"display_name": "audio03"}}',
             verify=True,
             timeout=None,
         ),
         call(
-            'theUploadUri',
-            headers={
-                'Content-Length': '10',
-                'X-Goog-Upload-Offset': '0',
-                'X-Goog-Upload-Command': 'upload, finalize',
-            },
+            "theUploadUri",
+            headers={"Content-Length": "10", "X-Goog-Upload-Offset": "0", "X-Goog-Upload-Command": "upload, finalize"},
             params={},
-            data=b'the audio1',
+            data=b"the audio1",
             verify=True,
             timeout=None,
         ),
@@ -165,27 +145,23 @@ def test_upload_audio(requests_post):
     assert result == expected
     calls = [
         call(
-            'https://generativelanguage.googleapis.com/upload/v1beta/files?key=googleKey',
+            "https://generativelanguage.googleapis.com/upload/v1beta/files?key=googleKey",
             headers={
-                'X-Goog-Upload-Protocol': 'resumable',
-                'X-Goog-Upload-Command': 'start',
-                'X-Goog-Upload-Header-Content-Length': '10',
-                'X-Goog-Upload-Header-Content-Type': 'mp3',
-                'Content-Type': 'application/json',
+                "X-Goog-Upload-Protocol": "resumable",
+                "X-Goog-Upload-Command": "start",
+                "X-Goog-Upload-Header-Content-Length": "10",
+                "X-Goog-Upload-Header-Content-Type": "mp3",
+                "Content-Type": "application/json",
             },
             data='{"file": {"display_name": "audio03"}}',
             verify=True,
             timeout=None,
         ),
         call(
-            'theUploadUri',
-            headers={
-                'Content-Length': '10',
-                'X-Goog-Upload-Offset': '0',
-                'X-Goog-Upload-Command': 'upload, finalize',
-            },
+            "theUploadUri",
+            headers={"Content-Length": "10", "X-Goog-Upload-Offset": "0", "X-Goog-Upload-Command": "upload, finalize"},
             params={},
-            data=b'the audio1',
+            data=b"the audio1",
             verify=True,
             timeout=None,
         ),
@@ -203,13 +179,13 @@ def test_upload_audio(requests_post):
     assert result == expected
     calls = [
         call(
-            'https://generativelanguage.googleapis.com/upload/v1beta/files?key=googleKey',
+            "https://generativelanguage.googleapis.com/upload/v1beta/files?key=googleKey",
             headers={
-                'X-Goog-Upload-Protocol': 'resumable',
-                'X-Goog-Upload-Command': 'start',
-                'X-Goog-Upload-Header-Content-Length': '10',
-                'X-Goog-Upload-Header-Content-Type': 'mp3',
-                'Content-Type': 'application/json',
+                "X-Goog-Upload-Protocol": "resumable",
+                "X-Goog-Upload-Command": "start",
+                "X-Goog-Upload-Header-Content-Length": "10",
+                "X-Goog-Upload-Header-Content-Type": "mp3",
+                "Content-Type": "application/json",
             },
             data='{"file": {"display_name": "audio03"}}',
             verify=True,
@@ -233,25 +209,24 @@ def test_request(upload_audio, to_dict, requests_post):
         requests_post.reset_mock()
         memory_log.reset_mock()
 
-    response = type("Response", (), {
-        "status_code": 202,
-        "text": json.dumps({
-            "candidates": [
+    response = type(
+        "Response",
+        (),
+        {
+            "status_code": 202,
+            "text": json.dumps(
                 {
-                    "content": {
-                        "parts": [
-                            {"text": "\n".join([
-                                '```json',
-                                '["line 1","line 2","line 3"]',
-                                '```',
-                                '',
-                            ])},
-                        ],
-                    },
+                    "candidates": [
+                        {
+                            "content": {
+                                "parts": [{"text": "\n".join(["```json", '["line 1","line 2","line 3"]', "```", ""])}],
+                            },
+                        },
+                    ],
                 },
-            ],
-        }),
-    })()
+            ),
+        },
+    )()
 
     # error
     upload_audio.side_effect = ["uri1", "uri2", "uri3"]
@@ -265,36 +240,46 @@ def test_request(upload_audio, to_dict, requests_post):
     result = tested.request()
     expected = HttpResponse(
         code=202,
-        response='{"candidates": [{"content": {"parts": [{"text": "```json\\n[\\"line 1\\",\\"line 2\\",\\"line 3\\"]\\n```\\n"}]}}]}',
+        response='{"candidates": [{"content": {"parts": [{"text": "'
+        "```json\\n"
+        '[\\"line 1\\",\\"line 2\\",\\"line 3\\"]\\n'
+        '```\\n"}]}}]}',
     )
     assert result == expected
 
     calls = [
-        call(b'the audio1', 'audio/mp3', 'audio00'),
-        call(b'the audio2', 'audio/wav', 'audio01'),
-        call(b'the audio3', 'audio/mp3', 'audio02'),
+        call(b"the audio1", "audio/mp3", "audio00"),
+        call(b"the audio2", "audio/wav", "audio01"),
+        call(b"the audio3", "audio/mp3", "audio02"),
     ]
     assert upload_audio.mock_calls == calls
     calls = [
-        call([('audio/mp3', 'uri1'), ('audio/wav', 'uri2'), ('audio/mp3', 'uri3')]),
-        call([('audio/mp3', 'uri1'), ('audio/wav', 'uri2'), ('audio/mp3', 'uri3')]),
+        call([("audio/mp3", "uri1"), ("audio/wav", "uri2"), ("audio/mp3", "uri3")]),
+        call([("audio/mp3", "uri1"), ("audio/wav", "uri2"), ("audio/mp3", "uri3")]),
     ]
     assert to_dict.mock_calls == calls
-    calls = [call(
-        "https://generativelanguage.googleapis.com/v1beta/theModel:generateContent?key=apiKey",
-        headers={"Content-Type": "application/json"},
-        params={},
-        data='{"key": "valueX"}',
-        verify=True,
-        timeout=None,
-    )]
+    calls = [
+        call(
+            "https://generativelanguage.googleapis.com/v1beta/theModel:generateContent?key=apiKey",
+            headers={"Content-Type": "application/json"},
+            params={},
+            data='{"key": "valueX"}',
+            verify=True,
+            timeout=None,
+        ),
+    ]
     assert requests_post.mock_calls == calls
     calls = [
-        call.log('--- request begins:'),
+        call.log("--- request begins:"),
         call.log('{\n  "key": "valueY"\n}'),
-        call.log('status code: 202'),
-        call.log('{"candidates": [{"content": {"parts": [{"text": "```json\\n[\\"line 1\\",\\"line 2\\",\\"line 3\\"]\\n```\\n"}]}}]}'),
-        call.log('--- request ends ---'),
+        call.log("status code: 202"),
+        call.log(
+            '{"candidates": [{"content": {"parts": [{"text": "'
+            "```json\\n"
+            '[\\"line 1\\",\\"line 2\\",\\"line 3\\"]\\n'
+            '```\\n"}]}}]}',
+        ),
+        call.log("--- request ends ---"),
     ]
     assert memory_log.mock_calls == calls
     reset_mocks()
@@ -312,31 +297,32 @@ def test_request(upload_audio, to_dict, requests_post):
     expected = HttpResponse(code=200, response='```json\n["line 1","line 2","line 3"]\n```\n')
     assert result == expected
 
-    calls = [
-        call(b'the audio1', 'audio/mp3', 'audio00'),
-        call(b'the audio2', 'audio/wav', 'audio01'),
-    ]
+    calls = [call(b"the audio1", "audio/mp3", "audio00"), call(b"the audio2", "audio/wav", "audio01")]
     assert upload_audio.mock_calls == calls
-    calls = [
-        call([('audio/mp3', 'uri1'), ('audio/wav', 'uri2')]),
-        call([('audio/mp3', 'uri1'), ('audio/wav', 'uri2')]),
-    ]
+    calls = [call([("audio/mp3", "uri1"), ("audio/wav", "uri2")]), call([("audio/mp3", "uri1"), ("audio/wav", "uri2")])]
     assert to_dict.mock_calls == calls
-    calls = [call(
-        "https://generativelanguage.googleapis.com/v1beta/theModel:generateContent?key=apiKey",
-        headers={"Content-Type": "application/json"},
-        params={},
-        data='{"key": "valueX"}',
-        verify=True,
-        timeout=None,
-    )]
+    calls = [
+        call(
+            "https://generativelanguage.googleapis.com/v1beta/theModel:generateContent?key=apiKey",
+            headers={"Content-Type": "application/json"},
+            params={},
+            data='{"key": "valueX"}',
+            verify=True,
+            timeout=None,
+        ),
+    ]
     assert requests_post.mock_calls == calls
     calls = [
-        call.log('--- request begins:'),
+        call.log("--- request begins:"),
         call.log('{\n  "key": "valueY"\n}'),
-        call.log('status code: 200'),
-        call.log('{"candidates": [{"content": {"parts": [{"text": "```json\\n[\\"line 1\\",\\"line 2\\",\\"line 3\\"]\\n```\\n"}]}}]}'),
-        call.log('--- request ends ---'),
+        call.log("status code: 200"),
+        call.log(
+            '{"candidates": [{"content": {"parts": [{"text": '
+            '"```json\\n'
+            '[\\"line 1\\",\\"line 2\\",\\"line 3\\"]\\n'
+            '```\\n"}]}}]}',
+        ),
+        call.log("--- request ends ---"),
     ]
     assert memory_log.mock_calls == calls
     reset_mocks()
@@ -353,21 +339,28 @@ def test_request(upload_audio, to_dict, requests_post):
     assert upload_audio.mock_calls == []
     calls = [call([]), call([])]
     assert to_dict.mock_calls == calls
-    calls = [call(
-        "https://generativelanguage.googleapis.com/v1beta/theModel:generateContent?key=apiKey",
-        headers={"Content-Type": "application/json"},
-        params={},
-        data='{"key": "valueX"}',
-        verify=True,
-        timeout=None,
-    )]
+    calls = [
+        call(
+            "https://generativelanguage.googleapis.com/v1beta/theModel:generateContent?key=apiKey",
+            headers={"Content-Type": "application/json"},
+            params={},
+            data='{"key": "valueX"}',
+            verify=True,
+            timeout=None,
+        ),
+    ]
     assert requests_post.mock_calls == calls
     calls = [
-        call.log('--- request begins:'),
+        call.log("--- request begins:"),
         call.log('{\n  "key": "valueY"\n}'),
-        call.log('status code: 200'),
-        call.log('{"candidates": [{"content": {"parts": [{"text": "```json\\n[\\"line 1\\",\\"line 2\\",\\"line 3\\"]\\n```\\n"}]}}]}'),
-        call.log('--- request ends ---'),
+        call.log("status code: 200"),
+        call.log(
+            '{"candidates": [{"content": {"parts": [{"text": "'
+            "```json\\n"
+            '[\\"line 1\\",\\"line 2\\",\\"line 3\\"]\\n'
+            '```\\n"}]}}]}',
+        ),
+        call.log("--- request ends ---"),
     ]
     assert memory_log.mock_calls == calls
     reset_mocks()

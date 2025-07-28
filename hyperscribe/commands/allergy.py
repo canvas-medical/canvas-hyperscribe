@@ -14,7 +14,6 @@ from hyperscribe.structures.instruction_with_parameters import InstructionWithPa
 
 
 class Allergy(Base):
-
     @classmethod
     def schema_key(cls) -> str:
         return Constants.SCHEMA_KEY_ALLERGY
@@ -25,7 +24,11 @@ class Allergy(Base):
             return CodedItem(label=allergy["text"], code=str(allergy["value"]), uuid="")
         return None
 
-    def command_from_json(self, instruction: InstructionWithParameters, chatter: LlmBase) -> InstructionWithCommand | None:
+    def command_from_json(
+        self,
+        instruction: InstructionWithParameters,
+        chatter: LlmBase,
+    ) -> InstructionWithCommand | None:
         concept_types = [AllergenType(1)]  # <-- always include the Allergy Group
         if instruction.parameters["type"] == "medication":
             concept_types.append(AllergenType(2))
@@ -55,43 +58,40 @@ class Allergy(Base):
                 "",
             ]
             user_prompt = [
-                'Here is the comment provided by the healthcare provider in regards to the allergy:',
-                '```text',
+                "Here is the comment provided by the healthcare provider in regards to the allergy:",
+                "```text",
                 f"keywords: {instruction.parameters['keywords']}",
                 " -- ",
-                f'severity: {instruction.parameters["severity"]}',
+                f"severity: {instruction.parameters['severity']}",
                 "",
                 instruction.parameters["reaction"],
-                '```',
+                "```",
                 "",
-                'Among the following allergies, identify the most relevant one:',
-                '',
-                "\n".join(f' * {allergy.concept_id_description} (conceptId: {allergy.concept_id_value})' for allergy in allergies),
-                '',
-                'Please, present your findings in a JSON format within a Markdown code block like:',
-                '```json',
+                "Among the following allergies, identify the most relevant one:",
+                "",
+                "\n".join(
+                    f" * {allergy.concept_id_description} (conceptId: {allergy.concept_id_value})"
+                    for allergy in allergies
+                ),
+                "",
+                "Please, present your findings in a JSON format within a Markdown code block like:",
+                "```json",
                 json.dumps([{"conceptId": "the concept id, as int", "term": "the description"}]),
-                '```',
-                '',
+                "```",
+                "",
             ]
             schemas = JsonSchema.get(["selector_concept"])
             if response := chatter.single_conversation(system_prompt, user_prompt, schemas, instruction):
                 concept_id = int(response[0]["conceptId"])
-                allergy = [
-                    allergy
-                    for allergy in allergies
-                    if allergy.concept_id_value == concept_id
-                ][0]
-                result.allergy = Allergen(
-                    concept_id=concept_id,
-                    concept_type=AllergenType(allergy.concept_id_type),
-                )
+                allergy = [allergy for allergy in allergies if allergy.concept_id_value == concept_id][0]
+                result.allergy = Allergen(concept_id=concept_id, concept_type=AllergenType(allergy.concept_id_type))
         return InstructionWithCommand.add_command(instruction, result)
 
     def command_parameters(self) -> dict:
         severity = "/".join([status.value for status in AllergyCommand.Severity])
         return {
-            "keywords": "comma separated keywords of up to 5 distinct synonyms of the component related to the allergy or 'NKA' for No Known Allergy or 'NKDA' for No Known Drug Allergy",
+            "keywords": "comma separated keywords of up to 5 distinct synonyms of the component related to "
+            "the allergy or 'NKA' for No Known Allergy or 'NKDA' for No Known Drug Allergy",
             "type": "mandatory, one of: allergy group/medication/ingredient",
             "severity": f"mandatory, one of: {severity}",
             "reaction": "description of the reaction, as free text",
@@ -99,9 +99,11 @@ class Allergy(Base):
         }
 
     def instruction_description(self) -> str:
-        return ("Any diagnosed allergy, one instruction per allergy. "
-                "There can be only one allergy per instruction, and no instruction in the lack of. "
-                "But, if it is explicitly said that the patient has no known allergy, add an instruction mentioning it.")
+        return (
+            "Any diagnosed allergy, one instruction per allergy. "
+            "There can be only one allergy per instruction, and no instruction in the lack of. "
+            "But, if it is explicitly said that the patient has no known allergy, add an instruction mentioning it."
+        )
 
     def instruction_constraints(self) -> str:
         result = ""

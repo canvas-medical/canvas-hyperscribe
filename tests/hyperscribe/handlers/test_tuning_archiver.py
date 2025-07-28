@@ -22,14 +22,20 @@ from tests.helper import is_constant
 
 
 def helper_instance() -> TuningArchiver:
-    event = Event(EventRequest(context=json.dumps({
-        "note_id": "noteId",
-        "method": "GET",
-        "path": "/capture-case",
-        "query_string": "",
-        "body": "",
-        "headers": {"Host": "theHost"},
-    })))
+    event = Event(
+        EventRequest(
+            context=json.dumps(
+                {
+                    "note_id": "noteId",
+                    "method": "GET",
+                    "path": "/capture-case",
+                    "query_string": "",
+                    "body": "",
+                    "headers": {"Host": "theHost"},
+                },
+            ),
+        ),
+    )
     event.target = TargetType(id="targetId", type=Patient)
     secrets = {
         "APISigningKey": "theApiSigningKey",
@@ -39,7 +45,9 @@ def helper_instance() -> TuningArchiver:
         "AwsBucketTuning": "theBucketTuning",
     }
     instance = TuningArchiver(event, secrets)
-    instance._path_pattern = re.compile(r".*")  # TODO this is a hack, find the right way to create the Archiver instance
+    instance._path_pattern = re.compile(
+        r".*",
+    )  # TODO this is a hack, find the right way to create the Archiver instance
     return instance
 
 
@@ -52,7 +60,7 @@ def test_constants():
     tested = TuningArchiver
     constants = {
         "PATH": "/archive",
-        "RESPONDS_TO": ['SIMPLE_API_AUTHENTICATE', 'SIMPLE_API_REQUEST'],  # <--- SimpleAPIBase class
+        "RESPONDS_TO": ["SIMPLE_API_AUTHENTICATE", "SIMPLE_API_REQUEST"],  # <--- SimpleAPIBase class
     }
     assert is_constant(tested, constants)
 
@@ -101,9 +109,7 @@ def test_authenticate(mock_time):
     reset_mocks()
 
     # missing sig
-    tested.request.query_params = {
-        "ts": "1741964291",
-    }
+    tested.request.query_params = {"ts": "1741964291"}
     mock_time.side_effect = [1741964291.775192]
     result = tested.authenticate(Credentials(tested.request))
     assert result is False
@@ -111,9 +117,7 @@ def test_authenticate(mock_time):
     reset_mocks()
 
     # missing ts
-    tested.request.query_params = {
-        "sig": "ceb81ba49d3a2f950b0327a9af6a6fe7677994b8467ba076f9953a9171b9728a",
-    }
+    tested.request.query_params = {"sig": "ceb81ba49d3a2f950b0327a9af6a6fe7677994b8467ba076f9953a9171b9728a"}
     mock_time.side_effect = [1741964291.775192]
     result = tested.authenticate(Credentials(tested.request))
     assert result is False
@@ -126,12 +130,7 @@ def test_get(render_to_string):
     def reset_mocks():
         render_to_string.reset_mock()
 
-    tests = [
-        ("", "15"),
-        ("14", "15"),
-        ("33", "33"),
-        ("67", "67"),
-    ]
+    tests = [("", "15"), ("14", "15"), ("33", "33"), ("67", "67")]
     for audio_interval, exp_interval in tests:
         tested = helper_instance()
         tested.secrets["AudioIntervalSeconds"] = audio_interval
@@ -145,17 +144,14 @@ def test_get(render_to_string):
             "note_id": "theNoteId",
         }
         result = tested.get()
-        expected = [
-            HTMLResponse(
-                content='theBody',
-                headers={'Content-Type': 'text/html'},
+        expected = [HTMLResponse(content="theBody", headers={"Content-Type": "text/html"})]
+        assert result == expected
+        calls = [
+            call(
+                "templates/capture_tuning_case.html",
+                {"interval": exp_interval, "patient_id": "thePatientId", "note_id": "theNoteId"},
             ),
         ]
-        assert result == expected
-        calls = [call(
-            'templates/capture_tuning_case.html',
-            {'interval': exp_interval, 'patient_id': 'thePatientId', 'note_id': 'theNoteId'},
-        )]
         assert render_to_string.mock_calls == calls
         reset_mocks()
 
@@ -180,15 +176,13 @@ def test_post(aws_s3, post_chart, post_audio):
     aws_s3.side_effect = ["awsS3Instance"]
     post_chart.side_effect = ["thePostChart"]
     post_audio.side_effect = []
-    tested.request.query_params = {
-        "archive_limited_chart": True,
-    }
+    tested.request.query_params = {"archive_limited_chart": True}
 
     result = tested.post()
     expected = ["thePostChart"]
     assert result == expected
     calls = [
-        call(AwsS3Credentials(aws_key='theKey', aws_secret='theSecret', region='theRegion', bucket='theBucketTuning')),
+        call(AwsS3Credentials(aws_key="theKey", aws_secret="theSecret", region="theRegion", bucket="theBucketTuning")),
     ]
     assert aws_s3.mock_calls == calls
     calls = [call("awsS3Instance", "theHost", tested.request)]
@@ -205,15 +199,13 @@ def test_post(aws_s3, post_chart, post_audio):
     aws_s3.side_effect = ["awsS3Instance"]
     post_chart.side_effect = []
     post_audio.side_effect = ["thePostAudio"]
-    tested.request.query_params = {
-        "archive_limited_chart": False,
-    }
+    tested.request.query_params = {"archive_limited_chart": False}
 
     result = tested.post()
     expected = ["thePostAudio"]
     assert result == expected
     calls = [
-        call(AwsS3Credentials(aws_key='theKey', aws_secret='theSecret', region='theRegion', bucket='theBucketTuning')),
+        call(AwsS3Credentials(aws_key="theKey", aws_secret="theSecret", region="theRegion", bucket="theBucketTuning")),
     ]
     assert aws_s3.mock_calls == calls
     assert post_chart.mock_calls == []
@@ -224,7 +216,7 @@ def test_post(aws_s3, post_chart, post_audio):
 
 @patch.object(Note, "objects")
 @patch.object(Command, "objects")
-@patch.object(Commander, 'existing_commands_to_coded_items')
+@patch.object(Commander, "existing_commands_to_coded_items")
 @patch("hyperscribe.handlers.tuning_archiver.LimitedCache")
 @patch("hyperscribe.handlers.tuning_archiver.AwsS3")
 def test_store_chart(aws_s3, limited_cache, existing_commands_to_coded_items, command_db, note_db):
@@ -250,39 +242,35 @@ def test_store_chart(aws_s3, limited_cache, existing_commands_to_coded_items, co
     limited_cache.return_value.to_json.side_effect = [{"key": "theLimitedCache"}]
     command_db.filter.return_value.order_by.side_effect = ["QuerySetCommands"]
     note_db.get.return_value.provider.id = "providerUuid"
-    mock_request.query_params = {
-        "patient_id": "thePatientId",
-        "note_id": "theNoteId",
-    }
+    mock_request.query_params = {"patient_id": "thePatientId", "note_id": "theNoteId"}
 
     result = tested.store_chart(aws_s3, "theHost", mock_request)
-    expected = JSONResponse({
-        "s3status": 1234,
-        "s3text": "theResponseText",
-        "s3key": "hyperscribe-theHost/patient_thePatientId/note_theNoteId/limited_chart.json",
-    })
+    expected = JSONResponse(
+        {
+            "s3status": 1234,
+            "s3text": "theResponseText",
+            "s3key": "hyperscribe-theHost/patient_thePatientId/note_theNoteId/limited_chart.json",
+        },
+    )
     assert result == expected
 
     calls = [
         call.upload_text_to_s3(
-            'hyperscribe-theHost/patient_thePatientId/note_theNoteId/limited_chart.json',
+            "hyperscribe-theHost/patient_thePatientId/note_theNoteId/limited_chart.json",
             '{"key": "theLimitedCache"}',
         ),
     ]
     assert aws_s3.mock_calls == calls
-    calls = [call('QuerySetCommands', AccessPolicy(policy=False, items=[]), False)]
+    calls = [call("QuerySetCommands", AccessPolicy(policy=False, items=[]), False)]
     assert existing_commands_to_coded_items.mock_calls == calls
     calls = [
-        call.filter(patient__id='thePatientId', note__id='theNoteId', state='staged'),
-        call.filter().order_by('dbid'),
+        call.filter(patient__id="thePatientId", note__id="theNoteId", state="staged"),
+        call.filter().order_by("dbid"),
     ]
     assert command_db.mock_calls == calls
-    calls = [call.get(id='theNoteId')]
+    calls = [call.get(id="theNoteId")]
     assert note_db.mock_calls == calls
-    calls = [
-        call("thePatientId", "providerUuid", "existingCommandsToCodedItems"),
-        call().to_json(True),
-    ]
+    calls = [call("thePatientId", "providerUuid", "existingCommandsToCodedItems"), call().to_json(True)]
     assert limited_cache.mock_calls == calls
     assert mock_request.mock_calls == []
     reset_mocks()
@@ -313,30 +301,19 @@ def test_store_audio(aws_s3, mock_time):
 
     aws_s3.upload_binary_to_s3.side_effect = [response]
     mock_time.side_effect = [1741964291.775192]
-    mock_request.form_data.return_value.get.side_effect = [FormFile(
-        filename="theFileName",
-        content="theContent",
-        content_type="theContentType",
-    )]
+    mock_request.form_data.return_value.get.side_effect = [
+        FormFile(filename="theFileName", content="theContent", content_type="theContentType"),
+    ]
 
     result = tested.store_audio(aws_s3, "theHost", mock_request)
-    expected = JSONResponse({
-        "s3status": 1234,
-        "s3text": "theResponseText",
-        "s3key": "hyperscribe-theHost/theFileName",
-    })
+    expected = JSONResponse({"s3status": 1234, "s3text": "theResponseText", "s3key": "hyperscribe-theHost/theFileName"})
     assert result == expected
 
-    calls = [
-        call.upload_binary_to_s3('hyperscribe-theHost/theFileName', 'theContent', 'theContentType'),
-    ]
+    calls = [call.upload_binary_to_s3("hyperscribe-theHost/theFileName", "theContent", "theContentType")]
     assert aws_s3.mock_calls == calls
     calls = [call()]
     assert mock_time.mock_calls == calls
-    calls = [
-        call.form_data(),
-        call.form_data().get('audio'),
-    ]
+    calls = [call.form_data(), call.form_data().get("audio")]
     assert mock_request.mock_calls == calls
     reset_mocks()
 
@@ -346,17 +323,11 @@ def test_store_audio(aws_s3, mock_time):
     mock_request.form_data.return_value.get.side_effect = [None]
 
     result = tested.store_audio(aws_s3, "theHost", mock_request)
-    expected = JSONResponse(
-        {"message": "Form data must include 'audio' part"},
-        HTTPStatus.BAD_REQUEST,
-    )
+    expected = JSONResponse({"message": "Form data must include 'audio' part"}, HTTPStatus.BAD_REQUEST)
     assert result == expected
 
     assert aws_s3.mock_calls == []
     assert mock_time.mock_calls == []
-    calls = [
-        call.form_data(),
-        call.form_data().get('audio'),
-    ]
+    calls = [call.form_data(), call.form_data().get("audio")]
     assert mock_request.mock_calls == calls
     reset_mocks()

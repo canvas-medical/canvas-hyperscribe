@@ -13,22 +13,14 @@ from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
 
 
-@patch('hyperscribe.libraries.llm_decisions_reviewer.Progress')
-@patch('hyperscribe.libraries.llm_decisions_reviewer.MemoryLog')
-@patch('hyperscribe.libraries.llm_decisions_reviewer.LlmTurnsStore')
-@patch('hyperscribe.libraries.llm_decisions_reviewer.Helper')
-@patch('hyperscribe.libraries.llm_decisions_reviewer.AwsS3')
+@patch("hyperscribe.libraries.llm_decisions_reviewer.Progress")
+@patch("hyperscribe.libraries.llm_decisions_reviewer.MemoryLog")
+@patch("hyperscribe.libraries.llm_decisions_reviewer.LlmTurnsStore")
+@patch("hyperscribe.libraries.llm_decisions_reviewer.Helper")
+@patch("hyperscribe.libraries.llm_decisions_reviewer.AwsS3")
 @patch.object(CachedSdk, "save")
 @patch.object(CachedSdk, "get_discussion")
-def test_review(
-        cache_get_discussion,
-        cache_save,
-        aws_s3,
-        helper,
-        llm_turns_store,
-        memory_log,
-        progress,
-):
+def test_review(cache_get_discussion, cache_save, aws_s3, helper, llm_turns_store, memory_log, progress):
     def reset_mocks():
         cache_get_discussion.reset_mock()
         cache_save.reset_mock()
@@ -45,10 +37,10 @@ def test_review(
         canvas_instance="canvasInstance",
     )
     aws_s3_credentials = AwsS3Credentials(
-        aws_key='theKey',
-        aws_secret='theSecret',
-        region='theRegion',
-        bucket='theBucket',
+        aws_key="theKey",
+        aws_secret="theSecret",
+        region="theRegion",
+        bucket="theBucket",
     )
 
     llm_turns_store.indexed_instruction = LlmTurnsStore.indexed_instruction
@@ -113,58 +105,68 @@ def test_review(
         ],
     ]
     schema = {
-        '$schema': 'http://json-schema.org/draft-07/schema#',
-        'type': 'array',
-        'items': {
-            'type': 'array',
-            'items': {
-                'type': 'object',
-                'properties': {
-                    'key': {'type': 'string', 'description': 'the referenced key'},
-                    'value': {'description': 'the provided value'},
-                    'rationale': {'type': 'string', 'description': 'the rationale of the provided value'},
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "array",
+        "items": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "key": {"type": "string", "description": "the referenced key"},
+                    "value": {"description": "the provided value"},
+                    "rationale": {"type": "string", "description": "the rationale of the provided value"},
                 },
-                'required': ['key', 'value', 'rationale'],
-                'additionalProperties': False,
+                "required": ["key", "value", "rationale"],
+                "additionalProperties": False,
             },
         },
     }
     exp_system_prompts = {
         "transcript1": [
-            'Your task is now to explain the rationale of each and every value you have provided, citing any text or value you used.',
-            'Mention specific parts of the transcript to support the rationale.',
-            'Present the reasoning behind each and every value you provided, your response should be a JSON following this JSON Schema:',
-            '```json',
+            "Your task is now to explain the rationale of each and every value you have provided, "
+            "citing any text or value you used.",
+            "Mention specific parts of the transcript to support the rationale.",
+            "Present the reasoning behind each and every value you provided, your response should "
+            "be a JSON following this JSON Schema:",
+            "```json",
             json.dumps(schema),
-            '```',
-            '',
+            "```",
+            "",
         ],
         "transcript2": [
-            'Your task is now to explain the rationale of each and every value you have provided, citing any text or value you used.',
-            'Mention specific parts of the transcript to support the rationale.\nReport only the items with changed value between your last response and the ones you provided before.',
-            'Present the reasoning behind each and every value you provided, your response should be a JSON following this JSON Schema:',
-            '```json',
+            "Your task is now to explain the rationale of each and every value you have provided, "
+            "citing any text or value you used.",
+            "Mention specific parts of the transcript to support the rationale.\n"
+            "Report only the items with changed value between your last response and the ones you provided before.",
+            "Present the reasoning behind each and every value you provided, your response should "
+            "be a JSON following this JSON Schema:",
+            "```json",
             json.dumps(schema),
-            '```',
-            '',
+            "```",
+            "",
         ],
         "common": [
-            'Your task is now to explain the rationale of each and every value you have provided, citing any text or value you used.',
-            '',
-            'Present the reasoning behind each and every value you provided, your response should be a JSON following this JSON Schema:',
-            '```json',
+            "Your task is now to explain the rationale of each and every value you have provided, "
+            "citing any text or value you used.",
+            "",
+            "Present the reasoning behind each and every value you provided, your response should "
+            "be a JSON following this JSON Schema:",
+            "```json",
             json.dumps(schema),
-            '```',
-            '',
+            "```",
+            "",
         ],
         "questionnaire": [
-            'Your task is now to explain the rationale of each and every value you have provided, citing any text or value you used.',
-            'Report only the items with changed value and mention specific parts of the transcript to support the rationale.',
-            'Present the reasoning behind each and every value you provided, your response should be a JSON following this JSON Schema:',
-            '```json',
+            "Your task is now to explain the rationale of each and every value you have provided, "
+            "citing any text or value you used.",
+            "Report only the items with changed value and mention specific parts of the transcript "
+            "to support the rationale.",
+            "Present the reasoning behind each and every value you provided, your response should "
+            "be a JSON following this JSON Schema:",
+            "```json",
             json.dumps(schema),
-            '```',
-            '',
+            "```",
+            "",
         ],
     }
     command2uuid = {
@@ -180,9 +182,9 @@ def test_review(
     settings = Settings(
         llm_text=VendorKey(vendor="theVendorTextLLM", api_key="theKeyTextLLM"),
         llm_audio=VendorKey(vendor="theVendorAudioLLM", api_key="theKeyAudioLLM"),
-        science_host='theScienceHost',
-        ontologies_host='theOntologiesHost',
-        pre_shared_key='thePreSharedKey',
+        science_host="theScienceHost",
+        ontologies_host="theOntologiesHost",
+        pre_shared_key="thePreSharedKey",
         structured_rfv=True,
         audit_llm=False,
         is_tuning=False,
@@ -212,9 +214,9 @@ def test_review(
     settings = Settings(
         llm_text=VendorKey(vendor="theVendorTextLLM", api_key="theKeyTextLLM"),
         llm_audio=VendorKey(vendor="theVendorAudioLLM", api_key="theKeyAudioLLM"),
-        science_host='theScienceHost',
-        ontologies_host='theOntologiesHost',
-        pre_shared_key='thePreSharedKey',
+        science_host="theScienceHost",
+        ontologies_host="theOntologiesHost",
+        pre_shared_key="thePreSharedKey",
         structured_rfv=True,
         audit_llm=True,
         is_tuning=False,
@@ -232,10 +234,7 @@ def test_review(
     memory_log.instance.side_effect = []
 
     tested.review(identification, settings, aws_s3_credentials, command2uuid, date_x, 5)
-    calls = [
-        call(aws_s3_credentials),
-        call().is_ready(),
-    ]
+    calls = [call(aws_s3_credentials), call().is_ready()]
     assert cache_get_discussion.mock_calls == []
     assert cache_save.mock_calls == []
     assert aws_s3.mock_calls == calls
@@ -249,56 +248,83 @@ def test_review(
     aws_s3.return_value.is_ready.side_effect = [True]
     llm_turns_store.return_value.stored_documents.side_effect = [
         [
-            ("transcript2instructions_00", [
-                {"role": "system", "text": ["system_t2i_00"]},
-                {"role": "user", "text": ["turn_t2i_00_1"]},
-                {"role": "model", "text": ["model_t2i_00"]},
-            ]),
-            ("transcript2instructions_01", [
-                {"role": "system", "text": ["system_t2i_01"]},
-                {"role": "user", "text": ["turn_t2i_01_1"]},
-                {"role": "model", "text": ["model_t2i_01"]},
-            ]),
-            ("canvasCommandX_00_00", [
-                {"role": "system", "text": ["system_00_00"]},
-                {"role": "user", "text": ["turn_00_00_1"]},
-                {"role": "model", "text": ["turn_00_00_2"]},
-                {"role": "user", "text": ["turn_00_00_3"]},
-                {"role": "model", "text": ["model_00_00"]},
-            ]),
-            ("canvasCommandX_00_01", [
-                {"role": "system", "text": ["system_00_01"]},
-                {"role": "user", "text": ["turn_00_01_1"]},
-                {"role": "model", "text": ["turn_00_01_2"]},
-                {"role": "user", "text": ["turn_00_01_3"]},
-                {"role": "model", "text": ["model_00_01"]},
-            ]),
+            (
+                "transcript2instructions_00",
+                [
+                    {"role": "system", "text": ["system_t2i_00"]},
+                    {"role": "user", "text": ["turn_t2i_00_1"]},
+                    {"role": "model", "text": ["model_t2i_00"]},
+                ],
+            ),
+            (
+                "transcript2instructions_01",
+                [
+                    {"role": "system", "text": ["system_t2i_01"]},
+                    {"role": "user", "text": ["turn_t2i_01_1"]},
+                    {"role": "model", "text": ["model_t2i_01"]},
+                ],
+            ),
+            (
+                "canvasCommandX_00_00",
+                [
+                    {"role": "system", "text": ["system_00_00"]},
+                    {"role": "user", "text": ["turn_00_00_1"]},
+                    {"role": "model", "text": ["turn_00_00_2"]},
+                    {"role": "user", "text": ["turn_00_00_3"]},
+                    {"role": "model", "text": ["model_00_00"]},
+                ],
+            ),
+            (
+                "canvasCommandX_00_01",
+                [
+                    {"role": "system", "text": ["system_00_01"]},
+                    {"role": "user", "text": ["turn_00_01_1"]},
+                    {"role": "model", "text": ["turn_00_01_2"]},
+                    {"role": "user", "text": ["turn_00_01_3"]},
+                    {"role": "model", "text": ["model_00_01"]},
+                ],
+            ),
         ],
         [
-            ("canvasCommandY_01_00", [
-                {"role": "system", "text": ["system_01_00"]},
-                {"role": "user", "text": ["turn_01_00_1"]},
-                {"role": "model", "text": ["turn_01_00_2"]},
-                {"role": "user", "text": ["turn_01_00_3"]},
-                {"role": "model", "text": ["model_01_00"]},
-            ]),
-            ("canvasCommandY_02_00", [
-                {"role": "system", "text": ["system_02_00"]},
-                {"role": "user", "text": ["turn_02_00_1"]},
-                {"role": "model", "text": ["model_02_00"]},
-            ]),
+            (
+                "canvasCommandY_01_00",
+                [
+                    {"role": "system", "text": ["system_01_00"]},
+                    {"role": "user", "text": ["turn_01_00_1"]},
+                    {"role": "model", "text": ["turn_01_00_2"]},
+                    {"role": "user", "text": ["turn_01_00_3"]},
+                    {"role": "model", "text": ["model_01_00"]},
+                ],
+            ),
+            (
+                "canvasCommandY_02_00",
+                [
+                    {"role": "system", "text": ["system_02_00"]},
+                    {"role": "user", "text": ["turn_02_00_1"]},
+                    {"role": "model", "text": ["model_02_00"]},
+                ],
+            ),
         ],
         [],
         [
-            ("Questionnaire_06_00", [
-                {"role": "system", "text": ["system_06_00"]},
-                {"role": "user", "text": ["turn_06_00_1"]},
-                {"role": "model", "text": ["model_06_00"]},
-            ]),
+            (
+                "Questionnaire_06_00",
+                [
+                    {"role": "system", "text": ["system_06_00"]},
+                    {"role": "user", "text": ["turn_06_00_1"]},
+                    {"role": "model", "text": ["model_06_00"]},
+                ],
+            ),
         ],
     ]
     helper.chatter.return_value.single_conversation.side_effect = [
-        "audit01A", "audit01B", "audit02", "audit03", "audit04", "audit05", "audit06"
+        "audit01A",
+        "audit01B",
+        "audit02",
+        "audit03",
+        "audit04",
+        "audit05",
+        "audit06",
     ]
     memory_log.instance.side_effect = [
         "memoryLogInstance0",
@@ -311,67 +337,73 @@ def test_review(
         "memoryLogInstance7",
     ]
     tested.review(identification, settings, aws_s3_credentials, command2uuid, date_x, 4)
-    calls = [call.get_discussion('noteUuid')]
+    calls = [call.get_discussion("noteUuid")]
     assert cache_get_discussion.mock_calls == calls
     calls = [call()]
     assert cache_save.mock_calls == calls
     calls = [
         call(aws_s3_credentials),
         call().is_ready(),
-        call().upload_text_to_s3('hyperscribe-canvasInstance/audits/noteUuid/final_audit_01.log', json.dumps(expected_uploads[0], indent=2)),
-        call().upload_text_to_s3('hyperscribe-canvasInstance/audits/noteUuid/final_audit_02.log', json.dumps(expected_uploads[1], indent=2)),
-        call().upload_text_to_s3('hyperscribe-canvasInstance/audits/noteUuid/final_audit_03.log', json.dumps(expected_uploads[2], indent=2)),
-        call().upload_text_to_s3('hyperscribe-canvasInstance/audits/noteUuid/final_audit_04.log', json.dumps(expected_uploads[3], indent=2)),
+        call().upload_text_to_s3(
+            "hyperscribe-canvasInstance/audits/noteUuid/final_audit_01.log",
+            json.dumps(expected_uploads[0], indent=2),
+        ),
+        call().upload_text_to_s3(
+            "hyperscribe-canvasInstance/audits/noteUuid/final_audit_02.log",
+            json.dumps(expected_uploads[1], indent=2),
+        ),
+        call().upload_text_to_s3(
+            "hyperscribe-canvasInstance/audits/noteUuid/final_audit_03.log",
+            json.dumps(expected_uploads[2], indent=2),
+        ),
+        call().upload_text_to_s3(
+            "hyperscribe-canvasInstance/audits/noteUuid/final_audit_04.log",
+            json.dumps(expected_uploads[3], indent=2),
+        ),
     ]
     assert aws_s3.mock_calls == calls
     calls = [
         call.chatter(settings, "memoryLogInstance0"),
-        call.chatter().add_prompt(LlmTurn(role='system', text=['system_t2i_00'])),
-        call.chatter().add_prompt(LlmTurn(role='user', text=['turn_t2i_00_1'])),
-        call.chatter().add_prompt(LlmTurn(role='model', text=['model_t2i_00'])),
-        call.chatter().single_conversation(['system_t2i_00'], exp_system_prompts["transcript1"], [schema], None),
-
+        call.chatter().add_prompt(LlmTurn(role="system", text=["system_t2i_00"])),
+        call.chatter().add_prompt(LlmTurn(role="user", text=["turn_t2i_00_1"])),
+        call.chatter().add_prompt(LlmTurn(role="model", text=["model_t2i_00"])),
+        call.chatter().single_conversation(["system_t2i_00"], exp_system_prompts["transcript1"], [schema], None),
         call.chatter(settings, "memoryLogInstance1"),
-        call.chatter().add_prompt(LlmTurn(role='system', text=['system_t2i_01'])),
-        call.chatter().add_prompt(LlmTurn(role='user', text=['turn_t2i_01_1'])),
-        call.chatter().add_prompt(LlmTurn(role='model', text=['model_t2i_01'])),
-        call.chatter().single_conversation(['system_t2i_01'], exp_system_prompts["transcript2"], [schema], None),
-
+        call.chatter().add_prompt(LlmTurn(role="system", text=["system_t2i_01"])),
+        call.chatter().add_prompt(LlmTurn(role="user", text=["turn_t2i_01_1"])),
+        call.chatter().add_prompt(LlmTurn(role="model", text=["model_t2i_01"])),
+        call.chatter().single_conversation(["system_t2i_01"], exp_system_prompts["transcript2"], [schema], None),
         call.chatter(settings, "memoryLogInstance2"),
-        call.chatter().add_prompt(LlmTurn(role='system', text=['system_00_00'])),
-        call.chatter().add_prompt(LlmTurn(role='user', text=['turn_00_00_1'])),
-        call.chatter().add_prompt(LlmTurn(role='model', text=['turn_00_00_2'])),
-        call.chatter().add_prompt(LlmTurn(role='user', text=['turn_00_00_3'])),
-        call.chatter().add_prompt(LlmTurn(role='model', text=['model_00_00'])),
-        call.chatter().single_conversation(['system_00_00'], exp_system_prompts["common"], [schema], None),
-
+        call.chatter().add_prompt(LlmTurn(role="system", text=["system_00_00"])),
+        call.chatter().add_prompt(LlmTurn(role="user", text=["turn_00_00_1"])),
+        call.chatter().add_prompt(LlmTurn(role="model", text=["turn_00_00_2"])),
+        call.chatter().add_prompt(LlmTurn(role="user", text=["turn_00_00_3"])),
+        call.chatter().add_prompt(LlmTurn(role="model", text=["model_00_00"])),
+        call.chatter().single_conversation(["system_00_00"], exp_system_prompts["common"], [schema], None),
         call.chatter(settings, "memoryLogInstance3"),
-        call.chatter().add_prompt(LlmTurn(role='system', text=['system_00_01'])),
-        call.chatter().add_prompt(LlmTurn(role='user', text=['turn_00_01_1'])),
-        call.chatter().add_prompt(LlmTurn(role='model', text=['turn_00_01_2'])),
-        call.chatter().add_prompt(LlmTurn(role='user', text=['turn_00_01_3'])),
-        call.chatter().add_prompt(LlmTurn(role='model', text=['model_00_01'])),
-        call.chatter().single_conversation(['system_00_01'], exp_system_prompts["common"], [schema], None),
-
+        call.chatter().add_prompt(LlmTurn(role="system", text=["system_00_01"])),
+        call.chatter().add_prompt(LlmTurn(role="user", text=["turn_00_01_1"])),
+        call.chatter().add_prompt(LlmTurn(role="model", text=["turn_00_01_2"])),
+        call.chatter().add_prompt(LlmTurn(role="user", text=["turn_00_01_3"])),
+        call.chatter().add_prompt(LlmTurn(role="model", text=["model_00_01"])),
+        call.chatter().single_conversation(["system_00_01"], exp_system_prompts["common"], [schema], None),
         call.chatter(settings, "memoryLogInstance4"),
-        call.chatter().add_prompt(LlmTurn(role='system', text=['system_01_00'])),
-        call.chatter().add_prompt(LlmTurn(role='user', text=['turn_01_00_1'])),
-        call.chatter().add_prompt(LlmTurn(role='model', text=['turn_01_00_2'])),
-        call.chatter().add_prompt(LlmTurn(role='user', text=['turn_01_00_3'])),
-        call.chatter().add_prompt(LlmTurn(role='model', text=['model_01_00'])),
-        call.chatter().single_conversation(['system_01_00'], exp_system_prompts["common"], [schema], None),
-
+        call.chatter().add_prompt(LlmTurn(role="system", text=["system_01_00"])),
+        call.chatter().add_prompt(LlmTurn(role="user", text=["turn_01_00_1"])),
+        call.chatter().add_prompt(LlmTurn(role="model", text=["turn_01_00_2"])),
+        call.chatter().add_prompt(LlmTurn(role="user", text=["turn_01_00_3"])),
+        call.chatter().add_prompt(LlmTurn(role="model", text=["model_01_00"])),
+        call.chatter().single_conversation(["system_01_00"], exp_system_prompts["common"], [schema], None),
         call.chatter(settings, "memoryLogInstance5"),
-        call.chatter().add_prompt(LlmTurn(role='system', text=['system_02_00'])),
-        call.chatter().add_prompt(LlmTurn(role='user', text=['turn_02_00_1'])),
-        call.chatter().add_prompt(LlmTurn(role='model', text=['model_02_00'])),
-        call.chatter().single_conversation(['system_02_00'], exp_system_prompts["common"], [schema], None),
-
+        call.chatter().add_prompt(LlmTurn(role="system", text=["system_02_00"])),
+        call.chatter().add_prompt(LlmTurn(role="user", text=["turn_02_00_1"])),
+        call.chatter().add_prompt(LlmTurn(role="model", text=["model_02_00"])),
+        call.chatter().single_conversation(["system_02_00"], exp_system_prompts["common"], [schema], None),
         call.chatter(settings, "memoryLogInstance6"),
-        call.chatter().add_prompt(LlmTurn(role='system', text=['system_06_00'])),
-        call.chatter().add_prompt(LlmTurn(role='user', text=['turn_06_00_1'])),
-        call.chatter().add_prompt(LlmTurn(role='model', text=['model_06_00'])),
-        call.chatter().single_conversation(['system_06_00'], exp_system_prompts["questionnaire"], [schema], None),
+        call.chatter().add_prompt(LlmTurn(role="system", text=["system_06_00"])),
+        call.chatter().add_prompt(LlmTurn(role="user", text=["turn_06_00_1"])),
+        call.chatter().add_prompt(LlmTurn(role="model", text=["model_06_00"])),
+        call.chatter().single_conversation(["system_06_00"], exp_system_prompts["questionnaire"], [schema], None),
     ]
     assert helper.mock_calls == calls
     calls = [
@@ -386,26 +418,26 @@ def test_review(
     ]
     assert llm_turns_store.mock_calls == calls
     calls = [
-        call.instance(identification, 'audit_transcript2instructions_00', aws_s3_credentials),
-        call.instance(identification, 'audit_transcript2instructions_01', aws_s3_credentials),
-        call.instance(identification, 'audit_canvasCommandX_00_00', aws_s3_credentials),
-        call.instance(identification, 'audit_canvasCommandX_00_01', aws_s3_credentials),
-        call.instance(identification, 'audit_canvasCommandY_01_00', aws_s3_credentials),
-        call.instance(identification, 'audit_canvasCommandY_02_00', aws_s3_credentials),
-        call.instance(identification, 'audit_Questionnaire_06_00', aws_s3_credentials),
+        call.instance(identification, "audit_transcript2instructions_00", aws_s3_credentials),
+        call.instance(identification, "audit_transcript2instructions_01", aws_s3_credentials),
+        call.instance(identification, "audit_canvasCommandX_00_00", aws_s3_credentials),
+        call.instance(identification, "audit_canvasCommandX_00_01", aws_s3_credentials),
+        call.instance(identification, "audit_canvasCommandY_01_00", aws_s3_credentials),
+        call.instance(identification, "audit_canvasCommandY_02_00", aws_s3_credentials),
+        call.instance(identification, "audit_Questionnaire_06_00", aws_s3_credentials),
     ]
     assert memory_log.mock_calls == calls
     calls = [
-        call.send_to_user(identification, settings, 'create the audits...'),
-        call.send_to_user(identification, settings, 'auditing of transcript2instructions_00 (cycle  1)'),
-        call.send_to_user(identification, settings, 'auditing of transcript2instructions_01 (cycle  1)'),
-        call.send_to_user(identification, settings, 'auditing of canvasCommandX_00_00 (cycle  1)'),
-        call.send_to_user(identification, settings, 'auditing of canvasCommandX_00_01 (cycle  1)'),
-        call.send_to_user(identification, settings, 'auditing of canvasCommandY_01_00 (cycle  2)'),
-        call.send_to_user(identification, settings, 'auditing of canvasCommandY_02_00 (cycle  2)'),
+        call.send_to_user(identification, settings, "create the audits..."),
+        call.send_to_user(identification, settings, "auditing of transcript2instructions_00 (cycle  1)"),
+        call.send_to_user(identification, settings, "auditing of transcript2instructions_01 (cycle  1)"),
+        call.send_to_user(identification, settings, "auditing of canvasCommandX_00_00 (cycle  1)"),
+        call.send_to_user(identification, settings, "auditing of canvasCommandX_00_01 (cycle  1)"),
+        call.send_to_user(identification, settings, "auditing of canvasCommandY_01_00 (cycle  2)"),
+        call.send_to_user(identification, settings, "auditing of canvasCommandY_02_00 (cycle  2)"),
         # no cycle 3 since there is no document
-        call.send_to_user(identification, settings, 'auditing of Questionnaire_06_00 (cycle  4)'),
-        call.send_to_user(identification, settings, 'audits done')
+        call.send_to_user(identification, settings, "auditing of Questionnaire_06_00 (cycle  4)"),
+        call.send_to_user(identification, settings, "audits done"),
     ]
     assert progress.mock_calls == calls
     reset_mocks()

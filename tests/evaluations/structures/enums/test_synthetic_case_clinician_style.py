@@ -3,7 +3,8 @@ from evaluations.structures.enums.synthetic_case_clinician_style import Syntheti
 
 def test_enum():
     tested = SyntheticCaseClinicianStyle
-    assert len(tested) == 3
-    assert tested.NEUTRAL.value == "neutral"
-    assert tested.FRIENDLY.value == "friendly"
-    assert tested.FORMAL.value == "formal"
+    assert len(tested) == 4
+    assert tested.WARM_CHATTY.value == "warm and chatty"
+    assert tested.BRIEF_EFFICIENT.value == "brief and efficient"
+    assert tested.CAUTIOUS_INQUISITIVE.value == "cautious and inquisitive"
+    assert tested.OVER_EXPLAIN.value == "over-explainer"

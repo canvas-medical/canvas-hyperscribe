@@ -56,26 +56,19 @@ def test_staged_command_extract():
     tested = Immunize
     tests = [
         ({}, None),
-        ({
-             "coding": {"text": "theImmunization"},
-             "manufacturer": "theManufacturer",
-             "sig_original": "theSig",
-         }, CodedItem(label="theImmunization: theSig (theManufacturer)", code="", uuid="")),
-        ({
-             "coding": {"text": "theImmunization"},
-             "manufacturer": "",
-             "sig_original": "theSig",
-         }, CodedItem(label="theImmunization: theSig (n/a)", code="", uuid="")),
-        ({
-             "coding": {"text": "theImmunization"},
-             "manufacturer": "theManufacturer",
-             "sig_original": "",
-         }, CodedItem(label="theImmunization: n/a (theManufacturer)", code="", uuid="")),
-        ({
-             "coding": {"text": ""},
-             "manufacturer": "theManufacturer",
-             "sig_original": "theSig",
-         }, None),
+        (
+            {"coding": {"text": "theImmunization"}, "manufacturer": "theManufacturer", "sig_original": "theSig"},
+            CodedItem(label="theImmunization: theSig (theManufacturer)", code="", uuid=""),
+        ),
+        (
+            {"coding": {"text": "theImmunization"}, "manufacturer": "", "sig_original": "theSig"},
+            CodedItem(label="theImmunization: theSig (n/a)", code="", uuid=""),
+        ),
+        (
+            {"coding": {"text": "theImmunization"}, "manufacturer": "theManufacturer", "sig_original": ""},
+            CodedItem(label="theImmunization: n/a (theManufacturer)", code="", uuid=""),
+        ),
+        ({"coding": {"text": ""}, "manufacturer": "theManufacturer", "sig_original": "theSig"}, None),
     ]
     for data, expected in tests:
         result = tested.staged_command_extract(data)
@@ -95,16 +88,13 @@ def test_command_from_json():
         "information": "theInformation",
         "is_new": False,
         "is_updated": True,
-        "parameters": {
-            "immunize": "theImmunization",
-            "sig": "theSig",
-        },
+        "parameters": {"immunize": "theImmunization", "sig": "theSig"},
     }
     instruction = InstructionWithParameters(**arguments)
     result = tested.command_from_json(instruction, chatter)
     command = InstructCommand(
         instruction="Advice to read information",
-        comment='theSig - theImmunization',
+        comment="theSig - theImmunization",
         note_uuid="noteUuid",
     )
     expected = InstructionWithCommand(**(arguments | {"command": command}))
@@ -115,18 +105,17 @@ def test_command_from_json():
 def test_command_parameters():
     tested = helper_instance()
     result = tested.command_parameters()
-    expected = {
-        "immunize": "medical name of the immunization and its CPT code",
-        "sig": "directions, as free text",
-    }
+    expected = {"immunize": "medical name of the immunization and its CPT code", "sig": "directions, as free text"}
     assert result == expected
 
 
 def test_instruction_description():
     tested = helper_instance()
     result = tested.instruction_description()
-    expected = ("Immunization or vaccine to be administered. "
-                "There can be only one immunization per instruction, and no instruction in the lack of.")
+    expected = (
+        "Immunization or vaccine to be administered. "
+        "There can be only one immunization per instruction, and no instruction in the lack of."
+    )
     assert result == expected
 
 

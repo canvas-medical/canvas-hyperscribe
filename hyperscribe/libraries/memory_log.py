@@ -13,7 +13,6 @@ ENTRIES: dict[str, dict[str, list[str]]] = {}  # store the logs sent to AWS S3
 
 
 class MemoryLog:
-
     @classmethod
     def begin_session(cls, note_uuid: str) -> None:
         if note_uuid not in ENTRIES:
@@ -23,22 +22,34 @@ class MemoryLog:
     def end_session(cls, note_uuid: str) -> str:
         if note_uuid not in ENTRIES:
             return ""
-        return "\n".join([
-            "\n".join(l)
-            for l in sorted(
-                [e for e in ENTRIES.pop(note_uuid).values() if e],
-                key=lambda v: v[0],
-            )
-        ])
+        return "\n".join(
+            [
+                "\n".join(l)
+                for l in sorted(
+                    [e for e in ENTRIES.pop(note_uuid).values() if e],
+                    key=lambda v: v[0],
+                )
+            ]
+        )
 
     @classmethod
-    def dev_null_instance(cls):
-        identification = IdentificationParameters(patient_uuid='', note_uuid='', provider_uuid='', canvas_instance='local')
-        instance = cls(identification, 'local')
+    def dev_null_instance(cls) -> MemoryLog:
+        identification = IdentificationParameters(
+            patient_uuid="",
+            note_uuid="",
+            provider_uuid="",
+            canvas_instance="local",
+        )
+        instance = cls(identification, "local")
         return instance
 
     @classmethod
-    def instance(cls, identification: IdentificationParameters, label: str, s3_credentials: AwsS3Credentials) -> MemoryLog:
+    def instance(
+        cls,
+        identification: IdentificationParameters,
+        label: str,
+        s3_credentials: AwsS3Credentials,
+    ) -> MemoryLog:
         instance = cls(identification, label)
         instance.s3_credentials = s3_credentials
         return instance
@@ -51,6 +62,7 @@ class MemoryLog:
             ENTRIES[self.identification.note_uuid] = {}
         if label not in ENTRIES[self.identification.note_uuid]:
             ENTRIES[self.identification.note_uuid][self.label] = []
+        self.current_idx = len(ENTRIES[self.identification.note_uuid][self.label])
 
     def log(self, message: str) -> None:
         ENTRIES[self.identification.note_uuid][self.label].append(f"{datetime.now(UTC).isoformat()}: {message}")
@@ -59,17 +71,22 @@ class MemoryLog:
         self.log(message)
         log.info(message)
 
-    def logs(self) -> str:
-        return "\n".join(ENTRIES[self.identification.note_uuid][self.label])
+    def logs(self, from_index: int, to_index: int) -> str:
+        return "\n".join(ENTRIES[self.identification.note_uuid][self.label][from_index:to_index])
 
     def store_so_far(self) -> None:
         client_s3 = AwsS3(self.s3_credentials)
         if client_s3.is_ready():
             cached = CachedSdk.get_discussion(self.identification.note_uuid)
-            log_path = (f"hyperscribe-{self.identification.canvas_instance}/"
-                        "partials/"
-                        f"{cached.creation_day()}/"
-                        f"{self.identification.note_uuid}/"
-                        f"{cached.cycle:02d}/"
-                        f"{self.label}.log")
-            client_s3.upload_text_to_s3(log_path, self.logs())
+            log_path = (
+                f"hyperscribe-{self.identification.canvas_instance}/"
+                "partials/"
+                f"{cached.creation_day()}/"
+                f"{self.identification.note_uuid}/"
+                f"{cached.cycle:02d}/"
+                f"{self.label}.log"
+            )
+            from_index = self.current_idx
+            to_index = len(ENTRIES[self.identification.note_uuid][self.label])
+            self.current_idx = to_index
+            client_s3.upload_text_to_s3(log_path, self.logs(from_index, to_index))

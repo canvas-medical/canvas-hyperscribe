@@ -56,18 +56,12 @@ def test_staged_command_extract():
     tested = RemoveAllergy
     tests = [
         ({}, None),
-        ({
-             "allergy": {"text": "theAllergy"},
-             "narrative": "theNarrative",
-         }, CodedItem(label="theAllergy: theNarrative", code="", uuid="")),
-        ({
-             "allergy": {"text": ""},
-             "narrative": "theNarrative",
-         }, None),
-        ({
-             "allergy": {"text": "theAllergy"},
-             "narrative": "",
-         }, CodedItem(label="theAllergy: n/a", code="", uuid="")),
+        (
+            {"allergy": {"text": "theAllergy"}, "narrative": "theNarrative"},
+            CodedItem(label="theAllergy: theNarrative", code="", uuid=""),
+        ),
+        ({"allergy": {"text": ""}, "narrative": "theNarrative"}, None),
+        ({"allergy": {"text": "theAllergy"}, "narrative": ""}, CodedItem(label="theAllergy: n/a", code="", uuid="")),
     ]
     for data, expected in tests:
         result = tested.staged_command_extract(data)
@@ -91,11 +85,7 @@ def test_command_from_json(current_allergies):
         CodedItem(uuid="theUuid2", label="display2a", code="CODE45"),
         CodedItem(uuid="theUuid3", label="display3a", code="CODE9876"),
     ]
-    tests = [
-        (1, "theUuid2"),
-        (2, "theUuid3"),
-        (4, ""),
-    ]
+    tests = [(1, "theUuid2"), (2, "theUuid3"), (4, "")]
     for idx, exp_uuid in tests:
         current_allergies.side_effect = [allergies, allergies]
         arguments = {
@@ -105,19 +95,11 @@ def test_command_from_json(current_allergies):
             "information": "theInformation",
             "is_new": False,
             "is_updated": True,
-            "parameters": {
-                'allergies': 'display2a',
-                'allergyIndex': idx,
-                'narrative': 'theNarrative',
-            },
+            "parameters": {"allergies": "display2a", "allergyIndex": idx, "narrative": "theNarrative"},
         }
         instruction = InstructionWithParameters(**arguments)
         result = tested.command_from_json(instruction, chatter)
-        command = RemoveAllergyCommand(
-            allergy_id=exp_uuid,
-            narrative="theNarrative",
-            note_uuid="noteUuid",
-        )
+        command = RemoveAllergyCommand(allergy_id=exp_uuid, narrative="theNarrative", note_uuid="noteUuid")
         expected = InstructionWithCommand(**(arguments | {"command": command}))
         assert result == expected
         calls = [call()]
@@ -140,7 +122,7 @@ def test_command_parameters(current_allergies):
     current_allergies.side_effect = [allergies]
     result = tested.command_parameters()
     expected = {
-        'allergies': 'one of: display1a (index: 0)/display2a (index: 1)/display3a (index: 2)',
+        "allergies": "one of: display1a (index: 0)/display2a (index: 1)/display3a (index: 2)",
         "allergyIndex": "Index of the allergy to remove, or -1, as integer",
         "narrative": "explanation of why the allergy is removed, as free text",
     }
@@ -153,8 +135,11 @@ def test_command_parameters(current_allergies):
 def test_instruction_description():
     tested = helper_instance()
     result = tested.instruction_description()
-    expected = ("Remove a previously diagnosed allergy. "
-                "There can be only one allergy, with the explanation, to remove per instruction, and no instruction in the lack of.")
+    expected = (
+        "Remove a previously diagnosed allergy. "
+        "There can be only one allergy, with the explanation, to remove per instruction, "
+        "and no instruction in the lack of."
+    )
     assert result == expected
 
 
@@ -171,8 +156,7 @@ def test_instruction_constraints(current_allergies):
     ]
     current_allergies.side_effect = [allergies]
     result = tested.instruction_constraints()
-    expected = ("'RemoveAllergy' has to be related to one of the following allergies: "
-                "display1a, display2a, display3a.")
+    expected = "'RemoveAllergy' has to be related to one of the following allergies: display1a, display2a, display3a."
     assert result == expected
     calls = [call()]
     assert current_allergies.mock_calls == calls
@@ -190,10 +174,7 @@ def test_is_available(current_allergies):
         CodedItem(uuid="theUuid2", label="display2a", code="CODE45"),
         CodedItem(uuid="theUuid3", label="display3a", code="CODE98.76"),
     ]
-    tests = [
-        (allergies, True),
-        ([], False),
-    ]
+    tests = [(allergies, True), ([], False)]
     for side_effect, expected in tests:
         current_allergies.side_effect = [side_effect]
         result = tested.is_available()

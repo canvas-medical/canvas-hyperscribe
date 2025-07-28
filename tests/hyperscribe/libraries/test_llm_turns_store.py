@@ -20,12 +20,7 @@ def helper_instance() -> LlmTurnsStore:
         provider_uuid="providerUuid",
         canvas_instance="canvasInstance",
     )
-    s3_credentials = AwsS3Credentials(
-        aws_key='theKey',
-        aws_secret='theSecret',
-        region='theRegion',
-        bucket='theBucket',
-    )
+    s3_credentials = AwsS3Credentials(aws_key="theKey", aws_secret="theSecret", region="theRegion", bucket="theBucket")
     return LlmTurnsStore(s3_credentials, identification, "2025-05-08", 7)
 
 
@@ -39,31 +34,16 @@ def test_end_session():
 
     #
     mock_discussion = {
-        "noteUuid_1": {
-            1: {"key_1": 2, "key_2": 3},
-            2: {"key_1": 1, "key_3": 1},
-        },
-        "noteUuid_2": {
-            1: {"key_1": 2, "key_2": 3},
-            2: {"key_1": 1, "key_3": 1},
-        },
-        "noteUuid_3": {
-            1: {"key_1": 2, "key_2": 3},
-            2: {"key_1": 1, "key_3": 1},
-        },
+        "noteUuid_1": {1: {"key_1": 2, "key_2": 3}, 2: {"key_1": 1, "key_3": 1}},
+        "noteUuid_2": {1: {"key_1": 2, "key_2": 3}, 2: {"key_1": 1, "key_3": 1}},
+        "noteUuid_3": {1: {"key_1": 2, "key_2": 3}, 2: {"key_1": 1, "key_3": 1}},
         "noteUuid_4": {},
     }
     with patch.object(llm_turns_store, "DISCUSSIONS", mock_discussion):
         tested.end_session("noteUuid_2")
         assert mock_discussion == {
-            "noteUuid_1": {
-                1: {"key_1": 2, "key_2": 3},
-                2: {"key_1": 1, "key_3": 1},
-            },
-            "noteUuid_3": {
-                1: {"key_1": 2, "key_2": 3},
-                2: {"key_1": 1, "key_3": 1},
-            },
+            "noteUuid_1": {1: {"key_1": 2, "key_2": 3}, 2: {"key_1": 1, "key_3": 1}},
+            "noteUuid_3": {1: {"key_1": 2, "key_2": 3}, 2: {"key_1": 1, "key_3": 1}},
             "noteUuid_4": {},
         }
 
@@ -79,12 +59,7 @@ def test_instance(get_discussion):
         provider_uuid="providerUuid",
         canvas_instance="canvasInstance",
     )
-    s3_credentials = AwsS3Credentials(
-        aws_key='theKey',
-        aws_secret='theSecret',
-        region='theRegion',
-        bucket='theBucket',
-    )
+    s3_credentials = AwsS3Credentials(aws_key="theKey", aws_secret="theSecret", region="theRegion", bucket="theBucket")
     cached = CachedSdk("theNoteUuid")
     cached.created = datetime(2025, 5, 7, 23, 59, 37, tzinfo=timezone.utc)
     cached.updated = datetime(2025, 5, 7, 0, 38, 21, tzinfo=timezone.utc)
@@ -111,12 +86,7 @@ def test___init__():
         provider_uuid="providerUuid",
         canvas_instance="canvasInstance",
     )
-    s3_credentials = AwsS3Credentials(
-        aws_key='theKey',
-        aws_secret='theSecret',
-        region='theRegion',
-        bucket='theBucket',
-    )
+    s3_credentials = AwsS3Credentials(aws_key="theKey", aws_secret="theSecret", region="theRegion", bucket="theBucket")
     tested = LlmTurnsStore(s3_credentials, identification, "2025-05-08", 7)
     assert tested.s3_credentials == s3_credentials
     assert tested.identification == identification
@@ -142,27 +112,21 @@ def test_store(store_document):
                 LlmTurn(role="model", text=["line 3"]),
                 LlmTurn(role="user", text=["line 4"]),
                 LlmTurn(role="model", text=["line 5"]),
-            ]
+            ],
         )
-        expected = {
-            'noteUuid': {
-                7: {
-                    'theInstruction_03': 1,
-                },
-            },
-        }
+        expected = {"noteUuid": {7: {"theInstruction_03": 1}}}
         assert mock_discussion == expected
         calls = [
             call(
-                'theInstruction_03_00.json',
+                "theInstruction_03_00.json",
                 [
-                    {'role': 'system', 'text': ['line 1']},
-                    {'role': 'user', 'text': ['line 2']},
-                    {'role': 'model', 'text': ['line 3']},
-                    {'role': 'user', 'text': ['line 4']},
-                    {'role': 'model', 'text': ['line 5']},
+                    {"role": "system", "text": ["line 1"]},
+                    {"role": "user", "text": ["line 2"]},
+                    {"role": "model", "text": ["line 3"]},
+                    {"role": "user", "text": ["line 4"]},
+                    {"role": "model", "text": ["line 5"]},
                 ],
-            )
+            ),
         ]
         assert store_document.mock_calls == calls
         reset_mocks()
@@ -170,28 +134,16 @@ def test_store(store_document):
         tested.store(
             "theInstruction",
             3,
-            [
-                LlmTurn(role="system", text=["line 1"]),
-                LlmTurn(role="user", text=["line 2"]),
-            ]
+            [LlmTurn(role="system", text=["line 1"]), LlmTurn(role="user", text=["line 2"])],
         )
-        expected = {
-            'noteUuid': {
-                7: {
-                    'theInstruction_03': 2,
-                },
-            },
-        }
+        expected = {"noteUuid": {7: {"theInstruction_03": 2}}}
         assert mock_discussion == expected
 
         calls = [
             call(
-                'theInstruction_03_01.json',
-                [
-                    {'role': 'system', 'text': ['line 1']},
-                    {'role': 'user', 'text': ['line 2']},
-                ],
-            )
+                "theInstruction_03_01.json",
+                [{"role": "system", "text": ["line 1"]}, {"role": "user", "text": ["line 2"]}],
+            ),
         ]
         assert store_document.mock_calls == calls
         reset_mocks()
@@ -199,29 +151,16 @@ def test_store(store_document):
         tested.store(
             "otherInstruction",
             3,
-            [
-                LlmTurn(role="system", text=["line 1"]),
-                LlmTurn(role="user", text=["line 2"]),
-            ]
+            [LlmTurn(role="system", text=["line 1"]), LlmTurn(role="user", text=["line 2"])],
         )
-        expected = {
-            'noteUuid': {
-                7: {
-                    'theInstruction_03': 2,
-                    'otherInstruction_03': 1,
-                },
-            },
-        }
+        expected = {"noteUuid": {7: {"theInstruction_03": 2, "otherInstruction_03": 1}}}
         assert mock_discussion == expected
 
         calls = [
             call(
-                'otherInstruction_03_00.json',
-                [
-                    {'role': 'system', 'text': ['line 1']},
-                    {'role': 'user', 'text': ['line 2']},
-                ],
-            )
+                "otherInstruction_03_00.json",
+                [{"role": "system", "text": ["line 1"]}, {"role": "user", "text": ["line 2"]}],
+            ),
         ]
         assert store_document.mock_calls == calls
         reset_mocks()
@@ -229,30 +168,16 @@ def test_store(store_document):
         tested.store(
             "subZeroInstruction",
             -1,
-            [
-                LlmTurn(role="system", text=["line 1"]),
-                LlmTurn(role="user", text=["line 2"]),
-            ]
+            [LlmTurn(role="system", text=["line 1"]), LlmTurn(role="user", text=["line 2"])],
         )
-        expected = {
-            'noteUuid': {
-                7: {
-                    'theInstruction_03': 2,
-                    'otherInstruction_03': 1,
-                    'subZeroInstruction': 1,
-                },
-            },
-        }
+        expected = {"noteUuid": {7: {"theInstruction_03": 2, "otherInstruction_03": 1, "subZeroInstruction": 1}}}
         assert mock_discussion == expected
 
         calls = [
             call(
-                'subZeroInstruction_00.json',
-                [
-                    {'role': 'system', 'text': ['line 1']},
-                    {'role': 'user', 'text': ['line 2']},
-                ],
-            )
+                "subZeroInstruction_00.json",
+                [{"role": "system", "text": ["line 1"]}, {"role": "user", "text": ["line 2"]}],
+            ),
         ]
         assert store_document.mock_calls == calls
         reset_mocks()
@@ -264,19 +189,16 @@ def test_store_document(aws_s3):
         aws_s3.reset_mock()
 
     document = [
-        {'role': 'system', 'text': ['line 1']},
-        {'role': 'user', 'text': ['line 2']},
-        {'role': 'model', 'text': ['line 3']},
+        {"role": "system", "text": ["line 1"]},
+        {"role": "user", "text": ["line 2"]},
+        {"role": "model", "text": ["line 3"]},
     ]
 
     tested = helper_instance()
     # S3 not ready
     aws_s3.return_value.is_ready.side_effect = [False]
     tested.store_document("theInstruction", document)
-    calls = [
-        call(tested.s3_credentials),
-        call().is_ready(),
-    ]
+    calls = [call(tested.s3_credentials), call().is_ready()]
     assert aws_s3.mock_calls == calls
     reset_mocks()
 
@@ -287,12 +209,12 @@ def test_store_document(aws_s3):
         call(tested.s3_credentials),
         call().is_ready(),
         call().upload_text_to_s3(
-            'hyperscribe-canvasInstance/llm_turns/2025-05-08/noteUuid/007/theInstruction',
-            '[\n'
+            "hyperscribe-canvasInstance/llm_turns/2025-05-08/noteUuid/007/theInstruction",
+            "[\n"
             '  {\n    "role": "system",\n    "text": [\n      "line 1"\n    ]\n  },\n'
             '  {\n    "role": "user",\n    "text": [\n      "line 2"\n    ]\n  },\n'
             '  {\n    "role": "model",\n    "text": [\n      "line 3"\n    ]\n  }'
-            '\n]',
+            "\n]",
         ),
     ]
     assert aws_s3.mock_calls == calls
@@ -305,9 +227,9 @@ def test_stored_document(aws_s3):
         aws_s3.reset_mock()
 
     document = [
-        {'role': 'system', 'text': ['line 1']},
-        {'role': 'user', 'text': ['line 2']},
-        {'role': 'model', 'text': ['line 3']},
+        {"role": "system", "text": ["line 1"]},
+        {"role": "user", "text": ["line 2"]},
+        {"role": "model", "text": ["line 3"]},
     ]
 
     tested = helper_instance()
@@ -316,10 +238,7 @@ def test_stored_document(aws_s3):
     aws_s3.return_value.access_s3_object.side_effect = []
     result = tested.stored_document("theName")
     assert result == []
-    calls = [
-        call(tested.s3_credentials),
-        call().is_ready(),
-    ]
+    calls = [call(tested.s3_credentials), call().is_ready()]
     assert aws_s3.mock_calls == calls
     reset_mocks()
 
@@ -334,7 +253,7 @@ def test_stored_document(aws_s3):
     calls = [
         call(tested.s3_credentials),
         call().is_ready(),
-        call().access_s3_object('hyperscribe-canvasInstance/llm_turns/2025-05-08/noteUuid/007/theName'),
+        call().access_s3_object("hyperscribe-canvasInstance/llm_turns/2025-05-08/noteUuid/007/theName"),
     ]
     assert aws_s3.mock_calls == calls
     reset_mocks()
@@ -349,7 +268,7 @@ def test_stored_document(aws_s3):
     calls = [
         call(tested.s3_credentials),
         call().is_ready(),
-        call().access_s3_object('hyperscribe-canvasInstance/llm_turns/2025-05-08/noteUuid/007/theName'),
+        call().access_s3_object("hyperscribe-canvasInstance/llm_turns/2025-05-08/noteUuid/007/theName"),
     ]
     assert aws_s3.mock_calls == calls
     reset_mocks()
@@ -369,10 +288,7 @@ def test_stored_documents(aws_s3):
     aws_s3.return_value.access_s3_object.side_effect = []
     result = [d for d in tested.stored_documents()]
     assert result == []
-    calls = [
-        call(tested.s3_credentials),
-        call().is_ready(),
-    ]
+    calls = [call(tested.s3_credentials), call().is_ready()]
     assert aws_s3.mock_calls == calls
     reset_mocks()
     # S3 is ready
@@ -385,34 +301,36 @@ def test_stored_documents(aws_s3):
     calls = [
         call(tested.s3_credentials),
         call().is_ready(),
-        call().list_s3_objects('hyperscribe-canvasInstance/llm_turns/2025-05-08/noteUuid/007'),
+        call().list_s3_objects("hyperscribe-canvasInstance/llm_turns/2025-05-08/noteUuid/007"),
     ]
     assert aws_s3.mock_calls == calls
     reset_mocks()
     # -- with documents
     aws_s3.return_value.is_ready.side_effect = [True]
-    aws_s3.return_value.list_s3_objects.side_effect = [[
-        AwsS3Object(
-            key="hyperscribe-canvasInstance/llm_turns/2025-05-08/noteUuid/007/theInstruction_01_01.json",
-            last_modified=a_date,
-            size=4785236,
-        ),
-        AwsS3Object(
-            key="hyperscribe-canvasInstance/llm_turns/2025-05-08/noteUuid/007/theInstruction_01_00.json",
-            last_modified=a_date,
-            size=4785236,
-        ),
-        AwsS3Object(
-            key="hyperscribe-canvasInstance/llm_turns/2025-05-08/noteUuid/007/theInstruction_00_01.json",
-            last_modified=a_date,
-            size=4785236,
-        ),
-        AwsS3Object(
-            key="hyperscribe-canvasInstance/llm_turns/2025-05-08/noteUuid/007/transcript2instructions_01.json",
-            last_modified=a_date,
-            size=4785236,
-        ),
-    ]]
+    aws_s3.return_value.list_s3_objects.side_effect = [
+        [
+            AwsS3Object(
+                key="hyperscribe-canvasInstance/llm_turns/2025-05-08/noteUuid/007/theInstruction_01_01.json",
+                last_modified=a_date,
+                size=4785236,
+            ),
+            AwsS3Object(
+                key="hyperscribe-canvasInstance/llm_turns/2025-05-08/noteUuid/007/theInstruction_01_00.json",
+                last_modified=a_date,
+                size=4785236,
+            ),
+            AwsS3Object(
+                key="hyperscribe-canvasInstance/llm_turns/2025-05-08/noteUuid/007/theInstruction_00_01.json",
+                last_modified=a_date,
+                size=4785236,
+            ),
+            AwsS3Object(
+                key="hyperscribe-canvasInstance/llm_turns/2025-05-08/noteUuid/007/transcript2instructions_01.json",
+                last_modified=a_date,
+                size=4785236,
+            ),
+        ],
+    ]
     responses = [Response(), Response(), Response(), Response()]
     responses[0].status_code = 200
     responses[0]._content = json.dumps({"key": "document0"}).encode()
@@ -426,19 +344,27 @@ def test_stored_documents(aws_s3):
     aws_s3.return_value.access_s3_object.side_effect = responses
     result = [d for d in tested.stored_documents()]
     expected = [
-        ('transcript2instructions_01', {'key': 'document0'}),
-        ('theInstruction_00_01', {'key': 'document1'}),
-        ('theInstruction_01_01', {'key': 'document3'}),
+        ("transcript2instructions_01", {"key": "document0"}),
+        ("theInstruction_00_01", {"key": "document1"}),
+        ("theInstruction_01_01", {"key": "document3"}),
     ]
     assert result == expected
     calls = [
         call(tested.s3_credentials),
         call().is_ready(),
-        call().list_s3_objects('hyperscribe-canvasInstance/llm_turns/2025-05-08/noteUuid/007'),
-        call().access_s3_object('hyperscribe-canvasInstance/llm_turns/2025-05-08/noteUuid/007/transcript2instructions_01.json'),
-        call().access_s3_object('hyperscribe-canvasInstance/llm_turns/2025-05-08/noteUuid/007/theInstruction_00_01.json'),
-        call().access_s3_object('hyperscribe-canvasInstance/llm_turns/2025-05-08/noteUuid/007/theInstruction_01_00.json'),
-        call().access_s3_object('hyperscribe-canvasInstance/llm_turns/2025-05-08/noteUuid/007/theInstruction_01_01.json'),
+        call().list_s3_objects("hyperscribe-canvasInstance/llm_turns/2025-05-08/noteUuid/007"),
+        call().access_s3_object(
+            "hyperscribe-canvasInstance/llm_turns/2025-05-08/noteUuid/007/transcript2instructions_01.json",
+        ),
+        call().access_s3_object(
+            "hyperscribe-canvasInstance/llm_turns/2025-05-08/noteUuid/007/theInstruction_00_01.json",
+        ),
+        call().access_s3_object(
+            "hyperscribe-canvasInstance/llm_turns/2025-05-08/noteUuid/007/theInstruction_01_00.json",
+        ),
+        call().access_s3_object(
+            "hyperscribe-canvasInstance/llm_turns/2025-05-08/noteUuid/007/theInstruction_01_01.json",
+        ),
     ]
     assert aws_s3.mock_calls == calls
     reset_mocks()
@@ -454,13 +380,13 @@ def test_store_path():
 def test_s3_path_sort():
     tested = LlmTurnsStore
     tests = [
-        ('hyperscribe-canvasInstance/llm_turns/2025-05-08/noteUuid/007/transcript2instructions_00.json', (-1, 0)),
-        ('hyperscribe-canvasInstance/llm_turns/2025-05-08/noteUuid/007/transcript2instructions_01.json', (-1, 1)),
-        ('hyperscribe-canvasInstance/llm_turns/2025-05-08/noteUuid/007/theInstruction_00_00.json', (0, 0)),
-        ('hyperscribe-canvasInstance/llm_turns/2025-05-08/noteUuid/007/theInstruction_00_01.json', (0, 1)),
-        ('hyperscribe-canvasInstance/llm_turns/2025-05-08/noteUuid/007/theInstruction_01_00.json', (1, 0)),
-        ('hyperscribe-canvasInstance/llm_turns/2025-05-08/noteUuid/007/theInstruction_01_01.json', (1, 1)),
-        ('hyperscribe-canvasInstance/llm_turns/2025-05-08/noteUuid/007/impossible.json', (999, 999)),
+        ("hyperscribe-canvasInstance/llm_turns/2025-05-08/noteUuid/007/transcript2instructions_00.json", (-1, 0)),
+        ("hyperscribe-canvasInstance/llm_turns/2025-05-08/noteUuid/007/transcript2instructions_01.json", (-1, 1)),
+        ("hyperscribe-canvasInstance/llm_turns/2025-05-08/noteUuid/007/theInstruction_00_00.json", (0, 0)),
+        ("hyperscribe-canvasInstance/llm_turns/2025-05-08/noteUuid/007/theInstruction_00_01.json", (0, 1)),
+        ("hyperscribe-canvasInstance/llm_turns/2025-05-08/noteUuid/007/theInstruction_01_00.json", (1, 0)),
+        ("hyperscribe-canvasInstance/llm_turns/2025-05-08/noteUuid/007/theInstruction_01_01.json", (1, 1)),
+        ("hyperscribe-canvasInstance/llm_turns/2025-05-08/noteUuid/007/impossible.json", (999, 999)),
     ]
     for s3_path, expected in tests:
         result = tested.s3_path_sort(s3_path)
@@ -470,12 +396,12 @@ def test_s3_path_sort():
 def test_decompose():
     tested = LlmTurnsStore
     tests = [
-        ('transcript2instructions_00', ("transcript2instructions", 0)),
-        ('transcript2instructions_01', ("transcript2instructions", 1)),
-        ('theInstruction_00_00', ("theInstruction_00", 0)),
-        ('theInstruction_00_01', ("theInstruction_00", 1)),
-        ('theInstruction_01_00', ("theInstruction_01", 0)),
-        ('theInstruction_01_01', ("theInstruction_01", 1)),
+        ("transcript2instructions_00", ("transcript2instructions", 0)),
+        ("transcript2instructions_01", ("transcript2instructions", 1)),
+        ("theInstruction_00_00", ("theInstruction_00", 0)),
+        ("theInstruction_00_01", ("theInstruction_00", 1)),
+        ("theInstruction_01_00", ("theInstruction_01", 0)),
+        ("theInstruction_01_01", ("theInstruction_01", 1)),
     ]
     for step, expected in tests:
         result = tested.decompose(step)

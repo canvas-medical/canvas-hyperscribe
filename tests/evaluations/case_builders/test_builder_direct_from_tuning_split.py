@@ -20,9 +20,9 @@ def helper_instance() -> BuilderDirectFromTuningSplit:
     settings = Settings(
         llm_text=VendorKey(vendor="theVendorTextLLM", api_key="theKeyTextLLM"),
         llm_audio=VendorKey(vendor="theVendorAudioLLM", api_key="theKeyAudioLLM"),
-        science_host='theScienceHost',
-        ontologies_host='theOntologiesHost',
-        pre_shared_key='thePreSharedKey',
+        science_host="theScienceHost",
+        ontologies_host="theOntologiesHost",
+        pre_shared_key="thePreSharedKey",
         structured_rfv=True,
         audit_llm=False,
         is_tuning=False,
@@ -32,19 +32,14 @@ def helper_instance() -> BuilderDirectFromTuningSplit:
         staffers_policy=AccessPolicy(policy=False, items=[]),
         cycle_transcript_overlap=37,
     )
-    s3_credentials = AwsS3Credentials(
-        aws_key='theKey',
-        aws_secret='theSecret',
-        region='theRegion',
-        bucket='theBucket',
-    )
+    s3_credentials = AwsS3Credentials(aws_key="theKey", aws_secret="theSecret", region="theRegion", bucket="theBucket")
     identification = IdentificationParameters(
         patient_uuid="patientUuid",
         note_uuid="noteUuid",
         provider_uuid="providerUuid",
         canvas_instance="canvasInstance",
     )
-    return BuilderDirectFromTuningSplit(settings, s3_credentials, identification, Path("/some/path"), 45, True)
+    return BuilderDirectFromTuningSplit(settings, s3_credentials, identification, Path("/some/path"), 45, True, True)
 
 
 def test_class():
@@ -60,7 +55,7 @@ def test__parameters():
 
     tested = BuilderDirectFromTuningSplit
     tested._parameters(argument_parser)
-    calls = [call.add_argument('--direct-split', action='store_true')]
+    calls = [call.add_argument("--direct-split", action="store_true")]
     assert argument_parser.mock_calls == calls
     reset_mocks()
 
@@ -98,18 +93,18 @@ def test_schema_topical_exchanges():
 @patch.object(BuilderDirectFromTuningSplit, "split_audio")
 @patch.object(BuilderDirectFromTuningSplit, "collated_webm_to_mp3")
 def test__run(
-        collated_webm_to_mp3,
-        split_audio,
-        create_transcripts,
-        compact_transcripts,
-        anonymize_transcripts,
-        detect_topical_exchanges,
-        topical_exchange_summary,
-        generate_case,
-        audio_interpreter,
-        implemented_commands,
-        limited_cache,
-        capsys,
+    collated_webm_to_mp3,
+    split_audio,
+    create_transcripts,
+    compact_transcripts,
+    anonymize_transcripts,
+    detect_topical_exchanges,
+    topical_exchange_summary,
+    generate_case,
+    audio_interpreter,
+    implemented_commands,
+    limited_cache,
+    capsys,
 ):
     full_mp3_file = MagicMock()
     json_file = MagicMock()
@@ -181,28 +176,30 @@ def test__run(
 
     tested._run()
 
-    exp_out = ("collect webm, collate to mp3...\n"
-               "split mp3 into chunks...\n"
-               "create transcripts...\n"
-               "de-identification transcripts...\n"
-               "detect topical exchanges...\n"
-               "build case for topic title1:\n"
-               "build case for topic title2:\n"
-               "build case for topic title3:\n"
-               "build case for topic title4:\n")
+    exp_out = (
+        "collect webm, collate to mp3...\n"
+        "split mp3 into chunks...\n"
+        "create transcripts...\n"
+        "de-identification transcripts...\n"
+        "detect topical exchanges...\n"
+        "build case for topic title1:\n"
+        "build case for topic title2:\n"
+        "build case for topic title3:\n"
+        "build case for topic title4:\n"
+    )
     assert capsys.readouterr().out == exp_out
 
     calls = [call()]
     assert collated_webm_to_mp3.mock_calls == calls
     calls = [call(full_mp3_file)]
     assert split_audio.mock_calls == calls
-    calls = [call('theSplitAudioFiles', 'theAudioInterpreter')]
+    calls = [call("theSplitAudioFiles", "theAudioInterpreter")]
     assert create_transcripts.mock_calls == calls
-    calls = [call('theCreatedTranscripts')]
+    calls = [call("theCreatedTranscripts")]
     assert compact_transcripts.mock_calls == calls
-    calls = [call('theCompactedTranscripts')]
+    calls = [call("theCompactedTranscripts")]
     assert anonymize_transcripts.mock_calls == calls
-    calls = [call('theAnonymizedTranscripts')]
+    calls = [call("theAnonymizedTranscripts")]
     assert detect_topical_exchanges.mock_calls == calls
     calls = [
         call([topical_exchanges[i] for i in [0, 1]], full_mp3_file.parent),
@@ -218,26 +215,23 @@ def test__run(
         call(limited_cache.load_from_json.return_value, exchange_summaries[3], [case_exchanges[i] for i in [7]]),
     ]
     assert generate_case.mock_calls == calls
-    calls = [call(
-        tested.settings,
-        tested.s3_credentials,
-        limited_cache.load_from_json.return_value,
-        tested.identification,
-    )]
+    calls = [
+        call(tested.settings, tested.s3_credentials, limited_cache.load_from_json.return_value, tested.identification),
+    ]
     assert audio_interpreter.mock_calls == calls
     calls = [call.schema_key2instruction()]
     assert implemented_commands.mock_calls == calls
     calls = [
-        call.load_from_json({'limited': 'cache'}),
-        call.load_from_json().add_instructions_as_staged_commands('theGeneratedInstructions1', 'schemaKey2Instruction'),
-        call.load_from_json().add_instructions_as_staged_commands('theGeneratedInstructions2', 'schemaKey2Instruction'),
-        call.load_from_json().add_instructions_as_staged_commands('theGeneratedInstructions3', 'schemaKey2Instruction'),
-        call.load_from_json().add_instructions_as_staged_commands('theGeneratedInstructions4', 'schemaKey2Instruction')
+        call.load_from_json({"limited": "cache"}),
+        call.load_from_json().add_instructions_as_staged_commands("theGeneratedInstructions1", "schemaKey2Instruction"),
+        call.load_from_json().add_instructions_as_staged_commands("theGeneratedInstructions2", "schemaKey2Instruction"),
+        call.load_from_json().add_instructions_as_staged_commands("theGeneratedInstructions3", "schemaKey2Instruction"),
+        call.load_from_json().add_instructions_as_staged_commands("theGeneratedInstructions4", "schemaKey2Instruction"),
     ]
     assert limited_cache.mock_calls == calls
-    calls = [call.parent.__truediv__('limited_chart.json')]
+    calls = [call.parent.__truediv__("limited_chart.json")]
     assert full_mp3_file.mock_calls == calls
-    calls = [call.open('r')]
+    calls = [call.open("r")]
     assert json_file.mock_calls == calls
     reset_mocks()
 
@@ -271,33 +265,35 @@ def test_topical_exchange_summary(schema_summary, memory_log, helper, uuid4):
         TopicalExchange(speaker="theSpeaker1", text="theText7", chunk=4, topic=3),
     ]
     system_prompt = [
-        'The conversation is in the medical context, and related to a visit of a patient with a healthcare provider.',
-        '',
-        'Your task is to give a meaningful title to a provided sub set of the discussion, previously identified as a coherent topical exchange.',
-        '',
-        'The title should be as concise as possible, composed of about 25 to 40 characters.',
-        '',
-        'Format your response following the JSON Schema:',
-        '```json',
+        "The conversation is in the medical context, and related to a visit of a patient with a healthcare provider.",
+        "",
+        "Your task is to give a meaningful title to a provided sub set of the discussion, previously identified "
+        "as a coherent topical exchange.",
+        "",
+        "The title should be as concise as possible, composed of about 25 to 40 characters.",
+        "",
+        "Format your response following the JSON Schema:",
+        "```json",
         '{\n "schema": "summary1"\n}',
-        '```',
-        '',
+        "```",
+        "",
     ]
     user_prompt = [
-        'Coherent topical exchange:',
-        '```json',
-        '['
+        "Coherent topical exchange:",
+        "```json",
+        "["
         '\n {\n  "speaker": "theSpeaker2",\n  "text": "theText5",\n  "chunk": 2,\n  "topic": 3\n },'
         '\n {\n  "speaker": "theSpeaker1",\n  "text": "theText6",\n  "chunk": 2,\n  "topic": 3\n },'
         '\n {\n  "speaker": "theSpeaker1",\n  "text": "theText7",\n  "chunk": 4,\n  "topic": 3\n }'
-        '\n]',
-        '```',
-        '',
-        '',
-        'Follow rigorously the instructions and provide the requested information using the mentioned JSON Schema within a Markdown code block:',
-        '```json',
-        'YOUR JSON OUTPUT HERE',
-        '```'
+        "\n]",
+        "```",
+        "",
+        "",
+        "Follow rigorously the instructions and provide the requested information using the mentioned "
+        "JSON Schema within a Markdown code block:",
+        "```json",
+        "YOUR JSON OUTPUT HERE",
+        "```",
     ]
 
     tested = helper_instance()
@@ -311,9 +307,7 @@ def test_topical_exchange_summary(schema_summary, memory_log, helper, uuid4):
         memory_log.instance.side_effect = ["theMemoryLog"]
         schema_summary.side_effect = [{"schema": "summary1"}, {"schema": "summary2"}]
         uuid4.side_effect = ["12345abcd54321"]
-        helper.chatter.return_value.chat.side_effect = [
-            JsonExtract(error="", has_error=False, content=[[]]),
-        ]
+        helper.chatter.return_value.chat.side_effect = [JsonExtract(error="", has_error=False, content=[[]])]
         result = tested.topical_exchange_summary(topical_exchanges, temporary_folder)
         expected = CaseExchangeSummary(title="12345abcd54321", summary="")
         assert result == expected
@@ -322,23 +316,20 @@ def test_topical_exchange_summary(schema_summary, memory_log, helper, uuid4):
 
         calls = [call(), call()]
         assert schema_summary.mock_calls == calls
-        calls = [call.instance(tested.identification, 'topical_exchange_naming', tested.s3_credentials)]
+        calls = [call.instance(tested.identification, "topical_exchange_naming", tested.s3_credentials)]
         assert memory_log.mock_calls == calls
         calls = [
             call.chatter(tested.settings, "theMemoryLog"),
             call.chatter().set_system_prompt(system_prompt),
             call.chatter().set_user_prompt(user_prompt),
-            call.chatter().chat([{'schema': 'summary2'}]),
+            call.chatter().chat([{"schema": "summary2"}]),
         ]
         assert helper.mock_calls == calls
         calls = [call()]
         assert uuid4.mock_calls == calls
-        calls = [call.__truediv__('topic_summary_003.json')]
+        calls = [call.__truediv__("topic_summary_003.json")]
         assert temporary_folder.mock_calls == calls
-        calls = [
-            call.exists(),
-            call.open('w'),
-        ]
+        calls = [call.exists(), call.open("w")]
         assert summary_file.mock_calls == calls
 
         reset_mocks("w")
@@ -353,40 +344,36 @@ def test_topical_exchange_summary(schema_summary, memory_log, helper, uuid4):
             JsonExtract(
                 error="",
                 has_error=False,
-                content=[[
-                    {"title": "The Title 1", "summary": "Some Summary 1"},
-                    {"title": "The Title 2", "summary": "Some Summary 2"},
-                ]],
+                content=[
+                    [
+                        {"title": "The Title 1", "summary": "Some Summary 1"},
+                        {"title": "The Title 2", "summary": "Some Summary 2"},
+                    ],
+                ],
             ),
         ]
         result = tested.topical_exchange_summary(topical_exchanges, temporary_folder)
-        expected = CaseExchangeSummary(
-            title="the_title_1_12345abcd5",
-            summary="Some Summary 1",
-        )
+        expected = CaseExchangeSummary(title="the_title_1_12345abcd5", summary="Some Summary 1")
         assert result == expected
         exp_content = [{"title": "the_title_1_12345abcd5", "summary": "Some Summary 1"}]
         assert json.loads(buffer.content) == exp_content
 
         calls = [call(), call()]
         assert schema_summary.mock_calls == calls
-        calls = [call.instance(tested.identification, 'topical_exchange_naming', tested.s3_credentials)]
+        calls = [call.instance(tested.identification, "topical_exchange_naming", tested.s3_credentials)]
         assert memory_log.mock_calls == calls
         calls = [
             call.chatter(tested.settings, "theMemoryLog"),
             call.chatter().set_system_prompt(system_prompt),
             call.chatter().set_user_prompt(user_prompt),
-            call.chatter().chat([{'schema': 'summary2'}]),
+            call.chatter().chat([{"schema": "summary2"}]),
         ]
         assert helper.mock_calls == calls
         calls = [call()]
         assert uuid4.mock_calls == calls
-        calls = [call.__truediv__('topic_summary_003.json')]
+        calls = [call.__truediv__("topic_summary_003.json")]
         assert temporary_folder.mock_calls == calls
-        calls = [
-            call.exists(),
-            call.open('w'),
-        ]
+        calls = [call.exists(), call.open("w")]
         assert summary_file.mock_calls == calls
 
         reset_mocks("w")
@@ -403,10 +390,7 @@ def test_topical_exchange_summary(schema_summary, memory_log, helper, uuid4):
     uuid4.side_effect = []
 
     result = tested.topical_exchange_summary(topical_exchanges, temporary_folder)
-    expected = CaseExchangeSummary(
-        title="the_title_abcd123",
-        summary="theSummary0",
-    )
+    expected = CaseExchangeSummary(title="the_title_abcd123", summary="theSummary0")
     assert result == expected
     exp_content = [{"title": "the_title_abcd123", "summary": "theSummary0"}]
     assert json.loads(buffer.content) == exp_content
@@ -415,12 +399,9 @@ def test_topical_exchange_summary(schema_summary, memory_log, helper, uuid4):
     assert memory_log.mock_calls == []
     assert helper.mock_calls == []
     assert uuid4.mock_calls == []
-    calls = [call.__truediv__('topic_summary_003.json')]
+    calls = [call.__truediv__("topic_summary_003.json")]
     assert temporary_folder.mock_calls == calls
-    calls = [
-        call.exists(),
-        call.open('r'),
-    ]
+    calls = [call.exists(), call.open("r")]
     assert summary_file.mock_calls == calls
 
     reset_mocks("r")
@@ -432,14 +413,15 @@ def test_topical_exchange_summary(schema_summary, memory_log, helper, uuid4):
 def test_detect_topical_exchanges(schema_topical_exchanges, memory_log, helper):
     files = [
         # transcripts
-        MagicMock(), MagicMock(), MagicMock(),
+        MagicMock(),
+        MagicMock(),
+        MagicMock(),
         # topical exchanges
-        MagicMock(), MagicMock(), MagicMock(),
+        MagicMock(),
+        MagicMock(),
+        MagicMock(),
     ]
-    buffers = [
-        MockFile(), MockFile(), MockFile(),
-        MockFile(mode="w"), MockFile(mode="w"), MockFile(mode="w"),
-    ]
+    buffers = [MockFile(), MockFile(), MockFile(), MockFile(mode="w"), MockFile(mode="w"), MockFile(mode="w")]
 
     def reset_mocks():
         schema_topical_exchanges.reset_mock()
@@ -450,93 +432,98 @@ def test_detect_topical_exchanges(schema_topical_exchanges, memory_log, helper):
             item.open.return_value = buffers[idx]
             if idx < 3:
                 item.parent.__truediv__.side_effect = [files[idx + 3]]
-            buffers[idx].content = json.dumps([{"speaker": f"theSpeaker{idx}", "text": f"theText{idx}", "chunk": idx, "topic": idx}])
+            buffers[idx].content = json.dumps(
+                [{"speaker": f"theSpeaker{idx}", "text": f"theText{idx}", "chunk": idx, "topic": idx}],
+            )
 
     reset_mocks()
 
     system_prompt = [
-        'The conversation is in the medical context, and related to a visit of a patient with a healthcare provider.',
-        '',
-        'The conversation is divided into sequential fragment of several seconds each.',
-        '',
-        'Your task is to segment the conversation into coherent sets of topical medical exchanges.',
-        'This means:',
-        '* Each set should correspond to a distinct medical topic.',
-        '* Non-medical content (e.g., small talk, greetings) should be included in the current medical topic '
-        'set but should not initiate a new topic on its own.',
-        '',
-        'For each new fragment, you will be given:',
-        '* The transcript of the current fragment.',
-        '* The last previously identified topic exchange.',
-        '',
-        '',
-        'Your job is to:',
-        '* Determine whether the current fragment introduces a new medical topic.',
+        "The conversation is in the medical context, and related to a visit of a patient with a healthcare provider.",
+        "",
+        "The conversation is divided into sequential fragment of several seconds each.",
+        "",
+        "Your task is to segment the conversation into coherent sets of topical medical exchanges.",
+        "This means:",
+        "* Each set should correspond to a distinct medical topic.",
+        "* Non-medical content (e.g., small talk, greetings) should be included in the current medical topic "
+        "set but should not initiate a new topic on its own.",
+        "",
+        "For each new fragment, you will be given:",
+        "* The transcript of the current fragment.",
+        "* The last previously identified topic exchange.",
+        "",
+        "",
+        "Your job is to:",
+        "* Determine whether the current fragment introduces a new medical topic.",
         "* If it does, increment the 'topic' field by one (1) for the exchanges starting from this new topic.",
-        '* Topic shifts may occur anywhere within the fragment, not necessarily at the beginning.',
-        '',
-        'Be precise and consistent. Only mark a new topic when the medical focus clearly changes.',
-        '',
-        'Format your response following the JSON Schema:',
-        '```json',
+        "* Topic shifts may occur anywhere within the fragment, not necessarily at the beginning.",
+        "",
+        "Be precise and consistent. Only mark a new topic when the medical focus clearly changes.",
+        "",
+        "Format your response following the JSON Schema:",
+        "```json",
         '{\n "schema": "topical"\n}',
-        '```',
-        '',
+        "```",
+        "",
     ]
     user_prompts = [
         [
-            'The fragment of the discussion is:',
-            '```json',
+            "The fragment of the discussion is:",
+            "```json",
             '[{"speaker": "theSpeaker0", "text": "theText0", "chunk": 0, "topic": 0}]',
-            '```',
-            '',
-            'Follow rigorously the instructions and provide the requested information using the mentioned JSON Schema within a Markdown code block:',
-            '```json',
-            'YOUR JSON OUTPUT HERE',
-            '```',
+            "```",
+            "",
+            "Follow rigorously the instructions and provide the requested information using the mentioned "
+            "JSON Schema within a Markdown code block:",
+            "```json",
+            "YOUR JSON OUTPUT HERE",
+            "```",
         ],
         [
-            'Here is the current set of exchanges for the topic #02:',
-            '```json',
+            "Here is the current set of exchanges for the topic #02:",
+            "```json",
             '[\n {\n  "speaker": "theSpeaker2",\n  "text": "theText3",\n  "chunk": 1,\n  "topic": 2\n }\n]',
-            '```',
-            '',
-            'This is just for the context, so do not repeat it in your answer.',
+            "```",
+            "",
+            "This is just for the context, so do not repeat it in your answer.",
         ],
         [
-            'The fragment of the discussion is:',
-            '```json',
+            "The fragment of the discussion is:",
+            "```json",
             '[{"speaker": "theSpeaker1", "text": "theText1", "chunk": 1, "topic": 1}]',
-            '```',
-            '',
-            'Follow rigorously the instructions and provide the requested information using the mentioned JSON Schema within a Markdown code block:',
-            '```json',
-            'YOUR JSON OUTPUT HERE',
-            '```',
+            "```",
+            "",
+            "Follow rigorously the instructions and provide the requested information using the mentioned "
+            "JSON Schema within a Markdown code block:",
+            "```json",
+            "YOUR JSON OUTPUT HERE",
+            "```",
         ],
         [
-            'Here is the current set of exchanges for the topic #02:',
-            '```json',
-            '[\n '
+            "Here is the current set of exchanges for the topic #02:",
+            "```json",
+            "[\n "
             '{\n  "speaker": "theSpeaker2",\n  "text": "theText3",\n  "chunk": 1,\n  "topic": 2\n },\n '
             '{\n  "speaker": "theSpeaker1",\n  "text": "theText1",\n  "chunk": 2,\n  "topic": 2\n },\n '
             '{\n  "speaker": "theSpeaker1",\n  "text": "theText2",\n  "chunk": 2,\n  "topic": 2\n },\n '
             '{\n  "speaker": "theSpeaker2",\n  "text": "theText3",\n  "chunk": 2,\n  "topic": 2\n }\n]',
-            '```',
-            '',
-            'This is just for the context, so do not repeat it in your answer.',
+            "```",
+            "",
+            "This is just for the context, so do not repeat it in your answer.",
         ],
         [
-            'The fragment of the discussion is:',
-            '```json',
+            "The fragment of the discussion is:",
+            "```json",
             '[{"speaker": "theSpeaker2", "text": "theText2", "chunk": 2, "topic": 2}]',
-            '```', '',
-            'Follow rigorously the instructions and provide the requested information using the mentioned JSON Schema within a Markdown code block:',
-            '```json',
-            'YOUR JSON OUTPUT HERE',
-            '```',
+            "```",
+            "",
+            "Follow rigorously the instructions and provide the requested information using the mentioned "
+            "JSON Schema within a Markdown code block:",
+            "```json",
+            "YOUR JSON OUTPUT HERE",
+            "```",
         ],
-
     ]
 
     tested = helper_instance()
@@ -550,76 +537,90 @@ def test_detect_topical_exchanges(schema_topical_exchanges, memory_log, helper):
         memory_log.instance.side_effect = ["theMemoryLog"]
         schema_topical_exchanges.side_effect = [{"schema": "topical"}]
         helper.chatter.return_value.chat.side_effect = [
-            JsonExtract(error="", has_error=False, content=[[
-                {"speaker": "theSpeaker1", "text": "theText1", "chunk": 1, "topic": 1},
-                {"speaker": "theSpeaker1", "text": "theText2", "chunk": 1, "topic": 1},
-                {"speaker": "theSpeaker2", "text": "theText3", "chunk": 1, "topic": 2},
-            ]]),
-            JsonExtract(error="", has_error=False, content=[[
-                {"speaker": "theSpeaker1", "text": "theText1", "chunk": 2, "topic": 2},
-                {"speaker": "theSpeaker1", "text": "theText2", "chunk": 2, "topic": 2},
-                {"speaker": "theSpeaker2", "text": "theText3", "chunk": 2, "topic": 2},
-            ]]),
-            JsonExtract(error="", has_error=False, content=[[
-                {"speaker": "theSpeaker1", "text": "theText1", "chunk": 3, "topic": 2},
-                {"speaker": "theSpeaker1", "text": "theText2", "chunk": 3, "topic": 3},
-                {"speaker": "theSpeaker2", "text": "theText3", "chunk": 3, "topic": 4},
-            ]]),
+            JsonExtract(
+                error="",
+                has_error=False,
+                content=[
+                    [
+                        {"speaker": "theSpeaker1", "text": "theText1", "chunk": 1, "topic": 1},
+                        {"speaker": "theSpeaker1", "text": "theText2", "chunk": 1, "topic": 1},
+                        {"speaker": "theSpeaker2", "text": "theText3", "chunk": 1, "topic": 2},
+                    ],
+                ],
+            ),
+            JsonExtract(
+                error="",
+                has_error=False,
+                content=[
+                    [
+                        {"speaker": "theSpeaker1", "text": "theText1", "chunk": 2, "topic": 2},
+                        {"speaker": "theSpeaker1", "text": "theText2", "chunk": 2, "topic": 2},
+                        {"speaker": "theSpeaker2", "text": "theText3", "chunk": 2, "topic": 2},
+                    ],
+                ],
+            ),
+            JsonExtract(
+                error="",
+                has_error=False,
+                content=[
+                    [
+                        {"speaker": "theSpeaker1", "text": "theText1", "chunk": 3, "topic": 2},
+                        {"speaker": "theSpeaker1", "text": "theText2", "chunk": 3, "topic": 3},
+                        {"speaker": "theSpeaker2", "text": "theText3", "chunk": 3, "topic": 4},
+                    ],
+                ],
+            ),
         ]
 
         result = tested.detect_topical_exchanges(files[:3])
         expected = [
-            TopicalExchange(speaker='theSpeaker1', text='theText1', chunk=1, topic=1),
-            TopicalExchange(speaker='theSpeaker1', text='theText2', chunk=1, topic=1),
-            TopicalExchange(speaker='theSpeaker2', text='theText3', chunk=1, topic=2),
-            TopicalExchange(speaker='theSpeaker1', text='theText1', chunk=2, topic=2),
-            TopicalExchange(speaker='theSpeaker1', text='theText2', chunk=2, topic=2),
-            TopicalExchange(speaker='theSpeaker2', text='theText3', chunk=2, topic=2),
-            TopicalExchange(speaker='theSpeaker1', text='theText1', chunk=3, topic=2),
-            TopicalExchange(speaker='theSpeaker1', text='theText2', chunk=3, topic=3),
-            TopicalExchange(speaker='theSpeaker2', text='theText3', chunk=3, topic=4),
+            TopicalExchange(speaker="theSpeaker1", text="theText1", chunk=1, topic=1),
+            TopicalExchange(speaker="theSpeaker1", text="theText2", chunk=1, topic=1),
+            TopicalExchange(speaker="theSpeaker2", text="theText3", chunk=1, topic=2),
+            TopicalExchange(speaker="theSpeaker1", text="theText1", chunk=2, topic=2),
+            TopicalExchange(speaker="theSpeaker1", text="theText2", chunk=2, topic=2),
+            TopicalExchange(speaker="theSpeaker2", text="theText3", chunk=2, topic=2),
+            TopicalExchange(speaker="theSpeaker1", text="theText1", chunk=3, topic=2),
+            TopicalExchange(speaker="theSpeaker1", text="theText2", chunk=3, topic=3),
+            TopicalExchange(speaker="theSpeaker2", text="theText3", chunk=3, topic=4),
         ]
         assert result == expected
 
         calls = [call()]
         assert schema_topical_exchanges.mock_calls == calls
-        calls = [call.instance(tested.identification, 'detect_topical_exchanges', tested.s3_credentials)]
+        calls = [call.instance(tested.identification, "detect_topical_exchanges", tested.s3_credentials)]
         assert memory_log.mock_calls == calls
         calls = [
-            call.chatter(tested.settings, 'theMemoryLog'),
+            call.chatter(tested.settings, "theMemoryLog"),
             call.chatter().set_system_prompt(system_prompt),
             call.chatter().set_user_prompt(user_prompts[0]),
-            call.chatter().chat([{'schema': 'topical'}]),
+            call.chatter().chat([{"schema": "topical"}]),
             #
-            call.chatter(tested.settings, 'theMemoryLog'),
+            call.chatter(tested.settings, "theMemoryLog"),
             call.chatter().set_system_prompt(system_prompt),
             call.chatter().set_user_prompt(user_prompts[1]),
             call.chatter().set_user_prompt(user_prompts[2]),
-            call.chatter().chat([{'schema': 'topical'}]),
+            call.chatter().chat([{"schema": "topical"}]),
             #
-            call.chatter(tested.settings, 'theMemoryLog'),
+            call.chatter(tested.settings, "theMemoryLog"),
             call.chatter().set_system_prompt(system_prompt),
             call.chatter().set_user_prompt(user_prompts[3]),
             call.chatter().set_user_prompt(user_prompts[4]),
-            call.chatter().chat([{'schema': 'topical'}]),
+            call.chatter().chat([{"schema": "topical"}]),
         ]
         assert helper.mock_calls == calls
 
         for index, file in enumerate(files):
             if index < 3:
-                calls = [
-                    call.parent.__truediv__(f'topic_detection_{index + 1:03d}.json'),
-                    call.open('r'),
-                ]
+                calls = [call.parent.__truediv__(f"topic_detection_{index + 1:03d}.json"), call.open("r")]
             else:
-                calls = [
-                    call.exists(),
-                    call.open('w'),
-                ]
+                calls = [call.exists(), call.open("w")]
             assert files[index].mock_calls == calls
 
             if index < 3:
-                exp_content = json.dumps([{"speaker": f"theSpeaker{index}", "text": f"theText{index}", "chunk": index, "topic": index}])
+                exp_content = json.dumps(
+                    [{"speaker": f"theSpeaker{index}", "text": f"theText{index}", "chunk": index, "topic": index}],
+                )
             elif index == 3:
                 exp_content = json.dumps(
                     [
@@ -664,43 +665,34 @@ def test_detect_topical_exchanges(schema_topical_exchanges, memory_log, helper):
 
     result = tested.detect_topical_exchanges(files[:3])
     expected = [
-        TopicalExchange(speaker='theSpeaker3', text='theText3', chunk=3, topic=3),
-        TopicalExchange(speaker='theSpeaker4', text='theText4', chunk=4, topic=4),
-        TopicalExchange(speaker='theSpeaker5', text='theText5', chunk=5, topic=5),
+        TopicalExchange(speaker="theSpeaker3", text="theText3", chunk=3, topic=3),
+        TopicalExchange(speaker="theSpeaker4", text="theText4", chunk=4, topic=4),
+        TopicalExchange(speaker="theSpeaker5", text="theText5", chunk=5, topic=5),
     ]
     assert result == expected
 
     calls = [call()]
     assert schema_topical_exchanges.mock_calls == calls
-    calls = [call.instance(tested.identification, 'detect_topical_exchanges', tested.s3_credentials)]
+    calls = [call.instance(tested.identification, "detect_topical_exchanges", tested.s3_credentials)]
     assert memory_log.mock_calls == calls
     assert helper.mock_calls == []
 
     for index, file in enumerate(files):
         if index < 3:
-            calls = [
-                call.parent.__truediv__(f'topic_detection_{index + 1:03d}.json'),
-            ]
+            calls = [call.parent.__truediv__(f"topic_detection_{index + 1:03d}.json")]
         else:
-            calls = [
-                call.exists(),
-                call.open('r'),
-            ]
+            calls = [call.exists(), call.open("r")]
         assert files[index].mock_calls == calls
 
         if index < 3:
-            exp_content = json.dumps([{"speaker": f"theSpeaker{index}", "text": f"theText{index}", "chunk": index, "topic": index}])
+            exp_content = json.dumps(
+                [{"speaker": f"theSpeaker{index}", "text": f"theText{index}", "chunk": index, "topic": index}],
+            )
         elif index == 3:
-            exp_content = json.dumps(
-                [{"speaker": "theSpeaker3", "text": "theText3", "chunk": 3, "topic": 3}],
-            )
+            exp_content = json.dumps([{"speaker": "theSpeaker3", "text": "theText3", "chunk": 3, "topic": 3}])
         elif index == 4:
-            exp_content = json.dumps(
-                [{"speaker": "theSpeaker4", "text": "theText4", "chunk": 4, "topic": 4}],
-            )
+            exp_content = json.dumps([{"speaker": "theSpeaker4", "text": "theText4", "chunk": 4, "topic": 4}])
         else:
-            exp_content = json.dumps(
-                [{"speaker": "theSpeaker5", "text": "theText5", "chunk": 5, "topic": 5}],
-            )
+            exp_content = json.dumps([{"speaker": "theSpeaker5", "text": "theText5", "chunk": 5, "topic": 5}])
         assert buffers[index].content == exp_content
     reset_mocks()

@@ -9,27 +9,21 @@ from hyperscribe.structures.instruction import Instruction
 
 
 def test_instruction2parameters(
-        instruction2parameters: tuple[str, str, Path],
-        allowed_levels: list,
-        audio_interpreter: AudioInterpreter,
-        capsys: pytest.CaptureFixture[str],
-        request: pytest.FixtureRequest,
+    instruction2parameters: tuple[str, str, Path],
+    allowed_levels: list,
+    audio_interpreter: AudioInterpreter,
+    capsys: pytest.CaptureFixture[str],
+    request: pytest.FixtureRequest,
 ) -> None:
-    runner_instruction2parameters(
-        instruction2parameters,
-        allowed_levels,
-        audio_interpreter,
-        capsys,
-        request,
-    )
+    runner_instruction2parameters(instruction2parameters, allowed_levels, audio_interpreter, capsys, request)
 
 
 def runner_instruction2parameters(
-        instruction2parameters: tuple[str, str, Path],
-        allowed_levels: list,
-        audio_interpreter: AudioInterpreter,
-        capsys: pytest.CaptureFixture[str],
-        request: pytest.FixtureRequest,
+    instruction2parameters: tuple[str, str, Path],
+    allowed_levels: list,
+    audio_interpreter: AudioInterpreter,
+    capsys: pytest.CaptureFixture[str],
+    request: pytest.FixtureRequest,
 ) -> None:
     case, cycle, json_file = instruction2parameters
     content = json.load(json_file.open("r"))[cycle]

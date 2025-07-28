@@ -57,27 +57,36 @@ def test_staged_command_extract():
     tested = UpdateGoal
     tests = [
         ({}, None),
-        ({
-             "due_date": "theDate",
-             "priority": "thePriority",
-             "progress": "theProgress",
-             "goal_statement": {},
-             "achievement_status": "theStatus"
-         }, None),
-        ({
-             "due_date": "theDate",
-             "priority": "thePriority",
-             "progress": "theProgress",
-             "goal_statement": {"text": "theGoal"},
-             "achievement_status": "theStatus"
-         }, CodedItem(label="theGoal: theProgress", code="", uuid="")),
-        ({
-             "due_date": "theDate",
-             "priority": "thePriority",
-             "progress": "",
-             "goal_statement": {"text": "theGoal"},
-             "achievement_status": "theStatus"
-         }, None),
+        (
+            {
+                "due_date": "theDate",
+                "priority": "thePriority",
+                "progress": "theProgress",
+                "goal_statement": {},
+                "achievement_status": "theStatus",
+            },
+            None,
+        ),
+        (
+            {
+                "due_date": "theDate",
+                "priority": "thePriority",
+                "progress": "theProgress",
+                "goal_statement": {"text": "theGoal"},
+                "achievement_status": "theStatus",
+            },
+            CodedItem(label="theGoal: theProgress", code="", uuid=""),
+        ),
+        (
+            {
+                "due_date": "theDate",
+                "priority": "thePriority",
+                "progress": "",
+                "goal_statement": {"text": "theGoal"},
+                "achievement_status": "theStatus",
+            },
+            None,
+        ),
     ]
     for data, expected in tests:
         result = tested.staged_command_extract(data)
@@ -99,13 +108,8 @@ def test_command_from_json(current_goals):
         CodedItem(uuid="theUuid1", label="display1a", code="123"),
         CodedItem(uuid="theUuid2", label="display2a", code="45"),
         CodedItem(uuid="theUuid3", label="display3a", code="9876"),
-
     ]
-    tests = [
-        (1, "theUuid2"),
-        (2, "theUuid3"),
-        (4, ""),
-    ]
+    tests = [(1, "theUuid2"), (2, "theUuid3"), (4, "")]
     for idx, exp_uuid in tests:
         current_goals.side_effect = [goals, goals]
         arguments = {
@@ -116,12 +120,12 @@ def test_command_from_json(current_goals):
             "is_new": False,
             "is_updated": True,
             "parameters": {
-                'goal': 'display2a',
-                'goalIndex': idx,
+                "goal": "display2a",
+                "goalIndex": idx,
                 "dueDate": "2025-02-03",
-                'status': 'improving',
-                'priority': 'medium-priority',
-                'progressAndBarriers': 'theProgressAndBarriers',
+                "status": "improving",
+                "priority": "medium-priority",
+                "progressAndBarriers": "theProgressAndBarriers",
             },
         }
         instruction = InstructionWithParameters(**arguments)
@@ -156,12 +160,13 @@ def test_command_parameters(current_goals):
     current_goals.side_effect = [goals]
     result = tested.command_parameters()
     expected = {
-        'goal': 'one of: display1a (index: 0)/display2a (index: 1)/display3a (index: 2)',
-        'goalIndex': 'index of the Goal to update, or -1, as integer',
+        "goal": "one of: display1a (index: 0)/display2a (index: 1)/display3a (index: 2)",
+        "goalIndex": "index of the Goal to update, or -1, as integer",
         "dueDate": "YYYY-MM-DD",
-        "status": "one of: in-progress/improving/worsening/no-change/achieved/sustaining/not-achieved/no-progress/not-attainable",
+        "status": "one of: in-progress/improving/worsening/no-change/achieved/sustaining/"
+        "not-achieved/no-progress/not-attainable",
         "priority": "one of: high-priority/medium-priority/low-priority",
-        'progressAndBarriers': 'progress or barriers, as free text',
+        "progressAndBarriers": "progress or barriers, as free text",
     }
     assert result == expected
     calls = [call()]
@@ -207,10 +212,7 @@ def test_is_available(current_goals):
         CodedItem(uuid="theUuid2", label="display2a", code="CODE45"),
         CodedItem(uuid="theUuid3", label="display3a", code="CODE9876"),
     ]
-    tests = [
-        (goals, True),
-        ([], False),
-    ]
+    tests = [(goals, True), ([], False)]
     for side_effect, expected in tests:
         current_goals.side_effect = [side_effect]
         result = tested.is_available()

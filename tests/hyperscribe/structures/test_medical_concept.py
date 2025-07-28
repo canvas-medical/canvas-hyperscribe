@@ -4,8 +4,5 @@ from tests.helper import is_namedtuple
 
 def test_class():
     tested = MedicalConcept
-    fields = {
-        "concept_id": int,
-        "term": str,
-    }
+    fields = {"concept_id": int, "term": str}
     assert is_namedtuple(tested, fields)

@@ -43,9 +43,7 @@ from hyperscribe.structures.settings import Settings
 class Commander(BaseProtocol):
     MAX_PREVIOUS_AUDIOS = 0
 
-    RESPONDS_TO = [
-        EventType.Name(EventType.TASK_COMMENT_CREATED),
-    ]
+    RESPONDS_TO = [EventType.Name(EventType.TASK_COMMENT_CREATED)]
 
     @classmethod
     def with_cleanup(cls, fn: Any) -> Any:  # fn should be Callable, but it is not allowed as import yet
@@ -92,38 +90,47 @@ class Commander(BaseProtocol):
         had_audio, effects = self.compute_audio(identification, settings, aws_s3, audio_client, information.chunk_index)
         if had_audio:
             log.info(f"audio was present => go to next iteration ({information.chunk_index + 1})")
-            Progress.send_to_user(identification, settings, f"waiting for the next cycle {information.chunk_index + 1}...")
-            effects.append(AddTaskComment(
-                task_id=str(comment.task.id),
-                body=json.dumps(CommentBody(
-                    note_id=information.note_id,
-                    patient_id=identification.patient_uuid,
-                    chunk_index=information.chunk_index + 1,
-                    created=information.created,
-                    finished=None,
-                ).to_dict())
-            ).apply())
+            Progress.send_to_user(
+                identification,
+                settings,
+                f"waiting for the next cycle {information.chunk_index + 1}...",
+            )
+            effects.append(
+                AddTaskComment(
+                    task_id=str(comment.task.id),
+                    body=json.dumps(
+                        CommentBody(
+                            note_id=information.note_id,
+                            patient_id=identification.patient_uuid,
+                            chunk_index=information.chunk_index + 1,
+                            created=information.created,
+                            finished=None,
+                        ).to_dict(),
+                    ),
+                ).apply(),
+            )
         else:
             log.info("audio was NOT present:")
             # TODO vvv removed when https://github.com/canvas-medical/canvas-plugins/issues/600 is fixed
-            effects.append(AddTaskComment(
-                task_id=str(comment.task.id),
-                body=json.dumps(CommentBody(
-                    note_id=information.note_id,
-                    patient_id=identification.patient_uuid,
-                    chunk_index=information.chunk_index - 1,
-                    created=information.created,
-                    finished=datetime.now(UTC),
-                ).to_dict())
-            ).apply())
+            effects.append(
+                AddTaskComment(
+                    task_id=str(comment.task.id),
+                    body=json.dumps(
+                        CommentBody(
+                            note_id=information.note_id,
+                            patient_id=identification.patient_uuid,
+                            chunk_index=information.chunk_index - 1,
+                            created=information.created,
+                            finished=datetime.now(UTC),
+                        ).to_dict(),
+                    ),
+                ).apply(),
+            )
             # TODO ^^^ removed when https://github.com/canvas-medical/canvas-plugins/issues/600 is fixed
             log.info("  => inform the UI")
             Progress.send_to_user(identification, settings, "finished")
             log.info("  => stop the task")
-            effects.append(UpdateTask(
-                id=str(comment.task.id),
-                status=TaskStatus.COMPLETED,
-            ).apply())
+            effects.append(UpdateTask(id=str(comment.task.id), status=TaskStatus.COMPLETED).apply())
         MemoryLog.end_session(information.note_id)
         LlmTurnsStore.end_session(information.note_id)
         return effects
@@ -177,7 +184,7 @@ class Commander(BaseProtocol):
             audios,
             chatter,
             previous_instructions,
-            discussion.previous_transcript
+            discussion.previous_transcript,
         )
         discussion.save()
         # summary
@@ -194,23 +201,25 @@ class Commander(BaseProtocol):
         memory_log.output("<=== END ===>")
 
         if (client_s3 := AwsS3(aws_s3)) and client_s3.is_ready():
-            remote_path = (f"hyperscribe-{identification.canvas_instance}/"
-                           "finals/"
-                           f"{discussion.creation_day()}/"
-                           f"{identification.patient_uuid}-{identification.note_uuid}/"
-                           f"{discussion.cycle:02}.log")
+            remote_path = (
+                f"hyperscribe-{identification.canvas_instance}/"
+                "finals/"
+                f"{discussion.creation_day()}/"
+                f"{identification.patient_uuid}-{identification.note_uuid}/"
+                f"{discussion.cycle:02}.log"
+            )
             memory_log.output(f"--> log path: {remote_path}")
             client_s3.upload_text_to_s3(remote_path, MemoryLog.end_session(identification.note_uuid))
         return True, results
 
     @classmethod
     def audio2commands(
-            cls,
-            auditor: Auditor,
-            audios: list[bytes],
-            chatter: AudioInterpreter,
-            previous_instructions: list[Instruction],
-            previous_transcript: list[Line],
+        cls,
+        auditor: Auditor,
+        audios: list[bytes],
+        chatter: AudioInterpreter,
+        previous_instructions: list[Instruction],
+        previous_transcript: list[Line],
     ) -> tuple[list[Instruction], list[Effect], list[Line]]:
         memory_log = MemoryLog.instance(chatter.identification, Constants.MEMORY_LOG_LABEL, chatter.s3_credentials)
         response = chatter.combine_and_speaker_detection(audios, previous_transcript)
@@ -221,8 +230,12 @@ class Commander(BaseProtocol):
         transcript = Line.load_from_json(response.content)
         auditor.identified_transcript(audios, transcript)
         memory_log.output(f"--> transcript back and forth: {len(transcript)}")
-        speakers = ', '.join(sorted({l.speaker for l in transcript}))
-        Progress.send_to_user(chatter.identification, chatter.settings, f"audio reviewed, speakers detected: {speakers}")
+        speakers = ", ".join(sorted({l.speaker for l in transcript}))
+        Progress.send_to_user(
+            chatter.identification,
+            chatter.settings,
+            f"audio reviewed, speakers detected: {speakers}",
+        )
 
         instructions, effects = cls.transcript2commands(auditor, transcript, chatter, previous_instructions)
         transcript_tail = Line.tail_of(transcript, chatter.settings.cycle_transcript_overlap)
@@ -230,11 +243,11 @@ class Commander(BaseProtocol):
 
     @classmethod
     def transcript2commands(
-            cls,
-            auditor: Auditor,
-            transcript: list[Line],
-            chatter: AudioInterpreter,
-            instructions: list[Instruction],
+        cls,
+        auditor: Auditor,
+        transcript: list[Line],
+        chatter: AudioInterpreter,
+        instructions: list[Instruction],
     ) -> tuple[list[Instruction], list[Effect]]:
         questionnaire_classes = ImplementedCommands.questionnaire_command_name_list()
         common_instructions = [i for i in instructions if i.instruction not in questionnaire_classes]
@@ -266,11 +279,11 @@ class Commander(BaseProtocol):
 
     @classmethod
     def transcript2commands_common(
-            cls,
-            auditor: Auditor,
-            transcript: list[Line],
-            chatter: AudioInterpreter,
-            instructions: list[Instruction],
+        cls,
+        auditor: Auditor,
+        transcript: list[Line],
+        chatter: AudioInterpreter,
+        instructions: list[Instruction],
     ) -> tuple[list[Instruction], list[Effect]]:
         memory_log = MemoryLog.instance(chatter.identification, Constants.MEMORY_LOG_LABEL, chatter.s3_credentials)
 
@@ -306,7 +319,11 @@ class Commander(BaseProtocol):
         if detected_updated:
             detected.append(f"updated: {', '.join([f'{k}: {v}' for k, v in detected_updated.items()])}")
         detected.append(f"total: {len(cumulated_instructions)}")
-        Progress.send_to_user(chatter.identification, chatter.settings, f"instructions detection: {', '.join(detected)}")
+        Progress.send_to_user(
+            chatter.identification,
+            chatter.settings,
+            f"instructions detection: {', '.join(detected)}",
+        )
 
         max_workers = max(1, Constants.MAX_WORKERS)
         with ThreadPoolExecutor(max_workers=max_workers) as builder:
@@ -319,14 +336,18 @@ class Commander(BaseProtocol):
                 if instruction is not None
             ]
         memory_log.output(f"--> computed commands: {len(instructions_with_parameter)}")
-        Progress.send_to_user(chatter.identification, chatter.settings, f"parameters computation done ({len(instructions_with_parameter)})")
+        Progress.send_to_user(
+            chatter.identification,
+            chatter.settings,
+            f"parameters computation done ({len(instructions_with_parameter)})",
+        )
         auditor.computed_parameters(instructions_with_parameter)
 
         instructions_with_command: list[InstructionWithCommand] = []
         with ThreadPoolExecutor(max_workers=max_workers) as builder:
             for instruction_w_cmd in builder.map(
-                    cls.with_cleanup(chatter.create_sdk_command_from),
-                    instructions_with_parameter,
+                cls.with_cleanup(chatter.create_sdk_command_from),
+                instructions_with_parameter,
             ):
                 if instruction_w_cmd is not None:
                     if instruction_w_cmd.uuid in past_uuids:
@@ -334,7 +355,11 @@ class Commander(BaseProtocol):
                     instructions_with_command.append(instruction_w_cmd)
 
         memory_log.output(f"DURATION COMMONS: {int((time() - start) * 1000)}")
-        Progress.send_to_user(chatter.identification, chatter.settings, f"commands generation done ({len(instructions_with_command)})")
+        Progress.send_to_user(
+            chatter.identification,
+            chatter.settings,
+            f"commands generation done ({len(instructions_with_command)})",
+        )
         auditor.computed_commands(instructions_with_command)
 
         if chatter.is_local_data:
@@ -343,17 +368,16 @@ class Commander(BaseProtocol):
             # when editing/originating the commands
             return cumulated_instructions, []
         return cumulated_instructions, [
-            i.command.edit() if i.uuid in past_uuids else i.command.originate()
-            for i in instructions_with_command
+            i.command.edit() if i.uuid in past_uuids else i.command.originate() for i in instructions_with_command
         ]
 
     @classmethod
     def transcript2commands_questionnaires(
-            cls,
-            auditor: Auditor,
-            transcript: list[Line],
-            chatter: AudioInterpreter,
-            instructions: list[Instruction],
+        cls,
+        auditor: Auditor,
+        transcript: list[Line],
+        chatter: AudioInterpreter,
+        instructions: list[Instruction],
     ) -> tuple[list[Instruction], list[Effect]]:
         if not instructions:
             auditor.computed_questionnaires(transcript, [], [])
@@ -387,7 +411,11 @@ class Commander(BaseProtocol):
         ]
 
         memory_log.output(f"DURATION QUESTIONNAIRES: {int((time() - start) * 1000)}")
-        Progress.send_to_user(chatter.identification, chatter.settings, f"questionnaires update done ({len(instructions_with_command)})")
+        Progress.send_to_user(
+            chatter.identification,
+            chatter.settings,
+            f"questionnaires update done ({len(instructions_with_command)})",
+        )
         auditor.computed_questionnaires(transcript, instructions, instructions_with_command)
 
         if chatter.is_local_data:
@@ -401,11 +429,11 @@ class Commander(BaseProtocol):
 
     @classmethod
     def new_commands_from(
-            cls,
-            auditor: Auditor,
-            chatter: AudioInterpreter,
-            instructions: list[Instruction],
-            past_uuids: dict[str, Instruction],
+        cls,
+        auditor: Auditor,
+        chatter: AudioInterpreter,
+        instructions: list[Instruction],
+        past_uuids: dict[str, Instruction],
     ) -> list[Effect]:
         memory_log = MemoryLog(chatter.identification, Constants.MEMORY_LOG_LABEL)
         new_instructions = [instruction for instruction in instructions if instruction.uuid not in past_uuids]
@@ -445,18 +473,17 @@ class Commander(BaseProtocol):
 
     @classmethod
     def update_commands_from(
-            cls,
-            auditor: Auditor,
-            chatter: AudioInterpreter,
-            instructions: list[Instruction],
-            past_uuids: dict[str, Instruction],
+        cls,
+        auditor: Auditor,
+        chatter: AudioInterpreter,
+        instructions: list[Instruction],
+        past_uuids: dict[str, Instruction],
     ) -> list[Effect]:
         memory_log = MemoryLog(chatter.identification, Constants.MEMORY_LOG_LABEL)
         changed_instructions = [
             instruction
             for instruction in instructions
-            if instruction.uuid in past_uuids
-               and past_uuids[instruction.uuid].information != instruction.information
+            if instruction.uuid in past_uuids and past_uuids[instruction.uuid].information != instruction.information
         ]
         memory_log.output(f"--> updated instructions: {len(changed_instructions)}")
         start = time()
@@ -475,8 +502,8 @@ class Commander(BaseProtocol):
         instructions_with_command: list[InstructionWithCommand] = []
         with ThreadPoolExecutor(max_workers=max_workers) as builder:
             for instruction in builder.map(
-                    cls.with_cleanup(chatter.create_sdk_command_from),
-                    instructions_with_parameter,
+                cls.with_cleanup(chatter.create_sdk_command_from),
+                instructions_with_parameter,
             ):
                 if instruction is not None:
                     instruction.command.command_uuid = instruction.uuid
@@ -493,7 +520,11 @@ class Commander(BaseProtocol):
         return [command.command.edit() for command in instructions_with_command]
 
     @classmethod
-    def existing_commands_to_instructions(cls, current_commands: Iterable[Command], instructions: list[Instruction]) -> list[Instruction]:
+    def existing_commands_to_instructions(
+        cls,
+        current_commands: Iterable[Command],
+        instructions: list[Instruction],
+    ) -> list[Instruction]:
         # convert the current commands of the note to instructions
         # then, try to match them to previously identified instructions
         result: dict[str, Instruction] = {}
@@ -516,7 +547,7 @@ class Commander(BaseProtocol):
 
             for initialized in pre_initialized:
                 if instruction_type == initialized.class_name() and (
-                        code_item := initialized.staged_command_extract(command.data)
+                    code_item := initialized.staged_command_extract(command.data)
                 ):
                     information = code_item.label
 
@@ -539,20 +570,29 @@ class Commander(BaseProtocol):
         return list(result.values())
 
     @classmethod
-    def existing_commands_to_coded_items(cls, current_commands: Iterable[Command], commands_policy: AccessPolicy, real_uuids: bool) -> dict[
-        str, list[CodedItem]]:
+    def existing_commands_to_coded_items(
+        cls,
+        current_commands: Iterable[Command],
+        commands_policy: AccessPolicy,
+        real_uuids: bool,
+    ) -> dict[str, list[CodedItem]]:
         result: dict[str, list[CodedItem]] = {}
         for command in current_commands:
             for command_class in ImplementedCommands.command_list():
-                if commands_policy.is_allowed(command_class.class_name()) and command_class.schema_key() == command.schema_key:
+                if (
+                    commands_policy.is_allowed(command_class.class_name())
+                    and command_class.schema_key() == command.schema_key
+                ):
                     if coded_item := command_class.staged_command_extract(command.data):
                         key = command.schema_key
                         if key not in result:
                             result[key] = []
-                        result[key].append(CodedItem(
-                            uuid=str(command.id) if real_uuids else coded_item.uuid,
-                            label=coded_item.label,
-                            code=coded_item.code,
-                        ))
+                        result[key].append(
+                            CodedItem(
+                                uuid=str(command.id) if real_uuids else coded_item.uuid,
+                                label=coded_item.label,
+                                code=coded_item.code,
+                            ),
+                        )
                     break
         return result

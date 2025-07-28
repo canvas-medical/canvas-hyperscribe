@@ -1,0 +1,52 @@
+[
+  {
+    "criterion": "Reward for accurately recording the prescribed budesonide-formoterol directions of \u201c2 puffs in the morning and 2 puffs at night,\u201d exactly as stated in the visit and matching the chart",
+    "weight": 15,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting that a new budesonide-formoterol canister has arrived but remains unopened because its appearance (blue-white / shiny blue stripes) differs from the patient\u2019s prior gray canister",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for noting the clinician\u2019s explanation of a formulary swap (color change yet same medication inside)",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for capturing the clinician\u2019s inquiry about recent side effects (throat scratchiness or shakes)",
+    "weight": 8,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for recording the plan that the nurse will log each inhaler actuation (\u201chit\u201d)",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for including the discussion about potential five-week supply disruption and the clinician\u2019s question on how many spare doses to send",
+    "weight": 12,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for documenting the patient\u2019s concerns about knowing when the inhaler is nearly empty, including reference to the old canister clicking ~40 times and reliance on the nurse shaking it",
+    "weight": 8,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Reward for overall completeness\u2014note faithfully reflects all major dialogue points and relevant chart context without significant omissions",
+    "weight": 10,
+    "sense": "positive"
+  },
+  {
+    "criterion": "Penalize for introducing information not present or implied in the transcript or chart (e.g., new diagnoses, counseling, vitals, or instructions not voiced)",
+    "weight": 12,
+    "sense": "negative"
+  },
+  {
+    "criterion": "Penalize for copying irrelevant chart sections or demographics that were not germane to this encounter (e.g., empty surgical history, unrelated templates) or for misstating chart data (e.g., wrong strength or condition)",
+    "weight": 5,
+    "sense": "negative"
+  }
+]

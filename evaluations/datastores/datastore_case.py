@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from evaluations.auditors.auditor_file import AuditorFile
+from evaluations.datastores.filesystem.case import Case as FileSystemCase
 from evaluations.datastores.postgres.case import Case as PostgresCase
 from evaluations.datastores.postgres.generated_note import GeneratedNote as PostgresGeneratedNote
-from evaluations.datastores.filesystem.case import Case as FileSystemCase
 from evaluations.helper_evaluation import HelperEvaluation
 
 
@@ -12,8 +12,8 @@ class DatastoreCase:
     def already_generated(cls, case: str) -> bool:
         postgres_credentials = HelperEvaluation.postgres_credentials()
         if postgres_credentials.is_ready():
-            case_id = PostgresCase(postgres_credentials).get_id(case)
-            return bool(PostgresGeneratedNote(postgres_credentials).runs_count_for(case_id) > 0)
+            case_id = PostgresCase(postgres_credentials).get_case(case)
+            return bool(len(case_id.transcript) > 0 and len(case_id.limited_chart) > 0)
 
         return AuditorFile.already_generated(case)
 

@@ -8,18 +8,13 @@ from hyperscribe.structures.http_response import HttpResponse
 
 
 class LlmGoogle(LlmBase):
-
     def add_audio(self, audio: bytes, audio_format: str) -> None:
         if audio:
             self.audios.append({"format": f"audio/{audio_format}", "data": audio})
 
     def to_dict(self, audio_uris: list[tuple[str, str]]) -> dict:
         contents: list[dict] = []
-        roles = {
-            self.ROLE_SYSTEM: "user",
-            self.ROLE_USER: "user",
-            self.ROLE_MODEL: "model",
-        }
+        roles = {self.ROLE_SYSTEM: "user", self.ROLE_USER: "user", self.ROLE_MODEL: "model"}
         for prompt in self.prompts:
             role = roles[prompt.role]
             part = {"text": "\n".join(prompt.text)}
@@ -27,18 +22,12 @@ class LlmGoogle(LlmBase):
             if contents and contents[-1]["role"] == role:
                 contents[-1]["parts"].append(part)
             else:
-                contents.append({
-                    "role": role,
-                    "parts": [part],
-                })
+                contents.append({"role": role, "parts": [part]})
         # on the first part, add the audio, if any
         for mime, uri in audio_uris:
             contents[0]["parts"].append({"file_data": {"mime_type": mime, "file_uri": uri}})
 
-        return {
-            "contents": contents,
-            "generationConfig": {"temperature": self.temperature},
-        }
+        return {"contents": contents, "generationConfig": {"temperature": self.temperature}}
 
     def upload_audio(self, audio: bytes, audio_format: str, audio_name: str) -> str:
         result = ""
@@ -81,14 +70,7 @@ class LlmGoogle(LlmBase):
         data = json.dumps(self.to_dict(audio_uris))
         self.memory_log.log("--- request begins:")
         self.memory_log.log(json.dumps(self.to_dict(audio_uris), indent=2))
-        request = requests_post(
-            url,
-            headers=headers,
-            params={},
-            data=data,
-            verify=True,
-            timeout=None,
-        )
+        request = requests_post(url, headers=headers, params={}, data=data, verify=True, timeout=None)
         self.memory_log.log(f"status code: {request.status_code}")
         self.memory_log.log(request.text)
         self.memory_log.log("--- request ends ---")
