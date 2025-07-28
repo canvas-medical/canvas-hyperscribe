@@ -138,7 +138,7 @@ class NoteGrader:
         return result
 
     @classmethod
-    def grade_and_save(cls, rubric_id: int, generated_note_id: int) -> ScoreRecord:
+    def grade_and_save2database(cls, rubric_id: int, generated_note_id: int) -> ScoreRecord:
         credentials = HelperEvaluation.postgres_credentials()
         vendor_key = HelperEvaluation.settings().llm_text
 
@@ -161,25 +161,54 @@ class NoteGrader:
         )
         return ScoreDatastore(credentials).insert(score_record)
 
-    @staticmethod
-    def main() -> None:
-        parser = argparse.ArgumentParser(description="Grade a note against a rubric.")
-        parser.add_argument("--rubric", type=Path, required=True, help="Path to rubric.json")
-        parser.add_argument("--note", type=Path, required=True, help="Path to note.json")
-        parser.add_argument("--output", type=Path, required=True, help="Where to save grading JSON")
-        args = parser.parse_args()
-
+    @classmethod
+    def grade_and_save2file(cls, rubric_path: Path, note_path: Path, output_path: Path) -> None:
+        """Grade a note using rubric from files and save result to output file."""
         settings = HelperEvaluation.settings()
         vendor_key = settings.llm_text
 
-        rubric = [RubricCriterion(**c) for c in NoteGrader.load_json(args.rubric)]
-        note = NoteGrader.load_json(args.note)
+        rubric = [RubricCriterion(**c) for c in cls.load_json(rubric_path)]
+        note = cls.load_json(note_path)
 
-        grader = NoteGrader(vendor_key, rubric, note)
+        grader = cls(vendor_key, rubric, note)
         result = grader.run()
 
-        args.output.write_text(json.dumps(result, indent=2))
-        print("Saved grading result in", args.output)
+        output_path.write_text(json.dumps(result, indent=2))
+        print("Saved grading result in", output_path)
+
+    @staticmethod
+    def main() -> None:
+        parser = argparse.ArgumentParser(description="Grade a note against a rubric.")
+
+        # File-based parameters
+        parser.add_argument("--rubric", type=Path, help="Path to rubric.json")
+        parser.add_argument("--note", type=Path, help="Path to note.json")
+        parser.add_argument("--output", type=Path, help="Where to save grading JSON")
+
+        # Database-based parameters
+        parser.add_argument("--rubric_id", type=int, help="Rubric ID from database")
+        parser.add_argument("--generated_note_id", type=int, help="Generated note ID from database")
+
+        args = parser.parse_args()
+
+        # Validate parameter combinations
+        file_params = [args.rubric, args.note, args.output]
+        db_params = [args.rubric_id, args.generated_note_id]
+
+        file_mode = all(param is not None for param in file_params)
+        db_mode = all(param is not None for param in db_params)
+
+        if not (file_mode or db_mode):
+            parser.error("Must provide either (--rubric, --note, --output) or (--rubric_id, --generated_note_id)")
+
+        if file_mode and db_mode:
+            parser.error("Cannot provide both file-based and database-based parameters")
+
+        if file_mode:
+            NoteGrader.grade_and_save2file(args.rubric, args.note, args.output)
+        else:  # db_mode
+            result = NoteGrader.grade_and_save2database(args.rubric_id, args.generated_note_id)
+            print(f"Saved grading result to database with score ID: {result.id}")
 
 
 if __name__ == "__main__":
