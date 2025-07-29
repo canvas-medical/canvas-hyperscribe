@@ -29,6 +29,7 @@ from hyperscribe.libraries.implemented_commands import ImplementedCommands
 from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.libraries.llm_turns_store import LlmTurnsStore
 from hyperscribe.libraries.memory_log import MemoryLog
+from hyperscribe.libraries.stop_and_go import StopAndGo
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.coded_item import CodedItem
@@ -65,10 +66,21 @@ class Commander(BaseProtocol):
             return []
 
         information = CommentBody.load_from_json(json.loads(comment.body))
-        # TODO vvv removed when https://github.com/canvas-medical/canvas-plugins/issues/600 is fixed
-        if information.finished is not None:
+        stop_and_go = StopAndGo.get(information.note_id)
+        # as soon as a message sets is_ended, it is finished without any possibility to restart
+        if stop_and_go.is_ended:
+            log.info("  => discussion is ended")
             return []
-        # TODO ^^^ removed when https://github.com/canvas-medical/canvas-plugins/issues/600 is fixed
+        # the pause status can be set only with chunk_index equals to -1
+        if information.chunk_index == -1:
+            stop_and_go.is_paused = information.is_paused
+            stop_and_go.save()
+        if stop_and_go.is_paused:
+            log.info("  => discussion is paused")
+            return []
+        # continue or resume the cycles
+        chunk_index = stop_and_go.cycle
+
         note = Note.objects.get(id=information.note_id)
         identification = IdentificationParameters(
             patient_uuid=note.patient.id,
@@ -89,15 +101,18 @@ class Commander(BaseProtocol):
             settings,
             aws_s3,
             self.secrets[Constants.SECRET_AUDIO_HOST],
-            information.chunk_index,
+            chunk_index,
         )
         if had_audio:
-            log.info(f"audio was present => go to next iteration ({information.chunk_index + 1})")
+            log.info(f"audio was present => go to next iteration ({chunk_index + 1})")
             Progress.send_to_user(
                 identification,
                 settings,
-                f"waiting for the next cycle {information.chunk_index + 1}...",
+                f"waiting for the next cycle {chunk_index + 1}...",
             )
+            stop_and_go = StopAndGo.get(information.note_id)
+            stop_and_go.cycle = chunk_index + 1
+            stop_and_go.save()
             effects.append(
                 AddTaskComment(
                     task_id=str(comment.task.id),
@@ -105,7 +120,8 @@ class Commander(BaseProtocol):
                         CommentBody(
                             note_id=information.note_id,
                             patient_id=identification.patient_uuid,
-                            chunk_index=information.chunk_index + 1,
+                            chunk_index=chunk_index + 1,
+                            is_paused=False,
                             created=information.created,
                             finished=None,
                         ).to_dict(),
@@ -114,6 +130,9 @@ class Commander(BaseProtocol):
             )
         else:
             log.info("audio was NOT present:")
+            stop_and_go = StopAndGo.get(information.note_id)
+            stop_and_go.is_ended = True
+            stop_and_go.save()
             # TODO vvv removed when https://github.com/canvas-medical/canvas-plugins/issues/600 is fixed
             effects.append(
                 AddTaskComment(
@@ -123,6 +142,7 @@ class Commander(BaseProtocol):
                             note_id=information.note_id,
                             patient_id=identification.patient_uuid,
                             chunk_index=information.chunk_index - 1,
+                            is_paused=False,
                             created=information.created,
                             finished=datetime.now(UTC),
                         ).to_dict(),

@@ -7,7 +7,14 @@ from tests.helper import is_namedtuple
 
 def test_class():
     tested = CommentBody
-    fields = {"chunk_index": int, "note_id": str, "patient_id": str, "created": datetime, "finished": datetime | None}
+    fields = {
+        "chunk_index": int,
+        "note_id": str,
+        "patient_id": str,
+        "is_paused": bool,
+        "created": datetime,
+        "finished": datetime | None,
+    }
     assert is_namedtuple(tested, fields)
 
 
@@ -16,6 +23,7 @@ def test_to_dict():
         chunk_index=7,
         note_id="theNoteUuid",
         patient_id="thePatientUuid",
+        is_paused=True,
         created=datetime(2025, 5, 12, 11, 6, 47, tzinfo=UTC),
         finished=None,
     )
@@ -26,6 +34,7 @@ def test_to_dict():
         "finished": None,
         "note_id": "theNoteUuid",
         "patient_id": "thePatientUuid",
+        "is_paused": True,
     }
 
     assert result == expected
@@ -34,6 +43,7 @@ def test_to_dict():
         chunk_index=7,
         note_id="theNoteUuid",
         patient_id="thePatientUuid",
+        is_paused=False,
         created=datetime(2025, 5, 12, 23, 49, 47, tzinfo=UTC),
         finished=datetime(2025, 5, 13, 0, 7, 33, tzinfo=UTC),
     )
@@ -44,6 +54,7 @@ def test_to_dict():
         "finished": "2025-05-13T00:07:33+00:00",
         "note_id": "theNoteUuid",
         "patient_id": "thePatientUuid",
+        "is_paused": False,
     }
     assert result == expected
 
@@ -63,11 +74,13 @@ def test_load_from_json(mock_datetime):
                 "finished": "2025-05-12T11:06:53+00:00",
                 "note_id": "theNoteUuid",
                 "patient_id": "thePatientUuid",
+                "is_paused": False,
             },
             CommentBody(
                 chunk_index=7,
                 note_id="theNoteUuid",
                 patient_id="thePatientUuid",
+                is_paused=False,
                 created=datetime(2025, 5, 12, 11, 6, 47, tzinfo=UTC),
                 finished=datetime(2025, 5, 12, 11, 6, 53, tzinfo=UTC),
             ),
@@ -80,11 +93,13 @@ def test_load_from_json(mock_datetime):
                 "finished": None,
                 "note_id": "theNoteUuid",
                 "patient_id": "thePatientUuid",
+                "is_paused": True,
             },
             CommentBody(
                 chunk_index=7,
                 note_id="theNoteUuid",
                 patient_id="thePatientUuid",
+                is_paused=True,
                 created=datetime(2025, 5, 12, 11, 6, 47, tzinfo=UTC),
                 finished=None,
             ),
@@ -97,11 +112,13 @@ def test_load_from_json(mock_datetime):
                 "finished": None,
                 "note_id": "theNoteUuid",
                 "patient_id": "thePatientUuid",
+                "is_paused": False,
             },
             CommentBody(
                 chunk_index=7,
                 note_id="theNoteUuid",
                 patient_id="thePatientUuid",
+                is_paused=False,
                 created=datetime(2025, 5, 12, 11, 6, 47, tzinfo=UTC),
                 finished=None,
             ),
