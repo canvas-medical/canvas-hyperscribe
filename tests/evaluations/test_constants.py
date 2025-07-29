@@ -61,5 +61,6 @@ def test_constants():
             "familyHistory": "any history of family care or illness",
             "surgeryHistory": "any history of surgical care or operations",
         },
+        "MAX_CHARACTERS_PER_CYCLE": 1000,
     }
     assert is_constant(tested, constants)

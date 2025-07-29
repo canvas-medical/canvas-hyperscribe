@@ -1,15 +1,15 @@
 from datetime import datetime, timezone
 from unittest.mock import patch, call
 
-from evaluations.datastores.postgres.synthetic_case import SyntheticCase
 from evaluations.datastores.postgres.postgres import Postgres
+from evaluations.datastores.postgres.synthetic_case import SyntheticCase
+from evaluations.structures.enums.synthetic_case_clinician_style import SyntheticCaseClinicianStyle
+from evaluations.structures.enums.synthetic_case_mood import SyntheticCaseMood
+from evaluations.structures.enums.synthetic_case_patient_style import SyntheticCasePatientStyle
+from evaluations.structures.enums.synthetic_case_pressure import SyntheticCasePressure
+from evaluations.structures.enums.synthetic_case_turn_buckets import SyntheticCaseTurnBuckets
 from evaluations.structures.postgres_credentials import PostgresCredentials
 from evaluations.structures.records.synthetic_case import SyntheticCase as SyntheticCaseRecord
-from evaluations.structures.enums.synthetic_case_mood import SyntheticCaseMood
-from evaluations.structures.enums.synthetic_case_pressure import SyntheticCasePressure
-from evaluations.structures.enums.synthetic_case_clinician_style import SyntheticCaseClinicianStyle
-from evaluations.structures.enums.synthetic_case_patient_style import SyntheticCasePatientStyle
-from evaluations.structures.enums.synthetic_case_turn_buckets import SyntheticCaseTurnBuckets
 from tests.helper import compare_sql
 
 
@@ -44,11 +44,11 @@ def test_upsert(select, alter, mock_datetime):
         turn_total=4,
         speaker_sequence=["Clinician", "Patient", "Patient", "Clinician"],
         clinician_to_patient_turn_ratio=1.0,
-        mood=SyntheticCaseMood.PATIENT_FRUSTRATED,
-        pressure=SyntheticCasePressure.TIME_PRESSURE,
-        clinician_style=SyntheticCaseClinicianStyle.CAUTIOUS_INQUISITIVE,
-        patient_style=SyntheticCasePatientStyle.ANXIOUS_TALKATIVE,
-        turn_buckets=SyntheticCaseTurnBuckets.MEDIUM,
+        mood=[SyntheticCaseMood.PATIENT_FRUSTRATED.value],
+        pressure=SyntheticCasePressure.TIME_PRESSURE.value,
+        clinician_style=SyntheticCaseClinicianStyle.CAUTIOUS_INQUISITIVE.value,
+        patient_style=SyntheticCasePatientStyle.ANXIOUS_TALKATIVE.value,
+        turn_buckets=SyntheticCaseTurnBuckets.MEDIUM.value,
         duration=65.0,
         text_llm_vendor="VendorX",
         text_llm_name="ModelY",
@@ -61,11 +61,11 @@ def test_upsert(select, alter, mock_datetime):
         turn_total=4,
         speaker_sequence=["Clinician", "Patient", "Patient", "Clinician"],
         clinician_to_patient_turn_ratio=1.0,
-        mood=SyntheticCaseMood.PATIENT_FRUSTRATED,
-        pressure=SyntheticCasePressure.TIME_PRESSURE,
-        clinician_style=SyntheticCaseClinicianStyle.CAUTIOUS_INQUISITIVE,
-        patient_style=SyntheticCasePatientStyle.ANXIOUS_TALKATIVE,
-        turn_buckets=SyntheticCaseTurnBuckets.MEDIUM,
+        mood=[SyntheticCaseMood.PATIENT_FRUSTRATED.value],
+        pressure=SyntheticCasePressure.TIME_PRESSURE.value,
+        clinician_style=SyntheticCaseClinicianStyle.CAUTIOUS_INQUISITIVE.value,
+        patient_style=SyntheticCasePatientStyle.ANXIOUS_TALKATIVE.value,
+        turn_buckets=SyntheticCaseTurnBuckets.MEDIUM.value,
         duration=65.0,
         text_llm_vendor="VendorX",
         text_llm_name="ModelY",
@@ -99,13 +99,13 @@ def test_upsert(select, alter, mock_datetime):
                     "created", "updated", "case_id", "category", "turn_total", "speaker_sequence",
                     "clinician_to_patient_turn_ratio", "mood", "pressure",
                     "clinician_style", "patient_style", "turn_buckets",
-                    "text_llm_vendor", "text_llm_name"
+                    "text_llm_vendor", "text_llm_name", "temperature"
                 )
                 VALUES (
                     %(now)s, %(now)s, %(case_id)s, %(category)s, %(turn_total)s, %(speaker_sequence)s,
                     %(clinician_to_patient_turn_ratio)s, %(mood)s, %(pressure)s,
                     %(clinician_style)s, %(patient_style)s, %(turn_buckets)s,
-                    %(text_llm_vendor)s, %(text_llm_name)s
+                    %(text_llm_vendor)s, %(text_llm_name)s, %(temperature)s
                 )
                 RETURNING id
             """
@@ -116,15 +116,16 @@ def test_upsert(select, alter, mock_datetime):
         "case_id": 123,
         "category": "theCategory",
         "turn_total": 4,
-        "speaker_sequence": ["Clinician", "Patient", "Patient", "Clinician"],
+        "speaker_sequence": '["Clinician","Patient","Patient","Clinician"]',
         "clinician_to_patient_turn_ratio": 1.0,
-        "mood": "patient is frustrated",
+        "mood": ["patient is frustrated"],
         "pressure": "time pressure on the visit",
         "clinician_style": "cautious and inquisitive",
         "patient_style": "anxious and talkative",
         "turn_buckets": "medium",
         "text_llm_vendor": "VendorX",
         "text_llm_name": "ModelY",
+        "temperature": 1.0,
     }
     assert params == exp_params
     assert involved_id is None
@@ -156,7 +157,7 @@ def test_upsert(select, alter, mock_datetime):
         '"clinician_to_patient_turn_ratio" = %(clinician_to_patient_turn_ratio)s, '
         '"mood" = %(mood)s, "pressure" = %(pressure)s, "clinician_style" = %(clinician_style)s, '
         '"patient_style" = %(patient_style)s, "turn_buckets" = %(turn_buckets)s, '
-        '"text_llm_vendor" = %(text_llm_vendor)s, "text_llm_name" = %(text_llm_name)s '
+        '"text_llm_vendor" = %(text_llm_vendor)s, "text_llm_name" = %(text_llm_name)s, "temperature" = %(temperature)s '
         'WHERE "id" = %(id)s'
     )
     assert compare_sql(sql, exp_sql)
@@ -166,15 +167,16 @@ def test_upsert(select, alter, mock_datetime):
         "case_id": 123,
         "category": "theCategory",
         "turn_total": 4,
-        "speaker_sequence": ["Clinician", "Patient", "Patient", "Clinician"],
+        "speaker_sequence": '["Clinician","Patient","Patient","Clinician"]',
         "clinician_to_patient_turn_ratio": 1.0,
-        "mood": "patient is frustrated",
+        "mood": ["patient is frustrated"],
         "pressure": "time pressure on the visit",
         "clinician_style": "cautious and inquisitive",
         "patient_style": "anxious and talkative",
         "turn_buckets": "medium",
         "text_llm_vendor": "VendorX",
         "text_llm_name": "ModelY",
+        "temperature": 1.0,
     }
     assert involved_id == 777
     assert params == exp_params

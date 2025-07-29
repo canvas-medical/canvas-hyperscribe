@@ -11,9 +11,9 @@ class SyntheticCase(NamedTuple):
     case_id: int
     category: str = ""
     turn_total: int = 0
-    speaker_sequence: str = ""
+    speaker_sequence: list[str] = []
     clinician_to_patient_turn_ratio: float = 0.0
-    mood: SyntheticCaseMood = SyntheticCaseMood.PATIENT_FRUSTRATED
+    mood: list[SyntheticCaseMood] = [SyntheticCaseMood.PATIENT_FRUSTRATED]
     pressure: SyntheticCasePressure = SyntheticCasePressure.TIME_PRESSURE
     clinician_style: SyntheticCaseClinicianStyle = SyntheticCaseClinicianStyle.WARM_CHATTY
     patient_style: SyntheticCasePatientStyle = SyntheticCasePatientStyle.ANXIOUS_TALKATIVE

@@ -50,7 +50,7 @@ class SyntheticTranscriptGenerator:
             Constants.PATIENT_STYLE_KEY: random.choice(
                 [patient_style.value for patient_style in SyntheticCasePatientStyle]
             ),
-            Constants.BUCKET: bucket,
+            Constants.BUCKET: bucket.value,
         }
 
     @classmethod

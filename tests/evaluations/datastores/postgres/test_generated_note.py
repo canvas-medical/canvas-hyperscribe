@@ -241,3 +241,40 @@ def test_delete_for(alter):
     assert params == exp_params
     assert involved_id is None
     reset_mock()
+
+
+@patch.object(GeneratedNote, "_select")
+def test_get_note_json(select):
+    def reset_mock():
+        select.reset_mock()
+
+    tested = helper_instance()
+
+    # Test note found
+    note_data = {"some": "note", "content": ["data"]}
+    select.side_effect = [[{"note_json": note_data}]]
+
+    result = tested.get_note_json(123)
+    assert result == note_data
+
+    assert len(select.mock_calls) == 1
+    sql, params = select.mock_calls[0].args
+    exp_sql = 'SELECT "note_json" FROM "generated_note" WHERE "id" = %(id)s'
+    assert compare_sql(sql, exp_sql)
+    exp_params = {"id": 123}
+    assert params == exp_params
+    reset_mock()
+
+    # Test note not found
+    select.side_effect = [[]]
+
+    result = tested.get_note_json(456)
+    assert result == {}
+
+    assert len(select.mock_calls) == 1
+    sql, params = select.mock_calls[0].args
+    exp_sql = 'SELECT "note_json" FROM "generated_note" WHERE "id" = %(id)s'
+    assert compare_sql(sql, exp_sql)
+    exp_params = {"id": 456}
+    assert params == exp_params
+    reset_mock()

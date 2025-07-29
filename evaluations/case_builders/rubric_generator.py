@@ -1,11 +1,20 @@
+from __future__ import annotations
 import json, argparse
 from pathlib import Path
 from typing import Any
 
+from datetime import datetime, UTC
+
 from hyperscribe.structures.vendor_key import VendorKey
-from evaluations.helper_evaluation import HelperEvaluation
+from hyperscribe.libraries.constants import Constants as HyperscribeConstants
+
 from evaluations.case_builders.helper_synthetic_json import HelperSyntheticJson
 from evaluations.constants import Constants
+from evaluations.helper_evaluation import HelperEvaluation
+from evaluations.structures.records.rubric import Rubric as RubricRecord
+from evaluations.structures.enums.rubric_validation import RubricValidation
+from evaluations.datastores.postgres.rubric import Rubric as RubricDatastore
+from evaluations.datastores.postgres.case import Case as CaseDatastore
 
 
 class RubricGenerator:
@@ -19,12 +28,6 @@ class RubricGenerator:
 
     @classmethod
     def schema_rubric(cls) -> dict[str, Any]:
-        """
-        JSON Schema for an array of rubric criteria objects:
-        - criterion: string
-        - weight: integer 0-100
-        - sense: "positive" or "negative"
-        """
         return {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "type": "array",
@@ -53,26 +56,17 @@ class RubricGenerator:
             },
         }
 
-    def generate(
-        self,
-        transcript_path: Path,
-        chart_path: Path,
-        canvas_context_path: Path,
-        output_path: Path,
-    ) -> None:
-        transcript = self.load_json(transcript_path)
-        chart = self.load_json(chart_path)
-        canvas_context = self.load_json(canvas_context_path)
+    def build_prompts(self, transcript: dict, chart: dict, canvas_context: dict) -> tuple[list[str], list[str]]:
         schema = self.schema_rubric()
 
-        system_prompt: list[str] = [
+        system_prompt = [
             "You are a clinical informatics expert working with a senior physician "
             "to design case-specific rubrics that assess how faithfully a medical "
             "scribe note reflects the transcript and chart.",
             "Return your answer as JSON inside a fenced ```json ... ``` block.",
         ]
 
-        user_prompt: list[str] = [
+        user_prompt = [
             "Task: design a grading rubric for *documentation fidelity*.",
             "Definition of fidelity: how accurately the note captures what was said "
             "or implied in the transcript, using relevant context from the chart. "
@@ -82,7 +76,7 @@ class RubricGenerator:
             " 2. Decide what an ideal scribe must capture.",
             " 3. Produce the rubric as a JSON array of objects.",
             "Each object keys:",
-            ' - criterion (string) — must start with with "Reward for" or "Penalize for"',
+            ' - criterion (string) — must start with "Reward for" or "Penalize for"',
             " - weight (int 0-100)",
             f"– sense ('{Constants.POSITIVE_VALUE}' | '{Constants.NEGATIVE_VALUE}')",
             "Include at least one criterion on overall completeness and one on chart-copy fidelity.",
@@ -102,31 +96,99 @@ class RubricGenerator:
             "--- END CANVAS CONTEXT JSON ---",
         ]
 
-        rubric_list = HelperSyntheticJson.generate_json(
-            vendor_key=self.vendor_key, system_prompt=system_prompt, user_prompt=user_prompt, schema=schema
+        return system_prompt, user_prompt
+
+    def generate(self, transcript: dict, chart: dict, canvas_context: dict) -> Any:
+        system_prompt, user_prompt = self.build_prompts(transcript, chart, canvas_context)
+        return HelperSyntheticJson.generate_json(
+            vendor_key=self.vendor_key,
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            schema=self.schema_rubric(),
         )
 
+    @classmethod
+    def generate_and_save2file(
+        cls, transcript_path: Path, chart_path: Path, canvas_context_path: Path, output_path: Path
+    ) -> None:
+        vendor_key = HelperEvaluation.settings().llm_text
+        generator = cls(vendor_key)
+
+        transcript = cls.load_json(transcript_path)
+        chart = cls.load_json(chart_path)
+        context = cls.load_json(canvas_context_path)
+
+        rubric_list = generator.generate(transcript, chart, context)
         output_path.write_text(json.dumps(rubric_list, indent=2))
-        print(f"Wrote rubric to {output_path}")
+        print(f"Saved rubric to file at: {output_path}")
+
+    @classmethod
+    def generate_and_save2database(cls, case_name: str, canvas_context_path: Path) -> RubricRecord:
+        settings = HelperEvaluation.settings()
+        vendor_key = settings.llm_text
+        credentials = HelperEvaluation.postgres_credentials()
+
+        datastore = CaseDatastore(credentials)
+
+        case_id = datastore.get_id(case_name)
+        transcript = datastore.get_transcript(case_id)
+        chart = datastore.get_limited_chart(case_id)
+        canvas_context = cls.load_json(canvas_context_path)
+
+        generator = cls(vendor_key)
+        rubric_list = generator.generate(transcript, chart, canvas_context)
+
+        rubric_record = RubricRecord(
+            id=0,
+            case_id=case_id,
+            parent_rubric_id=None,
+            validation_timestamp=datetime.now(UTC),
+            validation=RubricValidation.NOT_EVALUATED,
+            author="",
+            rubric=rubric_list,
+            case_provenance_classification="",
+            comments="",
+            text_llm_vendor=vendor_key.vendor,
+            text_llm_name=HyperscribeConstants.OPENAI_CHAT_TEXT_O3,
+            temperature=1.0,
+        )
+        print("Rubric record generated. Upsert starting now.")
+        return RubricDatastore(credentials).upsert(rubric_record)
 
     @staticmethod
     def main() -> None:
-        parser = argparse.ArgumentParser(description="Generate a fidelity-focused rubric for a medical scribe note.")
-        parser.add_argument("--transcript_path", type=Path, help="Path to transcript.json")
-        parser.add_argument("--chart_path", type=Path, help="Path to limited_chart.json")
-        parser.add_argument("--canvas_context_path", type=Path, help="Path to canvas_context.json")
-        parser.add_argument("--output_path", type=Path, help="Where to save rubric.json")
+        parser = argparse.ArgumentParser(description="Generate a fidelity rubric for documentation.")
+        # File mode
+        parser.add_argument("--transcript_path", type=Path)
+        parser.add_argument("--chart_path", type=Path)
+        parser.add_argument("--canvas_context_path", type=Path)
+        parser.add_argument("--output_path", type=Path)
+        # DB mode
+        parser.add_argument("--case_name", type=str)
+
         args = parser.parse_args()
 
-        settings = HelperEvaluation.settings()
-        vendor_key = settings.llm_text
+        file_mode = all([args.transcript_path, args.chart_path, args.canvas_context_path, args.output_path])
+        db_mode = args.case_name is not None and args.canvas_context_path is not None
 
-        RubricGenerator(vendor_key).generate(
-            transcript_path=args.transcript_path,
-            chart_path=args.chart_path,
-            canvas_context_path=args.canvas_context_path,
-            output_path=args.output_path,
-        )
+        if not (file_mode or db_mode):
+            parser.error("Must provide either all file inputs or (--case_name and --canvas_context_path).")
+        if file_mode and db_mode:
+            parser.error("Cannot mix file-based and DB-based generation modes.")
+
+        if file_mode:
+            RubricGenerator.generate_and_save2file(
+                args.transcript_path,
+                args.chart_path,
+                args.canvas_context_path,
+                args.output_path,
+            )
+        else:
+            result = RubricGenerator.generate_and_save2database(
+                args.case_name,
+                args.canvas_context_path,
+            )
+            print(f"Saved rubric to database with ID: {result.id}")
 
 
 if __name__ == "__main__":

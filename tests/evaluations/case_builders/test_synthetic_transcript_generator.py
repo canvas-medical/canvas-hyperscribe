@@ -57,7 +57,7 @@ def test__make_specifications(mock_choice, mock_sample, mock_randint, mock_unifo
     mock_sample.side_effect = [["patient is frustrated", "patient is tearful"]]
 
     specifications = tested._make_specifications()
-    assert specifications["bucket"] == SyntheticCaseTurnBuckets.SHORT
+    assert specifications["bucket"] == SyntheticCaseTurnBuckets.SHORT.value
     assert specifications["turn_total"] == 3
     assert specifications["speaker_sequence"] == ["Clinician", "Patient", "Patient"]
     assert specifications["ratio"] == 1.25

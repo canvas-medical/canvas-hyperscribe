@@ -1,13 +1,21 @@
 from __future__ import annotations
-import json, argparse
+
+import argparse
+import json
 from pathlib import Path
 from typing import Any, Tuple
-from hyperscribe.structures.vendor_key import VendorKey
+
 from evaluations.case_builders.helper_synthetic_json import HelperSyntheticJson
 from evaluations.constants import Constants
+from evaluations.datastores.postgres.generated_note import GeneratedNote as GeneratedNoteDatastore
+from evaluations.datastores.postgres.rubric import Rubric as RubricDatastore
+from evaluations.datastores.postgres.score import Score as ScoreDatastore
 from evaluations.helper_evaluation import HelperEvaluation
-from evaluations.structures.rubric_criterion import RubricCriterion
 from evaluations.structures.graded_criterion import GradedCriterion
+from evaluations.structures.records.score import Score as ScoreRecord
+from evaluations.structures.rubric_criterion import RubricCriterion
+from hyperscribe.libraries.constants import Constants as HyperscribeConstants
+from hyperscribe.structures.vendor_key import VendorKey
 
 
 class NoteGrader:
@@ -16,12 +24,10 @@ class NoteGrader:
         vendor_key: VendorKey,
         rubric: list[RubricCriterion],
         note: dict[str, Any],
-        output_path: Path,
     ) -> None:
         self.vendor_key = vendor_key
         self.rubric = rubric
         self.note = note
-        self.output_path = output_path
 
     @staticmethod
     def load_json(path: Path) -> Any:
@@ -98,7 +104,7 @@ class NoteGrader:
 
         return system_prompt, user_prompt
 
-    def run(self) -> None:
+    def run(self) -> list[dict[str, Any]]:
         system_prompt, user_prompt = self.build_prompts()
         schema = self.schema_scores()
 
@@ -113,40 +119,96 @@ class NoteGrader:
 
         llm_results = [GradedCriterion(**r) for r in parsed]
 
-        final = []
-        for criteria, result in zip(self.rubric, llm_results):
+        result = []
+        for criteria, llm_result in zip(self.rubric, llm_results):
             if criteria.sense == Constants.POSITIVE_VALUE:
-                score = round(criteria.weight * (result.satisfaction / 100), 2)
+                score = round(criteria.weight * (llm_result.satisfaction / 100), 2)
             else:
-                score = -round(criteria.weight * (1 - (result.satisfaction / 100)), 2)
+                score = -round(criteria.weight * (1 - (llm_result.satisfaction / 100)), 2)
 
-            final.append(
+            result.append(
                 {
-                    "id": result.id,
-                    "rationale": result.rationale,
-                    "satisfaction": result.satisfaction,
+                    "id": llm_result.id,
+                    "rationale": llm_result.rationale,
+                    "satisfaction": llm_result.satisfaction,
                     "score": score,
                 }
             )
 
-        self.output_path.write_text(json.dumps(final, indent=2))
-        print("Saved grading result in", self.output_path)
+        return result
+
+    @classmethod
+    def grade_and_save2database(cls, rubric_id: int, generated_note_id: int) -> ScoreRecord:
+        credentials = HelperEvaluation.postgres_credentials()
+        vendor_key = HelperEvaluation.settings().llm_text
+
+        rubric = [RubricCriterion(**c) for c in RubricDatastore(credentials).get_rubric(rubric_id)]
+        note_data = GeneratedNoteDatastore(credentials).get_note_json(generated_note_id)
+
+        scoring_result = cls(vendor_key, rubric, note_data).run()
+
+        overall_score = sum(item["score"] for item in scoring_result)
+
+        score_record = ScoreRecord(
+            rubric_id=rubric_id,
+            generated_note_id=generated_note_id,
+            scoring_result=scoring_result,
+            overall_score=overall_score,
+            comments="",
+            text_llm_vendor=vendor_key.vendor,
+            text_llm_name=HyperscribeConstants.OPENAI_CHAT_TEXT_O3,
+            temperature=1.0,
+        )
+        return ScoreDatastore(credentials).insert(score_record)
+
+    @classmethod
+    def grade_and_save2file(cls, rubric_path: Path, note_path: Path, output_path: Path) -> None:
+        """Grade a note using rubric from files and save result to output file."""
+        settings = HelperEvaluation.settings()
+        vendor_key = settings.llm_text
+
+        rubric = [RubricCriterion(**c) for c in cls.load_json(rubric_path)]
+        note = cls.load_json(note_path)
+
+        grader = cls(vendor_key, rubric, note)
+        result = grader.run()
+
+        output_path.write_text(json.dumps(result, indent=2))
+        print("Saved grading result in", output_path)
 
     @staticmethod
     def main() -> None:
         parser = argparse.ArgumentParser(description="Grade a note against a rubric.")
-        parser.add_argument("--rubric", type=Path, required=True, help="Path to rubric.json")
-        parser.add_argument("--note", type=Path, required=True, help="Path to note.json")
-        parser.add_argument("--output", type=Path, required=True, help="Where to save grading JSON")
+
+        # File-based parameters
+        parser.add_argument("--rubric", type=Path, help="Path to rubric.json")
+        parser.add_argument("--note", type=Path, help="Path to note.json")
+        parser.add_argument("--output", type=Path, help="Where to save grading JSON")
+
+        # Database-based parameters
+        parser.add_argument("--rubric_id", type=int, help="Rubric ID from database")
+        parser.add_argument("--generated_note_id", type=int, help="Generated note ID from database")
+
         args = parser.parse_args()
 
-        settings = HelperEvaluation.settings()
-        vendor_key = settings.llm_text
+        # Validate parameter combinations
+        file_params = [args.rubric, args.note, args.output]
+        db_params = [args.rubric_id, args.generated_note_id]
 
-        rubric = [RubricCriterion(**c) for c in NoteGrader.load_json(args.rubric)]
-        note = NoteGrader.load_json(args.note)
+        file_mode = all(param is not None for param in file_params)
+        db_mode = all(param is not None for param in db_params)
 
-        NoteGrader(vendor_key, rubric, note, output_path=args.output).run()
+        if not (file_mode or db_mode):
+            parser.error("Must provide either (--rubric, --note, --output) or (--rubric_id, --generated_note_id)")
+
+        if file_mode and db_mode:
+            parser.error("Cannot provide both file-based and database-based parameters")
+
+        if file_mode:
+            NoteGrader.grade_and_save2file(args.rubric, args.note, args.output)
+        else:  # db_mode
+            result = NoteGrader.grade_and_save2database(args.rubric_id, args.generated_note_id)
+            print(f"Saved grading result to database with score ID: {result.id}")
 
 
 if __name__ == "__main__":
