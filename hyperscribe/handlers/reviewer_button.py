@@ -20,7 +20,7 @@ class ReviewerButton(ActionButton):
         note = Note.objects.get(dbid=self.event.context["note_id"])
         presigned_url = Authenticator.presigned_url(
             self.secrets[Constants.SECRET_API_SIGNING_KEY],
-            "/plugin-io/api/hyperscribe/reviewer",
+            f"{Constants.PLUGIN_API_BASE_ROUTE}/reviewer",
             {"patient_id": str(note.patient.id), "note_id": str(note.id)},
         )
         hyperscribe_pane = LaunchModalEffect(url=presigned_url, target=LaunchModalEffect.TargetType.NEW_WINDOW)

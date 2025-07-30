@@ -3,6 +3,7 @@ from argparse import ArgumentParser, Namespace
 from evaluations.helper_evaluation import HelperEvaluation
 from hyperscribe.libraries.authenticator import Authenticator
 from hyperscribe.libraries.aws_s3 import AwsS3
+from hyperscribe.libraries.constants import Constants
 
 
 class BuilderAuditUrl:
@@ -25,7 +26,7 @@ class BuilderAuditUrl:
         if client_s3.is_ready():
             presigned_url = Authenticator.presigned_url(
                 HelperEvaluation.settings().api_signing_key,
-                "/plugin-io/api/hyperscribe/reviewer",
+                f"{Constants.PLUGIN_API_BASE_ROUTE}/reviewer",
                 {"patient_id": patient_uuid, "note_id": note_uuid},
             )
             print("audits can be seen with:")

@@ -33,19 +33,19 @@ def test_constants():
 @patch.object(Note, "objects")
 @patch("hyperscribe.handlers.launcher.Authenticator")
 @patch("hyperscribe.handlers.launcher.LaunchModalEffect")
-def test_handle(launch_model_effect, authenticator, note_db):
+def test_handle(launch_modal_effect, authenticator, note_db):
     def reset_mocks():
-        launch_model_effect.reset_mock()
+        launch_modal_effect.reset_mock()
         authenticator.reset_mock()
         note_db.reset_mock()
 
-    launch_model_effect.return_value.apply.side_effect = [Effect(type="LOG", payload="SomePayload")]
-    launch_model_effect.TargetType.RIGHT_CHART_PANE = "right_chart_pane"
-    authenticator.presigned_url.side_effect = ["https://the.presigned.url?param1=value1&param2=value2"]
-    note_db.get.return_value.id = "uuidNote"
+    launch_modal_effect.return_value.apply.side_effect = [Effect(type="LOG", payload="SomePayload")]
+    launch_modal_effect.TargetType.RIGHT_CHART_PANE = "right_chart_pane"
+    authenticator.presigned_url.side_effect = ["/plugin-io/api/hyperscribe/capture/patientId/noteId"]
+    note_db.get.return_value.id = "noteId"
 
     event = Event(EventRequest(context='{"note_id":"noteId"}'))
-    event.target = TargetType(id="targetId", type=Patient)
+    event.target = TargetType(id="patientId", type=Patient)
     secrets = {
         "AudioHost": "https://the.audio.server/path/to/audios/",
         "AudioIntervalSeconds": 7,
@@ -58,22 +58,16 @@ def test_handle(launch_model_effect, authenticator, note_db):
     assert result == expected
 
     calls = [
-        call(
-            url="https://the.audio.server/path/to/audios/capture/targetId/uuidNote?"
-            "interval=7&"
-            "end_flag=EOF&"
-            "progress=https%3A%2F%2Fthe.presigned.url%3Fparam1%3Dvalue1%26param2%3Dvalue2",
-            target="right_chart_pane",
-        ),
+        call(url="/plugin-io/api/hyperscribe/capture/patientId/noteId", target="right_chart_pane", title="Hyperscribe"),
         call().apply(),
     ]
-    assert launch_model_effect.mock_calls == calls
+    assert launch_modal_effect.mock_calls == calls
     calls = [
         call.presigned_url(
             "theApiSigningKey",
-            "https://theTestEnv.canvasmedical.com/plugin-io/api/hyperscribe/progress",
-            {"note_id": "uuidNote"},
-        ),
+            "/plugin-io/api/hyperscribe/capture/patientId/noteId",
+            {},
+        )
     ]
     assert authenticator.mock_calls == calls
     calls = [call.get(dbid="noteId")]

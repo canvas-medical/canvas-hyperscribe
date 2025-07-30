@@ -34,9 +34,9 @@ def test_constants():
 @patch.object(Note, "objects")
 @patch("hyperscribe.handlers.reviewer_button.Authenticator")
 @patch("hyperscribe.handlers.reviewer_button.LaunchModalEffect")
-def test_handle(launch_model_effect, authenticator, note_db):
+def test_handle(launch_modal_effect, authenticator, note_db):
     def reset_mocks():
-        launch_model_effect.reset_mock()
+        launch_modal_effect.reset_mock()
         authenticator.reset_mock()
         note_db.reset_mock()
 
@@ -47,8 +47,8 @@ def test_handle(launch_model_effect, authenticator, note_db):
     tested = ReviewerButton(event, secrets, environment)
 
     authenticator.presigned_url.side_effect = ["preSignedUrl"]
-    launch_model_effect.return_value.apply.side_effect = [Effect(type="LOG", payload="SomePayload")]
-    launch_model_effect.TargetType.NEW_WINDOW = "new_window"
+    launch_modal_effect.return_value.apply.side_effect = [Effect(type="LOG", payload="SomePayload")]
+    launch_modal_effect.TargetType.NEW_WINDOW = "new_window"
     note_db.get.side_effect = [
         Note(id="uuidNote", patient=Patient(id="uuidPatient"), provider=Staff(id="uuidProvider")),
     ]
@@ -66,7 +66,7 @@ def test_handle(launch_model_effect, authenticator, note_db):
     ]
     assert authenticator.mock_calls == calls
     calls = [call(url="preSignedUrl", target="new_window"), call().apply()]
-    assert launch_model_effect.mock_calls == calls
+    assert launch_modal_effect.mock_calls == calls
     calls = [call.get(dbid="noteId")]
     assert note_db.mock_calls == calls
 

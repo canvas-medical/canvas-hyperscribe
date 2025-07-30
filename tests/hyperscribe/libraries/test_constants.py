@@ -7,7 +7,7 @@ def test_constants():
     constants = {
         "ANTHROPIC_CHAT_TEXT": "claude-3-5-sonnet-20241022",
         "AWS3_LINK_EXPIRATION_SECONDS": 1200,
-        "API_SIGNED_EXPIRATION_SECONDS": 1200,
+        "API_SIGNED_EXPIRATION_SECONDS": 3600,
         "CYCLE_TRANSCRIPT_OVERLAP_MIN": 5,
         "CYCLE_TRANSCRIPT_OVERLAP_MAX": 250,
         "CYCLE_TRANSCRIPT_OVERLAP_DEFAULT": 100,
@@ -69,10 +69,6 @@ def test_constants():
         "SCHEMA_KEY_UPDATE_GOAL": "updateGoal",
         "SCHEMA_KEY_VITALS": "vitals",
         "CUSTOMER_IDENTIFIER": "CUSTOMER_IDENTIFIER",
-        "SECRET_TEXT_VENDOR": "VendorTextLLM",
-        "SECRET_TEXT_KEY": "KeyTextLLM",
-        "SECRET_AUDIO_VENDOR": "VendorAudioLLM",
-        "SECRET_AUDIO_KEY": "KeyAudioLLM",
         "SECRET_SCIENCE_HOST": "ScienceHost",
         "SECRET_ONTOLOGIES_HOST": "OntologiesHost",
         "SECRET_PRE_SHARED_KEY": "PreSharedKey",
@@ -95,5 +91,15 @@ def test_constants():
         "PROGRESS_END_OF_MESSAGES": "EOF",
         "PROGRESS_SETTING_KEY": "sendProgress",
         "PROGRESS_EXPIRATION_SECONDS": 7200,
+        #
+        "PLUGIN_API_BASE_ROUTE": "/plugin-io/api/hyperscribe",
+        "COPILOTS_TEAM_FHIR_GROUP_ID": "CopilotsTeamFHIRGroupId",
+        "CANVAS_BOT_DBID": 1,
+        "FUMAGE_BEARER_TOKEN": "FumageBearerToken",
+        "SECRET_AUDIO_HOST_PRE_SHARED_KEY": "AudioHostSharedSecret",
+        "SECRET_AUDIO_LLM_KEY": "KeyAudioLLM",
+        "SECRET_AUDIO_LLM_VENDOR": "VendorAudioLLM",
+        "SECRET_TEXT_LLM_KEY": "KeyTextLLM",
+        "SECRET_TEXT_LLM_VENDOR": "VendorTextLLM",
     }
     assert is_constant(tested, constants)

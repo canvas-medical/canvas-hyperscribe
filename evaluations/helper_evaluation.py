@@ -83,7 +83,7 @@ class HelperEvaluation:
     @classmethod
     def get_canvas_host(cls) -> str:
         canvas_instance = cls.get_canvas_instance()
-        result = f"https://{canvas_instance}"
+        result = f"https://{canvas_instance}.canvasmedical.com"
         if canvas_instance == "local":
             result = "http://localhost:8000"
         return result

@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import patch, call, MagicMock
 import re
+import pytest
 from hyperscribe.libraries.aws_s3 import AwsS3
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.aws_s3_object import AwsS3Object
@@ -290,7 +291,7 @@ def test_list_s3_objects(is_ready, headers, requests_get):
     credentials = AwsS3Credentials(aws_key="theKey", aws_secret="theSecret", region="theRegion", bucket="theBucket")
     test = AwsS3(credentials)
     tests = [
-        (500, []),
+        (500, Exception),
         (
             200,
             [
@@ -319,8 +320,12 @@ def test_list_s3_objects(is_ready, headers, requests_get):
         with (Path(__file__).parent / "list_s3_files.xml").open("br") as f:
             requests_get.return_value.content = f.read()
         requests_get.return_value.status_code = status_code
-        result = test.list_s3_objects("some/prefix")
-        assert result == expected
+        if status_code == 500:
+            with pytest.raises(Exception, match="S3 response status code"):
+                test.list_s3_objects("some/prefix")
+        else:
+            result = test.list_s3_objects("some/prefix")
+            assert result == expected
 
         calls = [call()]
         assert is_ready.mock_calls == calls
@@ -333,7 +338,11 @@ def test_list_s3_objects(is_ready, headers, requests_get):
                 headers={"Host": "theHost", "someKey": "someValue"},
             ),
         ]
-        assert requests_get.mock_calls == calls
+        requests_get.assert_called_with(
+            "https://theHost",
+            params={"list-type": 2, "prefix": "some/prefix"},
+            headers={"Host": "theHost", "someKey": "someValue"},
+        )
         rest_mocks()
         # not ready
         is_ready.side_effect = [False]

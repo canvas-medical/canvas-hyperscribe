@@ -28,12 +28,12 @@ class Settings(NamedTuple):
         return Settings(
             api_signing_key=dictionary[Constants.SECRET_API_SIGNING_KEY],
             llm_text=VendorKey(
-                vendor=dictionary[Constants.SECRET_TEXT_VENDOR],
-                api_key=dictionary[Constants.SECRET_TEXT_KEY],
+                vendor=dictionary[Constants.SECRET_TEXT_LLM_VENDOR],
+                api_key=dictionary[Constants.SECRET_TEXT_LLM_KEY],
             ),
             llm_audio=VendorKey(
-                vendor=dictionary[Constants.SECRET_AUDIO_VENDOR],
-                api_key=dictionary[Constants.SECRET_AUDIO_KEY],
+                vendor=dictionary[Constants.SECRET_AUDIO_LLM_VENDOR],
+                api_key=dictionary[Constants.SECRET_AUDIO_LLM_KEY],
             ),
             science_host=dictionary[Constants.SECRET_SCIENCE_HOST],
             ontologies_host=dictionary[Constants.SECRET_ONTOLOGIES_HOST],

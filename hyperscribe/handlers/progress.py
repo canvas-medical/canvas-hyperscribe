@@ -54,7 +54,7 @@ class Progress(SimpleAPIRoute):
             requests_post(
                 Authenticator.presigned_url(
                     settings.api_signing_key,
-                    f"{identification.canvas_host()}/plugin-io/api/hyperscribe/progress",
+                    f"{identification.canvas_host()}{Constants.PLUGIN_API_BASE_ROUTE}/progress",
                     {"note_id": identification.note_uuid},
                 ),
                 headers={"Content-Type": "application/json"},

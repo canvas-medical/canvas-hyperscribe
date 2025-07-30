@@ -1,7 +1,7 @@
 class Constants:
     ANTHROPIC_CHAT_TEXT = "claude-3-5-sonnet-20241022"  # LLM model used for text completion
     AWS3_LINK_EXPIRATION_SECONDS = 1200  # duration of an AWS S3 link
-    API_SIGNED_EXPIRATION_SECONDS = 1200
+    API_SIGNED_EXPIRATION_SECONDS = 3600
     CYCLE_TRANSCRIPT_OVERLAP_MIN = 5
     CYCLE_TRANSCRIPT_OVERLAP_MAX = 250
     CYCLE_TRANSCRIPT_OVERLAP_DEFAULT = 100
@@ -69,9 +69,10 @@ class Constants:
     #
     SECRET_API_SIGNING_KEY = "APISigningKey"
     SECRET_AUDIO_HOST = "AudioHost"
+    SECRET_AUDIO_HOST_PRE_SHARED_KEY = "AudioHostSharedSecret"
     SECRET_AUDIO_INTERVAL = "AudioIntervalSeconds"
-    SECRET_AUDIO_KEY = "KeyAudioLLM"
-    SECRET_AUDIO_VENDOR = "VendorAudioLLM"
+    SECRET_AUDIO_LLM_KEY = "KeyAudioLLM"
+    SECRET_AUDIO_LLM_VENDOR = "VendorAudioLLM"
     SECRET_AUDIT_LLM = "AuditLLMDecisions"
     SECRET_AWS_BUCKET_LOGS = "AwsBucketLogs"
     SECRET_AWS_BUCKET_TUNING = "AwsBucketTuning"
@@ -87,10 +88,15 @@ class Constants:
     SECRET_STAFFERS_LIST = "StaffersList"
     SECRET_STAFFERS_POLICY = "StaffersPolicy"
     SECRET_STRUCTURED_RFV = "StructuredReasonForVisit"
-    SECRET_TEXT_KEY = "KeyTextLLM"
-    SECRET_TEXT_VENDOR = "VendorTextLLM"
     SECRET_CYCLE_TRANSCRIPT_OVERLAP = "CycleTranscriptOverlap"
+    SECRET_TEXT_LLM_KEY = "KeyTextLLM"
+    SECRET_TEXT_LLM_VENDOR = "VendorTextLLM"
     #
     PROGRESS_END_OF_MESSAGES = "EOF"
     PROGRESS_SETTING_KEY = "sendProgress"
     PROGRESS_EXPIRATION_SECONDS = 7200
+    #
+    PLUGIN_API_BASE_ROUTE = "/plugin-io/api/hyperscribe"
+    FUMAGE_BEARER_TOKEN = "FumageBearerToken"
+    COPILOTS_TEAM_FHIR_GROUP_ID = "CopilotsTeamFHIRGroupId"
+    CANVAS_BOT_DBID = 1

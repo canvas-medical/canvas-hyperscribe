@@ -70,7 +70,7 @@ def test_authenticate(check):
         check.side_effect = [test]
         result = tested.authenticate(Credentials(tested.request))
         assert result is test
-        calls = [call("theApiSigningKey", 1200, {"key": "value"})]
+        calls = [call("theApiSigningKey", 3600, {"key": "value"})]
         assert check.mock_calls == calls
         reset_mocks()
 

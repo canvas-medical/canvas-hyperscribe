@@ -225,7 +225,7 @@ def test_get_canvas_host(monkeypatch):
     monkeypatch.setenv("CUSTOMER_IDENTIFIER", "theCanvasInstance")
     tested = HelperEvaluation
     result = tested.get_canvas_host()
-    expected = "https://theCanvasInstance"
+    expected = "https://theCanvasInstance.canvasmedical.com"
     assert result == expected
 
     monkeypatch.setenv("CUSTOMER_IDENTIFIER", "local")
@@ -237,7 +237,7 @@ def test_get_canvas_host(monkeypatch):
     monkeypatch.delenv("CUSTOMER_IDENTIFIER")
     tested = HelperEvaluation
     result = tested.get_canvas_host()
-    expected = "https://EvaluationBuilderInstance"
+    expected = "https://EvaluationBuilderInstance.canvasmedical.com"
     assert result == expected
 
 

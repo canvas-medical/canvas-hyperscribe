@@ -1,26 +1,9 @@
 {
   "sdk_version": "0.48.0",
-  "plugin_version": "0.0.97",
+  "plugin_version": "0.1.97",
   "name": "hyperscribe",
   "description": "Create commands based on the content of an audio discussion between a patient and a provider.",
-  "url_permissions": [
-    {
-      "url": "https://testing-playground-hyperscribe-audio-server.replit.app/",
-      "permissions": [
-        "ALLOW_SAME_ORIGIN",
-        "MICROPHONE",
-        "SCRIPTS"
-      ]
-    },
-    {
-      "url": "https://encounter-copilot-audio-server-andrewhines8.replit.app/",
-      "permissions": [
-        "ALLOW_SAME_ORIGIN",
-        "MICROPHONE",
-        "SCRIPTS"
-      ]
-    }
-  ],
+  "url_permissions": [],
   "components": {
     "protocols": [
       {
@@ -103,6 +86,15 @@
           "read": [],
           "write": []
         }
+      },
+      {
+        "class": "hyperscribe.handlers.capture_view:CaptureView",
+        "description": "Serve the user interface for Hyperscribe",
+        "data_access": {
+          "event": "",
+          "read": [],
+          "write": []
+        }
       }
     ],
     "applications": [],
@@ -114,6 +106,7 @@
   "secrets": [
     "APISigningKey",
     "AudioHost",
+    "AudioHostSharedSecret",
     "AudioIntervalSeconds",
     "AuditLLMDecisions",
     "AwsBucketLogs",
@@ -134,7 +127,9 @@
     "StaffersPolicy",
     "StructuredReasonForVisit",
     "VendorAudioLLM",
-    "VendorTextLLM"
+    "VendorTextLLM",
+    "FumageBearerToken",
+    "CopilotsTeamFHIRGroupId"
   ],
   "tags": {},
   "references": [],

@@ -24,22 +24,29 @@ def is_dataclass(cls, fields: dict) -> bool:
 
 
 def is_constant(cls, constants: dict) -> bool:
-    count = len(
-        [
-            attr
-            for attr in dir(cls)
-            if attr.upper() == attr and not (attr.startswith("_") or callable(getattr(cls, attr)))
-        ],
-    )
+    result = True
+    count = 0
+    tested_keys = set()
+    for attr in dir(cls):
+        if attr.upper() == attr and not (attr.startswith("_") or callable(getattr(cls, attr))):
+            tested_keys.add(attr)
+            count += 1
+            if attr not in constants:
+                print(f"Tested has new attribute not expected: '{attr}'")
+                result = False
+
     if count != len(constants.keys()):
         print(f"----> counts: {count} != {len(constants.keys())}")
-        return False
+        result = False
 
     for key, value in constants.items():
+        if key not in tested_keys:
+            print(f"Expected attributes not in tested: '{key}'")
         if getattr(cls, key) != value:
             print(f"----> {key} value is {getattr(cls, key)}")
-            return False
-    return True
+            result = False
+
+    return result
 
 
 def compare_sql(left: str, right: str) -> bool:
