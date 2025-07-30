@@ -8,6 +8,7 @@ class CommentBody(NamedTuple):
     chunk_index: int
     note_id: str
     patient_id: str
+    is_paused: bool
     created: datetime
     finished: datetime | None
 
@@ -16,6 +17,7 @@ class CommentBody(NamedTuple):
             "chunk_index": self.chunk_index,
             "note_id": self.note_id,
             "patient_id": self.patient_id,
+            "is_paused": self.is_paused,
             "created": self.created.isoformat(),
             "finished": self.finished.isoformat() if isinstance(self.finished, datetime) else None,
         }
@@ -26,6 +28,7 @@ class CommentBody(NamedTuple):
             chunk_index=data["chunk_index"],
             note_id=data["note_id"],
             patient_id=data.get("patient_id", ""),
+            is_paused=bool(data.get("is_paused") is True),
             created=datetime.fromisoformat(created) if (created := data.get("created")) else datetime.now(UTC),
             finished=datetime.fromisoformat(finished) if (finished := data.get("finished")) else None,
         )
