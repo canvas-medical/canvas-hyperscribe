@@ -110,9 +110,9 @@ def test_compute(
         progress.reset_mock()
         llm_turns_store.reset_mock()
         stop_and_go.reset_mock()
+        mock_datetime.reset_mock()
         mock_comment.reset_mock()
         mock_note.reset_mock()
-        mock_datetime.reset_mock()
 
     task_labels = [TaskLabel(name="label1"), TaskLabel(name="label2")]
     identification = IdentificationParameters(
