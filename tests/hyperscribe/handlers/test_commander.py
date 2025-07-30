@@ -568,9 +568,9 @@ def test_compute_audio(
     aws_s3.return_value.is_ready.side_effect = []
 
     tested = Commander
-    mock_get_audio_chunk.return_value = b""
+    mock_get_audio_chunk.side_effect = [b""]
     result = tested.compute_audio(identification, settings, aws_s3_credentials, the_audio_client, 3)
-    mock_get_audio_chunk.assert_called_once_with(identification.patient_uuid, identification.note_uuid, 3)
+    mock_get_audio_chunk.calls == [call(identification.patient_uuid, identification.note_uuid, 3)]
     expected = (False, [])
     assert result == expected
 
@@ -666,9 +666,9 @@ def test_compute_audio(
         aws_s3.return_value.is_ready.side_effect = [is_ready]
         memory_log.end_session.side_effect = ["flushedMemoryLog"]
         tested = Commander
-        mock_get_audio_chunk.return_value = b"raw-audio-bytes"
+        mock_get_audio_chunk.side_effect = [b"raw-audio-bytes"]
         result = tested.compute_audio(identification, settings, aws_s3_credentials, the_audio_client, 3)
-        mock_get_audio_chunk.assert_called_once_with(identification.patient_uuid, identification.note_uuid, 3)
+        mock_get_audio_chunk.calls == [call(identification.patient_uuid, identification.note_uuid, 3)]
         expected = (True, exp_effects)
         assert result == expected
 

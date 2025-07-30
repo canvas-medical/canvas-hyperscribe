@@ -4,9 +4,6 @@ from unittest import mock
 from hyperscribe.libraries.audio_client import AudioClient, CachedAudioSession, Response
 
 
-AUDIO_CLIENT_IMPORT_PATH = "hyperscribe.libraries.audio_client.AudioClient"
-
-
 class MockAudioFile:
     filename = "chunk_002_test.webm"
     content = b"raw-audio-bytes"
@@ -77,12 +74,24 @@ def test_register_customer(the_client):
         resp = the_client.register_customer("test-sub")
         assert resp.status_code == 201
         assert mock_post.call_args[1]["json"] == {"customer_identifier": "test-sub"}
+        assert len(mock_post.mock_calls) == 1
 
 
 def test_get_user_token(the_client):
     with mock.patch("requests.post") as mock_post:
         mock_post.return_value.json.return_value = {"token": "abc123"}
         token = the_client.get_user_token("user1")
+        url = f"{the_client.base_url}/user-tokens"
+        headers = {
+            "Canvas-Customer-Identifier": the_client.instance,
+            "Canvas-Customer-Shared-Secret": the_client.instance_key,
+            "Content-Type": "application/json",
+        }
+        data = {"user_external_id": "user1"}
+        assert mock_post.mock_calls == [
+            mock.call(url, headers=headers, json=data),
+            mock.call().json(),
+        ]
         assert token == "abc123"
 
 
@@ -212,6 +221,7 @@ def test_get_latest_session_missing(the_session: CachedAudioSession):
 
 
 def test_add_session(the_session):
+    AUDIO_CLIENT_IMPORT_PATH = "hyperscribe.libraries.audio_client.AudioClient"
     with (
         mock.patch(f"{AUDIO_CLIENT_IMPORT_PATH}.get_sessions", return_value=[]),
         mock.patch(f"{AUDIO_CLIENT_IMPORT_PATH}.plugin_cache") as mock_cache,
