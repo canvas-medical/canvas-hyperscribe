@@ -101,7 +101,8 @@ def test_new_session_post(get_staff, add_sess, create_sess, get_utok, monkeypatc
     monkeypatch.setattr(capture_view.requests, "post", lambda url, json, headers: fake)
 
     result = view.new_session_post()
-    assert isinstance(result, list) and len(result) == 1
+    assert isinstance(result, list)
+    assert len(result) == 1
     resp = result[0]
     assert isinstance(resp, Response)
     assert resp.content == b"ok"
