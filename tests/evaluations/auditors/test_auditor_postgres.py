@@ -73,7 +73,7 @@ def test___init__():
     tested = AuditorPostgres("theCase", 7, settings, s3_credentials, psql_credentials)
     assert tested.case == "theCase"
     assert tested.cycle == 7
-    assert tested.cycle_key == "cycle_007"
+    assert tested.cycle_key_str == "cycle_007"
     assert tested.s3_credentials == s3_credentials
     assert tested.settings == settings
     assert tested.postgres_credentials == psql_credentials

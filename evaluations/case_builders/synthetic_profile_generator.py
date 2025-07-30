@@ -8,9 +8,8 @@ from evaluations.case_builders.helper_synthetic_json import HelperSyntheticJson
 
 
 class SyntheticProfileGenerator:
-    def __init__(self, vendor_key: VendorKey, output_path: Path) -> None:
+    def __init__(self, vendor_key: VendorKey) -> None:
         self.vendor_key = vendor_key
-        self.output_path = output_path
         self.seen_scenarios: list[str] = []
         self.all_profiles: dict[str, str] = {}
 
@@ -18,14 +17,14 @@ class SyntheticProfileGenerator:
     def _extract_initial_fragment(cls, narrative: str) -> str:
         return narrative.split(".")[0][:100]
 
-    def _save_combined(self) -> None:
-        self.output_path.parent.mkdir(parents=True, exist_ok=True)
-        with self.output_path.open("w") as f:
+    def _save_combined(self, output_path: Path) -> None:
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        with output_path.open("w") as f:
             json.dump(self.all_profiles, f, indent=2)
-        print(f"Saved {len(self.all_profiles)} profiles to {self.output_path}")
+        print(f"Saved {len(self.all_profiles)} profiles to {output_path}")
 
-    def _save_individuals(self) -> None:
-        base_dir = self.output_path.parent
+    def _save_individuals(self, output_path: Path) -> None:
+        base_dir = output_path.parent
         for name, narrative in self.all_profiles.items():
             dir_name = re.sub(r"\s+", "_", name.strip())
             dir_path = base_dir / dir_name
@@ -110,12 +109,12 @@ class SyntheticProfileGenerator:
 
         return batch
 
-    def run(self, batches: int, batch_size: int) -> None:
+    def run(self, batches: int, batch_size: int, output_path: Path) -> None:
         for i in range(1, batches + 1):
             print(f"Generating batch {i}…")
             self.generate_batch(i, batch_size)
-        self._save_combined()
-        self._save_individuals()
+        self._save_combined(output_path)
+        self._save_individuals(output_path)
 
     @staticmethod
     def main() -> None:
@@ -131,7 +130,9 @@ class SyntheticProfileGenerator:
         settings = HelperEvaluation.settings()
         vendor_key = settings.llm_text
 
-        SyntheticProfileGenerator(vendor_key, args.output).run(batches=args.batches, batch_size=args.batch_size)
+        SyntheticProfileGenerator(vendor_key).run(
+            batches=args.batches, batch_size=args.batch_size, output_path=args.output
+        )
 
 
 if __name__ == "__main__":

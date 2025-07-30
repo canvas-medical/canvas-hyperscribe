@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any, Tuple, cast
 
 from hyperscribe.structures.vendor_key import VendorKey
+from hyperscribe.structures.line import Line
 from evaluations.helper_evaluation import HelperEvaluation
 from evaluations.case_builders.helper_synthetic_json import HelperSyntheticJson
 from evaluations.structures.enums.synthetic_case_clinician_style import SyntheticCaseClinicianStyle
@@ -11,47 +12,42 @@ from evaluations.structures.enums.synthetic_case_patient_style import SyntheticC
 from evaluations.structures.enums.synthetic_case_mood import SyntheticCaseMood
 from evaluations.structures.enums.synthetic_case_pressure import SyntheticCasePressure
 from evaluations.structures.enums.synthetic_case_turn_buckets import SyntheticCaseTurnBuckets
+from evaluations.structures.specification import Specification
 from evaluations.constants import Constants
 
 
 class SyntheticTranscriptGenerator:
-    def __init__(self, vendor_key: VendorKey, input_path: Path, output_path: Path) -> None:
+    def __init__(self, vendor_key: VendorKey, profiles: dict[str, str]) -> None:
         self.vendor_key = vendor_key
-        self.input_path = input_path
-        self.output_path = output_path
-        self.output_path.mkdir(parents=True, exist_ok=True)
-        self.profiles = self._load_profiles()
+        self.profiles = profiles
         self.seen_openings: set[str] = set()
 
-    def _load_profiles(self) -> dict[str, str]:
-        with self.input_path.open() as f:
+    @classmethod
+    def load_profiles_from_file(cls, input_path: Path) -> dict[str, str]:
+        with input_path.open() as f:
             return cast(dict[str, str], json.load(f))
 
     @staticmethod
     def _random_bucket() -> SyntheticCaseTurnBuckets:
         return random.choice(list(SyntheticCaseTurnBuckets))
 
-    def _make_specifications(self) -> dict[str, Any]:
+    def _make_specifications(self) -> Specification:
         bucket = self._random_bucket()
         low, high = Constants.TURN_BUCKETS[bucket]
         turn_total = random.randint(low, high)
 
         sequence = [random.choice(["Clinician", "Patient"]) for _ in range(turn_total)]
 
-        return {
-            Constants.TURN_TOTAL: turn_total,
-            Constants.SPEAKER_SEQUENCE: sequence,
-            Constants.RATIO: round(random.uniform(0.5, 2.0), 2),
-            Constants.MOOD_KEY: random.sample([mood.value for mood in SyntheticCaseMood], k=2),
-            Constants.PRESSURE_KEY: random.choice([pressure.value for pressure in SyntheticCasePressure]),
-            Constants.CLINICIAN_STYLE_KEY: random.choice(
-                [clinician_style.value for clinician_style in SyntheticCaseClinicianStyle]
-            ),
-            Constants.PATIENT_STYLE_KEY: random.choice(
-                [patient_style.value for patient_style in SyntheticCasePatientStyle]
-            ),
-            Constants.BUCKET: bucket.value,
-        }
+        return Specification(
+            turn_total=turn_total,
+            speaker_sequence=sequence,
+            ratio=round(random.uniform(0.5, 2.0), 2),
+            mood=random.sample(list(SyntheticCaseMood), k=2),
+            pressure=random.choice(list(SyntheticCasePressure)),
+            clinician_style=random.choice(list(SyntheticCaseClinicianStyle)),
+            patient_style=random.choice(list(SyntheticCasePatientStyle)),
+            bucket=bucket,
+        )
 
     @classmethod
     def schema_transcript(cls, turn_total: int) -> dict[str, Any]:
@@ -81,7 +77,7 @@ class SyntheticTranscriptGenerator:
     def _build_prompt(
         self,
         profile_text: str,
-        specifications: dict[str, Any],
+        specifications: Specification,
         schema: dict[str, Any],
     ) -> Tuple[list[str], list[str]]:
         system_lines = [
@@ -101,16 +97,16 @@ class SyntheticTranscriptGenerator:
             "--- TRANSCRIPT SPEC ---",
             json.dumps(
                 {
-                    Constants.TURN_TOTAL: specifications[Constants.TURN_TOTAL],
-                    Constants.SPEAKER_SEQUENCE: specifications[Constants.SPEAKER_SEQUENCE],
-                    Constants.TARGET_C_TO_P_WORD_RATIO: specifications[Constants.RATIO],
+                    Constants.TURN_TOTAL: specifications.turn_total,
+                    Constants.SPEAKER_SEQUENCE: specifications.speaker_sequence,
+                    Constants.TARGET_C_TO_P_WORD_RATIO: specifications.ratio,
                 }
             ),
             "",
-            f"Moods: {', '.join(specifications[Constants.MOOD_KEY])}",
-            f"External pressure: {specifications[Constants.PRESSURE_KEY]}",
-            f"Clinician persona: {specifications[Constants.CLINICIAN_STYLE_KEY]}",
-            f"Patient persona: {specifications[Constants.PATIENT_STYLE_KEY]}",
+            f"Moods: {', '.join([mood.value for mood in specifications.mood])}",
+            f"External pressure: {specifications.pressure.value}",
+            f"Clinician persona: {specifications.clinician_style.value}",
+            f"Patient persona: {specifications.patient_style.value}",
             "",
             "Instructions:",
             "1. Follow the speaker sequence exactly (same order and length).",
@@ -129,9 +125,9 @@ class SyntheticTranscriptGenerator:
 
         return system_lines, user_lines
 
-    def generate_transcript_for_profile(self, profile_text: str) -> Tuple[list[dict[str, str]], dict[str, Any]]:
+    def generate_transcript_for_profile(self, profile_text: str) -> Tuple[list[Line], Specification]:
         specifications = self._make_specifications()
-        schema = self.schema_transcript(specifications["turn_total"])
+        schema = self.schema_transcript(specifications.turn_total)
 
         system_lines, user_lines = self._build_prompt(profile_text, specifications, schema)
 
@@ -145,22 +141,24 @@ class SyntheticTranscriptGenerator:
         first_line = transcript[0].get("text", "").strip().lower()
         self.seen_openings.add(first_line)
 
-        return transcript, specifications
+        transcript_line_objects = Line.load_from_json(transcript)
+        return transcript_line_objects, specifications
 
-    def run(self, start_index: int, limit: int) -> None:
+    def run(self, start_index: int, limit: int, output_path: Path) -> None:
         items = list(self.profiles.items())
         slice_ = items[start_index - 1 : start_index - 1 + limit]
+        output_path.mkdir(parents=True, exist_ok=True)
 
         for patient_name, profile_text in slice_:
             safe_name = re.sub(r"\W+", "_", patient_name)
-            patient_dir = self.output_path / safe_name
+            patient_dir = output_path / safe_name
             patient_dir.mkdir(parents=True, exist_ok=True)
 
             print(f"Generating transcript for {patient_name}…")
             transcript, specifications = self.generate_transcript_for_profile(profile_text)
 
-            (patient_dir / "transcript.json").write_text(json.dumps(transcript, indent=2))
-            (patient_dir / "specifications.json").write_text(json.dumps(specifications, indent=2))
+            (patient_dir / "transcript.json").write_text(json.dumps([line.to_json() for line in transcript], indent=2))
+            (patient_dir / "specifications.json").write_text(json.dumps(specifications.to_json(), indent=2))
             print(f"Saved => {patient_dir / 'transcript.json'}, {patient_dir / 'specifications.json'}")
 
     @staticmethod
@@ -175,8 +173,9 @@ class SyntheticTranscriptGenerator:
         settings = HelperEvaluation.settings()
         vendor_key = settings.llm_text
 
-        generator = SyntheticTranscriptGenerator(vendor_key=vendor_key, input_path=args.input, output_path=args.output)
-        generator.run(start_index=args.start, limit=args.limit)
+        profiles = SyntheticTranscriptGenerator.load_profiles_from_file(args.input)
+        generator = SyntheticTranscriptGenerator(vendor_key=vendor_key, profiles=profiles)
+        generator.run(start_index=args.start, limit=args.limit, output_path=args.output)
 
 
 if __name__ == "__main__":

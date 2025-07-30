@@ -16,7 +16,7 @@ def test_constants():
         "DIFFERENCE_LEVEL_SEVERE": "severe",
         "DIFFERENCE_LEVELS": ["minor", "moderate", "severe", "critical"],
         "IGNORED_KEY_VALUE": ">?<",
-        "CASE_CYCLE_SUFFIX": "cycle",
+        "CASE_CYCLE_PREFIX": "cycle",
         #
         "OPTION_DIFFERENCE_LEVELS": "--evaluation-difference-levels",
         "OPTION_PATIENT_UUID": "--patient-uuid",
@@ -62,5 +62,7 @@ def test_constants():
             "surgeryHistory": "any history of surgical care or operations",
         },
         "MAX_CHARACTERS_PER_CYCLE": 1000,
+        "LLM_CONSTANT": "llm",
+        "O3_TEMPERATURE": 1.0,
     }
     assert is_constant(tested, constants)

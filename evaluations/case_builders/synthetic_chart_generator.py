@@ -10,12 +10,9 @@ from evaluations.constants import Constants
 
 
 class SyntheticChartGenerator:
-    def __init__(self, vendor_key: VendorKey, profiles: dict[str, str], output: Path, example_chart: dict[str, Any]):
+    def __init__(self, vendor_key: VendorKey, profiles: dict[str, str]):
         self.vendor_key = vendor_key
         self.profiles = profiles
-        self.output = output
-        self.example_chart = example_chart
-        self.output.mkdir(parents=True, exist_ok=True)
 
     @classmethod
     def load_json(cls, path: Path) -> dict[str, Any]:
@@ -23,22 +20,22 @@ class SyntheticChartGenerator:
             return cast(dict[str, Any], json.load(f))
 
     def schema_chart(self) -> dict[str, Any]:
-        """Build a JSON Schema that enforces top‑level keys in example_chart."""
+        """Build a JSON Schema that enforces Canvas chart structure from Chart dataclass."""
 
         properties = {
-            key: {
-                "type": "array" if isinstance(value, list) else "string",
-                "description": Constants.EXAMPLE_CHART_DESCRIPTIONS[key],
-            }  # KeyError if missing
-            for key, value in self.example_chart.items()
+            field_name: {
+                "type": "string",
+                "description": Constants.EXAMPLE_CHART_DESCRIPTIONS[field_name],
+            }
+            for field_name in Constants.EXAMPLE_CHART_DESCRIPTIONS.keys()
         }
 
         return {
             "$schema": "http://json-schema.org/draft-07/schema#",
-            "description": "Example Canvas-compatible chart",
+            "description": "Canvas-compatible chart structure",
             "type": "object",
             "properties": properties,
-            "required": list(self.example_chart.keys()),
+            "required": list(Constants.EXAMPLE_CHART_DESCRIPTIONS.keys()),
             "additionalProperties": False,
         }
 
@@ -54,10 +51,8 @@ class SyntheticChartGenerator:
         user_prompt: list[str] = [
             f"Patient profile: {profile_text}",
             "",
-            "Here is the required JSON structure:",
-            "```json",
-            json.dumps(self.example_chart, indent=2),
-            "```",
+            "Generate a JSON object with the following fields (all string values):",
+            "\n".join([f"• {field}: {desc}" for field, desc in Constants.EXAMPLE_CHART_DESCRIPTIONS.items()]),
             "",
             "Your JSON **must** conform to the following JSON Schema:",
             "```json",
@@ -104,11 +99,12 @@ class SyntheticChartGenerator:
                     stack.append((current, item))
         return obj
 
-    def run_range(self, start: int, limit: int) -> None:
+    def run_range(self, start: int, limit: int, output: Path) -> None:
         subset = list(self.profiles.items())[start - 1 : start - 1 + limit]
+        output.mkdir(parents=True, exist_ok=True)
         for patient_name, profile_text in subset:
             safe_name = re.sub(r"\W+", "_", patient_name)
-            patient_dir = self.output / safe_name
+            patient_dir = output / safe_name
             patient_dir.mkdir(parents=True, exist_ok=True)
 
             print(f"Generating limited_chart.json for {patient_name}")
@@ -129,26 +125,17 @@ class SyntheticChartGenerator:
         parser.add_argument("--output", type=Path, required=True, help="Directory to write per-patient folders")
         parser.add_argument("--start", type=int, default=1, help="1-based index of first profile to process")
         parser.add_argument("--limit", type=int, required=True, help="Number of profiles to generate charts for")
-        parser.add_argument(
-            "--example",
-            type=Path,
-            required=True,
-            help="Path to representative limited_chart.json example",
-        )
         args = parser.parse_args()
 
         settings = HelperEvaluation.settings()
         vendor_key = settings.llm_text
         profiles = SyntheticChartGenerator.load_json(args.input)
-        example_chart = SyntheticChartGenerator.load_json(args.example)
 
         generator = SyntheticChartGenerator(
             vendor_key=vendor_key,
             profiles=profiles,
-            output=args.output,
-            example_chart=example_chart,
         )
-        generator.run_range(start=args.start, limit=args.limit)
+        generator.run_range(start=args.start, limit=args.limit, output=args.output)
 
 
 if __name__ == "__main__":

@@ -63,7 +63,7 @@ def test___init__():
         tested = AuditorStore("theCase", cycle, settings, s3_credentials)
         assert tested.case == "theCase"
         assert tested.cycle == exp_cycle
-        assert tested.cycle_key == exp_key
+        assert tested.cycle_key_str == exp_key
         assert tested.s3_credentials == s3_credentials
         assert tested.settings == settings
 
@@ -141,7 +141,7 @@ def test_set_cycle():
     for cycle, exp_cycle, exp_key in tests:
         tested.set_cycle(cycle)
         assert tested.cycle == exp_cycle
-        assert tested.cycle_key == exp_key
+        assert tested.cycle_key_str == exp_key
 
 
 @patch.object(AuditorStore, "upsert_audio")

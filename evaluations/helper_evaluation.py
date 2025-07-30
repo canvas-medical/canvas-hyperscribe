@@ -6,6 +6,7 @@ from pprint import pformat
 from sys import exc_info
 
 from canvas_sdk.v1.data import Note
+from hyperscribe.structures.line import Line
 
 from evaluations.auditors.auditor_file import AuditorFile
 from evaluations.auditors.auditor_postgres import AuditorPostgres
@@ -212,10 +213,38 @@ class HelperEvaluation:
         return bool(excluded_minor_differences == []), json.dumps(chat.content, indent=1)
 
     @classmethod
+    def split_lines_into_cycles(
+        cls,
+        line_objects: list[Line],
+    ) -> dict[str, list[Line]]:
+        transcript_cycles: dict[str, list[Line]] = {}
+        cycle_num = 1
+        current_cycle: list[Line] = []
+        current_length = 0
+
+        for line_object in line_objects:
+            turn_json = line_object.to_json()
+            length = len(json.dumps(turn_json))
+            if current_cycle and (current_length + length > Constants.MAX_CHARACTERS_PER_CYCLE):
+                key = AuditorStore.cycle_key(cycle_num)
+                transcript_cycles[key] = current_cycle
+                cycle_num += 1
+                current_cycle = []
+                current_length = 0
+            current_cycle.append(line_object)
+            current_length += length
+
+        if current_cycle:
+            key = AuditorStore.cycle_key(cycle_num)
+            transcript_cycles[key] = current_cycle
+
+        return transcript_cycles
+
+    @classmethod
     def list_case_files(cls, folder: Path) -> list[tuple[str, str, Path]]:
         return [
             (json_file.stem, cycle, json_file)
             for json_file in folder.glob("*.json")
             for cycle in json.load(json_file.open("r")).keys()
-            if cycle.startswith(Constants.CASE_CYCLE_SUFFIX)
+            if cycle.startswith(Constants.CASE_CYCLE_PREFIX)
         ]

@@ -81,7 +81,7 @@ def test_end2end(
     # # audio2transcript
     # json_file = auditor.case_file(auditor.AUDIO2TRANSCRIPT_FILE)
     # if json_file.exists():
-    #     cycle_len = len(f"{Constants.CASE_CYCLE_SUFFIX}_???")
+    #     cycle_len = len(f"{Constants.CASE_CYCLE_PREFIX}_???")
     #     cycled_mp3_files: dict[str, list[Path]] = {cycle: [] for cycle in cycles}
     #     for file in auditor.audio_case_files():
     #         key = file.stem[:cycle_len]

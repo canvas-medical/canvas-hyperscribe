@@ -100,7 +100,7 @@ class AuditorPostgres(AuditorStore):
         return CaseStore(self.postgres_credentials).get_limited_chart(self.case_id())
 
     def transcript(self) -> list[Line]:
-        return self.full_transcript().get(self.cycle_key, [])
+        return self.full_transcript().get(self.cycle_key_str, [])
 
     def full_transcript(self) -> dict[str, list[Line]]:
         return CaseStore(self.postgres_credentials).get_transcript(self.case_id())

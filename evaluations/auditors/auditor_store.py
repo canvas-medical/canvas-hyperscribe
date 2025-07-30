@@ -21,7 +21,7 @@ class AuditorStore(AuditorBase):
         self.s3_credentials = s3_credentials
         self.case = case
         self.cycle = max(0, cycle)
-        self.cycle_key = f"{Constants.CASE_CYCLE_SUFFIX}_{self.cycle:03d}"
+        self.cycle_key_str = self.cycle_key(self.cycle)
 
     def case_prepare(self) -> None:
         raise NotImplementedError
@@ -53,17 +53,21 @@ class AuditorStore(AuditorBase):
     def note_uuid(self) -> str:
         raise NotImplementedError
 
+    @classmethod
+    def cycle_key(cls, cycle: int) -> str:
+        return f"{Constants.CASE_CYCLE_PREFIX}_{cycle:03d}"
+
     def set_cycle(self, cycle: int) -> None:
         self.cycle = max(0, self.cycle, cycle)
-        self.cycle_key = f"{Constants.CASE_CYCLE_SUFFIX}_{self.cycle:03d}"
+        self.cycle_key_str = self.cycle_key(self.cycle)
 
     def identified_transcript(self, audios: list[bytes], transcript: list[Line]) -> bool:
         for idx, audio in enumerate(audios):
-            audio_file = f"{self.cycle_key}_{idx:02d}"
+            audio_file = f"{self.cycle_key_str}_{idx:02d}"
             self.upsert_audio(audio_file, audio)
 
         label = Constants.AUDIO2TRANSCRIPT
-        self.upsert_json(label, {self.cycle_key: [line.to_json() for line in transcript]})
+        self.upsert_json(label, {self.cycle_key_str: [line.to_json() for line in transcript]})
         return True
 
     def found_instructions(
@@ -74,7 +78,7 @@ class AuditorStore(AuditorBase):
     ) -> bool:
         label = Constants.TRANSCRIPT2INSTRUCTIONS
         content = self.get_json(label)
-        content[self.cycle_key] = {
+        content[self.cycle_key_str] = {
             "transcript": [line.to_json() for line in transcript],
             "instructions": {
                 "initial": [
@@ -93,11 +97,11 @@ class AuditorStore(AuditorBase):
     def computed_parameters(self, instructions: list[InstructionWithParameters]) -> bool:
         label = Constants.INSTRUCTION2PARAMETERS
         content: dict = self.get_json(label)
-        if self.cycle_key not in content:
-            content[self.cycle_key] = {"instructions": [], "parameters": []}
+        if self.cycle_key_str not in content:
+            content[self.cycle_key_str] = {"instructions": [], "parameters": []}
         for instruction in instructions:
-            content[self.cycle_key]["instructions"].append(instruction.to_json(False))
-            content[self.cycle_key]["parameters"].append(instruction.parameters)
+            content[self.cycle_key_str]["instructions"].append(instruction.to_json(False))
+            content[self.cycle_key_str]["parameters"].append(instruction.parameters)
         #
         self.upsert_json(label, content)
         return True
@@ -105,12 +109,12 @@ class AuditorStore(AuditorBase):
     def computed_commands(self, instructions: list[InstructionWithCommand]) -> bool:
         label = Constants.PARAMETERS2COMMAND
         content: dict = self.get_json(label)
-        if self.cycle_key not in content:
-            content[self.cycle_key] = {"instructions": [], "parameters": [], "commands": []}
+        if self.cycle_key_str not in content:
+            content[self.cycle_key_str] = {"instructions": [], "parameters": [], "commands": []}
         for instruction in instructions:
-            content[self.cycle_key]["instructions"].append(instruction.to_json(False))
-            content[self.cycle_key]["parameters"].append(instruction.parameters)
-            content[self.cycle_key]["commands"].append(
+            content[self.cycle_key_str]["instructions"].append(instruction.to_json(False))
+            content[self.cycle_key_str]["parameters"].append(instruction.parameters)
+            content[self.cycle_key_str]["commands"].append(
                 {
                     "module": instruction.command.__module__,
                     "class": instruction.command.__class__.__name__,
@@ -129,7 +133,7 @@ class AuditorStore(AuditorBase):
     ) -> bool:
         label = Constants.STAGED_QUESTIONNAIRES
         content = self.get_json(label)
-        content[self.cycle_key] = {
+        content[self.cycle_key_str] = {
             "transcript": [line.to_json() for line in transcript],
             "instructions": [
                 instruction.to_json(False)  # |  {"uuid": Constants.IGNORED_KEY_VALUE}

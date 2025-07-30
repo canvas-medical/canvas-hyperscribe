@@ -32,7 +32,7 @@ def pytest_runtest_makereport(item, call):
         case_name = "n/a"
         cycle = -1
         pattern_end2end = rf"test_(.+?)\[([^\]]+?)\]"
-        pattern_details = rf"test_detail_(.+?)\[(.+)_{Constants.CASE_CYCLE_SUFFIX}_(\d+)\]"
+        pattern_details = rf"test_detail_(.+?)\[(.+)_{Constants.CASE_CYCLE_PREFIX}_(\d+)\]"
         if result := match(pattern_details, report.location[2]):
             test_name = result.group(1)
             case_name = result.group(2)
@@ -204,10 +204,10 @@ def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
 
             assert json_file.exists(), f"{case.stem}: no corresponding JSON file found"
 
-            cycle_len = len(f"{Constants.CASE_CYCLE_SUFFIX}_???")
+            cycle_len = len(f"{Constants.CASE_CYCLE_PREFIX}_???")
             cycles = json.load(json_file.open("r")).keys()
             cycled_mp3_files: dict[str, list[Path]] = {cycle: [] for cycle in cycles}
-            for file in audios.glob(f"{Constants.CASE_CYCLE_SUFFIX}_???_??.mp3"):
+            for file in audios.glob(f"{Constants.CASE_CYCLE_PREFIX}_???_??.mp3"):
                 key = file.stem[:cycle_len]
                 cycled_mp3_files[key].append(file)
 
@@ -237,6 +237,6 @@ def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
                 (case_name, cycle, json_file)
                 for case_name, json_file in json_files
                 for cycle in json.load(json_file.open("r")).keys()
-                if cycle.startswith(Constants.CASE_CYCLE_SUFFIX)
+                if cycle.startswith(Constants.CASE_CYCLE_PREFIX)
             ]
             metafunc.parametrize(step, files, ids=lambda path: f"{path[0]}_{path[1]}")

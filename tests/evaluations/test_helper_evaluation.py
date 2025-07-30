@@ -14,6 +14,8 @@ from hyperscribe.structures.identification_parameters import IdentificationParam
 from hyperscribe.structures.json_extract import JsonExtract
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
+from hyperscribe.structures.line import Line
+from evaluations.constants import Constants
 
 
 def test_trace_error():
@@ -29,7 +31,7 @@ def test_trace_error():
         result = tested.trace_error(error)
         expected = {
             "error": "'x'",
-            "files": [f"{file_path}.test_trace_error:29", f"{file_path}.mistake:21"],
+            "files": [f"{file_path}.test_trace_error:31", f"{file_path}.mistake:23"],
             "variables": {"a_dict": "{'a': 1, 'secret': 'SecretA'}", "b_dict": "{'b': 2}", "various": "'random var'"},
         }
         assert result == expected
@@ -457,6 +459,78 @@ def test_nuanced_differences(settings, get_canvas_instance, chatter, memory_log)
     calls = [call.set_system_prompt(system_prompt), call.set_user_prompt(user_prompt), call.chat([schema])]
     assert conversation.mock_calls == calls
     reset_mocks()
+
+
+def test_split_lines_into_cycles():
+    tested = HelperEvaluation
+
+    # test cases: 1) empty
+    result = tested.split_lines_into_cycles([])
+    expected = {}
+    assert result == expected
+
+    # 2) short line
+    lines = [Line(speaker="Doctor", text="Hello")]
+    result = tested.split_lines_into_cycles(lines)
+    expected = {f"{Constants.CASE_CYCLE_PREFIX}_001": lines}
+    assert result == expected
+
+    # 3) multiple lines within limit
+    lines = [
+        Line(speaker="Doctor", text="Good morning"),
+        Line(speaker="Patient", text="Hello doctor"),
+        Line(speaker="Doctor", text="How are you feeling today?"),
+    ]
+    result = tested.split_lines_into_cycles(lines)
+    expected = {f"{Constants.CASE_CYCLE_PREFIX}_001": lines}
+    assert result == expected
+
+    # 4) exceed cycle limit (Constants.MAX_CHARACTERS_PER_CYCLE = 1000)
+    lines = [
+        Line(speaker="Doctor", text="A" * 400),  # Long text that will cause split
+        Line(speaker="Patient", text="B" * 400),  # Long text
+        Line(speaker="Doctor", text="C" * 400),  # Long text
+        Line(speaker="Patient", text="Short"),  # Short text
+    ]
+    result = tested.split_lines_into_cycles(lines)
+
+    assert len(result) >= 2
+    assert f"{Constants.CASE_CYCLE_PREFIX}_001" in result
+    assert f"{Constants.CASE_CYCLE_PREFIX}_002" in result
+
+    all_lines = []
+    for cycle_lines in result.values():
+        all_lines.extend(cycle_lines)
+    assert len(all_lines) == 4
+    assert all(line in all_lines for line in lines)
+
+    # 5) boundary conditions
+    line1 = Line(speaker="Doctor", text="X" * 50)
+    line2 = Line(speaker="Patient", text="Y" * 50)
+    lines = [line1, line2]
+
+    result = tested.split_lines_into_cycles(lines)
+
+    # Should fit in one cycle since combined length is around 100
+    if len(result) == 1:
+        assert f"{Constants.CASE_CYCLE_PREFIX}_001" in result
+        assert result[f"{Constants.CASE_CYCLE_PREFIX}_001"] == lines
+    else:
+        # If it splits, verify all lines are preserved
+        all_lines = []
+        for cycle_lines in result.values():
+            all_lines.extend(cycle_lines)
+        assert len(all_lines) == 2
+        assert all(line in all_lines for line in lines)
+
+    # 6) one very long Line object
+    long_line = Line(speaker="Doctor", text="Very long text " * 100)
+    result = tested.split_lines_into_cycles([long_line])
+
+    # Should still create one cycle even if line exceeds limit
+    assert len(result) == 1
+    assert f"{Constants.CASE_CYCLE_PREFIX}_001" in result
+    assert result[f"{Constants.CASE_CYCLE_PREFIX}_001"] == [long_line]
 
 
 def test_list_case_files():

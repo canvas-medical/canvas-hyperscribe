@@ -22,3 +22,21 @@ class SyntheticCase(NamedTuple):
     text_llm_vendor: str = ""
     text_llm_name: str = ""
     id: int = 0
+
+    def to_json(self) -> dict:
+        return {
+            "case_id": self.case_id,
+            "category": self.category,
+            "turn_total": self.turn_total,
+            "speaker_sequence": self.speaker_sequence,
+            "clinician_to_patient_turn_ratio": self.clinician_to_patient_turn_ratio,
+            "mood": [mood.value for mood in self.mood],
+            "pressure": self.pressure.value,
+            "clinician_style": self.clinician_style.value,
+            "patient_style": self.patient_style.value,
+            "turn_buckets": self.turn_buckets.value,
+            "duration": self.duration,
+            "text_llm_vendor": self.text_llm_vendor,
+            "text_llm_name": self.text_llm_name,
+            "id": self.id,
+        }

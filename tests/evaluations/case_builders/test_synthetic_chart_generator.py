@@ -11,14 +11,10 @@ from evaluations.constants import Constants
 def test___init__():
     expected_vendor_key = VendorKey(vendor="openai", api_key="API_KEY_123")
     expected_profiles = {"Patient A": "Profile text"}
-    expected_output = Path("/tmp/outdir")
-    expected_example = {"foo": "bar"}
 
-    tested = SyntheticChartGenerator(expected_vendor_key, expected_profiles, expected_output, expected_example)
+    tested = SyntheticChartGenerator(expected_vendor_key, expected_profiles)
     assert tested.vendor_key == expected_vendor_key
     assert tested.profiles == expected_profiles
-    assert tested.output == expected_output
-    assert tested.example_chart == expected_example
 
 
 def test_load_json(tmp_path):
@@ -31,13 +27,11 @@ def test_load_json(tmp_path):
 
 
 def test_schema_chart():
-    # 1: check sample chart with correct keys formats correctly.
     example_chart_known = {key: "" for key in Constants.EXAMPLE_CHART_DESCRIPTIONS}
-
-    tested_known = SyntheticChartGenerator(VendorKey("vendor", "key"), {}, Path("."), example_chart_known)
+    tested_known = SyntheticChartGenerator(VendorKey("vendor", "key"), {})
 
     result_schema = tested_known.schema_chart()
-    assert result_schema["description"] == "Example Canvas-compatible chart"
+    assert result_schema["description"] == "Canvas-compatible chart structure"
     assert result_schema["type"] == "object"
     assert result_schema["additionalProperties"] is False
     assert set(result_schema["required"]) == set(example_chart_known.keys())
@@ -59,24 +53,13 @@ def test_schema_chart():
         assert properties[key]["description"] == expected_desc
         assert properties[key]["type"] == "string"
 
-    # 2: unknown customData key should raise newly established KeyError
-    example_chart_unknown = {"customData": []}
-    tested_unknown = SyntheticChartGenerator(VendorKey("vendor", "key"), {}, Path("."), example_chart_unknown)
-
-    try:
-        tested_unknown.schema_chart()
-        assert False, "Expected KeyError for missing description"
-    except KeyError as e:
-        assert str(e) == "'customData'"
-
 
 @patch.object(SyntheticChartGenerator, "schema_chart")
 @patch("evaluations.case_builders.synthetic_chart_generator.HelperSyntheticJson.generate_json")
 def test_generate_chart_for_profile(mock_generate_json, mock_schema_chart, tmp_path):
     tested_key = VendorKey(vendor="openai", api_key="LLMKEY")
-    dummy_chart = {"example": "chart"}
     dummy_profiles = {"P1*": "text1", "P2!": "text2"}
-    tested = SyntheticChartGenerator(tested_key, dummy_profiles, tmp_path, dummy_chart)
+    tested = SyntheticChartGenerator(tested_key, dummy_profiles)
 
     profile_text = "irrelevant profile"
     expected_chart = {"cond": ["X"], "meds": []}
@@ -91,7 +74,7 @@ def test_generate_chart_for_profile(mock_generate_json, mock_schema_chart, tmp_p
     assert len(mock_generate_json.mock_calls) == 1
     _, kwargs = mock_generate_json.call_args
     expected_system_md5 = "4ef06113c42ee7128cc08b0695e481f5"
-    expected_user_md5 = "f41d7b662491c25024a3c8193b376981"
+    expected_user_md5 = "a0c178f85b3d55ee6d06dfcb11fc7d36"
     result_system_md5 = hashlib.md5("\n".join(kwargs["system_prompt"]).encode()).hexdigest()
     result_user_md5 = hashlib.md5("\n".join(kwargs["user_prompt"]).encode()).hexdigest()
 
@@ -104,7 +87,7 @@ def test_generate_chart_for_profile(mock_generate_json, mock_schema_chart, tmp_p
 @patch("evaluations.case_builders.synthetic_chart_generator.LimitedCache.load_from_json")
 def test_validate_chart__success(mock_load):
     tested_chart = {"foo": "bar"}
-    tested = SyntheticChartGenerator(VendorKey("v", "k"), {}, Path("."), {})
+    tested = SyntheticChartGenerator(VendorKey("vendor", "key"), {})
 
     tested.validate_chart(tested_chart)
 
@@ -114,14 +97,14 @@ def test_validate_chart__success(mock_load):
 @patch("evaluations.case_builders.synthetic_chart_generator.LimitedCache.load_from_json", side_effect=Exception("boom"))
 def test_validate_chart__invalid_structure(mock_load):
     tested_chart = {"bad": True}
-    tested = SyntheticChartGenerator(VendorKey("v", "k"), {}, Path("."), {})
+    tested = SyntheticChartGenerator(VendorKey("vendor", "key"), {})
     result = tested.validate_chart(tested_chart)
     assert result is False
     assert mock_load.mock_calls == [call(tested_chart)]
 
 
 def test_assign_valid_uuids():
-    tested = SyntheticChartGenerator(VendorKey("v", "k"), {}, Path("/"), {})
+    tested = SyntheticChartGenerator(VendorKey("v", "k"), {})
     input_chart = {"uuid": "old", "nested": [{"uuid": "old2"}, {"not_uuid": 123}]}
     result = tested.assign_valid_uuids(input_chart)
 
@@ -139,9 +122,9 @@ def test_assign_valid_uuids():
 def test_run_range(mock_assign, mock_validate, mock_generate, tmp_path, capsys):
     profiles = {"P1*": "text1", "P2!": "text2"}
     output_dir = tmp_path / "out"
-    tested = SyntheticChartGenerator(VendorKey("v", "k"), profiles, output_dir, {})
+    tested = SyntheticChartGenerator(VendorKey("v", "k"), profiles)
 
-    tested.run_range(1, 2)
+    tested.run_range(1, 2, output_dir)
     output1 = output_dir / "P1_" / "limited_chart.json"
     output2 = output_dir / "P2_" / "limited_chart.json"
     assert output1.exists()
@@ -176,10 +159,11 @@ def test_main(tmp_path):
 
     run_calls: dict[str, Any] = {}
 
-    def fake_run_range(self, start: int, limit: int):
+    def fake_run_range(self, start: int, limit: int, output: Path):
         run_calls["instance"] = self
         run_calls["start"] = start
         run_calls["limit"] = limit
+        run_calls["output"] = output
 
     with (
         patch.object(HelperEvaluation, "settings", classmethod(lambda cls: dummy_settings)),
@@ -188,14 +172,15 @@ def test_main(tmp_path):
         patch.object(
             ArgumentParser,
             "parse_args",
-            lambda self: Namespace(input=profiles_file, example=example_file, output=out_dir, start=1, limit=3),
+            lambda self: Namespace(input=profiles_file, output=out_dir, start=1, limit=3),
         ),
     ):
         SyntheticChartGenerator.main()
 
-    assert load_calls == [profiles_file, example_file]
+    assert load_calls == [profiles_file]
     instance = run_calls["instance"]
     assert isinstance(instance, SyntheticChartGenerator)
     assert instance.vendor_key.api_key == "MY_API_KEY"
     assert run_calls["start"] == 1
     assert run_calls["limit"] == 3
+    assert run_calls["output"] == out_dir

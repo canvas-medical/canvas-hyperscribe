@@ -27,19 +27,15 @@ def vendor_key():
     return VendorKey(vendor="openai", api_key="MY_KEY")
 
 
-def test___init__(tmp_path, vendor_key: VendorKey):
-    output_path = tmp_path / "combined.json"
-    tested = SyntheticProfileGenerator(vendor_key, output_path)
-    expected_path = tmp_path / "combined.json"
+def test___init__(vendor_key: VendorKey):
+    tested = SyntheticProfileGenerator(vendor_key)
     assert tested.vendor_key == vendor_key
-    assert tested.output_path == expected_path
     assert tested.seen_scenarios == []
     assert tested.all_profiles == {}
 
 
-def test__extract_initial_fragment(tmp_path, vendor_key: VendorKey):
-    output_path = tmp_path / "out.json"
-    tested = SyntheticProfileGenerator(vendor_key, output_path)
+def test__extract_initial_fragment(vendor_key: VendorKey):
+    tested = SyntheticProfileGenerator(vendor_key)
     narrative = "First sentence. Second sentence."
     expected = "First sentence"
     result = tested._extract_initial_fragment(narrative)
@@ -48,10 +44,9 @@ def test__extract_initial_fragment(tmp_path, vendor_key: VendorKey):
 
 def test__save_combined(tmp_path, dummy_profiles: dict, vendor_key: VendorKey):
     output_path = tmp_path / "combined.json"
-    tested = SyntheticProfileGenerator(vendor_key, output_path)
-    tested.output_path = output_path
+    tested = SyntheticProfileGenerator(vendor_key)
     tested.all_profiles = dummy_profiles
-    tested._save_combined()
+    tested._save_combined(output_path)
 
     result = json.loads(output_path.read_text())
     assert result == dummy_profiles
@@ -59,9 +54,9 @@ def test__save_combined(tmp_path, dummy_profiles: dict, vendor_key: VendorKey):
 
 def test__save_individuals(tmp_path, dummy_profiles: dict, vendor_key: VendorKey):
     out_file = tmp_path / "combined.json"
-    tested = SyntheticProfileGenerator(vendor_key, out_file)
+    tested = SyntheticProfileGenerator(vendor_key)
     tested.all_profiles = dummy_profiles
-    tested._save_individuals()
+    tested._save_individuals(out_file)
 
     for name, narrative in dummy_profiles.items():
         dir_name = re.sub(r"\s+", "_", name.strip())
@@ -72,9 +67,8 @@ def test__save_individuals(tmp_path, dummy_profiles: dict, vendor_key: VendorKey
         assert result == expected
 
 
-def test_schema_batch(tmp_path, vendor_key: VendorKey):
-    output_path = tmp_path / "out.json"
-    tested = SyntheticProfileGenerator(vendor_key, output_path)
+def test_schema_batch(vendor_key: VendorKey):
+    tested = SyntheticProfileGenerator(vendor_key)
     count_patients = 4
     result = tested.schema_batch(count_patients)
     expected = {
@@ -95,7 +89,7 @@ def test_generate_batch(mock_generate_json, mock_schema_batch, fake_llm_response
     expected = fake_llm_response(n)
     mock_generate_json.return_value = expected
 
-    tested = SyntheticProfileGenerator(vendor_key, "out.json")
+    tested = SyntheticProfileGenerator(vendor_key)
     batch_num = 2
     count = 3
     expected_schema = {"expected": "schema"}
@@ -126,16 +120,17 @@ def test_generate_batch(mock_generate_json, mock_schema_batch, fake_llm_response
 @patch.object(SyntheticProfileGenerator, "_save_individuals")
 @patch.object(SyntheticProfileGenerator, "_save_combined")
 @patch.object(SyntheticProfileGenerator, "generate_batch")
-def test_run(mock_generate_batch, mock_save_combined, mock_save_individuals, vendor_key: VendorKey):
-    tested = SyntheticProfileGenerator(vendor_key, "out.json")
+def test_run(mock_generate_batch, mock_save_combined, mock_save_individuals, tmp_path, vendor_key: VendorKey):
+    output_path = tmp_path / "out.json"
+    tested = SyntheticProfileGenerator(vendor_key)
     batches = 2
     batch_size = 5
-    tested.run(batches=batches, batch_size=batch_size)
+    tested.run(batches=batches, batch_size=batch_size, output_path=output_path)
 
     expected_generate_calls = [call(i, batch_size) for i in range(1, batches + 1)]
     assert mock_generate_batch.mock_calls == expected_generate_calls
-    assert mock_save_combined.mock_calls == [call()]
-    assert mock_save_individuals.mock_calls == [call()]
+    assert mock_save_combined.mock_calls == [call(output_path)]
+    assert mock_save_individuals.mock_calls == [call(output_path)]
 
 
 def test_main(tmp_path):
@@ -144,8 +139,8 @@ def test_main(tmp_path):
 
     run_calls = []
 
-    def fake_run(self, batches, batch_size):
-        run_calls.append((self, batches, batch_size))
+    def fake_run(self, batches, batch_size, output_path):
+        run_calls.append((self, batches, batch_size, output_path))
 
     output_path = tmp_path / "out.json"
     args = Namespace(batches=2, batch_size=5, output=output_path)
@@ -161,8 +156,9 @@ def test_main(tmp_path):
         assert mock_mkdir_1.mock_calls == expected_calls
 
     assert len(run_calls) == 1
-    instance, batches, batch_size = run_calls[0]
+    instance, batches, batch_size, output_path_arg = run_calls[0]
     assert isinstance(instance, SyntheticProfileGenerator)
     assert instance.vendor_key.api_key == "MAIN_KEY"
     assert batches == 2
     assert batch_size == 5
+    assert output_path_arg == output_path

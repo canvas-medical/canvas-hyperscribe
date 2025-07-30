@@ -124,8 +124,7 @@ class RubricGenerator:
 
     @classmethod
     def generate_and_save2database(cls, case_name: str, canvas_context_path: Path) -> RubricRecord:
-        settings = HelperEvaluation.settings()
-        vendor_key = settings.llm_text
+        vendor_key = HelperEvaluation.settings().llm_text
         credentials = HelperEvaluation.postgres_credentials()
 
         datastore = CaseDatastore(credentials)
@@ -144,13 +143,13 @@ class RubricGenerator:
             parent_rubric_id=None,
             validation_timestamp=datetime.now(UTC),
             validation=RubricValidation.NOT_EVALUATED,
-            author="",
+            author=Constants.LLM_CONSTANT,
             rubric=rubric_list,
             case_provenance_classification="",
             comments="",
             text_llm_vendor=vendor_key.vendor,
             text_llm_name=HyperscribeConstants.OPENAI_CHAT_TEXT_O3,
-            temperature=1.0,
+            temperature=Constants.O3_TEMPERATURE,
         )
         print("Rubric record generated. Upsert starting now.")
         return RubricDatastore(credentials).upsert(rubric_record)
@@ -158,10 +157,11 @@ class RubricGenerator:
     @staticmethod
     def main() -> None:
         parser = argparse.ArgumentParser(description="Generate a fidelity rubric for documentation.")
+        parser.add_argument("--canvas_context_path", type=Path, required=True)
+
         # File mode
         parser.add_argument("--transcript_path", type=Path)
         parser.add_argument("--chart_path", type=Path)
-        parser.add_argument("--canvas_context_path", type=Path)
         parser.add_argument("--output_path", type=Path)
         # DB mode
         parser.add_argument("--case_name", type=str)
