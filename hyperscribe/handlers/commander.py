@@ -5,7 +5,6 @@ from datetime import datetime, UTC
 from time import time
 from typing import Iterable, Any
 
-import requests
 from canvas_sdk.effects import Effect, EffectType
 from canvas_sdk.effects.task.task import AddTaskComment, UpdateTask, TaskStatus
 from canvas_sdk.events import EventType
@@ -91,14 +90,17 @@ class Commander(BaseProtocol):
         settings = Settings.from_dictionary(self.secrets | {Constants.PROGRESS_SETTING_KEY: True})
         aws_s3 = AwsS3Credentials.from_dictionary(self.secrets)
         memory_log = MemoryLog.instance(identification, Constants.MEMORY_LOG_LABEL, aws_s3)
-        memory_log.output(f"SDK: {version} - Text: {self.secrets[Constants.SECRET_TEXT_LLM_VENDOR]} - Audio: {self.secrets[Constants.SECRET_AUDIO_LLM_VENDOR]}")
-        
+        memory_log.output(
+            f"SDK: {version} - Text: {self.secrets[Constants.SECRET_TEXT_LLM_VENDOR]} - "
+            f"Audio: {self.secrets[Constants.SECRET_AUDIO_LLM_VENDOR]}"
+        )
+
         audio_client = AudioClient.for_operation(
             self.secrets[Constants.SECRET_AUDIO_HOST],
             self.environment[Constants.CUSTOMER_IDENTIFIER],
-            self.secrets[Constants.SECRET_AUDIO_HOST_PRE_SHARED_KEY]
+            self.secrets[Constants.SECRET_AUDIO_HOST_PRE_SHARED_KEY],
         )
-        
+
         had_audio, effects = self.compute_audio(identification, settings, aws_s3, audio_client, chunk_index)
         if had_audio:
             log.info(f"audio was present => go to next iteration ({chunk_index + 1})")
@@ -157,22 +159,21 @@ class Commander(BaseProtocol):
 
     @classmethod
     def compute_audio(
-            cls,
-            identification: IdentificationParameters,
-            settings: Settings,
-            aws_s3: AwsS3Credentials,
-            audio_client: AudioClient,
-            chunk_index: int,
+        cls,
+        identification: IdentificationParameters,
+        settings: Settings,
+        aws_s3: AwsS3Credentials,
+        audio_client: AudioClient,
+        chunk_index: int,
     ) -> tuple[bool, list[Effect]]:
-        audio_bytes = audio_client.get_audio_chunk(
-            identification.patient_uuid, identification.note_uuid, chunk_index)
-        
-        # TODO: Are we going to do overlapping chunks? If not, then simplify, 
+        audio_bytes = audio_client.get_audio_chunk(identification.patient_uuid, identification.note_uuid, chunk_index)
+
+        # TODO: Are we going to do overlapping chunks? If not, then simplify,
         # TODO: doesn't need to be a list?
         audios = []
         if audio_bytes:
             audios.append(audio_bytes)
-        
+
         memory_log = MemoryLog.instance(identification, Constants.MEMORY_LOG_LABEL, aws_s3)
         memory_log.output(f"--> audio chunks: {len(audios)}")
         if not audios:

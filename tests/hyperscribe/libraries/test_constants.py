@@ -100,6 +100,6 @@ def test_constants():
         "SECRET_AUDIO_LLM_KEY": "KeyAudioLLM",
         "SECRET_AUDIO_LLM_VENDOR": "VendorAudioLLM",
         "SECRET_TEXT_LLM_KEY": "KeyTextLLM",
-        "SECRET_TEXT_LLM_VENDOR": "VendorTextLLM"
+        "SECRET_TEXT_LLM_VENDOR": "VendorTextLLM",
     }
     assert is_constant(tested, constants)

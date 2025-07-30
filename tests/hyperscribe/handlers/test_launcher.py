@@ -58,17 +58,14 @@ def test_handle(launch_modal_effect, authenticator, note_db):
     assert result == expected
 
     calls = [
-        call(
-            url='/plugin-io/api/hyperscribe/capture/patientId/noteId',
-            target='right_chart_pane',
-            title='Hyperscribe'),
+        call(url="/plugin-io/api/hyperscribe/capture/patientId/noteId", target="right_chart_pane", title="Hyperscribe"),
         call().apply(),
     ]
     assert launch_modal_effect.mock_calls == calls
     calls = [
         call.presigned_url(
-            'theApiSigningKey',
-            '/plugin-io/api/hyperscribe/capture/patientId/noteId',
+            "theApiSigningKey",
+            "/plugin-io/api/hyperscribe/capture/patientId/noteId",
             {},
         )
     ]

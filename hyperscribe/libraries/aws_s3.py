@@ -167,11 +167,6 @@ class AwsS3:
                 else:
                     break
 
-            if is_truncated:
-                continuation_token = token_pattern.search(response_text).group(1)
-            else:
-                break
-
         return result
 
     def generate_presigned_url(self, object_key: str, expiration: int) -> str:

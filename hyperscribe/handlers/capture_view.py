@@ -31,7 +31,7 @@ class CaptureView(SimpleAPI):
     def capture_get(self) -> list[Response | Effect]:
         patient_id = self.request.path_params["patient_id"]
         note_id = self.request.path_params["note_id"]
-        
+
         progress_url = Authenticator.presigned_url(
             self.secrets[Constants.SECRET_API_SIGNING_KEY],
             f"{Constants.PLUGIN_API_BASE_ROUTE}/progress",
@@ -49,18 +49,18 @@ class CaptureView(SimpleAPI):
         )
 
         context = {
-            'patientUuid': patient_id, 
-            'noteUUID': note_id,
-            'interval': self.secrets[Constants.SECRET_AUDIO_INTERVAL],
-            'endFlag': Constants.PROGRESS_END_OF_MESSAGES,
-            'progressURL': progress_url,
-            'newSessionURL': new_session_url,
-            'saveAudioURL': save_audio_url,
+            "patientUuid": patient_id,
+            "noteUUID": note_id,
+            "interval": self.secrets[Constants.SECRET_AUDIO_INTERVAL],
+            "endFlag": Constants.PROGRESS_END_OF_MESSAGES,
+            "progressURL": progress_url,
+            "newSessionURL": new_session_url,
+            "saveAudioURL": save_audio_url,
         }
 
         return [
             HTMLResponse(
-                render_to_string('templates/hyperscribe.html', context),
+                render_to_string("templates/hyperscribe.html", context),
                 status_code=HTTPStatus.OK,
             )
         ]
@@ -81,10 +81,13 @@ class CaptureView(SimpleAPI):
         user_token = audio_client.get_user_token(logged_in_user_id)
         patient_id = self.request.path_params["patient_id"]
         note_id = self.request.path_params["note_id"]
-        session_id = audio_client.create_session(user_token, {
-            'note_id': note_id, 
-            'patient_id': patient_id, 
-        })
+        session_id = audio_client.create_session(
+            user_token,
+            {
+                "note_id": note_id,
+                "patient_id": patient_id,
+            },
+        )
 
         audio_client.add_session(patient_id, note_id, session_id, logged_in_user_id, user_token)
 
@@ -94,25 +97,28 @@ class CaptureView(SimpleAPI):
         # and the FHIR group id is not exposed in the data model :/
 
         staff_id = Staff.objects.get(dbid=Constants.CANVAS_BOT_DBID).id
-        comment_text = json.dumps({
-            'note_id': note_id, 
-            'patient_id': patient_id, 
-            'chunk_index': 1,
-        })
+        comment_text = json.dumps(
+            {
+                "note_id": note_id,
+                "patient_id": patient_id,
+                "chunk_index": 1,
+            }
+        )
 
-        # TODO: handle timezone, this appears wrong in the UI, 
+        # TODO: handle timezone, this appears wrong in the UI,
         # creation time is off by 5 hours
-        now_timestamp = datetime.now().isoformat() + '+00:00'
+        now_timestamp = datetime.now().isoformat() + "+00:00"
 
-        headers = {'Authorization': f'Bearer {self.secrets[Constants.FUMAGE_BEARER_TOKEN]}'}
+        headers = {"Authorization": f"Bearer {self.secrets[Constants.FUMAGE_BEARER_TOKEN]}"}
         url = f"https://fumage-{self.environment[Constants.CUSTOMER_IDENTIFIER]}.canvasmedical.com/Task"
         payload = {
-            "resourceType":
-            "Task",
-            "extension": [{
-                "url": "http://schemas.canvasmedical.com/fhir/extensions/task-group",
-                "valueReference": {"reference": f"Group/{team_id}"},
-            }],
+            "resourceType": "Task",
+            "extension": [
+                {
+                    "url": "http://schemas.canvasmedical.com/fhir/extensions/task-group",
+                    "valueReference": {"reference": f"Group/{team_id}"},
+                }
+            ],
             "status": "requested",
             "intent": "unknown",
             "description": Constants.LABEL_ENCOUNTER_COPILOT,
@@ -120,27 +126,29 @@ class CaptureView(SimpleAPI):
             "authoredOn": now_timestamp,
             "requester": {"reference": f"Practitioner/{staff_id}"},
             "owner": {"reference": f"Practitioner/{staff_id}"},
-            "note": [{
-                "authorReference": {"reference": f"Practitioner/{staff_id}"},
-                "time": now_timestamp,
-                "text": comment_text,
-            }],
-            "input": [{"type": {"text": "label"}, "valueString": Constants.LABEL_ENCOUNTER_COPILOT}]
+            "note": [
+                {
+                    "authorReference": {"reference": f"Practitioner/{staff_id}"},
+                    "time": now_timestamp,
+                    "text": comment_text,
+                }
+            ],
+            "input": [{"type": {"text": "label"}, "valueString": Constants.LABEL_ENCOUNTER_COPILOT}],
         }
         t0 = time()
         # TODO: move to utils.http once issue below is solved
         # TODO: https://github.com/canvas-medical/canvas-plugins/issues/733
         response = requests.post(url, json=payload, headers=headers)
-        log.info(f'FHIR Task Create duration: {int(100*(time()-t0))/100} seconds')
+        log.info(f"FHIR Task Create duration: {int(100 * (time() - t0)) / 100} seconds")
         return [Response(response.content, response.status_code)]
 
     @api.post("/audio/<patient_id>/<note_id>")
-    def audio_chunk_post(self) -> list[Response | Effect]:       
+    def audio_chunk_post(self) -> list[Response | Effect]:
         form_data = self.request.form_data()
-        if 'audio' not in form_data:
+        if "audio" not in form_data:
             return [Response(b"No audio file part in the request", 400)]
-        
-        audio_form_part = form_data['audio']
+
+        audio_form_part = form_data["audio"]
         if not audio_form_part.is_file():
             return [Response(b"The audio form part is not a file", 422)]
 
@@ -155,11 +163,11 @@ class CaptureView(SimpleAPI):
             self.secrets[Constants.SECRET_AUDIO_HOST_PRE_SHARED_KEY],
         )
         patient_id = self.request.path_params["patient_id"]
-        note_id = self.request.path_params["note_id"]       
+        note_id = self.request.path_params["note_id"]
         response = audio_client.save_audio_chunk(patient_id, note_id, audio_form_part)
-        
+
         if response.status_code != 201:
-            log.info(f'Failed to save chunk with status {response.status_code}: {response.content}')
+            log.info(f"Failed to save chunk with status {response.status_code}: {str(response.content)}")
             return [Response(response.content, response.status_code)]
-        
+
         return [Response(b"Audio chunk saved OK", 201)]

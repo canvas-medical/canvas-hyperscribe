@@ -116,24 +116,26 @@ class AudioClient:
         "iy80yV2EmaoqtuoXSbcd/lnqiDu9qJTcqOjjZQzcpBBBBfZhhsGTrn5Zl3BAEYejiVsrNIvLV4sgB4bb"
         "biLjxMuBCGhA3/QFHFHls9qnkfpSwiSE+JuwdIDsIdQgzIAh6tT9vmSiZLuFZvru0hEr"
     )
-    
+
     plugin_cache = get_cache()
 
-    def __eq__(self, other) -> bool:
+    def __eq__(self, other: object) -> bool:
         return (
-            isinstance(other, AudioClient) and
-            self.base_url == other.base_url and
-            self.registration_key == other.registration_key and
-            self.instance == other.instance and
-            self.instance_key == other.instance_key
+            isinstance(other, AudioClient)
+            and self.base_url == other.base_url
+            and self.registration_key == other.registration_key
+            and self.instance == other.instance
+            and self.instance_key == other.instance_key
         )
 
     def __repr__(self) -> str:
-        registration_key = 'None' if self.registration_key is None else f"'{self.registration_key}'"
-        instance = 'None' if self.instance is None else f"'{self.instance}'"
-        instance_key = 'None' if self.instance_key is None else f"'{self.instance_key}'"
-        return (f"AudioClient(base_url='{self.base_url}', registration_key={registration_key}, "
-                f"instance={instance}, instance_key={instance_key}")
+        registration_key = "None" if self.registration_key is None else f"'{self.registration_key}'"
+        instance = "None" if self.instance is None else f"'{self.instance}'"
+        instance_key = "None" if self.instance_key is None else f"'{self.instance_key}'"
+        return (
+            f"AudioClient(base_url='{self.base_url}', registration_key={registration_key}, "
+            f"instance={instance}, instance_key={instance_key}"
+        )
 
     @classmethod
     def for_registration(cls, base_url: str, registration_key: str) -> AudioClient:
@@ -143,51 +145,47 @@ class AudioClient:
     def for_operation(cls, base_url: str, instance: str, instance_key: str) -> AudioClient:
         return AudioClient(base_url, None, instance, instance_key)
 
-    def __init__(self, 
-                 base_url: str, 
-                 registration_key: str | None, 
-                 instance: str | None,
-                 instance_key: str | None,
-                 ): 
+    def __init__(
+        self,
+        base_url: str,
+        registration_key: str | None,
+        instance: str | None,
+        instance_key: str | None,
+    ):
         self.base_url = base_url
         self.registration_key = registration_key
         self.instance = instance
         self.instance_key = instance_key
 
     def register_customer(self, subdomain: str) -> Response:
-        url = f'{self.base_url}/customers'
-        headers = {'Authorization': self.registration_key}
-        data = {'customer_identifier': subdomain}
+        url = f"{self.base_url}/customers"
+        headers = {"Authorization": self.registration_key}
+        data = {"customer_identifier": subdomain}
         return requests.post(url, headers=headers, json=data)
 
     def get_user_token(self, user_identifier: str) -> str:
         headers = {
-            'Canvas-Customer-Identifier': self.instance,
-            'Canvas-Customer-Shared-Secret': self.instance_key,
-            "Content-Type": "application/json"
+            "Canvas-Customer-Identifier": self.instance,
+            "Canvas-Customer-Shared-Secret": self.instance_key,
+            "Content-Type": "application/json",
         }
-        url = f'{self.base_url}/user-tokens'
-        data = {'user_external_id': user_identifier}
+        url = f"{self.base_url}/user-tokens"
+        data = {"user_external_id": user_identifier}
         resp = requests.post(url, headers=headers, json=data)
         json_response = resp.json()
-        return json_response['token']
+        return str(json_response["token"])
 
     def create_session(self, user_token: str, meta: dict) -> str:
-        headers = {
-            "Authorization": f"Bearer {user_token}",
-            "Content-Type": "application/json"
-        }
-        url = f'{self.base_url}/sessions'
-        resp = requests.post(url, headers=headers, json={'meta': meta})
+        headers = {"Authorization": f"Bearer {user_token}", "Content-Type": "application/json"}
+        url = f"{self.base_url}/sessions"
+        resp = requests.post(url, headers=headers, json={"meta": meta})
         json_response = resp.json()
-        return json_response['id']
+        return str(json_response["id"])
 
-    def save_audio_chunk(self, 
-                         patient_id: str, 
-                         note_id: str, 
-                         audio_file: api.FileFormPart
-                         ) -> Response:
+    def save_audio_chunk(self, patient_id: str, note_id: str, audio_file: api.FileFormPart) -> Response:
         match = re.search(r"chunk_(\d+)_", audio_file.filename)
+        if match is None:
+            raise ValueError(f"Invalid audio filename format: {audio_file.filename}")
         sequence_number = int(match.group(1))
 
         if sequence_number == 1:
@@ -204,24 +202,26 @@ class AudioClient:
             resp.status_code = 409
             return resp
 
-        url = f'{self.base_url}/sessions/{session.session_id}/chunks'
+        url = f"{self.base_url}/sessions/{session.session_id}/chunks"
         headers = {"Authorization": f"Bearer {session.user_token}"}
-        files = {'audio': (audio_file.filename, webm_bytes, audio_file.content_type)}
-        data = {'sequence_number': sequence_number}
-        
+        files = {"audio": (audio_file.filename, webm_bytes, audio_file.content_type)}
+        data = {"sequence_number": sequence_number}
+
         return requests.post(url, headers=headers, files=files, data=data)
 
     def get_audio_chunk(self, patient_id: str, note_id: str, chunk_id: int) -> bytes:
         session = self.get_latest_session(patient_id, note_id)
-        url = f'{self.base_url}/sessions/{session.session_id}/chunks'
+        if session is None:
+            raise ValueError(f"No audio session found for patient {patient_id}, note {note_id}")
+        url = f"{self.base_url}/sessions/{session.session_id}/chunks"
         headers = {"Authorization": f"Bearer {session.user_token}"}
-        params = {'sequence_number': chunk_id}
+        params = {"sequence_number": chunk_id}
         resp = requests.get(url, headers=headers, params=params)
-        
+
         if resp.status_code == 204:
-            return b''
-        
-        s3_presigned_url = resp.json()['url']
+            return b""
+
+        s3_presigned_url = resp.json()["url"]
         resp = requests.get(s3_presigned_url)
         return resp.content
 
@@ -230,9 +230,10 @@ class AudioClient:
         return f"hyperscribe.sessions.{patient_id}.{note_id}"
 
     @classmethod
-    def get_sessions(cls, patient_id, note_id) -> List[CachedAudioSession]:
+    def get_sessions(cls, patient_id: str, note_id: str) -> List[CachedAudioSession]:
         key = cls.sessions_key(patient_id, note_id)
-        return cls.plugin_cache.get(key, default=[])
+        result = cls.plugin_cache.get(key, default=[])
+        return list(result) if result is not None else []
 
     @classmethod
     def get_latest_session(cls, patient_id: str, note_id: str) -> CachedAudioSession | None:
@@ -242,12 +243,9 @@ class AudioClient:
         return sessions[-1]
 
     @classmethod
-    def add_session(cls, 
-                    patient_id: str, 
-                    note_id: str, 
-                    session_id: str, 
-                    logged_in_user_id: str, 
-                    user_token: str) -> None:
+    def add_session(
+        cls, patient_id: str, note_id: str, session_id: str, logged_in_user_id: str, user_token: str
+    ) -> None:
         sessions = cls.get_sessions(patient_id, note_id)
         new_session = CachedAudioSession(session_id, user_token, logged_in_user_id)
         sessions.append(new_session)

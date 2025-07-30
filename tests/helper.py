@@ -34,7 +34,7 @@ def is_constant(cls, constants: dict) -> bool:
             if attr not in constants:
                 print(f"Tested has new attribute not expected: '{attr}'")
                 result = False
-    
+
     if count != len(constants.keys()):
         print(f"----> counts: {count} != {len(constants.keys())}")
         result = False
@@ -45,7 +45,7 @@ def is_constant(cls, constants: dict) -> bool:
         if getattr(cls, key) != value:
             print(f"----> {key} value is {getattr(cls, key)}")
             result = False
-    
+
     return result
 
 

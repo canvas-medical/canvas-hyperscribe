@@ -3,7 +3,6 @@ from datetime import datetime, timezone, UTC
 from unittest.mock import patch, call, MagicMock
 
 import pytest
-import requests
 from canvas_generated.messages.effects_pb2 import Effect
 from canvas_generated.messages.events_pb2 import Event as EventRequest
 from canvas_sdk.events import Event
@@ -36,12 +35,12 @@ def test_constants():
 
 @pytest.fixture
 def the_audio_client() -> AudioClient:
-    return AudioClient.for_operation('https://theAudioServer.com', 'theTestEnv', 'theAudioHostSharedSecret')
+    return AudioClient.for_operation("https://theAudioServer.com", "theTestEnv", "theAudioHostSharedSecret")
 
 
 @pytest.fixture
 def the_session() -> CachedAudioSession:
-    return CachedAudioSession('theSessionId', 'theUserToken', 'theLoggedInUserId')
+    return CachedAudioSession("theSessionId", "theUserToken", "theLoggedInUserId")
 
 
 @patch("hyperscribe.handlers.commander.thread_cleanup")
@@ -85,18 +84,18 @@ def test_with_cleanup(thread_cleanup):
 @patch.object(TaskComment, "objects")
 @patch.object(Commander, "compute_audio")
 def test_compute(
-        compute_audio,
-        task_comment_db,
-        note_db,
-        info,
-        memory_log,
-        progress,
-        llm_turns_store,
-        stop_and_go,
-        mock_datetime,
-        monkeypatch,
-        the_audio_client
-        ):
+    compute_audio,
+    task_comment_db,
+    note_db,
+    info,
+    memory_log,
+    progress,
+    llm_turns_store,
+    stop_and_go,
+    mock_datetime,
+    monkeypatch,
+    the_audio_client,
+):
     monkeypatch.setattr("hyperscribe.handlers.commander.version", "theVersion")
 
     mock_comment = MagicMock()
@@ -485,35 +484,35 @@ def test_compute(
     reset_mocks()
 
 
-@patch('hyperscribe.handlers.commander.AwsS3')
-@patch('hyperscribe.handlers.commander.Progress')
-@patch('hyperscribe.handlers.commander.MemoryLog')
-@patch('hyperscribe.handlers.commander.LimitedCache')
-@patch('hyperscribe.handlers.commander.AudioInterpreter')
-@patch('hyperscribe.handlers.commander.Auditor')
+@patch("hyperscribe.handlers.commander.AwsS3")
+@patch("hyperscribe.handlers.commander.Progress")
+@patch("hyperscribe.handlers.commander.MemoryLog")
+@patch("hyperscribe.handlers.commander.LimitedCache")
+@patch("hyperscribe.handlers.commander.AudioInterpreter")
+@patch("hyperscribe.handlers.commander.Auditor")
 @patch.object(AudioClient, "get_audio_chunk")
 @patch.object(CachedSdk, "save")
 @patch.object(CachedSdk, "get_discussion")
 @patch.object(Command, "objects")
-@patch.object(Commander, 'existing_commands_to_coded_items')
-@patch.object(Commander, 'existing_commands_to_instructions')
-@patch.object(Commander, 'audio2commands')
+@patch.object(Commander, "existing_commands_to_coded_items")
+@patch.object(Commander, "existing_commands_to_instructions")
+@patch.object(Commander, "audio2commands")
 def test_compute_audio(
-        audio2commands,
-        existing_commands_to_instructions,
-        existing_commands_to_coded_items,
-        command_db,
-        cache_get_discussion,
-        cache_save,
-        mock_get_audio_chunk,
-        auditor,
-        audio_interpreter,
-        limited_cache,
-        memory_log,
-        progress,
-        aws_s3,
-        the_audio_client,
-        the_session
+    audio2commands,
+    existing_commands_to_instructions,
+    existing_commands_to_coded_items,
+    command_db,
+    cache_get_discussion,
+    cache_save,
+    mock_get_audio_chunk,
+    auditor,
+    audio_interpreter,
+    limited_cache,
+    memory_log,
+    progress,
+    aws_s3,
+    the_audio_client,
+    the_session,
 ):
     def reset_mocks():
         audio2commands.reset_mock()
@@ -569,7 +568,7 @@ def test_compute_audio(
     aws_s3.return_value.is_ready.side_effect = []
 
     tested = Commander
-    mock_get_audio_chunk.return_value = b''
+    mock_get_audio_chunk.return_value = b""
     result = tested.compute_audio(identification, settings, aws_s3_credentials, the_audio_client, 3)
     mock_get_audio_chunk.assert_called_once_with(identification.patient_uuid, identification.note_uuid, 3)
     expected = (False, [])
@@ -667,7 +666,7 @@ def test_compute_audio(
         aws_s3.return_value.is_ready.side_effect = [is_ready]
         memory_log.end_session.side_effect = ["flushedMemoryLog"]
         tested = Commander
-        mock_get_audio_chunk.return_value = b'raw-audio-bytes'
+        mock_get_audio_chunk.return_value = b"raw-audio-bytes"
         result = tested.compute_audio(identification, settings, aws_s3_credentials, the_audio_client, 3)
         mock_get_audio_chunk.assert_called_once_with(identification.patient_uuid, identification.note_uuid, 3)
         expected = (True, exp_effects)
@@ -704,14 +703,16 @@ def test_compute_audio(
             )
             calls.append(call.end_session("noteUuid"))
         assert memory_log.mock_calls == calls
-        calls = [call('theAudioHost', 'patientUuid', 'noteUuid', 3)]
-        calls = [call(
-            'AuditorInstance',
-            [b'raw-audio-bytes'],
-            'AudioInterpreterInstance',
-            instructions,
-            [Line(speaker='speaker0', text='some text')],
-        )]
+        calls = [call("theAudioHost", "patientUuid", "noteUuid", 3)]
+        calls = [
+            call(
+                "AuditorInstance",
+                [b"raw-audio-bytes"],
+                "AudioInterpreterInstance",
+                instructions,
+                [Line(speaker="speaker0", text="some text")],
+            )
+        ]
         assert audio2commands.mock_calls == calls
         calls = [call("QuerySetCommands", instructions[2:])]
         assert existing_commands_to_instructions.mock_calls == calls
@@ -750,10 +751,10 @@ def test_compute_audio(
         reset_mocks()
 
 
-@patch('hyperscribe.handlers.commander.Progress')
-@patch('hyperscribe.handlers.commander.MemoryLog')
-@patch.object(Line, 'tail_of')
-@patch.object(Commander, 'transcript2commands')
+@patch("hyperscribe.handlers.commander.Progress")
+@patch("hyperscribe.handlers.commander.MemoryLog")
+@patch.object(Line, "tail_of")
+@patch.object(Commander, "transcript2commands")
 def test_audio2commands(transcript2commands, tail_of, memory_log, progress):
     mock_auditor = MagicMock()
     mock_chatter = MagicMock()

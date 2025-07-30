@@ -1,5 +1,3 @@
-from urllib.parse import urlencode
-
 from canvas_sdk.effects import Effect
 from canvas_sdk.effects.launch_modal import LaunchModalEffect
 from canvas_sdk.events import EventType
@@ -8,7 +6,6 @@ from canvas_sdk.v1.data.note import Note, CurrentNoteStateEvent
 
 from hyperscribe.libraries.authenticator import Authenticator
 from hyperscribe.libraries.constants import Constants
-from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.settings import Settings
 
 
@@ -20,7 +17,7 @@ class Launcher(ActionButton):
     RESPONDS_TO = [EventType.Name(EventType.SHOW_NOTE_HEADER_BUTTON), EventType.Name(EventType.ACTION_BUTTON_CLICKED)]
 
     def handle(self) -> list[Effect]:
-        note_id = str(Note.objects.get(dbid=self.event.context['note_id']).id)
+        note_id = str(Note.objects.get(dbid=self.event.context["note_id"]).id)
         patient_id = self.target
 
         presigned_url = Authenticator.presigned_url(
@@ -30,9 +27,7 @@ class Launcher(ActionButton):
         )
 
         hyperscribe_pane = LaunchModalEffect(
-            url=presigned_url,
-            target=LaunchModalEffect.TargetType.RIGHT_CHART_PANE,
-            title="Hyperscribe"
+            url=presigned_url, target=LaunchModalEffect.TargetType.RIGHT_CHART_PANE, title="Hyperscribe"
         )
         return [hyperscribe_pane.apply()]
 
