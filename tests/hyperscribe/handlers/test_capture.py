@@ -106,6 +106,10 @@ def test_new_session_post(get_staff, add_sess, create_sess, get_utok, monkeypatc
     assert isinstance(resp, Response)
     assert resp.content == b"ok"
     assert resp.status_code == 201
+    get_staff.assert_called_once_with(dbid=Constants.CANVAS_BOT_DBID)
+    get_utok.assert_called_once_with("u")
+    create_sess.assert_called_once_with("ut", {"patient_id": "p", "note_id": "n"})
+    add_sess.assert_called_once_with("p", "n", "sid", "u", "ut")
 
 
 @patch.object(AudioClient, "save_audio_chunk")
