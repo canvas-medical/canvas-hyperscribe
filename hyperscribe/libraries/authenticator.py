@@ -20,8 +20,12 @@ class Authenticator:
         return bool(request_sig == internal_sig)
 
     @classmethod
-    def presigned_url(cls, secret: str, url: str, params: dict = {}) -> str:
+    def presigned_url(cls, secret: str, url: str, params: dict) -> str:
         timestamp = str(int(time()))
         hash_arg = f"{timestamp}{secret}"
         request_sig = sha256(hash_arg.encode("utf-8")).hexdigest()
         return f"{url}?{urlencode(params | {'ts': timestamp, 'sig': request_sig})}"
+
+    @classmethod
+    def presigned_url_no_params(cls, secret: str, url: str) -> str:
+        return Authenticator.presigned_url(secret, url, {})
