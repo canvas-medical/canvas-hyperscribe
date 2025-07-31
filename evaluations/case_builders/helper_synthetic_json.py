@@ -5,6 +5,7 @@ from typing import Any
 from hyperscribe.llms.llm_openai_o3 import LlmOpenaiO3
 from hyperscribe.libraries.memory_log import MemoryLog
 from hyperscribe.structures.vendor_key import VendorKey
+from evaluations.constants import Constants
 
 
 class HelperSyntheticJson:
@@ -23,7 +24,7 @@ class HelperSyntheticJson:
         5) On validation failure, writes the raw output to invalid_output.json
            and exits with status 1.
         """
-        llm = LlmOpenaiO3(MemoryLog.dev_null_instance(), vendor_key.api_key, with_audit=False, temperature=1.0)
+        llm = LlmOpenaiO3(MemoryLog.dev_null_instance(), vendor_key.api_key, with_audit=False, temperature=Constants.O3_TEMPERATURE)
 
         llm.set_system_prompt(system_prompt)
         llm.set_user_prompt(user_prompt)

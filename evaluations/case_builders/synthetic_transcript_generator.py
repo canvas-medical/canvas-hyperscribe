@@ -13,19 +13,21 @@ from evaluations.structures.enums.synthetic_case_mood import SyntheticCaseMood
 from evaluations.structures.enums.synthetic_case_pressure import SyntheticCasePressure
 from evaluations.structures.enums.synthetic_case_turn_buckets import SyntheticCaseTurnBuckets
 from evaluations.structures.specification import Specification
+from evaluations.structures.patient_profile import PatientProfile
 from evaluations.constants import Constants
 
 
 class SyntheticTranscriptGenerator:
-    def __init__(self, vendor_key: VendorKey, profiles: dict[str, str]) -> None:
+    def __init__(self, vendor_key: VendorKey, profiles: list[PatientProfile]) -> None:
         self.vendor_key = vendor_key
         self.profiles = profiles
         self.seen_openings: set[str] = set()
 
     @classmethod
-    def load_profiles_from_file(cls, input_path: Path) -> dict[str, str]:
+    def load_profiles_from_file(cls, input_path: Path) -> list[PatientProfile]:
         with input_path.open() as f:
-            return cast(dict[str, str], json.load(f))
+            profiles_dict = cast(dict[str, str], json.load(f))
+        return [PatientProfile(name=name, profile=profile) for name, profile in profiles_dict.items()]
 
     @staticmethod
     def _random_bucket() -> SyntheticCaseTurnBuckets:
@@ -125,11 +127,11 @@ class SyntheticTranscriptGenerator:
 
         return system_lines, user_lines
 
-    def generate_transcript_for_profile(self, profile_text: str) -> Tuple[list[Line], Specification]:
+    def generate_transcript_for_profile(self, patient_profile: PatientProfile) -> Tuple[list[Line], Specification]:
         specifications = self._make_specifications()
         schema = self.schema_transcript(specifications.turn_total)
 
-        system_lines, user_lines = self._build_prompt(profile_text, specifications, schema)
+        system_lines, user_lines = self._build_prompt(patient_profile.profile, specifications, schema)
 
         transcript = HelperSyntheticJson.generate_json(
             vendor_key=self.vendor_key,

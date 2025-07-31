@@ -9,9 +9,9 @@ from hyperscribe.structures.line import Line
 class Case(NamedTuple):
     name: str
     transcript: dict[str, list[Line]] = {}
-    limited_chart: dict = {}
+    limitedChart: dict = {}
     profile: str = ""
-    validation_status: CaseStatus = CaseStatus.GENERATION
+    validationStatus: CaseStatus = CaseStatus.GENERATION
     batch_identifier: str = ""
     tags: dict = {}
     id: int = 0
@@ -20,9 +20,9 @@ class Case(NamedTuple):
         return {
             "name": self.name,
             "transcript": {key: [line.to_json() for line in lines] for key, lines in self.transcript.items()},
-            "limited_chart": self.limited_chart,
+            "limited_chart": self.limitedChart,
             "profile": self.profile,
-            "validation_status": self.validation_status.value,
+            "validation_status": self.validationStatus.value,
             "batch_identifier": self.batch_identifier,
             "tags": self.tags,
             "id": self.id,

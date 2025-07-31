@@ -60,10 +60,10 @@ class AuditorPostgres(AuditorStore):
         self._case_id = store.get_id(self.case)
         if self._case_id == 0:
             self._case_id = store.upsert(
-                CaseRecord(name=self.case, profile=self.case, validation_status=CaseStatus.GENERATION),
+                CaseRecord(name=self.case, profile=self.case, validationStatus=CaseStatus.GENERATION),
             ).id
         else:
-            store.update_fields(self._case_id, {"validation_status": CaseStatus.GENERATION})
+            store.update_fields(self._case_id, {"validationStatus": CaseStatus.GENERATION})
 
     def case_update_limited_cache(self, limited_cache: dict) -> None:
         CaseStore(self.postgres_credentials).update_fields(self.case_id(), {"limited_chart": limited_cache})
@@ -100,7 +100,7 @@ class AuditorPostgres(AuditorStore):
         return CaseStore(self.postgres_credentials).get_limited_chart(self.case_id())
 
     def transcript(self) -> list[Line]:
-        return self.full_transcript().get(self.cycle_key_str, [])
+        return self.full_transcript().get(self.cycle_key, [])
 
     def full_transcript(self) -> dict[str, list[Line]]:
         return CaseStore(self.postgres_credentials).get_transcript(self.case_id())

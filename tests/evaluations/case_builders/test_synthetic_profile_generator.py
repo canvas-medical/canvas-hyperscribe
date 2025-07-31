@@ -41,6 +41,11 @@ def test__extract_initial_fragment(vendor_key: VendorKey):
     result = tested._extract_initial_fragment(narrative)
     assert result == expected
 
+def test_load_json():
+    raise NotImplementedError
+
+def test_update_patient_names():
+    raise NotImplementedError
 
 def test__save_combined(tmp_path, dummy_profiles: dict, vendor_key: VendorKey):
     output_path = tmp_path / "combined.json"

@@ -157,7 +157,7 @@ class NoteGrader:
             comments="",
             text_llm_vendor=vendor_key.vendor,
             text_llm_name=HyperscribeConstants.OPENAI_CHAT_TEXT_O3,
-            temperature=1.0,
+            temperature=Constants.O3_TEMPERATURE,
         )
         return ScoreDatastore(credentials).insert(score_record)
 

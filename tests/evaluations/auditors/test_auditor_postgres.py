@@ -73,7 +73,7 @@ def test___init__():
     tested = AuditorPostgres("theCase", 7, settings, s3_credentials, psql_credentials)
     assert tested.case == "theCase"
     assert tested.cycle == 7
-    assert tested.cycle_key_str == "cycle_007"
+    assert tested.cycle_key == "cycle_007"
     assert tested.s3_credentials == s3_credentials
     assert tested.settings == settings
     assert tested.postgres_credentials == psql_credentials
@@ -199,9 +199,9 @@ def test_case_prepare(case_store):
             CaseRecord(
                 name="theCase",
                 transcript={},
-                limited_chart={},
+                limitedChart={},
                 profile="theCase",
-                validation_status=CaseStatus.GENERATION,
+                validationStatus=CaseStatus.GENERATION,
                 batch_identifier="",
                 tags={},
                 id=0,
@@ -220,7 +220,7 @@ def test_case_prepare(case_store):
     calls = [
         call(tested.postgres_credentials),
         call().get_id("theCase"),
-        call().update_fields(145, {"validation_status": CaseStatus.GENERATION}),
+        call().update_fields(145, {"validationStatus": CaseStatus.GENERATION}),
     ]
     assert case_store.mock_calls == calls
     reset_mocks()

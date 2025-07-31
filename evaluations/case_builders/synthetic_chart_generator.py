@@ -7,17 +7,20 @@ from hyperscribe.libraries.limited_cache import LimitedCache
 from evaluations.helper_evaluation import HelperEvaluation
 from evaluations.case_builders.helper_synthetic_json import HelperSyntheticJson
 from evaluations.constants import Constants
+from evaluations.structures.patient_profile import PatientProfile
+from evaluations.structures.chart import Chart
 
 
 class SyntheticChartGenerator:
-    def __init__(self, vendor_key: VendorKey, profiles: dict[str, str]):
+    def __init__(self, vendor_key: VendorKey, profiles: list[PatientProfile]):
         self.vendor_key = vendor_key
         self.profiles = profiles
 
     @classmethod
-    def load_json(cls, path: Path) -> dict[str, Any]:
+    def load_json(cls, path: Path) -> list[PatientProfile]:
         with path.open("r") as f:
-            return cast(dict[str, Any], json.load(f))
+            profiles_dict = cast(dict[str, str], json.load(f))
+        return [PatientProfile(name=name, profile=profile) for name, profile in profiles_dict.items()]
 
     def schema_chart(self) -> dict[str, Any]:
         """Build a JSON Schema that enforces Canvas chart structure from Chart dataclass."""
@@ -39,7 +42,7 @@ class SyntheticChartGenerator:
             "additionalProperties": False,
         }
 
-    def generate_chart_for_profile(self, profile_text: str) -> dict[str, Any]:
+    def generate_chart_for_profile(self, patient_profile: PatientProfile) -> Chart:
         schema = self.schema_chart()
 
         system_prompt: list[str] = [
@@ -49,7 +52,7 @@ class SyntheticChartGenerator:
         ]
 
         user_prompt: list[str] = [
-            f"Patient profile: {profile_text}",
+            f"Patient profile: {patient_profile.profile}",
             "",
             "Generate a JSON object with the following fields (all string values):",
             "\n".join([f"• {field}: {desc}" for field, desc in Constants.EXAMPLE_CHART_DESCRIPTIONS.items()]),
@@ -72,7 +75,7 @@ class SyntheticChartGenerator:
             ),
         )
 
-        return chart_json
+        return Chart.load_from_json(chart_json)
 
     @classmethod
     def validate_chart(cls, chart_json: dict[str, Any]) -> bool:
@@ -100,22 +103,24 @@ class SyntheticChartGenerator:
         return obj
 
     def run_range(self, start: int, limit: int, output: Path) -> None:
-        subset = list(self.profiles.items())[start - 1 : start - 1 + limit]
+        subset = self.profiles[start - 1 : start - 1 + limit]
         output.mkdir(parents=True, exist_ok=True)
-        for patient_name, profile_text in subset:
-            safe_name = re.sub(r"\W+", "_", patient_name)
+        for patient_profile in subset:
+            safe_name = re.sub(r"\W+", "_", patient_profile.name)
             patient_dir = output / safe_name
             patient_dir.mkdir(parents=True, exist_ok=True)
 
-            print(f"Generating limited_chart.json for {patient_name}")
-            chart = self.generate_chart_for_profile(profile_text)
-            if not self.validate_chart(chart):
-                print(f"[SKIPPED] Invalid chart for {patient_name}")
-            chart = self.assign_valid_uuids(chart)
+            print(f"Generating limited_chart.json for {patient_profile.name}")
+            chart = self.generate_chart_for_profile(patient_profile)
+            chart_json = chart.to_json()
+            if not self.validate_chart(chart_json):
+                print(f"[SKIPPED] Invalid chart for {patient_profile.name}")
+                continue
+            chart_json = self.assign_valid_uuids(chart_json)
 
             out_path = patient_dir / "limited_chart.json"
             with out_path.open("w") as f:
-                json.dump(chart, f, indent=2)
+                json.dump(chart_json, f, indent=2)
             print(f"Saved limited_chart.json to {out_path}")
 
     @staticmethod

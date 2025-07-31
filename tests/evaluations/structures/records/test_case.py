@@ -23,9 +23,9 @@ def test_default():
     result = Case(name="theName")
     assert result.name == "theName"
     assert result.transcript == {}
-    assert result.limited_chart == {}
+    assert result.limitedChart == {}
     assert result.profile == ""
-    assert result.validation_status == CaseStatus.GENERATION
+    assert result.validationStatus == CaseStatus.GENERATION
     assert result.batch_identifier == ""
     assert result.tags == {}
     assert result.id == 0

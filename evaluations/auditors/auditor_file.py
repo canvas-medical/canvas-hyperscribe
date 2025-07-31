@@ -109,7 +109,7 @@ class AuditorFile(AuditorStore):
         return FileSystemCase.get(self.case).limited_cache
 
     def transcript(self) -> list[Line]:
-        return self.full_transcript().get(self.cycle_key_str, [])
+        return self.full_transcript().get(self.cycle_key, [])
 
     def full_transcript(self) -> dict[str, list[Line]]:
         content = self.get_json(EvaluationConstants.AUDIO2TRANSCRIPT)

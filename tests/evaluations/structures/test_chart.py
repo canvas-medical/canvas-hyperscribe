@@ -1,110 +1,123 @@
-import json
-
 from evaluations.structures.chart import Chart
+from tests.helper import is_namedtuple
 
 
-def test_chart_creation():
-    chart_data = {
-        "demographicStr": "65-year-old male",
-        "conditionHistory": "Hypertension, diabetes",
-        "currentAllergies": "Penicillin",
-        "currentConditions": "Type 2 diabetes",
-        "currentMedications": "Metformin 500mg",
-        "currentGoals": "HbA1c < 7%",
-        "familyHistory": "Family history of diabetes",
-        "surgeryHistory": "None",
+def test_class():
+    tested = Chart
+    fields = {
+        "demographic_str": str,
+        "condition_history": str,
+        "current_allergies": str,
+        "current_conditions": str,
+        "current_medications": str,
+        "current_goals": str,
+        "family_history": str,
+        "surgery_history": str,
     }
-
-    tested = Chart(**chart_data)
-
-    assert tested.demographicStr == "65-year-old male"
-    assert tested.conditionHistory == "Hypertension, diabetes"
-    assert tested.currentAllergies == "Penicillin"
-    assert tested.currentConditions == "Type 2 diabetes"
-    assert tested.currentMedications == "Metformin 500mg"
-    assert tested.currentGoals == "HbA1c < 7%"
-    assert tested.familyHistory == "Family history of diabetes"
-    assert tested.surgeryHistory == "None"
+    assert is_namedtuple(tested, fields)
 
 
 def test_to_json():
-    chart_data = {
-        "demographicStr": "45-year-old female",
-        "conditionHistory": "Asthma",
-        "currentAllergies": "None known",
-        "currentConditions": "Mild asthma",
-        "currentMedications": "Albuterol inhaler",
-        "currentGoals": "Control symptoms",
-        "familyHistory": "No significant family history",
-        "surgeryHistory": "Appendectomy 2010",
-    }
+    tests = [
+        (
+            Chart(
+                demographic_str="45-year-old female",
+                condition_history="Asthma",
+                current_allergies="None known",
+                current_conditions="Mild asthma",
+                current_medications="Albuterol inhaler",
+                current_goals="Control symptoms",
+                family_history="No significant family history",
+                surgery_history="Appendectomy 2010",
+            ),
+            {
+                "demographicStr": "45-year-old female",
+                "conditionHistory": "Asthma",
+                "currentAllergies": "None known",
+                "currentConditions": "Mild asthma",
+                "currentMedications": "Albuterol inhaler",
+                "currentGoals": "Control symptoms",
+                "familyHistory": "No significant family history",
+                "surgeryHistory": "Appendectomy 2010",
+            },
+        ),
+        (
+            Chart(
+                demographic_str="",
+                condition_history="",
+                current_allergies="",
+                current_conditions="",
+                current_medications="",
+                current_goals="",
+                family_history="",
+                surgery_history="",
+            ),
+            {
+                "demographicStr": "",
+                "conditionHistory": "",
+                "currentAllergies": "",
+                "currentConditions": "",
+                "currentMedications": "",
+                "currentGoals": "",
+                "familyHistory": "",
+                "surgeryHistory": "",
+            },
+        ),
+    ]
 
-    tested = Chart(**chart_data)
-    result = tested.to_json()
-    expected = chart_data
-
-    assert result == expected
-    assert isinstance(result, dict)
-    assert len(result) == 8
+    for tested, expected in tests:
+        result = tested.to_json()
+        assert result == expected
 
 
 def test_load_from_json():
-    chart_data = {
-        "demographicStr": "30-year-old male",
-        "conditionHistory": "Healthy",
-        "currentAllergies": "Shellfish",
-        "currentConditions": "None",
-        "currentMedications": "None",
-        "currentGoals": "Maintain health",
-        "familyHistory": "Heart disease",
-        "surgeryHistory": "None",
-    }
+    tests = [
+        (
+            {
+                "demographicStr": "30-year-old male",
+                "conditionHistory": "Healthy",
+                "currentAllergies": "Shellfish",
+                "currentConditions": "None",
+                "currentMedications": "None",
+                "currentGoals": "Maintain health",
+                "familyHistory": "Heart disease",
+                "surgeryHistory": "None",
+            },
+            Chart(
+                demographic_str="30-year-old male",
+                condition_history="Healthy",
+                current_allergies="Shellfish",
+                current_conditions="None",
+                current_medications="None",
+                current_goals="Maintain health",
+                family_history="Heart disease",
+                surgery_history="None",
+            ),
+        ),
+        (
+            {
+                "demographicStr": "Test patient",
+                "conditionHistory": "Test condition",
+                "currentAllergies": "Test allergy",
+                "currentConditions": "Test current condition",
+                "currentMedications": "Test medication",
+                "currentGoals": "Test goal",
+                "familyHistory": "Test family history",
+                "surgeryHistory": "Test surgery",
+            },
+            Chart(
+                demographic_str="Test patient",
+                condition_history="Test condition",
+                current_allergies="Test allergy",
+                current_conditions="Test current condition",
+                current_medications="Test medication",
+                current_goals="Test goal",
+                family_history="Test family history",
+                surgery_history="Test surgery",
+            ),
+        ),
+    ]
 
-    result = Chart.load_from_json(chart_data)
-    expected = Chart(**chart_data)
-
-    assert result == expected
-    assert isinstance(result, Chart)
-
-
-def test_round_trip_serialization():
-    original_data = {
-        "demographicStr": "55-year-old female",
-        "conditionHistory": "Hypertension, hyperlipidemia",
-        "currentAllergies": "Latex, iodine",
-        "currentConditions": "Well-controlled hypertension",
-        "currentMedications": "Lisinopril 10mg daily, atorvastatin 20mg",
-        "currentGoals": "BP < 130/80, LDL < 100",
-        "familyHistory": "Mother with stroke at 70",
-        "surgeryHistory": "Cholecystectomy 2015",
-    }
-
-    tested = Chart(**original_data)
-    json_data = tested.to_json()
-    result = Chart.load_from_json(json_data)
-
-    assert result == tested
-    assert result.to_json() == original_data
-
-
-def test_json_serializable():
-    chart_data = {
-        "demographicStr": "Test patient",
-        "conditionHistory": "Test condition",
-        "currentAllergies": "Test allergy",
-        "currentConditions": "Test current condition",
-        "currentMedications": "Test medication",
-        "currentGoals": "Test goal",
-        "familyHistory": "Test family history",
-        "surgeryHistory": "Test surgery",
-    }
-
-    tested = Chart(**chart_data)
-    json_result = tested.to_json()
-
-    # Should be JSON serializable
-    json_str = json.dumps(json_result)
-    parsed_back = json.loads(json_str)
-
-    assert parsed_back == json_result
-    assert Chart.load_from_json(parsed_back) == tested
+    for data, expected in tests:
+        result = Chart.load_from_json(data)
+        assert result == expected

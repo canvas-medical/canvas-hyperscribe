@@ -42,22 +42,20 @@ class SyntheticCaseOrchestrator:
         (CaseRecord, SyntheticCaseRecord).
         """
         # 1) profiles + generator set-ups
+        all_profiles: list[PatientProfile] = []
         for batch_index in range(1, number_of_batches + 1):
             print(f"[Profile] batch {batch_index}/{number_of_batches}")
-            self.profile_generator.generate_batch(batch_index, batch_size)
-        all_profiles_dict: dict[str, str] = self.profile_generator.all_profiles
-        all_profiles: list[PatientProfile] = [
-            PatientProfile(name=name, profile=profile) for name, profile in all_profiles_dict.items()
-        ]
+            batch_profiles = self.profile_generator.generate_batch(batch_index, batch_size)
+            all_profiles.extend(batch_profiles)
 
         chart_generator = SyntheticChartGenerator(
             vendor_key=self.vendor_key,
-            profiles=all_profiles_dict,
+            profiles=all_profiles,
         )
 
         transcript_generator = SyntheticTranscriptGenerator(
             vendor_key=self.vendor_key,
-            profiles=all_profiles_dict,
+            profiles=all_profiles,
         )
 
         results: list[Tuple[CaseRecord, SyntheticCaseRecord]] = []
@@ -65,9 +63,9 @@ class SyntheticCaseOrchestrator:
         for profile_index, patient_profile in enumerate(all_profiles, start=1):
             print(f"\n Generating for '{patient_profile.name}' (#{profile_index})")
 
-            limited_chart_data = chart_generator.generate_chart_for_profile(patient_profile.profile)
+            limited_chart = chart_generator.generate_chart_for_profile(patient_profile)
             transcript_line_objects, specifications = transcript_generator.generate_transcript_for_profile(
-                patient_profile.profile
+                patient_profile
             )
 
             #
@@ -79,9 +77,9 @@ class SyntheticCaseOrchestrator:
                 id=profile_index,
                 name=patient_profile.name,
                 transcript=transcript_cycles,
-                limited_chart=limited_chart_data,
+                limitedChart=limited_chart.to_json(),
                 profile=patient_profile.profile,
-                validation_status=CaseStatus.GENERATION,
+                validationStatus=CaseStatus.GENERATION,
                 batch_identifier="",
                 tags={},
             )
