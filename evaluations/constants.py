@@ -18,7 +18,7 @@ class Constants:
         DIFFERENCE_LEVEL_CRITICAL,
     ]
     IGNORED_KEY_VALUE = ">?<"
-    CASE_CYCLE_SUFFIX = "cycle"
+    CASE_CYCLE_PREFIX = "cycle"
     #
     OPTION_DIFFERENCE_LEVELS = "--evaluation-difference-levels"
     OPTION_PATIENT_UUID = "--patient-uuid"
@@ -65,3 +65,6 @@ class Constants:
         "familyHistory": "any history of family care or illness",
         "surgeryHistory": "any history of surgical care or operations",
     }
+    MAX_CHARACTERS_PER_CYCLE = 1000
+    LLM_CONSTANT = "llm"
+    O3_TEMPERATURE = 1.0

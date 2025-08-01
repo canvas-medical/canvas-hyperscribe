@@ -10,7 +10,7 @@ class Rubric(NamedTuple):
     validation_timestamp: datetime | None = None
     validation: RubricValidation = RubricValidation.NOT_EVALUATED
     author: str = ""
-    rubric: dict = {}
+    rubric: list[dict] = []
     case_provenance_classification: str = ""
     comments: str = ""
     text_llm_vendor: str = ""

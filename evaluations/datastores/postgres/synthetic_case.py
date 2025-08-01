@@ -1,6 +1,7 @@
 from datetime import datetime, UTC
 from typing import LiteralString
 
+from evaluations.constants import Constants
 from evaluations.datastores.postgres.postgres import Postgres
 from evaluations.structures.records.synthetic_case import SyntheticCase as SyntheticCaseRecord
 
@@ -12,15 +13,16 @@ class SyntheticCase(Postgres):
             "case_id": case.case_id,
             "category": case.category,
             "turn_total": case.turn_total,
-            "speaker_sequence": case.speaker_sequence,
+            "speaker_sequence": self.constant_dumps(case.speaker_sequence),
             "clinician_to_patient_turn_ratio": case.clinician_to_patient_turn_ratio,
-            "mood": case.mood.value,
-            "pressure": case.pressure.value,
-            "clinician_style": case.clinician_style.value,
-            "patient_style": case.patient_style.value,
-            "turn_buckets": case.turn_buckets.value,
+            "mood": case.mood,
+            "pressure": case.pressure,
+            "clinician_style": case.clinician_style,
+            "patient_style": case.patient_style,
+            "turn_buckets": case.turn_buckets,
             "text_llm_vendor": case.text_llm_vendor,
             "text_llm_name": case.text_llm_name,
+            "temperature": Constants.O3_TEMPERATURE,
         }
 
         sql: LiteralString = 'SELECT "id" FROM "synthetic_case" WHERE "case_id" = %(case_id)s'
@@ -41,7 +43,8 @@ class SyntheticCase(Postgres):
                     "patient_style" = %(patient_style)s,
                     "turn_buckets" = %(turn_buckets)s,
                     "text_llm_vendor" = %(text_llm_vendor)s,
-                    "text_llm_name" = %(text_llm_name)s
+                    "text_llm_name" = %(text_llm_name)s,
+                    "temperature"   = %(temperature)s
                 WHERE "id" = %(id)s
             """
             break
@@ -51,13 +54,13 @@ class SyntheticCase(Postgres):
                     "created", "updated", "case_id", "category", "turn_total", "speaker_sequence",
                     "clinician_to_patient_turn_ratio", "mood", "pressure",
                     "clinician_style", "patient_style", "turn_buckets",
-                    "text_llm_vendor", "text_llm_name"
+                    "text_llm_vendor", "text_llm_name", "temperature"
                 )
                 VALUES (
                     %(now)s, %(now)s, %(case_id)s, %(category)s, %(turn_total)s, %(speaker_sequence)s,
                     %(clinician_to_patient_turn_ratio)s, %(mood)s, %(pressure)s,
                     %(clinician_style)s, %(patient_style)s, %(turn_buckets)s,
-                    %(text_llm_vendor)s, %(text_llm_name)s
+                    %(text_llm_vendor)s, %(text_llm_name)s, %(temperature)s
                 )
                 RETURNING id
             """

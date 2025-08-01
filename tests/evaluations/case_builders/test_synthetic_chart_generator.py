@@ -3,41 +3,42 @@ from pathlib import Path
 from argparse import Namespace, ArgumentParser
 from unittest.mock import patch, MagicMock, call
 from typing import Any
-from evaluations.case_builders.synthetic_chart_generator import SyntheticChartGenerator, HelperEvaluation
+from evaluations.case_builders.synthetic_chart_generator import SyntheticChartGenerator
+from evaluations.structures.patient_profile import PatientProfile
+from evaluations.structures.chart import Chart
+from evaluations.helper_evaluation import HelperEvaluation
 from hyperscribe.structures.vendor_key import VendorKey
 from evaluations.constants import Constants
 
 
 def test___init__():
     expected_vendor_key = VendorKey(vendor="openai", api_key="API_KEY_123")
-    expected_profiles = {"Patient A": "Profile text"}
-    expected_output = Path("/tmp/outdir")
-    expected_example = {"foo": "bar"}
+    expected_profiles = [PatientProfile(name="Patient A", profile="Profile text")]
 
-    tested = SyntheticChartGenerator(expected_vendor_key, expected_profiles, expected_output, expected_example)
+    tested = SyntheticChartGenerator(expected_vendor_key, expected_profiles)
     assert tested.vendor_key == expected_vendor_key
     assert tested.profiles == expected_profiles
-    assert tested.output == expected_output
-    assert tested.example_chart == expected_example
 
 
 def test_load_json(tmp_path):
-    expected = {"a": 1, "b": 2}
+    expected_dict = {"a": 1, "b": 2}
+    expected = [
+        PatientProfile(name="a", profile=1),
+        PatientProfile(name="b", profile=2),
+    ]
     data_file = tmp_path / "data.json"
-    data_file.write_text(json.dumps(expected))
+    data_file.write_text(json.dumps(expected_dict))
 
     result = SyntheticChartGenerator.load_json(data_file)
     assert result == expected
 
 
 def test_schema_chart():
-    # 1: check sample chart with correct keys formats correctly.
     example_chart_known = {key: "" for key in Constants.EXAMPLE_CHART_DESCRIPTIONS}
-
-    tested_known = SyntheticChartGenerator(VendorKey("vendor", "key"), {}, Path("."), example_chart_known)
+    tested_known = SyntheticChartGenerator(VendorKey("vendor", "key"), [])
 
     result_schema = tested_known.schema_chart()
-    assert result_schema["description"] == "Example Canvas-compatible chart"
+    assert result_schema["description"] == "Canvas-compatible chart structure"
     assert result_schema["type"] == "object"
     assert result_schema["additionalProperties"] is False
     assert set(result_schema["required"]) == set(example_chart_known.keys())
@@ -59,39 +60,37 @@ def test_schema_chart():
         assert properties[key]["description"] == expected_desc
         assert properties[key]["type"] == "string"
 
-    # 2: unknown customData key should raise newly established KeyError
-    example_chart_unknown = {"customData": []}
-    tested_unknown = SyntheticChartGenerator(VendorKey("vendor", "key"), {}, Path("."), example_chart_unknown)
-
-    try:
-        tested_unknown.schema_chart()
-        assert False, "Expected KeyError for missing description"
-    except KeyError as e:
-        assert str(e) == "'customData'"
-
 
 @patch.object(SyntheticChartGenerator, "schema_chart")
 @patch("evaluations.case_builders.synthetic_chart_generator.HelperSyntheticJson.generate_json")
 def test_generate_chart_for_profile(mock_generate_json, mock_schema_chart, tmp_path):
     tested_key = VendorKey(vendor="openai", api_key="LLMKEY")
-    dummy_chart = {"example": "chart"}
-    dummy_profiles = {"P1*": "text1", "P2!": "text2"}
-    tested = SyntheticChartGenerator(tested_key, dummy_profiles, tmp_path, dummy_chart)
+    dummy_profiles = [PatientProfile(name="P1*", profile="text1"), PatientProfile(name="P2!", profile="text2")]
+    tested = SyntheticChartGenerator(tested_key, dummy_profiles)
 
-    profile_text = "irrelevant profile"
-    expected_chart = {"cond": ["X"], "meds": []}
+    profile_obj = PatientProfile(name="test", profile="irrelevant profile")
+    expected_chart = {
+        "demographicStr": "test demographic",
+        "conditionHistory": "test condition history",
+        "currentAllergies": "test allergies",
+        "currentConditions": "test conditions",
+        "currentMedications": "test medications",
+        "currentGoals": "test goals",
+        "familyHistory": "test family history",
+        "surgeryHistory": "test surgery history",
+    }
     mock_generate_json.side_effect = [expected_chart]
     expected_schema = {"$schema": "http://json-schema.org/draft-07/schema#", "type": "object"}
     mock_schema_chart.side_effect = lambda: expected_schema
 
-    result = tested.generate_chart_for_profile(profile_text)
-    assert result == expected_chart
+    result = tested.generate_chart_for_profile(profile_obj)
+    assert result == Chart.load_from_json(expected_chart)
     assert mock_schema_chart.mock_calls == [call()]
 
     assert len(mock_generate_json.mock_calls) == 1
     _, kwargs = mock_generate_json.call_args
     expected_system_md5 = "4ef06113c42ee7128cc08b0695e481f5"
-    expected_user_md5 = "f41d7b662491c25024a3c8193b376981"
+    expected_user_md5 = "a0c178f85b3d55ee6d06dfcb11fc7d36"
     result_system_md5 = hashlib.md5("\n".join(kwargs["system_prompt"]).encode()).hexdigest()
     result_user_md5 = hashlib.md5("\n".join(kwargs["user_prompt"]).encode()).hexdigest()
 
@@ -104,7 +103,7 @@ def test_generate_chart_for_profile(mock_generate_json, mock_schema_chart, tmp_p
 @patch("evaluations.case_builders.synthetic_chart_generator.LimitedCache.load_from_json")
 def test_validate_chart__success(mock_load):
     tested_chart = {"foo": "bar"}
-    tested = SyntheticChartGenerator(VendorKey("v", "k"), {}, Path("."), {})
+    tested = SyntheticChartGenerator(VendorKey("vendor", "key"), [])
 
     tested.validate_chart(tested_chart)
 
@@ -114,14 +113,14 @@ def test_validate_chart__success(mock_load):
 @patch("evaluations.case_builders.synthetic_chart_generator.LimitedCache.load_from_json", side_effect=Exception("boom"))
 def test_validate_chart__invalid_structure(mock_load):
     tested_chart = {"bad": True}
-    tested = SyntheticChartGenerator(VendorKey("v", "k"), {}, Path("."), {})
+    tested = SyntheticChartGenerator(VendorKey("vendor", "key"), [])
     result = tested.validate_chart(tested_chart)
     assert result is False
     assert mock_load.mock_calls == [call(tested_chart)]
 
 
 def test_assign_valid_uuids():
-    tested = SyntheticChartGenerator(VendorKey("v", "k"), {}, Path("/"), {})
+    tested = SyntheticChartGenerator(VendorKey("v", "k"), [])
     input_chart = {"uuid": "old", "nested": [{"uuid": "old2"}, {"not_uuid": 123}]}
     result = tested.assign_valid_uuids(input_chart)
 
@@ -133,29 +132,163 @@ def test_assign_valid_uuids():
     assert result["nested"][1]["not_uuid"] == 123
 
 
-@patch.object(SyntheticChartGenerator, "generate_chart_for_profile", side_effect=[{"some": "data1"}, {"some": "data2"}])
-@patch.object(SyntheticChartGenerator, "validate_chart", side_effect=[True, False])
-@patch.object(SyntheticChartGenerator, "assign_valid_uuids", side_effect=lambda chart: {"assigned": chart["some"]})
-def test_run_range(mock_assign, mock_validate, mock_generate, tmp_path, capsys):
-    profiles = {"P1*": "text1", "P2!": "text2"}
-    output_dir = tmp_path / "out"
-    tested = SyntheticChartGenerator(VendorKey("v", "k"), profiles, output_dir, {})
+@patch.object(SyntheticChartGenerator, "assign_valid_uuids")
+@patch.object(SyntheticChartGenerator, "validate_chart")
+@patch.object(SyntheticChartGenerator, "generate_chart_for_profile")
+def test_run_range(mock_generate, mock_validate, mock_assign, tmp_path):
+    def reset_mocks():
+        mock_generate.reset_mock()
+        mock_validate.reset_mock()
+        mock_assign.reset_mock()
 
-    tested.run_range(1, 2)
-    output1 = output_dir / "P1_" / "limited_chart.json"
-    output2 = output_dir / "P2_" / "limited_chart.json"
-    assert output1.exists()
-    assert output2.exists()
+    profiles = [
+        PatientProfile(name="P1*", profile="text1"),
+        PatientProfile(name="P2!", profile="text2"),
+        PatientProfile(name="P3#", profile="text3"),
+    ]
+    tested = SyntheticChartGenerator(VendorKey("v", "k"), profiles)
 
-    # verifying calls for generate_chart_for_profile, validate, and assign.
-    assert mock_generate.mock_calls == [call("text1"), call("text2")]
-    assert mock_validate.mock_calls == [call({"some": "data1"}), call({"some": "data2"})]
-    assert mock_assign.mock_calls == [call({"some": "data1"}), call({"some": "data2"})]
+    tests = [
+        (
+            "two valid charts",
+            1,
+            2,
+            [
+                Chart(
+                    demographic_str="data1",
+                    condition_history="",
+                    current_allergies="",
+                    current_conditions="",
+                    current_medications="",
+                    current_goals="",
+                    family_history="",
+                    surgery_history="",
+                ),
+                Chart(
+                    demographic_str="data2",
+                    condition_history="",
+                    current_allergies="",
+                    current_conditions="",
+                    current_medications="",
+                    current_goals="",
+                    family_history="",
+                    surgery_history="",
+                ),
+            ],
+            [True, True],
+            [True, True],
+            [profiles[0], profiles[1]],
+            2,
+        ),
+        (
+            "one valid then one invalid",
+            2,
+            2,
+            [
+                Chart(
+                    demographic_str="data3",
+                    condition_history="",
+                    current_allergies="",
+                    current_conditions="",
+                    current_medications="",
+                    current_goals="",
+                    family_history="",
+                    surgery_history="",
+                ),
+                Chart(
+                    demographic_str="data4",
+                    condition_history="",
+                    current_allergies="",
+                    current_conditions="",
+                    current_medications="",
+                    current_goals="",
+                    family_history="",
+                    surgery_history="",
+                ),
+            ],
+            [True, False],
+            [True, False],
+            [profiles[1], profiles[2]],
+            1,
+        ),
+        (
+            "one invalid then one valid",
+            1,
+            2,
+            [
+                Chart(
+                    demographic_str="data5",
+                    condition_history="",
+                    current_allergies="",
+                    current_conditions="",
+                    current_medications="",
+                    current_goals="",
+                    family_history="",
+                    surgery_history="",
+                ),
+                Chart(
+                    demographic_str="data6",
+                    condition_history="",
+                    current_allergies="",
+                    current_conditions="",
+                    current_medications="",
+                    current_goals="",
+                    family_history="",
+                    surgery_history="",
+                ),
+            ],
+            [False, True],
+            [False, True],
+            [profiles[0], profiles[1]],
+            1,
+        ),
+    ]
 
-    output = capsys.readouterr().out
-    assert "Generating limited_chart.json for P1*" in output
-    assert "Saved limited_chart.json" in output
-    assert "[SKIPPED] Invalid chart for P2!" in output
+    for i, (
+        test_name,
+        start,
+        limit,
+        charts,
+        validate_results,
+        expected_files_exist,
+        expected_generate_profiles,
+        expected_assign_count,
+    ) in enumerate(tests):
+        mock_generate.side_effect = charts
+        mock_validate.side_effect = validate_results
+        mock_assign.side_effect = lambda chart: {"assigned": chart["demographicStr"]}
+
+        output_dir = tmp_path / f"test{i + 1}"
+        tested.run_range(start, limit, output_dir)
+
+        # Check file existence
+        profile_names = [profile.name for profile in expected_generate_profiles]
+        safe_names = [
+            profile_name.replace("*", "_").replace("!", "_").replace("#", "_") for profile_name in profile_names
+        ]
+
+        for j, (safe_name, should_exist) in enumerate(zip(safe_names, expected_files_exist)):
+            output_file = output_dir / safe_name / "limited_chart.json"
+            if should_exist:
+                assert output_file.exists()
+            else:
+                assert not output_file.exists()
+
+        # Check mock calls
+        expected_generate_calls = [call(profile) for profile in expected_generate_profiles]
+        assert mock_generate.mock_calls == expected_generate_calls
+
+        charts_json = [chart.to_json() for chart in charts]
+        expected_validate_calls = [call(chart_json) for chart_json in charts_json]
+        assert mock_validate.mock_calls == expected_validate_calls
+
+        # Only charts that passed validation should be assigned
+        valid_charts_json = [charts_json[j] for j, valid in enumerate(validate_results) if valid]
+        expected_assign_calls = [call(chart_json) for chart_json in valid_charts_json]
+        assert mock_assign.mock_calls == expected_assign_calls
+        assert len(mock_assign.mock_calls) == expected_assign_count
+
+        reset_mocks()
 
 
 def test_main(tmp_path):
@@ -176,10 +309,11 @@ def test_main(tmp_path):
 
     run_calls: dict[str, Any] = {}
 
-    def fake_run_range(self, start: int, limit: int):
+    def fake_run_range(self, start: int, limit: int, output: Path):
         run_calls["instance"] = self
         run_calls["start"] = start
         run_calls["limit"] = limit
+        run_calls["output"] = output
 
     with (
         patch.object(HelperEvaluation, "settings", classmethod(lambda cls: dummy_settings)),
@@ -188,14 +322,15 @@ def test_main(tmp_path):
         patch.object(
             ArgumentParser,
             "parse_args",
-            lambda self: Namespace(input=profiles_file, example=example_file, output=out_dir, start=1, limit=3),
+            lambda self: Namespace(input=profiles_file, output=out_dir, start=1, limit=3),
         ),
     ):
         SyntheticChartGenerator.main()
 
-    assert load_calls == [profiles_file, example_file]
+    assert load_calls == [profiles_file]
     instance = run_calls["instance"]
     assert isinstance(instance, SyntheticChartGenerator)
     assert instance.vendor_key.api_key == "MY_API_KEY"
     assert run_calls["start"] == 1
     assert run_calls["limit"] == 3
+    assert run_calls["output"] == out_dir
