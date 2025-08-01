@@ -10,7 +10,6 @@ from canvas_sdk.events.base import TargetType
 from canvas_sdk.handlers.simple_api import SimpleAPIRoute, Credentials
 from canvas_sdk.v1.data import Patient
 
-import hyperscribe.handlers.progress as progress
 from hyperscribe.handlers.progress import Progress
 from hyperscribe.libraries.authenticator import Authenticator
 from hyperscribe.structures.access_policy import AccessPolicy
@@ -76,108 +75,108 @@ def test_authenticate(check):
 
 
 @patch("hyperscribe.handlers.progress.datetime", wraps=datetime)
-@patch.object(Progress, "clear")
-def test_get(clear, mock_datetime):
+@patch("hyperscribe.handlers.progress.get_cache")
+def test_get(get_cache, mock_datetime):
     def reset_mocks():
-        clear.reset_mock()
+        get_cache.reset_mock()
         mock_datetime.reset_mock()
 
     a_date = datetime(2025, 5, 15, 21, 6, 21, tzinfo=timezone.utc)
 
-    with patch.object(progress, "PROGRESS", {}):
-        tested = helper_instance()
+    tested = helper_instance()
 
-        # no progress
-        mock_datetime.now.side_effect = [a_date]
+    # no progress
+    mock_datetime.now.side_effect = [a_date]
+    get_cache.return_value.get.side_effect = [None]
 
-        result = tested.get()
-        expected = [JSONResponse(content={"time": "2025-05-15T21:06:21+00:00", "messages": []})]
+    result = tested.get()
+    expected = [JSONResponse(content={"time": "2025-05-15T21:06:21+00:00", "messages": []})]
+    assert result == expected
+
+    calls = [call.now(UTC)]
+    assert mock_datetime.mock_calls == calls
+    calls = [
+        call(),
+        call().get("progress-noteId"),
+    ]
+    assert get_cache.mock_calls == calls
+    reset_mocks()
+
+    # some progress
+    messages = [
+        {"message": "EOF", "time": "2025-04-30T18:19:11.123456+00:00"},
+        {"message": "the first", "time": "2025-04-30T18:19:07.123456+00:00"},
+    ]
+    get_cache.return_value.get.side_effect = [messages]
+    mock_datetime.now.side_effect = [a_date]
+
+    result = tested.get()
+    expected = [JSONResponse(content={"time": "2025-05-15T21:06:21+00:00", "messages": messages})]
+    assert result == expected
+
+    calls = [call.now(UTC)]
+    assert mock_datetime.mock_calls == calls
+    calls = [
+        call(),
+        call().get("progress-noteId"),
+    ]
+    assert get_cache.mock_calls == calls
+    reset_mocks()
+
+
+@patch("hyperscribe.handlers.progress.get_cache")
+def test_post(get_cache):
+    def reset_mocks():
+        get_cache.reset_mock()
+
+    tested = helper_instance()
+
+    tests = [
+        (
+            "noteId",
+            '{"key": "value1"}',
+            None,
+            [
+                call(),
+                call().get("progress-noteId"),
+                call(),
+                call().set("progress-noteId", [{"key": "value1"}]),
+            ],
+        ),
+        ("", '{"key": "value1"}', [], []),
+        (
+            "noteId",
+            '{"key": "value1"}',
+            [{"key": "value3"}, {"key": "value2"}],
+            [
+                call(),
+                call().get("progress-noteId"),
+                call(),
+                call().set("progress-noteId", [{"key": "value3"}, {"key": "value2"}, {"key": "value1"}]),
+            ],
+        ),
+    ]
+    for note_id, body, side_effect_get, exp_calls in tests:
+        get_cache.return_value.get.side_effect = [side_effect_get]
+        tested.request.query_params = {"note_id": note_id}
+        tested.request.body = body
+        result = tested.post()
+        expected = [JSONResponse(content={"received": True})]
         assert result == expected
-
-        calls = [call.now(UTC)]
-        assert mock_datetime.mock_calls == calls
-        calls = [call(a_date)]
-        assert clear.mock_calls == calls
+        assert get_cache.mock_calls == exp_calls
         reset_mocks()
 
-        # some progress
-        messages = [
-            {"message": "EOF", "time": "2025-04-30T18:19:11.123456+00:00"},
-            {"message": "the first", "time": "2025-04-30T18:19:07.123456+00:00"},
-        ]
-        progress.PROGRESS = {"noteId": messages}
-        mock_datetime.now.side_effect = [a_date]
 
-        result = tested.get()
-        expected = [JSONResponse(content={"time": "2025-05-15T21:06:21+00:00", "messages": messages})]
-        assert result == expected
-
-        calls = [call.now(UTC)]
-        assert mock_datetime.mock_calls == calls
-        calls = [call(a_date)]
-        assert clear.mock_calls == calls
-        reset_mocks()
-
-
-def test_post():
-    with patch.object(progress, "PROGRESS", {}):
-        tested = helper_instance()
-
-        tests = [
-            ("noteId", '{"key": "value1"}', {"noteId": [{"key": "value1"}]}),
-            ("noteId", '{"key": "value2"}', {"noteId": [{"key": "value2"}, {"key": "value1"}]}),
-            ("noteId", '{"key": "value3"}', {"noteId": [{"key": "value3"}, {"key": "value2"}, {"key": "value1"}]}),
-            ("", '{"key": "value4"}', {"noteId": [{"key": "value3"}, {"key": "value2"}, {"key": "value1"}]}),
-        ]
-        for note_id, body, exp_progress in tests:
-            tested.request.query_params = {"note_id": note_id}
-            tested.request.body = body
-            result = tested.post()
-            expected = [JSONResponse(content={"received": True})]
-            assert result == expected
-            assert progress.PROGRESS == exp_progress
-
-
-def test_clear():
-    messages = {
-        "noteIdX": [
-            {"time": "2025-05-16T10:52:57+00:00", "message": "theMessage2"},
-            {"time": "2025-05-16T10:52:23+00:00", "message": "theMessage1"},
-            {"time": "2025-05-16T10:52:21+00:00", "message": "theMessage0"},
-        ],
-        "noteIdY": [
-            {"time": "2025-05-16T10:52:58+00:00", "message": "theMessage2"},
-            {"time": "2025-05-16T10:52:23+00:00", "message": "theMessage1"},
-            {"time": "2025-05-16T10:52:21+00:00", "message": "theMessage0"},
-        ],
-        "noteIdZ": [
-            {"time": "2025-05-16T10:52:56+00:00", "message": "theMessage2"},
-            {"time": "2025-05-16T10:52:23+00:00", "message": "theMessage1"},
-            {"time": "2025-05-16T10:52:21+00:00", "message": "theMessage0"},
-        ],
-    }
-
-    tested = Progress
-    # no error on empty progress.PROGRESS
-    with patch.object(progress, "PROGRESS", {}):
-        tested.clear(datetime(2025, 5, 16, 12, 52, 59, tzinfo=timezone.utc))
-        assert progress.PROGRESS == {}
-    # after 7200 seconds
-    with patch.object(progress, "PROGRESS", {k: v for k, v in messages.items()}):
-        tested.clear(datetime(2025, 5, 16, 12, 52, 59, tzinfo=timezone.utc))
-        assert progress.PROGRESS == {}
-    # after 7199 seconds
-    with patch.object(progress, "PROGRESS", {k: v for k, v in messages.items()}):
-        tested.clear(datetime(2025, 5, 16, 12, 52, 58, tzinfo=timezone.utc))
-        assert progress.PROGRESS == {k: v for k, v in messages.items() if k in ["noteIdY"]}
-    # after 7198 seconds
-    with patch.object(progress, "PROGRESS", {k: v for k, v in messages.items()}):
-        tested.clear(datetime(2025, 5, 16, 12, 52, 57, tzinfo=timezone.utc))
-        assert progress.PROGRESS == {k: v for k, v in messages.items() if k in ["noteIdX", "noteIdY"]}
-    # after 7197 seconds
-    with patch.object(progress, "PROGRESS", {k: v for k, v in messages.items()}):
-        tested.clear(datetime(2025, 5, 16, 12, 52, 56, tzinfo=timezone.utc))
-        assert progress.PROGRESS == {k: v for k, v in messages.items()}
+def test_key_cache():
+    tested = helper_instance()
+    tests = [
+        ("noteId", "progress-noteId"),
+        ("", ""),
+    ]
+    for note_id, key in tests:
+        tested.request.query_params = {"note_id": note_id}
+        result = tested.key_cache()
+        assert result == key
 
 
 @patch("hyperscribe.handlers.progress.datetime", wraps=datetime)
@@ -219,7 +218,7 @@ def test_send_to_user(requests_post, authenticator, mock_datetime):
     authenticator.presigned_url.side_effect = ["thePresignedUrl"]
     mock_datetime.now.side_effect = [a_date]
 
-    tested.send_to_user(identification, settings, "theMessage")
+    tested.send_to_user(identification, settings, "theMessage", "theSection")
 
     calls = [
         call.presigned_url(
@@ -233,7 +232,7 @@ def test_send_to_user(requests_post, authenticator, mock_datetime):
         call(
             "thePresignedUrl",
             headers={"Content-Type": "application/json"},
-            json={"time": "2025-05-15T11:17:31+00:00", "message": "theMessage"},
+            json={"time": "2025-05-15T11:17:31+00:00", "message": "theMessage", "section": "theSection"},
             verify=True,
             timeout=None,
         ),
@@ -262,7 +261,7 @@ def test_send_to_user(requests_post, authenticator, mock_datetime):
     authenticator.presigned_url.side_effect = []
     mock_datetime.now.side_effect = []
 
-    tested.send_to_user(identification, settings, "theMessage")
+    tested.send_to_user(identification, settings, "theMessage", "theSection")
 
     assert authenticator.mock_calls == []
     assert requests_post.mock_calls == []

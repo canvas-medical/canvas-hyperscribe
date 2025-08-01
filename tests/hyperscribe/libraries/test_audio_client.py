@@ -1,6 +1,8 @@
-import pytest
 from hashlib import md5
 from unittest import mock
+
+import pytest
+
 from hyperscribe.libraries.audio_client import AudioClient, CachedAudioSession, Response
 
 
@@ -68,6 +70,26 @@ def test___repr__(the_client):
     assert result_with_none == expected_with_none
 
 
+def test_for_registration():
+    tested = AudioClient
+    result = tested.for_registration("theUrl", "theRegistrationKey")
+    assert isinstance(result, AudioClient)
+    assert result.base_url == "theUrl"
+    assert result.registration_key == "theRegistrationKey"
+    assert result.instance is None
+    assert result.instance_key is None
+
+
+def test_for_operation():
+    tested = AudioClient
+    result = tested.for_operation("theUrl", "theInstance", "theInstanceKey")
+    assert isinstance(result, AudioClient)
+    assert result.base_url == "theUrl"
+    assert result.registration_key is None
+    assert result.instance == "theInstance"
+    assert result.instance_key == "theInstanceKey"
+
+
 def test_register_customer(the_client):
     with mock.patch("requests.post") as mock_post:
         mock_post.return_value.status_code = 201
@@ -102,7 +124,7 @@ def test_create_session(the_client):
         assert session_id == "sess123"
 
 
-def test_save_audio_chunk(the_client, the_audio_file, the_session):
+def test_save_audio_chunk__all_good(the_client, the_audio_file, the_session):
     with (
         mock.patch.object(AudioClient, "get_latest_session", return_value=the_session),
         mock.patch("requests.post") as mock_post,
@@ -121,7 +143,7 @@ def test_save_audio_chunk(the_client, the_audio_file, the_session):
         assert "audio" in kwargs["files"]
 
 
-def test_save_audio_chunk_first_chunk_no_prefix(the_client, the_session):
+def test_save_audio_chunk__first_chunk_no_prefix(the_client, the_session):
     class DummyFile:
         filename = "chunk_001_test.webm"
         content = b"raw-audio-bytes"
@@ -148,7 +170,7 @@ def test_save_audio_chunk_first_chunk_no_prefix(the_client, the_session):
         assert kwargs["data"]["sequence_number"] == 1
 
 
-def test_save_audio_chunk_without_session(the_client, the_audio_file):
+def test_save_audio_chunk__without_session(the_client, the_audio_file):
     with mock.patch.object(AudioClient, "get_latest_session", return_value=None):
         resp = the_client.save_audio_chunk("thePatientKey", "theNoteId", the_audio_file)
 
@@ -156,7 +178,15 @@ def test_save_audio_chunk_without_session(the_client, the_audio_file):
         assert b"Conflict" in resp.content
 
 
-def test_get_audio_chunk_success(the_client, the_session):
+def test_save_audio_chunk__invalid_name(the_client, the_audio_file):
+    with pytest.raises(ValueError) as e:
+        the_audio_file.filename = "part_001_test.mp3"
+        _ = the_client.save_audio_chunk("thePatientKey", "theNoteId", the_audio_file)
+    exp_error = "Invalid audio filename format: part_001_test.mp3"
+    assert str(e.value) == exp_error
+
+
+def test_get_audio_chunk__success(the_client, the_session):
     with (
         mock.patch.object(AudioClient, "get_latest_session", return_value=the_session),
         mock.patch("requests.get") as mock_get,
@@ -172,7 +202,7 @@ def test_get_audio_chunk_success(the_client, the_session):
         assert mock_get.call_count == 2
 
 
-def test_get_audio_chunk_empty_204(the_client, the_session):
+def test_get_audio_chunk__empty_204(the_client, the_session):
     with (
         mock.patch.object(AudioClient, "get_latest_session", return_value=the_session),
         mock.patch("requests.get") as mock_get,
@@ -180,6 +210,14 @@ def test_get_audio_chunk_empty_204(the_client, the_session):
         mock_get.return_value.status_code = 204
         content = the_client.get_audio_chunk("thePatientKey", "theNoteId", 3)
         assert content == b""
+
+
+def test_get_audio_chunk__no_session(the_client, the_session):
+    with mock.patch.object(AudioClient, "get_latest_session", return_value=None):
+        with pytest.raises(ValueError) as e:
+            _ = the_client.get_audio_chunk("thePatientKey", "theNoteId", 3)
+        exp_error = "No audio session found for patient thePatientKey, note theNoteId"
+        assert str(e.value) == exp_error
 
 
 def test_sessions_key():

@@ -39,6 +39,7 @@ from canvas_sdk.commands import (
     AllergyCommand,
 )
 from canvas_sdk.commands.base import _BaseCommand as BaseCommand
+from canvas_sdk.commands.commands.immunization_statement import ImmunizationStatementCommand
 from canvas_sdk.commands.commands.questionnaire import TextQuestion, IntegerQuestion, CheckboxQuestion, RadioQuestion
 from canvas_sdk.events import Event
 from canvas_sdk.events.base import TargetType
@@ -95,6 +96,7 @@ def test_constants():
             GoalCommand,
             HistoryOfPresentIllnessCommand,
             ImagingOrderCommand,
+            ImmunizationStatementCommand,
             InstructCommand,
             LabOrderCommand,
             MedicalHistoryCommand,

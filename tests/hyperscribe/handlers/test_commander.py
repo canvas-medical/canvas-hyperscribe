@@ -390,7 +390,7 @@ def test_compute(
         call.end_session("noteUuid"),
     ]
     assert memory_log.mock_calls == calls
-    calls = [call.send_to_user(identification, settings, "waiting for the next cycle 8...")]
+    calls = [call.send_to_user(identification, settings, "waiting for the next cycle 8...", "events")]
     assert progress.mock_calls == calls
     calls = [call.end_session("noteUuid")]
     assert llm_turns_store.mock_calls == calls
@@ -464,7 +464,7 @@ def test_compute(
         call.end_session("noteUuid"),
     ]
     assert memory_log.mock_calls == calls
-    calls = [call.send_to_user(identification, settings, "finished")]
+    calls = [call.send_to_user(identification, settings, "finished", "events")]
     assert progress.mock_calls == calls
     calls = [call.end_session("noteUuid")]
     assert llm_turns_store.mock_calls == calls
@@ -733,7 +733,7 @@ def test_compute_audio(
         assert audio_interpreter.mock_calls == calls
         calls = [call("patientUuid", "providerUuid", "stagedCommands")]
         assert limited_cache.mock_calls == calls
-        calls = [call.send_to_user(identification, settings, "starting the cycle 3...")]
+        calls = [call.send_to_user(identification, settings, "starting the cycle 3...", "events")]
         assert progress.mock_calls == calls
         calls = [
             call(AwsS3Credentials(aws_key="theKey", aws_secret="theSecret", region="theRegion", bucket="theBucket")),
@@ -839,7 +839,16 @@ def test_audio2commands(transcript2commands, tail_of, memory_log, progress):
         call.instance().output("--> transcript back and forth: 3"),
     ]
     assert memory_log.mock_calls == calls
-    calls = [call.send_to_user(identification, settings, "audio reviewed, speakers detected: speaker1, speaker2")]
+    calls = [
+        call.send_to_user(
+            identification,
+            settings,
+            '[{"speaker": "speaker1", "text": "word00 word01 word02 word03 textA."}, '
+            '{"speaker": "speaker2", "text": "word00 word01 word02 word03 textB."}, '
+            '{"speaker": "speaker1", "text": "word00 word01 word02 word03 textC."}]',
+            "transcript",
+        )
+    ]
     assert progress.mock_calls == calls
     calls = [
         call(
@@ -1334,9 +1343,10 @@ def test_transcript2commands_common(time, memory_log, progress):
                 "new: theInstructionC: 1, theInstructionD: 2, "
                 "updated: theInstructionA: 2, "
                 "total: 6",
+                "events",
             ),
-            call.send_to_user(identification, settings, "parameters computation done (4)"),
-            call.send_to_user(identification, settings, "commands generation done (3)"),
+            call.send_to_user(identification, settings, "parameters computation done (4)", "events"),
+            call.send_to_user(identification, settings, "commands generation done (3)", "events"),
         ]
         assert progress.mock_calls == calls
         calls = [call(), call()]
@@ -1471,9 +1481,9 @@ def test_transcript2commands_common(time, memory_log, progress):
     ]
     assert memory_log.mock_calls == calls
     calls = [
-        call.send_to_user(identification, settings, "instructions detection: total: 3"),
-        call.send_to_user(identification, settings, "parameters computation done (0)"),
-        call.send_to_user(identification, settings, "commands generation done (0)"),
+        call.send_to_user(identification, settings, "instructions detection: total: 3", "events"),
+        call.send_to_user(identification, settings, "parameters computation done (0)", "events"),
+        call.send_to_user(identification, settings, "commands generation done (0)", "events"),
     ]
     assert progress.mock_calls == calls
     calls = [call(), call()]
@@ -1659,7 +1669,7 @@ def test_transcript2commands_questionnaires(time, memory_log, progress):
         assert result == expected
         calls = [call.instance(identification, "main", "awsS3"), call.instance().output("DURATION QUESTIONNAIRES: 246")]
         assert memory_log.mock_calls == calls
-        calls = [call.send_to_user(identification, settings, "questionnaires update done (2)")]
+        calls = [call.send_to_user(identification, settings, "questionnaires update done (2)", "events")]
         assert progress.mock_calls == calls
         calls = [call(), call()]
         assert time.mock_calls == calls

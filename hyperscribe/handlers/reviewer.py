@@ -66,4 +66,9 @@ class Reviewer(BaseProtocol):
         settings = Settings.from_dictionary(self.secrets | {Constants.PROGRESS_SETTING_KEY: True})
         credentials = AwsS3Credentials.from_dictionary(self.secrets)
         LlmDecisionsReviewer.review(identification, settings, credentials, command2uuid, created, cycles)
-        Progress.send_to_user(identification, settings, Constants.PROGRESS_END_OF_MESSAGES)
+        Progress.send_to_user(
+            identification,
+            settings,
+            Constants.PROGRESS_END_OF_MESSAGES,
+            Constants.PROGRESS_SECTION_EVENTS,
+        )

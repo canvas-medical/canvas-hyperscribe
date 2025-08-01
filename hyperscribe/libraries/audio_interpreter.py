@@ -3,6 +3,7 @@ from datetime import datetime
 
 from hyperscribe.commands.base import Base
 from hyperscribe.handlers.progress import Progress
+from hyperscribe.libraries.constants import Constants
 from hyperscribe.libraries.helper import Helper
 from hyperscribe.libraries.implemented_commands import ImplementedCommands
 from hyperscribe.libraries.json_schema import JsonSchema
@@ -280,6 +281,7 @@ class AudioInterpreter:
                 self.identification,
                 self.settings,
                 f"parameters identified for {instruction.instruction}",
+                Constants.PROGRESS_SECTION_EVENTS,
             )
         return result
 
@@ -295,6 +297,7 @@ class AudioInterpreter:
                         self.identification,
                         self.settings,
                         f"command generated for {direction.instruction}",
+                        Constants.PROGRESS_SECTION_EVENTS,
                     )
                 return result
         return None

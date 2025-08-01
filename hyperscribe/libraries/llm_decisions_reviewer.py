@@ -1,6 +1,7 @@
 import json
 from datetime import datetime
 
+from hyperscribe.libraries.constants import Constants
 from hyperscribe.handlers.progress import Progress
 from hyperscribe.libraries.aws_s3 import AwsS3
 from hyperscribe.libraries.cached_sdk import CachedSdk
@@ -39,12 +40,17 @@ class LlmDecisionsReviewer:
         cached.save()
         creation_day = cached.creation_day()
 
-        Progress.send_to_user(identification, settings, "create the audits...")
+        Progress.send_to_user(identification, settings, "create the audits...", Constants.PROGRESS_SECTION_EVENTS)
         for cycle in range(1, cycles + 1):
             result: list[dict] = []
             store = LlmTurnsStore(credentials, identification, creation_day, cycle)
             for incremented_step, discussion in store.stored_documents():
-                Progress.send_to_user(identification, settings, f"auditing of {incremented_step} (cycle {cycle: 02d})")
+                Progress.send_to_user(
+                    identification,
+                    settings,
+                    f"auditing of {incremented_step} (cycle {cycle: 02d})",
+                    Constants.PROGRESS_SECTION_EVENTS,
+                )
                 indexed_command, increment = LlmTurnsStore.decompose(incremented_step)
                 chatter = Helper.chatter(
                     settings,
@@ -102,4 +108,4 @@ class LlmDecisionsReviewer:
                 f"final_audit_{cycle:02d}.log"
             )
             client_s3.upload_text_to_s3(store_path, json.dumps(result, indent=2))
-        Progress.send_to_user(identification, settings, "audits done")
+        Progress.send_to_user(identification, settings, "audits done", Constants.PROGRESS_SECTION_EVENTS)

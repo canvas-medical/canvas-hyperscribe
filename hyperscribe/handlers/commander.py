@@ -108,6 +108,7 @@ class Commander(BaseProtocol):
                 identification,
                 settings,
                 f"waiting for the next cycle {chunk_index + 1}...",
+                Constants.PROGRESS_SECTION_EVENTS,
             )
             stop_and_go = StopAndGo.get(information.note_id)
             stop_and_go.cycle = chunk_index + 1
@@ -150,7 +151,7 @@ class Commander(BaseProtocol):
             )
             # TODO ^^^ removed when https://github.com/canvas-medical/canvas-plugins/issues/600 is fixed
             log.info("  => inform the UI")
-            Progress.send_to_user(identification, settings, "finished")
+            Progress.send_to_user(identification, settings, "finished", Constants.PROGRESS_SECTION_EVENTS)
             log.info("  => stop the task")
             effects.append(UpdateTask(id=str(comment.task.id), status=TaskStatus.COMPLETED).apply())
         MemoryLog.end_session(information.note_id)
@@ -179,7 +180,12 @@ class Commander(BaseProtocol):
         if not audios:
             return False, []
 
-        Progress.send_to_user(identification, settings, f"starting the cycle {chunk_index}...")
+        Progress.send_to_user(
+            identification,
+            settings,
+            f"starting the cycle {chunk_index}...",
+            Constants.PROGRESS_SECTION_EVENTS,
+        )
         discussion = CachedSdk.get_discussion(identification.note_uuid)
         discussion.set_cycle(chunk_index)
 
@@ -251,11 +257,11 @@ class Commander(BaseProtocol):
         transcript = Line.load_from_json(response.content)
         auditor.identified_transcript(audios, transcript)
         memory_log.output(f"--> transcript back and forth: {len(transcript)}")
-        speakers = ", ".join(sorted({l.speaker for l in transcript}))
         Progress.send_to_user(
             chatter.identification,
             chatter.settings,
-            f"audio reviewed, speakers detected: {speakers}",
+            json.dumps([line.to_json() for line in transcript]),
+            Constants.PROGRESS_SECTION_TRANSCRIPT,
         )
 
         instructions, effects = cls.transcript2commands(auditor, transcript, chatter, previous_instructions)
@@ -344,6 +350,7 @@ class Commander(BaseProtocol):
             chatter.identification,
             chatter.settings,
             f"instructions detection: {', '.join(detected)}",
+            Constants.PROGRESS_SECTION_EVENTS,
         )
 
         max_workers = max(1, Constants.MAX_WORKERS)
@@ -361,6 +368,7 @@ class Commander(BaseProtocol):
             chatter.identification,
             chatter.settings,
             f"parameters computation done ({len(instructions_with_parameter)})",
+            Constants.PROGRESS_SECTION_EVENTS,
         )
         auditor.computed_parameters(instructions_with_parameter)
 
@@ -380,6 +388,7 @@ class Commander(BaseProtocol):
             chatter.identification,
             chatter.settings,
             f"commands generation done ({len(instructions_with_command)})",
+            Constants.PROGRESS_SECTION_EVENTS,
         )
         auditor.computed_commands(instructions_with_command)
 
@@ -436,6 +445,7 @@ class Commander(BaseProtocol):
             chatter.identification,
             chatter.settings,
             f"questionnaires update done ({len(instructions_with_command)})",
+            Constants.PROGRESS_SECTION_EVENTS,
         )
         auditor.computed_questionnaires(transcript, instructions, instructions_with_command)
 

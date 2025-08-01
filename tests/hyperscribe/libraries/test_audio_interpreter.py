@@ -989,7 +989,7 @@ def test_create_sdk_command_parameters(chatter, memory_log, progress, mock_datet
     assert chatter.mock_calls == calls
     calls = [call.instance(tested.identification, "Second_theUuid_instruction2parameters", aws_credentials)]
     assert memory_log.mock_calls == calls
-    calls = [call.send_to_user(tested.identification, settings, "parameters identified for Second")]
+    calls = [call.send_to_user(tested.identification, settings, "parameters identified for Second", "events")]
     assert progress.mock_calls == calls
     calls = [call.now()]
     assert mock_datetime.mock_calls == calls
@@ -1078,7 +1078,7 @@ def test_create_sdk_command_from(chatter, memory_log, progress):
         assert memory_log.mock_calls == calls
         calls = []
         if exp_log_ui:
-            calls = [call.send_to_user(tested.identification, settings, exp_log_ui)]
+            calls = [call.send_to_user(tested.identification, settings, exp_log_ui, "events")]
         assert progress.mock_calls == calls
         for idx, mock in enumerate(mocks):
             calls = [

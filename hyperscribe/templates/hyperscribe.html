@@ -48,15 +48,83 @@
             font-family: "Helvetica", "Arial", "sans-serif";
         }
 
+        /* Tab styles */
+        .tabs {
+            display: flex;
+            margin-top: 20px;
+            width: 80%;
+            border-bottom: 2px solid rgba(0, 40, 255, 0.3);
+            position: relative;
+        }
+
+        .duration-display {
+            position: absolute;
+            right: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            font-family: "Helvetica", "Arial", "sans-serif";
+            font-size: 12px;
+            font-weight: normal;
+            color: #333;
+            padding: 5px 10px;
+            border-radius: 3px;
+        }
+
+        .tab {
+            background-color: rgba(220, 240, 255, 0.5);
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            font-family: "Helvetica", "Arial", "sans-serif";
+            font-size: 14px;
+            font-weight: bold;
+            border-top-left-radius: 5px;
+            border-top-right-radius: 5px;
+            margin-right: 2px;
+            transition: background-color 0.3s ease;
+        }
+
+        .tab.active {
+            background-color: rgba(0, 40, 255, 0.2);
+            color: #333;
+        }
+
+        .tab:hover {
+            background-color: rgba(0, 40, 255, 0.15);
+        }
+
         /* Styles for table container with permanent scrollbar */
         .table-container {
-            margin-top: 20px;
-            height: calc(100vh - 220px); /* Fixed height instead of max-height */
+            height: calc(100vh - 280px); /* Adjusted height for tabs */
             overflow-y: scroll; /* Always show scrollbar */
             width: 80%;
-            display: block; /* Changed from flex to avoid stretching content */
+            display: none; /* Hidden by default, shown by tabs */
             scrollbar-width: thin;
             scrollbar-color: rgba(0, 40, 255, 0.5) rgba(220, 240, 255, 0.3);
+        }
+
+        .table-container.active {
+            display: block;
+        }
+
+        /* Legend styles */
+        .legend {
+            width: 80%;
+            margin-bottom: 10px;
+            padding: 10px;
+            background-color: rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+            font-family: "Helvetica", "Arial", "sans-serif";
+            font-size: 12px;
+        }
+
+        .legend-item {
+            display: inline-block;
+            margin-right: 20px;
+            padding: 3px 8px;
+            border-radius: 3px;
+            color: black;
+            font-weight: bold;
         }
 
         /* Custom scrollbar styles */
@@ -150,18 +218,33 @@
 
         <div id="debugMessage" class="debug-message"></div>
 
-        <div class="table-container">
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('progress')">Progress</button>
+            <button class="tab" onclick="switchTab('transcript')">Transcript</button>
+            <span id="duration" class="duration-display"></span>
+        </div>
+
+        <div id="progress-container" class="table-container active">
             <table>
                 <colgroup>
                     <col style="width: 70%">
                     <col style="width: 30%;text-align: right;">
                 </colgroup>
-                <thead>
-                    <tr>
-                        <th colspan="2">Progress <span id="duration"></span></th>
-                    </tr>
-                </thead>
                 <tbody id="message-table-body">
+                </tbody>
+            </table>
+        </div>
+
+        <div id="transcript-container" class="table-container">
+            <div id="transcript-legend" class="legend" style="display: none;">
+                <strong>Speaker Legend:</strong>
+                <div id="legend-content"></div>
+            </div>
+            <table>
+                <colgroup>
+                    <col style="width: 100%">
+                </colgroup>
+                <tbody id="transcript-table-body">
                 </tbody>
             </table>
         </div>
@@ -170,23 +253,55 @@
     </div>
 
     <script>
+        function switchTab(tabName) {
+            // Remove active class from all tabs and containers
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.table-container').forEach(container => container.classList.remove('active'));
+
+            // Add active class to selected tab and container
+            event.target.classList.add('active');
+            document.getElementById(tabName + '-container').classList.add('active');
+        }
+
         const button = document.getElementById("captureButton");
         button.addEventListener("click", () => {
             button.classList.toggle("active");
             button.textContent = button.classList.contains("active") ? "Stop" : "Start";
             if (button.classList.contains("active")){
               resetTable();
+              resetTranscriptTable();
               const timeLogRefresh = 1.7;
               const timeCellRefresh = 2.3;
               const progressURL = '{{progressURL | safe}}';
               const messageEndFlag = '{{endFlag}}';
-              window.previousMessage =new Date();
+              window.previousMessage = new Date();
               // window.previousMessage =new Date('2025-05-01T22:20:10.757050+00:00');
-              window.logRefreshId = setInterval(() => fetchAndDisplay(progressURL, messageEndFlag), timeLogRefresh * 1000);
+              window.logRefreshId = setInterval(() => fetchAndDisplayProgress(progressURL, messageEndFlag), timeLogRefresh * 1000);
               window.cellRefreshId = setInterval(updateTimeCells, timeCellRefresh * 1000);
+            } else {
+              // Stop all intervals when recording stops
+              if (window.logRefreshId) clearInterval(window.logRefreshId);
+              if (window.cellRefreshId) clearInterval(window.cellRefreshId);
             }
         });
-        document.addEventListener('DOMContentLoaded', function () {resetTable();});
+
+        function resetTranscriptTable() {
+            const tbody = document.getElementById('transcript-table-body');
+            tbody.innerHTML = '<tr><td>Waiting...</td></tr>';
+            const legend = document.getElementById('transcript-legend');
+            legend.style.display = 'none';
+            document.getElementById('legend-content').innerHTML = '';
+
+            // Clear tracking variables
+            window.displayedTranscriptTimes = new Set();
+            window.transcriptSpeakerColors = new Map();
+            window.transcriptColorIndex = 0;
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            resetTable();
+            resetTranscriptTable();
+        });
 
         // -----------------------------------------------------------------
         // CAPTURE ---------------------------------------------------------
@@ -202,7 +317,7 @@
         async function toggleRecording(patientId, noteId) {
             const button = document.querySelector("#captureButton");
             const recordingIntervalInSeconds = parseInt(document.getElementById("captureButton").dataset.interval);
-            
+
             console.log(`Audio chunk interval is set to ${recordingIntervalInSeconds} seconds`);
 
             if (isRecording) {
@@ -218,7 +333,7 @@
                 .then(response => response.text())
                 .then(result => console.log(result))
                 .catch(error => console.error(`Error creating hyperscribe session for patient ${patientId}:`, error));
-                
+
                 try {
                     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
@@ -306,70 +421,184 @@
         return cookieValue;
         }
 
-        async function fetchAndDisplay(progressURLPath, endOfMessage) {
-        const tbody = document.getElementById('message-table-body');
-        const errorDiv = document.getElementById('error');
-        errorDiv.textContent = '';
+        async function fetchAndDisplayProgress(urlProgress, endOfMessage) {
+            const progressTbody = document.getElementById('message-table-body');
+            const transcriptTbody = document.getElementById('transcript-table-body');
+            const errorDiv = document.getElementById('error');
+            const legend = document.getElementById('transcript-legend');
+            const legendContent = document.getElementById('legend-content');
+            errorDiv.textContent = '';
 
-        try {
-            const response = await fetch(progressURLPath, {cache: 'no-store'});
-            if (!response.ok) {
-                errorDiv.textContent = `HTTP error ${response.status}`;
-            } else {
-                const data = await response.json();
-                const currentMessage = new Date(data.time);
-            if (
-                currentMessage.getTime() > window.previousMessage.getTime() &&
-                Array.isArray(data.messages) &&
-                data.messages.length > 0
-            ) {
-                window.previousMessage = currentMessage;
-
-                tbody.innerHTML = '';
-                // compute the oldest time
-                const times = data.messages.map(message => new Date(message.time));
-                const startingTime = new Date(Math.min(...times));
-                // set the duration object
-                const duration = document.getElementById('duration');
-                // eslint-disable-next-line no-prototype-builtins
-                if (duration.hasOwnProperty('startingTime') === false) {
-                duration.startingTime = startingTime;
-                }
-
-                data.messages.forEach(msg => {
-                // end of the messages
-                if (msg.message === endOfMessage) {
-                    clearInterval(window.logRefreshId);
-                    clearInterval(window.cellRefreshId);
-                    duration.textContent = '';
-                    return;
-                }
-                // compute the time from the first message
-                const messageTime = new Date(msg.time);
-                const elapsedSeconds = Math.floor((messageTime - startingTime) / 1000);
-                // create the two columns and fill them
-                const messageCell = document.createElement('td');
-                const timeCell = document.createElement('td');
-                messageCell.textContent = msg.message;
-                if (elapsedSeconds > 0) {
-                    timeCell.textContent = `${elapsedSeconds}s`;
+            try {
+                const response = await fetch(urlProgress, { cache: 'no-store' });
+                if (!response.ok) {
+                    errorDiv.textContent = `HTTP error ${response.status}`;
                 } else {
-                    timeCell.textContent = startingTime.toLocaleTimeString();
+                    const data = await response.json();
+                    const currentMessage = new Date(data.time);
+                    if (
+                        currentMessage.getTime() > window.previousMessage.getTime() &&
+                        Array.isArray(data.messages) &&
+                        data.messages.length > 0
+                    ) {
+                        window.previousMessage = currentMessage;
+
+                        // Separate messages by section
+                        const eventMessages = data.messages.filter(msg => msg.section === 'events');
+                        const transcriptMessages = data.messages.filter(msg => msg.section === 'transcript');
+
+                        // Handle events section (Progress tab)
+                        if (eventMessages.length > 0) {
+                            progressTbody.innerHTML = '';
+                            // compute the oldest time for events
+                            const eventTimes = eventMessages.map(message => new Date(message.time));
+                            const startingTime = new Date(Math.min(...eventTimes));
+                            // set the duration object
+                            const duration = document.getElementById('duration');
+                            // eslint-disable-next-line no-prototype-builtins
+                            if (duration.hasOwnProperty('startingTime') === false) {
+                                duration.startingTime = startingTime;
+                            }
+
+                            // Sort event messages by time in reverse order (newest first)
+                            const sortedEventMessages = eventMessages.sort((a, b) => new Date(b.time) - new Date(a.time));
+
+                            sortedEventMessages.forEach(msg => {
+                                // end of the messages
+                                if (msg.message === endOfMessage) {
+                                    clearInterval(window.logRefreshId);
+                                    clearInterval(window.cellRefreshId);
+                                    duration.textContent = '';
+                                    return;
+                                }
+                                // compute the time from the first message
+                                const messageTime = new Date(msg.time);
+                                const elapsedSeconds = Math.floor((messageTime - startingTime) / 1000);
+                                // create the two columns and fill them
+                                const messageCell = document.createElement('td');
+                                const timeCell = document.createElement('td');
+                                messageCell.textContent = msg.message;
+                                if (elapsedSeconds > 0) {
+                                    timeCell.textContent = `${elapsedSeconds}s`;
+                                } else {
+                                    timeCell.textContent = startingTime.toLocaleTimeString();
+                                }
+                                // create the row and add it to the table
+                                const row = document.createElement('tr');
+                                row.appendChild(messageCell);
+                                row.appendChild(timeCell);
+                                progressTbody.appendChild(row);
+                            });
+                        }
+
+                        // Handle transcript section (Transcript tab)
+                        if (transcriptMessages.length > 0) {
+                            // Initialize transcript tracking if not exists
+                            if (!window.displayedTranscriptTimes) {
+                                window.displayedTranscriptTimes = new Set();
+                            }
+                            if (!window.transcriptSpeakerColors) {
+                                window.transcriptSpeakerColors = new Map();
+                                window.transcriptColorIndex = 0;
+                            }
+
+                            const colors = [
+                                '#FFE6CC', '#E6FFE6', '#FFF0E6', '#F0E6FF', '#FFE6F0',
+                                '#E6FFFF', '#E6F3FF', '#F5FFE6', '#FFE6E6', '#E6E6FF'
+                            ];
+
+                            const newDiscussionTurns = [];
+                            transcriptMessages.forEach(msg => {
+                                if (msg.message === endOfMessage) {
+                                    clearInterval(window.logRefreshId);
+                                    clearInterval(window.cellRefreshId);
+                                    return;
+                                }
+
+                                // Skip if we've already displayed this message
+                                if (window.displayedTranscriptTimes.has(msg.time)) {
+                                    return;
+                                }
+
+                                try {
+                                    const discussionTurnArray = JSON.parse(msg.message);
+                                    // Handle array of DiscussionTurn objects
+                                    if (Array.isArray(discussionTurnArray)) {
+                                        // Keep original order within batch (oldest to newest)
+                                        discussionTurnArray.forEach(discussionTurn => {
+                                            newDiscussionTurns.push({
+                                                time: new Date(msg.time),
+                                                messageTime: msg.time, // Keep original time string for tracking
+                                                speaker: discussionTurn.speaker,
+                                                text: discussionTurn.text
+                                            });
+
+                                            // Assign color to new speakers
+                                            if (!window.transcriptSpeakerColors.has(discussionTurn.speaker)) {
+                                                window.transcriptSpeakerColors.set(discussionTurn.speaker, colors[window.transcriptColorIndex % colors.length]);
+                                                window.transcriptColorIndex++;
+                                            }
+                                        });
+
+                                        // Mark this message time as displayed
+                                        window.displayedTranscriptTimes.add(msg.time);
+                                    }
+                                } catch (e) {
+                                    console.warn('Failed to parse discussion turn:', msg.message);
+                                }
+                            });
+
+                            // Only process if we have new turns
+                            if (newDiscussionTurns.length > 0) {
+                                // Keep the original order from the batches (no sorting needed)
+
+                                // Update legend with all known speakers
+                                if (window.transcriptSpeakerColors.size > 0) {
+                                    legend.style.display = 'block';
+                                    legendContent.innerHTML = '';
+                                    window.transcriptSpeakerColors.forEach((color, speaker) => {
+                                        const legendItem = document.createElement('span');
+                                        legendItem.className = 'legend-item';
+                                        legendItem.style.backgroundColor = color;
+                                        legendItem.textContent = speaker;
+                                        legendContent.appendChild(legendItem);
+                                    });
+                                }
+
+                                // Display new transcript turns with delay (one at a time)
+                                // Each batch is already ordered oldest -> newest within the batch
+                                // Insert each turn at top, so newest turn of batch ends up at very top
+                                newDiscussionTurns.forEach((turn, index) => {
+                                    setTimeout(() => {
+                                        const textCell = document.createElement('td');
+
+                                        textCell.textContent = turn.text;
+                                        textCell.style.backgroundColor = window.transcriptSpeakerColors.get(turn.speaker);
+                                        textCell.style.padding = '8px';
+
+                                        const row = document.createElement('tr');
+                                        row.appendChild(textCell);
+                                        row.dataset.messageTime = turn.messageTime; // Add data attribute for tracking
+
+                                        // Insert at the top - batch order: oldest first → newest last → newest ends up at top
+                                        transcriptTbody.insertBefore(row, transcriptTbody.firstChild);
+                                    }, index * 450); // 450ms delay between each row
+                                });
+                            }
+                        }
+                    }
                 }
-                // create the row and add it to the table
-                const row = document.createElement('tr');
-                row.appendChild(messageCell);
-                row.appendChild(timeCell);
-                tbody.appendChild(row);
-                });
+            } catch (err) {
+                errorDiv.textContent = `Error: ${err.message}`;
             }
+
+            // Set default content if tables are empty
+            if (progressTbody.innerHTML === '') {
+                progressTbody.innerHTML = '<tr><td colspan="2">...</td></tr>';
             }
-        } catch (err) {
-            errorDiv.textContent = `Error: ${err.message}`;
-        }
-        if (tbody.innerHTML === '') {
-            tbody.innerHTML = '<tr><td colspan="2">...</td></tr>';
-        }
+            if (transcriptTbody.innerHTML === '') {
+                transcriptTbody.innerHTML = '<tr><td>...</td></tr>';
+            }
         }
     </script>
 </body>

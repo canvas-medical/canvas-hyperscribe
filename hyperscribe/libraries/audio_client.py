@@ -139,11 +139,11 @@ class AudioClient:
 
     @classmethod
     def for_registration(cls, base_url: str, registration_key: str) -> AudioClient:
-        return AudioClient(base_url, registration_key, None, None)
+        return cls(base_url, registration_key, None, None)
 
     @classmethod
     def for_operation(cls, base_url: str, instance: str, instance_key: str) -> AudioClient:
-        return AudioClient(base_url, None, instance, instance_key)
+        return cls(base_url, None, instance, instance_key)
 
     def __init__(
         self,

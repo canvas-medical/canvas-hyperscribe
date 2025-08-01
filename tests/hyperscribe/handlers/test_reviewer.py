@@ -217,7 +217,7 @@ def test_compute_audit_documents(schema_key2instruction, command_db, progress, l
 
     calls = [call()]
     assert schema_key2instruction.mock_calls == calls
-    calls = [call.send_to_user(identification, settings, "EOF")]
+    calls = [call.send_to_user(identification, settings, "EOF", "events")]
     assert progress.mock_calls == calls
     calls = [
         call.review(

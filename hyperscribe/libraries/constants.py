@@ -81,6 +81,7 @@ class Constants:
     SECRET_AWS_SECRET = "AwsSecret"
     SECRET_COMMANDS_LIST = "CommandsList"
     SECRET_COMMANDS_POLICY = "CommandsPolicy"
+    SECRET_CYCLE_TRANSCRIPT_OVERLAP = "CycleTranscriptOverlap"
     SECRET_IS_TUNING = "IsTuning"
     SECRET_ONTOLOGIES_HOST = "OntologiesHost"
     SECRET_PRE_SHARED_KEY = "PreSharedKey"
@@ -88,13 +89,14 @@ class Constants:
     SECRET_STAFFERS_LIST = "StaffersList"
     SECRET_STAFFERS_POLICY = "StaffersPolicy"
     SECRET_STRUCTURED_RFV = "StructuredReasonForVisit"
-    SECRET_CYCLE_TRANSCRIPT_OVERLAP = "CycleTranscriptOverlap"
     SECRET_TEXT_LLM_KEY = "KeyTextLLM"
     SECRET_TEXT_LLM_VENDOR = "VendorTextLLM"
     #
     PROGRESS_END_OF_MESSAGES = "EOF"
-    PROGRESS_SETTING_KEY = "sendProgress"
     PROGRESS_EXPIRATION_SECONDS = 7200
+    PROGRESS_SECTION_EVENTS = "events"
+    PROGRESS_SECTION_TRANSCRIPT = "transcript"
+    PROGRESS_SETTING_KEY = "sendProgress"
     #
     PLUGIN_API_BASE_ROUTE = "/plugin-io/api/hyperscribe"
     FUMAGE_BEARER_TOKEN = "FumageBearerToken"

@@ -27,7 +27,9 @@ class Launcher(ActionButton):
         )
 
         hyperscribe_pane = LaunchModalEffect(
-            url=presigned_url, target=LaunchModalEffect.TargetType.RIGHT_CHART_PANE, title="Hyperscribe"
+            url=presigned_url,
+            target=LaunchModalEffect.TargetType.RIGHT_CHART_PANE,
+            title="Hyperscribe",
         )
         return [hyperscribe_pane.apply()]
 
