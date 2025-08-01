@@ -199,9 +199,9 @@ def test_case_prepare(case_store):
             CaseRecord(
                 name="theCase",
                 transcript={},
-                limitedChart={},
+                limited_chart={},
                 profile="theCase",
-                validationStatus=CaseStatus.GENERATION,
+                validation_status=CaseStatus.GENERATION,
                 batch_identifier="",
                 tags={},
                 id=0,

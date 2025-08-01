@@ -23,9 +23,9 @@ def test_default():
     result = Case(name="theName")
     assert result.name == "theName"
     assert result.transcript == {}
-    assert result.limitedChart == {}
+    assert result.limited_chart == {}
     assert result.profile == ""
-    assert result.validationStatus == CaseStatus.GENERATION
+    assert result.validation_status == CaseStatus.GENERATION
     assert result.batch_identifier == ""
     assert result.tags == {}
     assert result.id == 0
@@ -44,10 +44,10 @@ def test_load_record():
                 ],
                 "cycle_002": [{"speaker": "theSpeaker3", "text": "theText3"}],
             },
-            "limited_chart": {"limited": "chart"},
+            "limitedChart": {"limited": "chart"},
             "profile": "theProfile",
-            "validation_status": "evaluation",
-            "batch_identifier": "theBatchIdentifier",
+            "validationStatus": "evaluation",
+            "batchIdentifier": "theBatchIdentifier",
             "tags": {"tag1": "tag1", "tag2": "tag2"},
             "id": 147,
         },

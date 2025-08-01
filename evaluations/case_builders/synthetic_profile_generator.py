@@ -2,6 +2,7 @@ import json, re, argparse, hashlib
 from pathlib import Path
 from typing import Any, cast
 
+from hyperscribe.libraries.constants import Constants
 from hyperscribe.structures.vendor_key import VendorKey
 from hyperscribe.llms.llm_openai import LlmOpenai
 from hyperscribe.libraries.memory_log import MemoryLog
@@ -27,48 +28,52 @@ class SyntheticProfileGenerator:
 
     def update_patient_names(self, profiles: list[PatientProfile]) -> list[PatientProfile]:
         """Update patient names with descriptive phrases based on their profiles using GPT-4o"""
-        # Create GPT-4o vendor key (4o model, not o3)
-        gpt4o_vendor_key = VendorKey(vendor=self.vendor_key.vendor, api_key=self.vendor_key.api_key)
-        
+
+        vendor_key = VendorKey(vendor=self.vendor_key.vendor, api_key=self.vendor_key.api_key)
+
         result: list[PatientProfile] = []
-        
+
         for profile in profiles:
             # Generate descriptive name using GPT-4o
             system_prompt = [
                 "You are an expert at creating concise, descriptive patient identifiers.",
-                "Generate 1-3 short descriptive phrases (separated by dashes) that capture the key aspects of this patient's medical profile.",
+                "Generate 1-3 short descriptive phrases (separated by dashes) "
+                "that capture the key aspects of this patient's medical profile.",
                 "Focus on the most relevant medical conditions, social factors, or medication themes.",
-                "Use lowercase words separated by dashes (e.g., 'diabetes-hypertension', 'social-alcohol-questioning', 'recent-travel-brazil').",
+                "Use lowercase words separated by dashes"
+                " (e.g., 'diabetes-hypertension', 'social-alcohol-questioning', "
+                "'recent-travel-brazil').",
                 "Return your answer as JSON inside a fenced ```json ... ``` block.",
-                "The response must be a single string value containing the descriptive phrase(s)."
+                "The response must be a single string value containing the descriptive phrase(s).",
             ]
-            
+
             user_prompt = [
                 f"Patient profile: {profile.profile}",
                 "",
-                "Generate 1-3 descriptive phrases (max) separated by dashes that best describe this patient's key characteristics:"
+                "Generate 1-3 descriptive phrases (max) separated by dashes"
+                " that best describe this patient's key characteristics:",
             ]
-            
-            llm = LlmOpenai(MemoryLog.dev_null_instance(), gpt4o_vendor_key.api_key, with_audit=False)
+
+            llm = LlmOpenai(
+                MemoryLog.dev_null_instance(), vendor_key.api_key, Constants.OPENAI_CHAT_TEXT, with_audit=False
+            )
             llm.set_system_prompt(system_prompt)
             llm.set_user_prompt(user_prompt)
-                
+
             schema = {"type": "string"}
             response = llm.chat([schema])
-                
+
             if response.has_error:
-                    raise Exception(response.error)
-                
+                raise Exception(response.error)
+
             descriptive_name = response.content[0] if response.content else "patient"
-                
-                
             random_hash = hashlib.md5(f"{profile.profile}{descriptive_name}".encode()).hexdigest()[:8]
-                
-            #append hash to name
+
+            # append hash to name
             final_name = f"{descriptive_name}-{random_hash}"
             updated_profile = PatientProfile(name=final_name, profile=profile.profile)
             result.append(updated_profile)
-        
+
         return result
 
     def _save_combined(self, profiles: list[PatientProfile], output_path: Path) -> None:
@@ -158,14 +163,14 @@ class SyntheticProfileGenerator:
             ),
         )
 
-        #create profiles with initial names then update.
+        # create profiles with initial names then update.
         initial_profiles: list[PatientProfile] = []
         for name, content in batch.items():
             self.seen_scenarios.append(self._extract_initial_fragment(content))
             initial_profiles.append(PatientProfile(name=name, profile=content))
 
         result = self.update_patient_names(initial_profiles)
-        
+
         return result
 
     def run(self, batches: int, batch_size: int, output_path: Path) -> None:

@@ -41,9 +41,9 @@ def sample_case_synthetic_pairs():
         id=1,
         name="John Doe",
         transcript={"cycle_001": []},
-        limitedChart={"medications": []},
+        limited_chart={"medications": []},
         profile="Profile 1",
-        validationStatus=CaseStatus.GENERATION,
+        validation_status=CaseStatus.GENERATION,
         batch_identifier="",
         tags={},
     )
@@ -118,7 +118,6 @@ def test_generate(
     ]
 
     for index, test_case in enumerate(test_cases):
-
         # mocks
         mock_profile_generator = MagicMock()
         # Convert profiles dict to list[PatientProfile] for generate_batch return
@@ -131,13 +130,13 @@ def test_generate(
         # Create Chart instances for the mock return
         mock_chart = Chart(
             demographic_str="Test patient",
-            condition_history="Test conditions", 
+            condition_history="Test conditions",
             current_allergies="None",
             current_conditions="None",
             current_medications="test_med",
             current_goals="Test goals",
             family_history="None",
-            surgery_history="None"
+            surgery_history="None",
         )
         profile_count = len(test_case["profiles"])
         mock_chart_generator.generate_chart_for_profile.side_effect = [mock_chart] * profile_count
@@ -185,7 +184,7 @@ def test_generate(
         for case_record, synthetic_record in result:
             assert isinstance(case_record, CaseRecord)
             assert isinstance(synthetic_record, SyntheticCaseRecord)
-            assert case_record.validationStatus == CaseStatus.GENERATION
+            assert case_record.validation_status == CaseStatus.GENERATION
             assert synthetic_record.category == "test_category"
             assert synthetic_record.text_llm_vendor == mock_vendor_key.vendor
 
@@ -319,7 +318,7 @@ def test_generate_and_save2file(
     synthetic_data = json.loads(synthetic_file.read_text())
 
     assert case_data["name"] == case_record.name
-    assert case_data["validation_status"] == case_record.validationStatus.value
+    assert case_data["validationStatus"] == case_record.validation_status.value
     assert synthetic_data["category"] == synthetic_record.category
     assert synthetic_data["turn_buckets"] == synthetic_record.turn_buckets.value
 
@@ -332,7 +331,6 @@ def test_generate_and_save2file(
 
 @patch("evaluations.case_builders.synthetic_case_orchestrator.argparse.ArgumentParser")
 def test_main(mock_parser_class, tmp_files, capsys):
-
     tested = SyntheticCaseOrchestrator
     mock_parser = MagicMock()
     mock_parser_class.side_effect = [mock_parser]

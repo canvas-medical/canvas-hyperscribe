@@ -147,17 +147,16 @@ class SyntheticTranscriptGenerator:
         return transcript_line_objects, specifications
 
     def run(self, start_index: int, limit: int, output_path: Path) -> None:
-        items = list(self.profiles.items())
-        slice_ = items[start_index - 1 : start_index - 1 + limit]
+        slice_ = self.profiles[start_index - 1 : start_index - 1 + limit]
         output_path.mkdir(parents=True, exist_ok=True)
 
-        for patient_name, profile_text in slice_:
-            safe_name = re.sub(r"\W+", "_", patient_name)
+        for patient_profile in slice_:
+            safe_name = re.sub(r"\W+", "_", patient_profile.name)
             patient_dir = output_path / safe_name
             patient_dir.mkdir(parents=True, exist_ok=True)
 
-            print(f"Generating transcript for {patient_name}…")
-            transcript, specifications = self.generate_transcript_for_profile(profile_text)
+            print(f"Generating transcript for {patient_profile.name}…")
+            transcript, specifications = self.generate_transcript_for_profile(patient_profile)
 
             (patient_dir / "transcript.json").write_text(json.dumps([line.to_json() for line in transcript], indent=2))
             (patient_dir / "specifications.json").write_text(json.dumps(specifications.to_json(), indent=2))

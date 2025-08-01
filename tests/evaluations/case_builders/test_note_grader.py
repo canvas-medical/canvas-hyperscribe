@@ -305,7 +305,7 @@ def test_grade_and_save2file(mock_run, mock_load_json, mock_settings, tmp_path, 
     assert result == expected
 
     # Verify print output
-    output = capsys.readouterr().out
+    output = capsys.readouterr().out.strip()
     assert f"Saved grading result in {output_path}" == output
 
     reset_mocks()

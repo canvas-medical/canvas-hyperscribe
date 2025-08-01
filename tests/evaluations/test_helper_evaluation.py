@@ -486,31 +486,27 @@ def test_split_lines_into_cycles():
     assert result == expected
 
     # 4) exceed cycle limit
-    with patch.object(Constants, "MAX_CHARACTERS_PER_CYCLE", 5000):
-        with patch.object(Constants, "CASE_CYCLE_PREFIX", "cycle_test"):
+    with patch.object(Constants, "MAX_CHARACTERS_PER_CYCLE", 500):
+        with patch.object(Constants, "CASE_CYCLE_PREFIX", "test_cycle"):
             lines = [
                 Line(speaker="Doctor", text="A" * 200),
-                Line(speaker="Patient", text="B" * 200), 
+                Line(speaker="Patient", text="B" * 200),
                 Line(speaker="Doctor", text="C" * 200),
                 Line(speaker="Patient", text="Short"),
             ]
             result = tested.split_lines_into_cycles(lines)
-            expected = {
-                "test_cycle_001": [lines[0], lines[1]],
-                "test_cycle_002": [lines[2], lines[3]]
-            }
+            expected = {"test_cycle_001": [lines[0], lines[1]], "test_cycle_002": [lines[2], lines[3]]}
             assert result == expected
 
-
     # 5) boundary conditions
-    with patch.object(Constants, "MAX_CHARACTERS_PER_CYCLE", 150):
+    with patch.object(Constants, "MAX_CHARACTERS_PER_CYCLE", 100):
         with patch.object(Constants, "CASE_CYCLE_PREFIX", "boundary_test"):
             line1 = Line(speaker="Doctor", text="X" * 50)
             line2 = Line(speaker="Patient", text="Y" * 50)
             lines = [line1, line2]
 
             result = tested.split_lines_into_cycles(lines)
-            expected = {"boundary_test_001": lines}
+            expected = {"boundary_test_001": [line1], "boundary_test_002": [line2]}
             assert result == expected
 
     # 6) one very long Line object

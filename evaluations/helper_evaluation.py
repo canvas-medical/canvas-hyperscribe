@@ -226,7 +226,7 @@ class HelperEvaluation:
             turn_json = line_object.to_json()
             length = len(json.dumps(turn_json))
             if current_cycle and (current_length + length > Constants.MAX_CHARACTERS_PER_CYCLE):
-                key = AuditorStore.cycle_key(cycle_num)
+                key = AuditorStore.cycle_key_for(cycle_num)
                 transcript_cycles[key] = current_cycle
                 cycle_num += 1
                 current_cycle = []
@@ -235,7 +235,7 @@ class HelperEvaluation:
             current_length += length
 
         if current_cycle:
-            key = AuditorStore.cycle_key(cycle_num)
+            key = AuditorStore.cycle_key_for(cycle_num)
             transcript_cycles[key] = current_cycle
 
         return transcript_cycles

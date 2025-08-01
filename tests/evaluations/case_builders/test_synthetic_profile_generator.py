@@ -1,7 +1,9 @@
 import json, re, pytest, hashlib
 from unittest.mock import patch, call, MagicMock
 from argparse import ArgumentParser, Namespace
-from evaluations.case_builders.synthetic_profile_generator import SyntheticProfileGenerator, HelperEvaluation
+from evaluations.case_builders.synthetic_profile_generator import SyntheticProfileGenerator
+from evaluations.structures.patient_profile import PatientProfile
+from evaluations.helper_evaluation import HelperEvaluation
 from hyperscribe.structures.vendor_key import VendorKey
 
 
@@ -31,7 +33,6 @@ def test___init__(vendor_key: VendorKey):
     tested = SyntheticProfileGenerator(vendor_key)
     assert tested.vendor_key == vendor_key
     assert tested.seen_scenarios == []
-    assert tested.all_profiles == {}
 
 
 def test__extract_initial_fragment(vendor_key: VendorKey):
@@ -41,34 +42,120 @@ def test__extract_initial_fragment(vendor_key: VendorKey):
     result = tested._extract_initial_fragment(narrative)
     assert result == expected
 
-def test_load_json():
-    raise NotImplementedError
 
-def test_update_patient_names():
-    raise NotImplementedError
+def test_load_json(tmp_path):
+    expected_dict = {"Alice": "Profile for Alice", "Bob": "Profile for Bob"}
+    expected = [
+        PatientProfile(name="Alice", profile="Profile for Alice"),
+        PatientProfile(name="Bob", profile="Profile for Bob"),
+    ]
+    data_file = tmp_path / "profiles.json"
+    data_file.write_text(json.dumps(expected_dict))
 
-def test__save_combined(tmp_path, dummy_profiles: dict, vendor_key: VendorKey):
+    result = SyntheticProfileGenerator.load_json(data_file)
+    assert result == expected
+
+
+@patch("evaluations.case_builders.synthetic_profile_generator.MemoryLog")
+@patch("evaluations.case_builders.synthetic_profile_generator.LlmOpenai")
+def test_update_patient_names(mock_llm_class, mock_memory_log, vendor_key: VendorKey):
+    def reset_mocks():
+        mock_llm_class.reset_mock()
+        mock_memory_log.reset_mock()
+
+    tested = SyntheticProfileGenerator(vendor_key)
+
+    profiles = [
+        PatientProfile(name="Patient 1", profile="Alice has diabetes and takes metformin"),
+        PatientProfile(name="Patient 2", profile="Bob has hypertension and takes lisinopril"),
+    ]
+
+    mock_memory_instance = MagicMock()
+    mock_memory_log.dev_null_instance.return_value = mock_memory_instance
+
+    # devised where has_error is both triggered and not triggered with assertions aligning.
+    tests = [
+        (
+            False,
+            ["diabetes-metformin"],
+            None,
+            False,
+            "3f980752be484fa5e211623508246a12",
+            "293d332b0ba5d8cdedbdfd0374468ac5",
+        ),
+        (True, None, "LLM API error", True, None, None),
+    ]
+
+    for has_error, content, error_message, should_raise, expected_system_md5, expected_user_md5 in tests:
+        mock_llm_instance = MagicMock()
+        mock_response = MagicMock()
+        mock_response.has_error = has_error
+        mock_response.content = content
+        mock_response.error = error_message
+        mock_llm_instance.chat.return_value = mock_response
+        mock_llm_instance.set_system_prompt = MagicMock()
+        mock_llm_instance.set_user_prompt = MagicMock()
+        mock_llm_class.return_value = mock_llm_instance
+
+        if should_raise:
+            with pytest.raises(Exception) as exc_info:
+                tested.update_patient_names(profiles)
+            assert error_message in str(exc_info.value)
+        else:
+            result = tested.update_patient_names(profiles)
+
+            system_prompt_calls = [call[0][0] for call in mock_llm_instance.set_system_prompt.call_args_list]
+            user_prompt_calls = [call[0][0] for call in mock_llm_instance.set_user_prompt.call_args_list]
+
+            if system_prompt_calls and user_prompt_calls:
+                result_system_md5 = hashlib.md5("\n".join(system_prompt_calls[0]).encode()).hexdigest()
+                result_user_md5 = hashlib.md5("\n".join(user_prompt_calls[0]).encode()).hexdigest()
+
+                assert result_system_md5 == expected_system_md5
+                assert result_user_md5 == expected_user_md5
+
+            assert len(mock_llm_class.call_args_list) == len(profiles)
+            assert len(result) == len(profiles)
+            for profile in result:
+                assert "-" in profile.name
+                assert len(profile.name.split("-")[-1]) == 8
+
+        reset_mocks()
+
+
+def test__save_combined(tmp_path, vendor_key: VendorKey):
     output_path = tmp_path / "combined.json"
     tested = SyntheticProfileGenerator(vendor_key)
-    tested.all_profiles = dummy_profiles
-    tested._save_combined(output_path)
+
+    profiles = [
+        PatientProfile(name="Alice", profile="Profile for Alice"),
+        PatientProfile(name="Bob", profile="Profile for Bob"),
+    ]
+
+    tested._save_combined(profiles, output_path)
 
     result = json.loads(output_path.read_text())
-    assert result == dummy_profiles
+    expected = {"Alice": "Profile for Alice", "Bob": "Profile for Bob"}
+    assert result == expected
 
 
-def test__save_individuals(tmp_path, dummy_profiles: dict, vendor_key: VendorKey):
+def test__save_individuals(tmp_path, vendor_key: VendorKey):
     out_file = tmp_path / "combined.json"
     tested = SyntheticProfileGenerator(vendor_key)
-    tested.all_profiles = dummy_profiles
-    tested._save_individuals(out_file)
 
-    for name, narrative in dummy_profiles.items():
-        dir_name = re.sub(r"\s+", "_", name.strip())
+    profiles = [
+        PatientProfile(name="Patient 1", profile="Alice takes lisinopril. Simple renewal."),
+        PatientProfile(name="Patient 2", profile="Bob switched from metformin to insulin. Complex."),
+    ]
+
+    tested._save_individuals(profiles, out_file)
+
+    for profile in profiles:
+        dir_name = re.sub(r"\s+", "_", profile.name.strip())
         profile_path = tmp_path / dir_name / "profile.json"
         assert profile_path.exists()
         result = json.loads(profile_path.read_text())
-        expected = {name: narrative}
+        expected = {profile.name: profile.profile}
         assert result == expected
 
 
@@ -87,24 +174,40 @@ def test_schema_batch(vendor_key: VendorKey):
     assert result == expected
 
 
+@patch.object(SyntheticProfileGenerator, "update_patient_names")
 @patch.object(SyntheticProfileGenerator, "schema_batch")
 @patch("evaluations.case_builders.synthetic_profile_generator.HelperSyntheticJson.generate_json")
-def test_generate_batch(mock_generate_json, mock_schema_batch, fake_llm_response, vendor_key: VendorKey):
-    n = 3
-    expected = fake_llm_response(n)
-    mock_generate_json.return_value = expected
+def test_generate_batch(
+    mock_generate_json, mock_schema_batch, mock_update_names, fake_llm_response, vendor_key: VendorKey
+):
+    def reset_mocks():
+        mock_generate_json.reset_mock()
+        mock_schema_batch.reset_mock()
+        mock_update_names.reset_mock()
 
     tested = SyntheticProfileGenerator(vendor_key)
     batch_num = 2
     count = 3
+    expected_batch_data = fake_llm_response(count)
     expected_schema = {"expected": "schema"}
-    mock_schema_batch.side_effect = lambda count: expected_schema
+    updated_profiles = [
+        PatientProfile(name=f"patient-{i + 4}-hash{i}", profile=f"Mock narrative {i + 1}.") for i in range(count)
+    ]
+
+    mock_generate_json.side_effect = [expected_batch_data]
+    mock_schema_batch.side_effect = [expected_schema]
+    mock_update_names.side_effect = [updated_profiles]
 
     result = tested.generate_batch(batch_num, count)
+
+    expected_schema_calls = [call(count)]
+    assert mock_schema_batch.mock_calls == expected_schema_calls
+
+    # Check generate_json call with MD5 verification
     assert len(mock_generate_json.mock_calls) == 1
     _, kwargs = mock_generate_json.call_args
 
-    # reference hex digest with the patched schema_batch, must be re-digested if prompts change.
+    # Verify prompt content using MD5 hashes
     expected_system_md5 = "d4d9c1999dcff7d0cff01745aa3da589"
     expected_user_md5 = "b3435eae8d1a3700c841178446de8c83"
     result_system_md5 = hashlib.md5("\n".join(kwargs["system_prompt"]).encode()).hexdigest()
@@ -114,56 +217,95 @@ def test_generate_batch(mock_generate_json, mock_schema_batch, fake_llm_response
     assert result_user_md5 == expected_user_md5
     assert kwargs["vendor_key"] == vendor_key
     assert kwargs["schema"] == expected_schema
-    assert mock_schema_batch.mock_calls == [call(count)]
 
-    expected_keys = [f"Patient {i + 1}" for i in range(count)]
-    assert list(result.keys()) == expected_keys
-    assert result == expected
+    expected_initial_profiles = [
+        PatientProfile(name=name, profile=content) for name, content in expected_batch_data.items()
+    ]
+    assert mock_update_names.mock_calls == [call(expected_initial_profiles)]
+
+    assert result == updated_profiles
     assert len(tested.seen_scenarios) == count
+
+    reset_mocks()
 
 
 @patch.object(SyntheticProfileGenerator, "_save_individuals")
 @patch.object(SyntheticProfileGenerator, "_save_combined")
 @patch.object(SyntheticProfileGenerator, "generate_batch")
 def test_run(mock_generate_batch, mock_save_combined, mock_save_individuals, tmp_path, vendor_key: VendorKey):
+    def reset_mocks():
+        mock_generate_batch.reset_mock()
+        mock_save_combined.reset_mock()
+        mock_save_individuals.reset_mock()
+
     output_path = tmp_path / "out.json"
     tested = SyntheticProfileGenerator(vendor_key)
-    batches = 2
-    batch_size = 5
-    tested.run(batches=batches, batch_size=batch_size, output_path=output_path)
 
-    expected_generate_calls = [call(i, batch_size) for i in range(1, batches + 1)]
-    assert mock_generate_batch.mock_calls == expected_generate_calls
-    assert mock_save_combined.mock_calls == [call(output_path)]
-    assert mock_save_individuals.mock_calls == [call(output_path)]
+    tests = [
+        # (batches, batch_size, expected_generate_calls)
+        (1, 5, [call(1, 5)]),
+        (2, 3, [call(1, 3), call(2, 3)]),
+        (3, 2, [call(1, 2), call(2, 2), call(3, 2)]),
+    ]
+
+    for batches, batch_size, expected_generate_calls in tests:
+        # Mock generate_batch to return some profiles
+        mock_profiles = [PatientProfile(name=f"patient-{i}", profile=f"profile-{i}") for i in range(batch_size)]
+        mock_generate_batch.side_effect = [mock_profiles] * batches
+
+        tested.run(batches=batches, batch_size=batch_size, output_path=output_path)
+
+        # Check generate_batch calls
+        assert mock_generate_batch.mock_calls == expected_generate_calls
+
+        # Check save calls - should be called once with all profiles combined
+        all_profiles = mock_profiles * batches
+        expected_save_combined_calls = [call(all_profiles, output_path)]
+        assert mock_save_combined.mock_calls == expected_save_combined_calls
+
+        expected_save_individuals_calls = [call(all_profiles, output_path)]
+        assert mock_save_individuals.mock_calls == expected_save_individuals_calls
+
+        reset_mocks()
 
 
-def test_main(tmp_path):
+@patch("pathlib.Path.mkdir")
+@patch.object(ArgumentParser, "parse_args")
+@patch.object(HelperEvaluation, "settings")
+@patch.object(SyntheticProfileGenerator, "run")
+def test_main(mock_run, mock_settings, mock_parse_args, mock_mkdir, tmp_path):
+    def reset_mocks():
+        mock_run.reset_mock()
+        mock_settings.reset_mock()
+        mock_parse_args.reset_mock()
+        mock_mkdir.reset_mock()
+
+    # Mock settings
     dummy_settings = MagicMock()
     dummy_settings.llm_text = VendorKey("openai", "MAIN_KEY")
+    mock_settings.return_value = dummy_settings
 
-    run_calls = []
-
-    def fake_run(self, batches, batch_size, output_path):
-        run_calls.append((self, batches, batch_size, output_path))
-
+    # Mock arguments
     output_path = tmp_path / "out.json"
     args = Namespace(batches=2, batch_size=5, output=output_path)
+    mock_parse_args.return_value = args
 
-    with (
-        patch.object(HelperEvaluation, "settings", new=classmethod(lambda _: dummy_settings)),
-        patch.object(ArgumentParser, "parse_args", new=lambda _: args),
-        patch.object(SyntheticProfileGenerator, "run", new=fake_run),
-        patch("pathlib.Path.mkdir") as mock_mkdir_1,
-    ):
-        SyntheticProfileGenerator.main()
-        expected_calls = [call(parents=True, exist_ok=True)]
-        assert mock_mkdir_1.mock_calls == expected_calls
+    SyntheticProfileGenerator.main()
 
-    assert len(run_calls) == 1
-    instance, batches, batch_size, output_path_arg = run_calls[0]
-    assert isinstance(instance, SyntheticProfileGenerator)
-    assert instance.vendor_key.api_key == "MAIN_KEY"
-    assert batches == 2
-    assert batch_size == 5
-    assert output_path_arg == output_path
+    # Check mkdir was called
+    expected_mkdir_calls = [call(parents=True, exist_ok=True)]
+    assert mock_mkdir.mock_calls == expected_mkdir_calls
+
+    # Check settings was called
+    expected_settings_calls = [call()]
+    assert mock_settings.mock_calls == expected_settings_calls
+
+    # Check parse_args was called
+    expected_parse_calls = [call()]
+    assert mock_parse_args.mock_calls == expected_parse_calls
+
+    # Check run was called with correct parameters
+    expected_run_calls = [call(batches=2, batch_size=5, output_path=output_path)]
+    assert mock_run.mock_calls == expected_run_calls
+
+    reset_mocks()

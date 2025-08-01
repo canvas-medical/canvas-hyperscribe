@@ -77,9 +77,9 @@ class SyntheticCaseOrchestrator:
                 id=profile_index,
                 name=patient_profile.name,
                 transcript=transcript_cycles,
-                limitedChart=limited_chart.to_json(),
+                limited_chart=limited_chart.to_json(),
                 profile=patient_profile.profile,
-                validationStatus=CaseStatus.GENERATION,
+                validation_status=CaseStatus.GENERATION,
                 batch_identifier="",
                 tags={},
             )

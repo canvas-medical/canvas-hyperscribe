@@ -34,7 +34,8 @@ def test_to_json():
             ),
             {
                 "name": "Patient with Long History",
-                "profile": "Complex 72-year-old patient with multiple comorbidities including diabetes mellitus type 2.",
+                "profile": "Complex 72-year-old patient with multiple comorbidities"
+                " including diabetes mellitus type 2.",
             },
         ),
     ]

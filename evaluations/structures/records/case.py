@@ -9,9 +9,9 @@ from hyperscribe.structures.line import Line
 class Case(NamedTuple):
     name: str
     transcript: dict[str, list[Line]] = {}
-    limitedChart: dict = {}
+    limited_chart: dict = {}
     profile: str = ""
-    validationStatus: CaseStatus = CaseStatus.GENERATION
+    validation_status: CaseStatus = CaseStatus.GENERATION
     batch_identifier: str = ""
     tags: dict = {}
     id: int = 0
@@ -20,10 +20,10 @@ class Case(NamedTuple):
         return {
             "name": self.name,
             "transcript": {key: [line.to_json() for line in lines] for key, lines in self.transcript.items()},
-            "limited_chart": self.limitedChart,
+            "limitedChart": self.limited_chart,
             "profile": self.profile,
-            "validation_status": self.validationStatus.value,
-            "batch_identifier": self.batch_identifier,
+            "validationStatus": self.validation_status.value,
+            "batchIdentifier": self.batch_identifier,
             "tags": self.tags,
             "id": self.id,
         }
@@ -33,10 +33,10 @@ class Case(NamedTuple):
         return Case(
             name=data["name"],
             transcript={key: Line.load_from_json(lines) for key, lines in data["transcript"].items()},
-            limited_chart=data["limited_chart"],
+            limited_chart=data["limitedChart"],
             profile=data["profile"],
-            validation_status=CaseStatus(data["validation_status"]),
-            batch_identifier=data["batch_identifier"],
+            validation_status=CaseStatus(data["validationStatus"]),
+            batch_identifier=data["batchIdentifier"],
             tags=data["tags"],
             id=data["id"],
         )

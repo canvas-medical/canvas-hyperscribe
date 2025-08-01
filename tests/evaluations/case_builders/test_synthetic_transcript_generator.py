@@ -3,6 +3,7 @@ from argparse import Namespace
 from pathlib import Path
 from unittest.mock import patch, MagicMock, call
 from evaluations.case_builders.synthetic_transcript_generator import SyntheticTranscriptGenerator, HelperSyntheticJson
+from evaluations.structures.patient_profile import PatientProfile
 from evaluations.structures.enums.synthetic_case_turn_buckets import SyntheticCaseTurnBuckets
 from evaluations.structures.enums.synthetic_case_mood import SyntheticCaseMood
 from evaluations.structures.enums.synthetic_case_pressure import SyntheticCasePressure
@@ -20,9 +21,13 @@ def create_fake_profiles_file(tmp_path: Path) -> Path:
 
 
 def test__load_profiles(tmp_path):
-    expected = {"Alice": "profile1", "Bob": "profile2"}
+    profiles_dict = {"Alice": "profile1", "Bob": "profile2"}
+    expected = [
+        PatientProfile(name="Alice", profile="profile1"),
+        PatientProfile(name="Bob", profile="profile2"),
+    ]
     profiles_file = tmp_path / "profiles.json"
-    profiles_file.write_text(json.dumps(expected))
+    profiles_file.write_text(json.dumps(profiles_dict))
 
     result = SyntheticTranscriptGenerator.load_profiles_from_file(profiles_file)
     assert result == expected
@@ -46,7 +51,10 @@ def test__random_bucket(mock_choice):
 @patch.object(random, "choice")
 def test__make_specifications(mock_choice, mock_sample, mock_randint, mock_uniform):
     vendor_key = VendorKey(vendor="openai", api_key="MY_KEY")
-    profiles = {"Patient 1": "AAA", "Patient 2": "BBB"}
+    profiles = [
+        PatientProfile(name="Patient 1", profile="AAA"),
+        PatientProfile(name="Patient 2", profile="BBB"),
+    ]
     tested = SyntheticTranscriptGenerator(vendor_key, profiles)
 
     mock_choice.side_effect = (
@@ -88,7 +96,10 @@ def test__make_specifications(mock_choice, mock_sample, mock_randint, mock_unifo
 
 def test_schema_transcript():
     vendor_key = VendorKey(vendor="openai", api_key="MY_KEY")
-    profiles = {"Patient 1": "AAA", "Patient 2": "BBB"}
+    profiles = [
+        PatientProfile(name="Patient 1", profile="AAA"),
+        PatientProfile(name="Patient 2", profile="BBB"),
+    ]
     tested = SyntheticTranscriptGenerator(vendor_key, profiles)
     turn_total = 37
     result = tested.schema_transcript(turn_total)
@@ -158,7 +169,10 @@ def test_generate_transcript_for_profile__success(
 ):
     from evaluations.structures.specification import Specification
 
-    profiles = {"Patient 1": "AAA", "Patient 2": "BBB"}
+    profiles = [
+        PatientProfile(name="Patient 1", profile="AAA"),
+        PatientProfile(name="Patient 2", profile="BBB"),
+    ]
     tested = SyntheticTranscriptGenerator(vendor_key=VendorKey("openai", "KEY"), profiles=profiles)
 
     # Create a proper Specification mock return value
@@ -174,10 +188,10 @@ def test_generate_transcript_for_profile__success(
     )
     mock_make_specifications.return_value = mock_spec
 
-    profile_text = "Sample profile"
+    patient_profile = PatientProfile(name="Sample Patient", profile="Sample profile")
     expected_schema = {"type": "array"}
     mock_schema_transcript.side_effect = lambda _: expected_schema
-    transcript, result_specifications = tested.generate_transcript_for_profile(profile_text)
+    transcript, result_specifications = tested.generate_transcript_for_profile(patient_profile)
 
     # transcript should be Line objects, not dicts
     assert len(transcript) == 1
@@ -209,7 +223,10 @@ def test_generate_transcript_for_profile__success(
 def test_generate_transcript_for_profile__bad_json_raises(
     mock_generate_json, mock_make_specifications, mock_build_prompt, mock_schema_transcript
 ):
-    profiles = {"Patient 1": "AAA", "Patient 2": "BBB"}
+    profiles = [
+        PatientProfile(name="Patient 1", profile="AAA"),
+        PatientProfile(name="Patient 2", profile="BBB"),
+    ]
     vendor_key = VendorKey("openai", "KEY")
     tested = SyntheticTranscriptGenerator(vendor_key, profiles=profiles)
 
@@ -228,9 +245,9 @@ def test_generate_transcript_for_profile__bad_json_raises(
 
     expected_schema = {"type": "array"}
     mock_schema_transcript.side_effect = lambda _: expected_schema
-    profile_text = "Sample profile"
+    patient_profile = PatientProfile(name="Sample Patient", profile="Sample profile")
     with pytest.raises(ValueError) as exc_info:
-        tested.generate_transcript_for_profile(profile_text)
+        tested.generate_transcript_for_profile(patient_profile)
     assert "Invalid JSON" in str(exc_info.value)
 
     assert mock_make_specifications.mock_calls == [call()]
@@ -254,7 +271,10 @@ def test_generate_transcript_for_profile__bad_json_raises(
 @patch.object(SyntheticTranscriptGenerator, "_make_specifications")
 @patch.object(HelperSyntheticJson, "generate_json", return_value=[{"speaker": "Clinician", "text": "Content"}])
 def test_run(mock_generate_json, mock_make_specifications, mock_build_prompt, mock_schema_transcript, tmp_path):
-    profiles = {"Patient 1": "AAA", "Patient 2": "BBB"}
+    profiles = [
+        PatientProfile(name="Patient 1", profile="AAA"),
+        PatientProfile(name="Patient 2", profile="BBB"),
+    ]
     tested = SyntheticTranscriptGenerator(vendor_key=VendorKey("openai", "KEY"), profiles=profiles)
 
     expected_schema = {"type": "array"}

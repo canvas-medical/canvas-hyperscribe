@@ -60,7 +60,7 @@ class AuditorPostgres(AuditorStore):
         self._case_id = store.get_id(self.case)
         if self._case_id == 0:
             self._case_id = store.upsert(
-                CaseRecord(name=self.case, profile=self.case, validationStatus=CaseStatus.GENERATION),
+                CaseRecord(name=self.case, profile=self.case, validation_status=CaseStatus.GENERATION),
             ).id
         else:
             store.update_fields(self._case_id, {"validationStatus": CaseStatus.GENERATION})
