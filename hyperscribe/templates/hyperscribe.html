@@ -296,6 +296,8 @@
             window.displayedTranscriptTimes = new Set();
             window.transcriptSpeakerColors = new Map();
             window.transcriptColorIndex = 0;
+            window.pendingTurns = []; // Queue for turns waiting to be processed
+            window.processingTurns = false; // Flag to prevent overlapping processing
         }
 
         document.addEventListener('DOMContentLoaded', function () {
@@ -501,13 +503,18 @@
                                 window.transcriptSpeakerColors = new Map();
                                 window.transcriptColorIndex = 0;
                             }
+                            if (!window.pendingTurns) {
+                                window.pendingTurns = [];
+                            }
+                            if (window.processingTurns === undefined) {
+                                window.processingTurns = false;
+                            }
 
                             const colors = [
                                 '#FFE6CC', '#E6FFE6', '#FFF0E6', '#F0E6FF', '#FFE6F0',
                                 '#E6FFFF', '#E6F3FF', '#F5FFE6', '#FFE6E6', '#E6E6FF'
                             ];
 
-                            const newDiscussionTurns = [];
                             transcriptMessages.forEach(msg => {
                                 if (msg.message === endOfMessage) {
                                     clearInterval(window.logRefreshId);
@@ -524,20 +531,19 @@
                                     const discussionTurnArray = JSON.parse(msg.message);
                                     // Handle array of DiscussionTurn objects
                                     if (Array.isArray(discussionTurnArray)) {
-                                        // Keep original order within batch (oldest to newest)
+                                        // Add all turns from this batch to the pending queue
                                         discussionTurnArray.forEach(discussionTurn => {
-                                            newDiscussionTurns.push({
-                                                time: new Date(msg.time),
-                                                messageTime: msg.time, // Keep original time string for tracking
-                                                speaker: discussionTurn.speaker,
-                                                text: discussionTurn.text
-                                            });
-
                                             // Assign color to new speakers
                                             if (!window.transcriptSpeakerColors.has(discussionTurn.speaker)) {
                                                 window.transcriptSpeakerColors.set(discussionTurn.speaker, colors[window.transcriptColorIndex % colors.length]);
                                                 window.transcriptColorIndex++;
                                             }
+
+                                            window.pendingTurns.push({
+                                                speaker: discussionTurn.speaker,
+                                                text: discussionTurn.text,
+                                                messageTime: msg.time
+                                            });
                                         });
 
                                         // Mark this message time as displayed
@@ -548,42 +554,22 @@
                                 }
                             });
 
-                            // Only process if we have new turns
-                            if (newDiscussionTurns.length > 0) {
-                                // Keep the original order from the batches (no sorting needed)
-
-                                // Update legend with all known speakers
-                                if (window.transcriptSpeakerColors.size > 0) {
-                                    legend.style.display = 'block';
-                                    legendContent.innerHTML = '';
-                                    window.transcriptSpeakerColors.forEach((color, speaker) => {
-                                        const legendItem = document.createElement('span');
-                                        legendItem.className = 'legend-item';
-                                        legendItem.style.backgroundColor = color;
-                                        legendItem.textContent = speaker;
-                                        legendContent.appendChild(legendItem);
-                                    });
-                                }
-
-                                // Display new transcript turns with delay (one at a time)
-                                // Each batch is already ordered oldest -> newest within the batch
-                                // Insert each turn at top, so newest turn of batch ends up at very top
-                                newDiscussionTurns.forEach((turn, index) => {
-                                    setTimeout(() => {
-                                        const textCell = document.createElement('td');
-
-                                        textCell.textContent = turn.text;
-                                        textCell.style.backgroundColor = window.transcriptSpeakerColors.get(turn.speaker);
-                                        textCell.style.padding = '8px';
-
-                                        const row = document.createElement('tr');
-                                        row.appendChild(textCell);
-                                        row.dataset.messageTime = turn.messageTime; // Add data attribute for tracking
-
-                                        // Insert at the top - batch order: oldest first → newest last → newest ends up at top
-                                        transcriptTbody.insertBefore(row, transcriptTbody.firstChild);
-                                    }, index * 450); // 450ms delay between each row
+                            // Update legend with all known speakers
+                            if (window.transcriptSpeakerColors.size > 0) {
+                                legend.style.display = 'block';
+                                legendContent.innerHTML = '';
+                                window.transcriptSpeakerColors.forEach((color, speaker) => {
+                                    const legendItem = document.createElement('span');
+                                    legendItem.className = 'legend-item';
+                                    legendItem.style.backgroundColor = color;
+                                    legendItem.textContent = speaker;
+                                    legendContent.appendChild(legendItem);
                                 });
+                            }
+
+                            // Start processing turns if not already processing
+                            if (!window.processingTurns && window.pendingTurns.length > 0) {
+                                processTurnQueue();
                             }
                         }
                     }
@@ -599,6 +585,55 @@
             if (transcriptTbody.innerHTML === '') {
                 transcriptTbody.innerHTML = '<tr><td>...</td></tr>';
             }
+        }
+
+        function processTurnQueue() {
+            if (window.pendingTurns.length === 0) {
+                window.processingTurns = false;
+                return;
+            }
+
+            window.processingTurns = true;
+            const transcriptTbody = document.getElementById('transcript-table-body');
+            
+            // Get the first turn from the queue
+            const turn = window.pendingTurns.shift();
+            
+            // Check if the first row is from the same speaker
+            const firstRow = transcriptTbody.firstChild;
+            let shouldCombine = false;
+            
+            if (firstRow && firstRow.tagName === 'TR' && firstRow.dataset.speaker === turn.speaker) {
+                shouldCombine = true;
+            }
+
+            if (shouldCombine) {
+                // Append to existing cell with a line break
+                const existingCell = firstRow.firstChild;
+                existingCell.textContent += '\n' + turn.text;
+                // Update the message time to the most recent
+                firstRow.dataset.messageTime = turn.messageTime;
+            } else {
+                // Create new row at the top
+                const textCell = document.createElement('td');
+                textCell.textContent = turn.text;
+                textCell.style.backgroundColor = window.transcriptSpeakerColors.get(turn.speaker);
+                textCell.style.padding = '8px';
+                textCell.style.whiteSpace = 'pre-wrap';
+
+                const row = document.createElement('tr');
+                row.appendChild(textCell);
+                row.dataset.messageTime = turn.messageTime;
+                row.dataset.speaker = turn.speaker;
+
+                // Insert at the top
+                transcriptTbody.insertBefore(row, transcriptTbody.firstChild);
+            }
+
+            // Wait 450ms then process the next turn
+            setTimeout(() => {
+                processTurnQueue();
+            }, 450);
         }
     </script>
 </body>

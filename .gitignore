@@ -2,7 +2,8 @@
 .idea/
 __pycache__
 debug/
-debug*.py
+debug_*.py
+debug_*.html
 cases_runs/
 .coverage
 .venv
