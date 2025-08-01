@@ -20,7 +20,7 @@ from logger import log
 from hyperscribe.handlers.progress import Progress
 from hyperscribe.libraries.audio_client import AudioClient
 from hyperscribe.libraries.audio_interpreter import AudioInterpreter
-from hyperscribe.libraries.auditor import Auditor
+from hyperscribe.libraries.auditor_base import AuditorBase
 from hyperscribe.libraries.aws_s3 import AwsS3
 from hyperscribe.libraries.cached_sdk import CachedSdk
 from hyperscribe.libraries.constants import Constants
@@ -38,6 +38,8 @@ from hyperscribe.structures.instruction import Instruction
 from hyperscribe.structures.instruction_with_command import InstructionWithCommand
 from hyperscribe.structures.line import Line
 from hyperscribe.structures.settings import Settings
+
+from hyperscribe.libraries.auditor_live import AuditorLive
 
 
 class Commander(BaseProtocol):
@@ -206,8 +208,9 @@ class Commander(BaseProtocol):
             current_commands,
             discussion.previous_instructions,
         )
+        auditor = AuditorLive(chunk_index, settings, aws_s3, identification)
         discussion.previous_instructions, results, discussion.previous_transcript = cls.audio2commands(
-            Auditor(),
+            auditor,
             audios,
             chatter,
             previous_instructions,
@@ -242,7 +245,7 @@ class Commander(BaseProtocol):
     @classmethod
     def audio2commands(
         cls,
-        auditor: Auditor,
+        auditor: AuditorBase,
         audios: list[bytes],
         chatter: AudioInterpreter,
         previous_instructions: list[Instruction],
@@ -271,7 +274,7 @@ class Commander(BaseProtocol):
     @classmethod
     def transcript2commands(
         cls,
-        auditor: Auditor,
+        auditor: AuditorBase,
         transcript: list[Line],
         chatter: AudioInterpreter,
         instructions: list[Instruction],
@@ -307,7 +310,7 @@ class Commander(BaseProtocol):
     @classmethod
     def transcript2commands_common(
         cls,
-        auditor: Auditor,
+        auditor: AuditorBase,
         transcript: list[Line],
         chatter: AudioInterpreter,
         instructions: list[Instruction],
@@ -404,7 +407,7 @@ class Commander(BaseProtocol):
     @classmethod
     def transcript2commands_questionnaires(
         cls,
-        auditor: Auditor,
+        auditor: AuditorBase,
         transcript: list[Line],
         chatter: AudioInterpreter,
         instructions: list[Instruction],
@@ -461,7 +464,7 @@ class Commander(BaseProtocol):
     @classmethod
     def new_commands_from(
         cls,
-        auditor: Auditor,
+        auditor: AuditorBase,
         chatter: AudioInterpreter,
         instructions: list[Instruction],
         past_uuids: dict[str, Instruction],
@@ -505,7 +508,7 @@ class Commander(BaseProtocol):
     @classmethod
     def update_commands_from(
         cls,
-        auditor: Auditor,
+        auditor: AuditorBase,
         chatter: AudioInterpreter,
         instructions: list[Instruction],
         past_uuids: dict[str, Instruction],

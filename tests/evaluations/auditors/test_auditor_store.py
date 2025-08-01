@@ -4,7 +4,7 @@ from unittest.mock import patch, call, MagicMock
 import pytest
 
 from evaluations.auditors.auditor_store import AuditorStore
-from hyperscribe.libraries.auditor import Auditor
+from hyperscribe.libraries.auditor_base import AuditorBase
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.instruction import Instruction
@@ -38,7 +38,7 @@ def helper_instance() -> AuditorStore:
 
 def test_class():
     tested = AuditorStore
-    assert issubclass(tested, Auditor)
+    assert issubclass(tested, AuditorBase)
 
 
 def test___init__():

@@ -5,7 +5,7 @@ from tempfile import NamedTemporaryFile
 from canvas_sdk.commands.commands.questionnaire.question import ResponseOption
 
 from evaluations.constants import Constants
-from hyperscribe.libraries.auditor import Auditor
+from hyperscribe.libraries.auditor_base import AuditorBase
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.instruction import Instruction
 from hyperscribe.structures.instruction_with_command import InstructionWithCommand
@@ -14,7 +14,7 @@ from hyperscribe.structures.line import Line
 from hyperscribe.structures.settings import Settings
 
 
-class AuditorStore(Auditor):
+class AuditorStore(AuditorBase):
     def __init__(self, case: str, cycle: int, settings: Settings, s3_credentials: AwsS3Credentials) -> None:
         super().__init__()
         self.settings = settings

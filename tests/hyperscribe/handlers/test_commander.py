@@ -489,7 +489,7 @@ def test_compute(
 @patch("hyperscribe.handlers.commander.MemoryLog")
 @patch("hyperscribe.handlers.commander.LimitedCache")
 @patch("hyperscribe.handlers.commander.AudioInterpreter")
-@patch("hyperscribe.handlers.commander.Auditor")
+@patch("hyperscribe.handlers.commander.AuditorLive")
 @patch.object(AudioClient, "get_audio_chunk")
 @patch.object(CachedSdk, "save")
 @patch.object(CachedSdk, "get_discussion")
@@ -505,7 +505,7 @@ def test_compute_audio(
     cache_get_discussion,
     cache_save,
     mock_get_audio_chunk,
-    auditor,
+    auditor_live,
     audio_interpreter,
     limited_cache,
     memory_log,
@@ -519,7 +519,7 @@ def test_compute_audio(
         existing_commands_to_instructions.reset_mock()
         existing_commands_to_coded_items.reset_mock()
         command_db.reset_mock()
-        auditor.reset_mock()
+        auditor_live.reset_mock()
         cache_get_discussion.reset_mock()
         cache_save.reset_mock()
         audio_interpreter.reset_mock()
@@ -561,7 +561,7 @@ def test_compute_audio(
     existing_commands_to_instructions.side_effect = []
     existing_commands_to_coded_items.side_effect = []
     command_db.filter.return_value.order_by.side_effect = []
-    auditor.side_effect = []
+    auditor_live.side_effect = []
     cache_get_discussion.side_effect = []
     audio_interpreter.side_effect = []
     limited_cache.side_effect = []
@@ -580,7 +580,7 @@ def test_compute_audio(
     assert existing_commands_to_instructions.mock_calls == []
     assert existing_commands_to_coded_items.mock_calls == []
     assert command_db.mock_calls == []
-    assert auditor.mock_calls == []
+    assert auditor_live.mock_calls == []
     assert cache_get_discussion.mock_calls == []
     assert cache_save.mock_calls == []
     assert audio_interpreter.mock_calls == []
@@ -659,7 +659,7 @@ def test_compute_audio(
         existing_commands_to_instructions.side_effect = [instructions]
         existing_commands_to_coded_items.side_effect = ["stagedCommands"]
         command_db.filter.return_value.order_by.side_effect = ["QuerySetCommands"]
-        auditor.side_effect = ["AuditorInstance"]
+        auditor_live.side_effect = ["AuditorInstance"]
         cache_get_discussion.side_effect = [discussion]
         audio_interpreter.side_effect = ["AudioInterpreterInstance"]
         limited_cache.side_effect = ["LimitedCacheInstance"]
@@ -723,8 +723,8 @@ def test_compute_audio(
             call.filter().order_by("dbid"),
         ]
         assert command_db.mock_calls == calls
-        calls = [call()]
-        assert auditor.mock_calls == calls
+        calls = [call(3, settings, aws_s3_credentials, identification)]
+        assert auditor_live.mock_calls == calls
         calls = [call("noteUuid")]
         assert cache_get_discussion.mock_calls == calls
         calls = [call(), call()]

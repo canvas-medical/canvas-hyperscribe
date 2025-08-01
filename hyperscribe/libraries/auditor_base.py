@@ -4,9 +4,9 @@ from hyperscribe.structures.instruction_with_parameters import InstructionWithPa
 from hyperscribe.structures.line import Line
 
 
-class Auditor:
+class AuditorBase:
     def identified_transcript(self, audios: list[bytes], transcript: list[Line]) -> bool:
-        return True
+        raise NotImplementedError
 
     def found_instructions(
         self,
@@ -14,13 +14,13 @@ class Auditor:
         initial_instructions: list[Instruction],
         cumulated_instructions: list[Instruction],
     ) -> bool:
-        return True
+        raise NotImplementedError
 
     def computed_parameters(self, instructions: list[InstructionWithParameters]) -> bool:
-        return True
+        raise NotImplementedError
 
     def computed_commands(self, instructions: list[InstructionWithCommand]) -> bool:
-        return True
+        raise NotImplementedError
 
     def computed_questionnaires(
         self,
@@ -28,4 +28,4 @@ class Auditor:
         initial_instructions: list[Instruction],
         instructions_with_command: list[InstructionWithCommand],
     ) -> bool:
-        return True
+        raise NotImplementedError

@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hyperscribe Transcript</title>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.1;
+            margin: 0;
+            padding: 10px;
+            color: #333;
+            font-size: 14px;
+        }
+
+        .table-container {
+            max-width: 800px;
+            overflow-x: auto;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            box-shadow: 0 0 5px rgba(0,0,0,0.1);
+            margin: 0 auto;
+        }
+
+        .main-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .main-table th {
+            background-color: #e9ecef;
+            padding: 10px;
+            text-align: left;
+            border-bottom: 2px solid #dee2e6;
+            font-weight: bold;
+        }
+
+        .main-table td {
+            padding: 8px 10px;
+            border-bottom: 1px solid #dee2e6;
+            vertical-align: top;
+        }
+
+        .main-table tr:hover {
+            background-color: #f5f5f5;
+        }
+
+        .speaker-column {
+            font-weight: bold;
+            width: 20%;
+            color: #555;
+        }
+
+        .text-column {
+            width: 80%;
+        }
+
+        .speaker-row-0 {
+            background-color: #f8f9fa;
+        }
+
+        .speaker-row-1 {
+            background-color: #e9ecef;
+        }
+
+        .transcript-marker {
+            background-color: #6c757d;
+            color: white;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .controls-container {
+            margin-bottom: 20px;
+            text-align: center;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .font-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .search-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .control-btn {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 4px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border-radius: 4px;
+            width: 20px;
+            height: 20px;
+        }
+
+        .control-btn .material-icons {
+            font-size: 16px;
+        }
+
+        .control-btn:hover {
+            background-color: #45a049;
+        }
+
+        .search-input {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            min-width: 200px;
+        }
+
+        .highlight {
+            background-color: #ffeb3b;
+            font-weight: bold;
+        }
+
+        .search-count {
+            color: #666;
+            font-size: 12px;
+            margin-left: 10px;
+            min-width: 100px;
+            display: inline-block;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            font-size: 18px;
+            color: #666;
+        }
+
+        .error {
+            color: #d9534f;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #d9534f;
+            border-radius: 4px;
+            background-color: #f9f2f2;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 20px;
+            font-size: 16px;
+            color: #666;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div id="loadingIndicator" class="loading hidden">Loading transcript...</div>
+    <div id="errorMessage" class="error hidden"></div>
+    <div id="noDataMessage" class="no-data hidden">No transcript data available</div>
+    
+    <div class="controls-container" id="controlsContainer" style="display: none;">
+        <div class="font-controls">
+            <button class="control-btn" onclick="decreaseFontSize()" title="Decrease font size">
+                <span class="material-icons">text_decrease</span>
+            </button>
+            <button class="control-btn" onclick="increaseFontSize()" title="Increase font size">
+                <span class="material-icons">text_increase</span>
+            </button>
+        </div>
+        <div class="search-controls">
+            <input type="text" class="search-input" id="searchInput" placeholder="Type to search..." oninput="highlightSearch()">
+            <span class="search-count" id="searchCount"></span>
+        </div>
+    </div>
+    
+    <div class="table-container">
+        <table id="mainTable" class="main-table hidden">
+            <tbody id="tableBody">
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        // urls
+        let dataUrls = {{ url_list | safe}};
+        let allTranscriptData = [];
+        let currentFontSize = 14; // default font size
+        let originalTableContent = []; // store original content for search
+
+        // fetch data from all URLs
+        async function loadAllData() {
+            if (dataUrls.length === 0) {
+                showNoData();
+                return;
+            }
+
+            // show loading indicator
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            loadingIndicator.classList.remove('hidden');
+
+            // hide any previous messages
+            hideAllMessages();
+
+            let errorEncountered = '';
+            try {
+                // Fetch all URLs in parallel
+                const fetchPromises = dataUrls.map(async (url, index) => {
+                    try {
+                        const response = await fetch(url);
+                        if (response.ok) {
+                            return await response.json();
+                        } else {
+                            console.error(`Failed to fetch ${url}: ${response.status} ${response.statusText}`);
+                            return [];
+                        }
+                    } catch (error) {
+                        console.error(`Error fetching ${url}:`, error);
+                        return [];
+                    }
+                });
+
+                const results = await Promise.all(fetchPromises);
+                
+                // Combine all results into a single array
+                let combinedData = [];
+                results.forEach(result => {
+                    if (Array.isArray(result)) {
+                        combinedData = combinedData.concat(result);
+                    }
+                });
+
+                // Combine consecutive turns from the same speaker
+                allTranscriptData = combineConsecutiveTurns(combinedData);
+
+                // Display the combined data
+                displayData();
+            } catch (error) {
+                errorEncountered = error.message;
+            } finally {
+                loadingIndicator.classList.add('hidden');
+                if (errorEncountered !== '') {
+                    console.error('Error loading data:', errorEncountered);
+                    showError(`Error loading data: ${errorEncountered}`);
+                }
+            }
+        }
+
+        // combine consecutive turns from the same speaker
+        function combineConsecutiveTurns(transcriptData) {
+            if (!transcriptData || transcriptData.length === 0) {
+                return [];
+            }
+
+            const combined = [];
+            let currentTurn = null;
+
+            transcriptData.forEach(turn => {
+                const speaker = turn.speaker || 'Unknown';
+                const text = turn.text || '';
+
+                if (currentTurn && currentTurn.speaker === speaker) {
+                    // Same speaker, combine the text
+                    currentTurn.text += ' ' + text;
+                } else {
+                    // Different speaker or first turn, start new turn
+                    if (currentTurn) {
+                        combined.push(currentTurn);
+                    }
+                    currentTurn = {
+                        speaker: speaker,
+                        text: text
+                    };
+                }
+            });
+
+            // Don't forget the last turn
+            if (currentTurn) {
+                combined.push(currentTurn);
+            }
+
+            return combined;
+        }
+
+        // display all transcript data
+        function displayData() {
+            const tableBody = document.getElementById('tableBody');
+            const mainTable = document.getElementById('mainTable');
+            
+            // clear the table body
+            tableBody.innerHTML = '';
+            
+            if (!allTranscriptData || allTranscriptData.length === 0) {
+                showNoData();
+                return;
+            }
+
+            // show the table and controls
+            mainTable.classList.remove('hidden');
+            document.getElementById('controlsContainer').style.display = 'flex';
+            
+            // add beginning marker
+            const beginRow = document.createElement('tr');
+            beginRow.className = 'transcript-marker';
+            beginRow.innerHTML = `<td colspan="2">--- Beginning of Transcript ---</td>`;
+            tableBody.appendChild(beginRow);
+            
+            // keep track of speakers for alternating backgrounds
+            const speakerColors = new Map();
+            let colorIndex = 0;
+            
+            // store original content for search functionality
+            originalTableContent = [];
+            
+            // add each TurnDiscussion to the table
+            allTranscriptData.forEach((turnDiscussion, index) => {
+                const speaker = turnDiscussion.speaker || 'Unknown';
+                const text = turnDiscussion.text || '';
+                
+                // store original content
+                originalTableContent.push({
+                    speaker: speaker,
+                    text: text
+                });
+                
+                // assign a consistent background style for each speaker
+                if (!speakerColors.has(speaker)) {
+                    speakerColors.set(speaker, colorIndex % 2);
+                    colorIndex++;
+                }
+                
+                const row = document.createElement('tr');
+                const speakerColorClass = `speaker-row-${speakerColors.get(speaker)}`;
+                row.className = speakerColorClass;
+                
+                row.innerHTML = `
+                    <td class="speaker-column">${escapeHtml(speaker)}</td>
+                    <td class="text-column">${escapeHtml(text)}</td>
+                `;
+                tableBody.appendChild(row);
+            });
+            
+            // add ending marker
+            const endRow = document.createElement('tr');
+            endRow.className = 'transcript-marker';
+            endRow.innerHTML = `<td colspan="2">--- End of Transcript ---</td>`;
+            tableBody.appendChild(endRow);
+        }
+
+        // utility function to escape HTML
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // show error message
+        function showError(message) {
+            hideAllMessages();
+            const errorMessage = document.getElementById('errorMessage');
+            errorMessage.textContent = message;
+            errorMessage.classList.remove('hidden');
+        }
+
+        // show no data message
+        function showNoData() {
+            hideAllMessages();
+            const noDataMessage = document.getElementById('noDataMessage');
+            noDataMessage.classList.remove('hidden');
+        }
+
+        // hide all messages and table
+        function hideAllMessages() {
+            document.getElementById('errorMessage').classList.add('hidden');
+            document.getElementById('noDataMessage').classList.add('hidden');
+            document.getElementById('mainTable').classList.add('hidden');
+            document.getElementById('controlsContainer').style.display = 'none';
+        }
+
+        // font size controls
+        function increaseFontSize() {
+            currentFontSize += 2;
+            if (currentFontSize > 24) currentFontSize = 24; // max font size
+            document.body.style.fontSize = currentFontSize + 'px';
+        }
+
+        function decreaseFontSize() {
+            currentFontSize -= 2;
+            if (currentFontSize < 10) currentFontSize = 10; // min font size
+            document.body.style.fontSize = currentFontSize + 'px';
+        }
+
+        // search and highlight functionality
+        function highlightSearch() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
+            const tableBody = document.getElementById('tableBody');
+            const searchCountElement = document.getElementById('searchCount');
+            
+            // clear existing content
+            tableBody.innerHTML = '';
+            
+            if (!originalTableContent || originalTableContent.length === 0) {
+                return;
+            }
+            
+            // add beginning marker
+            const beginRow = document.createElement('tr');
+            beginRow.className = 'transcript-marker';
+            beginRow.innerHTML = `<td colspan="2">--- Beginning of Transcript ---</td>`;
+            tableBody.appendChild(beginRow);
+            
+            // keep track of speakers for alternating backgrounds and count occurrences
+            const speakerColors = new Map();
+            let colorIndex = 0;
+            let totalOccurrences = 0;
+            
+            // rebuild table with highlighting
+            originalTableContent.forEach((content, index) => {
+                const speaker = content.speaker;
+                let text = content.text;
+                
+                // assign a consistent background style for each speaker
+                if (!speakerColors.has(speaker)) {
+                    speakerColors.set(speaker, colorIndex % 2);
+                    colorIndex++;
+                }
+                
+                // highlight search term if provided and count occurrences
+                if (searchTerm && searchTerm.length > 0) {
+                    const regex = new RegExp(`(${escapeRegex(searchTerm)})`, 'gi');
+                    const matches = text.match(regex);
+                    if (matches) {
+                        totalOccurrences += matches.length;
+                    }
+                    text = text.replace(regex, '<span class="highlight">$1</span>');
+                }
+                
+                const row = document.createElement('tr');
+                const speakerColorClass = `speaker-row-${speakerColors.get(speaker)}`;
+                row.className = speakerColorClass;
+                
+                row.innerHTML = `
+                    <td class="speaker-column">${escapeHtml(speaker)}</td>
+                    <td class="text-column">${text}</td>
+                `;
+                tableBody.appendChild(row);
+            });
+            
+            // add ending marker
+            const endRow = document.createElement('tr');
+            endRow.className = 'transcript-marker';
+            endRow.innerHTML = `<td colspan="2">--- End of Transcript ---</td>`;
+            tableBody.appendChild(endRow);
+            
+            // update search count display
+            if (searchTerm && searchTerm.length > 0 && totalOccurrences > 0) {
+                searchCountElement.textContent = `${totalOccurrences} occurrence${totalOccurrences === 1 ? '' : 's'}`;
+            } else {
+                searchCountElement.textContent = '';
+            }
+        }
+
+        // utility function to escape regex special characters
+        function escapeRegex(string) {
+            return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        }
+
+        // initialize the page
+        window.onload = function() {
+            loadAllData();
+        };
+    </script>
+</body>
+</html>
