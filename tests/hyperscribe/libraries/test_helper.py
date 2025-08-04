@@ -2,6 +2,8 @@ from datetime import datetime, date
 from enum import Enum
 from unittest.mock import patch, call, MagicMock
 
+from canvas_sdk.v1.data import Task
+
 from hyperscribe.libraries.helper import Helper
 from hyperscribe.llms.llm_anthropic import LlmAnthropic
 from hyperscribe.llms.llm_google import LlmGoogle
@@ -143,3 +145,23 @@ def test_audio2texter():
         assert result.api_key == "audioKey"
         assert result.model == exp_model
         assert result.memory_log == memory_log
+
+
+@patch.object(Task, "objects")
+def test_copilot_task(task_db):
+    def reset_mocks():
+        task_db.reset_mock()
+
+    task_db.filter.return_value.first.side_effect = ["theTask"]
+
+    tested = Helper
+    result = tested.copilot_task("p")
+    expected = "theTask"
+    assert result == expected
+
+    calls = [
+        call.filter(patient__id="p", labels__name="Encounter Copilot"),
+        call.filter().first(),
+    ]
+    assert task_db.mock_calls == calls
+    reset_mocks()

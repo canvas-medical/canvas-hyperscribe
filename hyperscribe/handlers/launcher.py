@@ -1,11 +1,14 @@
 from canvas_sdk.effects import Effect
 from canvas_sdk.effects.launch_modal import LaunchModalEffect
+from canvas_sdk.effects.task.task import AddTask, TaskStatus
 from canvas_sdk.events import EventType
 from canvas_sdk.handlers.action_button import ActionButton
 from canvas_sdk.v1.data.note import Note, CurrentNoteStateEvent
+from canvas_sdk.v1.data.staff import Staff
 
 from hyperscribe.libraries.authenticator import Authenticator
 from hyperscribe.libraries.constants import Constants
+from hyperscribe.libraries.helper import Helper
 from hyperscribe.structures.settings import Settings
 
 
@@ -17,6 +20,7 @@ class Launcher(ActionButton):
     RESPONDS_TO = [EventType.Name(EventType.SHOW_NOTE_HEADER_BUTTON), EventType.Name(EventType.ACTION_BUTTON_CLICKED)]
 
     def handle(self) -> list[Effect]:
+        result: list[Effect] = []
         note_id = str(Note.objects.get(dbid=self.event.context["note_id"]).id)
         patient_id = self.target
 
@@ -26,12 +30,29 @@ class Launcher(ActionButton):
             {},
         )
 
-        hyperscribe_pane = LaunchModalEffect(
-            url=presigned_url,
-            target=LaunchModalEffect.TargetType.RIGHT_CHART_PANE,
-            title="Hyperscribe",
+        result.append(
+            LaunchModalEffect(
+                url=presigned_url,
+                target=LaunchModalEffect.TargetType.RIGHT_CHART_PANE,
+                title="Hyperscribe",
+            ).apply()
         )
-        return [hyperscribe_pane.apply()]
+
+        team_id = self.secrets[Constants.COPILOTS_TEAM_FHIR_GROUP_ID]
+        staff_id = Staff.objects.get(dbid=Constants.CANVAS_BOT_DBID).id
+
+        if Helper.copilot_task(patient_id) is None:
+            result.append(
+                AddTask(
+                    assignee_id=staff_id,
+                    team_id=team_id,
+                    patient_id=patient_id,
+                    title=Constants.LABEL_ENCOUNTER_COPILOT,
+                    status=TaskStatus.OPEN,
+                    labels=[Constants.LABEL_ENCOUNTER_COPILOT],
+                ).apply()
+            )
+        return result
 
     def visible(self) -> bool:
         settings = Settings.from_dictionary(self.secrets)

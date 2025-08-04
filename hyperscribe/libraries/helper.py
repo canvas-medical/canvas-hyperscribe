@@ -3,6 +3,8 @@ from enum import Enum
 from re import match
 from typing import Type
 
+from canvas_sdk.v1.data import Task
+
 from hyperscribe.libraries.constants import Constants
 from hyperscribe.libraries.memory_log import MemoryLog
 from hyperscribe.llms.llm_anthropic import LlmAnthropic
@@ -57,3 +59,7 @@ class Helper:
         if settings.llm_audio.vendor.upper() == Constants.VENDOR_GOOGLE.upper():
             result = LlmGoogle
         return result(memory_log, settings.llm_audio.api_key, settings.llm_audio_model(), settings.audit_llm)
+
+    @classmethod
+    def copilot_task(cls, patient_id: str) -> Task | None:
+        return Task.objects.filter(patient__id=patient_id, labels__name=Constants.LABEL_ENCOUNTER_COPILOT).first()

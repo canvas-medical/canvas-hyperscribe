@@ -6,8 +6,9 @@ from canvas_generated.messages.events_pb2 import Event as EventRequest
 from canvas_sdk.events import Event
 from canvas_sdk.events.base import TargetType
 from canvas_sdk.handlers.action_button import ActionButton
-from canvas_sdk.v1.data.patient import Patient
 from canvas_sdk.v1.data.note import Note, CurrentNoteStateEvent
+from canvas_sdk.v1.data.patient import Patient
+from canvas_sdk.v1.data.staff import Staff
 
 from hyperscribe.handlers.launcher import Launcher
 from tests.helper import is_constant
@@ -30,49 +31,89 @@ def test_constants():
     assert is_constant(tested, constants)
 
 
+@patch.object(Staff, "objects")
 @patch.object(Note, "objects")
+@patch("hyperscribe.handlers.launcher.Helper")
 @patch("hyperscribe.handlers.launcher.Authenticator")
 @patch("hyperscribe.handlers.launcher.LaunchModalEffect")
-def test_handle(launch_modal_effect, authenticator, note_db):
+def test_handle(launch_modal_effect, authenticator, helper, note_db, staff_db):
     def reset_mocks():
         launch_modal_effect.reset_mock()
         authenticator.reset_mock()
+        helper.reset_mock()
         note_db.reset_mock()
+        staff_db.reset_mock()
 
-    launch_modal_effect.return_value.apply.side_effect = [Effect(type="LOG", payload="SomePayload")]
-    launch_modal_effect.TargetType.RIGHT_CHART_PANE = "right_chart_pane"
-    authenticator.presigned_url.side_effect = ["/plugin-io/api/hyperscribe/capture/patientId/noteId"]
-    note_db.get.return_value.id = "noteId"
-
-    event = Event(EventRequest(context='{"note_id":"noteId"}'))
-    event.target = TargetType(id="patientId", type=Patient)
-    secrets = {
-        "AudioHost": "https://the.audio.server/path/to/audios/",
-        "AudioIntervalSeconds": 7,
-        "APISigningKey": "theApiSigningKey",
-    }
-    environment = {"CUSTOMER_IDENTIFIER": "theTestEnv"}
-    tested = Launcher(event, secrets, environment)
-    result = tested.handle()
-    expected = [Effect(type="LOG", payload="SomePayload")]
-    assert result == expected
-
-    calls = [
-        call(url="/plugin-io/api/hyperscribe/capture/patientId/noteId", target="right_chart_pane", title="Hyperscribe"),
-        call().apply(),
+    tests = [
+        (
+            None,
+            Effect(
+                type="CREATE_TASK",
+                payload=json.dumps(
+                    {
+                        "data": {
+                            "patient": {"id": "patientId"},
+                            "due": None,
+                            "assignee": {"id": "staffId"},
+                            "team": {"id": "theCopilotsTeamFHIRGroupId"},
+                            "title": "Encounter Copilot",
+                            "status": "OPEN",
+                            "labels": ["Encounter Copilot"],
+                        },
+                    }
+                ),
+            ),
+        ),
+        ("aTask", None),
     ]
-    assert launch_modal_effect.mock_calls == calls
-    calls = [
-        call.presigned_url(
-            "theApiSigningKey",
-            "/plugin-io/api/hyperscribe/capture/patientId/noteId",
-            {},
-        )
-    ]
-    assert authenticator.mock_calls == calls
-    calls = [call.get(dbid="noteId")]
-    assert note_db.mock_calls == calls
-    reset_mocks()
+    for task, exp_effect in tests:
+        launch_modal_effect.return_value.apply.side_effect = [Effect(type="LOG", payload="SomePayload")]
+        launch_modal_effect.TargetType.RIGHT_CHART_PANE = "right_chart_pane"
+        authenticator.presigned_url.side_effect = ["/plugin-io/api/hyperscribe/capture/patientId/noteId"]
+        helper.copilot_task.side_effect = [task]
+        note_db.get.side_effect = [Note(id="noteId")]
+        staff_db.get.side_effect = [Staff(id="staffId")]
+
+        event = Event(EventRequest(context='{"note_id":"noteId"}'))
+        event.target = TargetType(id="patientId", type=Patient)
+        secrets = {
+            "AudioHost": "https://the.audio.server/path/to/audios/",
+            "AudioIntervalSeconds": 7,
+            "APISigningKey": "theApiSigningKey",
+            "CopilotsTeamFHIRGroupId": "theCopilotsTeamFHIRGroupId",
+        }
+        environment = {"CUSTOMER_IDENTIFIER": "theTestEnv"}
+        tested = Launcher(event, secrets, environment)
+        result = tested.handle()
+        expected = [Effect(type="LOG", payload="SomePayload")]
+        if exp_effect:
+            expected.append(exp_effect)
+        assert result == expected
+
+        calls = [
+            call(
+                url="/plugin-io/api/hyperscribe/capture/patientId/noteId",
+                target="right_chart_pane",
+                title="Hyperscribe",
+            ),
+            call().apply(),
+        ]
+        assert launch_modal_effect.mock_calls == calls
+        calls = [
+            call.presigned_url(
+                "theApiSigningKey",
+                "/plugin-io/api/hyperscribe/capture/patientId/noteId",
+                {},
+            )
+        ]
+        assert authenticator.mock_calls == calls
+        calls = [call.copilot_task("patientId")]
+        assert helper.mock_calls == calls
+        calls = [call.get(dbid="noteId")]
+        assert note_db.mock_calls == calls
+        calls = [call.get(dbid=1)]
+        assert staff_db.mock_calls == calls
+        reset_mocks()
 
 
 @patch.object(CurrentNoteStateEvent, "objects")

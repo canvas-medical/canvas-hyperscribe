@@ -6,6 +6,7 @@ from time import time
 import requests
 from canvas_sdk.effects import Effect
 from canvas_sdk.effects.simple_api import Response, HTMLResponse
+from canvas_sdk.effects.task.task import AddTaskComment
 from canvas_sdk.handlers.simple_api import Credentials, SimpleAPI, api
 from canvas_sdk.templates import render_to_string
 from canvas_sdk.v1.data.staff import Staff
@@ -14,6 +15,8 @@ from logger import log
 from hyperscribe.libraries.audio_client import AudioClient
 from hyperscribe.libraries.authenticator import Authenticator
 from hyperscribe.libraries.constants import Constants
+from hyperscribe.libraries.helper import Helper
+from hyperscribe.structures.comment_body import CommentBody
 
 
 class CaptureView(SimpleAPI):
@@ -96,17 +99,26 @@ class CaptureView(SimpleAPI):
                 "patient_id": patient_id,
             },
         )
-
         audio_client.add_session(patient_id, note_id, session_id, logged_in_user_id, user_token)
 
-        comment_text = json.dumps(
-            {
-                "note_id": note_id,
-                "patient_id": patient_id,
-                "chunk_index": 1,
-            }
-        )
-        return self.fhir_task_upsert(patient_id, comment_text)
+        effects = []
+        if task := Helper.copilot_task(patient_id):
+            effects = [
+                AddTaskComment(
+                    task_id=str(task.id),
+                    body=json.dumps(
+                        CommentBody(
+                            note_id=note_id,
+                            patient_id=patient_id,
+                            chunk_index=1,
+                            is_paused=False,
+                            created=task.created,
+                            finished=None,
+                        ).to_dict(),
+                    ),
+                ).apply(),
+            ]
+        return effects
 
     @api.post("/capture/idle/<patient_id>/<note_id>/<action>")
     def idle_session_post(self) -> list[Response | Effect]:
@@ -114,15 +126,25 @@ class CaptureView(SimpleAPI):
         patient_id = self.request.path_params["patient_id"]
         note_id = self.request.path_params["note_id"]
         action = self.request.path_params["action"]
-        comment_text = json.dumps(
-            {
-                "note_id": note_id,
-                "patient_id": patient_id,
-                "chunk_index": Constants.AUDIO_IDLE_INDEX,
-                "is_paused": bool(action == Constants.AUDIO_IDLE_PAUSE),
-            }
-        )
-        return self.fhir_task_upsert(patient_id, comment_text)
+
+        effects = []
+        if task := Helper.copilot_task(patient_id):
+            effects = [
+                AddTaskComment(
+                    task_id=str(task.id),
+                    body=json.dumps(
+                        CommentBody(
+                            note_id=note_id,
+                            patient_id=patient_id,
+                            chunk_index=Constants.AUDIO_IDLE_INDEX,
+                            is_paused=bool(action == Constants.AUDIO_IDLE_PAUSE),
+                            created=task.created,
+                            finished=None,
+                        ).to_dict(),
+                    ),
+                ).apply(),
+            ]
+        return effects
 
     def fhir_task_upsert(self, patient_id: str, text: str) -> list[Response]:
         team_id = self.secrets[Constants.COPILOTS_TEAM_FHIR_GROUP_ID]
@@ -192,7 +214,7 @@ class CaptureView(SimpleAPI):
         note_id = self.request.path_params["note_id"]
         response = audio_client.save_audio_chunk(patient_id, note_id, audio_form_part)
 
-        if response.status_code != 201:
+        if response.status_code != HTTPStatus.CREATED:
             log.info(f"Failed to save chunk with status {response.status_code}: {str(response.content)}")
             return [Response(response.content, HTTPStatus(response.status_code))]
 

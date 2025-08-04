@@ -1,17 +1,21 @@
+import json
 import re
 from datetime import datetime
 from http import HTTPStatus
 from types import SimpleNamespace
 from unittest.mock import patch, call
 
+from canvas_generated.messages.effects_pb2 import Effect
 from canvas_sdk.effects.simple_api import Response, HTMLResponse
 from canvas_sdk.handlers.simple_api import SimpleAPI, Credentials
+from canvas_sdk.v1.data import Task
 from canvas_sdk.v1.data.staff import Staff
 
 from hyperscribe.handlers.capture_view import CaptureView
 from hyperscribe.libraries.audio_client import AudioClient
 from hyperscribe.libraries.authenticator import Authenticator
 from hyperscribe.libraries.constants import Constants
+from hyperscribe.libraries.helper import Helper
 
 # Disable automatic route resolution
 CaptureView._ROUTES = {}
@@ -108,61 +112,141 @@ def test_capture_get(authenticator, render_to_string):
 
 
 @patch("hyperscribe.handlers.capture_view.AudioClient")
-@patch.object(CaptureView, "fhir_task_upsert")
-def test_new_session_post(fhir_task_upsert, audio_client):
+@patch.object(Helper, "copilot_task")
+def test_new_session_post(copilot_task, audio_client):
     def reset_mocks():
-        fhir_task_upsert.reset_mock()
+        copilot_task.reset_mock()
         audio_client.reset_mock()
 
-    audio_client.for_operation.return_value.get_user_token.side_effect = ["theUserToken"]
-    audio_client.for_operation.return_value.create_session.side_effect = ["theSessionId"]
-    fhir_task_upsert.side_effect = ["theFhirResponse"]
-
-    tested = helper_instance()
-    tested.request = SimpleNamespace(
-        path_params={"patient_id": "p", "note_id": "n"},
-        headers={"canvas-logged-in-user-id": "u"},
-    )
-    result = tested.new_session_post()
-    expected = "theFhirResponse"
-    assert result == expected
-
-    calls = [call("p", '{"note_id": "n", "patient_id": "p", "chunk_index": 1}')]
-    assert fhir_task_upsert.mock_calls == calls
-    calls = [
-        call.for_operation("https://audio", "customerIdentifier", "shared"),
-        call.for_operation().get_user_token("u"),
-        call.for_operation().create_session("theUserToken", {"note_id": "n", "patient_id": "p"}),
-        call.for_operation().add_session("p", "n", "theSessionId", "u", "theUserToken"),
+    tests = [
+        (
+            Task(id="theTaskId", created=datetime(2025, 5, 8, 12, 34, 56, 123456)),
+            [
+                Effect(
+                    type="CREATE_TASK_COMMENT",
+                    payload=json.dumps(
+                        {
+                            "data": {
+                                "task": {"id": "theTaskId"},
+                                "body": json.dumps(
+                                    {
+                                        "chunk_index": 1,
+                                        "note_id": "n",
+                                        "patient_id": "p",
+                                        "is_paused": False,
+                                        "created": "2025-05-08T12:34:56.123456",
+                                        "finished": None,
+                                    }
+                                ),
+                            },
+                        }
+                    ),
+                )
+            ],
+        ),
+        (None, []),
     ]
-    assert audio_client.mock_calls == calls
-    reset_mocks()
+    for task, expected in tests:
+        audio_client.for_operation.return_value.get_user_token.side_effect = ["theUserToken"]
+        audio_client.for_operation.return_value.create_session.side_effect = ["theSessionId"]
+        copilot_task.side_effect = [task]
+        audio_client.for_operation.return_value.add_session.side_effect = ["theFhirResponse"]
+
+        tested = helper_instance()
+        tested.request = SimpleNamespace(
+            path_params={"patient_id": "p", "note_id": "n"},
+            headers={"canvas-logged-in-user-id": "u"},
+        )
+        result = tested.new_session_post()
+        assert result == expected
+
+        calls = [call("p")]
+        assert copilot_task.mock_calls == calls
+        calls = [
+            call.for_operation("https://audio", "customerIdentifier", "shared"),
+            call.for_operation().get_user_token("u"),
+            call.for_operation().create_session("theUserToken", {"note_id": "n", "patient_id": "p"}),
+            call.for_operation().add_session("p", "n", "theSessionId", "u", "theUserToken"),
+        ]
+        assert audio_client.mock_calls == calls
+        reset_mocks()
 
 
-@patch.object(CaptureView, "fhir_task_upsert")
-def test_idle_session_post(fhir_task_upsert):
+@patch.object(Helper, "copilot_task")
+def test_idle_session_post(copilot_task):
     def reset_mocks():
-        fhir_task_upsert.reset_mock()
+        copilot_task.reset_mock()
 
     tested = helper_instance()
 
     tests = [
-        ("pause", '{"note_id": "n", "patient_id": "p", "chunk_index": -1, "is_paused": true}'),
-        ("resume", '{"note_id": "n", "patient_id": "p", "chunk_index": -1, "is_paused": false}'),
+        ("pause", None, []),
+        ("resume", None, []),
+        (
+            "pause",
+            Task(id="theTaskId", created=datetime(2025, 5, 8, 12, 34, 56, 123456)),
+            [
+                Effect(
+                    type="CREATE_TASK_COMMENT",
+                    payload=json.dumps(
+                        {
+                            "data": {
+                                "task": {"id": "theTaskId"},
+                                "body": json.dumps(
+                                    {
+                                        "chunk_index": -1,
+                                        "note_id": "n",
+                                        "patient_id": "p",
+                                        "is_paused": True,
+                                        "created": "2025-05-08T12:34:56.123456",
+                                        "finished": None,
+                                    }
+                                ),
+                            },
+                        }
+                    ),
+                )
+            ],
+        ),
+        (
+            "resume",
+            Task(id="theTaskId", created=datetime(2025, 5, 8, 12, 34, 56, 123456)),
+            [
+                Effect(
+                    type="CREATE_TASK_COMMENT",
+                    payload=json.dumps(
+                        {
+                            "data": {
+                                "task": {"id": "theTaskId"},
+                                "body": json.dumps(
+                                    {
+                                        "chunk_index": -1,
+                                        "note_id": "n",
+                                        "patient_id": "p",
+                                        "is_paused": False,
+                                        "created": "2025-05-08T12:34:56.123456",
+                                        "finished": None,
+                                    }
+                                ),
+                            },
+                        }
+                    ),
+                )
+            ],
+        ),
     ]
-    for action, comment in tests:
-        fhir_task_upsert.side_effect = ["theFhirResponse"]
+    for action, task, expected in tests:
+        copilot_task.side_effect = [task]
 
         tested.request = SimpleNamespace(
             path_params={"patient_id": "p", "note_id": "n", "action": action},
             headers={"canvas-logged-in-user-id": "u"},
         )
         result = tested.idle_session_post()
-        expected = "theFhirResponse"
         assert result == expected
 
-        calls = [call("p", comment)]
-        assert fhir_task_upsert.mock_calls == calls
+        calls = [call("p")]
+        assert copilot_task.mock_calls == calls
         reset_mocks()
 
 
