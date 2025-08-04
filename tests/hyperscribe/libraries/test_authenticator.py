@@ -98,3 +98,17 @@ def test_presigned_url(mock_time):
         calls = [call()]
         assert mock_time.mock_calls == calls
         reset_mocks()
+
+
+@patch.object(Authenticator, "presigned_url")
+def test_presigned_url_no_params(presigned_url):
+    def reset_mock():
+        presigned_url.reset_mock()
+
+    tested = Authenticator
+    presigned_url.side_effect = ["theUrl"]
+    result = tested.presigned_url_no_params("theSecret", "theUrl")
+    assert result == "theUrl"
+    calls = [call("theSecret", "theUrl", {})]
+    assert presigned_url.mock_calls == calls
+    reset_mock()

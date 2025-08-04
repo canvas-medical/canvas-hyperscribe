@@ -1,15 +1,17 @@
 import re
+from datetime import datetime
+from http import HTTPStatus
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import patch, call
 
 from canvas_sdk.effects.simple_api import Response, HTMLResponse
 from canvas_sdk.handlers.simple_api import SimpleAPI, Credentials
+from canvas_sdk.v1.data.staff import Staff
 
-import hyperscribe.handlers.capture_view as capture_view
 from hyperscribe.handlers.capture_view import CaptureView
-from hyperscribe.libraries.constants import Constants
-from hyperscribe.libraries.authenticator import Authenticator
 from hyperscribe.libraries.audio_client import AudioClient
+from hyperscribe.libraries.authenticator import Authenticator
+from hyperscribe.libraries.constants import Constants
 
 # Disable automatic route resolution
 CaptureView._ROUTES = {}
@@ -19,14 +21,14 @@ def helper_instance():
     # Minimal fake event with method context
     event = SimpleNamespace(context={"method": "GET"})
     secrets = {
-        Constants.SECRET_API_SIGNING_KEY: "signkey",
+        Constants.SECRET_API_SIGNING_KEY: "signingKey",
         Constants.SECRET_AUDIO_HOST: "https://audio",
         Constants.SECRET_AUDIO_HOST_PRE_SHARED_KEY: "shared",
         Constants.SECRET_AUDIO_INTERVAL: 5,
         Constants.COPILOTS_TEAM_FHIR_GROUP_ID: "team123",
-        Constants.FUMAGE_BEARER_TOKEN: "btok",
+        Constants.FUMAGE_BEARER_TOKEN: "bearerToken",
     }
-    environment = {Constants.CUSTOMER_IDENTIFIER: "cust"}
+    environment = {Constants.CUSTOMER_IDENTIFIER: "customerIdentifier"}
     view = CaptureView(event, secrets, environment)
     view._path_pattern = re.compile(r".*")
     return view
@@ -50,7 +52,7 @@ def test_authenticate(check):
     # False case
     check.return_value = False
     assert view.authenticate(creds) is False
-    check.assert_called_once_with("signkey", Constants.API_SIGNED_EXPIRATION_SECONDS, {"ts": "123", "sig": "abc"})
+    check.assert_called_once_with("signingKey", Constants.API_SIGNED_EXPIRATION_SECONDS, {"ts": "123", "sig": "abc"})
     check.reset_mock()
 
     # True case
@@ -59,58 +61,183 @@ def test_authenticate(check):
     check.assert_called_once()
 
 
-def test_capture_get(monkeypatch):
-    view = helper_instance()
-    view.request = SimpleNamespace(path_params={"patient_id": "p", "note_id": "n"}, query_params={}, headers={})
-    # stub presigned_url and template
-    urls = []
-    monkeypatch.setattr(
-        Authenticator, "presigned_url", lambda key, url, params=None: urls.append((url, params)) or "url"
-    )
-    monkeypatch.setattr(capture_view, "render_to_string", lambda tmpl, ctx: "<html/>")
+@patch("hyperscribe.handlers.capture_view.render_to_string")
+@patch("hyperscribe.handlers.capture_view.Authenticator")
+def test_capture_get(authenticator, render_to_string):
+    def reset_mocks():
+        authenticator.reset_mock()
+        render_to_string.reset_mock()
 
-    result = view.capture_get()
-    assert isinstance(result, list) and len(result) == 1
-    resp = result[0]
-    assert isinstance(resp, HTMLResponse)
-    # Access .content or .body
-    content = getattr(resp, "content", None) or getattr(resp, "body", None)
-    if isinstance(content, bytes):
-        content = content.decode()
-    assert "<html/>" in content
-    # three URLs generated
-    assert len(urls) == 3
-    expected_routes = [
-        f"{Constants.PLUGIN_API_BASE_ROUTE}/progress",
-        f"{Constants.PLUGIN_API_BASE_ROUTE}/capture/new-session/p/n",
-        f"{Constants.PLUGIN_API_BASE_ROUTE}/audio/p/n",
+    render_to_string.side_effect = ["<html/>"]
+    authenticator.presigned_url.side_effect = ["Url1"]
+    authenticator.presigned_url_no_params.side_effect = ["Url2", "Url3", "Url4", "Url5"]
+
+    tested = helper_instance()
+    tested.request = SimpleNamespace(path_params={"patient_id": "p", "note_id": "n"}, query_params={}, headers={})
+
+    result = tested.capture_get()
+    expected = [HTMLResponse(content="<html/>", status_code=HTTPStatus(200))]
+    assert result == expected
+
+    calls = [
+        call.presigned_url("signingKey", "/plugin-io/api/hyperscribe/progress", {"note_id": "n"}),
+        call.presigned_url_no_params("signingKey", "/plugin-io/api/hyperscribe/capture/new-session/p/n"),
+        call.presigned_url_no_params("signingKey", "/plugin-io/api/hyperscribe/capture/idle/p/n/pause"),
+        call.presigned_url_no_params("signingKey", "/plugin-io/api/hyperscribe/capture/idle/p/n/resume"),
+        call.presigned_url_no_params("signingKey", "/plugin-io/api/hyperscribe/audio/p/n"),
     ]
-    assert [u[0] for u in urls] == expected_routes
+    assert authenticator.mock_calls == calls
+    calls = [
+        call(
+            "templates/hyperscribe.html",
+            {
+                "patientUuid": "p",
+                "noteUuid": "n",
+                "interval": 5,
+                "endFlag": "EOF",
+                "progressURL": "Url1",
+                "newSessionURL": "Url2",
+                "pauseSessionURL": "Url3",
+                "resumeSessionURL": "Url4",
+                "saveAudioURL": "Url5",
+            },
+        ),
+    ]
+    assert render_to_string.mock_calls == calls
+    reset_mocks()
 
 
-@patch.object(AudioClient, "get_user_token", return_value="ut")
-@patch.object(AudioClient, "create_session", return_value="sid")
-@patch.object(AudioClient, "add_session")
-@patch("hyperscribe.handlers.capture_view.Staff.objects.get", return_value=SimpleNamespace(id="staffid"))
-def test_new_session_post(get_staff, add_sess, create_sess, get_utok, monkeypatch):
-    view = helper_instance()
-    view.request = SimpleNamespace(
-        path_params={"patient_id": "p", "note_id": "n"}, headers={"canvas-logged-in-user-id": "u"}
+@patch("hyperscribe.handlers.capture_view.AudioClient")
+@patch.object(CaptureView, "fhir_task_upsert")
+def test_new_session_post(fhir_task_upsert, audio_client):
+    def reset_mocks():
+        fhir_task_upsert.reset_mock()
+        audio_client.reset_mock()
+
+    audio_client.for_operation.return_value.get_user_token.side_effect = ["theUserToken"]
+    audio_client.for_operation.return_value.create_session.side_effect = ["theSessionId"]
+    fhir_task_upsert.side_effect = ["theFhirResponse"]
+
+    tested = helper_instance()
+    tested.request = SimpleNamespace(
+        path_params={"patient_id": "p", "note_id": "n"},
+        headers={"canvas-logged-in-user-id": "u"},
     )
-    fake = SimpleNamespace(content=b"ok", status_code=201)
-    monkeypatch.setattr(capture_view.requests, "post", lambda url, json, headers: fake)
+    result = tested.new_session_post()
+    expected = "theFhirResponse"
+    assert result == expected
 
-    result = view.new_session_post()
-    assert isinstance(result, list)
-    assert len(result) == 1
-    resp = result[0]
-    assert isinstance(resp, Response)
-    assert resp.content == b"ok"
-    assert resp.status_code == 201
-    get_staff.assert_called_once_with(dbid=Constants.CANVAS_BOT_DBID)
-    get_utok.assert_called_once_with("u")
-    create_sess.assert_called_once_with("ut", {"patient_id": "p", "note_id": "n"})
-    add_sess.assert_called_once_with("p", "n", "sid", "u", "ut")
+    calls = [call("p", '{"note_id": "n", "patient_id": "p", "chunk_index": 1}')]
+    assert fhir_task_upsert.mock_calls == calls
+    calls = [
+        call.for_operation("https://audio", "customerIdentifier", "shared"),
+        call.for_operation().get_user_token("u"),
+        call.for_operation().create_session("theUserToken", {"note_id": "n", "patient_id": "p"}),
+        call.for_operation().add_session("p", "n", "theSessionId", "u", "theUserToken"),
+    ]
+    assert audio_client.mock_calls == calls
+    reset_mocks()
+
+
+@patch.object(CaptureView, "fhir_task_upsert")
+def test_idle_session_post(fhir_task_upsert):
+    def reset_mocks():
+        fhir_task_upsert.reset_mock()
+
+    tested = helper_instance()
+
+    tests = [
+        ("pause", '{"note_id": "n", "patient_id": "p", "chunk_index": -1, "is_paused": true}'),
+        ("resume", '{"note_id": "n", "patient_id": "p", "chunk_index": -1, "is_paused": false}'),
+    ]
+    for action, comment in tests:
+        fhir_task_upsert.side_effect = ["theFhirResponse"]
+
+        tested.request = SimpleNamespace(
+            path_params={"patient_id": "p", "note_id": "n", "action": action},
+            headers={"canvas-logged-in-user-id": "u"},
+        )
+        result = tested.idle_session_post()
+        expected = "theFhirResponse"
+        assert result == expected
+
+        calls = [call("p", comment)]
+        assert fhir_task_upsert.mock_calls == calls
+        reset_mocks()
+
+
+@patch("hyperscribe.handlers.capture_view.datetime", wraps=datetime)
+@patch("hyperscribe.handlers.capture_view.time")
+@patch("hyperscribe.handlers.capture_view.log")
+@patch("hyperscribe.handlers.capture_view.requests")
+@patch.object(Staff, "objects")
+def test_fhir_task_upsert(staff_db, requests, log, time_mock, datetime_mock):
+    def reset_mocks():
+        staff_db.reset_mock()
+        requests.reset_mock()
+        log.reset_mock()
+        time_mock.reset_mock()
+        datetime_mock.reset_mock()
+
+    staff_db.get.side_effect = [Staff(id=123)]
+    requests.post.side_effect = [Response(content=b"ok", status_code=HTTPStatus(202))]
+    time_mock.side_effect = [123456.87, 123478.91]
+    datetime_mock.now.side_effect = [datetime(2025, 8, 3, 23, 55, 8, 955044)]
+
+    tested = helper_instance()
+    tested.request = SimpleNamespace(
+        path_params={"patient_id": "p", "note_id": "n"},
+        headers={"canvas-logged-in-user-id": "u"},
+    )
+    result = tested.fhir_task_upsert("thePatientId", "theText")
+    expected = [Response(content=b"ok", status_code=HTTPStatus(202))]
+    assert result == expected
+
+    calls = [call.get(dbid=1)]
+    assert staff_db.mock_calls == calls
+    calls = [
+        call.post(
+            "https://fumage-customerIdentifier.canvasmedical.com/Task",
+            json={
+                "resourceType": "Task",
+                "extension": [
+                    {
+                        "url": "http://schemas.canvasmedical.com/fhir/extensions/task-group",
+                        "valueReference": {"reference": "Group/team123"},
+                    },
+                ],
+                "status": "requested",
+                "intent": "unknown",
+                "description": "Encounter Copilot",
+                "for": {"reference": "Patient/thePatientId"},
+                "authoredOn": "2025-08-03T23:55:08.955044+00:00",
+                "requester": {"reference": "Practitioner/123"},
+                "owner": {"reference": "Practitioner/123"},
+                "note": [
+                    {
+                        "authorReference": {"reference": "Practitioner/123"},
+                        "time": "2025-08-03T23:55:08.955044+00:00",
+                        "text": "theText",
+                    },
+                ],
+                "input": [
+                    {
+                        "type": {"text": "label"},
+                        "valueString": "Encounter Copilot",
+                    },
+                ],
+            },
+            headers={"Authorization": "Bearer bearerToken"},
+        )
+    ]
+    assert requests.mock_calls == calls
+    calls = [call.info("FHIR Task Create duration: 22.04 seconds")]
+    assert log.mock_calls == calls
+    calls = [call(), call()]
+    assert time_mock.mock_calls == calls
+    calls = [call.now()]
+    assert datetime_mock.mock_calls == calls
+    reset_mocks()
 
 
 @patch.object(AudioClient, "save_audio_chunk")

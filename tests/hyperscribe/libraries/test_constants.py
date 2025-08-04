@@ -106,5 +106,9 @@ def test_constants():
         "FUMAGE_BEARER_TOKEN": "FumageBearerToken",
         "COPILOTS_TEAM_FHIR_GROUP_ID": "CopilotsTeamFHIRGroupId",
         "CANVAS_BOT_DBID": 1,
+        #
+        "AUDIO_IDLE_PAUSE": "pause",
+        "AUDIO_IDLE_RESUME": "resume",
+        "AUDIO_IDLE_INDEX": -1,
     }
     assert is_constant(tested, constants)
