@@ -1,16 +1,15 @@
 import json
-import requests
-
 from datetime import datetime
 from http import HTTPStatus
-from logger import log
 from time import time
 
+import requests
 from canvas_sdk.effects import Effect
 from canvas_sdk.effects.simple_api import Response, HTMLResponse
 from canvas_sdk.handlers.simple_api import Credentials, SimpleAPI, api
 from canvas_sdk.templates import render_to_string
 from canvas_sdk.v1.data.staff import Staff
+from logger import log
 
 from hyperscribe.libraries.audio_client import AudioClient
 from hyperscribe.libraries.authenticator import Authenticator
@@ -42,7 +41,14 @@ class CaptureView(SimpleAPI):
             self.secrets[Constants.SECRET_API_SIGNING_KEY],
             f"{Constants.PLUGIN_API_BASE_ROUTE}/capture/new-session/{patient_id}/{note_id}",
         )
-
+        pause_session_url = Authenticator.presigned_url_no_params(
+            self.secrets[Constants.SECRET_API_SIGNING_KEY],
+            f"{Constants.PLUGIN_API_BASE_ROUTE}/capture/idle/{patient_id}/{note_id}/{Constants.AUDIO_IDLE_PAUSE}",
+        )
+        resume_session_url = Authenticator.presigned_url_no_params(
+            self.secrets[Constants.SECRET_API_SIGNING_KEY],
+            f"{Constants.PLUGIN_API_BASE_ROUTE}/capture/idle/{patient_id}/{note_id}/{Constants.AUDIO_IDLE_RESUME}",
+        )
         save_audio_url = Authenticator.presigned_url_no_params(
             self.secrets[Constants.SECRET_API_SIGNING_KEY],
             f"{Constants.PLUGIN_API_BASE_ROUTE}/audio/{patient_id}/{note_id}",
@@ -50,11 +56,13 @@ class CaptureView(SimpleAPI):
 
         context = {
             "patientUuid": patient_id,
-            "noteUUID": note_id,
+            "noteUuid": note_id,
             "interval": self.secrets[Constants.SECRET_AUDIO_INTERVAL],
             "endFlag": Constants.PROGRESS_END_OF_MESSAGES,
             "progressURL": progress_url,
             "newSessionURL": new_session_url,
+            "pauseSessionURL": pause_session_url,
+            "resumeSessionURL": resume_session_url,
             "saveAudioURL": save_audio_url,
         }
 
@@ -91,12 +99,6 @@ class CaptureView(SimpleAPI):
 
         audio_client.add_session(patient_id, note_id, session_id, logged_in_user_id, user_token)
 
-        team_id = self.secrets[Constants.COPILOTS_TEAM_FHIR_GROUP_ID]
-        # team_id = Team.objects.get(name='Copilots').id
-        # The above doesn't work because the FHIR group id is not the team.id
-        # and the FHIR group id is not exposed in the data model :/
-
-        staff_id = Staff.objects.get(dbid=Constants.CANVAS_BOT_DBID).id
         comment_text = json.dumps(
             {
                 "note_id": note_id,
@@ -104,6 +106,30 @@ class CaptureView(SimpleAPI):
                 "chunk_index": 1,
             }
         )
+        return self.fhir_task_upsert(patient_id, comment_text)
+
+    @api.post("/capture/idle/<patient_id>/<note_id>/<action>")
+    def idle_session_post(self) -> list[Response | Effect]:
+        # based on the requested 'state', either pause or resume the flow by adding a new comment to the task
+        patient_id = self.request.path_params["patient_id"]
+        note_id = self.request.path_params["note_id"]
+        action = self.request.path_params["action"]
+        comment_text = json.dumps(
+            {
+                "note_id": note_id,
+                "patient_id": patient_id,
+                "chunk_index": Constants.AUDIO_IDLE_INDEX,
+                "is_paused": bool(action == Constants.AUDIO_IDLE_PAUSE),
+            }
+        )
+        return self.fhir_task_upsert(patient_id, comment_text)
+
+    def fhir_task_upsert(self, patient_id: str, text: str) -> list[Response]:
+        team_id = self.secrets[Constants.COPILOTS_TEAM_FHIR_GROUP_ID]
+        # team_id = Team.objects.get(name='Copilots').id
+        # The above doesn't work because the FHIR group id is not the team.id
+        # and the FHIR group id is not exposed in the data model :/
+        staff_id = Staff.objects.get(dbid=Constants.CANVAS_BOT_DBID).id
 
         # TODO: handle timezone, this appears wrong in the UI,
         # creation time is off by 5 hours
@@ -130,7 +156,7 @@ class CaptureView(SimpleAPI):
                 {
                     "authorReference": {"reference": f"Practitioner/{staff_id}"},
                     "time": now_timestamp,
-                    "text": comment_text,
+                    "text": text,
                 }
             ],
             "input": [{"type": {"text": "label"}, "valueString": Constants.LABEL_ENCOUNTER_COPILOT}],
@@ -140,17 +166,17 @@ class CaptureView(SimpleAPI):
         # TODO: https://github.com/canvas-medical/canvas-plugins/issues/733
         response = requests.post(url, json=payload, headers=headers)
         log.info(f"FHIR Task Create duration: {int(100 * (time() - t0)) / 100} seconds")
-        return [Response(response.content, response.status_code)]
+        return [Response(response.content, HTTPStatus(response.status_code))]
 
     @api.post("/audio/<patient_id>/<note_id>")
     def audio_chunk_post(self) -> list[Response | Effect]:
         form_data = self.request.form_data()
         if "audio" not in form_data:
-            return [Response(b"No audio file part in the request", 400)]
+            return [Response(b"No audio file part in the request", HTTPStatus.BAD_REQUEST)]
 
         audio_form_part = form_data["audio"]
         if not audio_form_part.is_file():
-            return [Response(b"The audio form part is not a file", 422)]
+            return [Response(b"The audio form part is not a file", HTTPStatus.UNPROCESSABLE_ENTITY)]
 
         log.info(f"audio_form_part.name: {audio_form_part.name}")
         log.info(f"audio_form_part.filename: {audio_form_part.filename}")
@@ -168,6 +194,6 @@ class CaptureView(SimpleAPI):
 
         if response.status_code != 201:
             log.info(f"Failed to save chunk with status {response.status_code}: {str(response.content)}")
-            return [Response(response.content, response.status_code)]
+            return [Response(response.content, HTTPStatus(response.status_code))]
 
-        return [Response(b"Audio chunk saved OK", 201)]
+        return [Response(b"Audio chunk saved OK", HTTPStatus.CREATED)]

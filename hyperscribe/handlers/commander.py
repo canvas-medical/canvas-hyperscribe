@@ -73,7 +73,7 @@ class Commander(BaseProtocol):
             log.info("  => discussion is ended")
             return []
         # the pause status can be set only with chunk_index equals to -1
-        if information.chunk_index == -1:
+        if information.chunk_index == Constants.AUDIO_IDLE_INDEX:
             stop_and_go.is_paused = information.is_paused
             stop_and_go.save()
         if stop_and_go.is_paused:

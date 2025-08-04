@@ -20,8 +20,16 @@
             height: auto;
         }
 
-        .toggle-button {
+        .button-container {
             margin-top: 20px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        .toggle-button {
             width: 80px;
             height: 80px;
             font-size: 18px;
@@ -39,6 +47,64 @@
 
         .toggle-button.active {
             border-color: red;
+        }
+
+        .toggle-button.paused {
+            background-color: #666;
+        }
+
+        .toggle-button.medium {
+            width: 72px;
+            height: 72px;
+            font-size: 16px;
+        }
+
+        .toggle-button.small {
+            width: 64px;
+            height: 64px;
+            font-size: 14px;
+        }
+
+        .pause-button {
+            width: 64px;
+            height: 64px;
+            font-size: 14px;
+            font-weight: bold;
+            color: white;
+            background-color: #666;
+            border: 5px solid transparent;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .pause-button:disabled {
+            background-color: #ccc;
+            color: #888;
+            cursor: not-allowed;
+        }
+
+        .pause-button:not(:disabled) {
+            background-color: #333;
+        }
+
+        .pause-button.large {
+            width: 80px;
+            height: 80px;
+            font-size: 18px;
+        }
+
+        .pause-button.resume {
+            border-color: green;
+        }
+
+        .pause-button.small {
+            width: 64px;
+            height: 64px;
+            font-size: 14px;
         }
 
         .debug-message {
@@ -199,7 +265,7 @@
             align-items: center;
             width: 100%;
             height: 100vh;
-            padding-top: 40px;
+            padding-top: 5px;
             box-sizing: border-box; /* Include padding in height calculation */
             position: relative; /* For proper positioning of child elements */
         }
@@ -208,13 +274,22 @@
 <body>
     <div class="app-container">
         <img src="https://images.prismic.io/canvas-website/Z8VfRhsAHJWomCr3_hyperscribe_logo.png?auto=format,compress" alt="Logo" class="logo">
-        <button
-            class="toggle-button"
-            id="captureButton"
-            data-interval="{{interval}}"
-            onclick="toggleRecording('{{patientUuid}}', '{{noteUUID}}')">
-            Start
-        </button>
+        <div class="button-container">
+            <button
+                class="toggle-button"
+                id="captureButton"
+                data-interval="{{interval}}"
+                onclick="toggleRecording('{{patientUuid}}', '{{noteUuid}}')">
+                Start
+            </button>
+            <button
+                class="pause-button"
+                id="pauseButton"
+                disabled
+                onclick="togglePause()">
+                Pause
+            </button>
+        </div>
 
         <div id="debugMessage" class="debug-message"></div>
 
@@ -263,25 +338,95 @@
             document.getElementById(tabName + '-container').classList.add('active');
         }
 
+        // Button state management
+        let isRecordingActive = false;
+        let isPaused = false;
+
+        function togglePause() {
+            const captureButton = document.getElementById("captureButton");
+            const pauseButton = document.getElementById("pauseButton");
+            
+            if (!isPaused) {
+                // Pause recording
+                isPaused = true;
+                captureButton.disabled = true;
+                captureButton.classList.add("small", "paused");
+                captureButton.classList.remove("medium", "active");
+                pauseButton.textContent = "Resume";
+                pauseButton.classList.add("large", "resume");
+                pauseButton.classList.remove("small");
+                
+                // Pause the intervals
+                if (window.logRefreshId) clearInterval(window.logRefreshId);
+                if (window.cellRefreshId) clearInterval(window.cellRefreshId);
+                
+                // Fetch pause session URL
+                fetch('{{pauseSessionURL | safe}}', {method: "POST"})
+                .then(response => response.text())
+                .then(result => console.log(result))
+                .catch(error => console.error('Error pausing session:', error));
+            } else {
+                // Resume recording
+                isPaused = false;
+                captureButton.disabled = false;
+                captureButton.classList.add("medium", "active");
+                captureButton.classList.remove("small", "paused");
+                pauseButton.textContent = "Pause";
+                pauseButton.classList.remove("large", "resume");
+                pauseButton.classList.add("small");
+                
+                // Resume the intervals
+                const timeLogRefresh = 1.7;
+                const timeCellRefresh = 2.3;
+                const progressURL = '{{progressURL | safe}}';
+                const messageEndFlag = '{{endFlag}}';
+                window.logRefreshId = setInterval(() => fetchAndDisplayProgress(progressURL, messageEndFlag), timeLogRefresh * 1000);
+                window.cellRefreshId = setInterval(updateTimeCells, timeCellRefresh * 1000);
+                
+                // Fetch resume session URL
+                fetch('{{resumeSessionURL | safe}}', {method: "POST"})
+                .then(response => response.text())
+                .then(result => console.log(result))
+                .catch(error => console.error('Error resuming session:', error));
+            }
+        }
+
         const button = document.getElementById("captureButton");
         button.addEventListener("click", () => {
-            button.classList.toggle("active");
-            button.textContent = button.classList.contains("active") ? "Stop" : "Start";
-            if (button.classList.contains("active")){
-              resetTable();
-              resetTranscriptTable();
-              const timeLogRefresh = 1.7;
-              const timeCellRefresh = 2.3;
-              const progressURL = '{{progressURL | safe}}';
-              const messageEndFlag = '{{endFlag}}';
-              window.previousMessage = new Date();
-              // window.previousMessage =new Date('2025-05-01T22:20:10.757050+00:00');
-              window.logRefreshId = setInterval(() => fetchAndDisplayProgress(progressURL, messageEndFlag), timeLogRefresh * 1000);
-              window.cellRefreshId = setInterval(updateTimeCells, timeCellRefresh * 1000);
+            const pauseButton = document.getElementById("pauseButton");
+            
+            if (!isRecordingActive) {
+                // Start recording
+                isRecordingActive = true;
+                isPaused = false;
+                button.classList.add("active", "medium");
+                button.textContent = "Stop";
+                pauseButton.disabled = false;
+                pauseButton.classList.add("small");
+                
+                resetTable();
+                resetTranscriptTable();
+                const timeLogRefresh = 1.7;
+                const timeCellRefresh = 2.3;
+                const progressURL = '{{progressURL | safe}}';
+                const messageEndFlag = '{{endFlag}}';
+                window.previousMessage = new Date();
+                window.logRefreshId = setInterval(() => fetchAndDisplayProgress(progressURL, messageEndFlag), timeLogRefresh * 1000);
+                window.cellRefreshId = setInterval(updateTimeCells, timeCellRefresh * 1000);
             } else {
-              // Stop all intervals when recording stops
-              if (window.logRefreshId) clearInterval(window.logRefreshId);
-              if (window.cellRefreshId) clearInterval(window.cellRefreshId);
+                // Stop recording
+                isRecordingActive = false;
+                isPaused = false;
+                button.classList.remove("active", "medium", "small");
+                button.textContent = "Start";
+                button.disabled = false;
+                pauseButton.disabled = true;
+                pauseButton.textContent = "Pause";
+                pauseButton.classList.remove("large", "small");
+                
+                // Stop all intervals when recording stops
+                if (window.logRefreshId) clearInterval(window.logRefreshId);
+                if (window.cellRefreshId) clearInterval(window.cellRefreshId);
             }
         });
 
@@ -326,7 +471,6 @@
                 // Stop recording
                 mediaRecorder.stop();
                 clearInterval(intervalId);
-                button.textContent = "Start";
                 isRecording = false;
                 console.log(`Recording stopped for patient ${patientId}.`);
             } else {
@@ -377,7 +521,6 @@
                         mediaRecorder.requestData(); // Request current chunk for upload
                     }, 1000 * recordingIntervalInSeconds);
 
-                    button.textContent = "Stop";
                     isRecording = true;
                     console.log(`Recording started for patient ${patientId}...`);
                 } catch (error) {
@@ -595,14 +738,14 @@
 
             window.processingTurns = true;
             const transcriptTbody = document.getElementById('transcript-table-body');
-            
+
             // Get the first turn from the queue
             const turn = window.pendingTurns.shift();
-            
+
             // Check if the first row is from the same speaker
             const firstRow = transcriptTbody.firstChild;
             let shouldCombine = false;
-            
+
             if (firstRow && firstRow.tagName === 'TR' && firstRow.dataset.speaker === turn.speaker) {
                 shouldCombine = true;
             }
