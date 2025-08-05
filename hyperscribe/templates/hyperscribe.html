@@ -338,27 +338,137 @@
             document.getElementById(tabName + '-container').classList.add('active');
         }
 
+        // Constants
+        const CONSTANTS = {
+            REFRESH_INTERVALS: {
+                LOG: 1.7 * 1000,
+                CELL: 2.3 * 1000,
+                TURN_PROCESSING: 450
+            },
+            AUDIO: {
+                MIME_TYPE: "audio/webm"
+            },
+            SPEAKER_COLORS: [
+                '#FFE6CC', '#E6FFE6', '#FFF0E6', '#F0E6FF', '#FFE6F0',
+                '#E6FFFF', '#E6F3FF', '#F5FFE6', '#FFE6E6', '#E6E6FF'
+            ]
+        };
+
         // Button state management
         let isRecordingActive = false;
-        let isPaused = false;
+        let isPaused = {{isPaused|yesno:"true,false"}};
 
-        function togglePause() {
+        // Button state manager
+        function setButtonState(state) {
             const captureButton = document.getElementById("captureButton");
             const pauseButton = document.getElementById("pauseButton");
             
+            const states = {
+                inactive: {
+                    capture: { text: "Start", classes: [], disabled: false },
+                    pause: { text: "Pause", classes: [], disabled: true }
+                },
+                active: {
+                    capture: { text: "Stop", classes: ["active", "medium"], disabled: false },
+                    pause: { text: "Pause", classes: ["small"], disabled: false }
+                },
+                paused: {
+                    capture: { text: "Stop", classes: ["small", "paused", "active"], disabled: true },
+                    pause: { text: "Resume", classes: ["large", "resume"], disabled: false }
+                }
+            };
+            
+            const config = states[state];
+            
+            // Apply capture button state
+            captureButton.textContent = config.capture.text;
+            captureButton.disabled = config.capture.disabled;
+            captureButton.className = "toggle-button";
+            config.capture.classes.forEach(cls => captureButton.classList.add(cls));
+            
+            // Apply pause button state
+            pauseButton.textContent = config.pause.text;
+            pauseButton.disabled = config.pause.disabled;
+            pauseButton.className = "pause-button";
+            config.pause.classes.forEach(cls => pauseButton.classList.add(cls));
+        }
+
+        // Interval management
+        const intervalManager = {
+            intervals: new Map(),
+            
+            start(name, callback, delay) {
+                this.stop(name);
+                this.intervals.set(name, setInterval(callback, delay));
+            },
+            
+            stop(name) {
+                const intervalId = this.intervals.get(name);
+                if (intervalId) {
+                    clearInterval(intervalId);
+                    this.intervals.delete(name);
+                }
+            },
+            
+            stopAll() {
+                this.intervals.forEach((_, name) => this.stop(name));
+            },
+            
+            startProgressIntervals() {
+                const progressURL = '{{progressURL | safe}}';
+                const messageEndFlag = '{{endFlag}}';
+                this.start('logRefresh', () => fetchAndDisplayProgress(progressURL, messageEndFlag), CONSTANTS.REFRESH_INTERVALS.LOG);
+                this.start('cellRefresh', updateTimeCells, CONSTANTS.REFRESH_INTERVALS.CELL);
+            }
+        };
+
+        // MediaRecorder management
+        async function setupMediaRecorder(patientId, noteId) {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            
+            if (!MediaRecorder.isTypeSupported(CONSTANTS.AUDIO.MIME_TYPE)) {
+                throw new Error(`MIME type ${CONSTANTS.AUDIO.MIME_TYPE} is not supported.`);
+            }
+
+            const recorder = new MediaRecorder(stream, { mimeType: CONSTANTS.AUDIO.MIME_TYPE });
+            
+            recorder.ondataavailable = (event) => {
+                if (event.data.size > 0) {
+                    const audioBlob = new Blob([event.data], { type: CONSTANTS.AUDIO.MIME_TYPE });
+                    const formData = new FormData();
+                    chunkId += 1;
+                    const chunkIndex = String(chunkId).padStart(3, '0');
+                    formData.append("audio", audioBlob, `chunk_${chunkIndex}_${patientId}_${noteId}.webm`);
+
+                    fetch('{{saveAudioURL | safe}}', {
+                        method: "POST",
+                        body: formData,
+                    })
+                    .then(response => response.text())
+                    .then(result => console.log(result))
+                    .catch(error => console.error('Error uploading audio:', error));
+                }
+            };
+            
+            return recorder;
+        }
+
+        async function togglePause() {
             if (!isPaused) {
                 // Pause recording
                 isPaused = true;
-                captureButton.disabled = true;
-                captureButton.classList.add("small", "paused");
-                captureButton.classList.remove("medium", "active");
-                pauseButton.textContent = "Resume";
-                pauseButton.classList.add("large", "resume");
-                pauseButton.classList.remove("small");
+                setButtonState('paused');
                 
-                // Pause the intervals
-                if (window.logRefreshId) clearInterval(window.logRefreshId);
-                if (window.cellRefreshId) clearInterval(window.cellRefreshId);
+                // Stop the MediaRecorder
+                if (mediaRecorder && isRecording) {
+                    mediaRecorder.stop();
+                    clearInterval(intervalId);
+                    isRecording = false;
+                    console.log("Recording paused");
+                }
+                
+                // Stop intervals
+                intervalManager.stopAll();
                 
                 // Fetch pause session URL
                 fetch('{{pauseSessionURL | safe}}', {method: "POST"})
@@ -368,20 +478,28 @@
             } else {
                 // Resume recording
                 isPaused = false;
-                captureButton.disabled = false;
-                captureButton.classList.add("medium", "active");
-                captureButton.classList.remove("small", "paused");
-                pauseButton.textContent = "Pause";
-                pauseButton.classList.remove("large", "resume");
-                pauseButton.classList.add("small");
+                setButtonState('active');
                 
-                // Resume the intervals
-                const timeLogRefresh = 1.7;
-                const timeCellRefresh = 2.3;
-                const progressURL = '{{progressURL | safe}}';
-                const messageEndFlag = '{{endFlag}}';
-                window.logRefreshId = setInterval(() => fetchAndDisplayProgress(progressURL, messageEndFlag), timeLogRefresh * 1000);
-                window.cellRefreshId = setInterval(updateTimeCells, timeCellRefresh * 1000);
+                // Restart the MediaRecorder
+                if (!isRecording) {
+                    try {
+                        const recordingIntervalInSeconds = parseInt(document.getElementById("captureButton").dataset.interval);
+                        mediaRecorder = await setupMediaRecorder('{{patientUuid}}', '{{noteUuid}}');
+                        
+                        mediaRecorder.start();
+                        intervalId = setInterval(() => {
+                            mediaRecorder.requestData();
+                        }, 1000 * recordingIntervalInSeconds);
+                        
+                        isRecording = true;
+                        console.log("Recording resumed");
+                    } catch (error) {
+                        console.error("Error resuming recording:", error);
+                    }
+                }
+                
+                // Resume intervals
+                intervalManager.startProgressIntervals();
                 
                 // Fetch resume session URL
                 fetch('{{resumeSessionURL | safe}}', {method: "POST"})
@@ -393,40 +511,24 @@
 
         const button = document.getElementById("captureButton");
         button.addEventListener("click", () => {
-            const pauseButton = document.getElementById("pauseButton");
-            
             if (!isRecordingActive) {
                 // Start recording
                 isRecordingActive = true;
                 isPaused = false;
-                button.classList.add("active", "medium");
-                button.textContent = "Stop";
-                pauseButton.disabled = false;
-                pauseButton.classList.add("small");
+                setButtonState('active');
                 
                 resetTable();
                 resetTranscriptTable();
-                const timeLogRefresh = 1.7;
-                const timeCellRefresh = 2.3;
-                const progressURL = '{{progressURL | safe}}';
-                const messageEndFlag = '{{endFlag}}';
                 window.previousMessage = new Date();
-                window.logRefreshId = setInterval(() => fetchAndDisplayProgress(progressURL, messageEndFlag), timeLogRefresh * 1000);
-                window.cellRefreshId = setInterval(updateTimeCells, timeCellRefresh * 1000);
+                intervalManager.startProgressIntervals();
             } else {
                 // Stop recording
                 isRecordingActive = false;
                 isPaused = false;
-                button.classList.remove("active", "medium", "small");
-                button.textContent = "Start";
-                button.disabled = false;
-                pauseButton.disabled = true;
-                pauseButton.textContent = "Pause";
-                pauseButton.classList.remove("large", "small");
+                setButtonState('inactive');
                 
-                // Stop all intervals when recording stops
-                if (window.logRefreshId) clearInterval(window.logRefreshId);
-                if (window.cellRefreshId) clearInterval(window.cellRefreshId);
+                // Stop all intervals
+                intervalManager.stopAll();
             }
         });
 
@@ -445,9 +547,25 @@
             window.processingTurns = false; // Flag to prevent overlapping processing
         }
 
+        function initializeButtonStates() {
+            if (isPaused) {
+                // Initialize as paused state
+                isRecordingActive = true;
+                setButtonState('paused');
+                // Initialize previousMessage for paused state
+                window.previousMessage = new Date();
+            } else {
+                // Initialize as normal state
+                isRecordingActive = false;
+                isPaused = false;
+                setButtonState('inactive');
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', function () {
             resetTable();
             resetTranscriptTable();
+            initializeButtonStates();
         });
 
         // -----------------------------------------------------------------
@@ -653,10 +771,7 @@
                                 window.processingTurns = false;
                             }
 
-                            const colors = [
-                                '#FFE6CC', '#E6FFE6', '#FFF0E6', '#F0E6FF', '#FFE6F0',
-                                '#E6FFFF', '#E6F3FF', '#F5FFE6', '#FFE6E6', '#E6E6FF'
-                            ];
+                            const colors = CONSTANTS.SPEAKER_COLORS;
 
                             transcriptMessages.forEach(msg => {
                                 if (msg.message === endOfMessage) {
@@ -773,10 +888,10 @@
                 transcriptTbody.insertBefore(row, transcriptTbody.firstChild);
             }
 
-            // Wait 450ms then process the next turn
+            // Wait for next turn processing
             setTimeout(() => {
                 processTurnQueue();
-            }, 450);
+            }, CONSTANTS.REFRESH_INTERVALS.TURN_PROCESSING);
         }
     </script>
 </body>

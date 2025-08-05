@@ -1,3 +1,4 @@
+import json
 from datetime import datetime, date
 from enum import Enum
 from re import match
@@ -11,6 +12,7 @@ from hyperscribe.llms.llm_anthropic import LlmAnthropic
 from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.llms.llm_google import LlmGoogle
 from hyperscribe.llms.llm_openai import LlmOpenai
+from hyperscribe.structures.comment_body import CommentBody
 from hyperscribe.structures.settings import Settings
 
 
@@ -63,3 +65,12 @@ class Helper:
     @classmethod
     def copilot_task(cls, patient_id: str) -> Task | None:
         return Task.objects.filter(patient__id=patient_id, labels__name=Constants.LABEL_ENCOUNTER_COPILOT).first()
+
+    @classmethod
+    def is_copilot_session_paused(cls, patient_id: str, note_id: str) -> bool:
+        if task := cls.copilot_task(patient_id):
+            for comment in task.comments.all().order_by("-created"):
+                information = CommentBody.load_from_json(json.loads(comment.body))
+                if information.note_id == note_id and information.chunk_index == Constants.AUDIO_IDLE_INDEX:
+                    return information.is_paused
+        return False

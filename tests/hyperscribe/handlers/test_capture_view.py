@@ -65,16 +65,19 @@ def test_authenticate(check):
     check.assert_called_once()
 
 
+@patch("hyperscribe.handlers.capture_view.Helper")
 @patch("hyperscribe.handlers.capture_view.render_to_string")
 @patch("hyperscribe.handlers.capture_view.Authenticator")
-def test_capture_get(authenticator, render_to_string):
+def test_capture_get(authenticator, render_to_string, helper):
     def reset_mocks():
         authenticator.reset_mock()
         render_to_string.reset_mock()
+        helper.reset_mock()
 
     render_to_string.side_effect = ["<html/>"]
     authenticator.presigned_url.side_effect = ["Url1"]
     authenticator.presigned_url_no_params.side_effect = ["Url2", "Url3", "Url4", "Url5"]
+    helper.is_copilot_session_paused.side_effect = [True]
 
     tested = helper_instance()
     tested.request = SimpleNamespace(path_params={"patient_id": "p", "note_id": "n"}, query_params={}, headers={})
@@ -104,10 +107,13 @@ def test_capture_get(authenticator, render_to_string):
                 "pauseSessionURL": "Url3",
                 "resumeSessionURL": "Url4",
                 "saveAudioURL": "Url5",
+                "isPaused": True,
             },
         ),
     ]
     assert render_to_string.mock_calls == calls
+    calls = [call.is_copilot_session_paused("p", "n")]
+    assert helper.mock_calls == calls
     reset_mocks()
 
 
