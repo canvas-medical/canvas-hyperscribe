@@ -1,8 +1,9 @@
+import json
 from datetime import datetime, date
 from enum import Enum
 from unittest.mock import patch, call, MagicMock
 
-from canvas_sdk.v1.data import Task
+from canvas_sdk.v1.data import Task, TaskComment
 
 from hyperscribe.libraries.helper import Helper
 from hyperscribe.llms.llm_anthropic import LlmAnthropic
@@ -165,3 +166,72 @@ def test_copilot_task(task_db):
     ]
     assert task_db.mock_calls == calls
     reset_mocks()
+
+
+@patch.object(Helper, "copilot_task")
+def test_is_copilot_session_paused(copilot_task):
+    task_mock = MagicMock()
+
+    def reset_mocks():
+        copilot_task.reset_mock()
+        task_mock.reset_mock()
+
+    comments = [
+        TaskComment(body=json.dumps({"note_id": "noteId"})),
+        TaskComment(body=json.dumps({"isPaused": True, "note_id": "noteId"})),
+        TaskComment(body=json.dumps({"isPaused": False, "note_id": "noteId"})),
+        TaskComment(body=json.dumps({"isPaused": True, "note_id": "noteId"})),
+        TaskComment(body=json.dumps({"isPaused": True, "note_id": "noteId"})),
+        TaskComment(body=json.dumps({"isPaused": True, "note_id": "noteId"})),
+        TaskComment(body=json.dumps({"isPaused": True, "note_id": "noteId"})),
+    ]
+
+    tests = [
+        (None, [], False),
+        (task_mock, [], False),
+        (
+            task_mock,
+            [
+                TaskComment(body=json.dumps({"note_id": "noteId", "chunk_index": 2})),
+                TaskComment(body=json.dumps({"is_paused": True, "note_id": "noteId", "chunk_index": -1})),
+                TaskComment(body=json.dumps({"is_paused": False, "note_id": "noteId", "chunk_index": -1})),
+            ],
+            True,
+        ),
+        (
+            task_mock,
+            [
+                TaskComment(body=json.dumps({"note_id": "noteId", "chunk_index": 2})),
+                TaskComment(body=json.dumps({"is_paused": False, "note_id": "noteId", "chunk_index": -1})),
+                TaskComment(body=json.dumps({"is_paused": True, "note_id": "noteId", "chunk_index": -1})),
+            ],
+            False,
+        ),
+        (
+            task_mock,
+            [
+                TaskComment(body=json.dumps({"is_paused": True, "note_id": "noteId2", "chunk_index": -1})),
+            ],
+            False,
+        ),
+    ]
+    for task, comments, expected in tests:
+        copilot_task.side_effect = [task]
+        task_mock.comments.all.return_value.order_by.side_effect = [comments]
+
+        tested = Helper
+        result = tested.is_copilot_session_paused("patientId", "noteId")
+        assert result == expected
+
+        calls = [call("patientId")]
+        assert copilot_task.mock_calls == calls
+
+        calls = []
+        if task is not None:
+            calls = [
+                call.__bool__(),
+                call.comments.all(),
+                call.comments.all().order_by("-created"),
+            ]
+        assert task_mock.mock_calls == calls
+        reset_mocks()

@@ -67,6 +67,7 @@ class CaptureView(SimpleAPI):
             "pauseSessionURL": pause_session_url,
             "resumeSessionURL": resume_session_url,
             "saveAudioURL": save_audio_url,
+            "isPaused": Helper.is_copilot_session_paused(patient_id, note_id),
         }
 
         return [
