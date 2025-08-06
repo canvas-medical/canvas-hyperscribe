@@ -21,6 +21,7 @@ from hyperscribe.handlers.progress import Progress
 from hyperscribe.libraries.audio_client import AudioClient
 from hyperscribe.libraries.audio_interpreter import AudioInterpreter
 from hyperscribe.libraries.auditor_base import AuditorBase
+from hyperscribe.libraries.auditor_live import AuditorLive
 from hyperscribe.libraries.aws_s3 import AwsS3
 from hyperscribe.libraries.cached_sdk import CachedSdk
 from hyperscribe.libraries.constants import Constants
@@ -38,8 +39,6 @@ from hyperscribe.structures.instruction import Instruction
 from hyperscribe.structures.instruction_with_command import InstructionWithCommand
 from hyperscribe.structures.line import Line
 from hyperscribe.structures.settings import Settings
-
-from hyperscribe.libraries.auditor_live import AuditorLive
 
 
 class Commander(BaseProtocol):
@@ -61,26 +60,67 @@ class Commander(BaseProtocol):
 
         return wrapper
 
+    @classmethod
+    def session_state_effects(cls, task_id: str, information: CommentBody) -> tuple[bool, int, list[Effect]]:
+        paused_effects: list[Effect] = []
+        stop_and_go = StopAndGo.get(information.note_id)
+        # as soon as a message sets is_ended, it is finished without any possibility to restart
+        if stop_and_go.is_ended():
+            log.info("  => discussion is ended")
+            return False, Constants.AUDIO_IDLE_INDEX, []
+        # the pause status can be set only with chunk_index equals to -1
+        if information.chunk_index == Constants.AUDIO_IDLE_INDEX:
+            # on resuming the session, add back the paused effects
+            if not information.is_paused and stop_and_go.is_paused() and (effects := stop_and_go.paused_effects()):
+                paused_effects = effects
+                stop_and_go.reset_paused_effect()
+            stop_and_go.set_paused(information.is_paused)
+            stop_and_go.save()
+        if stop_and_go.is_paused():
+            log.info("  => discussion is paused")
+            return False, Constants.AUDIO_IDLE_INDEX, []
+
+        if paused_effects:
+            # send the paused effects, end go to the next cycle
+            stop_and_go.set_cycle(stop_and_go.cycle() + 1)
+            paused_effects.append(
+                AddTaskComment(
+                    task_id=task_id,
+                    body=json.dumps(
+                        CommentBody(
+                            note_id=information.note_id,
+                            patient_id=information.patient_id,
+                            chunk_index=stop_and_go.cycle(),
+                            is_paused=False,
+                            created=information.created,
+                            finished=None,
+                        ).to_dict(),
+                    ),
+                ).apply(),
+            )
+            stop_and_go.set_running(False)
+            stop_and_go.save()
+            return False, Constants.AUDIO_IDLE_INDEX, paused_effects
+
+        # ensure that pause/resume does not start the same cycle
+        if stop_and_go.is_running():
+            log.info("  => discussion is already running")
+            return False, Constants.AUDIO_IDLE_INDEX, []
+        else:
+            stop_and_go.set_running(True)
+            stop_and_go.save()
+        # continue or resume the cycles
+        return True, stop_and_go.cycle(), []
+
     def compute(self) -> list[Effect]:
         comment = TaskComment.objects.get(id=self.target)
         if not comment.task.labels.filter(name=Constants.LABEL_ENCOUNTER_COPILOT).first():
             return []
 
         information = CommentBody.load_from_json(json.loads(comment.body))
-        stop_and_go = StopAndGo.get(information.note_id)
-        # as soon as a message sets is_ended, it is finished without any possibility to restart
-        if stop_and_go.is_ended:
-            log.info("  => discussion is ended")
-            return []
-        # the pause status can be set only with chunk_index equals to -1
-        if information.chunk_index == Constants.AUDIO_IDLE_INDEX:
-            stop_and_go.is_paused = information.is_paused
-            stop_and_go.save()
-        if stop_and_go.is_paused:
-            log.info("  => discussion is paused")
-            return []
-        # continue or resume the cycles
-        chunk_index = stop_and_go.cycle
+        run_chunk, chunk_index, effects = self.session_state_effects(str(comment.task.id), information)
+        if not run_chunk:
+            return effects
 
         note = Note.objects.get(id=information.note_id)
         identification = IdentificationParameters(
@@ -104,37 +144,49 @@ class Commander(BaseProtocol):
         )
 
         had_audio, effects = self.compute_audio(identification, settings, aws_s3, audio_client, chunk_index)
+        stop_and_go = StopAndGo.get(information.note_id)
         if had_audio:
-            log.info(f"audio was present => go to next iteration ({chunk_index + 1})")
-            Progress.send_to_user(
-                identification,
-                settings,
-                f"waiting for the next cycle {chunk_index + 1}...",
-                Constants.PROGRESS_SECTION_EVENTS,
-            )
-            stop_and_go = StopAndGo.get(information.note_id)
-            stop_and_go.cycle = chunk_index + 1
-            stop_and_go.save()
-            effects.append(
-                AddTaskComment(
-                    task_id=str(comment.task.id),
-                    body=json.dumps(
-                        CommentBody(
-                            note_id=information.note_id,
-                            patient_id=identification.patient_uuid,
-                            chunk_index=chunk_index + 1,
-                            is_paused=False,
-                            created=information.created,
-                            finished=None,
-                        ).to_dict(),
-                    ),
-                ).apply(),
-            )
+            if stop_and_go.is_paused():
+                log.info("audio was present + pause requested => wait for resuming")
+                Progress.send_to_user(
+                    identification,
+                    settings,
+                    "paused...",
+                    Constants.PROGRESS_SECTION_EVENTS,
+                )
+                # the paused was requested while computing
+                # thus, save the effects until the session is resumed
+                # (prevent losing the commands if the browser is closed)
+                for effect in effects:
+                    stop_and_go.add_paused_effect(effect)
+                effects = []
+            else:
+                log.info(f"audio was present => go to next iteration ({chunk_index + 1})")
+                Progress.send_to_user(
+                    identification,
+                    settings,
+                    f"waiting for the next cycle {chunk_index + 1}...",
+                    Constants.PROGRESS_SECTION_EVENTS,
+                )
+                # go to the next cycle
+                stop_and_go.set_cycle(chunk_index + 1)
+                effects.append(
+                    AddTaskComment(
+                        task_id=str(comment.task.id),
+                        body=json.dumps(
+                            CommentBody(
+                                note_id=information.note_id,
+                                patient_id=information.patient_id,
+                                chunk_index=chunk_index + 1,
+                                is_paused=False,
+                                created=information.created,
+                                finished=None,
+                            ).to_dict(),
+                        ),
+                    ).apply(),
+                )
         else:
-            log.info("audio was NOT present:")
-            stop_and_go = StopAndGo.get(information.note_id)
-            stop_and_go.is_ended = True
-            stop_and_go.save()
+            stop_and_go.set_ended(True)
             # TODO vvv removed when https://github.com/canvas-medical/canvas-plugins/issues/600 is fixed
             effects.append(
                 AddTaskComment(
@@ -142,8 +194,8 @@ class Commander(BaseProtocol):
                     body=json.dumps(
                         CommentBody(
                             note_id=information.note_id,
-                            patient_id=identification.patient_uuid,
-                            chunk_index=information.chunk_index - 1,
+                            patient_id=information.patient_id,
+                            chunk_index=chunk_index - 1,
                             is_paused=False,
                             created=information.created,
                             finished=datetime.now(UTC),
@@ -152,10 +204,13 @@ class Commander(BaseProtocol):
                 ).apply(),
             )
             # TODO ^^^ removed when https://github.com/canvas-medical/canvas-plugins/issues/600 is fixed
+            log.info("audio was NOT present:")
             log.info("  => inform the UI")
             Progress.send_to_user(identification, settings, "finished", Constants.PROGRESS_SECTION_EVENTS)
             log.info("  => stop the task")
             effects.append(UpdateTask(id=str(comment.task.id), status=TaskStatus.COMPLETED).apply())
+        stop_and_go.set_running(False)
+        stop_and_go.save()
         MemoryLog.end_session(information.note_id)
         LlmTurnsStore.end_session(information.note_id)
         return effects

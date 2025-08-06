@@ -26,10 +26,15 @@ class LabOrder(Base):
 
         diagnosis = "/".join([diagnose for item in list_diagnosis if (diagnose := item.get("text"))]) or "n/a"
         comment = data.get("comment") or "n/a"
-        tests = "/".join([test for item in (data.get("tests") or []) if (test := item.get("text"))])
-
-        if tests:
-            return CodedItem(label=f"{tests}: {comment} (fasting: {fasting}, diagnosis: {diagnosis})", code="", uuid="")
+        if tests := data.get("tests"):
+            if not isinstance(tests, list):
+                return None  # <-- waiting for https://github.com/canvas-medical/canvas/issues/17567
+            descriptions = "/".join([test for item in tests if (test := item.get("text"))])
+            return CodedItem(
+                label=f"{descriptions}: {comment} (fasting: {fasting}, diagnosis: {diagnosis})",
+                code="",
+                uuid="",
+            )
         return None
 
     def command_from_json(
