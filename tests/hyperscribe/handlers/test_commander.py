@@ -16,6 +16,7 @@ from hyperscribe.libraries.implemented_commands import ImplementedCommands
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.comment_body import CommentBody
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.instruction import Instruction
 from hyperscribe.structures.instruction_with_command import InstructionWithCommand
@@ -74,6 +75,183 @@ def test_with_cleanup(thread_cleanup):
     reset_mocks()
 
 
+@patch("hyperscribe.handlers.commander.StopAndGo")
+@patch.object(log, "info")
+def test_session_state_effects(info, stop_and_go):
+    def reset_mocks():
+        info.reset_mock()
+        stop_and_go.reset_mock()
+        stop_and_go.get.side_effect = [stop_and_go]
+        stop_and_go.cycle.side_effect = [5]
+        stop_and_go.is_paused.side_effect = [False]
+        stop_and_go.is_ended.side_effect = [False]
+        stop_and_go.is_running.side_effect = [False]
+        stop_and_go.paused_effects.side_effect = [[]]
+
+    reset_mocks()
+
+    comments = {
+        "standard": CommentBody(
+            chunk_index=7,
+            note_id="noteUuid",
+            patient_id="patientUuid",
+            is_paused=False,
+            created=datetime.fromisoformat("2025-08-05T13:29:55.456752+00:00"),
+            finished=None,
+        ),
+        "pause": CommentBody(
+            chunk_index=-1,
+            note_id="noteUuid",
+            patient_id="patientUuid",
+            is_paused=True,
+            created=datetime.fromisoformat("2025-08-05T13:29:55.456752+00:00"),
+            finished=None,
+        ),
+        "resume": CommentBody(
+            chunk_index=-1,
+            note_id="noteUuid",
+            patient_id="patientUuid",
+            is_paused=False,
+            created=datetime.fromisoformat("2025-08-05T13:29:55.456752+00:00"),
+            finished=None,
+        ),
+    }
+
+    tested = Commander
+
+    # the discussion is already finished
+    stop_and_go.is_ended.side_effect = [True]
+    result = tested.session_state_effects("theTaskId", comments["standard"])
+    expected = (False, -1, [])
+    assert result == expected
+
+    calls = [call("  => discussion is ended")]
+    assert info.mock_calls == calls
+    calls = [
+        call.get("noteUuid"),
+        call.is_ended(),
+    ]
+    assert stop_and_go.mock_calls == calls
+    reset_mocks()
+
+    # the discussion is paused
+    stop_and_go.is_paused.side_effect = [True]
+    stop_and_go.get.side_effect = [stop_and_go]
+    result = tested.session_state_effects("theTaskId", comments["pause"])
+    expected = (False, -1, [])
+    assert result == expected
+
+    calls = [call("  => discussion is paused")]
+    assert info.mock_calls == calls
+    calls = [
+        call.get("noteUuid"),
+        call.is_ended(),
+        call.set_paused(True),
+        call.save(),
+        call.is_paused(),
+    ]
+    assert stop_and_go.mock_calls == calls
+    reset_mocks()
+
+    # the discussion is resumed
+    stop_and_go.is_paused.side_effect = [True, False]
+    stop_and_go.cycle.side_effect = [5, 6]
+    stop_and_go.paused_effects.side_effect = [
+        [
+            Effect(type="LOG", payload="Log1"),
+            Effect(type="LOG", payload="Log2"),
+        ]
+    ]
+    stop_and_go.get.side_effect = [stop_and_go]
+    result = tested.session_state_effects("theTaskId", comments["resume"])
+    expected = (
+        False,
+        -1,
+        [
+            Effect(type="LOG", payload="Log1"),
+            Effect(type="LOG", payload="Log2"),
+            Effect(
+                type="CREATE_TASK_COMMENT",
+                payload=json.dumps(
+                    {
+                        "data": {
+                            "task": {"id": "theTaskId"},
+                            "body": json.dumps(
+                                {
+                                    "chunk_index": 6,
+                                    "note_id": "noteUuid",
+                                    "patient_id": "patientUuid",
+                                    "is_paused": False,
+                                    "created": "2025-08-05T13:29:55.456752+00:00",
+                                    "finished": None,
+                                }
+                            ),
+                        }
+                    }
+                ),
+            ),
+        ],
+    )
+    assert result == expected
+
+    assert info.mock_calls == []
+    calls = [
+        call.get("noteUuid"),
+        call.is_ended(),
+        call.is_paused(),
+        call.paused_effects(),
+        call.reset_paused_effect(),
+        call.set_paused(False),
+        call.save(),
+        call.is_paused(),
+        call.cycle(),
+        call.set_cycle(6),
+        call.cycle(),
+        call.set_running(False),
+        call.save(),
+    ]
+    assert stop_and_go.mock_calls == calls
+    reset_mocks()
+
+    # the discussion is already running
+    stop_and_go.get.side_effect = [stop_and_go]
+    stop_and_go.is_running.side_effect = [True]
+    result = tested.session_state_effects("theTaskId", comments["standard"])
+    expected = (False, -1, [])
+    assert result == expected
+
+    calls = [call("  => discussion is already running")]
+    assert info.mock_calls == calls
+    calls = [
+        call.get("noteUuid"),
+        call.is_ended(),
+        call.is_paused(),
+        call.is_running(),
+    ]
+    assert stop_and_go.mock_calls == calls
+    reset_mocks()
+
+    # the discussion is not running yet
+    stop_and_go.get.side_effect = [stop_and_go]
+    stop_and_go.is_running.side_effect = [False]
+    result = tested.session_state_effects("theTaskId", comments["standard"])
+    expected = (True, 5, [])
+    assert result == expected
+
+    assert info.mock_calls == []
+    calls = [
+        call.get("noteUuid"),
+        call.is_ended(),
+        call.is_paused(),
+        call.is_running(),
+        call.set_running(True),
+        call.save(),
+        call.cycle(),
+    ]
+    assert stop_and_go.mock_calls == calls
+    reset_mocks()
+
+
 @patch("hyperscribe.handlers.commander.datetime", wraps=datetime)
 @patch("hyperscribe.handlers.commander.StopAndGo")
 @patch("hyperscribe.handlers.commander.LlmTurnsStore")
@@ -82,9 +260,11 @@ def test_with_cleanup(thread_cleanup):
 @patch.object(log, "info")
 @patch.object(Note, "objects")
 @patch.object(TaskComment, "objects")
+@patch.object(Commander, "session_state_effects")
 @patch.object(Commander, "compute_audio")
 def test_compute(
     compute_audio,
+    session_state_effects,
     task_comment_db,
     note_db,
     info,
@@ -103,6 +283,7 @@ def test_compute(
 
     def reset_mocks():
         compute_audio.reset_mock()
+        session_state_effects.reset_mock()
         task_comment_db.reset_mock()
         note_db.reset_mock()
         info.reset_mock()
@@ -173,6 +354,7 @@ def test_compute(
 
     # the task comment is not related to the Audio plugin
     compute_audio.side_effect = []
+    session_state_effects.side_effect = []
     stop_and_go.side_effect = []
     mock_comment.id = "commentUuid"
     mock_comment.task.id = "taskUuid"
@@ -184,6 +366,7 @@ def test_compute(
     assert result == []
 
     assert compute_audio.mock_calls == []
+    assert session_state_effects.mock_calls == []
     calls = [call.get(id="taskUuid")]
     assert task_comment_db.mock_calls == calls
     assert note_db.mock_calls == []
@@ -198,17 +381,14 @@ def test_compute(
     reset_mocks()
 
     # the task is related to the Audio plugin
-    # -- the discussion has been ended
-    stop_and_go.is_ended = True
-    stop_and_go.is_paused = True
-    stop_and_go.cycle = 6
-
+    # -- the chunk should not be run, and some Effects should be returned
     compute_audio.side_effect = []
+    session_state_effects.side_effect = [(False, -1, [Effect(type="LOG", payload="SomePayload")])]
     stop_and_go.get.side_effect = [stop_and_go]
     mock_comment.id = "commentUuid"
     mock_comment.body = json.dumps(
         {
-            "chunk_index": 7,
+            "chunk_index": 137,
             "note_id": "noteUuid",
             "patient_id": "patientUuid",
             "is_paused": False,
@@ -224,123 +404,50 @@ def test_compute(
     note_db.get.side_effect = []
 
     result = tested.compute()
-    assert result == []
+    assert result == [Effect(type="LOG", payload="SomePayload")]
 
     assert compute_audio.mock_calls == []
-    calls = [call.get(id="taskUuid")]
-    assert task_comment_db.mock_calls == calls
-    calls = [call("  => discussion is ended")]
-    assert info.mock_calls == calls
-    assert memory_log.mock_calls == []
-    assert progress.mock_calls == []
-    assert llm_turns_store.mock_calls == []
-    calls = [call.get("noteUuid")]
-    assert stop_and_go.mock_calls == calls
-    calls = [call.task.labels.filter(name="Encounter Copilot"), call.task.labels.filter().first()]
-    assert mock_comment.mock_calls == calls
-    assert mock_note.mock_calls == []
-    assert mock_datetime.mock_calls == []
-    reset_mocks()
-    # -- the discussion has been paused
-    stop_and_go.is_ended = False
-    stop_and_go.is_paused = True
-    stop_and_go.cycle = 6
-
-    compute_audio.side_effect = []
-    stop_and_go.get.side_effect = [stop_and_go]
-    mock_comment.id = "commentUuid"
-    mock_comment.body = json.dumps(
-        {
-            "chunk_index": 7,
-            "note_id": "noteUuid",
-            "patient_id": "patientUuid",
-            "is_paused": False,
-            "created": "2025-05-09T12:34:55+00:00",
-            "finished": None,
-        },
-    )
-    mock_comment.task.id = "taskUuid"
-    mock_comment.task.labels.all.side_effect = [task_labels]
-    mock_comment.task.labels.filter.return_value.first.side_effect = ["aTask"]
-    task_comment_db.get.side_effect = [mock_comment]
-    mock_datetime.now.side_effect = []
-    note_db.get.side_effect = []
-
-    result = tested.compute()
-    assert result == []
-
-    assert compute_audio.mock_calls == []
-    calls = [call.get(id="taskUuid")]
-    assert task_comment_db.mock_calls == calls
-    calls = [call("  => discussion is paused")]
-    assert info.mock_calls == calls
-    assert memory_log.mock_calls == []
-    assert progress.mock_calls == []
-    assert llm_turns_store.mock_calls == []
-    calls = [call.get("noteUuid")]
-    assert stop_and_go.mock_calls == calls
-    calls = [call.task.labels.filter(name="Encounter Copilot"), call.task.labels.filter().first()]
-    assert mock_comment.mock_calls == calls
-    assert mock_note.mock_calls == []
-    assert mock_datetime.mock_calls == []
-    reset_mocks()
-    # -- set to pause
-    stop_and_go.is_ended = False
-    stop_and_go.is_paused = False
-    stop_and_go.cycle = 6
-
-    compute_audio.side_effect = []
-    stop_and_go.get.side_effect = [stop_and_go]
-    mock_comment.id = "commentUuid"
-    mock_comment.body = json.dumps(
-        {
-            "chunk_index": -1,
-            "note_id": "noteUuid",
-            "patient_id": "patientUuid",
-            "is_paused": True,
-            "created": "2025-05-09T12:34:55+00:00",
-            "finished": None,
-        },
-    )
-    mock_comment.task.id = "taskUuid"
-    mock_comment.task.labels.all.side_effect = [task_labels]
-    mock_comment.task.labels.filter.return_value.first.side_effect = ["aTask"]
-    task_comment_db.get.side_effect = [mock_comment]
-    mock_datetime.now.side_effect = []
-    note_db.get.side_effect = []
-
-    result = tested.compute()
-    assert result == []
-
-    assert compute_audio.mock_calls == []
-    calls = [call.get(id="taskUuid")]
-    assert task_comment_db.mock_calls == calls
-    calls = [call("  => discussion is paused")]
-    assert info.mock_calls == calls
-    assert memory_log.mock_calls == []
-    assert progress.mock_calls == []
-    assert llm_turns_store.mock_calls == []
     calls = [
-        call.get("noteUuid"),
-        call.save(),
+        call(
+            "taskUuid",
+            CommentBody(
+                chunk_index=137,
+                note_id="noteUuid",
+                patient_id="patientUuid",
+                is_paused=False,
+                created=datetime(2025, 5, 9, 12, 34, 55, tzinfo=timezone.utc),
+                finished=None,
+            ),
+        )
     ]
-    assert stop_and_go.mock_calls == calls
-    assert stop_and_go.is_paused is True
+    assert session_state_effects.mock_calls == calls
+    calls = [call.get(id="taskUuid")]
+    assert task_comment_db.mock_calls == calls
+    assert info.mock_calls == []
+    assert memory_log.mock_calls == []
+    assert progress.mock_calls == []
+    assert llm_turns_store.mock_calls == []
+    assert stop_and_go.mock_calls == []
     calls = [call.task.labels.filter(name="Encounter Copilot"), call.task.labels.filter().first()]
     assert mock_comment.mock_calls == calls
     assert mock_note.mock_calls == []
     assert mock_datetime.mock_calls == []
     reset_mocks()
-
-    # -- unset to pause
-    stop_and_go.is_ended = False
-    stop_and_go.is_paused = True
-    stop_and_go.cycle = 7
+    # -- the chunk should be run
+    # -- -- no pause is set during the computation
     compute_audio.side_effect = [(True, [Effect(type="LOG", payload="SomePayload")])]
-    stop_and_go.get.side_effect = [stop_and_go, stop_and_go]
+    session_state_effects.side_effect = [(True, 7, [])]
+    stop_and_go.get.side_effect = [stop_and_go]
+    stop_and_go.is_paused.side_effect = [False]
     mock_comment.id = "commentUuid"
     mock_comment.body = json.dumps(
-        {"chunk_index": -1, "note_id": "noteUuid", "is_paused": False, "created": "2025-05-09T12:34:55+00:00"}
+        {
+            "chunk_index": 137,
+            "note_id": "noteUuid",
+            "patient_id": "patientUuid",
+            "is_paused": False,
+            "created": "2025-05-09T12:34:55+00:00",
+        }
     )
     mock_comment.task.id = "taskUuid"
     mock_comment.task.labels.all.side_effect = [task_labels]
@@ -380,6 +487,20 @@ def test_compute(
 
     calls = [call(identification, settings, aws_s3_credentials, the_audio_client, 7)]
     assert compute_audio.mock_calls == calls
+    calls = [
+        call(
+            "taskUuid",
+            CommentBody(
+                chunk_index=137,
+                note_id="noteUuid",
+                patient_id="patientUuid",
+                is_paused=False,
+                created=datetime(2025, 5, 9, 12, 34, 55, tzinfo=timezone.utc),
+                finished=None,
+            ),
+        )
+    ]
+    assert session_state_effects.mock_calls == calls
     calls = [call.get(id="taskUuid")]
     assert task_comment_db.mock_calls == calls
     calls = [call("audio was present => go to next iteration (8)")]
@@ -396,26 +517,104 @@ def test_compute(
     assert llm_turns_store.mock_calls == calls
     calls = [
         call.get("noteUuid"),
-        call.save(),
-        call.get("noteUuid"),
+        call.is_paused(),
+        call.set_cycle(8),
+        call.set_running(False),
         call.save(),
     ]
     assert stop_and_go.mock_calls == calls
-    assert stop_and_go.is_paused is False
-    assert stop_and_go.cycle == 8
     calls = [call.task.labels.filter(name="Encounter Copilot"), call.task.labels.filter().first()]
     assert mock_comment.mock_calls == calls
     assert mock_note.mock_calls == []
     assert mock_datetime.mock_calls == []
     reset_mocks()
-    # -- no more audio
-    stop_and_go.is_ended = False
-    stop_and_go.is_paused = False
-    stop_and_go.cycle = 7
-    compute_audio.side_effect = [(False, [])]
-    stop_and_go.get.side_effect = [stop_and_go, stop_and_go]
+    # -- -- pause has been set during the computation
+    compute_audio.side_effect = [(True, [Effect(type="LOG", payload="SomePayload")])]
+    session_state_effects.side_effect = [(True, 7, [])]
+    stop_and_go.get.side_effect = [stop_and_go]
+    stop_and_go.is_paused.side_effect = [True]
     mock_comment.id = "commentUuid"
-    mock_comment.body = json.dumps({"chunk_index": 7, "note_id": "noteUuid", "created": "2025-05-09T12:34:44+00:00"})
+    mock_comment.body = json.dumps(
+        {
+            "chunk_index": 137,
+            "note_id": "noteUuid",
+            "patient_id": "patientUuid",
+            "is_paused": False,
+            "created": "2025-05-09T12:34:55+00:00",
+        }
+    )
+    mock_comment.task.id = "taskUuid"
+    mock_comment.task.labels.all.side_effect = [task_labels]
+    mock_comment.task.labels.filter.return_value.first.side_effect = ["aTask"]
+    task_comment_db.get.side_effect = [mock_comment]
+    mock_datetime.now.side_effect = [date_x]
+
+    mock_note.provider.id = "providerUuid"
+    mock_note.patient.id = "patientUuid"
+    note_db.get.side_effect = [mock_note]
+
+    result = tested.compute()
+    expected = []
+    assert result == expected
+
+    calls = [call(identification, settings, aws_s3_credentials, the_audio_client, 7)]
+    assert compute_audio.mock_calls == calls
+    calls = [
+        call(
+            "taskUuid",
+            CommentBody(
+                chunk_index=137,
+                note_id="noteUuid",
+                patient_id="patientUuid",
+                is_paused=False,
+                created=datetime(2025, 5, 9, 12, 34, 55, tzinfo=timezone.utc),
+                finished=None,
+            ),
+        )
+    ]
+    assert session_state_effects.mock_calls == calls
+    calls = [call.get(id="taskUuid")]
+    assert task_comment_db.mock_calls == calls
+    calls = [call("audio was present + pause requested => wait for resuming")]
+    assert info.mock_calls == calls
+    calls = [
+        call.instance(identification, "main", aws_s3_credentials),
+        call.instance().output("SDK: theVersion - Text: textVendor - Audio: audioVendor"),
+        call.end_session("noteUuid"),
+    ]
+    assert memory_log.mock_calls == calls
+    calls = [call.send_to_user(identification, settings, "paused...", "events")]
+    assert progress.mock_calls == calls
+    calls = [call.end_session("noteUuid")]
+    assert llm_turns_store.mock_calls == calls
+    calls = [
+        call.get("noteUuid"),
+        call.is_paused(),
+        call.add_paused_effect(Effect(type="LOG", payload="SomePayload")),
+        call.set_running(False),
+        call.save(),
+    ]
+    assert stop_and_go.mock_calls == calls
+    calls = [call.task.labels.filter(name="Encounter Copilot"), call.task.labels.filter().first()]
+    assert mock_comment.mock_calls == calls
+    assert mock_note.mock_calls == []
+    assert mock_datetime.mock_calls == []
+    reset_mocks()
+
+    # -- no more audio
+    compute_audio.side_effect = [(False, [])]
+    session_state_effects.side_effect = [(True, 7, [])]
+    stop_and_go.get.side_effect = [stop_and_go]
+    mock_comment.id = "commentUuid"
+    mock_comment.body = json.dumps(
+        {
+            "chunk_index": 137,
+            "note_id": "noteUuid",
+            "patient_id": "patientUuid",
+            "is_paused": False,
+            "created": "2025-05-09T12:34:44+00:00",
+        }
+    )
     mock_comment.task.id = "taskUuid"
     mock_comment.task.labels.all.side_effect = [task_labels]
     mock_comment.task.labels.filter.return_value.first.side_effect = ["aTask"]
@@ -454,6 +653,20 @@ def test_compute(
 
     calls = [call(identification, settings, aws_s3_credentials, the_audio_client, 7)]
     assert compute_audio.mock_calls == calls
+    calls = [
+        call(
+            "taskUuid",
+            CommentBody(
+                chunk_index=137,
+                note_id="noteUuid",
+                patient_id="patientUuid",
+                is_paused=False,
+                created=datetime(2025, 5, 9, 12, 34, 44, tzinfo=timezone.utc),
+                finished=None,
+            ),
+        )
+    ]
+    assert session_state_effects.mock_calls == calls
     calls = [call.get(id="taskUuid")]
     assert task_comment_db.mock_calls == calls
     calls = [call("audio was NOT present:"), call("  => inform the UI"), call("  => stop the task")]
@@ -470,12 +683,11 @@ def test_compute(
     assert llm_turns_store.mock_calls == calls
     calls = [
         call.get("noteUuid"),
-        call.get("noteUuid"),
+        call.set_ended(True),
+        call.set_running(False),
         call.save(),
     ]
     assert stop_and_go.mock_calls == calls
-    assert stop_and_go.is_paused is False
-    assert stop_and_go.cycle == 7
     calls = [call.task.labels.filter(name="Encounter Copilot"), call.task.labels.filter().first()]
     assert mock_comment.mock_calls == calls
     assert mock_note.mock_calls == []

@@ -80,6 +80,15 @@ def test_staged_command_extract():
         ),
         (
             {
+                "tests": "[]",
+                "comment": "theComment",
+                "diagnosis": [{"text": "diagnose1"}, {"text": "diagnose2"}],
+                "fasting_status": True,
+            },
+            None,
+        ),
+        (
+            {
                 "tests": [{"text": "test1"}],
                 "comment": "",
                 "diagnosis": [{"text": "diagnose1"}],
