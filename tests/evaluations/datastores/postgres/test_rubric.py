@@ -190,6 +190,99 @@ def test_upsert(constant_dumps, select, alter, mock_datetime):
     reset_mock()
 
 
+@patch("evaluations.datastores.postgres.rubric.datetime", wraps=datetime)
+@patch.object(Rubric, "_alter")
+@patch.object(Rubric, "constant_dumps")
+def test_insert(constant_dumps, alter, mock_datetime):
+    def reset_mocks():
+        alter.reset_mock()
+        constant_dumps.reset_mock()
+        mock_datetime.reset_mock()
+
+    # Test insert creates new rubric record
+    date_0 = datetime(2025, 7, 4, 6, 11, 4, 805952, tzinfo=timezone.utc)
+    rubric_data = [
+        {"criterion": "theCriterion1", "weight": 1, "sense": "positive"},
+        {"criterion": "theCriterion2", "weight": 2, "sense": "positive"},
+        {"criterion": "theCriterion3", "weight": 3, "sense": "negative"},
+    ]
+    rubric = RubricRecord(
+        case_id=123,
+        parent_rubric_id=456,
+        validation_timestamp=date_0,
+        validation=RubricValidation.ACCEPTED,
+        author="theAuthor",
+        rubric=rubric_data,
+        case_provenance_classification="theClassification",
+        comments="theComments",
+        text_llm_vendor="VendorX",
+        text_llm_name="ModelY",
+        temperature=0.7,
+        id=123,
+    )
+
+    alter.side_effect = [23]
+    mock_datetime.now.side_effect = [date_0]
+    constant_dumps.side_effect = ['[{"criterion":"theCriterion1","weight":1,"sense":"positive"}]']
+
+    tested = helper_instance()
+    result = tested.insert(rubric)
+    expected = RubricRecord(
+        case_id=123,
+        parent_rubric_id=456,
+        validation_timestamp=date_0,
+        validation=RubricValidation.ACCEPTED,
+        author="theAuthor",
+        rubric=rubric_data,
+        case_provenance_classification="theClassification",
+        comments="theComments",
+        text_llm_vendor="VendorX",
+        text_llm_name="ModelY",
+        temperature=0.7,
+        id=23,
+    )
+    assert result == expected
+
+    calls = [call.now(timezone.utc)]
+    assert mock_datetime.mock_calls == calls
+    calls = [call(rubric_data)]
+    assert constant_dumps.mock_calls == calls
+    calls = [
+        call(
+            """
+            INSERT INTO "rubric" (
+                "created", "updated", "case_id", "parent_rubric_id", "validation_timestamp",
+                "validation", "author", "rubric", "case_provenance_classification",
+                "comments", "text_llm_vendor", "text_llm_name", "temperature"
+            )
+            VALUES (
+                %(now)s, %(now)s, %(case_id)s, %(parent_rubric_id)s, %(validation_timestamp)s,
+                %(validation)s, %(author)s, %(rubric)s, %(case_provenance_classification)s,
+                %(comments)s, %(text_llm_vendor)s, %(text_llm_name)s, %(temperature)s
+            )
+            RETURNING id
+        """,
+            {
+                "now": date_0,
+                "case_id": 123,
+                "parent_rubric_id": 456,
+                "validation_timestamp": date_0,
+                "validation": "accepted",
+                "author": "theAuthor",
+                "rubric": '[{"criterion":"theCriterion1","weight":1,"sense":"positive"}]',
+                "case_provenance_classification": "theClassification",
+                "comments": "theComments",
+                "text_llm_vendor": "VendorX",
+                "text_llm_name": "ModelY",
+                "temperature": 0.7,
+            },
+            None,
+        )
+    ]
+    assert alter.mock_calls == calls
+    reset_mocks()
+
+
 @patch.object(Rubric, "_select")
 def test_get_rubric(select):
     def reset_mock():

@@ -19,25 +19,25 @@ class Specification(NamedTuple):
 
     def to_json(self) -> dict:
         return {
-            "turn_total": self.turn_total,
-            "speaker_sequence": self.speaker_sequence,
+            "turnTotal": self.turn_total,
+            "speakerSequence": self.speaker_sequence,
             "ratio": self.ratio,
             "mood": [mood.value for mood in self.mood],
             "pressure": self.pressure.value,
-            "clinician_style": self.clinician_style.value,
-            "patient_style": self.patient_style.value,
+            "clinicianStyle": self.clinician_style.value,
+            "patientStyle": self.patient_style.value,
             "bucket": self.bucket.value,
         }
 
     @classmethod
     def load_from_json(cls, data: dict) -> Specification:
         return cls(
-            turn_total=data["turn_total"],
-            speaker_sequence=data["speaker_sequence"],
+            turn_total=data["turnTotal"],
+            speaker_sequence=data["speakerSequence"],
             ratio=data["ratio"],
             mood=[SyntheticCaseMood(mood_str) for mood_str in data["mood"]],
             pressure=SyntheticCasePressure(data["pressure"]),
-            clinician_style=SyntheticCaseClinicianStyle(data["clinician_style"]),
-            patient_style=SyntheticCasePatientStyle(data["patient_style"]),
+            clinician_style=SyntheticCaseClinicianStyle(data["clinicianStyle"]),
+            patient_style=SyntheticCasePatientStyle(data["patientStyle"]),
             bucket=SyntheticCaseTurnBuckets(data["bucket"]),
         )

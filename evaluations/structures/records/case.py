@@ -33,10 +33,10 @@ class Case(NamedTuple):
         return Case(
             name=data["name"],
             transcript={key: Line.load_from_json(lines) for key, lines in data["transcript"].items()},
-            limited_chart=data["limitedChart"],
+            limited_chart=data["limited_chart"],
             profile=data["profile"],
-            validation_status=CaseStatus(data["validationStatus"]),
-            batch_identifier=data["batchIdentifier"],
+            validation_status=CaseStatus(data["validation_status"]),
+            batch_identifier=data["batch_identifier"],
             tags=data["tags"],
             id=data["id"],
         )

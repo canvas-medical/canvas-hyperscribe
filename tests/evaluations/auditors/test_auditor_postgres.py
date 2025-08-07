@@ -220,7 +220,7 @@ def test_case_prepare(case_store):
     calls = [
         call(tested.postgres_credentials),
         call().get_id("theCase"),
-        call().update_fields(145, {"validationStatus": CaseStatus.GENERATION}),
+        call().update_fields(145, {"validation_status": CaseStatus.GENERATION}),
     ]
     assert case_store.mock_calls == calls
     reset_mocks()

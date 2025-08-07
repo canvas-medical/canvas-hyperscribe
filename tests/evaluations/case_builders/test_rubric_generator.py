@@ -2,7 +2,7 @@ import hashlib
 import json
 from argparse import Namespace
 from unittest.mock import patch, call, MagicMock
-from datetime import datetime
+from datetime import datetime, UTC
 
 import pytest
 
@@ -11,6 +11,7 @@ from hyperscribe.libraries.constants import Constants as HyperscribeConstants
 
 from evaluations.case_builders.rubric_generator import RubricGenerator
 from evaluations.structures.enums.rubric_validation import RubricValidation
+from evaluations.structures.rubric_criterion import RubricCriterion
 
 
 @pytest.fixture
@@ -121,21 +122,21 @@ def test_generate(mock_generate_json, mock_schema_rubric, mock_build_prompts, tm
         # success case
         {
             "generate_json_response": [
-                {"criterion": "Reward for completeness", "weight": 50, "sense": "positive"},
-                {"criterion": "Penalize for inaccuracy", "weight": 30, "sense": "negative"},
+                RubricCriterion(criterion="Reward for completeness", weight=50, sense="positive"),
+                RubricCriterion(criterion="Penalize for inaccuracy", weight=30, sense="negative"),
             ],
             "expected": [
-                {"criterion": "Reward for completeness", "weight": 50, "sense": "positive"},
-                {"criterion": "Penalize for inaccuracy", "weight": 30, "sense": "negative"},
+                RubricCriterion(criterion="Reward for completeness", weight=50, sense="positive"),
+                RubricCriterion(criterion="Penalize for inaccuracy", weight=30, sense="negative"),
             ],
         },
         # different rubric case
         {
             "generate_json_response": [
-                {"criterion": "Reward for chart integration", "weight": 40, "sense": "positive"},
+                RubricCriterion(criterion="Reward for chart integration", weight=40, sense="positive"),
             ],
             "expected": [
-                {"criterion": "Reward for chart integration", "weight": 40, "sense": "positive"},
+                RubricCriterion(criterion="Reward for chart integration", weight=40, sense="positive"),
             ],
         },
     ]
@@ -159,6 +160,7 @@ def test_generate(mock_generate_json, mock_schema_rubric, mock_build_prompts, tm
                 system_prompt=["System Prompt"],
                 user_prompt=["User Prompt"],
                 schema=expected_schema,
+                returned_class=list[RubricCriterion],
             )
         ]
         assert mock_generate_json.mock_calls == expected_call
@@ -175,7 +177,16 @@ def test_generate(mock_generate_json, mock_schema_rubric, mock_build_prompts, tm
     assert exc_info.value.code == 1
     assert mock_schema_rubric.mock_calls == [call()]
     assert mock_build_prompts.mock_calls == [call(transcript, chart, canvas_context)]
-    assert mock_generate_json.call_count == 1
+    expected_call = [
+        call(
+            vendor_key=vendor_key,
+            system_prompt=["System Prompt"],
+            user_prompt=["User Prompt"],
+            schema=expected_schema,
+            returned_class=list[RubricCriterion],
+        )
+    ]
+    assert mock_generate_json.mock_calls == expected_call
     reset_mocks()
 
 
@@ -183,38 +194,37 @@ def test_generate(mock_generate_json, mock_schema_rubric, mock_build_prompts, tm
 @patch.object(RubricGenerator, "load_json")
 @patch.object(RubricGenerator, "generate")
 def test_generate_and_save2file(mock_generate, mock_load_json, mock_settings, tmp_files, capsys):
+    tested = RubricGenerator
+
+    vendor_key = VendorKey(vendor="openai", api_key="test_key")
+    mock_settings_instance = MagicMock()
+
+    mock_settings_instance.llm_text = vendor_key
+    mock_settings.side_effect = [mock_settings_instance]
+
     def reset_mocks():
         mock_generate.reset_mock()
         mock_load_json.reset_mock()
         mock_settings.reset_mock()
         mock_settings_instance.reset_mock()
 
-    tested = RubricGenerator
-
-    # mock settings and data.
-    mock_vendor_key = VendorKey(vendor="openai", api_key="test_key")
-    mock_settings_instance = MagicMock()
-    mock_settings_instance.llm_text = mock_vendor_key
-    mock_settings.side_effect = [mock_settings_instance]
-
     transcript_path, chart_path, canvas_context_path, output_path, transcript, chart, canvas_context = tmp_files
 
-    rubric_result = [{"criterion": "Reward for accuracy", "weight": 60, "sense": "positive"}]
+    rubric_result = [RubricCriterion(criterion="Reward for accuracy", weight=60, sense="positive")]
 
     mock_load_json.side_effect = [transcript, chart, canvas_context]
     mock_generate.side_effect = [rubric_result]
 
-    # call method for testing.
     tested.generate_and_save2file(transcript_path, chart_path, canvas_context_path, output_path)
 
-    # verify calls, output files, and print.
-    assert mock_settings.mock_calls == [call()]
-    assert mock_load_json.mock_calls == [call(transcript_path), call(chart_path), call(canvas_context_path)]
     assert mock_generate.mock_calls == [call(transcript, chart, canvas_context)]
+    assert mock_load_json.mock_calls == [call(transcript_path), call(chart_path), call(canvas_context_path)]
+    assert mock_settings.mock_calls == [call()]
+    assert mock_settings_instance.mock_calls == []
 
     assert output_path.exists()
     result = json.loads(output_path.read_text())
-    expected = rubric_result
+    expected = [{"criterion": "Reward for accuracy", "weight": 60, "sense": "positive"}]
     assert result == expected
 
     output = capsys.readouterr().out
@@ -231,8 +241,8 @@ def test_generate_and_save2file(mock_generate, mock_load_json, mock_settings, tm
 @patch("evaluations.case_builders.rubric_generator.RubricDatastore")
 @patch("evaluations.case_builders.rubric_generator.CaseDatastore")
 def test_generate_and_save2database(
-    mock_case_ds_class,
-    mock_rubric_ds_class,
+    mock_case_datastore_class,
+    mock_rubric_datastore_class,
     mock_generate,
     mock_load_json,
     mock_settings,
@@ -240,72 +250,76 @@ def test_generate_and_save2database(
     mock_datetime,
     tmp_files,
 ):
+    tested = RubricGenerator
+    mock_credentials = MagicMock()
+    mock_case_datastore = MagicMock()
+    mock_rubric_datastore = MagicMock()
+    mock_rubric_record = MagicMock()
+    mock_settings_instance = MagicMock()
+
     def reset_mocks():
-        mock_case_ds_class.reset_mock()
-        mock_rubric_ds_class.reset_mock()
+        mock_case_datastore_class.reset_mock()
+        mock_rubric_datastore_class.reset_mock()
         mock_generate.reset_mock()
         mock_load_json.reset_mock()
         mock_settings.reset_mock()
         mock_postgres_credentials.reset_mock()
         mock_datetime.reset_mock()
         mock_credentials.reset_mock()
-        mock_case_ds.reset_mock()
-        mock_rubric_ds.reset_mock()
+        mock_case_datastore.reset_mock()
+        mock_rubric_datastore.reset_mock()
         mock_rubric_record.reset_mock()
+        mock_settings_instance.reset_mock()
 
-    tested = RubricGenerator
-
-    # mock credentials, settings, datastores, canvas data.
-    mock_credentials = MagicMock()
+    # Configure mock credentials and settings
     mock_postgres_credentials.side_effect = [mock_credentials]
 
     mock_vendor_key = VendorKey(vendor="openai", api_key="test_key")
-    mock_settings_instance = MagicMock()
     mock_settings_instance.llm_text = mock_vendor_key
     mock_settings.side_effect = [mock_settings_instance]
-
-    mock_case_ds = MagicMock()
-    mock_rubric_ds = MagicMock()
-    mock_case_ds_class.side_effect = [mock_case_ds]
-    mock_rubric_ds_class.side_effect = [mock_rubric_ds]
+    mock_case_datastore_class.side_effect = [mock_case_datastore]
+    mock_rubric_datastore_class.side_effect = [mock_rubric_datastore]
 
     _, _, canvas_context_path, _, _, _, canvas_context = tmp_files
     case_name = "test_case"
     case_id = 123
     transcript_data = {"conversation": "test"}
     chart_data = {"data": "test"}
-    rubric_result = [{"criterion": "Test", "weight": 50, "sense": "positive"}]
+    rubric_result = [RubricCriterion(criterion="Test", weight=50, sense="positive")]
 
-    mock_case_ds.get_id.side_effect = [case_id]
-    mock_case_ds.get_transcript.side_effect = [transcript_data]
-    mock_case_ds.get_limited_chart.side_effect = [chart_data]
+    mock_case_datastore.get_id.side_effect = [case_id]
+    mock_case_datastore.get_transcript.side_effect = [transcript_data]
+    mock_case_datastore.get_limited_chart.side_effect = [chart_data]
     mock_load_json.side_effect = [canvas_context]
     mock_generate.side_effect = [rubric_result]
 
-    mock_rubric_record = MagicMock()
     mock_rubric_record.id = 789
-    mock_rubric_ds.upsert.side_effect = [mock_rubric_record]
+    mock_rubric_datastore.insert.side_effect = [mock_rubric_record]
 
     result = tested.generate_and_save2database(case_name, canvas_context_path)
     expected = mock_rubric_record
 
     assert result == expected
 
-    # verify calls + rubric_record.
-    assert mock_postgres_credentials.mock_calls == [call()]
-    assert mock_settings.mock_calls == [call()]
-    assert mock_case_ds_class.mock_calls == [call(mock_credentials)]
-    assert mock_rubric_ds_class.mock_calls == [call(mock_credentials)]
-    assert mock_case_ds.get_id.mock_calls == [call(case_name)]
-    assert mock_case_ds.get_transcript.mock_calls == [call(case_id)]
-    assert mock_case_ds.get_limited_chart.mock_calls == [call(case_id)]
-    assert mock_load_json.mock_calls == [call(canvas_context_path)]
+    # reordered in reset_mocks order for readability.
+    assert mock_case_datastore_class.mock_calls == [call(mock_credentials)]
+    assert mock_rubric_datastore_class.mock_calls == [call(mock_credentials)]
     assert mock_generate.mock_calls == [call(transcript_data, chart_data, canvas_context)]
+    assert mock_load_json.mock_calls == [call(canvas_context_path)]
+    assert mock_settings.mock_calls == [call()]
+    assert mock_postgres_credentials.mock_calls == [call()]
+    assert mock_datetime.mock_calls == [call.now(UTC)]
+    assert mock_credentials.mock_calls == []
+    assert mock_case_datastore.get_id.mock_calls == [call(case_name)]
+    assert mock_case_datastore.get_transcript.mock_calls == [call(case_id)]
+    assert mock_case_datastore.get_limited_chart.mock_calls == [call(case_id)]
+    assert mock_settings_instance.mock_calls == []
 
-    assert mock_rubric_ds.upsert.call_count == 1
-    rubric_record_arg = mock_rubric_ds.upsert.call_args[0][0]
+    # verify rubric_datastore.insert call and rubric_record attributes
+    assert mock_rubric_datastore.insert.call_count == 1
+    rubric_record_arg = mock_rubric_datastore.insert.call_args[0][0]
     assert rubric_record_arg.case_id == case_id
-    assert rubric_record_arg.rubric == rubric_result
+    assert rubric_record_arg.rubric == [{"criterion": "Test", "weight": 50, "sense": "positive"}]
     assert rubric_record_arg.text_llm_vendor == "openai"
     assert rubric_record_arg.text_llm_name == HyperscribeConstants.OPENAI_CHAT_TEXT_O3
     assert rubric_record_arg.validation == RubricValidation.NOT_EVALUATED
@@ -315,12 +329,13 @@ def test_generate_and_save2database(
 
 @patch("evaluations.case_builders.rubric_generator.argparse.ArgumentParser")
 def test_main(mock_parser_class, tmp_files, capsys):
+    tested = RubricGenerator
+    mock_parser = MagicMock()
+
     def reset_mocks():
         mock_parser_class.reset_mock()
         mock_parser.reset_mock()
 
-    tested = RubricGenerator
-    mock_parser = MagicMock()
     mock_parser_class.side_effect = [mock_parser]
 
     transcript_path, chart_path, canvas_context_path, output_path, _, _, _ = tmp_files
@@ -376,6 +391,9 @@ def test_main(mock_parser_class, tmp_files, capsys):
                 output = capsys.readouterr().out
                 assert f"Saved rubric to database with ID: {mock_rubric_record.id}" in output
 
+        assert mock_parser_class.mock_calls == [call(description="Generate a fidelity rubric for documentation.")]
+        assert mock_parser.parse_args.mock_calls == [call()]
+
         reset_mocks()
         mock_parser = MagicMock()
         mock_parser_class.side_effect = [mock_parser]
@@ -413,6 +431,8 @@ def test_main(mock_parser_class, tmp_files, capsys):
         with pytest.raises(SystemExit):
             tested.main()
 
+        assert mock_parser_class.mock_calls == [call(description="Generate a fidelity rubric for documentation.")]
+        assert mock_parser.parse_args.mock_calls == [call()]
         assert mock_parser.error.mock_calls == [call(test_case["expected_error"])]
         reset_mocks()
         mock_parser = MagicMock()

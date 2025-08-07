@@ -76,14 +76,16 @@ class SyntheticProfileGenerator:
 
         return result
 
-    def _save_combined(self, profiles: list[PatientProfile], output_path: Path) -> None:
+    @classmethod
+    def _save_combined(cls, profiles: list[PatientProfile], output_path: Path) -> None:
         output_path.parent.mkdir(parents=True, exist_ok=True)
         profiles_dict = {profile.name: profile.profile for profile in profiles}
         with output_path.open("w") as f:
             json.dump(profiles_dict, f, indent=2)
         print(f"Saved {len(profiles)} profiles to {output_path}")
 
-    def _save_individuals(self, profiles: list[PatientProfile], output_path: Path) -> None:
+    @classmethod
+    def _save_individuals(cls, profiles: list[PatientProfile], output_path: Path) -> None:
         base_dir = output_path.parent
         for patient_profile in profiles:
             dir_name = re.sub(r"\s+", "_", patient_profile.name.strip())
@@ -153,21 +155,20 @@ class SyntheticProfileGenerator:
             "Wrap the JSON in a fenced ```json block and output nothing else.",
         ]
 
-        batch = cast(
-            dict[str, str],
+        initial_profiles = cast(
+            list[PatientProfile],
             HelperSyntheticJson.generate_json(
                 vendor_key=self.vendor_key,
                 system_prompt=system_prompt,
                 user_prompt=user_prompt,
                 schema=schema,
+                returned_class=list[PatientProfile],
             ),
         )
 
-        # create profiles with initial names then update.
-        initial_profiles: list[PatientProfile] = []
-        for name, content in batch.items():
-            self.seen_scenarios.append(self._extract_initial_fragment(content))
-            initial_profiles.append(PatientProfile(name=name, profile=content))
+        # Track seen scenarios
+        for profile in initial_profiles:
+            self.seen_scenarios.append(self._extract_initial_fragment(profile.profile))
 
         result = self.update_patient_names(initial_profiles)
 

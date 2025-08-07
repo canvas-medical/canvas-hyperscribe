@@ -34,7 +34,7 @@ class SyntheticCaseOrchestrator:
 
     def generate(
         self,
-        number_of_batches: int,
+        batches: int,
         batch_size: int,
     ) -> list[Tuple[CaseRecord, SyntheticCaseRecord]]:
         """
@@ -43,8 +43,8 @@ class SyntheticCaseOrchestrator:
         """
         # 1) profiles + generator set-ups
         all_profiles: list[PatientProfile] = []
-        for batch_index in range(1, number_of_batches + 1):
-            print(f"[Profile] batch {batch_index}/{number_of_batches}")
+        for batch_index in range(1, batches + 1):
+            print(f"[Profile] batch {batch_index}/{batches}")
             batch_profiles = self.profile_generator.generate_batch(batch_index, batch_size)
             all_profiles.extend(batch_profiles)
 
@@ -73,11 +73,13 @@ class SyntheticCaseOrchestrator:
 
             # case_record and synthetic_record setup with proper fields via profile_index
             # (indices updated at upsert based on name if going to db, otherwise local
+            limited_chart_json = limited_chart.to_json()
+            limited_chart_json_with_uuids = chart_generator.assign_valid_uuids(limited_chart_json)
             case_record = CaseRecord(
                 id=profile_index,
                 name=patient_profile.name,
                 transcript=transcript_cycles,
-                limited_chart=limited_chart.to_json(),
+                limited_chart=limited_chart_json_with_uuids,
                 profile=patient_profile.profile,
                 validation_status=CaseStatus.GENERATION,
                 batch_identifier="",

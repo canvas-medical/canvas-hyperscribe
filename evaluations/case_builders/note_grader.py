@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
-from typing import Any, Tuple
+from typing import Any, Tuple, cast
 
 from evaluations.case_builders.helper_synthetic_json import HelperSyntheticJson
 from evaluations.constants import Constants
@@ -104,35 +104,37 @@ class NoteGrader:
 
         return system_prompt, user_prompt
 
-    def run(self) -> list[dict[str, Any]]:
+    def run(self) -> list[GradedCriterion]:
         system_prompt, user_prompt = self.build_prompts()
         schema = self.schema_scores()
 
         print("Grading …")
 
-        parsed = HelperSyntheticJson.generate_json(
-            vendor_key=self.vendor_key,
-            system_prompt=system_prompt,
-            user_prompt=user_prompt,
-            schema=schema,
+        graded_criteria = cast(
+            list[GradedCriterion],
+            HelperSyntheticJson.generate_json(
+                vendor_key=self.vendor_key,
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                schema=schema,
+                returned_class=list[GradedCriterion],
+            ),
         )
 
-        llm_results = [GradedCriterion(**r) for r in parsed]
-
         result = []
-        for criteria, llm_result in zip(self.rubric, llm_results):
-            if criteria.sense == Constants.POSITIVE_VALUE:
-                score = round(criteria.weight * (llm_result.satisfaction / 100), 2)
+        for graded_criterion, rubric_criterion in zip(graded_criteria, self.rubric):
+            if rubric_criterion.sense == Constants.POSITIVE_VALUE:
+                score = round(rubric_criterion.weight * (graded_criterion.satisfaction / 100), 2)
             else:
-                score = -round(criteria.weight * (1 - (llm_result.satisfaction / 100)), 2)
+                score = -round(rubric_criterion.weight * (1 - (graded_criterion.satisfaction / 100)), 2)
 
             result.append(
-                {
-                    "id": llm_result.id,
-                    "rationale": llm_result.rationale,
-                    "satisfaction": llm_result.satisfaction,
-                    "score": score,
-                }
+                GradedCriterion(
+                    id=graded_criterion.id,
+                    rationale=graded_criterion.rationale,
+                    satisfaction=graded_criterion.satisfaction,
+                    score=score,
+                )
             )
 
         return result
@@ -145,9 +147,9 @@ class NoteGrader:
         rubric = [RubricCriterion(**c) for c in RubricDatastore(credentials).get_rubric(rubric_id)]
         note_data = GeneratedNoteDatastore(credentials).get_note_json(generated_note_id)
 
-        scoring_result = cls(vendor_key, rubric, note_data).run()
+        scoring_result: list[GradedCriterion] = cls(vendor_key, rubric, note_data).run()
 
-        overall_score = sum(item["score"] for item in scoring_result)
+        overall_score = sum(item.score for item in scoring_result)
 
         score_record = ScoreRecord(
             rubric_id=rubric_id,
@@ -164,8 +166,7 @@ class NoteGrader:
     @classmethod
     def grade_and_save2file(cls, rubric_path: Path, note_path: Path, output_path: Path) -> None:
         """Grade a note using rubric from files and save result to output file."""
-        settings = HelperEvaluation.settings()
-        vendor_key = settings.llm_text
+        vendor_key = HelperEvaluation.settings().llm_text
 
         rubric = [RubricCriterion(**c) for c in cls.load_json(rubric_path)]
         note = cls.load_json(note_path)
@@ -173,7 +174,7 @@ class NoteGrader:
         grader = cls(vendor_key, rubric, note)
         result = grader.run()
 
-        output_path.write_text(json.dumps(result, indent=2))
+        output_path.write_text(json.dumps([item._asdict() for item in result], indent=2))
         print("Saved grading result in", output_path)
 
     @staticmethod

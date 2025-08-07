@@ -1,5 +1,6 @@
 import json
 from argparse import Namespace
+from pathlib import Path
 from unittest.mock import patch, call, MagicMock
 
 import pytest
@@ -19,6 +20,7 @@ from evaluations.structures.records.synthetic_case import SyntheticCase as Synth
 from evaluations.structures.specification import Specification
 from hyperscribe.structures.line import Line
 from evaluations.structures.chart import Chart
+from evaluations.structures.chart_item import ChartItem
 from evaluations.structures.patient_profile import PatientProfile
 
 
@@ -31,13 +33,13 @@ def tmp_files(tmp_path):
 
 
 @pytest.fixture
-def mock_vendor_key():
+def vendor_key_instance():
     return VendorKey(vendor="openai", api_key="test_key")
 
 
 @pytest.fixture
 def sample_case_synthetic_pairs():
-    case_record_1 = CaseRecord(
+    case_record = CaseRecord(
         id=1,
         name="John Doe",
         transcript={"cycle_001": []},
@@ -47,7 +49,7 @@ def sample_case_synthetic_pairs():
         batch_identifier="",
         tags={},
     )
-    synthetic_record_1 = SyntheticCaseRecord(
+    synthetic_record = SyntheticCaseRecord(
         case_id=1,
         category="test",
         turn_total=3,
@@ -63,11 +65,11 @@ def sample_case_synthetic_pairs():
         text_llm_name=Constants.OPENAI_CHAT_TEXT_O3,
         id=1,
     )
-    return [(case_record_1, synthetic_record_1)]
+    return [(case_record, synthetic_record)]
 
 
 @patch("evaluations.case_builders.synthetic_case_orchestrator.SyntheticProfileGenerator")
-def test___init__(mock_profile_generator_class, tmp_files, mock_vendor_key):
+def test___init__(mock_profile_generator_class, tmp_files, vendor_key_instance):
     mock_profile_generator = MagicMock()
     mock_profile_generator_class.side_effect = [mock_profile_generator]
 
@@ -75,16 +77,22 @@ def test___init__(mock_profile_generator_class, tmp_files, mock_vendor_key):
         mock_profile_generator_class.reset_mock()
         mock_profile_generator.reset_mock()
 
-    tested = SyntheticCaseOrchestrator(mock_vendor_key, "test_category")
+    tested = SyntheticCaseOrchestrator(vendor_key_instance, "test_category")
 
-    assert tested.vendor_key == mock_vendor_key
+    assert tested.vendor_key == vendor_key_instance
     assert tested.category == "test_category"
     assert tested.profile_generator == mock_profile_generator
-
-    assert mock_profile_generator_class.mock_calls == [call(vendor_key=mock_vendor_key)]
+    assert mock_profile_generator_class.mock_calls == [call(vendor_key=vendor_key_instance)]
     reset_mocks()
 
 
+@pytest.mark.parametrize(
+    "profiles,line_objects,expected_count",
+    [
+        ({"Test Patient": "Profile A"}, [{"speaker": "Clinician", "text": "Hi"}], 1),
+        ({"A": "P1", "B": "P2"}, [{"speaker": "Clinician", "text": "Hello"}], 2),
+    ],
+)
 @patch("evaluations.case_builders.synthetic_case_orchestrator.HelperEvaluation.split_lines_into_cycles")
 @patch("evaluations.case_builders.synthetic_case_orchestrator.SyntheticProfileGenerator")
 @patch("evaluations.case_builders.synthetic_case_orchestrator.SyntheticTranscriptGenerator")
@@ -93,117 +101,90 @@ def test_generate(
     mock_chart_generator_class,
     mock_transcript_generator_class,
     mock_profile_generator_class,
-    mock_split_lines_into_cycles,
-    mock_vendor_key,
+    mock_split_cycles,
+    vendor_key_instance,
+    profiles,
+    line_objects,
+    expected_count,
 ):
     def reset_mocks():
-        mock_chart_generator_class.reset_mock()
-        mock_transcript_generator_class.reset_mock()
         mock_profile_generator_class.reset_mock()
-        mock_split_lines_into_cycles.reset_mock()
+        mock_transcript_generator_class.reset_mock()
+        mock_chart_generator_class.reset_mock()
+        mock_split_cycles.reset_mock()
+        mock_profile_generator.reset_mock()
+        mock_transcript_generator.reset_mock()
+        mock_chart_generator.reset_mock()
 
-    test_cases = [
-        {
-            "description": "normal case with single profile",
-            "profiles": {"Test Patient": "Test profile"},
-            "line_objects": [{"speaker": "Dr", "text": "Hi"}],
-            "expected_results": 1,
-        },
-        {
-            "description": "multiple profiles",
-            "profiles": {"Patient A": "Profile A", "Patient B": "Profile B"},
-            "line_objects": [{"speaker": "Dr", "text": "Hello"}],
-            "expected_results": 2,
-        },
-    ]
+    mock_profile_generator = MagicMock()
+    mock_transcript_generator = MagicMock()
+    mock_chart_generator = MagicMock()
 
-    for index, test_case in enumerate(test_cases):
-        # mocks
-        mock_profile_generator = MagicMock()
-        # Convert profiles dict to list[PatientProfile] for generate_batch return
-        profiles_list = [PatientProfile(name=name, profile=profile) for name, profile in test_case["profiles"].items()]
-        mock_profile_generator.generate_batch.side_effect = [profiles_list]
-        mock_profile_generator_class.return_value = mock_profile_generator
+    profiles_dict = profiles if isinstance(profiles, dict) else dict([profiles])
+    profiles_list = [PatientProfile(name=n, profile=p) for n, p in profiles_dict.items()]
+    mock_profile_generator.generate_batch.side_effect = [profiles_list]
+    mock_profile_generator_class.side_effect = [mock_profile_generator]
 
-        mock_chart_generator = MagicMock()
-        mock_chart_generator_class.side_effect = [mock_chart_generator]
-        # Create Chart instances for the mock return
-        mock_chart = Chart(
-            demographic_str="Test patient",
-            condition_history="Test conditions",
-            current_allergies="None",
-            current_conditions="None",
-            current_medications="test_med",
-            current_goals="Test goals",
-            family_history="None",
-            surgery_history="None",
-        )
-        profile_count = len(test_case["profiles"])
-        mock_chart_generator.generate_chart_for_profile.side_effect = [mock_chart] * profile_count
+    chart = Chart(
+        demographic_str="Demo",
+        condition_history=[ChartItem(code="Z87.891", label="Personal history", uuid="uuid-1")],
+        current_allergies=[],
+        current_conditions=[ChartItem(code="J45.9", label="Test condition", uuid="uuid-2")],
+        current_medications=[ChartItem(code="329498", label="Test medication", uuid="uuid-3")],
+        current_goals=[ChartItem(code="", label="Test goal", uuid="uuid-4")],
+        family_history=[],
+        surgery_history=[],
+    )
+    mock_chart_generator.generate_chart_for_profile.side_effect = [chart] * len(profiles_list)
+    mock_chart_generator_class.side_effect = [mock_chart_generator]
 
-        mock_transcript_generator = MagicMock()
-        mock_transcript_generator_class.side_effect = [mock_transcript_generator]
-        mock_specifications = Specification(
-            turn_total=len(test_case["line_objects"]),
-            speaker_sequence=["Clinician", "Patient"],
-            ratio=1.0,
-            mood=[SyntheticCaseMood.PATIENT_FRUSTRATED],
-            pressure=SyntheticCasePressure.TIME_PRESSURE,
-            clinician_style=SyntheticCaseClinicianStyle.WARM_CHATTY,
-            patient_style=SyntheticCasePatientStyle.ANXIOUS_TALKATIVE,
-            bucket=SyntheticCaseTurnBuckets.SHORT,
-        )
-        # Create Line objects for the transcript
-        mock_line_objects = []
-        for line_data in test_case["line_objects"]:
-            mock_line = MagicMock(spec=Line)
-            mock_line.speaker = line_data["speaker"]
-            mock_line.text = line_data["text"]
-            mock_line_objects.append(mock_line)
+    lines = []
+    for data in line_objects:
+        line = MagicMock(spec=Line)
+        line.speaker = data["speaker"]
+        line.text = data["text"]
+        lines.append(line)
+    specifications = Specification(
+        turn_total=len(line_objects),
+        speaker_sequence=["Clinician", "Patient"],
+        ratio=1.0,
+        mood=[SyntheticCaseMood.PATIENT_FRUSTRATED],
+        pressure=SyntheticCasePressure.TIME_PRESSURE,
+        clinician_style=SyntheticCaseClinicianStyle.WARM_CHATTY,
+        patient_style=SyntheticCasePatientStyle.ANXIOUS_TALKATIVE,
+        bucket=SyntheticCaseTurnBuckets.SHORT,
+    )
+    mock_transcript_generator.generate_transcript_for_profile.side_effect = [(lines, specifications)] * len(
+        profiles_list
+    )
+    mock_transcript_generator_class.side_effect = [mock_transcript_generator]
 
-        mock_transcript_generator.generate_transcript_for_profile.side_effect = [
-            (mock_line_objects, mock_specifications)
-        ] * profile_count
+    cycle_key = "cycle_001"
+    mock_split_cycles.side_effect = [{cycle_key: lines}] * len(profiles_list)
 
-        # Mock the split_lines_into_cycles method with controlled cycle key
-        expected_cycle_key = "test_cycle_001"
-        mock_transcript_cycles = {expected_cycle_key: mock_line_objects}
-        mock_split_lines_into_cycles.side_effect = [mock_transcript_cycles] * profile_count
+    tested = SyntheticCaseOrchestrator(vendor_key_instance, "test_cat")
+    with patch("evaluations.case_builders.synthetic_case_orchestrator.Constants.OPENAI_CHAT_TEXT_O3", "model_x"):
+        result = tested.generate(batches=1, batch_size=len(profiles_list))
+    expected = expected_count
 
-        tested = SyntheticCaseOrchestrator(
-            mock_vendor_key,
-            "test_category",
-        )
+    assert len(result) == expected
+    for case_record, synthetic_case_record in result:
+        assert isinstance(case_record, CaseRecord)
+        assert isinstance(synthetic_case_record, SyntheticCaseRecord)
+        assert case_record.validation_status == CaseStatus.GENERATION
+        assert synthetic_case_record.category == "test_cat"
+        assert synthetic_case_record.text_llm_vendor == vendor_key_instance.vendor
 
-        with patch.object(Constants, "OPENAI_CHAT_TEXT_O3", "test_model_name"):
-            result = tested.generate(1, profile_count)
+    assert mock_profile_generator_class.mock_calls == [call(vendor_key=vendor_key_instance)]
+    assert mock_profile_generator.generate_batch.mock_calls == [call(1, len(profiles_list))]
+    assert mock_chart_generator_class.mock_calls == [call(vendor_key=vendor_key_instance, profiles=profiles_list)]
+    calls = [call(p) for p in profiles_list]
+    assert mock_chart_generator.generate_chart_for_profile.mock_calls == calls
+    assert mock_transcript_generator.generate_transcript_for_profile.mock_calls == calls
+    assert mock_transcript_generator_class.mock_calls == [call(vendor_key=vendor_key_instance, profiles=profiles_list)]
+    assert mock_split_cycles.mock_calls == [call(lines)] * len(profiles_list)
 
-        # Verify results
-        assert len(result) == test_case["expected_results"]
-
-        for case_record, synthetic_record in result:
-            assert isinstance(case_record, CaseRecord)
-            assert isinstance(synthetic_record, SyntheticCaseRecord)
-            assert case_record.validation_status == CaseStatus.GENERATION
-            assert synthetic_record.category == "test_category"
-            assert synthetic_record.text_llm_vendor == mock_vendor_key.vendor
-
-            # Verify transcript structure
-            if test_case["line_objects"]:
-                assert len(case_record.transcript) == 1
-                assert expected_cycle_key in case_record.transcript
-                expected_line_count = len(test_case["line_objects"])
-                assert len(case_record.transcript[expected_cycle_key]) == expected_line_count
-                assert case_record.transcript == mock_transcript_cycles
-
-        # Verify mock calls
-        assert mock_profile_generator.generate_batch.mock_calls == [call(1, profile_count)]
-        assert mock_chart_generator.generate_chart_for_profile.call_count == profile_count
-        assert mock_transcript_generator.generate_transcript_for_profile.call_count == profile_count
-        if test_case["line_objects"]:
-            assert mock_split_lines_into_cycles.call_count == profile_count
-
-        reset_mocks()
+    reset_mocks()
 
 
 @patch("evaluations.case_builders.synthetic_case_orchestrator.HelperEvaluation.postgres_credentials")
@@ -217,7 +198,7 @@ def test_generate_and_save2database(
     mock_synthetic_datastore_class,
     mock_settings,
     mock_postgres_credentials,
-    mock_vendor_key,
+    vendor_key_instance,
     sample_case_synthetic_pairs,
 ):
     tested = SyntheticCaseOrchestrator
@@ -227,7 +208,7 @@ def test_generate_and_save2database(
     mock_postgres_credentials.side_effect = [mock_credentials]
 
     mock_settings_instance = MagicMock()
-    mock_settings_instance.llm_text = mock_vendor_key
+    mock_settings_instance.llm_text = vendor_key_instance
     mock_settings.side_effect = [mock_settings_instance]
 
     mock_case_datastore = MagicMock()
@@ -260,17 +241,37 @@ def test_generate_and_save2database(
     expected = [mock_upserted_synthetic]
 
     assert result == expected
-    assert mock_postgres_credentials.mock_calls == [call()]
-    assert mock_settings.mock_calls == [call()]
+
+    assert mock_generate.mock_calls == [call(2, 5)]
     assert mock_case_datastore_class.mock_calls == [call(mock_credentials)]
     assert mock_synthetic_datastore_class.mock_calls == [call(mock_credentials)]
-    assert mock_generate.mock_calls == [call(2, 5)]
-    assert mock_case_datastore.upsert.mock_calls == [call(sample_case_synthetic_pairs[0][0])]
-
-    # verify synthetic case record.
-    upserted_synthetic_record = mock_synthetic_datastore.upsert.call_args[0][0]
-    assert upserted_synthetic_record.case_id == 123
-    assert mock_synthetic_datastore.upsert.call_count == 1
+    assert mock_settings.mock_calls == [call()]
+    assert mock_postgres_credentials.mock_calls == [call()]
+    assert mock_credentials.mock_calls == []
+    assert mock_settings_instance.mock_calls == []
+    assert mock_case_datastore.mock_calls == [call.upsert(sample_case_synthetic_pairs[0][0])]
+    assert mock_synthetic_datastore.mock_calls == [
+        call.upsert(
+            SyntheticCaseRecord(
+                case_id=123,
+                category="test",
+                turn_total=3,
+                speaker_sequence=["Clinician", "Patient", "Clinician"],
+                clinician_to_patient_turn_ratio=1.0,
+                mood=[SyntheticCaseMood.PATIENT_FRUSTRATED],
+                pressure=SyntheticCasePressure.TIME_PRESSURE,
+                clinician_style=SyntheticCaseClinicianStyle.WARM_CHATTY,
+                patient_style=SyntheticCasePatientStyle.ANXIOUS_TALKATIVE,
+                turn_buckets=SyntheticCaseTurnBuckets.SHORT,
+                duration=0.0,
+                text_llm_vendor="openai",
+                text_llm_name="o3",
+                id=1,
+            )
+        )
+    ]
+    assert mock_upserted_case.mock_calls == []
+    assert mock_upserted_synthetic.mock_calls == []
 
     reset_mocks()
 
@@ -281,16 +282,15 @@ def test_generate_and_save2file(
     mock_generate,
     mock_settings,
     tmp_files,
-    mock_vendor_key,
+    vendor_key_instance,
     sample_case_synthetic_pairs,
     capsys,
 ):
     tested = SyntheticCaseOrchestrator
     output_root = tmp_files
 
-    # mock settings + generate
     mock_settings_instance = MagicMock()
-    mock_settings_instance.llm_text = mock_vendor_key
+    mock_settings_instance.llm_text = vendor_key_instance
     mock_settings.side_effect = [mock_settings_instance]
     mock_generate.side_effect = [sample_case_synthetic_pairs]
 
@@ -300,10 +300,6 @@ def test_generate_and_save2file(
         mock_settings_instance.reset_mock()
 
     tested.generate_and_save2file(2, 5, "test_category", output_root)
-
-    # verify calls, file creation/contents, prints.
-    assert mock_settings.mock_calls == [call()]
-    assert mock_generate.mock_calls == [call(2, 5)]
 
     case_record, synthetic_record = sample_case_synthetic_pairs[0]
     patient_dir = output_root / case_record.name.replace(" ", "_")
@@ -326,11 +322,23 @@ def test_generate_and_save2file(
     assert f"Wrote {case_file}" in captured.out
     assert f"Wrote {synthetic_file}" in captured.out
 
+    assert mock_generate.mock_calls == [call(2, 5)]
+    assert mock_settings.mock_calls == [call()]
+    assert mock_settings_instance.mock_calls == []
     reset_mocks()
 
 
+@pytest.mark.parametrize(
+    "mode,output_root_provided,expected_method,expected_output_pattern",
+    [
+        ("db", False, "generate_and_save2database", "Inserted 2 synthetic_case records."),
+        ("file", True, "generate_and_save2file", "Wrote files to"),
+    ],
+)
 @patch("evaluations.case_builders.synthetic_case_orchestrator.argparse.ArgumentParser")
-def test_main(mock_parser_class, tmp_files, capsys):
+def test_main__success(
+    mock_parser_class, tmp_files, capsys, mode, output_root_provided, expected_method, expected_output_pattern
+):
     tested = SyntheticCaseOrchestrator
     mock_parser = MagicMock()
     mock_parser_class.side_effect = [mock_parser]
@@ -339,70 +347,77 @@ def test_main(mock_parser_class, tmp_files, capsys):
         mock_parser_class.reset_mock()
         mock_parser.reset_mock()
 
-    output_root = tmp_files
+    output_root = tmp_files if output_root_provided else None
+    args = Namespace(
+        batches=2,
+        batch_size=5,
+        category="test_category",
+        mode=mode,
+        output_root=output_root,
+    )
+    mock_parser.parse_args.side_effect = [args]
 
-    test_cases = [
-        # Database mode
-        {
-            "args": Namespace(
-                batches=2,
-                batch_size=5,
-                category="test_category",
-                mode="db",
-                output_root=None,
-            ),
-            "expected_method": "generate_and_save2database",
-        },
-        # File mode
-        {
-            "args": Namespace(
-                batches=2,
-                batch_size=5,
-                category="test_category",
-                mode="file",
-                output_root=output_root,
-            ),
-            "expected_method": "generate_and_save2file",
-        },
-    ]
+    if expected_method == "generate_and_save2database":
+        mock_saved_records = [MagicMock(), MagicMock()]
+        with patch.object(tested, expected_method) as mock_method:
+            mock_method.side_effect = [mock_saved_records]
+            tested.main()
 
-    for test_case in test_cases:
-        mock_parser.parse_args.side_effect = [test_case["args"]]
+            assert mock_parser_class.mock_calls == [call()]
+            assert mock_parser.mock_calls == [
+                call.add_argument("--batches", type=int, required=True),
+                call.add_argument("--batch-size", type=int, required=True),
+                call.add_argument("--category", type=str, required=True),
+                call.add_argument(
+                    "--mode",
+                    choices=["db", "file"],
+                    required=True,
+                    help="Choose 'db' to upsert into Postgres or 'file' to write JSON files",
+                ),
+                call.add_argument("--output-root", type=Path, help="Required when --mode is 'file'"),
+                call.parse_args(),
+            ]
+            assert mock_method.mock_calls == [call(args.batches, args.batch_size, args.category)]
 
-        if test_case["expected_method"] == "generate_and_save2database":
-            mock_saved_records = [MagicMock(), MagicMock()]
-            with patch.object(tested, "generate_and_save2database") as mock_method:
-                mock_method.side_effect = [mock_saved_records]
-                tested.main()
-                assert mock_method.mock_calls == [
-                    call(
-                        test_case["args"].batches,
-                        test_case["args"].batch_size,
-                        test_case["args"].category,
-                    )
-                ]
-                output = capsys.readouterr().out
-                assert f"Inserted {len(mock_saved_records)} synthetic_case records." in output
+            output = capsys.readouterr().out
+            assert expected_output_pattern in output
 
-        else:
-            with patch.object(tested, "generate_and_save2file") as mock_method:
-                tested.main()
-                assert mock_method.mock_calls == [
-                    call(
-                        test_case["args"].batches,
-                        test_case["args"].batch_size,
-                        test_case["args"].category,
-                        test_case["args"].output_root,
-                    )
-                ]
-                output = capsys.readouterr().out
-                assert f"Wrote files to {test_case['args'].output_root}" in output
+    else:
+        with patch.object(tested, expected_method) as mock_method:
+            mock_method.side_effect = [None]
+            tested.main()
 
-        reset_mocks()
-        mock_parser = MagicMock()
-        mock_parser_class.side_effect = [mock_parser]
+            assert mock_parser_class.mock_calls == [call()]
+            assert mock_parser.mock_calls == [
+                call.add_argument("--batches", type=int, required=True),
+                call.add_argument("--batch-size", type=int, required=True),
+                call.add_argument("--category", type=str, required=True),
+                call.add_argument(
+                    "--mode",
+                    choices=["db", "file"],
+                    required=True,
+                    help="Choose 'db' to upsert into Postgres or 'file' to write JSON files",
+                ),
+                call.add_argument("--output-root", type=Path, help="Required when --mode is 'file'"),
+                call.parse_args(),
+            ]
+            assert mock_method.mock_calls == [call(args.batches, args.batch_size, args.category, args.output_root)]
 
-    # test validation error.
+            output = capsys.readouterr().out
+            assert expected_output_pattern in output
+    reset_mocks()
+
+
+@patch("evaluations.case_builders.synthetic_case_orchestrator.argparse.ArgumentParser")
+def test_main__validation_error(mock_parser_class):
+    tested = SyntheticCaseOrchestrator
+    mock_parser = MagicMock()
+    mock_parser_class.side_effect = [mock_parser]
+
+    def reset_mocks():
+        mock_parser_class.reset_mock()
+        mock_parser.reset_mock()
+
     validation_args = Namespace(
         batches=2,
         batch_size=5,
@@ -416,5 +431,19 @@ def test_main(mock_parser_class, tmp_files, capsys):
     with pytest.raises(SystemExit):
         tested.main()
 
-    assert mock_parser.error.mock_calls == [call("--output-root is required in file mode")]
+    assert mock_parser_class.mock_calls == [call()]
+    assert mock_parser.mock_calls == [
+        call.add_argument("--batches", type=int, required=True),
+        call.add_argument("--batch-size", type=int, required=True),
+        call.add_argument("--category", type=str, required=True),
+        call.add_argument(
+            "--mode",
+            choices=["db", "file"],
+            required=True,
+            help="Choose 'db' to upsert into Postgres or 'file' to write JSON files",
+        ),
+        call.add_argument("--output-root", type=Path, help="Required when --mode is 'file'"),
+        call.parse_args(),
+        call.error("--output-root is required in file mode"),
+    ]
     reset_mocks()

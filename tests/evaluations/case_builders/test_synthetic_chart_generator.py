@@ -21,10 +21,10 @@ def test___init__():
 
 
 def test_load_json(tmp_path):
-    expected_dict = {"a": 1, "b": 2}
+    expected_dict = {"a": "aaa", "b": "bbb"}
     expected = [
-        PatientProfile(name="a", profile=1),
-        PatientProfile(name="b", profile=2),
+        PatientProfile(name="a", profile="aaa"),
+        PatientProfile(name="b", profile="bbb"),
     ]
     data_file = tmp_path / "data.json"
     data_file.write_text(json.dumps(expected_dict))
@@ -38,7 +38,7 @@ def test_schema_chart():
     tested_known = SyntheticChartGenerator(VendorKey("vendor", "key"), [])
 
     result_schema = tested_known.schema_chart()
-    assert result_schema["description"] == "Canvas-compatible chart structure"
+    assert result_schema["description"] == "Canvas-compatible chart structure with structured ChartItems"
     assert result_schema["type"] == "object"
     assert result_schema["additionalProperties"] is False
     assert set(result_schema["required"]) == set(example_chart_known.keys())
@@ -46,19 +46,28 @@ def test_schema_chart():
     properties = result_schema["properties"]
     assert set(properties.keys()) == set(example_chart_known.keys())
 
-    expected_chart_descriptions = {
-        "demographicStr": "string describing patient demographics",
-        "conditionHistory": "patient history of conditions",
-        "currentAllergies": "current allergies for the patient",
-        "currentConditions": "current patient conditions and diagnoses",
-        "currentMedications": "current patient medications being taken",
-        "currentGoals": "current treatment goals for the patient",
-        "familyHistory": "any history of family care or illness",
-        "surgeryHistory": "any history of surgical care or operations",
-    }
-    for key, expected_desc in expected_chart_descriptions.items():
-        assert properties[key]["description"] == expected_desc
-        assert properties[key]["type"] == "string"
+    # demographicStr should be string
+    assert properties["demographicStr"]["type"] == "string"
+    assert properties["demographicStr"]["description"] == "String describing patient demographics"
+
+    # All other fields should be arrays
+    array_fields = [
+        "conditionHistory",
+        "currentAllergies",
+        "currentConditions",
+        "currentMedications",
+        "currentGoals",
+        "familyHistory",
+        "surgeryHistory",
+    ]
+    for field_name in array_fields:
+        assert properties[field_name]["type"] == "array"
+        assert "items" in properties[field_name]
+        # Check that items have the ChartItem schema structure
+        items_schema = properties[field_name]["items"]
+        assert items_schema["type"] == "object"
+        assert set(items_schema["properties"].keys()) == {"code", "label", "uuid"}
+        assert items_schema["required"] == ["code", "label", "uuid"]
 
 
 @patch.object(SyntheticChartGenerator, "schema_chart")
@@ -69,28 +78,29 @@ def test_generate_chart_for_profile(mock_generate_json, mock_schema_chart, tmp_p
     tested = SyntheticChartGenerator(tested_key, dummy_profiles)
 
     profile_obj = PatientProfile(name="test", profile="irrelevant profile")
-    expected_chart = {
+    expected_chart_data = {
         "demographicStr": "test demographic",
-        "conditionHistory": "test condition history",
-        "currentAllergies": "test allergies",
-        "currentConditions": "test conditions",
-        "currentMedications": "test medications",
-        "currentGoals": "test goals",
-        "familyHistory": "test family history",
-        "surgeryHistory": "test surgery history",
+        "conditionHistory": [{"code": "Z87.891", "label": "Personal history of tobacco use", "uuid": ""}],
+        "currentAllergies": [{"code": "Z88.1", "label": "Allergy to penicillin", "uuid": ""}],
+        "currentConditions": [{"code": "J45.9", "label": "Asthma, unspecified", "uuid": ""}],
+        "currentMedications": [{"code": "329498", "label": "Albuterol inhaler", "uuid": ""}],
+        "currentGoals": [{"code": "", "label": "Control asthma symptoms", "uuid": ""}],
+        "familyHistory": [],
+        "surgeryHistory": [{"code": "0DT70ZZ", "label": "Appendectomy", "uuid": ""}],
     }
+    expected_chart = Chart.load_from_json(expected_chart_data)
     mock_generate_json.side_effect = [expected_chart]
     expected_schema = {"$schema": "http://json-schema.org/draft-07/schema#", "type": "object"}
     mock_schema_chart.side_effect = lambda: expected_schema
 
     result = tested.generate_chart_for_profile(profile_obj)
-    assert result == Chart.load_from_json(expected_chart)
+    assert result == expected_chart
     assert mock_schema_chart.mock_calls == [call()]
 
     assert len(mock_generate_json.mock_calls) == 1
     _, kwargs = mock_generate_json.call_args
-    expected_system_md5 = "4ef06113c42ee7128cc08b0695e481f5"
-    expected_user_md5 = "a0c178f85b3d55ee6d06dfcb11fc7d36"
+    expected_system_md5 = "2dd6a8f62a929edbf394a2eb17705b97"
+    expected_user_md5 = "2daa84d2b87cd3ad00b841feed0333c8"
     result_system_md5 = hashlib.md5("\n".join(kwargs["system_prompt"]).encode()).hexdigest()
     result_user_md5 = hashlib.md5("\n".join(kwargs["user_prompt"]).encode()).hexdigest()
 
@@ -98,25 +108,6 @@ def test_generate_chart_for_profile(mock_generate_json, mock_schema_chart, tmp_p
     assert result_user_md5 == expected_user_md5
     assert kwargs["vendor_key"] == tested.vendor_key
     assert kwargs["schema"] == expected_schema
-
-
-@patch("evaluations.case_builders.synthetic_chart_generator.LimitedCache.load_from_json")
-def test_validate_chart__success(mock_load):
-    tested_chart = {"foo": "bar"}
-    tested = SyntheticChartGenerator(VendorKey("vendor", "key"), [])
-
-    tested.validate_chart(tested_chart)
-
-    assert mock_load.mock_calls == [call(tested_chart)]
-
-
-@patch("evaluations.case_builders.synthetic_chart_generator.LimitedCache.load_from_json", side_effect=Exception("boom"))
-def test_validate_chart__invalid_structure(mock_load):
-    tested_chart = {"bad": True}
-    tested = SyntheticChartGenerator(VendorKey("vendor", "key"), [])
-    result = tested.validate_chart(tested_chart)
-    assert result is False
-    assert mock_load.mock_calls == [call(tested_chart)]
 
 
 def test_assign_valid_uuids():
@@ -133,12 +124,10 @@ def test_assign_valid_uuids():
 
 
 @patch.object(SyntheticChartGenerator, "assign_valid_uuids")
-@patch.object(SyntheticChartGenerator, "validate_chart")
 @patch.object(SyntheticChartGenerator, "generate_chart_for_profile")
-def test_run_range(mock_generate, mock_validate, mock_assign, tmp_path):
+def test_run_range(mock_generate, mock_assign, tmp_path):
     def reset_mocks():
         mock_generate.reset_mock()
-        mock_validate.reset_mock()
         mock_assign.reset_mock()
 
     profiles = [
@@ -207,9 +196,9 @@ def test_run_range(mock_generate, mock_validate, mock_assign, tmp_path):
                 ),
             ],
             [True, False],
-            [True, False],
+            [True, True],
             [profiles[1], profiles[2]],
-            1,
+            2,
         ),
         (
             "one invalid then one valid",
@@ -238,9 +227,9 @@ def test_run_range(mock_generate, mock_validate, mock_assign, tmp_path):
                 ),
             ],
             [False, True],
-            [False, True],
+            [True, True],
             [profiles[0], profiles[1]],
-            1,
+            2,
         ),
     ]
 
@@ -255,7 +244,6 @@ def test_run_range(mock_generate, mock_validate, mock_assign, tmp_path):
         expected_assign_count,
     ) in enumerate(tests):
         mock_generate.side_effect = charts
-        mock_validate.side_effect = validate_results
         mock_assign.side_effect = lambda chart: {"assigned": chart["demographicStr"]}
 
         output_dir = tmp_path / f"test{i + 1}"
@@ -279,12 +267,7 @@ def test_run_range(mock_generate, mock_validate, mock_assign, tmp_path):
         assert mock_generate.mock_calls == expected_generate_calls
 
         charts_json = [chart.to_json() for chart in charts]
-        expected_validate_calls = [call(chart_json) for chart_json in charts_json]
-        assert mock_validate.mock_calls == expected_validate_calls
-
-        # Only charts that passed validation should be assigned
-        valid_charts_json = [charts_json[j] for j, valid in enumerate(validate_results) if valid]
-        expected_assign_calls = [call(chart_json) for chart_json in valid_charts_json]
+        expected_assign_calls = [call(chart_json) for chart_json in charts_json]
         assert mock_assign.mock_calls == expected_assign_calls
         assert len(mock_assign.mock_calls) == expected_assign_count
 

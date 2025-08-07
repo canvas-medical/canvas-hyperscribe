@@ -6,6 +6,49 @@ from evaluations.structures.records.rubric import Rubric as RubricRecord
 
 
 class Rubric(Postgres):
+    def insert(self, rubric: RubricRecord) -> RubricRecord:
+        params = {
+            "now": datetime.now(UTC),
+            "case_id": rubric.case_id,
+            "parent_rubric_id": rubric.parent_rubric_id,
+            "validation_timestamp": rubric.validation_timestamp,
+            "validation": rubric.validation.value,
+            "author": rubric.author,
+            "rubric": self.constant_dumps(rubric.rubric),
+            "case_provenance_classification": rubric.case_provenance_classification,
+            "comments": rubric.comments,
+            "text_llm_vendor": rubric.text_llm_vendor,
+            "text_llm_name": rubric.text_llm_name,
+            "temperature": rubric.temperature,
+        }
+        sql: LiteralString = """
+            INSERT INTO "rubric" (
+                "created", "updated", "case_id", "parent_rubric_id", "validation_timestamp",
+                "validation", "author", "rubric", "case_provenance_classification",
+                "comments", "text_llm_vendor", "text_llm_name", "temperature"
+            )
+            VALUES (
+                %(now)s, %(now)s, %(case_id)s, %(parent_rubric_id)s, %(validation_timestamp)s,
+                %(validation)s, %(author)s, %(rubric)s, %(case_provenance_classification)s,
+                %(comments)s, %(text_llm_vendor)s, %(text_llm_name)s, %(temperature)s
+            )
+            RETURNING id
+        """
+        return RubricRecord(
+            id=self._alter(sql, params, None),
+            case_id=rubric.case_id,
+            parent_rubric_id=rubric.parent_rubric_id,
+            validation_timestamp=rubric.validation_timestamp,
+            validation=rubric.validation,
+            author=rubric.author,
+            rubric=rubric.rubric,
+            case_provenance_classification=rubric.case_provenance_classification,
+            comments=rubric.comments,
+            text_llm_vendor=rubric.text_llm_vendor,
+            text_llm_name=rubric.text_llm_name,
+            temperature=rubric.temperature,
+        )
+
     def upsert(self, rubric: RubricRecord) -> RubricRecord:
         params = {
             "now": datetime.now(UTC),

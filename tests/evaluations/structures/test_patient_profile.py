@@ -43,7 +43,6 @@ def test_to_json():
     for tested, expected in tests:
         result = tested.to_json()
         assert result == expected
-        assert isinstance(result, dict)
 
 
 def test_load_from_json():

@@ -4,5 +4,5 @@ from tests.helper import is_namedtuple
 
 def test_class():
     tested = GradedCriterion
-    fields = {"id": int, "rationale": str, "satisfaction": int}
+    fields = {"id": int, "rationale": str, "satisfaction": int, "score": float}
     assert is_namedtuple(tested, fields)

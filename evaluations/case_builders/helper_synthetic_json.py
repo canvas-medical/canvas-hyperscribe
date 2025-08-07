@@ -1,11 +1,16 @@
 from __future__ import annotations
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, Type
 from hyperscribe.llms.llm_openai_o3 import LlmOpenaiO3
 from hyperscribe.libraries.memory_log import MemoryLog
 from hyperscribe.structures.vendor_key import VendorKey
+from hyperscribe.structures.line import Line
 from evaluations.constants import Constants
+from evaluations.structures.chart import Chart
+from evaluations.structures.patient_profile import PatientProfile
+from evaluations.structures.rubric_criterion import RubricCriterion
+from evaluations.structures.graded_criterion import GradedCriterion
 
 
 class HelperSyntheticJson:
@@ -15,7 +20,12 @@ class HelperSyntheticJson:
         system_prompt: list[str],
         user_prompt: list[str],
         schema: dict[str, Any],
-    ) -> Any:
+        returned_class: Type[Chart]
+        | Type[list[Line]]
+        | Type[list[PatientProfile]]
+        | Type[list[RubricCriterion]]
+        | Type[list[GradedCriterion]],
+    ) -> Chart | list[Line] | list[PatientProfile] | list[RubricCriterion] | list[GradedCriterion]:
         """
         1) Creates an O3 LLM client.
         2) Sends *system_prompt* and *user_prompt* (lists of strings).
@@ -39,4 +49,17 @@ class HelperSyntheticJson:
             sys.exit(1)
 
         parsed = result.content[0]
-        return parsed
+
+        if returned_class == Chart:
+            return Chart.load_from_json(parsed)
+        elif returned_class == list[Line]:
+            return Line.load_from_json(parsed)
+        elif returned_class == list[PatientProfile]:
+            return [PatientProfile(name=name, profile=profile) for name, profile in parsed.items()]
+        elif returned_class == list[RubricCriterion]:
+            return [RubricCriterion(**item) for item in parsed]
+        elif returned_class == list[GradedCriterion]:
+            # convert into list graded criterion and setting placeholder score. -0.000 isn't possible by score calc.
+            return [GradedCriterion(**item, score=-0.000) for item in parsed]
+
+        raise ValueError(f"Unsupported returned_class: {returned_class}")

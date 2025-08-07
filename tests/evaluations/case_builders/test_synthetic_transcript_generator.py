@@ -4,6 +4,7 @@ from pathlib import Path
 from unittest.mock import patch, MagicMock, call
 from evaluations.case_builders.synthetic_transcript_generator import SyntheticTranscriptGenerator, HelperSyntheticJson
 from evaluations.structures.patient_profile import PatientProfile
+from evaluations.structures.specification import Specification
 from evaluations.structures.enums.synthetic_case_turn_buckets import SyntheticCaseTurnBuckets
 from evaluations.structures.enums.synthetic_case_mood import SyntheticCaseMood
 from evaluations.structures.enums.synthetic_case_pressure import SyntheticCasePressure
@@ -11,7 +12,7 @@ from evaluations.structures.enums.synthetic_case_clinician_style import Syntheti
 from evaluations.structures.enums.synthetic_case_patient_style import SyntheticCasePatientStyle
 from unittest.mock import call
 from hyperscribe.structures.vendor_key import VendorKey
-from evaluations.structures.specification import Specification
+from hyperscribe.structures.line import Line
 
 
 def create_fake_profiles_file(tmp_path: Path) -> Path:
@@ -125,8 +126,6 @@ def test_schema_transcript():
 
 
 def test__build_prompt():
-    from evaluations.structures.specification import Specification
-
     tested = SyntheticTranscriptGenerator(VendorKey("openai", "MY_KEY"), {})
 
     specifications = Specification(
@@ -163,12 +162,10 @@ def test__build_prompt():
 @patch.object(SyntheticTranscriptGenerator, "schema_transcript")
 @patch.object(SyntheticTranscriptGenerator, "_build_prompt", return_value=(["System Prompt"], ["User Prompt"]))
 @patch.object(SyntheticTranscriptGenerator, "_make_specifications")
-@patch.object(HelperSyntheticJson, "generate_json", return_value=[{"speaker": "Clinician", "text": "Sample text"}])
+@patch.object(HelperSyntheticJson, "generate_json", return_value=[Line(speaker="Clinician", text="Sample text")])
 def test_generate_transcript_for_profile__success(
     mock_generate_json, mock_make_specifications, mock_build_prompt, mock_schema_transcript
 ):
-    from evaluations.structures.specification import Specification
-
     profiles = [
         PatientProfile(name="Patient 1", profile="AAA"),
         PatientProfile(name="Patient 2", profile="BBB"),
@@ -186,7 +183,7 @@ def test_generate_transcript_for_profile__success(
         patient_style=SyntheticCasePatientStyle.ANXIOUS_TALKATIVE,
         bucket=SyntheticCaseTurnBuckets.SHORT,
     )
-    mock_make_specifications.return_value = mock_spec
+    mock_make_specifications.side_effect = [mock_spec]
 
     patient_profile = PatientProfile(name="Sample Patient", profile="Sample profile")
     expected_schema = {"type": "array"}
@@ -209,9 +206,10 @@ def test_generate_transcript_for_profile__success(
     assert mock_generate_json.mock_calls == [
         call(
             vendor_key=tested.vendor_key,
-            schema=expected_schema,
             system_prompt=["System Prompt"],
             user_prompt=["User Prompt"],
+            schema=expected_schema,
+            returned_class=list[Line],
         )
     ]
 
@@ -241,7 +239,7 @@ def test_generate_transcript_for_profile__bad_json_raises(
         patient_style=SyntheticCasePatientStyle.ANXIOUS_TALKATIVE,
         bucket=SyntheticCaseTurnBuckets.SHORT,
     )
-    mock_make_specifications.return_value = mock_spec
+    mock_make_specifications.side_effect = [mock_spec]
 
     expected_schema = {"type": "array"}
     mock_schema_transcript.side_effect = lambda _: expected_schema
@@ -259,9 +257,10 @@ def test_generate_transcript_for_profile__bad_json_raises(
     assert mock_generate_json.mock_calls == [
         call(
             vendor_key=tested.vendor_key,
-            schema=expected_schema,
             system_prompt=["System Prompt"],
             user_prompt=["User Prompt"],
+            schema=expected_schema,
+            returned_class=list[Line],
         )
     ]
 
@@ -269,7 +268,7 @@ def test_generate_transcript_for_profile__bad_json_raises(
 @patch.object(SyntheticTranscriptGenerator, "schema_transcript")
 @patch.object(SyntheticTranscriptGenerator, "_build_prompt", return_value=(["System Prompt"], ["User Prompt"]))
 @patch.object(SyntheticTranscriptGenerator, "_make_specifications")
-@patch.object(HelperSyntheticJson, "generate_json", return_value=[{"speaker": "Clinician", "text": "Content"}])
+@patch.object(HelperSyntheticJson, "generate_json", return_value=[Line(speaker="Clinician", text="Content")])
 def test_run(mock_generate_json, mock_make_specifications, mock_build_prompt, mock_schema_transcript, tmp_path):
     profiles = [
         PatientProfile(name="Patient 1", profile="AAA"),
@@ -291,7 +290,7 @@ def test_run(mock_generate_json, mock_make_specifications, mock_build_prompt, mo
         patient_style=SyntheticCasePatientStyle.ANXIOUS_TALKATIVE,
         bucket=SyntheticCaseTurnBuckets.SHORT,
     )
-    mock_make_specifications.return_value = mock_spec
+    mock_make_specifications.side_effect = [mock_spec]
 
     output_dir = tmp_path / "output"
 
@@ -310,9 +309,10 @@ def test_run(mock_generate_json, mock_make_specifications, mock_build_prompt, mo
     assert mock_generate_json.mock_calls == [
         call(
             vendor_key=tested.vendor_key,
-            schema=expected_schema,
             system_prompt=["System Prompt"],
             user_prompt=["User Prompt"],
+            schema=expected_schema,
+            returned_class=list[Line],
         )
     ]
 

@@ -1,7 +1,7 @@
 from __future__ import annotations
 import json, argparse
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from datetime import datetime, UTC
 
@@ -13,6 +13,7 @@ from evaluations.constants import Constants
 from evaluations.helper_evaluation import HelperEvaluation
 from evaluations.structures.records.rubric import Rubric as RubricRecord
 from evaluations.structures.enums.rubric_validation import RubricValidation
+from evaluations.structures.rubric_criterion import RubricCriterion
 from evaluations.datastores.postgres.rubric import Rubric as RubricDatastore
 from evaluations.datastores.postgres.case import Case as CaseDatastore
 
@@ -98,13 +99,17 @@ class RubricGenerator:
 
         return system_prompt, user_prompt
 
-    def generate(self, transcript: dict, chart: dict, canvas_context: dict) -> Any:
+    def generate(self, transcript: dict, chart: dict, canvas_context: dict) -> list[RubricCriterion]:
         system_prompt, user_prompt = self.build_prompts(transcript, chart, canvas_context)
-        return HelperSyntheticJson.generate_json(
-            vendor_key=self.vendor_key,
-            system_prompt=system_prompt,
-            user_prompt=user_prompt,
-            schema=self.schema_rubric(),
+        return cast(
+            list[RubricCriterion],
+            HelperSyntheticJson.generate_json(
+                vendor_key=self.vendor_key,
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                schema=self.schema_rubric(),
+                returned_class=list[RubricCriterion],
+            ),
         )
 
     @classmethod
@@ -119,7 +124,7 @@ class RubricGenerator:
         context = cls.load_json(canvas_context_path)
 
         rubric_list = generator.generate(transcript, chart, context)
-        output_path.write_text(json.dumps(rubric_list, indent=2))
+        output_path.write_text(json.dumps([criterion._asdict() for criterion in rubric_list], indent=2))
         print(f"Saved rubric to file at: {output_path}")
 
     @classmethod
@@ -143,16 +148,16 @@ class RubricGenerator:
             parent_rubric_id=None,
             validation_timestamp=datetime.now(UTC),
             validation=RubricValidation.NOT_EVALUATED,
-            author=Constants.LLM_CONSTANT,
-            rubric=rubric_list,
+            author=Constants.RUBRIC_AUTHOR_LLM,
+            rubric=[criterion._asdict() for criterion in rubric_list],
             case_provenance_classification="",
             comments="",
             text_llm_vendor=vendor_key.vendor,
             text_llm_name=HyperscribeConstants.OPENAI_CHAT_TEXT_O3,
             temperature=Constants.O3_TEMPERATURE,
         )
-        print("Rubric record generated. Upsert starting now.")
-        return RubricDatastore(credentials).upsert(rubric_record)
+        print("Rubric record generated. Insert starting now.")
+        return RubricDatastore(credentials).insert(rubric_record)
 
     @staticmethod
     def main() -> None:

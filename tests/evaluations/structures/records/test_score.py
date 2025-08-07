@@ -1,4 +1,5 @@
 from evaluations.structures.records.score import Score
+from evaluations.structures.graded_criterion import GradedCriterion
 from tests.helper import is_namedtuple
 
 
@@ -7,7 +8,7 @@ def test_class():
     fields = {
         "rubric_id": int,
         "generated_note_id": int,
-        "scoring_result": list[dict],
+        "scoring_result": list[GradedCriterion],
         "overall_score": float,
         "comments": str,
         "text_llm_vendor": str,

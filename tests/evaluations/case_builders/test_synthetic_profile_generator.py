@@ -56,13 +56,35 @@ def test_load_json(tmp_path):
     assert result == expected
 
 
+@pytest.mark.parametrize(
+    "has_error,content,error_message,should_raise,expected_system_md5,expected_user_md5,expected_chat_calls",
+    [
+        (
+            False,
+            ["diabetes-metformin"],
+            None,
+            False,
+            "3f980752be484fa5e211623508246a12",
+            "293d332b0ba5d8cdedbdfd0374468ac5",
+            2,
+        ),
+        (True, None, "LLM API error", True, "3f980752be484fa5e211623508246a12", "293d332b0ba5d8cdedbdfd0374468ac5", 1),
+    ],
+)
 @patch("evaluations.case_builders.synthetic_profile_generator.MemoryLog")
 @patch("evaluations.case_builders.synthetic_profile_generator.LlmOpenai")
-def test_update_patient_names(mock_llm_class, mock_memory_log, vendor_key: VendorKey):
-    def reset_mocks():
-        mock_llm_class.reset_mock()
-        mock_memory_log.reset_mock()
-
+def test_update_patient_names(
+    mock_llm_class,
+    mock_memory_log,
+    vendor_key: VendorKey,
+    has_error,
+    content,
+    error_message,
+    should_raise,
+    expected_system_md5,
+    expected_user_md5,
+    expected_chat_calls,
+):
     tested = SyntheticProfileGenerator(vendor_key)
 
     profiles = [
@@ -71,56 +93,55 @@ def test_update_patient_names(mock_llm_class, mock_memory_log, vendor_key: Vendo
     ]
 
     mock_memory_instance = MagicMock()
-    mock_memory_log.dev_null_instance.return_value = mock_memory_instance
+    mock_llm_instance = MagicMock()
+    mock_response = MagicMock()
 
-    # devised where has_error is both triggered and not triggered with assertions aligning.
-    tests = [
-        (
-            False,
-            ["diabetes-metformin"],
-            None,
-            False,
-            "3f980752be484fa5e211623508246a12",
-            "293d332b0ba5d8cdedbdfd0374468ac5",
-        ),
-        (True, None, "LLM API error", True, None, None),
-    ]
+    mock_memory_log.dev_null_instance.side_effect = [mock_memory_instance] * len(profiles)
+    mock_response.has_error = has_error
+    mock_response.content = content
+    mock_response.error = error_message
+    mock_llm_instance.chat.side_effect = [mock_response] * len(profiles)
+    mock_llm_class.side_effect = [mock_llm_instance] * len(profiles)
 
-    for has_error, content, error_message, should_raise, expected_system_md5, expected_user_md5 in tests:
-        mock_llm_instance = MagicMock()
-        mock_response = MagicMock()
-        mock_response.has_error = has_error
-        mock_response.content = content
-        mock_response.error = error_message
-        mock_llm_instance.chat.return_value = mock_response
-        mock_llm_instance.set_system_prompt = MagicMock()
-        mock_llm_instance.set_user_prompt = MagicMock()
-        mock_llm_class.return_value = mock_llm_instance
+    def reset_mocks():
+        mock_llm_class.reset_mock()
+        mock_memory_log.reset_mock()
+        mock_memory_instance.reset_mock()
+        mock_llm_instance.reset_mock()
+        mock_response.reset_mock()
 
-        if should_raise:
-            with pytest.raises(Exception) as exc_info:
-                tested.update_patient_names(profiles)
-            assert error_message in str(exc_info.value)
-        else:
-            result = tested.update_patient_names(profiles)
+    if should_raise:
+        with pytest.raises(Exception) as exc_info:
+            tested.update_patient_names(profiles)
+        assert error_message in str(exc_info.value)
+    else:
+        result = tested.update_patient_names(profiles)
+        assert len(result) == len(profiles)
+        for profile in result:
+            assert "-" in profile.name
+            assert len(profile.name.split("-")[-1]) == 8
 
-            system_prompt_calls = [call[0][0] for call in mock_llm_instance.set_system_prompt.call_args_list]
-            user_prompt_calls = [call[0][0] for call in mock_llm_instance.set_user_prompt.call_args_list]
+    # common md5 verification.
+    system_prompt_calls = [call[0][0] for call in mock_llm_instance.set_system_prompt.call_args_list]
+    user_prompt_calls = [call[0][0] for call in mock_llm_instance.set_user_prompt.call_args_list]
 
-            if system_prompt_calls and user_prompt_calls:
-                result_system_md5 = hashlib.md5("\n".join(system_prompt_calls[0]).encode()).hexdigest()
-                result_user_md5 = hashlib.md5("\n".join(user_prompt_calls[0]).encode()).hexdigest()
+    if system_prompt_calls and user_prompt_calls:
+        result_system_md5 = hashlib.md5("\n".join(system_prompt_calls[0]).encode()).hexdigest()
+        result_user_md5 = hashlib.md5("\n".join(user_prompt_calls[0]).encode()).hexdigest()
 
-                assert result_system_md5 == expected_system_md5
-                assert result_user_md5 == expected_user_md5
+        assert result_system_md5 == expected_system_md5
+        assert result_user_md5 == expected_user_md5
 
-            assert len(mock_llm_class.call_args_list) == len(profiles)
-            assert len(result) == len(profiles)
-            for profile in result:
-                assert "-" in profile.name
-                assert len(profile.name.split("-")[-1]) == 8
+    assert mock_llm_instance.chat.mock_calls == [call([{"type": "string"}])] * expected_chat_calls
+    assert mock_memory_log.mock_calls == [call.dev_null_instance()] * expected_chat_calls
+    assert (
+        mock_llm_class.mock_calls
+        == [call(mock_memory_instance, vendor_key.api_key, "gpt-4o", with_audit=False)] * expected_chat_calls
+    )
+    assert mock_response.mock_calls == []
+    assert mock_memory_instance.mock_calls == []
 
-        reset_mocks()
+    reset_mocks()
 
 
 def test__save_combined(tmp_path, vendor_key: VendorKey):
@@ -188,7 +209,8 @@ def test_generate_batch(
     tested = SyntheticProfileGenerator(vendor_key)
     batch_num = 2
     count = 3
-    expected_batch_data = fake_llm_response(count)
+    expected_batch_dict = fake_llm_response(count)
+    expected_batch_data = [PatientProfile(name=name, profile=profile) for name, profile in expected_batch_dict.items()]
     expected_schema = {"expected": "schema"}
     updated_profiles = [
         PatientProfile(name=f"patient-{i + 4}-hash{i}", profile=f"Mock narrative {i + 1}.") for i in range(count)
@@ -218,10 +240,7 @@ def test_generate_batch(
     assert kwargs["vendor_key"] == vendor_key
     assert kwargs["schema"] == expected_schema
 
-    expected_initial_profiles = [
-        PatientProfile(name=name, profile=content) for name, content in expected_batch_data.items()
-    ]
-    assert mock_update_names.mock_calls == [call(expected_initial_profiles)]
+    assert mock_update_names.mock_calls == [call(expected_batch_data)]
 
     assert result == updated_profiles
     assert len(tested.seen_scenarios) == count
@@ -292,20 +311,10 @@ def test_main(mock_run, mock_settings, mock_parse_args, mock_mkdir, tmp_path):
 
     SyntheticProfileGenerator.main()
 
-    # Check mkdir was called
-    expected_mkdir_calls = [call(parents=True, exist_ok=True)]
-    assert mock_mkdir.mock_calls == expected_mkdir_calls
-
-    # Check settings was called
-    expected_settings_calls = [call()]
-    assert mock_settings.mock_calls == expected_settings_calls
-
-    # Check parse_args was called
-    expected_parse_calls = [call()]
-    assert mock_parse_args.mock_calls == expected_parse_calls
-
-    # Check run was called with correct parameters
-    expected_run_calls = [call(batches=2, batch_size=5, output_path=output_path)]
-    assert mock_run.mock_calls == expected_run_calls
+    # check mocks.
+    assert mock_mkdir.mock_calls == [call(parents=True, exist_ok=True)]
+    assert mock_settings.mock_calls == [call()]
+    assert mock_parse_args.mock_calls == [call()]
+    assert mock_run.mock_calls == [call(batches=2, batch_size=5, output_path=output_path)]
 
     reset_mocks()

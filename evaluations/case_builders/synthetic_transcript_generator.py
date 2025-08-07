@@ -133,17 +133,19 @@ class SyntheticTranscriptGenerator:
 
         system_lines, user_lines = self._build_prompt(patient_profile.profile, specifications, schema)
 
-        transcript = HelperSyntheticJson.generate_json(
-            vendor_key=self.vendor_key,
-            system_prompt=system_lines,
-            user_prompt=user_lines,
-            schema=schema,
+        transcript_line_objects = cast(
+            list[Line],
+            HelperSyntheticJson.generate_json(
+                vendor_key=self.vendor_key,
+                system_prompt=system_lines,
+                user_prompt=user_lines,
+                schema=schema,
+                returned_class=list[Line],
+            ),
         )
 
-        first_line = transcript[0].get("text", "").strip().lower()
+        first_line = transcript_line_objects[0].text.strip().lower()
         self.seen_openings.add(first_line)
-
-        transcript_line_objects = Line.load_from_json(transcript)
         return transcript_line_objects, specifications
 
     def run(self, start_index: int, limit: int, output_path: Path) -> None:

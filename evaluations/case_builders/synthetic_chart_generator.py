@@ -3,7 +3,6 @@ from pathlib import Path
 from typing import Any, Tuple, cast
 
 from hyperscribe.structures.vendor_key import VendorKey
-from hyperscribe.libraries.limited_cache import LimitedCache
 from evaluations.helper_evaluation import HelperEvaluation
 from evaluations.case_builders.helper_synthetic_json import HelperSyntheticJson
 from evaluations.constants import Constants
@@ -23,19 +22,45 @@ class SyntheticChartGenerator:
         return [PatientProfile(name=name, profile=profile) for name, profile in profiles_dict.items()]
 
     def schema_chart(self) -> dict[str, Any]:
-        """Build a JSON Schema that enforces Canvas chart structure from Chart dataclass."""
+        """Build a JSON Schema that enforces Canvas chart structure with ChartItem arrays."""
 
-        properties = {
-            field_name: {
-                "type": "string",
-                "description": Constants.EXAMPLE_CHART_DESCRIPTIONS[field_name],
-            }
-            for field_name in Constants.EXAMPLE_CHART_DESCRIPTIONS.keys()
+        # Schema for ChartItem structure
+        chart_item_schema = {
+            "type": "object",
+            "properties": {
+                "code": {"type": "string", "description": "Medical code (ICD-10, CPT, RxNorm, etc.)"},
+                "label": {"type": "string", "description": "Human-readable description"},
+                "uuid": {"type": "string", "description": "Unique identifier - will be populated automatically"},
+            },
+            "required": ["code", "label", "uuid"],
+            "additionalProperties": False,
         }
+
+        properties: dict[str, Any] = {
+            "demographicStr": {"type": "string", "description": "String describing patient demographics"}
+        }
+
+        # All other fields are arrays of ChartItem objects
+        array_fields = [
+            "conditionHistory",
+            "currentAllergies",
+            "currentConditions",
+            "currentMedications",
+            "currentGoals",
+            "familyHistory",
+            "surgeryHistory",
+        ]
+
+        for field_name in array_fields:
+            properties[field_name] = {
+                "type": "array",
+                "description": Constants.EXAMPLE_CHART_DESCRIPTIONS[field_name],
+                "items": chart_item_schema,
+            }
 
         return {
             "$schema": "http://json-schema.org/draft-07/schema#",
-            "description": "Canvas-compatible chart structure",
+            "description": "Canvas-compatible chart structure with structured ChartItems",
             "type": "object",
             "properties": properties,
             "required": list(Constants.EXAMPLE_CHART_DESCRIPTIONS.keys()),
@@ -47,15 +72,24 @@ class SyntheticChartGenerator:
 
         system_prompt: list[str] = [
             "You are generating a Canvas-compatible `limited_chart.json` for a synthetic patient.",
+            "The chart uses structured data with medical codes for clinical items.",
             "Return your answer as JSON inside a fenced ```json ... ``` block.",
-            "Only include fields shown in the example structure; leave irrelevant categories as empty arrays.",
+            "Each clinical item must have: code, label, and uuid fields.",
         ]
 
         user_prompt: list[str] = [
             f"Patient profile: {patient_profile.profile}",
             "",
-            "Generate a JSON object with the following fields (all string values):",
-            "\n".join([f"• {field}: {desc}" for field, desc in Constants.EXAMPLE_CHART_DESCRIPTIONS.items()]),
+            "Generate a structured limited_chart.json with these fields:",
+            "- demographicStr: Simple string describing patient demographics",
+            "- conditionHistory, currentAllergies, currentConditions, currentMedications, "
+            "currentGoals, familyHistory, surgeryHistory: Arrays of objects",
+            "",
+            "Each array item must be an object with:",
+            "- code: medical code (ICD-10 for conditions/allergies, "
+            "RxNorm for medications, CPT for procedures, empty string if no specific code)",
+            "- label: Human-readable description",
+            "- uuid: Use empty string (will be populated automatically)",
             "",
             "Your JSON **must** conform to the following JSON Schema:",
             "```json",
@@ -63,28 +97,23 @@ class SyntheticChartGenerator:
             "```",
             "",
             "Be strict:",
-            "• Include only conditions the patient *has or was diagnosed with*.",
-            "• Include only medications the patient *is actually taking*.",
-            "• Do not fabricate information beyond the profile.",
+            "- Include only conditions the patient *has or was diagnosed with*.",
+            "- Include only medications the patient *is actually taking*.",
+            "- Use empty arrays [] for categories not mentioned in the profile.",
+            "- Do not fabricate information beyond the profile.",
+            "- Use realistic medical codes when possible, empty string otherwise.",
         ]
 
-        chart_json = cast(
-            dict[str, Any],
+        return cast(
+            Chart,
             HelperSyntheticJson.generate_json(
-                vendor_key=self.vendor_key, system_prompt=system_prompt, user_prompt=user_prompt, schema=schema
+                vendor_key=self.vendor_key,
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                schema=schema,
+                returned_class=Chart,
             ),
         )
-
-        return Chart.load_from_json(chart_json)
-
-    @classmethod
-    def validate_chart(cls, chart_json: dict[str, Any]) -> bool:
-        try:
-            LimitedCache.load_from_json(chart_json)
-            return True
-        except Exception as e:
-            print(f"[ERROR] invalid limited_chart.json structure: {e}")
-            return False
 
     @classmethod
     def assign_valid_uuids(cls, obj: Any) -> Any:
@@ -113,9 +142,6 @@ class SyntheticChartGenerator:
             print(f"Generating limited_chart.json for {patient_profile.name}")
             chart = self.generate_chart_for_profile(patient_profile)
             chart_json = chart.to_json()
-            if not self.validate_chart(chart_json):
-                print(f"[SKIPPED] Invalid chart for {patient_profile.name}")
-                continue
             chart_json = self.assign_valid_uuids(chart_json)
 
             out_path = patient_dir / "limited_chart.json"

@@ -63,7 +63,7 @@ class AuditorPostgres(AuditorStore):
                 CaseRecord(name=self.case, profile=self.case, validation_status=CaseStatus.GENERATION),
             ).id
         else:
-            store.update_fields(self._case_id, {"validationStatus": CaseStatus.GENERATION})
+            store.update_fields(self._case_id, {"validation_status": CaseStatus.GENERATION})
 
     def case_update_limited_cache(self, limited_cache: dict) -> None:
         CaseStore(self.postgres_credentials).update_fields(self.case_id(), {"limited_chart": limited_cache})
