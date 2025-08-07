@@ -8,12 +8,14 @@ from hyperscribe.llms.llm_openai import LlmOpenai
 from hyperscribe.libraries.memory_log import MemoryLog
 from evaluations.helper_evaluation import HelperEvaluation
 from evaluations.case_builders.helper_synthetic_json import HelperSyntheticJson
+from evaluations.case_builders.synthetic_profile_generator_prompts import SyntheticProfileGeneratorPrompts
 from evaluations.structures.patient_profile import PatientProfile
 
 
 class SyntheticProfileGenerator:
-    def __init__(self, vendor_key: VendorKey) -> None:
+    def __init__(self, vendor_key: VendorKey, category: str = "med_management") -> None:
         self.vendor_key = vendor_key
+        self.category = category
         self.seen_scenarios: list[str] = []
 
     @classmethod
@@ -37,7 +39,7 @@ class SyntheticProfileGenerator:
             # Generate descriptive name using GPT-4o
             system_prompt = [
                 "You are an expert at creating concise, descriptive patient identifiers.",
-                "Generate 1-3 short descriptive phrases (separated by dashes) "
+                "Generate three words (separated by dashes) "
                 "that capture the key aspects of this patient's medical profile.",
                 "Focus on the most relevant medical conditions, social factors, or medication themes.",
                 "Use lowercase words separated by dashes"
@@ -110,50 +112,12 @@ class SyntheticProfileGenerator:
     def generate_batch(self, batch_num: int, count: int) -> list[PatientProfile]:
         schema = self.schema_batch(count)
 
-        system_prompt: list[str] = [
-            "You are a clinical‑informatics expert generating synthetic patient "
-            "profiles for testing medication‑management AI systems.",
-            "Return your answer as JSON inside a fenced ```json ... ``` block.",
-            "The response **must** conform to the following JSON Schema:",
-            "```json",
-            json.dumps(schema, indent=2),
-            "```",
-        ]
-
-        user_prompt = [
-            f"Create a JSON object with {count} key-value pairs labeled "
-            f'"Patient {1 + (batch_num - 1) * count}" through "Patient {batch_num * count}". '
-            "Each value must be a 3-to-5-sentence medication-history narrative "
-            "written for a broad audience (≈ 40-60 plain-English words).",
-            "",
-            "Include **at least two** LOW-complexity patients "
-            "(single renewal, first-time Rx, or simple dose tweak). Other patients may be moderate "
-            "or high complexity, guided by the diversity checklist below:",
-            "- Age bands: <18, 18-30, 30-50, 50-70, >70.",
-            "- Social context: homelessness, language barrier, uninsured, rural isolation, etc.",
-            "- Novel drug classes: GLP-1 agonists, oral TKIs, depot antipsychotics, inhaled steroids, biologics, "
-            "antivirals, contraception, chemo, herbals.",
-            "- Edge-case themes: pregnancy, QT risk, REMS, dialysis, polypharmacy/deprescribing, travel medicine, etc.",
-            "",
-            f"Already-seen motifs → {', '.join(self.seen_scenarios) if self.seen_scenarios else 'None yet'}. "
-            "**Avoid** re-using templates like ACE-inhibitor-to-ARB cough, long-term warfarin INR drift, "
-            "or COPD tiotropium boilerplate.",
-            "",
-            "Write in clear prose with minimal jargon. If a medical abbreviation is unavoidable, "
-            "spell it out the first time (e.g., “twice-daily (BID)”). Prefer full words: “by mouth” "
-            "over “PO”, “under the skin” over “SC”. Vary openings: lead with social detail, "
-            "medication list, or family history.",
-            "",
-            "Each narrative MUST include:",
-            "• Current medicines in plain words, with some cases not having complete details.",
-            "• A scenario involving medication management—straightforward new prescriptions, simple dose "
-            "adjustments, or complex edge cases involving risky medications, polypharmacy, or social barriers.",
-            "• Any key allergy, condition, or social barrier.",
-            "",
-            "Do NOT write SOAP notes, vital signs, or assessments.",
-            "",
-            "Wrap the JSON in a fenced ```json block and output nothing else.",
-        ]
+        # Get prompts based on category
+        prompt_method = getattr(SyntheticProfileGeneratorPrompts, f"{self.category}_prompts", None)
+        if prompt_method is None:
+            raise ValueError(f"Unknown category: {self.category}. Supported categories: med_management, primary_care, serious_mental_illness")
+        
+        system_prompt, user_prompt = prompt_method(batch_num, count, schema, self.seen_scenarios)
 
         initial_profiles = cast(
             list[PatientProfile],
@@ -189,6 +153,8 @@ class SyntheticProfileGenerator:
         parser.add_argument("--batches", type=int, required=True, help="Number of batches")
         parser.add_argument("--batch-size", type=int, required=True, help="Profiles per batch")
         parser.add_argument("--output", type=Path, required=True, help="Combined JSON output path")
+        parser.add_argument("--category", type=str, required=True, 
+                          help="Category of profiles to generate (med_management, primary_care, serious_mental_illness)")
         args = parser.parse_args()
 
         output_path = Path(args.output)
@@ -197,7 +163,7 @@ class SyntheticProfileGenerator:
         settings = HelperEvaluation.settings()
         vendor_key = settings.llm_text
 
-        SyntheticProfileGenerator(vendor_key).run(
+        SyntheticProfileGenerator(vendor_key, args.category).run(
             batches=args.batches, batch_size=args.batch_size, output_path=args.output
         )
 
