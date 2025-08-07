@@ -30,7 +30,7 @@ class SyntheticCaseOrchestrator:
     ):
         self.vendor_key = vendor_key
         self.category = category
-        self.profile_generator = SyntheticProfileGenerator(vendor_key=vendor_key)
+        self.profile_generator = SyntheticProfileGenerator(vendor_key, category)
 
     def generate(
         self,
