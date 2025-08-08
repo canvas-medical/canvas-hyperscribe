@@ -92,7 +92,7 @@ def test___init__(mock_profile_generator_class, tmp_files, vendor_key_instance):
     assert tested.vendor_key == vendor_key_instance
     assert tested.category == "test_category"
     assert tested.profile_generator == mock_profile_generator
-    assert mock_profile_generator_class.mock_calls == [call(vendor_key=vendor_key_instance)]
+    assert mock_profile_generator_class.mock_calls == [call(vendor_key_instance, "test_category")]
     reset_mocks()
 
 
@@ -158,7 +158,7 @@ def test_generate(
     cycle_key = "cycle_001"
     mock_split_cycles.side_effect = [{cycle_key: lines}] * len(profiles_list)
 
-    tested = SyntheticCaseOrchestrator(vendor_key_instance, "test_cat")
+    tested = SyntheticCaseOrchestrator(vendor_key_instance, "test_category")
     with patch("evaluations.case_builders.synthetic_case_orchestrator.Constants.OPENAI_CHAT_TEXT_O3", "model_x"):
         result = tested.generate(batches=1, batch_size=len(profiles_list))
     expected = expected_count
@@ -168,7 +168,7 @@ def test_generate(
         assert isinstance(case_record, CaseRecord)
         assert isinstance(synthetic_case_record, SyntheticCaseRecord)
         assert case_record.validation_status == CaseStatus.GENERATION
-        assert synthetic_case_record.category == "test_cat"
+        assert synthetic_case_record.category == "test_category"
         assert synthetic_case_record.text_llm_vendor == vendor_key_instance.vendor
 
     calls = [call(vendor_key=vendor_key_instance), call().generate_batch(1, len(profiles_list))]
