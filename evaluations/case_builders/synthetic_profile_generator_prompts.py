@@ -5,7 +5,9 @@ from typing import Any
 
 class SyntheticProfileGeneratorPrompts:
     @classmethod
-    def med_management_prompts(cls, batch_num: int, count: int, schema: dict[str, Any], seen_scenarios: list[str]) -> tuple[list[str], list[str]]:
+    def med_management_prompts(
+        cls, batch_num: int, count: int, schema: dict[str, Any], seen_scenarios: list[str]
+    ) -> tuple[list[str], list[str]]:
         system_prompt: list[str] = [
             "You are a clinical-informatics expert generating synthetic patient "
             "profiles for testing medication-management AI systems.",
@@ -54,7 +56,9 @@ class SyntheticProfileGeneratorPrompts:
         return system_prompt, user_prompt
 
     @classmethod
-    def primary_care_prompts(cls, batch_num: int, count: int, schema: dict[str, Any], seen_scenarios: list[str]) -> tuple[list[str], list[str]]:
+    def primary_care_prompts(
+        cls, batch_num: int, count: int, schema: dict[str, Any], seen_scenarios: list[str]
+    ) -> tuple[list[str], list[str]]:
         system_prompt: list[str] = [
             "You are a clinical-informatics expert generating synthetic patient "
             "profiles for testing primary care AI systems.",
@@ -103,7 +107,9 @@ class SyntheticProfileGeneratorPrompts:
         return system_prompt, user_prompt
 
     @classmethod
-    def serious_mental_illness_prompts(cls, batch_num: int, count: int, schema: dict[str, Any], seen_scenarios: list[str]) -> tuple[list[str], list[str]]:
+    def serious_mental_illness_prompts(
+        cls, batch_num: int, count: int, schema: dict[str, Any], seen_scenarios: list[str]
+    ) -> tuple[list[str], list[str]]:
         system_prompt: list[str] = [
             "You are a clinical-informatics expert generating synthetic patient "
             "profiles for testing serious mental illness care coordination AI systems.",
