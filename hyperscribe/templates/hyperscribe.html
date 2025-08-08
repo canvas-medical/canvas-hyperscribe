@@ -65,6 +65,10 @@
             font-size: 14px;
         }
 
+        .toggle-button:disabled {
+            cursor: not-allowed;
+        }
+
         .pause-button {
             width: 64px;
             height: 64px;
@@ -291,6 +295,8 @@
             </button>
         </div>
 
+        <div id="chunkIdDisplay" class="debug-message">Chunk ID: <span id="chunkIdValue">{{chunkId}}</span></div>
+
         <div id="debugMessage" class="debug-message"></div>
 
         <div class="tabs">
@@ -357,6 +363,7 @@
         // Button state management
         let isRecordingActive = false;
         let isPaused = {{isPaused|yesno:"true,false"}};
+        let isEnded = {{isEnded|yesno:"true,false"}};
 
         // Button state manager
         function setButtonState(state) {
@@ -375,6 +382,10 @@
                 paused: {
                     capture: { text: "Stop", classes: ["small", "paused", "active"], disabled: true },
                     pause: { text: "Resume", classes: ["large", "resume"], disabled: false }
+                },
+                ended: {
+                    capture: { text: "Start", classes: [], disabled: true },
+                    pause: { text: "Pause", classes: [], disabled: true }
                 }
             };
             
@@ -382,13 +393,13 @@
             
             // Apply capture button state
             captureButton.textContent = config.capture.text;
-            captureButton.disabled = config.capture.disabled;
+            captureButton.disabled = config.capture.disabled || isEnded;
             captureButton.className = "toggle-button";
             config.capture.classes.forEach(cls => captureButton.classList.add(cls));
             
             // Apply pause button state
             pauseButton.textContent = config.pause.text;
-            pauseButton.disabled = config.pause.disabled;
+            pauseButton.disabled = config.pause.disabled || isEnded;
             pauseButton.className = "pause-button";
             config.pause.classes.forEach(cls => pauseButton.classList.add(cls));
         }
@@ -437,6 +448,7 @@
                     const audioBlob = new Blob([event.data], { type: CONSTANTS.AUDIO.MIME_TYPE });
                     const formData = new FormData();
                     chunkId += 1;
+                    updateChunkIdDisplay();
                     const chunkIndex = String(chunkId).padStart(3, '0');
                     formData.append("audio", audioBlob, `chunk_${chunkIndex}_${patientId}_${noteId}.webm`);
 
@@ -467,8 +479,7 @@
                     console.log("Recording paused");
                 }
                 
-                // Stop intervals
-                intervalManager.stopAll();
+                // Continue progress intervals during pause (don't stop them)
                 
                 // Fetch pause session URL
                 fetch('{{pauseSessionURL | safe}}', {method: "POST"})
@@ -498,8 +509,8 @@
                     }
                 }
                 
-                // Resume intervals
-                intervalManager.startProgressIntervals();
+                // Start progress and render fetches if not already running
+                startProgressAndRenderFetches();
                 
                 // Fetch resume session URL
                 fetch('{{resumeSessionURL | safe}}', {method: "POST"})
@@ -520,15 +531,21 @@
                 resetTable();
                 resetTranscriptTable();
                 window.previousMessage = new Date();
-                intervalManager.startProgressIntervals();
+                startProgressAndRenderFetches();
             } else {
                 // Stop recording
                 isRecordingActive = false;
                 isPaused = false;
-                setButtonState('inactive');
+                isEnded = true;
+                setButtonState('ended');
                 
-                // Stop all intervals
-                intervalManager.stopAll();
+                // Continue progress intervals after stop (don't stop them - they stop on endFlag)
+                
+                // Fetch end session URL
+                fetch('{{endSessionURL | safe}}', {method: "POST"})
+                .then(response => response.text())
+                .then(result => console.log(result))
+                .catch(error => console.error('Error ending session:', error));
             }
         });
 
@@ -548,17 +565,58 @@
         }
 
         function initializeButtonStates() {
-            if (isPaused) {
+            if (isEnded) {
+                // Initialize as ended state
+                isRecordingActive = false;
+                isPaused = false;
+                setButtonState('ended');
+            } else if (isPaused) {
                 // Initialize as paused state
                 isRecordingActive = true;
                 setButtonState('paused');
                 // Initialize previousMessage for paused state
                 window.previousMessage = new Date();
+                // Start fetches since we're in a paused (active) session
+                startProgressAndRenderFetches();
             } else {
                 // Initialize as normal state
                 isRecordingActive = false;
                 isPaused = false;
                 setButtonState('inactive');
+            }
+        }
+
+        // Global variables for interval management
+        let renderInterval = null;
+        let progressStarted = false;
+
+        function startProgressAndRenderFetches() {
+            if (!progressStarted) {
+                // Start progress intervals
+                intervalManager.startProgressIntervals();
+                progressStarted = true;
+            }
+            
+            if (!renderInterval) {
+                // Start continuous rendering fetch every 2.5 seconds
+                renderInterval = setInterval(() => {
+                    fetch('{{renderURL | safe}}', {method: "POST"})
+                    .then(response => {
+                        if (response.status === 202) {
+                            console.log('Render completed (202), stopping render fetch');
+                            clearInterval(renderInterval);
+                            renderInterval = null;
+                            return;
+                        }
+                        return response.text();
+                    })
+                    .then(result => {
+                        if (result) {
+                            console.log('Render result:', result);
+                        }
+                    })
+                    .catch(error => console.error('Error fetching render:', error));
+                }, 2500);
             }
         }
 
@@ -575,7 +633,11 @@
         let mediaRecorder = null; // To hold the MediaRecorder instance
         let isRecording = false; // State of recording
         let intervalId = null; // Interval ID for periodic uploads
-        let chunkId = 0;
+        let chunkId = {{chunkId}};
+
+        function updateChunkIdDisplay() {
+            document.getElementById('chunkIdValue').textContent = chunkId;
+        }
 
         console.log('CAPTURE.JS')
 
@@ -619,6 +681,7 @@
                             // Create a FormData object and append the audio blob
                             const formData = new FormData();
                             chunkId += 1;
+                            updateChunkIdDisplay();
                             const chunkIndex = String(chunkId).padStart(3, '0')
                             formData.append("audio", audioBlob, `chunk_${chunkIndex}_${patientId}_${noteId}.webm`);
 
@@ -729,8 +792,8 @@
                             sortedEventMessages.forEach(msg => {
                                 // end of the messages
                                 if (msg.message === endOfMessage) {
-                                    clearInterval(window.logRefreshId);
-                                    clearInterval(window.cellRefreshId);
+                                    intervalManager.stopAll();
+                                    progressStarted = false;
                                     duration.textContent = '';
                                     return;
                                 }
@@ -775,8 +838,8 @@
 
                             transcriptMessages.forEach(msg => {
                                 if (msg.message === endOfMessage) {
-                                    clearInterval(window.logRefreshId);
-                                    clearInterval(window.cellRefreshId);
+                                    intervalManager.stopAll();
+                                    progressStarted = false;
                                     return;
                                 }
 

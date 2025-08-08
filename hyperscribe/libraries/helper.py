@@ -1,10 +1,9 @@
-import json
 from datetime import datetime, date
 from enum import Enum
 from re import match
-from typing import Type
+from typing import Type, Any
 
-from canvas_sdk.v1.data import Task
+from canvas_sdk.utils.db import thread_cleanup
 
 from hyperscribe.libraries.constants import Constants
 from hyperscribe.libraries.memory_log import MemoryLog
@@ -12,11 +11,24 @@ from hyperscribe.llms.llm_anthropic import LlmAnthropic
 from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.llms.llm_google import LlmGoogle
 from hyperscribe.llms.llm_openai import LlmOpenai
-from hyperscribe.structures.comment_body import CommentBody
 from hyperscribe.structures.settings import Settings
 
 
 class Helper:
+    @classmethod
+    def with_cleanup(cls, fn: Any) -> Any:  # fn should be Callable, but it is not allowed as import yet
+        """
+        Decorator that calls thread_cleanup() after the wrapped function.
+        """
+
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            try:
+                return fn(*args, **kwargs)
+            finally:
+                thread_cleanup()
+
+        return wrapper
+
     @classmethod
     def str2datetime(cls, string: str | None) -> datetime | None:
         try:
@@ -61,16 +73,3 @@ class Helper:
         if settings.llm_audio.vendor.upper() == Constants.VENDOR_GOOGLE.upper():
             result = LlmGoogle
         return result(memory_log, settings.llm_audio.api_key, settings.llm_audio_model(), settings.audit_llm)
-
-    @classmethod
-    def copilot_task(cls, patient_id: str) -> Task | None:
-        return Task.objects.filter(patient__id=patient_id, labels__name=Constants.LABEL_ENCOUNTER_COPILOT).first()
-
-    @classmethod
-    def is_copilot_session_paused(cls, patient_id: str, note_id: str) -> bool:
-        if task := cls.copilot_task(patient_id):
-            for comment in task.comments.all().order_by("-created"):
-                information = CommentBody.load_from_json(json.loads(comment.body))
-                if information.note_id == note_id and information.chunk_index == Constants.AUDIO_IDLE_INDEX:
-                    return information.is_paused
-        return False

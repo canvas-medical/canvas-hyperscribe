@@ -1,21 +1,13 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, UTC
 from time import time
-from typing import Iterable, Any
+from typing import Iterable
 
 from canvas_sdk.effects import Effect, EffectType
-from canvas_sdk.effects.task.task import AddTaskComment, UpdateTask, TaskStatus
-from canvas_sdk.events import EventType
-from canvas_sdk.handlers.base import version
 from canvas_sdk.protocols import BaseProtocol
-from canvas_sdk.utils.db import thread_cleanup
 from canvas_sdk.utils.http import ThreadPoolExecutor
-from canvas_sdk.v1.data import TaskComment
 from canvas_sdk.v1.data.command import Command
-from canvas_sdk.v1.data.note import Note
-from logger import log
 
 from hyperscribe.handlers.progress import Progress
 from hyperscribe.libraries.audio_client import AudioClient
@@ -25,15 +17,13 @@ from hyperscribe.libraries.auditor_live import AuditorLive
 from hyperscribe.libraries.aws_s3 import AwsS3
 from hyperscribe.libraries.cached_sdk import CachedSdk
 from hyperscribe.libraries.constants import Constants
+from hyperscribe.libraries.helper import Helper
 from hyperscribe.libraries.implemented_commands import ImplementedCommands
 from hyperscribe.libraries.limited_cache import LimitedCache
-from hyperscribe.libraries.llm_turns_store import LlmTurnsStore
 from hyperscribe.libraries.memory_log import MemoryLog
-from hyperscribe.libraries.stop_and_go import StopAndGo
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.coded_item import CodedItem
-from hyperscribe.structures.comment_body import CommentBody
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.instruction import Instruction
 from hyperscribe.structures.instruction_with_command import InstructionWithCommand
@@ -43,177 +33,6 @@ from hyperscribe.structures.settings import Settings
 
 class Commander(BaseProtocol):
     MAX_PREVIOUS_AUDIOS = 0
-
-    RESPONDS_TO = [EventType.Name(EventType.TASK_COMMENT_CREATED)]
-
-    @classmethod
-    def with_cleanup(cls, fn: Any) -> Any:  # fn should be Callable, but it is not allowed as import yet
-        """
-        Decorator that calls thread_cleanup() after the wrapped function.
-        """
-
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
-            try:
-                return fn(*args, **kwargs)
-            finally:
-                thread_cleanup()
-
-        return wrapper
-
-    @classmethod
-    def session_state_effects(cls, task_id: str, information: CommentBody) -> tuple[bool, int, list[Effect]]:
-        paused_effects: list[Effect] = []
-        stop_and_go = StopAndGo.get(information.note_id)
-        # as soon as a message sets is_ended, it is finished without any possibility to restart
-        if stop_and_go.is_ended():
-            log.info("  => discussion is ended")
-            return False, Constants.AUDIO_IDLE_INDEX, []
-        # the pause status can be set only with chunk_index equals to -1
-        if information.chunk_index == Constants.AUDIO_IDLE_INDEX:
-            # on resuming the session, add back the paused effects
-            if not information.is_paused and stop_and_go.is_paused() and (effects := stop_and_go.paused_effects()):
-                paused_effects = effects
-                stop_and_go.reset_paused_effect()
-            stop_and_go.set_paused(information.is_paused)
-            stop_and_go.save()
-        if stop_and_go.is_paused():
-            log.info("  => discussion is paused")
-            return False, Constants.AUDIO_IDLE_INDEX, []
-
-        if paused_effects:
-            # send the paused effects, end go to the next cycle
-            stop_and_go.set_cycle(stop_and_go.cycle() + 1)
-            paused_effects.append(
-                AddTaskComment(
-                    task_id=task_id,
-                    body=json.dumps(
-                        CommentBody(
-                            note_id=information.note_id,
-                            patient_id=information.patient_id,
-                            chunk_index=stop_and_go.cycle(),
-                            is_paused=False,
-                            created=information.created,
-                            finished=None,
-                        ).to_dict(),
-                    ),
-                ).apply(),
-            )
-            stop_and_go.set_running(False)
-            stop_and_go.save()
-            return False, Constants.AUDIO_IDLE_INDEX, paused_effects
-
-        # ensure that pause/resume does not start the same cycle
-        if stop_and_go.is_running():
-            log.info("  => discussion is already running")
-            return False, Constants.AUDIO_IDLE_INDEX, []
-        else:
-            stop_and_go.set_running(True)
-            stop_and_go.save()
-        # continue or resume the cycles
-        return True, stop_and_go.cycle(), []
-
-    def compute(self) -> list[Effect]:
-        comment = TaskComment.objects.get(id=self.target)
-        if not comment.task.labels.filter(name=Constants.LABEL_ENCOUNTER_COPILOT).first():
-            return []
-
-        information = CommentBody.load_from_json(json.loads(comment.body))
-        run_chunk, chunk_index, effects = self.session_state_effects(str(comment.task.id), information)
-        if not run_chunk:
-            return effects
-
-        note = Note.objects.get(id=information.note_id)
-        identification = IdentificationParameters(
-            patient_uuid=note.patient.id,
-            note_uuid=information.note_id,
-            provider_uuid=str(note.provider.id),
-            canvas_instance=self.environment[Constants.CUSTOMER_IDENTIFIER],
-        )
-        settings = Settings.from_dictionary(self.secrets | {Constants.PROGRESS_SETTING_KEY: True})
-        aws_s3 = AwsS3Credentials.from_dictionary(self.secrets)
-        memory_log = MemoryLog.instance(identification, Constants.MEMORY_LOG_LABEL, aws_s3)
-        memory_log.output(
-            f"SDK: {version} - Text: {self.secrets[Constants.SECRET_TEXT_LLM_VENDOR]} - "
-            f"Audio: {self.secrets[Constants.SECRET_AUDIO_LLM_VENDOR]}"
-        )
-
-        audio_client = AudioClient.for_operation(
-            self.secrets[Constants.SECRET_AUDIO_HOST],
-            self.environment[Constants.CUSTOMER_IDENTIFIER],
-            self.secrets[Constants.SECRET_AUDIO_HOST_PRE_SHARED_KEY],
-        )
-
-        had_audio, effects = self.compute_audio(identification, settings, aws_s3, audio_client, chunk_index)
-        stop_and_go = StopAndGo.get(information.note_id)
-        if had_audio:
-            if stop_and_go.is_paused():
-                log.info("audio was present + pause requested => wait for resuming")
-                Progress.send_to_user(
-                    identification,
-                    settings,
-                    "paused...",
-                    Constants.PROGRESS_SECTION_EVENTS,
-                )
-                # the paused was requested while computing
-                # thus, save the effects until the session is resumed
-                # (prevent losing the commands if the browser is closed)
-                for effect in effects:
-                    stop_and_go.add_paused_effect(effect)
-                effects = []
-            else:
-                log.info(f"audio was present => go to next iteration ({chunk_index + 1})")
-                Progress.send_to_user(
-                    identification,
-                    settings,
-                    f"waiting for the next cycle {chunk_index + 1}...",
-                    Constants.PROGRESS_SECTION_EVENTS,
-                )
-                # go to the next cycle
-                stop_and_go.set_cycle(chunk_index + 1)
-                effects.append(
-                    AddTaskComment(
-                        task_id=str(comment.task.id),
-                        body=json.dumps(
-                            CommentBody(
-                                note_id=information.note_id,
-                                patient_id=information.patient_id,
-                                chunk_index=chunk_index + 1,
-                                is_paused=False,
-                                created=information.created,
-                                finished=None,
-                            ).to_dict(),
-                        ),
-                    ).apply(),
-                )
-        else:
-            stop_and_go.set_ended(True)
-            # TODO vvv removed when https://github.com/canvas-medical/canvas-plugins/issues/600 is fixed
-            effects.append(
-                AddTaskComment(
-                    task_id=str(comment.task.id),
-                    body=json.dumps(
-                        CommentBody(
-                            note_id=information.note_id,
-                            patient_id=information.patient_id,
-                            chunk_index=chunk_index - 1,
-                            is_paused=False,
-                            created=information.created,
-                            finished=datetime.now(UTC),
-                        ).to_dict(),
-                    ),
-                ).apply(),
-            )
-            # TODO ^^^ removed when https://github.com/canvas-medical/canvas-plugins/issues/600 is fixed
-            log.info("audio was NOT present:")
-            log.info("  => inform the UI")
-            Progress.send_to_user(identification, settings, "finished", Constants.PROGRESS_SECTION_EVENTS)
-            log.info("  => stop the task")
-            effects.append(UpdateTask(id=str(comment.task.id), status=TaskStatus.COMPLETED).apply())
-        stop_and_go.set_running(False)
-        stop_and_go.save()
-        MemoryLog.end_session(information.note_id)
-        LlmTurnsStore.end_session(information.note_id)
-        return effects
 
     @classmethod
     def compute_audio(
@@ -341,7 +160,7 @@ class Commander(BaseProtocol):
         with ThreadPoolExecutor(max_workers=2) as builder:
             # -- common instructions
             future_common = builder.submit(
-                cls.with_cleanup(cls.transcript2commands_common),
+                Helper.with_cleanup(cls.transcript2commands_common),
                 auditor,
                 transcript,
                 chatter,
@@ -349,7 +168,7 @@ class Commander(BaseProtocol):
             )
             # -- questionnaires
             future_questionnaire = builder.submit(
-                cls.with_cleanup(cls.transcript2commands_questionnaires),
+                Helper.with_cleanup(cls.transcript2commands_questionnaires),
                 auditor,
                 transcript,
                 chatter,
@@ -416,7 +235,7 @@ class Commander(BaseProtocol):
             instructions_with_parameter = [
                 instruction
                 for instruction in builder.map(
-                    cls.with_cleanup(chatter.create_sdk_command_parameters),
+                    Helper.with_cleanup(chatter.create_sdk_command_parameters),
                     computed_instructions,
                 )
                 if instruction is not None
@@ -433,7 +252,7 @@ class Commander(BaseProtocol):
         instructions_with_command: list[InstructionWithCommand] = []
         with ThreadPoolExecutor(max_workers=max_workers) as builder:
             for instruction_w_cmd in builder.map(
-                cls.with_cleanup(chatter.create_sdk_command_from),
+                Helper.with_cleanup(chatter.create_sdk_command_from),
                 instructions_with_parameter,
             ):
                 if instruction_w_cmd is not None:
@@ -479,7 +298,7 @@ class Commander(BaseProtocol):
             instructions_with_command = [
                 instruction
                 for instruction in builder.map(
-                    cls.with_cleanup(chatter.update_questionnaire),
+                    Helper.with_cleanup(chatter.update_questionnaire),
                     [transcript] * len(instructions),
                     instructions,
                 )
@@ -533,7 +352,7 @@ class Commander(BaseProtocol):
             instructions_with_parameter = [
                 instruction
                 for instruction in builder.map(
-                    cls.with_cleanup(chatter.create_sdk_command_parameters),
+                    Helper.with_cleanup(chatter.create_sdk_command_parameters),
                     new_instructions,
                 )
                 if instruction is not None
@@ -544,7 +363,7 @@ class Commander(BaseProtocol):
             instructions_with_command = [
                 instruction
                 for instruction in builder.map(
-                    cls.with_cleanup(chatter.create_sdk_command_from),
+                    Helper.with_cleanup(chatter.create_sdk_command_from),
                     instructions_with_parameter,
                 )
                 if instruction is not None
@@ -581,7 +400,7 @@ class Commander(BaseProtocol):
             instructions_with_parameter = [
                 instruction
                 for instruction in builder.map(
-                    cls.with_cleanup(chatter.create_sdk_command_parameters),
+                    Helper.with_cleanup(chatter.create_sdk_command_parameters),
                     changed_instructions,
                 )
                 if instruction is not None
@@ -591,7 +410,7 @@ class Commander(BaseProtocol):
         instructions_with_command: list[InstructionWithCommand] = []
         with ThreadPoolExecutor(max_workers=max_workers) as builder:
             for instruction in builder.map(
-                cls.with_cleanup(chatter.create_sdk_command_from),
+                Helper.with_cleanup(chatter.create_sdk_command_from),
                 instructions_with_parameter,
             ):
                 if instruction is not None:

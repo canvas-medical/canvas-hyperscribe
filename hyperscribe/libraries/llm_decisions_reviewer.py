@@ -1,10 +1,10 @@
 import json
 from datetime import datetime
 
-from hyperscribe.libraries.constants import Constants
 from hyperscribe.handlers.progress import Progress
 from hyperscribe.libraries.aws_s3 import AwsS3
 from hyperscribe.libraries.cached_sdk import CachedSdk
+from hyperscribe.libraries.constants import Constants
 from hyperscribe.libraries.helper import Helper
 from hyperscribe.libraries.json_schema import JsonSchema
 from hyperscribe.libraries.llm_turns_store import LlmTurnsStore
@@ -27,13 +27,19 @@ class LlmDecisionsReviewer:
         created: datetime,
         cycles: int,
     ) -> None:
+        # no audit expected
         if settings.audit_llm is False:
             return
-
+        # no AWS credentials
         client_s3 = AwsS3(credentials)
         if client_s3.is_ready() is False:
             return
+        # audit already performed
+        store_path = f"hyperscribe-{identification.canvas_instance}/audits/{identification.note_uuid}/"
+        if client_s3.list_s3_objects(store_path):
+            return
 
+        #
         cached = CachedSdk.get_discussion(identification.note_uuid)
         cached.created = created
         cached.cycle = cycles + 1  # to force the new logs in a subsequent folder

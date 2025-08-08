@@ -3,7 +3,7 @@ from unittest.mock import patch, call, MagicMock
 
 from case_runner import CaseRunner
 from evaluations.datastores.datastore_case import DatastoreCase
-from hyperscribe.handlers.commander import Commander
+from hyperscribe.libraries.commander import Commander
 from hyperscribe.libraries.cached_sdk import CachedSdk
 from hyperscribe.libraries.implemented_commands import ImplementedCommands
 from hyperscribe.libraries.limited_cache import LimitedCache

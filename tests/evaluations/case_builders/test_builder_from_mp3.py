@@ -3,7 +3,7 @@ from unittest.mock import patch, call, MagicMock
 
 from evaluations.case_builders.builder_base import BuilderBase
 from evaluations.case_builders.builder_from_mp3 import BuilderFromMp3
-from hyperscribe.handlers.commander import Commander
+from hyperscribe.libraries.commander import Commander
 from hyperscribe.libraries.cached_sdk import CachedSdk
 from hyperscribe.libraries.implemented_commands import ImplementedCommands
 from hyperscribe.structures.identification_parameters import IdentificationParameters

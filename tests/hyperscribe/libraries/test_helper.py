@@ -1,9 +1,8 @@
-import json
 from datetime import datetime, date
 from enum import Enum
 from unittest.mock import patch, call, MagicMock
 
-from canvas_sdk.v1.data import Task, TaskComment
+import pytest
 
 from hyperscribe.libraries.helper import Helper
 from hyperscribe.llms.llm_anthropic import LlmAnthropic
@@ -12,6 +11,37 @@ from hyperscribe.llms.llm_openai import LlmOpenai
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
+
+
+@patch("hyperscribe.libraries.helper.thread_cleanup")
+def test_with_cleanup(thread_cleanup):
+    function = MagicMock()
+
+    def reset_mocks():
+        thread_cleanup.reset_mock()
+        function.reset_mock()
+
+    tested = Helper
+
+    # no error
+    function.side_effect = ["theResult"]
+    result = tested.with_cleanup(function)("a", "b", c="c")
+    assert result == "theResult"
+    calls = [call("a", "b", c="c")]
+    assert function.mock_calls == calls
+    calls = [call()]
+    assert thread_cleanup.mock_calls == calls
+    reset_mocks()
+
+    # with error
+    with pytest.raises(ValueError, match="Test error"):
+        function.side_effect = [ValueError("Test error")]
+        result = tested.with_cleanup(function)("x", "y", z="z")
+    calls = [call("x", "y", z="z")]
+    assert function.mock_calls == calls
+    calls = [call()]
+    assert thread_cleanup.mock_calls == calls
+    reset_mocks()
 
 
 def test_str2datetime():
@@ -146,92 +176,3 @@ def test_audio2texter():
         assert result.api_key == "audioKey"
         assert result.model == exp_model
         assert result.memory_log == memory_log
-
-
-@patch.object(Task, "objects")
-def test_copilot_task(task_db):
-    def reset_mocks():
-        task_db.reset_mock()
-
-    task_db.filter.return_value.first.side_effect = ["theTask"]
-
-    tested = Helper
-    result = tested.copilot_task("p")
-    expected = "theTask"
-    assert result == expected
-
-    calls = [
-        call.filter(patient__id="p", labels__name="Encounter Copilot"),
-        call.filter().first(),
-    ]
-    assert task_db.mock_calls == calls
-    reset_mocks()
-
-
-@patch.object(Helper, "copilot_task")
-def test_is_copilot_session_paused(copilot_task):
-    task_mock = MagicMock()
-
-    def reset_mocks():
-        copilot_task.reset_mock()
-        task_mock.reset_mock()
-
-    comments = [
-        TaskComment(body=json.dumps({"note_id": "noteId"})),
-        TaskComment(body=json.dumps({"isPaused": True, "note_id": "noteId"})),
-        TaskComment(body=json.dumps({"isPaused": False, "note_id": "noteId"})),
-        TaskComment(body=json.dumps({"isPaused": True, "note_id": "noteId"})),
-        TaskComment(body=json.dumps({"isPaused": True, "note_id": "noteId"})),
-        TaskComment(body=json.dumps({"isPaused": True, "note_id": "noteId"})),
-        TaskComment(body=json.dumps({"isPaused": True, "note_id": "noteId"})),
-    ]
-
-    tests = [
-        (None, [], False),
-        (task_mock, [], False),
-        (
-            task_mock,
-            [
-                TaskComment(body=json.dumps({"note_id": "noteId", "chunk_index": 2})),
-                TaskComment(body=json.dumps({"is_paused": True, "note_id": "noteId", "chunk_index": -1})),
-                TaskComment(body=json.dumps({"is_paused": False, "note_id": "noteId", "chunk_index": -1})),
-            ],
-            True,
-        ),
-        (
-            task_mock,
-            [
-                TaskComment(body=json.dumps({"note_id": "noteId", "chunk_index": 2})),
-                TaskComment(body=json.dumps({"is_paused": False, "note_id": "noteId", "chunk_index": -1})),
-                TaskComment(body=json.dumps({"is_paused": True, "note_id": "noteId", "chunk_index": -1})),
-            ],
-            False,
-        ),
-        (
-            task_mock,
-            [
-                TaskComment(body=json.dumps({"is_paused": True, "note_id": "noteId2", "chunk_index": -1})),
-            ],
-            False,
-        ),
-    ]
-    for task, comments, expected in tests:
-        copilot_task.side_effect = [task]
-        task_mock.comments.all.return_value.order_by.side_effect = [comments]
-
-        tested = Helper
-        result = tested.is_copilot_session_paused("patientId", "noteId")
-        assert result == expected
-
-        calls = [call("patientId")]
-        assert copilot_task.mock_calls == calls
-
-        calls = []
-        if task is not None:
-            calls = [
-                call.__bool__(),
-                call.comments.all(),
-                call.comments.all().order_by("-created"),
-            ]
-        assert task_mock.mock_calls == calls
-        reset_mocks()
