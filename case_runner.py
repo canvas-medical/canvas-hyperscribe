@@ -3,7 +3,7 @@ from argparse import Namespace
 
 from evaluations.datastores.datastore_case import DatastoreCase
 from evaluations.helper_evaluation import HelperEvaluation
-from hyperscribe.handlers.commander import Commander
+from hyperscribe.libraries.commander import Commander
 from hyperscribe.libraries.audio_interpreter import AudioInterpreter
 from hyperscribe.libraries.cached_sdk import CachedSdk
 from hyperscribe.libraries.constants import Constants

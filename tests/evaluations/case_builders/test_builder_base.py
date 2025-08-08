@@ -9,7 +9,7 @@ from canvas_sdk.v1.data import Patient, Command
 
 from evaluations.case_builders.builder_base import BuilderBase
 from evaluations.datastores.datastore_case import DatastoreCase
-from hyperscribe.handlers.commander import Commander
+from hyperscribe.libraries.commander import Commander
 from hyperscribe.libraries.cached_sdk import CachedSdk
 from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.structures.access_policy import AccessPolicy

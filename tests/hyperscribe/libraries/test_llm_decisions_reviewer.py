@@ -244,8 +244,32 @@ def test_review(cache_get_discussion, cache_save, aws_s3, helper, llm_turns_stor
     assert progress.mock_calls == []
     reset_mocks()
 
+    # -- S3 ready + already some audits
+    aws_s3.return_value.is_ready.side_effect = [True]
+    aws_s3.return_value.list_s3_objects.side_effect = [["doc1", "doc2"]]
+    cache_get_discussion.side_effect = [CachedSdk("noteUuid")]
+    llm_turns_store.return_value.stored_document.side_effect = []
+    helper.chatter.return_value.single_conversation.side_effect = []
+    memory_log.instance.side_effect = []
+
+    tested.review(identification, settings, aws_s3_credentials, command2uuid, date_x, 5)
+    assert cache_get_discussion.mock_calls == []
+    assert cache_save.mock_calls == []
+    calls = [
+        call(aws_s3_credentials),
+        call().is_ready(),
+        call().list_s3_objects("hyperscribe-canvasInstance/audits/noteUuid/"),
+    ]
+    assert aws_s3.mock_calls == calls
+    assert helper.mock_calls == []
+    assert llm_turns_store.mock_calls == []
+    assert memory_log.mock_calls == []
+    assert progress.mock_calls == []
+    reset_mocks()
+
     # -- S3 ready + documents
     aws_s3.return_value.is_ready.side_effect = [True]
+    aws_s3.return_value.list_s3_objects.side_effect = [[]]
     llm_turns_store.return_value.stored_documents.side_effect = [
         [
             (
@@ -344,6 +368,7 @@ def test_review(cache_get_discussion, cache_save, aws_s3, helper, llm_turns_stor
     calls = [
         call(aws_s3_credentials),
         call().is_ready(),
+        call().list_s3_objects("hyperscribe-canvasInstance/audits/noteUuid/"),
         call().upload_text_to_s3(
             "hyperscribe-canvasInstance/audits/noteUuid/final_audit_01.log",
             json.dumps(expected_uploads[0], indent=2),

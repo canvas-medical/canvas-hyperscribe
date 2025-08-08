@@ -1,29 +1,11 @@
 {
   "sdk_version": "0.49.0",
-  "plugin_version": "0.1.102",
+  "plugin_version": "0.1.104",
   "name": "hyperscribe",
   "description": "Create commands based on the content of an audio discussion between a patient and a provider.",
   "url_permissions": [],
   "components": {
     "protocols": [
-      {
-        "class": "hyperscribe.handlers.commander:Commander",
-        "description": "Add commands based on vocal instructions",
-        "data_access": {
-          "event": "",
-          "read": [],
-          "write": []
-        }
-      },
-      {
-        "class": "hyperscribe.handlers.reviewer:Reviewer",
-        "description": "Review and audit the LLM decisions",
-        "data_access": {
-          "event": "",
-          "read": [],
-          "write": []
-        }
-      },
       {
         "class": "hyperscribe.handlers.launcher:Launcher",
         "description": "Action button on the note to launch Hyperscribe with note context",
@@ -89,14 +71,14 @@
       },
       {
         "class": "hyperscribe.handlers.capture_view:CaptureView",
-        "description": "Serve the user interface for Hyperscribe",
+        "description": "Serve the user interface for Hyperscribe and trigger the addition of commands based on vocal instructions",
         "data_access": {
           "event": "",
           "read": [],
           "write": []
         }
       },
-            {
+      {
         "class": "hyperscribe.handlers.transcript_button:TranscriptButton",
         "description": "Action button on the note to display the transcript page with note context",
         "data_access": {
@@ -145,9 +127,7 @@
     "StaffersPolicy",
     "StructuredReasonForVisit",
     "VendorAudioLLM",
-    "VendorTextLLM",
-    "FumageBearerToken",
-    "CopilotsTeamFHIRGroupId"
+    "VendorTextLLM"
   ],
   "tags": {},
   "references": [],

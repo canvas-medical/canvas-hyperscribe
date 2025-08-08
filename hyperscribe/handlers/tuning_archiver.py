@@ -10,7 +10,7 @@ from canvas_sdk.handlers.simple_api.api import Request
 from canvas_sdk.templates import render_to_string
 from canvas_sdk.v1.data import Command, Note
 
-from hyperscribe.handlers.commander import Commander
+from hyperscribe.libraries.commander import Commander
 from hyperscribe.libraries.aws_s3 import AwsS3
 from hyperscribe.libraries.constants import Constants
 from hyperscribe.libraries.limited_cache import LimitedCache

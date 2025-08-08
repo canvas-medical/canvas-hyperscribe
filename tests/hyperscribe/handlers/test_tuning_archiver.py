@@ -14,7 +14,7 @@ from canvas_sdk.handlers.simple_api import SimpleAPIRoute, Credentials
 from canvas_sdk.v1.data import Patient, Command, Note
 from requests import Response
 
-from hyperscribe.handlers.commander import Commander
+from hyperscribe.libraries.commander import Commander
 from hyperscribe.handlers.tuning_archiver import TuningArchiver, ArchiverHelper
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
