@@ -21,7 +21,8 @@ class SyntheticChartGenerator:
             profiles_dict = cast(dict[str, str], json.load(f))
         return [PatientProfile(name=name, profile=profile) for name, profile in profiles_dict.items()]
 
-    def schema_chart(self) -> dict[str, Any]:
+    @classmethod
+    def schema_chart(cls) -> dict[str, Any]:
         """Build a JSON Schema that enforces Canvas chart structure with ChartItem arrays."""
 
         # Schema for ChartItem structure

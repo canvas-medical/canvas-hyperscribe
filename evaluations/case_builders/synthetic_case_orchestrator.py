@@ -23,11 +23,7 @@ from evaluations.datastores.postgres.synthetic_case import SyntheticCase as Synt
 
 
 class SyntheticCaseOrchestrator:
-    def __init__(
-        self,
-        vendor_key: VendorKey,
-        category: str,
-    ):
+    def __init__(self, vendor_key: VendorKey, category: str):
         self.vendor_key = vendor_key
         self.category = category
         self.profile_generator = SyntheticProfileGenerator(vendor_key=vendor_key)
