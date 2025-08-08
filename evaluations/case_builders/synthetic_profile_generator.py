@@ -112,11 +112,13 @@ class SyntheticProfileGenerator:
     def generate_batch(self, batch_num: int, count: int) -> list[PatientProfile]:
         schema = self.schema_batch(count)
 
-        # Get prompts based on category
+        # prompts based on category.
         prompt_method = getattr(SyntheticProfileGeneratorPrompts, f"{self.category}_prompts", None)
         if prompt_method is None:
-            raise ValueError(f"Unknown category: {self.category}. Supported categories: med_management, primary_care, serious_mental_illness")
-        
+            raise ValueError(
+                f"Unknown category: {self.category}. Supported: med_management, primary_care, serious_mental_illness"
+            )
+
         system_prompt, user_prompt = prompt_method(batch_num, count, schema, self.seen_scenarios)
 
         initial_profiles = cast(
@@ -153,8 +155,12 @@ class SyntheticProfileGenerator:
         parser.add_argument("--batches", type=int, required=True, help="Number of batches")
         parser.add_argument("--batch-size", type=int, required=True, help="Profiles per batch")
         parser.add_argument("--output", type=Path, required=True, help="Combined JSON output path")
-        parser.add_argument("--category", type=str, required=True, 
-                          help="Category of profiles to generate (med_management, primary_care, serious_mental_illness)")
+        parser.add_argument(
+            "--category",
+            type=str,
+            required=True,
+            help="Category of profiles to generate (med_management, primary_care, serious_mental_illness)",
+        )
         args = parser.parse_args()
 
         output_path = Path(args.output)
