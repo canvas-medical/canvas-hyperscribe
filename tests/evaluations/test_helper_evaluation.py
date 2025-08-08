@@ -14,6 +14,8 @@ from hyperscribe.structures.identification_parameters import IdentificationParam
 from hyperscribe.structures.json_extract import JsonExtract
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
+from hyperscribe.structures.line import Line
+from evaluations.constants import Constants
 
 
 def test_trace_error():
@@ -29,7 +31,7 @@ def test_trace_error():
         result = tested.trace_error(error)
         expected = {
             "error": "'x'",
-            "files": [f"{file_path}.test_trace_error:29", f"{file_path}.mistake:21"],
+            "files": [f"{file_path}.test_trace_error:31", f"{file_path}.mistake:23"],
             "variables": {"a_dict": "{'a': 1, 'secret': 'SecretA'}", "b_dict": "{'b': 2}", "various": "'random var'"},
         }
         assert result == expected
@@ -457,6 +459,63 @@ def test_nuanced_differences(settings, get_canvas_instance, chatter, memory_log)
     calls = [call.set_system_prompt(system_prompt), call.set_user_prompt(user_prompt), call.chat([schema])]
     assert conversation.mock_calls == calls
     reset_mocks()
+
+
+def test_split_lines_into_cycles():
+    tested = HelperEvaluation
+
+    # test cases: 1) empty
+    result = tested.split_lines_into_cycles([])
+    expected = {}
+    assert result == expected
+
+    # 2) short line
+    lines = [Line(speaker="Doctor", text="Hello")]
+    result = tested.split_lines_into_cycles(lines)
+    expected = {f"{Constants.CASE_CYCLE_PREFIX}_001": lines}
+    assert result == expected
+
+    # 3) multiple lines within limit
+    lines = [
+        Line(speaker="Doctor", text="Good morning"),
+        Line(speaker="Patient", text="Hello doctor"),
+        Line(speaker="Doctor", text="How are you feeling today?"),
+    ]
+    result = tested.split_lines_into_cycles(lines)
+    expected = {f"{Constants.CASE_CYCLE_PREFIX}_001": lines}
+    assert result == expected
+
+    # 4) exceed cycle limit
+    with patch.object(Constants, "MAX_CHARACTERS_PER_CYCLE", 500):
+        with patch.object(Constants, "CASE_CYCLE_PREFIX", "test_cycle"):
+            lines = [
+                Line(speaker="Doctor", text="A" * 200),
+                Line(speaker="Patient", text="B" * 200),
+                Line(speaker="Doctor", text="C" * 200),
+                Line(speaker="Patient", text="Short"),
+            ]
+            result = tested.split_lines_into_cycles(lines)
+            expected = {"test_cycle_001": [lines[0], lines[1]], "test_cycle_002": [lines[2], lines[3]]}
+            assert result == expected
+
+    # 5) boundary conditions
+    with patch.object(Constants, "MAX_CHARACTERS_PER_CYCLE", 100):
+        with patch.object(Constants, "CASE_CYCLE_PREFIX", "boundary_test"):
+            line1 = Line(speaker="Doctor", text="X" * 50)
+            line2 = Line(speaker="Patient", text="Y" * 50)
+            lines = [line1, line2]
+
+            result = tested.split_lines_into_cycles(lines)
+            expected = {"boundary_test_001": [line1], "boundary_test_002": [line2]}
+            assert result == expected
+
+    # 6) one very long Line object
+    with patch.object(Constants, "MAX_CHARACTERS_PER_CYCLE", 100):
+        with patch.object(Constants, "CASE_CYCLE_PREFIX", "long_line_test"):
+            long_line = Line(speaker="Doctor", text="Very long text " * 100)
+            result = tested.split_lines_into_cycles([long_line])
+            expected = {"long_line_test_001": [long_line]}
+            assert result == expected
 
 
 def test_list_case_files():
