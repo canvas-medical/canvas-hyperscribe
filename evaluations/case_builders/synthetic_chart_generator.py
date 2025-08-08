@@ -3,61 +3,94 @@ from pathlib import Path
 from typing import Any, Tuple, cast
 
 from hyperscribe.structures.vendor_key import VendorKey
-from hyperscribe.libraries.limited_cache import LimitedCache
 from evaluations.helper_evaluation import HelperEvaluation
 from evaluations.case_builders.helper_synthetic_json import HelperSyntheticJson
 from evaluations.constants import Constants
+from evaluations.structures.patient_profile import PatientProfile
+from evaluations.structures.chart import Chart
 
 
 class SyntheticChartGenerator:
-    def __init__(self, vendor_key: VendorKey, profiles: dict[str, str], output: Path, example_chart: dict[str, Any]):
+    def __init__(self, vendor_key: VendorKey, profiles: list[PatientProfile]):
         self.vendor_key = vendor_key
         self.profiles = profiles
-        self.output = output
-        self.example_chart = example_chart
-        self.output.mkdir(parents=True, exist_ok=True)
 
     @classmethod
-    def load_json(cls, path: Path) -> dict[str, Any]:
+    def load_json(cls, path: Path) -> list[PatientProfile]:
         with path.open("r") as f:
-            return cast(dict[str, Any], json.load(f))
+            profiles_dict = cast(dict[str, str], json.load(f))
+        return [PatientProfile(name=name, profile=profile) for name, profile in profiles_dict.items()]
 
-    def schema_chart(self) -> dict[str, Any]:
-        """Build a JSON Schema that enforces top‑level keys in example_chart."""
+    @classmethod
+    def schema_chart(cls) -> dict[str, Any]:
+        """Build a JSON Schema that enforces Canvas chart structure with ChartItem arrays."""
 
-        properties = {
-            key: {
-                "type": "array" if isinstance(value, list) else "string",
-                "description": Constants.EXAMPLE_CHART_DESCRIPTIONS[key],
-            }  # KeyError if missing
-            for key, value in self.example_chart.items()
-        }
-
-        return {
-            "$schema": "http://json-schema.org/draft-07/schema#",
-            "description": "Example Canvas-compatible chart",
+        # Schema for ChartItem structure
+        chart_item_schema = {
             "type": "object",
-            "properties": properties,
-            "required": list(self.example_chart.keys()),
+            "properties": {
+                "code": {"type": "string", "description": "Medical code (ICD-10, CPT, RxNorm, etc.)"},
+                "label": {"type": "string", "description": "Human-readable description"},
+                "uuid": {"type": "string", "description": "Unique identifier - will be populated automatically"},
+            },
+            "required": ["code", "label", "uuid"],
             "additionalProperties": False,
         }
 
-    def generate_chart_for_profile(self, profile_text: str) -> dict[str, Any]:
+        properties: dict[str, Any] = {
+            "demographicStr": {"type": "string", "description": "String describing patient demographics"}
+        }
+
+        # All other fields are arrays of ChartItem objects
+        array_fields = [
+            "conditionHistory",
+            "currentAllergies",
+            "currentConditions",
+            "currentMedications",
+            "currentGoals",
+            "familyHistory",
+            "surgeryHistory",
+        ]
+
+        for field_name in array_fields:
+            properties[field_name] = {
+                "type": "array",
+                "description": Constants.EXAMPLE_CHART_DESCRIPTIONS[field_name],
+                "items": chart_item_schema,
+            }
+
+        return {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "description": "Canvas-compatible chart structure with structured ChartItems",
+            "type": "object",
+            "properties": properties,
+            "required": list(Constants.EXAMPLE_CHART_DESCRIPTIONS.keys()),
+            "additionalProperties": False,
+        }
+
+    def generate_chart_for_profile(self, patient_profile: PatientProfile) -> Chart:
         schema = self.schema_chart()
 
         system_prompt: list[str] = [
             "You are generating a Canvas-compatible `limited_chart.json` for a synthetic patient.",
+            "The chart uses structured data with medical codes for clinical items.",
             "Return your answer as JSON inside a fenced ```json ... ``` block.",
-            "Only include fields shown in the example structure; leave irrelevant categories as empty arrays.",
+            "Each clinical item must have: code, label, and uuid fields.",
         ]
 
         user_prompt: list[str] = [
-            f"Patient profile: {profile_text}",
+            f"Patient profile: {patient_profile.profile}",
             "",
-            "Here is the required JSON structure:",
-            "```json",
-            json.dumps(self.example_chart, indent=2),
-            "```",
+            "Generate a structured limited_chart.json with these fields:",
+            "- demographicStr: Simple string describing patient demographics",
+            "- conditionHistory, currentAllergies, currentConditions, currentMedications, "
+            "currentGoals, familyHistory, surgeryHistory: Arrays of objects",
+            "",
+            "Each array item must be an object with:",
+            "- code: medical code (ICD-10 for conditions/allergies, "
+            "RxNorm for medications, CPT for procedures, empty string if no specific code)",
+            "- label: Human-readable description",
+            "- uuid: Use empty string (will be populated automatically)",
             "",
             "Your JSON **must** conform to the following JSON Schema:",
             "```json",
@@ -65,28 +98,23 @@ class SyntheticChartGenerator:
             "```",
             "",
             "Be strict:",
-            "• Include only conditions the patient *has or was diagnosed with*.",
-            "• Include only medications the patient *is actually taking*.",
-            "• Do not fabricate information beyond the profile.",
+            "- Include only conditions the patient *has or was diagnosed with*.",
+            "- Include only medications the patient *is actually taking*.",
+            "- Use empty arrays [] for categories not mentioned in the profile.",
+            "- Do not fabricate information beyond the profile.",
+            "- Use realistic medical codes when possible, empty string otherwise.",
         ]
 
-        chart_json = cast(
-            dict[str, Any],
+        return cast(
+            Chart,
             HelperSyntheticJson.generate_json(
-                vendor_key=self.vendor_key, system_prompt=system_prompt, user_prompt=user_prompt, schema=schema
+                vendor_key=self.vendor_key,
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                schema=schema,
+                returned_class=Chart,
             ),
         )
-
-        return chart_json
-
-    @classmethod
-    def validate_chart(cls, chart_json: dict[str, Any]) -> bool:
-        try:
-            LimitedCache.load_from_json(chart_json)
-            return True
-        except Exception as e:
-            print(f"[ERROR] invalid limited_chart.json structure: {e}")
-            return False
 
     @classmethod
     def assign_valid_uuids(cls, obj: Any) -> Any:
@@ -104,22 +132,22 @@ class SyntheticChartGenerator:
                     stack.append((current, item))
         return obj
 
-    def run_range(self, start: int, limit: int) -> None:
-        subset = list(self.profiles.items())[start - 1 : start - 1 + limit]
-        for patient_name, profile_text in subset:
-            safe_name = re.sub(r"\W+", "_", patient_name)
-            patient_dir = self.output / safe_name
+    def run_range(self, start: int, limit: int, output: Path) -> None:
+        subset = self.profiles[start - 1 : start - 1 + limit]
+        output.mkdir(parents=True, exist_ok=True)
+        for patient_profile in subset:
+            safe_name = re.sub(r"\W+", "_", patient_profile.name)
+            patient_dir = output / safe_name
             patient_dir.mkdir(parents=True, exist_ok=True)
 
-            print(f"Generating limited_chart.json for {patient_name}")
-            chart = self.generate_chart_for_profile(profile_text)
-            if not self.validate_chart(chart):
-                print(f"[SKIPPED] Invalid chart for {patient_name}")
-            chart = self.assign_valid_uuids(chart)
+            print(f"Generating limited_chart.json for {patient_profile.name}")
+            chart = self.generate_chart_for_profile(patient_profile)
+            chart_json = chart.to_json()
+            chart_json = self.assign_valid_uuids(chart_json)
 
             out_path = patient_dir / "limited_chart.json"
             with out_path.open("w") as f:
-                json.dump(chart, f, indent=2)
+                json.dump(chart_json, f, indent=2)
             print(f"Saved limited_chart.json to {out_path}")
 
     @staticmethod
@@ -129,26 +157,17 @@ class SyntheticChartGenerator:
         parser.add_argument("--output", type=Path, required=True, help="Directory to write per-patient folders")
         parser.add_argument("--start", type=int, default=1, help="1-based index of first profile to process")
         parser.add_argument("--limit", type=int, required=True, help="Number of profiles to generate charts for")
-        parser.add_argument(
-            "--example",
-            type=Path,
-            required=True,
-            help="Path to representative limited_chart.json example",
-        )
         args = parser.parse_args()
 
         settings = HelperEvaluation.settings()
         vendor_key = settings.llm_text
         profiles = SyntheticChartGenerator.load_json(args.input)
-        example_chart = SyntheticChartGenerator.load_json(args.example)
 
         generator = SyntheticChartGenerator(
             vendor_key=vendor_key,
             profiles=profiles,
-            output=args.output,
-            example_chart=example_chart,
         )
-        generator.run_range(start=args.start, limit=args.limit)
+        generator.run_range(start=args.start, limit=args.limit, output=args.output)
 
 
 if __name__ == "__main__":

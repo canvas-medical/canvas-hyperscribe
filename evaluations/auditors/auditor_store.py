@@ -21,7 +21,7 @@ class AuditorStore(AuditorBase):
         self.s3_credentials = s3_credentials
         self.case = case
         self.cycle = max(0, cycle)
-        self.cycle_key = f"{Constants.CASE_CYCLE_SUFFIX}_{self.cycle:03d}"
+        self.cycle_key = self.cycle_key_for(self.cycle)
 
     def case_prepare(self) -> None:
         raise NotImplementedError
@@ -53,9 +53,13 @@ class AuditorStore(AuditorBase):
     def note_uuid(self) -> str:
         raise NotImplementedError
 
+    @classmethod
+    def cycle_key_for(cls, cycle: int) -> str:
+        return f"{Constants.CASE_CYCLE_PREFIX}_{cycle:03d}"
+
     def set_cycle(self, cycle: int) -> None:
         self.cycle = max(0, self.cycle, cycle)
-        self.cycle_key = f"{Constants.CASE_CYCLE_SUFFIX}_{self.cycle:03d}"
+        self.cycle_key = self.cycle_key_for(self.cycle)
 
     def identified_transcript(self, audios: list[bytes], transcript: list[Line]) -> bool:
         for idx, audio in enumerate(audios):

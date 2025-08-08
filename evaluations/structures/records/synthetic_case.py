@@ -11,9 +11,9 @@ class SyntheticCase(NamedTuple):
     case_id: int
     category: str = ""
     turn_total: int = 0
-    speaker_sequence: str = ""
+    speaker_sequence: list[str] = []
     clinician_to_patient_turn_ratio: float = 0.0
-    mood: SyntheticCaseMood = SyntheticCaseMood.PATIENT_FRUSTRATED
+    mood: list[SyntheticCaseMood] = [SyntheticCaseMood.PATIENT_FRUSTRATED]
     pressure: SyntheticCasePressure = SyntheticCasePressure.TIME_PRESSURE
     clinician_style: SyntheticCaseClinicianStyle = SyntheticCaseClinicianStyle.WARM_CHATTY
     patient_style: SyntheticCasePatientStyle = SyntheticCasePatientStyle.ANXIOUS_TALKATIVE
@@ -22,3 +22,21 @@ class SyntheticCase(NamedTuple):
     text_llm_vendor: str = ""
     text_llm_name: str = ""
     id: int = 0
+
+    def to_json(self) -> dict:
+        return {
+            "case_id": self.case_id,
+            "category": self.category,
+            "turn_total": self.turn_total,
+            "speaker_sequence": self.speaker_sequence,
+            "clinician_to_patient_turn_ratio": self.clinician_to_patient_turn_ratio,
+            "mood": [mood.value for mood in self.mood],
+            "pressure": self.pressure.value,
+            "clinician_style": self.clinician_style.value,
+            "patient_style": self.patient_style.value,
+            "turn_buckets": self.turn_buckets.value,
+            "duration": self.duration,
+            "text_llm_vendor": self.text_llm_vendor,
+            "text_llm_name": self.text_llm_name,
+            "id": self.id,
+        }

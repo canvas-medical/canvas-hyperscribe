@@ -13,7 +13,7 @@ def test_class():
         "validation_timestamp": datetime | None,
         "validation": RubricValidation,
         "author": str,
-        "rubric": dict,
+        "rubric": list[dict],
         "case_provenance_classification": str,
         "comments": str,
         "text_llm_vendor": str,
@@ -31,7 +31,7 @@ def test_default():
     assert result.validation_timestamp is None
     assert result.validation == RubricValidation.NOT_EVALUATED
     assert result.author == ""
-    assert result.rubric == {}
+    assert result.rubric == []
     assert result.case_provenance_classification == ""
     assert result.comments == ""
     assert result.text_llm_vendor == ""
