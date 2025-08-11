@@ -530,7 +530,7 @@ def test_run_reviewer(log, implemented_commands, llm_decision_reviewer, progress
         ontologies_host="theOntologiesHost",
         pre_shared_key="thePreSharedKey",
         structured_rfv=True,
-        audit_llm=True,
+        audit_llm=False,
         is_tuning=False,
         send_progress=True,
         commands_policy=AccessPolicy(policy=False, items=[]),
@@ -538,6 +538,8 @@ def test_run_reviewer(log, implemented_commands, llm_decision_reviewer, progress
         cycle_transcript_overlap=37,
     )
     credentials = AwsS3Credentials(aws_key="theKey", aws_secret="theSecret", region="theRegion", bucket="theBucketLogs")
+
+    note_db.get.return_value.provider.id = "theProviderId"
 
     tested = helper_instance()
     # no LLM audit
@@ -547,15 +549,20 @@ def test_run_reviewer(log, implemented_commands, llm_decision_reviewer, progress
     assert log.mock_calls == []
     assert implemented_commands.mock_calls == []
     assert llm_decision_reviewer.mock_calls == []
-    assert progress.mock_calls == []
-    assert note_db.mock_calls == []
+    calls = [
+        call.send_to_user(identification, settings, "finished", "events"),
+        call.send_to_user(identification, settings, "EOF", "events"),
+    ]
+    assert progress.mock_calls == calls
+    calls = [call.get(id="noteId")]
+    assert note_db.mock_calls == calls
     assert command_db.mock_calls == []
     reset_mocks()
 
     # with LLM audit
     tested.secrets["AuditLLMDecisions"] = "y"
+    settings = settings._replace(audit_llm=True)
 
-    note_db.get.return_value.provider.id = "theProviderId"
     implemented_commands.schema_key2instruction.side_effect = [
         {
             "canvasCommandX": "theInstructionX",
@@ -599,7 +606,10 @@ def test_run_reviewer(log, implemented_commands, llm_decision_reviewer, progress
         ),
     ]
     assert llm_decision_reviewer.mock_calls == calls
-    calls = [call.send_to_user(identification, settings, "EOF", "events")]
+    calls = [
+        call.send_to_user(identification, settings, "finished", "events"),
+        call.send_to_user(identification, settings, "EOF", "events"),
+    ]
     assert progress.mock_calls == calls
     calls = [call.get(id="noteId")]
     assert note_db.mock_calls == calls
@@ -666,16 +676,22 @@ def test_run_commander(log, stop_and_go, memory_log, progress, commander, llm_tu
     tested = helper_instance()
     # all good
     tests = [
-        (True, "audio was present => go to next iteration (8)", "waiting for the next cycle 8..."),
-        (False, "audio was not present", "finished"),
+        (False, False, "=> go to next iteration (8)", "waiting for the next cycle 8..."),
+        (True, False, None, None),
+        (False, True, None, None),
+        (True, True, None, None),
     ]
-    for has_audio, log_msg, progress_msg in tests:
+    for is_ended, is_paused, log_msg, progress_msg in tests:
         note_db.get.return_value.provider.id = "theProviderId"
-        commander.compute_audio.side_effect = [(has_audio, effects)]
+        commander.compute_audio.side_effect = [(False, effects)]
+        stop_and_go.get.return_value.is_ended.side_effect = [is_ended]
+        stop_and_go.get.return_value.is_paused.side_effect = [is_paused]
 
         tested.run_commander("patientId", "noteId", 7)
 
-        calls = [call.info(log_msg)]
+        calls = []
+        if log_msg:
+            calls = [call.info(log_msg)]
         assert log.mock_calls == calls
         calls = [
             call.get("noteId"),
@@ -685,10 +701,19 @@ def test_run_commander(log, stop_and_go, memory_log, progress, commander, llm_tu
             call.get("noteId"),
             call.get().add_paused_effects(effects),
             call.get().add_paused_effects().save(),
-            call.get("noteId"),
-            call.get().set_running(False),
-            call.get().set_running().save(),
+            call.get().is_ended(),
         ]
+        if not is_ended:
+            calls.append(call.get().is_paused())
+
+        calls.extend(
+            [
+                call.get("noteId"),
+                call.get().set_running(False),
+                call.get().set_running().save(),
+            ]
+        )
+
         assert stop_and_go.mock_calls == calls
         calls = [
             call.instance(identification, "main", credentials),
@@ -696,7 +721,9 @@ def test_run_commander(log, stop_and_go, memory_log, progress, commander, llm_tu
             call.end_session("noteId"),
         ]
         assert memory_log.mock_calls == calls
-        calls = [call.send_to_user(identification, settings, progress_msg, "events")]
+        calls = []
+        if not is_ended and not is_paused:
+            calls = [call.send_to_user(identification, settings, progress_msg, "events")]
         assert progress.mock_calls == calls
         calls = [call.compute_audio(identification, settings, credentials, audio_client, 7)]
         assert commander.mock_calls == calls
