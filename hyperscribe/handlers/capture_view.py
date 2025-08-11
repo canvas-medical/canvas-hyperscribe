@@ -205,33 +205,35 @@ class CaptureView(SimpleAPI):
         return effects
 
     def run_reviewer(self, patient_id: str, note_id: str, created: datetime, cycles: int) -> None:
-        settings = Settings.from_dictionary(self.secrets | {Constants.PROGRESS_SETTING_KEY: True})
-        if not settings.audit_llm:
-            return
-
-        log.info(f"  => final audit started...{note_id} / {cycles} cycles")
-        credentials = AwsS3Credentials.from_dictionary(self.secrets)
         identification = IdentificationParameters(
             patient_uuid=patient_id,
             note_uuid=note_id,
             provider_uuid=str(Note.objects.get(id=note_id).provider.id),
             canvas_instance=self.environment[Constants.CUSTOMER_IDENTIFIER],
         )
-        mapping = ImplementedCommands.schema_key2instruction()
-        command2uuid = {
-            LlmTurnsStore.indexed_instruction(mapping[command.schema_key], index): str(command.id)
-            for index, command in enumerate(
-                Command.objects.filter(
-                    patient__id=patient_id,
-                    note__id=note_id,
-                    state="staged",  # <--- TODO use an Enum when provided
-                ).order_by("dbid"),
-            )
-        }
-        LlmDecisionsReviewer.review(identification, settings, credentials, command2uuid, created, cycles)
+        settings = Settings.from_dictionary(self.secrets | {Constants.PROGRESS_SETTING_KEY: True})
+        # end of the session
+        Progress.send_to_user(identification, settings, "finished", Constants.PROGRESS_SECTION_EVENTS)
+
+        if settings.audit_llm:
+            log.info(f"  => final audit started...{note_id} / {cycles} cycles")
+            credentials = AwsS3Credentials.from_dictionary(self.secrets)
+            mapping = ImplementedCommands.schema_key2instruction()
+            command2uuid = {
+                LlmTurnsStore.indexed_instruction(mapping[command.schema_key], index): str(command.id)
+                for index, command in enumerate(
+                    Command.objects.filter(
+                        patient__id=patient_id,
+                        note__id=note_id,
+                        state="staged",  # <--- TODO use an Enum when provided
+                    ).order_by("dbid"),
+                )
+            }
+            LlmDecisionsReviewer.review(identification, settings, credentials, command2uuid, created, cycles)
+            log.info(f"  => final audit done ({note_id} / {cycles} cycles)")
+        # end the flow
         progress = Constants.PROGRESS_END_OF_MESSAGES
         Progress.send_to_user(identification, settings, progress, Constants.PROGRESS_SECTION_EVENTS)
-        log.info(f"  => final audit done ({note_id} / {cycles} cycles)")
 
     def run_commander(self, patient_id: str, note_id: str, chunk_index: int) -> None:
         # add the running flag
@@ -251,8 +253,7 @@ class CaptureView(SimpleAPI):
                 self.secrets[Constants.SECRET_AUDIO_HOST_PRE_SHARED_KEY],
             )
 
-            memory_log = MemoryLog.instance(identification, Constants.MEMORY_LOG_LABEL, aws_s3)
-            memory_log.output(
+            MemoryLog.instance(identification, Constants.MEMORY_LOG_LABEL, aws_s3).output(
                 f"SDK: {version} - "
                 f"Text: {self.secrets[Constants.SECRET_TEXT_LLM_VENDOR]} - "
                 f"Audio: {self.secrets[Constants.SECRET_AUDIO_LLM_VENDOR]}"
@@ -260,16 +261,16 @@ class CaptureView(SimpleAPI):
 
             had_audio, effects = Commander.compute_audio(identification, settings, aws_s3, audio_client, chunk_index)
 
-            StopAndGo.get(note_id).add_paused_effects(effects).save()
-            if had_audio:
-                info = f"audio was present => go to next iteration ({chunk_index + 1})"
+            # store the effects
+            stop_and_go = StopAndGo.get(note_id)
+            stop_and_go.add_paused_effects(effects).save()
+            # messages
+            if not (stop_and_go.is_ended() or stop_and_go.is_paused()):
+                info = f"=> go to next iteration ({chunk_index + 1})"
                 progress = f"waiting for the next cycle {chunk_index + 1}..."
-            else:
-                info = "audio was not present"
-                progress = "finished"
+                log.info(info)
+                Progress.send_to_user(identification, settings, progress, Constants.PROGRESS_SECTION_EVENTS)
             # clean up and messages
-            log.info(info)
-            Progress.send_to_user(identification, settings, progress, Constants.PROGRESS_SECTION_EVENTS)
             MemoryLog.end_session(note_id)
             LlmTurnsStore.end_session(note_id)
 
