@@ -40,10 +40,11 @@ class CaptureView(SimpleAPI):
             self.request.query_params,
         )
 
-    @api.get("/capture/<patient_id>/<note_id>")
+    @api.get("/capture/<patient_id>/<note_id>/<note_reference>")
     def capture_get(self) -> list[Response | Effect]:
         patient_id = self.request.path_params["patient_id"]
         note_id = self.request.path_params["note_id"]
+        note_reference = self.request.path_params["note_reference"]
 
         progress_url = Authenticator.presigned_url(
             self.secrets[Constants.SECRET_API_SIGNING_KEY],
@@ -80,6 +81,7 @@ class CaptureView(SimpleAPI):
         context = {
             "patientUuid": patient_id,
             "noteUuid": note_id,
+            "noteReference": note_reference,
             "interval": self.secrets[Constants.SECRET_AUDIO_INTERVAL],
             "endFlag": Constants.PROGRESS_END_OF_MESSAGES,
             "progressURL": progress_url,

@@ -98,7 +98,11 @@ def test_capture_get(authenticator, render_to_string, stop_and_go):
     stop_and_go.get.return_value.cycle.side_effect = [7]
 
     tested = helper_instance()
-    tested.request = SimpleNamespace(path_params={"patient_id": "p", "note_id": "n"}, query_params={}, headers={})
+    tested.request = SimpleNamespace(
+        path_params={"patient_id": "p", "note_id": "n", "note_reference": "4571"},
+        query_params={},
+        headers={},
+    )
 
     result = tested.capture_get()
     expected = [HTMLResponse(content="<html/>", status_code=HTTPStatus(200))]
@@ -120,6 +124,7 @@ def test_capture_get(authenticator, render_to_string, stop_and_go):
             {
                 "patientUuid": "p",
                 "noteUuid": "n",
+                "noteReference": "4571",
                 "interval": 5,
                 "endFlag": "EOF",
                 "progressURL": "Url1",

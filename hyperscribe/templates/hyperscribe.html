@@ -262,6 +262,21 @@
             font-family: "Helvetica", "Arial", "sans-serif";
         }
 
+        .header-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 10px;
+        }
+
+        .note-reference {
+            font-family: "Helvetica", "Arial", "sans-serif";
+            font-size: 14px;
+            font-weight: bold;
+            color: #333;
+        }
+
         /* Center content vertically and horizontally */
         .app-container {
             display: flex;
@@ -277,7 +292,10 @@
 </head>
 <body>
     <div class="app-container">
-        <img src="https://images.prismic.io/canvas-website/Z8VfRhsAHJWomCr3_hyperscribe_logo.png?auto=format,compress" alt="Logo" class="logo">
+        <div class="header-container">
+            <img src="https://images.prismic.io/canvas-website/Z8VfRhsAHJWomCr3_hyperscribe_logo.png?auto=format,compress" alt="Logo" class="logo">
+            <div class="note-reference">({{noteReference}})</div>
+        </div>
         <div class="button-container">
             <button
                 class="toggle-button"
@@ -295,7 +313,7 @@
             </button>
         </div>
 
-        <div id="chunkIdDisplay" class="debug-message">Chunk ID: <span id="chunkIdValue">{{chunkId}}</span></div>
+{#        <div id="chunkIdDisplay" class="debug-message">Chunk ID: <span id="chunkIdValue">{{chunkId}}</span></div>#}
 
         <div id="debugMessage" class="debug-message"></div>
 
@@ -624,6 +642,14 @@
             resetTable();
             resetTranscriptTable();
             initializeButtonStates();
+            
+            // Initialize previousMessage to epoch to allow initial content display
+            window.previousMessage = new Date(0);
+            
+            // Fetch progress on load
+            const progressURL = '{{progressURL | safe}}';
+            const messageEndFlag = '{{endFlag}}';
+            fetchAndDisplayProgress(progressURL, messageEndFlag);
         });
 
         // -----------------------------------------------------------------
