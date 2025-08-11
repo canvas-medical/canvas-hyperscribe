@@ -313,7 +313,6 @@
             </button>
         </div>
 
-{#        <div id="chunkIdDisplay" class="debug-message">Chunk ID: <span id="chunkIdValue">{{chunkId}}</span></div>#}
 
         <div id="debugMessage" class="debug-message"></div>
 
@@ -466,7 +465,6 @@
                     const audioBlob = new Blob([event.data], { type: CONSTANTS.AUDIO.MIME_TYPE });
                     const formData = new FormData();
                     chunkId += 1;
-                    updateChunkIdDisplay();
                     const chunkIndex = String(chunkId).padStart(3, '0');
                     formData.append("audio", audioBlob, `chunk_${chunkIndex}_${patientId}_${noteId}.webm`);
 
@@ -661,9 +659,6 @@
         let intervalId = null; // Interval ID for periodic uploads
         let chunkId = {{chunkId}};
 
-        function updateChunkIdDisplay() {
-            document.getElementById('chunkIdValue').textContent = chunkId;
-        }
 
         console.log('CAPTURE.JS')
 
@@ -707,7 +702,6 @@
                             // Create a FormData object and append the audio blob
                             const formData = new FormData();
                             chunkId += 1;
-                            updateChunkIdDisplay();
                             const chunkIndex = String(chunkId).padStart(3, '0')
                             formData.append("audio", audioBlob, `chunk_${chunkIndex}_${patientId}_${noteId}.webm`);
 
