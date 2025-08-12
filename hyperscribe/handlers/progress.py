@@ -1,13 +1,15 @@
 from datetime import datetime, UTC
+from http import HTTPStatus
 
 from canvas_sdk.caching.plugins import get_cache
 from canvas_sdk.effects import Effect
-from canvas_sdk.effects.simple_api import Response, JSONResponse
+from canvas_sdk.effects.simple_api import Response, JSONResponse, Broadcast
 from canvas_sdk.handlers.simple_api import Credentials, SimpleAPIRoute
 from requests import post as requests_post
 
 from hyperscribe.libraries.authenticator import Authenticator
 from hyperscribe.libraries.constants import Constants
+from hyperscribe.libraries.helper import Helper
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.settings import Settings
 
@@ -36,7 +38,11 @@ class Progress(SimpleAPIRoute):
                 cached = []
             cached.append(self.request.json())
             get_cache().set(key, cached)
-        return [JSONResponse({"received": True})]
+
+        return [
+            Broadcast(message=self.request.json(), channel=Constants.WS_CHANNEL_PROGRESSES).apply(),
+            JSONResponse({"status": "ok"}, status_code=HTTPStatus.ACCEPTED),
+        ]
 
     def key_cache(self) -> str:
         if note_id := self.request.query_params.get("note_id"):
@@ -55,7 +61,7 @@ class Progress(SimpleAPIRoute):
             requests_post(
                 Authenticator.presigned_url(
                     settings.api_signing_key,
-                    f"{identification.canvas_host()}{Constants.PLUGIN_API_BASE_ROUTE}/progress",
+                    f"{Helper.canvas_host(identification.canvas_instance)}{Constants.PLUGIN_API_BASE_ROUTE}/progress",
                     {"note_id": identification.note_uuid},
                 ),
                 headers={"Content-Type": "application/json"},

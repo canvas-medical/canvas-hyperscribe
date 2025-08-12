@@ -300,8 +300,7 @@
             <button
                 class="toggle-button"
                 id="captureButton"
-                data-interval="{{interval}}"
-                onclick="toggleRecording('{{patientUuid}}', '{{noteUuid}}')">
+                data-interval="{{interval}}">
                 Start
             </button>
             <button
@@ -351,16 +350,6 @@
     </div>
 
     <script>
-        function switchTab(tabName) {
-            // Remove active class from all tabs and containers
-            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
-            document.querySelectorAll('.table-container').forEach(container => container.classList.remove('active'));
-
-            // Add active class to selected tab and container
-            event.target.classList.add('active');
-            document.getElementById(tabName + '-container').classList.add('active');
-        }
-
         // Constants
         const CONSTANTS = {
             REFRESH_INTERVALS: {
@@ -377,51 +366,159 @@
             ]
         };
 
-        // Button state management
-        let isRecordingActive = false;
-        let isPaused = {{isPaused|yesno:"true,false"}};
-        let isEnded = {{isEnded|yesno:"true,false"}};
+        // Application state
+        const appState = {
+            recording: {
+                active: false,
+                paused: {{isPaused|yesno:"true,false"}},
+                ended: {{isEnded|yesno:"true,false"}},
+                recorder: null,
+                intervalId: null,
+                chunkId: {{chunkId}}
+            },
+            progress: {
+                started: false,
+                previousMessage: new Date(0),
+                webSocket: null
+            },
+            transcript: {
+                displayedTimes: new Set(),
+                speakerColors: new Map(),
+                colorIndex: 0,
+                pendingTurns: [],
+                processingTurns: false
+            }
+        };
 
-        // Button state manager
-        function setButtonState(state) {
-            const captureButton = document.getElementById("captureButton");
-            const pauseButton = document.getElementById("pauseButton");
-            
-            const states = {
-                inactive: {
-                    capture: { text: "Start", classes: [], disabled: false },
-                    pause: { text: "Pause", classes: [], disabled: true }
-                },
-                active: {
-                    capture: { text: "Stop", classes: ["active", "medium"], disabled: false },
-                    pause: { text: "Pause", classes: ["small"], disabled: false }
-                },
-                paused: {
-                    capture: { text: "Stop", classes: ["small", "paused", "active"], disabled: true },
-                    pause: { text: "Resume", classes: ["large", "resume"], disabled: false }
-                },
-                ended: {
-                    capture: { text: "Start", classes: [], disabled: true },
-                    pause: { text: "Pause", classes: [], disabled: true }
+        // Audio Recording Class
+        class AudioRecorder {
+            constructor(patientId, noteId, interval) {
+                this.patientId = patientId;
+                this.noteId = noteId;
+                this.interval = interval;
+            }
+
+            async setup() {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                
+                if (!MediaRecorder.isTypeSupported(CONSTANTS.AUDIO.MIME_TYPE)) {
+                    throw new Error(`MIME type ${CONSTANTS.AUDIO.MIME_TYPE} is not supported.`);
                 }
-            };
-            
-            const config = states[state];
-            
-            // Apply capture button state
-            captureButton.textContent = config.capture.text;
-            captureButton.disabled = config.capture.disabled || isEnded;
-            captureButton.className = "toggle-button";
-            config.capture.classes.forEach(cls => captureButton.classList.add(cls));
-            
-            // Apply pause button state
-            pauseButton.textContent = config.pause.text;
-            pauseButton.disabled = config.pause.disabled || isEnded;
-            pauseButton.className = "pause-button";
-            config.pause.classes.forEach(cls => pauseButton.classList.add(cls));
+
+                const recorder = new MediaRecorder(stream, { mimeType: CONSTANTS.AUDIO.MIME_TYPE });
+                recorder.ondataavailable = this.handleDataAvailable.bind(this);
+                return recorder;
+            }
+
+            handleDataAvailable(event) {
+                if (event.data.size > 0) {
+                    const audioBlob = new Blob([event.data], { type: CONSTANTS.AUDIO.MIME_TYPE });
+                    const formData = new FormData();
+                    appState.recording.chunkId += 1;
+                    const chunkIndex = String(appState.recording.chunkId).padStart(3, '0');
+                    formData.append("audio", audioBlob, `chunk_${chunkIndex}_${this.patientId}_${this.noteId}.webm`);
+
+                    fetch('{{saveAudioURL | safe}}', {
+                        method: "POST",
+                        body: formData,
+                    })
+                    .then(response => response.text())
+                    .then(result => console.log(result))
+                    .catch(error => console.error('Error uploading audio:', error));
+                }
+            }
+
+            start() {
+                if (appState.recording.recorder) {
+                    appState.recording.recorder.start();
+                    appState.recording.intervalId = setInterval(() => {
+                        appState.recording.recorder.requestData();
+                    }, 1000 * this.interval);
+                }
+            }
+
+            stop() {
+                if (appState.recording.recorder) {
+                    appState.recording.recorder.stop();
+                    if (appState.recording.intervalId) {
+                        clearInterval(appState.recording.intervalId);
+                        appState.recording.intervalId = null;
+                    }
+                }
+            }
         }
 
-        // Interval management
+        // UI Utilities
+        const ui = {
+            switchTab(tabName) {
+                document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+                document.querySelectorAll('.table-container').forEach(container => container.classList.remove('active'));
+                event.target.classList.add('active');
+                document.getElementById(tabName + '-container').classList.add('active');
+            },
+
+            updateButton(buttonId, text, classes = [], disabled = false) {
+                const btn = document.getElementById(buttonId);
+                btn.textContent = text;
+                btn.disabled = disabled || appState.recording.ended;
+                btn.className = buttonId === 'captureButton' ? 'toggle-button' : 'pause-button';
+                classes.forEach(cls => btn.classList.add(cls));
+            },
+
+            setButtonState(state) {
+                const states = {
+                    inactive: {
+                        capture: { text: "Start", classes: [], disabled: false },
+                        pause: { text: "Pause", classes: [], disabled: true }
+                    },
+                    active: {
+                        capture: { text: "Stop", classes: ["active", "medium"], disabled: false },
+                        pause: { text: "Pause", classes: ["small"], disabled: false }
+                    },
+                    paused: {
+                        capture: { text: "Stop", classes: ["small", "paused", "active"], disabled: true },
+                        pause: { text: "Resume", classes: ["large", "resume"], disabled: false }
+                    },
+                    ended: {
+                        capture: { text: "Start", classes: [], disabled: true },
+                        pause: { text: "Pause", classes: [], disabled: true }
+                    }
+                };
+                
+                const config = states[state];
+                this.updateButton('captureButton', config.capture.text, config.capture.classes, config.capture.disabled);
+                this.updateButton('pauseButton', config.pause.text, config.pause.classes, config.pause.disabled);
+            },
+
+            createTableRow(cellContents) {
+                const row = document.createElement('tr');
+                cellContents.forEach(content => {
+                    const cell = document.createElement('td');
+                    cell.textContent = content;
+                    row.appendChild(cell);
+                });
+                return row;
+            },
+
+            updateLegend(speakerColors) {
+                const legend = document.getElementById('transcript-legend');
+                const legendContent = document.getElementById('legend-content');
+                
+                if (speakerColors.size > 0) {
+                    legend.style.display = 'block';
+                    legendContent.innerHTML = '';
+                    speakerColors.forEach((color, speaker) => {
+                        const legendItem = document.createElement('span');
+                        legendItem.className = 'legend-item';
+                        legendItem.style.backgroundColor = color;
+                        legendItem.textContent = speaker;
+                        legendContent.appendChild(legendItem);
+                    });
+                }
+            }
+        };
+
+        // Interval Management
         const intervalManager = {
             intervals: new Map(),
             
@@ -440,62 +537,38 @@
             
             stopAll() {
                 this.intervals.forEach((_, name) => this.stop(name));
+                if (appState.progress.webSocket) {
+                    appState.progress.webSocket.close();
+                    appState.progress.webSocket = null;
+                }
             },
             
-            startProgressIntervals() {
-                const progressURL = '{{progressURL | safe}}';
-                const messageEndFlag = '{{endFlag}}';
-                this.start('logRefresh', () => fetchAndDisplayProgress(progressURL, messageEndFlag), CONSTANTS.REFRESH_INTERVALS.LOG);
+            startProgressConnection() {
                 this.start('cellRefresh', updateTimeCells, CONSTANTS.REFRESH_INTERVALS.CELL);
+                connectProgressWebSocket();
             }
         };
 
-        // MediaRecorder management
-        async function setupMediaRecorder(patientId, noteId) {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            
-            if (!MediaRecorder.isTypeSupported(CONSTANTS.AUDIO.MIME_TYPE)) {
-                throw new Error(`MIME type ${CONSTANTS.AUDIO.MIME_TYPE} is not supported.`);
-            }
+        // Global functions for backward compatibility
+        function switchTab(tabName) {
+            ui.switchTab(tabName);
+        }
 
-            const recorder = new MediaRecorder(stream, { mimeType: CONSTANTS.AUDIO.MIME_TYPE });
-            
-            recorder.ondataavailable = (event) => {
-                if (event.data.size > 0) {
-                    const audioBlob = new Blob([event.data], { type: CONSTANTS.AUDIO.MIME_TYPE });
-                    const formData = new FormData();
-                    chunkId += 1;
-                    const chunkIndex = String(chunkId).padStart(3, '0');
-                    formData.append("audio", audioBlob, `chunk_${chunkIndex}_${patientId}_${noteId}.webm`);
-
-                    fetch('{{saveAudioURL | safe}}', {
-                        method: "POST",
-                        body: formData,
-                    })
-                    .then(response => response.text())
-                    .then(result => console.log(result))
-                    .catch(error => console.error('Error uploading audio:', error));
-                }
-            };
-            
-            return recorder;
+        function setButtonState(state) {
+            ui.setButtonState(state);
         }
 
         async function togglePause() {
-            if (!isPaused) {
+            if (!appState.recording.paused) {
                 // Pause recording
-                isPaused = true;
-                setButtonState('paused');
+                appState.recording.paused = true;
+                ui.setButtonState('paused');
                 
-                // Stop the MediaRecorder
-                if (mediaRecorder && isRecording) {
-                    mediaRecorder.stop();
-                    clearInterval(intervalId);
-                    isRecording = false;
+                // Stop the MediaRecorder using AudioRecorder
+                if (appState.recording.recorder) {
+                    audioRecorder.stop();
                     console.log("Recording paused");
                 }
-                
-                // Continue progress intervals during pause (don't stop them)
                 
                 // Fetch pause session URL
                 fetch('{{pauseSessionURL | safe}}', {method: "POST"})
@@ -504,21 +577,26 @@
                 .catch(error => console.error('Error pausing session:', error));
             } else {
                 // Resume recording
-                isPaused = false;
-                setButtonState('active');
+                appState.recording.paused = false;
+                ui.setButtonState('active');
+                
+                // Initialize AudioRecorder if not already done (e.g., after page reload)
+                if (!audioRecorder) {
+                    const recordingInterval = parseInt(document.getElementById("captureButton").dataset.interval);
+                    audioRecorder = new AudioRecorder('{{patientUuid}}', '{{noteUuid}}', recordingInterval);
+                    
+                    try {
+                        appState.recording.recorder = await audioRecorder.setup();
+                    } catch (error) {
+                        console.error("Error setting up recording for resume:", error);
+                        return;
+                    }
+                }
                 
                 // Restart the MediaRecorder
-                if (!isRecording) {
+                if (appState.recording.recorder) {
                     try {
-                        const recordingIntervalInSeconds = parseInt(document.getElementById("captureButton").dataset.interval);
-                        mediaRecorder = await setupMediaRecorder('{{patientUuid}}', '{{noteUuid}}');
-                        
-                        mediaRecorder.start();
-                        intervalId = setInterval(() => {
-                            mediaRecorder.requestData();
-                        }, 1000 * recordingIntervalInSeconds);
-                        
-                        isRecording = true;
+                        audioRecorder.start();
                         console.log("Recording resumed");
                     } catch (error) {
                         console.error("Error resuming recording:", error);
@@ -536,26 +614,49 @@
             }
         }
 
+        let audioRecorder = null;
+
         const button = document.getElementById("captureButton");
-        button.addEventListener("click", () => {
-            if (!isRecordingActive) {
+        button.addEventListener("click", async () => {
+            if (!appState.recording.active) {
                 // Start recording
-                isRecordingActive = true;
-                isPaused = false;
-                setButtonState('active');
+                appState.recording.active = true;
+                appState.recording.paused = false;
+                ui.setButtonState('active');
                 
                 resetTable();
                 resetTranscriptTable();
-                window.previousMessage = new Date();
                 startProgressAndRenderFetches();
+                
+                // Initialize AudioRecorder
+                const recordingInterval = parseInt(document.getElementById("captureButton").dataset.interval);
+                audioRecorder = new AudioRecorder('{{patientUuid}}', '{{noteUuid}}', recordingInterval);
+                
+                try {
+                    appState.recording.recorder = await audioRecorder.setup();
+                    
+                    // Start new session
+                    fetch('{{newSessionURL | safe}}', {method: "POST"})
+                    .then(response => response.text())
+                    .then(result => {
+                        console.log(result);
+                        audioRecorder.start();
+                        console.log("Recording started");
+                    })
+                    .catch(error => console.error('Error creating session:', error));
+                } catch (error) {
+                    console.error("Error setting up recording:", error);
+                }
             } else {
                 // Stop recording
-                isRecordingActive = false;
-                isPaused = false;
-                isEnded = true;
-                setButtonState('ended');
+                appState.recording.active = false;
+                appState.recording.paused = false;
+                appState.recording.ended = true;
+                ui.setButtonState('ended');
                 
-                // Continue progress intervals after stop (don't stop them - they stop on endFlag)
+                if (audioRecorder) {
+                    audioRecorder.stop();
+                }
                 
                 // Fetch end session URL
                 fetch('{{endSessionURL | safe}}', {method: "POST"})
@@ -572,69 +673,47 @@
             legend.style.display = 'none';
             document.getElementById('legend-content').innerHTML = '';
 
-            // Clear tracking variables
-            window.displayedTranscriptTimes = new Set();
-            window.transcriptSpeakerColors = new Map();
-            window.transcriptColorIndex = 0;
-            window.pendingTurns = []; // Queue for turns waiting to be processed
-            window.processingTurns = false; // Flag to prevent overlapping processing
+            // Clear tracking variables using appState
+            appState.transcript.displayedTimes.clear();
+            appState.transcript.speakerColors.clear();
+            appState.transcript.colorIndex = 0;
+            appState.transcript.pendingTurns = [];
+            appState.transcript.processingTurns = false;
         }
 
         function initializeButtonStates() {
-            if (isEnded) {
+            if (appState.recording.ended) {
                 // Initialize as ended state
-                isRecordingActive = false;
-                isPaused = false;
-                setButtonState('ended');
-            } else if (isPaused) {
+                appState.recording.active = false;
+                appState.recording.paused = false;
+                ui.setButtonState('ended');
+            } else if (appState.recording.paused) {
                 // Initialize as paused state
-                isRecordingActive = true;
-                setButtonState('paused');
+                appState.recording.active = true;
+                ui.setButtonState('paused');
                 // Initialize previousMessage for paused state
-                window.previousMessage = new Date();
+                appState.progress.previousMessage = new Date();
                 // Start fetches since we're in a paused (active) session
                 startProgressAndRenderFetches();
             } else {
                 // Initialize as normal state
-                isRecordingActive = false;
-                isPaused = false;
-                setButtonState('inactive');
+                appState.recording.active = false;
+                appState.recording.paused = false;
+                ui.setButtonState('inactive');
             }
         }
-
-        // Global variables for interval management
-        let renderInterval = null;
-        let progressStarted = false;
 
         function startProgressAndRenderFetches() {
-            if (!progressStarted) {
-                // Start progress intervals
-                intervalManager.startProgressIntervals();
-                progressStarted = true;
-            }
-            
-            if (!renderInterval) {
-                // Start continuous rendering fetch every 2.5 seconds
-                renderInterval = setInterval(() => {
-                    fetch('{{renderURL | safe}}', {method: "POST"})
-                    .then(response => {
-                        if (response.status === 202) {
-                            console.log('Render completed (202), stopping render fetch');
-                            clearInterval(renderInterval);
-                            renderInterval = null;
-                            return;
-                        }
-                        return response.text();
-                    })
-                    .then(result => {
-                        if (result) {
-                            console.log('Render result:', result);
-                        }
-                    })
-                    .catch(error => console.error('Error fetching render:', error));
-                }, 2500);
+            if (!appState.progress.started) {
+                // Start progress WebSocket connection
+                intervalManager.startProgressConnection();
+                appState.progress.started = true;
+            } else {
+                // If already started, just ensure cell refresh interval is running
+                intervalManager.start('cellRefresh', updateTimeCells, CONSTANTS.REFRESH_INTERVALS.CELL);
             }
         }
+        
 
         document.addEventListener('DOMContentLoaded', function () {
             resetTable();
@@ -642,93 +721,11 @@
             initializeButtonStates();
             
             // Initialize previousMessage to epoch to allow initial content display
-            window.previousMessage = new Date(0);
+            appState.progress.previousMessage = new Date(0);
             
-            // Fetch progress on load
-            const progressURL = '{{progressURL | safe}}';
-            const messageEndFlag = '{{endFlag}}';
-            fetchAndDisplayProgress(progressURL, messageEndFlag);
+            // Fetch initial progress data, then connect to WebSocket
+            fetchInitialProgressData();
         });
-
-        // -----------------------------------------------------------------
-        // CAPTURE ---------------------------------------------------------
-        // -----------------------------------------------------------------
-
-        let mediaRecorder = null; // To hold the MediaRecorder instance
-        let isRecording = false; // State of recording
-        let intervalId = null; // Interval ID for periodic uploads
-        let chunkId = {{chunkId}};
-
-
-        console.log('CAPTURE.JS')
-
-        async function toggleRecording(patientId, noteId) {
-            const button = document.querySelector("#captureButton");
-            const recordingIntervalInSeconds = parseInt(document.getElementById("captureButton").dataset.interval);
-
-            console.log(`Audio chunk interval is set to ${recordingIntervalInSeconds} seconds`);
-
-            if (isRecording) {
-                // Stop recording
-                mediaRecorder.stop();
-                clearInterval(intervalId);
-                isRecording = false;
-                console.log(`Recording stopped for patient ${patientId}.`);
-            } else {
-                // initiate the session
-                fetch('{{newSessionURL | safe}}', {method: "POST"})
-                .then(response => response.text())
-                .then(result => console.log(result))
-                .catch(error => console.error(`Error creating hyperscribe session for patient ${patientId}:`, error));
-
-                try {
-                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-
-                    // Set the MIME type for MediaRecorder
-                    const mimeType = "audio/webm"; // Ensure browser support for this MIME type
-                    if (!MediaRecorder.isTypeSupported(mimeType)) {
-                        console.error(`MIME type ${mimeType} is not supported.`);
-                        return;
-                    }
-
-                    mediaRecorder = new MediaRecorder(stream, { mimeType });
-
-                    mediaRecorder.ondataavailable = (event) => {
-                        if (event.data.size > 0) {
-                            // Create a new Blob with codec metadata
-                            const mimeType = "audio/webm";
-                            const audioBlob = new Blob([event.data], { type: mimeType });
-
-                            // Create a FormData object and append the audio blob
-                            const formData = new FormData();
-                            chunkId += 1;
-                            const chunkIndex = String(chunkId).padStart(3, '0')
-                            formData.append("audio", audioBlob, `chunk_${chunkIndex}_${patientId}_${noteId}.webm`);
-
-                            // Send the audio blob to the server
-                            fetch('{{saveAudioURL | safe}}', {
-                                method: "POST",
-                                body: formData,
-                            })
-                            .then(response => response.text())
-                            .then(result => console.log(result))
-                            .catch(error => console.error(`Error uploading audio for patient ${patientId}:`, error));
-                        }
-                    };
-
-                    // Start the MediaRecorder and request data at 5-second intervals
-                    mediaRecorder.start();
-                    intervalId = setInterval(() => {
-                        mediaRecorder.requestData(); // Request current chunk for upload
-                    }, 1000 * recordingIntervalInSeconds);
-
-                    isRecording = true;
-                    console.log(`Recording started for patient ${patientId}...`);
-                } catch (error) {
-                    console.error("Error accessing microphone:", error);
-                }
-            }
-        }
 
         // -----------------------------------------------------------------
         // PROGRESS --------------------------------------------------------
@@ -767,27 +764,184 @@
         return cookieValue;
         }
 
-        async function fetchAndDisplayProgress(urlProgress, endOfMessage) {
+        async function fetchInitialProgressData() {
+            const progressURL = '{{progressURL | safe}}';
+            const messageEndFlag = '{{endFlag}}';
+            
+            try {
+                console.log('Fetching initial progress data...');
+                const response = await fetch(progressURL, { cache: 'no-store' });
+                if (response.ok) {
+                    const data = await response.json();
+                    displayProgress(data, messageEndFlag);
+                    console.log('Initial progress data loaded');
+                } else {
+                    console.warn('Failed to fetch initial progress data:', response.status);
+                }
+            } catch (error) {
+                console.error('Error fetching initial progress data:', error);
+            }
+            
+            
+            // After fetching initial data, connect to WebSocket for live updates
+            console.log('Connecting to WebSocket...');
+            connectProgressWebSocket();
+        }
+
+        function connectProgressWebSocket() {
+            const wsProgressURL = '{{wsProgressURL | safe}}';
+            const messageEndFlag = '{{endFlag}}';
+            
+            if (appState.progress.webSocket) {
+                appState.progress.webSocket.close();
+            }
+            
+            try {
+                appState.progress.webSocket = new WebSocket(wsProgressURL);
+                
+                appState.progress.webSocket.onopen = function(event) {
+                    console.log('Progress WebSocket connected');
+                };
+                
+                appState.progress.webSocket.onmessage = function(event) {
+                    try {
+                        const data = JSON.parse(event.data);
+                        // Handle individual message from WebSocket
+                        handleWebSocketMessage(data.message, messageEndFlag);
+                    } catch (error) {
+                        console.error('Error parsing WebSocket message:', error);
+                    }
+                };
+                
+                appState.progress.webSocket.onerror = function(error) {
+                    console.error('WebSocket error:', error);
+                };
+                
+                appState.progress.webSocket.onclose = function(event) {
+                    console.log('Progress WebSocket closed:', event.code, event.reason);
+                    // Attempt to reconnect after 3 seconds if not a clean close
+                    if (event.code !== 1000 && appState.progress.started) {
+                        setTimeout(() => {
+                            console.log('Attempting to reconnect WebSocket...');
+                            connectProgressWebSocket();
+                        }, 3000);
+                    }
+                };
+            } catch (error) {
+                console.error('Error creating WebSocket connection:', error);
+            }
+        }
+
+        function handleWebSocketMessage(message, endOfMessage) {
+            if (!message) return;
+            
+            const currentMessage = new Date(message.time);
+            
+            // Only process messages newer than what we already have
+            if (currentMessage.getTime() <= appState.progress.previousMessage.getTime()) {
+                return;
+            }
+            
+            appState.progress.previousMessage = currentMessage;
+            
+            // Handle events section (Progress tab)
+            if (message.section === 'events') {
+                addEventMessage(message, endOfMessage);
+            }
+            
+            // Handle transcript section (Transcript tab)
+            if (message.section === 'transcript') {
+                addTranscriptMessage(message, endOfMessage);
+            }
+        }
+        
+        function addEventMessage(message, endOfMessage) {
+            const progressTbody = document.getElementById('message-table-body');
+            
+            // End of messages check
+            if (message.message === endOfMessage) {
+                intervalManager.stopAll();
+                appState.progress.started = false;
+                const duration = document.getElementById('duration');
+                duration.textContent = '';
+                return;
+            }
+            
+            // Get or set starting time for duration calculation
+            const duration = document.getElementById('duration');
+            const messageTime = new Date(message.time);
+            
+            if (!duration.hasOwnProperty('startingTime')) {
+                duration.startingTime = messageTime;
+            }
+            
+            // Calculate elapsed time
+            const elapsedSeconds = Math.floor((messageTime - duration.startingTime) / 1000);
+            
+            // Create new row using utility
+            const row = ui.createTableRow([
+                message.message,
+                elapsedSeconds > 0 ? `${elapsedSeconds}s` : duration.startingTime.toLocaleTimeString()
+            ]);
+            
+            // Insert at the top (newest first)
+            progressTbody.insertBefore(row, progressTbody.firstChild);
+        }
+        
+        function addTranscriptMessage(message, endOfMessage) {
+            // End of messages check
+            if (message.message === endOfMessage) {
+                intervalManager.stopAll();
+                appState.progress.started = false;
+                return;
+            }
+            
+            const colors = CONSTANTS.SPEAKER_COLORS;
+            
+            try {
+                const discussionTurnArray = JSON.parse(message.message);
+                if (Array.isArray(discussionTurnArray)) {
+                    discussionTurnArray.forEach(discussionTurn => {
+                        // Assign color to new speakers
+                        if (!appState.transcript.speakerColors.has(discussionTurn.speaker)) {
+                            appState.transcript.speakerColors.set(discussionTurn.speaker, colors[appState.transcript.colorIndex % colors.length]);
+                            appState.transcript.colorIndex++;
+                        }
+                        
+                        appState.transcript.pendingTurns.push({
+                            speaker: discussionTurn.speaker,
+                            text: discussionTurn.text,
+                            messageTime: message.time
+                        });
+                    });
+                    
+                    // Update legend using utility
+                    ui.updateLegend(appState.transcript.speakerColors);
+                    
+                    // Start processing turns if not already processing
+                    if (!appState.transcript.processingTurns && appState.transcript.pendingTurns.length > 0) {
+                        processTurnQueue();
+                    }
+                }
+            } catch (e) {
+                console.warn('Failed to parse discussion turn:', message.message);
+            }
+        }
+
+        function displayProgress(data, endOfMessage) {
             const progressTbody = document.getElementById('message-table-body');
             const transcriptTbody = document.getElementById('transcript-table-body');
             const errorDiv = document.getElementById('error');
-            const legend = document.getElementById('transcript-legend');
-            const legendContent = document.getElementById('legend-content');
             errorDiv.textContent = '';
 
             try {
-                const response = await fetch(urlProgress, { cache: 'no-store' });
-                if (!response.ok) {
-                    errorDiv.textContent = `HTTP error ${response.status}`;
-                } else {
-                    const data = await response.json();
-                    const currentMessage = new Date(data.time);
-                    if (
-                        currentMessage.getTime() > window.previousMessage.getTime() &&
-                        Array.isArray(data.messages) &&
-                        data.messages.length > 0
-                    ) {
-                        window.previousMessage = currentMessage;
+                const currentMessage = new Date(data.time);
+                if (
+                    currentMessage.getTime() > appState.progress.previousMessage.getTime() &&
+                    Array.isArray(data.messages) &&
+                    data.messages.length > 0
+                ) {
+                        appState.progress.previousMessage = currentMessage;
 
                         // Separate messages by section
                         const eventMessages = data.messages.filter(msg => msg.section === 'events');
@@ -813,58 +967,33 @@
                                 // end of the messages
                                 if (msg.message === endOfMessage) {
                                     intervalManager.stopAll();
-                                    progressStarted = false;
+                                    appState.progress.started = false;
                                     duration.textContent = '';
                                     return;
                                 }
                                 // compute the time from the first message
                                 const messageTime = new Date(msg.time);
                                 const elapsedSeconds = Math.floor((messageTime - startingTime) / 1000);
-                                // create the two columns and fill them
-                                const messageCell = document.createElement('td');
-                                const timeCell = document.createElement('td');
-                                messageCell.textContent = msg.message;
-                                if (elapsedSeconds > 0) {
-                                    timeCell.textContent = `${elapsedSeconds}s`;
-                                } else {
-                                    timeCell.textContent = startingTime.toLocaleTimeString();
-                                }
-                                // create the row and add it to the table
-                                const row = document.createElement('tr');
-                                row.appendChild(messageCell);
-                                row.appendChild(timeCell);
+                                // create the row using utility
+                                const timeText = elapsedSeconds > 0 ? `${elapsedSeconds}s` : startingTime.toLocaleTimeString();
+                                const row = ui.createTableRow([msg.message, timeText]);
                                 progressTbody.appendChild(row);
                             });
                         }
 
                         // Handle transcript section (Transcript tab)
                         if (transcriptMessages.length > 0) {
-                            // Initialize transcript tracking if not exists
-                            if (!window.displayedTranscriptTimes) {
-                                window.displayedTranscriptTimes = new Set();
-                            }
-                            if (!window.transcriptSpeakerColors) {
-                                window.transcriptSpeakerColors = new Map();
-                                window.transcriptColorIndex = 0;
-                            }
-                            if (!window.pendingTurns) {
-                                window.pendingTurns = [];
-                            }
-                            if (window.processingTurns === undefined) {
-                                window.processingTurns = false;
-                            }
-
                             const colors = CONSTANTS.SPEAKER_COLORS;
 
                             transcriptMessages.forEach(msg => {
                                 if (msg.message === endOfMessage) {
                                     intervalManager.stopAll();
-                                    progressStarted = false;
+                                    appState.progress.started = false;
                                     return;
                                 }
 
                                 // Skip if we've already displayed this message
-                                if (window.displayedTranscriptTimes.has(msg.time)) {
+                                if (appState.transcript.displayedTimes.has(msg.time)) {
                                     return;
                                 }
 
@@ -875,12 +1004,12 @@
                                         // Add all turns from this batch to the pending queue
                                         discussionTurnArray.forEach(discussionTurn => {
                                             // Assign color to new speakers
-                                            if (!window.transcriptSpeakerColors.has(discussionTurn.speaker)) {
-                                                window.transcriptSpeakerColors.set(discussionTurn.speaker, colors[window.transcriptColorIndex % colors.length]);
-                                                window.transcriptColorIndex++;
+                                            if (!appState.transcript.speakerColors.has(discussionTurn.speaker)) {
+                                                appState.transcript.speakerColors.set(discussionTurn.speaker, colors[appState.transcript.colorIndex % colors.length]);
+                                                appState.transcript.colorIndex++;
                                             }
 
-                                            window.pendingTurns.push({
+                                            appState.transcript.pendingTurns.push({
                                                 speaker: discussionTurn.speaker,
                                                 text: discussionTurn.text,
                                                 messageTime: msg.time
@@ -888,33 +1017,22 @@
                                         });
 
                                         // Mark this message time as displayed
-                                        window.displayedTranscriptTimes.add(msg.time);
+                                        appState.transcript.displayedTimes.add(msg.time);
                                     }
                                 } catch (e) {
                                     console.warn('Failed to parse discussion turn:', msg.message);
                                 }
                             });
 
-                            // Update legend with all known speakers
-                            if (window.transcriptSpeakerColors.size > 0) {
-                                legend.style.display = 'block';
-                                legendContent.innerHTML = '';
-                                window.transcriptSpeakerColors.forEach((color, speaker) => {
-                                    const legendItem = document.createElement('span');
-                                    legendItem.className = 'legend-item';
-                                    legendItem.style.backgroundColor = color;
-                                    legendItem.textContent = speaker;
-                                    legendContent.appendChild(legendItem);
-                                });
-                            }
+                            // Update legend with all known speakers using utility
+                            ui.updateLegend(appState.transcript.speakerColors);
 
                             // Start processing turns if not already processing
-                            if (!window.processingTurns && window.pendingTurns.length > 0) {
+                            if (!appState.transcript.processingTurns && appState.transcript.pendingTurns.length > 0) {
                                 processTurnQueue();
                             }
                         }
                     }
-                }
             } catch (err) {
                 errorDiv.textContent = `Error: ${err.message}`;
             }
@@ -929,16 +1047,16 @@
         }
 
         function processTurnQueue() {
-            if (window.pendingTurns.length === 0) {
-                window.processingTurns = false;
+            if (appState.transcript.pendingTurns.length === 0) {
+                appState.transcript.processingTurns = false;
                 return;
             }
 
-            window.processingTurns = true;
+            appState.transcript.processingTurns = true;
             const transcriptTbody = document.getElementById('transcript-table-body');
 
             // Get the first turn from the queue
-            const turn = window.pendingTurns.shift();
+            const turn = appState.transcript.pendingTurns.shift();
 
             // Check if the first row is from the same speaker
             const firstRow = transcriptTbody.firstChild;
@@ -958,7 +1076,7 @@
                 // Create new row at the top
                 const textCell = document.createElement('td');
                 textCell.textContent = turn.text;
-                textCell.style.backgroundColor = window.transcriptSpeakerColors.get(turn.speaker);
+                textCell.style.backgroundColor = appState.transcript.speakerColors.get(turn.speaker);
                 textCell.style.padding = '8px';
                 textCell.style.whiteSpace = 'pre-wrap';
 
@@ -971,10 +1089,11 @@
                 transcriptTbody.insertBefore(row, transcriptTbody.firstChild);
             }
 
-            // Wait for next turn processing
+            // Wait for next turn processing - but process immediately if session is ended or paused
+            const delay = (appState.recording.ended || appState.recording.paused) ? 0 : CONSTANTS.REFRESH_INTERVALS.TURN_PROCESSING;
             setTimeout(() => {
                 processTurnQueue();
-            }, CONSTANTS.REFRESH_INTERVALS.TURN_PROCESSING);
+            }, delay);
         }
     </script>
 </body>

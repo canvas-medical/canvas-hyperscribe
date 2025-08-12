@@ -11,6 +11,7 @@ from canvas_sdk.utils.http import ThreadPoolExecutor
 from canvas_sdk.v1.data.command import Command
 from canvas_sdk.v1.data.note import Note
 from logger import log
+from requests import post as requests_post
 
 from hyperscribe.handlers.progress import Progress
 from hyperscribe.libraries.audio_client import AudioClient
@@ -38,6 +39,20 @@ class CaptureView(SimpleAPI):
             self.secrets[Constants.SECRET_API_SIGNING_KEY],
             Constants.API_SIGNED_EXPIRATION_SECONDS,
             self.request.query_params,
+        )
+
+    def trigger_render(self, patient_id: str, note_id: str) -> Response:
+        url = Authenticator.presigned_url(
+            Settings.from_dictionary(self.secrets).api_signing_key,
+            f"{Helper.canvas_host(self.environment[Constants.CUSTOMER_IDENTIFIER])}"
+            f"{Constants.PLUGIN_API_BASE_ROUTE}/render/{patient_id}/{note_id}",
+            {},
+        )
+        return requests_post(
+            url,
+            headers={"Content-Type": "application/json"},
+            verify=True,
+            timeout=None,
         )
 
     @api.get("/capture/<patient_id>/<note_id>/<note_reference>")
@@ -72,9 +87,9 @@ class CaptureView(SimpleAPI):
             self.secrets[Constants.SECRET_API_SIGNING_KEY],
             f"{Constants.PLUGIN_API_BASE_ROUTE}/audio/{patient_id}/{note_id}",
         )
-        render_url = Authenticator.presigned_url_no_params(
-            self.secrets[Constants.SECRET_API_SIGNING_KEY],
-            f"{Constants.PLUGIN_API_BASE_ROUTE}/render/{patient_id}/{note_id}",
+        ws_progress_url = (
+            f"{Helper.canvas_ws_host(self.environment[Constants.CUSTOMER_IDENTIFIER])}"
+            f"{Constants.PLUGIN_WS_BASE_ROUTE}/{Constants.WS_CHANNEL_PROGRESSES}/"
         )
 
         stop_and_go = StopAndGo.get(note_id)
@@ -84,13 +99,13 @@ class CaptureView(SimpleAPI):
             "noteReference": note_reference,
             "interval": self.secrets[Constants.SECRET_AUDIO_INTERVAL],
             "endFlag": Constants.PROGRESS_END_OF_MESSAGES,
+            "wsProgressURL": ws_progress_url,
             "progressURL": progress_url,
             "newSessionURL": new_session_url,
             "pauseSessionURL": pause_session_url,
             "resumeSessionURL": resume_session_url,
             "endSessionURL": end_session_url,
             "saveAudioURL": save_audio_url,
-            "renderURL": render_url,
             "isEnded": stop_and_go.is_ended(),
             "isPaused": stop_and_go.is_paused(),
             "chunkId": stop_and_go.cycle() + (1 if stop_and_go.is_paused() else -1),
@@ -173,6 +188,7 @@ class CaptureView(SimpleAPI):
         match = re.search(r"chunk_(\d+)_", audio_form_part.filename)
         if match:
             StopAndGo.get(note_id).add_waiting_cycle(int(match.group(1))).save()
+            self.trigger_render(patient_id, note_id)
 
         return [Response(b"Audio chunk saved OK", HTTPStatus.CREATED)]
 
@@ -186,6 +202,7 @@ class CaptureView(SimpleAPI):
         if paused := stop_and_go.paused_effects():
             effects.extend(paused)
             stop_and_go.reset_paused_effect().save()
+            self.trigger_render(patient_id, note_id)  # <-- loop!
         elif not stop_and_go.is_running():
             if stop_and_go.consume_next_waiting_cycles(True):
                 executor.submit(
@@ -267,10 +284,9 @@ class CaptureView(SimpleAPI):
             stop_and_go = StopAndGo.get(note_id)
             stop_and_go.add_paused_effects(effects).save()
             # messages
-            if not (stop_and_go.is_ended() or stop_and_go.is_paused()):
-                info = f"=> go to next iteration ({chunk_index + 1})"
+            if stop_and_go.waiting_cycles() or not stop_and_go.is_ended():
+                log.info(f"=> go to next iteration ({chunk_index + 1})")
                 progress = f"waiting for the next cycle {chunk_index + 1}..."
-                log.info(info)
                 Progress.send_to_user(identification, settings, progress, Constants.PROGRESS_SECTION_EVENTS)
             # clean up and messages
             MemoryLog.end_session(note_id)
@@ -279,3 +295,4 @@ class CaptureView(SimpleAPI):
         finally:
             # remove the running flag
             StopAndGo.get(note_id).set_running(False).save()
+            self.trigger_render(patient_id, note_id)

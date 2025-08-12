@@ -176,3 +176,27 @@ def test_audio2texter():
         assert result.api_key == "audioKey"
         assert result.model == exp_model
         assert result.memory_log == memory_log
+
+
+def test_canvas_host():
+    tests = [
+        ("theCanvasInstance", "https://theCanvasInstance.canvasmedical.com"),
+        ("local", "http://localhost:8000"),
+    ]
+
+    for canvas_instance, expected in tests:
+        tested = Helper
+        result = tested.canvas_host(canvas_instance)
+        assert result == expected
+
+
+def test_canvas_ws_host():
+    tests = [
+        ("theCanvasInstance", "wss://theCanvasInstance.canvasmedical.com"),
+        ("local", "ws://localhost:8000"),
+    ]
+
+    for canvas_instance, expected in tests:
+        tested = Helper
+        result = tested.canvas_ws_host(canvas_instance)
+        assert result == expected

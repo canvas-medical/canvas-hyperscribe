@@ -81,16 +81,52 @@ def test_authenticate(check):
     check.assert_called_once()
 
 
+@patch("hyperscribe.handlers.capture_view.requests_post")
+@patch("hyperscribe.handlers.capture_view.Helper")
+@patch("hyperscribe.handlers.capture_view.Authenticator")
+def test_trigger_render(authenticator, helper, requests_post):
+    def reset_mocks():
+        authenticator.reset_mock()
+        helper.reset_mock()
+        requests_post.reset_mock()
+
+    authenticator.presigned_url.side_effect = ["theUrl"]
+    helper.canvas_host.side_effect = ["theHost"]
+    requests_post.side_effect = ["theResponse"]
+
+    tested = helper_instance()
+    result = tested.trigger_render("thePatientId", "theNoteId")
+    expected = "theResponse"
+    assert result == expected
+
+    calls = [
+        call.presigned_url(
+            "signingKey",
+            "theHost/plugin-io/api/hyperscribe/render/thePatientId/theNoteId",
+            {},
+        )
+    ]
+    assert authenticator.mock_calls == calls
+    calls = [call.canvas_host("customerIdentifier")]
+    assert helper.mock_calls == calls
+    calls = [call("theUrl", headers={"Content-Type": "application/json"}, verify=True, timeout=None)]
+    assert requests_post.mock_calls == calls
+    reset_mocks()
+
+
+@patch("hyperscribe.handlers.capture_view.Helper")
 @patch("hyperscribe.handlers.capture_view.StopAndGo")
 @patch("hyperscribe.handlers.capture_view.render_to_string")
 @patch("hyperscribe.handlers.capture_view.Authenticator")
-def test_capture_get(authenticator, render_to_string, stop_and_go):
+def test_capture_get(authenticator, render_to_string, stop_and_go, helper):
     def reset_mocks():
         authenticator.reset_mock()
         render_to_string.reset_mock()
         stop_and_go.reset_mock()
+        helper.reset_mock()
 
     render_to_string.side_effect = ["<html/>"]
+    helper.canvas_ws_host.side_effect = ["theWsHost"]
     authenticator.presigned_url.side_effect = ["Url1"]
     authenticator.presigned_url_no_params.side_effect = ["Url2", "Url3", "Url4", "Url5", "Url6", "Url7"]
     stop_and_go.get.return_value.is_ended.side_effect = [False]
@@ -115,7 +151,6 @@ def test_capture_get(authenticator, render_to_string, stop_and_go):
         call.presigned_url_no_params("signingKey", "/plugin-io/api/hyperscribe/capture/idle/p/n/resume"),
         call.presigned_url_no_params("signingKey", "/plugin-io/api/hyperscribe/capture/idle/p/n/end"),
         call.presigned_url_no_params("signingKey", "/plugin-io/api/hyperscribe/audio/p/n"),
-        call.presigned_url_no_params("signingKey", "/plugin-io/api/hyperscribe/render/p/n"),
     ]
     assert authenticator.mock_calls == calls
     calls = [
@@ -127,13 +162,13 @@ def test_capture_get(authenticator, render_to_string, stop_and_go):
                 "noteReference": "4571",
                 "interval": 5,
                 "endFlag": "EOF",
+                "wsProgressURL": "theWsHost/plugin-io/ws/hyperscribe/progresses/",
                 "progressURL": "Url1",
                 "newSessionURL": "Url2",
                 "pauseSessionURL": "Url3",
                 "resumeSessionURL": "Url4",
                 "endSessionURL": "Url5",
                 "saveAudioURL": "Url6",
-                "renderURL": "Url7",
                 "isEnded": False,
                 "isPaused": False,
                 "chunkId": 6,
@@ -149,6 +184,8 @@ def test_capture_get(authenticator, render_to_string, stop_and_go):
         call.get().is_paused(),
     ]
     assert stop_and_go.mock_calls == calls
+    calls = [call.canvas_ws_host("customerIdentifier")]
+    assert helper.mock_calls == calls
     reset_mocks()
 
 
@@ -274,8 +311,10 @@ def test_idle_session_post(stop_and_go):
 
 @patch("hyperscribe.handlers.capture_view.StopAndGo")
 @patch("hyperscribe.handlers.capture_view.AudioClient")
-def test_audio_chunk_post(audio_client, stop_and_go):
+@patch.object(CaptureView, "trigger_render")
+def test_audio_chunk_post(trigger_render, audio_client, stop_and_go):
     def reset_mocks():
+        trigger_render.reset_mock()
         audio_client.reset_mock()
         stop_and_go.reset_mock()
 
@@ -287,6 +326,7 @@ def test_audio_chunk_post(audio_client, stop_and_go):
     resp = result[0]
     assert isinstance(resp, Response) and resp.status_code == 400
 
+    assert trigger_render.mock_calls == []
     assert audio_client.mock_calls == []
     assert stop_and_go.mock_calls == []
     reset_mocks()
@@ -309,6 +349,7 @@ def test_audio_chunk_post(audio_client, stop_and_go):
     resp = result[0]
     assert isinstance(resp, Response) and resp.status_code == 422
 
+    assert trigger_render.mock_calls == []
     assert audio_client.mock_calls == []
     assert stop_and_go.mock_calls == []
     reset_mocks()
@@ -329,6 +370,8 @@ def test_audio_chunk_post(audio_client, stop_and_go):
     resp = result[0]
     assert resp.status_code == 500 and resp.content == b"err"
 
+    calls = []
+    assert trigger_render.mock_calls == calls
     calls = [
         call.for_operation("https://audio", "customerIdentifier", "shared"),
         call.for_operation().save_audio_chunk("p", "n", part),
@@ -346,6 +389,8 @@ def test_audio_chunk_post(audio_client, stop_and_go):
     resp = result[0]
     assert resp.status_code == 201 and resp.content == b"Audio chunk saved OK"
 
+    calls = [call("p", "n")]
+    assert trigger_render.mock_calls == calls
     calls = [
         call.for_operation("https://audio", "customerIdentifier", "shared"),  # -- valid name
         call.for_operation().save_audio_chunk("p", "n", part),
@@ -367,6 +412,7 @@ def test_audio_chunk_post(audio_client, stop_and_go):
     resp = result[0]
     assert resp.status_code == 201 and resp.content == b"Audio chunk saved OK"
 
+    assert trigger_render.mock_calls == []
     calls = [
         call.for_operation("https://audio", "customerIdentifier", "shared"),  # -- valid name
         call.for_operation().save_audio_chunk("p", "n", part),
@@ -379,8 +425,10 @@ def test_audio_chunk_post(audio_client, stop_and_go):
 @patch("hyperscribe.handlers.capture_view.Helper")
 @patch("hyperscribe.handlers.capture_view.executor")
 @patch("hyperscribe.handlers.capture_view.StopAndGo")
-def test_render_effect_post(stop_and_go, executor, helper):
+@patch.object(CaptureView, "trigger_render")
+def test_render_effect_post(trigger_render, stop_and_go, executor, helper):
     def reset_mocks():
+        trigger_render.reset_mock()
         stop_and_go.reset_mock()
         executor.reset_mock()
         helper.reset_mock()
@@ -402,6 +450,7 @@ def test_render_effect_post(stop_and_go, executor, helper):
             7,
             True,
             effects,
+            [call("patientId", "noteId")],
             [
                 call.get("noteId"),
                 call.get().paused_effects(),
@@ -418,6 +467,7 @@ def test_render_effect_post(stop_and_go, executor, helper):
             7,
             True,
             [],
+            [],
             [
                 call.get("noteId"),
                 call.get().paused_effects(),
@@ -432,6 +482,7 @@ def test_render_effect_post(stop_and_go, executor, helper):
             True,
             7,
             True,
+            [],
             [],
             [
                 call.get("noteId"),
@@ -450,6 +501,7 @@ def test_render_effect_post(stop_and_go, executor, helper):
             7,
             True,
             [Response(status_code=HTTPStatus.ACCEPTED)],
+            [],
             [
                 call.get("noteId"),
                 call.get().paused_effects(),
@@ -469,6 +521,7 @@ def test_render_effect_post(stop_and_go, executor, helper):
             7,
             False,
             [],
+            [],
             [
                 call.get("noteId"),
                 call.get().paused_effects(),
@@ -482,7 +535,18 @@ def test_render_effect_post(stop_and_go, executor, helper):
     ]
 
     for idx, test in enumerate(tests):
-        paused_effects, is_running, consume, cycle, is_ended, expected, exp_calls, exp_executor, exp_helper = test
+        (
+            paused_effects,
+            is_running,
+            consume,
+            cycle,
+            is_ended,
+            expected,
+            exp_trigger,
+            exp_calls,
+            exp_executor,
+            exp_helper,
+        ) = test
 
         stop_and_go.get.return_value.paused_effects.side_effect = [paused_effects]
         stop_and_go.get.return_value.is_running.side_effect = [is_running]
@@ -499,6 +563,7 @@ def test_render_effect_post(stop_and_go, executor, helper):
         result = tested.render_effect_post()
         assert result == expected
 
+        assert trigger_render.mock_calls == exp_trigger, f"---> {idx}"
         assert stop_and_go.mock_calls == exp_calls, f"---> {idx}"
         assert executor.mock_calls == exp_executor, f"---> {idx}"
         assert helper.mock_calls == exp_helper, f"---> {idx}"
@@ -633,10 +698,22 @@ def test_run_reviewer(log, implemented_commands, llm_decision_reviewer, progress
 @patch("hyperscribe.handlers.capture_view.MemoryLog")
 @patch("hyperscribe.handlers.capture_view.StopAndGo")
 @patch("hyperscribe.handlers.capture_view.log")
-def test_run_commander(log, stop_and_go, memory_log, progress, commander, llm_turns_store, note_db, monkeypatch):
+@patch.object(CaptureView, "trigger_render")
+def test_run_commander(
+    trigger_render,
+    log,
+    stop_and_go,
+    memory_log,
+    progress,
+    commander,
+    llm_turns_store,
+    note_db,
+    monkeypatch,
+):
     monkeypatch.setattr("hyperscribe.handlers.capture_view.version", "theVersion")
 
     def reset_mocks():
+        trigger_render.reset_mock()
         log.reset_mock()
         stop_and_go.reset_mock()
         memory_log.reset_mock()
@@ -681,19 +758,23 @@ def test_run_commander(log, stop_and_go, memory_log, progress, commander, llm_tu
     tested = helper_instance()
     # all good
     tests = [
-        (False, False, "=> go to next iteration (8)", "waiting for the next cycle 8..."),
-        (True, False, None, None),
-        (False, True, None, None),
-        (True, True, None, None),
+        (False, False, [], "=> go to next iteration (8)", "waiting for the next cycle 8..."),
+        (True, False, [], None, None),
+        (True, False, ["effect"], "=> go to next iteration (8)", "waiting for the next cycle 8..."),
+        (False, True, [], "=> go to next iteration (8)", "waiting for the next cycle 8..."),
+        (True, True, [], None, None),
     ]
-    for is_ended, is_paused, log_msg, progress_msg in tests:
+    for is_ended, is_paused, waiting_cycles, log_msg, progress_msg in tests:
         note_db.get.return_value.provider.id = "theProviderId"
         commander.compute_audio.side_effect = [(False, effects)]
         stop_and_go.get.return_value.is_ended.side_effect = [is_ended]
         stop_and_go.get.return_value.is_paused.side_effect = [is_paused]
+        stop_and_go.get.return_value.waiting_cycles.side_effect = [waiting_cycles]
 
         tested.run_commander("patientId", "noteId", 7)
 
+        calls = [call("patientId", "noteId")]
+        assert trigger_render.mock_calls == calls
         calls = []
         if log_msg:
             calls = [call.info(log_msg)]
@@ -706,10 +787,10 @@ def test_run_commander(log, stop_and_go, memory_log, progress, commander, llm_tu
             call.get("noteId"),
             call.get().add_paused_effects(effects),
             call.get().add_paused_effects().save(),
-            call.get().is_ended(),
+            call.get().waiting_cycles(),
         ]
-        if not is_ended:
-            calls.append(call.get().is_paused())
+        if not waiting_cycles:
+            calls.append(call.get().is_ended())
 
         calls.extend(
             [
@@ -727,7 +808,7 @@ def test_run_commander(log, stop_and_go, memory_log, progress, commander, llm_tu
         ]
         assert memory_log.mock_calls == calls
         calls = []
-        if not is_ended and not is_paused:
+        if not is_ended or waiting_cycles:
             calls = [call.send_to_user(identification, settings, progress_msg, "events")]
         assert progress.mock_calls == calls
         calls = [call.compute_audio(identification, settings, credentials, audio_client, 7)]
@@ -745,6 +826,8 @@ def test_run_commander(log, stop_and_go, memory_log, progress, commander, llm_tu
 
         tested.run_commander("patientId", "noteId", 7)
 
+    calls = [call("patientId", "noteId")]
+    assert trigger_render.mock_calls == calls
     assert log.mock_calls == []
     calls = [
         call.get("noteId"),
