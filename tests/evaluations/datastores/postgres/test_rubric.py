@@ -6,7 +6,6 @@ from evaluations.datastores.postgres.rubric import Rubric
 from evaluations.structures.enums.rubric_validation import RubricValidation
 from evaluations.structures.postgres_credentials import PostgresCredentials
 from evaluations.structures.records.rubric import Rubric as RubricRecord
-from tests.helper import compare_sql
 
 
 def helper_instance() -> Rubric:
@@ -175,12 +174,8 @@ def test_upsert(constant_dumps, select, alter, mock_insert, mock_datetime):
     result = tested.upsert(rubric)
     assert result == expected
 
-    assert len(select.mock_calls) == 1
-    sql, params = select.mock_calls[0].args
-    exp_sql = 'SELECT "id" FROM "rubric" WHERE "case_id" = %(case_id)s'
-    assert compare_sql(sql, exp_sql)
-    exp_params = {"case_id": 123}
-    assert params == exp_params
+    calls = [call('SELECT "id" FROM "rubric" WHERE "case_id" = %(case_id)s', {"case_id": 123})]
+    assert select.mock_calls == calls
 
     calls = [call(rubric)]
     assert mock_insert.mock_calls == calls
@@ -198,22 +193,19 @@ def test_upsert(constant_dumps, select, alter, mock_insert, mock_datetime):
     result = tested.upsert(rubric)
     assert result == expected
 
+    assert mock_insert.mock_calls == []
     calls = [call.now(timezone.utc)]
     assert mock_datetime.mock_calls == calls
 
     calls = [call(rubric_data)]
     assert constant_dumps.mock_calls == calls
 
-    assert len(select.mock_calls) == 1
-    sql, params = select.mock_calls[0].args
-    exp_sql = 'SELECT "id" FROM "rubric" WHERE "case_id" = %(case_id)s'
-    assert compare_sql(sql, exp_sql)
-    exp_params = {"case_id": 123}
-    assert params == exp_params
+    calls = [call('SELECT "id" FROM "rubric" WHERE "case_id" = %(case_id)s', {"case_id": 123})]
+    assert select.mock_calls == calls
 
-    assert len(alter.mock_calls) == 1
-    sql, params, involved_id = alter.mock_calls[0].args
-    exp_sql = """
+    calls = [
+        call(
+            """
                 UPDATE "rubric"
                 SET "updated" = %(now)s,
                     "parent_rubric_id" = %(parent_rubric_id)s,
@@ -227,25 +219,26 @@ def test_upsert(constant_dumps, select, alter, mock_insert, mock_datetime):
                     "text_llm_name" = %(text_llm_name)s,
                     "temperature" = %(temperature)s
                 WHERE "id" = %(id)s
-            """
-    assert compare_sql(sql, exp_sql)
-    exp_params = {
-        "now": date_0,
-        "id": 777,
-        "case_id": 123,
-        "parent_rubric_id": 456,
-        "validation_timestamp": date_0,
-        "validation": "accepted",
-        "author": "theAuthor",
-        "rubric": '[{"criterion":"theCriterion1","weight":1,"sense":"positive"}]',
-        "case_provenance_classification": "theClassification",
-        "comments": "theComments",
-        "text_llm_vendor": "VendorX",
-        "text_llm_name": "ModelY",
-        "temperature": 0.7,
-    }
-    assert involved_id == 777
-    assert params == exp_params
+            """,
+            {
+                "now": date_0,
+                "id": 777,
+                "case_id": 123,
+                "parent_rubric_id": 456,
+                "validation_timestamp": date_0,
+                "validation": "accepted",
+                "author": "theAuthor",
+                "rubric": '[{"criterion":"theCriterion1","weight":1,"sense":"positive"}]',
+                "case_provenance_classification": "theClassification",
+                "comments": "theComments",
+                "text_llm_vendor": "VendorX",
+                "text_llm_name": "ModelY",
+                "temperature": 0.7,
+            },
+            777,
+        )
+    ]
+    assert alter.mock_calls == calls
     reset_mock()
 
 
@@ -266,12 +259,8 @@ def test_get_rubric(select):
     result = tested.get_rubric(123)
     assert result == rubric_data
 
-    assert len(select.mock_calls) == 1
-    sql, params = select.mock_calls[0].args
-    exp_sql = 'SELECT "rubric" FROM "rubric" WHERE "id" = %(id)s'
-    assert compare_sql(sql, exp_sql)
-    exp_params = {"id": 123}
-    assert params == exp_params
+    calls = [call('SELECT "rubric" FROM "rubric" WHERE "id" = %(id)s', {"id": 123})]
+    assert select.mock_calls == calls
     reset_mock()
 
     # Test rubric not found
@@ -280,10 +269,6 @@ def test_get_rubric(select):
     result = tested.get_rubric(456)
     assert result == []
 
-    assert len(select.mock_calls) == 1
-    sql, params = select.mock_calls[0].args
-    exp_sql = 'SELECT "rubric" FROM "rubric" WHERE "id" = %(id)s'
-    assert compare_sql(sql, exp_sql)
-    exp_params = {"id": 456}
-    assert params == exp_params
+    calls = [call('SELECT "rubric" FROM "rubric" WHERE "id" = %(id)s', {"id": 456})]
+    assert select.mock_calls == calls
     reset_mock()

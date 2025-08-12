@@ -306,9 +306,7 @@ def test_main(mock_run, mock_settings, mock_parse_args, mock_mkdir, tmp_path):
         mock_mkdir.reset_mock()
 
     # Mock settings
-    dummy_settings = MagicMock()
-    dummy_settings.llm_text = VendorKey("openai", "MAIN_KEY")
-    mock_settings.return_value = dummy_settings
+    mock_settings.return_value = MagicMock(llm_text=VendorKey(vendor="openai", api_key="MAIN_KEY"))
 
     # Mock arguments
     output_path = tmp_path / "out.json"

@@ -276,8 +276,7 @@ def test_run_range(mock_generate, mock_assign, tmp_path):
 
 
 def test_main(tmp_path):
-    dummy_settings = MagicMock()
-    dummy_settings.llm_text = VendorKey(vendor="test", api_key="MY_API_KEY")
+    dummy_settings = MagicMock(llm_text=VendorKey(vendor="test", api_key="MY_API_KEY"))
 
     profiles_file = tmp_path / "profiles.json"
     example_file = tmp_path / "example.json"

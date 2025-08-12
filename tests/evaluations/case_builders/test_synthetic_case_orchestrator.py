@@ -8,6 +8,7 @@ import pytest
 from hyperscribe.structures.vendor_key import VendorKey
 from hyperscribe.libraries.constants import Constants
 
+from evaluations.helper_evaluation import HelperEvaluation
 from evaluations.case_builders.synthetic_case_orchestrator import SyntheticCaseOrchestrator
 from evaluations.structures.enums.case_status import CaseStatus
 from evaluations.structures.enums.synthetic_case_turn_buckets import SyntheticCaseTurnBuckets
@@ -258,7 +259,7 @@ def test_generate_and_save2database(
     reset_mocks()
 
 
-@patch("evaluations.case_builders.synthetic_case_orchestrator.HelperEvaluation.settings")
+@patch.object(HelperEvaluation, "settings")
 @patch.object(SyntheticCaseOrchestrator, "generate")
 def test_generate_and_save2file(
     mock_generate,
@@ -271,15 +272,12 @@ def test_generate_and_save2file(
     tested = SyntheticCaseOrchestrator
     output_root = tmp_files
 
-    mock_settings_instance = MagicMock()
-    mock_settings_instance.llm_text = vendor_key_instance
-    mock_settings.side_effect = [mock_settings_instance]
+    mock_settings.side_effect = [MagicMock(llm_text=vendor_key_instance)]
     mock_generate.side_effect = [sample_case_synthetic_pairs]
 
     def reset_mocks():
         mock_generate.reset_mock()
         mock_settings.reset_mock()
-        mock_settings_instance.reset_mock()
 
     tested.generate_and_save2file(2, 5, "test_category", output_root)
 
@@ -298,7 +296,7 @@ def test_generate_and_save2file(
     assert case_data["name"] == case_record.name
     assert case_data["validationStatus"] == case_record.validation_status.value
     assert synthetic_data["category"] == synthetic_record.category
-    assert synthetic_data["turn_buckets"] == synthetic_record.turn_buckets.value
+    assert synthetic_data["turnBuckets"] == synthetic_record.turn_buckets.value
 
     captured = capsys.readouterr()
     assert f"Wrote {case_file}" in captured.out
@@ -306,7 +304,6 @@ def test_generate_and_save2file(
 
     assert mock_generate.mock_calls == [call(2, 5)]
     assert mock_settings.mock_calls == [call()]
-    assert mock_settings_instance.mock_calls == []
     reset_mocks()
 
 
@@ -322,12 +319,9 @@ def test_main__success(
     mock_parser_class, tmp_files, capsys, mode, output_root_provided, expected_method, expected_output_pattern
 ):
     tested = SyntheticCaseOrchestrator
-    mock_parser = MagicMock()
-    mock_parser_class.side_effect = [mock_parser]
 
     def reset_mocks():
         mock_parser_class.reset_mock()
-        mock_parser.reset_mock()
 
     output_root = tmp_files if output_root_provided else None
     args = MockClass(
@@ -337,7 +331,7 @@ def test_main__success(
         mode=mode,
         output_root=output_root,
     )
-    mock_parser.parse_args.side_effect = [args]
+    mock_parser_class.return_value.parse_args.side_effect = [args]
 
     if expected_method == "generate_and_save2database":
         mock_saved_records = [MagicMock(), MagicMock()]
@@ -345,19 +339,19 @@ def test_main__success(
             mock_method.side_effect = [mock_saved_records]
             tested.main()
 
-            assert mock_parser_class.mock_calls == [call()]
-            assert mock_parser.mock_calls == [
-                call.add_argument("--batches", type=int, required=True),
-                call.add_argument("--batch-size", type=int, required=True),
-                call.add_argument("--category", type=str, required=True),
-                call.add_argument(
+            assert mock_parser_class.mock_calls == [
+                call(),
+                call().add_argument("--batches", type=int, required=True),
+                call().add_argument("--batch-size", type=int, required=True),
+                call().add_argument("--category", type=str, required=True),
+                call().add_argument(
                     "--mode",
                     choices=["db", "file"],
                     required=True,
                     help="Choose 'db' to upsert into Postgres or 'file' to write JSON files",
                 ),
-                call.add_argument("--output-root", type=Path, help="Required when --mode is 'file'"),
-                call.parse_args(),
+                call().add_argument("--output-root", type=Path, help="Required when --mode is 'file'"),
+                call().parse_args(),
             ]
             assert mock_method.mock_calls == [call(args.batches, args.batch_size, args.category)]
 
@@ -369,19 +363,19 @@ def test_main__success(
             mock_method.side_effect = [None]
             tested.main()
 
-            assert mock_parser_class.mock_calls == [call()]
-            assert mock_parser.mock_calls == [
-                call.add_argument("--batches", type=int, required=True),
-                call.add_argument("--batch-size", type=int, required=True),
-                call.add_argument("--category", type=str, required=True),
-                call.add_argument(
+            assert mock_parser_class.mock_calls == [
+                call(),
+                call().add_argument("--batches", type=int, required=True),
+                call().add_argument("--batch-size", type=int, required=True),
+                call().add_argument("--category", type=str, required=True),
+                call().add_argument(
                     "--mode",
                     choices=["db", "file"],
                     required=True,
                     help="Choose 'db' to upsert into Postgres or 'file' to write JSON files",
                 ),
-                call.add_argument("--output-root", type=Path, help="Required when --mode is 'file'"),
-                call.parse_args(),
+                call().add_argument("--output-root", type=Path, help="Required when --mode is 'file'"),
+                call().parse_args(),
             ]
             assert mock_method.mock_calls == [call(args.batches, args.batch_size, args.category, args.output_root)]
 
@@ -393,12 +387,9 @@ def test_main__success(
 @patch("evaluations.case_builders.synthetic_case_orchestrator.argparse.ArgumentParser")
 def test_main__validation_error(mock_parser_class):
     tested = SyntheticCaseOrchestrator
-    mock_parser = MagicMock()
-    mock_parser_class.side_effect = [mock_parser]
 
     def reset_mocks():
         mock_parser_class.reset_mock()
-        mock_parser.reset_mock()
 
     validation_args = MockClass(
         batches=2,
@@ -407,25 +398,25 @@ def test_main__validation_error(mock_parser_class):
         mode="file",
         output_root=None,
     )
-    mock_parser.parse_args.side_effect = [validation_args]
-    mock_parser.error.side_effect = [SystemExit(2)]
+    mock_parser_class.return_value.parse_args.side_effect = [validation_args]
+    mock_parser_class.return_value.error.side_effect = [SystemExit(2)]
 
     with pytest.raises(SystemExit):
         tested.main()
 
-    assert mock_parser_class.mock_calls == [call()]
-    assert mock_parser.mock_calls == [
-        call.add_argument("--batches", type=int, required=True),
-        call.add_argument("--batch-size", type=int, required=True),
-        call.add_argument("--category", type=str, required=True),
-        call.add_argument(
+    assert mock_parser_class.mock_calls == [
+        call(),
+        call().add_argument("--batches", type=int, required=True),
+        call().add_argument("--batch-size", type=int, required=True),
+        call().add_argument("--category", type=str, required=True),
+        call().add_argument(
             "--mode",
             choices=["db", "file"],
             required=True,
             help="Choose 'db' to upsert into Postgres or 'file' to write JSON files",
         ),
-        call.add_argument("--output-root", type=Path, help="Required when --mode is 'file'"),
-        call.parse_args(),
-        call.error("--output-root is required in file mode"),
+        call().add_argument("--output-root", type=Path, help="Required when --mode is 'file'"),
+        call().parse_args(),
+        call().error("--output-root is required in file mode"),
     ]
     reset_mocks()

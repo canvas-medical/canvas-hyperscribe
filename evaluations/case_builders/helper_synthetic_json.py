@@ -46,15 +46,7 @@ class HelperSyntheticJson:
 
         parsed = result.content[0]
 
-        if returned_class == Chart:
-            return Chart.load_from_json(parsed)
-        elif returned_class == Line:
-            return Line.load_from_json(parsed)
-        elif returned_class == PatientProfile:
-            return PatientProfile.load_from_json(parsed)
-        elif returned_class == RubricCriterion:
-            return RubricCriterion.load_from_json(parsed)
-        elif returned_class == GradedCriterion:
-            return GradedCriterion.load_from_json(parsed)
+        if returned_class in [Chart, Line, PatientProfile, RubricCriterion, GradedCriterion]:
+            return returned_class.load_from_json(parsed)
 
         raise ValueError(f"Unsupported returned_class: {returned_class}")

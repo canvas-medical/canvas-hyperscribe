@@ -5,6 +5,7 @@ from unittest.mock import patch, call, MagicMock
 
 import pytest
 
+from evaluations.helper_evaluation import HelperEvaluation
 from evaluations.case_builders.note_grader import NoteGrader
 from evaluations.structures.graded_criterion import GradedCriterion
 from evaluations.structures.rubric_criterion import RubricCriterion
@@ -258,22 +259,17 @@ def test_grade_and_save2database(
     reset_mocks()
 
 
-@patch("evaluations.case_builders.note_grader.HelperEvaluation.settings")
+@patch.object(HelperEvaluation, "settings")
 @patch.object(NoteGrader, "load_json")
 @patch.object(NoteGrader, "run")
 def test_grade_and_save2file(mock_run, mock_load_json, mock_settings, tmp_path, capsys):
     tested = NoteGrader
     vendor_key = VendorKey(vendor="openai", api_key="test_key")
-    mock_settings_instance = MagicMock()
-
-    mock_settings_instance.llm_text = vendor_key
-    mock_settings.side_effect = [mock_settings_instance]
 
     def reset_mocks():
         mock_run.reset_mock()
         mock_load_json.reset_mock()
         mock_settings.reset_mock()
-        mock_settings_instance.reset_mock()
 
     # Create test files
     rubric_path = tmp_path / "rubric.json"
@@ -287,6 +283,7 @@ def test_grade_and_save2file(mock_run, mock_load_json, mock_settings, tmp_path, 
 
     mock_load_json.side_effect = [rubric_data, note_data]
     mock_run.side_effect = [grading_result]
+    mock_settings.side_effect = [MagicMock(llm_text=vendor_key)]
 
     tested.grade_and_save2file(rubric_path, note_path, output_path)
 
@@ -294,7 +291,6 @@ def test_grade_and_save2file(mock_run, mock_load_json, mock_settings, tmp_path, 
     assert mock_run.mock_calls == [call()]
     assert mock_load_json.mock_calls == [call(rubric_path), call(note_path)]
     assert mock_settings.mock_calls == [call()]
-    assert mock_settings_instance.mock_calls == []
 
     # Verify output file was written
     assert output_path.exists()

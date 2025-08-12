@@ -28,6 +28,24 @@ def test_class():
     assert is_namedtuple(tested, fields)
 
 
+def test_default():
+    result = SyntheticCase(case_id=35)
+    assert result.case_id == 35
+    assert result.category == ""
+    assert result.turn_total == 0
+    assert result.speaker_sequence == []
+    assert result.clinician_to_patient_turn_ratio == 0.0
+    assert result.mood == [SyntheticCaseMood.PATIENT_FRUSTRATED]
+    assert result.pressure == SyntheticCasePressure.TIME_PRESSURE
+    assert result.clinician_style == SyntheticCaseClinicianStyle.WARM_CHATTY
+    assert result.patient_style == SyntheticCasePatientStyle.ANXIOUS_TALKATIVE
+    assert result.turn_buckets == SyntheticCaseTurnBuckets.SHORT
+    assert result.duration == 0.0
+    assert result.text_llm_vendor == ""
+    assert result.text_llm_name == ""
+    assert result.id == 0
+
+
 def test_duplicate_with():
     tested = SyntheticCase(
         case_id=123,
@@ -67,19 +85,44 @@ def test_duplicate_with():
     assert result.id == tested.id
 
 
-def test_default():
-    result = SyntheticCase(case_id=35)
-    assert result.case_id == 35
-    assert result.category == ""
-    assert result.turn_total == 0
-    assert result.speaker_sequence == []
-    assert result.clinician_to_patient_turn_ratio == 0.0
-    assert result.mood == [SyntheticCaseMood.PATIENT_FRUSTRATED]
-    assert result.pressure == SyntheticCasePressure.TIME_PRESSURE
-    assert result.clinician_style == SyntheticCaseClinicianStyle.WARM_CHATTY
-    assert result.patient_style == SyntheticCasePatientStyle.ANXIOUS_TALKATIVE
-    assert result.turn_buckets == SyntheticCaseTurnBuckets.SHORT
-    assert result.duration == 0.0
-    assert result.text_llm_vendor == ""
-    assert result.text_llm_name == ""
-    assert result.id == 0
+def test_to_json():
+    tests = [
+        (
+            SyntheticCase(
+                case_id=123,
+                category="test_category",
+                turn_total=3,
+                speaker_sequence=["Clinician", "Patient", "Clinician"],
+                clinician_to_patient_turn_ratio=1.5,
+                mood=[SyntheticCaseMood.PATIENT_FRUSTRATED, SyntheticCaseMood.PATIENT_TEARFUL],
+                pressure=SyntheticCasePressure.TIME_PRESSURE,
+                clinician_style=SyntheticCaseClinicianStyle.WARM_CHATTY,
+                patient_style=SyntheticCasePatientStyle.ANXIOUS_TALKATIVE,
+                turn_buckets=SyntheticCaseTurnBuckets.LONG,
+                duration=15.5,
+                text_llm_vendor="openai",
+                text_llm_name="gpt-4o",
+                id=456,
+            ),
+            {
+                "case_id": 123,
+                "category": "test_category",
+                "turnTotal": 3,
+                "speakerSequence": ["Clinician", "Patient", "Clinician"],
+                "clinicianToPatientTurnRatio": 1.5,
+                "mood": ["patient is frustrated", "patient is tearful"],
+                "pressure": "time pressure on the visit",
+                "clinicianStyle": "warm and chatty",
+                "patientStyle": "anxious and talkative",
+                "turnBuckets": "long",
+                "duration": 15.5,
+                "textLlmVendor": "openai",
+                "textLlmName": "gpt-4o",
+                "id": 456,
+            },
+        )
+    ]
+
+    for tested, expected in tests:
+        result = tested.to_json()
+        assert result == expected

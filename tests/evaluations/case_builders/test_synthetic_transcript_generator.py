@@ -325,11 +325,7 @@ def test_main(mock_run, mock_parse_args, mock_settings, tmp_path):
     fake_output = tmp_path / "output"
     fake_args = MockClass(input=fake_input, output=fake_output, start=5, limit=10)
     mock_parse_args.return_value = fake_args
-
-    fake_vendor_key = VendorKey("openai", "DUMMY")
-    dummy_settings = MagicMock()
-    dummy_settings.llm_text = fake_vendor_key
-    mock_settings.return_value = dummy_settings
+    mock_settings.return_value = MagicMock(llm_text=VendorKey("openai", "DUMMY"))
 
     SyntheticTranscriptGenerator.main()
 
