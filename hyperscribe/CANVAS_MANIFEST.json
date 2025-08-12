@@ -95,6 +95,15 @@
           "read": [],
           "write": []
         }
+      },
+      {
+        "class": "hyperscribe.handlers.web_socket_dealer:WebSocketDealer",
+        "description": "Provide WebSocket capability",
+        "data_access": {
+          "event": "",
+          "read": [],
+          "write": []
+        }
       }
     ],
     "applications": [],

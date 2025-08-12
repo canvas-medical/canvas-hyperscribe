@@ -8,9 +8,3 @@ class IdentificationParameters(NamedTuple):
     note_uuid: str
     provider_uuid: str
     canvas_instance: str
-
-    def canvas_host(self) -> str:
-        result = f"https://{self.canvas_instance}.canvasmedical.com"
-        if self.canvas_instance == "local":
-            result = "http://localhost:8000"
-        return result

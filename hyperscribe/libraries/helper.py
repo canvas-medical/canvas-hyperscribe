@@ -73,3 +73,17 @@ class Helper:
         if settings.llm_audio.vendor.upper() == Constants.VENDOR_GOOGLE.upper():
             result = LlmGoogle
         return result(memory_log, settings.llm_audio.api_key, settings.llm_audio_model(), settings.audit_llm)
+
+    @classmethod
+    def canvas_host(cls, canvas_instance: str) -> str:
+        result = f"https://{canvas_instance}.canvasmedical.com"
+        if canvas_instance == "local":
+            result = "http://localhost:8000"
+        return result
+
+    @classmethod
+    def canvas_ws_host(cls, canvas_instance: str) -> str:
+        result = f"wss://{canvas_instance}.canvasmedical.com"
+        if canvas_instance == "local":
+            result = "ws://localhost:8000"
+        return result

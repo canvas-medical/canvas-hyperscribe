@@ -1,8 +1,10 @@
 import json
 import re
 from datetime import datetime, timezone, UTC
+from http import HTTPStatus
 from unittest.mock import patch, call
 
+from canvas_generated.messages.effects_pb2 import Effect
 from canvas_generated.messages.events_pb2 import Event as EventRequest
 from canvas_sdk.effects.simple_api import JSONResponse
 from canvas_sdk.events import Event
@@ -161,7 +163,17 @@ def test_post(get_cache):
         tested.request.query_params = {"note_id": note_id}
         tested.request.body = body
         result = tested.post()
-        expected = [JSONResponse(content={"received": True})]
+        expected = [
+            Effect(
+                type="SIMPLE_API_WEBSOCKET_BROADCAST",
+                payload=json.dumps(
+                    {
+                        "data": {"channel": "progresses", "message": json.loads(body)},
+                    }
+                ),
+            ),
+            JSONResponse(content={"status": "ok"}, status_code=HTTPStatus.ACCEPTED),
+        ]
         assert result == expected
         assert get_cache.mock_calls == exp_calls
         reset_mocks()

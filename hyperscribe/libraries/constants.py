@@ -99,7 +99,10 @@ class Constants:
     PROGRESS_SETTING_KEY = "sendProgress"
     #
     PLUGIN_API_BASE_ROUTE = "/plugin-io/api/hyperscribe"
+    PLUGIN_WS_BASE_ROUTE = "/plugin-io/ws/hyperscribe"
     #
     AUDIO_IDLE_PAUSE = "pause"
     AUDIO_IDLE_RESUME = "resume"
     AUDIO_IDLE_END = "end"
+    #
+    WS_CHANNEL_PROGRESSES = "progresses"
