@@ -20,11 +20,7 @@ class HelperSyntheticJson:
         system_prompt: list[str],
         user_prompt: list[str],
         schema: dict[str, Any],
-        returned_class: Type[Chart]
-        | Type[list[Line]]
-        | Type[list[PatientProfile]]
-        | Type[list[RubricCriterion]]
-        | Type[list[GradedCriterion]],
+        returned_class: Type[Chart | Line | PatientProfile | RubricCriterion | GradedCriterion],
     ) -> Chart | list[Line] | list[PatientProfile] | list[RubricCriterion] | list[GradedCriterion]:
         """
         1) Creates an O3 LLM client.
@@ -52,14 +48,13 @@ class HelperSyntheticJson:
 
         if returned_class == Chart:
             return Chart.load_from_json(parsed)
-        elif returned_class == list[Line]:
+        elif returned_class == Line:
             return Line.load_from_json(parsed)
-        elif returned_class == list[PatientProfile]:
-            return [PatientProfile(name=name, profile=profile) for name, profile in parsed.items()]
-        elif returned_class == list[RubricCriterion]:
-            return [RubricCriterion(**item) for item in parsed]
-        elif returned_class == list[GradedCriterion]:
-            # convert into list graded criterion and setting placeholder score. -0.000 isn't possible by score calc.
-            return [GradedCriterion(**item, score=-0.000) for item in parsed]
+        elif returned_class == PatientProfile:
+            return PatientProfile.load_from_json(parsed)
+        elif returned_class == RubricCriterion:
+            return RubricCriterion.load_from_json(parsed)
+        elif returned_class == GradedCriterion:
+            return GradedCriterion.load_from_json(parsed)
 
         raise ValueError(f"Unsupported returned_class: {returned_class}")

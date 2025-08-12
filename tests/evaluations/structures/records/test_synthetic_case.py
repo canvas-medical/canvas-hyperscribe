@@ -28,6 +28,45 @@ def test_class():
     assert is_namedtuple(tested, fields)
 
 
+def test_duplicate_with():
+    tested = SyntheticCase(
+        case_id=123,
+        category="test_category",
+        turn_total=10,
+        speaker_sequence=["Clinician", "Patient", "Clinician"],
+        clinician_to_patient_turn_ratio=1.5,
+        mood=[SyntheticCaseMood.PATIENT_FRUSTRATED, SyntheticCaseMood.PATIENT_TEARFUL],
+        pressure=SyntheticCasePressure.TIME_PRESSURE,
+        clinician_style=SyntheticCaseClinicianStyle.WARM_CHATTY,
+        patient_style=SyntheticCasePatientStyle.ANXIOUS_TALKATIVE,
+        turn_buckets=SyntheticCaseTurnBuckets.LONG,
+        duration=15.5,
+        text_llm_vendor="openai",
+        text_llm_name="gpt-4o",
+        id=456,
+    )
+
+    new_case_id = 999
+    result = tested.duplicate_with(case_id=new_case_id)
+
+    assert result.case_id == new_case_id
+    assert tested.case_id == 123
+
+    assert result.category == tested.category
+    assert result.turn_total == tested.turn_total
+    assert result.speaker_sequence == tested.speaker_sequence
+    assert result.clinician_to_patient_turn_ratio == tested.clinician_to_patient_turn_ratio
+    assert result.mood == tested.mood
+    assert result.pressure == tested.pressure
+    assert result.clinician_style == tested.clinician_style
+    assert result.patient_style == tested.patient_style
+    assert result.turn_buckets == tested.turn_buckets
+    assert result.duration == tested.duration
+    assert result.text_llm_vendor == tested.text_llm_vendor
+    assert result.text_llm_name == tested.text_llm_name
+    assert result.id == tested.id
+
+
 def test_default():
     result = SyntheticCase(case_id=35)
     assert result.case_id == 35

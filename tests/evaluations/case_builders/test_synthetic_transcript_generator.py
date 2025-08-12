@@ -1,5 +1,5 @@
 import json, random, pytest, hashlib
-from argparse import Namespace
+from tests.helper import MockClass
 from pathlib import Path
 from unittest.mock import patch, MagicMock, call
 from evaluations.case_builders.synthetic_transcript_generator import SyntheticTranscriptGenerator, HelperSyntheticJson
@@ -209,7 +209,7 @@ def test_generate_transcript_for_profile__success(
             system_prompt=["System Prompt"],
             user_prompt=["User Prompt"],
             schema=expected_schema,
-            returned_class=list[Line],
+            returned_class=Line,
         )
     ]
 
@@ -260,7 +260,7 @@ def test_generate_transcript_for_profile__bad_json_raises(
             system_prompt=["System Prompt"],
             user_prompt=["User Prompt"],
             schema=expected_schema,
-            returned_class=list[Line],
+            returned_class=Line,
         )
     ]
 
@@ -312,7 +312,7 @@ def test_run(mock_generate_json, mock_make_specifications, mock_build_prompt, mo
             system_prompt=["System Prompt"],
             user_prompt=["User Prompt"],
             schema=expected_schema,
-            returned_class=list[Line],
+            returned_class=Line,
         )
     ]
 
@@ -323,7 +323,7 @@ def test_run(mock_generate_json, mock_make_specifications, mock_build_prompt, mo
 def test_main(mock_run, mock_parse_args, mock_settings, tmp_path):
     fake_input = create_fake_profiles_file(tmp_path)
     fake_output = tmp_path / "output"
-    fake_args = Namespace(input=fake_input, output=fake_output, start=5, limit=10)
+    fake_args = MockClass(input=fake_input, output=fake_output, start=5, limit=10)
     mock_parse_args.return_value = fake_args
 
     fake_vendor_key = VendorKey("openai", "DUMMY")

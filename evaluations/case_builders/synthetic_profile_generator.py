@@ -162,7 +162,7 @@ class SyntheticProfileGenerator:
                 system_prompt=system_prompt,
                 user_prompt=user_prompt,
                 schema=schema,
-                returned_class=list[PatientProfile],
+                returned_class=PatientProfile,
             ),
         )
 

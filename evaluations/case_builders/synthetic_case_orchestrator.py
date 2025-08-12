@@ -123,7 +123,7 @@ class SyntheticCaseOrchestrator:
         for case_record, synthetic_record in record_pairs:
             upserted_case = case_store.upsert(case_record)
             # create a new SyntheticCaseRecord with the correct case_id
-            record_to_upsert = synthetic_record._replace(case_id=upserted_case.id)
+            record_to_upsert = synthetic_record.duplicate_with(case_id=upserted_case.id)
             # upsert the synthetic case
             upserted_synthetic = synthetic_case_store.upsert(record_to_upsert)
             saved_records.append(upserted_synthetic)

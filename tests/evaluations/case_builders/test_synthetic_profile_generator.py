@@ -1,10 +1,12 @@
 import json, re, pytest, hashlib
 from unittest.mock import patch, call, MagicMock
-from argparse import ArgumentParser, Namespace
+from argparse import ArgumentParser
+from tests.helper import MockClass
 from evaluations.case_builders.synthetic_profile_generator import SyntheticProfileGenerator
 from evaluations.structures.patient_profile import PatientProfile
 from evaluations.helper_evaluation import HelperEvaluation
 from hyperscribe.structures.vendor_key import VendorKey
+from hyperscribe.structures.json_extract import JsonExtract
 
 
 @pytest.fixture
@@ -62,13 +64,13 @@ def test_load_json(tmp_path):
         (
             False,
             ["diabetes-metformin"],
-            None,
+            "",
             False,
             "3f980752be484fa5e211623508246a12",
             "293d332b0ba5d8cdedbdfd0374468ac5",
             2,
         ),
-        (True, None, "LLM API error", True, "3f980752be484fa5e211623508246a12", "293d332b0ba5d8cdedbdfd0374468ac5", 1),
+        (True, [], "LLM API error", True, "3f980752be484fa5e211623508246a12", "293d332b0ba5d8cdedbdfd0374468ac5", 1),
     ],
 )
 @patch("evaluations.case_builders.synthetic_profile_generator.MemoryLog")
@@ -87,28 +89,23 @@ def test_update_patient_names(
 ):
     tested = SyntheticProfileGenerator(vendor_key)
 
+    def reset_mocks():
+        mock_llm_class.reset_mock()
+        mock_memory_log.reset_mock()
+
     profiles = [
         PatientProfile(name="Patient 1", profile="Alice has diabetes and takes metformin"),
         PatientProfile(name="Patient 2", profile="Bob has hypertension and takes lisinopril"),
     ]
 
-    mock_memory_instance = MagicMock()
-    mock_llm_instance = MagicMock()
-    mock_response = MagicMock()
+    mock_response = JsonExtract(
+        error=error_message,
+        has_error=has_error,
+        content=content,
+    )
 
-    mock_memory_log.dev_null_instance.side_effect = [mock_memory_instance] * len(profiles)
-    mock_response.has_error = has_error
-    mock_response.content = content
-    mock_response.error = error_message
-    mock_llm_instance.chat.side_effect = [mock_response] * len(profiles)
-    mock_llm_class.side_effect = [mock_llm_instance] * len(profiles)
-
-    def reset_mocks():
-        mock_llm_class.reset_mock()
-        mock_memory_log.reset_mock()
-        mock_memory_instance.reset_mock()
-        mock_llm_instance.reset_mock()
-        mock_response.reset_mock()
+    mock_memory_log.dev_null_instance.side_effect = ["theMemoryInstance"] * len(profiles)
+    mock_llm_class.return_value.chat.side_effect = [mock_response] * len(profiles)
 
     if should_raise:
         with pytest.raises(Exception) as exc_info:
@@ -122,8 +119,8 @@ def test_update_patient_names(
             assert len(profile.name.split("-")[-1]) == 8
 
     # common md5 verification.
-    system_prompt_calls = [call[0][0] for call in mock_llm_instance.set_system_prompt.call_args_list]
-    user_prompt_calls = [call[0][0] for call in mock_llm_instance.set_user_prompt.call_args_list]
+    system_prompt_calls = [call[0][0] for call in mock_llm_class.return_value.set_system_prompt.call_args_list]
+    user_prompt_calls = [call[0][0] for call in mock_llm_class.return_value.set_user_prompt.call_args_list]
 
     if system_prompt_calls and user_prompt_calls:
         result_system_md5 = hashlib.md5("\n".join(system_prompt_calls[0]).encode()).hexdigest()
@@ -132,14 +129,23 @@ def test_update_patient_names(
         assert result_system_md5 == expected_system_md5
         assert result_user_md5 == expected_user_md5
 
-    assert mock_llm_instance.chat.mock_calls == [call([{"type": "string"}])] * expected_chat_calls
-    assert mock_memory_log.mock_calls == [call.dev_null_instance()] * expected_chat_calls
-    assert (
-        mock_llm_class.mock_calls
-        == [call(mock_memory_instance, vendor_key.api_key, "gpt-4o", with_audit=False)] * expected_chat_calls
-    )
-    assert mock_response.mock_calls == []
-    assert mock_memory_instance.mock_calls == []
+    calls = [call([{"type": "string"}])] * expected_chat_calls
+    assert mock_llm_class.return_value.chat.mock_calls == calls
+    calls = [call.dev_null_instance()] * expected_chat_calls
+    assert mock_memory_log.mock_calls == calls
+
+    # Build expected calls for mock_llm_class including all method calls
+    calls = []
+    for i in range(expected_chat_calls):
+        calls.extend(
+            [
+                call("theMemoryInstance", vendor_key.api_key, "gpt-4o", with_audit=False),
+                call().set_system_prompt(system_prompt_calls[i] if system_prompt_calls else []),
+                call().set_user_prompt(user_prompt_calls[i] if user_prompt_calls else []),
+                call().chat([{"type": "string"}]),
+            ]
+        )
+    assert mock_llm_class.mock_calls == calls
 
     reset_mocks()
 
@@ -306,7 +312,7 @@ def test_main(mock_run, mock_settings, mock_parse_args, mock_mkdir, tmp_path):
 
     # Mock arguments
     output_path = tmp_path / "out.json"
-    args = Namespace(batches=2, batch_size=5, output=output_path)
+    args = MockClass(batches=2, batch_size=5, output=output_path)
     mock_parse_args.return_value = args
 
     SyntheticProfileGenerator.main()

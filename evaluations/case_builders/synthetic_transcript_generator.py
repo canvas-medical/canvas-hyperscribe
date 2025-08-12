@@ -140,7 +140,7 @@ class SyntheticTranscriptGenerator:
                 system_prompt=system_lines,
                 user_prompt=user_lines,
                 schema=schema,
-                returned_class=list[Line],
+                returned_class=Line,
             ),
         )
 

@@ -1,6 +1,6 @@
 import hashlib
 import json
-from argparse import Namespace
+from tests.helper import MockClass
 from unittest.mock import patch, call, MagicMock
 from datetime import datetime, UTC
 
@@ -12,6 +12,7 @@ from hyperscribe.libraries.constants import Constants as HyperscribeConstants
 from evaluations.case_builders.rubric_generator import RubricGenerator
 from evaluations.structures.enums.rubric_validation import RubricValidation
 from evaluations.structures.rubric_criterion import RubricCriterion
+from evaluations.structures.records.rubric import Rubric as RubricRecord
 
 
 @pytest.fixture
@@ -160,7 +161,7 @@ def test_generate(mock_generate_json, mock_schema_rubric, mock_build_prompts, tm
                 system_prompt=["System Prompt"],
                 user_prompt=["User Prompt"],
                 schema=expected_schema,
-                returned_class=list[RubricCriterion],
+                returned_class=RubricCriterion,
             )
         ]
         assert mock_generate_json.mock_calls == expected_call
@@ -183,7 +184,7 @@ def test_generate(mock_generate_json, mock_schema_rubric, mock_build_prompts, tm
             system_prompt=["System Prompt"],
             user_prompt=["User Prompt"],
             schema=expected_schema,
-            returned_class=list[RubricCriterion],
+            returned_class=RubricCriterion,
         )
     ]
     assert mock_generate_json.mock_calls == expected_call
@@ -234,52 +235,31 @@ def test_generate_and_save2file(mock_generate, mock_load_json, mock_settings, tm
 
 
 @patch("evaluations.case_builders.rubric_generator.datetime", wraps=datetime)
-@patch("evaluations.case_builders.rubric_generator.HelperEvaluation.postgres_credentials")
-@patch("evaluations.case_builders.rubric_generator.HelperEvaluation.settings")
-@patch.object(RubricGenerator, "load_json")
-@patch.object(RubricGenerator, "generate")
+@patch("evaluations.case_builders.rubric_generator.HelperEvaluation")
 @patch("evaluations.case_builders.rubric_generator.RubricDatastore")
 @patch("evaluations.case_builders.rubric_generator.CaseDatastore")
+@patch.object(RubricGenerator, "load_json")
+@patch.object(RubricGenerator, "generate")
 def test_generate_and_save2database(
-    mock_case_datastore_class,
-    mock_rubric_datastore_class,
     mock_generate,
     mock_load_json,
-    mock_settings,
-    mock_postgres_credentials,
+    mock_case_datastore_class,
+    mock_rubric_datastore_class,
+    mock_helper,
     mock_datetime,
     tmp_files,
 ):
     tested = RubricGenerator
-    mock_credentials = MagicMock()
-    mock_case_datastore = MagicMock()
-    mock_rubric_datastore = MagicMock()
-    mock_rubric_record = MagicMock()
-    mock_settings_instance = MagicMock()
 
     def reset_mocks():
-        mock_case_datastore_class.reset_mock()
-        mock_rubric_datastore_class.reset_mock()
         mock_generate.reset_mock()
         mock_load_json.reset_mock()
-        mock_settings.reset_mock()
-        mock_postgres_credentials.reset_mock()
+        mock_case_datastore_class.reset_mock()
+        mock_rubric_datastore_class.reset_mock()
+        mock_helper.reset_mock()
         mock_datetime.reset_mock()
-        mock_credentials.reset_mock()
-        mock_case_datastore.reset_mock()
-        mock_rubric_datastore.reset_mock()
-        mock_rubric_record.reset_mock()
-        mock_settings_instance.reset_mock()
 
-    # Configure mock credentials and settings
-    mock_postgres_credentials.side_effect = [mock_credentials]
-
-    mock_vendor_key = VendorKey(vendor="openai", api_key="test_key")
-    mock_settings_instance.llm_text = mock_vendor_key
-    mock_settings.side_effect = [mock_settings_instance]
-    mock_case_datastore_class.side_effect = [mock_case_datastore]
-    mock_rubric_datastore_class.side_effect = [mock_rubric_datastore]
-
+    vendor_key = VendorKey(vendor="openai", api_key="test_key")
     _, _, canvas_context_path, _, _, _, canvas_context = tmp_files
     case_name = "test_case"
     case_id = 123
@@ -287,43 +267,58 @@ def test_generate_and_save2database(
     chart_data = {"data": "test"}
     rubric_result = [RubricCriterion(criterion="Test", weight=50, sense="positive")]
 
-    mock_case_datastore.get_id.side_effect = [case_id]
-    mock_case_datastore.get_transcript.side_effect = [transcript_data]
-    mock_case_datastore.get_limited_chart.side_effect = [chart_data]
+    mock_case_datastore_class.return_value.get_id.side_effect = [case_id]
+    mock_case_datastore_class.return_value.get_transcript.side_effect = [transcript_data]
+    mock_case_datastore_class.return_value.get_limited_chart.side_effect = [chart_data]
     mock_load_json.side_effect = [canvas_context]
     mock_generate.side_effect = [rubric_result]
-
-    mock_rubric_record.id = 789
-    mock_rubric_datastore.insert.side_effect = [mock_rubric_record]
+    mock_helper.postgres_credentials.side_effect = ["thePostgresCredentials"]
+    mock_helper.settings.side_effect = [MockClass(llm_text=vendor_key)]
+    mock_rubric_datastore_class.return_value.insert.side_effect = ["theInsertedRecord"]
+    mock_datetime.now.side_effect = ["theMockedDatetime"]
 
     result = tested.generate_and_save2database(case_name, canvas_context_path)
-    expected = mock_rubric_record
-
+    expected = "theInsertedRecord"
     assert result == expected
 
-    # reordered in reset_mocks order for readability.
-    assert mock_case_datastore_class.mock_calls == [call(mock_credentials)]
-    assert mock_rubric_datastore_class.mock_calls == [call(mock_credentials)]
-    assert mock_generate.mock_calls == [call(transcript_data, chart_data, canvas_context)]
-    assert mock_load_json.mock_calls == [call(canvas_context_path)]
-    assert mock_settings.mock_calls == [call()]
-    assert mock_postgres_credentials.mock_calls == [call()]
-    assert mock_datetime.mock_calls == [call.now(UTC)]
-    assert mock_credentials.mock_calls == []
-    assert mock_case_datastore.get_id.mock_calls == [call(case_name)]
-    assert mock_case_datastore.get_transcript.mock_calls == [call(case_id)]
-    assert mock_case_datastore.get_limited_chart.mock_calls == [call(case_id)]
-    assert mock_settings_instance.mock_calls == []
-
-    # verify rubric_datastore.insert call and rubric_record attributes
-    assert mock_rubric_datastore.insert.call_count == 1
-    rubric_record_arg = mock_rubric_datastore.insert.call_args[0][0]
-    assert rubric_record_arg.case_id == case_id
-    assert rubric_record_arg.rubric == [{"criterion": "Test", "weight": 50, "sense": "positive"}]
-    assert rubric_record_arg.text_llm_vendor == "openai"
-    assert rubric_record_arg.text_llm_name == HyperscribeConstants.OPENAI_CHAT_TEXT_O3
-    assert rubric_record_arg.validation == RubricValidation.NOT_EVALUATED
-
+    calls = [call(transcript_data, chart_data, canvas_context)]
+    assert mock_generate.mock_calls == calls
+    calls = [call(canvas_context_path)]
+    assert mock_load_json.mock_calls == calls
+    calls = [
+        call("thePostgresCredentials"),
+        call().get_id(case_name),
+        call().get_transcript(case_id),
+        call().get_limited_chart(case_id),
+    ]
+    assert mock_case_datastore_class.mock_calls == calls
+    calls = [
+        call("thePostgresCredentials"),
+        call().insert(
+            RubricRecord(
+                case_id=case_id,
+                parent_rubric_id=None,
+                validation_timestamp="theMockedDatetime",
+                validation=RubricValidation.NOT_EVALUATED,
+                author="llm",
+                rubric=[{"criterion": "Test", "weight": 50, "sense": "positive"}],
+                case_provenance_classification="",
+                comments="",
+                text_llm_vendor="openai",
+                text_llm_name=HyperscribeConstants.OPENAI_CHAT_TEXT_O3,
+                temperature=1.0,
+                id=0,
+            )
+        ),
+    ]
+    assert mock_rubric_datastore_class.mock_calls == calls
+    calls = [
+        call.settings(),
+        call.postgres_credentials(),
+    ]
+    assert mock_helper.mock_calls == calls
+    calls = [call.now(UTC)]
+    assert mock_datetime.mock_calls == calls
     reset_mocks()
 
 
@@ -343,7 +338,7 @@ def test_main(mock_parser_class, tmp_files, capsys):
     test_cases = [
         # File mode
         {
-            "args": Namespace(
+            "args": MockClass(
                 transcript_path=transcript_path,
                 chart_path=chart_path,
                 canvas_context_path=canvas_context_path,
@@ -354,7 +349,7 @@ def test_main(mock_parser_class, tmp_files, capsys):
         },
         # Database mode
         {
-            "args": Namespace(
+            "args": MockClass(
                 transcript_path=None,
                 chart_path=None,
                 canvas_context_path=canvas_context_path,
@@ -402,7 +397,7 @@ def test_main(mock_parser_class, tmp_files, capsys):
     validation_test_cases = [
         # Missing parameters
         {
-            "args": Namespace(
+            "args": MockClass(
                 transcript_path=None,
                 chart_path=None,
                 canvas_context_path=None,
@@ -413,7 +408,7 @@ def test_main(mock_parser_class, tmp_files, capsys):
         },
         # Conflicting parameters
         {
-            "args": Namespace(
+            "args": MockClass(
                 transcript_path=transcript_path,
                 chart_path=chart_path,
                 canvas_context_path=canvas_context_path,

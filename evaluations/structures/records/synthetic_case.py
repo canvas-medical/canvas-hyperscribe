@@ -1,5 +1,6 @@
-from typing import NamedTuple
+from __future__ import annotations
 
+from typing import NamedTuple
 from evaluations.structures.enums.synthetic_case_clinician_style import SyntheticCaseClinicianStyle
 from evaluations.structures.enums.synthetic_case_mood import SyntheticCaseMood
 from evaluations.structures.enums.synthetic_case_patient_style import SyntheticCasePatientStyle
@@ -22,6 +23,25 @@ class SyntheticCase(NamedTuple):
     text_llm_vendor: str = ""
     text_llm_name: str = ""
     id: int = 0
+
+    def duplicate_with(self, case_id: int) -> SyntheticCase:
+        """Create a new SyntheticCase instance with the specified case_id, keeping all other fields the same."""
+        return SyntheticCase(
+            case_id=case_id,
+            category=self.category,
+            turn_total=self.turn_total,
+            speaker_sequence=self.speaker_sequence,
+            clinician_to_patient_turn_ratio=self.clinician_to_patient_turn_ratio,
+            mood=self.mood,
+            pressure=self.pressure,
+            clinician_style=self.clinician_style,
+            patient_style=self.patient_style,
+            turn_buckets=self.turn_buckets,
+            duration=self.duration,
+            text_llm_vendor=self.text_llm_vendor,
+            text_llm_name=self.text_llm_name,
+            id=self.id,
+        )
 
     def to_json(self) -> dict:
         return {

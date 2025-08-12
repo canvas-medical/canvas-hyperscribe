@@ -1,6 +1,6 @@
 import hashlib
 import json
-from argparse import Namespace
+from tests.helper import MockClass
 from unittest.mock import patch, call, MagicMock
 
 import pytest
@@ -8,6 +8,7 @@ import pytest
 from evaluations.case_builders.note_grader import NoteGrader
 from evaluations.structures.graded_criterion import GradedCriterion
 from evaluations.structures.rubric_criterion import RubricCriterion
+from evaluations.structures.records.score import Score as ScoreRecord
 from hyperscribe.structures.vendor_key import VendorKey
 
 
@@ -42,7 +43,7 @@ def test_load_json(tmp_path):
 
 def test_schema_scores(tmp_files):
     rubric_path, note_path, output_path, rubric, note = tmp_files
-    rubric_objs = [RubricCriterion(**item) for item in rubric]
+    rubric_objs = RubricCriterion.load_from_json(rubric)
     tested = NoteGrader(vendor_key=VendorKey("openai", "KEY"), rubric=rubric_objs, note=note)
 
     result = tested.schema_scores()
@@ -73,7 +74,7 @@ def test_build_prompts(mock_schema_scores, tmp_files):
 
     _, _, _, rubric, note = tmp_files
     vendor_key = VendorKey(vendor="openai", api_key="KEY")
-    rubric_objs = [RubricCriterion(**item) for item in rubric]
+    rubric_objs = RubricCriterion.load_from_json(rubric)
     tested = NoteGrader(vendor_key, rubric_objs, note)
     expected_schema = {"type": "array"}
     mock_schema_scores.side_effect = [expected_schema]
@@ -102,7 +103,7 @@ def test_run(mock_generate_json, mock_schema_scores, mock_build_prompts, tmp_fil
 
     _, _, _, rubric, note = tmp_files
     vendor_key = VendorKey(vendor="openai", api_key="KEY")
-    rubric_objs = [RubricCriterion(**item) for item in rubric]
+    rubric_objs = RubricCriterion.load_from_json(rubric)
     tested = NoteGrader(vendor_key, rubric_objs, note)
     expected_schema = {"type": "array"}
 
@@ -150,7 +151,7 @@ def test_run(mock_generate_json, mock_schema_scores, mock_build_prompts, tmp_fil
                 system_prompt=["System Prompt"],
                 user_prompt=["User Prompt"],
                 schema=expected_schema,
-                returned_class=list[GradedCriterion],
+                returned_class=GradedCriterion,
             )
         ]
         assert mock_generate_json.mock_calls == expected_call
@@ -173,15 +174,14 @@ def test_run(mock_generate_json, mock_schema_scores, mock_build_prompts, tmp_fil
             system_prompt=["System Prompt"],
             user_prompt=["User Prompt"],
             schema=expected_schema,
-            returned_class=list[GradedCriterion],
+            returned_class=GradedCriterion,
         )
     ]
     assert mock_generate_json.mock_calls == expected_call
     reset_mocks()
 
 
-@patch("evaluations.case_builders.note_grader.HelperEvaluation.postgres_credentials")
-@patch("evaluations.case_builders.note_grader.HelperEvaluation.settings")
+@patch("evaluations.case_builders.note_grader.HelperEvaluation")
 @patch("evaluations.case_builders.note_grader.RubricDatastore")
 @patch("evaluations.case_builders.note_grader.GeneratedNoteDatastore")
 @patch("evaluations.case_builders.note_grader.ScoreDatastore")
@@ -191,79 +191,70 @@ def test_grade_and_save2database(
     mock_score_datastore_class,
     mock_generated_note_datastore_class,
     mock_rubric_datastore_class,
-    mock_settings,
-    mock_postgres_credentials,
+    mock_helper,
 ):
     tested = NoteGrader
-
-    mock_credentials = MagicMock()
-    mock_rubric_datastore = MagicMock()
-    mock_generated_note_datastore = MagicMock()
-    mock_score_datastore = MagicMock()
-    mock_score_record = MagicMock()
-    mock_settings_instance = MagicMock()
-
-    mock_postgres_credentials.side_effect = [mock_credentials]
-    mock_vendor_key = VendorKey(vendor="openai", api_key="test_key")
-    mock_settings_instance.llm_text = mock_vendor_key
-    mock_settings.side_effect = [mock_settings_instance]
-    mock_rubric_datastore_class.side_effect = [mock_rubric_datastore]
-    mock_generated_note_datastore_class.side_effect = [mock_generated_note_datastore]
-    mock_score_datastore_class.side_effect = [mock_score_datastore]
 
     def reset_mocks():
         mock_run.reset_mock()
         mock_score_datastore_class.reset_mock()
         mock_generated_note_datastore_class.reset_mock()
         mock_rubric_datastore_class.reset_mock()
-        mock_settings.reset_mock()
-        mock_postgres_credentials.reset_mock()
-        mock_credentials.reset_mock()
-        mock_rubric_datastore.reset_mock()
-        mock_generated_note_datastore.reset_mock()
-        mock_score_datastore.reset_mock()
-        mock_score_record.reset_mock()
-        mock_settings_instance.reset_mock()
+        mock_helper.reset_mock()
 
+    vendor_key = VendorKey(vendor="openai", api_key="test_key")
     # Mock data
     rubric_data = [{"criterion": "Test criterion", "weight": 10, "sense": "positive"}]
     note_data = {"some": "note"}
     grading_result = [GradedCriterion(id=0, rationale="good work", satisfaction=85, score=8.5)]
 
-    mock_rubric_datastore.get_rubric.side_effect = [rubric_data]
-    mock_generated_note_datastore.get_note_json.side_effect = [note_data]
+    mock_rubric_datastore_class.return_value.get_rubric.side_effect = [rubric_data]
+    mock_generated_note_datastore_class.return_value.get_note_json.side_effect = [note_data]
     mock_run.side_effect = [grading_result]
-
-    # Mock score record
-    mock_score_record = MagicMock()
-    mock_score_record.id = 789
-    mock_score_datastore.insert.side_effect = [mock_score_record]
+    mock_helper.settings.side_effect = [MockClass(llm_text=vendor_key)]
+    mock_helper.postgres_credentials.side_effect = ["thePostgresCredentials"]
+    mock_score_datastore_class.return_value.insert.side_effect = ["theInsertedRecord"]
 
     # Call the method
     result = tested.grade_and_save2database(123, 456)
-    expected = mock_score_record
+    expected = "theInsertedRecord"
     assert result == expected
 
     # verify mock calls + score_datastore.insert + attributes.
-    assert mock_run.mock_calls == [call()]
-    assert mock_score_datastore_class.mock_calls == [call(mock_credentials)]
-    assert mock_generated_note_datastore_class.mock_calls == [call(mock_credentials)]
-    assert mock_rubric_datastore_class.mock_calls == [call(mock_credentials)]
-    assert mock_settings.mock_calls == [call()]
-    assert mock_postgres_credentials.mock_calls == [call()]
-    assert mock_credentials.mock_calls == []
-    assert mock_rubric_datastore.get_rubric.mock_calls == [call(123)]
-    assert mock_generated_note_datastore.get_note_json.mock_calls == [call(456)]
-    assert mock_settings_instance.mock_calls == []
-
-    assert mock_score_datastore.insert.call_count == 1
-    score_record_arg = mock_score_datastore.insert.call_args[0][0]
-    assert score_record_arg.rubric_id == 123
-    assert score_record_arg.generated_note_id == 456
-    assert score_record_arg.overall_score == 8.5
-    assert score_record_arg.text_llm_vendor == "openai"
-    assert score_record_arg.scoring_result == grading_result
-
+    calls = [call()]
+    assert mock_run.mock_calls == calls
+    calls = [
+        call("thePostgresCredentials"),
+        call().insert(
+            ScoreRecord(
+                rubric_id=123,
+                generated_note_id=456,
+                scoring_result=[GradedCriterion(id=0, rationale="good work", satisfaction=85, score=8.5)],
+                overall_score=8.5,
+                comments="",
+                text_llm_vendor="openai",
+                text_llm_name="o3",
+                temperature=1.0,
+                id=0,
+            )
+        ),
+    ]
+    assert mock_score_datastore_class.mock_calls == calls
+    calls = [
+        call("thePostgresCredentials"),
+        call().get_note_json(456),
+    ]
+    assert mock_generated_note_datastore_class.mock_calls == calls
+    calls = [
+        call("thePostgresCredentials"),
+        call().get_rubric(123),
+    ]
+    assert mock_rubric_datastore_class.mock_calls == calls
+    calls = [
+        call.postgres_credentials(),
+        call.settings(),
+    ]
+    assert mock_helper.mock_calls == calls
     reset_mocks()
 
 
@@ -333,7 +324,7 @@ def test_main(mock_parser_class, tmp_path, capsys):
     test_cases = [
         # File mode
         {
-            "args": Namespace(
+            "args": MockClass(
                 rubric=tmp_path / "rubric.json",
                 note=tmp_path / "note.json",
                 output=tmp_path / "out.json",
@@ -344,7 +335,7 @@ def test_main(mock_parser_class, tmp_path, capsys):
         },
         # Database mode
         {
-            "args": Namespace(rubric=None, note=None, output=None, rubric_id=123, generated_note_id=456),
+            "args": MockClass(rubric=None, note=None, output=None, rubric_id=123, generated_note_id=456),
             "expected_method": "grade_and_save2database",
         },
     ]
@@ -378,12 +369,12 @@ def test_main(mock_parser_class, tmp_path, capsys):
     validation_test_cases = [
         # Missing parameters
         {
-            "args": Namespace(rubric=None, note=None, output=None, rubric_id=None, generated_note_id=None),
+            "args": MockClass(rubric=None, note=None, output=None, rubric_id=None, generated_note_id=None),
             "expected_error": "Must provide either (--rubric, --note, --output) or (--rubric_id, --generated_note_id)",
         },
         # Conflicting parameters
         {
-            "args": Namespace(
+            "args": MockClass(
                 rubric=tmp_path / "rubric.json",
                 note=tmp_path / "note.json",
                 output=tmp_path / "out.json",

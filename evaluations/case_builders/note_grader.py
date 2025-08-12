@@ -95,7 +95,7 @@ class NoteGrader:
             "Wrap the JSON in a fenced ```json ``` block to avoid extra tokens.",
             "",
             "---- BEGIN RUBRIC JSON ----",
-            json.dumps([c._asdict() for c in self.rubric], indent=2),
+            json.dumps([c.to_json() for c in self.rubric], indent=2),
             "---- END RUBRIC JSON ----",
             "---- BEGIN HYPERSCRIBE OUTPUT JSON ----",
             json.dumps(self.note, indent=2),
@@ -117,7 +117,7 @@ class NoteGrader:
                 system_prompt=system_prompt,
                 user_prompt=user_prompt,
                 schema=schema,
-                returned_class=list[GradedCriterion],
+                returned_class=GradedCriterion,
             ),
         )
 
@@ -144,7 +144,7 @@ class NoteGrader:
         credentials = HelperEvaluation.postgres_credentials()
         vendor_key = HelperEvaluation.settings().llm_text
 
-        rubric = [RubricCriterion(**c) for c in RubricDatastore(credentials).get_rubric(rubric_id)]
+        rubric = RubricCriterion.load_from_json(RubricDatastore(credentials).get_rubric(rubric_id))
         note_data = GeneratedNoteDatastore(credentials).get_note_json(generated_note_id)
 
         scoring_result: list[GradedCriterion] = cls(vendor_key, rubric, note_data).run()
@@ -168,13 +168,13 @@ class NoteGrader:
         """Grade a note using rubric from files and save result to output file."""
         vendor_key = HelperEvaluation.settings().llm_text
 
-        rubric = [RubricCriterion(**c) for c in cls.load_json(rubric_path)]
+        rubric = RubricCriterion.load_from_json(cls.load_json(rubric_path))
         note = cls.load_json(note_path)
 
         grader = cls(vendor_key, rubric, note)
         result = grader.run()
 
-        output_path.write_text(json.dumps([item._asdict() for item in result], indent=2))
+        output_path.write_text(json.dumps([item.to_json() for item in result], indent=2))
         print("Saved grading result in", output_path)
 
     @staticmethod

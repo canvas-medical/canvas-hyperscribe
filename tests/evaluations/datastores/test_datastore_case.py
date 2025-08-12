@@ -4,6 +4,7 @@ from evaluations.datastores.datastore_case import DatastoreCase
 from evaluations.structures.enums.case_status import CaseStatus
 from evaluations.structures.evaluation_case import EvaluationCase
 from evaluations.structures.records.case import Case
+from evaluations.structures.chart import Chart
 from hyperscribe.structures.line import Line
 
 
@@ -41,7 +42,16 @@ def test_already_generated(helper, psql_case, auditor_file):
                 transcript={
                     "cycle_001": [Line(speaker="speaker1", text="text1"), Line(speaker="speaker2", text="text2")]
                 },
-                limited_chart={"limited": "chart"},
+                limited_chart=Chart(
+                    demographic_str="Sample demographic",
+                    condition_history=[],
+                    current_allergies=[],
+                    current_conditions=[],
+                    current_medications=[],
+                    current_goals=[],
+                    family_history=[],
+                    surgery_history=[],
+                ),
                 profile="theProfile",
                 validation_status=CaseStatus.GENERATION,
                 batch_identifier="theBatchIdentifier",
@@ -54,7 +64,16 @@ def test_already_generated(helper, psql_case, auditor_file):
             Case(
                 name="theCase",
                 transcript={},
-                limited_chart={"limited": "chart"},
+                limited_chart=Chart(
+                    demographic_str="Sample demographic",
+                    condition_history=[],
+                    current_allergies=[],
+                    current_conditions=[],
+                    current_medications=[],
+                    current_goals=[],
+                    family_history=[],
+                    surgery_history=[],
+                ),
                 profile="theProfile",
                 validation_status=CaseStatus.GENERATION,
                 batch_identifier="theBatchIdentifier",
@@ -69,7 +88,16 @@ def test_already_generated(helper, psql_case, auditor_file):
                 transcript={
                     "cycle_001": [Line(speaker="speaker1", text="text1"), Line(speaker="speaker2", text="text2")]
                 },
-                limited_chart={},
+                limited_chart=Chart(
+                    demographic_str="",
+                    condition_history=[],
+                    current_allergies=[],
+                    current_conditions=[],
+                    current_medications=[],
+                    current_goals=[],
+                    family_history=[],
+                    surgery_history=[],
+                ),
                 profile="theProfile",
                 validation_status=CaseStatus.GENERATION,
                 batch_identifier="theBatchIdentifier",

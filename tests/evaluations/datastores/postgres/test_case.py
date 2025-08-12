@@ -6,6 +6,7 @@ from evaluations.datastores.postgres.postgres import Postgres
 from evaluations.structures.enums.case_status import CaseStatus
 from evaluations.structures.postgres_credentials import PostgresCredentials
 from evaluations.structures.records.case import Case as Record
+from evaluations.structures.chart import Chart
 from hyperscribe.structures.line import Line
 from tests.helper import compare_sql
 
@@ -182,7 +183,16 @@ def test_get_case(select):
                         ],
                         "cycle_002": [{"speaker": "theSpeaker3", "text": "theText3"}],
                     },
-                    "limited_chart": {"limited": "chart"},
+                    "limited_chart": {
+                        "demographicStr": "Sample demographic",
+                        "conditionHistory": [],
+                        "currentAllergies": [],
+                        "currentConditions": [],
+                        "currentMedications": [],
+                        "currentGoals": [],
+                        "familyHistory": [],
+                        "surgeryHistory": [],
+                    },
                     "profile": "theProfile",
                     "validation_status": "review",
                     "batch_identifier": "theBatchIdentifier",
@@ -200,7 +210,16 @@ def test_get_case(select):
                     ],
                     "cycle_002": [Line(speaker="theSpeaker3", text="theText3")],
                 },
-                limited_chart={"limited": "chart"},
+                limited_chart=Chart(
+                    demographic_str="Sample demographic",
+                    condition_history=[],
+                    current_allergies=[],
+                    current_conditions=[],
+                    current_medications=[],
+                    current_goals=[],
+                    family_history=[],
+                    surgery_history=[],
+                ),
                 profile="theProfile",
                 validation_status=CaseStatus.REVIEW,
                 batch_identifier="theBatchIdentifier",
@@ -248,7 +267,16 @@ def test_upsert(select, alter, mock_datetime):
             ],
             "cycle_002": [Line(speaker="theSpeaker3", text="theText3")],
         },
-        limited_chart={"limited": "chart"},
+        limited_chart=Chart(
+            demographic_str="Sample demographic",
+            condition_history=[],
+            current_allergies=[],
+            current_conditions=[],
+            current_medications=[],
+            current_goals=[],
+            family_history=[],
+            surgery_history=[],
+        ),
         profile="theProfile",
         validation_status=CaseStatus.REVIEW,
         batch_identifier="theBatchIdentifier",
@@ -265,7 +293,16 @@ def test_upsert(select, alter, mock_datetime):
             ],
             "cycle_002": [Line(speaker="theSpeaker3", text="theText3")],
         },
-        limited_chart={"limited": "chart"},
+        limited_chart=Chart(
+            demographic_str="Sample demographic",
+            condition_history=[],
+            current_allergies=[],
+            current_conditions=[],
+            current_medications=[],
+            current_goals=[],
+            family_history=[],
+            surgery_history=[],
+        ),
         profile="theProfile",
         validation_status=CaseStatus.REVIEW,
         batch_identifier="theBatchIdentifier",
@@ -303,7 +340,11 @@ def test_upsert(select, alter, mock_datetime):
     assert compare_sql(sql, exp_sql)
     exp_params = {
         "batch_identifier": "theBatchIdentifier",
-        "limited_chart": '{"limited":"chart"}',
+        "limited_chart": (
+            '{"conditionHistory":[],"currentAllergies":[],"currentConditions":[],'
+            '"currentGoals":[],"currentMedications":[],"demographicStr":"Sample demographic",'
+            '"familyHistory":[],"surgeryHistory":[]}'
+        ),
         "name": "theName",
         "now": date_0,
         "profile": "theProfile",
@@ -352,8 +393,12 @@ def test_upsert(select, alter, mock_datetime):
     exp_params = {
         "batch_identifier": "theBatchIdentifier",
         "id": 147,
-        "limited_chart": '{"limited":"chart"}',
-        "limited_chart_md5": "940793dd3b4d27e6d56dbec1e1ba59ed",
+        "limited_chart": (
+            '{"conditionHistory":[],"currentAllergies":[],"currentConditions":[],'
+            '"currentGoals":[],"currentMedications":[],"demographicStr":"Sample demographic",'
+            '"familyHistory":[],"surgeryHistory":[]}'
+        ),
+        "limited_chart_md5": "b99c17fe55338b6bfbab6a97e6b65dd2",
         "name": "theName",
         "now": date_0,
         "profile": "theProfile",

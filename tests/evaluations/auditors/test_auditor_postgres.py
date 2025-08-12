@@ -7,6 +7,7 @@ from evaluations.structures.enums.case_status import CaseStatus
 from evaluations.structures.postgres_credentials import PostgresCredentials
 from evaluations.structures.records.case import Case as CaseRecord
 from evaluations.structures.records.generated_note import GeneratedNote as GeneratedNoteRecord
+from evaluations.structures.chart import Chart
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.line import Line
@@ -199,7 +200,16 @@ def test_case_prepare(case_store):
             CaseRecord(
                 name="theCase",
                 transcript={},
-                limited_chart={},
+                limited_chart=Chart(
+                    demographic_str="",
+                    condition_history=[],
+                    current_allergies=[],
+                    current_conditions=[],
+                    current_medications=[],
+                    current_goals=[],
+                    family_history=[],
+                    surgery_history=[],
+                ),
                 profile="theCase",
                 validation_status=CaseStatus.GENERATION,
                 batch_identifier="",

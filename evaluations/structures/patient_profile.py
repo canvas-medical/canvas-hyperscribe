@@ -13,8 +13,5 @@ class PatientProfile(NamedTuple):
         }
 
     @classmethod
-    def load_from_json(cls, data: dict) -> PatientProfile:
-        return cls(
-            name=data["name"],
-            profile=data["profile"],
-        )
+    def load_from_json(cls, data: dict) -> list[PatientProfile]:
+        return [PatientProfile(name=name, profile=profile) for name, profile in data.items()]

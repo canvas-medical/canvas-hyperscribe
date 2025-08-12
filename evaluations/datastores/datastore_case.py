@@ -13,7 +13,7 @@ class DatastoreCase:
         postgres_credentials = HelperEvaluation.postgres_credentials()
         if postgres_credentials.is_ready():
             case_id = PostgresCase(postgres_credentials).get_case(case)
-            return bool(len(case_id.transcript) > 0 and len(case_id.limited_chart) > 0)
+            return bool(len(case_id.transcript) > 0 and len(case_id.limited_chart.demographic_str) > 0)
 
         return AuditorFile.already_generated(case)
 

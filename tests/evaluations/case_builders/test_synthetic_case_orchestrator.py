@@ -1,5 +1,5 @@
 import json
-from argparse import Namespace
+from tests.helper import MockClass
 from pathlib import Path
 from unittest.mock import patch, call, MagicMock
 
@@ -20,7 +20,7 @@ from evaluations.structures.records.synthetic_case import SyntheticCase as Synth
 from evaluations.structures.specification import Specification
 from hyperscribe.structures.line import Line
 from evaluations.structures.chart import Chart
-from evaluations.structures.chart_item import ChartItem
+from hyperscribe.structures.coded_item import CodedItem
 from evaluations.structures.patient_profile import PatientProfile
 
 
@@ -43,7 +43,16 @@ def sample_case_synthetic_pairs():
         id=1,
         name="John Doe",
         transcript={"cycle_001": []},
-        limited_chart={"medications": []},
+        limited_chart=Chart(
+            demographic_str="",
+            condition_history=[],
+            current_allergies=[],
+            current_conditions=[],
+            current_medications=[],
+            current_goals=[],
+            family_history=[],
+            surgery_history=[],
+        ),
         profile="Profile 1",
         validation_status=CaseStatus.GENERATION,
         batch_identifier="",
@@ -112,38 +121,25 @@ def test_generate(
         mock_transcript_generator_class.reset_mock()
         mock_chart_generator_class.reset_mock()
         mock_split_cycles.reset_mock()
-        mock_profile_generator.reset_mock()
-        mock_transcript_generator.reset_mock()
-        mock_chart_generator.reset_mock()
-
-    mock_profile_generator = MagicMock()
-    mock_transcript_generator = MagicMock()
-    mock_chart_generator = MagicMock()
 
     profiles_dict = profiles if isinstance(profiles, dict) else dict([profiles])
-    profiles_list = [PatientProfile(name=n, profile=p) for n, p in profiles_dict.items()]
-    mock_profile_generator.generate_batch.side_effect = [profiles_list]
-    mock_profile_generator_class.side_effect = [mock_profile_generator]
+    profiles_list = [PatientProfile(name=name, profile=profile) for name, profile in profiles_dict.items()]
+    mock_profile_generator_class.return_value.generate_batch.side_effect = [profiles_list]
 
     chart = Chart(
         demographic_str="Demo",
-        condition_history=[ChartItem(code="Z87.891", label="Personal history", uuid="uuid-1")],
+        condition_history=[CodedItem(uuid="uuid-1", label="Personal history", code="Z87.891")],
         current_allergies=[],
-        current_conditions=[ChartItem(code="J45.9", label="Test condition", uuid="uuid-2")],
-        current_medications=[ChartItem(code="329498", label="Test medication", uuid="uuid-3")],
-        current_goals=[ChartItem(code="", label="Test goal", uuid="uuid-4")],
+        current_conditions=[CodedItem(uuid="uuid-2", label="Test condition", code="J45.9")],
+        current_medications=[CodedItem(uuid="uuid-3", label="Test medication", code="329498")],
+        current_goals=[CodedItem(uuid="uuid-4", label="Test goal", code="")],
         family_history=[],
         surgery_history=[],
     )
-    mock_chart_generator.generate_chart_for_profile.side_effect = [chart] * len(profiles_list)
-    mock_chart_generator_class.side_effect = [mock_chart_generator]
+    mock_chart_generator_class.return_value.generate_chart_for_profile.side_effect = [chart] * len(profiles_list)
+    mock_chart_generator_class.return_value.assign_valid_uuids.side_effect = [chart] * len(profiles_list)
 
-    lines = []
-    for data in line_objects:
-        line = MagicMock(spec=Line)
-        line.speaker = data["speaker"]
-        line.text = data["text"]
-        lines.append(line)
+    lines = [Line(speaker=data["speaker"], text=data["text"]) for data in line_objects]
     specifications = Specification(
         turn_total=len(line_objects),
         speaker_sequence=["Clinician", "Patient"],
@@ -154,10 +150,9 @@ def test_generate(
         patient_style=SyntheticCasePatientStyle.ANXIOUS_TALKATIVE,
         bucket=SyntheticCaseTurnBuckets.SHORT,
     )
-    mock_transcript_generator.generate_transcript_for_profile.side_effect = [(lines, specifications)] * len(
-        profiles_list
-    )
-    mock_transcript_generator_class.side_effect = [mock_transcript_generator]
+    mock_transcript_generator_class.return_value.generate_transcript_for_profile.side_effect = [
+        (lines, specifications)
+    ] * len(profiles_list)
 
     cycle_key = "cycle_001"
     mock_split_cycles.side_effect = [{cycle_key: lines}] * len(profiles_list)
@@ -175,20 +170,24 @@ def test_generate(
         assert synthetic_case_record.category == "test_cat"
         assert synthetic_case_record.text_llm_vendor == vendor_key_instance.vendor
 
-    assert mock_profile_generator_class.mock_calls == [call(vendor_key=vendor_key_instance)]
-    assert mock_profile_generator.generate_batch.mock_calls == [call(1, len(profiles_list))]
-    assert mock_chart_generator_class.mock_calls == [call(vendor_key=vendor_key_instance, profiles=profiles_list)]
-    calls = [call(p) for p in profiles_list]
-    assert mock_chart_generator.generate_chart_for_profile.mock_calls == calls
-    assert mock_transcript_generator.generate_transcript_for_profile.mock_calls == calls
-    assert mock_transcript_generator_class.mock_calls == [call(vendor_key=vendor_key_instance, profiles=profiles_list)]
-    assert mock_split_cycles.mock_calls == [call(lines)] * len(profiles_list)
+    calls = [call(vendor_key=vendor_key_instance), call().generate_batch(1, len(profiles_list))]
+    assert mock_profile_generator_class.mock_calls == calls
+    calls = [call(vendor_key=vendor_key_instance, profiles=profiles_list)]
+    for profile in profiles_list:
+        calls.append(call().generate_chart_for_profile(profile))
+        calls.append(call().assign_valid_uuids(chart.to_json()))
+    assert mock_chart_generator_class.mock_calls == calls
+    calls = [call(vendor_key=vendor_key_instance, profiles=profiles_list)]
+    for profile in profiles_list:
+        calls.append(call().generate_transcript_for_profile(profile))
+    assert mock_transcript_generator_class.mock_calls == calls
+    calls = [call(lines)] * len(profiles_list)
+    assert mock_split_cycles.mock_calls == calls
 
     reset_mocks()
 
 
-@patch("evaluations.case_builders.synthetic_case_orchestrator.HelperEvaluation.postgres_credentials")
-@patch("evaluations.case_builders.synthetic_case_orchestrator.HelperEvaluation.settings")
+@patch("evaluations.case_builders.synthetic_case_orchestrator.HelperEvaluation")
 @patch("evaluations.case_builders.synthetic_case_orchestrator.SyntheticCaseDatastore")
 @patch("evaluations.case_builders.synthetic_case_orchestrator.CaseDatastore")
 @patch.object(SyntheticCaseOrchestrator, "generate")
@@ -196,62 +195,41 @@ def test_generate_and_save2database(
     mock_generate,
     mock_case_datastore_class,
     mock_synthetic_datastore_class,
-    mock_settings,
-    mock_postgres_credentials,
+    mock_helper,
     vendor_key_instance,
     sample_case_synthetic_pairs,
 ):
     tested = SyntheticCaseOrchestrator
 
-    # mocks
-    mock_credentials = MagicMock()
-    mock_postgres_credentials.side_effect = [mock_credentials]
-
-    mock_settings_instance = MagicMock()
-    mock_settings_instance.llm_text = vendor_key_instance
-    mock_settings.side_effect = [mock_settings_instance]
-
-    mock_case_datastore = MagicMock()
-    mock_synthetic_datastore = MagicMock()
-    mock_case_datastore_class.side_effect = [mock_case_datastore]
-    mock_synthetic_datastore_class.side_effect = [mock_synthetic_datastore]
-
-    mock_generate.side_effect = [sample_case_synthetic_pairs]
-    mock_upserted_case = MagicMock()
-    mock_upserted_case.id = 123
-    mock_upserted_synthetic = MagicMock()
-    mock_upserted_synthetic.id = 456
-    mock_case_datastore.upsert.side_effect = [mock_upserted_case]
-    mock_synthetic_datastore.upsert.side_effect = [mock_upserted_synthetic]
-
     def reset_mocks():
         mock_generate.reset_mock()
         mock_case_datastore_class.reset_mock()
         mock_synthetic_datastore_class.reset_mock()
-        mock_settings.reset_mock()
-        mock_postgres_credentials.reset_mock()
-        mock_credentials.reset_mock()
-        mock_settings_instance.reset_mock()
-        mock_case_datastore.reset_mock()
-        mock_synthetic_datastore.reset_mock()
-        mock_upserted_case.reset_mock()
-        mock_upserted_synthetic.reset_mock()
+        mock_helper.reset_mock()
+
+    mock_generate.side_effect = [sample_case_synthetic_pairs]
+    mock_helper.postgres_credentials.side_effect = ["thePostgresCredentials"]
+    mock_helper.settings.side_effect = [MockClass(llm_text=vendor_key_instance)]
+
+    mock_upserted_case = MockClass(id=123)
+    mock_upserted_synthetic = "theUpsertedSynthetic"
+    mock_case_datastore_class.return_value.upsert.side_effect = [mock_upserted_case]
+    mock_synthetic_datastore_class.return_value.upsert.side_effect = [mock_upserted_synthetic]
 
     result = tested.generate_and_save2database(2, 5, "test_category")
     expected = [mock_upserted_synthetic]
-
     assert result == expected
 
-    assert mock_generate.mock_calls == [call(2, 5)]
-    assert mock_case_datastore_class.mock_calls == [call(mock_credentials)]
-    assert mock_synthetic_datastore_class.mock_calls == [call(mock_credentials)]
-    assert mock_settings.mock_calls == [call()]
-    assert mock_postgres_credentials.mock_calls == [call()]
-    assert mock_credentials.mock_calls == []
-    assert mock_settings_instance.mock_calls == []
-    assert mock_case_datastore.mock_calls == [call.upsert(sample_case_synthetic_pairs[0][0])]
-    assert mock_synthetic_datastore.mock_calls == [
-        call.upsert(
+    calls = [call(2, 5)]
+    assert mock_generate.mock_calls == calls
+    calls = [
+        call("thePostgresCredentials"),
+        call().upsert(sample_case_synthetic_pairs[0][0]),
+    ]
+    assert mock_case_datastore_class.mock_calls == calls
+    calls = [
+        call("thePostgresCredentials"),
+        call().upsert(
             SyntheticCaseRecord(
                 case_id=123,
                 category="test",
@@ -268,10 +246,14 @@ def test_generate_and_save2database(
                 text_llm_name="o3",
                 id=1,
             )
-        )
+        ),
     ]
-    assert mock_upserted_case.mock_calls == []
-    assert mock_upserted_synthetic.mock_calls == []
+    assert mock_synthetic_datastore_class.mock_calls == calls
+    calls = [
+        call.postgres_credentials(),
+        call.settings(),
+    ]
+    assert mock_helper.mock_calls == calls
 
     reset_mocks()
 
@@ -348,7 +330,7 @@ def test_main__success(
         mock_parser.reset_mock()
 
     output_root = tmp_files if output_root_provided else None
-    args = Namespace(
+    args = MockClass(
         batches=2,
         batch_size=5,
         category="test_category",
@@ -418,7 +400,7 @@ def test_main__validation_error(mock_parser_class):
         mock_parser_class.reset_mock()
         mock_parser.reset_mock()
 
-    validation_args = Namespace(
+    validation_args = MockClass(
         batches=2,
         batch_size=5,
         category="test_category",

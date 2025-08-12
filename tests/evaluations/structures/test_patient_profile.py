@@ -49,27 +49,30 @@ def test_load_from_json():
     tests = [
         (
             {
-                "name": "Bob Johnson",
-                "profile": "30-year-old male, healthy, no current medications. Routine check-up.",
+                "Bob Johnson": "30-year-old male, healthy, no current medications. Routine check-up.",
+                "Alice Brown": "55-year-old female with osteoarthritis. Takes ibuprofen as needed for joint pain.",
             },
-            PatientProfile(
-                name="Bob Johnson",
-                profile="30-year-old male, healthy, no current medications. Routine check-up.",
-            ),
+            [
+                PatientProfile(
+                    name="Bob Johnson",
+                    profile="30-year-old male, healthy, no current medications. Routine check-up.",
+                ),
+                PatientProfile(
+                    name="Alice Brown",
+                    profile="55-year-old female with osteoarthritis. Takes ibuprofen as needed for joint pain.",
+                ),
+            ],
         ),
         (
-            {"name": "", "profile": ""},
-            PatientProfile(name="", profile=""),
+            {"Patient 1": "Profile text 1", "Patient 2": "Profile text 2"},
+            [
+                PatientProfile(name="Patient 1", profile="Profile text 1"),
+                PatientProfile(name="Patient 2", profile="Profile text 2"),
+            ],
         ),
         (
-            {
-                "name": "Alice Brown",
-                "profile": "55-year-old female with osteoarthritis. Takes ibuprofen as needed for joint pain.",
-            },
-            PatientProfile(
-                name="Alice Brown",
-                profile="55-year-old female with osteoarthritis. Takes ibuprofen as needed for joint pain.",
-            ),
+            {},
+            [],
         ),
     ]
 

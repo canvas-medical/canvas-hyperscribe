@@ -108,7 +108,7 @@ class RubricGenerator:
                 system_prompt=system_prompt,
                 user_prompt=user_prompt,
                 schema=self.schema_rubric(),
-                returned_class=list[RubricCriterion],
+                returned_class=RubricCriterion,
             ),
         )
 
@@ -124,7 +124,7 @@ class RubricGenerator:
         context = cls.load_json(canvas_context_path)
 
         rubric_list = generator.generate(transcript, chart, context)
-        output_path.write_text(json.dumps([criterion._asdict() for criterion in rubric_list], indent=2))
+        output_path.write_text(json.dumps([criterion.to_json() for criterion in rubric_list], indent=2))
         print(f"Saved rubric to file at: {output_path}")
 
     @classmethod
@@ -149,7 +149,7 @@ class RubricGenerator:
             validation_timestamp=datetime.now(UTC),
             validation=RubricValidation.NOT_EVALUATED,
             author=Constants.RUBRIC_AUTHOR_LLM,
-            rubric=[criterion._asdict() for criterion in rubric_list],
+            rubric=[criterion.to_json() for criterion in rubric_list],
             case_provenance_classification="",
             comments="",
             text_llm_vendor=vendor_key.vendor,

@@ -79,3 +79,9 @@ class MockFile:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
+
+
+class MockClass:
+    def __init__(self, **kwargs):
+        for name, value in kwargs.items():
+            setattr(self, name, value)
