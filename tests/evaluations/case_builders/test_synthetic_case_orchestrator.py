@@ -92,7 +92,7 @@ def test___init__(mock_profile_generator_class, tmp_files, vendor_key_instance):
     assert tested.vendor_key == vendor_key_instance
     assert tested.category == "test_category"
     assert tested.profile_generator == mock_profile_generator
-    assert mock_profile_generator_class.mock_calls == [call(vendor_key_instance, "test_category")]
+    assert mock_profile_generator_class.mock_calls == [call(vendor_key_instance.api_key, "test_category")]
     reset_mocks()
 
 

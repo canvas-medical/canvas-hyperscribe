@@ -107,7 +107,7 @@ def test_generate__json_success(mock_llm_cls, mock_memory_log, tmp_path, returne
 
     schema = {"type": "object", "properties": {"key": {"type": "string"}}, "required": ["key"]}
     tested = HelperSyntheticJson.generate_json(
-        vendor_key=VendorKey("openai", "dummy_key"),
+        openai_api_key="dummy_key",
         system_prompt=["System prompt"],
         user_prompt=["User prompt"],
         schema=schema,
@@ -149,7 +149,7 @@ def test_generate_json__unsupported_returned_class(mock_llm_cls, mock_memory_log
 
     with pytest.raises(ValueError, match="Unsupported returned_class"):
         HelperSyntheticJson.generate_json(
-            vendor_key=VendorKey("openai", "dummy_key"),
+            openai_api_key="dummy_key",
             system_prompt=["System prompt"],
             user_prompt=["User prompt"],
             schema=schema,
@@ -187,7 +187,7 @@ def test_generate_json__chat_error_exits(mock_llm_cls, mock_memory_log, tmp_path
     ):
         with pytest.raises(SystemExit):
             HelperSyntheticJson.generate_json(
-                vendor_key=VendorKey("openai", "dummy"),
+                openai_api_key="dummy",
                 system_prompt=["system"],
                 user_prompt=["user"],
                 schema=schema,
