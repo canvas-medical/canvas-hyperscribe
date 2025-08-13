@@ -103,8 +103,12 @@ def test_constants():
         "PROGRESS_SETTING_KEY": "sendProgress",
         #
         "PLUGIN_API_BASE_ROUTE": "/plugin-io/api/hyperscribe",
-        "FUMAGE_BEARER_TOKEN": "FumageBearerToken",
-        "COPILOTS_TEAM_FHIR_GROUP_ID": "CopilotsTeamFHIRGroupId",
-        "CANVAS_BOT_DBID": 1,
+        "PLUGIN_WS_BASE_ROUTE": "/plugin-io/ws/hyperscribe",
+        #
+        "AUDIO_IDLE_PAUSE": "pause",
+        "AUDIO_IDLE_RESUME": "resume",
+        "AUDIO_IDLE_END": "end",
+        #
+        "WS_CHANNEL_PROGRESSES": "progresses",
     }
     assert is_constant(tested, constants)

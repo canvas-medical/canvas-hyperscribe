@@ -6,8 +6,8 @@ from canvas_generated.messages.events_pb2 import Event as EventRequest
 from canvas_sdk.events import Event
 from canvas_sdk.events.base import TargetType
 from canvas_sdk.handlers.action_button import ActionButton
-from canvas_sdk.v1.data.patient import Patient
 from canvas_sdk.v1.data.note import Note, CurrentNoteStateEvent
+from canvas_sdk.v1.data.patient import Patient
 
 from hyperscribe.handlers.launcher import Launcher
 from tests.helper import is_constant
@@ -41,15 +41,16 @@ def test_handle(launch_modal_effect, authenticator, note_db):
 
     launch_modal_effect.return_value.apply.side_effect = [Effect(type="LOG", payload="SomePayload")]
     launch_modal_effect.TargetType.RIGHT_CHART_PANE = "right_chart_pane"
-    authenticator.presigned_url.side_effect = ["/plugin-io/api/hyperscribe/capture/patientId/noteId"]
-    note_db.get.return_value.id = "noteId"
+    authenticator.presigned_url.side_effect = ["/plugin-io/api/hyperscribe/capture/patientId/noteId/5481"]
+    note_db.get.side_effect = [Note(id="noteId", dbid=5481)]
 
-    event = Event(EventRequest(context='{"note_id":"noteId"}'))
+    event = Event(EventRequest(context='{"note_id":5481}'))
     event.target = TargetType(id="patientId", type=Patient)
     secrets = {
         "AudioHost": "https://the.audio.server/path/to/audios/",
         "AudioIntervalSeconds": 7,
         "APISigningKey": "theApiSigningKey",
+        "CopilotsTeamFHIRGroupId": "theCopilotsTeamFHIRGroupId",
     }
     environment = {"CUSTOMER_IDENTIFIER": "theTestEnv"}
     tested = Launcher(event, secrets, environment)
@@ -58,19 +59,23 @@ def test_handle(launch_modal_effect, authenticator, note_db):
     assert result == expected
 
     calls = [
-        call(url="/plugin-io/api/hyperscribe/capture/patientId/noteId", target="right_chart_pane", title="Hyperscribe"),
+        call(
+            url="/plugin-io/api/hyperscribe/capture/patientId/noteId/5481",
+            target="right_chart_pane",
+            title="Hyperscribe",
+        ),
         call().apply(),
     ]
     assert launch_modal_effect.mock_calls == calls
     calls = [
         call.presigned_url(
             "theApiSigningKey",
-            "/plugin-io/api/hyperscribe/capture/patientId/noteId",
+            "/plugin-io/api/hyperscribe/capture/patientId/noteId/5481",
             {},
         )
     ]
     assert authenticator.mock_calls == calls
-    calls = [call.get(dbid="noteId")]
+    calls = [call.get(dbid=5481)]
     assert note_db.mock_calls == calls
     reset_mocks()
 
@@ -118,6 +123,10 @@ def test_visible(last_note_state_event_db):
             }
             tested = Launcher(event, secrets)
             assert tested.visible() is (expected and editable)
+            exp_button_title = "🖊️ Hyperscribe"
+            if expected and editable:
+                exp_button_title = "🖊️ Hyperscribe (778)"
+            assert tested.BUTTON_TITLE == exp_button_title
 
             calls = []
             if expected:

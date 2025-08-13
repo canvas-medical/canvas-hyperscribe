@@ -17,21 +17,25 @@ class Launcher(ActionButton):
     RESPONDS_TO = [EventType.Name(EventType.SHOW_NOTE_HEADER_BUTTON), EventType.Name(EventType.ACTION_BUTTON_CLICKED)]
 
     def handle(self) -> list[Effect]:
-        note_id = str(Note.objects.get(dbid=self.event.context["note_id"]).id)
-        patient_id = self.target
+        result: list[Effect] = []
+        note_id = self.event.context["note_id"]
+        note_uuid = str(Note.objects.get(dbid=note_id).id)
+        patient_uuid = self.target
 
         presigned_url = Authenticator.presigned_url(
             self.secrets[Constants.SECRET_API_SIGNING_KEY],
-            f"{Constants.PLUGIN_API_BASE_ROUTE}/capture/{patient_id}/{note_id}",
+            f"{Constants.PLUGIN_API_BASE_ROUTE}/capture/{patient_uuid}/{note_uuid}/{note_id}",
             {},
         )
 
-        hyperscribe_pane = LaunchModalEffect(
-            url=presigned_url,
-            target=LaunchModalEffect.TargetType.RIGHT_CHART_PANE,
-            title="Hyperscribe",
+        result.append(
+            LaunchModalEffect(
+                url=presigned_url,
+                target=LaunchModalEffect.TargetType.RIGHT_CHART_PANE,
+                title="Hyperscribe",
+            ).apply()
         )
-        return [hyperscribe_pane.apply()]
+        return result
 
     def visible(self) -> bool:
         settings = Settings.from_dictionary(self.secrets)
@@ -39,4 +43,6 @@ class Launcher(ActionButton):
         result = False
         if (not settings.is_tuning) and settings.staffers_policy.is_allowed(staff_id):
             result = CurrentNoteStateEvent.objects.get(note_id=self.event.context["note_id"]).editable()
+        if result:
+            self.BUTTON_TITLE = f"🖊️ Hyperscribe ({self.event.context['note_id']})"
         return result

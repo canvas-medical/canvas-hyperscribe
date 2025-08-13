@@ -1,7 +1,9 @@
 from datetime import datetime, date
 from enum import Enum
 from re import match
-from typing import Type
+from typing import Type, Any
+
+from canvas_sdk.utils.db import thread_cleanup
 
 from hyperscribe.libraries.constants import Constants
 from hyperscribe.libraries.memory_log import MemoryLog
@@ -13,6 +15,20 @@ from hyperscribe.structures.settings import Settings
 
 
 class Helper:
+    @classmethod
+    def with_cleanup(cls, fn: Any) -> Any:  # fn should be Callable, but it is not allowed as import yet
+        """
+        Decorator that calls thread_cleanup() after the wrapped function.
+        """
+
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            try:
+                return fn(*args, **kwargs)
+            finally:
+                thread_cleanup()
+
+        return wrapper
+
     @classmethod
     def str2datetime(cls, string: str | None) -> datetime | None:
         try:
@@ -57,3 +73,17 @@ class Helper:
         if settings.llm_audio.vendor.upper() == Constants.VENDOR_GOOGLE.upper():
             result = LlmGoogle
         return result(memory_log, settings.llm_audio.api_key, settings.llm_audio_model(), settings.audit_llm)
+
+    @classmethod
+    def canvas_host(cls, canvas_instance: str) -> str:
+        result = f"https://{canvas_instance}.canvasmedical.com"
+        if canvas_instance == "local":
+            result = "http://localhost:8000"
+        return result
+
+    @classmethod
+    def canvas_ws_host(cls, canvas_instance: str) -> str:
+        result = f"wss://{canvas_instance}.canvasmedical.com"
+        if canvas_instance == "local":
+            result = "ws://localhost:8000"
+        return result

@@ -1,17 +1,13 @@
-import json
-from datetime import datetime, timezone, UTC
+from datetime import datetime, timezone
 from unittest.mock import patch, call, MagicMock
 
 import pytest
 from canvas_generated.messages.effects_pb2 import Effect
-from canvas_generated.messages.events_pb2 import Event as EventRequest
-from canvas_sdk.events import Event
-from canvas_sdk.v1.data import TaskComment, Note, Command, TaskLabel
-from logger import log
+from canvas_sdk.v1.data import Command
 
-from hyperscribe.handlers.commander import Commander
 from hyperscribe.libraries.audio_client import AudioClient, CachedAudioSession
 from hyperscribe.libraries.cached_sdk import CachedSdk
+from hyperscribe.libraries.commander import Commander
 from hyperscribe.libraries.implemented_commands import ImplementedCommands
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
@@ -27,12 +23,6 @@ from hyperscribe.structures.vendor_key import VendorKey
 from tests.helper import is_constant
 
 
-def test_constants():
-    tested = Commander
-    constants = {"MAX_PREVIOUS_AUDIOS": 0, "RESPONDS_TO": ["TASK_COMMENT_CREATED"]}
-    assert is_constant(tested, constants)
-
-
 @pytest.fixture
 def the_audio_client() -> AudioClient:
     return AudioClient.for_operation("https://theAudioServer.com", "theTestEnv", "theAudioHostSharedSecret")
@@ -43,453 +33,18 @@ def the_session() -> CachedAudioSession:
     return CachedAudioSession("theSessionId", "theUserToken", "theLoggedInUserId")
 
 
-@patch("hyperscribe.handlers.commander.thread_cleanup")
-def test_with_cleanup(thread_cleanup):
-    function = MagicMock()
-
-    def reset_mocks():
-        thread_cleanup.reset_mock()
-        function.reset_mock()
-
+def test_constants():
     tested = Commander
-
-    # no error
-    function.side_effect = ["theResult"]
-    result = tested.with_cleanup(function)("a", "b", c="c")
-    assert result == "theResult"
-    calls = [call("a", "b", c="c")]
-    assert function.mock_calls == calls
-    calls = [call()]
-    assert thread_cleanup.mock_calls == calls
-    reset_mocks()
-
-    # with error
-    with pytest.raises(ValueError, match="Test error"):
-        function.side_effect = [ValueError("Test error")]
-        result = tested.with_cleanup(function)("x", "y", z="z")
-    calls = [call("x", "y", z="z")]
-    assert function.mock_calls == calls
-    calls = [call()]
-    assert thread_cleanup.mock_calls == calls
-    reset_mocks()
+    constants = {"MAX_PREVIOUS_AUDIOS": 0}
+    assert is_constant(tested, constants)
 
 
-@patch("hyperscribe.handlers.commander.datetime", wraps=datetime)
-@patch("hyperscribe.handlers.commander.StopAndGo")
-@patch("hyperscribe.handlers.commander.LlmTurnsStore")
-@patch("hyperscribe.handlers.commander.Progress")
-@patch("hyperscribe.handlers.commander.MemoryLog")
-@patch.object(log, "info")
-@patch.object(Note, "objects")
-@patch.object(TaskComment, "objects")
-@patch.object(Commander, "compute_audio")
-def test_compute(
-    compute_audio,
-    task_comment_db,
-    note_db,
-    info,
-    memory_log,
-    progress,
-    llm_turns_store,
-    stop_and_go,
-    mock_datetime,
-    monkeypatch,
-    the_audio_client,
-):
-    monkeypatch.setattr("hyperscribe.handlers.commander.version", "theVersion")
-
-    mock_comment = MagicMock()
-    mock_note = MagicMock()
-
-    def reset_mocks():
-        compute_audio.reset_mock()
-        task_comment_db.reset_mock()
-        note_db.reset_mock()
-        info.reset_mock()
-        memory_log.reset_mock()
-        progress.reset_mock()
-        llm_turns_store.reset_mock()
-        stop_and_go.reset_mock()
-        mock_datetime.reset_mock()
-        mock_comment.reset_mock()
-        mock_note.reset_mock()
-
-    task_labels = [TaskLabel(name="label1"), TaskLabel(name="label2")]
-    identification = IdentificationParameters(
-        patient_uuid="patientUuid",
-        note_uuid="noteUuid",
-        provider_uuid="providerUuid",
-        canvas_instance="theTestEnv",
-    )
-    aws_s3_credentials = AwsS3Credentials(
-        aws_key="theKey",
-        aws_secret="theSecret",
-        region="theRegion",
-        bucket="theBucketLogs",
-    )
-    settings = Settings(
-        llm_text=VendorKey(vendor="textVendor", api_key="textAPIKey"),
-        llm_audio=VendorKey(vendor="audioVendor", api_key="audioAPIKey"),
-        science_host="theScienceHost",
-        ontologies_host="theOntologiesHost",
-        pre_shared_key="thePreSharedKey",
-        structured_rfv=True,
-        audit_llm=False,
-        is_tuning=False,
-        api_signing_key="theApiSigningKey",
-        send_progress=True,  # <-- changed in the code
-        commands_policy=AccessPolicy(policy=False, items=["Command1", "Command2", "Command3"]),
-        staffers_policy=AccessPolicy(policy=False, items=["31", "47"]),
-        cycle_transcript_overlap=37,
-    )
-    date_x = datetime(2025, 5, 9, 12, 34, 21, tzinfo=timezone.utc)
-    secrets = {
-        "AudioHost": "https://theAudioServer.com",
-        "AudioHostSharedSecret": "theAudioHostSharedSecret",
-        "VendorTextLLM": "textVendor",
-        "KeyTextLLM": "textAPIKey",
-        "VendorAudioLLM": "audioVendor",
-        "KeyAudioLLM": "audioAPIKey",
-        "ScienceHost": "theScienceHost",
-        "OntologiesHost": "theOntologiesHost",
-        "PreSharedKey": "thePreSharedKey",
-        "StructuredReasonForVisit": "y",
-        "AuditLLMDecisions": "n",
-        "AwsKey": "theKey",
-        "AwsSecret": "theSecret",
-        "AwsRegion": "theRegion",
-        "AwsBucketLogs": "theBucketLogs",
-        "APISigningKey": "theApiSigningKey",
-        "sendProgress": False,
-        "CommandsPolicy": False,
-        "CommandsList": "Command1 Command3, Command2",
-        "StaffersPolicy": False,
-        "StaffersList": "47 31",
-        "CycleTranscriptOverlap": "37",
-    }
-    event = Event(EventRequest(target="taskUuid"))
-    environment = {"CUSTOMER_IDENTIFIER": "theTestEnv"}
-    tested = Commander(event, secrets, environment)
-
-    # the task comment is not related to the Audio plugin
-    compute_audio.side_effect = []
-    stop_and_go.side_effect = []
-    mock_comment.id = "commentUuid"
-    mock_comment.task.id = "taskUuid"
-    mock_comment.task.labels.all.side_effect = [task_labels]
-    mock_comment.task.labels.filter.return_value.first.side_effect = [""]
-    task_comment_db.get.side_effect = [mock_comment]
-
-    result = tested.compute()
-    assert result == []
-
-    assert compute_audio.mock_calls == []
-    calls = [call.get(id="taskUuid")]
-    assert task_comment_db.mock_calls == calls
-    assert note_db.mock_calls == []
-    assert info.mock_calls == []
-    assert memory_log.mock_calls == []
-    assert progress.mock_calls == []
-    assert llm_turns_store.mock_calls == []
-    assert stop_and_go.mock_calls == []
-    calls = [call.task.labels.filter(name="Encounter Copilot"), call.task.labels.filter().first()]
-    assert mock_comment.mock_calls == calls
-    assert mock_note.mock_calls == []
-    reset_mocks()
-
-    # the task is related to the Audio plugin
-    # -- the discussion has been ended
-    stop_and_go.is_ended = True
-    stop_and_go.is_paused = True
-    stop_and_go.cycle = 6
-
-    compute_audio.side_effect = []
-    stop_and_go.get.side_effect = [stop_and_go]
-    mock_comment.id = "commentUuid"
-    mock_comment.body = json.dumps(
-        {
-            "chunk_index": 7,
-            "note_id": "noteUuid",
-            "patient_id": "patientUuid",
-            "is_paused": False,
-            "created": "2025-05-09T12:34:55+00:00",
-            "finished": None,
-        },
-    )
-    mock_comment.task.id = "taskUuid"
-    mock_comment.task.labels.all.side_effect = [task_labels]
-    mock_comment.task.labels.filter.return_value.first.side_effect = ["aTask"]
-    task_comment_db.get.side_effect = [mock_comment]
-    mock_datetime.now.side_effect = []
-    note_db.get.side_effect = []
-
-    result = tested.compute()
-    assert result == []
-
-    assert compute_audio.mock_calls == []
-    calls = [call.get(id="taskUuid")]
-    assert task_comment_db.mock_calls == calls
-    calls = [call("  => discussion is ended")]
-    assert info.mock_calls == calls
-    assert memory_log.mock_calls == []
-    assert progress.mock_calls == []
-    assert llm_turns_store.mock_calls == []
-    calls = [call.get("noteUuid")]
-    assert stop_and_go.mock_calls == calls
-    calls = [call.task.labels.filter(name="Encounter Copilot"), call.task.labels.filter().first()]
-    assert mock_comment.mock_calls == calls
-    assert mock_note.mock_calls == []
-    assert mock_datetime.mock_calls == []
-    reset_mocks()
-    # -- the discussion has been paused
-    stop_and_go.is_ended = False
-    stop_and_go.is_paused = True
-    stop_and_go.cycle = 6
-
-    compute_audio.side_effect = []
-    stop_and_go.get.side_effect = [stop_and_go]
-    mock_comment.id = "commentUuid"
-    mock_comment.body = json.dumps(
-        {
-            "chunk_index": 7,
-            "note_id": "noteUuid",
-            "patient_id": "patientUuid",
-            "is_paused": False,
-            "created": "2025-05-09T12:34:55+00:00",
-            "finished": None,
-        },
-    )
-    mock_comment.task.id = "taskUuid"
-    mock_comment.task.labels.all.side_effect = [task_labels]
-    mock_comment.task.labels.filter.return_value.first.side_effect = ["aTask"]
-    task_comment_db.get.side_effect = [mock_comment]
-    mock_datetime.now.side_effect = []
-    note_db.get.side_effect = []
-
-    result = tested.compute()
-    assert result == []
-
-    assert compute_audio.mock_calls == []
-    calls = [call.get(id="taskUuid")]
-    assert task_comment_db.mock_calls == calls
-    calls = [call("  => discussion is paused")]
-    assert info.mock_calls == calls
-    assert memory_log.mock_calls == []
-    assert progress.mock_calls == []
-    assert llm_turns_store.mock_calls == []
-    calls = [call.get("noteUuid")]
-    assert stop_and_go.mock_calls == calls
-    calls = [call.task.labels.filter(name="Encounter Copilot"), call.task.labels.filter().first()]
-    assert mock_comment.mock_calls == calls
-    assert mock_note.mock_calls == []
-    assert mock_datetime.mock_calls == []
-    reset_mocks()
-    # -- set to pause
-    stop_and_go.is_ended = False
-    stop_and_go.is_paused = False
-    stop_and_go.cycle = 6
-
-    compute_audio.side_effect = []
-    stop_and_go.get.side_effect = [stop_and_go]
-    mock_comment.id = "commentUuid"
-    mock_comment.body = json.dumps(
-        {
-            "chunk_index": -1,
-            "note_id": "noteUuid",
-            "patient_id": "patientUuid",
-            "is_paused": True,
-            "created": "2025-05-09T12:34:55+00:00",
-            "finished": None,
-        },
-    )
-    mock_comment.task.id = "taskUuid"
-    mock_comment.task.labels.all.side_effect = [task_labels]
-    mock_comment.task.labels.filter.return_value.first.side_effect = ["aTask"]
-    task_comment_db.get.side_effect = [mock_comment]
-    mock_datetime.now.side_effect = []
-    note_db.get.side_effect = []
-
-    result = tested.compute()
-    assert result == []
-
-    assert compute_audio.mock_calls == []
-    calls = [call.get(id="taskUuid")]
-    assert task_comment_db.mock_calls == calls
-    calls = [call("  => discussion is paused")]
-    assert info.mock_calls == calls
-    assert memory_log.mock_calls == []
-    assert progress.mock_calls == []
-    assert llm_turns_store.mock_calls == []
-    calls = [
-        call.get("noteUuid"),
-        call.save(),
-    ]
-    assert stop_and_go.mock_calls == calls
-    assert stop_and_go.is_paused is True
-    calls = [call.task.labels.filter(name="Encounter Copilot"), call.task.labels.filter().first()]
-    assert mock_comment.mock_calls == calls
-    assert mock_note.mock_calls == []
-    assert mock_datetime.mock_calls == []
-    reset_mocks()
-
-    # -- unset to pause
-    stop_and_go.is_ended = False
-    stop_and_go.is_paused = True
-    stop_and_go.cycle = 7
-    compute_audio.side_effect = [(True, [Effect(type="LOG", payload="SomePayload")])]
-    stop_and_go.get.side_effect = [stop_and_go, stop_and_go]
-    mock_comment.id = "commentUuid"
-    mock_comment.body = json.dumps(
-        {"chunk_index": -1, "note_id": "noteUuid", "is_paused": False, "created": "2025-05-09T12:34:55+00:00"}
-    )
-    mock_comment.task.id = "taskUuid"
-    mock_comment.task.labels.all.side_effect = [task_labels]
-    mock_comment.task.labels.filter.return_value.first.side_effect = ["aTask"]
-    task_comment_db.get.side_effect = [mock_comment]
-    mock_datetime.now.side_effect = [date_x]
-
-    mock_note.provider.id = "providerUuid"
-    mock_note.patient.id = "patientUuid"
-    note_db.get.side_effect = [mock_note]
-
-    result = tested.compute()
-    expected = [
-        Effect(type="LOG", payload="SomePayload"),
-        Effect(
-            type="CREATE_TASK_COMMENT",
-            payload=json.dumps(
-                {
-                    "data": {
-                        "task": {"id": "taskUuid"},
-                        "body": json.dumps(
-                            {
-                                "chunk_index": 8,
-                                "note_id": "noteUuid",
-                                "patient_id": "patientUuid",
-                                "is_paused": False,
-                                "created": "2025-05-09T12:34:55+00:00",
-                                "finished": None,
-                            },
-                        ),
-                    },
-                },
-            ),
-        ),
-    ]
-    assert result == expected
-
-    calls = [call(identification, settings, aws_s3_credentials, the_audio_client, 7)]
-    assert compute_audio.mock_calls == calls
-    calls = [call.get(id="taskUuid")]
-    assert task_comment_db.mock_calls == calls
-    calls = [call("audio was present => go to next iteration (8)")]
-    assert info.mock_calls == calls
-    calls = [
-        call.instance(identification, "main", aws_s3_credentials),
-        call.instance().output("SDK: theVersion - Text: textVendor - Audio: audioVendor"),
-        call.end_session("noteUuid"),
-    ]
-    assert memory_log.mock_calls == calls
-    calls = [call.send_to_user(identification, settings, "waiting for the next cycle 8...", "events")]
-    assert progress.mock_calls == calls
-    calls = [call.end_session("noteUuid")]
-    assert llm_turns_store.mock_calls == calls
-    calls = [
-        call.get("noteUuid"),
-        call.save(),
-        call.get("noteUuid"),
-        call.save(),
-    ]
-    assert stop_and_go.mock_calls == calls
-    assert stop_and_go.is_paused is False
-    assert stop_and_go.cycle == 8
-    calls = [call.task.labels.filter(name="Encounter Copilot"), call.task.labels.filter().first()]
-    assert mock_comment.mock_calls == calls
-    assert mock_note.mock_calls == []
-    assert mock_datetime.mock_calls == []
-    reset_mocks()
-    # -- no more audio
-    stop_and_go.is_ended = False
-    stop_and_go.is_paused = False
-    stop_and_go.cycle = 7
-    compute_audio.side_effect = [(False, [])]
-    stop_and_go.get.side_effect = [stop_and_go, stop_and_go]
-    mock_comment.id = "commentUuid"
-    mock_comment.body = json.dumps({"chunk_index": 7, "note_id": "noteUuid", "created": "2025-05-09T12:34:44+00:00"})
-    mock_comment.task.id = "taskUuid"
-    mock_comment.task.labels.all.side_effect = [task_labels]
-    mock_comment.task.labels.filter.return_value.first.side_effect = ["aTask"]
-    task_comment_db.get.side_effect = [mock_comment]
-    mock_datetime.now.side_effect = [date_x]
-
-    mock_note.provider.id = "providerUuid"
-    mock_note.patient.id = "patientUuid"
-    note_db.get.side_effect = [mock_note]
-
-    result = tested.compute()
-    expected = [
-        Effect(
-            type="CREATE_TASK_COMMENT",
-            payload=json.dumps(
-                {
-                    "data": {
-                        "task": {"id": "taskUuid"},
-                        "body": json.dumps(
-                            {
-                                "chunk_index": 6,
-                                "note_id": "noteUuid",
-                                "patient_id": "patientUuid",
-                                "is_paused": False,
-                                "created": "2025-05-09T12:34:44+00:00",
-                                "finished": "2025-05-09T12:34:21+00:00",
-                            },
-                        ),
-                    },
-                },
-            ),
-        ),
-        Effect(type="UPDATE_TASK", payload=json.dumps({"data": {"id": "taskUuid", "status": "COMPLETED"}})),
-    ]
-    assert result == expected
-
-    calls = [call(identification, settings, aws_s3_credentials, the_audio_client, 7)]
-    assert compute_audio.mock_calls == calls
-    calls = [call.get(id="taskUuid")]
-    assert task_comment_db.mock_calls == calls
-    calls = [call("audio was NOT present:"), call("  => inform the UI"), call("  => stop the task")]
-    assert info.mock_calls == calls
-    calls = [
-        call.instance(identification, "main", aws_s3_credentials),
-        call.instance().output("SDK: theVersion - Text: textVendor - Audio: audioVendor"),
-        call.end_session("noteUuid"),
-    ]
-    assert memory_log.mock_calls == calls
-    calls = [call.send_to_user(identification, settings, "finished", "events")]
-    assert progress.mock_calls == calls
-    calls = [call.end_session("noteUuid")]
-    assert llm_turns_store.mock_calls == calls
-    calls = [
-        call.get("noteUuid"),
-        call.get("noteUuid"),
-        call.save(),
-    ]
-    assert stop_and_go.mock_calls == calls
-    assert stop_and_go.is_paused is False
-    assert stop_and_go.cycle == 7
-    calls = [call.task.labels.filter(name="Encounter Copilot"), call.task.labels.filter().first()]
-    assert mock_comment.mock_calls == calls
-    assert mock_note.mock_calls == []
-    calls = [call.now(UTC)]
-    assert mock_datetime.mock_calls == calls
-    reset_mocks()
-
-
-@patch("hyperscribe.handlers.commander.AwsS3")
-@patch("hyperscribe.handlers.commander.Progress")
-@patch("hyperscribe.handlers.commander.MemoryLog")
-@patch("hyperscribe.handlers.commander.LimitedCache")
-@patch("hyperscribe.handlers.commander.AudioInterpreter")
-@patch("hyperscribe.handlers.commander.AuditorLive")
+@patch("hyperscribe.libraries.commander.AwsS3")
+@patch("hyperscribe.libraries.commander.Progress")
+@patch("hyperscribe.libraries.commander.MemoryLog")
+@patch("hyperscribe.libraries.commander.LimitedCache")
+@patch("hyperscribe.libraries.commander.AudioInterpreter")
+@patch("hyperscribe.libraries.commander.AuditorLive")
 @patch.object(AudioClient, "get_audio_chunk")
 @patch.object(CachedSdk, "save")
 @patch.object(CachedSdk, "get_discussion")
@@ -570,7 +125,6 @@ def test_compute_audio(
     tested = Commander
     mock_get_audio_chunk.side_effect = [b""]
     result = tested.compute_audio(identification, settings, aws_s3_credentials, the_audio_client, 3)
-    mock_get_audio_chunk.calls == [call(identification.patient_uuid, identification.note_uuid, 3)]
     expected = (False, [])
     assert result == expected
 
@@ -587,6 +141,8 @@ def test_compute_audio(
     assert limited_cache.mock_calls == []
     assert progress.mock_calls == []
     assert aws_s3.mock_calls == []
+    calls = [call(identification.patient_uuid, identification.note_uuid, 3)]
+    assert mock_get_audio_chunk.mock_calls == calls
     reset_mocks()
 
     # audios retrieved
@@ -751,8 +307,8 @@ def test_compute_audio(
         reset_mocks()
 
 
-@patch("hyperscribe.handlers.commander.Progress")
-@patch("hyperscribe.handlers.commander.MemoryLog")
+@patch("hyperscribe.libraries.commander.Progress")
+@patch("hyperscribe.libraries.commander.MemoryLog")
 @patch.object(Line, "tail_of")
 @patch.object(Commander, "transcript2commands")
 def test_audio2commands(transcript2commands, tail_of, memory_log, progress):
@@ -1049,9 +605,9 @@ def test_transcript2command(transcript2commands_common, transcript2commands_ques
     reset_mocks()
 
 
-@patch("hyperscribe.handlers.commander.Progress")
-@patch("hyperscribe.handlers.commander.MemoryLog")
-@patch("hyperscribe.handlers.commander.time")
+@patch("hyperscribe.libraries.commander.Progress")
+@patch("hyperscribe.libraries.commander.MemoryLog")
+@patch("hyperscribe.libraries.commander.time")
 def test_transcript2commands_common(time, memory_log, progress):
     mock_auditor = MagicMock()
     mock_chatter = MagicMock()
@@ -1502,9 +1058,9 @@ def test_transcript2commands_common(time, memory_log, progress):
     reset_mocks()
 
 
-@patch("hyperscribe.handlers.commander.Progress")
-@patch("hyperscribe.handlers.commander.MemoryLog")
-@patch("hyperscribe.handlers.commander.time")
+@patch("hyperscribe.libraries.commander.Progress")
+@patch("hyperscribe.libraries.commander.MemoryLog")
+@patch("hyperscribe.libraries.commander.time")
 def test_transcript2commands_questionnaires(time, memory_log, progress):
     auditor = MagicMock()
     chatter = MagicMock()
@@ -1688,8 +1244,8 @@ def test_transcript2commands_questionnaires(time, memory_log, progress):
         reset_mocks()
 
 
-@patch("hyperscribe.handlers.commander.MemoryLog")
-@patch("hyperscribe.handlers.commander.time")
+@patch("hyperscribe.libraries.commander.MemoryLog")
+@patch("hyperscribe.libraries.commander.time")
 def test_new_commands_from(time, memory_log):
     auditor = MagicMock()
     chatter = MagicMock()
@@ -1897,8 +1453,8 @@ def test_new_commands_from(time, memory_log):
         reset_mocks()
 
 
-@patch("hyperscribe.handlers.commander.MemoryLog")
-@patch("hyperscribe.handlers.commander.time")
+@patch("hyperscribe.libraries.commander.MemoryLog")
+@patch("hyperscribe.libraries.commander.time")
 def test_update_commands_from(time, memory_log):
     auditor = MagicMock()
     chatter = MagicMock()
