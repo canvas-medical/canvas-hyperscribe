@@ -5,6 +5,21 @@ from typing import Any
 
 class SyntheticProfileGeneratorPrompts:
     @classmethod
+    def get_prompts(
+        cls, category: str, batch_num: int, count: int, schema: dict[str, Any], seen_scenarios: list[str]
+    ) -> tuple[list[str], list[str]]:
+        if category == "med_management":
+            return cls.med_management_prompts(batch_num, count, schema, seen_scenarios)
+        elif category == "primary_care":
+            return cls.primary_care_prompts(batch_num, count, schema, seen_scenarios)
+        elif category == "serious_mental_illness":
+            return cls.serious_mental_illness_prompts(batch_num, count, schema, seen_scenarios)
+        else:
+            raise ValueError(
+                f"Unknown category: {category}. Supported: med_management, primary_care, serious_mental_illness"
+            )
+
+    @classmethod
     def med_management_prompts(
         cls, batch_num: int, count: int, schema: dict[str, Any], seen_scenarios: list[str]
     ) -> tuple[list[str], list[str]]:
