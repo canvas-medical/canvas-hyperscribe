@@ -3,7 +3,6 @@ from pathlib import Path
 from typing import Any, cast
 
 from hyperscribe.libraries.constants import Constants
-from hyperscribe.structures.vendor_key import VendorKey
 from hyperscribe.llms.llm_openai import LlmOpenai
 from hyperscribe.libraries.memory_log import MemoryLog
 from evaluations.helper_evaluation import HelperEvaluation
@@ -13,8 +12,8 @@ from evaluations.structures.patient_profile import PatientProfile
 
 
 class SyntheticProfileGenerator:
-    def __init__(self, vendor_key: VendorKey, category: str = "med_management") -> None:
-        self.vendor_key = vendor_key
+    def __init__(self, openai_api_key: str, category: str) -> None:
+        self.openai_api_key = openai_api_key
         self.category = category
         self.seen_scenarios: list[str] = []
 
@@ -30,8 +29,6 @@ class SyntheticProfileGenerator:
 
     def update_patient_names(self, profiles: list[PatientProfile]) -> list[PatientProfile]:
         """Update patient names with descriptive phrases based on their profiles using GPT-4o"""
-
-        vendor_key = VendorKey(vendor=self.vendor_key.vendor, api_key=self.vendor_key.api_key)
 
         result: list[PatientProfile] = []
 
@@ -57,7 +54,7 @@ class SyntheticProfileGenerator:
             ]
 
             llm = LlmOpenai(
-                MemoryLog.dev_null_instance(), vendor_key.api_key, Constants.OPENAI_CHAT_TEXT, with_audit=False
+                MemoryLog.dev_null_instance(), self.openai_api_key, Constants.OPENAI_CHAT_TEXT, with_audit=False
             )
             llm.set_system_prompt(system_prompt)
             llm.set_user_prompt(user_prompt)
@@ -113,18 +110,14 @@ class SyntheticProfileGenerator:
         schema = self.schema_batch(count)
 
         # prompts based on category.
-        prompt_method = getattr(SyntheticProfileGeneratorPrompts, f"{self.category}_prompts", None)
-        if prompt_method is None:
-            raise ValueError(
-                f"Unknown category: {self.category}. Supported: med_management, primary_care, serious_mental_illness"
-            )
-
-        system_prompt, user_prompt = prompt_method(batch_num, count, schema, self.seen_scenarios)
+        system_prompt, user_prompt = SyntheticProfileGeneratorPrompts.get_prompts(
+            self.category, batch_num, count, schema, self.seen_scenarios
+        )
 
         initial_profiles = cast(
             list[PatientProfile],
             HelperSyntheticJson.generate_json(
-                vendor_key=self.vendor_key,
+                openai_api_key=self.openai_api_key,
                 system_prompt=system_prompt,
                 user_prompt=user_prompt,
                 schema=schema,
@@ -167,9 +160,9 @@ class SyntheticProfileGenerator:
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
         settings = HelperEvaluation.settings()
-        vendor_key = settings.llm_text
+        openai_api_key = settings.llm_text.api_key
 
-        SyntheticProfileGenerator(vendor_key, args.category).run(
+        SyntheticProfileGenerator(openai_api_key, args.category).run(
             batches=args.batches, batch_size=args.batch_size, output_path=args.output
         )
 

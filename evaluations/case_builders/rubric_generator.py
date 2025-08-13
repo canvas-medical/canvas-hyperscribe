@@ -99,7 +99,7 @@ class RubricGenerator:
         return cast(
             list[RubricCriterion],
             HelperSyntheticJson.generate_json(
-                vendor_key=self.vendor_key,
+                openai_api_key=self.vendor_key.api_key,
                 system_prompt=system_prompt,
                 user_prompt=user_prompt,
                 schema=self.schema_rubric(),

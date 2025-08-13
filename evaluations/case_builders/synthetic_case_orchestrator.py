@@ -26,7 +26,7 @@ class SyntheticCaseOrchestrator:
     def __init__(self, vendor_key: VendorKey, category: str):
         self.vendor_key = vendor_key
         self.category = category
-        self.profile_generator = SyntheticProfileGenerator(vendor_key, category)
+        self.profile_generator = SyntheticProfileGenerator(vendor_key.api_key, category)
 
     def generate(
         self,

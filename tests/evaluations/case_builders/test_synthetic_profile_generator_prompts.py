@@ -1,5 +1,44 @@
 import hashlib
+import pytest
 from evaluations.case_builders.synthetic_profile_generator_prompts import SyntheticProfileGeneratorPrompts
+
+
+def test_get_prompts():
+    tested = SyntheticProfileGeneratorPrompts
+
+    tests = [
+        # (category, batch_num, count, schema, seen_scenarios, should_raise, expected_error)
+        ("med_management", 1, 2, {"expected": "schema"}, [], False, None),
+        ("primary_care", 2, 3, {"expected": "schema"}, ["Routine checkup"], False, None),
+        ("serious_mental_illness", 1, 4, {"expected": "schema"}, [], False, None),
+        (
+            "unknown_category",
+            1,
+            2,
+            {"expected": "schema"},
+            [],
+            True,
+            "Unknown category: unknown_category. Supported: med_management, primary_care, serious_mental_illness",
+        ),
+    ]
+
+    for category, batch_num, count, schema, seen_scenarios, should_raise, expected_error in tests:
+        if should_raise:
+            with pytest.raises(ValueError) as exc_info:
+                tested.get_prompts(category, batch_num, count, schema, seen_scenarios)
+            assert str(exc_info.value) == expected_error
+        else:
+            result = tested.get_prompts(category, batch_num, count, schema, seen_scenarios)
+
+            # Verify the result matches the direct method call
+            if category == "med_management":
+                expected = tested.med_management_prompts(batch_num, count, schema, seen_scenarios)
+            elif category == "primary_care":
+                expected = tested.primary_care_prompts(batch_num, count, schema, seen_scenarios)
+            elif category == "serious_mental_illness":
+                expected = tested.serious_mental_illness_prompts(batch_num, count, schema, seen_scenarios)
+
+            assert result == expected
 
 
 def test_med_management_prompts():
@@ -7,7 +46,23 @@ def test_med_management_prompts():
 
     tests = [
         # (batch_num, count, schema, seen_scenarios, expected_system_md5, expected_user_md5)
-        (2, 3, {"expected": "schema"}, [], "4812ff261353bfc9054ffb110df4234a", "35e9db9a1a868a720c679f3c0921fa8b")
+        (2, 3, {"expected": "schema"}, [], "4812ff261353bfc9054ffb110df4234a", "35e9db9a1a868a720c679f3c0921fa8b"),
+        (
+            1,
+            5,
+            {"expected": "schema"},
+            ["First scenario"],
+            "4812ff261353bfc9054ffb110df4234a",
+            "50570a002036340c13ed81cecdb2e669",
+        ),
+        (
+            3,
+            2,
+            {"expected": "schema"},
+            ["ACE-inhibitor cough", "warfarin drift"],
+            "4812ff261353bfc9054ffb110df4234a",
+            "d7c45457d6acf3eb6a1b410f39d80d03",
+        ),
     ]
 
     for batch_num, count, schema, seen_scenarios, expected_system_md5, expected_user_md5 in tests:
@@ -34,13 +89,28 @@ def test_primary_care_prompts():
 
     tests = [
         # (batch_num, count, schema, seen_scenarios, expected_system_md5, expected_user_md5)
-        (2, 3, {"expected": "schema"}, [], "cb7b9676d49a9378ad495d57f5a18426", "e2bed1f3ef615e58fdcf0e9a5e98e6dc")
+        (2, 3, {"expected": "schema"}, [], "cb7b9676d49a9378ad495d57f5a18426", "e2bed1f3ef615e58fdcf0e9a5e98e6dc"),
+        (
+            1,
+            4,
+            {"expected": "schema"},
+            ["Diabetes screening"],
+            "cb7b9676d49a9378ad495d57f5a18426",
+            "d24a48b49623a33b097a1ec6a52bef89",
+        ),
+        (
+            2,
+            2,
+            {"expected": "schema"},
+            ["Routine checkup", "Colonoscopy"],
+            "cb7b9676d49a9378ad495d57f5a18426",
+            "abf54f5b3c6d0ba3927130a2b2c60591",
+        ),
     ]
 
     for batch_num, count, schema, seen_scenarios, expected_system_md5, expected_user_md5 in tests:
         result = tested.primary_care_prompts(batch_num, count, schema, seen_scenarios)
-        expected = tuple
-        assert isinstance(result, expected)
+        assert isinstance(result, tuple)
 
         system_prompt, user_prompt = result
         assert isinstance(system_prompt, list)
@@ -62,6 +132,22 @@ def test_serious_mental_illness_prompts():
     tests = [
         # (batch_num, count, schema, seen_scenarios, expected_system_md5, expected_user_md5)
         (2, 3, {"expected": "schema"}, [], "3dff218b368fe713cf9f7d44b852fce4", "afcc988352d5a7dfdbe31f49584a280f"),
+        (
+            1,
+            3,
+            {"expected": "schema"},
+            ["Medication adherence"],
+            "3dff218b368fe713cf9f7d44b852fce4",
+            "3476f6758ef3ff30ec5c2b1871d424a2",
+        ),
+        (
+            3,
+            4,
+            {"expected": "schema"},
+            ["Crisis episode", "Housing instability"],
+            "3dff218b368fe713cf9f7d44b852fce4",
+            "29b020e5ca97e0f43623b8c0f71f839a",
+        ),
     ]
 
     for batch_num, count, schema, seen_scenarios, expected_system_md5, expected_user_md5 in tests:
