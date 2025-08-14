@@ -4,7 +4,6 @@ from http import HTTPStatus
 from types import SimpleNamespace
 from unittest.mock import patch, call
 
-import pytest
 from canvas_generated.messages.effects_pb2 import Effect
 from canvas_sdk.effects.simple_api import Response, HTMLResponse
 from canvas_sdk.handlers.simple_api import SimpleAPI, Credentials
@@ -455,7 +454,8 @@ def test_render_effect_post(trigger_render, stop_and_go, executor, helper):
                 call.get("noteId"),
                 call.get().paused_effects(),
                 call.get().reset_paused_effect(),
-                call.get().reset_paused_effect().save(),
+                call.get().reset_paused_effect().set_delay(),
+                call.get().reset_paused_effect().set_delay().save(),
             ],
             [],
             [],
@@ -488,6 +488,7 @@ def test_render_effect_post(trigger_render, stop_and_go, executor, helper):
                 call.get("noteId"),
                 call.get().paused_effects(),
                 call.get().is_running(),
+                call.get().consume_delay(),
                 call.get().consume_next_waiting_cycles(True),
                 call.get().cycle(),
             ],
@@ -500,12 +501,13 @@ def test_render_effect_post(trigger_render, stop_and_go, executor, helper):
             False,
             7,
             True,
-            [Response(status_code=HTTPStatus.ACCEPTED)],
+            [],
             [],
             [
                 call.get("noteId"),
                 call.get().paused_effects(),
                 call.get().is_running(),
+                call.get().consume_delay(),
                 call.get().consume_next_waiting_cycles(True),
                 call.get().is_ended(),
                 call.get().created(),
@@ -526,6 +528,7 @@ def test_render_effect_post(trigger_render, stop_and_go, executor, helper):
                 call.get("noteId"),
                 call.get().paused_effects(),
                 call.get().is_running(),
+                call.get().consume_delay(),
                 call.get().consume_next_waiting_cycles(True),
                 call.get().is_ended(),
             ],
@@ -820,15 +823,19 @@ def test_run_commander(
         reset_mocks()
 
     # error in Commander.compute_audio
-    with pytest.raises(Exception) as e:
-        note_db.get.return_value.provider.id = "theProviderId"
-        commander.compute_audio.side_effect = [Exception("Test error")]
+    note_db.get.return_value.provider.id = "theProviderId"
+    commander.compute_audio.side_effect = [Exception("Test error")]
 
-        tested.run_commander("patientId", "noteId", 7)
+    tested.run_commander("patientId", "noteId", 7)
 
     calls = [call("patientId", "noteId")]
     assert trigger_render.mock_calls == calls
-    assert log.mock_calls == []
+    calls = [
+        call.info("************************"),
+        call.info("Error while running commander: Test error"),
+        call.info("************************"),
+    ]
+    assert log.mock_calls == calls
     calls = [
         call.get("noteId"),
         call.get().set_cycle(7),
@@ -851,5 +858,3 @@ def test_run_commander(
     calls = [call.get(id="noteId")]
     assert note_db.mock_calls == calls
     reset_mocks()
-    exp_error = "Test error"
-    assert str(e.value) == exp_error

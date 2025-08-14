@@ -201,9 +201,10 @@ class CaptureView(SimpleAPI):
         stop_and_go = StopAndGo.get(note_id)
         if paused := stop_and_go.paused_effects():
             effects.extend(paused)
-            stop_and_go.reset_paused_effect().save()
+            stop_and_go.reset_paused_effect().set_delay().save()
             self.trigger_render(patient_id, note_id)  # <-- loop!
         elif not stop_and_go.is_running():
+            stop_and_go.consume_delay()
             if stop_and_go.consume_next_waiting_cycles(True):
                 executor.submit(
                     Helper.with_cleanup(self.run_commander),
@@ -219,7 +220,6 @@ class CaptureView(SimpleAPI):
                     stop_and_go.created(),
                     stop_and_go.cycle(),
                 )
-                effects.append(Response(status_code=HTTPStatus.ACCEPTED))
 
         return effects
 
@@ -291,7 +291,10 @@ class CaptureView(SimpleAPI):
             # clean up and messages
             MemoryLog.end_session(note_id)
             LlmTurnsStore.end_session(note_id)
-
+        except Exception as e:
+            log.info("************************")
+            log.info(f"Error while running commander: {e}")
+            log.info("************************")
         finally:
             # remove the running flag
             StopAndGo.get(note_id).set_running(False).save()

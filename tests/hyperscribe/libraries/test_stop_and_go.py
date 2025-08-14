@@ -22,6 +22,7 @@ def test___init__(mock_datetime):
     assert tested._cycle == 1
     assert tested._paused_effects == []
     assert tested._waiting_cycles == []
+    assert tested._delay == 0
 
     calls = [call.now(UTC)]
     assert mock_datetime.mock_calls == calls
@@ -235,6 +236,32 @@ def test_waiting_cycles():
     assert tested.waiting_cycles() == [5, 3]
 
 
+def test_set_delay():
+    tested = StopAndGo("theNoteUuid")
+    assert tested._delay == 0
+    result = tested.set_delay()
+    assert result is tested
+    assert tested._delay == 5
+
+
+@patch("hyperscribe.libraries.stop_and_go.sleep")
+def test_consume_delay(sleep):
+    def reset_mocks():
+        sleep.reset_mock()
+
+    tested = StopAndGo("theNoteUuid")
+
+    tested.consume_delay()
+    assert sleep.mock_calls == []
+    reset_mocks()
+
+    tested.set_delay()
+    tested.consume_delay()
+    calls = [call(5)]
+    assert sleep.mock_calls == calls
+    reset_mocks()
+
+
 @patch("hyperscribe.libraries.stop_and_go.get_cache")
 @patch("hyperscribe.libraries.stop_and_go.datetime", wraps=datetime)
 def test_save(mock_datetime, get_cache):
@@ -255,6 +282,7 @@ def test_save(mock_datetime, get_cache):
         Effect(type="LOG", payload="Log3"),
     ]
     tested._waiting_cycles = [2, 5, 8]
+    tested._delay = 3
     tested.save()
     calls = [
         call(),
@@ -273,6 +301,7 @@ def test_save(mock_datetime, get_cache):
                     {"type": 1, "payload": "Log3"},
                 ],
                 "waitingCycles": [2, 5, 8],
+                "delay": 3,
             },
         ),
     ]
@@ -298,6 +327,7 @@ def test_to_json(mock_datetime):
         Effect(type="LOG", payload="Log3"),
     ]
     tested._waiting_cycles = [2, 5, 8]
+    tested._delay = 3
     result = tested.to_json()
     expected = {
         "cycle": 7,
@@ -312,6 +342,7 @@ def test_to_json(mock_datetime):
             {"type": 1, "payload": "Log3"},
         ],
         "waitingCycles": [2, 5, 8],
+        "delay": 3,
     }
     assert result == expected
     reset_mocks()
@@ -340,6 +371,7 @@ def test_get(mock_datetime, get_cache):
                 {"type": 1, "payload": "Log3"},
             ],
             "waitingCycles": [2, 5, 8],
+            "delay": 3,
         }
     ]
     result = tested.get("theNoteUuid")
@@ -356,6 +388,7 @@ def test_get(mock_datetime, get_cache):
         Effect(type="LOG", payload="Log3"),
     ]
     assert result._waiting_cycles == [2, 5, 8]
+    assert result._delay == 3
     calls = [call(), call().get("stopAndGo:theNoteUuid")]
     assert get_cache.mock_calls == calls
     reset_mocks()
@@ -373,6 +406,7 @@ def test_get(mock_datetime, get_cache):
     assert result._is_paused is False
     assert result._paused_effects == []
     assert result._waiting_cycles == []
+    assert result._delay == 0
     calls = [call(), call().get("stopAndGo:theNoteUuid")]
     assert get_cache.mock_calls == calls
     reset_mocks()
@@ -394,6 +428,7 @@ def test_load_from_json():
                 {"type": 1, "payload": "Log3"},
             ],
             "waitingCycles": [2, 5, 8],
+            "delay": 3,
         }
     )
     assert isinstance(result, StopAndGo)
@@ -408,4 +443,5 @@ def test_load_from_json():
         Effect(type="LOG", payload="Log2"),
         Effect(type="LOG", payload="Log3"),
     ]
+    assert result._delay == 3
     assert result._waiting_cycles == [2, 5, 8]

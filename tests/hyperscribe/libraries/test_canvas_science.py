@@ -614,11 +614,20 @@ def test_search_contacts(get_attempts):
 @patch("hyperscribe.libraries.canvas_science.log")
 @patch("hyperscribe.libraries.canvas_science.requests_get")
 def test_get_attempts(requests_get, log, science, ontologies):
+    mock_1 = MagicMock()
+    mock_2 = MagicMock()
+    mock_3 = MagicMock()
+    mock_4 = MagicMock()
+
     def reset_mocks():
         requests_get.reset_mock()
         log.reset_mock()
         science.reset_mock()
         ontologies.reset_mock()
+        mock_1.reset_mock()
+        mock_2.reset_mock()
+        mock_3.reset_mock()
+        mock_4.reset_mock()
 
     tested = CanvasScience
 
@@ -627,16 +636,12 @@ def test_get_attempts(requests_get, log, science, ontologies):
     params = {"param": "value"}
 
     # too many attempts
-    mock_1 = MagicMock()
     mock_1.status_code = 401
     mock_1.json.return_value = {"results": ["mock list 1"]}
-    mock_2 = MagicMock()
     mock_2.status_code = 402
     mock_2.json.return_value = {"results": ["mock list 2"]}
-    mock_3 = MagicMock()
     mock_3.status_code = 403
     mock_3.json.return_value = {"results": ["mock list 3"]}
-    mock_4 = MagicMock()
     mock_4.status_code = 404
     mock_4.json.return_value = {"results": ["mock list 4"]}
 
@@ -648,17 +653,19 @@ def test_get_attempts(requests_get, log, science, ontologies):
     calls = [
         call("theHost/theUrl", headers=headers_with_key, params=params, verify=True),
         call("theHost/theUrl", headers=headers_with_key, params=params, verify=True),
-        call("theHost/theUrl", headers=headers_with_key, params=params, verify=True),
     ]
     assert requests_get.mock_calls == calls
     calls = [
         call.info("get response code: 401 - /theUrl"),
         call.info("get response code: 402 - /theUrl"),
-        call.info("get response code: 403 - /theUrl"),
     ]
     assert log.mock_calls == calls
     assert science.mock_calls == []
     assert ontologies.mock_calls == []
+    assert mock_1.mock_calls == []
+    assert mock_2.mock_calls == []
+    assert mock_3.mock_calls == []
+    assert mock_4.mock_calls == []
     reset_mocks()
 
     # enough attempts
@@ -679,6 +686,10 @@ def test_get_attempts(requests_get, log, science, ontologies):
     assert log.mock_calls == calls
     assert science.mock_calls == []
     assert ontologies.mock_calls == []
+    assert mock_1.mock_calls == []
+    assert mock_2.mock_calls == [call.json()]
+    assert mock_3.mock_calls == []
+    assert mock_4.mock_calls == []
     reset_mocks()
 
     # using SDK Ontologies
@@ -699,6 +710,10 @@ def test_get_attempts(requests_get, log, science, ontologies):
         call.get_json("/theUrl?param=value", headers_with_key),
     ]
     assert ontologies.mock_calls == calls
+    assert mock_1.mock_calls == []
+    assert mock_2.mock_calls == [call.json()]
+    assert mock_3.mock_calls == []
+    assert mock_4.mock_calls == []
     reset_mocks()
 
     # using SDK Sciences
@@ -719,6 +734,10 @@ def test_get_attempts(requests_get, log, science, ontologies):
     ]
     assert science.mock_calls == calls
     assert ontologies.mock_calls == []
+    assert mock_1.mock_calls == []
+    assert mock_2.mock_calls == [call.json()]
+    assert mock_3.mock_calls == []
+    assert mock_4.mock_calls == []
     reset_mocks()
     # -- no key, no params
     mock_2.status_code = 200
@@ -735,4 +754,32 @@ def test_get_attempts(requests_get, log, science, ontologies):
     calls = [call.get_json("/theUrl", headers_no_key), call.get_json("/theUrl", headers_no_key)]
     assert science.mock_calls == calls
     assert ontologies.mock_calls == []
+    assert mock_1.mock_calls == []
+    assert mock_2.mock_calls == [call.json()]
+    assert mock_3.mock_calls == []
+    assert mock_4.mock_calls == []
+    reset_mocks()
+
+    # -- exception
+    mock_2.status_code = 200
+    mock_2.json.side_effect = [Exception("Test error")]
+
+    requests_get.side_effect = []
+    science.get_json.side_effect = [mock_1, mock_2, mock_3, mock_4]
+    ontologies.get_json.side_effect = []
+    result = tested.get_attempts("", "", "/theUrl", {}, False)
+    assert result == []
+    assert requests_get.mock_calls == []
+    calls = [
+        call.info("get response code: 401 - /theUrl"),
+        call.info("error raised by Canvas Service: Test error"),
+    ]
+    assert log.mock_calls == calls
+    calls = [call.get_json("/theUrl", headers_no_key), call.get_json("/theUrl", headers_no_key)]
+    assert science.mock_calls == calls
+    assert ontologies.mock_calls == []
+    assert mock_1.mock_calls == []
+    assert mock_2.mock_calls == [call.json()]
+    assert mock_3.mock_calls == []
+    assert mock_4.mock_calls == []
     reset_mocks()
