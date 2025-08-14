@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from time import sleep
 
 from canvas_sdk.caching.plugins import get_cache
 from canvas_sdk.effects import Effect
@@ -16,6 +17,7 @@ class StopAndGo:
         self._cycle: int = 1
         self._paused_effects: list[Effect] = []
         self._waiting_cycles: list[int] = []
+        self._delay: int = 0  # seconds to wait when set
 
     def created(self) -> datetime:
         return self._created
@@ -75,6 +77,15 @@ class StopAndGo:
     def waiting_cycles(self) -> list[int]:
         return self._waiting_cycles
 
+    def set_delay(self) -> StopAndGo:
+        self._delay = 5  # arbitrary number of seconds (e.g., to let the backend process the effects)
+        return self
+
+    def consume_delay(self) -> None:
+        if self._delay > 0:
+            sleep(self._delay)
+        self._delay = 0
+
     def save(self) -> None:
         get_cache().set(f"stopAndGo:{self.note_uuid}", self.to_json())
 
@@ -88,6 +99,7 @@ class StopAndGo:
             "cycle": self._cycle,
             "pausedEffects": [{"type": effect.type, "payload": effect.payload} for effect in self._paused_effects],
             "waitingCycles": self._waiting_cycles,
+            "delay": self._delay,
         }
 
     @classmethod
@@ -108,4 +120,5 @@ class StopAndGo:
             Effect(type=effect["type"], payload=effect["payload"]) for effect in dictionary["pausedEffects"]
         ]
         result._waiting_cycles = dictionary["waitingCycles"]
+        result._delay = dictionary["delay"]
         return result
