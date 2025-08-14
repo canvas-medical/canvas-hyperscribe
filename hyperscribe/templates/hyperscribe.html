@@ -379,7 +379,8 @@
             progress: {
                 started: false,
                 previousMessage: new Date(0),
-                webSocket: null
+                webSocket: null,
+                heartbeatInterval: null
             },
             transcript: {
                 displayedTimes: new Set(),
@@ -540,6 +541,10 @@
                 if (appState.progress.webSocket) {
                     appState.progress.webSocket.close();
                     appState.progress.webSocket = null;
+                }
+                if (appState.progress.heartbeatInterval) {
+                    clearInterval(appState.progress.heartbeatInterval);
+                    appState.progress.heartbeatInterval = null;
                 }
             },
             
@@ -801,11 +806,25 @@
                 
                 appState.progress.webSocket.onopen = function(event) {
                     console.log('Progress WebSocket connected');
+                    
+                    // Start heartbeat to prevent idle timeout
+                    appState.progress.heartbeatInterval = setInterval(() => {
+                        if (appState.progress.webSocket && appState.progress.webSocket.readyState === WebSocket.OPEN) {
+                            appState.progress.webSocket.send(JSON.stringify({type: 'ping'}));
+                        }
+                    }, 30000); // Send ping every 30 seconds
                 };
                 
                 appState.progress.webSocket.onmessage = function(event) {
                     try {
                         const data = JSON.parse(event.data);
+                        
+                        // Handle ping/pong for heartbeat
+                        if (data.type === 'pong') {
+                            console.log('Received pong from server');
+                            return;
+                        }
+                        
                         // Handle individual message from WebSocket
                         handleWebSocketMessage(data.message, messageEndFlag);
                     } catch (error) {
@@ -819,6 +838,13 @@
                 
                 appState.progress.webSocket.onclose = function(event) {
                     console.log('Progress WebSocket closed:', event.code, event.reason);
+                    
+                    // Clear heartbeat interval
+                    if (appState.progress.heartbeatInterval) {
+                        clearInterval(appState.progress.heartbeatInterval);
+                        appState.progress.heartbeatInterval = null;
+                    }
+                    
                     // Attempt to reconnect after 3 seconds if not a clean close
                     if (event.code !== 1000 && appState.progress.started) {
                         setTimeout(() => {
