@@ -51,17 +51,16 @@ def test_schema_chart():
     assert properties["demographicStr"]["type"] == "string"
     assert properties["demographicStr"]["description"] == "String describing patient demographics"
 
-    # All other fields should be arrays
-    array_fields = [
+    # Chart item fields should have ChartItem schema
+    chart_item_fields = [
         "conditionHistory",
         "currentAllergies",
         "currentConditions",
-        "currentMedications",
         "currentGoals",
         "familyHistory",
         "surgeryHistory",
     ]
-    for field_name in array_fields:
+    for field_name in chart_item_fields:
         assert properties[field_name]["type"] == "array"
         assert "items" in properties[field_name]
         # Check that items have the ChartItem schema structure
@@ -69,6 +68,26 @@ def test_schema_chart():
         assert items_schema["type"] == "object"
         assert set(items_schema["properties"].keys()) == {"code", "label", "uuid"}
         assert items_schema["required"] == ["code", "label", "uuid"]
+
+    # currentMedications should have MedicationCached schema
+    medications_schema = properties["currentMedications"]["items"]
+    assert medications_schema["type"] == "object"
+    assert set(medications_schema["properties"].keys()) == {
+        "uuid",
+        "label",
+        "codeRxNorm",
+        "codeFdb",
+        "nationalDrugCode",
+        "potencyUnitCode",
+    }
+    assert medications_schema["required"] == [
+        "uuid",
+        "label",
+        "codeRxNorm",
+        "codeFdb",
+        "nationalDrugCode",
+        "potencyUnitCode",
+    ]
 
 
 @patch.object(SyntheticChartGenerator, "schema_chart")
@@ -84,7 +103,16 @@ def test_generate_chart_for_profile(mock_generate_json, mock_schema_chart, tmp_p
         "conditionHistory": [{"code": "Z87.891", "label": "Personal history of tobacco use", "uuid": ""}],
         "currentAllergies": [{"code": "Z88.1", "label": "Allergy to penicillin", "uuid": ""}],
         "currentConditions": [{"code": "J45.9", "label": "Asthma, unspecified", "uuid": ""}],
-        "currentMedications": [{"code": "329498", "label": "Albuterol inhaler", "uuid": ""}],
+        "currentMedications": [
+            {
+                "uuid": "",
+                "label": "Albuterol inhaler",
+                "codeRxNorm": "329498",
+                "codeFdb": "",
+                "nationalDrugCode": "",
+                "potencyUnitCode": "",
+            }
+        ],
         "currentGoals": [{"code": "", "label": "Control asthma symptoms", "uuid": ""}],
         "familyHistory": [],
         "surgeryHistory": [{"code": "0DT70ZZ", "label": "Appendectomy", "uuid": ""}],
@@ -101,7 +129,7 @@ def test_generate_chart_for_profile(mock_generate_json, mock_schema_chart, tmp_p
     assert len(mock_generate_json.mock_calls) == 1
     _, kwargs = mock_generate_json.call_args
     expected_system_md5 = "2dd6a8f62a929edbf394a2eb17705b97"
-    expected_user_md5 = "2daa84d2b87cd3ad00b841feed0333c8"
+    expected_user_md5 = "47247de2ca279bcdda4a878451dee2ee"
     result_system_md5 = hashlib.md5("\n".join(kwargs["system_prompt"]).encode()).hexdigest()
     result_user_md5 = hashlib.md5("\n".join(kwargs["user_prompt"]).encode()).hexdigest()
 

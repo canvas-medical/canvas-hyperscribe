@@ -10,6 +10,7 @@ from evaluations.structures.rubric_criterion import RubricCriterion
 from evaluations.structures.graded_criterion import GradedCriterion
 from hyperscribe.structures.line import Line
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.medication_cached import MedicationCached
 
 
 def _invalid_path(tmp_path: Path) -> Path:
@@ -38,7 +39,16 @@ def _invalid_path(tmp_path: Path) -> Path:
                 condition_history=[CodedItem(uuid="uuid-1", label="Personal history of tobacco use", code="Z87.891")],
                 current_allergies=[CodedItem(uuid="uuid-2", label="Allergy to penicillin", code="Z88.1")],
                 current_conditions=[CodedItem(uuid="uuid-3", label="Asthma, unspecified", code="J45.9")],
-                current_medications=[CodedItem(uuid="uuid-4", label="Albuterol inhaler", code="329498")],
+                current_medications=[
+                    MedicationCached(
+                        uuid="uuid-4",
+                        label="Albuterol inhaler",
+                        code_rx_norm="329498",
+                        code_fdb="",
+                        national_drug_code="",
+                        potency_unit_code="",
+                    )
+                ],
                 current_goals=[CodedItem(uuid="uuid-5", label="Control symptoms", code="")],
                 family_history=[],
                 surgery_history=[CodedItem(uuid="uuid-6", label="Appendectomy", code="0DT70ZZ")],
