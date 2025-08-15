@@ -135,6 +135,7 @@ def test_generate_chart_for_profile(mock_generate_json, mock_schema_chart, tmp_p
 
     assert result_system_prompt_md5 == expected_system_prompt_md5
     assert result_user_prompt_md5 == expected_user_prompt_md5
+
     assert kwargs["vendor_key"] == tested.vendor_key
     assert kwargs["schema"] == expected_schema
 

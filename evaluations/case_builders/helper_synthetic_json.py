@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any, Type
 from hyperscribe.llms.llm_openai_o3 import LlmOpenaiO3
 from hyperscribe.libraries.memory_log import MemoryLog
+from hyperscribe.structures.vendor_key import VendorKey
 from hyperscribe.structures.line import Line
 from evaluations.constants import Constants
 from evaluations.structures.chart import Chart
@@ -15,7 +16,7 @@ from evaluations.structures.graded_criterion import GradedCriterion
 class HelperSyntheticJson:
     @staticmethod
     def generate_json(
-        openai_api_key: str,
+        vendor_key: VendorKey,
         system_prompt: list[str],
         user_prompt: list[str],
         schema: dict[str, Any],
@@ -30,7 +31,7 @@ class HelperSyntheticJson:
            and exits with status 1.
         """
         llm = LlmOpenaiO3(
-            MemoryLog.dev_null_instance(), openai_api_key, with_audit=False, temperature=Constants.O3_TEMPERATURE
+            MemoryLog.dev_null_instance(), vendor_key.api_key, with_audit=False, temperature=Constants.O3_TEMPERATURE
         )
 
         llm.set_system_prompt(system_prompt)

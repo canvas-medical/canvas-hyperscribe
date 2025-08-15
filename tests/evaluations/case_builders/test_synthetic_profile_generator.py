@@ -27,19 +27,19 @@ def fake_llm_response():
 
 
 @pytest.fixture
-def openai_api_key():
-    return "MY_KEY"
+def vendor_key():
+    return VendorKey("openai", "MY_KEY")
 
 
-def test___init__(openai_api_key: str):
-    tested = SyntheticProfileGenerator(openai_api_key, "med_management")
-    assert tested.openai_api_key == openai_api_key
+def test___init__(vendor_key: VendorKey):
+    tested = SyntheticProfileGenerator(vendor_key, "med_management")
+    assert tested.vendor_key == vendor_key
     assert tested.category == "med_management"
     assert tested.seen_scenarios == []
 
 
-def test__extract_initial_fragment(openai_api_key: str):
-    tested = SyntheticProfileGenerator(openai_api_key, "med_management")
+def test__extract_initial_fragment(vendor_key: VendorKey):
+    tested = SyntheticProfileGenerator(vendor_key, "med_management")
     narrative = "First sentence. Second sentence."
     expected = "First sentence"
     result = tested._extract_initial_fragment(narrative)
@@ -71,7 +71,7 @@ def test_load_json(tmp_path):
             "293d332b0ba5d8cdedbdfd0374468ac5",
             2,
         ),
-        (True, [], "LLM API error", True, "3f980752be484fa5e211623508246a12", "293d332b0ba5d8cdedbdfd0374468ac5", 1),
+        (True, [], "LLM API error", True, "af9a9a8acfac72101a89c5b01e53b218", "293d332b0ba5d8cdedbdfd0374468ac5", 1),
     ],
 )
 @patch("evaluations.case_builders.synthetic_profile_generator.MemoryLog")
@@ -79,7 +79,7 @@ def test_load_json(tmp_path):
 def test_update_patient_names(
     mock_llm_class,
     mock_memory_log,
-    openai_api_key: str,
+    vendor_key: VendorKey,
     has_error,
     content,
     error_message,
@@ -151,9 +151,9 @@ def test_update_patient_names(
     reset_mocks()
 
 
-def test__save_combined(tmp_path, openai_api_key: str):
+def test__save_combined(tmp_path, vendor_key: VendorKey):
     output_path = tmp_path / "combined.json"
-    tested = SyntheticProfileGenerator(openai_api_key, "med_management")
+    tested = SyntheticProfileGenerator(vendor_key, "med_management")
 
     profiles = [
         PatientProfile(name="Alice", profile="Profile for Alice"),
@@ -167,9 +167,9 @@ def test__save_combined(tmp_path, openai_api_key: str):
     assert result == expected
 
 
-def test__save_individuals(tmp_path, openai_api_key: str):
+def test__save_individuals(tmp_path, vendor_key: VendorKey):
     out_file = tmp_path / "combined.json"
-    tested = SyntheticProfileGenerator(openai_api_key, "med_management")
+    tested = SyntheticProfileGenerator(vendor_key, "med_management")
 
     profiles = [
         PatientProfile(name="Patient 1", profile="Alice takes lisinopril. Simple renewal."),
@@ -187,8 +187,8 @@ def test__save_individuals(tmp_path, openai_api_key: str):
         assert result == expected
 
 
-def test_schema_batch(openai_api_key: str):
-    tested = SyntheticProfileGenerator(openai_api_key, "med_management")
+def test_schema_batch(vendor_key: VendorKey):
+    tested = SyntheticProfileGenerator(vendor_key, "med_management")
     count_patients = 4
     result = tested.schema_batch(count_patients)
     expected = {
@@ -206,7 +206,7 @@ def test_schema_batch(openai_api_key: str):
 @patch.object(SyntheticProfileGenerator, "schema_batch")
 @patch("evaluations.case_builders.synthetic_profile_generator.HelperSyntheticJson.generate_json")
 def test_generate_batch(
-    mock_generate_json, mock_schema_batch, mock_update_names, fake_llm_response, openai_api_key: str
+    mock_generate_json, mock_schema_batch, mock_update_names, fake_llm_response, vendor_key: VendorKey
 ):
     def reset_mocks():
         mock_generate_json.reset_mock()
@@ -245,7 +245,7 @@ def test_generate_batch(
         expected_system_md5,
         expected_user_md5,
     ) in tests:
-        tested = SyntheticProfileGenerator(openai_api_key, category)
+        tested = SyntheticProfileGenerator(vendor_key, category)
 
         if should_raise_error:
             expected_schema = {"expected": "schema"}
@@ -280,7 +280,7 @@ def test_generate_batch(
 
             assert result_system_md5 == expected_system_md5
             assert result_user_md5 == expected_user_md5
-            assert kwargs["openai_api_key"] == openai_api_key
+            assert kwargs["vendor_key"] == vendor_key
             assert kwargs["schema"] == expected_schema
 
             expected_schema_calls = [call(count)]
@@ -296,14 +296,14 @@ def test_generate_batch(
 @patch.object(SyntheticProfileGenerator, "_save_individuals")
 @patch.object(SyntheticProfileGenerator, "_save_combined")
 @patch.object(SyntheticProfileGenerator, "generate_batch")
-def test_run(mock_generate_batch, mock_save_combined, mock_save_individuals, tmp_path, openai_api_key: str):
+def test_run(mock_generate_batch, mock_save_combined, mock_save_individuals, tmp_path, vendor_key: VendorKey):
     def reset_mocks():
         mock_generate_batch.reset_mock()
         mock_save_combined.reset_mock()
         mock_save_individuals.reset_mock()
 
     output_path = tmp_path / "out.json"
-    tested = SyntheticProfileGenerator(openai_api_key, "med_management")
+    tested = SyntheticProfileGenerator(vendor_key, "med_management")
 
     tests = [
         # (batches, batch_size, expected_generate_calls)
@@ -349,7 +349,7 @@ def test_main(mock_run, mock_settings, mock_parse_args, mock_mkdir, tmp_path):
 
     # Mock arguments
     output_path = tmp_path / "out.json"
-    args = MockClass(batches=2, batch_size=5, output=output_path)
+    args = MockClass(batches=2, batch_size=5, output=output_path, category="med_management")
     mock_parse_args.return_value = args
 
     SyntheticProfileGenerator.main()
