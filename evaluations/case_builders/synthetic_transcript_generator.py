@@ -136,7 +136,7 @@ class SyntheticTranscriptGenerator:
         transcript_line_objects = cast(
             list[Line],
             HelperSyntheticJson.generate_json(
-                vendor_key=self.vendor_key,
+                openai_api_key=self.vendor_key.api_key,
                 system_prompt=system_lines,
                 user_prompt=user_lines,
                 schema=schema,

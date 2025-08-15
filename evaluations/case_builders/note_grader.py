@@ -113,7 +113,7 @@ class NoteGrader:
         graded_criteria = cast(
             list[GradedCriterion],
             HelperSyntheticJson.generate_json(
-                vendor_key=self.vendor_key,
+                openai_api_key=self.vendor_key.api_key,
                 system_prompt=system_prompt,
                 user_prompt=user_prompt,
                 schema=schema,
