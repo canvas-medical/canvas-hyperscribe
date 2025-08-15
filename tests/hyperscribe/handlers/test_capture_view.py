@@ -310,10 +310,12 @@ def test_idle_session_post(stop_and_go):
 
 @patch("hyperscribe.handlers.capture_view.StopAndGo")
 @patch("hyperscribe.handlers.capture_view.AudioClient")
-@patch.object(CaptureView, "trigger_render")
-def test_audio_chunk_post(trigger_render, audio_client, stop_and_go):
+@patch("hyperscribe.handlers.capture_view.Helper")
+@patch("hyperscribe.handlers.capture_view.executor")
+def test_audio_chunk_post(executor, helper, audio_client, stop_and_go):
     def reset_mocks():
-        trigger_render.reset_mock()
+        executor.reset_mock()
+        helper.reset_mock()
         audio_client.reset_mock()
         stop_and_go.reset_mock()
 
@@ -325,7 +327,8 @@ def test_audio_chunk_post(trigger_render, audio_client, stop_and_go):
     resp = result[0]
     assert isinstance(resp, Response) and resp.status_code == 400
 
-    assert trigger_render.mock_calls == []
+    assert executor.mock_calls == []
+    assert helper.mock_calls == []
     assert audio_client.mock_calls == []
     assert stop_and_go.mock_calls == []
     reset_mocks()
@@ -348,7 +351,8 @@ def test_audio_chunk_post(trigger_render, audio_client, stop_and_go):
     resp = result[0]
     assert isinstance(resp, Response) and resp.status_code == 422
 
-    assert trigger_render.mock_calls == []
+    assert executor.mock_calls == []
+    assert helper.mock_calls == []
     assert audio_client.mock_calls == []
     assert stop_and_go.mock_calls == []
     reset_mocks()
@@ -369,8 +373,8 @@ def test_audio_chunk_post(trigger_render, audio_client, stop_and_go):
     resp = result[0]
     assert resp.status_code == 500 and resp.content == b"err"
 
-    calls = []
-    assert trigger_render.mock_calls == calls
+    assert executor.mock_calls == []
+    assert helper.mock_calls == []
     calls = [
         call.for_operation("https://audio", "customerIdentifier", "shared"),
         call.for_operation().save_audio_chunk("p", "n", part),
@@ -388,8 +392,10 @@ def test_audio_chunk_post(trigger_render, audio_client, stop_and_go):
     resp = result[0]
     assert resp.status_code == 201 and resp.content == b"Audio chunk saved OK"
 
-    calls = [call("p", "n")]
-    assert trigger_render.mock_calls == calls
+    calls = [call.submit(helper.with_cleanup.return_value, "p", "n")]
+    assert executor.mock_calls == calls
+    calls = [call.with_cleanup(tested.trigger_render)]
+    assert helper.mock_calls == calls
     calls = [
         call.for_operation("https://audio", "customerIdentifier", "shared"),  # -- valid name
         call.for_operation().save_audio_chunk("p", "n", part),
@@ -411,7 +417,8 @@ def test_audio_chunk_post(trigger_render, audio_client, stop_and_go):
     resp = result[0]
     assert resp.status_code == 201 and resp.content == b"Audio chunk saved OK"
 
-    assert trigger_render.mock_calls == []
+    assert executor.mock_calls == []
+    assert helper.mock_calls == []
     calls = [
         call.for_operation("https://audio", "customerIdentifier", "shared"),  # -- valid name
         call.for_operation().save_audio_chunk("p", "n", part),
@@ -424,10 +431,8 @@ def test_audio_chunk_post(trigger_render, audio_client, stop_and_go):
 @patch("hyperscribe.handlers.capture_view.Helper")
 @patch("hyperscribe.handlers.capture_view.executor")
 @patch("hyperscribe.handlers.capture_view.StopAndGo")
-@patch.object(CaptureView, "trigger_render")
-def test_render_effect_post(trigger_render, stop_and_go, executor, helper):
+def test_render_effect_post(stop_and_go, executor, helper):
     def reset_mocks():
-        trigger_render.reset_mock()
         stop_and_go.reset_mock()
         executor.reset_mock()
         helper.reset_mock()
@@ -449,7 +454,6 @@ def test_render_effect_post(trigger_render, stop_and_go, executor, helper):
             7,
             True,
             effects,
-            [call("patientId", "noteId")],
             [
                 call.get("noteId"),
                 call.get().paused_effects(),
@@ -457,8 +461,8 @@ def test_render_effect_post(trigger_render, stop_and_go, executor, helper):
                 call.get().reset_paused_effect().set_delay(),
                 call.get().reset_paused_effect().set_delay().save(),
             ],
-            [],
-            [],
+            [call.submit(helper.with_cleanup.return_value, "patientId", "noteId")],
+            [call.with_cleanup(tested.trigger_render)],
         ),
         (
             [],
@@ -466,7 +470,6 @@ def test_render_effect_post(trigger_render, stop_and_go, executor, helper):
             True,
             7,
             True,
-            [],
             [],
             [
                 call.get("noteId"),
@@ -482,7 +485,6 @@ def test_render_effect_post(trigger_render, stop_and_go, executor, helper):
             True,
             7,
             True,
-            [],
             [],
             [
                 call.get("noteId"),
@@ -501,7 +503,6 @@ def test_render_effect_post(trigger_render, stop_and_go, executor, helper):
             False,
             7,
             True,
-            [],
             [],
             [
                 call.get("noteId"),
@@ -522,7 +523,6 @@ def test_render_effect_post(trigger_render, stop_and_go, executor, helper):
             False,
             7,
             False,
-            [],
             [],
             [
                 call.get("noteId"),
@@ -545,7 +545,6 @@ def test_render_effect_post(trigger_render, stop_and_go, executor, helper):
             cycle,
             is_ended,
             expected,
-            exp_trigger,
             exp_calls,
             exp_executor,
             exp_helper,
@@ -566,7 +565,6 @@ def test_render_effect_post(trigger_render, stop_and_go, executor, helper):
         result = tested.render_effect_post()
         assert result == expected
 
-        assert trigger_render.mock_calls == exp_trigger, f"---> {idx}"
         assert stop_and_go.mock_calls == exp_calls, f"---> {idx}"
         assert executor.mock_calls == exp_executor, f"---> {idx}"
         assert helper.mock_calls == exp_helper, f"---> {idx}"

@@ -78,7 +78,7 @@ class StopAndGo:
         return self._waiting_cycles
 
     def set_delay(self) -> StopAndGo:
-        self._delay = 5  # arbitrary number of seconds (e.g., to let the backend process the effects)
+        self._delay = 1  # arbitrary number of seconds (e.g., to let the backend process the effects)
         return self
 
     def consume_delay(self) -> None:

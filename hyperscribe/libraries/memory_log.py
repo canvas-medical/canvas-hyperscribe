@@ -22,7 +22,7 @@ class MemoryLog:
     def end_session(cls, note_uuid: str) -> str:
         if note_uuid not in ENTRIES:
             return ""
-        return "\n".join(
+        return "\n\n\n\n".join(
             [
                 "\n".join(l)
                 for l in sorted(

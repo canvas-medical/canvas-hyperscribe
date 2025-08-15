@@ -37,13 +37,13 @@ def test_end_session():
             "noteUuid_4": {},
         }
         result = tested.end_session("noteUuid_2")
-        expected = "m\nn\nr\ns\nx\ny"
+        expected = "m\nn\n\n\n\nr\ns\n\n\n\nx\ny"
         assert result == expected
         result = tested.end_session("noteUuid_1")
-        expected = "m\nn\nr\ns\nx\ny"
+        expected = "m\nn\n\n\n\nr\ns\n\n\n\nx\ny"
         assert result == expected
         result = tested.end_session("noteUuid_3")
-        expected = "m\nn\nx\ny"
+        expected = "m\nn\n\n\n\nx\ny"
         assert result == expected
         result = tested.end_session("noteUuid_4")
         expected = ""

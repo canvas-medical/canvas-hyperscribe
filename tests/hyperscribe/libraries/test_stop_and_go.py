@@ -241,7 +241,7 @@ def test_set_delay():
     assert tested._delay == 0
     result = tested.set_delay()
     assert result is tested
-    assert tested._delay == 5
+    assert tested._delay == 1
 
 
 @patch("hyperscribe.libraries.stop_and_go.sleep")
@@ -257,7 +257,7 @@ def test_consume_delay(sleep):
 
     tested.set_delay()
     tested.consume_delay()
-    calls = [call(5)]
+    calls = [call(1)]
     assert sleep.mock_calls == calls
     reset_mocks()
 

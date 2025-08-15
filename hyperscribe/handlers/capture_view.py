@@ -188,7 +188,7 @@ class CaptureView(SimpleAPI):
         match = re.search(r"chunk_(\d+)_", audio_form_part.filename)
         if match:
             StopAndGo.get(note_id).add_waiting_cycle(int(match.group(1))).save()
-            self.trigger_render(patient_id, note_id)
+            executor.submit(Helper.with_cleanup(self.trigger_render), patient_id, note_id)
 
         return [Response(b"Audio chunk saved OK", HTTPStatus.CREATED)]
 
@@ -202,7 +202,7 @@ class CaptureView(SimpleAPI):
         if paused := stop_and_go.paused_effects():
             effects.extend(paused)
             stop_and_go.reset_paused_effect().set_delay().save()
-            self.trigger_render(patient_id, note_id)  # <-- loop!
+            executor.submit(Helper.with_cleanup(self.trigger_render), patient_id, note_id)  # <-- loop!
         elif not stop_and_go.is_running():
             stop_and_go.consume_delay()
             if stop_and_go.consume_next_waiting_cycles(True):
