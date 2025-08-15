@@ -193,5 +193,8 @@ class LlmBase:
             if problems := cls.json_validator(returned, validation):
                 return JsonExtract(error=f"in the JSON #{idx + 1}:{problems}", has_error=True, content=[])
 
+        if len(result) < len(schemas):
+            return JsonExtract(error=f"{len(schemas)} JSON markdown blocks are expected", has_error=True, content=[])
+
         # all good
         return JsonExtract(error="", has_error=False, content=result)

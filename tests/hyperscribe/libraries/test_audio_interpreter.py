@@ -340,11 +340,12 @@ def test_combine_and_speaker_detection(audio2texter, memory_log):
             "Present your findings in a JSON format within a Markdown code block:",
             "```json",
             '[\n {\n  "voice": "voice_1/voice_2/.../voice_N",\n  "text": "the verbatim transcription of what the '
-            'speaker said"\n }\n]',
+            'speaker said, or [silence] for silences"\n }\n]',
             "```",
             "",
             "Then, review the discussion from the top and distinguish the role of the voices (patient, clinician, "
-            "nurse, parents...) in the conversation, if there is only voice, assume this is the clinician",
+            "nurse, parents...) in the conversation, if there is only one voice, or just no silence, "
+            "assume this is the clinician",
             "",
             "Present your findings in a JSON format within a Markdown code block:",
             "```json",
@@ -375,11 +376,12 @@ def test_combine_and_speaker_detection(audio2texter, memory_log):
             "Present your findings in a JSON format within a Markdown code block:",
             "```json",
             '[\n {\n  "voice": "voice_1/voice_2/.../voice_N",\n  "text": "the verbatim transcription of what the '
-            'speaker said"\n }\n]',
+            'speaker said, or [silence] for silences"\n }\n]',
             "```",
             "",
             "Then, review the discussion from the top and distinguish the role of the voices (patient, clinician, "
-            "nurse, parents...) in the conversation, if there is only voice, assume this is the clinician",
+            "nurse, parents...) in the conversation, if there is only one voice, or just no silence, "
+            "assume this is the clinician",
             "",
             "Present your findings in a JSON format within a Markdown code block:",
             "```json",

@@ -106,7 +106,7 @@ class AudioInterpreter:
                     [
                         {
                             "voice": "voice_1/voice_2/.../voice_N",
-                            "text": "the verbatim transcription of what the speaker said",
+                            "text": "the verbatim transcription of what the speaker said, or [silence] for silences",
                         },
                     ],
                     indent=1,
@@ -114,8 +114,8 @@ class AudioInterpreter:
                 "```",
                 "",
                 "Then, review the discussion from the top and distinguish the role of the voices "
-                "(patient, clinician, nurse, parents...) in the conversation, if there is only voice, "
-                "assume this is the clinician",
+                "(patient, clinician, nurse, parents...) in the conversation, if there is only one voice, "
+                "or just no silence, assume this is the clinician",
                 "",
                 "Present your findings in a JSON format within a Markdown code block:",
                 "```json",

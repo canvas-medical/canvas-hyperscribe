@@ -594,15 +594,38 @@ def test_extract_json_from(json_validator):
             json.dumps(["item4"]),
             "```",
             "",
+            "```json",
+            json.dumps(["item5"]),
+            "```",
+            "",
             "end.",
         ],
     )
     # no error
-    json_validator.side_effect = ["", "", ""]
-    result = tested.extract_json_from(content, ["schemaA", "schemaB", "schemaC", "schemaD"])
-    expected = JsonExtract(error="", has_error=False, content=[["item1", "item2"], ["item3"], ["item4"]])
+    for i in range(5):
+        json_validator.side_effect = ["", "", "", ""]
+        result = tested.extract_json_from(content, ["schemaA", "schemaB", "schemaC", "schemaD"][:i])
+        expected = JsonExtract(error="", has_error=False, content=[["item1", "item2"], ["item3"], ["item4"], ["item5"]])
+        assert result == expected
+        calls = [
+            call(["item1", "item2"], "schemaA"),
+            call(["item3"], "schemaB"),
+            call(["item4"], "schemaC"),
+            call(["item5"], "schemaD"),
+        ][:i]
+        assert json_validator.mock_calls == calls, f"---> {i}"
+        reset_mocks()
+    # not enough JSON blocks
+    json_validator.side_effect = ["", "", "", ""]
+    result = tested.extract_json_from(content, ["schemaA", "schemaB", "schemaC", "schemaD", "schemaE"])
+    expected = JsonExtract(error="5 JSON markdown blocks are expected", has_error=True, content=[])
     assert result == expected
-    calls = [call(["item1", "item2"], "schemaA"), call(["item3"], "schemaB"), call(["item4"], "schemaC")]
+    calls = [
+        call(["item1", "item2"], "schemaA"),
+        call(["item3"], "schemaB"),
+        call(["item4"], "schemaC"),
+        call(["item5"], "schemaD"),
+    ]
     assert json_validator.mock_calls == calls
     reset_mocks()
     # with error
