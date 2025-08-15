@@ -129,7 +129,7 @@ def test_generate_chart_for_profile(mock_generate_json, mock_schema_chart, tmp_p
     assert len(mock_generate_json.mock_calls) == 1
     _, kwargs = mock_generate_json.call_args
     expected_system_md5 = "2dd6a8f62a929edbf394a2eb17705b97"
-    expected_user_md5 = "47247de2ca279bcdda4a878451dee2ee"
+    expected_user_md5 = "6d0d64a1895a21a95bc92e893989065a"
     result_system_md5 = hashlib.md5("\n".join(kwargs["system_prompt"]).encode()).hexdigest()
     result_user_md5 = hashlib.md5("\n".join(kwargs["user_prompt"]).encode()).hexdigest()
 
