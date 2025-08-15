@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import NamedTuple
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.medication_cached import MedicationCached
 
 
 class Chart(NamedTuple):
@@ -8,7 +9,7 @@ class Chart(NamedTuple):
     condition_history: list[CodedItem]
     current_allergies: list[CodedItem]
     current_conditions: list[CodedItem]
-    current_medications: list[CodedItem]
+    current_medications: list[MedicationCached]
     current_goals: list[CodedItem]
     family_history: list[CodedItem]
     surgery_history: list[CodedItem]
@@ -32,7 +33,7 @@ class Chart(NamedTuple):
             condition_history=[CodedItem.load_from_json(item) for item in data.get("conditionHistory", [])],
             current_allergies=[CodedItem.load_from_json(item) for item in data.get("currentAllergies", [])],
             current_conditions=[CodedItem.load_from_json(item) for item in data.get("currentConditions", [])],
-            current_medications=[CodedItem.load_from_json(item) for item in data.get("currentMedications", [])],
+            current_medications=[MedicationCached.load_from_json(item) for item in data.get("currentMedications", [])],
             current_goals=[CodedItem.load_from_json(item) for item in data.get("currentGoals", [])],
             family_history=[CodedItem.load_from_json(item) for item in data.get("familyHistory", [])],
             surgery_history=[CodedItem.load_from_json(item) for item in data.get("surgeryHistory", [])],

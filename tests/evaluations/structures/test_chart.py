@@ -1,6 +1,7 @@
 import pytest
 from evaluations.structures.chart import Chart
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.medication_cached import MedicationCached
 from tests.helper import is_namedtuple
 
 
@@ -11,7 +12,7 @@ def test_class():
         "condition_history": list[CodedItem],
         "current_allergies": list[CodedItem],
         "current_conditions": list[CodedItem],
-        "current_medications": list[CodedItem],
+        "current_medications": list[MedicationCached],
         "current_goals": list[CodedItem],
         "family_history": list[CodedItem],
         "surgery_history": list[CodedItem],
@@ -30,7 +31,14 @@ def test_to_json():
                 current_allergies=[CodedItem(uuid="uuid-2", label="Allergy to penicillin", code="Z88.1")],
                 current_conditions=[CodedItem(uuid="uuid-3", label="Asthma, unspecified", code="J45.9")],
                 current_medications=[
-                    CodedItem(uuid="uuid-4", label="Albuterol 90 mcg/dose metered dose inhaler", code="329498")
+                    MedicationCached(
+                        uuid="uuid-4",
+                        label="Albuterol 90 mcg/dose metered dose inhaler",
+                        code_rx_norm="329498",
+                        code_fdb="",
+                        national_drug_code="",
+                        potency_unit_code="",
+                    )
                 ],
                 current_goals=[CodedItem(uuid="uuid-5", label="Control asthma symptoms", code="")],
                 family_history=[],
@@ -46,7 +54,14 @@ def test_to_json():
                 "currentAllergies": [{"code": "Z88.1", "label": "Allergy to penicillin", "uuid": "uuid-2"}],
                 "currentConditions": [{"code": "J45.9", "label": "Asthma, unspecified", "uuid": "uuid-3"}],
                 "currentMedications": [
-                    {"code": "329498", "label": "Albuterol 90 mcg/dose metered dose inhaler", "uuid": "uuid-4"}
+                    {
+                        "uuid": "uuid-4",
+                        "label": "Albuterol 90 mcg/dose metered dose inhaler",
+                        "codeRxNorm": "329498",
+                        "codeFdb": "",
+                        "nationalDrugCode": "",
+                        "potencyUnitCode": "",
+                    }
                 ],
                 "currentGoals": [{"code": "", "label": "Control asthma symptoms", "uuid": "uuid-5"}],
                 "familyHistory": [],
@@ -92,7 +107,16 @@ def test_load_from_json():
                 "conditionHistory": [{"code": "Z87.891", "label": "Personal history of tobacco use", "uuid": "uuid-1"}],
                 "currentAllergies": [{"code": "Z91.013", "label": "Allergy to seafood", "uuid": "uuid-2"}],
                 "currentConditions": [],
-                "currentMedications": [{"code": "860975", "label": "Multivitamin", "uuid": "uuid-3"}],
+                "currentMedications": [
+                    {
+                        "uuid": "uuid-3",
+                        "label": "Multivitamin",
+                        "codeRxNorm": "860975",
+                        "codeFdb": "",
+                        "nationalDrugCode": "",
+                        "potencyUnitCode": "",
+                    }
+                ],
                 "currentGoals": [{"code": "", "label": "Maintain health", "uuid": "uuid-4"}],
                 "familyHistory": [
                     {"code": "Z82.49", "label": "Family history of ischemic heart disease", "uuid": "uuid-5"}
@@ -104,7 +128,16 @@ def test_load_from_json():
                 condition_history=[CodedItem(uuid="uuid-1", label="Personal history of tobacco use", code="Z87.891")],
                 current_allergies=[CodedItem(uuid="uuid-2", label="Allergy to seafood", code="Z91.013")],
                 current_conditions=[],
-                current_medications=[CodedItem(uuid="uuid-3", label="Multivitamin", code="860975")],
+                current_medications=[
+                    MedicationCached(
+                        uuid="uuid-3",
+                        label="Multivitamin",
+                        code_rx_norm="860975",
+                        code_fdb="",
+                        national_drug_code="",
+                        potency_unit_code="",
+                    )
+                ],
                 current_goals=[CodedItem(uuid="uuid-4", label="Maintain health", code="")],
                 family_history=[
                     CodedItem(uuid="uuid-5", label="Family history of ischemic heart disease", code="Z82.49")
