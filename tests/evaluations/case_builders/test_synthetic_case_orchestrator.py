@@ -92,7 +92,7 @@ def test___init__(mock_profile_generator_class, tmp_files, vendor_key_instance):
     assert tested.vendor_key == vendor_key_instance
     assert tested.category == "test_category"
     assert tested.profile_generator == mock_profile_generator
-    assert mock_profile_generator_class.mock_calls == [call(vendor_key_instance.api_key, "test_category")]
+    assert mock_profile_generator_class.mock_calls == [call(vendor_key_instance, "test_category")]
     reset_mocks()
 
 
@@ -171,7 +171,7 @@ def test_generate(
         assert synthetic_case_record.category == "test_category"
         assert synthetic_case_record.text_llm_vendor == vendor_key_instance.vendor
 
-    calls = [call(vendor_key=vendor_key_instance), call().generate_batch(1, len(profiles_list))]
+    calls = [call(vendor_key_instance, "test_category"), call().generate_batch(1, len(profiles_list))]
     assert mock_profile_generator_class.mock_calls == calls
     calls = [call(vendor_key=vendor_key_instance, profiles=profiles_list)]
     for profile in profiles_list:
