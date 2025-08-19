@@ -37,27 +37,48 @@ class SyntheticChartGenerator:
             "additionalProperties": False,
         }
 
+        # Schema for MedicationCached structure
+        medication_cached_schema = {
+            "type": "object",
+            "properties": {
+                "uuid": {"type": "string", "description": "Unique identifier - will be populated automatically"},
+                "label": {"type": "string", "description": "Human-readable medication name"},
+                "codeRxNorm": {"type": "string", "description": "RxNorm code for the medication"},
+                "codeFdb": {"type": "string", "description": "empty placeholder"},
+                "nationalDrugCode": {"type": "string", "description": "empty placeholder"},
+                "potencyUnitCode": {"type": "string", "description": "empty placeholder"},
+            },
+            "required": ["uuid", "label", "codeRxNorm", "codeFdb", "nationalDrugCode", "potencyUnitCode"],
+            "additionalProperties": False,
+        }
+
         properties: dict[str, Any] = {
             "demographicStr": {"type": "string", "description": "String describing patient demographics"}
         }
 
-        # All other fields are arrays of ChartItem objects
-        array_fields = [
+        # Chart item fields use the generic schema
+        chart_item_fields = [
             "conditionHistory",
             "currentAllergies",
             "currentConditions",
-            "currentMedications",
             "currentGoals",
             "familyHistory",
             "surgeryHistory",
         ]
 
-        for field_name in array_fields:
+        for field_name in chart_item_fields:
             properties[field_name] = {
                 "type": "array",
                 "description": Constants.EXAMPLE_CHART_DESCRIPTIONS[field_name],
                 "items": chart_item_schema,
             }
+
+        # Current medications uses the MedicationCached schema
+        properties["currentMedications"] = {
+            "type": "array",
+            "description": Constants.EXAMPLE_CHART_DESCRIPTIONS["currentMedications"],
+            "items": medication_cached_schema,
+        }
 
         return {
             "$schema": "http://json-schema.org/draft-07/schema#",
@@ -86,11 +107,18 @@ class SyntheticChartGenerator:
             "- conditionHistory, currentAllergies, currentConditions, currentMedications, "
             "currentGoals, familyHistory, surgeryHistory: Arrays of objects",
             "",
-            "Each array item must be an object with:",
+            "Each array item, except for currentMedications, must be an object with:",
             "- code: medical code (ICD-10 for conditions/allergies, "
             "RxNorm for medications, CPT for procedures, empty string if no specific code)",
             "- label: Human-readable description",
             "- uuid: Use empty string (will be populated automatically)",
+            "For currentMedications, the array item must be an object with:",
+            "- uuid: Use empty string (will be populated automatically)",
+            "- label: Human-readable medication name",
+            "- codeRxNorm: RxNorm code for the medication",
+            "- codeFdb: Always use empty string (placeholder field)",
+            "- nationalDrugCode: Always use empty string (placeholder field)",
+            "- potencyUnitCode: Always use empty string (placeholder field)",
             "",
             "Your JSON **must** conform to the following JSON Schema:",
             "```json",
