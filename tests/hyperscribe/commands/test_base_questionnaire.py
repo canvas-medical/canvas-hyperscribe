@@ -62,6 +62,7 @@ def test_staged_command_extract():
     tested = BaseQuestionnaire
     tests = [
         ({}, None),
+        ({"questionnaire": None}, None),
         (
             {
                 "skip-60": True,

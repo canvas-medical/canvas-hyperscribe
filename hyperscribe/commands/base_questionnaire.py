@@ -31,7 +31,7 @@ class BaseQuestionnaire(Base):
 
     @classmethod
     def staged_command_extract(cls, data: dict) -> CodedItem | None:
-        questionnaire = data.get("questionnaire", {}).get("extra", {})
+        questionnaire = ((data.get("questionnaire") or {}).get("extra")) or {}
         if not questionnaire:
             return None
 
