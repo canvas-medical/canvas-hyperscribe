@@ -56,12 +56,24 @@ class LlmElevenLabs(LlmBase):
                 elif words["type"] == "spacing":
                     turns[-1]["text"].append(" ")
 
+            if not turns:
+                turns = [{"speaker_id": "speaker_0", "text": []}]
+
             result = HttpResponse(
                 code=result.code,
                 response="\n".join(
                     [
                         "```json",
-                        json.dumps([{"speaker": t["speaker_id"], "text": "".join(t["text"])} for t in turns], indent=1),
+                        json.dumps(
+                            [
+                                {
+                                    "speaker": t["speaker_id"],
+                                    "text": "".join(t["text"]) or "[silence]",
+                                }
+                                for t in turns
+                            ],
+                            indent=1,
+                        ),
                         "```",
                     ]
                 ),

@@ -1,0 +1,32 @@
+{
+  "cycle_001": [
+    {
+      "speaker": "Patient",
+      "text": "I gave up smoking about ten years ago, doctor. "
+    },
+    {
+      "speaker": "Clinician",
+      "text": "That's fantastic, Mr. Johnson. That was a very wise decision. Now let's discuss your diet. I'd like you to start..."
+    }
+  ],
+  "cycle_002": [
+  ],
+  "cycle_003": [
+    {
+      "speaker": "Patient",
+      "text": "Mmm mmm I think mmm mmm mmm mmm."
+    }
+  ],
+  "cycle_004": [
+    {
+      "speaker": "Clinician",
+      "text": "  "
+    }
+  ],
+  "cycle_005": [
+    {
+      "speaker": "Clinician",
+      "text": "Start following a heart-healthy diet. This means reducing your intake of saturated fats, trans fats, and cholesterol. Increase your consumption of fruits, vegetables, whole grains-"
+    }
+  ]
+}

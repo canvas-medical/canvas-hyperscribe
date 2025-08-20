@@ -1,0 +1,42 @@
+{
+  "cycle_001": [
+    {
+      "speaker": "Clinician",
+      "text": "That's fantastic, Sarah. Water polo is such a great sport for building strength and endurance. Have you had any health concerns since I saw you last year? "
+    },
+    {
+      "speaker": "Patient",
+      "text": "No, I feel great. Just got over a cold last month, but it wasn't bad. "
+    },
+    {
+      "speaker": "Clinician",
+      "text": "Good to hear. Let's get your measurements done. Can you step on the scale for me? Okay, you're 5'7\" and 135 pounds. You're right on track-"
+    }
+  ],
+  "cycle_002": [
+    {
+      "speaker": "Clinician",
+      "text": "Perfect. Now let's check your blood pressure and heart rate. "
+    },
+    {
+      "speaker": "Patient",
+      "text": "The cuff feels tight, but it works well. "
+    },
+    {
+      "speaker": "Clinician",
+      "text": "It'll just take a moment. Blood pressure is 110/70, which is perfect. Heart rate is 62. That's excellent. All that swimming is really showing. "
+    },
+    {
+      "speaker": "Patient",
+      "text": "I have always been athletic but water polo has really gotten me in great shape. "
+    },
+    {
+      "speaker": "Clinician",
+      "text": "I'm checking your records and I see you're due for your Tdap booster and this year's flu shot. I am prescribing them. "
+    },
+    {
+      "speaker": "Patient",
+      "text": "Thank you."
+    }
+  ]
+}

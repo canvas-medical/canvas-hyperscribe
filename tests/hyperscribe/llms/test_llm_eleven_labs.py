@@ -94,6 +94,53 @@ def test_request(requests_post):
     reset_mocks()
 
     # no error
+    #  -- empty response
+    content = {
+        "words": [],
+    }
+    response = type(
+        "Response",
+        (),
+        {
+            "status_code": 200,
+            "text": json.dumps(content),
+            "json": lambda self: content,
+        },
+    )()
+
+    requests_post.side_effect = [response]
+
+    tested = LlmElevenLabs(memory_log, "apiKey", "theModel", False)
+    tested.add_audio(b"someBytes", "mp3")
+    result = tested.request()
+    expected = HttpResponse(
+        code=200,
+        response='```json\n[\n {\n  "speaker": "speaker_0",\n  "text": "[silence]"\n }\n]\n```',
+    )
+    assert result == expected
+
+    calls = [
+        call(
+            "https://api.elevenlabs.io/v1/speech-to-text",
+            headers={"xi-api-key": "apiKey"},
+            params={},
+            data={"model_id": "theModel", "diarize": True, "temperature": 0},
+            files={"file": b"someBytes"},
+            verify=True,
+            timeout=None,
+        ),
+    ]
+    assert requests_post.mock_calls == calls
+    calls = [
+        call.log("--- request begins:"),
+        call.log("status code: 200"),
+        call.log({"words": []}),
+        call.log("--- request ends ---"),
+    ]
+    assert memory_log.mock_calls == calls
+    reset_mocks()
+
+    #  -- not empty response
     content = {
         "words": [
             {"text": "text A", "type": "word", "speaker_id": "speaker_0"},

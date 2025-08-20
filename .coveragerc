@@ -2,6 +2,7 @@
 branch = True
 omit =
    tests/*
+   transcriptors/*
    evaluations/test*
    conftest.py
    debug/*
