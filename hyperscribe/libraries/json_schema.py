@@ -187,6 +187,20 @@ JSON_SCHEMAS: dict[str, dict] = {
         },
         "minItems": 1,
     },
+    "voice_turns": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "array",
+        "items": {
+            "type": "object",
+            "properties": {
+                "speaker": {"type": "string", "minLength": 1},
+                "text": {"type": "string", "minLength": 1},
+            },
+            "required": ["speaker", "text"],
+            "additionalProperties": False,
+        },
+        "minItems": 1,
+    },
 }
 
 

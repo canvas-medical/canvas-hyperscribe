@@ -11,9 +11,9 @@ def test_constants():
         "CYCLE_TRANSCRIPT_OVERLAP_MIN": 5,
         "CYCLE_TRANSCRIPT_OVERLAP_MAX": 250,
         "CYCLE_TRANSCRIPT_OVERLAP_DEFAULT": 100,
+        "ELEVEN_LABS_AUDIO": "scribe_v1",
         "DISCUSSION_CACHED_DURATION": 90,
         "GOOGLE_CHAT_ALL": "models/gemini-2.0-flash",
-        "LABEL_ENCOUNTER_COPILOT": "Encounter Copilot",
         "MAX_AUDIO_INTERVAL_SECONDS": "15",
         "MAX_AUTHENTICATION_TIME": 3600,
         "MAX_ATTEMPTS_LLM_HTTP": 3,
@@ -27,6 +27,7 @@ def test_constants():
         "OPENAI_CHAT_TEXT": "gpt-4o",
         "OPENAI_CHAT_TEXT_O3": "o3",
         "VENDOR_ANTHROPIC": "Anthropic",
+        "VENDOR_ELEVEN_LABS": "ElevenLabs",
         "VENDOR_GOOGLE": "Google",
         "VENDOR_OPENAI": "OpenAI",
         #

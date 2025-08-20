@@ -8,6 +8,9 @@ from hyperscribe.structures.http_response import HttpResponse
 
 
 class LlmGoogle(LlmBase):
+    def support_speaker_identification(self) -> bool:
+        return True
+
     def add_audio(self, audio: bytes, audio_format: str) -> None:
         if audio:
             self.audios.append({"format": f"audio/{audio_format}", "data": audio})

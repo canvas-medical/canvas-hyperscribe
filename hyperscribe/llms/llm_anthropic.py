@@ -8,6 +8,9 @@ from hyperscribe.structures.http_response import HttpResponse
 
 
 class LlmAnthropic(LlmBase):
+    def support_speaker_identification(self) -> bool:
+        return True
+
     def to_dict(self) -> dict:
         messages: list[dict] = []
 

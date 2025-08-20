@@ -6,6 +6,7 @@ import pytest
 
 from hyperscribe.libraries.helper import Helper
 from hyperscribe.llms.llm_anthropic import LlmAnthropic
+from hyperscribe.llms.llm_eleven_labs import LlmElevenLabs
 from hyperscribe.llms.llm_google import LlmGoogle
 from hyperscribe.llms.llm_openai import LlmOpenai
 from hyperscribe.structures.access_policy import AccessPolicy
@@ -150,7 +151,11 @@ def test_chatter():
 def test_audio2texter():
     memory_log = MagicMock()
     tested = Helper
-    tests = [("Google", LlmGoogle, "models/gemini-2.0-flash"), ("Any", LlmOpenai, "gpt-4o-audio-preview")]
+    tests = [
+        ("Google", LlmGoogle, "models/gemini-2.0-flash"),
+        ("ElevenLabs", LlmElevenLabs, "scribe_v1"),
+        ("Any", LlmOpenai, "gpt-4o-audio-preview"),
+    ]
     for vendor, exp_class, exp_model in tests:
         memory_log.reset_mock()
         result = tested.audio2texter(

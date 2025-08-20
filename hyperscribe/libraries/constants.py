@@ -6,8 +6,8 @@ class Constants:
     CYCLE_TRANSCRIPT_OVERLAP_MAX = 250
     CYCLE_TRANSCRIPT_OVERLAP_DEFAULT = 100
     DISCUSSION_CACHED_DURATION = 90  # minutes before a discussion is cleared
+    ELEVEN_LABS_AUDIO = "scribe_v1"  # model used for speech to text
     GOOGLE_CHAT_ALL = "models/gemini-2.0-flash"  # LLM model used for speech to text and text completion
-    LABEL_ENCOUNTER_COPILOT = "Encounter Copilot"
     MAX_AUDIO_INTERVAL_SECONDS = "15"
     MAX_AUTHENTICATION_TIME = 3600
     MAX_ATTEMPTS_LLM_HTTP = 3
@@ -23,6 +23,7 @@ class Constants:
     OPENAI_CHAT_TEXT = "gpt-4o"  # LLM model used for text completion
     OPENAI_CHAT_TEXT_O3 = "o3"  # LLM model used for synthetic case generation
     VENDOR_ANTHROPIC = "Anthropic"
+    VENDOR_ELEVEN_LABS = "ElevenLabs"
     VENDOR_GOOGLE = "Google"
     VENDOR_OPENAI = "OpenAI"
     #

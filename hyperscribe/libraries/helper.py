@@ -9,6 +9,7 @@ from hyperscribe.libraries.constants import Constants
 from hyperscribe.libraries.memory_log import MemoryLog
 from hyperscribe.llms.llm_anthropic import LlmAnthropic
 from hyperscribe.llms.llm_base import LlmBase
+from hyperscribe.llms.llm_eleven_labs import LlmElevenLabs
 from hyperscribe.llms.llm_google import LlmGoogle
 from hyperscribe.llms.llm_openai import LlmOpenai
 from hyperscribe.structures.settings import Settings
@@ -72,6 +73,8 @@ class Helper:
         result: Type[LlmBase] = LlmOpenai
         if settings.llm_audio.vendor.upper() == Constants.VENDOR_GOOGLE.upper():
             result = LlmGoogle
+        elif settings.llm_audio.vendor.upper() == Constants.VENDOR_ELEVEN_LABS.upper():
+            result = LlmElevenLabs
         return result(memory_log, settings.llm_audio.api_key, settings.llm_audio_model(), settings.audit_llm)
 
     @classmethod

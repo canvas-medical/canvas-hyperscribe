@@ -30,6 +30,14 @@ def test___init__():
     assert tested.audios == []
 
 
+def test_support_speaker_identification():
+    memory_log = MagicMock()
+    tested = LlmBase(memory_log, "apiKey", "theModel", False)
+    with pytest.raises(NotImplementedError):
+        _ = tested.support_speaker_identification()
+    assert memory_log.mock_calls == []
+
+
 def test_add_prompt():
     prompts = [
         LlmTurn(role="system", text=["line 0"]),

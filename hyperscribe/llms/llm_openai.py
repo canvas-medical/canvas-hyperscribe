@@ -11,6 +11,9 @@ from hyperscribe.structures.http_response import HttpResponse
 
 
 class LlmOpenai(LlmBase):
+    def support_speaker_identification(self) -> bool:
+        return True
+
     def add_audio(self, audio: bytes, audio_format: str) -> None:
         if audio:
             self.audios.append({"format": audio_format, "data": b64encode(audio).decode("utf-8")})

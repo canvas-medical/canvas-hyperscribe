@@ -310,12 +310,237 @@ def test_command_structures():
         reset_mocks()
 
 
-@patch.object(MemoryLog, "instance")
-@patch.object(Helper, "audio2texter")
-def test_combine_and_speaker_detection(audio2texter, memory_log):
+@patch.object(AudioInterpreter, "combine_and_speaker_detection_double_step")
+@patch.object(AudioInterpreter, "combine_and_speaker_detection_single_step")
+@patch("hyperscribe.libraries.audio_interpreter.MemoryLog")
+@patch("hyperscribe.libraries.audio_interpreter.Helper")
+def test_combine_and_speaker_detection(
+    helper,
+    memory_log,
+    combine_and_speaker_detection_single_step,
+    combine_and_speaker_detection_double_step,
+):
     def reset_mocks():
-        audio2texter.reset_mock()
+        helper.reset_mock()
         memory_log.reset_mock()
+        combine_and_speaker_detection_single_step.reset_mock()
+        combine_and_speaker_detection_double_step.reset_mock()
+
+    tested, settings, aws_credentials, cache = helper_instance([], True)
+    audio_chunks = [b"chunk1", b"chunk2"]
+    lines = [
+        Line(speaker="speaker", text="last words 1"),
+        Line(speaker="speaker", text="last words 2"),
+        Line(speaker="speaker", text="last words 3"),
+    ]
+
+    tests = [
+        (
+            True,
+            "single",
+            [call(helper.audio2texter.return_value, lines)],
+            [],
+            [
+                call.audio2texter(settings, memory_log.instance.return_value),
+                call.audio2texter().add_audio(b"chunk1", "mp3"),
+                call.audio2texter().add_audio(b"chunk2", "mp3"),
+                call.audio2texter().support_speaker_identification(),
+            ],
+            [call.instance(tested.identification, "audio2transcript", aws_credentials)],
+        ),
+        (
+            False,
+            "double",
+            [],
+            [call(helper.audio2texter.return_value, helper.chatter.return_value, lines)],
+            [
+                call.audio2texter(settings, memory_log.instance.return_value),
+                call.audio2texter().add_audio(b"chunk1", "mp3"),
+                call.audio2texter().add_audio(b"chunk2", "mp3"),
+                call.audio2texter().support_speaker_identification(),
+                call.chatter(settings, memory_log.instance.return_value),
+            ],
+            [
+                call.instance(tested.identification, "audio2transcript", aws_credentials),
+                call.instance(tested.identification, "speakerDetection", aws_credentials),
+            ],
+        ),
+    ]
+    for identification, expected, exp_call_single, exp_calls_double, exp_call_helper, exp_call_memory_log in tests:
+        helper.audio2texter.return_value.support_speaker_identification.side_effect = [identification]
+        combine_and_speaker_detection_single_step.side_effect = ["single"]
+        combine_and_speaker_detection_double_step.side_effect = ["double"]
+
+        result = tested.combine_and_speaker_detection(audio_chunks, lines)
+        assert result == expected
+
+        assert helper.mock_calls == exp_call_helper
+        assert memory_log.mock_calls == exp_call_memory_log
+        assert combine_and_speaker_detection_single_step.mock_calls == exp_call_single
+        assert combine_and_speaker_detection_double_step.mock_calls == exp_calls_double
+        reset_mocks()
+
+
+def test_combine_and_speaker_detection_double_step():
+    transcriber = MagicMock()
+    detector = MagicMock()
+
+    def reset_mocks():
+        transcriber.reset_mock()
+        detector.reset_mock()
+
+    lines = [
+        Line(speaker="speaker1", text="last words 1"),
+        Line(speaker="speaker2", text="last words 2"),
+        Line(speaker="speaker3", text="last words 3"),
+    ]
+    content = [
+        [
+            {"speaker": "speaker_0", "text": "text 0"},
+            {"speaker": "speaker_1", "text": "text 1"},
+            {"speaker": "speaker_0", "text": "text 3"},
+        ]
+    ]
+    system_prompt = [
+        "The conversation is in the medical context, and related to a visit of a patient with a healthcare provider.",
+        "",
+        "A recording is parsed in realtime and the transcription is reported for each speaker.",
+        "Your task is to identify the speakers of the provided transcription.",
+        "",
+    ]
+    user_prompts = {
+        "noTailedTranscript": [
+            "",
+            "Your task is to identify the role of the voices (patient, clinician, nurse, parents...) "
+            "in the conversation, if there is only one voice, or just only silence, assume this is the clinician.",
+            "",
+            "```json",
+            "[\n [\n  "
+            '{\n   "speaker": "speaker_0",\n   "text": "text 0"\n  },\n  '
+            '{\n   "speaker": "speaker_1",\n   "text": "text 1"\n  },\n  '
+            '{\n   "speaker": "speaker_0",\n   "text": "text 3"\n  }\n ]\n]',
+            "```",
+            "",
+            "Present your findings in a JSON format within a Markdown code block:",
+            "```json",
+            "[\n {\n  "
+            '"speaker": "Patient/Clinician/Nurse/Parent...",\n  '
+            '"text": "the verbatim transcription as reported in the transcription"\n }\n]',
+            "```",
+            "",
+        ],
+        "withTailedTranscript": [
+            "The previous segment finished with:\n"
+            "```json\n"
+            "[\n "
+            '{\n  "speaker": "speaker1",\n  "text": "last words 1"\n },\n '
+            '{\n  "speaker": "speaker2",\n  "text": "last words 2"\n },\n '
+            '{\n  "speaker": "speaker3",\n  "text": "last words 3"\n }\n'
+            "]\n```\n",
+            "Your task is to identify the role of the voices (patient, clinician, nurse, parents...) "
+            "in the conversation, if there is only one voice, or just only silence, assume this is the clinician.",
+            "",
+            "```json",
+            "[\n [\n  "
+            '{\n   "speaker": "speaker_0",\n   "text": "text 0"\n  },\n  '
+            '{\n   "speaker": "speaker_1",\n   "text": "text 1"\n  },\n  '
+            '{\n   "speaker": "speaker_0",\n   "text": "text 3"\n  }\n ]\n]',
+            "```",
+            "",
+            "Present your findings in a JSON format within a Markdown code block:",
+            "```json",
+            "[\n {\n  "
+            '"speaker": "Patient/Clinician/Nurse/Parent...",\n  '
+            '"text": "the verbatim transcription as reported in the transcription"\n }\n]',
+            "```",
+            "",
+        ],
+    }
+    schema = {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "array",
+        "items": {
+            "type": "object",
+            "properties": {
+                "speaker": {"type": "string", "minLength": 1},
+                "text": {"type": "string", "minLength": 1},
+            },
+            "required": ["speaker", "text"],
+            "additionalProperties": False,
+        },
+        "minItems": 1,
+    }
+
+    tested, settings, aws_credentials, cache = helper_instance([], True)
+    # all good
+    # -- no previous transcript
+    transcriber.chat.side_effect = [JsonExtract(has_error=False, error="", content=[content])]
+    detector.chat.side_effect = [JsonExtract(has_error=False, error="", content=[["theResult"]])]
+    result = tested.combine_and_speaker_detection_double_step(transcriber, detector, [])
+    expected = JsonExtract(error="", has_error=False, content=["theResult"])
+    assert result == expected
+
+    calls = [call.chat([])]
+    assert transcriber.mock_calls == calls
+    calls = [
+        call.set_system_prompt(system_prompt),
+        call.set_user_prompt(user_prompts["noTailedTranscript"]),
+        call.chat([schema]),
+    ]
+    assert detector.mock_calls == calls
+    reset_mocks()
+    # -- with previous transcript
+    transcriber.chat.side_effect = [JsonExtract(has_error=False, error="", content=[content])]
+    detector.chat.side_effect = [JsonExtract(has_error=False, error="", content=[["theResult"]])]
+    result = tested.combine_and_speaker_detection_double_step(transcriber, detector, lines)
+    expected = JsonExtract(error="", has_error=False, content=["theResult"])
+    assert result == expected
+
+    calls = [call.chat([])]
+    assert transcriber.mock_calls == calls
+    calls = [
+        call.set_system_prompt(system_prompt),
+        call.set_user_prompt(user_prompts["withTailedTranscript"]),
+        call.chat([schema]),
+    ]
+    assert detector.mock_calls == calls
+    reset_mocks()
+
+    # error on the detector
+    transcriber.chat.side_effect = [JsonExtract(has_error=False, error="", content=[content])]
+    detector.chat.side_effect = [JsonExtract(has_error=True, error="the error", content=[["theResult"]])]
+    result = tested.combine_and_speaker_detection_double_step(transcriber, detector, lines)
+    expected = JsonExtract(has_error=True, error="the error", content=[["theResult"]])
+    assert result == expected
+
+    calls = [call.chat([])]
+    assert transcriber.mock_calls == calls
+    calls = [
+        call.set_system_prompt(system_prompt),
+        call.set_user_prompt(user_prompts["withTailedTranscript"]),
+        call.chat([schema]),
+    ]
+    assert detector.mock_calls == calls
+    reset_mocks()
+
+    # error on the transcriber
+    transcriber.chat.side_effect = [JsonExtract(has_error=True, error="the error", content=[content])]
+    detector.chat.side_effect = []
+    result = tested.combine_and_speaker_detection_double_step(transcriber, detector, lines)
+    expected = JsonExtract(has_error=True, error="the error", content=[content])
+    assert result == expected
+
+    calls = [call.chat([])]
+    assert transcriber.mock_calls == calls
+    assert detector.mock_calls == []
+    reset_mocks()
+
+
+def test_combine_and_speaker_detection_single_step():
+    detector = MagicMock()
+
+    def reset_mocks():
+        detector.reset_mock()
 
     system_prompt = [
         "The conversation is in the medical context, and related to a visit of a patient with a healthcare provider.",
@@ -344,7 +569,7 @@ def test_combine_and_speaker_detection(audio2texter, memory_log):
             "```",
             "",
             "Then, review the discussion from the top and distinguish the role of the voices (patient, clinician, "
-            "nurse, parents...) in the conversation, if there is only one voice, or just no silence, "
+            "nurse, parents...) in the conversation, if there is only one voice, or just only silence, "
             "assume this is the clinician",
             "",
             "Present your findings in a JSON format within a Markdown code block:",
@@ -380,7 +605,7 @@ def test_combine_and_speaker_detection(audio2texter, memory_log):
             "```",
             "",
             "Then, review the discussion from the top and distinguish the role of the voices (patient, clinician, "
-            "nurse, parents...) in the conversation, if there is only one voice, or just no silence, "
+            "nurse, parents...) in the conversation, if there is only one voice, or just only silence, "
             "assume this is the clinician",
             "",
             "Present your findings in a JSON format within a Markdown code block:",
@@ -451,88 +676,63 @@ def test_combine_and_speaker_detection(audio2texter, memory_log):
         Line(speaker="speaker", text="last words 2"),
         Line(speaker="speaker", text="last words 3"),
     ]
-    audio_chunks = [b"chunk1", b"chunk2"]
 
     tested, settings, aws_credentials, cache = helper_instance([], True)
     # no error
     # -- all JSON
-    audio2texter.return_value.chat.side_effect = [
+    detector.chat.side_effect = [
         JsonExtract(error="theError", has_error=False, content=[discussion, speakers]),
     ]
-    memory_log.side_effect = ["MemoryLogInstance"]
-    result = tested.combine_and_speaker_detection(audio_chunks, [])
+    result = tested.combine_and_speaker_detection_single_step(detector, [])
     expected = JsonExtract(error="", has_error=False, content=conversation)
     assert result == expected
     calls = [
-        call(settings, "MemoryLogInstance"),
-        call().set_system_prompt(system_prompt),
-        call().set_user_prompt(user_prompt["noTailedTranscript"]),
-        call().add_audio(b"chunk1", "mp3"),
-        call().add_audio(b"chunk2", "mp3"),
-        call().chat(schemas),
+        call.set_system_prompt(system_prompt),
+        call.set_user_prompt(user_prompt["noTailedTranscript"]),
+        call.chat(schemas),
     ]
-    assert audio2texter.mock_calls == calls
-    calls = [call(tested.identification, "audio2transcript", aws_credentials)]
-    assert memory_log.mock_calls == calls
+    assert detector.mock_calls == calls
     reset_mocks()
     # -- only one JSON
-    audio2texter.return_value.chat.side_effect = [JsonExtract(error="theError", has_error=False, content=[discussion])]
-    memory_log.side_effect = ["MemoryLogInstance"]
-    result = tested.combine_and_speaker_detection(audio_chunks, [])
+    detector.chat.side_effect = [JsonExtract(error="theError", has_error=False, content=[discussion])]
+    result = tested.combine_and_speaker_detection_single_step(detector, [])
     expected = JsonExtract(error="partial response", has_error=True, content=[discussion])
     assert result == expected
     calls = [
-        call(settings, "MemoryLogInstance"),
-        call().set_system_prompt(system_prompt),
-        call().set_user_prompt(user_prompt["noTailedTranscript"]),
-        call().add_audio(b"chunk1", "mp3"),
-        call().add_audio(b"chunk2", "mp3"),
-        call().chat(schemas),
+        call.set_system_prompt(system_prompt),
+        call.set_user_prompt(user_prompt["noTailedTranscript"]),
+        call.chat(schemas),
     ]
-    assert audio2texter.mock_calls == calls
-    calls = [call(tested.identification, "audio2transcript", aws_credentials)]
-    assert memory_log.mock_calls == calls
+    assert detector.mock_calls == calls
     reset_mocks()
     # -- with some previous transcript
-    audio2texter.return_value.chat.side_effect = [
+    detector.chat.side_effect = [
         JsonExtract(error="theError", has_error=False, content=[discussion, speakers]),
     ]
-    memory_log.side_effect = ["MemoryLogInstance"]
-    result = tested.combine_and_speaker_detection(audio_chunks, lines)
+    result = tested.combine_and_speaker_detection_single_step(detector, lines)
     expected = JsonExtract(error="", has_error=False, content=conversation)
     assert result == expected
     calls = [
-        call(settings, "MemoryLogInstance"),
-        call().set_system_prompt(system_prompt),
-        call().set_user_prompt(user_prompt["withTailedTranscript"]),
-        call().add_audio(b"chunk1", "mp3"),
-        call().add_audio(b"chunk2", "mp3"),
-        call().chat(schemas),
+        call.set_system_prompt(system_prompt),
+        call.set_user_prompt(user_prompt["withTailedTranscript"]),
+        call.chat(schemas),
     ]
-    assert audio2texter.mock_calls == calls
-    calls = [call(tested.identification, "audio2transcript", aws_credentials)]
-    assert memory_log.mock_calls == calls
+    assert detector.mock_calls == calls
     reset_mocks()
 
     # with error
-    audio2texter.return_value.chat.side_effect = [
+    detector.chat.side_effect = [
         JsonExtract(error="theError", has_error=True, content=[discussion, speakers]),
     ]
-    memory_log.side_effect = ["MemoryLogInstance"]
-    result = tested.combine_and_speaker_detection(audio_chunks, [])
+    result = tested.combine_and_speaker_detection_single_step(detector, [])
     expected = JsonExtract(error="theError", has_error=True, content=[discussion, speakers])
     assert result == expected
     calls = [
-        call(settings, "MemoryLogInstance"),
-        call().set_system_prompt(system_prompt),
-        call().set_user_prompt(user_prompt["noTailedTranscript"]),
-        call().add_audio(b"chunk1", "mp3"),
-        call().add_audio(b"chunk2", "mp3"),
-        call().chat(schemas),
+        call.set_system_prompt(system_prompt),
+        call.set_user_prompt(user_prompt["noTailedTranscript"]),
+        call.chat(schemas),
     ]
-    assert audio2texter.mock_calls == calls
-    calls = [call(tested.identification, "audio2transcript", aws_credentials)]
-    assert memory_log.mock_calls == calls
+    assert detector.mock_calls == calls
     reset_mocks()
 
 

@@ -1,7 +1,15 @@
 import json
 from unittest.mock import patch, call, MagicMock
+
 from hyperscribe.llms.llm_openai import LlmOpenai
 from hyperscribe.structures.http_response import HttpResponse
+
+
+def test_support_speaker_identification():
+    memory_log = MagicMock()
+    tested = LlmOpenai(memory_log, "openaiKey", "theModel", False)
+    result = tested.support_speaker_identification()
+    assert result is True
 
 
 def test_add_audio():

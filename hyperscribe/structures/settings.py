@@ -80,6 +80,8 @@ class Settings(NamedTuple):
         result = Constants.OPENAI_CHAT_AUDIO
         if self.llm_audio.vendor.upper() == Constants.VENDOR_GOOGLE.upper():
             result = Constants.GOOGLE_CHAT_ALL
+        if self.llm_audio.vendor.upper() == Constants.VENDOR_ELEVEN_LABS.upper():
+            result = Constants.ELEVEN_LABS_AUDIO
         return result
 
     def llm_text_model(self) -> str:

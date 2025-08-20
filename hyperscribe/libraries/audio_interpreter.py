@@ -9,6 +9,7 @@ from hyperscribe.libraries.implemented_commands import ImplementedCommands
 from hyperscribe.libraries.json_schema import JsonSchema
 from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.libraries.memory_log import MemoryLog
+from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.instruction import Instruction
@@ -62,11 +63,84 @@ class AudioInterpreter:
         }
 
     def combine_and_speaker_detection(self, audio_chunks: list[bytes], transcript_tail: list[Line]) -> JsonExtract:
-        conversation = Helper.audio2texter(
-            self.settings,
-            MemoryLog.instance(self.identification, "audio2transcript", self.s3_credentials),
+        memory_log = MemoryLog.instance(self.identification, "audio2transcript", self.s3_credentials)
+        transcriber = Helper.audio2texter(self.settings, memory_log)
+        extension = "mp3"
+        for audio in audio_chunks:
+            transcriber.add_audio(audio, extension)
+
+        if transcriber.support_speaker_identification():
+            return self.combine_and_speaker_detection_single_step(transcriber, transcript_tail)
+        else:
+            memory_log = MemoryLog.instance(self.identification, "speakerDetection", self.s3_credentials)
+            detector = Helper.chatter(self.settings, memory_log)
+            return self.combine_and_speaker_detection_double_step(transcriber, detector, transcript_tail)
+
+    @classmethod
+    def combine_and_speaker_detection_double_step(
+        cls,
+        transcriber: LlmBase,
+        detector: LlmBase,
+        transcript_tail: list[Line],
+    ) -> JsonExtract:
+        response = transcriber.chat(JsonSchema.get([]))
+        if response.has_error:
+            return response
+        # using the LLM text to identify the speakers
+        detector.set_system_prompt(
+            [
+                "The conversation is in the medical context, and related to a visit of a patient with a "
+                "healthcare provider.",
+                "",
+                "A recording is parsed in realtime and the transcription is reported for each speaker.",
+                "Your task is to identify the speakers of the provided transcription.",
+                "",
+            ],
         )
-        conversation.set_system_prompt(
+        previous_transcript = ""
+        if transcript_tail:
+            previous_transcript = "\n".join(
+                [
+                    "The previous segment finished with:",
+                    "```json",
+                    json.dumps([line.to_json() for line in transcript_tail], indent=1),
+                    "```",
+                    "",
+                ],
+            )
+        detector.set_user_prompt(
+            [
+                previous_transcript,
+                "Your task is to identify the role of the voices (patient, clinician, nurse, parents...) "
+                "in the conversation, if there is only one voice, or just only silence, assume this is the clinician.",
+                "",
+                "```json",
+                json.dumps(response.content[0], indent=1),
+                "```",
+                "",
+                "Present your findings in a JSON format within a Markdown code block:",
+                "```json",
+                json.dumps(
+                    [
+                        {
+                            "speaker": "Patient/Clinician/Nurse/Parent...",
+                            "text": "the verbatim transcription as reported in the transcription",
+                        },
+                    ],
+                    indent=1,
+                ),
+                "```",
+                "",
+            ],
+        )
+        response = detector.chat(JsonSchema.get(["voice_turns"]))
+        if response.has_error:
+            return response
+        return JsonExtract(has_error=False, error="", content=response.content[0])
+
+    @classmethod
+    def combine_and_speaker_detection_single_step(cls, detector: LlmBase, transcript_tail: list[Line]) -> JsonExtract:
+        detector.set_system_prompt(
             [
                 "The conversation is in the medical context, and related to a visit of a patient with a "
                 "healthcare provider.",
@@ -87,7 +161,7 @@ class AudioInterpreter:
                     "",
                 ],
             )
-        conversation.set_user_prompt(
+        detector.set_user_prompt(
             [
                 "The recording takes place in a medical setting, specifically related to a patient's visit "
                 "with a clinician.",
@@ -115,7 +189,7 @@ class AudioInterpreter:
                 "",
                 "Then, review the discussion from the top and distinguish the role of the voices "
                 "(patient, clinician, nurse, parents...) in the conversation, if there is only one voice, "
-                "or just no silence, assume this is the clinician",
+                "or just only silence, assume this is the clinician",
                 "",
                 "Present your findings in a JSON format within a Markdown code block:",
                 "```json",
@@ -128,11 +202,7 @@ class AudioInterpreter:
             ],
         )
 
-        extension = "mp3"
-        for audio in audio_chunks:
-            conversation.add_audio(audio, extension)
-
-        response = conversation.chat(JsonSchema.get(["voice_split", "voice_identification"]))
+        response = detector.chat(JsonSchema.get(["voice_split", "voice_identification"]))
         if response.has_error:
             return response
         if len(response.content) < 2:

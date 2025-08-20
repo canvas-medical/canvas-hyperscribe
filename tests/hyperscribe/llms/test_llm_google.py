@@ -5,6 +5,13 @@ from hyperscribe.llms.llm_google import LlmGoogle
 from hyperscribe.structures.http_response import HttpResponse
 
 
+def test_support_speaker_identification():
+    memory_log = MagicMock()
+    tested = LlmGoogle(memory_log, "googleKey", "theModel", False)
+    result = tested.support_speaker_identification()
+    assert result is True
+
+
 def test_add_audio():
     memory_log = MagicMock()
     tested = LlmGoogle(memory_log, "googleKey", "theModel", False)
