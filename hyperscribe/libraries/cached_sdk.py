@@ -29,7 +29,11 @@ class CachedSdk:
         return self.created.date().isoformat()
 
     def save(self) -> None:
-        sdk_cache = get_cache()
+        try:
+            sdk_cache = get_cache()
+        except RuntimeError:
+            sdk_cache = None
+
         if sdk_cache is None:
             CACHED[self.note_uuid] = self.to_json()
         else:
@@ -47,7 +51,11 @@ class CachedSdk:
 
     @classmethod
     def get_discussion(cls, note_uuid: str) -> CachedSdk:
-        sdk_cache = get_cache()
+        try:
+            sdk_cache = get_cache()
+        except RuntimeError:
+            sdk_cache = None
+
         if sdk_cache is None:
             sdk_cache = CACHED
 

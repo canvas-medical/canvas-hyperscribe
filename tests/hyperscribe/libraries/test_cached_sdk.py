@@ -156,16 +156,17 @@ def test_save(get_cache):
         assert the_cache.mock_calls == calls
         reset_mocks()
 
-        # cache does not exist
-        get_cache.side_effect = [None]
-        tested.save()
+        # cache does not exist or generates an error
+        for side_effect in [None, RuntimeError("theError")]:
+            get_cache.side_effect = [side_effect]
+            tested.save()
 
-        assert cached_sdk.CACHED == {"theNoteUuid": cached_dict}
+            assert cached_sdk.CACHED == {"theNoteUuid": cached_dict}
 
-        calls = [call()]
-        assert get_cache.mock_calls == calls
-        assert the_cache.mock_calls == []
-        reset_mocks()
+            calls = [call()]
+            assert get_cache.mock_calls == calls
+            assert the_cache.mock_calls == []
+            reset_mocks()
 
 
 def test_to_json():
@@ -330,45 +331,47 @@ def test_get_discussion(get_cache, mock_datetime):
         reset_mocks()
 
         # cache does not exist
-        # -- key exists
-        get_cache.side_effect = [None]
-        cached_sdk.CACHED = {"theNoteUuid": cached_dict}
-        mock_datetime.now.side_effect = [date_0]
-        result = tested.get_discussion("theNoteUuid")
-        assert isinstance(result, CachedSdk)
-        assert result.created == date_1
-        assert result.updated == date_2
-        assert result.cycle == 7
-        assert result.previous_instructions == instructions
-        assert result.previous_transcript == lines
+        # cache does not exist or generates an error
+        for side_effect in [None, RuntimeError("theError")]:
+            # -- key exists
+            get_cache.side_effect = [side_effect]
+            cached_sdk.CACHED = {"theNoteUuid": cached_dict}
+            mock_datetime.now.side_effect = [date_0]
+            result = tested.get_discussion("theNoteUuid")
+            assert isinstance(result, CachedSdk)
+            assert result.created == date_1
+            assert result.updated == date_2
+            assert result.cycle == 7
+            assert result.previous_instructions == instructions
+            assert result.previous_transcript == lines
 
-        calls = [call()]
-        assert get_cache.mock_calls == calls
-        calls = [
-            call.now(timezone.utc),
-            call.fromisoformat("2025-06-12T14:33:21.123456+00:00"),
-            call.fromisoformat("2025-06-12T14:33:37.123456+00:00"),
-        ]
-        assert mock_datetime.mock_calls == calls
-        reset_mocks()
+            calls = [call()]
+            assert get_cache.mock_calls == calls
+            calls = [
+                call.now(timezone.utc),
+                call.fromisoformat("2025-06-12T14:33:21.123456+00:00"),
+                call.fromisoformat("2025-06-12T14:33:37.123456+00:00"),
+            ]
+            assert mock_datetime.mock_calls == calls
+            reset_mocks()
 
-        # -- key does not exist
-        get_cache.side_effect = [None]
-        cached_sdk.CACHED = {}
-        mock_datetime.now.side_effect = [date_0]
-        result = tested.get_discussion("theNoteUuid")
-        assert isinstance(result, CachedSdk)
-        assert result.created == date_0
-        assert result.updated == date_0
-        assert result.cycle == 1
-        assert result.previous_instructions == []
-        assert result.previous_transcript == []
+            # -- key does not exist
+            get_cache.side_effect = [side_effect]
+            cached_sdk.CACHED = {}
+            mock_datetime.now.side_effect = [date_0]
+            result = tested.get_discussion("theNoteUuid")
+            assert isinstance(result, CachedSdk)
+            assert result.created == date_0
+            assert result.updated == date_0
+            assert result.cycle == 1
+            assert result.previous_instructions == []
+            assert result.previous_transcript == []
 
-        calls = [call()]
-        assert get_cache.mock_calls == calls
-        calls = [call.now(timezone.utc)]
-        assert mock_datetime.mock_calls == calls
-        reset_mocks()
+            calls = [call()]
+            assert get_cache.mock_calls == calls
+            calls = [call.now(timezone.utc)]
+            assert mock_datetime.mock_calls == calls
+            reset_mocks()
 
 
 def test_load_from_json():
