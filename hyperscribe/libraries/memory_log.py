@@ -88,5 +88,5 @@ class MemoryLog:
             )
             from_index = self.current_idx
             to_index = len(ENTRIES[self.identification.note_uuid][self.label])
-            self.current_idx = to_index
+            # self.current_idx = to_index # <-- ensure a full log is stored
             client_s3.upload_text_to_s3(log_path, self.logs(from_index, to_index))

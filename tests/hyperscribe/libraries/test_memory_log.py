@@ -316,7 +316,7 @@ def test_store_so_far(aws_s3, get_discussion):
         aws_s3.return_value.is_ready.side_effect = [True]
         get_discussion.side_effect = [cached]
         tested.store_so_far()
-        assert tested.current_idx == 3
+        assert tested.current_idx == 0  # <-- ensure full log is stored
 
         calls = [
             call(aws_s3_credentials),

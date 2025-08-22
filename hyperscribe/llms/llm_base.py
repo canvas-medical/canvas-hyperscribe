@@ -33,6 +33,9 @@ class LlmBase:
     def support_speaker_identification(self) -> bool:
         raise NotImplementedError()
 
+    def reset_prompts(self) -> None:
+        self.prompts = []
+
     def add_prompt(self, prompt: LlmTurn) -> None:
         if prompt.role == self.ROLE_SYSTEM:
             self.set_system_prompt(prompt.text)

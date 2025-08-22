@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import NamedTuple
 
 from hyperscribe.structures.question_type import QuestionType
+from hyperscribe.structures.question_used import QuestionUsed
 from hyperscribe.structures.response import Response
 
 
@@ -21,6 +22,9 @@ class Question(NamedTuple):
             "skipped": self.skipped,
             "responses": [response.to_json() for response in self.responses],
         }
+
+    def used_json(self) -> dict:
+        return QuestionUsed(dbid=self.dbid, label=self.label, used=False).for_llm()
 
     def for_llm(self, include_skipped: bool) -> dict:
         include_comment = bool(self.type == QuestionType.TYPE_CHECKBOX)

@@ -22,6 +22,7 @@ class Constants:
     OPENAI_CHAT_AUDIO = "gpt-4o-audio-preview"  # LLM model used for speech to text
     OPENAI_CHAT_TEXT = "gpt-4o"  # LLM model used for text completion
     OPENAI_CHAT_TEXT_O3 = "o3"  # LLM model used for synthetic case generation
+    QUESTIONNAIRE_1STEP_MAX_QUESTIONS = 4  # number of questions before triggering a 2-step questionnaire flow
     VENDOR_ANTHROPIC = "Anthropic"
     VENDOR_ELEVEN_LABS = "ElevenLabs"
     VENDOR_GOOGLE = "Google"

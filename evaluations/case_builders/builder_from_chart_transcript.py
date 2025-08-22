@@ -1,13 +1,12 @@
 import json
 from argparse import ArgumentParser, Namespace
+
 from evaluations.auditors.auditor_store import AuditorStore
 from evaluations.case_builders.builder_base import BuilderBase
 from evaluations.constants import Constants
-from evaluations.datastores.sqllite.store_cases import StoreCases
-from evaluations.structures.evaluation_case import EvaluationCase
-from hyperscribe.libraries.commander import Commander
 from hyperscribe.libraries.audio_interpreter import AudioInterpreter
 from hyperscribe.libraries.cached_sdk import CachedSdk
+from hyperscribe.libraries.commander import Commander
 from hyperscribe.libraries.implemented_commands import ImplementedCommands
 from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.structures.identification_parameters import IdentificationParameters
@@ -35,44 +34,33 @@ class BuilderFromChartTranscript(BuilderBase):
         limited_cache = LimitedCache.load_from_json(chart_data)
 
         with parameters.transcript.open("r") as f:
-            transcript_data = json.load(f)
-        transcript = Line.load_from_json(transcript_data)
+            transcript = Line.load_from_json(json.load(f))
+        cycles = min(max(1, parameters.cycles), len(transcript))
 
-        StoreCases.upsert(
-            EvaluationCase(
-                environment=identification.canvas_instance,
-                patient_uuid=identification.patient_uuid,
-                limited_cache=chart_data,
-                case_name=parameters.case,
-                case_group=parameters.group,
-                case_type=parameters.type,
-                cycles=max(1, parameters.cycles),
-                description=parameters.case,
-            )
-        )
+        print(f"Evaluation Case: {parameters.case}")
+        print(f"Chart file: {parameters.chart.name}")
+        print(f"JSON file: {parameters.transcript.name}")
+        print(f"Cycles: {cycles}")
+
+        recorder.case_update_limited_cache(limited_cache.to_json(True))
 
         chatter = AudioInterpreter(recorder.settings, recorder.s3_credentials, limited_cache, identification)
-
         previous = limited_cache.staged_commands_as_instructions(ImplementedCommands.schema_key2instruction())
-        discussion = CachedSdk.get_discussion(identification.note_uuid)
+        discussion = CachedSdk.get_discussion(chatter.identification.note_uuid)
 
-        if parameters.cycles < 2:
-            discussion.set_cycle(1)
-            Commander.transcript2commands(recorder, transcript, chatter, previous)
-        else:
-            length, extra = divmod(len(transcript), parameters.cycles)
-            length += 1 if extra else 0
-            for cycle in range(parameters.cycles):
-                start = cycle * length
-                discussion.set_cycle(cycle + 1)
-                new_store = AuditorStore(parameters.case, cycle, recorder.settings, recorder.s3_credentials)
-                prev, _ = Commander.transcript2commands(
-                    new_store,
-                    transcript[start : start + length],
-                    chatter,
-                    previous,
-                )
-                previous = prev
+        length, extra = divmod(len(transcript), cycles)
+        length += 1 if extra else 0
+
+        for cycle in range(cycles):
+            idx = cycle * length
+            cycle += 1
+            discussion.set_cycle(cycle)
+            recorder.set_cycle(cycle)
+            recorder.upsert_json(
+                Constants.AUDIO2TRANSCRIPT,
+                {recorder.cycle_key: [line.to_json() for line in transcript[idx : idx + length]]},
+            )
+            previous, _ = Commander.transcript2commands(recorder, transcript[idx : idx + length], chatter, previous)
 
         if parameters.render:
-            cls._render_in_ui(parameters.case, identification, limited_cache)
+            cls._render_in_ui(recorder, identification, limited_cache)

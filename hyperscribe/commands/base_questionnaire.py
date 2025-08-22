@@ -12,12 +12,14 @@ from canvas_sdk.commands.commands.questionnaire.question import (
 )
 
 from hyperscribe.commands.base import Base
+from hyperscribe.libraries.constants import Constants
 from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.instruction import Instruction
 from hyperscribe.structures.line import Line
 from hyperscribe.structures.question import Question
 from hyperscribe.structures.question_type import QuestionType
+from hyperscribe.structures.question_used import QuestionUsed
 from hyperscribe.structures.questionnaire import Questionnaire as QuestionnaireDefinition
 from hyperscribe.structures.response import Response
 
@@ -84,7 +86,7 @@ class BaseQuestionnaire(Base):
         return CodedItem(label=json.dumps(result.to_json()), code="", uuid="")
 
     @classmethod
-    def json_schema(cls, include_skipped: bool) -> dict:
+    def json_schema_questionnaire(cls, include_skipped: bool) -> dict:
         properties = {
             "questionId": {"type": "integer"},
             "question": {"type": "string"},
@@ -117,6 +119,75 @@ class BaseQuestionnaire(Base):
             "items": {"type": "object", "properties": properties, "required": list(properties.keys())},
         }
 
+    @classmethod
+    def json_schema_question_list(cls) -> dict:
+        properties = {
+            "questionId": {"type": "integer"},
+            "question": {"type": "string"},
+            "usedInTranscript": {"type": "boolean"},
+        }
+        return {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": properties,
+                "required": list(properties.keys()),
+            },
+        }
+
+    @classmethod
+    def relevant_question_ids(
+        cls,
+        discussion: list[Line],
+        chatter: LlmBase,
+        questionnaire: QuestionnaireDefinition,
+    ) -> list[int]:
+        result: list[int] = [q.dbid for q in questionnaire.questions]
+        if len(result) > Constants.QUESTIONNAIRE_1STEP_MAX_QUESTIONS:
+            # which questions of the questionnaire are relevant based on the transcript?
+            result = []
+            system_prompt = [
+                "The conversation is in the context of a clinical encounter between patient and licensed "
+                "healthcare provider.",
+                f"The healthcare provider is editing a questionnaire '{questionnaire.name}', potentially without "
+                f"notifying the patient to prevent biased answers.",
+                "The user will submit two JSON Markdown blocks:",
+                "- the questions of the questionnaire,",
+                "- a partial transcript of the visit of a patient with the healthcare provider.",
+                "",
+                "Your task is to identifying from the transcript which questions the healthcare provider is "
+                "referencing, if any.",
+                "Since this is only a part of the transcript, it may have no reference to the questionnaire at all.",
+                "",
+                "Your response must be the updated JSON Markdown block of the list of questions.",
+                "",
+            ]
+            transcript = json.dumps([line.to_json() for line in discussion], indent=1)
+
+            user_prompt = [
+                "Below is a part of the transcript between the patient and the healthcare provider:",
+                "```json",
+                transcript,
+                "```",
+                "",
+                f"The questionnaire '{questionnaire.name}' has the following questions:",
+                "```json",
+                json.dumps(questionnaire.used_questions()),
+                "```",
+                "",
+                "Return this JSON in a Markdown block after setting to 'true' the questions "
+                "referenced in the transcript.",
+                "",
+            ]
+            schemas = [cls.json_schema_question_list()]
+            chatter.set_system_prompt(system_prompt)
+            chatter.set_user_prompt(user_prompt)
+            response = chatter.chat(schemas)
+            if not response.has_error:
+                result = [q.dbid for q in QuestionUsed.load_from_llm(response.content[0]) if q.used]
+        return result
+
     def update_from_transcript(
         self,
         discussion: list[Line],
@@ -128,52 +199,57 @@ class BaseQuestionnaire(Base):
             json_data = json.loads(instruction.information)
         except json.JSONDecodeError:
             return None
-        include_skipped = self.include_skipped()
         questionnaire = QuestionnaireDefinition.load_from(json_data)
-        system_prompt = [
-            "The conversation is in the context of a clinical encounter between patient and licensed "
-            "healthcare provider.",
-            f"The healthcare provider is editing a questionnaire '{questionnaire.name}', potentially without "
-            f"notifying the patient to prevent biased answers.",
-            "The user will submit two JSON Markdown blocks:",
-            "- the current state of the questionnaire,",
-            "- a partial transcript of the visit of a patient with the healthcare provider.",
-            "",
-            "Your task is to identifying from the transcript which questions the healthcare provider is "
-            "referencing and what responses the patient is giving.",
-            "Since this is only a part of the transcript, it may have no reference to the questionnaire at all.",
-            "",
-            "Your response must be the JSON Markdown block of the questionnaire, with all the necessary "
-            "changes to reflect the transcript content.",
-            "",
-        ]
-        transcript = json.dumps([line.to_json() for line in discussion], indent=1)
+        if used_question_ids := self.relevant_question_ids(discussion, chatter, questionnaire):
+            include_skipped = self.include_skipped()
+            # what are the updates, if any?
+            system_prompt = [
+                "The conversation is in the context of a clinical encounter between patient and licensed "
+                "healthcare provider.",
+                f"The healthcare provider is editing a questionnaire '{questionnaire.name}', potentially without "
+                f"notifying the patient to prevent biased answers.",
+                "The user will submit two JSON Markdown blocks:",
+                "- the current state of the questionnaire,",
+                "- a partial transcript of the visit of a patient with the healthcare provider.",
+                "",
+                "Your task is to identifying from the transcript which questions the healthcare provider is "
+                "referencing and what responses the patient is giving.",
+                "Since this is only a part of the transcript, it may have no reference to the questionnaire at all.",
+                "",
+                "Your response must be the JSON Markdown block of the questionnaire, with all the necessary "
+                "changes to reflect the transcript content.",
+                "",
+            ]
+            transcript = json.dumps([line.to_json() for line in discussion], indent=1)
 
-        user_prompt = [
-            "Below is a part of the transcript between the patient and the healthcare provider:",
-            "```json",
-            transcript,
-            "```",
-            "",
-            f"The questionnaire '{questionnaire.name}' is currently as follow,:",
-            "```json",
-            json.dumps(questionnaire.for_llm(include_skipped)),
-            "```",
-            "",
-            "Your task is to replace the values of the JSON object as necessary.",
-            "Since the current questionnaire's state is based on previous parts of the transcript, the changes should "
-            "be based on explicit information only.",
-        ]
-        if include_skipped:
-            user_prompt.append(
-                "This includes the values of 'skipped', change it to 'false' only if the question "
-                "is obviously answered in the transcript, don't change it at all otherwise."
-            )
-        user_prompt.append("")
-
-        schemas = [self.json_schema(include_skipped)]
-        if response := chatter.single_conversation(system_prompt, user_prompt, schemas, instruction):
-            return QuestionnaireDefinition.load_from_llm(questionnaire.dbid, questionnaire.name, response)
+            user_prompt = [
+                "Below is a part of the transcript between the patient and the healthcare provider:",
+                "```json",
+                transcript,
+                "```",
+                "",
+                f"The questionnaire '{questionnaire.name}' is currently as follow,:",
+                "```json",
+                json.dumps(questionnaire.for_llm_limited_to(include_skipped, used_question_ids)),
+                "```",
+                "",
+                "Your task is to replace the values of the JSON object as necessary.",
+                "Since the current questionnaire's state is based on previous parts of the transcript, "
+                "the changes should be based on explicit information only.",
+            ]
+            if include_skipped:
+                user_prompt.append(
+                    "This includes the values of 'skipped', change it to 'false' only if the question "
+                    "is obviously answered in the transcript, don't change it at all otherwise."
+                )
+            user_prompt.append("")
+            schemas = [self.json_schema_questionnaire(include_skipped)]
+            chatter.reset_prompts()
+            chatter.set_system_prompt(system_prompt)
+            chatter.set_user_prompt(user_prompt)
+            response = chatter.chat(schemas)
+            if not response.has_error:
+                return questionnaire.update_from_llm_with(response.content[0])
         return None
 
     def command_from_questionnaire(

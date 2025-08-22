@@ -7,11 +7,13 @@ from canvas_sdk.commands.commands.questionnaire.toggle_questions import ToggleQu
 
 from hyperscribe.commands.base import Base
 from hyperscribe.commands.base_questionnaire import BaseQuestionnaire
+from hyperscribe.libraries.constants import Constants
 from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.instruction import Instruction
+from hyperscribe.structures.json_extract import JsonExtract
 from hyperscribe.structures.line import Line
 from hyperscribe.structures.question import Question
 from hyperscribe.structures.question_type import QuestionType
@@ -220,9 +222,9 @@ def test_staged_command_extract():
             assert json.loads(result.label) == expected
 
 
-def test_json_schema():
+def test_json_schema_questionnaire():
     tested = BaseQuestionnaire
-    result = tested.json_schema(True)
+    result = tested.json_schema_questionnaire(True)
     expected = {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "items": {
@@ -261,7 +263,7 @@ def test_json_schema():
     }
     assert result == expected
     #
-    result = tested.json_schema(False)
+    result = tested.json_schema_questionnaire(False)
     expected = {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "items": {
@@ -297,22 +299,81 @@ def test_json_schema():
     assert result == expected
 
 
-@patch.object(BaseQuestionnaire, "include_skipped")
-def test_update_from_transcript(include_skipped):
+def test_json_schema_question_list():
+    tested = BaseQuestionnaire
+    result = tested.json_schema_question_list()
+    expected = {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "array",
+        "items": {
+            "type": "object",
+            "properties": {
+                "questionId": {"type": "integer"},
+                "question": {"type": "string"},
+                "usedInTranscript": {"type": "boolean"},
+            },
+            "required": ["questionId", "question", "usedInTranscript"],
+        },
+    }
+    assert result == expected
+
+
+def test_relevant_question_ids():
     mock_chatter = MagicMock()
 
     def reset_mocks():
-        include_skipped.reset_mock()
         mock_chatter.reset_mock()
 
-    discussion = Line.load_from_json(
-        [
-            {"speaker": "spk1", "text": "line1"},
-            {"speaker": "spk2", "text": "line2"},
-            {"speaker": "spk2", "text": "line3"},
-            {"speaker": "spk1", "text": "line4"},
-        ],
-    )
+    system_prompt = [
+        "The conversation is in the context of a clinical encounter between patient and licensed healthcare provider.",
+        "The healthcare provider is editing a questionnaire 'theQuestionnaire', potentially without notifying the "
+        "patient to prevent biased answers.",
+        "The user will submit two JSON Markdown blocks:",
+        "- the questions of the questionnaire,",
+        "- a partial transcript of the visit of a patient with the healthcare provider.",
+        "",
+        "Your task is to identifying from the transcript which questions the healthcare provider is referencing, "
+        "if any.",
+        "Since this is only a part of the transcript, it may have no reference to the questionnaire at all.",
+        "",
+        "Your response must be the updated JSON Markdown block of the list of questions.",
+        "",
+    ]
+    user_prompt = [
+        "Below is a part of the transcript between the patient and the healthcare provider:",
+        "```json",
+        "[\n "
+        '{\n  "speaker": "speaker1",\n  "text": "line1"\n },\n '
+        '{\n  "speaker": "speaker2",\n  "text": "line2"\n },\n '
+        '{\n  "speaker": "speaker2",\n  "text": "line3"\n }\n'
+        "]",
+        "```",
+        "",
+        "The questionnaire 'theQuestionnaire' has the following questions:",
+        "```json",
+        '[{"questionId": 234, "question": "theQuestion1", "usedInTranscript": false}, '
+        '{"questionId": 345, "question": "theQuestion2", "usedInTranscript": false}, '
+        '{"questionId": 369, "question": "theQuestion3", "usedInTranscript": false}, '
+        '{"questionId": 371, "question": "theQuestion4", "usedInTranscript": false}]',
+        "```",
+        "",
+        "Return this JSON in a Markdown block after setting to 'true' the questions referenced in the transcript.",
+        "",
+    ]
+    schema = {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "array",
+        "items": {
+            "type": "object",
+            "properties": {
+                "questionId": {"type": "integer"},
+                "question": {"type": "string"},
+                "usedInTranscript": {"type": "boolean"},
+            },
+            "required": ["questionId", "question", "usedInTranscript"],
+        },
+    }
+
     questionnaire = Questionnaire(
         dbid=123,
         name="theQuestionnaire",
@@ -346,6 +407,160 @@ def test_update_from_transcript(include_skipped):
                 label="theQuestion4",
                 type=QuestionType.TYPE_CHECKBOX,
                 skipped=False,
+                responses=[
+                    Response(dbid=146, value="theResponse5", selected=True, comment="theComment5"),
+                    Response(dbid=147, value="theResponse6", selected=True, comment="theComment6"),
+                    Response(dbid=148, value="theResponse7", selected=False, comment="theComment7"),
+                ],
+            ),
+        ],
+    )
+    discussion = [
+        Line(speaker="speaker1", text="line1"),
+        Line(speaker="speaker2", text="line2"),
+        Line(speaker="speaker2", text="line3"),
+    ]
+    tested = BaseQuestionnaire
+
+    # number of questions under QUESTIONNAIRE_1STEP_MAX_QUESTIONS
+    with patch.object(Constants, "QUESTIONNAIRE_1STEP_MAX_QUESTIONS", 4):
+        mock_chatter.chat.side_effect = []
+        result = tested.relevant_question_ids(discussion, mock_chatter, questionnaire)
+        expected = [234, 345, 369, 371]
+        assert result == expected
+
+        assert mock_chatter.mock_calls == []
+        reset_mocks()
+    # number of questions equals or above QUESTIONNAIRE_1STEP_MAX_QUESTIONS
+    with patch.object(Constants, "QUESTIONNAIRE_1STEP_MAX_QUESTIONS", 3):
+        # -- some errors -> empty list
+        mock_chatter.chat.side_effect = [JsonExtract(has_error=True, error="theError", content=["theContent"])]
+        result = tested.relevant_question_ids(discussion, mock_chatter, questionnaire)
+        assert result == []
+
+        calls = [
+            call.set_system_prompt(system_prompt),
+            call.set_user_prompt(user_prompt),
+            call.chat([schema]),
+        ]
+        assert mock_chatter.mock_calls == calls
+        reset_mocks()
+        # -- with no error
+        mock_chatter.chat.side_effect = [
+            JsonExtract(
+                has_error=False,
+                error="theError",
+                content=[
+                    [
+                        {"questionId": 234, "question": "theQuestion1", "usedInTranscript": True},
+                        {"questionId": 345, "question": "theQuestion2", "usedInTranscript": False},
+                        {"questionId": 369, "question": "theQuestion3", "usedInTranscript": True},
+                        {"questionId": 371, "question": "theQuestion4", "usedInTranscript": True},
+                    ]
+                ],
+            )
+        ]
+        result = tested.relevant_question_ids(discussion, mock_chatter, questionnaire)
+        expected = [234, 369, 371]
+        assert result == expected
+
+        calls = [call.set_system_prompt(system_prompt), call.set_user_prompt(user_prompt), call.chat([schema])]
+        assert mock_chatter.mock_calls == calls
+        reset_mocks()
+
+
+@patch.object(BaseQuestionnaire, "relevant_question_ids")
+@patch.object(BaseQuestionnaire, "include_skipped")
+def test_update_from_transcript(include_skipped, relevant_question_ids):
+    mock_chatter = MagicMock()
+
+    def reset_mocks():
+        include_skipped.reset_mock()
+        relevant_question_ids.reset_mock()
+        mock_chatter.reset_mock()
+
+    discussion = Line.load_from_json(
+        [
+            {"speaker": "spk1", "text": "line1"},
+            {"speaker": "spk2", "text": "line2"},
+            {"speaker": "spk2", "text": "line3"},
+            {"speaker": "spk1", "text": "line4"},
+        ],
+    )
+    questionnaire_full = Questionnaire(
+        dbid=123,
+        name="theQuestionnaire",
+        questions=[
+            Question(
+                dbid=234,
+                label="theQuestion1",
+                type=QuestionType.TYPE_RADIO,
+                skipped=False,
+                responses=[
+                    Response(dbid=142, value="theResponse1", selected=True, comment=None),
+                    Response(dbid=143, value="theResponse2", selected=False, comment=None),
+                ],
+            ),
+            Question(
+                dbid=345,
+                label="theQuestion2",
+                type=QuestionType.TYPE_TEXT,
+                skipped=True,
+                responses=[Response(dbid=144, value="theResponse3", selected=True, comment=None)],
+            ),
+            Question(
+                dbid=369,
+                label="theQuestion3",
+                type=QuestionType.TYPE_INTEGER,
+                skipped=True,
+                responses=[Response(dbid=145, value=444, selected=True, comment=None)],
+            ),
+            Question(
+                dbid=371,
+                label="theQuestion4",
+                type=QuestionType.TYPE_CHECKBOX,
+                skipped=False,
+                responses=[
+                    Response(dbid=146, value="theResponse5", selected=True, comment="theComment5"),
+                    Response(dbid=147, value="theResponse6", selected=True, comment="theComment6"),
+                    Response(dbid=148, value="theResponse7", selected=False, comment="theComment7"),
+                ],
+            ),
+        ],
+    )
+    questionnaire_response = Questionnaire(
+        dbid=123,
+        name="theQuestionnaire",
+        questions=[
+            Question(
+                dbid=234,
+                label="theQuestion1",
+                type=QuestionType.TYPE_RADIO,
+                skipped=False,
+                responses=[
+                    Response(dbid=142, value="theResponse1", selected=False, comment=None),
+                    Response(dbid=143, value="theResponse2", selected=True, comment=None),
+                ],
+            ),
+            Question(
+                dbid=345,
+                label="theQuestion2",
+                type=QuestionType.TYPE_TEXT,
+                skipped=True,
+                responses=[Response(dbid=144, value="theResponse3", selected=True, comment=None)],
+            ),
+            Question(
+                dbid=369,
+                label="theQuestion3",
+                type=QuestionType.TYPE_INTEGER,
+                skipped=False,
+                responses=[Response(dbid=145, value=444, selected=False, comment=None)],
+            ),
+            Question(
+                dbid=371,
+                label="theQuestion4",
+                type=QuestionType.TYPE_CHECKBOX,
+                skipped=True,
                 responses=[
                     Response(dbid=146, value="theResponse5", selected=True, comment="theComment5"),
                     Response(dbid=147, value="theResponse6", selected=True, comment="theComment6"),
@@ -393,12 +608,6 @@ def test_update_from_transcript(include_skipped):
             '{"responseId": 142, "value": "theResponse1", "selected": true}, '
             '{"responseId": 143, "value": "theResponse2", "selected": false}], '
             '"skipped": false}, '
-            "{"
-            '"questionId": 345, '
-            '"question": "theQuestion2", '
-            '"questionType": "free text", '
-            '"responses": [{"responseId": 144, "value": "theResponse3", "selected": true}], '
-            '"skipped": true}, '
             "{"
             '"questionId": 369, '
             '"question": "theQuestion3", '
@@ -454,11 +663,6 @@ def test_update_from_transcript(include_skipped):
             '"responses": ['
             '{"responseId": 142, "value": "theResponse1", "selected": true}, '
             '{"responseId": 143, "value": "theResponse2", "selected": false}]}, '
-            "{"
-            '"questionId": 345, '
-            '"question": "theQuestion2", '
-            '"questionType": "free text", '
-            '"responses": [{"responseId": 144, "value": "theResponse3", "selected": true}]}, '
             "{"
             '"questionId": 369, '
             '"question": "theQuestion3", '
@@ -569,85 +773,113 @@ def test_update_from_transcript(include_skipped):
         (False, "noSkipped"),
     ]
     for side_include_skipped, key_skipped in tests:
-        # get a response
-        include_skipped.side_effect = [side_include_skipped]
-        mock_chatter.single_conversation.side_effect = [
-            [
-                {
-                    "question": "theQuestion1",
-                    "questionId": 234,
-                    "questionType": "single choice",
-                    "responses": [
-                        {"responseId": 142, "selected": True, "value": "theResponse1"},
-                        {"responseId": 143, "selected": False, "value": "theResponse2"},
-                    ],
-                    "skipped": False,
-                },
-                {
-                    "question": "theQuestion2",
-                    "questionId": 345,
-                    "questionType": "free text",
-                    "responses": [{"responseId": 144, "selected": True, "value": "theResponse3"}],
-                    "skipped": True,
-                },
-                {
-                    "question": "theQuestion3",
-                    "questionId": 369,
-                    "questionType": "integer",
-                    "responses": [{"responseId": 145, "selected": True, "value": 444}],
-                    "skipped": True,
-                },
-                {
-                    "question": "theQuestion4",
-                    "questionId": 371,
-                    "questionType": "multiple choice",
-                    "responses": [
-                        {"responseId": 146, "selected": True, "value": "theResponse5", "comment": "theComment5"},
-                        {"responseId": 147, "selected": True, "value": "theResponse6", "comment": "theComment6"},
-                        {"responseId": 148, "selected": False, "value": "theResponse7", "comment": "theComment7"},
-                    ],
-                    "skipped": False,
-                },
-            ],
-        ]
         instruction = Instruction(
             uuid="theUuid",
             index=0,
             instruction="theInstruction",
-            information=json.dumps(questionnaire.to_json()),
+            information=json.dumps(questionnaire_full.to_json()),
             is_new=False,
             is_updated=True,
         )
 
+        # no relevant questions
+        relevant_question_ids.side_effect = [[]]
+        include_skipped.side_effect = []
+        mock_chatter.chat.side_effect = []
+
         result = tested.update_from_transcript(discussion, instruction, mock_chatter)
-        assert result == questionnaire
+        assert result is None
+        calls = [call(discussion, mock_chatter, questionnaire_full)]
+        assert relevant_question_ids.mock_calls == calls
+        assert include_skipped.mock_calls == []
+        assert mock_chatter.mock_calls == []
+        reset_mocks()
+
+        # get a response
+        relevant_question_ids.side_effect = [[234, 369, 371]]
+        include_skipped.side_effect = [side_include_skipped]
+        mock_chatter.chat.side_effect = [
+            JsonExtract(
+                has_error=False,
+                error="theError",
+                content=[
+                    [
+                        {
+                            "question": "theQuestion1",
+                            "questionId": 234,
+                            "questionType": "single choice",
+                            "responses": [
+                                {"responseId": 142, "selected": False, "value": "theResponse1"},
+                                {"responseId": 143, "selected": True, "value": "theResponse2"},
+                            ],
+                            "skipped": False,
+                        },
+                        {
+                            "question": "theQuestion3",
+                            "questionId": 369,
+                            "questionType": "integer",
+                            "responses": [{"responseId": 145, "selected": False, "value": 444}],
+                            "skipped": False,
+                        },
+                        {
+                            "question": "theQuestion4",
+                            "questionId": 371,
+                            "questionType": "multiple choice",
+                            "responses": [
+                                {
+                                    "responseId": 146,
+                                    "selected": True,
+                                    "value": "theResponse5",
+                                    "comment": "theComment5",
+                                },
+                                {
+                                    "responseId": 147,
+                                    "selected": True,
+                                    "value": "theResponse6",
+                                    "comment": "theComment6",
+                                },
+                                {
+                                    "responseId": 148,
+                                    "selected": False,
+                                    "value": "theResponse7",
+                                    "comment": "theComment7",
+                                },
+                            ],
+                            "skipped": True,
+                        },
+                    ],
+                ],
+            )
+        ]
+
+        result = tested.update_from_transcript(discussion, instruction, mock_chatter)
+        assert result == questionnaire_response
+        calls = [call(discussion, mock_chatter, questionnaire_full)]
+        assert relevant_question_ids.mock_calls == calls
         calls = [call()]
         assert include_skipped.mock_calls == calls
         calls = [
-            call.single_conversation(
-                system_prompt,
-                user_prompts[key_skipped],
-                [schemas[key_skipped]],
-                instruction,
-            )
+            call.reset_prompts(),
+            call.set_system_prompt(system_prompt),
+            call.set_user_prompt(user_prompts[key_skipped]),
+            call.chat([schemas[key_skipped]]),
         ]
         assert mock_chatter.mock_calls == calls
         reset_mocks()
 
         # no response
+        relevant_question_ids.side_effect = [[234, 369, 371]]
         include_skipped.side_effect = [side_include_skipped]
-        mock_chatter.single_conversation.side_effect = [None]
+        mock_chatter.chat.side_effect = [JsonExtract(has_error=True, error="theError", content=[])]
         result = tested.update_from_transcript(discussion, instruction, mock_chatter)
         assert result is None
         calls = [call()]
         assert include_skipped.mock_calls == calls
         calls = [
-            call.single_conversation(
-                system_prompt,
-                user_prompts[key_skipped],
-                [schemas[key_skipped]],
-                instruction,
-            )
+            call.reset_prompts(),
+            call.set_system_prompt(system_prompt),
+            call.set_user_prompt(user_prompts[key_skipped]),
+            call.chat([schemas[key_skipped]]),
         ]
         assert mock_chatter.mock_calls == calls
         reset_mocks()

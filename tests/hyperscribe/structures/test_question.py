@@ -6,7 +6,13 @@ from tests.helper import is_namedtuple
 
 def test_class():
     tested = Question
-    fields = {"dbid": int, "label": str, "type": QuestionType, "skipped": bool | None, "responses": list[Response]}
+    fields = {
+        "dbid": int,
+        "label": str,
+        "type": QuestionType,
+        "skipped": bool | None,
+        "responses": list[Response],
+    }
     assert is_namedtuple(tested, fields)
 
 
@@ -31,6 +37,26 @@ def test_to_json():
         ],
         "skipped": False,
         "type": "SING",
+    }
+    assert result == expected
+
+
+def test_used_json():
+    tested = Question(
+        dbid=123,
+        label="theQuestion",
+        type=QuestionType.TYPE_RADIO,
+        skipped=False,
+        responses=[
+            Response(dbid=234, value="456", selected=False, comment="theComment"),
+            Response(dbid=456, value=789, selected=True, comment="aComment"),
+        ],
+    )
+    result = tested.used_json()
+    expected = {
+        "questionId": 123,
+        "question": "theQuestion",
+        "usedInTranscript": False,
     }
     assert result == expected
 

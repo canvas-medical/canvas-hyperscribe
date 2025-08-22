@@ -21,13 +21,15 @@ def test___init__():
     memory_log = MagicMock()
     tested = LlmBase(memory_log, "apiKey", "theModel", False)
     assert memory_log.mock_calls == []
-    assert tested.memory_log == memory_log
+    assert tested.memory_log is memory_log
     assert tested.api_key == "apiKey"
     assert tested.model == "theModel"
     assert tested.with_audit == False
     assert tested.temperature == 0.0
     assert tested.prompts == []
     assert tested.audios == []
+
+    assert memory_log.mock_calls == []
 
 
 def test_support_speaker_identification():
@@ -36,6 +38,24 @@ def test_support_speaker_identification():
     with pytest.raises(NotImplementedError):
         _ = tested.support_speaker_identification()
     assert memory_log.mock_calls == []
+
+
+def test_reset_prompts():
+    prompts = [
+        LlmTurn(role="system", text=["line 0"]),
+        LlmTurn(role="user", text=["line 1"]),
+        LlmTurn(role="model", text=["line 2"]),
+    ]
+
+    memory_log = MagicMock()
+    tested = LlmBase(memory_log, "apiKey", "theModel", False)
+    tested.add_prompt(prompts[0])
+    tested.add_prompt(prompts[1])
+    tested.add_prompt(prompts[2])
+    assert tested.prompts == prompts
+
+    tested.reset_prompts()
+    assert tested.prompts == []
 
 
 def test_add_prompt():
