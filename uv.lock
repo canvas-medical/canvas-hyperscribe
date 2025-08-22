@@ -74,7 +74,7 @@ wheels = [
 
 [[package]]
 name = "canvas"
-version = "0.53.0"
+version = "0.56.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cookiecutter" },
@@ -105,9 +105,9 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "websocket-client" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/15/30/324df8c8a1ee22c4a219655077e564ffc95c39e7e1d471612ddf5a515c16/canvas-0.53.0.tar.gz", hash = "sha256:fac3ab60edcb53e1651911f3beb259141ec004b3ec32730b53bcda9d6891dcad", size = 912489, upload-time = "2025-08-07T19:12:26.545Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/50/fe/4f4dc5cc8ce1289f170cf707726e3f677cf2983e232aba5301b81f73ded0/canvas-0.56.0.tar.gz", hash = "sha256:1967e38c1de588b4c674ae52e0f93bb4c2893124486bd0549b3e06b8f4697ea4", size = 918965, upload-time = "2025-08-21T10:06:46.122Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/0a/cc/85136f1ca87f30143c3759605d6f4625c7c7b33d8367c5fbf9065b755e86/canvas-0.53.0-py3-none-any.whl", hash = "sha256:57504c204a9a6e07be506cb6746605b38d6f62c0e9472d32ea53ac4994955199", size = 1053638, upload-time = "2025-08-07T19:12:24.599Z" },
+    { url = "https://files.pythonhosted.org/packages/05/ef/433680c2e42d4b1917977e2cfab10c2c150d62bcd33be0318b06b66ad4a0/canvas-0.56.0-py3-none-any.whl", hash = "sha256:c7726749d7f4ff9e6cf6d7fea0b1127dbabef77dd7c243e5c9ff9b917b97c84d", size = 1062501, upload-time = "2025-08-21T10:06:44.482Z" },
 ]
 
 [[package]]
@@ -244,7 +244,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "canvas", specifier = "==0.53.0" },
+    { name = "canvas", specifier = "==0.56.0" },
     { name = "ffmpeg-python", specifier = ">=0.2.0" },
     { name = "mypy", specifier = ">=1.15.0" },
     { name = "pytest", specifier = ">=8.3.4,<9.0.0" },

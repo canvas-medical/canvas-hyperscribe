@@ -1,14 +1,13 @@
 from __future__ import annotations
 
 import re
-import requests
-
 from base64 import b64decode
-from requests import Response
 from typing import List
 
-from canvas_sdk.handlers.simple_api import api
+import requests
 from canvas_sdk.caching.plugins import get_cache
+from canvas_sdk.handlers.simple_api import api
+from requests import Response
 
 from hyperscribe.structures.cached_audio_session import CachedAudioSession
 
@@ -116,8 +115,6 @@ class AudioClient:
         "iy80yV2EmaoqtuoXSbcd/lnqiDu9qJTcqOjjZQzcpBBBBfZhhsGTrn5Zl3BAEYejiVsrNIvLV4sgB4bb"
         "biLjxMuBCGhA3/QFHFHls9qnkfpSwiSE+JuwdIDsIdQgzIAh6tT9vmSiZLuFZvru0hEr"
     )
-
-    plugin_cache = get_cache()
 
     def __eq__(self, other: object) -> bool:
         return (
@@ -232,7 +229,7 @@ class AudioClient:
     @classmethod
     def get_sessions(cls, patient_id: str, note_id: str) -> List[CachedAudioSession]:
         key = cls.sessions_key(patient_id, note_id)
-        result = cls.plugin_cache.get(key, default=[])
+        result = get_cache().get(key, default=[])
         return list(result) if result is not None else []
 
     @classmethod
@@ -244,10 +241,15 @@ class AudioClient:
 
     @classmethod
     def add_session(
-        cls, patient_id: str, note_id: str, session_id: str, logged_in_user_id: str, user_token: str
+        cls,
+        patient_id: str,
+        note_id: str,
+        session_id: str,
+        logged_in_user_id: str,
+        user_token: str,
     ) -> None:
         sessions = cls.get_sessions(patient_id, note_id)
         new_session = CachedAudioSession(session_id, user_token, logged_in_user_id)
         sessions.append(new_session)
         key = cls.sessions_key(patient_id, note_id)
-        cls.plugin_cache.set(key, sessions)
+        get_cache().set(key, sessions)

@@ -1,5 +1,6 @@
 from hashlib import md5
 from unittest import mock
+from unittest.mock import call, patch
 
 import pytest
 
@@ -225,47 +226,64 @@ def test_sessions_key():
 
 
 def test_get_sessions(the_session: CachedAudioSession):
-    patient_id = "pat123"
-    note_id = "note456"
-    expected_key = f"hyperscribe.sessions.{patient_id}.{note_id}"
-    expected_sessions = [the_session]
+    with mock.patch("hyperscribe.libraries.audio_client.get_cache") as mock_cache:
+        expected = [the_session]
+        mock_cache.return_value.get.side_effect = [expected]
 
-    with mock.patch.object(AudioClient, "plugin_cache") as mock_cache:
-        mock_cache.get.return_value = expected_sessions
-        sessions = AudioClient.get_sessions(patient_id, note_id)
-        mock_cache.get.assert_called_once_with(expected_key, default=[])
-        assert sessions == expected_sessions
+        result = AudioClient.get_sessions("pat123", "note456")
+
+        assert result == expected
+        calls = [call(), call().get("hyperscribe.sessions.pat123.note456", default=[])]
+        assert mock_cache.mock_calls == calls
 
 
 def test_get_latest_session(the_session: CachedAudioSession):
-    patient_id = "pat123"
-    note_id = "note456"
-    expected_key = f"hyperscribe.sessions.{patient_id}.{note_id}"
-    expected_sessions = [the_session]
+    with mock.patch("hyperscribe.libraries.audio_client.get_cache") as mock_cache:
+        expected = [the_session]
+        mock_cache.return_value.get.side_effect = [expected]
 
-    with mock.patch.object(AudioClient, "plugin_cache") as mock_cache:
-        mock_cache.get.return_value = expected_sessions
-        latest_session = AudioClient.get_latest_session(patient_id, note_id)
-        mock_cache.get.assert_called_once_with(expected_key, default=[])
-        assert latest_session == the_session
+        result = AudioClient.get_latest_session("pat123", "note456")
 
-
-def test_get_latest_session_missing(the_session: CachedAudioSession):
-    with mock.patch.object(AudioClient, "plugin_cache") as mock_cache:
-        mock_cache.get.return_value = None
-        latest_session = AudioClient.get_latest_session("thePatientId", "theNoteId")
-        mock_cache.get.assert_called_once_with("hyperscribe.sessions.thePatientId.theNoteId", default=[])
-        assert latest_session is None
+        assert result == the_session
+        calls = [call(), call().get("hyperscribe.sessions.pat123.note456", default=[])]
+        assert mock_cache.mock_calls == calls
 
 
-def test_add_session(the_session):
-    AUDIO_CLIENT_IMPORT_PATH = "hyperscribe.libraries.audio_client.AudioClient"
-    with (
-        mock.patch(f"{AUDIO_CLIENT_IMPORT_PATH}.get_sessions", return_value=[]),
-        mock.patch(f"{AUDIO_CLIENT_IMPORT_PATH}.plugin_cache") as mock_cache,
-    ):
-        AudioClient.add_session(
-            "thePatientKey", "theNoteId", the_session.session_id, the_session.logged_in_user_id, the_session.user_token
-        )
-        key = AudioClient.sessions_key("thePatientKey", "theNoteId")
-        mock_cache.set.assert_called_once_with(key, [the_session])
+def test_get_latest_session__missing(the_session: CachedAudioSession):
+    with mock.patch("hyperscribe.libraries.audio_client.get_cache") as mock_cache:
+        mock_cache.return_value.get.side_effect = [None]
+
+        result = AudioClient.get_latest_session("pat123", "note456")
+
+        assert result is None
+        calls = [call(), call().get("hyperscribe.sessions.pat123.note456", default=[])]
+        assert mock_cache.mock_calls == calls
+
+
+@patch("hyperscribe.libraries.audio_client.get_cache")
+@patch("hyperscribe.libraries.audio_client.AudioClient.get_sessions")
+def test_add_session(get_sessions, get_cache, the_session):
+    def reset_mocks():
+        get_sessions.reset_mock()
+        get_cache.reset_mock()
+
+    tested = AudioClient
+
+    get_sessions.side_effect = [[]]
+
+    tested.add_session(
+        "thePatientKey",
+        "theNoteId",
+        the_session.session_id,
+        the_session.logged_in_user_id,
+        the_session.user_token,
+    )
+
+    calls = [call("thePatientKey", "theNoteId")]
+    assert get_sessions.mock_calls == calls
+    calls = [
+        call(),
+        call().set("hyperscribe.sessions.thePatientKey.theNoteId", [the_session]),
+    ]
+    assert get_cache.mock_calls == calls
+    reset_mocks()
