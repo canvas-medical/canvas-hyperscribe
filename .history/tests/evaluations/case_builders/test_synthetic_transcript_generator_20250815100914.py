@@ -150,13 +150,13 @@ def test__build_prompt():
 
     combined_sys = "\n".join(system_prompt_previous_lines)
     assert "Avoid starting with any of these previous first lines: previous first line" in combined_sys
-    expected_system_prompt_md5 = "8407fd613773ae1c4494989d79fd4588"
-    expected_user_prompt_md5 = "ec8ba19d457bb9a2a5ca22c2d23fae25"
-    result_system_prompt_md5 = hashlib.md5("\n".join(system_prompt_previous_lines).encode()).hexdigest()
-    result_user_prompt_md5 = hashlib.md5("\n".join(user_prompt_previous_lines).encode()).hexdigest()
+    expected_system_md5 = "8407fd613773ae1c4494989d79fd4588"
+    expected_user_md5 = "ec8ba19d457bb9a2a5ca22c2d23fae25"
+    result_system_md5 = hashlib.md5("\n".join(system_prompt_previous_lines).encode()).hexdigest()
+    result_user_md5 = hashlib.md5("\n".join(user_prompt_previous_lines).encode()).hexdigest()
 
-    assert result_system_prompt_md5 == expected_system_prompt_md5
-    assert result_user_prompt_md5 == expected_user_prompt_md5
+    assert result_system_md5 == expected_system_md5
+    assert result_user_md5 == expected_user_md5
 
 
 @patch.object(SyntheticTranscriptGenerator, "schema_transcript")

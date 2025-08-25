@@ -59,7 +59,7 @@ def test_load_json(tmp_path):
 
 
 @pytest.mark.parametrize(
-    "has_error,content,error_message,should_raise,expected_system_prompt_md5,expected_user_prompt_md5,expected_chat_calls",
+    "has_error,content,error_message,should_raise,expected_system_md5,expected_user_md5,expected_chat_calls",
     [
         (
             False,
@@ -83,8 +83,8 @@ def test_update_patient_names(
     content,
     error_message,
     should_raise,
-    expected_system_prompt_md5,
-    expected_user_prompt_md5,
+    expected_system_md5,
+    expected_user_md5,
     expected_chat_calls,
 ):
     tested = SyntheticProfileGenerator(vendor_key)
@@ -123,11 +123,11 @@ def test_update_patient_names(
     user_prompt_calls = [call[0][0] for call in mock_llm_class.return_value.set_user_prompt.call_args_list]
 
     if system_prompt_calls and user_prompt_calls:
-        result_system_prompt_md5 = hashlib.md5("\n".join(system_prompt_calls[0]).encode()).hexdigest()
-        result_user_prompt_md5 = hashlib.md5("\n".join(user_prompt_calls[0]).encode()).hexdigest()
+        result_system_md5 = hashlib.md5("\n".join(system_prompt_calls[0]).encode()).hexdigest()
+        result_user_md5 = hashlib.md5("\n".join(user_prompt_calls[0]).encode()).hexdigest()
 
-        assert result_system_prompt_md5 == expected_system_prompt_md5
-        assert result_user_prompt_md5 == expected_user_prompt_md5
+        assert result_system_md5 == expected_system_md5
+        assert result_user_md5 == expected_user_md5
 
     calls = [call([{"type": "string"}])] * expected_chat_calls
     assert mock_llm_class.return_value.chat.mock_calls == calls
@@ -236,13 +236,13 @@ def test_generate_batch(
     _, kwargs = mock_generate_json.call_args
 
     # Verify prompt content using MD5 hashes
-    expected_system_prompt_md5 = "d4d9c1999dcff7d0cff01745aa3da589"
-    expected_user_prompt_md5 = "b3435eae8d1a3700c841178446de8c83"
-    result_system_prompt_md5 = hashlib.md5("\n".join(kwargs["system_prompt"]).encode()).hexdigest()
-    result_user_prompt_md5 = hashlib.md5("\n".join(kwargs["user_prompt"]).encode()).hexdigest()
+    expected_system_md5 = "d4d9c1999dcff7d0cff01745aa3da589"
+    expected_user_md5 = "b3435eae8d1a3700c841178446de8c83"
+    result_system_md5 = hashlib.md5("\n".join(kwargs["system_prompt"]).encode()).hexdigest()
+    result_user_md5 = hashlib.md5("\n".join(kwargs["user_prompt"]).encode()).hexdigest()
 
-    assert result_system_prompt_md5 == expected_system_prompt_md5
-    assert result_user_prompt_md5 == expected_user_prompt_md5
+    assert result_system_md5 == expected_system_md5
+    assert result_user_md5 == expected_user_md5
     assert kwargs["vendor_key"] == vendor_key
     assert kwargs["schema"] == expected_schema
 

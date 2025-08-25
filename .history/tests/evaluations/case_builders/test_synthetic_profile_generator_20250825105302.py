@@ -59,7 +59,7 @@ def test_load_json(tmp_path):
 
 
 @pytest.mark.parametrize(
-    "has_error,content,error_message,should_raise,expected_system_prompt_md5,expected_user_prompt_md5,expected_chat_calls",
+    "has_error,content,error_message,should_raise,expected_system_md5,expected_user_md5,expected_chat_calls",
     [
         (
             False,

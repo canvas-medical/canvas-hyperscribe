@@ -84,11 +84,11 @@ def test_build_prompts(mock_schema_scores, tmp_files):
     expected_system_prompt_md5 = "83ffb4b2602834cb84415885685311cc"
     expected_user_prompt_md5 = "26789d5126d246cb239032a16e9d0346"
 
-    result_system_prompt_md5 = hashlib.md5("\n".join(result_system_lines).encode()).hexdigest()
-    result_user_prompt_md5 = hashlib.md5("\n".join(result_user_lines).encode()).hexdigest()
+    result_system_md5 = hashlib.md5("\n".join(result_system_lines).encode()).hexdigest()
+    result_user_md5 = hashlib.md5("\n".join(result_user_lines).encode()).hexdigest()
 
-    assert result_system_prompt_md5 == expected_system_prompt_md5
-    assert result_user_prompt_md5 == expected_user_prompt_md5
+    assert result_system_md5 == expected_system_prompt_md5
+    assert result_user_md5 == expected_user_prompt_md5
     assert mock_schema_scores.mock_calls == [call()]
     reset_mocks()
 
