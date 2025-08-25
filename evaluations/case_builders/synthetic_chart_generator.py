@@ -136,7 +136,6 @@ class SyntheticChartGenerator:
         return cast(
             Chart,
             HelperSyntheticJson.generate_json(
-                vendor_key=self.vendor_key,
                 system_prompt=system_prompt,
                 user_prompt=user_prompt,
                 schema=schema,

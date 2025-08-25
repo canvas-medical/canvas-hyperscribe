@@ -22,6 +22,7 @@ class Settings(NamedTuple):
     commands_policy: AccessPolicy
     staffers_policy: AccessPolicy
     cycle_transcript_overlap: int
+    openai_api_key: str
 
     @classmethod
     def from_dictionary(cls, dictionary: dict) -> Settings:
@@ -56,6 +57,7 @@ class Settings(NamedTuple):
                 Constants.CYCLE_TRANSCRIPT_OVERLAP_MAX,
                 Constants.CYCLE_TRANSCRIPT_OVERLAP_DEFAULT,
             ),
+            openai_api_key=dictionary[Constants.SECRET_OPENAI_API_KEY],
         )
 
     @classmethod
