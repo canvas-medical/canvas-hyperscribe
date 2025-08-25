@@ -12,6 +12,7 @@ from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.llms.llm_eleven_labs import LlmElevenLabs
 from hyperscribe.llms.llm_google import LlmGoogle
 from hyperscribe.llms.llm_openai import LlmOpenai
+from hyperscribe.llms.llm_openai_o3 import LlmOpenaiO3
 from hyperscribe.structures.settings import Settings
 
 
@@ -61,12 +62,17 @@ class Helper:
 
     @classmethod
     def chatter(cls, settings: Settings, memory_log: MemoryLog) -> LlmBase:
-        result: Type[LlmBase] = LlmOpenai
         if settings.llm_text.vendor.upper() == Constants.VENDOR_GOOGLE.upper():
-            result = LlmGoogle
+            return LlmGoogle(memory_log, settings.llm_text.api_key, settings.llm_text_model(), settings.audit_llm)
         elif settings.llm_text.vendor.upper() == Constants.VENDOR_ANTHROPIC.upper():
-            result = LlmAnthropic
-        return result(memory_log, settings.llm_text.api_key, settings.llm_text_model(), settings.audit_llm)
+            return LlmAnthropic(memory_log, settings.llm_text.api_key, settings.llm_text_model(), settings.audit_llm)
+        else:
+            model = settings.llm_text_model()
+            if model == Constants.OPENAI_CHAT_TEXT_O3:
+                from evaluations.constants import Constants as EvaluationConstants
+                return LlmOpenaiO3(memory_log, settings.llm_text.api_key, with_audit=settings.audit_llm, temperature=EvaluationConstants.O3_TEMPERATURE)
+            else:
+                return LlmOpenai(memory_log, settings.llm_text.api_key, model, settings.audit_llm)
 
     @classmethod
     def audio2texter(cls, settings: Settings, memory_log: MemoryLog) -> LlmBase:

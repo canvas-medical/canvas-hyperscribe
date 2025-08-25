@@ -2,11 +2,10 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 from typing import Any, Type
-from hyperscribe.llms.llm_openai_o3 import LlmOpenaiO3
+from hyperscribe.libraries.helper import Helper
 from hyperscribe.libraries.memory_log import MemoryLog
-from hyperscribe.structures.vendor_key import VendorKey
 from hyperscribe.structures.line import Line
-from evaluations.constants import Constants
+from evaluations.helper_evaluation import HelperEvaluation
 from evaluations.structures.chart import Chart
 from evaluations.structures.patient_profile import PatientProfile
 from evaluations.structures.rubric_criterion import RubricCriterion
@@ -16,7 +15,6 @@ from evaluations.structures.graded_criterion import GradedCriterion
 class HelperSyntheticJson:
     @staticmethod
     def generate_json(
-        vendor_key: VendorKey,
         system_prompt: list[str],
         user_prompt: list[str],
         schema: dict[str, Any],
@@ -30,9 +28,8 @@ class HelperSyntheticJson:
         5) On validation failure, writes the raw output to invalid_output.json
            and exits with status 1.
         """
-        llm = LlmOpenaiO3(
-            MemoryLog.dev_null_instance(), vendor_key.api_key, with_audit=False, temperature=Constants.O3_TEMPERATURE
-        )
+        settings = HelperEvaluation.settings()
+        llm = Helper.chatter(settings, MemoryLog.dev_null_instance())
 
         llm.set_system_prompt(system_prompt)
         llm.set_user_prompt(user_prompt)

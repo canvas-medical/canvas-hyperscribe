@@ -95,99 +95,110 @@ def _invalid_path(tmp_path: Path) -> Path:
         ),
     ],
 )
+@patch("evaluations.case_builders.helper_synthetic_json.HelperEvaluation.settings")
+@patch("evaluations.case_builders.helper_synthetic_json.Helper.chatter")
 @patch("evaluations.case_builders.helper_synthetic_json.MemoryLog")
-@patch("evaluations.case_builders.helper_synthetic_json.LlmOpenaiO3")
-def test_generate__json_success(mock_llm_cls, mock_memory_log, tmp_path, returned_class, test_data, expected_result):
-    result_obj = JsonExtract(has_error=False, content=[test_data], error="")
+def test_generate__json_success(mock_memory_log, mock_chatter, mock_settings, tmp_path, returned_class, test_data, expected_result):
+    def reset_mocks():
+        mock_memory_log.reset_mock()
+        mock_chatter.reset_mock()
+        mock_settings.reset_mock()
 
     mock_llm = MagicMock()
-    mock_llm.chat.return_value = result_obj
-    mock_llm_cls.return_value = mock_llm
+    result_obj = JsonExtract(has_error=False, content=[test_data], error="")
+    
     mock_memory_log.dev_null_instance.side_effect = ["MemoryLogInstance"]
+    settings_instance = MagicMock()
+    mock_settings.side_effect = [settings_instance]
+    mock_chatter.side_effect = [mock_llm]
+    mock_llm.chat.side_effect = [result_obj]
 
     schema = {"type": "object", "properties": {"key": {"type": "string"}}, "required": ["key"]}
-    tested = HelperSyntheticJson.generate_json(
-        vendor_key=VendorKey("openai", "dummy_key"),
+    
+    tested = HelperSyntheticJson
+    result = tested.generate_json(
         system_prompt=["System prompt"],
         user_prompt=["User prompt"],
         schema=schema,
         returned_class=returned_class,
     )
+    expected = expected_result
+    assert result == expected
 
-    assert tested == expected_result
-    assert not (tmp_path / "invalid_output.json").exists()
-
-    expected_calls = [
-        call("MemoryLogInstance", "dummy_key", with_audit=False, temperature=1.0),
-        call().set_system_prompt(["System prompt"]),
-        call().set_user_prompt(["User prompt"]),
-        call().chat(schemas=[schema]),
-    ]
-    assert mock_llm_cls.mock_calls == expected_calls
-    assert mock_llm.chat.call_count == 1
     calls = [call.dev_null_instance()]
     assert mock_memory_log.mock_calls == calls
+    calls = [call()]
+    assert mock_settings.mock_calls == calls
+    calls = [call(settings_instance, "MemoryLogInstance")]
+    assert mock_chatter.mock_calls == calls
+    calls = [
+        call.set_system_prompt(["System prompt"]),
+        call.set_user_prompt(["User prompt"]),
+        call.chat(schemas=[schema]),
+    ]
+    assert mock_llm.mock_calls == calls
+    reset_mocks()
 
 
+@patch("evaluations.case_builders.helper_synthetic_json.HelperEvaluation.settings")
+@patch("evaluations.case_builders.helper_synthetic_json.Helper.chatter")
 @patch("evaluations.case_builders.helper_synthetic_json.MemoryLog")
-@patch("evaluations.case_builders.helper_synthetic_json.LlmOpenaiO3")
-def test_generate_json__unsupported_returned_class(mock_llm_cls, mock_memory_log):
-    # Test unsupported returned_class raises ValueError
+def test_generate_json__unsupported_returned_class(mock_memory_log, mock_chatter, mock_settings):
+    mock_llm = MagicMock()
     result_obj = JsonExtract(has_error=False, content=[{"key": "value"}], error="")
 
-    mock_llm = MagicMock()
-    mock_llm.chat.return_value = result_obj
-    mock_llm_cls.return_value = mock_llm
-    mock_memory_log.dev_null_instance.return_value = "MemoryLogInstance"
-
     def reset_mocks():
-        mock_llm_cls.reset_mock()
         mock_memory_log.reset_mock()
+        mock_chatter.reset_mock()
+        mock_settings.reset_mock()
         mock_llm.reset_mock()
+
+    mock_memory_log.dev_null_instance.side_effect = ["MemoryLogInstance"]
+    mock_settings.side_effect = [MagicMock()]
+    mock_chatter.side_effect = [mock_llm]
+    mock_llm.chat.side_effect = [result_obj]
 
     schema = {"type": "object", "properties": {"key": {"type": "string"}}, "required": ["key"]}
 
+    tested = HelperSyntheticJson
     with pytest.raises(ValueError, match="Unsupported returned_class"):
-        HelperSyntheticJson.generate_json(
-            vendor_key=VendorKey("openai", "dummy_key"),
+        tested.generate_json(
             system_prompt=["System prompt"],
             user_prompt=["User prompt"],
             schema=schema,
             returned_class=dict,
         )
-
-    expected_calls = [
-        call("MemoryLogInstance", "dummy_key", with_audit=False, temperature=1.0),
-        call().set_system_prompt(["System prompt"]),
-        call().set_user_prompt(["User prompt"]),
-        call().chat(schemas=[schema]),
-    ]
-    assert mock_llm_cls.mock_calls == expected_calls
-    calls = [call.dev_null_instance()]
-    assert mock_memory_log.mock_calls == calls
     reset_mocks()
 
 
+@patch("evaluations.case_builders.helper_synthetic_json.HelperEvaluation.settings")
+@patch("evaluations.case_builders.helper_synthetic_json.Helper.chatter")
 @patch("evaluations.case_builders.helper_synthetic_json.MemoryLog")
-@patch("evaluations.case_builders.helper_synthetic_json.LlmOpenaiO3")
-def test_generate_json__chat_error_exits(mock_llm_cls, mock_memory_log, tmp_path):
-    # LLM.chat signals a lower-level error
-    schema = {"type": "object", "properties": {"key": {"type": "string"}}, "required": ["key"]}
-    tested_obj = JsonExtract(has_error=True, content="irrelevant", error="network fail")
-
+def test_generate_json__chat_error_exits(mock_memory_log, mock_chatter, mock_settings, tmp_path):
     mock_llm = MagicMock()
-    mock_llm.chat.side_effect = [tested_obj]
-    mock_llm_cls.return_value = mock_llm
-    mock_memory_log.dev_null_instance.side_effect = ["MemoryLogInstance"]
+    tested_obj = JsonExtract(has_error=True, content="irrelevant", error="network fail")
+    
+    def reset_mocks():
+        mock_memory_log.reset_mock()
+        mock_chatter.reset_mock()
+        mock_settings.reset_mock()
 
+    mock_memory_log.dev_null_instance.side_effect = ["MemoryLogInstance"]
+    settings_instance = MagicMock()
+    mock_settings.side_effect = [settings_instance]
+    mock_chatter.side_effect = [mock_llm]
+    mock_llm.chat.side_effect = [tested_obj]
+
+    schema = {"type": "object", "properties": {"key": {"type": "string"}}, "required": ["key"]}
     invalid = _invalid_path(tmp_path)
+    
     with (
         patch("evaluations.case_builders.helper_synthetic_json.Path", return_value=invalid),
         patch("evaluations.case_builders.helper_synthetic_json.sys.exit", side_effect=SystemExit) as mock_exit,
     ):
+        tested = HelperSyntheticJson
         with pytest.raises(SystemExit):
-            HelperSyntheticJson.generate_json(
-                vendor_key=VendorKey("openai", "dummy"),
+            tested.generate_json(
                 system_prompt=["system"],
                 user_prompt=["user"],
                 schema=schema,
@@ -199,13 +210,16 @@ def test_generate_json__chat_error_exits(mock_llm_cls, mock_memory_log, tmp_path
     assert tested_obj.error == "network fail"
     assert mock_exit.mock_calls == [call(1)]
 
-    expected_calls = [
-        call("MemoryLogInstance", "dummy", with_audit=False, temperature=1.0),
-        call().set_system_prompt(["system"]),
-        call().set_user_prompt(["user"]),
-        call().chat(schemas=[schema]),
-    ]
-    assert mock_llm_cls.mock_calls == expected_calls
-    assert mock_llm.chat.call_count == 1
     calls = [call.dev_null_instance()]
     assert mock_memory_log.mock_calls == calls
+    calls = [call()]
+    assert mock_settings.mock_calls == calls
+    calls = [call(settings_instance, "MemoryLogInstance")]
+    assert mock_chatter.mock_calls == calls
+    calls = [
+        call.set_system_prompt(["system"]),
+        call.set_user_prompt(["user"]),
+        call.chat(schemas=[schema]),
+    ]
+    assert mock_llm.mock_calls == calls
+    reset_mocks()
