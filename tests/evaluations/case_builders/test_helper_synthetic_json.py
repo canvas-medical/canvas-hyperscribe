@@ -73,12 +73,12 @@ def _invalid_path(tmp_path: Path) -> Path:
         (
             RubricCriterion,
             [
-                {"criterion": "Reward for accuracy", "weight": 50, "sense": "positive"},
-                {"criterion": "Penalize for errors", "weight": 30, "sense": "negative"},
+                {"criterion": "Reward for accuracy", "weight": 50},
+                {"criterion": "Penalize for errors", "weight": 30},
             ],
             [
-                RubricCriterion(criterion="Reward for accuracy", weight=50, sense="positive"),
-                RubricCriterion(criterion="Penalize for errors", weight=30, sense="negative"),
+                RubricCriterion(criterion="Reward for accuracy", weight=50),
+                RubricCriterion(criterion="Penalize for errors", weight=30),
             ],
         ),
         # grades returned_class

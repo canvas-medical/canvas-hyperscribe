@@ -123,10 +123,7 @@ class NoteGrader:
 
         result = []
         for graded_criterion, rubric_criterion in zip(graded_criteria, self.rubric):
-            if rubric_criterion.sense == Constants.POSITIVE_VALUE:
-                score = round(rubric_criterion.weight * (graded_criterion.satisfaction / 100), 2)
-            else:
-                score = -round(rubric_criterion.weight * (1 - (graded_criterion.satisfaction / 100)), 2)
+            score = round(rubric_criterion.weight * (graded_criterion.satisfaction / 100), 2)
 
             result.append(
                 GradedCriterion(

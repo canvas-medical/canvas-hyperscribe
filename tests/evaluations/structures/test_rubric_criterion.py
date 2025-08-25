@@ -4,7 +4,7 @@ from tests.helper import is_namedtuple
 
 def test_class():
     tested = RubricCriterion
-    fields = {"criterion": str, "weight": float, "sense": str}
+    fields = {"criterion": str, "weight": float}
 
     assert is_namedtuple(tested, fields)
 
@@ -12,8 +12,8 @@ def test_class():
 def test_to_json():
     tests = [
         (
-            RubricCriterion(criterion="Reward for accuracy", weight=50.0, sense="positive"),
-            {"criterion": "Reward for accuracy", "weight": 50.0, "sense": "positive"},
+            RubricCriterion(criterion="Reward for accuracy", weight=50.0),
+            {"criterion": "Reward for accuracy", "weight": 50.0},
         )
     ]
 
@@ -26,20 +26,20 @@ def test_load_from_json():
     tests = [
         (
             [
-                {"criterion": "Reward for accuracy", "weight": 50.0, "sense": "positive"},
-                {"criterion": "Penalize for errors", "weight": 30.0, "sense": "negative"},
+                {"criterion": "Reward for accuracy", "weight": 50.0},
+                {"criterion": "Reward for completeness", "weight": 30.0},
             ],
             [
-                RubricCriterion(criterion="Reward for accuracy", weight=50.0, sense="positive"),
-                RubricCriterion(criterion="Penalize for errors", weight=30.0, sense="negative"),
+                RubricCriterion(criterion="Reward for accuracy", weight=50.0),
+                RubricCriterion(criterion="Reward for completeness", weight=30.0),
             ],
         ),
         (
             [
-                {"criterion": "Reward for completeness", "weight": 25.0, "sense": "positive"},
+                {"criterion": "Reward for completeness", "weight": 25.0},
             ],
             [
-                RubricCriterion(criterion="Reward for completeness", weight=25.0, sense="positive"),
+                RubricCriterion(criterion="Reward for completeness", weight=25.0),
             ],
         ),
         (

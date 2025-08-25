@@ -67,13 +67,8 @@ def test_schema_rubric():
                     "minimum": 0,
                     "maximum": 100,
                 },
-                "sense": {
-                    "type": "string",
-                    "description": "positive or negative direction",
-                    "enum": ["positive", "negative"],
-                },
             },
-            "required": ["criterion", "weight", "sense"],
+            "required": ["criterion", "weight"],
             "additionalProperties": False,
         },
     }
@@ -94,7 +89,7 @@ def test_build_prompts(mock_schema_rubric, tmp_files):
 
     result_system_lines, result_user_lines = tested.build_prompts(transcript, chart, canvas_context)
     expected_system_md5 = "a32a64e63443ef0f076080b5be3873d9"
-    expected_user_md5 = "f08e7813044d358e28018de214b8a512"
+    expected_user_md5 = "8640c4f7a0f9369d0f0a7af503b5dce5"
 
     result_system_md5 = hashlib.md5("\n".join(result_system_lines).encode()).hexdigest()
     result_user_md5 = hashlib.md5("\n".join(result_user_lines).encode()).hexdigest()
@@ -123,21 +118,21 @@ def test_generate(mock_generate_json, mock_schema_rubric, mock_build_prompts, tm
         # success case
         {
             "generate_json_response": [
-                RubricCriterion(criterion="Reward for completeness", weight=50, sense="positive"),
-                RubricCriterion(criterion="Penalize for inaccuracy", weight=30, sense="negative"),
+                RubricCriterion(criterion="Reward for completeness", weight=50),
+                RubricCriterion(criterion="Reward for accuracy", weight=30),
             ],
             "expected": [
-                RubricCriterion(criterion="Reward for completeness", weight=50, sense="positive"),
-                RubricCriterion(criterion="Penalize for inaccuracy", weight=30, sense="negative"),
+                RubricCriterion(criterion="Reward for completeness", weight=50),
+                RubricCriterion(criterion="Reward for accuracy", weight=30),
             ],
         },
         # different rubric case
         {
             "generate_json_response": [
-                RubricCriterion(criterion="Reward for chart integration", weight=40, sense="positive"),
+                RubricCriterion(criterion="Reward for chart integration", weight=40),
             ],
             "expected": [
-                RubricCriterion(criterion="Reward for chart integration", weight=40, sense="positive"),
+                RubricCriterion(criterion="Reward for chart integration", weight=40),
             ],
         },
     ]
@@ -211,7 +206,7 @@ def test_generate_and_save2file(mock_generate, mock_load_json, mock_settings, tm
 
     transcript_path, chart_path, canvas_context_path, output_path, transcript, chart, canvas_context = tmp_files
 
-    rubric_result = [RubricCriterion(criterion="Reward for accuracy", weight=60, sense="positive")]
+    rubric_result = [RubricCriterion(criterion="Reward for accuracy", weight=60)]
 
     mock_load_json.side_effect = [transcript, chart, canvas_context]
     mock_generate.side_effect = [rubric_result]
@@ -225,7 +220,7 @@ def test_generate_and_save2file(mock_generate, mock_load_json, mock_settings, tm
 
     assert output_path.exists()
     result = json.loads(output_path.read_text())
-    expected = [{"criterion": "Reward for accuracy", "weight": 60, "sense": "positive"}]
+    expected = [{"criterion": "Reward for accuracy", "weight": 60}]
     assert result == expected
 
     output = capsys.readouterr().out
@@ -265,7 +260,7 @@ def test_generate_and_save2database(
     case_id = 123
     transcript_data = {"conversation": "test"}
     chart_data = {"data": "test"}
-    rubric_result = [RubricCriterion(criterion="Test", weight=50, sense="positive")]
+    rubric_result = [RubricCriterion(criterion="Test", weight=50)]
 
     mock_case_datastore_class.return_value.get_id.side_effect = [case_id]
     mock_case_datastore_class.return_value.get_transcript.side_effect = [transcript_data]
@@ -301,7 +296,7 @@ def test_generate_and_save2database(
                 validation_timestamp="theMockedDatetime",
                 validation=RubricValidation.NOT_EVALUATED,
                 author="llm",
-                rubric=[{"criterion": "Test", "weight": 50, "sense": "positive"}],
+                rubric=[{"criterion": "Test", "weight": 50}],
                 case_provenance_classification="",
                 comments="",
                 text_llm_vendor="openai",

@@ -16,8 +16,8 @@ from hyperscribe.structures.vendor_key import VendorKey
 @pytest.fixture
 def tmp_files(tmp_path):
     rubric = [
-        {"criterion": "Reward for A", "weight": 20, "sense": "positive"},
-        {"criterion": "Penalize for B", "weight": 30, "sense": "negative"},
+        {"criterion": "Reward for A", "weight": 20},
+        {"criterion": "Reward for B", "weight": 30},
     ]
     note = {"some": "note"}
 
@@ -82,7 +82,7 @@ def test_build_prompts(mock_schema_scores, tmp_files):
 
     result_system_lines, result_user_lines = tested.build_prompts()
     expected_system_md5 = "83ffb4b2602834cb84415885685311cc"
-    expected_user_md5 = "a5094e3da8bdeea48d768b26024ef00a"
+    expected_user_md5 = "26789d5126d246cb239032a16e9d0346"
 
     result_system_md5 = hashlib.md5("\n".join(result_system_lines).encode()).hexdigest()
     result_user_md5 = hashlib.md5("\n".join(result_user_lines).encode()).hexdigest()
@@ -117,7 +117,7 @@ def test_run(mock_generate_json, mock_schema_scores, mock_build_prompts, tmp_fil
             ],
             "expected": [
                 GradedCriterion(id=0, rationale="good", satisfaction=80, score=16.0),
-                GradedCriterion(id=1, rationale="bad", satisfaction=25, score=-22.5),
+                GradedCriterion(id=1, rationale="bad", satisfaction=25, score=7.5),
             ],
         },
         # different scores case
@@ -128,7 +128,7 @@ def test_run(mock_generate_json, mock_schema_scores, mock_build_prompts, tmp_fil
             ],
             "expected": [
                 GradedCriterion(id=0, rationale="excellent", satisfaction=100, score=20.0),
-                GradedCriterion(id=1, rationale="poor", satisfaction=0, score=-30.0),
+                GradedCriterion(id=1, rationale="poor", satisfaction=0, score=0.0),
             ],
         },
     ]
@@ -205,7 +205,7 @@ def test_grade_and_save2database(
 
     vendor_key = VendorKey(vendor="openai", api_key="test_key")
     # Mock data
-    rubric_data = [{"criterion": "Test criterion", "weight": 10, "sense": "positive"}]
+    rubric_data = [{"criterion": "Test criterion", "weight": 10}]
     note_data = {"some": "note"}
     grading_result = [GradedCriterion(id=0, rationale="good work", satisfaction=85, score=8.5)]
 
@@ -277,7 +277,7 @@ def test_grade_and_save2file(mock_run, mock_load_json, mock_settings, tmp_path, 
     output_path = tmp_path / "output.json"
 
     # Mock data
-    rubric_data = [{"criterion": "Test criterion", "weight": 10, "sense": "positive"}]
+    rubric_data = [{"criterion": "Test criterion", "weight": 10}]
     note_data = {"some": "note"}
     grading_result = [GradedCriterion(id=0, rationale="good work", satisfaction=85, score=8.5)]
 

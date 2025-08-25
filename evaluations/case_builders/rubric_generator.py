@@ -46,13 +46,8 @@ class RubricGenerator:
                         "minimum": 0,
                         "maximum": 100,
                     },
-                    "sense": {
-                        "type": "string",
-                        "description": "positive or negative direction",
-                        "enum": [Constants.POSITIVE_VALUE, Constants.NEGATIVE_VALUE],
-                    },
                 },
-                "required": ["criterion", "weight", "sense"],
+                "required": ["criterion", "weight"],
                 "additionalProperties": False,
             },
         }
@@ -77,10 +72,10 @@ class RubricGenerator:
             " 2. Decide what an ideal scribe must capture.",
             " 3. Produce the rubric as a JSON array of objects.",
             "Each object keys:",
-            ' - criterion (string) — must start with "Reward for" or "Penalize for"',
+            ' - criterion (string) — must start with "Reward for"',
             " - weight (int 0-100)",
-            f"– sense ('{Constants.POSITIVE_VALUE}' | '{Constants.NEGATIVE_VALUE}')",
-            "Include at least one criterion on overall completeness and one on chart-copy fidelity.",
+            "Include at least one criterion on overall completeness based on the transcript"
+            "and one criterion related to not repeating information already documented in the chart.",
             "Your JSON **must** conform to the following JSON Schema:",
             "```json",
             json.dumps(schema, indent=2),
