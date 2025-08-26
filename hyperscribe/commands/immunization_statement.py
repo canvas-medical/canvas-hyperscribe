@@ -80,14 +80,18 @@ class ImmunizationStatement(Base):
                 "",
                 "Please, present your findings in a JSON format within a Markdown code block like:",
                 "```json",
-                json.dumps([{"cptCode": "the CPT code", "cvxCode": "the CVX code"}]),
+                json.dumps([{"cptCode": "the CPT code", "cvxCode": "the CVX code", "label": "the label"}]),
                 "```",
                 "",
             ]
             schemas = JsonSchema.get(["selector_immunization_codes"])
             if response := chatter.single_conversation(system_prompt, user_prompt, schemas, instruction):
-                result.cpt_code = str(response[0]["cptCode"])
-                result.cvx_code = str(response[0]["cvxCode"])
+                immunization = response[0]
+                result.cpt_code = str(immunization["cptCode"])
+                result.cvx_code = str(immunization["cvxCode"])
+                self.add_code2description(str(immunization["cptCode"]), immunization["label"])
+                self.add_code2description(str(immunization["cvxCode"]), immunization["label"])
+
         return InstructionWithCommand.add_command(instruction, result)
 
     def command_parameters(self) -> dict:

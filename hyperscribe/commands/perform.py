@@ -64,7 +64,9 @@ class Perform(Base):
             ]
             schemas = JsonSchema.get(["selector_lab_test"])
             if response := chatter.single_conversation(system_prompt, user_prompt, schemas, instruction):
-                result.cpt_code = response[0]["code"]
+                procedure = response[0]
+                result.cpt_code = procedure["code"]
+                self.add_code2description(procedure["code"], procedure["label"])
 
         return InstructionWithCommand.add_command(instruction, result)
 

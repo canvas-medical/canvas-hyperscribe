@@ -100,11 +100,14 @@ def test_staged_command_extract():
 
 
 @patch.object(SelectorChat, "condition_from")
-def test_command_from_json(condition_from):
+@patch.object(Diagnose, "add_code2description")
+def test_command_from_json(add_code2description, condition_from):
     chatter = MagicMock()
 
     def reset_mocks():
+        add_code2description.reset_mock()
         condition_from.reset_mock()
+        chatter.reset_mock()
 
     tested = helper_instance()
     condition_from.side_effect = [CodedItem(uuid="theUuid1", label="display1a", code="CODE12.3")]
@@ -135,6 +138,8 @@ def test_command_from_json(condition_from):
     expected = InstructionWithCommand(**(arguments | {"command": command}))
     assert result == expected
 
+    calls = [call("theUuid1", "display1a")]
+    assert add_code2description.mock_calls == calls
     calls = [
         call(
             instruction,

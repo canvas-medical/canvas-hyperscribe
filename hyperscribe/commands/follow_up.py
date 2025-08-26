@@ -42,7 +42,10 @@ class FollowUp(Base):
         idx = instruction.parameters["visitTypeIndex"]
         if not (0 <= idx < len(self.cache.existing_note_types())):
             idx = 0
-        result.note_type_id = self.cache.existing_note_types()[idx].uuid
+
+        note_type = self.cache.existing_note_types()[idx]
+        result.note_type_id = note_type.uuid
+        self.add_code2description(note_type.uuid, note_type.label)
         #
         if "reasonForVisitIndex" in instruction.parameters:
             if (
@@ -52,6 +55,7 @@ class FollowUp(Base):
             ):
                 result.structured = True
                 result.reason_for_visit = existing[idx].uuid
+                self.add_code2description(existing[idx].uuid, existing[idx].label)
 
         return InstructionWithCommand.add_command(instruction, result)
 

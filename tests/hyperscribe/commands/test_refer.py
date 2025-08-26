@@ -110,10 +110,12 @@ def test_staged_command_extract():
 @patch.object(LimitedCache, "practice_setting")
 @patch.object(SelectorChat, "contact_from")
 @patch.object(SelectorChat, "condition_from")
-def test_command_from_json(condition_from, contact_from, practice_setting):
+@patch.object(Refer, "add_code2description")
+def test_command_from_json(add_code2description, condition_from, contact_from, practice_setting):
     chatter = MagicMock()
 
     def reset_mocks():
+        add_code2description.reset_mock()
         condition_from.reset_mock()
         contact_from.reset_mock()
         practice_setting.reset_mock()
@@ -173,6 +175,11 @@ def test_command_from_json(condition_from, contact_from, practice_setting):
         expected = InstructionWithCommand(**(arguments | {"command": command}))
         assert result == expected
 
+        calls = [
+            call("icd1", "condition1"),
+            call("icd3", "condition4"),
+        ]
+        assert add_code2description.mock_calls == calls
         calls = [
             call(instruction, chatter, tested.settings, ["condition1", "condition2"], ["icd1", "icd2"], "theComment"),
             call(instruction, chatter, tested.settings, ["condition3"], ["icd3"], "theComment"),

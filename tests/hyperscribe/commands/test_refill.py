@@ -118,10 +118,12 @@ def test_staged_command_extract():
 
 
 @patch.object(LimitedCache, "current_medications")
-def test_command_from_json(current_medications):
+@patch.object(Refill, "add_code2description")
+def test_command_from_json(add_code2description, current_medications):
     chatter = MagicMock()
 
     def reset_mocks():
+        add_code2description.reset_mock()
         current_medications.reset_mock()
         chatter.reset_mock()
 
@@ -152,8 +154,11 @@ def test_command_from_json(current_medications):
             potency_unit_code="puc3",
         ),
     ]
-    tests = [(1, "fdb2", "ndc2", "puc2"), (2, "fdb3", "ndc3", "puc3")]
-    for idx, code_fdb, national_drug_code, potency_unit_code in tests:
+    tests = [
+        (1, "fdb2", "ndc2", "puc2", [call("fdb2", "display2")]),
+        (2, "fdb3", "ndc3", "puc3", [call("fdb3", "display3")]),
+    ]
+    for idx, code_fdb, national_drug_code, potency_unit_code, exp_calls in tests:
         current_medications.side_effect = [medications, medications]
         arguments = {
             "uuid": "theUuid",
@@ -187,6 +192,7 @@ def test_command_from_json(current_medications):
         )
         expected = InstructionWithCommand(**(arguments | {"command": command}))
         assert result == expected
+        assert add_code2description.mock_calls == exp_calls
         calls = [call()]
         assert current_medications.mock_calls == calls
         assert chatter.mock_calls == []
@@ -220,6 +226,8 @@ def test_command_from_json(current_medications):
     )
     expected = InstructionWithCommand(**(arguments | {"command": command}))
     assert result == expected
+    calls = []
+    assert add_code2description.mock_calls == calls
     calls = [call()]
     assert current_medications.mock_calls == calls
     reset_mocks()

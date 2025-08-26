@@ -30,6 +30,7 @@ class CloseGoal(Base):
         if 0 <= (idx := instruction.parameters["goalIndex"]) < len(current := self.cache.current_goals()):
             # TODO should be  goal_uuid = current[idx].uuid, waiting for https://github.com/canvas-medical/canvas-plugins/issues/338
             goal_uuid = current[idx].code
+            self.add_code2description(current[idx].code, current[idx].label)
 
         return InstructionWithCommand.add_command(
             instruction,

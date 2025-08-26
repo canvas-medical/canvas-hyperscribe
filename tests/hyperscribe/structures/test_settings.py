@@ -170,6 +170,7 @@ def test_llm_audio_model():
     tests = [
         ("", "gpt-4o-audio-preview"),
         ("Anthropic", "gpt-4o-audio-preview"),
+        ("ElevenLabs", "scribe_v1"),
         ("Google", "models/gemini-2.0-flash"),
         ("OpenAI", "gpt-4o-audio-preview"),
         ("Other", "gpt-4o-audio-preview"),

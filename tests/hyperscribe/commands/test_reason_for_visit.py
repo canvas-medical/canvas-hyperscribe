@@ -72,10 +72,12 @@ def test_staged_command_extract():
 
 
 @patch.object(LimitedCache, "existing_reason_for_visits")
-def test_command_from_json(existing_reason_for_visits):
+@patch.object(ReasonForVisit, "add_code2description")
+def test_command_from_json(add_code2description, existing_reason_for_visits):
     chatter = MagicMock()
 
     def reset_mocks():
+        add_code2description.reset_mock()
         existing_reason_for_visits.reset_mock()
         chatter.reset_mock()
 
@@ -102,14 +104,19 @@ def test_command_from_json(existing_reason_for_visits):
     command = ReasonForVisitCommand(comment="theReasonForVisit", note_uuid="noteUuid")
     expected = InstructionWithCommand(**(arguments | {"command": command}))
     assert result == expected
+    assert add_code2description.mock_calls == []
     assert existing_reason_for_visits.mock_calls == []
     assert chatter.mock_calls == []
     reset_mocks()
 
     # with structured RfV
     tested = helper_instance(structured_rfv=True)
-    tests = [(1, "theUuid2", True), (2, "theUuid3", True), (4, None, False)]
-    for idx, exp_uuid, exp_structured in tests:
+    tests = [
+        (1, "theUuid2", True, [call("theUuid2", "display2")]),
+        (2, "theUuid3", True, [call("theUuid3", "display3")]),
+        (4, None, False, []),
+    ]
+    for idx, exp_uuid, exp_structured, exp_calls in tests:
         existing_reason_for_visits.side_effect = [reason_for_visits]
         arguments = {
             "uuid": "theUuid",
@@ -129,6 +136,7 @@ def test_command_from_json(existing_reason_for_visits):
             command.coding = exp_uuid
         expected = InstructionWithCommand(**(arguments | {"command": command}))
         assert result == expected
+        assert add_code2description.mock_calls == exp_calls
         calls = [call()]
         assert existing_reason_for_visits.mock_calls == calls
         assert chatter.mock_calls == []

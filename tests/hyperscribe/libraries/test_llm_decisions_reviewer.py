@@ -9,6 +9,7 @@ from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.llm_turn import LlmTurn
+from hyperscribe.structures.progress_message import ProgressMessage
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
 
@@ -453,16 +454,46 @@ def test_review(cache_get_discussion, cache_save, aws_s3, helper, llm_turns_stor
     ]
     assert memory_log.mock_calls == calls
     calls = [
-        call.send_to_user(identification, settings, "create the audits...", "events"),
-        call.send_to_user(identification, settings, "auditing of transcript2instructions_00 (cycle  1)", "events"),
-        call.send_to_user(identification, settings, "auditing of transcript2instructions_01 (cycle  1)", "events"),
-        call.send_to_user(identification, settings, "auditing of canvasCommandX_00_00 (cycle  1)", "events"),
-        call.send_to_user(identification, settings, "auditing of canvasCommandX_00_01 (cycle  1)", "events"),
-        call.send_to_user(identification, settings, "auditing of canvasCommandY_01_00 (cycle  2)", "events"),
-        call.send_to_user(identification, settings, "auditing of canvasCommandY_02_00 (cycle  2)", "events"),
+        call.send_to_user(
+            identification, settings, [ProgressMessage(message="create the audits...", section="events:2")]
+        ),
+        call.send_to_user(
+            identification,
+            settings,
+            [ProgressMessage(message="auditing of transcript2instructions_00 (cycle  1)", section="events:2")],
+        ),
+        call.send_to_user(
+            identification,
+            settings,
+            [ProgressMessage(message="auditing of transcript2instructions_01 (cycle  1)", section="events:2")],
+        ),
+        call.send_to_user(
+            identification,
+            settings,
+            [ProgressMessage(message="auditing of canvasCommandX_00_00 (cycle  1)", section="events:2")],
+        ),
+        call.send_to_user(
+            identification,
+            settings,
+            [ProgressMessage(message="auditing of canvasCommandX_00_01 (cycle  1)", section="events:2")],
+        ),
+        call.send_to_user(
+            identification,
+            settings,
+            [ProgressMessage(message="auditing of canvasCommandY_01_00 (cycle  2)", section="events:2")],
+        ),
+        call.send_to_user(
+            identification,
+            settings,
+            [ProgressMessage(message="auditing of canvasCommandY_02_00 (cycle  2)", section="events:2")],
+        ),
         # no cycle 3 since there is no document
-        call.send_to_user(identification, settings, "auditing of Questionnaire_06_00 (cycle  4)", "events"),
-        call.send_to_user(identification, settings, "audits done", "events"),
+        call.send_to_user(
+            identification,
+            settings,
+            [ProgressMessage(message="auditing of Questionnaire_06_00 (cycle  4)", section="events:2")],
+        ),
+        call.send_to_user(identification, settings, [ProgressMessage(message="audits done", section="events:2")]),
     ]
     assert progress.mock_calls == calls
     reset_mocks()

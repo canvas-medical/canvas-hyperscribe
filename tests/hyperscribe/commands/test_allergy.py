@@ -70,10 +70,12 @@ def test_staged_command_extract():
 
 
 @patch.object(CanvasScience, "search_allergy")
-def test_command_from_json(search_allergy):
+@patch.object(Allergy, "add_code2description")
+def test_command_from_json(add_code2description, search_allergy):
     chatter = MagicMock()
 
     def reset_mocks():
+        add_code2description.reset_mock()
         search_allergy.reset_mock()
         chatter.reset_mock()
 
@@ -188,6 +190,8 @@ def test_command_from_json(search_allergy):
 
         calls = [call("ontologiesHost", "preSharedKey", keywords, allergen_types)]
         assert search_allergy.mock_calls == calls
+        calls = [call("167", "descriptionB")]
+        assert add_code2description.mock_calls == calls
         calls = [call.single_conversation(system_prompt, user_prompt, schemas, instruction)]
         assert chatter.mock_calls == calls
         reset_mocks()
@@ -212,6 +216,7 @@ def test_command_from_json(search_allergy):
 
         calls = [call("ontologiesHost", "preSharedKey", keywords, allergen_types)]
         assert search_allergy.mock_calls == calls
+        assert add_code2description.mock_calls == []
         calls = [call.single_conversation(system_prompt, user_prompt, schemas, instruction)]
         assert chatter.mock_calls == calls
         reset_mocks()
@@ -236,6 +241,7 @@ def test_command_from_json(search_allergy):
 
         calls = [call("ontologiesHost", "preSharedKey", keywords, allergen_types)]
         assert search_allergy.mock_calls == calls
+        assert add_code2description.mock_calls == []
         assert chatter.mock_calls == []
         reset_mocks()
 

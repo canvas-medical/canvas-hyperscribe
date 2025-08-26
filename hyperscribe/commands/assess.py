@@ -28,6 +28,7 @@ class Assess(Base):
         condition_id = ""
         if 0 <= (idx := instruction.parameters["conditionIndex"]) < len(current := self.cache.current_conditions()):
             condition_id = current[idx].uuid
+            self.add_code2description(current[idx].uuid, current[idx].label)
         return InstructionWithCommand.add_command(
             instruction,
             AssessCommand(

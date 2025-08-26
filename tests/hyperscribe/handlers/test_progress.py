@@ -16,6 +16,7 @@ from hyperscribe.handlers.progress import Progress
 from hyperscribe.libraries.authenticator import Authenticator
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.identification_parameters import IdentificationParameters
+from hyperscribe.structures.progress_message import ProgressMessage
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
 from tests.helper import is_constant
@@ -136,7 +137,7 @@ def test_post(get_cache):
     tests = [
         (
             "noteId",
-            '{"key": "value1"}',
+            '[{"key": "value1"}]',
             None,
             [
                 call(),
@@ -145,16 +146,18 @@ def test_post(get_cache):
                 call().set("progress-noteId", [{"key": "value1"}]),
             ],
         ),
-        ("", '{"key": "value1"}', [], []),
+        ("", '[{"key": "value1"}]', [], []),
         (
             "noteId",
-            '{"key": "value1"}',
+            '[{"key": "value1"},{"key": "value4"}]',
             [{"key": "value3"}, {"key": "value2"}],
             [
                 call(),
                 call().get("progress-noteId"),
                 call(),
-                call().set("progress-noteId", [{"key": "value3"}, {"key": "value2"}, {"key": "value1"}]),
+                call().set(
+                    "progress-noteId", [{"key": "value3"}, {"key": "value2"}, {"key": "value1"}, {"key": "value4"}]
+                ),
             ],
         ),
     ]
@@ -168,7 +171,7 @@ def test_post(get_cache):
                 type="SIMPLE_API_WEBSOCKET_BROADCAST",
                 payload=json.dumps(
                     {
-                        "data": {"channel": "progresses", "message": json.loads(body)},
+                        "data": {"channel": "progresses", "message": {"events": json.loads(body)}},
                     }
                 ),
             ),
@@ -230,7 +233,14 @@ def test_send_to_user(requests_post, authenticator, mock_datetime):
     authenticator.presigned_url.side_effect = ["thePresignedUrl"]
     mock_datetime.now.side_effect = [a_date]
 
-    tested.send_to_user(identification, settings, "theMessage", "theSection")
+    tested.send_to_user(
+        identification,
+        settings,
+        [
+            ProgressMessage(message="theMessage1", section="theSection1"),
+            ProgressMessage(message="theMessage2", section="theSection2"),
+        ],
+    )
 
     calls = [
         call.presigned_url(
@@ -244,7 +254,10 @@ def test_send_to_user(requests_post, authenticator, mock_datetime):
         call(
             "thePresignedUrl",
             headers={"Content-Type": "application/json"},
-            json={"time": "2025-05-15T11:17:31+00:00", "message": "theMessage", "section": "theSection"},
+            json=[
+                {"time": "2025-05-15T11:17:31+00:00", "message": "theMessage1", "section": "theSection1"},
+                {"time": "2025-05-15T11:17:31+00:00", "message": "theMessage2", "section": "theSection2"},
+            ],
             verify=True,
             timeout=None,
         ),
@@ -273,7 +286,13 @@ def test_send_to_user(requests_post, authenticator, mock_datetime):
     authenticator.presigned_url.side_effect = []
     mock_datetime.now.side_effect = []
 
-    tested.send_to_user(identification, settings, "theMessage", "theSection")
+    tested.send_to_user(
+        identification,
+        settings,
+        [
+            ProgressMessage(message="theMessage", section="theSection"),
+        ],
+    )
 
     assert authenticator.mock_calls == []
     assert requests_post.mock_calls == []

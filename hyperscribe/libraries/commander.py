@@ -28,6 +28,7 @@ from hyperscribe.structures.identification_parameters import IdentificationParam
 from hyperscribe.structures.instruction import Instruction
 from hyperscribe.structures.instruction_with_command import InstructionWithCommand
 from hyperscribe.structures.line import Line
+from hyperscribe.structures.progress_message import ProgressMessage
 from hyperscribe.structures.settings import Settings
 
 
@@ -56,12 +57,13 @@ class Commander(BaseProtocol):
         if not audios:
             return False, []
 
-        Progress.send_to_user(
-            identification,
-            settings,
-            f"starting the cycle {chunk_index}...",
-            Constants.PROGRESS_SECTION_EVENTS,
-        )
+        messages = [
+            ProgressMessage(
+                message=f"starting the cycle {chunk_index}...",
+                section=Constants.PROGRESS_SECTION_TECHNICAL,
+            )
+        ]
+        Progress.send_to_user(identification, settings, messages)
         discussion = CachedSdk.get_discussion(identification.note_uuid)
         discussion.set_cycle(chunk_index)
 
@@ -134,13 +136,13 @@ class Commander(BaseProtocol):
         transcript = Line.load_from_json(response.content)
         auditor.identified_transcript(audios, transcript)
         memory_log.output(f"--> transcript back and forth: {len(transcript)}")
-        Progress.send_to_user(
-            chatter.identification,
-            chatter.settings,
-            json.dumps([line.to_json() for line in transcript]),
-            Constants.PROGRESS_SECTION_TRANSCRIPT,
-        )
-
+        messages = [
+            ProgressMessage(
+                message=json.dumps([line.to_json() for line in transcript]),
+                section=Constants.PROGRESS_SECTION_TRANSCRIPT,
+            )
+        ]
+        Progress.send_to_user(chatter.identification, chatter.settings, messages)
         instructions, effects = cls.transcript2commands(auditor, transcript, chatter, previous_instructions)
         transcript_tail = Line.tail_of(transcript, chatter.settings.cycle_transcript_overlap)
         return instructions, effects, transcript_tail
@@ -223,12 +225,13 @@ class Commander(BaseProtocol):
         if detected_updated:
             detected.append(f"updated: {', '.join([f'{k}: {v}' for k, v in detected_updated.items()])}")
         detected.append(f"total: {len(cumulated_instructions)}")
-        Progress.send_to_user(
-            chatter.identification,
-            chatter.settings,
-            f"instructions detection: {', '.join(detected)}",
-            Constants.PROGRESS_SECTION_EVENTS,
-        )
+        messages = [
+            ProgressMessage(
+                message=f"instructions detection: {', '.join(detected)}",
+                section=Constants.PROGRESS_SECTION_TECHNICAL,
+            )
+        ]
+        Progress.send_to_user(chatter.identification, chatter.settings, messages)
 
         max_workers = max(1, Constants.MAX_WORKERS)
         with ThreadPoolExecutor(max_workers=max_workers) as builder:
@@ -241,12 +244,13 @@ class Commander(BaseProtocol):
                 if instruction is not None
             ]
         memory_log.output(f"--> computed commands: {len(instructions_with_parameter)}")
-        Progress.send_to_user(
-            chatter.identification,
-            chatter.settings,
-            f"parameters computation done ({len(instructions_with_parameter)})",
-            Constants.PROGRESS_SECTION_EVENTS,
-        )
+        messages = [
+            ProgressMessage(
+                message=f"parameters computation done ({len(instructions_with_parameter)})",
+                section=Constants.PROGRESS_SECTION_TECHNICAL,
+            )
+        ]
+        Progress.send_to_user(chatter.identification, chatter.settings, messages)
         auditor.computed_parameters(instructions_with_parameter)
 
         instructions_with_command: list[InstructionWithCommand] = []
@@ -261,12 +265,13 @@ class Commander(BaseProtocol):
                     instructions_with_command.append(instruction_w_cmd)
 
         memory_log.output(f"DURATION COMMONS: {int((time() - start) * 1000)}")
-        Progress.send_to_user(
-            chatter.identification,
-            chatter.settings,
-            f"commands generation done ({len(instructions_with_command)})",
-            Constants.PROGRESS_SECTION_EVENTS,
-        )
+        messages = [
+            ProgressMessage(
+                message=f"commands generation done ({len(instructions_with_command)})",
+                section=Constants.PROGRESS_SECTION_TECHNICAL,
+            )
+        ]
+        Progress.send_to_user(chatter.identification, chatter.settings, messages)
         auditor.computed_commands(instructions_with_command)
 
         if chatter.is_local_data:
@@ -318,12 +323,13 @@ class Commander(BaseProtocol):
         ]
 
         memory_log.output(f"DURATION QUESTIONNAIRES: {int((time() - start) * 1000)}")
-        Progress.send_to_user(
-            chatter.identification,
-            chatter.settings,
-            f"questionnaires update done ({len(instructions_with_command)})",
-            Constants.PROGRESS_SECTION_EVENTS,
-        )
+        messages = [
+            ProgressMessage(
+                message=f"questionnaires update done ({len(instructions_with_command)})",
+                section=Constants.PROGRESS_SECTION_TECHNICAL,
+            )
+        ]
+        Progress.send_to_user(chatter.identification, chatter.settings, messages)
         auditor.computed_questionnaires(transcript, instructions, instructions_with_command)
 
         if chatter.is_local_data:

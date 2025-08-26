@@ -13,6 +13,7 @@ from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.llm_turn import LlmTurn
+from hyperscribe.structures.progress_message import ProgressMessage
 from hyperscribe.structures.settings import Settings
 
 
@@ -46,17 +47,24 @@ class LlmDecisionsReviewer:
         cached.save()
         creation_day = cached.creation_day()
 
-        Progress.send_to_user(identification, settings, "create the audits...", Constants.PROGRESS_SECTION_EVENTS)
+        messages = [
+            ProgressMessage(
+                message="create the audits...",
+                section=Constants.PROGRESS_SECTION_TECHNICAL,
+            )
+        ]
+        Progress.send_to_user(identification, settings, messages)
         for cycle in range(1, cycles + 1):
             result: list[dict] = []
             store = LlmTurnsStore(credentials, identification, creation_day, cycle)
             for incremented_step, discussion in store.stored_documents():
-                Progress.send_to_user(
-                    identification,
-                    settings,
-                    f"auditing of {incremented_step} (cycle {cycle: 02d})",
-                    Constants.PROGRESS_SECTION_EVENTS,
-                )
+                messages = [
+                    ProgressMessage(
+                        message=f"auditing of {incremented_step} (cycle {cycle: 02d})",
+                        section=Constants.PROGRESS_SECTION_TECHNICAL,
+                    )
+                ]
+                Progress.send_to_user(identification, settings, messages)
                 indexed_command, increment = LlmTurnsStore.decompose(incremented_step)
                 chatter = Helper.chatter(
                     settings,
@@ -114,4 +122,10 @@ class LlmDecisionsReviewer:
                 f"final_audit_{cycle:02d}.log"
             )
             client_s3.upload_text_to_s3(store_path, json.dumps(result, indent=2))
-        Progress.send_to_user(identification, settings, "audits done", Constants.PROGRESS_SECTION_EVENTS)
+        messages = [
+            ProgressMessage(
+                message="audits done",
+                section=Constants.PROGRESS_SECTION_TECHNICAL,
+            )
+        ]
+        Progress.send_to_user(identification, settings, messages)

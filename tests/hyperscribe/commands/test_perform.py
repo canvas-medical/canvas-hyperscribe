@@ -73,10 +73,12 @@ def test_staged_command_extract():
 
 
 @patch.object(LimitedCache, "charge_descriptions")
-def test_command_from_json(charge_descriptions):
+@patch.object(Perform, "add_code2description")
+def test_command_from_json(add_code2description, charge_descriptions):
     chatter = MagicMock()
 
     def reset_mocks():
+        add_code2description.reset_mock()
         charge_descriptions.reset_mock()
         chatter.reset_mock()
 
@@ -138,6 +140,7 @@ def test_command_from_json(charge_descriptions):
     expected = InstructionWithCommand(**(arguments | {"command": command}))
     assert result == expected
 
+    assert add_code2description.mock_calls == []
     calls = [call()]
     assert charge_descriptions.mock_calls == calls
     assert chatter.mock_calls == []
@@ -159,6 +162,8 @@ def test_command_from_json(charge_descriptions):
     expected = InstructionWithCommand(**(arguments | {"command": command}))
     assert result == expected
 
+    calls = [call("theCode", "theLabel")]
+    assert add_code2description.mock_calls == calls
     calls = [call()]
     assert charge_descriptions.mock_calls == calls
     calls = [call.single_conversation(system_prompt, user_prompt, schemas, instruction)]
@@ -180,6 +185,7 @@ def test_command_from_json(charge_descriptions):
     expected = InstructionWithCommand(**(arguments | {"command": command}))
     assert result == expected
 
+    assert add_code2description.mock_calls == []
     calls = [call()]
     assert charge_descriptions.mock_calls == calls
     calls = [call.single_conversation(system_prompt, user_prompt, schemas, instruction)]

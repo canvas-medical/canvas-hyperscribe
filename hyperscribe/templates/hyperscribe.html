@@ -124,14 +124,9 @@
             margin-top: 20px;
             width: 80%;
             border-bottom: 2px solid rgba(0, 40, 255, 0.3);
-            position: relative;
         }
 
         .duration-display {
-            position: absolute;
-            right: 0;
-            top: 50%;
-            transform: translateY(-50%);
             font-family: "Helvetica", "Arial", "sans-serif";
             font-size: 12px;
             font-weight: normal;
@@ -143,7 +138,7 @@
         .tab {
             background-color: rgba(220, 240, 255, 0.5);
             border: none;
-            padding: 10px 20px;
+            padding: 10px;
             cursor: pointer;
             font-family: "Helvetica", "Arial", "sans-serif";
             font-size: 14px;
@@ -180,7 +175,6 @@
         /* Legend styles */
         .legend {
             width: 80%;
-            margin-bottom: 10px;
             padding: 10px;
             background-color: rgba(255, 255, 255, 0.1);
             border-radius: 5px;
@@ -188,13 +182,38 @@
             font-size: 12px;
         }
 
+        /* Filter controls styles */
+        .filter-controls {
+            width: 100%;
+            padding: 0;
+            background-color: rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+            font-family: "Helvetica", "Arial", "sans-serif";
+            font-size: 12px;
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            justify-content: flex-end;
+        }
+
+        .filter-controls label {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+            font-weight: normal;
+            font-size: 11px;
+            color: #333;
+        }
+
+
         .legend-item {
             display: inline-block;
-            margin-right: 20px;
+            margin-right: 5px;
             padding: 3px 8px;
             border-radius: 3px;
             color: black;
-            font-weight: bold;
+            font-weight: normal;
         }
 
         /* Custom scrollbar styles */
@@ -316,25 +335,41 @@
         <div id="debugMessage" class="debug-message"></div>
 
         <div class="tabs">
-            <button class="tab active" onclick="switchTab('progress')">Progress</button>
-            <button class="tab" onclick="switchTab('transcript')">Transcript</button>
-            <span id="duration" class="duration-display"></span>
+            <button class="tab active" onclick="switchTab('activity', this)">Activity</button>
+            <button class="tab" onclick="switchTab('transcript', this)">Transcript</button>
+            <button class="tab" onclick="switchTab('logs', this)">Logs</button>
         </div>
 
-        <div id="progress-container" class="table-container active">
+        <div id="activity-container" class="table-container active">
+            <div class="filter-controls">
+                <span id="duration" class="duration-display"></span>
+            </div>
             <table>
                 <colgroup>
                     <col style="width: 70%">
                     <col style="width: 30%;text-align: right;">
                 </colgroup>
-                <tbody id="message-table-body">
+                <tbody id="activity-table-body">
+                </tbody>
+            </table>
+        </div>
+
+        <div id="logs-container" class="table-container">
+            <div class="filter-controls">
+                <span id="duration-logs" class="duration-display"></span>
+            </div>
+            <table>
+                <colgroup>
+                    <col style="width: 70%">
+                    <col style="width: 30%;text-align: right;">
+                </colgroup>
+                <tbody id="logs-table-body">
                 </tbody>
             </table>
         </div>
 
         <div id="transcript-container" class="table-container">
             <div id="transcript-legend" class="legend" style="display: none;">
-                <strong>Speaker Legend:</strong>
                 <div id="legend-content"></div>
             </div>
             <table>
@@ -387,7 +422,8 @@
                 colorIndex: 0,
                 pendingTurns: [],
                 processingTurns: false
-            }
+            },
+            activeTab: 'activity'
         };
 
         // Audio Recording Class
@@ -448,13 +484,61 @@
             }
         }
 
+        // Event routing utilities
+        const eventRouter = {
+            routeEvent(section, message, elapsedTime) {
+                if (!section.startsWith('events:')) return;
+                
+                const maskStr = section.split(':')[1];
+                if (!maskStr || isNaN(parseInt(maskStr))) return;
+                
+                const mask = parseInt(maskStr);
+                const medicalValue = 1;    // events:1
+                const technicalValue = 2;  // events:2
+                
+                const isMedical = (mask & medicalValue) !== 0;
+                const isTechnical = (mask & technicalValue) !== 0;
+                
+                if (isMedical) {
+                    this.addToActivity(message, elapsedTime, section);
+                }
+                if (isTechnical) {
+                    this.addToLogs(message, elapsedTime, section);
+                }
+            },
+            
+            addToActivity(message, elapsedTime, section) {
+                const tbody = document.getElementById('activity-table-body');
+                const row = ui.createTableRow([message, elapsedTime]);
+                row.dataset.section = section;
+                tbody.insertBefore(row, tbody.firstChild);
+            },
+            
+            addToLogs(message, elapsedTime, section) {
+                const tbody = document.getElementById('logs-table-body');
+                const row = ui.createTableRow([message, elapsedTime]);
+                row.dataset.section = section;
+                tbody.insertBefore(row, tbody.firstChild);
+            }
+        };
+
         // UI Utilities
         const ui = {
-            switchTab(tabName) {
+            switchTab(tabName, clickedElement) {
                 document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
                 document.querySelectorAll('.table-container').forEach(container => container.classList.remove('active'));
-                event.target.classList.add('active');
+                if (clickedElement) {
+                    clickedElement.classList.add('active');
+                } else {
+                    // Fallback: find the tab by its onclick attribute
+                    document.querySelectorAll('.tab').forEach(tab => {
+                        if (tab.getAttribute('onclick') && tab.getAttribute('onclick').includes(`'${tabName}'`)) {
+                            tab.classList.add('active');
+                        }
+                    });
+                }
                 document.getElementById(tabName + '-container').classList.add('active');
+                appState.activeTab = tabName;
             },
 
             updateButton(buttonId, text, classes = [], disabled = false) {
@@ -550,13 +634,14 @@
         };
 
         // Global functions for backward compatibility
-        function switchTab(tabName) {
-            ui.switchTab(tabName);
+        function switchTab(tabName, clickedElement) {
+            ui.switchTab(tabName, clickedElement);
         }
 
         function setButtonState(state) {
             ui.setButtonState(state);
         }
+
 
         async function togglePause() {
             if (!appState.recording.paused) {
@@ -733,19 +818,22 @@
 
         function updateTimeCells() {
         const duration = document.getElementById('duration');
+        const durationLogs = document.getElementById('duration-logs');
         // eslint-disable-next-line no-prototype-builtins
         if (duration.hasOwnProperty('startingTime')) {
             const now = new Date();
             const elapsedSeconds = (now.getTime() - duration.startingTime) / 1000;
             const minutes = Math.floor(elapsedSeconds / 60);
             const seconds = Math.floor(elapsedSeconds % 60);
-            duration.textContent = `${minutes}m ${String(seconds).padStart(2, '0')}s`;
+            const timeText = `${minutes}m ${String(seconds).padStart(2, '0')}s`;
+            duration.textContent = timeText;
+            durationLogs.textContent = timeText;
         }
         }
 
         function resetTable() {
-        const tbody = document.getElementById('message-table-body');
-        tbody.innerHTML = '<tr><td colspan="2">Waiting...</td></tr>';
+            document.getElementById('activity-table-body').innerHTML = '<tr><td colspan="2">Waiting...</td></tr>';
+            document.getElementById('logs-table-body').innerHTML = '<tr><td colspan="2">Waiting...</td></tr>';
         }
 
         function getCookie(name) {
@@ -806,8 +894,12 @@
                 appState.progress.webSocket.onmessage = function(event) {
                     try {
                         const data = JSON.parse(event.data);
-                        // Handle individual message from WebSocket
-                        handleWebSocketMessage(data.message, messageEndFlag);
+                        // Handle nested message structure with events array from WebSocket
+                        if (data.message && Array.isArray(data.message.events)) {
+                            data.message.events.forEach(message => {
+                                handleWebSocketMessage(message, messageEndFlag);
+                            });
+                        }
                     } catch (error) {
                         console.error('Error parsing WebSocket message:', error);
                     }
@@ -837,15 +929,13 @@
             
             const currentMessage = new Date(message.time);
             
-            // Only process messages newer than what we already have
-            if (currentMessage.getTime() <= appState.progress.previousMessage.getTime()) {
-                return;
+            // Update previousMessage to track the latest timestamp, but don't filter based on it for WebSocket
+            if (currentMessage.getTime() > appState.progress.previousMessage.getTime()) {
+                appState.progress.previousMessage = currentMessage;
             }
             
-            appState.progress.previousMessage = currentMessage;
-            
             // Handle events section (Progress tab)
-            if (message.section === 'events') {
+            if (message.section.startsWith('events:')) {
                 addEventMessage(message, endOfMessage);
             }
             
@@ -856,14 +946,14 @@
         }
         
         function addEventMessage(message, endOfMessage) {
-            const progressTbody = document.getElementById('message-table-body');
-            
             // End of messages check
             if (message.message === endOfMessage) {
                 intervalManager.stopAll();
                 appState.progress.started = false;
                 const duration = document.getElementById('duration');
+                const durationLogs = document.getElementById('duration-logs');
                 duration.textContent = '';
+                durationLogs.textContent = '';
                 return;
             }
             
@@ -873,19 +963,16 @@
             
             if (!duration.hasOwnProperty('startingTime')) {
                 duration.startingTime = messageTime;
+                const durationLogs = document.getElementById('duration-logs');
+                durationLogs.startingTime = messageTime;
             }
             
             // Calculate elapsed time
             const elapsedSeconds = Math.floor((messageTime - duration.startingTime) / 1000);
+            const timeText = elapsedSeconds > 0 ? `${elapsedSeconds}s` : duration.startingTime.toLocaleTimeString();
             
-            // Create new row using utility
-            const row = ui.createTableRow([
-                message.message,
-                elapsedSeconds > 0 ? `${elapsedSeconds}s` : duration.startingTime.toLocaleTimeString()
-            ]);
-            
-            // Insert at the top (newest first)
-            progressTbody.insertBefore(row, progressTbody.firstChild);
+            // Route message to appropriate tab
+            eventRouter.routeEvent(message.section, message.message, timeText);
         }
         
         function addTranscriptMessage(message, endOfMessage) {
@@ -929,7 +1016,8 @@
         }
 
         function displayProgress(data, endOfMessage) {
-            const progressTbody = document.getElementById('message-table-body');
+            const activityTbody = document.getElementById('activity-table-body');
+            const logsTbody = document.getElementById('logs-table-body');
             const transcriptTbody = document.getElementById('transcript-table-body');
             const errorDiv = document.getElementById('error');
             errorDiv.textContent = '';
@@ -944,12 +1032,14 @@
                         appState.progress.previousMessage = currentMessage;
 
                         // Separate messages by section
-                        const eventMessages = data.messages.filter(msg => msg.section === 'events');
+                        const eventMessages = data.messages.filter(msg => msg.section.startsWith('events:'));
                         const transcriptMessages = data.messages.filter(msg => msg.section === 'transcript');
 
-                        // Handle events section (Progress tab)
+                        // Handle events section (Activity and Logs tabs)
                         if (eventMessages.length > 0) {
-                            progressTbody.innerHTML = '';
+                            activityTbody.innerHTML = '';
+                            logsTbody.innerHTML = '';
+                            
                             // compute the oldest time for events
                             const eventTimes = eventMessages.map(message => new Date(message.time));
                             const startingTime = new Date(Math.min(...eventTimes));
@@ -958,6 +1048,8 @@
                             // eslint-disable-next-line no-prototype-builtins
                             if (duration.hasOwnProperty('startingTime') === false) {
                                 duration.startingTime = startingTime;
+                                const durationLogs = document.getElementById('duration-logs');
+                                durationLogs.startingTime = startingTime;
                             }
 
                             // Sort event messages by time in reverse order (newest first)
@@ -968,16 +1060,34 @@
                                 if (msg.message === endOfMessage) {
                                     intervalManager.stopAll();
                                     appState.progress.started = false;
+                                    const durationLogs = document.getElementById('duration-logs');
                                     duration.textContent = '';
+                                    durationLogs.textContent = '';
                                     return;
                                 }
                                 // compute the time from the first message
                                 const messageTime = new Date(msg.time);
                                 const elapsedSeconds = Math.floor((messageTime - startingTime) / 1000);
-                                // create the row using utility
                                 const timeText = elapsedSeconds > 0 ? `${elapsedSeconds}s` : startingTime.toLocaleTimeString();
-                                const row = ui.createTableRow([msg.message, timeText]);
-                                progressTbody.appendChild(row);
+                                
+                                // Create row and route to appropriate table
+                                const mask = parseInt(msg.section.split(':')[1] || '0');
+                                const medicalValue = 1;    // events:1
+                                const technicalValue = 2;  // events:2
+                                
+                                const isMedical = (mask & medicalValue) !== 0;
+                                const isTechnical = (mask & technicalValue) !== 0;
+                                
+                                if (isMedical) {
+                                    const row = ui.createTableRow([msg.message, timeText]);
+                                    row.dataset.section = msg.section;
+                                    activityTbody.appendChild(row);
+                                }
+                                if (isTechnical) {
+                                    const row = ui.createTableRow([msg.message, timeText]);
+                                    row.dataset.section = msg.section;
+                                    logsTbody.appendChild(row);
+                                }
                             });
                         }
 
@@ -1038,8 +1148,11 @@
             }
 
             // Set default content if tables are empty
-            if (progressTbody.innerHTML === '') {
-                progressTbody.innerHTML = '<tr><td colspan="2">...</td></tr>';
+            if (activityTbody.innerHTML === '') {
+                activityTbody.innerHTML = '<tr><td colspan="2">...</td></tr>';
+            }
+            if (logsTbody.innerHTML === '') {
+                logsTbody.innerHTML = '<tr><td colspan="2">...</td></tr>';
             }
             if (transcriptTbody.innerHTML === '') {
                 transcriptTbody.innerHTML = '<tr><td>...</td></tr>';

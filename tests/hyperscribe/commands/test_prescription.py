@@ -139,10 +139,11 @@ def test_staged_command_extract():
             assert result == expected
 
 
+@patch.object(Prescription, "add_code2description")
 @patch.object(Prescription, "set_medication_dosage")
 @patch.object(Prescription, "medications_from")
 @patch.object(LimitedCache, "current_conditions")
-def test_command_from_json(current_conditions, medications_from, set_medication_dosage):
+def test_command_from_json(current_conditions, medications_from, set_medication_dosage, add_code2description):
     chatter = MagicMock()
 
     def reset_mocks():
@@ -150,6 +151,7 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
         current_conditions.reset_mock()
         medications_from.reset_mock()
         set_medication_dosage.reset_mock()
+        add_code2description.reset_mock()
 
     tested = helper_instance()
 
@@ -181,11 +183,11 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
 
     # with condition
     tests = [
-        (1, "display2a", ["CODE45"], [call(), call()]),
-        (2, "display3a", ["CODE9876"], [call(), call()]),
-        (4, "", [], [call()]),
+        (1, "display2a", ["CODE45"], [call(), call()], [call("CODE45", "display2a"), call("code369", "labelB")]),
+        (2, "display3a", ["CODE9876"], [call(), call()], [call("CODE98.76", "display3a"), call("code369", "labelB")]),
+        (4, "", [], [call()], [call("code369", "labelB")]),
     ]
-    for idx, condition_label, condition_icd10, condition_calls in tests:
+    for idx, condition_label, condition_icd10, condition_calls, exp_calls in tests:
         current_conditions.side_effect = [conditions, conditions]
         medications_from.side_effect = [[medication]]
 
@@ -236,6 +238,7 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
         assert medications_from.mock_calls == calls
         calls = [call(instruction, chatter, "theComment", command, medication)]
         assert set_medication_dosage.mock_calls == calls
+        assert add_code2description.mock_calls == exp_calls
         assert chatter.mock_calls == []
         reset_mocks()
 

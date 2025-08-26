@@ -16,13 +16,10 @@ from hyperscribe.structures.line import Line
 class BuilderFromChartTranscript(BuilderBase):
     @classmethod
     def _parameters(cls) -> Namespace:
-        types = [Constants.TYPE_SITUATIONAL, Constants.TYPE_GENERAL]
         parser = ArgumentParser(description="Generate commands summary from chart + transcript")
         parser.add_argument("--case", type=str, required=True, help="Evaluation case name (used as directory)")
         parser.add_argument("--chart", type=cls.validate_files, required=True, help="Path to limited_cache JSON file")
         parser.add_argument("--transcript", type=cls.validate_files, required=True, help="Path to transcript JSON file")
-        parser.add_argument("--group", type=str, default=Constants.GROUP_COMMON, help="Group of the case")
-        parser.add_argument("--type", type=str, choices=types, default=types[1], help="Type of the case")
         parser.add_argument("--cycles", type=int, default=1, help="Number of transcript cycles")
         parser.add_argument("--render", action="store_true", help="Render commands to UI")
         return parser.parse_args()

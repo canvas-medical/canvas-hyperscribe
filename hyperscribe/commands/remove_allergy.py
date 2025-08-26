@@ -28,6 +28,8 @@ class RemoveAllergy(Base):
         allergy_uuid = ""
         if 0 <= (idx := instruction.parameters["allergyIndex"]) < len(current := self.cache.current_allergies()):
             allergy_uuid = current[idx].uuid
+            self.add_code2description(current[idx].uuid, current[idx].label)
+
         return InstructionWithCommand.add_command(
             instruction,
             RemoveAllergyCommand(

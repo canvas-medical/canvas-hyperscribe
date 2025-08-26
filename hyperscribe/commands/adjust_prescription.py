@@ -78,6 +78,7 @@ class AdjustPrescription(BasePrescription):
                 ncpdp_quantity_qualifier_code=current[idx].potency_unit_code,
             )
             result.new_fdb_code = result.fdb_code
+            self.add_code2description(current[idx].code_fdb, current[idx].label)
 
         new_medication = instruction.parameters["newMedication"]
         if bool(new_medication["sameAsCurrent"]) is False:
@@ -95,6 +96,7 @@ class AdjustPrescription(BasePrescription):
             # find the correct quantity to dispense and refill values
             if choose_medications and (medication := choose_medications[0]):
                 self.set_medication_dosage(instruction, chatter, instruction.parameters["comment"], result, medication)
+                self.add_code2description(medication.fdb_code, medication.description)
         return InstructionWithCommand.add_command(instruction, result)
 
     def command_parameters(self) -> dict:

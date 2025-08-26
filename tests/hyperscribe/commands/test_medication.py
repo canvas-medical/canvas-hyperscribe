@@ -75,10 +75,12 @@ def test_staged_command_extract():
 
 
 @patch.object(CanvasScience, "medication_details")
-def test_command_from_json(medication_details):
+@patch.object(Medication, "add_code2description")
+def test_command_from_json(add_code2description, medication_details):
     chatter = MagicMock()
 
     def reset_mocks():
+        add_code2description.reset_mock()
         medication_details.reset_mock()
         chatter.reset_mock()
 
@@ -150,6 +152,8 @@ def test_command_from_json(medication_details):
     command = MedicationStatementCommand(sig="theSig", fdb_code="code369", note_uuid="noteUuid")
     expected = InstructionWithCommand(**(arguments | {"command": command}))
     assert result == expected
+    calls = [call("code369", "labelB")]
+    assert add_code2description.mock_calls == calls
     calls = [call("scienceHost", keywords)]
     assert medication_details.mock_calls == calls
     calls = [call.single_conversation(system_prompt, user_prompt, schemas, instruction)]
@@ -164,6 +168,7 @@ def test_command_from_json(medication_details):
     command = MedicationStatementCommand(sig="theSig", note_uuid="noteUuid")
     expected = InstructionWithCommand(**(arguments | {"command": command}))
     assert result == expected
+    assert add_code2description.mock_calls == []
     calls = [call("scienceHost", keywords)]
     assert medication_details.mock_calls == calls
     calls = [call.single_conversation(system_prompt, user_prompt, schemas, instruction)]
@@ -178,6 +183,7 @@ def test_command_from_json(medication_details):
     command = MedicationStatementCommand(sig="theSig", note_uuid="noteUuid")
     expected = InstructionWithCommand(**(arguments | {"command": command}))
     assert result == expected
+    assert add_code2description.mock_calls == []
     calls = [call("scienceHost", keywords)]
     assert medication_details.mock_calls == calls
     assert chatter.mock_calls == []

@@ -38,8 +38,6 @@ class Constants:
     PARAMETERS2COMMAND = "parameters2command"
     STAGED_QUESTIONNAIRES = "staged_questionnaires"
     TRANSCRIPT2INSTRUCTIONS = "transcript2instructions"
-    POSITIVE_VALUE = "positive"
-    NEGATIVE_VALUE = "negative"
     TURN_TOTAL = "turn_total"
     SPEAKER_SEQUENCE = "speaker_sequence"
     TARGET_C_TO_P_WORD_RATIO = "target_C_to_P_word_ratio"

@@ -96,7 +96,9 @@ class ImagingOrder(Base):
             ]
             schemas = JsonSchema.get(["selector_concept"])
             if response := chatter.single_conversation(system_prompt, user_prompt, schemas, instruction):
-                result.image_code = response[0]["conceptId"]
+                image = response[0]
+                result.image_code = image["conceptId"]
+                self.add_code2description(image["conceptId"], image["term"])
 
         return InstructionWithCommand.add_command(instruction, result)
 

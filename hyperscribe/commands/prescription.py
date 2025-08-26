@@ -64,6 +64,7 @@ class Prescription(BasePrescription):
             targeted_condition = self.cache.current_conditions()[idx]
             result.icd10_codes = [Helper.icd10_strip_dot(targeted_condition.code)]
             condition = targeted_condition.label
+            self.add_code2description(targeted_condition.code, targeted_condition.label)
 
         # retrieve existing medications defined in Canvas Science
         search = MedicationSearch(
@@ -76,6 +77,7 @@ class Prescription(BasePrescription):
         # find the correct quantity to dispense and refill values
         if choose_medications and (medication := choose_medications[0]):
             self.set_medication_dosage(instruction, chatter, instruction.parameters["comment"], result, medication)
+            self.add_code2description(medication.fdb_code, medication.description)
 
         return InstructionWithCommand.add_command(instruction, result)
 

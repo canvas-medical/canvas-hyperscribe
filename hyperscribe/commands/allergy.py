@@ -85,6 +85,8 @@ class Allergy(Base):
                 concept_id = int(response[0]["conceptId"])
                 allergy = [allergy for allergy in allergies if allergy.concept_id_value == concept_id][0]
                 result.allergy = Allergen(concept_id=concept_id, concept_type=AllergenType(allergy.concept_id_type))
+                self.add_code2description(str(allergy.concept_id_value), allergy.concept_id_description)
+
         return InstructionWithCommand.add_command(instruction, result)
 
     def command_parameters(self) -> dict:

@@ -18,6 +18,7 @@ from hyperscribe.structures.instruction_with_command import InstructionWithComma
 from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.json_extract import JsonExtract
 from hyperscribe.structures.line import Line
+from hyperscribe.structures.progress_message import ProgressMessage
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
 from tests.helper import is_constant
@@ -289,7 +290,13 @@ def test_compute_audio(
         assert audio_interpreter.mock_calls == calls
         calls = [call("patientUuid", "providerUuid", "stagedCommands")]
         assert limited_cache.mock_calls == calls
-        calls = [call.send_to_user(identification, settings, "starting the cycle 3...", "events")]
+        calls = [
+            call.send_to_user(
+                identification,
+                settings,
+                [ProgressMessage(message="starting the cycle 3...", section="events:2")],
+            )
+        ]
         assert progress.mock_calls == calls
         calls = [
             call(AwsS3Credentials(aws_key="theKey", aws_secret="theSecret", region="theRegion", bucket="theBucket")),
@@ -399,10 +406,14 @@ def test_audio2commands(transcript2commands, tail_of, memory_log, progress):
         call.send_to_user(
             identification,
             settings,
-            '[{"speaker": "speaker1", "text": "word00 word01 word02 word03 textA."}, '
-            '{"speaker": "speaker2", "text": "word00 word01 word02 word03 textB."}, '
-            '{"speaker": "speaker1", "text": "word00 word01 word02 word03 textC."}]',
-            "transcript",
+            [
+                ProgressMessage(
+                    message='[{"speaker": "speaker1", "text": "word00 word01 word02 word03 textA."}, '
+                    '{"speaker": "speaker2", "text": "word00 word01 word02 word03 textB."}, '
+                    '{"speaker": "speaker1", "text": "word00 word01 word02 word03 textC."}]',
+                    section="transcript",
+                )
+            ],
         )
     ]
     assert progress.mock_calls == calls
@@ -895,14 +906,26 @@ def test_transcript2commands_common(time, memory_log, progress):
             call.send_to_user(
                 identification,
                 settings,
-                "instructions detection: "
-                "new: theInstructionC: 1, theInstructionD: 2, "
-                "updated: theInstructionA: 2, "
-                "total: 6",
-                "events",
+                [
+                    ProgressMessage(
+                        message="instructions detection: "
+                        "new: theInstructionC: 1, theInstructionD: 2, "
+                        "updated: theInstructionA: 2, "
+                        "total: 6",
+                        section="events:2",
+                    )
+                ],
             ),
-            call.send_to_user(identification, settings, "parameters computation done (4)", "events"),
-            call.send_to_user(identification, settings, "commands generation done (3)", "events"),
+            call.send_to_user(
+                identification,
+                settings,
+                [ProgressMessage(message="parameters computation done (4)", section="events:2")],
+            ),
+            call.send_to_user(
+                identification,
+                settings,
+                [ProgressMessage(message="commands generation done (3)", section="events:2")],
+            ),
         ]
         assert progress.mock_calls == calls
         calls = [call(), call()]
@@ -1037,9 +1060,21 @@ def test_transcript2commands_common(time, memory_log, progress):
     ]
     assert memory_log.mock_calls == calls
     calls = [
-        call.send_to_user(identification, settings, "instructions detection: total: 3", "events"),
-        call.send_to_user(identification, settings, "parameters computation done (0)", "events"),
-        call.send_to_user(identification, settings, "commands generation done (0)", "events"),
+        call.send_to_user(
+            identification,
+            settings,
+            [ProgressMessage(message="instructions detection: total: 3", section="events:2")],
+        ),
+        call.send_to_user(
+            identification,
+            settings,
+            [ProgressMessage(message="parameters computation done (0)", section="events:2")],
+        ),
+        call.send_to_user(
+            identification,
+            settings,
+            [ProgressMessage(message="commands generation done (0)", section="events:2")],
+        ),
     ]
     assert progress.mock_calls == calls
     calls = [call(), call()]
@@ -1225,7 +1260,13 @@ def test_transcript2commands_questionnaires(time, memory_log, progress):
         assert result == expected
         calls = [call.instance(identification, "main", "awsS3"), call.instance().output("DURATION QUESTIONNAIRES: 246")]
         assert memory_log.mock_calls == calls
-        calls = [call.send_to_user(identification, settings, "questionnaires update done (2)", "events")]
+        calls = [
+            call.send_to_user(
+                identification,
+                settings,
+                [ProgressMessage(message="questionnaires update done (2)", section="events:2")],
+            )
+        ]
         assert progress.mock_calls == calls
         calls = [call(), call()]
         assert time.mock_calls == calls

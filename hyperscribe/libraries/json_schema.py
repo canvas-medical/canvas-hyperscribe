@@ -33,6 +33,18 @@ JSON_SCHEMAS: dict[str, dict] = {
             },
         },
     },
+    "command_summary": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "array",
+        "minItems": 1,
+        "maxItems": 1,
+        "items": {
+            "type": "object",
+            "properties": {"summary": {"type": "string"}},
+            "required": ["summary"],
+            "additionalProperties": False,
+        },
+    },
     "generic_parameters": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "array",
@@ -115,8 +127,9 @@ JSON_SCHEMAS: dict[str, dict] = {
             "properties": {
                 "cptCode": {"type": "string", "minimum": 1},
                 "cvxCode": {"type": "string", "minLength": 1},
+                "label": {"type": "string", "minLength": 1},
             },
-            "required": ["cptCode", "cvxCode"],
+            "required": ["cptCode", "cvxCode", "label"],
             "additionalProperties": False,
         },
         "minItems": 1,

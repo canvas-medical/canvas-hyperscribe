@@ -150,12 +150,14 @@ def test_staged_command_extract():
             assert result == expected
 
 
+@patch.object(ImmunizationStatement, "add_code2description")
 @patch.object(CanvasScience, "search_immunization")
-def test_command_from_json(search_immunization):
+def test_command_from_json(search_immunization, add_code2description):
     chatter = MagicMock()
 
     def reset_mocks():
         search_immunization.reset_mock()
+        add_code2description.reset_mock()
         chatter.reset_mock()
 
     system_prompt = [
@@ -181,7 +183,7 @@ def test_command_from_json(search_immunization):
         "",
         "Please, present your findings in a JSON format within a Markdown code block like:",
         "```json",
-        '[{"cptCode": "the CPT code", "cvxCode": "the CVX code"}]',
+        '[{"cptCode": "the CPT code", "cvxCode": "the CVX code", "label": "the label"}]',
         "```",
         "",
     ]
@@ -194,8 +196,9 @@ def test_command_from_json(search_immunization):
                 "properties": {
                     "cptCode": {"type": "string", "minimum": 1},
                     "cvxCode": {"type": "string", "minLength": 1},
+                    "label": {"type": "string", "minLength": 1},
                 },
-                "required": ["cptCode", "cvxCode"],
+                "required": ["cptCode", "cvxCode", "label"],
                 "additionalProperties": False,
             },
             "minItems": 1,
@@ -226,7 +229,7 @@ def test_command_from_json(search_immunization):
 
     # all good
     search_immunization.side_effect = [immunizations]
-    chatter.single_conversation.side_effect = [[{"cptCode": "theCptC", "cvxCode": "theCvxC"}]]
+    chatter.single_conversation.side_effect = [[{"cptCode": "theCptC", "cvxCode": "theCvxC", "label": "labelC"}]]
 
     instruction = InstructionWithParameters(**arguments)
     result = tested.command_from_json(instruction, chatter)
@@ -241,6 +244,11 @@ def test_command_from_json(search_immunization):
     assert result == expected
     calls = [call("ontologiesHost", "preSharedKey", keywords)]
     assert search_immunization.mock_calls == calls
+    calls = [
+        call("theCptC", "labelC"),
+        call("theCvxC", "labelC"),
+    ]
+    assert add_code2description.mock_calls == calls
     calls = [call.single_conversation(system_prompt, user_prompt, schemas, instruction)]
     assert chatter.mock_calls == calls
     reset_mocks()
@@ -261,6 +269,7 @@ def test_command_from_json(search_immunization):
     assert result == expected
     calls = [call("ontologiesHost", "preSharedKey", keywords)]
     assert search_immunization.mock_calls == calls
+    assert add_code2description.mock_calls == []
     calls = [call.single_conversation(system_prompt, user_prompt, schemas, instruction)]
     assert chatter.mock_calls == calls
     reset_mocks()
@@ -281,6 +290,7 @@ def test_command_from_json(search_immunization):
     assert result == expected
     calls = [call("ontologiesHost", "preSharedKey", keywords)]
     assert search_immunization.mock_calls == calls
+    assert add_code2description.mock_calls == []
     assert chatter.mock_calls == []
     reset_mocks()
 

@@ -50,6 +50,7 @@ class LabOrder(Base):
             diagnosis_codes=[],
             tests_order_codes=[],
         )
+        self.add_code2description(self.identification.provider_uuid, "")
         # retrieve the linked conditions
         conditions = []
         for condition in instruction.parameters["conditions"]:
@@ -64,10 +65,13 @@ class LabOrder(Base):
             if item.code:
                 conditions.append(item)
                 result.diagnosis_codes.append(item.code)
+                self.add_code2description(item.code, item.label)
 
         lab_partner = self.cache.preferred_lab_partner()
         if lab_partner.uuid:
             result.lab_partner = lab_partner.uuid
+            self.add_code2description(lab_partner.uuid, lab_partner.label)
+
             # retrieve the tests based on the keywords
             for lab_order in instruction.parameters["labOrders"]:
                 item = SelectorChat.lab_test_from(
@@ -81,6 +85,7 @@ class LabOrder(Base):
                 )
                 if item.code:
                     result.tests_order_codes.append(item.code)
+                    self.add_code2description(item.code, item.label)
 
         return InstructionWithCommand.add_command(instruction, result)
 

@@ -65,6 +65,7 @@ class Instruct(Base):
                     system=CodeSystems.SNOMED,
                     display=response[0]["term"],
                 )
+                self.add_code2description(response[0]["conceptId"], "")
 
         return InstructionWithCommand.add_command(instruction, result)
 

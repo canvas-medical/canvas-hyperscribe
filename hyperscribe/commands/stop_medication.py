@@ -31,6 +31,8 @@ class StopMedication(Base):
         )
         if 0 <= (idx := instruction.parameters["medicationIndex"]) < len(current := self.cache.current_medications()):
             result.medication_id = current[idx].uuid
+            self.add_code2description(current[idx].uuid, current[idx].label)
+
         return InstructionWithCommand.add_command(instruction, result)
 
     def command_parameters(self) -> dict:

@@ -140,10 +140,17 @@ def test_staged_command_extract():
 
 
 @patch.object(LimitedCache, "current_medications")
+@patch.object(AdjustPrescription, "add_code2description")
 @patch.object(AdjustPrescription, "set_medication_dosage")
 @patch.object(AdjustPrescription, "medications_from")
 @patch.object(LimitedCache, "current_conditions")
-def test_command_from_json(current_conditions, medications_from, set_medication_dosage, current_medications):
+def test_command_from_json(
+    current_conditions,
+    medications_from,
+    set_medication_dosage,
+    add_code2description,
+    current_medications,
+):
     chatter = MagicMock()
 
     def reset_mocks():
@@ -151,6 +158,7 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
         current_conditions.reset_mock()
         medications_from.reset_mock()
         set_medication_dosage.reset_mock()
+        add_code2description.reset_mock()
         current_medications.reset_mock()
 
     tested = helper_instance()
@@ -255,6 +263,8 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
     assert medications_from.mock_calls == calls
     calls = [call(instruction, chatter, "theComment", command, medication_record)]
     assert set_medication_dosage.mock_calls == calls
+    calls = [call("code369", "labelB")]
+    assert add_code2description.mock_calls == calls
     assert current_medications.mock_calls == []
     assert chatter.mock_calls == []
     reset_mocks()
@@ -310,6 +320,11 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
     assert medications_from.mock_calls == calls
     calls = [call(instruction, chatter, "theComment", command, medication_record)]
     assert set_medication_dosage.mock_calls == calls
+    calls = [
+        call("fdb2", "display2"),
+        call("code369", "labelB"),
+    ]
+    assert add_code2description.mock_calls == calls
     calls = [call()]
     assert current_medications.mock_calls == calls
     assert chatter.mock_calls == []
@@ -358,6 +373,8 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
     assert current_conditions.mock_calls == []
     assert medications_from.mock_calls == []
     assert set_medication_dosage.mock_calls == []
+    calls = [call("fdb2", "display2")]
+    assert add_code2description.mock_calls == calls
     calls = [call()]
     assert current_medications.mock_calls == calls
     assert chatter.mock_calls == []

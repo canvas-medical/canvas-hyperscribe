@@ -35,6 +35,7 @@ class Diagnose(Base):
             instruction.parameters["ICD10"].split(","),
             "\n".join([instruction.parameters["rationale"], "", instruction.parameters["assessment"]]),
         )
+        self.add_code2description(icd10_code.uuid, icd10_code.label)
         return InstructionWithCommand.add_command(
             instruction,
             DiagnoseCommand(

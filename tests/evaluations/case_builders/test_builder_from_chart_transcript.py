@@ -36,10 +36,6 @@ def test__parameters(argument_parser):
             required=True,
             help="Path to transcript JSON file",
         ),
-        call().add_argument("--group", type=str, default="common", help="Group of the case"),
-        call().add_argument(
-            "--type", type=str, choices=["situational", "general"], default="general", help="Type of the case"
-        ),
         call().add_argument("--cycles", type=int, default=1, help="Number of transcript cycles"),
         call().add_argument("--render", action="store_true", help="Render commands to UI"),
         call().parse_args(),

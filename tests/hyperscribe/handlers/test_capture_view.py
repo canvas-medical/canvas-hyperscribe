@@ -17,6 +17,7 @@ from hyperscribe.libraries.constants import Constants
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.identification_parameters import IdentificationParameters
+from hyperscribe.structures.progress_message import ProgressMessage
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
 
@@ -621,8 +622,8 @@ def test_run_reviewer(log, implemented_commands, llm_decision_reviewer, progress
     assert implemented_commands.mock_calls == []
     assert llm_decision_reviewer.mock_calls == []
     calls = [
-        call.send_to_user(identification, settings, "finished", "events"),
-        call.send_to_user(identification, settings, "EOF", "events"),
+        call.send_to_user(identification, settings, [ProgressMessage(message="finished", section="events:3")]),
+        call.send_to_user(identification, settings, [ProgressMessage(message="EOF", section="events:3")]),
     ]
     assert progress.mock_calls == calls
     calls = [call.get(id="noteId")]
@@ -678,8 +679,8 @@ def test_run_reviewer(log, implemented_commands, llm_decision_reviewer, progress
     ]
     assert llm_decision_reviewer.mock_calls == calls
     calls = [
-        call.send_to_user(identification, settings, "finished", "events"),
-        call.send_to_user(identification, settings, "EOF", "events"),
+        call.send_to_user(identification, settings, [ProgressMessage(message="finished", section="events:3")]),
+        call.send_to_user(identification, settings, [ProgressMessage(message="EOF", section="events:3")]),
     ]
     assert progress.mock_calls == calls
     calls = [call.get(id="noteId")]
@@ -758,14 +759,15 @@ def test_run_commander(
 
     tested = helper_instance()
     # all good
+    progress_msg = [ProgressMessage(section="events:2", message="waiting for the next cycle 8...")]
     tests = [
-        (False, False, [], "=> go to next iteration (8)", "waiting for the next cycle 8..."),
+        (False, False, [], "=> go to next iteration (8)", progress_msg),
         (True, False, [], None, None),
-        (True, False, ["effect"], "=> go to next iteration (8)", "waiting for the next cycle 8..."),
-        (False, True, [], "=> go to next iteration (8)", "waiting for the next cycle 8..."),
+        (True, False, ["effect"], "=> go to next iteration (8)", progress_msg),
+        (False, True, [], "=> go to next iteration (8)", progress_msg),
         (True, True, [], None, None),
     ]
-    for is_ended, is_paused, waiting_cycles, log_msg, progress_msg in tests:
+    for is_ended, is_paused, waiting_cycles, exp_log_msg, exp_progress_msg in tests:
         note_db.get.return_value.provider.id = "theProviderId"
         commander.compute_audio.side_effect = [(False, effects)]
         stop_and_go.get.return_value.is_ended.side_effect = [is_ended]
@@ -777,8 +779,8 @@ def test_run_commander(
         calls = [call("patientId", "noteId")]
         assert trigger_render.mock_calls == calls
         calls = []
-        if log_msg:
-            calls = [call.info(log_msg)]
+        if exp_log_msg:
+            calls = [call.info(exp_log_msg)]
         assert log.mock_calls == calls
         calls = [
             call.get("noteId"),
@@ -810,7 +812,7 @@ def test_run_commander(
         assert memory_log.mock_calls == calls
         calls = []
         if not is_ended or waiting_cycles:
-            calls = [call.send_to_user(identification, settings, progress_msg, "events")]
+            calls = [call.send_to_user(identification, settings, exp_progress_msg)]
         assert progress.mock_calls == calls
         calls = [call.compute_audio(identification, settings, credentials, audio_client, 7)]
         assert commander.mock_calls == calls

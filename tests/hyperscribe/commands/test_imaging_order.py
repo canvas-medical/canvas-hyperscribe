@@ -144,14 +144,16 @@ def test_staged_command_extract():
             assert result == expected
 
 
+@patch.object(ImagingOrder, "add_code2description")
 @patch.object(CanvasScience, "search_imagings")
 @patch.object(SelectorChat, "condition_from")
-def test_command_from_json(condition_from, search_imagings):
+def test_command_from_json(condition_from, search_imagings, add_code2description):
     chatter = MagicMock()
 
     def reset_mocks():
         condition_from.reset_mock()
         search_imagings.reset_mock()
+        add_code2description.reset_mock()
         chatter.reset_mock()
 
     imaging_orders = [
@@ -231,7 +233,7 @@ def test_command_from_json(condition_from, search_imagings):
         CodedItem(uuid="uuid4", label="condition4", code="icd3"),
     ]
     search_imagings.side_effect = [imaging_orders]
-    chatter.single_conversation.side_effect = [[{"conceptId": "theCode", "name": "theName"}]]
+    chatter.single_conversation.side_effect = [[{"conceptId": "theCode", "term": "theTerm"}]]
 
     instruction = InstructionWithParameters(**arguments)
     result = tested.command_from_json(instruction, chatter)
@@ -256,6 +258,8 @@ def test_command_from_json(condition_from, search_imagings):
     assert condition_from.mock_calls == calls
     calls = [call("scienceHost", keywords)]
     assert search_imagings.mock_calls == calls
+    calls = [call("theCode", "theTerm")]
+    assert add_code2description.mock_calls == calls
     calls = [call.single_conversation(system_prompt, user_prompt, schemas, instruction)]
     assert chatter.mock_calls == calls
     reset_mocks()
@@ -297,6 +301,7 @@ def test_command_from_json(condition_from, search_imagings):
     assert condition_from.mock_calls == []
     calls = [call("scienceHost", keywords)]
     assert search_imagings.mock_calls == calls
+    assert add_code2description.mock_calls == []
     calls = [call.single_conversation(system_prompt, user_prompt, schemas, instruction)]
     assert chatter.mock_calls == calls
     reset_mocks()
@@ -338,6 +343,7 @@ def test_command_from_json(condition_from, search_imagings):
     assert condition_from.mock_calls == []
     calls = [call("scienceHost", keywords)]
     assert search_imagings.mock_calls == calls
+    assert add_code2description.mock_calls == []
     assert chatter.mock_calls == []
     reset_mocks()
 

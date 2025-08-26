@@ -88,6 +88,7 @@ class Refer(Base):
             if item.code:
                 conditions.append(item)
                 result.diagnosis_codes.append(item.code)
+                self.add_code2description(item.code, item.label)
 
         return InstructionWithCommand.add_command(instruction, result)
 

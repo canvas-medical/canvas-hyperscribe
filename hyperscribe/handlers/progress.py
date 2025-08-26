@@ -11,6 +11,7 @@ from hyperscribe.libraries.authenticator import Authenticator
 from hyperscribe.libraries.constants import Constants
 from hyperscribe.libraries.helper import Helper
 from hyperscribe.structures.identification_parameters import IdentificationParameters
+from hyperscribe.structures.progress_message import ProgressMessage
 from hyperscribe.structures.settings import Settings
 
 
@@ -32,15 +33,15 @@ class Progress(SimpleAPIRoute):
         return [JSONResponse({"time": now.isoformat(), "messages": messages})]
 
     def post(self) -> list[Response | Effect]:
+        events = self.request.json()
         if key := self.key_cache():
             cached = get_cache().get(key)
             if not isinstance(cached, list):
                 cached = []
-            cached.append(self.request.json())
+            cached.extend(events)
             get_cache().set(key, cached)
-
         return [
-            Broadcast(message=self.request.json(), channel=Constants.WS_CHANNEL_PROGRESSES).apply(),
+            Broadcast(message={"events": events}, channel=Constants.WS_CHANNEL_PROGRESSES).apply(),
             JSONResponse({"status": "ok"}, status_code=HTTPStatus.ACCEPTED),
         ]
 
@@ -54,10 +55,10 @@ class Progress(SimpleAPIRoute):
         cls,
         identification: IdentificationParameters,
         settings: Settings,
-        message: str,
-        section: str,
+        messages: list[ProgressMessage],
     ) -> None:
         if settings.send_progress:
+            now = datetime.now(UTC).isoformat()
             requests_post(
                 Authenticator.presigned_url(
                     settings.api_signing_key,
@@ -65,7 +66,14 @@ class Progress(SimpleAPIRoute):
                     {"note_id": identification.note_uuid},
                 ),
                 headers={"Content-Type": "application/json"},
-                json={"time": datetime.now(UTC).isoformat(), "message": message, "section": section},
+                json=[
+                    {
+                        "time": now,
+                        "message": message.message,
+                        "section": message.section,
+                    }
+                    for message in messages
+                ],
                 verify=True,
                 timeout=None,
             )

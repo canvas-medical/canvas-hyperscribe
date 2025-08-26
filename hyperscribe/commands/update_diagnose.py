@@ -42,6 +42,7 @@ class UpdateDiagnose(Base):
             < len(current := self.cache.current_conditions())
         ):
             result.condition_code = current[idx].code
+            self.add_code2description(current[idx].uuid, current[idx].label)
 
         # retrieve existing conditions defined in Canvas Science
         expressions = instruction.parameters["keywords"].split(",") + instruction.parameters["ICD10"].split(",")
@@ -78,7 +79,10 @@ class UpdateDiagnose(Base):
             ]
             schemas = JsonSchema.get(["selector_condition"])
             if response := chatter.single_conversation(system_prompt, user_prompt, schemas, instruction):
-                result.new_condition_code = Helper.icd10_strip_dot(response[0]["ICD10"])
+                diagnosis = response[0]
+                result.new_condition_code = Helper.icd10_strip_dot(diagnosis["ICD10"])
+                self.add_code2description(diagnosis["ICD10"], diagnosis["description"])
+
         return InstructionWithCommand.add_command(instruction, result)
 
     def command_parameters(self) -> dict:

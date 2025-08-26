@@ -63,7 +63,9 @@ class Medication(Base):
             ]
             schemas = JsonSchema.get(["selector_fdb_code"])
             if response := chatter.single_conversation(system_prompt, user_prompt, schemas, instruction):
-                result.fdb_code = str(response[0]["fdbCode"])
+                medication = response[0]
+                result.fdb_code = str(medication["fdbCode"])
+                self.add_code2description(medication["fdbCode"], medication["description"])
         return InstructionWithCommand.add_command(instruction, result)
 
     def command_parameters(self) -> dict:

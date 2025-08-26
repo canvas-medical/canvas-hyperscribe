@@ -76,10 +76,12 @@ def test_staged_command_extract():
 
 
 @patch.object(LimitedCache, "current_goals")
-def test_command_from_json(current_goals):
+@patch.object(CloseGoal, "add_code2description")
+def test_command_from_json(add_code2description, current_goals):
     chatter = MagicMock()
 
     def reset_mocks():
+        add_code2description.reset_mock()
         current_goals.reset_mock()
         chatter.reset_mock()
 
@@ -116,6 +118,8 @@ def test_command_from_json(current_goals):
         )
         expected = InstructionWithCommand(**(arguments | {"command": command}))
         assert result == expected
+        calls = [call()]
+        assert current_goals.mock_calls == calls
         calls = [call()]
         assert current_goals.mock_calls == calls
         assert chatter.mock_calls == []

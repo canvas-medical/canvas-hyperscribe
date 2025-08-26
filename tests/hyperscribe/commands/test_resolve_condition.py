@@ -83,10 +83,12 @@ def test_staged_command_extract():
 
 
 @patch.object(LimitedCache, "current_conditions")
-def test_command_from_json(current_conditions):
+@patch.object(ResolveCondition, "add_code2description")
+def test_command_from_json(add_code2description, current_conditions):
     chatter = MagicMock()
 
     def reset_mocks():
+        add_code2description.reset_mock()
         current_conditions.reset_mock()
         chatter.reset_mock()
 
@@ -96,8 +98,12 @@ def test_command_from_json(current_conditions):
         CodedItem(uuid="theUuid2", label="display2a", code="CODE45"),
         CodedItem(uuid="theUuid3", label="display3a", code="CODE98.76"),
     ]
-    tests = [(1, "theUuid2"), (2, "theUuid3"), (4, "")]
-    for idx, exp_uuid in tests:
+    tests = [
+        (1, "theUuid2", [call("theUuid2", "display2a")]),
+        (2, "theUuid3", [call("theUuid3", "display3a")]),
+        (4, "", []),
+    ]
+    for idx, exp_uuid, exp_calls in tests:
         current_conditions.side_effect = [conditions, conditions]
         arguments = {
             "uuid": "theUuid",
@@ -113,6 +119,7 @@ def test_command_from_json(current_conditions):
         command = ResolveConditionCommand(condition_id=exp_uuid, rationale="theRationale", note_uuid="noteUuid")
         expected = InstructionWithCommand(**(arguments | {"command": command}))
         assert result == expected
+        assert add_code2description.mock_calls == exp_calls
         calls = [call()]
         assert current_conditions.mock_calls == calls
         assert chatter.mock_calls == []

@@ -2,6 +2,7 @@ import json
 from datetime import datetime
 
 from hyperscribe.commands.base import Base
+from hyperscribe.commands.base_questionnaire import BaseQuestionnaire
 from hyperscribe.handlers.progress import Progress
 from hyperscribe.libraries.constants import Constants
 from hyperscribe.libraries.helper import Helper
@@ -17,6 +18,7 @@ from hyperscribe.structures.instruction_with_command import InstructionWithComma
 from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.json_extract import JsonExtract
 from hyperscribe.structures.line import Line
+from hyperscribe.structures.progress_message import ProgressMessage
 from hyperscribe.structures.settings import Settings
 
 
@@ -347,12 +349,13 @@ class AudioInterpreter:
         if response:
             result = InstructionWithParameters.add_parameters(instruction, response[0])
         if result:
-            Progress.send_to_user(
-                self.identification,
-                self.settings,
-                f"parameters identified for {instruction.instruction}",
-                Constants.PROGRESS_SECTION_EVENTS,
-            )
+            messages = [
+                ProgressMessage(
+                    message=f"parameters identified for {instruction.instruction}",
+                    section=Constants.PROGRESS_SECTION_TECHNICAL,
+                )
+            ]
+            Progress.send_to_user(self.identification, self.settings, messages)
         return result
 
     def create_sdk_command_from(self, direction: InstructionWithParameters) -> InstructionWithCommand | None:
@@ -361,28 +364,32 @@ class AudioInterpreter:
                 log_label = f"{direction.instruction}_{direction.uuid}_parameters2command"
                 memory_log = MemoryLog.instance(self.identification, log_label, self.s3_credentials)
                 chatter = Helper.chatter(self.settings, memory_log)
-                result = instance.command_from_json(direction, chatter)
+                result = instance.command_from_json_with_summary(direction, chatter)
                 if result:
-                    Progress.send_to_user(
-                        self.identification,
-                        self.settings,
-                        f"command generated for {direction.instruction}",
-                        Constants.PROGRESS_SECTION_EVENTS,
-                    )
+                    messages = [
+                        ProgressMessage(
+                            message=f"command generated for {direction.instruction}",
+                            section=Constants.PROGRESS_SECTION_TECHNICAL,
+                        ),
+                    ]
+                    if summary := result.summary:
+                        messages.append(ProgressMessage(message=summary, section=Constants.PROGRESS_SECTION_MEDICAL))
+
+                    Progress.send_to_user(self.identification, self.settings, messages)
                 return result
         return None
 
     def update_questionnaire(self, discussion: list[Line], direction: Instruction) -> InstructionWithCommand | None:
         for instance in self._command_context:
             if direction.instruction == instance.class_name():
-                # assert isinstance(instance, BaseQuestionnaire)
+                assert isinstance(instance, BaseQuestionnaire)
                 log_label = f"{direction.instruction}_{direction.uuid}_questionnaire_update"
                 chatter = Helper.chatter(
                     self.settings,
                     MemoryLog.instance(self.identification, log_label, self.s3_credentials),
                 )
-                if questionnaire := instance.update_from_transcript(discussion, direction, chatter):  # type: ignore[attr-defined]
-                    command = instance.command_from_questionnaire(direction.uuid, questionnaire)  # type: ignore[attr-defined]
+                if questionnaire := instance.update_from_transcript(discussion, direction, chatter):
+                    command = instance.command_from_questionnaire(direction.uuid, questionnaire)
                     return InstructionWithCommand(
                         uuid=direction.uuid,
                         index=direction.index,

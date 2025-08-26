@@ -15,8 +15,10 @@ from hyperscribe.structures.instruction_with_command import InstructionWithComma
 from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.json_extract import JsonExtract
 from hyperscribe.structures.line import Line
+from hyperscribe.structures.progress_message import ProgressMessage
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
+from tests.helper import MockClass
 
 
 def helper_instance(mocks, with_audit) -> tuple[AudioInterpreter, Settings, AwsS3Credentials, LimitedCache]:
@@ -1191,7 +1193,13 @@ def test_create_sdk_command_parameters(chatter, memory_log, progress, mock_datet
     assert chatter.mock_calls == calls
     calls = [call.instance(tested.identification, "Second_theUuid_instruction2parameters", aws_credentials)]
     assert memory_log.mock_calls == calls
-    calls = [call.send_to_user(tested.identification, settings, "parameters identified for Second", "events")]
+    calls = [
+        call.send_to_user(
+            tested.identification,
+            settings,
+            [ProgressMessage(message="parameters identified for Second", section="events:2")],
+        )
+    ]
     assert progress.mock_calls == calls
     calls = [call.now()]
     assert mock_datetime.mock_calls == calls
@@ -1236,6 +1244,12 @@ def test_create_sdk_command_parameters(chatter, memory_log, progress, mock_datet
 def test_create_sdk_command_from(chatter, memory_log, progress):
     mocks = [MagicMock(), MagicMock(), MagicMock(), MagicMock()]
 
+    commands = [
+        MockClass(summary="theSummary1"),
+        MockClass(summary=""),  # <--- no summary
+        MockClass(summary="theSummary3"),
+    ]
+
     def reset_mocks():
         chatter.reset_mock()
         memory_log.reset_mock()
@@ -1246,16 +1260,31 @@ def test_create_sdk_command_from(chatter, memory_log, progress):
         mocks[1].return_value.class_name.side_effect = ["Second", "Second"]
         mocks[2].return_value.class_name.side_effect = ["Third", "Third"]
         mocks[3].return_value.class_name.side_effect = ["Fourth", "Fourth"]
-        mocks[0].return_value.command_from_json.side_effect = ["theCommand1"]
-        mocks[1].return_value.command_from_json.side_effect = ["theCommand2"]
-        mocks[2].return_value.command_from_json.side_effect = ["theCommand3"]
-        mocks[3].return_value.command_from_json.side_effect = [None]
+        mocks[0].return_value.command_from_json_with_summary.side_effect = [commands[0]]
+        mocks[1].return_value.command_from_json_with_summary.side_effect = [commands[1]]
+        mocks[2].return_value.command_from_json_with_summary.side_effect = [commands[2]]
+        mocks[3].return_value.command_from_json_with_summary.side_effect = [None]
 
     reset_mocks()
 
     tests = [
-        ("First", 0, "theCommand1", "First_theUuid_parameters2command", "command generated for First"),
-        ("Second", 1, "theCommand2", "Second_theUuid_parameters2command", "command generated for Second"),
+        (
+            "First",
+            0,
+            commands[0],
+            "First_theUuid_parameters2command",
+            [
+                ProgressMessage(message="command generated for First", section="events:2"),
+                ProgressMessage(message="theSummary1", section="events:1"),
+            ],
+        ),
+        (
+            "Second",
+            1,
+            commands[1],
+            "Second_theUuid_parameters2command",
+            [ProgressMessage(message="command generated for Second", section="events:2")],
+        ),
         ("Fourth", 3, None, "Fourth_theUuid_parameters2command", None),
         ("Third", 4, None, None, None),
     ]
@@ -1280,7 +1309,7 @@ def test_create_sdk_command_from(chatter, memory_log, progress):
         assert memory_log.mock_calls == calls
         calls = []
         if exp_log_ui:
-            calls = [call.send_to_user(tested.identification, settings, exp_log_ui, "events")]
+            calls = [call.send_to_user(tested.identification, settings, exp_log_ui)]
         assert progress.mock_calls == calls
         for idx, mock in enumerate(mocks):
             calls = [
@@ -1292,7 +1321,7 @@ def test_create_sdk_command_from(chatter, memory_log, progress):
             if idx < rank + 1 and idx != 2:
                 calls.extend([call().class_name()])
             if idx == rank and idx != 2:
-                calls.extend([call().command_from_json(instruction, "LlmBaseInstance")])
+                calls.extend([call().command_from_json_with_summary(instruction, "LlmBaseInstance")])
             assert mock.mock_calls == calls, f"---> {idx}"
         reset_mocks()
 

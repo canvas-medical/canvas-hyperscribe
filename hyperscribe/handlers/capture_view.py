@@ -26,6 +26,7 @@ from hyperscribe.libraries.memory_log import MemoryLog
 from hyperscribe.libraries.stop_and_go import StopAndGo
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.identification_parameters import IdentificationParameters
+from hyperscribe.structures.progress_message import ProgressMessage
 from hyperscribe.structures.settings import Settings
 
 executor = ThreadPoolExecutor(max_workers=50)
@@ -232,7 +233,13 @@ class CaptureView(SimpleAPI):
         )
         settings = Settings.from_dictionary(self.secrets | {Constants.PROGRESS_SETTING_KEY: True})
         # end of the session
-        Progress.send_to_user(identification, settings, "finished", Constants.PROGRESS_SECTION_EVENTS)
+        messages = [
+            ProgressMessage(
+                message="finished",
+                section=Constants.PROGRESS_SECTION_EVENTS,
+            )
+        ]
+        Progress.send_to_user(identification, settings, messages)
 
         if settings.audit_llm:
             log.info(f"  => final audit started...{note_id} / {cycles} cycles")
@@ -251,8 +258,13 @@ class CaptureView(SimpleAPI):
             LlmDecisionsReviewer.review(identification, settings, credentials, command2uuid, created, cycles)
             log.info(f"  => final audit done ({note_id} / {cycles} cycles)")
         # end the flow
-        progress = Constants.PROGRESS_END_OF_MESSAGES
-        Progress.send_to_user(identification, settings, progress, Constants.PROGRESS_SECTION_EVENTS)
+        messages = [
+            ProgressMessage(
+                message=Constants.PROGRESS_END_OF_MESSAGES,
+                section=Constants.PROGRESS_SECTION_EVENTS,
+            )
+        ]
+        Progress.send_to_user(identification, settings, messages)
 
     def run_commander(self, patient_id: str, note_id: str, chunk_index: int) -> None:
         # add the running flag
@@ -286,8 +298,13 @@ class CaptureView(SimpleAPI):
             # messages
             if stop_and_go.waiting_cycles() or not stop_and_go.is_ended():
                 log.info(f"=> go to next iteration ({chunk_index + 1})")
-                progress = f"waiting for the next cycle {chunk_index + 1}..."
-                Progress.send_to_user(identification, settings, progress, Constants.PROGRESS_SECTION_EVENTS)
+                messages = [
+                    ProgressMessage(
+                        message=f"waiting for the next cycle {chunk_index + 1}...",
+                        section=Constants.PROGRESS_SECTION_TECHNICAL,
+                    )
+                ]
+                Progress.send_to_user(identification, settings, messages)
             # clean up and messages
             MemoryLog.end_session(note_id)
             LlmTurnsStore.end_session(note_id)

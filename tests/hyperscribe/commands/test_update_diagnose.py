@@ -105,10 +105,12 @@ def test_staged_command_extract():
 
 @patch.object(CanvasScience, "search_conditions")
 @patch.object(LimitedCache, "current_conditions")
-def test_command_from_json(current_conditions, search_conditions):
+@patch.object(UpdateDiagnose, "add_code2description")
+def test_command_from_json(add_code2description, current_conditions, search_conditions):
     chatter = MagicMock()
 
     def reset_mocks():
+        add_code2description.reset_mock()
         current_conditions.reset_mock()
         search_conditions.reset_mock()
         chatter.reset_mock()
@@ -159,8 +161,12 @@ def test_command_from_json(current_conditions, search_conditions):
     keywords = ["keyword1", "keyword2", "keyword3", "ICD01", "ICD02", "ICD03"]
     tested = helper_instance()
 
-    tests = [(1, "CODE45"), (2, "CODE98.76"), (4, None)]
-    for idx, exp_current_icd10 in tests:
+    tests = [
+        (1, "CODE45", [call("theUuid2", "display2a"), call("code369", "labelB")]),
+        (2, "CODE98.76", [call("theUuid3", "display3a"), call("code369", "labelB")]),
+        (4, None, [call("code369", "labelB")]),
+    ]
+    for idx, exp_current_icd10, exp_calls in tests:
         arguments = {
             "uuid": "theUuid",
             "index": 7,
@@ -205,6 +211,7 @@ def test_command_from_json(current_conditions, search_conditions):
             command.condition_code = exp_current_icd10
         expected = InstructionWithCommand(**(arguments | {"command": command}))
         assert result == expected, f"---> {idx}"
+        assert add_code2description.mock_calls == exp_calls
         calls = [call()]
         assert current_conditions.mock_calls == calls
         calls = [call("scienceHost", keywords)]
@@ -214,6 +221,7 @@ def test_command_from_json(current_conditions, search_conditions):
         reset_mocks()
 
         # no condition found
+        exp_calls.pop()
         current_conditions.side_effect = [conditions]
         search_conditions.side_effect = [[]]
         chatter.single_conversation.side_effect = []
@@ -224,6 +232,7 @@ def test_command_from_json(current_conditions, search_conditions):
             command.condition_code = exp_current_icd10
         expected = InstructionWithCommand(**(arguments | {"command": command}))
         assert result == expected, f"---> {idx}"
+        assert add_code2description.mock_calls == exp_calls
         calls = [call()]
         assert current_conditions.mock_calls == calls
         calls = [call("scienceHost", keywords)]
@@ -242,6 +251,7 @@ def test_command_from_json(current_conditions, search_conditions):
             command.condition_code = exp_current_icd10
         expected = InstructionWithCommand(**(arguments | {"command": command}))
         assert result == expected, f"---> {idx}"
+        assert add_code2description.mock_calls == exp_calls
         calls = [call()]
         assert current_conditions.mock_calls == calls
         calls = [call("scienceHost", keywords)]

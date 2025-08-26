@@ -120,10 +120,12 @@ def test_staged_command_extract():
 @patch.object(LimitedCache, "preferred_lab_partner")
 @patch.object(SelectorChat, "lab_test_from")
 @patch.object(SelectorChat, "condition_from")
-def test_command_from_json(condition_from, lab_test_from, preferred_lab_partner):
+@patch.object(LabOrder, "add_code2description")
+def test_command_from_json(add_code2description, condition_from, lab_test_from, preferred_lab_partner):
     chatter = MagicMock()
 
     def reset_mocks():
+        add_code2description.reset_mock()
         condition_from.reset_mock()
         lab_test_from.reset_mock()
         preferred_lab_partner.reset_mock()
@@ -170,6 +172,11 @@ def test_command_from_json(condition_from, lab_test_from, preferred_lab_partner)
                 tests_order_codes=[],
                 diagnosis_codes=["icd1", "icd3"],
             ),
+            [
+                call("providerUuid", ""),
+                call("icd1", "condition1"),
+                call("icd3", "condition4"),
+            ],
         ),
         (
             CodedItem(uuid="uuidLab", label="theLabPartner", code=""),
@@ -183,9 +190,17 @@ def test_command_from_json(condition_from, lab_test_from, preferred_lab_partner)
                 tests_order_codes=["code2", "code4"],
                 diagnosis_codes=["icd1", "icd3"],
             ),
+            [
+                call("providerUuid", ""),
+                call("icd1", "condition1"),
+                call("icd3", "condition4"),
+                call("uuidLab", "theLabPartner"),
+                call("code2", "lab2"),
+                call("code4", "lab4"),
+            ],
         ),
     ]
-    for lab_partner, expected in tests:
+    for lab_partner, expected, exp_calls in tests:
         condition_from.side_effect = [
             CodedItem(uuid="uuid1", label="condition1", code="icd1"),
             CodedItem(uuid="uuid3", label="condition3", code=""),
@@ -208,6 +223,7 @@ def test_command_from_json(condition_from, lab_test_from, preferred_lab_partner)
         assert result.command.tests_order_codes == expected.tests_order_codes
         assert result.command.diagnosis_codes == expected.diagnosis_codes
 
+        assert add_code2description.mock_calls == exp_calls
         calls = [
             call(instruction, chatter, tested.settings, ["condition1", "condition2"], ["icd1", "icd2"], comment),
             call(instruction, chatter, tested.settings, ["condition3"], ["icd3"], comment),

@@ -78,10 +78,12 @@ def test_staged_command_extract():
 
 
 @patch.object(CanvasScience, "instructions")
-def test_command_from_json(instructions):
+@patch.object(Instruct, "add_code2description")
+def test_command_from_json(add_code2description, instructions):
     chatter = MagicMock()
 
     def reset_mocks():
+        add_code2description.reset_mock()
         instructions.reset_mock()
         chatter.reset_mock()
 
@@ -158,6 +160,8 @@ def test_command_from_json(instructions):
     assert result == expected
     calls = [call("scienceHost", keywords)]
     assert instructions.mock_calls == calls
+    calls = [call(369, "")]
+    assert add_code2description.mock_calls == calls
     calls = [call.single_conversation(system_prompt, user_prompt, schemas, instruction)]
     assert chatter.mock_calls == calls
     reset_mocks()
@@ -172,6 +176,7 @@ def test_command_from_json(instructions):
     assert result == expected
     calls = [call("scienceHost", keywords)]
     assert instructions.mock_calls == calls
+    assert add_code2description.mock_calls == []
     calls = [call.single_conversation(system_prompt, user_prompt, schemas, instruction)]
     assert chatter.mock_calls == calls
     reset_mocks()
@@ -186,6 +191,7 @@ def test_command_from_json(instructions):
     assert result == expected
     calls = [call("scienceHost", keywords)]
     assert instructions.mock_calls == calls
+    assert add_code2description.mock_calls == []
     assert chatter.mock_calls == []
     reset_mocks()
 

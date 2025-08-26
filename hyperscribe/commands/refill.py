@@ -60,6 +60,7 @@ class Refill(Base):
                 representative_ndc=current[idx].national_drug_code,
                 ncpdp_quantity_qualifier_code=current[idx].potency_unit_code,
             )
+            self.add_code2description(current[idx].code_fdb, current[idx].label)
         return InstructionWithCommand.add_command(instruction, result)
 
     def command_parameters(self) -> dict:

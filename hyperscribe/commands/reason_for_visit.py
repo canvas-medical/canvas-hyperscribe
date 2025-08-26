@@ -39,6 +39,7 @@ class ReasonForVisit(Base):
             ):
                 result.structured = True
                 result.coding = existing[idx].uuid
+                self.add_code2description(existing[idx].uuid, existing[idx].label)
 
         return InstructionWithCommand.add_command(instruction, result)
 
