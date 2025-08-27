@@ -622,8 +622,8 @@ def test_run_reviewer(log, implemented_commands, llm_decision_reviewer, progress
     assert implemented_commands.mock_calls == []
     assert llm_decision_reviewer.mock_calls == []
     calls = [
-        call.send_to_user(identification, settings, [ProgressMessage(message="finished", section="events:3")]),
-        call.send_to_user(identification, settings, [ProgressMessage(message="EOF", section="events:3")]),
+        call.send_to_user(identification, settings, [ProgressMessage(message="finished", section="events:7")]),
+        call.send_to_user(identification, settings, [ProgressMessage(message="EOF", section="events:7")]),
     ]
     assert progress.mock_calls == calls
     calls = [call.get(id="noteId")]
@@ -679,8 +679,8 @@ def test_run_reviewer(log, implemented_commands, llm_decision_reviewer, progress
     ]
     assert llm_decision_reviewer.mock_calls == calls
     calls = [
-        call.send_to_user(identification, settings, [ProgressMessage(message="finished", section="events:3")]),
-        call.send_to_user(identification, settings, [ProgressMessage(message="EOF", section="events:3")]),
+        call.send_to_user(identification, settings, [ProgressMessage(message="finished", section="events:7")]),
+        call.send_to_user(identification, settings, [ProgressMessage(message="EOF", section="events:7")]),
     ]
     assert progress.mock_calls == calls
     calls = [call.get(id="noteId")]
@@ -759,7 +759,7 @@ def test_run_commander(
 
     tested = helper_instance()
     # all good
-    progress_msg = [ProgressMessage(section="events:2", message="waiting for the next cycle 8...")]
+    progress_msg = [ProgressMessage(section="events:4", message="waiting for the next cycle 8...")]
     tests = [
         (False, False, [], "=> go to next iteration (8)", progress_msg),
         (True, False, [], None, None),

@@ -206,12 +206,19 @@ class Commander(BaseProtocol):
         detected_updated: dict[str, int] = {}
         for instruction in cumulated_instructions:
             label = instruction.instruction
+            instruction.is_new = False
+            instruction.is_updated = False
+            instruction.previous_information = instruction.information
             if instruction.uuid not in past_uuids:
+                instruction.is_new = True
+                instruction.previous_information = ""
                 computed_instructions.append(instruction)
                 if label not in detected_new:
                     detected_new[label] = 0
                 detected_new[label] = detected_new[label] + 1
             elif past_uuids[instruction.uuid].information != instruction.information:
+                instruction.is_updated = True
+                instruction.previous_information = past_uuids[instruction.uuid].information
                 computed_instructions.append(instruction)
                 if label not in detected_updated:
                     detected_updated[label] = 0

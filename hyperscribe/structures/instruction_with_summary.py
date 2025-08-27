@@ -23,7 +23,7 @@ class InstructionWithSummary(InstructionWithCommand):
 
     @classmethod
     def add_explanation(cls, instruction: InstructionWithCommand, summary: str) -> InstructionWithSummary:
-        return InstructionWithSummary(
+        result = InstructionWithSummary(
             uuid=instruction.uuid,
             index=instruction.index,
             instruction=instruction.instruction,
@@ -34,6 +34,8 @@ class InstructionWithSummary(InstructionWithCommand):
             command=instruction.command,
             summary=summary,
         )
+        result.set_previous_information(instruction.previous_information)  # need to be able to use typing.Self
+        return result
 
     def __eq__(self, other: object) -> bool:
         assert isinstance(other, InstructionWithSummary)

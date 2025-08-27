@@ -294,7 +294,7 @@ def test_compute_audio(
             call.send_to_user(
                 identification,
                 settings,
-                [ProgressMessage(message="starting the cycle 3...", section="events:2")],
+                [ProgressMessage(message="starting the cycle 3...", section="events:4")],
             )
         ]
         assert progress.mock_calls == calls
@@ -674,7 +674,7 @@ def test_transcript2commands_common(time, memory_log, progress):
             information="changedInformationA",
             is_new=False,
             is_updated=True,
-        ),
+        ).set_previous_information("theInformationA"),
         Instruction(
             uuid="uuidB",
             index=2,
@@ -682,7 +682,7 @@ def test_transcript2commands_common(time, memory_log, progress):
             information="theInformationB",
             is_new=False,
             is_updated=False,
-        ),
+        ).set_previous_information("theInformationB"),
         Instruction(
             uuid="uuidF",
             index=3,
@@ -690,7 +690,7 @@ def test_transcript2commands_common(time, memory_log, progress):
             information="changedInformationF",
             is_new=False,
             is_updated=True,
-        ),
+        ).set_previous_information("theInformationF"),
         Instruction(
             uuid="uuidC",
             index=4,
@@ -912,19 +912,19 @@ def test_transcript2commands_common(time, memory_log, progress):
                         "new: theInstructionC: 1, theInstructionD: 2, "
                         "updated: theInstructionA: 2, "
                         "total: 6",
-                        section="events:2",
+                        section="events:4",
                     )
                 ],
             ),
             call.send_to_user(
                 identification,
                 settings,
-                [ProgressMessage(message="parameters computation done (4)", section="events:2")],
+                [ProgressMessage(message="parameters computation done (4)", section="events:4")],
             ),
             call.send_to_user(
                 identification,
                 settings,
-                [ProgressMessage(message="commands generation done (3)", section="events:2")],
+                [ProgressMessage(message="commands generation done (3)", section="events:4")],
             ),
         ]
         assert progress.mock_calls == calls
@@ -964,7 +964,7 @@ def test_transcript2commands_common(time, memory_log, progress):
             information="theInformationA",
             is_new=False,
             is_updated=False,
-        ),
+        ).set_previous_information("theInformationA"),
         Instruction(
             uuid="uuidB",
             index=1,
@@ -972,7 +972,7 @@ def test_transcript2commands_common(time, memory_log, progress):
             information="theInformationB",
             is_new=False,
             is_updated=False,
-        ),
+        ).set_previous_information("theInformationB"),
         Instruction(
             uuid="uuidF",
             index=2,
@@ -980,7 +980,7 @@ def test_transcript2commands_common(time, memory_log, progress):
             information="theInformationF",
             is_new=False,
             is_updated=False,
-        ),
+        ).set_previous_information("theInformationF"),
     ]
     identification = IdentificationParameters(
         patient_uuid="patientUuid",
@@ -1063,17 +1063,17 @@ def test_transcript2commands_common(time, memory_log, progress):
         call.send_to_user(
             identification,
             settings,
-            [ProgressMessage(message="instructions detection: total: 3", section="events:2")],
+            [ProgressMessage(message="instructions detection: total: 3", section="events:4")],
         ),
         call.send_to_user(
             identification,
             settings,
-            [ProgressMessage(message="parameters computation done (0)", section="events:2")],
+            [ProgressMessage(message="parameters computation done (0)", section="events:4")],
         ),
         call.send_to_user(
             identification,
             settings,
-            [ProgressMessage(message="commands generation done (0)", section="events:2")],
+            [ProgressMessage(message="commands generation done (0)", section="events:4")],
         ),
     ]
     assert progress.mock_calls == calls
@@ -1264,7 +1264,7 @@ def test_transcript2commands_questionnaires(time, memory_log, progress):
             call.send_to_user(
                 identification,
                 settings,
-                [ProgressMessage(message="questionnaires update done (2)", section="events:2")],
+                [ProgressMessage(message="questionnaires update done (2)", section="events:4")],
             )
         ]
         assert progress.mock_calls == calls

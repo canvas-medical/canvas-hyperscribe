@@ -60,36 +60,42 @@ class Base:
 
         system_prompt = [
             "The conversation is in the medical context.",
+            "The user will provide you with a JSON built for a medical software, including:",
+            "- `command` providing accurate and detailed values",
+            "- `previousInformation` a plain English description currently know by the software",
+            "- `information` a plain English description built on top of `previousInformation`.",
             "",
-            "The user will provide you with a JSON built for a medical software.",
+            "Your task is to produce a summary in clinical charting shorthand style (like SOAP notes) "
+            "out of this JSON.",
             "",
-            "Your task is to produce a summary in clinical charting shorthand style (like SOAP notes) out of this "
-            "JSON.",
             "Use plain English with standard medical abbreviations (e.g., CC, f/u, Dx, Rx, DC, VS, FHx, labs).",
             "Be telegraphic, concise, and formatted like real chart notes for a quick glance from a knowledgeable "
             "person.",
+            "Only new information should be included, and 20 words should be the maximum.",
         ]
         user_prompt = [
             "Here is a JSON intended to the medical software:",
             "```json",
             json.dumps(
                 {
+                    "previousInformation": result.previous_information,
+                    "information": result.information,
                     "command": {
                         "name": result.command.__class__.__name__,
                         "attributes": attributes,
                     },
-                    "information": result.information,
                 }
             ),
             "```",
             "",
-            "Please, following the directions, present a summary as this Markdown code block:",
+            "Please, following the directions, present the summary of the new information only like "
+            "this Markdown code block:",
             "```json",
             json.dumps(
                 [
                     {
-                        "summary": "clinical charting shorthand style summary, "
-                        "minimal but useful for a quick glance from "
+                        "summary": "clinical charting shorthand style summary, minimal and "
+                        "limited to the new information but useful for a quick glance from "
                         "a knowledgeable person"
                     }
                 ]

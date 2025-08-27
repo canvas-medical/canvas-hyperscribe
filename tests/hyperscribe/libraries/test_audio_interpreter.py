@@ -47,6 +47,8 @@ def helper_instance(mocks, with_audit) -> tuple[AudioInterpreter, Settings, AwsS
             mocks[1].return_value.is_available.side_effect = [True]
             mocks[2].return_value.is_available.side_effect = [False]
             mocks[3].return_value.is_available.side_effect = [True]
+            if len(mocks) > 4:
+                mocks[4].return_value.is_available.side_effect = [True]
 
         command_list.side_effect = [mocks]
 
@@ -67,7 +69,7 @@ def helper_instance(mocks, with_audit) -> tuple[AudioInterpreter, Settings, AwsS
 
 @patch.object(ImplementedCommands, "command_list")
 def test___init__(command_list):
-    mocks = [MagicMock(), MagicMock(), MagicMock(), MagicMock()]
+    mocks = [MagicMock(), MagicMock(), MagicMock(), MagicMock(), MagicMock()]
 
     def reset_mocks():
         command_list.reset_mocks()
@@ -95,10 +97,12 @@ def test___init__(command_list):
     mocks[1].return_value.is_available.side_effect = [True]
     mocks[2].return_value.is_available.side_effect = [False]
     mocks[3].return_value.is_available.side_effect = [True]
+    mocks[4].return_value.is_available.side_effect = [True]
     mocks[0].return_value.class_name.side_effect = ["CommandA"]
     mocks[1].return_value.class_name.side_effect = ["CommandB"]
     mocks[2].return_value.class_name.side_effect = ["CommandC"]
     mocks[3].return_value.class_name.side_effect = ["CommandD"]
+    mocks[4].return_value.class_name.side_effect = ["CommandE"]
     command_list.side_effect = [mocks]
 
     cache = LimitedCache("patientUuid", "providerUuid", {})
@@ -122,7 +126,7 @@ def test___init__(command_list):
 
 
 def test_common_instructions():
-    mocks = [MagicMock(), MagicMock(), MagicMock(), MagicMock()]
+    mocks = [MagicMock(), MagicMock(), MagicMock(), MagicMock(), MagicMock()]
 
     def reset_mocks():
         for item in mocks:
@@ -168,10 +172,11 @@ def test_common_instructions():
         mocks[1].return_value.class_name.side_effect = ["Second", "Second"]
         mocks[2].return_value.class_name.side_effect = ["Third", "Third"]
         mocks[3].return_value.class_name.side_effect = ["Fourth", "Fourth"]
+        mocks[4].return_value.class_name.side_effect = ["Fifth", "Fifth"]
 
         tested, settings, aws_credentials, cache = helper_instance(mocks, True)
         result = tested.common_instructions()
-        expected = [mocks[1].return_value, mocks[3].return_value]
+        expected = [mocks[1].return_value, mocks[3].return_value, mocks[4].return_value]
 
         if expected_present:
             expected.insert(0, mocks[0].return_value)
@@ -191,7 +196,7 @@ def test_common_instructions():
 
 
 def test_instruction_constraints():
-    mocks = [MagicMock(), MagicMock(), MagicMock(), MagicMock()]
+    mocks = [MagicMock(), MagicMock(), MagicMock(), MagicMock(), MagicMock()]
 
     def reset_mocks():
         for item in mocks:
@@ -203,19 +208,27 @@ def test_instruction_constraints():
             {"instruction": "Command2"},
             {"instruction": "Command3"},
             {"instruction": "Command4"},
+            {"instruction": "Command5"},
         ],
     )
 
-    tests = [([0, 1, 2, 3], ["Constraints1", "Constraints4"]), ([0], ["Constraints1"]), ([2, 3], ["Constraints4"])]
+    tests = [
+        ([0, 1, 2, 3], ["Constraints1", "Constraints4"]),
+        ([0, 1, 2, 3, 4], ["Constraints1", "Constraints4", "Constraints5"]),
+        ([0], ["Constraints1"]),
+        ([2, 3], ["Constraints4"]),
+    ]
     for list_idx, expected in tests:
         mocks[0].return_value.class_name.side_effect = ["Command1", "Command1"]
         mocks[1].return_value.class_name.side_effect = ["Command2", "Command2"]
         mocks[2].return_value.class_name.side_effect = ["Command3", "Command3"]
         mocks[3].return_value.class_name.side_effect = ["Command4", "Command4"]
+        mocks[4].return_value.class_name.side_effect = ["Command5", "Command5"]
         mocks[0].return_value.instruction_constraints.side_effect = ["Constraints1"]
         mocks[1].return_value.instruction_constraints.side_effect = [""]
         mocks[2].return_value.instruction_constraints.side_effect = ["Constraints3"]
         mocks[3].return_value.instruction_constraints.side_effect = ["Constraints4"]
+        mocks[4].return_value.instruction_constraints.side_effect = ["Constraints5"]
 
         tested, settings, aws_credentials, cache = helper_instance(mocks, True)
         result = tested.instruction_constraints([instructions[i] for i in list_idx])
@@ -236,7 +249,7 @@ def test_instruction_constraints():
 
 
 def test_command_structures():
-    mocks = [MagicMock(), MagicMock(), MagicMock(), MagicMock()]
+    mocks = [MagicMock(), MagicMock(), MagicMock(), MagicMock(), MagicMock()]
 
     def reset_mocks():
         for item in mocks:
@@ -282,14 +295,20 @@ def test_command_structures():
         mocks[1].return_value.class_name.side_effect = ["Second", "Second", "Second"]
         mocks[2].return_value.class_name.side_effect = ["Third", "Third", "Third"]
         mocks[3].return_value.class_name.side_effect = ["Fourth", "Fourth", "Fourth"]
+        mocks[4].return_value.class_name.side_effect = ["Fifth", "Fifth", "Fifth"]
         mocks[0].return_value.command_parameters.side_effect = ["Parameters1"]
         mocks[1].return_value.command_parameters.side_effect = ["Parameters2"]
         mocks[2].return_value.command_parameters.side_effect = ["Parameters3"]
         mocks[3].return_value.command_parameters.side_effect = ["Parameters4"]
+        mocks[4].return_value.command_parameters.side_effect = ["Parameters5"]
 
         tested, settings, aws_credentials, cache = helper_instance(mocks, True)
         result = tested.command_structures()
-        expected = {"Fourth": "Parameters4", "Second": "Parameters2"}
+        expected = {
+            "Fifth": "Parameters5",
+            "Fourth": "Parameters4",
+            "Second": "Parameters2",
+        }
         absent_idx = [2]
         if expected_present:
             expected[class_name] = "Parameters1"
@@ -744,7 +763,7 @@ def test_combine_and_speaker_detection_single_step():
 @patch.object(AudioInterpreter, "json_schema")
 @patch.object(AudioInterpreter, "common_instructions")
 def test_detect_instructions(common_instructions, json_schema, instruction_constraints, chatter, memory_log):
-    mocks = [MagicMock(), MagicMock(), MagicMock(), MagicMock()]
+    mocks = [MagicMock(), MagicMock(), MagicMock(), MagicMock(), MagicMock()]
 
     def reset_mocks():
         common_instructions.reset_mock()
@@ -758,10 +777,12 @@ def test_detect_instructions(common_instructions, json_schema, instruction_const
         mocks[1].class_name.side_effect = ["Second", "Second"]
         mocks[2].class_name.side_effect = ["Third", "Third"]
         mocks[3].class_name.side_effect = ["Fourth", "Fourth"]
+        mocks[4].class_name.side_effect = ["Fifth", "Fifth"]
         mocks[0].instruction_description.side_effect = ["Description1"]
         mocks[1].instruction_description.side_effect = ["Description2"]
         mocks[2].instruction_description.side_effect = ["Description3"]
         mocks[3].instruction_description.side_effect = ["Description4"]
+        mocks[4].instruction_description.side_effect = ["Description5"]
 
     system_prompt = [
         "The conversation is in the context of a clinical encounter between patient and licensed healthcare provider.",
@@ -778,7 +799,8 @@ def test_detect_instructions(common_instructions, json_schema, instruction_const
         '[{"instruction": "First", "information": "Description1"}, '
         '{"instruction": "Second", "information": "Description2"}, '
         '{"instruction": "Third", "information": "Description3"}, '
-        '{"instruction": "Fourth", "information": "Description4"}]',
+        '{"instruction": "Fourth", "information": "Description4"}, '
+        '{"instruction": "Fifth", "information": "Description5"}]',
         "```",
         "",
         "Your response must be a JSON Markdown block validated with the schema:",
@@ -889,7 +911,7 @@ def test_detect_instructions(common_instructions, json_schema, instruction_const
     assert result == expected
     calls = [call()]
     assert common_instructions.mock_calls == calls
-    calls = [call(["First", "Second", "Third", "Fourth"])]
+    calls = [call(["First", "Second", "Third", "Fourth", "Fifth"])]
     assert json_schema.mock_calls == calls
     calls = [
         call([Instruction(uuid="", index=0, instruction="", information="response1", is_new=True, is_updated=False)]),
@@ -931,7 +953,7 @@ def test_detect_instructions(common_instructions, json_schema, instruction_const
     assert result == expected
     calls = [call()]
     assert common_instructions.mock_calls == calls
-    calls = [call(["First", "Second", "Third", "Fourth"])]
+    calls = [call(["First", "Second", "Third", "Fourth", "Fifth"])]
     assert json_schema.mock_calls == calls
     calls = [
         call([Instruction(uuid="", index=0, instruction="", information="response1", is_new=True, is_updated=False)]),
@@ -977,7 +999,7 @@ def test_detect_instructions(common_instructions, json_schema, instruction_const
     assert result == expected
     calls = [call()]
     assert common_instructions.mock_calls == calls
-    calls = [call(["First", "Second", "Third", "Fourth"])]
+    calls = [call(["First", "Second", "Third", "Fourth", "Fifth"])]
     assert json_schema.mock_calls == calls
     calls = [
         call(
@@ -1068,7 +1090,7 @@ def test_detect_instructions(common_instructions, json_schema, instruction_const
         assert result == expected
         calls = [call()]
         assert common_instructions.mock_calls == calls
-        calls = [call(["First", "Second", "Third", "Fourth"])]
+        calls = [call(["First", "Second", "Third", "Fourth", "Fifth"])]
         assert json_schema.mock_calls == calls
         calls = [
             call(
@@ -1111,7 +1133,7 @@ def test_detect_instructions(common_instructions, json_schema, instruction_const
 @patch("hyperscribe.libraries.audio_interpreter.MemoryLog")
 @patch.object(Helper, "chatter")
 def test_create_sdk_command_parameters(chatter, memory_log, progress, mock_datetime):
-    mocks = [MagicMock(), MagicMock(), MagicMock(), MagicMock()]
+    mocks = [MagicMock(), MagicMock(), MagicMock(), MagicMock(), MagicMock()]
 
     def reset_mocks():
         chatter.reset_mock()
@@ -1124,10 +1146,12 @@ def test_create_sdk_command_parameters(chatter, memory_log, progress, mock_datet
         mocks[1].return_value.class_name.side_effect = ["Second", "Second", "Second"]
         mocks[2].return_value.class_name.side_effect = ["Third", "Third", "Third"]
         mocks[3].return_value.class_name.side_effect = ["Fourth", "Fourth", "Fourth"]
+        mocks[4].return_value.class_name.side_effect = ["Fifth", "Fifth", "Fifth"]
         mocks[0].return_value.command_parameters.side_effect = [{"Command": "Parameters1"}]
         mocks[1].return_value.command_parameters.side_effect = [{"Command": "Parameters2"}]
         mocks[2].return_value.command_parameters.side_effect = [{"Command": "Parameters3"}]
         mocks[3].return_value.command_parameters.side_effect = [{"Command": "Parameters4"}]
+        mocks[4].return_value.command_parameters.side_effect = [{"Command": "Parameters5"}]
 
     instruction = Instruction(
         uuid="theUuid",
@@ -1197,7 +1221,7 @@ def test_create_sdk_command_parameters(chatter, memory_log, progress, mock_datet
         call.send_to_user(
             tested.identification,
             settings,
-            [ProgressMessage(message="parameters identified for Second", section="events:2")],
+            [ProgressMessage(message="parameters identified for Second", section="events:4")],
         )
     ]
     assert progress.mock_calls == calls
@@ -1242,12 +1266,13 @@ def test_create_sdk_command_parameters(chatter, memory_log, progress, mock_datet
 @patch("hyperscribe.libraries.audio_interpreter.MemoryLog")
 @patch.object(Helper, "chatter")
 def test_create_sdk_command_from(chatter, memory_log, progress):
-    mocks = [MagicMock(), MagicMock(), MagicMock(), MagicMock()]
+    mocks = [MagicMock(), MagicMock(), MagicMock(), MagicMock(), MagicMock()]
 
     commands = [
-        MockClass(summary="theSummary1"),
+        MockClass(summary="theSummary1", is_updated=True),
         MockClass(summary=""),  # <--- no summary
-        MockClass(summary="theSummary3"),
+        MockClass(summary="theSummary3", is_updated=False),
+        MockClass(summary="theSummary4", is_updated=False),
     ]
 
     def reset_mocks():
@@ -1260,10 +1285,12 @@ def test_create_sdk_command_from(chatter, memory_log, progress):
         mocks[1].return_value.class_name.side_effect = ["Second", "Second"]
         mocks[2].return_value.class_name.side_effect = ["Third", "Third"]
         mocks[3].return_value.class_name.side_effect = ["Fourth", "Fourth"]
+        mocks[4].return_value.class_name.side_effect = ["Fifth", "Fifth"]
         mocks[0].return_value.command_from_json_with_summary.side_effect = [commands[0]]
         mocks[1].return_value.command_from_json_with_summary.side_effect = [commands[1]]
         mocks[2].return_value.command_from_json_with_summary.side_effect = [commands[2]]
-        mocks[3].return_value.command_from_json_with_summary.side_effect = [None]
+        mocks[3].return_value.command_from_json_with_summary.side_effect = [commands[3]]
+        mocks[4].return_value.command_from_json_with_summary.side_effect = [None]
 
     reset_mocks()
 
@@ -1274,8 +1301,8 @@ def test_create_sdk_command_from(chatter, memory_log, progress):
             commands[0],
             "First_theUuid_parameters2command",
             [
-                ProgressMessage(message="command generated for First", section="events:2"),
-                ProgressMessage(message="theSummary1", section="events:1"),
+                ProgressMessage(message="command generated for First", section="events:4"),
+                ProgressMessage(message="theSummary1", section="events:2"),
             ],
         ),
         (
@@ -1283,10 +1310,20 @@ def test_create_sdk_command_from(chatter, memory_log, progress):
             1,
             commands[1],
             "Second_theUuid_parameters2command",
-            [ProgressMessage(message="command generated for Second", section="events:2")],
+            [ProgressMessage(message="command generated for Second", section="events:4")],
         ),
-        ("Fourth", 3, None, "Fourth_theUuid_parameters2command", None),
-        ("Third", 4, None, None, None),
+        ("Third", 5, None, None, None),
+        (
+            "Fourth",
+            3,
+            commands[3],
+            "Fourth_theUuid_parameters2command",
+            [
+                ProgressMessage(message="command generated for Fourth", section="events:4"),
+                ProgressMessage(message="theSummary4", section="events:1"),
+            ],
+        ),
+        ("Fifth", 4, None, "Fifth_theUuid_parameters2command", None),
     ]
     for name, rank, expected, exp_log_label, exp_log_ui in tests:
         chatter.side_effect = ["LlmBaseInstance"]
@@ -1371,7 +1408,7 @@ def test_update_questionnaire(chatter, memory_log):
         ("Second", 1, '{"key": "questionnaire2"}', "theCommand2", "Second_theUuid_questionnaire_update"),
         # ("Fourth", 3, '{"key": "questionnaire4"}', "theCommand4", "Fourth_theUuid_questionnaire_update"),
         ("Fourth", 3, None, None, "Fourth_theUuid_questionnaire_update"),
-        ("Third", 4, None, None, None),
+        # ("Third", 4, None, None, None),
     ]
     for name, rank, exp_information, exp_command, exp_log_label in tests:
         chatter.side_effect = ["LlmBaseInstance"]

@@ -22,7 +22,7 @@ def test_add_explanation():
             is_updated=True,
             parameters={"key": "value"},
             command=command,
-        ),
+        ).set_previous_information("thePreviousInformation"),
         "the summary",
     )
     expected = InstructionWithSummary(
@@ -36,4 +36,5 @@ def test_add_explanation():
         command=command,
         summary="the summary",
     )
+    expected.previous_information = "thePreviousInformation"
     assert result == expected

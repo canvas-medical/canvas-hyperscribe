@@ -455,45 +455,45 @@ def test_review(cache_get_discussion, cache_save, aws_s3, helper, llm_turns_stor
     assert memory_log.mock_calls == calls
     calls = [
         call.send_to_user(
-            identification, settings, [ProgressMessage(message="create the audits...", section="events:2")]
+            identification, settings, [ProgressMessage(message="create the audits...", section="events:4")]
         ),
         call.send_to_user(
             identification,
             settings,
-            [ProgressMessage(message="auditing of transcript2instructions_00 (cycle  1)", section="events:2")],
+            [ProgressMessage(message="auditing of transcript2instructions_00 (cycle  1)", section="events:4")],
         ),
         call.send_to_user(
             identification,
             settings,
-            [ProgressMessage(message="auditing of transcript2instructions_01 (cycle  1)", section="events:2")],
+            [ProgressMessage(message="auditing of transcript2instructions_01 (cycle  1)", section="events:4")],
         ),
         call.send_to_user(
             identification,
             settings,
-            [ProgressMessage(message="auditing of canvasCommandX_00_00 (cycle  1)", section="events:2")],
+            [ProgressMessage(message="auditing of canvasCommandX_00_00 (cycle  1)", section="events:4")],
         ),
         call.send_to_user(
             identification,
             settings,
-            [ProgressMessage(message="auditing of canvasCommandX_00_01 (cycle  1)", section="events:2")],
+            [ProgressMessage(message="auditing of canvasCommandX_00_01 (cycle  1)", section="events:4")],
         ),
         call.send_to_user(
             identification,
             settings,
-            [ProgressMessage(message="auditing of canvasCommandY_01_00 (cycle  2)", section="events:2")],
+            [ProgressMessage(message="auditing of canvasCommandY_01_00 (cycle  2)", section="events:4")],
         ),
         call.send_to_user(
             identification,
             settings,
-            [ProgressMessage(message="auditing of canvasCommandY_02_00 (cycle  2)", section="events:2")],
+            [ProgressMessage(message="auditing of canvasCommandY_02_00 (cycle  2)", section="events:4")],
         ),
         # no cycle 3 since there is no document
         call.send_to_user(
             identification,
             settings,
-            [ProgressMessage(message="auditing of Questionnaire_06_00 (cycle  4)", section="events:2")],
+            [ProgressMessage(message="auditing of Questionnaire_06_00 (cycle  4)", section="events:4")],
         ),
-        call.send_to_user(identification, settings, [ProgressMessage(message="audits done", section="events:2")]),
+        call.send_to_user(identification, settings, [ProgressMessage(message="audits done", section="events:4")]),
     ]
     assert progress.mock_calls == calls
     reset_mocks()

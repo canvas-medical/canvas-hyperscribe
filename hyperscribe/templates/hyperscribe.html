@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Canvas Hyperscribe</title>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <style>
         body {
             margin: 0;
@@ -275,6 +276,11 @@
             text-align: left;
         }
 
+        /* Activity table second column (message column) should be left-aligned */
+        #activity-table-body td:nth-child(2) {
+            text-align: left;
+        }
+
         #error {
             color: red;
             margin-top: 10px;
@@ -346,7 +352,8 @@
             </div>
             <table>
                 <colgroup>
-                    <col style="width: 70%">
+                    <col style="width: 40px">
+                    <col style="width: calc(70% - 40px)">
                     <col style="width: 30%;text-align: right;">
                 </colgroup>
                 <tbody id="activity-table-body">
@@ -493,10 +500,11 @@
                 if (!maskStr || isNaN(parseInt(maskStr))) return;
                 
                 const mask = parseInt(maskStr);
-                const medicalValue = 1;    // events:1
-                const technicalValue = 2;  // events:2
+                const medicalValue1 = 1;    // events:1
+                const medicalValue2 = 2;    // events:2
+                const technicalValue = 4;  // events:4
                 
-                const isMedical = (mask & medicalValue) !== 0;
+                const isMedical = (mask & medicalValue1) !== 0 || (mask & medicalValue2) !== 0;
                 const isTechnical = (mask & technicalValue) !== 0;
                 
                 if (isMedical) {
@@ -509,7 +517,23 @@
             
             addToActivity(message, elapsedTime, section) {
                 const tbody = document.getElementById('activity-table-body');
-                const row = ui.createTableRow([message, elapsedTime]);
+                
+                // Determine icon based on section
+                const mask = parseInt(section.split(':')[1] || '0');
+                const technicalValue = 4;  // events:4
+                const isTechnical = (mask & technicalValue) !== 0;
+                
+                let iconName = '';
+                // Only show icon if message is NOT also displayed in Logs
+                if (!isTechnical) {
+                    if ((mask & 1) !== 0) {  // events:1
+                        iconName = 'new_label';  // Material icon for "New Label"
+                    } else if ((mask & 2) !== 0) {  // events:2
+                        iconName = 'label';  // Material icon for "Label"
+                    }
+                }
+                
+                const row = ui.createTableRowWithIcon(iconName, message, elapsedTime);
                 row.dataset.section = section;
                 tbody.insertBefore(row, tbody.firstChild);
             },
@@ -581,6 +605,37 @@
                     cell.textContent = content;
                     row.appendChild(cell);
                 });
+                return row;
+            },
+
+            createTableRowWithIcon(iconName, message, elapsedTime) {
+                const row = document.createElement('tr');
+                
+                // Icon cell
+                const iconCell = document.createElement('td');
+                iconCell.style.textAlign = 'center';
+                iconCell.style.paddingLeft = '8px';
+                iconCell.style.paddingRight = '8px';
+                if (iconName) {
+                    const icon = document.createElement('i');
+                    icon.className = 'material-icons';
+                    icon.textContent = iconName;
+                    icon.style.fontSize = '16px';
+                    icon.style.color = '#666';
+                    iconCell.appendChild(icon);
+                }
+                row.appendChild(iconCell);
+                
+                // Message cell
+                const messageCell = document.createElement('td');
+                messageCell.textContent = message;
+                row.appendChild(messageCell);
+                
+                // Time cell
+                const timeCell = document.createElement('td');
+                timeCell.textContent = elapsedTime;
+                row.appendChild(timeCell);
+                
                 return row;
             },
 
@@ -832,7 +887,7 @@
         }
 
         function resetTable() {
-            document.getElementById('activity-table-body').innerHTML = '<tr><td colspan="2">Waiting...</td></tr>';
+            document.getElementById('activity-table-body').innerHTML = '<tr><td colspan="3">Waiting...</td></tr>';
             document.getElementById('logs-table-body').innerHTML = '<tr><td colspan="2">Waiting...</td></tr>';
         }
 
@@ -1072,14 +1127,29 @@
                                 
                                 // Create row and route to appropriate table
                                 const mask = parseInt(msg.section.split(':')[1] || '0');
-                                const medicalValue = 1;    // events:1
-                                const technicalValue = 2;  // events:2
+                                const medicalValue1 = 1;    // events:1
+                                const medicalValue2 = 2;    // events:2
+                                const technicalValue = 4;  // events:4
                                 
-                                const isMedical = (mask & medicalValue) !== 0;
+                                const isMedical = (mask & medicalValue1) !== 0 || (mask & medicalValue2) !== 0;
                                 const isTechnical = (mask & technicalValue) !== 0;
                                 
                                 if (isMedical) {
-                                    const row = ui.createTableRow([msg.message, timeText]);
+                                    // Determine icon based on section
+                                    const msgMask = parseInt(msg.section.split(':')[1] || '0');
+                                    const msgIsTechnical = (msgMask & technicalValue) !== 0;
+                                    
+                                    let iconName = '';
+                                    // Only show icon if message is NOT also displayed in Logs
+                                    if (!msgIsTechnical) {
+                                        if ((msgMask & 1) !== 0) {  // events:1
+                                            iconName = 'new_label';  // Material icon for "New Label"
+                                        } else if ((msgMask & 2) !== 0) {  // events:2
+                                            iconName = 'label';  // Material icon for "Label"
+                                        }
+                                    }
+                                    
+                                    const row = ui.createTableRowWithIcon(iconName, msg.message, timeText);
                                     row.dataset.section = msg.section;
                                     activityTbody.appendChild(row);
                                 }
@@ -1149,7 +1219,7 @@
 
             // Set default content if tables are empty
             if (activityTbody.innerHTML === '') {
-                activityTbody.innerHTML = '<tr><td colspan="2">...</td></tr>';
+                activityTbody.innerHTML = '<tr><td colspan="3">...</td></tr>';
             }
             if (logsTbody.innerHTML === '') {
                 logsTbody.innerHTML = '<tr><td colspan="2">...</td></tr>';

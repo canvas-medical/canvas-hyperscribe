@@ -145,26 +145,33 @@ def test_command_from_json_with_summary(command_from_json, instruction_with_summ
 
     system_prompt = [
         "The conversation is in the medical context.",
-        "",
-        "The user will provide you with a JSON built for a medical software.",
+        "The user will provide you with a JSON built for a medical software, including:",
+        "- `command` providing accurate and detailed values",
+        "- `previousInformation` a plain English description currently know by the software",
+        "- `information` a plain English description built on top of `previousInformation`.",
         "",
         "Your task is to produce a summary in clinical charting shorthand style (like SOAP notes) out of this JSON.",
+        "",
         "Use plain English with standard medical abbreviations (e.g., CC, f/u, Dx, Rx, DC, VS, FHx, labs).",
         "Be telegraphic, concise, and formatted like real chart notes for a quick glance from a knowledgeable person.",
+        "Only new information should be included, and 20 words should be the maximum.",
     ]
     user_prompt = [
         "Here is a JSON intended to the medical software:",
         "```json",
-        '{"command": {'
+        '{"previousInformation": "thePreviousInformation", '
+        '"information": "theInformation", '
+        '"command": {'
         '"name": "theCommand", '
-        '"attributes": {"codeA": "descriptionA", "codeB": "descriptionB", "codeD": "valueD"}}, '
-        '"information": "theInformation"}',
+        '"attributes": {"codeA": "descriptionA", "codeB": "descriptionB", "codeD": "valueD"}}}',
         "```",
         "",
-        "Please, following the directions, present a summary as this Markdown code block:",
+        "Please, following the directions, present the summary of the new information only like "
+        "this Markdown code block:",
         "```json",
         '[{"summary": "clinical charting shorthand style summary, '
-        'minimal but useful for a quick glance from a knowledgeable person"}]',
+        "minimal and limited to the new information but useful for "
+        'a quick glance from a knowledgeable person"}]',
         "```",
         "",
     ]
@@ -191,7 +198,7 @@ def test_command_from_json_with_summary(command_from_json, instruction_with_summ
         is_new=False,
         is_updated=True,
         parameters={"key": "value"},
-    )
+    ).set_previous_information("thePreviousInformation")
 
     tested = helper_instance()
 
@@ -219,7 +226,7 @@ def test_command_from_json_with_summary(command_from_json, instruction_with_summ
         is_updated=True,
         parameters={"key": "value"},
         command=command,
-    )
+    ).set_previous_information("thePreviousInformation")
     # -- with chatter response
     command_from_json.side_effect = [instruction_with_command]
     chatter.single_conversation.side_effect = [[{"summary": "theSummary"}]]

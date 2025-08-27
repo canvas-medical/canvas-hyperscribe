@@ -21,7 +21,7 @@ def test_add_parameters():
             is_new=True,
             is_updated=True,
             parameters={"key": "value"},
-        ),
+        ).set_previous_information("thePreviousInformation"),
         command,
     )
     expected = InstructionWithCommand(
@@ -34,4 +34,5 @@ def test_add_parameters():
         parameters={"key": "value"},
         command=command,
     )
+    expected.previous_information = "thePreviousInformation"
     assert result == expected

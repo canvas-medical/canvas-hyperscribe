@@ -373,7 +373,10 @@ class AudioInterpreter:
                         ),
                     ]
                     if summary := result.summary:
-                        messages.append(ProgressMessage(message=summary, section=Constants.PROGRESS_SECTION_MEDICAL))
+                        section = Constants.PROGRESS_SECTION_MEDICAL_NEW
+                        if result.is_updated:
+                            section = Constants.PROGRESS_SECTION_MEDICAL_UPDATED
+                        messages.append(ProgressMessage(message=summary, section=section))
 
                     Progress.send_to_user(self.identification, self.settings, messages)
                 return result

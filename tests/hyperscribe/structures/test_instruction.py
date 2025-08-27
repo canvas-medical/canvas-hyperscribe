@@ -1,6 +1,20 @@
 from hyperscribe.structures.instruction import Instruction
 
 
+def test_set_previous_information():
+    tested = Instruction(
+        uuid="theUuid",
+        index=3,
+        instruction="theInstruction",
+        information="theInformation",
+        is_new=True,
+        is_updated=True,
+    )
+    tested.set_previous_information("thePreviousInformation")
+    assert tested.information == "theInformation"
+    assert tested.previous_information == "thePreviousInformation"
+
+
 def test_load_from_json():
     tested = Instruction
     result = tested.load_from_json(

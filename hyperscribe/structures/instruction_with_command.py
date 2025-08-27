@@ -22,7 +22,7 @@ class InstructionWithCommand(InstructionWithParameters):
 
     @classmethod
     def add_command(cls, instruction: InstructionWithParameters, command: _BaseCommand) -> InstructionWithCommand:
-        return InstructionWithCommand(
+        result = InstructionWithCommand(
             uuid=instruction.uuid,
             index=instruction.index,
             instruction=instruction.instruction,
@@ -32,6 +32,8 @@ class InstructionWithCommand(InstructionWithParameters):
             parameters=instruction.parameters,
             command=command,
         )
+        result.set_previous_information(instruction.previous_information)  # need to be able to use typing.Self
+        return result
 
     def __eq__(self, other: object) -> bool:
         assert isinstance(other, InstructionWithCommand)

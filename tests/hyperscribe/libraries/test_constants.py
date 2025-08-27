@@ -101,9 +101,10 @@ def test_constants():
         #
         "PROGRESS_END_OF_MESSAGES": "EOF",
         "PROGRESS_EXPIRATION_SECONDS": 7200,
-        "PROGRESS_SECTION_EVENTS": "events:3",
-        "PROGRESS_SECTION_MEDICAL": "events:1",
-        "PROGRESS_SECTION_TECHNICAL": "events:2",
+        "PROGRESS_SECTION_EVENTS": "events:7",
+        "PROGRESS_SECTION_MEDICAL_NEW": "events:1",
+        "PROGRESS_SECTION_MEDICAL_UPDATED": "events:2",
+        "PROGRESS_SECTION_TECHNICAL": "events:4",
         "PROGRESS_SECTION_TRANSCRIPT": "transcript",
         "PROGRESS_SETTING_KEY": "sendProgress",
         #

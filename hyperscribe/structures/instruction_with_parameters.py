@@ -19,7 +19,7 @@ class InstructionWithParameters(Instruction):
 
     @classmethod
     def add_parameters(cls, instruction: Instruction, parameters: dict) -> InstructionWithParameters:
-        return InstructionWithParameters(
+        result = InstructionWithParameters(
             uuid=instruction.uuid,
             index=instruction.index,
             instruction=instruction.instruction,
@@ -28,6 +28,8 @@ class InstructionWithParameters(Instruction):
             is_updated=instruction.is_updated,
             parameters=parameters,
         )
+        result.set_previous_information(instruction.previous_information)  # need to be able to use typing.Self
+        return result
 
     def __eq__(self, other: object) -> bool:
         assert isinstance(other, InstructionWithParameters)

@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 from datetime import date
-from functools import reduce
-from operator import and_
 from typing import Any
 
 from canvas_sdk.commands.constants import CodeSystems
@@ -92,9 +90,10 @@ class LimitedCache:
                     for row in cursor.fetchall():
                         self._lab_tests[key].append(CodedItem(uuid="", label=row["order_name"], code=row["order_code"]))
             else:
-                query = LabPartnerTest.objects.filter(lab_partner__name=lab_partner).filter(
-                    reduce(and_, (Q(keywords__icontains=kw) for kw in keywords)),
-                )
+                keyword_q = Q()
+                for kw in keywords:
+                    keyword_q &= Q(keywords__icontains=kw)
+                query = LabPartnerTest.objects.filter(lab_partner__name=lab_partner).filter(keyword_q)
                 for test in query:
                     self._lab_tests[key].append(CodedItem(uuid="", label=test.order_name, code=test.order_code))
         return self._lab_tests[key]
