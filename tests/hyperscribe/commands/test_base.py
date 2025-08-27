@@ -1,3 +1,5 @@
+import json
+from hashlib import md5
 from unittest.mock import MagicMock, patch, call
 
 import pytest
@@ -272,6 +274,13 @@ def test_command_parameters():
     tested = helper_instance()
     with pytest.raises(NotImplementedError):
         _ = tested.command_parameters()
+
+
+def test_command_parameters_schema():
+    tested = Base
+    result = tested.command_parameters_schemas()
+    expected = "d751713988987e9331980363e24189ce"
+    assert md5(json.dumps(result).encode()).hexdigest() == expected
 
 
 def test_instruction_description():

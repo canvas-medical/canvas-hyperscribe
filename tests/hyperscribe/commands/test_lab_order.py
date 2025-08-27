@@ -1,3 +1,5 @@
+import json
+from hashlib import md5
 from unittest.mock import patch, call, MagicMock
 
 from canvas_sdk.commands.commands.lab_order import LabOrderCommand
@@ -272,18 +274,19 @@ def test_command_parameters():
     tested = helper_instance()
     result = tested.command_parameters()
     expected = {
-        "labOrders": [{"labOrderKeywords": "comma separated keywords of up to 5 synonyms of each lab test to order"}],
-        "conditions": [
-            {
-                "conditionKeywords": "comma separated keywords of up to 5 synonyms of each condition "
-                "targeted by the lab tests",
-                "ICD10": "comma separated keywords of up to 5 ICD-10 codes of each condition targeted by the lab test",
-            },
-        ],
+        "labOrders": [],
+        "conditions": [],
         "fastingRequired": "mandatory, True or False, as boolean",
         "comment": "rationale of the prescription, as free text limited to 128 characters",
     }
     assert result == expected
+
+
+def test_command_parameters_schema():
+    tested = LabOrder
+    result = tested.command_parameters_schemas()
+    expected = "d3f734d221f79a694ac3ec21f4171052"
+    assert md5(json.dumps(result).encode()).hexdigest() == expected
 
 
 def test_instruction_description():

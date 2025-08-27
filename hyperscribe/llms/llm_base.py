@@ -127,6 +127,7 @@ class LlmBase:
         used_schemas = [s for s in schemas]
         used_prompt = [s for s in user_prompt]
 
+        self.reset_prompts()
         self.set_system_prompt(system_prompt)
         self.set_user_prompt(used_prompt)
         response = self.chat(used_schemas)

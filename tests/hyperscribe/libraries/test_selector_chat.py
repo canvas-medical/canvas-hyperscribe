@@ -1,3 +1,4 @@
+import json
 from unittest.mock import patch, call, MagicMock
 
 from canvas_sdk.commands.constants import ServiceProvider
@@ -141,6 +142,20 @@ def test_lab_test_from(limited_cache):
 
     tested = SelectorChat
 
+    schemas = [
+        {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {"code": {"type": "string", "minLength": 1}, "label": {"type": "string", "minLength": 1}},
+                "required": ["code", "label"],
+                "additionalProperties": False,
+            },
+            "minItems": 1,
+            "maxItems": 1,
+        },
+    ]
     system_prompt = [
         "The conversation is in the medical context.",
         "",
@@ -163,9 +178,9 @@ def test_lab_test_from(limited_cache):
             "",
             " * labelA (code: code123)\n * labelB (code: code369)\n * labelC (code: code752)",
             "",
-            "Please, present your findings in a JSON format within a Markdown code block like:",
+            "Your response must be a JSON Markdown block validated with the schema:",
             "```json",
-            '[{"code": "the lab test code", "label": "the lab test label"}]',
+            json.dumps(schemas, indent=1),
             "```",
             "",
         ],
@@ -184,27 +199,14 @@ def test_lab_test_from(limited_cache):
             "",
             " * labelA (code: code123)\n * labelB (code: code369)\n * labelC (code: code752)",
             "",
-            "Please, present your findings in a JSON format within a Markdown code block like:",
+            "Your response must be a JSON Markdown block validated with the schema:",
             "```json",
-            '[{"code": "the lab test code", "label": "the lab test label"}]',
+            json.dumps(schemas, indent=1),
             "```",
             "",
         ],
     ]
-    schemas = [
-        {
-            "$schema": "http://json-schema.org/draft-07/schema#",
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {"code": {"type": "string", "minLength": 1}, "label": {"type": "string", "minLength": 1}},
-                "required": ["code", "label"],
-                "additionalProperties": False,
-            },
-            "minItems": 1,
-            "maxItems": 1,
-        },
-    ]
+
     lab_tests = [
         CodedItem(code="code123", label="labelA", uuid=""),
         CodedItem(code="code369", label="labelB", uuid=""),
@@ -223,7 +225,7 @@ def test_lab_test_from(limited_cache):
 
     # all good
     # -- with conditions
-    limited_cache.lab_tests.side_effect = [lab_tests, lab_tests]
+    limited_cache.lab_tests.side_effect = [lab_tests[:2], lab_tests[2:]]
     chatter.single_conversation.side_effect = [[{"code": "CODE9876", "label": "theLabTest"}]]
 
     result = tested.lab_test_from(
@@ -243,7 +245,7 @@ def test_lab_test_from(limited_cache):
     assert chatter.mock_calls == calls
     reset_mocks()
     # -- without conditions
-    limited_cache.lab_tests.side_effect = [lab_tests, lab_tests]
+    limited_cache.lab_tests.side_effect = [lab_tests[:1], lab_tests[1:]]
     chatter.single_conversation.side_effect = [[{"code": "CODE9876", "label": "theLabTest"}]]
 
     result = tested.lab_test_from(instruction, chatter, limited_cache, "theLabPartner", expressions, "theComment", [])
@@ -256,7 +258,7 @@ def test_lab_test_from(limited_cache):
     reset_mocks()
 
     # no response
-    limited_cache.lab_tests.side_effect = [lab_tests, lab_tests]
+    limited_cache.lab_tests.side_effect = [[], lab_tests]
     chatter.single_conversation.side_effect = [[]]
 
     result = tested.lab_test_from(

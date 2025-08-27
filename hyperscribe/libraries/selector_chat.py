@@ -79,9 +79,10 @@ class SelectorChat:
         for expression in expressions:
             # expression can have several words: look for records that have all of them, regardless of their order
             keywords = expression.strip().split()
-            lab_tests = cache.lab_tests(lab_partner, keywords)
+            lab_tests.extend(cache.lab_tests(lab_partner, keywords))
 
         if lab_tests:
+            schemas = JsonSchema.get(["selector_lab_test"])
             prompt_condition = ""
             if conditions:
                 prompt_condition = f"The lab test is intended to the patient's conditions: {', '.join(conditions)}."
@@ -107,13 +108,12 @@ class SelectorChat:
                 "",
                 "\n".join(f" * {concept.label} (code: {concept.code})" for concept in lab_tests),
                 "",
-                "Please, present your findings in a JSON format within a Markdown code block like:",
+                "Your response must be a JSON Markdown block validated with the schema:",
                 "```json",
-                json.dumps([{"code": "the lab test code", "label": "the lab test label"}]),
+                json.dumps(schemas, indent=1),
                 "```",
                 "",
             ]
-            schemas = JsonSchema.get(["selector_lab_test"])
             if response := chatter.single_conversation(system_prompt, user_prompt, schemas, instruction):
                 result = CodedItem(label=response[0]["label"], code=response[0]["code"], uuid="")
         return result

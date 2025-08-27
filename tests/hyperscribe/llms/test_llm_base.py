@@ -353,11 +353,12 @@ def test_chat(attempt_requests, extract_json_from):
     reset_mocks()
 
 
+@patch.object(LlmBase, "reset_prompts")
 @patch.object(LlmBase, "store_llm_turns")
 @patch.object(LlmBase, "set_user_prompt")
 @patch.object(LlmBase, "set_system_prompt")
 @patch.object(LlmBase, "chat")
-def test_single_conversation(chat, set_system_prompt, set_user_prompt, store_llm_turns):
+def test_single_conversation(chat, set_system_prompt, set_user_prompt, store_llm_turns, reset_prompts):
     memory_log = MagicMock()
 
     def reset_mocks():
@@ -365,6 +366,7 @@ def test_single_conversation(chat, set_system_prompt, set_user_prompt, store_llm
         set_system_prompt.reset_mock()
         set_user_prompt.reset_mock()
         store_llm_turns.reset_mock()
+        reset_prompts.reset_mock()
         memory_log.reset_mock()
 
     system_prompt = ["theSystemPrompt"]
@@ -387,6 +389,8 @@ def test_single_conversation(chat, set_system_prompt, set_user_prompt, store_llm
     assert set_user_prompt.mock_calls == calls
     calls = [call([["theContent1"], ["theContent2"]], None)]
     assert store_llm_turns.mock_calls == calls
+    calls = [call()]
+    assert reset_prompts.mock_calls == calls
     assert memory_log.mock_calls == []
     reset_mocks()
     # -- no instruction, one schema
@@ -402,6 +406,8 @@ def test_single_conversation(chat, set_system_prompt, set_user_prompt, store_llm
     assert set_user_prompt.mock_calls == calls
     calls = [call(["theContent"], None)]
     assert store_llm_turns.mock_calls == calls
+    calls = [call()]
+    assert reset_prompts.mock_calls == calls
     assert memory_log.mock_calls == []
     reset_mocks()
 
@@ -427,6 +433,8 @@ def test_single_conversation(chat, set_system_prompt, set_user_prompt, store_llm
         assert set_user_prompt.mock_calls == calls
         calls = [call(["theContent1"], instruction)]
         assert store_llm_turns.mock_calls == calls
+        calls = [call()]
+        assert reset_prompts.mock_calls == calls
         assert memory_log.mock_calls == []
         reset_mocks()
 
@@ -442,6 +450,8 @@ def test_single_conversation(chat, set_system_prompt, set_user_prompt, store_llm
     calls = [call(user_prompt)]
     assert set_user_prompt.mock_calls == calls
     assert store_llm_turns.mock_calls == []
+    calls = [call()]
+    assert reset_prompts.mock_calls == calls
     assert memory_log.mock_calls == []
     reset_mocks()
 

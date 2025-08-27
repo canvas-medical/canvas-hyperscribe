@@ -91,20 +91,86 @@ class LabOrder(Base):
 
     def command_parameters(self) -> dict:
         return {
-            "labOrders": [
-                {"labOrderKeywords": "comma separated keywords of up to 5 synonyms of each lab test to order"},
-            ],
-            "conditions": [
-                {
-                    "conditionKeywords": "comma separated keywords of up to 5 synonyms of each condition "
-                    "targeted by the lab tests",
-                    "ICD10": "comma separated keywords of up to 5 ICD-10 codes of each condition targeted "
-                    "by the lab test",
-                },
-            ],
+            "labOrders": [],
+            "conditions": [],
             "fastingRequired": "mandatory, True or False, as boolean",
             "comment": "rationale of the prescription, as free text limited to 128 characters",
         }
+
+    @classmethod
+    def command_parameters_schemas(cls) -> list[dict]:
+        return [
+            {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 1,
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "labOrders": {
+                            "type": "array",
+                            "minItems": 1,
+                            "description": "List of each requested lab order.",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "labOrderName": {
+                                        "type": "string",
+                                        "description": "the common name of the requested lab test.",
+                                    },
+                                    "labOrderKeywords": {
+                                        "type": "string",
+                                        "description": "Comma-separated keywords to find the specific lab test in a "
+                                        "database (using OR criteria), it is better to provide "
+                                        "more specific keywords rather than few broad ones.",
+                                    },
+                                },
+                                "required": ["labOrderName", "labOrderKeywords"],
+                                "additionalProperties": False,
+                            },
+                        },
+                        "conditions": {
+                            "type": "array",
+                            "minItems": 0,
+                            "description": "List of conditions explicitly mentioned as related to the lab orders."
+                            "The list has to be empty if no condition is provided in the transcript.",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "conditionName": {
+                                        "type": "string",
+                                        "description": "the common name of the condition targeted by the lab tests.",
+                                    },
+                                    "conditionKeywords": {
+                                        "type": "string",
+                                        "description": "Comma-separated keywords to find in a database "
+                                        "(using OR criteria) the condition targeted by the lab tests.",
+                                    },
+                                    "ICD10": {
+                                        "type": "string",
+                                        "description": "Comma-separated ICD-10 codes (up to 5) for the condition",
+                                    },
+                                },
+                                "required": ["conditionKeywords", "ICD10"],
+                                "additionalProperties": False,
+                            },
+                        },
+                        "fastingRequired": {
+                            "type": "boolean",
+                            "description": "Whether fasting is required prior to the lab test",
+                        },
+                        "comment": {
+                            "type": "string",
+                            "description": "Rationale for the prescription as explicitly explained in the transcript",
+                            "maxLength": 128,
+                        },
+                    },
+                    "required": ["labOrders", "conditions", "fastingRequired", "comment"],
+                    "additionalProperties": False,
+                },
+            }
+        ]
 
     def instruction_description(self) -> str:
         return (

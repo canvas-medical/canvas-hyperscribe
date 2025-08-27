@@ -1,6 +1,8 @@
 from datetime import datetime, timezone
 from unittest.mock import patch, MagicMock, call
 
+import pytest
+
 from hyperscribe.commands.base_questionnaire import BaseQuestionnaire
 from hyperscribe.libraries.audio_interpreter import AudioInterpreter
 from hyperscribe.libraries.helper import Helper
@@ -98,11 +100,11 @@ def test___init__(command_list):
     mocks[2].return_value.is_available.side_effect = [False]
     mocks[3].return_value.is_available.side_effect = [True]
     mocks[4].return_value.is_available.side_effect = [True]
-    mocks[0].return_value.class_name.side_effect = ["CommandA"]
-    mocks[1].return_value.class_name.side_effect = ["CommandB"]
-    mocks[2].return_value.class_name.side_effect = ["CommandC"]
-    mocks[3].return_value.class_name.side_effect = ["CommandD"]
-    mocks[4].return_value.class_name.side_effect = ["CommandE"]
+    mocks[0].return_value.class_name.side_effect = ["CommandA", "CommandA"]
+    mocks[1].return_value.class_name.side_effect = ["CommandB", "CommandB"]
+    mocks[2].return_value.class_name.side_effect = ["CommandC", "CommandC"]
+    mocks[3].return_value.class_name.side_effect = ["CommandD", "CommandD"]
+    mocks[4].return_value.class_name.side_effect = ["CommandE", "CommandE"]
     command_list.side_effect = [mocks]
 
     cache = LimitedCache("patientUuid", "providerUuid", {})
@@ -119,8 +121,15 @@ def test___init__(command_list):
 
     calls = [call()]
     assert command_list.mock_calls == calls
-    for mock in mocks:
-        calls = [call(settings, cache, identification), call().__bool__(), call().class_name(), call().is_available()]
+    for idx, mock in enumerate(mocks):
+        calls = [
+            call(settings, cache, identification),
+            call().__bool__(),
+            call().class_name(),
+            call().is_available(),
+        ]
+        if idx != 2:
+            calls.append(call().class_name())
         assert mock.mock_calls == calls
     reset_mocks()
 
@@ -248,74 +257,44 @@ def test_instruction_constraints():
         reset_mocks()
 
 
-def test_command_structures():
+@patch.object(ImplementedCommands, "questionnaire_command_name_list")
+def test_command_structures(questionnaire_command_name_list):
     mocks = [MagicMock(), MagicMock(), MagicMock(), MagicMock(), MagicMock()]
 
     def reset_mocks():
+        questionnaire_command_name_list.reset_mock()
         for item in mocks:
             item.reset_mock()
 
     tests = [
-        ("AdjustPrescription", True),
-        ("Allergy", True),
-        ("Assess", True),
-        ("CloseGoal", True),
-        ("Diagnose", True),
-        ("FamilyHistory", True),
-        ("FollowUp", True),
-        ("Goal", True),
-        ("HistoryOfPresentIllness", True),
-        ("ImagingOrder", True),
-        ("Immunize", True),
-        ("Instruct", True),
-        ("LabOrder", True),
-        ("MedicalHistory", True),
-        ("Medication", True),
-        ("Perform", True),
-        ("PhysicalExam", False),
-        ("Plan", True),
-        ("Prescription", True),
-        ("Questionnaire", False),
-        ("ReasonForVisit", True),
-        ("Refer", True),
-        ("Refill", True),
-        ("RemoveAllergy", True),
-        ("ResolveCondition", True),
-        ("ReviewOfSystem", False),
-        ("StopMedication", True),
-        ("StructuredAssessment", False),
-        ("SurgeryHistory", True),
-        ("Task", True),
-        ("UpdateDiagnose", True),
-        ("UpdateGoal", True),
-        ("Vitals", True),
+        ("Second", "Second is a questionnaire", None, None),
+        ("Sixth", "Sixth is not a known command", None, None),
+        ("First", None, "Parameters1", 0),
+        ("Fourth", None, "Parameters4", 3),
     ]
-    for class_name, expected_present in tests:
-        mocks[0].return_value.class_name.side_effect = [class_name, class_name, class_name]
-        mocks[1].return_value.class_name.side_effect = ["Second", "Second", "Second"]
-        mocks[2].return_value.class_name.side_effect = ["Third", "Third", "Third"]
-        mocks[3].return_value.class_name.side_effect = ["Fourth", "Fourth", "Fourth"]
-        mocks[4].return_value.class_name.side_effect = ["Fifth", "Fifth", "Fifth"]
+    for class_name, exp_error, expected, rank in tests:
+        mocks[0].return_value.class_name.side_effect = ["First", "First"]
+        mocks[1].return_value.class_name.side_effect = ["Second", "Second"]
+        mocks[2].return_value.class_name.side_effect = ["Third", "Third"]
+        mocks[3].return_value.class_name.side_effect = ["Fourth", "Fourth"]
+        mocks[4].return_value.class_name.side_effect = ["Fifth", "Fifth"]
         mocks[0].return_value.command_parameters.side_effect = ["Parameters1"]
         mocks[1].return_value.command_parameters.side_effect = ["Parameters2"]
         mocks[2].return_value.command_parameters.side_effect = ["Parameters3"]
         mocks[3].return_value.command_parameters.side_effect = ["Parameters4"]
         mocks[4].return_value.command_parameters.side_effect = ["Parameters5"]
+        questionnaire_command_name_list.side_effect = ["Second", "Fifth"]
 
         tested, settings, aws_credentials, cache = helper_instance(mocks, True)
-        result = tested.command_structures()
-        expected = {
-            "Fifth": "Parameters5",
-            "Fourth": "Parameters4",
-            "Second": "Parameters2",
-        }
-        absent_idx = [2]
-        if expected_present:
-            expected[class_name] = "Parameters1"
+        if exp_error:
+            with pytest.raises(ValueError, match=exp_error):
+                tested.command_structures(class_name)
         else:
-            absent_idx.append(0)
+            result = tested.command_structures(class_name)
+            assert result == expected
 
-        assert result == expected
+        calls = [call()]
+        assert questionnaire_command_name_list.mock_calls == calls
         for idx, mock in enumerate(mocks):
             calls = [
                 call(settings, cache, tested.identification),
@@ -325,8 +304,61 @@ def test_command_structures():
             ]
             if idx != 2:
                 calls.append(call().class_name())
-            if idx not in absent_idx:
-                calls.extend([call().class_name(), call().command_parameters()])
+            if idx == rank:
+                calls.append(call().command_parameters())
+            assert mock.mock_calls == calls, f"---> {idx}"
+        reset_mocks()
+
+
+@patch.object(ImplementedCommands, "questionnaire_command_name_list")
+def test_command_schema(questionnaire_command_name_list):
+    mocks = [MagicMock(), MagicMock(), MagicMock(), MagicMock(), MagicMock()]
+
+    def reset_mocks():
+        questionnaire_command_name_list.reset_mock()
+        for item in mocks:
+            item.reset_mock()
+
+    tests = [
+        ("Second", "Second is a questionnaire", None, None),
+        ("Sixth", "Sixth is not a known command", None, None),
+        ("First", None, "Parameters1", 0),
+        ("Fourth", None, "Parameters4", 3),
+    ]
+    for class_name, exp_error, expected, rank in tests:
+        mocks[0].return_value.class_name.side_effect = ["First", "First"]
+        mocks[1].return_value.class_name.side_effect = ["Second", "Second"]
+        mocks[2].return_value.class_name.side_effect = ["Third", "Third"]
+        mocks[3].return_value.class_name.side_effect = ["Fourth", "Fourth"]
+        mocks[4].return_value.class_name.side_effect = ["Fifth", "Fifth"]
+        mocks[0].return_value.command_parameters_schemas.side_effect = ["Parameters1"]
+        mocks[1].return_value.command_parameters_schemas.side_effect = ["Parameters2"]
+        mocks[2].return_value.command_parameters_schemas.side_effect = ["Parameters3"]
+        mocks[3].return_value.command_parameters_schemas.side_effect = ["Parameters4"]
+        mocks[4].return_value.command_parameters_schemas.side_effect = ["Parameters5"]
+        questionnaire_command_name_list.side_effect = ["Second", "Fifth"]
+
+        tested, settings, aws_credentials, cache = helper_instance(mocks, True)
+        if exp_error:
+            with pytest.raises(ValueError, match=exp_error):
+                tested.command_schema(class_name)
+        else:
+            result = tested.command_schema(class_name)
+            assert result == expected
+
+        calls = [call()]
+        assert questionnaire_command_name_list.mock_calls == calls
+        for idx, mock in enumerate(mocks):
+            calls = [
+                call(settings, cache, tested.identification),
+                call().__bool__(),
+                call().class_name(),
+                call().is_available(),
+            ]
+            if idx != 2:
+                calls.append(call().class_name())
+            if idx == rank:
+                calls.append(call().command_parameters_schemas())
             assert mock.mock_calls == calls, f"---> {idx}"
         reset_mocks()
 
@@ -932,10 +964,21 @@ def test_detect_instructions(common_instructions, json_schema, instruction_const
             call().__bool__(),
             call().class_name(),
             call().is_available(),
-            call.class_name(),
-            call.class_name(),
-            call.instruction_description(),
         ]
+        if idx != 2:
+            calls.extend(
+                [
+                    call().class_name(),
+                    call().class_name().__hash__(),
+                ]
+            )
+        calls.extend(
+            [
+                call.class_name(),
+                call.class_name(),
+                call.instruction_description(),
+            ]
+        )
         assert mock.mock_calls == calls, f"---> {idx}"
     reset_mocks()
 
@@ -1132,26 +1175,23 @@ def test_detect_instructions(common_instructions, json_schema, instruction_const
 @patch("hyperscribe.libraries.audio_interpreter.Progress")
 @patch("hyperscribe.libraries.audio_interpreter.MemoryLog")
 @patch.object(Helper, "chatter")
-def test_create_sdk_command_parameters(chatter, memory_log, progress, mock_datetime):
-    mocks = [MagicMock(), MagicMock(), MagicMock(), MagicMock(), MagicMock()]
-
+@patch.object(AudioInterpreter, "command_schema")
+@patch.object(AudioInterpreter, "command_structures")
+def test_create_sdk_command_parameters(
+    command_structures,
+    command_schema,
+    chatter,
+    memory_log,
+    progress,
+    mock_datetime,
+):
     def reset_mocks():
+        command_structures.reset_mock()
+        command_schema.reset_mock()
         chatter.reset_mock()
         memory_log.reset_mock()
         progress.reset_mock()
         mock_datetime.reset_mock()
-        for item in mocks:
-            item.reset_mock()
-        mocks[0].return_value.class_name.side_effect = ["First", "First", "First"]
-        mocks[1].return_value.class_name.side_effect = ["Second", "Second", "Second"]
-        mocks[2].return_value.class_name.side_effect = ["Third", "Third", "Third"]
-        mocks[3].return_value.class_name.side_effect = ["Fourth", "Fourth", "Fourth"]
-        mocks[4].return_value.class_name.side_effect = ["Fifth", "Fifth", "Fifth"]
-        mocks[0].return_value.command_parameters.side_effect = [{"Command": "Parameters1"}]
-        mocks[1].return_value.command_parameters.side_effect = [{"Command": "Parameters2"}]
-        mocks[2].return_value.command_parameters.side_effect = [{"Command": "Parameters3"}]
-        mocks[3].return_value.command_parameters.side_effect = [{"Command": "Parameters4"}]
-        mocks[4].return_value.command_parameters.side_effect = [{"Command": "Parameters5"}]
 
     instruction = Instruction(
         uuid="theUuid",
@@ -1164,28 +1204,58 @@ def test_create_sdk_command_parameters(chatter, memory_log, progress, mock_datet
     system_prompt = [
         "The conversation is in the context of a clinical encounter between patient and licensed healthcare provider.",
         "During the encounter, the user has identified instructions with key information to record in its software.",
-        "The user will submit an instruction and the linked information grounded in the transcript, as well as the "
-        "structure of the associated command.",
+        "The user will submit an instruction and the linked information grounded in the transcript, as well "
+        "as the structure of the associated command.",
         "Your task is to help the user by writing correctly detailed data for the structured command.",
-        "Unless explicitly instructed otherwise for a specific command, you must not make up or refer to any details "
-        "of any kind that are not explicitly present in the transcript or prior instructions.",
+        "Unless explicitly instructed otherwise by the user for a specific command, "
+        "you must restrict your response to information explicitly present in the transcript "
+        "or prior instructions.",
         "",
         "Your response has to be a JSON Markdown block encapsulating the filled structure.",
         "",
-        f"Please, note that now is 2025-02-04T07:48:21+00:00.",
+        "Please, note that now is 2025-02-04T07:48:21+00:00.",
     ]
-    user_prompt = [
-        "Based on the text:",
-        "```text",
-        "theInformation",
-        "```",
-        "",
-        "Your task is to replace the values of the JSON object with the relevant information:",
-        "```json",
-        '[\n {\n  "Command": "Parameters2"\n }\n]',
-        "```",
-        "",
-    ]
+    user_prompts = {
+        "commandWithSchema": [
+            "Based on the text:",
+            "```text",
+            "theInformation",
+            "```",
+            "",
+            "Your task is to replace the values of the JSON object with the relevant information:",
+            "```json",
+            '[\n "theStructure"\n]',
+            "```",
+            "",
+            "Your response must be a JSON Markdown block validated with the schema:",
+            "```json",
+            '[\n "theSchema"\n]',
+            "```",
+            "",
+        ],
+        "commandNoSchema": [
+            "Based on the text:",
+            "```text",
+            "theInformation",
+            "```",
+            "",
+            "Your task is to replace the values of the JSON object with the relevant information:",
+            "```json",
+            '[\n "theStructure"\n]',
+            "```",
+            "",
+            "Your response must be a JSON Markdown block validated with the schema:",
+            "```json",
+            "[\n {\n  "
+            '"$schema": "http://json-schema.org/draft-07/schema#",\n  '
+            '"type": "array",\n  '
+            '"items": {\n   '
+            '"type": "object",\n   '
+            '"additionalProperties": true\n  }\n }\n]',
+            "```",
+            "",
+        ],
+    }
     schemas = [
         {
             "$schema": "http://json-schema.org/draft-07/schema#",
@@ -1195,8 +1265,11 @@ def test_create_sdk_command_parameters(chatter, memory_log, progress, mock_datet
     ]
     reset_mocks()
 
-    tested, settings, aws_credentials, cache = helper_instance(mocks, True)
+    tested, settings, aws_credentials, cache = helper_instance([], True)
     # with response
+    # -- with schema
+    command_structures.side_effect = ["theStructure"]
+    command_schema.side_effect = [["theSchema"]]
     mock_datetime.now.side_effect = [datetime(2025, 2, 4, 7, 48, 21, tzinfo=timezone.utc)]
     chatter.return_value.single_conversation.side_effect = [[{"key": "response1"}, {"key": "response2"}]]
     result = tested.create_sdk_command_parameters(instruction)
@@ -1210,9 +1283,13 @@ def test_create_sdk_command_parameters(chatter, memory_log, progress, mock_datet
         parameters={"key": "response1"},
     )
     assert result == expected
+
+    calls = [call("Second")]
+    assert command_structures.mock_calls == calls
+    assert command_schema.mock_calls == calls
     calls = [
         call(settings, memory_log.instance.return_value),
-        call().single_conversation(system_prompt, user_prompt, schemas, instruction),
+        call().single_conversation(system_prompt, user_prompts["commandWithSchema"], ["theSchema"], instruction),
     ]
     assert chatter.mock_calls == calls
     calls = [call.instance(tested.identification, "Second_theUuid_instruction2parameters", aws_credentials)]
@@ -1227,25 +1304,61 @@ def test_create_sdk_command_parameters(chatter, memory_log, progress, mock_datet
     assert progress.mock_calls == calls
     calls = [call.now()]
     assert mock_datetime.mock_calls == calls
-    for idx, mock in enumerate(mocks):
-        calls = [
-            call(settings, cache, tested.identification),
-            call().__bool__(),
-            call().class_name(),
-            call().is_available(),
-        ]
-        if idx != 2:
-            calls.extend([call().class_name(), call().class_name(), call().command_parameters()])
-        assert mock.mock_calls == calls, f"---> {idx}"
     reset_mocks()
+    # -- with NO schema
+    command_structures.side_effect = ["theStructure"]
+    command_schema.side_effect = [[]]
+    mock_datetime.now.side_effect = [datetime(2025, 2, 4, 7, 48, 21, tzinfo=timezone.utc)]
+    chatter.return_value.single_conversation.side_effect = [[{"key": "response1"}, {"key": "response2"}]]
+    result = tested.create_sdk_command_parameters(instruction)
+    expected = InstructionWithParameters(
+        uuid="theUuid",
+        index=3,
+        instruction="Second",
+        information="theInformation",
+        is_new=False,
+        is_updated=True,
+        parameters={"key": "response1"},
+    )
+    assert result == expected
+
+    calls = [call("Second")]
+    assert command_structures.mock_calls == calls
+    assert command_schema.mock_calls == calls
+    calls = [
+        call(settings, memory_log.instance.return_value),
+        call().single_conversation(system_prompt, user_prompts["commandNoSchema"], schemas, instruction),
+    ]
+    assert chatter.mock_calls == calls
+    calls = [call.instance(tested.identification, "Second_theUuid_instruction2parameters", aws_credentials)]
+    assert memory_log.mock_calls == calls
+    calls = [
+        call.send_to_user(
+            tested.identification,
+            settings,
+            [ProgressMessage(message="parameters identified for Second", section="events:4")],
+        )
+    ]
+    assert progress.mock_calls == calls
+    calls = [call.now()]
+    assert mock_datetime.mock_calls == calls
+    reset_mocks()
+
     # without response
+    command_structures.side_effect = ["theStructure"]
+    command_schema.side_effect = [["theSchema"]]
+
     mock_datetime.now.side_effect = [datetime(2025, 2, 4, 7, 48, 21, tzinfo=timezone.utc)]
     chatter.return_value.single_conversation.side_effect = [[]]
     result = tested.create_sdk_command_parameters(instruction)
     assert result is None
+
+    calls = [call("Second")]
+    assert command_structures.mock_calls == calls
+    assert command_schema.mock_calls == calls
     calls = [
         call(settings, memory_log.instance.return_value),
-        call().single_conversation(system_prompt, user_prompt, schemas, instruction),
+        call().single_conversation(system_prompt, user_prompts["commandWithSchema"], ["theSchema"], instruction),
     ]
     assert chatter.mock_calls == calls
     calls = [call.instance(tested.identification, "Second_theUuid_instruction2parameters", aws_credentials)]
@@ -1254,11 +1367,6 @@ def test_create_sdk_command_parameters(chatter, memory_log, progress, mock_datet
     assert progress.mock_calls == calls
     calls = [call.now()]
     assert mock_datetime.mock_calls == calls
-    for idx, mock in enumerate(mocks):
-        calls = []
-        if idx != 2:
-            calls.extend([call().class_name(), call().class_name(), call().command_parameters()])
-        assert mock.mock_calls == calls, f"---> {idx}"
     reset_mocks()
 
 
@@ -1355,7 +1463,7 @@ def test_create_sdk_command_from(chatter, memory_log, progress):
                 call().class_name(),
                 call().is_available(),
             ]
-            if idx < rank + 1 and idx != 2:
+            if idx != 2:
                 calls.extend([call().class_name()])
             if idx == rank and idx != 2:
                 calls.extend([call().command_from_json_with_summary(instruction, "LlmBaseInstance")])
@@ -1449,7 +1557,7 @@ def test_update_questionnaire(chatter, memory_log):
                 call().class_name(),
                 call().is_available(),
             ]
-            if idx < rank + 1 and idx != 2:
+            if idx != 2:
                 calls.extend([call().class_name()])
             if idx == rank and idx != 2:
                 if idx != 2:

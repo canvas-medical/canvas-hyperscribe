@@ -34,35 +34,42 @@ class AudioInterpreter:
         self.settings = settings
         self.s3_credentials = s3_credentials
         self.identification = identification
-        self._command_context = [
-            instance
+        self._command_context = {
+            instance.class_name(): instance
             for command_class in ImplementedCommands.command_list()
             if (instance := command_class(settings, cache, identification))
             and self.settings.commands_policy.is_allowed(instance.class_name())
             and instance.is_available()
-        ]
+        }
 
     def common_instructions(self) -> list[Base]:
         return [
             instance
-            for instance in self._command_context
-            if instance.class_name() not in ImplementedCommands.questionnaire_command_name_list()
+            for class_name, instance in self._command_context.items()
+            if class_name not in ImplementedCommands.questionnaire_command_name_list()
         ]
 
     def instruction_constraints(self, instructions: list[Instruction]) -> list[str]:
         result: list[str] = []
         names = [i.instruction for i in instructions]
-        for instance in self._command_context:
-            if instance.class_name() in names and (constraint := instance.instruction_constraints()):
+        for class_name, instance in self._command_context.items():
+            if class_name in names and (constraint := instance.instruction_constraints()):
                 result.append(constraint)
         return result
 
-    def command_structures(self) -> dict:
-        return {
-            instance.class_name(): instance.command_parameters()
-            for instance in self._command_context
-            if instance.class_name() not in ImplementedCommands.questionnaire_command_name_list()
-        }
+    def command_structures(self, class_name: str) -> dict:
+        if class_name in ImplementedCommands.questionnaire_command_name_list():
+            raise ValueError(f"{class_name} is a questionnaire")
+        if class_name not in self._command_context:
+            raise ValueError(f"{class_name} is not a known command")
+        return self._command_context[class_name].command_parameters()
+
+    def command_schema(self, class_name: str) -> list[dict]:
+        if class_name in ImplementedCommands.questionnaire_command_name_list():
+            raise ValueError(f"{class_name} is a questionnaire")
+        if class_name not in self._command_context:
+            raise ValueError(f"{class_name} is not a known command")
+        return self._command_context[class_name].command_parameters_schemas()
 
     def combine_and_speaker_detection(self, audio_chunks: list[bytes], transcript_tail: list[Line]) -> JsonExtract:
         memory_log = MemoryLog.instance(self.identification, "audio2transcript", self.s3_credentials)
@@ -312,7 +319,10 @@ class AudioInterpreter:
     def create_sdk_command_parameters(self, instruction: Instruction) -> InstructionWithParameters | None:
         result: InstructionWithParameters | None = None
 
-        structures = self.command_structures()
+        structures = [self.command_structures(instruction.instruction)]
+        schemas = self.command_schema(instruction.instruction)
+        if not schemas:
+            schemas = JsonSchema.get(["generic_parameters"])
 
         system_prompt = [
             "The conversation is in the context of a clinical encounter between patient and licensed "
@@ -322,8 +332,9 @@ class AudioInterpreter:
             "The user will submit an instruction and the linked information grounded in the transcript, as well "
             "as the structure of the associated command.",
             "Your task is to help the user by writing correctly detailed data for the structured command.",
-            "Unless explicitly instructed otherwise for a specific command, you must not make up or refer to "
-            "any details of any kind that are not explicitly present in the transcript or prior instructions.",
+            "Unless explicitly instructed otherwise by the user for a specific command, "
+            "you must restrict your response to information explicitly present in the transcript "
+            "or prior instructions.",
             "",
             "Your response has to be a JSON Markdown block encapsulating the filled structure.",
             "",
@@ -337,14 +348,18 @@ class AudioInterpreter:
             "",
             "Your task is to replace the values of the JSON object with the relevant information:",
             "```json",
-            json.dumps([structures[instruction.instruction]], indent=1),
+            json.dumps(structures, indent=1),
+            "```",
+            "",
+            "Your response must be a JSON Markdown block validated with the schema:",
+            "```json",
+            json.dumps(schemas, indent=1),
             "```",
             "",
         ]
         log_label = f"{instruction.instruction}_{instruction.uuid}_instruction2parameters"
         memory_log = MemoryLog.instance(self.identification, log_label, self.s3_credentials)
         chatter = Helper.chatter(self.settings, memory_log)
-        schemas = JsonSchema.get(["generic_parameters"])
         response = chatter.single_conversation(system_prompt, user_prompt, schemas, instruction)
         if response:
             result = InstructionWithParameters.add_parameters(instruction, response[0])
@@ -359,8 +374,8 @@ class AudioInterpreter:
         return result
 
     def create_sdk_command_from(self, direction: InstructionWithParameters) -> InstructionWithCommand | None:
-        for instance in self._command_context:
-            if direction.instruction == instance.class_name():
+        for class_name, instance in self._command_context.items():
+            if direction.instruction == class_name:
                 log_label = f"{direction.instruction}_{direction.uuid}_parameters2command"
                 memory_log = MemoryLog.instance(self.identification, log_label, self.s3_credentials)
                 chatter = Helper.chatter(self.settings, memory_log)
@@ -383,8 +398,8 @@ class AudioInterpreter:
         return None
 
     def update_questionnaire(self, discussion: list[Line], direction: Instruction) -> InstructionWithCommand | None:
-        for instance in self._command_context:
-            if direction.instruction == instance.class_name():
+        for class_name, instance in self._command_context.items():
+            if direction.instruction == class_name:
                 assert isinstance(instance, BaseQuestionnaire)
                 log_label = f"{direction.instruction}_{direction.uuid}_questionnaire_update"
                 chatter = Helper.chatter(
