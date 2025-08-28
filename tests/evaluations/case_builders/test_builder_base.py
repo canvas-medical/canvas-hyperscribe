@@ -5,12 +5,13 @@ from unittest.mock import patch, call, MagicMock
 
 import pytest
 from canvas_generated.messages.effects_pb2 import Effect
-from canvas_sdk.v1.data import Patient, Command
+from canvas_sdk.test_utils import factories
+from canvas_sdk.v1.data import Command
 
 from evaluations.case_builders.builder_base import BuilderBase
 from evaluations.datastores.datastore_case import DatastoreCase
-from hyperscribe.libraries.commander import Commander
 from hyperscribe.libraries.cached_sdk import CachedSdk
+from hyperscribe.libraries.commander import Commander
 from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.identification_parameters import IdentificationParameters
@@ -33,33 +34,20 @@ def test_validate_files():
             assert result == exp_path
 
 
-@patch.object(Patient, "objects")
-def test_validate_patient(patient_db):
-    def reset_mocks():
-        patient_db.reset_mock()
-
+def test_validate_patient():
     tested = BuilderBase
 
     # patient not found
-    patient_db.filter.side_effect = [[]]
     with pytest.raises(Exception) as e:
         _ = tested.validate_patient("patientUuid")
     expected = "'patientUuid' is not a valid patient uuid"
     assert str(e.value) == expected
 
-    calls = [call.filter(id="patientUuid")]
-    assert patient_db.mock_calls == calls
-    reset_mocks()
-
     # patient is found
-    patient_db.filter.side_effect = [[Patient(id="patientUuid")]]
-    result = tested.validate_patient("patientUuid")
-    expected = "patientUuid"
+    patient = factories.PatientFactory()
+    result = tested.validate_patient(patient.id)
+    expected = patient.id
     assert result == expected
-
-    calls = [call.filter(id="patientUuid")]
-    assert patient_db.mock_calls == calls
-    reset_mocks()
 
 
 def test__parameters():

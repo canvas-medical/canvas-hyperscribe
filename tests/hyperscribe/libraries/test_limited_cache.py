@@ -5,6 +5,7 @@ from unittest.mock import patch, call, MagicMock
 from uuid import uuid5, NAMESPACE_DNS
 
 from canvas_sdk.commands.constants import CodeSystems
+from canvas_sdk.test_utils import factories
 from canvas_sdk.v1.data import (
     ChargeDescriptionMaster,
     Command,
@@ -14,7 +15,6 @@ from canvas_sdk.v1.data import (
     Medication,
     AllergyIntolerance,
     AllergyIntoleranceCoding,
-    Patient,
     Observation,
     NoteType,
     ReasonForVisitSettingCoding,
@@ -830,10 +830,8 @@ def test_existing_task_labels(task_label_db):
 
 @patch("hyperscribe.libraries.limited_cache.date")
 @patch.object(Observation, "objects")
-@patch.object(Patient, "objects")
-def test_demographic__str__(patient_db, observation_db, mock_date):
+def test_demographic__str__(observation_db, mock_date):
     def reset_mocks():
-        patient_db.reset_mock()
         observation_db.reset_mock()
         mock_date.reset_mock()
 
@@ -903,19 +901,17 @@ def test_demographic__str__(patient_db, observation_db, mock_date):
     ]
 
     for sex_at_birth, birth_date, obfuscate, expected in tests:
-        patient_db.get.side_effect = [Patient(sex_at_birth=sex_at_birth, birth_date=birth_date)]
+        patient = factories.PatientFactory(sex_at_birth=sex_at_birth, birth_date=birth_date)
         observation_db.for_patient.return_value.filter.return_value.order_by.return_value.first.side_effect = [
             Observation(units="oz", value="1990"),
         ]
-        tested = LimitedCache("patientUuid", "providerUuid", {})
+        tested = LimitedCache(patient.id, "providerUuid", {})
 
         result = tested.demographic__str__(obfuscate)
         assert result == expected, f" ---> {sex_at_birth} - {birth_date}"
         assert tested._demographic == expected
-        calls = [call.get(id="patientUuid")]
-        assert patient_db.mock_calls == calls
         calls = [
-            call.for_patient("patientUuid"),
+            call.for_patient(patient.id),
             call.for_patient().filter(name="weight", category="vital-signs"),
             call.for_patient().filter().order_by("-effective_datetime"),
             call.for_patient().filter().order_by().first(),
@@ -928,23 +924,20 @@ def test_demographic__str__(patient_db, observation_db, mock_date):
         result = tested.demographic__str__(obfuscate)
         assert result == expected, f" ---> {sex_at_birth} - {birth_date}"
         assert tested._demographic == expected
-        assert patient_db.mock_calls == []
         assert observation_db.mock_calls == []
         assert mock_date.mock_calls == []
         reset_mocks()
 
     # no weight
-    patient_db.get.side_effect = [Patient(sex_at_birth="F", birth_date=date(2000, 2, 7))]
+    patient = factories.PatientFactory(sex_at_birth="F", birth_date=date(2000, 2, 7))
     observation_db.for_patient.return_value.filter.return_value.order_by.return_value.first.side_effect = [None]
-    tested = LimitedCache("patientUuid", "providerUuid", {})
+    tested = LimitedCache(patient.id, "providerUuid", {})
     result = tested.demographic__str__(False)
     expected = "the patient is a woman, born on February 07, 2000 (age 24)"
     assert result == expected
     assert tested._demographic == expected
-    calls = [call.get(id="patientUuid")]
-    assert patient_db.mock_calls == calls
     calls = [
-        call.for_patient("patientUuid"),
+        call.for_patient(patient.id),
         call.for_patient().filter(name="weight", category="vital-signs"),
         call.for_patient().filter().order_by("-effective_datetime"),
         call.for_patient().filter().order_by().first(),
@@ -955,19 +948,17 @@ def test_demographic__str__(patient_db, observation_db, mock_date):
     reset_mocks()
 
     # weight as pounds
-    patient_db.get.side_effect = [Patient(sex_at_birth="F", birth_date=date(2000, 2, 7))]
+    patient = factories.PatientFactory(sex_at_birth="F", birth_date=date(2000, 2, 7))
     observation_db.for_patient.return_value.filter.return_value.order_by.return_value.first.side_effect = [
         Observation(units="any", value="125"),
     ]
-    tested = LimitedCache("patientUuid", "providerUuid", {})
+    tested = LimitedCache(patient.id, "providerUuid", {})
     result = tested.demographic__str__(False)
     expected = "the patient is a woman, born on February 07, 2000 (age 24) and weight 125.00 pounds"
     assert result == expected
     assert tested._demographic == expected
-    calls = [call.get(id="patientUuid")]
-    assert patient_db.mock_calls == calls
     calls = [
-        call.for_patient("patientUuid"),
+        call.for_patient(patient.id),
         call.for_patient().filter(name="weight", category="vital-signs"),
         call.for_patient().filter().order_by("-effective_datetime"),
         call.for_patient().filter().order_by().first(),
