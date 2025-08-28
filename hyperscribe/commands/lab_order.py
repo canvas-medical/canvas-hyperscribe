@@ -97,8 +97,7 @@ class LabOrder(Base):
             "comment": "rationale of the prescription, as free text limited to 128 characters",
         }
 
-    @classmethod
-    def command_parameters_schemas(cls) -> list[dict]:
+    def command_parameters_schemas(self) -> list[dict]:
         return [
             {
                 "$schema": "https://json-schema.org/draft/2020-12/schema",

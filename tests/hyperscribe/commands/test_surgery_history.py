@@ -240,7 +240,9 @@ def test_command_parameters():
 def test_instruction_description():
     tested = helper_instance()
     result = tested.instruction_description()
-    expected = "Any past surgery. There can be only one surgery per instruction, and no instruction in the lack of."
+    expected = (
+        "Any past surgery. There can be one and only one surgery per instruction, and no instruction in the lack of."
+    )
     assert result == expected
 
 

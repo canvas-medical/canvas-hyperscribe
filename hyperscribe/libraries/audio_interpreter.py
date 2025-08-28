@@ -353,7 +353,7 @@ class AudioInterpreter:
             "",
             "Your response must be a JSON Markdown block validated with the schema:",
             "```json",
-            json.dumps(schemas, indent=1),
+            json.dumps(schemas[0], indent=1),
             "```",
             "",
         ]

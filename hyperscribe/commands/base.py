@@ -117,8 +117,7 @@ class Base:
     def command_parameters(self) -> dict:
         raise NotImplementedError
 
-    @classmethod
-    def command_parameters_schemas(cls) -> list[dict]:
+    def command_parameters_schemas(self) -> list[dict]:
         return []
 
     def instruction_description(self) -> str:

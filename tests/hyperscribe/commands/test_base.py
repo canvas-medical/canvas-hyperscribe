@@ -277,7 +277,7 @@ def test_command_parameters():
 
 
 def test_command_parameters_schema():
-    tested = Base
+    tested = helper_instance()
     result = tested.command_parameters_schemas()
     expected = "d751713988987e9331980363e24189ce"
     assert md5(json.dumps(result).encode()).hexdigest() == expected

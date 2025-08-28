@@ -1229,7 +1229,7 @@ def test_create_sdk_command_parameters(
             "",
             "Your response must be a JSON Markdown block validated with the schema:",
             "```json",
-            '[\n "theSchema"\n]',
+            '"theSchema"',
             "```",
             "",
         ],
@@ -1246,12 +1246,10 @@ def test_create_sdk_command_parameters(
             "",
             "Your response must be a JSON Markdown block validated with the schema:",
             "```json",
-            "[\n {\n  "
-            '"$schema": "http://json-schema.org/draft-07/schema#",\n  '
-            '"type": "array",\n  '
-            '"items": {\n   '
-            '"type": "object",\n   '
-            '"additionalProperties": true\n  }\n }\n]',
+            "{\n "
+            '"$schema": "http://json-schema.org/draft-07/schema#",\n '
+            '"type": "array",\n '
+            '"items": {\n  "type": "object",\n  "additionalProperties": true\n }\n}',
             "```",
             "",
         ],

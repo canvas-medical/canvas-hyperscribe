@@ -283,7 +283,7 @@ def test_command_parameters():
 
 
 def test_command_parameters_schema():
-    tested = LabOrder
+    tested = helper_instance()
     result = tested.command_parameters_schemas()
     expected = "d3f734d221f79a694ac3ec21f4171052"
     assert md5(json.dumps(result).encode()).hexdigest() == expected

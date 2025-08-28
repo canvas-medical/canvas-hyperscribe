@@ -78,7 +78,10 @@ class SurgeryHistory(Base):
         }
 
     def instruction_description(self) -> str:
-        return "Any past surgery. There can be only one surgery per instruction, and no instruction in the lack of."
+        return (
+            "Any past surgery. There can be one and only one surgery per instruction, "
+            "and no instruction in the lack of."
+        )
 
     def instruction_constraints(self) -> str:
         result = ""

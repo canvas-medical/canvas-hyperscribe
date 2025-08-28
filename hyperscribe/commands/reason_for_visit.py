@@ -28,7 +28,7 @@ class ReasonForVisit(Base):
         chatter: LlmBase,
     ) -> InstructionWithCommand | None:
         result = ReasonForVisitCommand(
-            comment=instruction.parameters["reasonForVisit"],
+            comment=instruction.parameters["comment"],
             note_uuid=self.identification.note_uuid,
         )
         if "reasonForVisitIndex" in instruction.parameters:
@@ -44,34 +44,59 @@ class ReasonForVisit(Base):
         return InstructionWithCommand.add_command(instruction, result)
 
     def command_parameters(self) -> dict:
+        result: dict = {"comment": ""}
         if self.settings.structured_rfv:
-            options = "/".join([r.label for r in self.cache.existing_reason_for_visits()])
-            return {
-                "reasonForVisit": f"one of: {options}",
-                "reasonForVisitIndex": "the index of the reason for visit, as integer",
+            result |= {
+                "reasonForVisit": "",
+                "reasonForVisitIndex": -1,
             }
-        return {"reasonForVisit": "extremely concise description of the reason or impetus for the visit, as free text"}
+        return result
+
+    def command_parameters_schemas(self) -> list[dict]:
+        fields = {}
+        if self.settings.structured_rfv:
+            fields = {
+                "reasonForVisit": {
+                    "type": "string",
+                    "enum": [r.label for r in self.cache.existing_reason_for_visits()],
+                },
+                "reasonForVisitIndex": {
+                    "type": "integer",
+                },
+            }
+
+        return [
+            {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 1,
+                "items": {
+                    "type": "object",
+                    "properties": fields
+                    | {
+                        "comment": {
+                            "type": "string",
+                            "description": "extremely concise description of the reason or "
+                            "impetus for the visit, as free text",
+                        },
+                    },
+                    "required": list(fields.keys()) + ["comment"],
+                    "additionalProperties": False,
+                },
+            },
+        ]
 
     def instruction_description(self) -> str:
-        if self.settings.structured_rfv:
-            text = ", ".join([r.label for r in self.cache.existing_reason_for_visits()])
-            return (
-                f"Patient's reported reason or impetus for the visit within: {text}. "
-                "There can be only one such instruction in the whole discussion. "
-                "So, if one was already found, simply update it by intelligently."
-            )
-
         return (
-            "Patient's reported reason or impetus for the visit, extremely concise. "
+            "Patient's stated reason and/or the prompting circumstance for the visit. "
             "There can be multiple reasons within an instruction, "
             "but only one such instruction in the whole discussion. "
-            "So, if one was already found, simply update it by intelligently merging all reasons."
+            "So, if one was already found, simply update it by intelligently merging all reasons. "
+            "It is important to report it upon identification."
         )
 
     def instruction_constraints(self) -> str:
-        if self.settings.structured_rfv:
-            text = ", ".join([r.label for r in self.cache.existing_reason_for_visits()])
-            return f"'{self.class_name()}' has to be one of the following: {text}"
         return ""
 
     def is_available(self) -> bool:

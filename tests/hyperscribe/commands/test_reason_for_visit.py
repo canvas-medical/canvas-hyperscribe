@@ -97,11 +97,11 @@ def test_command_from_json(add_code2description, existing_reason_for_visits):
         "information": "theInformation",
         "is_new": False,
         "is_updated": True,
-        "parameters": {"reasonForVisit": "theReasonForVisit"},
+        "parameters": {"comment": "theComment"},
     }
     instruction = InstructionWithParameters(**arguments)
     result = tested.command_from_json(instruction, chatter)
-    command = ReasonForVisitCommand(comment="theReasonForVisit", note_uuid="noteUuid")
+    command = ReasonForVisitCommand(comment="theComment", note_uuid="noteUuid")
     expected = InstructionWithCommand(**(arguments | {"command": command}))
     assert result == expected
     assert add_code2description.mock_calls == []
@@ -125,11 +125,15 @@ def test_command_from_json(add_code2description, existing_reason_for_visits):
             "information": "theInformation",
             "is_new": False,
             "is_updated": True,
-            "parameters": {"reasonForVisit": "theReasonForVisit", "reasonForVisitIndex": idx},
+            "parameters": {
+                "comment": "theComment",
+                "reasonForVisit": "theReasonForVisit",
+                "reasonForVisitIndex": idx,
+            },
         }
         instruction = InstructionWithParameters(**arguments)
         result = tested.command_from_json(instruction, chatter)
-        command = ReasonForVisitCommand(comment="theReasonForVisit", note_uuid="noteUuid")
+        command = ReasonForVisitCommand(comment="theComment", note_uuid="noteUuid")
         if exp_structured:
             command.structured = exp_structured
         if exp_uuid:
@@ -148,6 +152,24 @@ def test_command_parameters(existing_reason_for_visits):
     def reset_mocks():
         existing_reason_for_visits.reset_mock()
 
+    tests = [
+        (False, {"comment": ""}),
+        (True, {"comment": "", "reasonForVisit": "", "reasonForVisitIndex": -1}),
+    ]
+    for rfv, expected in tests:
+        tested = helper_instance(structured_rfv=rfv)
+        existing_reason_for_visits.side_effect = []
+        result = tested.command_parameters()
+        assert result == expected
+        assert existing_reason_for_visits.mock_calls == []
+        reset_mocks()
+
+
+@patch.object(LimitedCache, "existing_reason_for_visits")
+def test_command_parameters_schemas(existing_reason_for_visits):
+    def reset_mocks():
+        existing_reason_for_visits.reset_mock()
+
     reason_for_visits = [
         CodedItem(uuid="theUuid1", label="display1", code="code1"),
         CodedItem(uuid="theUuid2", label="display2", code="code2"),
@@ -157,8 +179,28 @@ def test_command_parameters(existing_reason_for_visits):
     # no structured RfV
     tested = helper_instance(structured_rfv=False)
     existing_reason_for_visits.side_effect = []
-    result = tested.command_parameters()
-    expected = {"reasonForVisit": "extremely concise description of the reason or impetus for the visit, as free text"}
+    result = tested.command_parameters_schemas()
+    expected = [
+        {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "items": {
+                "additionalProperties": False,
+                "properties": {
+                    "comment": {
+                        "description": "extremely concise description of the reason or impetus "
+                        "for the visit, as free text",
+                        "type": "string",
+                    },
+                },
+                "required": ["comment"],
+                "type": "object",
+            },
+            "maxItems": 1,
+            "minItems": 1,
+            "type": "array",
+        },
+    ]
+
     assert result == expected
     assert existing_reason_for_visits.mock_calls == []
     reset_mocks()
@@ -166,11 +208,33 @@ def test_command_parameters(existing_reason_for_visits):
     # with structured RfV
     tested = helper_instance(structured_rfv=True)
     existing_reason_for_visits.side_effect = [reason_for_visits]
-    result = tested.command_parameters()
-    expected = {
-        "reasonForVisit": "one of: display1/display2/display3",
-        "reasonForVisitIndex": "the index of the reason for visit, as integer",
-    }
+    result = tested.command_parameters_schemas()
+    expected = [
+        {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "items": {
+                "additionalProperties": False,
+                "properties": {
+                    "comment": {
+                        "description": "extremely concise description of the reason or impetus "
+                        "for the visit, as free text",
+                        "type": "string",
+                    },
+                    "reasonForVisit": {
+                        "enum": ["display1", "display2", "display3"],
+                        "type": "string",
+                    },
+                    "reasonForVisitIndex": {"type": "integer"},
+                },
+                "required": ["reasonForVisit", "reasonForVisitIndex", "comment"],
+                "type": "object",
+            },
+            "maxItems": 1,
+            "minItems": 1,
+            "type": "array",
+        },
+    ]
+
     assert result == expected
     calls = [call()]
     assert existing_reason_for_visits.mock_calls == calls
@@ -182,39 +246,21 @@ def test_instruction_description(existing_reason_for_visits):
     def reset_mocks():
         existing_reason_for_visits.reset_mock()
 
-    reason_for_visits = [
-        CodedItem(uuid="theUuid1", label="display1", code="code1"),
-        CodedItem(uuid="theUuid2", label="display2", code="code2"),
-        CodedItem(uuid="theUuid3", label="display3", code="code3"),
-    ]
-
-    # no structured RfV
-    tested = helper_instance(structured_rfv=False)
-    existing_reason_for_visits.side_effect = []
-    result = tested.instruction_description()
-    expected = (
-        "Patient's reported reason or impetus for the visit, extremely concise. "
-        "There can be multiple reasons within an instruction, "
-        "but only one such instruction in the whole discussion. "
-        "So, if one was already found, simply update it by intelligently merging all reasons."
-    )
-    assert result == expected
-    assert existing_reason_for_visits.mock_calls == []
-    reset_mocks()
-
-    # with structured RfV
-    tested = helper_instance(structured_rfv=True)
-    existing_reason_for_visits.side_effect = [reason_for_visits]
-    result = tested.instruction_description()
-    expected = (
-        "Patient's reported reason or impetus for the visit within: display1, display2, display3. "
-        "There can be only one such instruction in the whole discussion. "
-        "So, if one was already found, simply update it by intelligently."
-    )
-    assert result == expected
-    calls = [call()]
-    assert existing_reason_for_visits.mock_calls == calls
-    reset_mocks()
+    tests = [False, True]
+    for rfv in tests:
+        tested = helper_instance(structured_rfv=rfv)
+        existing_reason_for_visits.side_effect = []
+        result = tested.instruction_description()
+        expected = (
+            "Patient's stated reason and/or the prompting circumstance for the visit. "
+            "There can be multiple reasons within an instruction, "
+            "but only one such instruction in the whole discussion. "
+            "So, if one was already found, simply update it by intelligently merging all reasons. "
+            "It is important to report it upon identification."
+        )
+        assert result == expected
+        assert existing_reason_for_visits.mock_calls == []
+        reset_mocks()
 
 
 @patch.object(LimitedCache, "existing_reason_for_visits")
@@ -222,30 +268,15 @@ def test_instruction_constraints(existing_reason_for_visits):
     def reset_mocks():
         existing_reason_for_visits.reset_mock()
 
-    reason_for_visits = [
-        CodedItem(uuid="theUuid1", label="display1", code="code1"),
-        CodedItem(uuid="theUuid2", label="display2", code="code2"),
-        CodedItem(uuid="theUuid3", label="display3", code="code3"),
-    ]
-
-    # no structured RfV
-    tested = helper_instance(structured_rfv=False)
-    existing_reason_for_visits.side_effect = []
-    result = tested.instruction_constraints()
-    expected = ""
-    assert result == expected
-    assert existing_reason_for_visits.mock_calls == []
-    reset_mocks()
-
-    # with structured RfV
-    tested = helper_instance(structured_rfv=True)
-    existing_reason_for_visits.side_effect = [reason_for_visits]
-    result = tested.instruction_constraints()
-    expected = "'ReasonForVisit' has to be one of the following: display1, display2, display3"
-    assert result == expected
-    calls = [call()]
-    assert existing_reason_for_visits.mock_calls == calls
-    reset_mocks()
+    tests = [False, True]
+    for rfv in tests:
+        tested = helper_instance(structured_rfv=rfv)
+        existing_reason_for_visits.side_effect = []
+        result = tested.instruction_constraints()
+        expected = ""
+        assert result == expected
+        assert existing_reason_for_visits.mock_calls == []
+        reset_mocks()
 
 
 @patch.object(LimitedCache, "existing_reason_for_visits")
