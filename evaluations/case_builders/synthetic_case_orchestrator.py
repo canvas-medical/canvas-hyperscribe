@@ -23,10 +23,10 @@ from evaluations.datastores.postgres.synthetic_case import SyntheticCase as Synt
 
 
 class SyntheticCaseOrchestrator:
-    def __init__(self, vendor_key: VendorKey, category: str):
+    def __init__(self, vendor_key: VendorKey, category: str, openai_api_key: str):
         self.vendor_key = vendor_key
         self.category = category
-        self.profile_generator = SyntheticProfileGenerator(vendor_key, category)
+        self.profile_generator = SyntheticProfileGenerator(vendor_key, category, openai_api_key)
 
     def generate(
         self,
@@ -111,9 +111,10 @@ class SyntheticCaseOrchestrator:
         category: str,
     ) -> list[SyntheticCaseRecord]:
         credentials = HelperEvaluation.postgres_credentials()
-        vendor_key = HelperEvaluation.settings().llm_text
+        settings = HelperEvaluation.settings()
+        vendor_key = settings.llm_text
 
-        orchestrator = cls(vendor_key, category)
+        orchestrator = cls(vendor_key, category, settings.openai_api_key)
         record_pairs = orchestrator.generate(number_of_batches, batch_size)
 
         case_store = CaseDatastore(credentials)
@@ -138,8 +139,9 @@ class SyntheticCaseOrchestrator:
         category: str,
         output_root: Path,
     ) -> None:
-        vendor_key = HelperEvaluation.settings().llm_text
-        orchestrator = cls(vendor_key, category)
+        settings = HelperEvaluation.settings()
+        vendor_key = settings.llm_text
+        orchestrator = cls(vendor_key, category, settings.openai_api_key)
         record_pairs = orchestrator.generate(number_of_batches, batch_size)
 
         for index, (case_record, synthetic_record) in enumerate(record_pairs, start=1):

@@ -79,7 +79,7 @@ class Case(Postgres):
             "transcript": self.constant_dumps(
                 {key: [line.to_json() for line in lines] for key, lines in case.transcript.items()},
             ),
-            "limited_chart": self.constant_dumps(case.limited_chart.to_json()),
+            "limited_chart": self.constant_dumps(case.limited_chart if isinstance(case.limited_chart, dict) else case.limited_chart.to_json()),
             "profile": case.profile,
             "validation_status": case.validation_status.value,
             "batch_identifier": case.batch_identifier,
