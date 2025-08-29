@@ -197,6 +197,74 @@
             justify-content: flex-end;
         }
 
+        /* Feedback styles */
+        .feedback-content {
+            padding: 20px;
+            font-family: "Helvetica", "Arial", "sans-serif";
+        }
+
+
+        #feedback-textarea {
+            width: 100%;
+            height: 200px;
+            padding: 10px;
+            border: 2px solid rgba(0, 40, 255, 0.3);
+            border-radius: 5px;
+            font-family: "Helvetica", "Arial", "sans-serif";
+            font-size: 14px;
+            resize: vertical;
+            box-sizing: border-box;
+            background-color: rgba(255, 255, 255, 0.9);
+        }
+
+        #feedback-textarea:focus {
+            outline: none;
+            border-color: rgba(0, 40, 255, 0.6);
+        }
+
+        .feedback-submit-row {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-top: 10px;
+        }
+
+        #feedback-submit-button {
+            padding: 10px 20px;
+            background-color: rgba(0, 40, 255, 0.8);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-family: "Helvetica", "Arial", "sans-serif";
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        #feedback-submit-button:hover {
+            background-color: rgba(0, 40, 255, 1);
+        }
+
+        #feedback-submit-button:disabled {
+            background-color: rgba(0, 40, 255, 0.4);
+            cursor: not-allowed;
+        }
+
+        #feedback-message {
+            font-family: "Helvetica", "Arial", "sans-serif";
+            font-size: 14px;
+            font-weight: normal;
+        }
+
+        #feedback-message.success {
+            color: #28a745;
+        }
+
+        #feedback-message.error {
+            color: #dc3545;
+        }
+
         .filter-controls label {
             display: flex;
             align-items: center;
@@ -344,6 +412,7 @@
             <button class="tab active" onclick="switchTab('activity', this)">Activity</button>
             <button class="tab" onclick="switchTab('transcript', this)">Transcript</button>
             <button class="tab" onclick="switchTab('logs', this)">Logs</button>
+            <button class="tab" onclick="switchTab('feedback', this)">Feedback</button>
         </div>
 
         <div id="activity-container" class="table-container active">
@@ -386,6 +455,16 @@
                 <tbody id="transcript-table-body">
                 </tbody>
             </table>
+        </div>
+
+        <div id="feedback-container" class="table-container">
+            <div class="feedback-content">
+                <textarea id="feedback-textarea" placeholder="Please share your feedback..."></textarea>
+                <div class="feedback-submit-row">
+                    <button id="feedback-submit-button" onclick="submitFeedback()">Submit</button>
+                    <span id="feedback-message"></span>
+                </div>
+            </div>
         </div>
 
         <div id="error"></div>
@@ -1277,6 +1356,87 @@
             setTimeout(() => {
                 processTurnQueue();
             }, delay);
+        }
+
+        // Global variable to track feedback message timeout
+        let feedbackMessageTimeout = null;
+
+        function clearFeedbackMessage() {
+            const messageSpan = document.getElementById('feedback-message');
+            messageSpan.textContent = '';
+            messageSpan.className = '';
+            if (feedbackMessageTimeout) {
+                clearTimeout(feedbackMessageTimeout);
+                feedbackMessageTimeout = null;
+            }
+        }
+
+        function showFeedbackMessage(text, className = '') {
+            const messageSpan = document.getElementById('feedback-message');
+            
+            // Clear any existing timeout
+            if (feedbackMessageTimeout) {
+                clearTimeout(feedbackMessageTimeout);
+            }
+            
+            messageSpan.textContent = text;
+            messageSpan.className = className;
+            
+            // Set timeout to clear message after 5 seconds (unless it's a "Sending..." message)
+            if (text !== 'Sending...') {
+                feedbackMessageTimeout = setTimeout(clearFeedbackMessage, 5000);
+            }
+        }
+
+        function submitFeedback() {
+            const textarea = document.getElementById('feedback-textarea');
+            const submitButton = document.getElementById('feedback-submit-button');
+            const feedbackText = textarea.value.trim();
+            
+            // Clear previous message
+            clearFeedbackMessage();
+            
+            if (!feedbackText) {
+                showFeedbackMessage('Please enter some feedback before submitting.', 'error');
+                return;
+            }
+            
+            // Disable the submit button while processing
+            submitButton.disabled = true;
+            submitButton.textContent = 'Submitting...';
+            showFeedbackMessage('Sending...');
+            
+            // Prepare the feedback data
+            const formData = new FormData();
+            formData.append('feedback', feedbackText);
+            
+            // Submit the feedback to the feedbackURL
+            fetch('{{feedbackURL | safe}}', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (response.ok) {
+                    textarea.value = '';
+                    showFeedbackMessage('Thank you for your feedback!', 'success');
+                } else {
+                    // Try to get error message from response
+                    return response.text().then(errorText => {
+                        throw new Error(errorText || `Server error: ${response.status}`);
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error submitting feedback:', error);
+                // Display the actual error message received from the server
+                const errorMessage = error.message || 'Unknown error occurred';
+                showFeedbackMessage(`Error: ${errorMessage}`, 'error');
+            })
+            .finally(() => {
+                // Re-enable the submit button
+                submitButton.disabled = false;
+                submitButton.textContent = 'Submit';
+            });
         }
     </script>
 </body>

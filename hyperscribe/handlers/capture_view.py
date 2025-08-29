@@ -1,5 +1,5 @@
 import re
-from datetime import datetime
+from datetime import datetime, UTC
 from http import HTTPStatus
 
 from canvas_sdk.effects import Effect
@@ -16,6 +16,7 @@ from requests import post as requests_post
 from hyperscribe.handlers.progress import Progress
 from hyperscribe.libraries.audio_client import AudioClient
 from hyperscribe.libraries.authenticator import Authenticator
+from hyperscribe.libraries.aws_s3 import AwsS3
 from hyperscribe.libraries.commander import Commander
 from hyperscribe.libraries.constants import Constants
 from hyperscribe.libraries.helper import Helper
@@ -84,6 +85,10 @@ class CaptureView(SimpleAPI):
             self.secrets[Constants.SECRET_API_SIGNING_KEY],
             f"{Constants.PLUGIN_API_BASE_ROUTE}/capture/idle/{patient_id}/{note_id}/{Constants.AUDIO_IDLE_END}",
         )
+        feedback_url = Authenticator.presigned_url_no_params(
+            self.secrets[Constants.SECRET_API_SIGNING_KEY],
+            f"{Constants.PLUGIN_API_BASE_ROUTE}/feedback/{patient_id}/{note_id}",
+        )
         save_audio_url = Authenticator.presigned_url_no_params(
             self.secrets[Constants.SECRET_API_SIGNING_KEY],
             f"{Constants.PLUGIN_API_BASE_ROUTE}/audio/{patient_id}/{note_id}",
@@ -106,6 +111,7 @@ class CaptureView(SimpleAPI):
             "pauseSessionURL": pause_session_url,
             "resumeSessionURL": resume_session_url,
             "endSessionURL": end_session_url,
+            "feedbackURL": feedback_url,
             "saveAudioURL": save_audio_url,
             "isEnded": stop_and_go.is_ended(),
             "isPaused": stop_and_go.is_paused(),
@@ -223,6 +229,25 @@ class CaptureView(SimpleAPI):
                 )
 
         return effects
+
+    @api.post("/feedback/<patient_id>/<note_id>")
+    def feedback_post(self) -> list[Response | Effect]:
+        note_id = self.request.path_params["note_id"]
+        form_data = self.request.form_data()
+        feedback = form_data.get("feedback")
+        if not (feedback and feedback.value):
+            return [Response(b"Feedback cannot be empty", HTTPStatus.BAD_REQUEST)]
+
+        aws_credentials = AwsS3Credentials.from_dictionary(self.secrets)
+        client_s3 = AwsS3(aws_credentials)
+        if not client_s3.is_ready():
+            return [Response(b"Storage is not made available", HTTPStatus.INTERNAL_SERVER_ERROR)]
+
+        canvas_instance = self.environment[Constants.CUSTOMER_IDENTIFIER]
+        now = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
+        store_path = f"hyperscribe-{canvas_instance}/feedback/{note_id}/{now}"
+        client_s3.upload_text_to_s3(store_path, feedback.value)  # feedback is a StringFormPart
+        return [Response(b"Feedback saved OK", HTTPStatus.CREATED)]
 
     def run_reviewer(self, patient_id: str, note_id: str, created: datetime, cycles: int) -> None:
         identification = IdentificationParameters(
