@@ -49,17 +49,66 @@ class Diagnose(Base):
 
     def command_parameters(self) -> dict:
         return {
-            "keywords": "comma separated keywords of up to 5 synonyms of the diagnosed condition",
-            "ICD10": "comma separated keywords of up to 5 ICD-10 codes of the diagnosed condition",
-            "rationale": "rationale about the diagnosis, as free text",
-            "onsetDate": "YYYY-MM-DD",
-            "assessment": "today's assessment of the condition, as free text",
+            "keywords": "",
+            "ICD10": "",
+            "rationale": "",
+            "onsetDate": "",
+            "assessment": "",
         }
+
+    def command_parameters_schemas(self) -> list[dict]:
+        return [
+            {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 1,
+                "items": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "required": ["keywords", "ICD10", "rationale", "onsetDate", "assessment"],
+                    "properties": {
+                        "keywords": {
+                            "type": "string",
+                            "description": "Comma-separated keywords to find the specific condition in a "
+                            "database (using OR criteria), it is better to provide "
+                            "more specific keywords rather than few broad ones.",
+                        },
+                        "ICD10": {
+                            "type": "string",
+                            "description": "Comma-separated ICD-10 codes (up to 5) for the condition",
+                        },
+                        "rationale": {
+                            "type": "string",
+                            "description": "all reasoning leading to the diagnosis, it should be detailed but "
+                            "limited to what is explicitly mentioned in the instruction.",
+                            "minLength": 1,
+                        },
+                        "onsetDate": {
+                            "type": "string",
+                            "description": "Onset date in YYYY-MM-DD.",
+                            "format": "date",
+                            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                        },
+                        "assessment": {
+                            "type": "string",
+                            "description": "Current assessment of the condition, as stated in the instruction, "
+                            "without the reasoning.",
+                            "minLength": 1,
+                        },
+                    },
+                },
+            }
+        ]
 
     def instruction_description(self) -> str:
         return (
-            "Medical condition identified by the provider, including reasoning, current assessment, and onset date. "
-            "There is one instruction per condition, and no instruction in the lack of."
+            "Medical condition identified by the provider; the necessary information to report includes: "
+            "- the medical condition itself, "
+            "- all reasoning explicitly mentioned in the transcript, "
+            "- current detailed assessment as mentioned in the transcript, and "
+            "- onset date, even for today. "
+            "There is one and only one instruction per condition, and no instruction in the lack of."
         )
 
     def instruction_constraints(self) -> str:

@@ -237,7 +237,6 @@ dependencies = [
     { name = "canvas", extra = ["test-utils"] },
     { name = "ffmpeg-python" },
     { name = "mypy" },
-    { name = "pytest" },
 ]
 
 [package.dev-dependencies]
@@ -251,10 +250,9 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "canvas", specifier = ">=0.58.1" },
-    { name = "canvas", extras = ["test-utils"] },
+    { name = "canvas", extras = ["test-utils"], specifier = ">=0.58.1" },
     { name = "ffmpeg-python", specifier = ">=0.2.0" },
     { name = "mypy", specifier = ">=1.15.0" },
-    { name = "pytest", specifier = ">=8.3.4,<9.0.0" },
 ]
 
 [package.metadata.requires-dev]

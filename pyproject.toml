@@ -5,9 +5,8 @@ description = "add commands based on vocal instructions"
 requires-python = ">=3.11,<3.13"
 readme = "README.md"
 dependencies = [
-    "pytest (>=8.3.4,<9.0.0)",
     "canvas>=0.58.1",
-    "canvas[test-utils]",
+    "canvas[test-utils]>=0.58.1",
     "mypy>=1.15.0",
     "ffmpeg-python>=0.2.0",
 ]

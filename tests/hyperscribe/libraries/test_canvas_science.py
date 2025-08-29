@@ -656,8 +656,8 @@ def test_get_attempts(requests_get, log, science, ontologies):
     ]
     assert requests_get.mock_calls == calls
     calls = [
-        call.info("get response code: 401 - /theUrl"),
-        call.info("get response code: 402 - /theUrl"),
+        call.info("get response code: 401 - theHost: /theUrl"),
+        call.info("get response code: 402 - theHost: /theUrl"),
     ]
     assert log.mock_calls == calls
     assert science.mock_calls == []
@@ -682,7 +682,7 @@ def test_get_attempts(requests_get, log, science, ontologies):
         call("theHost/theUrl", headers=headers_with_key, params=params, verify=True),
     ]
     assert requests_get.mock_calls == calls
-    calls = [call.info("get response code: 401 - /theUrl")]
+    calls = [call.info("get response code: 401 - theHost: /theUrl")]
     assert log.mock_calls == calls
     assert science.mock_calls == []
     assert ontologies.mock_calls == []
@@ -702,7 +702,7 @@ def test_get_attempts(requests_get, log, science, ontologies):
     result = tested.get_attempts("", "thePreSharedKey", "/theUrl", params, True)
     assert result == ["mock list 2"]
     assert requests_get.mock_calls == []
-    calls = [call.info("get response code: 401 - /theUrl?param=value")]
+    calls = [call.info("get response code: 401 - ontologies: /theUrl?param=value")]
     assert log.mock_calls == calls
     assert science.mock_calls == []
     calls = [
@@ -726,7 +726,7 @@ def test_get_attempts(requests_get, log, science, ontologies):
     result = tested.get_attempts("", "thePreSharedKey", "/theUrl", params, False)
     assert result == ["mock list 2"]
     assert requests_get.mock_calls == []
-    calls = [call.info("get response code: 401 - /theUrl?param=value")]
+    calls = [call.info("get response code: 401 - science: /theUrl?param=value")]
     assert log.mock_calls == calls
     calls = [
         call.get_json("/theUrl?param=value", headers_with_key),
@@ -749,7 +749,7 @@ def test_get_attempts(requests_get, log, science, ontologies):
     result = tested.get_attempts("", "", "/theUrl", {}, False)
     assert result == ["mock list 2"]
     assert requests_get.mock_calls == []
-    calls = [call.info("get response code: 401 - /theUrl")]
+    calls = [call.info("get response code: 401 - science: /theUrl")]
     assert log.mock_calls == calls
     calls = [call.get_json("/theUrl", headers_no_key), call.get_json("/theUrl", headers_no_key)]
     assert science.mock_calls == calls
@@ -771,7 +771,7 @@ def test_get_attempts(requests_get, log, science, ontologies):
     assert result == []
     assert requests_get.mock_calls == []
     calls = [
-        call.info("get response code: 401 - /theUrl"),
+        call.info("get response code: 401 - science: /theUrl"),
         call.info("error raised by Canvas Service: Test error"),
     ]
     assert log.mock_calls == calls

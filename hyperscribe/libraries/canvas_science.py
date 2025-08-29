@@ -189,17 +189,20 @@ class CanvasScience:
             try:
                 if host:
                     response = requests_get(f"{host}{url}", headers=headers, params=params, verify=True)
+                    source = host
                 elif is_ontologies:
                     ontologies_http._MAX_REQUEST_TIMEOUT_SECONDS = 7
                     response = ontologies_http.get_json(url, headers)
+                    source = "ontologies"
                 else:
                     science_http._MAX_REQUEST_TIMEOUT_SECONDS = 7
                     response = science_http.get_json(url, headers)
+                    source = "science"
 
                 if response.status_code == HTTPStatus.OK.value:
                     return response.json().get("results") or []
 
-                log.info(f"get response code: {response.status_code} - {url}")
+                log.info(f"get response code: {response.status_code} - {source}: {url}")
             except Exception as e:
                 log.info(f"error raised by Canvas Service: {e}")
         return []

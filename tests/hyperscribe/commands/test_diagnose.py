@@ -1,4 +1,6 @@
+import json
 from datetime import date
+from hashlib import md5
 from unittest.mock import patch, call, MagicMock
 
 from canvas_sdk.commands.commands.diagnose import DiagnoseCommand
@@ -159,21 +161,32 @@ def test_command_parameters():
     tested = helper_instance()
     result = tested.command_parameters()
     expected = {
-        "keywords": "comma separated keywords of up to 5 synonyms of the diagnosed condition",
-        "ICD10": "comma separated keywords of up to 5 ICD-10 codes of the diagnosed condition",
-        "rationale": "rationale about the diagnosis, as free text",
-        "onsetDate": "YYYY-MM-DD",
-        "assessment": "today's assessment of the condition, as free text",
+        "keywords": "",
+        "ICD10": "",
+        "rationale": "",
+        "onsetDate": "",
+        "assessment": "",
     }
     assert result == expected
+
+
+def test_command_parameters_schema():
+    tested = helper_instance()
+    result = tested.command_parameters_schemas()
+    expected = "de777483065675d98757de2eb0ea79c2"
+    assert md5(json.dumps(result).encode()).hexdigest() == expected
 
 
 def test_instruction_description():
     tested = helper_instance()
     result = tested.instruction_description()
     expected = (
-        "Medical condition identified by the provider, including reasoning, current assessment, and onset date. "
-        "There is one instruction per condition, and no instruction in the lack of."
+        "Medical condition identified by the provider; the necessary information to report includes: "
+        "- the medical condition itself, "
+        "- all reasoning explicitly mentioned in the transcript, "
+        "- current detailed assessment as mentioned in the transcript, and "
+        "- onset date, even for today. "
+        "There is one and only one instruction per condition, and no instruction in the lack of."
     )
     assert result == expected
 
