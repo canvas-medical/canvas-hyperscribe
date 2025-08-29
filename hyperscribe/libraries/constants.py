@@ -17,7 +17,11 @@ class Constants:
     MAX_CHARGE_DESCRIPTIONS = (
         500  # limit to the charge descriptions submitted to the LLM to retrieve the CPT code of a Perform command
     )
-    MAX_WORKERS = 10  # max parallel executions
+    # max parallel executions
+    MAX_WORKERS_MIN = 1
+    MAX_WORKERS_MAX = 10
+    MAX_WORKERS_DEFAULT = 3
+
     MEMORY_LOG_LABEL = "main"
     OPENAI_CHAT_AUDIO = "gpt-4o-audio-preview"  # LLM model used for speech to text
     OPENAI_CHAT_TEXT = "gpt-4o"  # LLM model used for text completion
@@ -86,9 +90,7 @@ class Constants:
     SECRET_COMMANDS_POLICY = "CommandsPolicy"
     SECRET_CYCLE_TRANSCRIPT_OVERLAP = "CycleTranscriptOverlap"
     SECRET_IS_TUNING = "IsTuning"
-    SECRET_ONTOLOGIES_HOST = "OntologiesHost"
-    SECRET_PRE_SHARED_KEY = "PreSharedKey"
-    SECRET_SCIENCE_HOST = "ScienceHost"
+    SECRET_MAX_WORKERS = "MaxWorkers"
     SECRET_STAFFERS_LIST = "StaffersList"
     SECRET_STAFFERS_POLICY = "StaffersPolicy"
     SECRET_STRUCTURED_RFV = "StructuredReasonForVisit"

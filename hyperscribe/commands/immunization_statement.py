@@ -50,11 +50,7 @@ class ImmunizationStatement(Base):
         )
         # retrieve existing immunization defined in Canvas Science
         expressions = instruction.parameters["keywords"].split(",")
-        if immunizations := CanvasScience.search_immunization(
-            self.settings.ontologies_host,
-            self.settings.pre_shared_key,
-            expressions,
-        ):
+        if immunizations := CanvasScience.search_immunization(expressions):
             # retrieve the correct medication
             system_prompt = [
                 "The conversation is in the medical context.",

@@ -6,7 +6,6 @@ from canvas_sdk.commands.commands.allergy import AllergenType
 from canvas_sdk.commands.constants import ServiceProvider
 from canvas_sdk.utils.http import science_http, ontologies_http
 from logger import log
-from requests import get as requests_get
 
 from hyperscribe.libraries.constants import Constants
 from hyperscribe.structures.allergy_detail import AllergyDetail
@@ -21,37 +20,36 @@ from hyperscribe.structures.medication_detail_quantity import MedicationDetailQu
 # note that the "# type: ignore" could be removed if "from typing import TypeVar" was allowed
 class CanvasScience:
     @classmethod
-    def instructions(cls, host: str, expressions: list[str]) -> list[MedicalConcept]:
-        return cls.medical_concept(host, "/search/instruction", expressions, MedicalConcept)  # type: ignore
+    def instructions(cls, expressions: list[str]) -> list[MedicalConcept]:
+        return cls.medical_concept("/search/instruction", expressions, MedicalConcept)  # type: ignore
 
     @classmethod
-    def family_histories(cls, host: str, expressions: list[str]) -> list[MedicalConcept]:
-        return cls.medical_concept(host, "/search/family-history", expressions, MedicalConcept)  # type: ignore
+    def family_histories(cls, expressions: list[str]) -> list[MedicalConcept]:
+        return cls.medical_concept("/search/family-history", expressions, MedicalConcept)  # type: ignore
 
     @classmethod
-    def surgical_histories(cls, host: str, expressions: list[str]) -> list[MedicalConcept]:
-        return cls.medical_concept(host, "/search/surgical-history-procedure", expressions, MedicalConcept)  # type: ignore
+    def surgical_histories(cls, expressions: list[str]) -> list[MedicalConcept]:
+        return cls.medical_concept("/search/surgical-history-procedure", expressions, MedicalConcept)  # type: ignore
 
     @classmethod
-    def medical_histories(cls, host: str, expressions: list[str]) -> list[Icd10Condition]:
-        return cls.medical_concept(host, "/search/medical-history-condition", expressions, Icd10Condition)  # type: ignore
+    def medical_histories(cls, expressions: list[str]) -> list[Icd10Condition]:
+        return cls.medical_concept("/search/medical-history-condition", expressions, Icd10Condition)  # type: ignore
 
     @classmethod
-    def medication_details(cls, host: str, expressions: list[str]) -> list[MedicationDetail]:
-        return cls.medical_concept(host, "/search/grouped-medication", expressions, MedicationDetail)  # type: ignore
+    def medication_details(cls, expressions: list[str]) -> list[MedicationDetail]:
+        return cls.medical_concept("/search/grouped-medication", expressions, MedicationDetail)  # type: ignore
 
     @classmethod
-    def search_conditions(cls, host: str, expressions: list[str]) -> list[Icd10Condition]:
-        return cls.medical_concept(host, "/search/condition", expressions, Icd10Condition)  # type: ignore
+    def search_conditions(cls, expressions: list[str]) -> list[Icd10Condition]:
+        return cls.medical_concept("/search/condition", expressions, Icd10Condition)  # type: ignore
 
     @classmethod
-    def search_imagings(cls, host: str, expressions: list[str]) -> list[ImagingReport]:
-        return cls.medical_concept(host, "/parse-templates/imaging-reports", expressions, ImagingReport)  # type: ignore
+    def search_imagings(cls, expressions: list[str]) -> list[ImagingReport]:
+        return cls.medical_concept("/parse-templates/imaging-reports", expressions, ImagingReport)  # type: ignore
 
     @classmethod
     def medical_concept(
         cls,
-        host: str,
         url: str,
         expressions: list[str],
         returned_class: Type[MedicalConcept | Icd10Condition | MedicationDetail | ImagingReport],
@@ -71,7 +69,7 @@ class CanvasScience:
 
         params = {"format": "json", "limit": 10}
         all_concepts: list = [
-            cls.get_attempts(host, "", url, params | {"query": expression}, False) for expression in expressions
+            cls.get_attempts(url, params | {"query": expression}, False) for expression in expressions
         ]
         for concepts in all_concepts:
             for concept in concepts:
@@ -106,8 +104,6 @@ class CanvasScience:
     @classmethod
     def search_allergy(
         cls,
-        host: str,
-        pre_shared_key: str,
         expressions: list[str],
         concept_types: list[AllergenType],
     ) -> list[AllergyDetail]:
@@ -116,7 +112,7 @@ class CanvasScience:
         type_values = [t.value for t in concept_types]
         for expression in expressions:
             params = {"dam_allergen_concept_id_description__fts": expression}
-            concepts = cls.get_attempts(host, pre_shared_key, url, params, True)
+            concepts = cls.get_attempts(url, params, True)
             for concept in concepts:
                 if concept["dam_allergen_concept_id_type"] in type_values:
                     result.append(
@@ -130,17 +126,12 @@ class CanvasScience:
         return result
 
     @classmethod
-    def search_immunization(
-        cls,
-        host: str,
-        pre_shared_key: str,
-        expressions: list[str],
-    ) -> list[ImmunizationDetail]:
+    def search_immunization(cls, expressions: list[str]) -> list[ImmunizationDetail]:
         result: list = []
         url = "/cpt/immunization/"
         for expression in expressions:
             params = {"name_or_code": expression}
-            concepts = cls.get_attempts(host, pre_shared_key, url, params, True)
+            concepts = cls.get_attempts(url, params, True)
             for concept in concepts:
                 result.append(
                     ImmunizationDetail(
@@ -153,7 +144,7 @@ class CanvasScience:
         return result
 
     @classmethod
-    def search_contacts(cls, host: str, free_text_information: str, zip_codes: list[str]) -> list[ServiceProvider]:
+    def search_contacts(cls, free_text_information: str, zip_codes: list[str]) -> list[ServiceProvider]:
         result: list = []
         url = "/contacts/"
 
@@ -162,7 +153,7 @@ class CanvasScience:
             if zip_codes:
                 params["business_postal_code__in"] = ",".join(zip_codes)
 
-            for contact in cls.get_attempts(host, "", url, params, False):
+            for contact in cls.get_attempts(url, params, False):
                 result.append(
                     ServiceProvider(
                         first_name=contact["firstName"] or "",
@@ -177,20 +168,15 @@ class CanvasScience:
         return result
 
     @classmethod
-    def get_attempts(cls, host: str, pre_shared_key: str, url: str, params: dict, is_ontologies: bool) -> list:
+    def get_attempts(cls, url: str, params: dict, is_ontologies: bool) -> list:
         headers = {"Content-Type": "application/json"}
-        if pre_shared_key:
-            headers["Authorization"] = pre_shared_key
 
-        if params and not host:
+        if params:
             url = f"{url}?{urlencode(params)}"
 
         for _ in range(Constants.MAX_ATTEMPTS_CANVAS_SERVICES):
             try:
-                if host:
-                    response = requests_get(f"{host}{url}", headers=headers, params=params, verify=True)
-                    source = host
-                elif is_ontologies:
+                if is_ontologies:
                     ontologies_http._MAX_REQUEST_TIMEOUT_SECONDS = 7
                     response = ontologies_http.get_json(url, headers)
                     source = "ontologies"

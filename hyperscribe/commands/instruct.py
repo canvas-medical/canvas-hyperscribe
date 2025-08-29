@@ -33,7 +33,7 @@ class Instruct(Base):
         result = InstructCommand(comment=instruction.parameters["comment"], note_uuid=self.identification.note_uuid)
         # retrieve existing instructions defined in Canvas Science
         expressions = instruction.parameters["keywords"].split(",")
-        if concepts := CanvasScience.instructions(self.settings.science_host, expressions):
+        if concepts := CanvasScience.instructions(expressions):
             # ask the LLM to pick the most relevant instruction
             system_prompt = [
                 "The conversation is in the medical context.",

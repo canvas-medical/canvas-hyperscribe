@@ -286,8 +286,9 @@ class CaptureView(SimpleAPI):
 
             MemoryLog.instance(identification, Constants.MEMORY_LOG_LABEL, aws_s3).output(
                 f"SDK: {version} - "
-                f"Text: {self.secrets[Constants.SECRET_TEXT_LLM_VENDOR]} - "
-                f"Audio: {self.secrets[Constants.SECRET_AUDIO_LLM_VENDOR]}"
+                f"Text: {settings.llm_text.vendor} - "
+                f"Audio: {settings.llm_audio.vendor} - "
+                f"Workers: {settings.max_workers}"
             )
 
             had_audio, effects = Commander.compute_audio(identification, settings, aws_s3, audio_client, chunk_index)

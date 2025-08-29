@@ -20,13 +20,11 @@ def helper_instance() -> FamilyHistory:
     settings = Settings(
         llm_text=VendorKey(vendor="textVendor", api_key="textKey"),
         llm_audio=VendorKey(vendor="audioVendor", api_key="audioKey"),
-        science_host="scienceHost",
-        ontologies_host="ontologiesHost",
-        pre_shared_key="preSharedKey",
         structured_rfv=False,
         audit_llm=False,
         is_tuning=False,
         api_signing_key="theApiSigningKey",
+        max_workers=3,
         send_progress=False,
         commands_policy=AccessPolicy(policy=False, items=[]),
         staffers_policy=AccessPolicy(policy=False, items=[]),
@@ -148,7 +146,7 @@ def test_command_from_json(family_histories):
     command = FamilyHistoryCommand(relative="sibling", note="theNote", family_history="termB", note_uuid="noteUuid")
     expected = InstructionWithCommand(**(arguments | {"command": command}))
     assert result == expected
-    calls = [call("scienceHost", keywords)]
+    calls = [call(keywords)]
     assert family_histories.mock_calls == calls
     calls = [call.single_conversation(system_prompt, user_prompt, schemas, instruction)]
     assert chatter.mock_calls == calls
@@ -162,7 +160,7 @@ def test_command_from_json(family_histories):
     command = FamilyHistoryCommand(relative="sibling", note="theNote", note_uuid="noteUuid")
     expected = InstructionWithCommand(**(arguments | {"command": command}))
     assert result == expected
-    calls = [call("scienceHost", keywords)]
+    calls = [call(keywords)]
     assert family_histories.mock_calls == calls
     calls = [call.single_conversation(system_prompt, user_prompt, schemas, instruction)]
     assert chatter.mock_calls == calls
@@ -176,7 +174,7 @@ def test_command_from_json(family_histories):
     command = FamilyHistoryCommand(relative="sibling", note="theNote", note_uuid="noteUuid")
     expected = InstructionWithCommand(**(arguments | {"command": command}))
     assert result == expected
-    calls = [call("scienceHost", keywords)]
+    calls = [call(keywords)]
     assert family_histories.mock_calls == calls
     assert chatter.mock_calls == []
     reset_mocks()

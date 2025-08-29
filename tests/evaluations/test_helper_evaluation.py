@@ -86,9 +86,7 @@ def test_settings(monkeypatch):
     monkeypatch.setenv("KeyTextLLM", "textAPIKey")
     monkeypatch.setenv("VendorAudioLLM", "audioVendor")
     monkeypatch.setenv("KeyAudioLLM", "audioAPIKey")
-    monkeypatch.setenv("ScienceHost", "theScienceHost")
-    monkeypatch.setenv("OntologiesHost", "theOntologiesHost")
-    monkeypatch.setenv("PreSharedKey", "thePreSharedKey")
+    monkeypatch.setenv("MaxWorkers", "7")
     monkeypatch.setenv("APISigningKey", "theApiSigningKey")
     monkeypatch.setenv("CommandsList", "Command1 Command2, Command3")
     monkeypatch.setenv("StaffersList", "41, 32 56")
@@ -107,13 +105,11 @@ def test_settings(monkeypatch):
         expected = Settings(
             llm_text=VendorKey(vendor="textVendor", api_key="textAPIKey"),
             llm_audio=VendorKey(vendor="audioVendor", api_key="audioAPIKey"),
-            science_host="theScienceHost",
-            ontologies_host="theOntologiesHost",
-            pre_shared_key="thePreSharedKey",
             structured_rfv=exp_bool,
             audit_llm=exp_bool,
             is_tuning=exp_bool,
             api_signing_key="theApiSigningKey",
+            max_workers=7,
             send_progress=False,
             commands_policy=AccessPolicy(policy=exp_bool, items=["Command1", "Command2", "Command3"]),
             staffers_policy=AccessPolicy(policy=exp_bool, items=["32", "41", "56"]),

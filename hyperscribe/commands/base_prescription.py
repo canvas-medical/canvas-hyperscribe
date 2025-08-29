@@ -22,7 +22,7 @@ class BasePrescription(Base):
         search: MedicationSearch,
     ) -> list[MedicationDetail]:
         result: list[MedicationDetail] = []
-        if medications := CanvasScience.medication_details(self.settings.science_host, search.brand_names):
+        if medications := CanvasScience.medication_details(search.brand_names):
             prompt_condition = ""
             if search.related_condition:
                 prompt_condition = (

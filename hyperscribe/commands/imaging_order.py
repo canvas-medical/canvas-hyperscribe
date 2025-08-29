@@ -55,7 +55,6 @@ class ImagingOrder(Base):
             item = SelectorChat.condition_from(
                 instruction,
                 chatter,
-                self.settings,
                 condition["conditionKeywords"].split(","),
                 condition["ICD10"].split(","),
                 instruction.parameters["comment"],
@@ -65,7 +64,7 @@ class ImagingOrder(Base):
 
         # retrieve existing imaging orders defined in Canvas Science
         expressions = instruction.parameters["imagingKeywords"].split(",")
-        if concepts := CanvasScience.search_imagings(self.settings.science_host, expressions):
+        if concepts := CanvasScience.search_imagings(expressions):
             # ask the LLM to pick the most relevant imaging
             system_prompt = [
                 "The conversation is in the medical context.",

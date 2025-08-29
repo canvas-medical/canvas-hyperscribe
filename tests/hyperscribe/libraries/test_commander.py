@@ -100,13 +100,11 @@ def test_compute_audio(
     settings = Settings(
         llm_text=VendorKey(vendor="theVendorTextLLM", api_key="theKeyTextLLM"),
         llm_audio=VendorKey(vendor="theVendorAudioLLM", api_key="theKeyAudioLLM"),
-        science_host="theScienceHost",
-        ontologies_host="theOntologiesHost",
-        pre_shared_key="thePreSharedKey",
         structured_rfv=True,
         audit_llm=False,
         is_tuning=False,
         api_signing_key="theApiSigningKey",
+        max_workers=7,
         send_progress=False,
         commands_policy=AccessPolicy(policy=False, items=["Command1", "Command2", "Command3"]),
         staffers_policy=AccessPolicy(policy=False, items=["31", "47"]),
@@ -352,13 +350,11 @@ def test_audio2commands(transcript2commands, tail_of, memory_log, progress):
     settings = Settings(
         llm_text=VendorKey(vendor="theVendorTextLLM", api_key="theKeyTextLLM"),
         llm_audio=VendorKey(vendor="theVendorAudioLLM", api_key="theKeyAudioLLM"),
-        science_host="theScienceHost",
-        ontologies_host="theOntologiesHost",
-        pre_shared_key="thePreSharedKey",
         structured_rfv=True,
         audit_llm=True,
         is_tuning=False,
         api_signing_key="theApiSigningKey",
+        max_workers=7,
         send_progress=True,
         commands_policy=AccessPolicy(policy=False, items=[]),
         staffers_policy=AccessPolicy(policy=False, items=[]),
@@ -812,13 +808,11 @@ def test_transcript2commands_common(time, memory_log, progress):
         settings = Settings(
             llm_text=VendorKey(vendor="textVendor", api_key="textAPIKey"),
             llm_audio=VendorKey(vendor="audioVendor", api_key="audioAPIKey"),
-            science_host="theScienceHost",
-            ontologies_host="theOntologiesHost",
-            pre_shared_key="thePreSharedKey",
             structured_rfv=True,
             audit_llm=True,
             is_tuning=False,
             api_signing_key="theApiSigningKey",
+            max_workers=7,
             send_progress=False,
             commands_policy=AccessPolicy(policy=False, items=["Command1", "Command2", "Command3"]),
             staffers_policy=AccessPolicy(policy=False, items=["31", "47"]),
@@ -991,13 +985,11 @@ def test_transcript2commands_common(time, memory_log, progress):
     settings = Settings(
         llm_text=VendorKey(vendor="textVendor", api_key="textAPIKey"),
         llm_audio=VendorKey(vendor="audioVendor", api_key="audioAPIKey"),
-        science_host="theScienceHost",
-        ontologies_host="theOntologiesHost",
-        pre_shared_key="thePreSharedKey",
         structured_rfv=True,
         audit_llm=True,
         is_tuning=False,
         api_signing_key="theApiSigningKey",
+        max_workers=7,
         send_progress=False,
         commands_policy=AccessPolicy(policy=False, items=["Command1", "Command2", "Command3"]),
         staffers_policy=AccessPolicy(policy=False, items=["31", "47"]),
@@ -1235,13 +1227,11 @@ def test_transcript2commands_questionnaires(time, memory_log, progress):
         settings = Settings(
             llm_text=VendorKey(vendor="textVendor", api_key="textAPIKey"),
             llm_audio=VendorKey(vendor="audioVendor", api_key="audioAPIKey"),
-            science_host="theScienceHost",
-            ontologies_host="theOntologiesHost",
-            pre_shared_key="thePreSharedKey",
             structured_rfv=True,
             audit_llm=True,
             is_tuning=False,
             api_signing_key="theApiSigningKey",
+            max_workers=7,
             send_progress=False,
             commands_policy=AccessPolicy(policy=False, items=["Command1", "Command2", "Command3"]),
             staffers_policy=AccessPolicy(policy=False, items=["31", "47"]),
@@ -1300,6 +1290,19 @@ def test_new_commands_from(time, memory_log):
         for a_command in mock_commands:
             a_command.reset_mock()
 
+    settings = Settings(
+        llm_text=VendorKey(vendor="textVendor", api_key="textAPIKey"),
+        llm_audio=VendorKey(vendor="audioVendor", api_key="audioAPIKey"),
+        structured_rfv=True,
+        audit_llm=True,
+        is_tuning=False,
+        api_signing_key="theApiSigningKey",
+        max_workers=7,
+        send_progress=False,
+        commands_policy=AccessPolicy(policy=False, items=["Command1", "Command2", "Command3"]),
+        staffers_policy=AccessPolicy(policy=False, items=["31", "47"]),
+        cycle_transcript_overlap=37,
+    )
     identification = IdentificationParameters(
         patient_uuid="patientUuid",
         note_uuid="noteUuid",
@@ -1416,6 +1419,7 @@ def test_new_commands_from(time, memory_log):
     chatter.create_sdk_command_from.side_effect = []
     chatter.is_local_data = False
     chatter.identification = identification
+    chatter.settings = settings
     chatter.s3_credentials = "awsS3"
     for mock_command in mock_commands:
         mock_command.originate.side_effect = []
@@ -1509,6 +1513,19 @@ def test_update_commands_from(time, memory_log):
         for a_command in mock_commands:
             a_command.reset_mock()
 
+    settings = Settings(
+        llm_text=VendorKey(vendor="textVendor", api_key="textAPIKey"),
+        llm_audio=VendorKey(vendor="audioVendor", api_key="audioAPIKey"),
+        structured_rfv=True,
+        audit_llm=True,
+        is_tuning=False,
+        api_signing_key="theApiSigningKey",
+        max_workers=7,
+        send_progress=False,
+        commands_policy=AccessPolicy(policy=False, items=["Command1", "Command2", "Command3"]),
+        staffers_policy=AccessPolicy(policy=False, items=["31", "47"]),
+        cycle_transcript_overlap=37,
+    )
     identification = IdentificationParameters(
         patient_uuid="patientUuid",
         note_uuid="noteUuid",
@@ -1620,6 +1637,7 @@ def test_update_commands_from(time, memory_log):
     ]
     chatter.is_local_data = False
     chatter.identification = identification
+    chatter.settings = settings
     chatter.s3_credentials = "awsS3"
 
     tested = Commander

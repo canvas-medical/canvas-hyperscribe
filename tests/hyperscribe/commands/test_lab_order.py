@@ -20,13 +20,11 @@ def helper_instance() -> LabOrder:
     settings = Settings(
         llm_text=VendorKey(vendor="textVendor", api_key="textKey"),
         llm_audio=VendorKey(vendor="audioVendor", api_key="audioKey"),
-        science_host="scienceHost",
-        ontologies_host="ontologiesHost",
-        pre_shared_key="preSharedKey",
         structured_rfv=False,
         audit_llm=False,
         is_tuning=False,
         api_signing_key="theApiSigningKey",
+        max_workers=3,
         send_progress=False,
         commands_policy=AccessPolicy(policy=False, items=[]),
         staffers_policy=AccessPolicy(policy=False, items=[]),
@@ -227,9 +225,9 @@ def test_command_from_json(add_code2description, condition_from, lab_test_from, 
 
         assert add_code2description.mock_calls == exp_calls
         calls = [
-            call(instruction, chatter, tested.settings, ["condition1", "condition2"], ["icd1", "icd2"], comment),
-            call(instruction, chatter, tested.settings, ["condition3"], ["icd3"], comment),
-            call(instruction, chatter, tested.settings, ["condition4"], ["icd4"], comment),
+            call(instruction, chatter, ["condition1", "condition2"], ["icd1", "icd2"], comment),
+            call(instruction, chatter, ["condition3"], ["icd3"], comment),
+            call(instruction, chatter, ["condition4"], ["icd4"], comment),
         ]
         assert condition_from.mock_calls == calls
         calls = []

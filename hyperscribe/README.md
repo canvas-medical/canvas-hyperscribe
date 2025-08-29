@@ -72,9 +72,7 @@ The `secrets` are stored in the Canvas instance database and can be upsert in `h
 | `KeyTextLLM`               |                                 | the vendor's API key                                                                                                                                        |
 | `VendorAudioLLM`           | `OpenAi`, `Google`              | by default `OpenAi` (case insensitive)                                                                                                                      |
 | `KeyAudioLLM`              |                                 | the vendor's API key                                                                                                                                        |
-| `ScienceHost`              |                                 | `science` Canvas service                                                                                                                                    |
-| `OntologiesHost`           |                                 | `ontologies` Canvas service                                                                                                                                 |
-| `PreSharedKey`             |                                 | key provided by Canvas to access `ontologies`                                                                                                               |
+| `MaxWorkers`               |                                 | the number of concurrent commands computed                                                                                                                  |
 | `StructuredReasonForVisit` | `y`, `yes` or `1`               | any other value means `no`/`false`                                                                                                                          |
 | `AuditLLMDecisions`        | `y`, `yes` or `1`               | any other value means `no`/`false`                                                                                                                          |
 | `IsTuning`                 | `y`, `yes` or `1`               | any other value means `no`/`false`, if `true`, only the `Tuning` button is displayed, otherwise the `Hyperscribe` and `Reviewer` buttons are displayed      |
@@ -90,8 +88,6 @@ The `secrets` are stored in the Canvas instance database and can be upsert in `h
 | `StaffersPolicy`           | `y`, `yes` or `1`               | the staffers of `StaffersList` are allowed (`y`) or excluded (`n`)                                                                                          |
 | `CycleTranscriptOverlap`   | `100`                           | the numbers of words from the end of the last audio chunk provided to the LLM when generating the transcript from the audio                                 |
 
-To use the Canvas services provided by the SDK (`OntologiesHttp` and `ScienceHttp` from `canvas_sdk.utils.http`), set to empty the related secrets (
-`OntologiesHost` and `ScienceHost`).
 
 The logs, mainly the communication with the LLMs, are stored in a `AWS S3 bucket` if credentials are provided as listed above. The credentials must belong to an AWS IAM user with username following the format `hyperscribe-{canvas_instance}`.
 

@@ -37,9 +37,6 @@ def helper_instance():
         "VendorTextLLM": "theVendorTextLLM",
         "KeyAudioLLM": "theKeyAudioLLM",
         "VendorAudioLLM": "theVendorAudioLLM",
-        "ScienceHost": "theScienceHost",
-        "OntologiesHost": "theOntologiesHost",
-        "PreSharedKey": "thePreSharedKey",
         "StructuredReasonForVisit": "yes",
         "AuditLLMDecisions": "yes",
         "AwsKey": "theKey",
@@ -47,6 +44,7 @@ def helper_instance():
         "AwsRegion": "theRegion",
         "AwsBucketLogs": "theBucketLogs",
         "CycleTranscriptOverlap": "37",
+        "MaxWorkers": 5,
     }
     environment = {Constants.CUSTOMER_IDENTIFIER: "customerIdentifier"}
     view = CaptureView(event, secrets, environment)
@@ -598,11 +596,9 @@ def test_run_reviewer(log, implemented_commands, llm_decision_reviewer, progress
         api_signing_key="signingKey",
         llm_text=VendorKey(vendor="theVendorTextLLM", api_key="theKeyTextLLM"),
         llm_audio=VendorKey(vendor="theVendorAudioLLM", api_key="theKeyAudioLLM"),
-        science_host="theScienceHost",
-        ontologies_host="theOntologiesHost",
-        pre_shared_key="thePreSharedKey",
         structured_rfv=True,
         audit_llm=False,
+        max_workers=5,
         is_tuning=False,
         send_progress=True,
         commands_policy=AccessPolicy(policy=False, items=[]),
@@ -734,12 +730,10 @@ def test_run_commander(
         api_signing_key="signingKey",
         llm_text=VendorKey(vendor="theVendorTextLLM", api_key="theKeyTextLLM"),
         llm_audio=VendorKey(vendor="theVendorAudioLLM", api_key="theKeyAudioLLM"),
-        science_host="theScienceHost",
-        ontologies_host="theOntologiesHost",
-        pre_shared_key="thePreSharedKey",
         structured_rfv=True,
         audit_llm=True,
         is_tuning=False,
+        max_workers=5,
         send_progress=True,
         commands_policy=AccessPolicy(policy=False, items=[]),
         staffers_policy=AccessPolicy(policy=False, items=[]),
@@ -806,7 +800,7 @@ def test_run_commander(
         assert stop_and_go.mock_calls == calls
         calls = [
             call.instance(identification, "main", credentials),
-            call.instance().output("SDK: theVersion - Text: theVendorTextLLM - Audio: theVendorAudioLLM"),
+            call.instance().output("SDK: theVersion - Text: theVendorTextLLM - Audio: theVendorAudioLLM - Workers: 5"),
             call.end_session("noteId"),
         ]
         assert memory_log.mock_calls == calls
@@ -848,7 +842,7 @@ def test_run_commander(
     assert stop_and_go.mock_calls == calls
     calls = [
         call.instance(identification, "main", credentials),
-        call.instance().output("SDK: theVersion - Text: theVendorTextLLM - Audio: theVendorAudioLLM"),
+        call.instance().output("SDK: theVersion - Text: theVendorTextLLM - Audio: theVendorAudioLLM - Workers: 5"),
     ]
     assert memory_log.mock_calls == calls
     assert progress.mock_calls == []

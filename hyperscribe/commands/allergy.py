@@ -37,12 +37,7 @@ class Allergy(Base):
 
         # retrieve existing allergies defined in Canvas Ontologies
         expressions = instruction.parameters["keywords"].split(",")
-        allergies = CanvasScience.search_allergy(
-            self.settings.ontologies_host,
-            self.settings.pre_shared_key,
-            expressions,
-            concept_types,
-        )
+        allergies = CanvasScience.search_allergy(expressions, concept_types)
         result = AllergyCommand(
             severity=Helper.enum_or_none(instruction.parameters["severity"], AllergyCommand.Severity),
             narrative=instruction.parameters["reaction"],

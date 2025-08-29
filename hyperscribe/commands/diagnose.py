@@ -30,7 +30,6 @@ class Diagnose(Base):
         icd10_code = SelectorChat.condition_from(
             instruction,
             chatter,
-            self.settings,
             instruction.parameters["keywords"].split(","),
             instruction.parameters["ICD10"].split(","),
             "\n".join([instruction.parameters["rationale"], "", instruction.parameters["assessment"]]),

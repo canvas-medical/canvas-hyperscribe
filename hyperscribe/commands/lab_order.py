@@ -57,7 +57,6 @@ class LabOrder(Base):
             item = SelectorChat.condition_from(
                 instruction,
                 chatter,
-                self.settings,
                 condition["conditionKeywords"].split(","),
                 condition["ICD10"].split(","),
                 instruction.parameters["comment"],

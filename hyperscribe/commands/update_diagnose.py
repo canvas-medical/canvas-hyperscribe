@@ -46,7 +46,7 @@ class UpdateDiagnose(Base):
 
         # retrieve existing conditions defined in Canvas Science
         expressions = instruction.parameters["keywords"].split(",") + instruction.parameters["ICD10"].split(",")
-        if conditions := CanvasScience.search_conditions(self.settings.science_host, expressions):
+        if conditions := CanvasScience.search_conditions(expressions):
             # retrieve the correct condition
             system_prompt = [
                 "The conversation is in the medical context.",

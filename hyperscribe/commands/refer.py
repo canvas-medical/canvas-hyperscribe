@@ -61,7 +61,7 @@ class Refer(Base):
                 f"{information} {names}"  # <-- the order is important for the search in the Canvas Science service
             )
 
-        provider = SelectorChat.contact_from(instruction, chatter, self.settings, information, zip_codes)
+        provider = SelectorChat.contact_from(instruction, chatter, information, zip_codes)
         result = ReferCommand(
             service_provider=provider,
             clinical_question=Helper.enum_or_none(
@@ -80,7 +80,6 @@ class Refer(Base):
             item = SelectorChat.condition_from(
                 instruction,
                 chatter,
-                self.settings,
                 condition["conditionKeywords"].split(","),
                 condition["ICD10"].split(","),
                 instruction.parameters["comment"],

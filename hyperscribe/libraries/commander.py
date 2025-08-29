@@ -240,7 +240,7 @@ class Commander(BaseProtocol):
         ]
         Progress.send_to_user(chatter.identification, chatter.settings, messages)
 
-        max_workers = max(1, Constants.MAX_WORKERS)
+        max_workers = max(1, chatter.settings.max_workers)
         with ThreadPoolExecutor(max_workers=max_workers) as builder:
             instructions_with_parameter = [
                 instruction
@@ -305,7 +305,7 @@ class Commander(BaseProtocol):
         memory_log = MemoryLog.instance(chatter.identification, Constants.MEMORY_LOG_LABEL, chatter.s3_credentials)
         start = time()
 
-        max_workers = max(1, Constants.MAX_WORKERS)
+        max_workers = max(1, chatter.settings.max_workers)
         with ThreadPoolExecutor(max_workers=max_workers) as builder:
             instructions_with_command = [
                 instruction
@@ -360,7 +360,7 @@ class Commander(BaseProtocol):
         new_instructions = [instruction for instruction in instructions if instruction.uuid not in past_uuids]
         memory_log.output(f"--> new instructions: {len(new_instructions)}")
         start = time()
-        max_workers = max(1, Constants.MAX_WORKERS)
+        max_workers = max(1, chatter.settings.max_workers)
         with ThreadPoolExecutor(max_workers=max_workers) as builder:
             instructions_with_parameter = [
                 instruction
@@ -408,7 +408,7 @@ class Commander(BaseProtocol):
         ]
         memory_log.output(f"--> updated instructions: {len(changed_instructions)}")
         start = time()
-        max_workers = max(1, Constants.MAX_WORKERS)
+        max_workers = max(1, chatter.settings.max_workers)
         with ThreadPoolExecutor(max_workers=max_workers) as builder:
             instructions_with_parameter = [
                 instruction

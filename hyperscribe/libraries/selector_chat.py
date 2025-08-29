@@ -9,7 +9,6 @@ from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.instruction import Instruction
-from hyperscribe.structures.settings import Settings
 
 
 class SelectorChat:
@@ -18,14 +17,13 @@ class SelectorChat:
         cls,
         instruction: Instruction,
         chatter: LlmBase,
-        settings: Settings,
         keywords: list[str],
         icd10s: list[str],
         comment: str,
     ) -> CodedItem:
         result = CodedItem(code="", label="", uuid="")
         # retrieve existing conditions defined in Canvas Science
-        if conditions := CanvasScience.search_conditions(settings.science_host, keywords + icd10s):
+        if conditions := CanvasScience.search_conditions(keywords + icd10s):
             # retrieve the correct condition
             system_prompt = [
                 "The conversation is in the medical context.",
@@ -123,12 +121,11 @@ class SelectorChat:
         cls,
         instruction: Instruction,
         chatter: LlmBase,
-        settings: Settings,
         free_text_information: str,
         zip_codes: list[str],
     ) -> ServiceProvider:
         result = ServiceProvider(first_name="", last_name="", specialty="", practice_name="")
-        if contacts := CanvasScience.search_contacts(settings.science_host, free_text_information, zip_codes):
+        if contacts := CanvasScience.search_contacts(free_text_information, zip_codes):
             system_prompt = [
                 "The conversation is in the medical context.",
                 "",

@@ -37,7 +37,7 @@ class FamilyHistory(Base):
         )
         # retrieve existing family history conditions defined in Canvas Science
         expressions = instruction.parameters["keywords"].split(",")
-        if concepts := CanvasScience.family_histories(self.settings.science_host, expressions):
+        if concepts := CanvasScience.family_histories(expressions):
             # ask the LLM to pick the most relevant condition
             system_prompt = [
                 "The conversation is in the medical context.",
