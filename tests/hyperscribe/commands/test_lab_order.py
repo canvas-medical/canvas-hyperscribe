@@ -274,8 +274,8 @@ def test_command_parameters():
     expected = {
         "labOrders": [],
         "conditions": [],
-        "fastingRequired": "mandatory, True or False, as boolean",
-        "comment": "rationale of the prescription, as free text limited to 128 characters",
+        "fastingRequired": "",
+        "comment": "",
     }
     assert result == expected
 

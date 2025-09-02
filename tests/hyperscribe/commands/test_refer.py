@@ -140,7 +140,7 @@ def test_command_from_json(add_code2description, condition_from, contact_from, p
             "is_updated": True,
             "parameters": {
                 "referredServiceProvider": {"names": names, "specialty": "theSpecialty"},
-                "clinicalQuestions": "Diagnostic Uncertainty",
+                "clinicalQuestion": "Diagnostic Uncertainty",
                 "priority": "Routine",
                 "notesToSpecialist": "theNoteToTheSpecialist",
                 "comment": "theComment",
@@ -196,25 +196,95 @@ def test_command_parameters():
     tested = helper_instance()
     result = tested.command_parameters()
     expected = {
-        "referredServiceProvider": {
-            "names": "the names of the practice and/or of the referred provider, or empty",
-            "specialty": "the specialty of the referred provider, required",
-        },
-        "clinicalQuestions": "one of: 'Cognitive Assistance (Advice/Guidance)', "
-        "'Assistance with Ongoing Management', "
-        "'Specialized intervention', "
-        "'Diagnostic Uncertainty'",
-        "priority": "one of: Routine/Urgent",
-        "notesToSpecialist": "note or question to be sent to the referred specialist, required, as concise free text",
-        "comment": "rationale of the referral, as free text",
-        "conditions": [
-            {
-                "conditionKeywords": "comma separated keywords of up to 5 synonyms of each condition "
-                "related to the referral",
-                "ICD10": "comma separated keywords of up to 5 ICD-10 codes of each condition related to the referral",
-            },
-        ],
+        "referredServiceProvider": {"specialty": "", "names": ""},
+        "clinicalQuestion": "",
+        "priority": "",
+        "notesToSpecialist": "",
+        "comment": "",
+        "conditions": [],
     }
+    assert result == expected
+
+
+def test_command_parameters_schemas():
+    tested = helper_instance()
+    result = tested.command_parameters_schemas()
+    expected = [
+        {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "referredServiceProvider": {
+                        "type": "object",
+                        "properties": {
+                            "specialty": {
+                                "type": "string",
+                                "description": "the specialty of the referred provider, required",
+                            },
+                            "names": {
+                                "type": "string",
+                                "description": "the names of the practice and/or of the referred provider, or empty",
+                            },
+                        },
+                        "required": ["specialty", "names"],
+                    },
+                    "clinicalQuestion": {
+                        "type": "string",
+                        "enum": [
+                            "Cognitive Assistance (Advice/Guidance)",
+                            "Assistance with Ongoing Management",
+                            "Specialized intervention",
+                            "Diagnostic Uncertainty",
+                        ],
+                    },
+                    "priority": {
+                        "type": "string",
+                        "enum": ["Routine", "Urgent"],
+                    },
+                    "notesToSpecialist": {
+                        "type": "string",
+                        "description": "note or question to be sent to the referred specialist, "
+                        "concise, directly derived from the transcript content and required",
+                    },
+                    "comment": {
+                        "type": "string",
+                        "description": "Direct clinical reasoning statement, derived only from transcript "
+                        "content. Express the medical findings and purpose of the referral "
+                        "as a concise clinical note, without introducing phrases like "
+                        "'referral' or 'rationale'.",
+                    },
+                    "conditions": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "conditionKeywords": {
+                                    "type": "string",
+                                    "description": "Comma-separated keywords to find in a database "
+                                    "(using OR criteria) the condition related to the referral.",
+                                },
+                                "ICD10": {
+                                    "type": "string",
+                                    "description": "Comma-separated ICD-10 codes (up to 5) for the condition "
+                                    "related to the referral.",
+                                },
+                            },
+                            "required": ["conditionKeywords", "ICD10"],
+                        },
+                    },
+                },
+                "required": [
+                    "referredServiceProvider",
+                    "clinicalQuestion",
+                    "priority",
+                    "notesToSpecialist",
+                    "comment",
+                    "conditions",
+                ],
+            },
+        }
+    ]
     assert result == expected
 
 
@@ -223,7 +293,7 @@ def test_instruction_description():
     result = tested.instruction_description()
     expected = (
         "Referral to a specialist, including the rationale and the targeted conditions. "
-        "There can be only one referral in an instruction with all necessary information, "
+        "There can be one and only one referral in an instruction with all necessary information, "
         "and no instruction in the lack of."
     )
     assert result == expected

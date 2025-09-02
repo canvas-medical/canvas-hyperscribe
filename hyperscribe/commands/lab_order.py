@@ -92,8 +92,8 @@ class LabOrder(Base):
         return {
             "labOrders": [],
             "conditions": [],
-            "fastingRequired": "mandatory, True or False, as boolean",
-            "comment": "rationale of the prescription, as free text limited to 128 characters",
+            "fastingRequired": "",
+            "comment": "",
         }
 
     def command_parameters_schemas(self) -> list[dict]:

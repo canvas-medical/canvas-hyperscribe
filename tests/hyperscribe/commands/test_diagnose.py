@@ -183,7 +183,8 @@ def test_instruction_description():
         "- all reasoning explicitly mentioned in the transcript, "
         "- current detailed assessment as mentioned in the transcript, and "
         "- onset date, even for today. "
-        "There is one and only one instruction per condition, and no instruction in the lack of."
+        "There is one and only one condition per instruction with all necessary information, "
+        "and no instruction in the lack of."
     )
     assert result == expected
 

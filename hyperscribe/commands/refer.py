@@ -65,7 +65,7 @@ class Refer(Base):
         result = ReferCommand(
             service_provider=provider,
             clinical_question=Helper.enum_or_none(
-                instruction.parameters["clinicalQuestions"],
+                instruction.parameters["clinicalQuestion"],
                 ReferCommand.ClinicalQuestion,
             ),
             priority=Helper.enum_or_none(instruction.parameters["priority"], ReferCommand.Priority),
@@ -92,32 +92,93 @@ class Refer(Base):
         return InstructionWithCommand.add_command(instruction, result)
 
     def command_parameters(self) -> dict:
-        questions = ", ".join([f"'{item.value}'" for item in ReferCommand.ClinicalQuestion])
-        priorities = "/".join([item.value for item in ReferCommand.Priority])
         return {
-            "referredServiceProvider": {
-                "specialty": "the specialty of the referred provider, required",
-                "names": "the names of the practice and/or of the referred provider, or empty",
-            },
-            "clinicalQuestions": f"one of: {questions}",
-            "priority": f"one of: {priorities}",
-            "notesToSpecialist": "note or question to be sent to the referred specialist, required, "
-            "as concise free text",
-            "comment": "rationale of the referral, as free text",
-            "conditions": [
-                {
-                    "conditionKeywords": "comma separated keywords of up to 5 synonyms of each "
-                    "condition related to the referral",
-                    "ICD10": "comma separated keywords of up to 5 ICD-10 codes of each condition "
-                    "related to the referral",
-                },
-            ],
+            "referredServiceProvider": {"specialty": "", "names": ""},
+            "clinicalQuestion": "",
+            "priority": "",
+            "notesToSpecialist": "",
+            "comment": "",
+            "conditions": [],
         }
+
+    def command_parameters_schemas(self) -> list[dict]:
+        return [
+            {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "referredServiceProvider": {
+                            "type": "object",
+                            "properties": {
+                                "specialty": {
+                                    "type": "string",
+                                    "description": "the specialty of the referred provider, required",
+                                },
+                                "names": {
+                                    "type": "string",
+                                    "description": "the names of the practice and/or of the referred provider, "
+                                    "or empty",
+                                },
+                            },
+                            "required": ["specialty", "names"],
+                        },
+                        "clinicalQuestion": {
+                            "type": "string",
+                            "enum": [item.value for item in ReferCommand.ClinicalQuestion],
+                        },
+                        "priority": {
+                            "type": "string",
+                            "enum": [item.value for item in ReferCommand.Priority],
+                        },
+                        "notesToSpecialist": {
+                            "type": "string",
+                            "description": "note or question to be sent to the referred specialist, "
+                            "concise, directly derived from the transcript content and required",
+                        },
+                        "comment": {
+                            "type": "string",
+                            "description": "Direct clinical reasoning statement, derived only from transcript "
+                            "content. Express the medical findings and purpose of the referral "
+                            "as a concise clinical note, without introducing phrases like "
+                            "'referral' or 'rationale'.",
+                        },
+                        "conditions": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "conditionKeywords": {
+                                        "type": "string",
+                                        "description": "Comma-separated keywords to find in a database "
+                                        "(using OR criteria) the condition related to the referral.",
+                                    },
+                                    "ICD10": {
+                                        "type": "string",
+                                        "description": "Comma-separated ICD-10 codes (up to 5) for the condition "
+                                        "related to the referral.",
+                                    },
+                                },
+                                "required": ["conditionKeywords", "ICD10"],
+                            },
+                        },
+                    },
+                    "required": [
+                        "referredServiceProvider",
+                        "clinicalQuestion",
+                        "priority",
+                        "notesToSpecialist",
+                        "comment",
+                        "conditions",
+                    ],
+                },
+            }
+        ]
 
     def instruction_description(self) -> str:
         return (
             "Referral to a specialist, including the rationale and the targeted conditions. "
-            "There can be only one referral in an instruction with all necessary information, "
+            "There can be one and only one referral in an instruction with all necessary information, "
             "and no instruction in the lack of."
         )
 
