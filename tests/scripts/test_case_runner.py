@@ -1,7 +1,7 @@
 from argparse import Namespace
 from unittest.mock import patch, call, MagicMock
 
-from case_runner import CaseRunner
+from scripts.case_runner import CaseRunner
 from evaluations.datastores.datastore_case import DatastoreCase
 from hyperscribe.libraries.commander import Commander
 from hyperscribe.libraries.cached_sdk import CachedSdk
@@ -11,7 +11,7 @@ from hyperscribe.structures.identification_parameters import IdentificationParam
 from hyperscribe.structures.line import Line
 
 
-@patch("case_runner.ArgumentParser")
+@patch("scripts.case_runner.ArgumentParser")
 def test_parameters(argument_parser):
     def reset_mocks():
         argument_parser.reset_mock()
@@ -37,8 +37,8 @@ def test_parameters(argument_parser):
     reset_mocks()
 
 
-@patch("case_runner.AudioInterpreter")
-@patch("case_runner.HelperEvaluation")
+@patch("scripts.case_runner.AudioInterpreter")
+@patch("scripts.case_runner.HelperEvaluation")
 @patch.object(DatastoreCase, "already_generated")
 @patch.object(Commander, "transcript2commands")
 @patch.object(ImplementedCommands, "schema_key2instruction")

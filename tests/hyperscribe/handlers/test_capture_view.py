@@ -7,6 +7,7 @@ from unittest.mock import patch, call
 from canvas_generated.messages.effects_pb2 import Effect
 from canvas_sdk.effects.simple_api import Response, HTMLResponse
 from canvas_sdk.handlers.simple_api import SimpleAPI, Credentials
+from canvas_sdk.handlers.simple_api.api import StringFormPart
 from canvas_sdk.v1.data.command import Command
 from canvas_sdk.v1.data.note import Note
 
@@ -126,7 +127,7 @@ def test_capture_get(authenticator, render_to_string, stop_and_go, helper):
     render_to_string.side_effect = ["<html/>"]
     helper.canvas_ws_host.side_effect = ["theWsHost"]
     authenticator.presigned_url.side_effect = ["Url1"]
-    authenticator.presigned_url_no_params.side_effect = ["Url2", "Url3", "Url4", "Url5", "Url6", "Url7"]
+    authenticator.presigned_url_no_params.side_effect = ["Url2", "Url3", "Url4", "Url5", "Url6", "Url7", "Url8"]
     stop_and_go.get.return_value.is_ended.side_effect = [False]
     stop_and_go.get.return_value.is_paused.side_effect = [False, False]
     stop_and_go.get.return_value.cycle.side_effect = [7]
@@ -148,6 +149,7 @@ def test_capture_get(authenticator, render_to_string, stop_and_go, helper):
         call.presigned_url_no_params("signingKey", "/plugin-io/api/hyperscribe/capture/idle/p/n/pause"),
         call.presigned_url_no_params("signingKey", "/plugin-io/api/hyperscribe/capture/idle/p/n/resume"),
         call.presigned_url_no_params("signingKey", "/plugin-io/api/hyperscribe/capture/idle/p/n/end"),
+        call.presigned_url_no_params("signingKey", "/plugin-io/api/hyperscribe/feedback/p/n"),
         call.presigned_url_no_params("signingKey", "/plugin-io/api/hyperscribe/audio/p/n"),
     ]
     assert authenticator.mock_calls == calls
@@ -166,7 +168,8 @@ def test_capture_get(authenticator, render_to_string, stop_and_go, helper):
                 "pauseSessionURL": "Url3",
                 "resumeSessionURL": "Url4",
                 "endSessionURL": "Url5",
-                "saveAudioURL": "Url6",
+                "feedbackURL": "Url6",
+                "saveAudioURL": "Url7",
                 "isEnded": False,
                 "isPaused": False,
                 "chunkId": 6,
@@ -568,6 +571,103 @@ def test_render_effect_post(stop_and_go, executor, helper):
         assert executor.mock_calls == exp_executor, f"---> {idx}"
         assert helper.mock_calls == exp_helper, f"---> {idx}"
         reset_mocks()
+
+
+@patch("hyperscribe.handlers.capture_view.datetime", wraps=datetime)
+@patch("hyperscribe.handlers.capture_view.AwsS3")
+def test_feedback_post(aws_s3, mock_datetime):
+    def reset_mocks():
+        aws_s3.reset_mock()
+        mock_datetime.reset_mock()
+
+    date_0 = datetime(2025, 8, 29, 10, 14, 57, 123456, tzinfo=timezone.utc)
+
+    tested = helper_instance()
+
+    # missing feedback
+    aws_s3.return_value.is_ready.side_effect = []
+    mock_datetime.now.side_effect = []
+    tested.request = SimpleNamespace(
+        path_params={"patient_id": "p", "note_id": "n"},
+        form_data=lambda: {},
+    )
+    result = tested.feedback_post()
+    expected = [Response(content=b"Feedback cannot be empty", status_code=400)]
+    assert result == expected
+
+    assert aws_s3.mock_calls == []
+    assert mock_datetime.mock_calls == []
+    reset_mocks()
+
+    # empty feedback
+    aws_s3.return_value.is_ready.side_effect = []
+    mock_datetime.now.side_effect = []
+    tested.request = SimpleNamespace(
+        path_params={"patient_id": "p", "note_id": "n"},
+        form_data=lambda: {"feedback": StringFormPart(name="feedback", value="")},
+    )
+    result = tested.feedback_post()
+    expected = [Response(content=b"Feedback cannot be empty", status_code=400)]
+    assert result == expected
+
+    assert aws_s3.mock_calls == []
+    assert mock_datetime.mock_calls == []
+    reset_mocks()
+
+    # AWS credentials not provided
+    aws_s3.return_value.is_ready.side_effect = [False]
+    mock_datetime.now.side_effect = []
+    tested.request = SimpleNamespace(
+        path_params={"patient_id": "p", "note_id": "n"},
+        form_data=lambda: {"feedback": StringFormPart(name="feedback", value="theFeedback")},
+    )
+    result = tested.feedback_post()
+    expected = [Response(content=b"Storage is not made available", status_code=500)]
+    assert result == expected
+
+    calls = [
+        call(
+            AwsS3Credentials(
+                aws_key="theKey",
+                aws_secret="theSecret",
+                region="theRegion",
+                bucket="theBucketLogs",
+            )
+        ),
+        call().is_ready(),
+    ]
+    assert aws_s3.mock_calls == calls
+    assert mock_datetime.mock_calls == []
+    reset_mocks()
+
+    # all good
+    aws_s3.return_value.is_ready.side_effect = [True]
+    mock_datetime.now.side_effect = [date_0]
+
+    tested.request = SimpleNamespace(
+        path_params={"patient_id": "p", "note_id": "n"},
+        form_data=lambda: {"feedback": StringFormPart(name="feedback", value="theFeedback")},
+    )
+    result = tested.feedback_post()
+    expected = [Response(content=b"Feedback saved OK", status_code=201)]
+    assert result == expected
+
+    calls = [
+        call(
+            AwsS3Credentials(
+                aws_key="theKey",
+                aws_secret="theSecret",
+                region="theRegion",
+                bucket="theBucketLogs",
+            )
+        ),
+        call().is_ready(),
+        call().upload_text_to_s3("hyperscribe-customerIdentifier/feedback/n/20250829-101457", "theFeedback"),
+    ]
+    assert aws_s3.mock_calls == calls
+    calls = [call.now(timezone.utc)]
+    assert mock_datetime.mock_calls == calls
+    reset_mocks()
 
 
 @patch.object(Command, "objects")

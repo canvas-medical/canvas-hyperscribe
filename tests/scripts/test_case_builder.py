@@ -1,6 +1,6 @@
 from unittest.mock import patch, call
 
-from case_builder import CaseBuilder
+from scripts.case_builder import CaseBuilder
 from evaluations.case_builders.builder_audit_url import BuilderAuditUrl
 from evaluations.case_builders.builder_delete import BuilderDelete
 from evaluations.case_builders.builder_direct_from_tuning_full import BuilderDirectFromTuningFull

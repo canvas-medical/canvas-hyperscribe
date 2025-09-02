@@ -1,6 +1,6 @@
 from unittest.mock import patch, call
 
-from case_statistics import CaseStatistics
+from scripts.case_statistics import CaseStatistics
 from evaluations.datastores.store_results import StoreResults
 from evaluations.structures.statistic_case_test import StatisticCaseTest
 

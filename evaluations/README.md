@@ -15,11 +15,11 @@ The [hyperscribe](../hyperscribe) plugin has five essential steps:
 The aim is to provide a continuous validation of the Hyperscribe plugin through two approaches:
 
 * a tests suite run with `pytest` that checks step by step the coherence and the value of the plugin
-* a cases suite run with [`case_runner.py`](../case_runner.py) script that executes an end to end scenario and evaluate it against a rubric
+* a cases suite run with [`case_runner.py`](../scripts/case_runner.py) script that executes an end to end scenario and evaluate it against a rubric
 
 The `pytest` approach is designed to help understand and improve the plugin deep and narrowly.
 
-The rubric approach is designed to offer an overall quality benchmark of the plugin. Currently, the [`case_runner.py`](../case_runner.py) script
+The rubric approach is designed to offer an overall quality benchmark of the plugin. Currently, the [`case_runner.py`](../scripts/case_runner.py) script
 doesn't go further than executing the plugin code using the case from the transcript to the production of the commands and the `summary` files.
 
 #### Situational and case evaluations
@@ -237,7 +237,7 @@ This case builder based on the tuning data has the same behavior as the case bui
 
 #### Storing the cases and the run results
 
-When creating a `case` by running the [`case_builder.py`](../case_builder.py) script, a file is created/updated in
+When creating a `case` by running the [`case_builder.py`](../scripts/case_builder.py) script, a file is created/updated in
 the [datastores/cases](datastores/cases) directory, part of the repository.
 
 This directory stores the meta-information related to the `case`, namely: the group, the type, the environment, the patient uuid.
