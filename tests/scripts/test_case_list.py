@@ -1,6 +1,6 @@
 from unittest.mock import patch, call
 
-from case_list import CaseList
+from scripts.case_list import CaseList
 from evaluations.datastores.filesystem.case import Case as FileSystemCase
 from evaluations.structures.evaluation_case import EvaluationCase
 

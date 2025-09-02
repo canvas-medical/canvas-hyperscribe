@@ -3,7 +3,7 @@ from argparse import Namespace
 from unittest.mock import patch, call, MagicMock
 import sys
 
-from parallel_case_runner import ParallelCaseRunner
+from scripts.parallel_case_runner import ParallelCaseRunner
 from evaluations.datastores.postgres.case import Case
 from evaluations.helper_evaluation import HelperEvaluation
 
@@ -20,8 +20,8 @@ def test_init():
     assert tested.output_queue is not None
 
 
-@patch("parallel_case_runner.subprocess.Popen")
-@patch("parallel_case_runner.time.time")
+@patch("scripts.parallel_case_runner.subprocess.Popen")
+@patch("scripts.parallel_case_runner.time.time")
 def test_run_single_case(time_mock, popen_mock):
     process_mock = MagicMock()
 
@@ -215,7 +215,7 @@ def test_run_single_case(time_mock, popen_mock):
 
 
 @patch.object(ParallelCaseRunner, "run_single_case")
-@patch("parallel_case_runner.ThreadPoolExecutor")
+@patch("scripts.parallel_case_runner.ThreadPoolExecutor")
 def test_run_cases(thread_pool_mock, run_single_case_mock, capsys):
     executor_mock = MagicMock()
     future1_mock = MagicMock()
@@ -243,7 +243,7 @@ def test_run_cases(thread_pool_mock, run_single_case_mock, capsys):
     thread_pool_mock.side_effect = [executor_mock]
 
     # Mock as_completed to return futures in order
-    with patch("parallel_case_runner.as_completed") as as_completed_mock:
+    with patch("scripts.parallel_case_runner.as_completed") as as_completed_mock:
         as_completed_mock.side_effect = [[future1_mock, future2_mock]]
 
         result = tested.run_cases(["case1", "case2"])
@@ -271,7 +271,7 @@ def test_run_cases(thread_pool_mock, run_single_case_mock, capsys):
 
     thread_pool_mock.side_effect = [executor_mock]
 
-    with patch("parallel_case_runner.as_completed") as as_completed_mock:
+    with patch("scripts.parallel_case_runner.as_completed") as as_completed_mock:
         as_completed_mock.side_effect = [[future_mock]]
 
         result = tested.run_cases(["exception_case"])
@@ -297,7 +297,7 @@ def test_run_cases(thread_pool_mock, run_single_case_mock, capsys):
 
     thread_pool_mock.side_effect = [executor_mock]
 
-    with patch("parallel_case_runner.as_completed") as as_completed_mock:
+    with patch("scripts.parallel_case_runner.as_completed") as as_completed_mock:
         as_completed_mock.side_effect = [[future_mock]]
 
         result = tested.run_cases(["failed_case"])
@@ -401,7 +401,7 @@ def test_display_summary(capsys):
     assert result == expected
 
 
-@patch("parallel_case_runner.ArgumentParser")
+@patch("scripts.parallel_case_runner.ArgumentParser")
 def test_parse_arguments(argument_parser):
     def reset_mocks():
         argument_parser.reset_mock()
@@ -428,7 +428,7 @@ def test_parse_arguments(argument_parser):
     reset_mocks()
 
 
-@patch("parallel_case_runner.Path")
+@patch("scripts.parallel_case_runner.Path")
 def test_validate_environment(path_mock):
     path_instance_mock = MagicMock()
 
@@ -455,7 +455,7 @@ def test_validate_environment(path_mock):
     path_mock.side_effect = [path_instance_mock]
 
     try:
-        with patch("parallel_case_runner.sys.exit") as exit_mock:
+        with patch("scripts.parallel_case_runner.sys.exit") as exit_mock:
             exit_mock.side_effect = [SystemExit(1)]
             tested.validate_environment()
     except SystemExit:
@@ -504,7 +504,7 @@ def test_get_cases_from_database(postgres_credentials_mock, get_first_n_cases_mo
     get_first_n_cases_mock.side_effect = [[]]
 
     try:
-        with patch("parallel_case_runner.sys.exit") as exit_mock:
+        with patch("scripts.parallel_case_runner.sys.exit") as exit_mock:
             exit_mock.side_effect = [SystemExit(1)]
             tested.get_cases_from_database()
     except SystemExit:
@@ -518,7 +518,7 @@ def test_get_cases_from_database(postgres_credentials_mock, get_first_n_cases_mo
     postgres_credentials_mock.side_effect = [RuntimeError("DB connection failed")]
 
     try:
-        with patch("parallel_case_runner.sys.exit") as exit_mock:
+        with patch("scripts.parallel_case_runner.sys.exit") as exit_mock:
             exit_mock.side_effect = [SystemExit(1)]
             tested.get_cases_from_database()
     except SystemExit:
@@ -583,7 +583,7 @@ def test_run(
     tested.results = {"case1": True, "case2": False}
 
     try:
-        with patch("parallel_case_runner.sys.exit") as exit_mock:
+        with patch("scripts.parallel_case_runner.sys.exit") as exit_mock:
             exit_mock.side_effect = [SystemExit(1)]
             tested.run()
     except SystemExit:
@@ -600,7 +600,7 @@ def test_run(
     run_cases_mock.side_effect = [KeyboardInterrupt()]
 
     try:
-        with patch("parallel_case_runner.sys.exit") as exit_mock:
+        with patch("scripts.parallel_case_runner.sys.exit") as exit_mock:
             exit_mock.side_effect = [SystemExit(1)]
             tested.run()
     except SystemExit:
