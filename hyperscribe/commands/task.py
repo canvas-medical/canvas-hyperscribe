@@ -26,21 +26,23 @@ class Task(Base):
             return CodedItem(label=f"{task}: {comment} (due on: {due_date}, labels: {labels})", code="", uuid="")
         return None
 
-    def select_staff(
+    def select_assignee(
         self,
         instruction: InstructionWithParameters,
         chatter: LlmBase,
         assigned_to: str,
         comment: str,
     ) -> None | TaskAssigner:
-        staff_members = self.cache.existing_staff_members()
-        if not staff_members:
+        staffs = self.cache.existing_staff_members()
+        roles = self.cache.existing_roles()
+        teams = self.cache.existing_teams()
+        if not (staffs or roles or teams):
             return None
 
         system_prompt = [
             "The conversation is in the medical context.",
             "",
-            "The goal is to identify the most relevant staff member to assign a specific task to.",
+            "The goal is to identify the most relevant staff member, team or role to assign a specific task to.",
             "",
         ]
         user_prompt = [
@@ -52,20 +54,25 @@ class Task(Base):
             "",
             "```",
             "",
-            "Among the following staff members, identify the most relevant one:",
+            "Among the following staff members, teams and roles, identify the most relevant one:",
             "",
-            "\n".join(f" * {staff.label} (staffId: {staff.uuid})" for staff in staff_members),
+            "\n".join(f" * {staff.label} (type: staff, id: {staff.uuid})" for staff in staffs),
+            "\n".join(f" * {team.label} (type: team, id: {team.uuid})" for team in teams),
+            "\n".join(f" * {role.label} (type: role, id: {role.uuid})" for role in roles),
             "",
             "Please, present your findings in a JSON format within a Markdown code block like:",
             "```json",
-            json.dumps([{"staffId": "the staff member id, as int", "name": "the name of the staff member"}]),
+            json.dumps([{"type": "staff, team or role", "id": "the id, as int", "name": "the entity"}]),
             "```",
             "",
         ]
-        schemas = JsonSchema.get(["selector_staff"])
+        schemas = JsonSchema.get(["selector_assignee"])
         if response := chatter.single_conversation(system_prompt, user_prompt, schemas, instruction):
-            staff_id = int(response[0]["staffId"])
-            return TaskAssigner(to=AssigneeType.STAFF, id=staff_id)
+            entity_id = int(response[0]["id"])
+            entity_name = response[0]["name"]
+            entity_type = response[0]["type"]
+            self.add_code2description(str(entity_id), entity_name)
+            return TaskAssigner(to=AssigneeType(entity_type), id=entity_id)
         return None
 
     def select_labels(
@@ -121,7 +128,7 @@ class Task(Base):
             note_uuid=self.identification.note_uuid,
         )
         if instruction.parameters["assignTo"]:
-            result.assign_to = self.select_staff(
+            result.assign_to = self.select_assignee(
                 instruction,
                 chatter,
                 instruction.parameters["assignTo"],
@@ -140,18 +147,57 @@ class Task(Base):
 
     def command_parameters(self) -> dict:
         return {
-            "title": "title of the task",
-            "dueDate": "YYYY-MM-DD",
-            "assignTo": "information about the assignee for the task, or empty",
-            "labels": "information about the labels to link to the task, or empty",
-            "comment": "comment related to the task provided by the clinician",
+            "title": "",
+            "dueDate": "",
+            "assignTo": "",
+            "labels": "",
+            "comment": "",
         }
+
+    def command_parameters_schemas(self) -> list[dict]:
+        return [
+            {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 1,
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "title": {
+                            "type": "string",
+                            "description": "title of the task",
+                        },
+                        "dueDate": {
+                            "type": "string",
+                            "format": "date",
+                            "description": "due date in YYYY-MM-DD format",
+                        },
+                        "assignTo": {
+                            "type": "string",
+                            "description": "information about the assignee for the task, "
+                            "either a person, a team or a role, or empty",
+                        },
+                        "labels": {
+                            "type": "string",
+                            "description": "information about the labels to link to the task, or empty",
+                        },
+                        "comment": {
+                            "type": "string",
+                            "description": "comment related to the task provided by the clinician",
+                        },
+                    },
+                    "required": ["title", "dueDate", "assignTo", "labels", "comment"],
+                },
+            },
+        ]
 
     def instruction_description(self) -> str:
         return (
-            "Specific task assigned to someone at the healthcare facility, including the speaking clinician. "
+            "Specific task assigned to someone or a group at the healthcare facility, "
+            "including the speaking clinician. "
             "A task might include a due date and a specific assignee. "
-            "There can be only one task per instruction, and no instruction in the lack of."
+            "There can be one and only one task per instruction, and no instruction in the lack of."
         )
 
     def instruction_constraints(self) -> str:

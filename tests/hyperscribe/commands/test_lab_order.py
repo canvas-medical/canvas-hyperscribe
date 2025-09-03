@@ -280,7 +280,7 @@ def test_command_parameters():
     assert result == expected
 
 
-def test_command_parameters_schema():
+def test_command_parameters_schemas():
     tested = helper_instance()
     result = tested.command_parameters_schemas()
     expected = "d3f734d221f79a694ac3ec21f4171052"

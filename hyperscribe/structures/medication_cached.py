@@ -41,3 +41,7 @@ class MedicationCached(NamedTuple):
             national_drug_code=data["nationalDrugCode"],
             potency_unit_code=data["potencyUnitCode"],
         )
+
+    @classmethod
+    def load_from_json_list(cls, data: list[dict]) -> list[MedicationCached]:
+        return [cls.load_from_json(item) for item in data]

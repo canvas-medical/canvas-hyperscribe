@@ -32,3 +32,7 @@ class ImmunizationCached(NamedTuple):
             comments=data["comments"],
             approximate_date=date.fromisoformat(data["approximateDate"]),
         )
+
+    @classmethod
+    def load_from_json_list(cls, data: list[dict]) -> list[ImmunizationCached]:
+        return [cls.load_from_json(item) for item in data]

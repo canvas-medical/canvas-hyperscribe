@@ -159,13 +159,17 @@ JSON_SCHEMAS: dict[str, dict] = {
         "minItems": 1,
         "maxItems": 1,
     },
-    "selector_staff": {
+    "selector_assignee": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "array",
         "items": {
             "type": "object",
-            "properties": {"staffId": {"type": "integer", "minimum": 1}, "name": {"type": "string", "minLength": 1}},
-            "required": ["staffId", "name"],
+            "properties": {
+                "type": {"type": "string", "enum": ["staff", "team", "role"]},
+                "id": {"type": "integer", "minimum": 1},
+                "name": {"type": "string", "minLength": 1},
+            },
+            "required": ["type", "id", "name"],
             "additionalProperties": False,
         },
         "minItems": 1,

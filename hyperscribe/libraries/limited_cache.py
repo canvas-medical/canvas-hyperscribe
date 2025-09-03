@@ -6,6 +6,7 @@ from typing import Any
 from canvas_sdk.commands.constants import CodeSystems
 from canvas_sdk.v1.data import (
     AllergyIntolerance,
+    CareTeamRole,
     ChargeDescriptionMaster,
     Command,
     Condition,
@@ -15,7 +16,9 @@ from canvas_sdk.v1.data import (
     Patient,
     PracticeLocation,
     ReasonForVisitSettingCoding,
+    StaffRole,
     Staff,
+    Team,
     TaskLabel,
 )
 from canvas_sdk.v1.data.condition import ClinicalStatus
@@ -53,12 +56,14 @@ class LimitedCache:
         self._goals: list[CodedItem] | None = None
         self._immunizations: list[ImmunizationCached] | None = None
         self._medications: list[MedicationCached] | None = None
-        self._preferred_lab_partner: CodedItem | None = None
         self._note_type: list[CodedItem] | None = None
+        self._preferred_lab_partner: CodedItem | None = None
         self._reason_for_visit: list[CodedItem] | None = None
+        self._roles: list[CodedItem] | None = None
         self._staff_members: list[CodedItem] | None = None
         self._surgery_history: list[CodedItem] | None = None
         self._task_labels: list[CodedItem] | None = None
+        self._teams: list[CodedItem] | None = None
         self._staged_commands: dict[str, list[CodedItem]] = staged_commands_to_coded_items
         self._charge_descriptions: list[ChargeDescription] | None = None
         self._lab_tests: dict[str, list[CodedItem]] = {}
@@ -287,13 +292,23 @@ class LimitedCache:
                 self._reason_for_visit.append(CodedItem(uuid=str(rfv.id), label=rfv.display, code=rfv.code))
         return self._reason_for_visit
 
+    def existing_roles(self) -> list[CodedItem]:
+        if self._roles is None:
+            self._roles = []
+            for role in CareTeamRole.objects.filter(care_teams__patient__id=self.patient_uuid).distinct():
+                self._roles.append(CodedItem(uuid=str(role.dbid), label=f"{role.display}", code=""))
+        return self._roles
+
     def existing_staff_members(self) -> list[CodedItem]:
         if self._staff_members is None:
             self._staff_members = []
             for staff in Staff.objects.filter(active=True).order_by("last_name"):
-                self._staff_members.append(
-                    CodedItem(uuid=str(staff.dbid), label=f"{staff.first_name} {staff.last_name}", code=""),
-                )
+                label = f"{staff.first_name} {staff.last_name}"
+                if role := staff.top_clinical_role:
+                    role_type = StaffRole.RoleType(role.role_type).label
+                    domain = StaffRole.RoleDomain(role.domain).label
+                    label = f"{label} ({domain}/{role_type})"
+                self._staff_members.append(CodedItem(uuid=str(staff.dbid), label=label, code=""))
         return self._staff_members
 
     def existing_task_labels(self) -> list[CodedItem]:
@@ -302,6 +317,13 @@ class LimitedCache:
             for task in TaskLabel.objects.filter(active=True).order_by("name"):
                 self._task_labels.append(CodedItem(uuid=str(task.dbid), label=task.name, code=""))
         return self._task_labels
+
+    def existing_teams(self) -> list[CodedItem]:
+        if self._teams is None:
+            self._teams = []
+            for team in Team.objects.order_by("name"):
+                self._teams.append(CodedItem(uuid=str(team.dbid), label=team.name, code=""))
+        return self._teams
 
     def demographic__str__(self, obfuscate: bool) -> str:
         if self._demographic is None:
@@ -374,7 +396,11 @@ class LimitedCache:
         return {
             "stagedCommands": {key: [i.to_dict() for i in commands] for key, commands in self._staged_commands.items()},
             "settings": {
-                setting: self.practice_setting(setting) for setting in ["preferredLabPartner", "serviceAreaZipCodes"]
+                setting: self.practice_setting(setting)
+                for setting in [
+                    "preferredLabPartner",
+                    "serviceAreaZipCodes",
+                ]
             },  # force the setting fetch
             "demographicStr": self.demographic__str__(obfuscate),
             #
@@ -386,8 +412,10 @@ class LimitedCache:
             "currentMedications": [i.to_dict() for i in self.current_medications()],
             "existingNoteTypes": [i.to_dict() for i in self.existing_note_types()],
             "existingReasonForVisit": [i.to_dict() for i in self.existing_reason_for_visits()],
-            "existingStaffMembers": [],  # no staff name stored (HPI?)
+            "existingRoles": [i.to_dict() for i in self.existing_roles()],
+            "existingStaffMembers": [i.to_dict() for i in self.existing_staff_members()],
             "existingTaskLabels": [i.to_dict() for i in self.existing_task_labels()],
+            "existingTeams": [i.to_dict() for i in self.existing_teams()],
             "familyHistory": [i.to_dict() for i in self.family_history()],
             "preferredLabPartner": self.preferred_lab_partner().to_dict(),
             "surgeryHistory": [i.to_dict() for i in self.surgery_history()],
@@ -409,21 +437,26 @@ class LimitedCache:
         result._demographic = cache.get("demographicStr", "")
         result._settings = cache.get("settings", {})
 
-        result._condition_history = [CodedItem.load_from_json(i) for i in cache.get("conditionHistory", [])]
-        result._allergies = [CodedItem.load_from_json(i) for i in cache.get("currentAllergies", [])]
-        result._conditions = [CodedItem.load_from_json(i) for i in cache.get("currentConditions", [])]
-        result._goals = [CodedItem.load_from_json(i) for i in cache.get("currentGoals", [])]
-        result._immunizations = [ImmunizationCached.load_from_json(i) for i in cache.get("currentImmunization", [])]
-        result._medications = [MedicationCached.load_from_json(i) for i in cache.get("currentMedications", [])]
+        result._condition_history = CodedItem.load_from_json_list(cache.get("conditionHistory", []))
+        result._allergies = CodedItem.load_from_json_list(cache.get("currentAllergies", []))
+        result._conditions = CodedItem.load_from_json_list(cache.get("currentConditions", []))
+        result._goals = CodedItem.load_from_json_list(cache.get("currentGoals", []))
+        result._immunizations = ImmunizationCached.load_from_json_list(cache.get("currentImmunization", []))
+        result._medications = MedicationCached.load_from_json_list(cache.get("currentMedications", []))
+        result._note_type = CodedItem.load_from_json_list(cache.get("existingNoteTypes", []))
+        result._reason_for_visit = CodedItem.load_from_json_list(cache.get("existingReasonForVisit", []))
+        result._roles = CodedItem.load_from_json_list(cache.get("existingRoles", []))
+        result._staff_members = CodedItem.load_from_json_list(cache.get("existingStaffMembers", []))
+        result._task_labels = CodedItem.load_from_json_list(cache.get("existingTaskLabels", []))
+        result._teams = CodedItem.load_from_json_list(cache.get("existingTeams", []))
+        result._family_history = CodedItem.load_from_json_list(cache.get("familyHistory", []))
         result._preferred_lab_partner = CodedItem.load_from_json(
-            cache.get("preferredLabPartner", {"uuid": "", "label": "", "code": ""}),
+            cache.get(
+                "preferredLabPartner",
+                {"uuid": "", "label": "", "code": ""},
+            )
         )
-        result._note_type = [CodedItem.load_from_json(i) for i in cache.get("existingNoteTypes", [])]
-        result._staff_members = []
-        result._task_labels = [CodedItem.load_from_json(i) for i in cache.get("existingTaskLabels", [])]
-        result._reason_for_visit = [CodedItem.load_from_json(i) for i in cache.get("existingReasonForVisit", [])]
-        result._family_history = [CodedItem.load_from_json(i) for i in cache.get("familyHistory", [])]
-        result._surgery_history = [CodedItem.load_from_json(i) for i in cache.get("surgeryHistory", [])]
+        result._surgery_history = CodedItem.load_from_json_list(cache.get("surgeryHistory", []))
 
         result._charge_descriptions = [ChargeDescription.load_from_json(i) for i in cache.get("chargeDescriptions", [])]
         result._lab_tests = {}

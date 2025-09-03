@@ -1,12 +1,13 @@
 import sqlite3
 from datetime import date
 from pathlib import Path
-from unittest.mock import patch, call, MagicMock
+from unittest.mock import patch, call, MagicMock, PropertyMock
 from uuid import uuid5, NAMESPACE_DNS
 
 from canvas_sdk.commands.constants import CodeSystems
 from canvas_sdk.test_utils import factories
 from canvas_sdk.v1.data import (
+    CareTeamRole,
     ChargeDescriptionMaster,
     Command,
     Condition,
@@ -19,9 +20,11 @@ from canvas_sdk.v1.data import (
     NoteType,
     ReasonForVisitSettingCoding,
     Staff,
+    StaffRole,
     PracticeLocation,
     PracticeLocationSetting,
     TaskLabel,
+    Team,
 )
 from canvas_sdk.v1.data.lab import LabPartner, LabPartnerTest
 from django.db.models import Q
@@ -49,6 +52,7 @@ def test___init__():
     assert tested.patient_uuid == "patientUuid"
     assert tested.provider_uuid == "providerUuid"
     assert tested._settings == {}
+
     assert tested._allergies is None
     assert tested._condition_history is None
     assert tested._conditions is None
@@ -60,7 +64,12 @@ def test___init__():
     assert tested._note_type is None
     assert tested._preferred_lab_partner is None
     assert tested._reason_for_visit is None
+    assert tested._roles is None
+    assert tested._staff_members is None
     assert tested._surgery_history is None
+    assert tested._task_labels is None
+    assert tested._teams is None
+
     assert tested._staged_commands == staged_commands_to_coded_items
     assert tested._charge_descriptions is None
     assert tested._lab_tests == {}
@@ -768,10 +777,44 @@ def test_existing_reason_for_visits(rfv_coding_db):
     reset_mocks()
 
 
+@patch.object(CareTeamRole, "objects")
+def test_existing_roles(care_team_role_db):
+    def reset_mocks():
+        care_team_role_db.reset_mock()
+
+    care_team_role_db.filter.return_value.distinct.side_effect = [
+        [
+            CareTeamRole(dbid=571, display="display1", code="code1"),
+            CareTeamRole(dbid=572, display="display2", code="code2"),
+            CareTeamRole(dbid=573, display="display3", code="code3"),
+        ],
+    ]
+    tested = LimitedCache("patientUuid", "providerUuid", {})
+    expected = [
+        CodedItem(uuid="571", label="display1", code=""),
+        CodedItem(uuid="572", label="display2", code=""),
+        CodedItem(uuid="573", label="display3", code=""),
+    ]
+    result = tested.existing_roles()
+    assert result == expected
+    assert tested._roles == expected
+    calls = [call.filter(care_teams__patient__id="patientUuid"), call.filter().distinct()]
+    assert care_team_role_db.mock_calls == calls
+    reset_mocks()
+
+    result = tested.existing_roles()
+    assert result == expected
+    assert tested._roles == expected
+    assert care_team_role_db.mock_calls == []
+    reset_mocks()
+
+
+@patch.object(Staff, "top_clinical_role", new_callable=PropertyMock)
 @patch.object(Staff, "objects")
-def test_existing_staff_members(staff_db):
+def test_existing_staff_members(staff_db, top_clinical_role):
     def reset_mocks():
         staff_db.reset_mock()
+        top_clinical_role.reset_mock()
 
     staff_db.filter.return_value.order_by.side_effect = [
         [
@@ -780,11 +823,17 @@ def test_existing_staff_members(staff_db):
             Staff(dbid=1296, first_name="firstName3", last_name="lastName3"),
         ],
     ]
+    top_clinical_role.side_effect = [
+        None,
+        StaffRole(domain=StaffRole.RoleDomain("CLI"), role_type=StaffRole.RoleType("NON-LICENSED")),
+        StaffRole(domain=StaffRole.RoleDomain("ADM"), role_type=StaffRole.RoleType("PROVIDER")),
+    ]
+
     tested = LimitedCache("patientUuid", "providerUuid", {})
     expected = [
         CodedItem(uuid="1245", label="firstName1 lastName1", code=""),
-        CodedItem(uuid="1277", label="firstName2 lastName2", code=""),
-        CodedItem(uuid="1296", label="firstName3 lastName3", code=""),
+        CodedItem(uuid="1277", label="firstName2 lastName2 (Clinical/Non-Licensed)", code=""),
+        CodedItem(uuid="1296", label="firstName3 lastName3 (Administrative/Provider)", code=""),
     ]
     result = tested.existing_staff_members()
     assert result == expected
@@ -825,6 +874,38 @@ def test_existing_task_labels(task_label_db):
     assert result == expected
     assert tested._task_labels == expected
     assert task_label_db.mock_calls == []
+    reset_mocks()
+
+
+@patch.object(Team, "objects")
+def test_existing_teams(team_db):
+    def reset_mocks():
+        team_db.reset_mock()
+
+    team_db.order_by.side_effect = [
+        [
+            Team(dbid=571, name="name1"),
+            Team(dbid=572, name="name2"),
+            Team(dbid=573, name="name3"),
+        ],
+    ]
+    tested = LimitedCache("patientUuid", "providerUuid", {})
+    expected = [
+        CodedItem(uuid="571", label="name1", code=""),
+        CodedItem(uuid="572", label="name2", code=""),
+        CodedItem(uuid="573", label="name3", code=""),
+    ]
+    result = tested.existing_teams()
+    assert result == expected
+    assert tested._teams == expected
+    calls = [call.order_by("name")]
+    assert team_db.mock_calls == calls
+    reset_mocks()
+
+    result = tested.existing_teams()
+    assert result == expected
+    assert tested._teams == expected
+    assert team_db.mock_calls == []
     reset_mocks()
 
 
@@ -1139,8 +1220,10 @@ def test_preferred_lab_partner(lab_partner_db, practice_setting):
             reset_mocks()
 
 
-@patch.object(LimitedCache, "existing_staff_members")
+@patch.object(LimitedCache, "existing_teams")
 @patch.object(LimitedCache, "existing_task_labels")
+@patch.object(LimitedCache, "existing_staff_members")
+@patch.object(LimitedCache, "existing_roles")
 @patch.object(LimitedCache, "preferred_lab_partner")
 @patch.object(LimitedCache, "practice_setting")
 @patch.object(LimitedCache, "surgery_history")
@@ -1170,8 +1253,10 @@ def test_to_json(
     surgery_history,
     practice_setting,
     preferred_lab_partner,
-    existing_task_labels,
+    existing_roles,
     existing_staff_members,
+    existing_task_labels,
+    existing_teams,
 ):
     def reset_mocks():
         demographic.reset_mock()
@@ -1188,8 +1273,10 @@ def test_to_json(
         surgery_history.reset_mock()
         practice_setting.reset_mock()
         preferred_lab_partner.reset_mock()
-        existing_task_labels.reset_mock()
+        existing_roles.reset_mock()
         existing_staff_members.reset_mock()
+        existing_task_labels.reset_mock()
+        existing_teams.reset_mock()
 
     tested = LimitedCache(
         "patientUuid",
@@ -1299,6 +1386,18 @@ def test_to_json(
                 CodedItem(uuid="uuid137", label="label137", code="code137"),
             ],
         ]
+        existing_roles.side_effect = [
+            [
+                CodedItem(uuid="uuid431", label="label431", code="code431"),
+                CodedItem(uuid="uuid473", label="label473", code="code473"),
+            ],
+        ]
+        existing_teams.side_effect = [
+            [
+                CodedItem(uuid="uuid894", label="label894", code="code894"),
+                CodedItem(uuid="uuid873", label="label873", code="code873"),
+            ],
+        ]
         practice_setting.side_effect = ["thePreferredLabPartner", "theServiceAreaZipCodes"]
         preferred_lab_partner.side_effect = [CodedItem(uuid="theUuid", label="theLabel", code="theCode")]
 
@@ -1348,7 +1447,18 @@ def test_to_json(
                 {"code": "code009", "label": "label009", "uuid": "uuid009"},
                 {"code": "code109", "label": "label109", "uuid": "uuid109"},
             ],
-            "existingStaffMembers": [],
+            "existingRoles": [
+                {"code": "code431", "label": "label431", "uuid": "uuid431"},
+                {"code": "code473", "label": "label473", "uuid": "uuid473"},
+            ],
+            "existingStaffMembers": [
+                {"code": "code037", "label": "label037", "uuid": "uuid037"},
+                {"code": "code137", "label": "label137", "uuid": "uuid137"},
+            ],
+            "existingTeams": [
+                {"code": "code894", "label": "label894", "uuid": "uuid894"},
+                {"code": "code873", "label": "label873", "uuid": "uuid873"},
+            ],
             "existingTaskLabels": [
                 {"code": "code091", "label": "label091", "uuid": "uuid091"},
                 {"code": "code191", "label": "label191", "uuid": "uuid191"},
@@ -1393,7 +1503,9 @@ def test_to_json(
         assert current_medications.mock_calls == calls
         assert existing_note_types.mock_calls == calls
         assert existing_reason_for_visits.mock_calls == calls
-        assert existing_staff_members.mock_calls == []
+        assert existing_roles.mock_calls == calls
+        assert existing_staff_members.mock_calls == calls
+        assert existing_teams.mock_calls == calls
         assert existing_task_labels.mock_calls == calls
         assert family_history.mock_calls == calls
         assert surgery_history.mock_calls == calls
@@ -1468,9 +1580,17 @@ def test_load_from_json():
                 {"code": "code009", "label": "label009", "uuid": "uuid009"},
                 {"code": "code109", "label": "label109", "uuid": "uuid109"},
             ],
+            "existingRoles": [
+                {"code": "code431", "label": "label431", "uuid": "uuid431"},
+                {"code": "code473", "label": "label473", "uuid": "uuid473"},
+            ],
             "existingStaffMembers": [
                 {"code": "code037", "label": "label037", "uuid": "uuid037"},
                 {"code": "code137", "label": "label137", "uuid": "uuid137"},
+            ],
+            "existingTeams": [
+                {"code": "code894", "label": "label894", "uuid": "uuid894"},
+                {"code": "code873", "label": "label873", "uuid": "uuid873"},
             ],
             "existingTaskLabels": [
                 {"code": "code091", "label": "label091", "uuid": "uuid091"},
@@ -1596,7 +1716,18 @@ def test_load_from_json():
         CodedItem(uuid="uuid009", label="label009", code="code009"),
         CodedItem(uuid="uuid109", label="label109", code="code109"),
     ]
-    assert result.existing_staff_members() == []
+    assert result.existing_roles() == [
+        CodedItem(uuid="uuid431", label="label431", code="code431"),
+        CodedItem(uuid="uuid473", label="label473", code="code473"),
+    ]
+    assert result.existing_staff_members() == [
+        CodedItem(uuid="uuid037", label="label037", code="code037"),
+        CodedItem(uuid="uuid137", label="label137", code="code137"),
+    ]
+    assert result.existing_teams() == [
+        CodedItem(uuid="uuid894", label="label894", code="code894"),
+        CodedItem(uuid="uuid873", label="label873", code="code873"),
+    ]
     assert result.existing_task_labels() == [
         CodedItem(uuid="uuid091", label="label091", code="code091"),
         CodedItem(uuid="uuid191", label="label191", code="code191"),

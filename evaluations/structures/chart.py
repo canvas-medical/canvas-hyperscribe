@@ -1,5 +1,7 @@
 from __future__ import annotations
+
 from typing import NamedTuple
+
 from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.medication_cached import MedicationCached
 
@@ -30,11 +32,11 @@ class Chart(NamedTuple):
     def load_from_json(cls, data: dict) -> Chart:
         return cls(
             demographic_str=data["demographicStr"],
-            condition_history=[CodedItem.load_from_json(item) for item in data.get("conditionHistory", [])],
-            current_allergies=[CodedItem.load_from_json(item) for item in data.get("currentAllergies", [])],
-            current_conditions=[CodedItem.load_from_json(item) for item in data.get("currentConditions", [])],
-            current_medications=[MedicationCached.load_from_json(item) for item in data.get("currentMedications", [])],
-            current_goals=[CodedItem.load_from_json(item) for item in data.get("currentGoals", [])],
-            family_history=[CodedItem.load_from_json(item) for item in data.get("familyHistory", [])],
-            surgery_history=[CodedItem.load_from_json(item) for item in data.get("surgeryHistory", [])],
+            condition_history=CodedItem.load_from_json_list(data.get("conditionHistory", [])),
+            current_allergies=CodedItem.load_from_json_list(data.get("currentAllergies", [])),
+            current_conditions=CodedItem.load_from_json_list(data.get("currentConditions", [])),
+            current_medications=MedicationCached.load_from_json_list(data.get("currentMedications", [])),
+            current_goals=CodedItem.load_from_json_list(data.get("currentGoals", [])),
+            family_history=CodedItem.load_from_json_list(data.get("familyHistory", [])),
+            surgery_history=CodedItem.load_from_json_list(data.get("surgeryHistory", [])),
         )

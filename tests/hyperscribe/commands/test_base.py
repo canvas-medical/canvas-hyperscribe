@@ -272,7 +272,7 @@ def test_command_parameters():
         _ = tested.command_parameters()
 
 
-def test_command_parameters_schema():
+def test_command_parameters_schemas():
     tested = helper_instance()
     result = tested.command_parameters_schemas()
     expected = "d751713988987e9331980363e24189ce"

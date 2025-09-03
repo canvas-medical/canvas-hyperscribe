@@ -1,4 +1,6 @@
+import json
 from datetime import date
+from hashlib import md5
 from unittest.mock import patch, call, MagicMock
 
 from canvas_sdk.commands.commands.task import TaskCommand, TaskAssigner, AssigneeType
@@ -90,18 +92,24 @@ def test_staged_command_extract():
             assert result == expected
 
 
+@patch.object(LimitedCache, "existing_teams")
+@patch.object(LimitedCache, "existing_roles")
 @patch.object(LimitedCache, "existing_staff_members")
-def test_select_staff(existing_staff_members):
+@patch.object(Task, "add_code2description")
+def test_select_assignee(add_code2description, existing_staff_members, existing_roles, existing_teams):
     chatter = MagicMock()
 
     def reset_mocks():
-        chatter.reset_mock()
+        add_code2description.reset_mock()
         existing_staff_members.reset_mock()
+        existing_roles.reset_mock()
+        existing_teams.reset_mock()
+        chatter.reset_mock()
 
     system_prompt = [
         "The conversation is in the medical context.",
         "",
-        "The goal is to identify the most relevant staff member to assign a specific task to.",
+        "The goal is to identify the most relevant staff member, team or role to assign a specific task to.",
         "",
     ]
     user_prompt = [
@@ -113,13 +121,15 @@ def test_select_staff(existing_staff_members):
         "",
         "```",
         "",
-        "Among the following staff members, identify the most relevant one:",
+        "Among the following staff members, teams and roles, identify the most relevant one:",
         "",
-        " * Joe Smith (staffId: 741)\n * Jane Doe (staffId: 596)\n * Jim Boy (staffId: 963)",
+        " * Joe Smith (type: staff, id: 741)\n * Jane Doe (type: staff, id: 596)\n * Jim Boy (type: staff, id: 963)",
+        " * Administrative (type: team, id: 741)\n * Medical (type: team, id: 752)",
+        " * Health Coach (type: role, id: 854)\n * Physician (type: role, id: 863)",
         "",
         "Please, present your findings in a JSON format within a Markdown code block like:",
         "```json",
-        '[{"staffId": "the staff member id, as int", "name": "the name of the staff member"}]',
+        '[{"type": "staff, team or role", "id": "the id, as int", "name": "the entity"}]',
         "```",
         "",
     ]
@@ -130,10 +140,11 @@ def test_select_staff(existing_staff_members):
             "items": {
                 "type": "object",
                 "properties": {
-                    "staffId": {"type": "integer", "minimum": 1},
+                    "type": {"type": "string", "enum": ["staff", "team", "role"]},
+                    "id": {"type": "integer", "minimum": 1},
                     "name": {"type": "string", "minLength": 1},
                 },
-                "required": ["staffId", "name"],
+                "required": ["type", "id", "name"],
                 "additionalProperties": False,
             },
             "minItems": 1,
@@ -153,40 +164,82 @@ def test_select_staff(existing_staff_members):
 
     tested = helper_instance()
 
-    # no staff (just theoretical)
+    # no staff, no role, no team
+    existing_roles.side_effect = [[]]
     existing_staff_members.side_effect = [[]]
+    existing_teams.side_effect = [[]]
     chatter.single_conversation.side_effect = []
-    result = tested.select_staff(instruction, chatter, "assignedTo", "theComment")
+    result = tested.select_assignee(instruction, chatter, "assignedTo", "theComment")
     assert result is None
     calls = [call()]
+    assert existing_roles.mock_calls == calls
     assert existing_staff_members.mock_calls == calls
+    assert existing_teams.mock_calls == calls
+    assert add_code2description.mock_calls == []
     assert chatter.mock_calls == []
     reset_mocks()
 
-    # staff
+    # staffers, roles and teams
+    roles = [
+        CodedItem(uuid="854", label="Health Coach", code=""),
+        CodedItem(uuid="863", label="Physician", code=""),
+    ]
     staffers = [
         CodedItem(uuid="741", label="Joe Smith", code=""),
         CodedItem(uuid="596", label="Jane Doe", code=""),
         CodedItem(uuid="963", label="Jim Boy", code=""),
     ]
+    teams = [
+        CodedItem(uuid="741", label="Administrative", code=""),
+        CodedItem(uuid="752", label="Medical", code=""),
+    ]
     # -- response
-    existing_staff_members.side_effect = [staffers]
-    chatter.single_conversation.side_effect = [[{"staffId": 596, "name": "Jane Doe"}]]
-    result = tested.select_staff(instruction, chatter, "assignedTo", "theComment")
-    expected = TaskAssigner(to=AssigneeType.STAFF, id=596)
-    assert result == expected
-    calls = [call()]
-    assert existing_staff_members.mock_calls == calls
-    calls = [call.single_conversation(system_prompt, user_prompt, schemas, instruction)]
-    assert chatter.mock_calls == calls
-    reset_mocks()
+    tests = [
+        (
+            [{"type": "role", "id": 854, "name": "Health Coach"}],
+            TaskAssigner(to=AssigneeType.ROLE, id=854),
+            [call("854", "Health Coach")],
+        ),
+        (
+            [{"type": "staff", "id": 596, "name": "Jane Doe"}],
+            TaskAssigner(to=AssigneeType.STAFF, id=596),
+            [call("596", "Jane Doe")],
+        ),
+        (
+            [{"type": "team", "id": 752, "name": "Medical"}],
+            TaskAssigner(to=AssigneeType.TEAM, id=752),
+            [call("752", "Medical")],
+        ),
+    ]
+    for side_effect, expected, exp_calls in tests:
+        existing_roles.side_effect = [roles]
+        existing_staff_members.side_effect = [staffers]
+        existing_teams.side_effect = [teams]
+        chatter.single_conversation.side_effect = [side_effect]
+        result = tested.select_assignee(instruction, chatter, "assignedTo", "theComment")
+        assert result == expected
+        calls = [call()]
+        assert existing_roles.mock_calls == calls
+        assert existing_staff_members.mock_calls == calls
+        assert existing_teams.mock_calls == calls
+        assert add_code2description.mock_calls == exp_calls
+        calls = [call.single_conversation(system_prompt, user_prompt, schemas, instruction)]
+        assert chatter.mock_calls == calls
+        reset_mocks()
+
     # -- no response
+    existing_roles.side_effect = [roles]
     existing_staff_members.side_effect = [staffers]
+    existing_teams.side_effect = [teams]
     chatter.single_conversation.side_effect = [[]]
-    result = tested.select_staff(instruction, chatter, "assignedTo", "theComment")
+    result = tested.select_assignee(instruction, chatter, "assignedTo", "theComment")
     assert result is None
     calls = [call()]
+    assert existing_roles.mock_calls == calls
     assert existing_staff_members.mock_calls == calls
+    assert existing_teams.mock_calls == calls
+    calls = []
+    assert add_code2description.mock_calls == calls
     calls = [call.single_conversation(system_prompt, user_prompt, schemas, instruction)]
     assert chatter.mock_calls == calls
     reset_mocks()
@@ -294,12 +347,12 @@ def test_select_labels(existing_task_labels):
 
 
 @patch.object(Task, "select_labels")
-@patch.object(Task, "select_staff")
-def test_command_from_json(select_staff, select_labels):
+@patch.object(Task, "select_assignee")
+def test_command_from_json(select_assignee, select_labels):
     chatter = MagicMock()
 
     def reset_mocks():
-        select_staff.reset_mock()
+        select_assignee.reset_mock()
         select_labels.reset_mock()
 
     tested = helper_instance()
@@ -325,7 +378,7 @@ def test_command_from_json(select_staff, select_labels):
                 "comment": "theComment",
             },
         }
-        select_staff.side_effect = [side_effect_staff]
+        select_assignee.side_effect = [side_effect_staff]
         select_labels.side_effect = [side_effect_labels]
         instruction = InstructionWithParameters(**arguments)
         result = tested.command_from_json(instruction, chatter)
@@ -340,7 +393,7 @@ def test_command_from_json(select_staff, select_labels):
         expected = InstructionWithCommand(**(arguments | {"command": command}))
         assert result == expected
         calls = [call(instruction, chatter, "theAssignTo", "theComment")]
-        assert select_staff.mock_calls == calls
+        assert select_assignee.mock_calls == calls
         calls = [call(instruction, chatter, "theLabels", "theComment")]
         assert select_labels.mock_calls == calls
         assert chatter.mock_calls == []
@@ -362,7 +415,7 @@ def test_command_from_json(select_staff, select_labels):
                 "comment": "theComment",
             },
         }
-        select_staff.side_effect = []
+        select_assignee.side_effect = []
         select_labels.side_effect = [side_effect_labels]
         instruction = InstructionWithParameters(**arguments)
         result = tested.command_from_json(instruction, chatter)
@@ -375,7 +428,7 @@ def test_command_from_json(select_staff, select_labels):
         )
         expected = InstructionWithCommand(**(arguments | {"command": command}))
         assert result == expected
-        assert select_staff.mock_calls == []
+        assert select_assignee.mock_calls == []
         calls = [call(instruction, chatter, "theLabels", "theComment")]
         assert select_labels.mock_calls == calls
         assert chatter.mock_calls == []
@@ -397,7 +450,7 @@ def test_command_from_json(select_staff, select_labels):
                 "comment": "theComment",
             },
         }
-        select_staff.side_effect = [side_effect_staff]
+        select_assignee.side_effect = [side_effect_staff]
         select_labels.side_effect = []
         instruction = InstructionWithParameters(**arguments)
         result = tested.command_from_json(instruction, chatter)
@@ -411,7 +464,7 @@ def test_command_from_json(select_staff, select_labels):
         expected = InstructionWithCommand(**(arguments | {"command": command}))
         assert result == expected
         calls = [call(instruction, chatter, "theAssignTo", "theComment")]
-        assert select_staff.mock_calls == calls
+        assert select_assignee.mock_calls == calls
         assert select_labels.mock_calls == []
         assert chatter.mock_calls == []
         reset_mocks()
@@ -421,22 +474,30 @@ def test_command_parameters():
     tested = helper_instance()
     result = tested.command_parameters()
     expected = {
-        "title": "title of the task",
-        "dueDate": "YYYY-MM-DD",
-        "assignTo": "information about the assignee for the task, or empty",
-        "labels": "information about the labels to link to the task, or empty",
-        "comment": "comment related to the task provided by the clinician",
+        "title": "",
+        "dueDate": "",
+        "assignTo": "",
+        "labels": "",
+        "comment": "",
     }
     assert result == expected
+
+
+def test_command_parameters_schemas():
+    tested = helper_instance()
+    result = tested.command_parameters_schemas()
+    expected = "3792c107a65b706bc29080bfa3e2ab0a"
+    assert md5(json.dumps(result).encode()).hexdigest() == expected
 
 
 def test_instruction_description():
     tested = helper_instance()
     result = tested.instruction_description()
     expected = (
-        "Specific task assigned to someone at the healthcare facility, including the speaking clinician. "
+        "Specific task assigned to someone or a group at the healthcare facility, "
+        "including the speaking clinician. "
         "A task might include a due date and a specific assignee. "
-        "There can be only one task per instruction, and no instruction in the lack of."
+        "There can be one and only one task per instruction, and no instruction in the lack of."
     )
     assert result == expected
 

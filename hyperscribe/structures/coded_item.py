@@ -14,3 +14,7 @@ class CodedItem(NamedTuple):
     @classmethod
     def load_from_json(cls, data: dict) -> CodedItem:
         return cls(uuid=data["uuid"], label=data["label"], code=data["code"])
+
+    @classmethod
+    def load_from_json_list(cls, data: list[dict]) -> list[CodedItem]:
+        return [cls.load_from_json(item) for item in data]
