@@ -31,14 +31,14 @@ class BuilderDirectFromTuningFull(BuilderDirectFromTuning):
         transcript_files = self.create_transcripts(mp3_files, chat_transcript)
         compacted_transcript_files = self.compact_transcripts(transcript_files)
         print(f"de-identification transcripts...")
-        anonymized_transcript_files = self.anonymize_transcripts(compacted_transcript_files)
+        anonymization = self.anonymize_transcripts(compacted_transcript_files)
+        print("de-identification limited cache...")
+        cache = self.anonymize_limited_cache(anonymization.substitutions, cache)
         print(f"case name and summary...")
-        case_summary = self.exchange_summary(anonymized_transcript_files)
+        case_summary = self.exchange_summary(anonymization.files)
         print(f"build case {case_summary.title}:")
         case_exchange = [
-            line
-            for file in anonymized_transcript_files
-            for line in CaseExchange.load_from_json(json.loads(file.read_text()))
+            line for file in anonymization.files for line in CaseExchange.load_from_json(json.loads(file.read_text()))
         ]
         self.generate_case(cache, case_summary, case_exchange)
 

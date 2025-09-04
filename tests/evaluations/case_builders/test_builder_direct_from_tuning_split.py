@@ -13,7 +13,7 @@ from hyperscribe.structures.identification_parameters import IdentificationParam
 from hyperscribe.structures.json_extract import JsonExtract
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
-from tests.helper import MockFile
+from tests.helper import MockFile, MockClass
 
 
 def helper_instance() -> BuilderDirectFromTuningSplit:
@@ -85,6 +85,7 @@ def test_schema_topical_exchanges():
 @patch.object(BuilderDirectFromTuningSplit, "generate_case")
 @patch.object(BuilderDirectFromTuningSplit, "topical_exchange_summary")
 @patch.object(BuilderDirectFromTuningSplit, "detect_topical_exchanges")
+@patch.object(BuilderDirectFromTuningSplit, "anonymize_limited_cache")
 @patch.object(BuilderDirectFromTuningSplit, "anonymize_transcripts")
 @patch.object(BuilderDirectFromTuningSplit, "compact_transcripts")
 @patch.object(BuilderDirectFromTuningSplit, "create_transcripts")
@@ -96,6 +97,7 @@ def test__run(
     create_transcripts,
     compact_transcripts,
     anonymize_transcripts,
+    anonymize_limited_cache,
     detect_topical_exchanges,
     topical_exchange_summary,
     generate_case,
@@ -107,6 +109,7 @@ def test__run(
     full_mp3_file = MagicMock()
     json_file = MagicMock()
     json_buffer = MockFile('{"limited":"cache"}')
+    anonymized_cache = MagicMock()
 
     def reset_mocks():
         collated_webm_to_mp3.reset_mock()
@@ -114,6 +117,7 @@ def test__run(
         create_transcripts.reset_mock()
         compact_transcripts.reset_mock()
         anonymize_transcripts.reset_mock()
+        anonymize_limited_cache.reset_mock()
         detect_topical_exchanges.reset_mock()
         topical_exchange_summary.reset_mock()
         generate_case.reset_mock()
@@ -123,6 +127,7 @@ def test__run(
 
         full_mp3_file.reset_mock()
         json_file.reset_mock()
+        anonymized_cache.reset_mock()
 
     tested = helper_instance()
 
@@ -156,7 +161,13 @@ def test__run(
     split_audio.side_effect = ["theSplitAudioFiles"]
     create_transcripts.side_effect = ["theCreatedTranscripts"]
     compact_transcripts.side_effect = ["theCompactedTranscripts"]
-    anonymize_transcripts.side_effect = ["theAnonymizedTranscripts"]
+    anonymize_transcripts.side_effect = [
+        MockClass(
+            files=["file1", "file2"],
+            substitutions=["substitution1", "substitution2"],
+        )
+    ]
+    anonymize_limited_cache.side_effect = [anonymized_cache]
     detect_topical_exchanges.side_effect = [topical_exchanges]
     topical_exchange_summary.side_effect = exchange_summaries
     generate_case.side_effect = [
@@ -179,6 +190,7 @@ def test__run(
         "split mp3 into chunks...\n"
         "create transcripts...\n"
         "de-identification transcripts...\n"
+        "de-identification limited cache...\n"
         "detect topical exchanges...\n"
         "build case for topic title1:\n"
         "build case for topic title2:\n"
@@ -197,7 +209,9 @@ def test__run(
     assert compact_transcripts.mock_calls == calls
     calls = [call("theCompactedTranscripts")]
     assert anonymize_transcripts.mock_calls == calls
-    calls = [call("theAnonymizedTranscripts")]
+    calls = [call(["substitution1", "substitution2"], limited_cache.load_from_json.return_value)]
+    assert anonymize_limited_cache.mock_calls == calls
+    calls = [call(["file1", "file2"])]
     assert detect_topical_exchanges.mock_calls == calls
     calls = [
         call([topical_exchanges[i] for i in [0, 1]], full_mp3_file.parent),
@@ -207,10 +221,10 @@ def test__run(
     ]
     assert topical_exchange_summary.mock_calls == calls
     calls = [
-        call(limited_cache.load_from_json.return_value, exchange_summaries[0], [case_exchanges[i] for i in [0, 1]]),
-        call(limited_cache.load_from_json.return_value, exchange_summaries[1], [case_exchanges[i] for i in [2, 3]]),
-        call(limited_cache.load_from_json.return_value, exchange_summaries[2], [case_exchanges[i] for i in [4, 5, 6]]),
-        call(limited_cache.load_from_json.return_value, exchange_summaries[3], [case_exchanges[i] for i in [7]]),
+        call(anonymized_cache, exchange_summaries[0], [case_exchanges[i] for i in [0, 1]]),
+        call(anonymized_cache, exchange_summaries[1], [case_exchanges[i] for i in [2, 3]]),
+        call(anonymized_cache, exchange_summaries[2], [case_exchanges[i] for i in [4, 5, 6]]),
+        call(anonymized_cache, exchange_summaries[3], [case_exchanges[i] for i in [7]]),
     ]
     assert generate_case.mock_calls == calls
     calls = [
@@ -219,18 +233,19 @@ def test__run(
     assert audio_interpreter.mock_calls == calls
     calls = [call.schema_key2instruction()]
     assert implemented_commands.mock_calls == calls
-    calls = [
-        call.load_from_json({"limited": "cache"}),
-        call.load_from_json().add_instructions_as_staged_commands("theGeneratedInstructions1", "schemaKey2Instruction"),
-        call.load_from_json().add_instructions_as_staged_commands("theGeneratedInstructions2", "schemaKey2Instruction"),
-        call.load_from_json().add_instructions_as_staged_commands("theGeneratedInstructions3", "schemaKey2Instruction"),
-        call.load_from_json().add_instructions_as_staged_commands("theGeneratedInstructions4", "schemaKey2Instruction"),
-    ]
+    calls = [call.load_from_json({"limited": "cache"})]
     assert limited_cache.mock_calls == calls
     calls = [call.parent.__truediv__("limited_chart.json")]
     assert full_mp3_file.mock_calls == calls
     calls = [call.open("r")]
     assert json_file.mock_calls == calls
+    calls = [
+        call.add_instructions_as_staged_commands("theGeneratedInstructions1", "schemaKey2Instruction"),
+        call.add_instructions_as_staged_commands("theGeneratedInstructions2", "schemaKey2Instruction"),
+        call.add_instructions_as_staged_commands("theGeneratedInstructions3", "schemaKey2Instruction"),
+        call.add_instructions_as_staged_commands("theGeneratedInstructions4", "schemaKey2Instruction"),
+    ]
+    assert anonymized_cache.mock_calls == calls
     reset_mocks()
 
 

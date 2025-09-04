@@ -38,22 +38,24 @@ class BuilderDirectFromTuningSplit(BuilderDirectFromTuning):
         }
 
     def _run(self) -> None:
-        print(f"collect webm, collate to mp3...")
+        print("collect webm, collate to mp3...")
         mp3_file = self.collated_webm_to_mp3()
-        print(f"split mp3 into chunks...")
+        print("split mp3 into chunks...")
         mp3_files = self.split_audio(mp3_file)
 
         with (mp3_file.parent / "limited_chart.json").open("r") as f:
             cache = LimitedCache.load_from_json(json.load(f))
 
         chat_transcript = AudioInterpreter(self.settings, self.s3_credentials, cache, self.identification)
-        print(f"create transcripts...")
+        print("create transcripts...")
         transcript_files = self.create_transcripts(mp3_files, chat_transcript)
         compacted_transcript_files = self.compact_transcripts(transcript_files)
-        print(f"de-identification transcripts...")
-        anonymized_transcript_files = self.anonymize_transcripts(compacted_transcript_files)
-        print(f"detect topical exchanges...")
-        topic_exchanges = self.detect_topical_exchanges(anonymized_transcript_files)
+        print("de-identification transcripts...")
+        anonymization = self.anonymize_transcripts(compacted_transcript_files)
+        print("de-identification limited cache...")
+        cache = self.anonymize_limited_cache(anonymization.substitutions, cache)
+        print("detect topical exchanges...")
+        topic_exchanges = self.detect_topical_exchanges(anonymization.files)
 
         key2instruction = ImplementedCommands.schema_key2instruction()
         for topic, exchange in groupby(topic_exchanges, key=lambda x: x.topic):

@@ -11,13 +11,16 @@ from requests import Response
 from evaluations.case_builders.builder_direct_from_tuning import BuilderDirectFromTuning
 from evaluations.structures.anonymization import Anonymization
 from evaluations.structures.anonymization_error import AnonymizationError
+from evaluations.structures.anonymization_result import AnonymizationResult
 from evaluations.structures.anonymization_substitution import AnonymizationSubstitution
 from evaluations.structures.case_exchange import CaseExchange
 from evaluations.structures.case_exchange_summary import CaseExchangeSummary
 from evaluations.structures.records.real_world_case import RealWorldCase as RecordRealWorldCase
+from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.aws_s3_object import AwsS3Object
+from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.json_extract import JsonExtract
 from hyperscribe.structures.line import Line
@@ -966,6 +969,7 @@ def test_split_audio(ffmpeg):
 @patch("evaluations.case_builders.builder_direct_from_tuning.MemoryLog")
 @patch.object(BuilderDirectFromTuning, "anonymize_transcripts_chat")
 def test_anonymize_transcripts(anonymize_transcripts_chat, memory_log):
+    substitutions_file = MagicMock()
     files = [
         # original transcripts
         MagicMock(),
@@ -976,17 +980,29 @@ def test_anonymize_transcripts(anonymize_transcripts_chat, memory_log):
         MagicMock(),
         MagicMock(),
     ]
-    buffers = [MockFile(), MockFile(), MockFile(), MockFile(mode="w"), MockFile(mode="w"), MockFile(mode="w")]
+    buffers = [
+        MockFile(),
+        MockFile(),
+        MockFile(),
+        MockFile(mode="w"),
+        MockFile(mode="w"),
+        MockFile(mode="w"),
+    ]
 
     def reset_mocks():
         anonymize_transcripts_chat.reset_mock()
         memory_log.reset_mock()
+        substitutions_file.reset_mock()
+        substitutions_file.exists.return_value = False
         for idx, item in enumerate(files):
             item.reset_mock()
             item.open.return_value = buffers[idx]
             buffers[idx].content = ""
             if idx < 3:
-                item.parent.__truediv__.side_effect = [files[idx + 3]]
+                side_effects = [files[idx + 3]]
+                if idx == 0:
+                    side_effects.insert(0, substitutions_file)
+                item.parent.__truediv__.side_effect = side_effects
                 buffers[idx].content = json.dumps(
                     [{"speaker": f"theSpeaker{idx}", "text": f"theText{idx}", "chunk": idx}],
                 )
@@ -995,11 +1011,37 @@ def test_anonymize_transcripts(anonymize_transcripts_chat, memory_log):
 
     tested = helper_instance()
 
+    # no transcript files
+    result = tested.anonymize_transcripts([])
+    expected = AnonymizationResult(files=[], substitutions=[])
+    assert result == expected
+    assert anonymize_transcripts_chat.mock_calls == []
+    assert memory_log.mock_calls == []
+    assert substitutions_file.mock_calls == []
+    for index, file in enumerate(files):
+        assert files[index].mock_calls == []
+        exp_content = ""
+        if index < 3:
+            exp_content = f'[{{"speaker": "theSpeaker{index}", "text": "theText{index}", "chunk": {index}}}]'
+        assert buffers[index].content == exp_content
+    reset_mocks()
+
     # forced refresh or json does not exist
     tested.force_refresh = True
-    for test in [True, False]:
+    tests = [
+        (True, True),
+        (True, False),
+        (False, False),
+    ]
+    for json_file_exists, substitutions_file_exists in tests:
+        substitutions_file.exists.side_effect = [substitutions_file_exists]
+        if substitutions_file_exists:
+            substitutions_file.read_text.side_effect = [
+                '[{"originalEntity": "theOriginal", "anonymizedWith": "theAnonymized"}]',
+            ]
+
         for item in files[3:]:
-            item.exists.side_effect = [test]
+            item.exists.side_effect = [json_file_exists]
 
         memory_log.instance.side_effect = ["theMemoryLog"]
         anonymize_transcripts_chat.side_effect = [
@@ -1044,32 +1086,59 @@ def test_anonymize_transcripts(anonymize_transcripts_chat, memory_log):
         ]
 
         result = tested.anonymize_transcripts(files[:3])
-        expected = files[3:]
+        substitutions = [
+            AnonymizationSubstitution(original_entity="theOriginal", anonymized_with="theAnonymized"),
+            AnonymizationSubstitution(original_entity="theOriginal1", anonymized_with="theAnonymized1"),
+            AnonymizationSubstitution(original_entity="theOriginal2", anonymized_with="theAnonymized2"),
+            AnonymizationSubstitution(original_entity="theOriginal3", anonymized_with="theAnonymized3"),
+            AnonymizationSubstitution(original_entity="theOriginal4", anonymized_with="theAnonymized4"),
+        ]
+        start_idx = 1
+        if substitutions_file_exists:
+            start_idx = 0
+        expected = AnonymizationResult(files=files[3:], substitutions=substitutions[start_idx:])
         assert result == expected
 
         calls = [
-            call("theMemoryLog", files[0], []),
-            call(
-                "theMemoryLog",
-                files[1],
-                [AnonymizationSubstitution(original_entity="theOriginal1", anonymized_with="theAnonymized1")],
-            ),
-            call(
-                "theMemoryLog",
-                files[2],
-                [
-                    AnonymizationSubstitution(original_entity="theOriginal1", anonymized_with="theAnonymized1"),
-                    AnonymizationSubstitution(original_entity="theOriginal2", anonymized_with="theAnonymized2"),
-                    AnonymizationSubstitution(original_entity="theOriginal3", anonymized_with="theAnonymized3"),
-                ],
-            ),
+            call("theMemoryLog", files[0], substitutions[start_idx:1]),
+            call("theMemoryLog", files[1], substitutions[start_idx:2]),
+            call("theMemoryLog", files[2], substitutions[start_idx:-1]),
         ]
         assert anonymize_transcripts_chat.mock_calls == calls
         calls = [call.instance(tested.identification, "anonymize_transcript", tested.s3_credentials)]
         assert memory_log.mock_calls == calls
+        calls = [call.exists()]
+        content = ""
+        if substitutions_file_exists:
+            calls.append(call.read_text())
+            content = '{"originalEntity": "theOriginal", "anonymizedWith": "theAnonymized"}, '
+        calls.extend(
+            [
+                call.write_text(f'[{content}{{"originalEntity": "theOriginal1", "anonymizedWith": "theAnonymized1"}}]'),
+                call.write_text(
+                    f"[{content}"
+                    '{"originalEntity": "theOriginal1", "anonymizedWith": "theAnonymized1"}, '
+                    '{"originalEntity": "theOriginal2", "anonymizedWith": "theAnonymized2"}, '
+                    '{"originalEntity": "theOriginal3", "anonymizedWith": "theAnonymized3"}]'
+                ),
+                call.write_text(
+                    f"[{content}"
+                    '{"originalEntity": "theOriginal1", "anonymizedWith": "theAnonymized1"}, '
+                    '{"originalEntity": "theOriginal2", "anonymizedWith": "theAnonymized2"}, '
+                    '{"originalEntity": "theOriginal3", "anonymizedWith": "theAnonymized3"}, '
+                    '{"originalEntity": "theOriginal4", "anonymizedWith": "theAnonymized4"}]'
+                ),
+            ]
+        )
+        assert substitutions_file.mock_calls == calls
 
         for index, file in enumerate(files):
-            if index < 3:
+            if index == 0:
+                calls = [
+                    call.parent.__truediv__("anonymized_substitutions.json"),
+                    call.parent.__truediv__(f"transcript_anonymized_{index:03d}.json"),
+                ]
+            elif index < 3:
                 calls = [call.parent.__truediv__(f"transcript_anonymized_{index:03d}.json")]
             else:
                 calls = [call.exists(), call.open("w")]
@@ -1107,27 +1176,40 @@ def test_anonymize_transcripts(anonymize_transcripts_chat, memory_log):
             assert buffers[index].content == exp_content
         reset_mocks()
 
-    # no forced refresh and json does exist
+    # no forced refresh and json does exist, substitutions JSON exists
     reset_mocks()
     tested.force_refresh = False
     for item in files[3:]:
         item.exists.side_effect = [True]
     for item in buffers:
         item.mode = "r"
-
+    substitutions_file.exists.side_effect = [True]
+    substitutions_file.read_text.side_effect = [
+        '[{"originalEntity": "theOriginal", "anonymizedWith": "theAnonymized"}]',
+    ]
     memory_log.instance.side_effect = ["theMemoryLog"]
 
     result = tested.anonymize_transcripts(files[:3])
-    expected = files[3:]
+    expected = AnonymizationResult(
+        files=files[3:],
+        substitutions=[AnonymizationSubstitution(original_entity="theOriginal", anonymized_with="theAnonymized")],
+    )
     assert result == expected
 
     calls = []
     assert anonymize_transcripts_chat.mock_calls == calls
     calls = [call.instance(tested.identification, "anonymize_transcript", tested.s3_credentials)]
     assert memory_log.mock_calls == calls
+    calls = [call.exists(), call.read_text()]
+    assert substitutions_file.mock_calls == calls
 
     for index, file in enumerate(files):
-        if index < 3:
+        if index == 0:
+            calls = [
+                call.parent.__truediv__("anonymized_substitutions.json"),
+                call.parent.__truediv__(f"transcript_anonymized_{index:03d}.json"),
+            ]
+        elif index < 3:
             calls = [call.parent.__truediv__(f"transcript_anonymized_{index:03d}.json")]
         else:
             calls = [call.exists()]
@@ -1138,6 +1220,178 @@ def test_anonymize_transcripts(anonymize_transcripts_chat, memory_log):
         else:
             exp_content = ""
         assert buffers[index].content == exp_content
+    reset_mocks()
+
+
+@patch("evaluations.case_builders.builder_direct_from_tuning.Helper")
+@patch("evaluations.case_builders.builder_direct_from_tuning.MemoryLog")
+@patch.object(BuilderDirectFromTuning, "schema_code_items")
+def test_anonymize_limited_cache(schema_code_items, memory_log, helper):
+    def reset_mocks():
+        schema_code_items.reset_mock()
+        memory_log.reset_mock()
+        helper.reset_mock()
+
+    system_prompt = [
+        "You are part of an anonymization process.",
+        "Your task is to carefully achieve the substitutions as directed.",
+        "",
+    ]
+    user_prompt = [
+        "The list of all substitutions is:",
+        "```json",
+        "[\n "
+        '{\n  "originalEntity": "theOriginal1",\n  "anonymizedWith": "theAnonymized1"\n },\n '
+        '{\n  "originalEntity": "theOriginal2",\n  "anonymizedWith": "theAnonymized2"\n }\n]',
+        "```",
+        "",
+        "The original data is:",
+        "```json",
+        "[\n "
+        '{\n  "uuid": "uuid1",\n  "label": "name1",\n  "code": "code1"\n },\n '
+        '{\n  "uuid": "uuid2",\n  "label": "name2",\n  "code": "code2"\n }\n]',
+        "```",
+        "",
+        "Transform the original data following the requested substitutions in a JSON Markdown block.",
+        "",
+    ]
+
+    tested = helper_instance()
+    # no substitutions
+    schema_code_items.side_effect = []
+    memory_log.instance.side_effect = []
+    helper.chatter.return_value.chat.side_effect = []
+    cache = LimitedCache.load_from_json(
+        {
+            "existingStaffMembers": [
+                {"uuid": "uuid1", "code": "code1", "label": "name1"},
+                {"uuid": "uuid2", "code": "code2", "label": "name2"},
+            ]
+        }
+    )
+    result = tested.anonymize_limited_cache([], cache)
+    assert result is cache
+
+    assert schema_code_items.mock_calls == []
+    assert memory_log.mock_calls == []
+    assert helper.mock_calls == []
+    reset_mocks()
+
+    # no staff members
+    schema_code_items.side_effect = []
+    memory_log.instance.side_effect = []
+    helper.chatter.return_value.chat.side_effect = []
+    cache = LimitedCache.load_from_json({"existingStaffMembers": []})
+    result = tested.anonymize_limited_cache(
+        [
+            AnonymizationSubstitution(original_entity="theOriginal1", anonymized_with="theAnonymized1"),
+            AnonymizationSubstitution(original_entity="theOriginal2", anonymized_with="theAnonymized2"),
+        ],
+        cache,
+    )
+    assert result is cache
+
+    assert schema_code_items.mock_calls == []
+    assert memory_log.mock_calls == []
+    assert helper.mock_calls == []
+    reset_mocks()
+
+    # all good
+    schema_code_items.side_effect = ["theCodeItemsSchema"]
+    memory_log.instance.side_effect = ["theMemoryLogInstance"]
+    helper.chatter.return_value.chat.side_effect = [
+        JsonExtract(
+            has_error=False,
+            error="",
+            content=[
+                [
+                    {"uuid": "uuidX", "code": "codeX", "label": "nameX"},
+                    {"uuid": "uuidY", "code": "codeY", "label": "nameY"},
+                    {"uuid": "uuidZ", "code": "codeZ", "label": "nameZ"},
+                ]
+            ],
+        )
+    ]
+    cache = LimitedCache.load_from_json(
+        {
+            "existingStaffMembers": [
+                {"uuid": "uuid1", "code": "code1", "label": "name1"},
+                {"uuid": "uuid2", "code": "code2", "label": "name2"},
+            ]
+        }
+    )
+    result = tested.anonymize_limited_cache(
+        [
+            AnonymizationSubstitution(original_entity="theOriginal1", anonymized_with="theAnonymized1"),
+            AnonymizationSubstitution(original_entity="theOriginal2", anonymized_with="theAnonymized2"),
+        ],
+        cache,
+    )
+    expected = [
+        CodedItem(uuid="uuidX", code="codeX", label="nameX"),
+        CodedItem(uuid="uuidY", code="codeY", label="nameY"),
+        CodedItem(uuid="uuidZ", code="codeZ", label="nameZ"),
+    ]
+    assert result is cache
+    assert result._staff_members == expected
+
+    calls = [call()]
+    assert schema_code_items.mock_calls == calls
+    calls = [call.instance(tested.identification, "anonymize_limited_cache", tested.s3_credentials)]
+    assert memory_log.mock_calls == calls
+    calls = [
+        call.chatter(tested.settings, "theMemoryLogInstance"),
+        call.chatter().set_system_prompt(system_prompt),
+        call.chatter().set_user_prompt(user_prompt),
+        call.chatter().chat(["theCodeItemsSchema"]),
+    ]
+    assert helper.mock_calls == calls
+    reset_mocks()
+
+    # no response
+    schema_code_items.side_effect = ["theCodeItemsSchema"]
+    memory_log.instance.side_effect = ["theMemoryLogInstance"]
+    helper.chatter.return_value.chat.side_effect = [
+        JsonExtract(
+            has_error=True,
+            error="theError",
+            content=[
+                [
+                    {"uuid": "uuidX", "code": "codeX", "label": "nameX"},
+                    {"uuid": "uuidY", "code": "codeY", "label": "nameY"},
+                    {"uuid": "uuidZ", "code": "codeZ", "label": "nameZ"},
+                ]
+            ],
+        )
+    ]
+    cache = LimitedCache.load_from_json(
+        {
+            "existingStaffMembers": [
+                {"uuid": "uuid1", "code": "code1", "label": "name1"},
+                {"uuid": "uuid2", "code": "code2", "label": "name2"},
+            ]
+        }
+    )
+    result = tested.anonymize_limited_cache(
+        [
+            AnonymizationSubstitution(original_entity="theOriginal1", anonymized_with="theAnonymized1"),
+            AnonymizationSubstitution(original_entity="theOriginal2", anonymized_with="theAnonymized2"),
+        ],
+        cache,
+    )
+    assert result is cache
+
+    calls = [call()]
+    assert schema_code_items.mock_calls == calls
+    calls = [call.instance(tested.identification, "anonymize_limited_cache", tested.s3_credentials)]
+    assert memory_log.mock_calls == calls
+    calls = [
+        call.chatter(tested.settings, "theMemoryLogInstance"),
+        call.chatter().set_system_prompt(system_prompt),
+        call.chatter().set_user_prompt(user_prompt),
+        call.chatter().chat(["theCodeItemsSchema"]),
+    ]
+    assert helper.mock_calls == calls
     reset_mocks()
 
 
@@ -1738,6 +1992,26 @@ def test_schema_changes():
                     "description": "value of the replacement ; "
                     "two different entities cannot use the same anonymization",
                 },
+            },
+            "additionalProperties": False,
+        },
+    }
+    assert result == expected
+
+
+def test_schema_code_items():
+    tested = BuilderDirectFromTuning
+    result = tested.schema_code_items()
+    expected = {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "array",
+        "items": {
+            "type": "object",
+            "required": ["uuid", "label", "code"],
+            "properties": {
+                "uuid": {"type": "string"},
+                "label": {"type": "string"},
+                "code": {"type": "string"},
             },
             "additionalProperties": False,
         },

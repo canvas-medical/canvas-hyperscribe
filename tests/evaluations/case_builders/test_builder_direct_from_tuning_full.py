@@ -12,7 +12,7 @@ from hyperscribe.structures.identification_parameters import IdentificationParam
 from hyperscribe.structures.json_extract import JsonExtract
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
-from tests.helper import MockFile
+from tests.helper import MockFile, MockClass
 
 
 def helper_instance() -> BuilderDirectFromTuningFull:
@@ -61,6 +61,7 @@ def test__parameters():
 @patch("evaluations.case_builders.builder_direct_from_tuning_full.AudioInterpreter")
 @patch.object(BuilderDirectFromTuningFull, "generate_case")
 @patch.object(BuilderDirectFromTuningFull, "exchange_summary")
+@patch.object(BuilderDirectFromTuningFull, "anonymize_limited_cache")
 @patch.object(BuilderDirectFromTuningFull, "anonymize_transcripts")
 @patch.object(BuilderDirectFromTuningFull, "compact_transcripts")
 @patch.object(BuilderDirectFromTuningFull, "create_transcripts")
@@ -72,6 +73,7 @@ def test__run(
     create_transcripts,
     compact_transcripts,
     anonymize_transcripts,
+    anonymize_limited_cache,
     exchange_summary,
     generate_case,
     audio_interpreter,
@@ -81,6 +83,7 @@ def test__run(
     full_mp3_file = MagicMock()
     json_file = MagicMock()
     json_buffer = MockFile('{"limited":"cache"}')
+    anonymized_cache = MagicMock()
     anonymized_files = [MagicMock(), MagicMock(), MagicMock()]
 
     def reset_mocks():
@@ -89,6 +92,7 @@ def test__run(
         create_transcripts.reset_mock()
         compact_transcripts.reset_mock()
         anonymize_transcripts.reset_mock()
+        anonymize_limited_cache.reset_mock()
         exchange_summary.reset_mock()
         generate_case.reset_mock()
         audio_interpreter.reset_mock()
@@ -96,6 +100,7 @@ def test__run(
 
         full_mp3_file.reset_mock()
         json_file.reset_mock()
+        anonymized_cache.reset_mock()
         for idx in range(len(anonymized_files)):
             anonymized_files[idx].reset_mock()
             anonymized_files[idx].read_text.side_effect = [
@@ -129,7 +134,10 @@ def test__run(
     split_audio.side_effect = ["theSplitAudioFiles"]
     create_transcripts.side_effect = ["theCreatedTranscripts"]
     compact_transcripts.side_effect = ["theCompactedTranscripts"]
-    anonymize_transcripts.side_effect = [anonymized_files]
+    anonymize_transcripts.side_effect = [
+        MockClass(files=anonymized_files, substitutions=["substitution1", "substitution2"])
+    ]
+    anonymize_limited_cache.side_effect = [anonymized_cache]
     exchange_summary.side_effect = [summary]
     audio_interpreter.side_effect = ["theAudioInterpreter"]
     limited_cache.load_from_json.side_effect = ["theLimitedCache"]
@@ -143,6 +151,7 @@ def test__run(
         "split mp3 into chunks...\n"
         "create transcripts...\n"
         "de-identification transcripts...\n"
+        "de-identification limited cache...\n"
         "case name and summary...\n"
         "build case theTitle:\n"
     )
@@ -158,9 +167,11 @@ def test__run(
     assert compact_transcripts.mock_calls == calls
     calls = [call("theCompactedTranscripts")]
     assert anonymize_transcripts.mock_calls == calls
+    calls = [call(["substitution1", "substitution2"], "theLimitedCache")]
+    assert anonymize_limited_cache.mock_calls == calls
     calls = [call(anonymized_files)]
     assert exchange_summary.mock_calls == calls
-    calls = [call("theLimitedCache", summary, case_exchanges)]
+    calls = [call(anonymized_cache, summary, case_exchanges)]
     assert generate_case.mock_calls == calls
     calls = [call(tested.settings, tested.s3_credentials, "theLimitedCache", tested.identification)]
     assert audio_interpreter.mock_calls == calls
@@ -170,6 +181,8 @@ def test__run(
     assert full_mp3_file.mock_calls == calls
     calls = [call.open("r")]
     assert json_file.mock_calls == calls
+    calls = []
+    assert anonymized_cache.mock_calls == calls
     calls = [call.read_text()]
     for idx in range(len(anonymized_files)):
         assert anonymized_files[idx].mock_calls == calls

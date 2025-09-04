@@ -15,20 +15,22 @@ from evaluations.datastores.postgres.real_world_case import RealWorldCase as Rea
 from evaluations.helper_evaluation import HelperEvaluation
 from evaluations.structures.anonymization import Anonymization
 from evaluations.structures.anonymization_error import AnonymizationError
+from evaluations.structures.anonymization_result import AnonymizationResult
 from evaluations.structures.anonymization_substitution import AnonymizationSubstitution
 from evaluations.structures.case_exchange import CaseExchange
 from evaluations.structures.case_exchange_summary import CaseExchangeSummary
 from evaluations.structures.records.real_world_case import RealWorldCase as RealWordCaseRecord
-from hyperscribe.libraries.commander import Commander
 from hyperscribe.libraries.audio_interpreter import AudioInterpreter
 from hyperscribe.libraries.aws_s3 import AwsS3
 from hyperscribe.libraries.cached_sdk import CachedSdk
+from hyperscribe.libraries.commander import Commander
 from hyperscribe.libraries.constants import Constants as HyperscribeConstants
 from hyperscribe.libraries.helper import Helper
 from hyperscribe.libraries.implemented_commands import ImplementedCommands
 from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.libraries.memory_log import MemoryLog
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
+from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.instruction import Instruction
 from hyperscribe.structures.line import Line
@@ -246,11 +248,19 @@ class BuilderDirectFromTuning:
             result.append(chunk_file)
         return result
 
-    def anonymize_transcripts(self, transcript_files: list[Path]) -> list[Path]:
+    def anonymize_transcripts(self, transcript_files: list[Path]) -> AnonymizationResult:
+        if not transcript_files:
+            return AnonymizationResult(files=[], substitutions=[])
+
         result: list[Path] = []
+        substitutions = transcript_files[0].parent / "anonymized_substitutions.json"
         memory_log = MemoryLog.instance(self.identification, "anonymize_transcript", self.s3_credentials)
 
         used_anonymizations: dict[str, AnonymizationSubstitution] = {}
+        if substitutions.exists():
+            items = AnonymizationSubstitution.load_from_json(json.loads(substitutions.read_text()))
+            used_anonymizations = {item.original_entity: item for item in items}
+
         for chunk, transcript in enumerate(transcript_files):
             anonymized = transcript.parent / f"transcript_anonymized_{chunk:03d}.json"
             result.append(anonymized)
@@ -263,8 +273,49 @@ class BuilderDirectFromTuning:
             # the used anonymization
             for substitution in anonymization.substitutions:
                 used_anonymizations[substitution.original_entity] = substitution
+            # store the used anonymizations, so far
+            substitutions.write_text(json.dumps([item.to_json() for item in used_anonymizations.values()]))
 
-        return result
+        return AnonymizationResult(files=result, substitutions=list(used_anonymizations.values()))
+
+    def anonymize_limited_cache(
+        self,
+        substitutions: list[AnonymizationSubstitution],
+        cache: LimitedCache,
+    ) -> LimitedCache:
+        if not (substitutions and cache.existing_staff_members()):
+            return cache
+
+        memory_log = MemoryLog.instance(self.identification, "anonymize_limited_cache", self.s3_credentials)
+        chatter = Helper.chatter(self.settings, memory_log)
+        chatter.set_system_prompt(
+            [
+                "You are part of an anonymization process.",
+                "Your task is to carefully achieve the substitutions as directed.",
+                "",
+            ],
+        )
+        chatter.set_user_prompt(
+            [
+                "The list of all substitutions is:",
+                "```json",
+                json.dumps([substitution.to_json() for substitution in substitutions], indent=1),
+                "```",
+                "",
+                "The original data is:",
+                "```json",
+                json.dumps([member.to_dict() for member in cache.existing_staff_members()], indent=1),
+                "```",
+                "",
+                "Transform the original data following the requested substitutions in a JSON Markdown block.",
+                "",
+            ],
+        )
+        schema_code_items = self.schema_code_items()
+        response = chatter.chat([schema_code_items])
+        if not response.has_error:
+            cache._staff_members = CodedItem.load_from_json_list(response.content[0])
+        return cache
 
     def anonymize_transcripts_chat(
         self,
@@ -379,8 +430,7 @@ class BuilderDirectFromTuning:
                         "```",
                         "",
                         "While still following rigorously the initial instructions, correct your response and "
-                        "provide both JSON Markdown code blocks using "
-                        "the mentioned JSON Schemas.",
+                        "provide both JSON Markdown code blocks using the mentioned JSON Schemas.",
                     ],
                 )
             else:
@@ -501,6 +551,23 @@ class BuilderDirectFromTuning:
                         "description": "value of the replacement ; two different entities cannot "
                         "use the same anonymization",
                     },
+                },
+                "additionalProperties": False,
+            },
+        }
+
+    @classmethod
+    def schema_code_items(cls) -> dict:
+        return {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["uuid", "label", "code"],
+                "properties": {
+                    "uuid": {"type": "string"},
+                    "label": {"type": "string"},
+                    "code": {"type": "string"},
                 },
                 "additionalProperties": False,
             },
