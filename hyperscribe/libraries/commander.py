@@ -246,6 +246,7 @@ class Commander(BaseProtocol):
                 instruction
                 for instruction in builder.map(
                     Helper.with_cleanup(chatter.create_sdk_command_parameters),
+                    [transcript] * len(computed_instructions),
                     computed_instructions,
                 )
                 if instruction is not None

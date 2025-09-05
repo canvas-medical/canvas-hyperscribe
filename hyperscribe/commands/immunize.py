@@ -45,6 +45,9 @@ class Immunize(Base):
             "There can be only one immunization per instruction, and no instruction in the lack of."
         )
 
+    def instruction_limited_description(self) -> str:
+        return "Vaccine or immunization administration. One per instruction."
+
     def instruction_constraints(self) -> str:
         return ""
 

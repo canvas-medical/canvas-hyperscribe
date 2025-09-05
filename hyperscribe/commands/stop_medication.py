@@ -52,6 +52,9 @@ class StopMedication(Base):
             "and no instruction in the lack of."
         )
 
+    def instruction_limited_description(self) -> str:
+        return "Stop medication with rationale. One per instruction."
+
     def instruction_constraints(self) -> str:
         text = ", ".join([medication.label for medication in self.cache.current_medications()])
         return f"'{self.class_name()}' has to be related to one of the following medications: {text}."

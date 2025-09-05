@@ -80,6 +80,9 @@ class Vitals(Base):
             "All measurements should be combined in one instruction."
         )
 
+    def instruction_limited_description(self) -> str:
+        return "Vital sign measurements. All measurements in one instruction."
+
     def instruction_constraints(self) -> str:
         return ""
 

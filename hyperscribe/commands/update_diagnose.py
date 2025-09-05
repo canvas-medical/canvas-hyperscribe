@@ -106,6 +106,10 @@ class UpdateDiagnose(Base):
             "There is one instruction per condition change, and no instruction in the lack of."
         )
 
+    def instruction_limited_description(self) -> str:
+        text = ", ".join([f"{condition.label}" for condition in self.cache.current_conditions()])
+        return f"Update condition: {text}. One change per instruction."
+
     def instruction_constraints(self) -> str:
         text = ", ".join(
             [f"{condition.label} (ICD-10: {condition.code})" for condition in self.cache.current_conditions()],

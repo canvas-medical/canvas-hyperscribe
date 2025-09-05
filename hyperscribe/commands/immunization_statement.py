@@ -103,6 +103,9 @@ class ImmunizationStatement(Base):
             "and no instruction in the lack of."
         )
 
+    def instruction_limited_description(self) -> str:
+        return "Past immunization record. One per instruction."
+
     def instruction_constraints(self) -> str:
         result = ""
         if text := ", ".join(

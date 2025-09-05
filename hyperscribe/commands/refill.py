@@ -85,6 +85,10 @@ class Refill(Base):
             "There can be only one refill per instruction, and no instruction in the lack of."
         )
 
+    def instruction_limited_description(self) -> str:
+        text = ", ".join([f"{medication.label}" for medication in self.cache.current_medications()])
+        return f"Refill medication: {text}. One per instruction."
+
     def instruction_constraints(self) -> str:
         text = ", ".join(
             [

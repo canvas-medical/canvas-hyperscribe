@@ -38,6 +38,9 @@ class Plan(Base):
             "There can be only one plan per instruction, and no instruction in the lack of."
         )
 
+    def instruction_limited_description(self) -> str:
+        return "Patient care plan. One per instruction."
+
     def instruction_constraints(self) -> str:
         return ""
 

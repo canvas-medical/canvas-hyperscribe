@@ -82,6 +82,9 @@ class Perform(Base):
             "There can be only one procedure performed per instruction, and no instruction in the lack of."
         )
 
+    def instruction_limited_description(self) -> str:
+        return "Medical procedure performed. One per instruction."
+
     def instruction_constraints(self) -> str:
         return f'"{self.class_name()}" supports only one procedure per instruction, auscultation are prohibited.'
 

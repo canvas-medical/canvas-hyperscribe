@@ -102,6 +102,9 @@ class Allergy(Base):
             "But, if it is explicitly said that the patient has no known allergy, add an instruction mentioning it."
         )
 
+    def instruction_limited_description(self) -> str:
+        return "Diagnosed allergy, one per instruction. Include 'no known allergy' if stated."
+
     def instruction_constraints(self) -> str:
         result = ""
         if text := ", ".join([allergy.label for allergy in self.cache.current_allergies()]):

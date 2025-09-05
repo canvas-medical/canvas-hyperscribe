@@ -32,7 +32,7 @@ def runner_instruction2parameters(
     expected = content["parameters"]
     for idx, instruction in enumerate(instructions):
         error_label = f"{case}-{cycle} {instruction.instruction} - {idx:02d}"
-        response = audio_interpreter.create_sdk_command_parameters(instruction)
+        response = audio_interpreter.create_sdk_command_parameters([], instruction)
         assert response is not None, error_label
         if (automated := response.parameters) != (reviewed := expected[idx]):
             valid, differences = HelperEvaluation.json_nuanced_differences(

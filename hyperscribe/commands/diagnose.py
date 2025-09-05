@@ -111,6 +111,9 @@ class Diagnose(Base):
             "and no instruction in the lack of."
         )
 
+    def instruction_limited_description(self) -> str:
+        return "New medical condition with reasoning, assessment, onset date. One per instruction."
+
     def instruction_constraints(self) -> str:
         result = ""
         if text := ", ".join([f"{condition.label}" for condition in self.cache.current_conditions()]):

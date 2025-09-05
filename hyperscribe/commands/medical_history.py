@@ -82,6 +82,9 @@ class MedicalHistory(Base):
     def instruction_description(self) -> str:
         return "Any past condition. There can be only one condition per instruction, and no instruction in the lack of."
 
+    def instruction_limited_description(self) -> str:
+        return "Past medical condition history. One per instruction."
+
     def instruction_constraints(self) -> str:
         result = ""
         if text := ", ".join([f"{condition.label}" for condition in self.cache.condition_history()]):

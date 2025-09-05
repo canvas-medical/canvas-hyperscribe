@@ -81,6 +81,9 @@ class Instruct(Base):
             "There can be only one direction per instruction, and no instruction in the lack of."
         )
 
+    def instruction_limited_description(self) -> str:
+        return "Patient directions or instructions. One per instruction."
+
     def instruction_constraints(self) -> str:
         return ""
 

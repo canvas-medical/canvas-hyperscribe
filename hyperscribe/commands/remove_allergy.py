@@ -56,6 +56,9 @@ class RemoveAllergy(Base):
             "and no instruction in the lack of."
         )
 
+    def instruction_limited_description(self) -> str:
+        return "Remove diagnosed allergy with explanation. One per instruction."
+
     def instruction_constraints(self) -> str:
         text = ", ".join([allergy.label for allergy in self.cache.current_allergies()])
         return f"'{self.class_name()}' has to be related to one of the following allergies: {text}."

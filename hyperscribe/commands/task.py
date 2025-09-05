@@ -200,6 +200,9 @@ class Task(Base):
             "There can be one and only one task per instruction, and no instruction in the lack of."
         )
 
+    def instruction_limited_description(self) -> str:
+        return "Task assigned to staff/group, may include due date and assignee. One per instruction."
+
     def instruction_constraints(self) -> str:
         return ""
 

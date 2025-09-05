@@ -56,6 +56,10 @@ class ResolveCondition(Base):
             "There can be only one resolved condition per instruction, and no instruction in the lack of."
         )
 
+    def instruction_limited_description(self) -> str:
+        text = ", ".join([f"{condition.label}" for condition in self.cache.current_conditions()])
+        return f"Resolve condition: {text}. One per instruction."
+
     def instruction_constraints(self) -> str:
         text = ", ".join(
             [f"{condition.label} (ICD-10: {condition.code})" for condition in self.cache.current_conditions()],

@@ -82,6 +82,9 @@ class FamilyHistory(Base):
             "There can be only one condition per relative per instruction, and no instruction in the lack of."
         )
 
+    def instruction_limited_description(self) -> str:
+        return "Family medical history. There can be only one condition per relative per instruction."
+
     def instruction_constraints(self) -> str:
         result = ""
         if text := ", ".join([f"{history.label}" for history in self.cache.family_history()]):

@@ -61,6 +61,9 @@ class UpdateGoal(Base):
     def instruction_description(self) -> str:
         return "Change of status of a previously set goal, including progress, barriers, priority or due date."
 
+    def instruction_limited_description(self) -> str:
+        return "Update goal status and progress. One per instruction."
+
     def instruction_constraints(self) -> str:
         text = ", ".join([f'"{goal.label}"' for goal in self.cache.current_goals()])
         return f'"{self.class_name()}" has to be related to one of the following goals: {text}'

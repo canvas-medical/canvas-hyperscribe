@@ -83,6 +83,9 @@ class SurgeryHistory(Base):
             "and no instruction in the lack of."
         )
 
+    def instruction_limited_description(self) -> str:
+        return "Past surgical history. One surgery per instruction."
+
     def instruction_constraints(self) -> str:
         result = ""
         if text := ", ".join([f'"{surgery.label}"' for surgery in self.cache.surgery_history()]):

@@ -126,6 +126,10 @@ class AdjustPrescription(BasePrescription):
             "and no instruction in the lack of."
         )
 
+    def instruction_limited_description(self) -> str:
+        text = ", ".join([f"{medication.label}" for medication in self.cache.current_medications()])
+        return f"Change prescription of current medication ({text}). One per instruction."
+
     def instruction_constraints(self) -> str:
         text = ", ".join(
             [

@@ -124,6 +124,9 @@ class ImagingOrder(Base):
             "There can be only one imaging order per instruction, and no instruction in the lack of."
         )
 
+    def instruction_limited_description(self) -> str:
+        return "Imaging order with conditions. One per instruction."
+
     def instruction_constraints(self) -> str:
         return ""
 

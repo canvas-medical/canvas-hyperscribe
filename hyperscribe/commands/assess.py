@@ -60,6 +60,10 @@ class Assess(Base):
             "There can be only one assessment per condition per instruction, and no instruction in the lack of."
         )
 
+    def instruction_limited_description(self) -> str:
+        text = ", ".join([f"{condition.label}" for condition in self.cache.current_conditions()])
+        return f"Today's assessment of diagnosed condition ({text}). One per instruction."
+
     def instruction_constraints(self) -> str:
         text = ", ".join(
             [f"{condition.label} (ICD-10: {condition.code})" for condition in self.cache.current_conditions()],

@@ -932,11 +932,11 @@ def test_transcript2commands_common(time, memory_log, progress):
         assert mock_auditor.mock_calls == calls
         calls = [
             call.detect_instructions(transcript, previous_instructions),
-            call.create_sdk_command_parameters(exp_instructions[0]),
-            call.create_sdk_command_parameters(exp_instructions[2]),
-            call.create_sdk_command_parameters(exp_instructions[3]),
-            call.create_sdk_command_parameters(exp_instructions[4]),
-            call.create_sdk_command_parameters(exp_instructions[5]),
+            call.create_sdk_command_parameters(transcript, exp_instructions[0]),
+            call.create_sdk_command_parameters(transcript, exp_instructions[2]),
+            call.create_sdk_command_parameters(transcript, exp_instructions[3]),
+            call.create_sdk_command_parameters(transcript, exp_instructions[4]),
+            call.create_sdk_command_parameters(transcript, exp_instructions[5]),
             call.create_sdk_command_from(exp_instructions_w_parameters[0]),
             call.create_sdk_command_from(exp_instructions_w_parameters[1]),
             call.create_sdk_command_from(exp_instructions_w_parameters[2]),

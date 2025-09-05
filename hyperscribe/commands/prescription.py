@@ -117,6 +117,9 @@ class Prescription(BasePrescription):
             "and no instruction in the lack of."
         )
 
+    def instruction_limited_description(self) -> str:
+        return "New medication prescription. One per instruction."
+
     def instruction_constraints(self) -> str:
         return f'"{self.class_name()}" supports only one prescribed item per instruction.'
 

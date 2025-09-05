@@ -79,6 +79,9 @@ class Medication(Base):
             "Current medication. There can be only one medication per instruction, and no instruction in the lack of."
         )
 
+    def instruction_limited_description(self) -> str:
+        return "Current medication record. One per instruction."
+
     def instruction_constraints(self) -> str:
         result = ""
         if text := ", ".join([medication.label for medication in self.cache.current_medications()]):

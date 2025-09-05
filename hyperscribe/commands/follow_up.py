@@ -84,6 +84,9 @@ class FollowUp(Base):
             "so if one was already found, just update it by intelligently merging all key information."
         )
 
+    def instruction_limited_description(self) -> str:
+        return "Follow-up encounter scheduling. One per discussion, merge if found."
+
     def instruction_constraints(self) -> str:
         return ""
 

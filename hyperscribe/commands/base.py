@@ -123,6 +123,9 @@ class Base:
     def instruction_description(self) -> str:
         raise NotImplementedError
 
+    def instruction_limited_description(self) -> str:
+        raise NotImplementedError
+
     def instruction_constraints(self) -> str:
         raise NotImplementedError
 

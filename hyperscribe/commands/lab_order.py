@@ -178,6 +178,9 @@ class LabOrder(Base):
             "and no instruction in the lack of."
         )
 
+    def instruction_limited_description(self) -> str:
+        return "Lab tests with conditions and fasting requirement. Multiple tests per instruction."
+
     def instruction_constraints(self) -> str:
         return ""
 

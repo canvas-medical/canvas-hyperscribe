@@ -56,6 +56,9 @@ class Goal(Base):
             "There can be only one goal per instruction, and no instruction in the lack of."
         )
 
+    def instruction_limited_description(self) -> str:
+        return "New patient goal with priority. One per instruction."
+
     def instruction_constraints(self) -> str:
         result = ""
         if text := ", ".join([f'"{goal.label}"' for goal in self.cache.current_goals()]):

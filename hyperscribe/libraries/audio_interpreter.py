@@ -229,7 +229,7 @@ class AudioInterpreter:
         common_instructions = self.common_instructions()
         schema = self.json_schema([item.class_name() for item in common_instructions])
         definitions = [
-            {"instruction": item.class_name(), "information": item.instruction_description()}
+            {"instruction": item.class_name(), "description": item.instruction_limited_description()}
             for item in common_instructions
         ]
         system_prompt = [
@@ -316,7 +316,9 @@ class AudioInterpreter:
             result = chatter.single_conversation(system_prompt, user_prompt, [schema], None)
         return result
 
-    def create_sdk_command_parameters(self, instruction: Instruction) -> InstructionWithParameters | None:
+    def create_sdk_command_parameters(
+        self, discussion: list[Line], instruction: Instruction
+    ) -> InstructionWithParameters | None:
         result: InstructionWithParameters | None = None
 
         structures = [self.command_structures(instruction.instruction)]
@@ -324,15 +326,16 @@ class AudioInterpreter:
         if not schemas:
             schemas = JsonSchema.get(["generic_parameters"])
 
+        transcript = json.dumps([speaker.to_json() for speaker in discussion], indent=1)
         system_prompt = [
             "The conversation is in the context of a clinical encounter between patient and licensed "
             "healthcare provider.",
-            "During the encounter, the user has identified instructions with key information to record "
-            "in its software.",
-            "The user will submit an instruction and the linked information grounded in the transcript, as well "
-            "as the structure of the associated command.",
-            "Your task is to help the user by writing correctly detailed data for the structured command.",
-            "Unless explicitly instructed otherwise by the user for a specific command, "
+            "During the encounter, the user has identified several instructions he wants to correctly document "
+            "in structured objects.",
+            "The user will submit the transcript, one of the instructions with its information and its linked "
+            "structure.",
+            "Your task is to help the user by filling the structured object.",
+            "Unless explicitly instructed otherwise by the user, "
             "you must restrict your response to information explicitly present in the transcript "
             "or prior instructions.",
             "",
@@ -341,10 +344,13 @@ class AudioInterpreter:
             f"Please, note that now is {datetime.now().isoformat()}.",
         ]
         user_prompt = [
-            "Based on the text:",
-            "```text",
-            instruction.information,
+            "The transcript is:",
+            "```json",
+            transcript,
             "```",
+            "",
+            f"The identified instruction is `{instruction.instruction}` with the "
+            f"information: {instruction.information}",
             "",
             "Your task is to replace the values of the JSON object with the relevant information:",
             "```json",

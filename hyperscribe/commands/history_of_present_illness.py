@@ -45,6 +45,9 @@ class HistoryOfPresentIllness(Base):
             "So, if one was already found, simply update it by intelligently merging all key highlights."
         )
 
+    def instruction_limited_description(self) -> str:
+        return "Patient symptoms and observations. Multiple highlights per instruction, one per discussion."
+
     def instruction_constraints(self) -> str:
         return ""
 

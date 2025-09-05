@@ -56,6 +56,9 @@ class CloseGoal(Base):
     def instruction_description(self) -> str:
         return "Ending of a previously set goal, including status, progress, barriers, priority or due date."
 
+    def instruction_limited_description(self) -> str:
+        return "Close goal with status and progress. One per instruction."
+
     def instruction_constraints(self) -> str:
         text = ", ".join([f'"{goal.label}"' for goal in self.cache.current_goals()])
         return f'"{self.class_name()}" has to be related to one of the following goals: {text}'

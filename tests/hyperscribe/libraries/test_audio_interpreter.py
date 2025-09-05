@@ -806,11 +806,11 @@ def test_detect_instructions(common_instructions, json_schema, instruction_const
         mocks[2].class_name.side_effect = ["Third", "Third"]
         mocks[3].class_name.side_effect = ["Fourth", "Fourth"]
         mocks[4].class_name.side_effect = ["Fifth", "Fifth"]
-        mocks[0].instruction_description.side_effect = ["Description1"]
-        mocks[1].instruction_description.side_effect = ["Description2"]
-        mocks[2].instruction_description.side_effect = ["Description3"]
-        mocks[3].instruction_description.side_effect = ["Description4"]
-        mocks[4].instruction_description.side_effect = ["Description5"]
+        mocks[0].instruction_limited_description.side_effect = ["Description1"]
+        mocks[1].instruction_limited_description.side_effect = ["Description2"]
+        mocks[2].instruction_limited_description.side_effect = ["Description3"]
+        mocks[3].instruction_limited_description.side_effect = ["Description4"]
+        mocks[4].instruction_limited_description.side_effect = ["Description5"]
 
     system_prompt = [
         "The conversation is in the context of a clinical encounter between patient and licensed healthcare provider.",
@@ -824,11 +824,11 @@ def test_detect_instructions(common_instructions, json_schema, instruction_const
         "",
         "The instructions are limited to the following:",
         "```json",
-        '[{"instruction": "First", "information": "Description1"}, '
-        '{"instruction": "Second", "information": "Description2"}, '
-        '{"instruction": "Third", "information": "Description3"}, '
-        '{"instruction": "Fourth", "information": "Description4"}, '
-        '{"instruction": "Fifth", "information": "Description5"}]',
+        '[{"instruction": "First", "description": "Description1"}, '
+        '{"instruction": "Second", "description": "Description2"}, '
+        '{"instruction": "Third", "description": "Description3"}, '
+        '{"instruction": "Fourth", "description": "Description4"}, '
+        '{"instruction": "Fifth", "description": "Description5"}]',
         "```",
         "",
         "Your response must be a JSON Markdown block validated with the schema:",
@@ -972,7 +972,7 @@ def test_detect_instructions(common_instructions, json_schema, instruction_const
             [
                 call.class_name(),
                 call.class_name(),
-                call.instruction_description(),
+                call.instruction_limited_description(),
             ]
         )
         assert mock.mock_calls == calls, f"---> {idx}"
@@ -1006,7 +1006,7 @@ def test_detect_instructions(common_instructions, json_schema, instruction_const
     calls = [call(tested.identification, "transcript2instructions", aws_credentials)]
     assert memory_log.mock_calls == calls
     for idx, mock in enumerate(mocks):
-        calls = [call.class_name(), call.class_name(), call.instruction_description()]
+        calls = [call.class_name(), call.class_name(), call.instruction_limited_description()]
         assert mock.mock_calls == calls, f"---> {idx}"
     reset_mocks()
 
@@ -1089,7 +1089,7 @@ def test_detect_instructions(common_instructions, json_schema, instruction_const
     calls = [call(tested.identification, "transcript2instructions", aws_credentials)]
     assert memory_log.mock_calls == calls
     for idx, mock in enumerate(mocks):
-        calls = [call.class_name(), call.class_name(), call.instruction_description()]
+        calls = [call.class_name(), call.class_name(), call.instruction_limited_description()]
         assert mock.mock_calls == calls, f"---> {idx}"
     reset_mocks()
     # -- -- forgotten instructions (no constraints)
@@ -1162,7 +1162,7 @@ def test_detect_instructions(common_instructions, json_schema, instruction_const
         calls = [call(tested.identification, "transcript2instructions", aws_credentials)]
         assert memory_log.mock_calls == calls
         for idx, mock in enumerate(mocks):
-            calls = [call.class_name(), call.class_name(), call.instruction_description()]
+            calls = [call.class_name(), call.class_name(), call.instruction_limited_description()]
             assert mock.mock_calls == calls, f"---> {idx}"
         reset_mocks()
 
@@ -1199,11 +1199,11 @@ def test_create_sdk_command_parameters(
     )
     system_prompt = [
         "The conversation is in the context of a clinical encounter between patient and licensed healthcare provider.",
-        "During the encounter, the user has identified instructions with key information to record in its software.",
-        "The user will submit an instruction and the linked information grounded in the transcript, as well "
-        "as the structure of the associated command.",
-        "Your task is to help the user by writing correctly detailed data for the structured command.",
-        "Unless explicitly instructed otherwise by the user for a specific command, "
+        "During the encounter, the user has identified several instructions he wants to correctly document "
+        "in structured objects.",
+        "The user will submit the transcript, one of the instructions with its information and its linked structure.",
+        "Your task is to help the user by filling the structured object.",
+        "Unless explicitly instructed otherwise by the user, "
         "you must restrict your response to information explicitly present in the transcript "
         "or prior instructions.",
         "",
@@ -1213,10 +1213,15 @@ def test_create_sdk_command_parameters(
     ]
     user_prompts = {
         "commandWithSchema": [
-            "Based on the text:",
-            "```text",
-            "theInformation",
+            "The transcript is:",
+            "```json",
+            "[\n "
+            '{\n  "speaker": "speaker1",\n  "text": "textA"\n },\n '
+            '{\n  "speaker": "speaker2",\n  "text": "textB"\n },\n '
+            '{\n  "speaker": "speaker1",\n  "text": "textC"\n }\n]',
             "```",
+            "",
+            "The identified instruction is `Second` with the information: theInformation",
             "",
             "Your task is to replace the values of the JSON object with the relevant information:",
             "```json",
@@ -1230,10 +1235,15 @@ def test_create_sdk_command_parameters(
             "",
         ],
         "commandNoSchema": [
-            "Based on the text:",
-            "```text",
-            "theInformation",
+            "The transcript is:",
+            "```json",
+            "[\n "
+            '{\n  "speaker": "speaker1",\n  "text": "textA"\n },\n '
+            '{\n  "speaker": "speaker2",\n  "text": "textB"\n },\n '
+            '{\n  "speaker": "speaker1",\n  "text": "textC"\n }\n]',
             "```",
+            "",
+            "The identified instruction is `Second` with the information: theInformation",
             "",
             "Your task is to replace the values of the JSON object with the relevant information:",
             "```json",
@@ -1257,6 +1267,11 @@ def test_create_sdk_command_parameters(
             "items": {"type": "object", "additionalProperties": True},
         },
     ]
+    transcript = [
+        Line(speaker="speaker1", text="textA"),
+        Line(speaker="speaker2", text="textB"),
+        Line(speaker="speaker1", text="textC"),
+    ]
     reset_mocks()
 
     tested, settings, aws_credentials, cache = helper_instance([], True)
@@ -1266,7 +1281,7 @@ def test_create_sdk_command_parameters(
     command_schema.side_effect = [["theSchema"]]
     mock_datetime.now.side_effect = [datetime(2025, 2, 4, 7, 48, 21, tzinfo=timezone.utc)]
     chatter.return_value.single_conversation.side_effect = [[{"key": "response1"}, {"key": "response2"}]]
-    result = tested.create_sdk_command_parameters(instruction)
+    result = tested.create_sdk_command_parameters(transcript, instruction)
     expected = InstructionWithParameters(
         uuid="theUuid",
         index=3,
@@ -1304,7 +1319,7 @@ def test_create_sdk_command_parameters(
     command_schema.side_effect = [[]]
     mock_datetime.now.side_effect = [datetime(2025, 2, 4, 7, 48, 21, tzinfo=timezone.utc)]
     chatter.return_value.single_conversation.side_effect = [[{"key": "response1"}, {"key": "response2"}]]
-    result = tested.create_sdk_command_parameters(instruction)
+    result = tested.create_sdk_command_parameters(transcript, instruction)
     expected = InstructionWithParameters(
         uuid="theUuid",
         index=3,
@@ -1344,7 +1359,7 @@ def test_create_sdk_command_parameters(
 
     mock_datetime.now.side_effect = [datetime(2025, 2, 4, 7, 48, 21, tzinfo=timezone.utc)]
     chatter.return_value.single_conversation.side_effect = [[]]
-    result = tested.create_sdk_command_parameters(instruction)
+    result = tested.create_sdk_command_parameters(transcript, instruction)
     assert result is None
 
     calls = [call("Second")]

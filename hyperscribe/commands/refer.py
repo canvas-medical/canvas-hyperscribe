@@ -182,6 +182,9 @@ class Refer(Base):
             "and no instruction in the lack of."
         )
 
+    def instruction_limited_description(self) -> str:
+        return "Specialist referral with rationale and conditions. One per instruction."
+
     def instruction_constraints(self) -> str:
         return ""
 

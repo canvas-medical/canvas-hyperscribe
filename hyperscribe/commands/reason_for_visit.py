@@ -96,6 +96,9 @@ class ReasonForVisit(Base):
             "It is important to report it upon identification."
         )
 
+    def instruction_limited_description(self) -> str:
+        return "Reason for patient visit. Multiple reasons per instruction, one per discussion."
+
     def instruction_constraints(self) -> str:
         return ""
 
