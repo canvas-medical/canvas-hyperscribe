@@ -1,0 +1,123 @@
+{
+  "cycle_001": {
+    "transcript": [
+      {
+        "speaker": "Clinician",
+        "text": "This is Dr. Smith dictating a summary of the office visit that took place today, August 23rd, 2025, at 10:30 AM."
+      },
+      {
+        "speaker": "Clinician",
+        "text": "The patient presented today for evaluation of skin irritation and redness, as well as a review of blood pressure management."
+      },
+      {
+        "speaker": "Clinician",
+        "text": "Vital signs recorded today were as follows: heart rate 78 beats per minute, blood pressure 148 over 92 millimeters of mercury, respiratory rate 16 per minute, temperature 36.8 degrees Celsius, oxygen saturation 98 percent on room air, and body weight 82 kilograms."
+      },
+      {
+        "speaker": "Clinician",
+        "text": "Family history is notable for asthma in both the patient’s mother and grandmother."
+      },
+      {
+        "speaker": "Clinician",
+        "text": "The assessment is consistent with eczema, which was diagnosed during this visit."
+      },
+      {
+        "speaker": "Clinician",
+        "text": "Regarding medications: the patient has been instructed to stop lisinopril 10 milligram tablets, effective immediately as of today, August 23rd, 2025."
+      },
+      {
+        "speaker": "Clinician",
+        "text": "I am prescribing Zestril 20 milligram tablets, to be taken once daily, starting today, August 23rd, 2025."
+      },
+      {
+        "speaker": "Clinician",
+        "text": "A laboratory order has been placed for blood work, including a basic metabolic panel and a complete blood count, to be completed within the next week."
+      },
+      {
+        "speaker": "Clinician",
+        "text": "A goal has been set for dietary improvement starting immediately, August 23rd, 2025, with emphasis on reducing processed foods and added sugars. The target is to sustain these changes consistently for the next 2 months, until October 23rd, 2025."
+      },
+      {
+        "speaker": "Clinician",
+        "text": "The patient will return for a follow-up appointment in 3 months, scheduled for November 23rd, 2025, to reassess blood pressure, review lab results, and monitor skin condition."
+      }
+    ],
+    "instructions": {
+      "initial": [],
+      "result": [
+        {
+          "uuid": "1a2b3c4d-0001",
+          "index": 0,
+          "instruction": "HistoryOfPresentIllness",
+          "information": "The patient presented today for evaluation of skin irritation and redness, as well as a review of blood pressure management.",
+          "isNew": true,
+          "isUpdated": false
+        },
+        {
+          "uuid": "1a2b3c4d-0002",
+          "index": 1,
+          "instruction": "Vitals",
+          "information": "Heart rate 78 beats per minute, blood pressure 148 over 92 millimeters of mercury, respiratory rate 16 per minute, temperature 36.8 degrees Celsius, oxygen saturation 98 percent on room air, and body weight 82 kilograms.",
+          "isNew": true,
+          "isUpdated": false
+        },
+        {
+          "uuid": "1a2b3c4d-0003",
+          "index": 2,
+          "instruction": "FamilyHistory",
+          "information": "Asthma in both the patient\u2019s mother and grandmother.",
+          "isNew": true,
+          "isUpdated": false
+        },
+        {
+          "uuid": "1a2b3c4d-0004",
+          "index": 3,
+          "instruction": "Diagnose",
+          "information": "Eczema diagnosed during this visit.",
+          "isNew": true,
+          "isUpdated": false
+        },
+        {
+          "uuid": "1a2b3c4d-0005",
+          "index": 4,
+          "instruction": "Instruct",
+          "information": "The patient has been instructed to stop lisinopril 10 milligram tablets, effective immediately as of today, August 23rd, 2025.",
+          "isNew": true,
+          "isUpdated": false
+        },
+        {
+          "uuid": "1a2b3c4d-0006",
+          "index": 5,
+          "instruction": "Prescription",
+          "information": "Zestril 20 milligram tablets, to be taken once daily, starting today, August 23rd, 2025.",
+          "isNew": true,
+          "isUpdated": false
+        },
+        {
+          "uuid": "1a2b3c4d-0007",
+          "index": 6,
+          "instruction": "LabOrder",
+          "information": "Blood work including a basic metabolic panel and a complete blood count, to be completed within the next week.",
+          "isNew": true,
+          "isUpdated": false
+        },
+        {
+          "uuid": "1a2b3c4d-0008",
+          "index": 7,
+          "instruction": "Goal",
+          "information": "Dietary improvement starting immediately, August 23rd, 2025, with emphasis on reducing processed foods and added sugars. The target is to sustain these changes consistently for the next 2 months, until October 23rd, 2025.",
+          "isNew": true,
+          "isUpdated": false
+        },
+        {
+          "uuid": "1a2b3c4d-0009",
+          "index": 8,
+          "instruction": "Plan",
+          "information": "The patient will return for a follow-up appointment in 3 months, scheduled for November 23rd, 2025, to reassess blood pressure, review lab results, and monitor skin condition.",
+          "isNew": true,
+          "isUpdated": false
+        }
+      ]
+    }
+  }
+}

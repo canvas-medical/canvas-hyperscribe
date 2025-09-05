@@ -1,0 +1,51 @@
+{
+  "cycle_001": {
+    "transcript": [
+      {
+        "speaker": "Clinician",
+        "text": "Have you had any health concerns since I saw you last year?"
+      },
+      {
+        "speaker": "Patient",
+        "text": "No, I feel great. Just got over a cold last month, but it wasn't bad."
+      },
+      {
+        "speaker": "Clinician",
+        "text": "You're 5'7\" and 135 pounds. Blood pressure is 110/70. Heart rate is 62."
+      },
+      {
+        "speaker": "Clinician",
+        "text": "You're due for a Tdap booster and this year's flu shot. I'll get those prescribed for you."
+      }
+    ],
+    "instructions": {
+      "initial": [],
+      "result": [
+        {
+          "uuid": "1a2b3c4d-0001",
+          "index": 0,
+          "instruction": "Vitals",
+          "information": "Height: 5'7\", Weight: 135 pounds, Blood pressure: 110/70, Heart rate: 62",
+          "isNew": true,
+          "isUpdated": false
+        },
+        {
+          "uuid": "1a2b3c4d-0002",
+          "index": 1,
+          "instruction": "Prescription",
+          "information": "Tdap booster",
+          "isNew": true,
+          "isUpdated": false
+        },
+        {
+          "uuid": "1a2b3c4d-0003",
+          "index": 2,
+          "instruction": "Prescription",
+          "information": "Flu shot",
+          "isNew": true,
+          "isUpdated": false
+        }
+      ]
+    }
+  }
+}

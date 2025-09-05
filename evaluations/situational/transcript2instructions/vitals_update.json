@@ -1,0 +1,44 @@
+{
+  "cycle_001": {
+    "transcript": [
+      {
+        "speaker": "doctor",
+        "text": "Good morning. What can I do for you?"
+      },
+      {
+        "speaker": "patient",
+        "text": "Good morning. I don't feel good this morning, and thought it would be good to meet you."
+      },
+      {
+        "speaker": "doctor",
+        "text": "Sure, since this is your first visit, I will be asking you some questions and taking measurements for your record. Let’s start with your heart rate. Please sit comfortably while I check your pulse."
+      },
+      {
+        "speaker": "doctor",
+        "text": "Your heart pulse is 76 beats per minute, regular rhythm, measured on August 27th, 2025."
+      }
+    ],
+    "instructions": {
+      "initial": [
+        {
+          "uuid": "id00",
+          "index": 0,
+          "instruction": "Vitals",
+          "information": "Weight is 125 pounds, height is 5 feet 5 inches",
+          "isNew": true,
+          "isUpdated": false
+        }
+      ],
+      "result": [
+        {
+          "uuid": "id00",
+          "index": 0,
+          "instruction": "Vitals",
+          "information": "Weight is 125 pounds, height is 5 feet 5 inches, heart pulse is 76 beats per minute, regular rhythm, measured on August 27th, 2025.",
+          "isNew": false,
+          "isUpdated": true
+        }
+      ]
+    }
+  }
+}
