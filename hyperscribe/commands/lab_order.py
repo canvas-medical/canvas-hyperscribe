@@ -67,24 +67,29 @@ class LabOrder(Base):
                 self.add_code2description(item.code, item.label)
 
         lab_partner = self.cache.preferred_lab_partner()
-        if lab_partner.uuid:
-            result.lab_partner = lab_partner.uuid
-            self.add_code2description(lab_partner.uuid, lab_partner.label)
+        if not lab_partner.uuid:
+            raise RuntimeError(
+                "Cannot process LabOrder without preferred lab for the staff "
+                "practice location. Fix practice location settings."
+            )
 
-            # retrieve the tests based on the keywords
-            for lab_order in instruction.parameters["labOrders"]:
-                item = SelectorChat.lab_test_from(
-                    instruction,
-                    chatter,
-                    self.cache,
-                    lab_partner.label,
-                    lab_order["labOrderKeywords"].split(","),
-                    instruction.parameters["comment"],
-                    [c.label for c in conditions],
-                )
-                if item.code:
-                    result.tests_order_codes.append(item.code)
-                    self.add_code2description(item.code, item.label)
+        result.lab_partner = lab_partner.uuid
+        self.add_code2description(lab_partner.uuid, lab_partner.label)
+
+        # retrieve the tests based on the keywords
+        for lab_order in instruction.parameters["labOrders"]:
+            item = SelectorChat.lab_test_from(
+                instruction,
+                chatter,
+                self.cache,
+                lab_partner.label,
+                lab_order["labOrderKeywords"].split(","),
+                instruction.parameters["comment"],
+                [c.label for c in conditions],
+            )
+            if item.code:
+                result.tests_order_codes.append(item.code)
+                self.add_code2description(item.code, item.label)
 
         return InstructionWithCommand.add_command(instruction, result)
 

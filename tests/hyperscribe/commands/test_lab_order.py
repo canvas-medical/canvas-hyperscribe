@@ -1,6 +1,7 @@
 import json
 from hashlib import md5
 from unittest.mock import patch, call, MagicMock
+import pytest
 
 from canvas_sdk.commands.commands.lab_order import LabOrderCommand
 
@@ -160,112 +161,106 @@ def test_command_from_json(add_code2description, condition_from, lab_test_from, 
         },
     }
 
-    tests = [
-        (
-            CodedItem(uuid="", label="theLabPartner", code=""),
-            LabOrderCommand(
-                ordering_provider_key="providerUuid",
-                fasting_required=True,
-                comment="A very long comment to see that it is truncated after 127 characters. "
-                "That is to go over the 127 characters, just in the middle",
-                note_uuid="noteUuid",
-                tests_order_codes=[],
-                diagnosis_codes=["icd1", "icd3"],
-            ),
-            [
-                call("providerUuid", ""),
-                call("icd1", "condition1"),
-                call("icd3", "condition4"),
-            ],
+    # Test case where lab partner has no uuid - should raise RuntimeError
+    condition_from.side_effect = [
+        CodedItem(uuid="uuid1", label="condition1", code="icd1"),
+        CodedItem(uuid="uuid3", label="condition3", code=""),
+        CodedItem(uuid="uuid4", label="condition4", code="icd3"),
+    ]
+    lab_test_from.side_effect = []  # Won't be called due to exception
+    preferred_lab_partner.side_effect = [CodedItem(uuid="", label="theLabPartner", code="")]
+
+    instruction = InstructionWithParameters(**arguments)
+    with pytest.raises(
+        RuntimeError, match="Cannot process LabOrder without preferred lab for the staff practice location"
+    ):
+        tested.command_from_json(instruction, chatter)
+
+    reset_mocks()
+
+    # Test case where lab partner has uuid - should succeed
+    lab_partner = CodedItem(uuid="uuidLab", label="theLabPartner", code="")
+    expected = LabOrderCommand(
+        lab_partner="uuidLab",
+        ordering_provider_key="providerUuid",
+        fasting_required=True,
+        comment="A very long comment to see that it is truncated after 127 characters. "
+        "That is to go over the 127 characters, just in the middle",
+        note_uuid="noteUuid",
+        tests_order_codes=["code2", "code4"],
+        diagnosis_codes=["icd1", "icd3"],
+    )
+    exp_calls = [
+        call("providerUuid", ""),
+        call("icd1", "condition1"),
+        call("icd3", "condition4"),
+        call("uuidLab", "theLabPartner"),
+        call("code2", "lab2"),
+        call("code4", "lab4"),
+    ]
+
+    condition_from.side_effect = [
+        CodedItem(uuid="uuid1", label="condition1", code="icd1"),
+        CodedItem(uuid="uuid3", label="condition3", code=""),
+        CodedItem(uuid="uuid4", label="condition4", code="icd3"),
+    ]
+    lab_test_from.side_effect = [
+        CodedItem(uuid="uuid2", label="lab2", code="code2"),
+        CodedItem(uuid="uuid3", label="lab3", code=""),
+        CodedItem(uuid="uuid4", label="lab4", code="code4"),
+    ]
+    preferred_lab_partner.side_effect = [lab_partner]
+    instruction = InstructionWithParameters(**arguments)
+    result = tested.command_from_json(instruction, chatter)
+    # ATTENTION the LabOrderCommand._get_error_details method checks the codes directly in the DB
+    assert result.command.lab_partner == expected.lab_partner
+    assert result.command.ordering_provider_key == expected.ordering_provider_key
+    assert result.command.fasting_required == expected.fasting_required
+    assert result.command.comment == expected.comment
+    assert result.command.note_uuid == expected.note_uuid
+    assert result.command.tests_order_codes == expected.tests_order_codes
+    assert result.command.diagnosis_codes == expected.diagnosis_codes
+
+    assert add_code2description.mock_calls == exp_calls
+    calls = [
+        call(instruction, chatter, ["condition1", "condition2"], ["icd1", "icd2"], comment),
+        call(instruction, chatter, ["condition3"], ["icd3"], comment),
+        call(instruction, chatter, ["condition4"], ["icd4"], comment),
+    ]
+    assert condition_from.mock_calls == calls
+    calls = [
+        call(
+            instruction,
+            chatter,
+            tested.cache,
+            "theLabPartner",
+            ["lab1", "lab2"],
+            comment,
+            ["condition1", "condition4"],
         ),
-        (
-            CodedItem(uuid="uuidLab", label="theLabPartner", code=""),
-            LabOrderCommand(
-                lab_partner="uuidLab",
-                ordering_provider_key="providerUuid",
-                fasting_required=True,
-                comment="A very long comment to see that it is truncated after 127 characters. "
-                "That is to go over the 127 characters, just in the middle",
-                note_uuid="noteUuid",
-                tests_order_codes=["code2", "code4"],
-                diagnosis_codes=["icd1", "icd3"],
-            ),
-            [
-                call("providerUuid", ""),
-                call("icd1", "condition1"),
-                call("icd3", "condition4"),
-                call("uuidLab", "theLabPartner"),
-                call("code2", "lab2"),
-                call("code4", "lab4"),
-            ],
+        call(
+            instruction,
+            chatter,
+            tested.cache,
+            "theLabPartner",
+            ["lab3"],
+            comment,
+            ["condition1", "condition4"],
+        ),
+        call(
+            instruction,
+            chatter,
+            tested.cache,
+            "theLabPartner",
+            ["lab4"],
+            comment,
+            ["condition1", "condition4"],
         ),
     ]
-    for lab_partner, expected, exp_calls in tests:
-        condition_from.side_effect = [
-            CodedItem(uuid="uuid1", label="condition1", code="icd1"),
-            CodedItem(uuid="uuid3", label="condition3", code=""),
-            CodedItem(uuid="uuid4", label="condition4", code="icd3"),
-        ]
-        lab_test_from.side_effect = [
-            CodedItem(uuid="uuid2", label="lab2", code="code2"),
-            CodedItem(uuid="uuid3", label="lab3", code=""),
-            CodedItem(uuid="uuid4", label="lab4", code="code4"),
-        ]
-        preferred_lab_partner.side_effect = [lab_partner]
-        instruction = InstructionWithParameters(**arguments)
-        result = tested.command_from_json(instruction, chatter)
-        # ATTENTION the LabOrderCommand._get_error_details method checks the codes directly in the DB
-        assert result.command.lab_partner == expected.lab_partner
-        assert result.command.ordering_provider_key == expected.ordering_provider_key
-        assert result.command.fasting_required == expected.fasting_required
-        assert result.command.comment == expected.comment
-        assert result.command.note_uuid == expected.note_uuid
-        assert result.command.tests_order_codes == expected.tests_order_codes
-        assert result.command.diagnosis_codes == expected.diagnosis_codes
-
-        assert add_code2description.mock_calls == exp_calls
-        calls = [
-            call(instruction, chatter, ["condition1", "condition2"], ["icd1", "icd2"], comment),
-            call(instruction, chatter, ["condition3"], ["icd3"], comment),
-            call(instruction, chatter, ["condition4"], ["icd4"], comment),
-        ]
-        assert condition_from.mock_calls == calls
-        calls = []
-        if lab_partner.uuid:
-            calls = [
-                call(
-                    instruction,
-                    chatter,
-                    tested.cache,
-                    "theLabPartner",
-                    ["lab1", "lab2"],
-                    comment,
-                    ["condition1", "condition4"],
-                ),
-                call(
-                    instruction,
-                    chatter,
-                    tested.cache,
-                    "theLabPartner",
-                    ["lab3"],
-                    comment,
-                    ["condition1", "condition4"],
-                ),
-                call(
-                    instruction,
-                    chatter,
-                    tested.cache,
-                    "theLabPartner",
-                    ["lab4"],
-                    comment,
-                    ["condition1", "condition4"],
-                ),
-            ]
-        assert lab_test_from.mock_calls == calls
-        calls = [call()]
-        assert preferred_lab_partner.mock_calls == calls
-        assert chatter.mock_calls == []
-        reset_mocks()
+    assert lab_test_from.mock_calls == calls
+    calls = [call()]
+    assert preferred_lab_partner.mock_calls == calls
+    assert chatter.mock_calls == []
 
 
 def test_command_parameters():
