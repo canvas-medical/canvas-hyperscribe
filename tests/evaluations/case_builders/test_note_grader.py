@@ -148,7 +148,6 @@ def test_run(mock_generate_json, mock_schema_scores, mock_build_prompts, tmp_fil
 
         expected_call = [
             call(
-                vendor_key=vendor_key,
                 system_prompt=["System Prompt"],
                 user_prompt=["User Prompt"],
                 schema=expected_schema,
@@ -171,7 +170,6 @@ def test_run(mock_generate_json, mock_schema_scores, mock_build_prompts, tmp_fil
     assert mock_build_prompts.mock_calls == [call()]
     expected_call = [
         call(
-            vendor_key=vendor_key,
             system_prompt=["System Prompt"],
             user_prompt=["User Prompt"],
             schema=expected_schema,

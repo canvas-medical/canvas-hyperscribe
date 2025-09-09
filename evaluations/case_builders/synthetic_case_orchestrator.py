@@ -23,10 +23,10 @@ from evaluations.datastores.postgres.synthetic_case import SyntheticCase as Synt
 
 
 class SyntheticCaseOrchestrator:
-    def __init__(self, vendor_key: VendorKey, category: str, openai_api_key: str):
+    def __init__(self, vendor_key: VendorKey, category: str):
         self.vendor_key = vendor_key
         self.category = category
-        self.profile_generator = SyntheticProfileGenerator(vendor_key, category, openai_api_key)
+        self.profile_generator = SyntheticProfileGenerator(vendor_key, category)
 
     def generate(
         self,
@@ -114,7 +114,7 @@ class SyntheticCaseOrchestrator:
         settings = HelperEvaluation.settings()
         vendor_key = settings.llm_text
 
-        orchestrator = cls(vendor_key, category, settings.openai_api_key)
+        orchestrator = cls(vendor_key, category)
         record_pairs = orchestrator.generate(number_of_batches, batch_size)
 
         case_store = CaseDatastore(credentials)
@@ -141,7 +141,7 @@ class SyntheticCaseOrchestrator:
     ) -> None:
         settings = HelperEvaluation.settings()
         vendor_key = settings.llm_text
-        orchestrator = cls(vendor_key, category, settings.openai_api_key)
+        orchestrator = cls(vendor_key, category)
         record_pairs = orchestrator.generate(number_of_batches, batch_size)
 
         for index, (case_record, synthetic_record) in enumerate(record_pairs, start=1):

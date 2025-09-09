@@ -9,6 +9,7 @@ from hyperscribe.llms.llm_anthropic import LlmAnthropic
 from hyperscribe.llms.llm_eleven_labs import LlmElevenLabs
 from hyperscribe.llms.llm_google import LlmGoogle
 from hyperscribe.llms.llm_openai import LlmOpenai
+from hyperscribe.llms.llm_openai_o3 import LlmOpenaiO3
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
@@ -119,26 +120,32 @@ def test_chatter():
     tests = [
         ("Anthropic", LlmAnthropic, "claude-3-5-sonnet-20241022"),
         ("Google", LlmGoogle, "models/gemini-2.0-flash"),
+        ("OpenAI", LlmOpenaiO3, "o3"),
         ("Any", LlmOpenai, "gpt-4o"),
     ]
     for vendor, exp_class, exp_model in tests:
         memory_log.reset_mock()
-        result = tested.chatter(
-            Settings(
-                llm_text=VendorKey(vendor=vendor, api_key="textKey"),
-                llm_audio=VendorKey(vendor="audioVendor", api_key="audioKey"),
-                structured_rfv=False,
-                audit_llm=False,
-                is_tuning=False,
-                api_signing_key="theApiSigningKey",
-                max_workers=3,
-                send_progress=False,
-                commands_policy=AccessPolicy(policy=False, items=[]),
-                staffers_policy=AccessPolicy(policy=False, items=[]),
-                cycle_transcript_overlap=37,
-            ),
-            memory_log,
+        settings = Settings(
+            llm_text=VendorKey(vendor=vendor, api_key="textKey"),
+            llm_audio=VendorKey(vendor="audioVendor", api_key="audioKey"),
+            structured_rfv=False,
+            audit_llm=False,
+            is_tuning=False,
+            api_signing_key="theApiSigningKey",
+            max_workers=3,
+            send_progress=False,
+            commands_policy=AccessPolicy(policy=False, items=[]),
+            staffers_policy=AccessPolicy(policy=False, items=[]),
+            cycle_transcript_overlap=37,
         )
+
+        # handle o3 alternative.
+        if exp_model == "o3":
+            with patch("hyperscribe.structures.settings.Settings.llm_text_model", return_value="o3"):
+                result = tested.chatter(settings, memory_log)
+        else:
+            result = tested.chatter(settings, memory_log)
+
         assert memory_log.mock_calls == []
         assert isinstance(result, exp_class)
         assert result.api_key == "textKey"
