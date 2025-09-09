@@ -152,6 +152,7 @@ def test_generate(mock_generate_json, mock_schema_rubric, mock_build_prompts, tm
 
         expected_call = [
             call(
+                vendor_key=vendor_key,
                 system_prompt=["System Prompt"],
                 user_prompt=["User Prompt"],
                 schema=expected_schema,
@@ -174,6 +175,7 @@ def test_generate(mock_generate_json, mock_schema_rubric, mock_build_prompts, tm
     assert mock_build_prompts.mock_calls == [call(transcript, chart, canvas_context)]
     expected_call = [
         call(
+            vendor_key=vendor_key,
             system_prompt=["System Prompt"],
             user_prompt=["User Prompt"],
             schema=expected_schema,

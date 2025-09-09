@@ -75,11 +75,9 @@ def test_load_json(tmp_path):
     ],
 )
 @patch("evaluations.case_builders.synthetic_profile_generator.MemoryLog")
-@patch("evaluations.case_builders.synthetic_profile_generator.Helper")
-@patch("evaluations.case_builders.synthetic_profile_generator.HelperEvaluation")
+@patch("evaluations.case_builders.synthetic_profile_generator.LlmOpenai")
 def test_update_patient_names(
-    mock_helper_evaluation,
-    mock_helper,
+    mock_llm_class,
     mock_memory_log,
     vendor_key: VendorKey,
     has_error,
@@ -93,8 +91,7 @@ def test_update_patient_names(
     tested = SyntheticProfileGenerator(vendor_key, "med_management")
 
     def reset_mocks():
-        mock_helper.reset_mock()
-        mock_helper_evaluation.reset_mock()
+        mock_llm_class.reset_mock()
         mock_memory_log.reset_mock()
 
     profiles = [
@@ -109,9 +106,7 @@ def test_update_patient_names(
     )
 
     mock_memory_log.dev_null_instance.side_effect = ["theMemoryInstance"] * len(profiles)
-    mock_llm_instance = MagicMock()
-    mock_llm_instance.chat.side_effect = [mock_response] * len(profiles)
-    mock_helper.chatter.return_value = mock_llm_instance
+    mock_llm_class.return_value.chat.side_effect = [mock_response] * len(profiles)
 
     if should_raise:
         with pytest.raises(Exception) as exc_info:
@@ -125,8 +120,8 @@ def test_update_patient_names(
             assert len(profile.name.split("-")[-1]) == 8
 
     # common md5 verification.
-    system_prompt_calls = [call[0][0] for call in mock_llm_instance.set_system_prompt.call_args_list]
-    user_prompt_calls = [call[0][0] for call in mock_llm_instance.set_user_prompt.call_args_list]
+    system_prompt_calls = [call[0][0] for call in mock_llm_class.return_value.set_system_prompt.call_args_list]
+    user_prompt_calls = [call[0][0] for call in mock_llm_class.return_value.set_user_prompt.call_args_list]
 
     if system_prompt_calls and user_prompt_calls:
         result_system_prompt_md5 = hashlib.md5("\n".join(system_prompt_calls[0]).encode()).hexdigest()
@@ -136,15 +131,22 @@ def test_update_patient_names(
         assert result_user_prompt_md5 == expected_user_prompt_md5
 
     calls = [call([{"type": "string"}])] * expected_chat_calls
-    assert mock_llm_instance.chat.mock_calls == calls
+    assert mock_llm_class.return_value.chat.mock_calls == calls
     calls = [call.dev_null_instance()] * expected_chat_calls
     assert mock_memory_log.mock_calls == calls
 
-    # Check Helper.chatter was called correctly - each profile calls it once
-    expected_chatter_calls = [
-        call(mock_helper_evaluation.settings.return_value, "theMemoryInstance")
-    ] * expected_chat_calls
-    assert mock_helper.chatter.call_args_list == expected_chatter_calls
+    # Build expected calls for mock_llm_class including all method calls
+    calls = []
+    for i in range(expected_chat_calls):
+        calls.extend(
+            [
+                call("theMemoryInstance", vendor_key.api_key, "gpt-4o", with_audit=False),
+                call().set_system_prompt(system_prompt_calls[i] if system_prompt_calls else []),
+                call().set_user_prompt(user_prompt_calls[i] if user_prompt_calls else []),
+                call().chat([{"type": "string"}]),
+            ]
+        )
+    assert mock_llm_class.mock_calls == calls
 
     reset_mocks()
 
@@ -266,7 +268,7 @@ def test_generate_batch(
             mock_generate_json.side_effect = [expected_batch_data]
             mock_schema_batch.side_effect = [expected_schema]
             mock_update_names.side_effect = [updated_profiles]
-
+    
             result = tested.generate_batch(batch_num, count)
 
             # md5 verification + mock_generate_json check.
@@ -278,6 +280,7 @@ def test_generate_batch(
 
             assert result_system_md5 == expected_system_md5
             assert result_user_md5 == expected_user_md5
+            assert kwargs["vendor_key"] == vendor_key
             assert kwargs["schema"] == expected_schema
 
             expected_schema_calls = [call(count)]

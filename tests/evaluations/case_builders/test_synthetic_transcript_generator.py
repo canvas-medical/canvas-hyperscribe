@@ -205,6 +205,7 @@ def test_generate_transcript_for_profile__success(
 
     assert mock_generate_json.mock_calls == [
         call(
+            vendor_key=tested.vendor_key,
             system_prompt=["System Prompt"],
             user_prompt=["User Prompt"],
             schema=expected_schema,
@@ -255,6 +256,7 @@ def test_generate_transcript_for_profile__bad_json_raises(
 
     assert mock_generate_json.mock_calls == [
         call(
+            vendor_key=tested.vendor_key,
             system_prompt=["System Prompt"],
             user_prompt=["User Prompt"],
             schema=expected_schema,
@@ -306,6 +308,7 @@ def test_run(mock_generate_json, mock_make_specifications, mock_build_prompt, mo
 
     assert mock_generate_json.mock_calls == [
         call(
+            vendor_key=tested.vendor_key,
             system_prompt=["System Prompt"],
             user_prompt=["User Prompt"],
             schema=expected_schema,

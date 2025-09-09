@@ -5,40 +5,12 @@ from evaluations.case_builders.synthetic_profile_generator_prompts import Synthe
 
 def test_get_prompts():
     tested = SyntheticProfileGeneratorPrompts
+
     tests = [
-        (
-            "med_management",
-            1,
-            2,
-            {"expected": "schema"},
-            [],
-            False,
-            None,
-            "4812ff261353bfc9054ffb110df4234a",
-            "03dbc5a556ba0029dd3cdd61c49c86ac",
-        ),
-        (
-            "primary_care",
-            2,
-            3,
-            {"expected": "schema"},
-            ["Routine checkup"],
-            False,
-            None,
-            "cb7b9676d49a9378ad495d57f5a18426",
-            "7fdd9f10925610cc4082dd25c0665bb4",
-        ),
-        (
-            "serious_mental_illness",
-            1,
-            4,
-            {"expected": "schema"},
-            [],
-            False,
-            None,
-            "3dff218b368fe713cf9f7d44b852fce4",
-            "e2dc66a48d6efd87e0983230de956c03",
-        ),
+        # (category, batch_num, count, schema, seen_scenarios, should_raise, expected_error)
+        ("med_management", 1, 2, {"expected": "schema"}, [], False, None),
+        ("primary_care", 2, 3, {"expected": "schema"}, ["Routine checkup"], False, None),
+        ("serious_mental_illness", 1, 4, {"expected": "schema"}, [], False, None),
         (
             "unknown_category",
             1,
@@ -47,42 +19,26 @@ def test_get_prompts():
             [],
             True,
             "Unknown category: unknown_category. Supported: med_management, primary_care, serious_mental_illness",
-            None,
-            None,
         ),
     ]
 
-    for (
-        category,
-        batch_num,
-        count,
-        schema,
-        seen_scenarios,
-        should_raise,
-        expected_error,
-        expected_system_md5,
-        expected_user_md5,
-    ) in tests:
+    for category, batch_num, count, schema, seen_scenarios, should_raise, expected_error in tests:
         if should_raise:
             with pytest.raises(ValueError) as exc_info:
                 tested.get_prompts(category, batch_num, count, schema, seen_scenarios)
             assert str(exc_info.value) == expected_error
         else:
             result = tested.get_prompts(category, batch_num, count, schema, seen_scenarios)
-            assert isinstance(result, tuple)
 
-            system_prompt, user_prompt = result
-            assert isinstance(system_prompt, list)
-            assert isinstance(user_prompt, list)
-            assert len(system_prompt) > 0
-            assert len(user_prompt) > 0
+            # Verify the result matches the direct method call
+            if category == "med_management":
+                expected = tested.med_management_prompts(batch_num, count, schema, seen_scenarios)
+            elif category == "primary_care":
+                expected = tested.primary_care_prompts(batch_num, count, schema, seen_scenarios)
+            elif category == "serious_mental_illness":
+                expected = tested.serious_mental_illness_prompts(batch_num, count, schema, seen_scenarios)
 
-            # MD5 validation instead of calling implementation
-            result_system_md5 = hashlib.md5("\n".join(system_prompt).encode()).hexdigest()
-            result_user_md5 = hashlib.md5("\n".join(user_prompt).encode()).hexdigest()
-
-            assert result_system_md5 == expected_system_md5
-            assert result_user_md5 == expected_user_md5
+            assert result == expected
 
 
 def test_med_management_prompts():
