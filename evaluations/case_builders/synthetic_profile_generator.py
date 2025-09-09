@@ -2,8 +2,7 @@ import json, re, argparse, hashlib
 from pathlib import Path
 from typing import Any, cast
 
-from hyperscribe.libraries.constants import Constants
-from hyperscribe.llms.llm_openai import LlmOpenai
+from hyperscribe.libraries.helper import Helper
 from hyperscribe.structures.vendor_key import VendorKey
 from hyperscribe.libraries.memory_log import MemoryLog
 from evaluations.helper_evaluation import HelperEvaluation
@@ -13,10 +12,9 @@ from evaluations.structures.patient_profile import PatientProfile
 
 
 class SyntheticProfileGenerator:
-    def __init__(self, vendor_key: VendorKey, category: str, openai_api_key: str) -> None:
+    def __init__(self, vendor_key: VendorKey, category: str) -> None:
         self.vendor_key = vendor_key
         self.category = category
-        self.openai_api_key = openai_api_key
         self.seen_scenarios: list[str] = []
 
     @classmethod
@@ -55,9 +53,8 @@ class SyntheticProfileGenerator:
                 " that best describe this patient's key characteristics:",
             ]
 
-            llm = LlmOpenai(
-                MemoryLog.dev_null_instance(), self.openai_api_key, Constants.OPENAI_CHAT_TEXT, with_audit=False
-            )
+            settings = HelperEvaluation.settings()
+            llm = Helper.chatter(settings, MemoryLog.dev_null_instance())
             llm.set_system_prompt(system_prompt)
             llm.set_user_prompt(user_prompt)
 
@@ -163,7 +160,7 @@ class SyntheticProfileGenerator:
         settings = HelperEvaluation.settings()
         vendor_key = settings.llm_text
 
-        SyntheticProfileGenerator(vendor_key, args.category, settings.openai_api_key).run(
+        SyntheticProfileGenerator(vendor_key, args.category).run(
             batches=args.batches, batch_size=args.batch_size, output_path=args.output
         )
 

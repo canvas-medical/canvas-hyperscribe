@@ -3,7 +3,6 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch, call
 from hyperscribe.structures.json_extract import JsonExtract
 from evaluations.case_builders.helper_synthetic_json import HelperSyntheticJson
-from hyperscribe.structures.vendor_key import VendorKey
 from evaluations.structures.chart import Chart
 from evaluations.structures.patient_profile import PatientProfile
 from evaluations.structures.rubric_criterion import RubricCriterion
@@ -98,7 +97,9 @@ def _invalid_path(tmp_path: Path) -> Path:
 @patch("evaluations.case_builders.helper_synthetic_json.HelperEvaluation.settings")
 @patch("evaluations.case_builders.helper_synthetic_json.Helper.chatter")
 @patch("evaluations.case_builders.helper_synthetic_json.MemoryLog")
-def test_generate__json_success(mock_memory_log, mock_chatter, mock_settings, tmp_path, returned_class, test_data, expected_result):
+def test_generate__json_success(
+    mock_memory_log, mock_chatter, mock_settings, tmp_path, returned_class, test_data, expected_result
+):
     def reset_mocks():
         mock_memory_log.reset_mock()
         mock_chatter.reset_mock()
@@ -106,7 +107,7 @@ def test_generate__json_success(mock_memory_log, mock_chatter, mock_settings, tm
 
     mock_llm = MagicMock()
     result_obj = JsonExtract(has_error=False, content=[test_data], error="")
-    
+
     mock_memory_log.dev_null_instance.side_effect = ["MemoryLogInstance"]
     settings_instance = MagicMock()
     mock_settings.side_effect = [settings_instance]
@@ -114,7 +115,7 @@ def test_generate__json_success(mock_memory_log, mock_chatter, mock_settings, tm
     mock_llm.chat.side_effect = [result_obj]
 
     schema = {"type": "object", "properties": {"key": {"type": "string"}}, "required": ["key"]}
-    
+
     tested = HelperSyntheticJson
     result = tested.generate_json(
         system_prompt=["System prompt"],
@@ -177,7 +178,7 @@ def test_generate_json__unsupported_returned_class(mock_memory_log, mock_chatter
 def test_generate_json__chat_error_exits(mock_memory_log, mock_chatter, mock_settings, tmp_path):
     mock_llm = MagicMock()
     tested_obj = JsonExtract(has_error=True, content="irrelevant", error="network fail")
-    
+
     def reset_mocks():
         mock_memory_log.reset_mock()
         mock_chatter.reset_mock()
@@ -191,7 +192,7 @@ def test_generate_json__chat_error_exits(mock_memory_log, mock_chatter, mock_set
 
     schema = {"type": "object", "properties": {"key": {"type": "string"}}, "required": ["key"]}
     invalid = _invalid_path(tmp_path)
-    
+
     with (
         patch("evaluations.case_builders.helper_synthetic_json.Path", return_value=invalid),
         patch("evaluations.case_builders.helper_synthetic_json.sys.exit", side_effect=SystemExit) as mock_exit,

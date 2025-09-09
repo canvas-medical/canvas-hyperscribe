@@ -96,7 +96,6 @@ class Constants:
     SECRET_STRUCTURED_RFV = "StructuredReasonForVisit"
     SECRET_TEXT_LLM_KEY = "KeyTextLLM"
     SECRET_TEXT_LLM_VENDOR = "VendorTextLLM"
-    SECRET_OPENAI_API_KEY = "KeyOpenAI"
     #
     PROGRESS_END_OF_MESSAGES = "EOF"
     PROGRESS_EXPIRATION_SECONDS = 7200
