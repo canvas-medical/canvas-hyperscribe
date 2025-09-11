@@ -11,4 +11,5 @@ class Score(NamedTuple):
     text_llm_vendor: str = ""
     text_llm_name: str = ""
     temperature: float = 0.0
+    experiment: bool = False
     id: int = 0

@@ -19,6 +19,7 @@ def test_class():
         "parameters2command": dict,
         "failed": bool,
         "errors": dict,
+        "experiment": bool,
         "id": int,
     }
     assert is_namedtuple(tested, fields)

@@ -40,6 +40,7 @@ def test_insert(alter, mock_datetime):
         text_llm_vendor="theTextLlmVendor",
         text_llm_name="theTextLlmName",
         temperature=0.7,
+        experiment=False,
         id=789,
     )
     expected = ScoreRecord(
@@ -51,6 +52,7 @@ def test_insert(alter, mock_datetime):
         text_llm_vendor="theTextLlmVendor",
         text_llm_name="theTextLlmName",
         temperature=0.7,
+        experiment=False,
         id=351,
     )
 
@@ -69,9 +71,11 @@ def test_insert(alter, mock_datetime):
     sql, params, involved_id = alter.mock_calls[0].args
     exp_sql = """
               INSERT INTO "score" ("created", "updated", "rubric_id", "generated_note_id", "scoring_result",
-                                   "overall_score", "comments", "text_llm_vendor", "text_llm_name", "temperature")
+                                   "overall_score", "comments", "text_llm_vendor", "text_llm_name",
+                                   "temperature", "experiment")
               VALUES (%(now)s, %(now)s, %(rubric_id)s, %(generated_note_id)s, %(scoring_result)s,
-                      %(overall_score)s, %(comments)s, %(text_llm_vendor)s, %(text_llm_name)s, %(temperature)s)
+                      %(overall_score)s, %(comments)s, %(text_llm_vendor)s, %(text_llm_name)s,
+                      %(temperature)s, %(experiment)s)
               RETURNING id"""
     assert compare_sql(sql, exp_sql)
     exp_params = {
@@ -84,6 +88,7 @@ def test_insert(alter, mock_datetime):
         "text_llm_vendor": "theTextLlmVendor",
         "text_llm_name": "theTextLlmName",
         "temperature": 0.7,
+        "experiment": False,
     }
     assert params == exp_params
     assert involved_id is None

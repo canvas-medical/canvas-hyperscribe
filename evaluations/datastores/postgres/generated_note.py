@@ -35,17 +35,18 @@ class GeneratedNote(Postgres):
             "parameters2command": json.dumps(case.parameters2command),
             "failed": case.failed,
             "errors": json.dumps(case.errors),
+            "experiment": case.experiment,
         }
         sql: LiteralString = """
               INSERT INTO "generated_note" ("created", "updated", "case_id", "cycle_duration", "cycle_count",
                                             "cycle_transcript_overlap", "text_llm_vendor", "text_llm_name",
                                             "note_json", "hyperscribe_version", "staged_questionnaires",
                                             "transcript2instructions", "instruction2parameters",
-                                            "parameters2command", "failed", "errors")
+                                            "parameters2command", "failed", "errors", "experiment")
               VALUES (%(now)s, %(now)s, %(case_id)s, %(cycle_duration)s, %(cycle_count)s, %(cycle_transcript_overlap)s,
                       %(text_llm_vendor)s, %(text_llm_name)s, %(note_json)s, %(hyperscribe_version)s,
                       %(staged_questionnaires)s, %(transcript2instructions)s, %(instruction2parameters)s,
-                      %(parameters2command)s, %(failed)s, %(errors)s) RETURNING id"""
+                      %(parameters2command)s, %(failed)s, %(errors)s, %(experiment)s) RETURNING id"""
         return Record(
             id=self._alter(sql, params, None),
             case_id=case.case_id,
@@ -62,6 +63,7 @@ class GeneratedNote(Postgres):
             parameters2command=case.parameters2command,
             failed=case.failed,
             errors=case.errors,
+            experiment=case.experiment,
         )
 
     def update_fields(self, generated_note_id: int, updates: dict) -> None:

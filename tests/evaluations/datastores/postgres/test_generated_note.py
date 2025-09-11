@@ -73,6 +73,7 @@ def test_insert(alter, mock_datetime):
         parameters2command={"case": "parameters2command"},
         failed=True,
         errors={"case": "errors"},
+        experiment=False,
         id=333,
     )
     expected = Record(
@@ -90,6 +91,7 @@ def test_insert(alter, mock_datetime):
         parameters2command={"case": "parameters2command"},
         failed=True,
         errors={"case": "errors"},
+        experiment=False,
         id=351,
     )
 
@@ -110,12 +112,12 @@ def test_insert(alter, mock_datetime):
         'INSERT INTO "generated_note" ("created", "updated", "case_id", "cycle_duration", "cycle_count", '
         ' "cycle_transcript_overlap", "text_llm_vendor", "text_llm_name", "note_json", "hyperscribe_version", '
         ' "staged_questionnaires", "transcript2instructions", "instruction2parameters", '
-        ' "parameters2command", "failed", "errors") '
+        ' "parameters2command", "failed", "errors", "experiment") '
         "VALUES (%(now)s, %(now)s, %(case_id)s, %(cycle_duration)s, %(cycle_count)s, "
         " %(cycle_transcript_overlap)s, %(text_llm_vendor)s, %(text_llm_name)s, "
         " %(note_json)s, %(hyperscribe_version)s, "
         " %(staged_questionnaires)s, %(transcript2instructions)s, %(instruction2parameters)s, "
-        " %(parameters2command)s, %(failed)s, %(errors)s) "
+        " %(parameters2command)s, %(failed)s, %(errors)s, %(experiment)s) "
         "RETURNING id"
     )
     assert compare_sql(sql, exp_sql)
@@ -135,6 +137,7 @@ def test_insert(alter, mock_datetime):
         "text_llm_name": "theTextLlmName",
         "text_llm_vendor": "theTextLlmVendor",
         "transcript2instructions": '{"case": "transcript2instructions"}',
+        "experiment": False,
     }
     assert params == exp_params
     assert involved_id is None

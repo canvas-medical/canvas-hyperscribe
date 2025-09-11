@@ -16,4 +16,5 @@ class GeneratedNote(NamedTuple):
     parameters2command: dict = {}
     failed: bool = False
     errors: dict = {}
+    experiment: bool = False
     id: int = 0
