@@ -14,6 +14,7 @@ def test_class():
         "text_llm_vendor": str,
         "text_llm_name": str,
         "temperature": float,
+        "experiment": bool,
         "id": int,
     }
     assert is_namedtuple(tested, fields)

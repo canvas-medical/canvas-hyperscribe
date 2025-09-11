@@ -44,7 +44,8 @@ class CaseRunner:
             canvas_instance="runner-environment",
         )
 
-        limited_cache = LimitedCache.load_from_json(auditor.limited_chart())
+        chart_data = auditor.limited_chart()
+        limited_cache = LimitedCache.load_from_json(chart_data)
         chatter = AudioInterpreter(auditor.settings, auditor.s3_credentials, limited_cache, identification)
         previous = limited_cache.staged_commands_as_instructions(ImplementedCommands.schema_key2instruction())
         discussion = CachedSdk.get_discussion(chatter.identification.note_uuid)

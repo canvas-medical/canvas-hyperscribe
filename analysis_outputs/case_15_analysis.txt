@@ -1,0 +1,39 @@
+=== CASE 15 SCORING ANALYSIS ===\n\nTotal Scores: 80\nUnique Notes: 10\nUnique Rubrics: 4\nExpected Scores (notes × rubrics × 2): 80\n\n=== VENDOR COMPARISON (Raw Scores) ===\n                   count    mean    std   min    max  median
+note_vendor_clean                                           
+Anthropic             40  100.49  21.35  71.0  130.0   99.25
+Openai                40   68.12  37.35  10.0  118.5   71.00\n\n=== VENDOR COMPARISON (Normalized %) ===\n                    mean    std    min     max  median
+note_vendor_clean                                     
+Anthropic          91.72   5.17  83.53  100.00   89.75
+Openai             62.59  31.76  11.76   91.15   83.53\n\n=== RUBRIC MAX POSSIBLE SCORES ===\nRubric 650: 120 points\nRubric 1173: 100 points\nRubric 1394: 85 points\nRubric 1695: 130 points\n\n=== NOTE-LEVEL ANALYSIS (Raw Scores) ===\n                                                 count    mean    std    min    max
+generated_note_id note_vendor_clean model_short                                    
+460               Openai            GPT-4o           8   95.25  18.53  70.50  114.5
+462               Openai            GPT-4o           8   32.25  10.47  17.50   45.0
+463               Openai            GPT-4o           8   21.75   9.72  10.00   39.0
+466               Openai            GPT-4o           8   95.12  18.23  71.00  114.5
+467               Openai            GPT-4o           8   96.22  19.71  70.50  118.5
+990               Anthropic         Claude           8  100.78  22.28  73.50  130.0
+992               Anthropic         Claude           8  100.91  22.55  73.00  130.0
+994               Anthropic         Claude           8  100.31  23.06  71.00  130.0
+995               Anthropic         Claude           8  100.75  22.34  74.25  130.0
+997               Anthropic         Claude           8   99.72  22.40  73.50  130.0\n\n=== NOTE-LEVEL ANALYSIS (Normalized %) ===\n                                                  mean    std    min     max
+generated_note_id note_vendor_clean model_short                             
+460               Openai            GPT-4o       87.26   2.79  82.94   90.42
+462               Openai            GPT-4o       30.81  11.78  13.46   46.47
+463               Openai            GPT-4o       19.71   8.65  11.76   39.00
+466               Openai            GPT-4o       87.18   2.56  83.53   90.83
+467               Openai            GPT-4o       88.00   3.33  82.94   91.15
+990               Anthropic         Claude       92.03   5.11  86.47  100.00
+992               Anthropic         Claude       92.09   5.41  85.88  100.00
+994               Anthropic         Claude       91.45   5.85  83.53  100.00
+995               Anthropic         Claude       91.98   5.13  87.35  100.00
+997               Anthropic         Claude       91.04   5.64  86.47  100.00\n\n=== RUBRIC-LEVEL ANALYSIS (Raw Scores) ===\n           count    mean    std   min     max
+rubric_id                                    
+650           20   93.65  30.45  25.0  109.75
+1173          20   76.42  26.20  15.0   92.75
+1394          20   62.80  21.02  10.0   75.50
+1695          20  104.35  42.19  17.5  130.00\n\n=== RUBRIC-LEVEL ANALYSIS (Normalized %) ===\n            mean    std    min     max
+rubric_id                             
+650        78.04  25.38  20.83   91.46
+1173       76.42  26.20  15.00   92.75
+1394       73.88  24.72  11.76   88.82
+1695       80.27  32.45  13.46  100.00
