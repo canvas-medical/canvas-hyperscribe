@@ -28,6 +28,7 @@ def test_constants():
         "OPENAI_CHAT_AUDIO": "gpt-4o-audio-preview",
         "OPENAI_CHAT_TEXT": "gpt-4o",
         "OPENAI_CHAT_TEXT_O3": "o3",
+        "O3_TEMPERATURE": 1.0,
         "QUESTIONNAIRE_1STEP_MAX_QUESTIONS": 4,
         "VENDOR_ANTHROPIC": "Anthropic",
         "VENDOR_ELEVEN_LABS": "ElevenLabs",

@@ -4,7 +4,6 @@ from re import match
 from typing import Type, Any
 
 from canvas_sdk.utils.db import thread_cleanup
-from evaluations.constants import Constants as EvaluationConstants
 from hyperscribe.libraries.constants import Constants
 from hyperscribe.libraries.memory_log import MemoryLog
 from hyperscribe.llms.llm_anthropic import LlmAnthropic
@@ -73,7 +72,7 @@ class Helper:
                     memory_log,
                     settings.llm_text.api_key,
                     with_audit=settings.audit_llm,
-                    temperature=EvaluationConstants.O3_TEMPERATURE,
+                    temperature=Constants.O3_TEMPERATURE,
                 )
             else:
                 return LlmOpenai(memory_log, settings.llm_text.api_key, model, settings.audit_llm)
