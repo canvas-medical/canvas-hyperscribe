@@ -58,6 +58,7 @@ class Launcher(ActionButton):
             NoteStates.UNLOCKED,
             NoteStates.RESTORED,
             NoteStates.UNDELETED,
+            NoteStates.CONVERTED,
         ]
         if not note_is_editable:
             return False
