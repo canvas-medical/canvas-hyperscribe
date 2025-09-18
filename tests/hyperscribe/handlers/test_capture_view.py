@@ -740,6 +740,7 @@ def test_run_reviewer(log, implemented_commands, llm_decision_reviewer, progress
         send_progress=True,
         commands_policy=AccessPolicy(policy=False, items=[]),
         staffers_policy=AccessPolicy(policy=False, items=[]),
+        trial_staffers_policy=AccessPolicy(policy=True, items=[]),
         cycle_transcript_overlap=37,
     )
     credentials = AwsS3Credentials(aws_key="theKey", aws_secret="theSecret", region="theRegion", bucket="theBucketLogs")
@@ -874,6 +875,7 @@ def test_run_commander(
         send_progress=True,
         commands_policy=AccessPolicy(policy=False, items=[]),
         staffers_policy=AccessPolicy(policy=False, items=[]),
+        trial_staffers_policy=AccessPolicy(policy=True, items=[]),
         cycle_transcript_overlap=37,
     )
     credentials = AwsS3Credentials(aws_key="theKey", aws_secret="theSecret", region="theRegion", bucket="theBucketLogs")

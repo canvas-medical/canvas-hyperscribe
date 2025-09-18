@@ -1,6 +1,6 @@
 {
   "sdk_version": "0.58.1",
-  "plugin_version": "0.1.119",
+  "plugin_version": "0.1.120",
   "name": "hyperscribe",
   "description": "Create commands based on the content of an audio discussion between a patient and a provider.",
   "url_permissions": [],
@@ -136,7 +136,8 @@
     "VendorAudioLLM",
     "VendorTextLLM",
     "NotionFeedbackDatabaseId",
-    "NotionAPIKey"
+    "NotionAPIKey",
+    "TrialStaffersList"
   ],
   "tags": {},
   "references": [],

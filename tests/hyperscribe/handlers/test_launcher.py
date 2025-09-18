@@ -6,7 +6,7 @@ from canvas_generated.messages.events_pb2 import Event as EventRequest
 from canvas_sdk.events import Event
 from canvas_sdk.events.base import TargetType
 from canvas_sdk.handlers.action_button import ActionButton
-from canvas_sdk.v1.data.note import Note, CurrentNoteStateEvent
+from canvas_sdk.v1.data.note import Note, NoteStateChangeEvent, NoteStates
 from canvas_sdk.v1.data.patient import Patient
 
 from hyperscribe.handlers.launcher import Launcher
@@ -80,7 +80,7 @@ def test_handle(launch_modal_effect, authenticator, note_db):
     reset_mocks()
 
 
-@patch.object(CurrentNoteStateEvent, "objects")
+@patch.object(NoteStateChangeEvent, "objects")
 def test_visible(last_note_state_event_db):
     def reset_mocks():
         last_note_state_event_db.reset_mock()
@@ -99,7 +99,9 @@ def test_visible(last_note_state_event_db):
     ]
     for policy, staff_id, tuning, expected in tests:
         for editable in [True, False]:
-            last_note_state_event_db.get.return_value.editable.side_effect = [editable]
+            last_note_state_event_db.filter.return_value.order_by.return_value.last.return_value.state = (
+                NoteStates.NEW if editable else NoteStates.LOCKED
+            )
             event = Event(EventRequest(context=json.dumps({"note_id": 778, "user": {"id": staff_id}})))
             secrets = {
                 "AudioHost": "theAudioHost",
@@ -117,6 +119,7 @@ def test_visible(last_note_state_event_db):
                 "APISigningKey": "theApiSigningKey",
                 "StaffersList": "userId, anotherId",
                 "StaffersPolicy": policy,
+                "TrialStaffersList": "",
             }
             tested = Launcher(event, secrets)
             assert tested.visible() is (expected and editable)
@@ -126,7 +129,12 @@ def test_visible(last_note_state_event_db):
             assert tested.BUTTON_TITLE == exp_button_title
 
             calls = []
-            if expected:
-                calls = [call.get(note_id=778), call.get().editable()]
+            if tuning == "no":  # Only check note state when not tuning
+                calls = [
+                    call.filter(note_id=778),
+                    call.filter().order_by("id"),
+                    call.filter().order_by().last(),
+                    call.filter().order_by().last().__bool__(),
+                ]
             assert last_note_state_event_db.mock_calls == calls
             reset_mocks()

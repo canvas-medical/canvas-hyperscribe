@@ -34,6 +34,7 @@ def test_condition_from(search_conditions):
         send_progress=False,
         commands_policy=AccessPolicy(policy=False, items=[]),
         staffers_policy=AccessPolicy(policy=False, items=[]),
+        trial_staffers_policy=AccessPolicy(policy=True, items=[]),
         cycle_transcript_overlap=37,
     )
     system_prompt = [
@@ -320,6 +321,7 @@ def test_contact_from(search_contacts, summary_of):
         send_progress=False,
         commands_policy=AccessPolicy(policy=False, items=[]),
         staffers_policy=AccessPolicy(policy=False, items=[]),
+        trial_staffers_policy=AccessPolicy(policy=True, items=[]),
         cycle_transcript_overlap=37,
     )
     system_prompt = [

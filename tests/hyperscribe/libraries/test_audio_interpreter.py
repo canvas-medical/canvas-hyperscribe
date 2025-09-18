@@ -39,6 +39,7 @@ def helper_instance(mocks, with_audit) -> tuple[AudioInterpreter, Settings, AwsS
             send_progress=False,
             commands_policy=AccessPolicy(policy=False, items=[]),
             staffers_policy=AccessPolicy(policy=False, items=[]),
+            trial_staffers_policy=AccessPolicy(policy=True, items=[]),
             cycle_transcript_overlap=37,
         )
         aws_s3 = AwsS3Credentials(aws_key="theKey", aws_secret="theSecret", region="theRegion", bucket="theBucket")
@@ -87,6 +88,7 @@ def test___init__(command_list):
         send_progress=False,
         commands_policy=AccessPolicy(policy=False, items=["Command1", "Command2", "Command3"]),
         staffers_policy=AccessPolicy(policy=False, items=["31", "47"]),
+        trial_staffers_policy=AccessPolicy(policy=True, items=[]),
         cycle_transcript_overlap=37,
     )
     aws_s3 = AwsS3Credentials(aws_key="theKey", aws_secret="theSecret", region="theRegion", bucket="theBucket")

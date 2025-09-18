@@ -86,6 +86,7 @@ The `secrets` are stored in the Canvas instance database and can be upsert in `h
 | `CommandsPolicy`           | `y`, `yes` or `1`               | the commands of `CommandsList` are allowed (`y`) or excluded (`n`)                                                                                          |
 | `StaffersList`             | `key1 key2, key3`               | list of staffer keys, related to the `StaffersPolicy` value                                                                                                 |
 | `StaffersPolicy`           | `y`, `yes` or `1`               | the staffers of `StaffersList` are allowed (`y`) or excluded (`n`)                                                                                          |
+| `TrialStaffersList`        | `key1 key2, key3`               | list of trial staffer keys allowed to use hyperscribe on test patients whose name matches the pattern Hyperscribe* ZZTest*                               |
 | `CycleTranscriptOverlap`   | `100`                           | the numbers of words from the end of the last audio chunk provided to the LLM when generating the transcript from the audio                                 |
 
 
