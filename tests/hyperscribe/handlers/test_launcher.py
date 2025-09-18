@@ -132,7 +132,7 @@ def test_visible(last_note_state_event_db):
             if tuning == "no":  # Only check note state when not tuning
                 calls = [
                     call.filter(note_id=778),
-                    call.filter().order_by("id"),
+                    call.filter().order_by("created"),
                     call.filter().order_by().last(),
                     call.filter().order_by().last().__bool__(),
                 ]

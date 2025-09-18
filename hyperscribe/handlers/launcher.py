@@ -46,7 +46,7 @@ class Launcher(ActionButton):
         # DO NOT USE "CurrentStateChangeEvent" model. The view is too expensive.
         # It performs a max on id grouped by note for all notes, regardless of the note filter.
         current_note_state = (
-            NoteStateChangeEvent.objects.filter(note_id=self.event.context["note_id"]).order_by("id").last()
+            NoteStateChangeEvent.objects.filter(note_id=self.event.context["note_id"]).order_by("created").last()
         )
         note_is_editable = current_note_state and current_note_state.state in [
             NoteStates.NEW,
