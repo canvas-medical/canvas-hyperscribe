@@ -9,8 +9,6 @@ from hyperscribe.libraries.authenticator import Authenticator
 from hyperscribe.libraries.constants import Constants
 from hyperscribe.structures.settings import Settings
 
-from logger import log
-
 
 class Launcher(ActionButton):
     BUTTON_TITLE = "🖊️ Hyperscribe"
@@ -41,8 +39,6 @@ class Launcher(ActionButton):
         return result
 
     def visible(self) -> bool:
-        log.info(self.context)
-
         settings = Settings.from_dictionary(self.secrets)
         if settings.is_tuning:
             return False
