@@ -29,6 +29,7 @@ from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.progress_message import ProgressMessage
 from hyperscribe.structures.settings import Settings
+from hyperscribe.structures.notion_feedback_record import NotionFeedbackRecord
 
 executor = ThreadPoolExecutor(max_workers=50)
 
@@ -247,6 +248,26 @@ class CaptureView(SimpleAPI):
         now = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
         store_path = f"hyperscribe-{canvas_instance}/feedback/{note_id}/{now}"
         client_s3.upload_text_to_s3(store_path, feedback.value)  # feedback is a StringFormPart
+
+        notion_feedback = NotionFeedbackRecord(
+            instance=canvas_instance,
+            note_uuid=note_id,
+            date_time=now,
+            feedback=feedback.value,
+        )
+        url = Constants.VENDOR_NOTION_API_BASE_URL
+        headers = {
+            "Authorization": f"Bearer {self.secrets[Constants.SECRET_NOTION_API_KEY]}",
+            "Content-Type": "application/json",
+            "Notion-Version": Constants.VENDOR_NOTION_API_VERSION,
+        }
+        data = notion_feedback.to_json(self.secrets[Constants.SECRET_NOTION_FEEDBACK_DATABASE_ID])
+        resp = requests_post(url, headers=headers, data=data)
+        log.info(f"Notion response status: {resp.status_code}")
+        if resp.status_code != 200:
+            log.info(f"Notion response text: {resp.text}")
+            return [Response(b"Feedback saved to S3 OK but Notion save failed", HTTPStatus.INTERNAL_SERVER_ERROR)]
+
         return [Response(b"Feedback saved OK", HTTPStatus.CREATED)]
 
     def run_reviewer(self, patient_id: str, note_id: str, created: datetime, cycles: int) -> None:

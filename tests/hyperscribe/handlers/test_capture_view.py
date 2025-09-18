@@ -18,6 +18,7 @@ from hyperscribe.libraries.constants import Constants
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.identification_parameters import IdentificationParameters
+from hyperscribe.structures.notion_feedback_record import NotionFeedbackRecord
 from hyperscribe.structures.progress_message import ProgressMessage
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
@@ -46,6 +47,8 @@ def helper_instance():
         "AwsBucketLogs": "theBucketLogs",
         "CycleTranscriptOverlap": "37",
         "MaxWorkers": 5,
+        "NotionAPIKey": "theNotionAPIKey",
+        "NotionFeedbackDatabaseId": "theNotionFeedbackDatabaseId",
     }
     environment = {Constants.CUSTOMER_IDENTIFIER: "customerIdentifier"}
     view = CaptureView(event, secrets, environment)
@@ -574,10 +577,12 @@ def test_render_effect_post(stop_and_go, executor, helper):
 
 
 @patch("hyperscribe.handlers.capture_view.datetime", wraps=datetime)
+@patch("hyperscribe.handlers.capture_view.requests_post")
 @patch("hyperscribe.handlers.capture_view.AwsS3")
-def test_feedback_post(aws_s3, mock_datetime):
+def test_feedback_post(aws_s3, requests_post, mock_datetime):
     def reset_mocks():
         aws_s3.reset_mock()
+        requests_post.reset_mock()
         mock_datetime.reset_mock()
 
     date_0 = datetime(2025, 8, 29, 10, 14, 57, 123456, tzinfo=timezone.utc)
@@ -643,6 +648,8 @@ def test_feedback_post(aws_s3, mock_datetime):
     # all good
     aws_s3.return_value.is_ready.side_effect = [True]
     mock_datetime.now.side_effect = [date_0]
+    mock_response = SimpleNamespace(status_code=200)
+    requests_post.side_effect = [mock_response]
 
     tested.request = SimpleNamespace(
         path_params={"patient_id": "p", "note_id": "n"},
@@ -667,6 +674,36 @@ def test_feedback_post(aws_s3, mock_datetime):
     assert aws_s3.mock_calls == calls
     calls = [call.now(timezone.utc)]
     assert mock_datetime.mock_calls == calls
+    expected_data = NotionFeedbackRecord(
+        instance="customerIdentifier", note_uuid="n", date_time=date_0.strftime("%Y%m%d-%H%M%S"), feedback="theFeedback"
+    ).to_json("theNotionFeedbackDatabaseId")
+    calls = [
+        call(
+            Constants.VENDOR_NOTION_API_BASE_URL,
+            headers={
+                "Authorization": "Bearer theNotionAPIKey",
+                "Content-Type": "application/json",
+                "Notion-Version": Constants.VENDOR_NOTION_API_VERSION,
+            },
+            data=expected_data,
+        )
+    ]
+    assert requests_post.mock_calls == calls
+    reset_mocks()
+
+    # Notion API failure
+    aws_s3.return_value.is_ready.side_effect = [True]
+    mock_datetime.now.side_effect = [date_0]
+    mock_response = SimpleNamespace(status_code=500, text="Internal Server Error")
+    requests_post.side_effect = [mock_response]
+
+    tested.request = SimpleNamespace(
+        path_params={"patient_id": "p", "note_id": "n"},
+        form_data=lambda: {"feedback": StringFormPart(name="feedback", value="theFeedback")},
+    )
+    result = tested.feedback_post()
+    expected = [Response(content=b"Feedback saved to S3 OK but Notion save failed", status_code=500)]
+    assert result == expected
     reset_mocks()
 
 
