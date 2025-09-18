@@ -193,6 +193,7 @@ def test_run(
                 send_progress=False,
                 commands_policy=AccessPolicy(policy=False, items=[]),
                 staffers_policy=AccessPolicy(policy=False, items=[]),
+                trial_staffers_policy=AccessPolicy(policy=True, items=[]),
                 cycle_transcript_overlap=37,
             )
 
@@ -286,6 +287,7 @@ def test_run(
                 send_progress=False,
                 commands_policy=AccessPolicy(policy=False, items=[]),
                 staffers_policy=AccessPolicy(policy=False, items=[]),
+                trial_staffers_policy=AccessPolicy(policy=True, items=[]),
                 cycle_transcript_overlap=37,
             )
 
@@ -474,6 +476,7 @@ def test__limited_cache_from(command_db, existing_commands_to_coded_items):
         send_progress=False,
         commands_policy=AccessPolicy(policy=False, items=["Command1", "Command2"]),
         staffers_policy=AccessPolicy(policy=False, items=[]),
+        trial_staffers_policy=AccessPolicy(policy=True, items=[]),
         cycle_transcript_overlap=37,
     )
 
@@ -828,6 +831,7 @@ def test__post_commands(helper_evaluation, requests_post, authenticator):
         send_progress=False,
         commands_policy=AccessPolicy(policy=False, items=[]),
         staffers_policy=AccessPolicy(policy=False, items=[]),
+        trial_staffers_policy=AccessPolicy(policy=True, items=[]),
         cycle_transcript_overlap=37,
     )
 

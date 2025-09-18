@@ -19,6 +19,7 @@ class Settings(NamedTuple):
     send_progress: bool
     commands_policy: AccessPolicy
     staffers_policy: AccessPolicy
+    trial_staffers_policy: AccessPolicy
     cycle_transcript_overlap: int
 
     @classmethod
@@ -50,6 +51,10 @@ class Settings(NamedTuple):
             staffers_policy=AccessPolicy(
                 policy=cls.is_true(dictionary.get(Constants.SECRET_STAFFERS_POLICY)),
                 items=cls.list_from(dictionary.get(Constants.SECRET_STAFFERS_LIST)),
+            ),
+            trial_staffers_policy=AccessPolicy(
+                policy=True,
+                items=cls.list_from(dictionary.get(Constants.SECRET_TRIAL_STAFFERS_LIST)),
             ),
             cycle_transcript_overlap=cls.clamp_int(
                 dictionary.get(Constants.SECRET_CYCLE_TRANSCRIPT_OVERLAP),

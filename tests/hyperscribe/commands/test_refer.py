@@ -28,6 +28,7 @@ def helper_instance() -> Refer:
         send_progress=False,
         commands_policy=AccessPolicy(policy=False, items=[]),
         staffers_policy=AccessPolicy(policy=False, items=[]),
+        trial_staffers_policy=AccessPolicy(policy=True, items=[]),
         cycle_transcript_overlap=37,
     )
     cache = LimitedCache("patientUuid", "providerUuid", {})

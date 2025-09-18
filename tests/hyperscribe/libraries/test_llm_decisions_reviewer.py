@@ -191,6 +191,7 @@ def test_review(cache_get_discussion, cache_save, aws_s3, helper, llm_turns_stor
         send_progress=False,
         commands_policy=AccessPolicy(policy=False, items=[]),
         staffers_policy=AccessPolicy(policy=False, items=[]),
+        trial_staffers_policy=AccessPolicy(policy=True, items=[]),
         cycle_transcript_overlap=37,
     )
     aws_s3.return_value.is_ready.side_effect = []
@@ -221,6 +222,7 @@ def test_review(cache_get_discussion, cache_save, aws_s3, helper, llm_turns_stor
         send_progress=False,
         commands_policy=AccessPolicy(policy=False, items=[]),
         staffers_policy=AccessPolicy(policy=False, items=[]),
+        trial_staffers_policy=AccessPolicy(policy=True, items=[]),
         cycle_transcript_overlap=37,
     )
     # -- S3 not ready

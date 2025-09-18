@@ -21,6 +21,7 @@ def test_class():
         "send_progress": bool,
         "commands_policy": AccessPolicy,
         "staffers_policy": AccessPolicy,
+        "trial_staffers_policy": AccessPolicy,
         "cycle_transcript_overlap": int,
     }
     assert is_namedtuple(tested, fields)
@@ -74,6 +75,7 @@ def test_from_dictionary(is_true, clamp_int):
             send_progress=progress,
             commands_policy=AccessPolicy(policy=commands, items=["ReasonForVisit", "StopMedication", "Task", "Vitals"]),
             staffers_policy=AccessPolicy(policy=staffers, items=["32", "47"]),
+            trial_staffers_policy=AccessPolicy(policy=True, items=[]),
             cycle_transcript_overlap=54,
         )
         assert result == expected
@@ -116,6 +118,7 @@ def test_from_dictionary(is_true, clamp_int):
             send_progress=False,
             commands_policy=AccessPolicy(policy=False, items=[]),
             staffers_policy=AccessPolicy(policy=False, items=[]),
+            trial_staffers_policy=AccessPolicy(policy=True, items=[]),
             cycle_transcript_overlap=exp_overlap,
         )
         assert result == expected
@@ -190,6 +193,7 @@ def test_llm_audio_model():
             send_progress=True,
             commands_policy=AccessPolicy(policy=True, items=[]),
             staffers_policy=AccessPolicy(policy=True, items=[]),
+            trial_staffers_policy=AccessPolicy(policy=True, items=[]),
             cycle_transcript_overlap=54,
         )
         result = tested.llm_audio_model()
@@ -216,6 +220,7 @@ def test_llm_text_model():
             send_progress=True,
             commands_policy=AccessPolicy(policy=True, items=[]),
             staffers_policy=AccessPolicy(policy=True, items=[]),
+            trial_staffers_policy=AccessPolicy(policy=True, items=[]),
             cycle_transcript_overlap=54,
         )
         result = tested.llm_text_model()

@@ -136,6 +136,7 @@ def test_chatter():
             send_progress=False,
             commands_policy=AccessPolicy(policy=False, items=[]),
             staffers_policy=AccessPolicy(policy=False, items=[]),
+            trial_staffers_policy=AccessPolicy(policy=True, items=[]),
             cycle_transcript_overlap=37,
         )
 
@@ -175,6 +176,7 @@ def test_audio2texter():
                 send_progress=False,
                 commands_policy=AccessPolicy(policy=False, items=[]),
                 staffers_policy=AccessPolicy(policy=False, items=[]),
+                trial_staffers_policy=AccessPolicy(policy=True, items=[]),
                 cycle_transcript_overlap=37,
             ),
             memory_log,

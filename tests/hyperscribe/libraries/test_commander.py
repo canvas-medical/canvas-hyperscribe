@@ -108,6 +108,7 @@ def test_compute_audio(
         send_progress=False,
         commands_policy=AccessPolicy(policy=False, items=["Command1", "Command2", "Command3"]),
         staffers_policy=AccessPolicy(policy=False, items=["31", "47"]),
+        trial_staffers_policy=AccessPolicy(policy=True, items=[]),
         cycle_transcript_overlap=37,
     )
     # no more audio
@@ -358,6 +359,7 @@ def test_audio2commands(transcript2commands, tail_of, memory_log, progress):
         send_progress=True,
         commands_policy=AccessPolicy(policy=False, items=[]),
         staffers_policy=AccessPolicy(policy=False, items=[]),
+        trial_staffers_policy=AccessPolicy(policy=True, items=[]),
         cycle_transcript_overlap=37,
     )
     lines = [
@@ -816,6 +818,7 @@ def test_transcript2commands_common(time, memory_log, progress):
             send_progress=False,
             commands_policy=AccessPolicy(policy=False, items=["Command1", "Command2", "Command3"]),
             staffers_policy=AccessPolicy(policy=False, items=["31", "47"]),
+            trial_staffers_policy=AccessPolicy(policy=True, items=[]),
             cycle_transcript_overlap=37,
         )
         mock_chatter.is_local_data = is_local_data
@@ -993,6 +996,7 @@ def test_transcript2commands_common(time, memory_log, progress):
         send_progress=False,
         commands_policy=AccessPolicy(policy=False, items=["Command1", "Command2", "Command3"]),
         staffers_policy=AccessPolicy(policy=False, items=["31", "47"]),
+        trial_staffers_policy=AccessPolicy(policy=True, items=[]),
         cycle_transcript_overlap=37,
     )
     mock_chatter.identification = identification
@@ -1235,6 +1239,7 @@ def test_transcript2commands_questionnaires(time, memory_log, progress):
             send_progress=False,
             commands_policy=AccessPolicy(policy=False, items=["Command1", "Command2", "Command3"]),
             staffers_policy=AccessPolicy(policy=False, items=["31", "47"]),
+            trial_staffers_policy=AccessPolicy(policy=True, items=[]),
             cycle_transcript_overlap=37,
         )
         chatter.is_local_data = is_local_data
@@ -1301,6 +1306,7 @@ def test_new_commands_from(time, memory_log):
         send_progress=False,
         commands_policy=AccessPolicy(policy=False, items=["Command1", "Command2", "Command3"]),
         staffers_policy=AccessPolicy(policy=False, items=["31", "47"]),
+        trial_staffers_policy=AccessPolicy(policy=True, items=[]),
         cycle_transcript_overlap=37,
     )
     identification = IdentificationParameters(
@@ -1524,6 +1530,7 @@ def test_update_commands_from(time, memory_log):
         send_progress=False,
         commands_policy=AccessPolicy(policy=False, items=["Command1", "Command2", "Command3"]),
         staffers_policy=AccessPolicy(policy=False, items=["31", "47"]),
+        trial_staffers_policy=AccessPolicy(policy=True, items=[]),
         cycle_transcript_overlap=37,
     )
     identification = IdentificationParameters(
