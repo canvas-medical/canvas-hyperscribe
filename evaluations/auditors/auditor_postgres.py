@@ -41,7 +41,7 @@ class AuditorPostgres(AuditorStore):
                 .insert(
                     GeneratedNoteRecord(
                         case_id=self.case_id(),
-                        cycle_duration=0,
+                        cycle_duration=self._cycle_duration if hasattr(self, '_cycle_duration') else 0,
                         cycle_count=0,  # <-- updated at the end
                         note_json=[],  # <-- updated at the end
                         cycle_transcript_overlap=self.settings.cycle_transcript_overlap,
@@ -54,6 +54,10 @@ class AuditorPostgres(AuditorStore):
                 .id
             )
         return self._generated_note_id
+
+    def set_cycle_duration(self, duration_seconds: int) -> None:
+        """Set the cycle duration for this run."""
+        self._cycle_duration = duration_seconds
 
     def case_prepare(self) -> None:
         store = CaseStore(self.postgres_credentials)
