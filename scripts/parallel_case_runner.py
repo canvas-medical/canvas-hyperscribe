@@ -1,4 +1,3 @@
-# file mainly created by Anthropic/CodeClaude
 """
 Parallel Case Runner Script
 
