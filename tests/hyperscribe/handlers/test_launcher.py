@@ -12,6 +12,8 @@ from canvas_sdk.v1.data.patient import Patient
 from hyperscribe.handlers.launcher import Launcher
 from tests.helper import is_constant
 
+from canvas_sdk.test_utils import factories
+
 
 def test_class():
     tested = Launcher
@@ -85,24 +87,43 @@ def test_visible(last_note_state_event_db):
     def reset_mocks():
         last_note_state_event_db.reset_mock()
 
+    patients = {
+        "trial": factories.PatientFactory(first_name="HyperscribeTrial", last_name="ZZTestTrial"),
+        "noFirstNameTrial": factories.PatientFactory(first_name="SomeTrial", last_name="ZZTestTrial"),
+        "noLastNameTrial": factories.PatientFactory(first_name="HyperscribeTrial", last_name="SomeTrial"),
+        "noTrial": factories.PatientFactory(first_name="theFirstName", last_name="theLastName"),
+    }
+
     tests = [
-        ("yes", "userId", "no", True),
-        ("yes", "anotherId", "no", True),
-        ("yes", "otherId", "no", False),
-        ("no", "userId", "no", False),
-        ("no", "anotherId", "no", False),
-        ("no", "otherId", "no", True),
+        ("yes", "userId", "no", patients["noTrial"].id, True),
+        ("yes", "anotherId", "no", patients["noTrial"].id, True),
+        ("yes", "otherId", "no", patients["noTrial"].id, False),
+        ("no", "userId", "no", patients["noTrial"].id, False),
+        ("no", "anotherId", "no", patients["noTrial"].id, False),
+        ("no", "otherId", "no", patients["noTrial"].id, True),
         #
-        ("yes", "userId", "yes", False),
-        ("yes", "anotherId", "yes", False),
-        ("no", "otherId", "yes", False),
+        ("yes", "userId", "yes", patients["noTrial"].id, False),
+        ("yes", "anotherId", "yes", patients["noTrial"].id, False),
+        ("no", "otherId", "yes", patients["noTrial"].id, False),
+        #
+        ("yes", "trialId", "no", patients["trial"].id, True),
+        ("yes", "otherId", "no", patients["trial"].id, False),
+        ("yes", "trialId", "no", patients["noTrial"].id, False),
+        ("yes", "trialId", "no", patients["noFirstNameTrial"].id, False),
+        ("yes", "trialId", "no", patients["noLastNameTrial"].id, False),
     ]
-    for policy, staff_id, tuning, expected in tests:
+    for policy, staff_id, tuning, patient_id, expected in tests:
         for editable in [True, False]:
             last_note_state_event_db.filter.return_value.order_by.return_value.last.return_value.state = (
                 NoteStates.NEW if editable else NoteStates.LOCKED
             )
-            event = Event(EventRequest(context=json.dumps({"note_id": 778, "user": {"id": staff_id}})))
+            event = Event(
+                EventRequest(
+                    context=json.dumps({"note_id": 778, "user": {"id": staff_id}}),
+                    target=patient_id,
+                    target_type="Patient",
+                )
+            )
             secrets = {
                 "AudioHost": "theAudioHost",
                 "KeyTextLLM": "theKeyTextLLM",
@@ -119,7 +140,7 @@ def test_visible(last_note_state_event_db):
                 "APISigningKey": "theApiSigningKey",
                 "StaffersList": "userId, anotherId",
                 "StaffersPolicy": policy,
-                "TrialStaffersList": "",
+                "TrialStaffersList": "trialId",
             }
             tested = Launcher(event, secrets)
             assert tested.visible() is (expected and editable)
