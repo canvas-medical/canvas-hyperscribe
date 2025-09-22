@@ -3,6 +3,7 @@ from datetime import timezone, datetime
 from http import HTTPStatus
 from types import SimpleNamespace
 from unittest.mock import patch, call
+import pytest
 
 from canvas_generated.messages.effects_pb2 import Effect
 from canvas_sdk.effects.simple_api import Response, HTMLResponse
@@ -701,9 +702,12 @@ def test_feedback_post(aws_s3, requests_post, mock_datetime):
         path_params={"patient_id": "p", "note_id": "n"},
         form_data=lambda: {"feedback": StringFormPart(name="feedback", value="theFeedback")},
     )
-    result = tested.feedback_post()
-    expected = [Response(content=b"Feedback saved to S3 OK but Notion save failed", status_code=500)]
-    assert result == expected
+
+    # Expect RuntimeError to be raised
+    with pytest.raises(
+        RuntimeError, match="Feedback failed to save via Notion API, status 500, text: Internal Server Error"
+    ):
+        tested.feedback_post()
     reset_mocks()
 
 

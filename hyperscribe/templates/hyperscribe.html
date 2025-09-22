@@ -1429,7 +1429,9 @@
             .catch(error => {
                 console.error('Error submitting feedback:', error);
                 // Display the actual error message received from the server
+                console.log(`error.message: ${error.message}`);
                 const errorMessage = error.message || 'Unknown error occurred';
+                console.log(`errorMessage: ${errorMessage}`);
                 showFeedbackMessage(`Error: ${errorMessage}`, 'error');
             })
             .finally(() => {

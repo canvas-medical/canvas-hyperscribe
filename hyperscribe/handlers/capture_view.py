@@ -265,8 +265,11 @@ class CaptureView(SimpleAPI):
         resp = requests_post(url, headers=headers, data=data)
         log.info(f"Notion response status: {resp.status_code}")
         if resp.status_code != 200:
-            log.info(f"Notion response text: {resp.text}")
-            return [Response(b"Feedback saved to S3 OK but Notion save failed", HTTPStatus.INTERNAL_SERVER_ERROR)]
+            # Raise this directly so that Sentry alerts us
+            # Background: https://github.com/canvas-medical/canvas-hyperscribe/issues/111
+            # End user will see "Error: Server error: 500" and that is fine
+            log.info(f"Notion response status {resp.status_code}, text: {resp.text}")
+            raise RuntimeError(f"Feedback failed to save via Notion API, status {resp.status_code}, text: {resp.text}")
 
         return [Response(b"Feedback saved OK", HTTPStatus.CREATED)]
 
