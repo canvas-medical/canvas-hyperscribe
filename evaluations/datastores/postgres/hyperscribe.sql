@@ -108,6 +108,7 @@ CREATE TABLE public.generated_note
     parameters2command       JSON      NOT NULL,
     failed                   boolean   NOT NULL,
     errors                   JSON      NOT NULL,
+    experiment               bool      DEFAULT false,
     CONSTRAINT fk_generated_note_case
         FOREIGN KEY (case_id)
             REFERENCES public.case (id)
@@ -149,6 +150,7 @@ CREATE TABLE public.score
     text_llm_vendor   text      NOT NULL,
     text_llm_name     text      NOT NULL,
     temperature       real      NOT NULL,
+    experiment        bool      DEFAULT false,
     CONSTRAINT fk_score_case
         FOREIGN KEY (rubric_id)
             REFERENCES public.rubric (id)
