@@ -2,7 +2,7 @@ from canvas_sdk.effects import Effect
 from canvas_sdk.effects.launch_modal import LaunchModalEffect
 from canvas_sdk.events import EventType
 from canvas_sdk.handlers.action_button import ActionButton
-from canvas_sdk.v1.data.note import Note, CurrentNoteStateEvent
+from canvas_sdk.v1.data.note import Note, NoteStateChangeEvent, NoteStates
 
 from hyperscribe.libraries.authenticator import Authenticator
 from hyperscribe.libraries.constants import Constants
@@ -31,5 +31,15 @@ class TranscriptButton(ActionButton):
         staff_id = self.context.get("user", {}).get("id", "")
         result = False
         if (not settings.is_tuning) and settings.staffers_policy.is_allowed(staff_id):
-            result = CurrentNoteStateEvent.objects.get(note_id=self.event.context["note_id"]).editable()
+            current_note_state = (
+                NoteStateChangeEvent.objects.filter(note_id=self.event.context["note_id"]).order_by("created").last()
+            )
+            result = current_note_state and current_note_state.state in [
+                NoteStates.NEW,
+                NoteStates.PUSHED,
+                NoteStates.UNLOCKED,
+                NoteStates.RESTORED,
+                NoteStates.UNDELETED,
+                NoteStates.CONVERTED,
+            ]
         return result

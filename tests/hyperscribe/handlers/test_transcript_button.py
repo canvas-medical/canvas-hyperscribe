@@ -6,7 +6,7 @@ from canvas_generated.messages.events_pb2 import Event as EventRequest
 from canvas_sdk.events import Event
 from canvas_sdk.events.base import TargetType
 from canvas_sdk.handlers.action_button import ActionButton
-from canvas_sdk.v1.data.note import Note, CurrentNoteStateEvent
+from canvas_sdk.v1.data.note import Note, NoteStateChangeEvent, NoteStates
 from canvas_sdk.v1.data.patient import Patient
 from canvas_sdk.v1.data.staff import Staff
 
@@ -73,7 +73,7 @@ def test_handle(launch_modal_effect, authenticator, note_db):
     reset_mocks()
 
 
-@patch.object(CurrentNoteStateEvent, "objects")
+@patch.object(NoteStateChangeEvent, "objects")
 def test_visible(last_note_state_event_db):
     def reset_mocks():
         last_note_state_event_db.reset_mock()
@@ -92,7 +92,9 @@ def test_visible(last_note_state_event_db):
     ]
     for policy, staff_id, tuning, expected in tests:
         for editable in [True, False]:
-            last_note_state_event_db.get.return_value.editable.side_effect = [editable]
+            last_note_state_event_db.filter.return_value.order_by.return_value.last.return_value.state = (
+                NoteStates.NEW if editable else NoteStates.LOCKED
+            )
             event = Event(EventRequest(context=json.dumps({"note_id": 778, "user": {"id": staff_id}})))
             secrets = {
                 "AudioHost": "theAudioHost",
@@ -116,6 +118,11 @@ def test_visible(last_note_state_event_db):
 
             calls = []
             if expected:
-                calls = [call.get(note_id=778), call.get().editable()]
+                calls = [
+                    call.filter(note_id=778),
+                    call.filter().order_by("created"),
+                    call.filter().order_by().last(),
+                    call.filter().order_by().last().__bool__(),
+                ]
             assert last_note_state_event_db.mock_calls == calls
             reset_mocks()
