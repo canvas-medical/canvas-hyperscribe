@@ -8,8 +8,12 @@ from canvas_sdk.v1.data import (
     AllergyIntolerance,
     CareTeamRole,
     ChargeDescriptionMaster,
-    Command,
     Condition,
+    Goal,
+    Immunization,
+    ImmunizationCoding,
+    ImmunizationStatement,
+    ImmunizationStatementCoding,
     Medication,
     NoteType,
     Observation,
@@ -22,6 +26,7 @@ from canvas_sdk.v1.data import (
     TaskLabel,
 )
 from canvas_sdk.v1.data.condition import ClinicalStatus
+from canvas_sdk.v1.data.goal import GoalLifecycleStatus
 from canvas_sdk.v1.data.lab import LabPartner
 from canvas_sdk.v1.data.lab import LabPartnerTest
 from canvas_sdk.v1.data.medication import Status
@@ -197,15 +202,28 @@ class LimitedCache:
         if self._goals is None:
             self._goals = []
             # ATTENTION below code should not be used since there is no way to know if a goal is already closed
-            commands = Command.objects.filter(patient__id=self.patient_uuid, schema_key="goal").order_by("-dbid")
-            for command in commands:
+            # TODO should use the `committed` method
+            #  waiting for https://github.com/canvas-medical/canvas-plugins/discussions/1066
+            goals = Goal.objects.filter(
+                patient__id=self.patient_uuid,
+                lifecycle_status__in=[
+                    GoalLifecycleStatus.PROPOSED,
+                    GoalLifecycleStatus.PLANNED,
+                    GoalLifecycleStatus.ACCEPTED,
+                    GoalLifecycleStatus.ACTIVE,
+                    GoalLifecycleStatus.ON_HOLD,
+                ],
+                committer_id__isnull=False,
+                entered_in_error_id__isnull=True,
+            ).order_by("-dbid")
+            for goal in goals:
                 self._goals.append(
                     CodedItem(
-                        uuid=str(command.id),
-                        label=command.data["goal_statement"],
-                        code=str(
-                            command.dbid,
-                        ),  # TODO should be "", waiting for https://github.com/canvas-medical/canvas-plugins/issues/338
+                        uuid=str(goal.id),
+                        label=goal.goal_statement,
+                        # TODO code should be "",
+                        #  waiting for https://github.com/canvas-medical/canvas-plugins/issues/338
+                        code=str(goal.dbid),
                     ),
                 )
         return self._goals
@@ -243,9 +261,62 @@ class LimitedCache:
                 )
         return self._medications
 
+    @classmethod
+    def immunization_from(
+        cls,
+        record_uuid: str,
+        comments: str,
+        approximate_date: date | None,
+        coding_records: list[ImmunizationStatementCoding | ImmunizationCoding],
+    ) -> ImmunizationCached:
+        label = code_cvx = code_cpt = ""
+        for coding in coding_records:
+            if coding.system == CodeSystems.CVX:
+                label = coding.display
+                code_cvx = coding.code
+            if coding.system == CodeSystems.CPT:
+                label = coding.display
+                code_cpt = coding.code
+        return ImmunizationCached(
+            uuid=record_uuid,
+            label=label,
+            code_cvx=code_cvx,
+            code_cpt=code_cpt,
+            comments=comments,
+            approximate_date=approximate_date,
+        )
+
     def current_immunizations(self) -> list[ImmunizationCached]:
         if self._immunizations is None:
             self._immunizations = []
+            # TODO waiting for https://github.com/canvas-medical/canvas-plugins/issues/1067
+            immunizations = Immunization.objects.for_patient(self.patient_uuid).filter(deleted=False)
+            # immunizations = Immunization.objects.committed().for_patient(self.patient_uuid)
+            for immunization in immunizations.order_by("-dbid"):
+                print("--->", immunization.note.datetime_of_service.date())
+                self._immunizations.append(
+                    self.immunization_from(
+                        str(immunization.id),
+                        immunization.sig_original,
+                        immunization.note.datetime_of_service.date(),
+                        immunization.codings.all(),
+                    )
+                )
+            # TODO waiting for https://github.com/canvas-medical/canvas-plugins/issues/1067
+            statements = ImmunizationStatement.objects.for_patient(self.patient_uuid).filter(deleted=False)
+            # statements = ImmunizationStatement.objects.committed().for_patient(self.patient_uuid)
+            for statement in statements.order_by("-dbid"):
+                self._immunizations.append(
+                    self.immunization_from(
+                        str(statement.id),
+                        statement.comment,
+                        statement.date,
+                        # TODO should be `codings`,
+                        #  waiting for https://github.com/canvas-medical/canvas-plugins/issues/1068
+                        statement.coding.all(),
+                    )
+                )
+
         return self._immunizations
 
     def current_allergies(self) -> list[CodedItem]:

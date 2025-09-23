@@ -13,53 +13,82 @@ def test_class():
         "code_cpt": str,
         "code_cvx": str,
         "comments": str,
-        "approximate_date": date,
+        "approximate_date": date | None,
     }
     assert is_namedtuple(tested, fields)
 
 
 def test_to_dict():
-    tested = ImmunizationCached(
-        uuid="theUuid",
-        label="theLabel",
-        code_cpt="theCodeCpt",
-        code_cvx="theCodeCvx",
-        comments="theComments",
-        approximate_date=date(2025, 7, 25),
-    )
-    result = tested.to_dict()
-    expected = {
-        "uuid": "theUuid",
-        "label": "theLabel",
-        "codeCpt": "theCodeCpt",
-        "codeCvx": "theCodeCvx",
-        "comments": "theComments",
-        "approximateDate": "2025-07-25",
-    }
-    assert expected == result
-
-
-def test_load_from_json():
-    tested = ImmunizationCached
-    result = tested.load_from_json(
-        {
+    tests = [
+        (date(2025, 7, 25), "2025-07-25"),
+        (None, None),
+    ]
+    for date_value, exp_date in tests:
+        tested = ImmunizationCached(
+            uuid="theUuid",
+            label="theLabel",
+            code_cpt="theCodeCpt",
+            code_cvx="theCodeCvx",
+            comments="theComments",
+            approximate_date=date_value,
+        )
+        result = tested.to_dict()
+        expected = {
             "uuid": "theUuid",
             "label": "theLabel",
             "codeCpt": "theCodeCpt",
             "codeCvx": "theCodeCvx",
             "comments": "theComments",
-            "approximateDate": "2025-07-25",
+            "approximateDate": exp_date,
         }
-    )
-    expected = ImmunizationCached(
-        uuid="theUuid",
-        label="theLabel",
-        code_cpt="theCodeCpt",
-        code_cvx="theCodeCvx",
-        comments="theComments",
-        approximate_date=date(2025, 7, 25),
-    )
-    assert result == expected
+        assert expected == result
+
+
+def test_approximate_date_str():
+    tests = [
+        (date(2025, 7, 25), "2025-07-25"),
+        (None, ""),
+    ]
+    for date_value, expected in tests:
+        tested = ImmunizationCached(
+            uuid="theUuid",
+            label="theLabel",
+            code_cpt="theCodeCpt",
+            code_cvx="theCodeCvx",
+            comments="theComments",
+            approximate_date=date_value,
+        )
+        result = tested.approximate_date_str()
+        assert expected == result
+
+
+def test_load_from_json():
+    tested = ImmunizationCached
+
+    tests = [
+        ("2025-07-25", date(2025, 7, 25)),
+        (None, None),
+    ]
+    for date_value, exp_date in tests:
+        result = tested.load_from_json(
+            {
+                "uuid": "theUuid",
+                "label": "theLabel",
+                "codeCpt": "theCodeCpt",
+                "codeCvx": "theCodeCvx",
+                "comments": "theComments",
+                "approximateDate": date_value,
+            }
+        )
+        expected = ImmunizationCached(
+            uuid="theUuid",
+            label="theLabel",
+            code_cpt="theCodeCpt",
+            code_cvx="theCodeCvx",
+            comments="theComments",
+            approximate_date=exp_date,
+        )
+        assert result == expected
 
 
 @patch.object(ImmunizationCached, "load_from_json")

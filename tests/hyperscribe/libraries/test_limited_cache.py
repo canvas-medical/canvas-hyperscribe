@@ -1,5 +1,5 @@
 import sqlite3
-from datetime import date
+from datetime import date, datetime, timezone
 from pathlib import Path
 from unittest.mock import patch, call, MagicMock, PropertyMock
 from uuid import uuid5, NAMESPACE_DNS
@@ -9,14 +9,19 @@ from canvas_sdk.test_utils import factories
 from canvas_sdk.v1.data import (
     CareTeamRole,
     ChargeDescriptionMaster,
-    Command,
     Condition,
     ConditionCoding,
+    Goal,
+    Immunization,
+    ImmunizationCoding,
+    ImmunizationStatement,
+    ImmunizationStatementCoding,
     MedicationCoding,
     Medication,
     AllergyIntolerance,
     AllergyIntoleranceCoding,
     Observation,
+    Note,
     NoteType,
     ReasonForVisitSettingCoding,
     Staff,
@@ -26,6 +31,7 @@ from canvas_sdk.v1.data import (
     TaskLabel,
     Team,
 )
+from canvas_sdk.v1.data.goal import GoalLifecycleStatus
 from canvas_sdk.v1.data.lab import LabPartner, LabPartnerTest
 from django.db.models import Q
 from django.db.models.expressions import When, Value, Case
@@ -450,16 +456,16 @@ def test_staged_commands_as_instructions():
     assert result == expected
 
 
-@patch.object(Command, "objects")
-def test_current_goals(command_db):
+@patch.object(Goal, "objects")
+def test_current_goals(goal_db):
     def reset_mocks():
-        command_db.reset_mock()
+        goal_db.reset_mock()
 
-    command_db.filter.return_value.order_by.side_effect = [
+    goal_db.filter.return_value.order_by.side_effect = [
         [
-            Command(id=uuid5(NAMESPACE_DNS, "1"), dbid=258, data={"goal_statement": "statement1"}),
-            Command(id=uuid5(NAMESPACE_DNS, "2"), dbid=259, data={"goal_statement": "statement2"}),
-            Command(id=uuid5(NAMESPACE_DNS, "3"), dbid=267, data={"goal_statement": "statement3"}),
+            Goal(id=uuid5(NAMESPACE_DNS, "1"), dbid=258, goal_statement="statement1"),
+            Goal(id=uuid5(NAMESPACE_DNS, "2"), dbid=259, goal_statement="statement2"),
+            Goal(id=uuid5(NAMESPACE_DNS, "3"), dbid=267, goal_statement="statement3"),
         ],
     ]
     tested = LimitedCache("patientUuid", "providerUuid", {})
@@ -472,14 +478,28 @@ def test_current_goals(command_db):
     result = tested.current_goals()
     assert result == expected
     assert tested._goals == expected
-    calls = [call.filter(patient__id="patientUuid", schema_key="goal"), call.filter().order_by("-dbid")]
-    assert command_db.mock_calls == calls
+    calls = [
+        call.filter(
+            patient__id="patientUuid",
+            lifecycle_status__in=[
+                GoalLifecycleStatus.PROPOSED,
+                GoalLifecycleStatus.PLANNED,
+                GoalLifecycleStatus.ACCEPTED,
+                GoalLifecycleStatus.ACTIVE,
+                GoalLifecycleStatus.ON_HOLD,
+            ],
+            committer_id__isnull=False,
+            entered_in_error_id__isnull=True,
+        ),
+        call.filter().order_by("-dbid"),
+    ]
+    assert goal_db.mock_calls == calls
     reset_mocks()
 
     result = tested.current_goals()
     assert result == expected
     assert tested._goals == expected
-    assert command_db.mock_calls == []
+    assert goal_db.mock_calls == []
     reset_mocks()
 
 
@@ -597,11 +617,220 @@ def test_current_medications(medication_db, codings_db):
     reset_mocks()
 
 
-def test_current_immunizations():
+def test_immunization_from():
+    tested = LimitedCache
+
+    tests = [
+        (
+            [
+                ImmunizationStatementCoding(
+                    system="http://hl7.org/fhir/sid/cvx",
+                    display="theDisplayCvx",
+                    code="theCVX",
+                ),
+                ImmunizationStatementCoding(
+                    system="http://www.ama-assn.org/go/cpt",
+                    display="theDisplayCpt",
+                    code="theCPT",
+                ),
+            ],
+            ImmunizationCached(
+                uuid="theRecordUuid",
+                label="theDisplayCpt",
+                code_cvx="theCVX",
+                code_cpt="theCPT",
+                comments="theComments",
+                approximate_date=date(2025, 9, 21),
+            ),
+        ),
+        (
+            [
+                ImmunizationCoding(
+                    system="http://www.ama-assn.org/go/cpt",
+                    display="theDisplayCpt",
+                    code="theCPT",
+                ),
+                ImmunizationCoding(
+                    system="http://hl7.org/fhir/sid/cvx",
+                    display="theDisplayCvx",
+                    code="theCVX",
+                ),
+            ],
+            ImmunizationCached(
+                uuid="theRecordUuid",
+                label="theDisplayCvx",
+                code_cvx="theCVX",
+                code_cpt="theCPT",
+                comments="theComments",
+                approximate_date=date(2025, 9, 21),
+            ),
+        ),
+    ]
+
+    for coding_records, expected in tests:
+        result = tested.immunization_from(
+            "theRecordUuid",
+            "theComments",
+            date(2025, 9, 21),
+            coding_records,
+        )
+        assert result == expected
+
+
+@patch.object(LimitedCache, "immunization_from")
+@patch.object(ImmunizationStatement, "coding")
+@patch.object(ImmunizationStatement, "objects")
+@patch.object(Immunization, "codings")
+@patch.object(Immunization, "objects")
+def test_current_immunizations(
+    immunization_db,
+    immunization_codings_db,
+    immunization_statement_db,
+    immunization_statement_coding_db,
+    immunization_from,
+):
+    def reset_mocks():
+        immunization_db.reset_mock()
+        immunization_codings_db.reset_mock()
+        immunization_statement_db.reset_mock()
+        immunization_statement_coding_db.reset_mock()
+        immunization_from.reset_mock()
+
+    date_times = [
+        datetime(2025, 9, 21, 8, 53, 21, 123456, tzinfo=timezone.utc),
+        datetime(2025, 9, 22, 8, 53, 22, 123456, tzinfo=timezone.utc),
+        datetime(2025, 9, 23, 8, 53, 23, 123456, tzinfo=timezone.utc),
+    ]
+
+    dates = [
+        date(2025, 9, 24),
+        date(2025, 9, 25),
+        date(2025, 9, 26),
+    ]
+
+    immunization_codings_db.all.side_effect = [
+        "theImmunizationCodings0",
+        "theImmunizationCodings1",
+        "theImmunizationCodings2",
+    ]
+    immunization_statement_coding_db.all.side_effect = [
+        "theImmunizationStatementCoding0",
+        "theImmunizationStatementCoding1",
+        "theImmunizationStatementCoding2",
+    ]
+    immunization_db.for_patient.return_value.filter.return_value.order_by.side_effect = [
+        [
+            Immunization(
+                id=uuid5(NAMESPACE_DNS, "1"),
+                sig_original="theSigOriginal1",
+                note=Note(datetime_of_service=date_times[0]),
+            ),
+            Immunization(
+                id=uuid5(NAMESPACE_DNS, "2"),
+                sig_original="theSigOriginal2",
+                note=Note(datetime_of_service=date_times[1]),
+            ),
+            Immunization(
+                id=uuid5(NAMESPACE_DNS, "3"),
+                sig_original="theSigOriginal3",
+                note=Note(datetime_of_service=date_times[2]),
+            ),
+        ],
+    ]
+    immunization_statement_db.for_patient.return_value.filter.return_value.order_by.side_effect = [
+        [
+            ImmunizationStatement(
+                id=uuid5(NAMESPACE_DNS, "1"),
+                comment="theComment1",
+                date=dates[0],
+            ),
+            ImmunizationStatement(
+                id=uuid5(NAMESPACE_DNS, "2"),
+                comment="theComment2",
+                date=dates[1],
+            ),
+            ImmunizationStatement(
+                id=uuid5(NAMESPACE_DNS, "3"),
+                comment="theComment3",
+                date=dates[2],
+            ),
+        ],
+    ]
+    immunization_from.side_effect = [f"theImmunization{i}" for i in range(6)]
+    expected = [
+        "theImmunization0",
+        "theImmunization1",
+        "theImmunization2",
+        "theImmunization3",
+        "theImmunization4",
+        "theImmunization5",
+    ]
+
     tested = LimitedCache("patientUuid", "providerUuid", {})
+
     result = tested.current_immunizations()
-    assert result == []
-    assert tested._immunizations == []
+    assert result == expected
+    assert tested._immunizations == expected
+    calls = [
+        call.for_patient("patientUuid"),
+        call.for_patient().filter(deleted=False),
+        call.for_patient().filter().order_by("-dbid"),
+    ]
+    assert immunization_db.mock_calls == calls
+    assert immunization_statement_db.mock_calls == calls
+    calls = [call.all(), call.all(), call.all()]
+    assert immunization_codings_db.mock_calls == calls
+    assert immunization_statement_coding_db.mock_calls == calls
+    calls = [
+        call(
+            "b04965e6-a9bb-591f-8f8a-1adcb2c8dc39",
+            "theSigOriginal1",
+            date(2025, 9, 21),
+            "theImmunizationCodings0",
+        ),
+        call(
+            "4b166dbe-d99d-5091-abdd-95b83330ed3a",
+            "theSigOriginal2",
+            date(2025, 9, 22),
+            "theImmunizationCodings1",
+        ),
+        call(
+            "98123fde-012f-5ff3-8b50-881449dac91a",
+            "theSigOriginal3",
+            date(2025, 9, 23),
+            "theImmunizationCodings2",
+        ),
+        call(
+            "b04965e6-a9bb-591f-8f8a-1adcb2c8dc39",
+            "theComment1",
+            date(2025, 9, 24),
+            "theImmunizationStatementCoding0",
+        ),
+        call(
+            "4b166dbe-d99d-5091-abdd-95b83330ed3a",
+            "theComment2",
+            date(2025, 9, 25),
+            "theImmunizationStatementCoding1",
+        ),
+        call(
+            "98123fde-012f-5ff3-8b50-881449dac91a",
+            "theComment3",
+            date(2025, 9, 26),
+            "theImmunizationStatementCoding2",
+        ),
+    ]
+    assert immunization_from.mock_calls == calls
+    reset_mocks()
+
+    result = tested.current_immunizations()
+    assert result == expected
+    assert tested._immunizations == expected
+    assert immunization_db.mock_calls == []
+    assert immunization_codings_db.mock_calls == []
+    assert immunization_statement_db.mock_calls == []
+    assert immunization_statement_coding_db.mock_calls == []
+    assert immunization_from.mock_calls == []
+    reset_mocks()
 
 
 @patch.object(AllergyIntolerance, "codings")

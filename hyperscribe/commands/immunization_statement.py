@@ -45,7 +45,7 @@ class ImmunizationStatement(Base):
             cpt_code="",
             cvx_code="",
             comments=instruction.parameters["comments"],
-            approximate_date=Helper.str2date(instruction.parameters["approximateImmunizationDate"]),
+            approximate_date=Helper.str2date(instruction.parameters["onDate"]),
             note_uuid=self.identification.note_uuid,
         )
         # retrieve existing immunization defined in Canvas Science
@@ -74,6 +74,8 @@ class ImmunizationStatement(Base):
                     for immunization in immunizations
                 ),
                 "",
+                f"It may be important to take into account that {self.cache.demographic__str__(False)}.",
+                "",
                 "Please, present your findings in a JSON format within a Markdown code block like:",
                 "```json",
                 json.dumps([{"cptCode": "the CPT code", "cvxCode": "the CVX code", "label": "the label"}]),
@@ -92,14 +94,47 @@ class ImmunizationStatement(Base):
 
     def command_parameters(self) -> dict:
         return {
-            "keywords": "comma separated keywords of up to 5 synonyms of the immunization",
-            "approximateImmunizationDate": "YYYY-MM-DD",
-            "comments": "provided information related to the immunization, as free text",
+            "keywords": "",
+            "onDate": None,
+            "comments": "",
         }
+
+    def command_parameters_schemas(self) -> list[dict]:
+        return [
+            {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 1,
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "keywords": {
+                            "type": "string",
+                            "description": "Comma-separated keywords to find the specific immunization in a "
+                            "database (using OR criteria), it is better to provide "
+                            "more specific keywords rather than few broad ones.",
+                        },
+                        "onDate": {
+                            "type": ["string", "null"],
+                            "description": "Approximate date of the immunization in YYYY-MM-DD.",
+                            "format": "date",
+                            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                        },
+                        "comments": {
+                            "type": "string",
+                            "description": "provided information related to the immunization, as free text",
+                        },
+                    },
+                    "required": ["keywords", "onDate", "comments"],
+                    "additionalProperties": False,
+                },
+            }
+        ]
 
     def instruction_description(self) -> str:
         return (
-            "Any past immunization. There can be only one immunization per instruction, "
+            "Any past immunization. There can be one and only one immunization per instruction, "
             "and no instruction in the lack of."
         )
 
@@ -107,7 +142,7 @@ class ImmunizationStatement(Base):
         result = ""
         if text := ", ".join(
             [
-                f"{item.label} (CPT: {item.code_cpt}, CVX: {item.code_cvx}) on {item.approximate_date.isoformat()}"
+                f"{item.label} (CPT: {item.code_cpt}, CVX: {item.code_cvx}) on {item.approximate_date_str()}"
                 for item in self.cache.current_immunizations()
             ]
         ):
@@ -115,4 +150,4 @@ class ImmunizationStatement(Base):
         return result
 
     def is_available(self) -> bool:
-        return False
+        return True

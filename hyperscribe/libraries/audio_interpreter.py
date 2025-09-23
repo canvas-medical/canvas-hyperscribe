@@ -34,6 +34,7 @@ class AudioInterpreter:
         self.settings = settings
         self.s3_credentials = s3_credentials
         self.identification = identification
+        self.cache = cache
         self._command_context = {
             instance.class_name(): instance
             for command_class in ImplementedCommands.command_list()
@@ -325,8 +326,8 @@ class AudioInterpreter:
             schemas = JsonSchema.get(["generic_parameters"])
 
         system_prompt = [
-            "The conversation is in the context of a clinical encounter between patient and licensed "
-            "healthcare provider.",
+            f"The conversation is in the context of a clinical encounter between "
+            f"patient ({self.cache.demographic__str__(False)}) and licensed healthcare provider.",
             "During the encounter, the user has identified instructions with key information to record "
             "in its software.",
             "The user will submit an instruction and the linked information grounded in the transcript, as well "

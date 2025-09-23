@@ -34,6 +34,7 @@ def helper_instance() -> ImmunizationStatement:
         cycle_transcript_overlap=37,
     )
     cache = LimitedCache("patientUuid", "providerUuid", {})
+    cache._demographic = "theDemographic"
     identification = IdentificationParameters(
         patient_uuid="patientUuid",
         note_uuid="noteUuid",
@@ -180,6 +181,8 @@ def test_command_from_json(search_immunization, add_code2description):
         " * labelB (cptCode: theCptB, cvxCode: theCvxB)\n"
         " * labelC (cptCode: theCptC, cvxCode: theCvxC)",
         "",
+        "It may be important to take into account that theDemographic.",
+        "",
         "Please, present your findings in a JSON format within a Markdown code block like:",
         "```json",
         '[{"cptCode": "the CPT code", "cvxCode": "the CVX code", "label": "the label"}]',
@@ -216,7 +219,7 @@ def test_command_from_json(search_immunization, add_code2description):
         "is_updated": True,
         "parameters": {
             "keywords": "keyword1,keyword2,keyword3",
-            "approximateImmunizationDate": "2024-09-23",
+            "onDate": "2024-09-23",
             "comments": "theComments",
         },
     }
@@ -298,10 +301,47 @@ def test_command_parameters():
     tested = helper_instance()
     result = tested.command_parameters()
     expected = {
-        "keywords": "comma separated keywords of up to 5 synonyms of the immunization",
-        "approximateImmunizationDate": "YYYY-MM-DD",
-        "comments": "provided information related to the immunization, as free text",
+        "keywords": "",
+        "onDate": None,
+        "comments": "",
     }
+    assert result == expected
+
+
+def test_command_parameters_schemas():
+    tested = helper_instance()
+    result = tested.command_parameters_schemas()
+    expected = [
+        {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 1,
+            "items": {
+                "type": "object",
+                "properties": {
+                    "keywords": {
+                        "type": "string",
+                        "description": "Comma-separated keywords to find the specific immunization in a "
+                        "database (using OR criteria), it is better to provide "
+                        "more specific keywords rather than few broad ones.",
+                    },
+                    "onDate": {
+                        "type": ["string", "null"],
+                        "description": "Approximate date of the immunization in YYYY-MM-DD.",
+                        "format": "date",
+                        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                    },
+                    "comments": {
+                        "type": "string",
+                        "description": "provided information related to the immunization, as free text",
+                    },
+                },
+                "required": ["keywords", "onDate", "comments"],
+                "additionalProperties": False,
+            },
+        }
+    ]
     assert result == expected
 
 
@@ -309,7 +349,8 @@ def test_instruction_description():
     tested = helper_instance()
     result = tested.instruction_description()
     expected = (
-        "Any past immunization. There can be only one immunization per instruction, and no instruction in the lack of."
+        "Any past immunization. There can be one and only one immunization per instruction, "
+        "and no instruction in the lack of."
     )
     assert result == expected
 
@@ -369,4 +410,4 @@ def test_instruction_constraints(current_immunizations):
 def test_is_available():
     tested = helper_instance()
     result = tested.is_available()
-    assert result is False
+    assert result is True

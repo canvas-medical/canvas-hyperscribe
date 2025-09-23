@@ -54,6 +54,7 @@ def helper_instance(mocks, with_audit) -> tuple[AudioInterpreter, Settings, AwsS
         command_list.side_effect = [mocks]
 
         cache = LimitedCache("patientUuid", "providerUuid", {})
+        cache._demographic = "thePatientDemographic"
         identification = IdentificationParameters(
             patient_uuid="patientUuid",
             note_uuid="noteUuid",
@@ -116,6 +117,7 @@ def test___init__(command_list):
     assert instance.settings == settings
     assert instance.s3_credentials == aws_s3
     assert instance.identification == identification
+    assert instance.cache == cache
 
     calls = [call()]
     assert command_list.mock_calls == calls
@@ -1200,7 +1202,8 @@ def test_create_sdk_command_parameters(
         is_updated=True,
     )
     system_prompt = [
-        "The conversation is in the context of a clinical encounter between patient and licensed healthcare provider.",
+        "The conversation is in the context of a clinical encounter between patient (thePatientDemographic) and "
+        "licensed healthcare provider.",
         "During the encounter, the user has identified instructions with key information to record in its software.",
         "The user will submit an instruction and the linked information grounded in the transcript, as well "
         "as the structure of the associated command.",
