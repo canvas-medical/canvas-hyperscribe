@@ -2186,7 +2186,19 @@ def test_compact_transcripts():
                 ]
             elif index < 7:
                 calls = [call.open("r")]
-            elif index in [7, 8]:
+            elif index in [7]:
+                calls = [
+                    call.open("w"),
+                    call.open("w"),
+                    call.open("w"),
+                    call.open("w"),
+                    call.open("w"),
+                    call.open("w"),
+                    call.open("w"),
+                    call.open("w"),
+                    call.open("w"),
+                ]
+            elif index in [8]:
                 calls = [
                     call.open("w"),
                     call.open("w"),
@@ -2201,7 +2213,7 @@ def test_compact_transcripts():
                 calls = [call.open("w"), call.open("w"), call.open("w"), call.open("w"), call.open("w")]
             else:
                 calls = []
-            assert item.mock_calls == calls
+            assert item.mock_calls == calls, f"---> {index}"
 
             if index < 7:
                 exp_content = json.dumps(
@@ -2286,6 +2298,7 @@ def test_compact_transcripts():
                     call.open("w"),
                     call.open("w"),
                     call.open("w"),
+                    call.open("w"),
                 ]
             elif index in [8]:
                 calls = [
@@ -2299,7 +2312,7 @@ def test_compact_transcripts():
                 ]
             else:
                 calls = []
-            assert item.mock_calls == calls
+            assert item.mock_calls == calls, f"---> {index}"
 
             if index < 7:
                 exp_content = json.dumps(

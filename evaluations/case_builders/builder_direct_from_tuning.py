@@ -640,7 +640,11 @@ class BuilderDirectFromTuning:
     def compact_transcripts(cls, transcript_files: list[Path]) -> list[Path]:
         lines: list[CaseExchange] = []
         folder = transcript_files[0].parent
+
         result: list[Path] = [(folder / f"transcript_compacted_000.json")]
+        with result[-1].open("w") as f2:
+            json.dump([], f2, indent=2)
+
         words = 0
         for chunk, transcript in enumerate(transcript_files, start=1):
             with transcript.open("r") as f:
