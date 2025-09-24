@@ -144,7 +144,7 @@ def test_request(requests_post):
     )
     calls_request_post = [
         call(
-            "https://api.openai.com/v1/chat/completions",
+            "https://us.api.openai.com/v1/chat/completions",
             headers={
                 "Content-Type": "application/json",
                 "Authorization": "Bearer openaiKey",
@@ -260,7 +260,7 @@ def test_audio_to_text(requests_post):
     assert result == expected
     calls = [
         call(
-            "https://api.openai.com/v1/audio/transcriptions",
+            "https://us.api.openai.com/v1/audio/transcriptions",
             headers={"Authorization": "Bearer openaiKey"},
             params={},
             data={

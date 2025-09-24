@@ -35,7 +35,7 @@ class LlmOpenai(LlmBase):
         return {"model": self.model, "modalities": ["text"], "messages": messages, "temperature": self.temperature}
 
     def request(self) -> HttpResponse:
-        url = "https://api.openai.com/v1/chat/completions"
+        url = "https://us.api.openai.com/v1/chat/completions"
         headers = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {self.api_key}",
@@ -60,7 +60,7 @@ class LlmOpenai(LlmBase):
         default_model = "whisper-1"
         language = "en"
         response_format = "text"
-        url = "https://api.openai.com/v1/audio/transcriptions"
+        url = "https://us.api.openai.com/v1/audio/transcriptions"
         prompt = ["The conversation is in the medical context."]
         data = {
             "model": default_model,
