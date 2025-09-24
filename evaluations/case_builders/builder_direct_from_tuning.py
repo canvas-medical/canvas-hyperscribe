@@ -202,6 +202,16 @@ class BuilderDirectFromTuning:
             webm_file.unlink(missing_ok=True)
 
             for item in client_s3.list_s3_objects(s3_folder):
+                # # TODO debug
+                # name = item.key.split("/")[-1]
+                # if not (
+                #     name.startswith("chunk_001")
+                #     or name.startswith("chunk_002")
+                #     or name.startswith("chunk_003")
+                #     or name == "limited_chart.json"
+                # ):
+                #     continue
+
                 # the limited_cache.json is assumed locally saved with all the webm files
                 file = self.output_dir / item.key
                 response = client_s3.access_s3_object(item.key)
@@ -216,13 +226,26 @@ class BuilderDirectFromTuning:
                         f.write(f2.read())
 
         if self.force_refresh or result.exists() is False:
-            (
-                ffmpeg.input(webm_file.as_posix())
-                .output(result.as_posix(), acodec="libmp3lame", ar=44100, ab="192k", vn=None)
-                .overwrite_output()
-                .run(overwrite_output=True, quiet=True)
-            )
+            if webm_file.stat().st_size > 0:
+                (
+                    ffmpeg.input(webm_file.as_posix())
+                    .output(result.as_posix(), acodec="libmp3lame", ar=44100, ab="192k", vn=None)
+                    .overwrite_output()
+                    .run(overwrite_output=True, quiet=True)
+                )
+            else:
+                self.create_silent_mp3(result)
         return result
+
+    @classmethod
+    def create_silent_mp3(cls, silent_file: Path) -> None:
+        duration_seconds = 3
+        (
+            ffmpeg.input("anullsrc=r=44100:cl=stereo", f="lavfi", t=duration_seconds)
+            .output(silent_file.as_posix(), acodec="libmp3lame", ar=44100, ab="192k")
+            .overwrite_output()
+            .run(overwrite_output=True, quiet=True)
+        )
 
     def split_audio(self, audio_file: Path) -> list[Path]:
         result: list[Path] = []

@@ -26,7 +26,7 @@ from hyperscribe.structures.json_extract import JsonExtract
 from hyperscribe.structures.line import Line
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
-from tests.helper import MockFile, is_constant
+from tests.helper import MockFile, is_constant, MockClass
 
 
 def helper_instance() -> BuilderDirectFromTuning:
@@ -645,7 +645,8 @@ def test_create_transcripts():
 
 @patch("evaluations.case_builders.builder_direct_from_tuning.ffmpeg")
 @patch("evaluations.case_builders.builder_direct_from_tuning.AwsS3")
-def test_collated_webm_to_mp3(client_s3, ffmpeg):
+@patch.object(BuilderDirectFromTuning, "create_silent_mp3")
+def test_collated_webm_to_mp3(create_silent_mp3, client_s3, ffmpeg):
     output_dir = MagicMock()
     mock_files = [
         # the first file is the full webm built
@@ -664,6 +665,7 @@ def test_collated_webm_to_mp3(client_s3, ffmpeg):
     buffers = [MockFile(), MockFile(), MockFile(), MockFile(), MockFile(), MockFile(), MockFile(), MockFile()]
 
     def reset_mocks():
+        create_silent_mp3.reset_mock()
         client_s3.reset_mock()
         ffmpeg.reset_mock()
         output_dir.reset_mock()
@@ -695,83 +697,108 @@ def test_collated_webm_to_mp3(client_s3, ffmpeg):
     tested.output_dir = output_dir
 
     # forced refresh or files does not exist
-    for test in [True, False]:
-        tested.force_refresh = True
-        mock_files[0].exists.side_effect = [not test]
-        mock_files[0].parent.glob.side_effect = [[mock_files[6], mock_files[7]]]
-        mock_files[1].exists.side_effect = [not test]
+    for file_exists in [True, False]:
+        for file_size in [0, 452]:
+            tested.force_refresh = True
+            mock_files[0].stat.side_effect = [MockClass(st_size=file_size)]
+            mock_files[0].exists.side_effect = [not file_exists]
+            mock_files[0].parent.glob.side_effect = [[mock_files[6], mock_files[7]]]
+            mock_files[1].exists.side_effect = [not file_exists]
 
-        output_dir.__truediv__.side_effect = mock_files
-        client_s3.return_value.list_s3_objects.side_effect = [
-            [
-                AwsS3Object(key="/patient_uuid/note_uuid/webm_001.webm", size=1, last_modified=date_0),
-                AwsS3Object(key="/patient_uuid/note_uuid/webm_002.webm", size=1, last_modified=date_0),
-                AwsS3Object(
-                    key="/patient_uuid/note_uuid/webm_003.webm",
-                    size=1,
-                    last_modified=date_0,
-                ),  # <-- response 500
-                AwsS3Object(key="/patient_uuid/note_uuid/limited_chart.json", size=1, last_modified=date_0),
-            ],
-        ]
-        client_s3.return_value.access_s3_object.side_effect = responses
+            output_dir.__truediv__.side_effect = mock_files
+            client_s3.return_value.list_s3_objects.side_effect = [
+                [
+                    AwsS3Object(key="/patient_uuid/note_uuid/webm_001.webm", size=1, last_modified=date_0),
+                    AwsS3Object(key="/patient_uuid/note_uuid/webm_002.webm", size=1, last_modified=date_0),
+                    AwsS3Object(
+                        key="/patient_uuid/note_uuid/webm_003.webm",
+                        size=1,
+                        last_modified=date_0,
+                    ),  # <-- response 500
+                    AwsS3Object(key="/patient_uuid/note_uuid/limited_chart.json", size=1, last_modified=date_0),
+                ],
+            ]
+            client_s3.return_value.access_s3_object.side_effect = responses
 
-        result = tested.collated_webm_to_mp3()
-        expected = mock_files[1]
-        assert result is expected
+            result = tested.collated_webm_to_mp3()
+            expected = mock_files[1]
+            assert result is expected
 
-        calls = [
-            call(AwsS3Credentials(aws_key="theKey", aws_secret="theSecret", region="theRegion", bucket="theBucket")),
-            call().list_s3_objects("hyperscribe-canvasInstance/patient_patientUuid/note_noteUuid"),
-            call().access_s3_object("/patient_uuid/note_uuid/webm_001.webm"),
-            call().access_s3_object("/patient_uuid/note_uuid/webm_002.webm"),
-            call().access_s3_object("/patient_uuid/note_uuid/webm_003.webm"),
-            call().access_s3_object("/patient_uuid/note_uuid/limited_chart.json"),
-        ]
-        assert client_s3.mock_calls == calls
-        calls = [
-            call.input("posix000"),
-            call.input().output("posix001", acodec="libmp3lame", ar=44100, ab="192k", vn=None),
-            call.input().output().overwrite_output(),
-            call.input().output().overwrite_output().run(overwrite_output=True, quiet=True),
-        ]
-        assert ffmpeg.mock_calls == calls
-        calls = [
-            call.__truediv__("hyperscribe-canvasInstance/patient_patientUuid/note_noteUuid/note_noteUuid.webm"),
-            call.__truediv__("hyperscribe-canvasInstance/patient_patientUuid/note_noteUuid/note_noteUuid.mp3"),
-            call.__truediv__("/patient_uuid/note_uuid/webm_001.webm"),
-            call.__truediv__("/patient_uuid/note_uuid/webm_002.webm"),
-            call.__truediv__("/patient_uuid/note_uuid/webm_003.webm"),
-            call.__truediv__("/patient_uuid/note_uuid/limited_chart.json"),
-        ]
-        assert output_dir.mock_calls == calls
-        calls = [call.unlink(missing_ok=True), call.open("wb"), call.parent.glob("*.webm"), call.as_posix()]
-        assert mock_files[0].mock_calls == calls
-        assert buffers[0].content == (b"locally saved audio content 6locally saved audio content 7")
-        calls = [call.as_posix()]
-        assert mock_files[1].mock_calls == calls
-        assert buffers[1].content == b""
+            calls = []
+            if file_size == 0:
+                calls = [call(mock_files[1])]
+            assert create_silent_mp3.mock_calls == calls
+            calls = [
+                call(
+                    AwsS3Credentials(
+                        aws_key="theKey",
+                        aws_secret="theSecret",
+                        region="theRegion",
+                        bucket="theBucket",
+                    )
+                ),
+                call().list_s3_objects("hyperscribe-canvasInstance/patient_patientUuid/note_noteUuid"),
+                call().access_s3_object("/patient_uuid/note_uuid/webm_001.webm"),
+                call().access_s3_object("/patient_uuid/note_uuid/webm_002.webm"),
+                call().access_s3_object("/patient_uuid/note_uuid/webm_003.webm"),
+                call().access_s3_object("/patient_uuid/note_uuid/limited_chart.json"),
+            ]
+            assert client_s3.mock_calls == calls
+            calls = []
+            if file_size > 0:
+                calls = [
+                    call.input("posix000"),
+                    call.input().output("posix001", acodec="libmp3lame", ar=44100, ab="192k", vn=None),
+                    call.input().output().overwrite_output(),
+                    call.input().output().overwrite_output().run(overwrite_output=True, quiet=True),
+                ]
+            assert ffmpeg.mock_calls == calls
+            calls = [
+                call.__truediv__("hyperscribe-canvasInstance/patient_patientUuid/note_noteUuid/note_noteUuid.webm"),
+                call.__truediv__("hyperscribe-canvasInstance/patient_patientUuid/note_noteUuid/note_noteUuid.mp3"),
+                call.__truediv__("/patient_uuid/note_uuid/webm_001.webm"),
+                call.__truediv__("/patient_uuid/note_uuid/webm_002.webm"),
+                call.__truediv__("/patient_uuid/note_uuid/webm_003.webm"),
+                call.__truediv__("/patient_uuid/note_uuid/limited_chart.json"),
+            ]
+            assert output_dir.mock_calls == calls
+            calls = [
+                call.unlink(missing_ok=True),
+                call.open("wb"),
+                call.parent.glob("*.webm"),
+                call.stat(),
+            ]
+            if file_size > 0:
+                calls.append(call.as_posix())
+            assert mock_files[0].mock_calls == calls
+            assert buffers[0].content == (b"locally saved audio content 6locally saved audio content 7")
+            calls = []
+            if file_size > 0:
+                calls.append(call.as_posix())
+            assert mock_files[1].mock_calls == calls
+            assert buffers[1].content == b""
 
-        calls = [call.parent.mkdir(parents=True, exist_ok=True), call.open("wb")]
-        assert mock_files[2].mock_calls == calls
-        assert mock_files[3].mock_calls == calls
-        assert mock_files[4].mock_calls == []
-        assert mock_files[5].mock_calls == calls
-        assert buffers[2].content == b"audio content 0"
-        assert buffers[3].content == b"audio content 1"
-        assert buffers[4].content == b""
-        assert buffers[5].content == '[{"limited": "cache"}]'
+            calls = [call.parent.mkdir(parents=True, exist_ok=True), call.open("wb")]
+            assert mock_files[2].mock_calls == calls
+            assert mock_files[3].mock_calls == calls
+            assert mock_files[4].mock_calls == []
+            assert mock_files[5].mock_calls == calls
+            assert buffers[2].content == b"audio content 0"
+            assert buffers[3].content == b"audio content 1"
+            assert buffers[4].content == b""
+            assert buffers[5].content == '[{"limited": "cache"}]'
 
-        calls = [call.open("rb")]
-        assert mock_files[6].mock_calls == calls
-        assert mock_files[7].mock_calls == calls
-        assert buffers[6].content == b"locally saved audio content 6"
-        assert buffers[7].content == b"locally saved audio content 7"
+            calls = [call.open("rb")]
+            assert mock_files[6].mock_calls == calls
+            assert mock_files[7].mock_calls == calls
+            assert buffers[6].content == b"locally saved audio content 6"
+            assert buffers[7].content == b"locally saved audio content 7"
 
-        reset_mocks()
+            reset_mocks()
 
     # not forced refresh and files exist
     tested.force_refresh = False
+    mock_files[0].stat.side_effect = []
     mock_files[0].exists.side_effect = [True]
     mock_files[0].parent.glob.side_effect = []
     mock_files[1].exists.side_effect = [True]
@@ -784,6 +811,8 @@ def test_collated_webm_to_mp3(client_s3, ffmpeg):
     expected = mock_files[1]
     assert result is expected
 
+    calls = []
+    assert create_silent_mp3.mock_calls == calls
     calls = [call(AwsS3Credentials(aws_key="theKey", aws_secret="theSecret", region="theRegion", bucket="theBucket"))]
     assert client_s3.mock_calls == calls
     assert ffmpeg.mock_calls == []
@@ -814,6 +843,31 @@ def test_collated_webm_to_mp3(client_s3, ffmpeg):
     assert buffers[6].content == b"locally saved audio content 6"
     assert buffers[7].content == b"locally saved audio content 7"
 
+    reset_mocks()
+
+
+@patch("evaluations.case_builders.builder_direct_from_tuning.ffmpeg")
+def test_create_silent_mp3(ffmpeg):
+    silent_file = MagicMock()
+
+    def reset_mocks():
+        ffmpeg.reset_mock()
+        silent_file.reset_mock()
+
+    tested = helper_instance()
+
+    silent_file.as_posix.side_effect = ["silentFileAsPosix"]
+    tested.create_silent_mp3(silent_file)
+
+    calls = [
+        call.input("anullsrc=r=44100:cl=stereo", f="lavfi", t=3),
+        call.input().output("silentFileAsPosix", acodec="libmp3lame", ar=44100, ab="192k"),
+        call.input().output().overwrite_output(),
+        call.input().output().overwrite_output().run(overwrite_output=True, quiet=True),
+    ]
+    assert ffmpeg.mock_calls == calls
+    calls = [call.as_posix()]
+    assert silent_file.mock_calls == calls
     reset_mocks()
 
 

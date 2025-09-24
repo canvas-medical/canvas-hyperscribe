@@ -14,8 +14,8 @@ The [hyperscribe](../hyperscribe) plugin has five essential steps:
 
 The aim is to provide a continuous validation of the Hyperscribe plugin through two approaches:
 
-* a tests suite run with `pytest` that checks step by step the coherence and the value of the plugin
-* a cases suite run with [`case_runner.py`](../scripts/case_runner.py) script that executes an end to end scenario and evaluate it against a rubric
+* a test suite run with `pytest` that checks step by step the coherence and the value of the plugin
+* a case suite run with [`case_runner.py`](../scripts/case_runner.py) script that executes an end-to-end scenario and evaluate it against a rubric
 
 The `pytest` approach is designed to help understand and improve the plugin deep and narrowly.
 
@@ -44,8 +44,6 @@ The files of the `audio2transcript` step are stored as:
 
 For the other steps, for each cycle, the input and the expected output are stored in `theSituationName.json` files.
 
-
-The _cases_ evaluations are in a folder `cases/theCaseName`, one JSON file per step for all cycles, except the audio files, stored in a `audios` subfolder.
 
 ### Run evaluation tests
 
@@ -130,40 +128,34 @@ AwsBucket
 
 #### Case builders
 
-The case builders are scripts that create all evaluation tests from end to end.
+The case builders are scripts that run the `Hyperscribe` code on different kind of inputs and generate a `case` (i.e., coherent and normalized set of
+inputs) and the outputs for each step.
+It is important to note that output could/should be modified to reflect the actual expected result of each step.
 
-The evaluation tests are stored in the [cases](cases) directory, one subdirectory per case.
+The case builders always generate a summary of the commands as an HTML page saved in the `/tmp` directory provided at the end.
 
-These evaluations of a case are run all at once with:
+The cases are stored either in the file system or a database, SQLite or PostgreSQL.
 
+The PostgreSQL option is the preferred one and is the only documented below.
+
+This assumes the following environment variables are correctly set:
 ```shell
-uv run pytest -v --end2end evaluations/test_end2end.py::test_end2end[the_case]
+export EVALUATIONS_DB_NAME="..."
+export EVALUATIONS_DB_USERNAME="..."
+export EVALUATIONS_DB_PASSWORD="..."
+export EVALUATIONS_DB_HOST="..."
+export EVALUATIONS_DB_PORT=000
 ```
 
-The files created are:
-
-- the `audios` folder, containing the `mp3` files used for the step `audio2transcript`
-- the `audio2transcript.json` file, containing the input and the expected output for the step `audio2transcript`
-- the `transcript2instructions.json` file, containing the input and the expected output for the step `transcript2instructions`
-- the `instruction2parameters.json` file, containing the input and the expected output for the step `instruction2parameters`
-- the `parameters2command.json` file, containing the input and the expected output for the step `parameters2command`
-- the `staged_questionnaires.json` file, containing the input and the expected output for the questionnaires updates
-- the `summary_initial.json` file, containing the summarized commands
-- the `summary_revised.json` file, containing the summarized commands which would be revised
-- the `summary.html` file, HTML file to display the summarized commands _based_ on the `summary_revised.json` file ; it can be updated with the command `uv run python case_builder.py --case the_case --summarize`
-
-Note that when removing the case files with the command `uv run python case_builder.py --case the_case --delete [--audios]`, the files `summary.html` and `summary_revised.json` are not removed.
 
 #### From Audio to commands
 
-Based on a set of `mp3` files, a set (i.e., covering all steps) of evaluation tests (also called `case`) can be created using:
+Based on a set of `mp3` files, a `case` and its outputs can be created using:
 
 ```shell
-uv run python case_builder.py \
+uv run python -m scripts.case_builder \
   --patient patient_uuid \
   --case the_case \
-  --group common \
-  --type general \
   --render \
   --combined \
   --mp3 "file/path/to/file_01.mp3" \
@@ -173,60 +165,36 @@ uv run python case_builder.py \
 
 The `combined` flag instructs the case builder to first combine the mp3 files in one audio first.
 
-Without it, the case builder will perform as many cycles as files, using the result of each cycle to the next, mimicking the real behavior.
+Without it, the case builder will perform as many cycles as files, using the result of each cycle as input to the next, mimicking the real behavior.
 
-
-```shell
-# run the tests for the_case
-uv  run pytest -v --end2end evaluations/test_end2end.py::test_end2end[the_case]
-```
-
-Note also that on the first step (`audio2transcript`):
-
-- all `mp3` files are saved in the `evaluations/cases/the_case/audios` folder, all files are named
-  `cycle_\d{3}_\d{2}`, the first number being the cycle, the second number being the chunk used during the cycle (all numbers starting from 0).
-- if a cycle has the transcript already done, the step is not performed again.
-
-On the second step (`transcript2instructions`):
-- the `uuid` of the instructions is by default set to `>?<`
-- the instruction order of different types is ignored
-
-If the `render` flag is set, the effect of the commands, result of the last cycle, will be sent to the UI.
+If the `render` flag is set, the effects of the commands, result of the last cycle, will be sent to the UI.
 
 #### From Transcript to commands
 
-Based on a `json` file, transcript of the conversation, a set (i.e., covering all steps except the first one) of evaluation tests can be created using:
+Based on a `json` file, transcript of the conversation, a `case` and its outputs can be created using:
 
 ```shell
-uv run python case_builder.py \
+uv run python -m scripts.case_builder \
   --patient patient_uuid \
   --case the_case \
-  --group common \
-  --type general \
   --render \
   --cycles 3 \
   --transcript "file/path/to/file.json"
 ```
 
-The flag `cycles` instructs the case builder to perform as many cycles, using the result of each cycle to the next, mimicking the real behavior.
+The flag `cycles` instructs the case builder to perform as many cycles, using the result of each cycle as input to the next, mimicking the real
+behavior.
 
-Like previously, on the step `transcript2instructions`:
-
-- the `uuid` of the instructions is by default set to `>?<`
-- the instruction order of different types is ignored
-
-If the `render` flag is set, the effect of the commands, result of the last cycle, will be sent to the UI.
+Like previously, if the `render` flag is set, the effects of the commands, result of the last cycle, will be sent to the UI.
 
 #### From Tuning data to commands
 
 Based on a set of `mp3`, recordings of a discussion through the `hyperscribe-tuning` plugin and its `json` file, limited cache of the patient data at
-the start of the recording, a set of evaluation tests can be created using:
+the start of the recording, a `case` and its outputs can be created using:
 
 ```shell
-uv run python case_builder.py \
+uv run python -m scripts.case_builder \
   --case the_case \
-  --group common \
-  --type general \
   --tuning-json "file/path/to/file.json" \
   --tuning-mp3 "file/path/to/file_01.mp3" \
   "file/path/to/file_02.mp3" \
@@ -236,29 +204,6 @@ uv run python case_builder.py \
 This case builder based on the tuning data has the same behavior as the case builder based on audio files, except that it has no `render` flag.
 
 #### Storing the cases and the run results
-
-When creating a `case` by running the [`case_builder.py`](../scripts/case_builder.py) script, a file is created/updated in
-the [datastores/cases](datastores/cases) directory, part of the repository.
-
-This directory stores the meta-information related to the `case`, namely: the group, the type, the environment, the patient uuid.
-The limited cache is stored in the subdirectory [limited_caches](datastores/cases/limited_caches).
-
-*ATTENTION* The limited cache will be used when running the tests if the `--patient-uuid` is not provided.
-
-The list of the cases can be printed out with:
-
-```shell
-uv run python case_list.py
-```
-
-When a test is run, its result is saved in the `results` table of the `evaluation_results.db` local SQLite database,
-which is *not* part of the repository: it is located in the parent directory of the local repository.
-
-Some statistics about the results can be displayed by running:
-
-```shell
-uv run python case_statistics.py
-```
 
 To store the results in a PostGreSQL database, add to the environment the variables:
 
@@ -270,53 +215,99 @@ export EVALUATIONS_DB_HOST="..."
 export EVALUATIONS_DB_PORT=000
 ```
 
-The table `results` should already exist in the database and defined as:
+The database schema defined in [hyperscribe.sql](./datastores/postgres/hyperscribe.sql) should be present before running any case builder.
 
-```postgresql
-CREATE TABLE IF NOT EXISTS "results"
-(
-  "id"            SERIAL PRIMARY KEY,
-  "created"       TIMESTAMP NOT NULL,
-  "run_uuid"      TEXT      NOT NULL,
-  "plugin_commit" TEXT      NOT NULL,
-  "case_type"     TEXT      NOT NULL,
-  "case_group"    TEXT      NOT NULL,
-  "case_name"     TEXT      NOT NULL,
-  "cycles"        INT       NOT NULL,
-  "test_name"     TEXT      NOT NULL,
-  "cycle"         INT       NOT NULL,
-  "milliseconds"  REAL      NOT NULL,
-  "passed"        BOOLEAN   NOT NULL,
-  "errors"        TEXT      NOT NULL
-);
-```
+The table `case` stores the cases, and the table `generated_note` stores the outputs for each step, with the result output in the field `note_json`.
 
-#### Display a summary of the cases
+### Realworld cases generation
 
-When creating the cases based on audio files or a transcript, the option `--render` will generate the commands to see them in the UI. 
+Based on the data saved through the Hyperscribe tuning mode, realworld cases can be generated either:
 
-The following command will display in the system's default browser a summary of the detected instructions and the generated commands, based on the `summary_revised.json`:
+* as a unique case, using the recording entirely, or
+* as topical cases, using the parts of the recording for detected topics
+
+The realworld data is always anonymized while keeping the coherence of the encounter.
+
+To generate the realworld cases, accessing to the tuning data requires the following environment variables:
 
 ```shell
-uv  run python case_builder.py --case the_case --summarize
+export CUSTOMER_IDENTIFIER="theCustomerIdentifier"
+export AwsKey="theAwsKey"
+export AwsSecret="theAwsSecret"
+export AwsRegion="theAwsRegion"
+export AwsBucketLogs="theAwsBucketLogs"
+export AwsBucketTuning="theAwsBucketTuning"
 ```
 
-### Delete evaluation tests
+The case builders will first retrieve the audio and the limited cache JSON files and store them locally: __it is important to note that the files
+have HPI information__.
 
-A set of evaluation tests (or `case`) can be deleted using:
+The de-identification is done on later and not in-place.
+
+The table `real_world_case` stores the information related to the generated cases.
+
+### Full realworld cases generation
+
+Based on the full encounter, a `case` and its outputs can be created using:
 
 ```shell
-# remove all files related to the case, except the summary_revised.json and summary.html
-uv  run python case_builder.py --case the_case --delete --audios
-
-# remove files as above, except the files of the `audios` folder and the `audio2transcript.json` file.
-uv  run python case_builder.py --case the_case --delete
+uv run python -m scripts.case_builder \
+  --direct-full \
+  --patient "thePatientUUID" \
+  --note "theNoteUUID" \
+  --cycle_duration 60 \
+  --force_rerun \
+  --path_temp_files "path/to/store/temporary/phi/data/"
 ```
 
-The files related to the `case` in the directory [datastores/cases](datastores/cases) will be removed.
+The `--force_rerun` forces the script to regenerate the case, this option is recommended.
+The `--force_refresh` forces the script to retrieve the files from AWS and to run all the steps, involving the LLM, before the case generation, this option is not
+recommended.
 
-### Synthetic case generation
-For synthetic case generation, you can find these scripts in evaluations/cases/synthetic_unit_cases. Provided in this directory is one sample set of medication management cases, in which patient profiles, Canvas-compatible charts, and transcripts have been AI-generated (with profile_generator, transcript_generator, and chart_generator). From there, a note.json (which matches the format of the summary_initial output of case_builder) file can be produced via case_builder as described above. 
+### Topical realworld cases generation
 
-In a separate workflow, rubrics are generated via rubric_generator to produce case-specific rubrics based on the transcript and chart. Thus, we have a rubric, specific to the note, to evaluate Hyperscribe's performance in capturing the necessary components of the patient conversation. From there, a grader_generator file produces a score output based on the criteria devised in the rubric.json file, which produces a scores.json (and collated eval_report.csv) to allow for further analysis regarding Hyperscribe's performance. 
+Based on the full encounter, the case builder will identify when the conversation changes of topics and generate as many `cases` as identified topics.
+The topics are continuous set of sentences related to the same medical topic (nonmedical dialogues are kept but ignored from a topic detection point
+of view).
 
+The set of `cases` and their outputs can be created using:
+
+```shell
+uv run python -m scripts.case_builder \
+  --direct-split \
+  --patient "thePatientUUID" \
+  --note "theNoteUUID" \
+  --cycle_duration 60 \
+  --force_rerun \
+  --path_temp_files "path/to/store/temporary/phi/data/"
+```
+
+### Batch realworld cases generation
+
+For a specific customer, all recorded encounters through the Hyperscribe tuning mode can be used to generate topical cases using:
+
+```shell
+uv run python -m evaluations.case_builders.realworld_case_orchestrator \
+    --customer "theCustomer" \
+    --cycle_duration 60 \
+    --cycle_overlap 60 \
+    --max_workers 6 \
+    --path_temp_files "path/to/store/temporary/phi/data/"
+```
+
+The command ignores the encounters with a generated case. 
+
+At the end of the script is a summary list of the successful and failed generations:
+```text
+================================================================================
+summary
+================================================================================
+✅ [001] Patient: thePatientUUID1, Note: theNoteUUID1 (exit code: 0)
+❌ [002] Patient: thePatientUUID2, Note: theNoteUUID2 (exit code: 1)
+✅ [003] Patient: thePatientUUID3, Note: theNoteUUID3 (exit code: 0)
+✅ [004] Patient: thePatientUUID4, Note: theNoteUUID4 (exit code: 0)
+--------------------------------------------------------------------------------
+Total: 4 | Success: 3 | Failed: 1
+================================================================================
+
+```
