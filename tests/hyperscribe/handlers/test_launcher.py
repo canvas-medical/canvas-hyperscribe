@@ -6,13 +6,13 @@ from canvas_generated.messages.events_pb2 import Event as EventRequest
 from canvas_sdk.events import Event
 from canvas_sdk.events.base import TargetType
 from canvas_sdk.handlers.action_button import ActionButton
-from canvas_sdk.v1.data.note import Note, NoteStateChangeEvent, NoteStates
+from canvas_sdk.test_utils import factories
+from canvas_sdk.v1.data.note import Note
 from canvas_sdk.v1.data.patient import Patient
 
 from hyperscribe.handlers.launcher import Launcher
+from hyperscribe.libraries.helper import Helper
 from tests.helper import is_constant
-
-from canvas_sdk.test_utils import factories
 
 
 def test_class():
@@ -82,10 +82,10 @@ def test_handle(launch_modal_effect, authenticator, note_db):
     reset_mocks()
 
 
-@patch.object(NoteStateChangeEvent, "objects")
-def test_visible(last_note_state_event_db):
+@patch.object(Helper, "editable_note")
+def test_visible(editable_note):
     def reset_mocks():
-        last_note_state_event_db.reset_mock()
+        editable_note.reset_mock()
 
     patients = {
         "trial": factories.PatientFactory(first_name="HyperscribeTrial", last_name="ZZTestTrial"),
@@ -114,9 +114,7 @@ def test_visible(last_note_state_event_db):
     ]
     for policy, staff_id, tuning, patient_id, expected in tests:
         for editable in [True, False]:
-            last_note_state_event_db.filter.return_value.order_by.return_value.last.return_value.state = (
-                NoteStates.NEW if editable else NoteStates.LOCKED
-            )
+            editable_note.side_effect = [editable]
             event = Event(
                 EventRequest(
                     context=json.dumps({"note_id": 778, "user": {"id": staff_id}}),
@@ -151,11 +149,6 @@ def test_visible(last_note_state_event_db):
 
             calls = []
             if tuning == "no":  # Only check note state when not tuning
-                calls = [
-                    call.filter(note_id=778),
-                    call.filter().order_by("created"),
-                    call.filter().order_by().last(),
-                    call.filter().order_by().last().__bool__(),
-                ]
-            assert last_note_state_event_db.mock_calls == calls
+                calls = [call(778)]
+            assert editable_note.mock_calls == calls
             reset_mocks()

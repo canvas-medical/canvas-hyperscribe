@@ -4,6 +4,8 @@ from re import match
 from typing import Type, Any
 
 from canvas_sdk.utils.db import thread_cleanup
+from canvas_sdk.v1.data.note import NoteStateChangeEvent, NoteStates
+
 from hyperscribe.libraries.constants import Constants
 from hyperscribe.libraries.memory_log import MemoryLog
 from hyperscribe.llms.llm_anthropic import LlmAnthropic
@@ -99,3 +101,19 @@ class Helper:
         if canvas_instance == "local":
             result = "ws://localhost:8000"
         return result
+
+    @classmethod
+    def editable_note(cls, note_id: int) -> bool:
+        current_note_state = NoteStateChangeEvent.objects.filter(note_id=note_id).order_by("created").last()
+        return bool(
+            current_note_state
+            and current_note_state.state
+            in [
+                NoteStates.NEW,
+                NoteStates.PUSHED,
+                NoteStates.UNLOCKED,
+                NoteStates.RESTORED,
+                NoteStates.UNDELETED,
+                NoteStates.CONVERTED,
+            ]
+        )

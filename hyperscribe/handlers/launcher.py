@@ -2,11 +2,12 @@ from canvas_sdk.effects import Effect
 from canvas_sdk.effects.launch_modal import LaunchModalEffect
 from canvas_sdk.events import EventType
 from canvas_sdk.handlers.action_button import ActionButton
-from canvas_sdk.v1.data.note import Note, NoteStateChangeEvent, NoteStates
+from canvas_sdk.v1.data.note import Note
 from canvas_sdk.v1.data.patient import Patient
 
 from hyperscribe.libraries.authenticator import Authenticator
 from hyperscribe.libraries.constants import Constants
+from hyperscribe.libraries.helper import Helper
 from hyperscribe.structures.settings import Settings
 
 
@@ -45,18 +46,7 @@ class Launcher(ActionButton):
 
         # DO NOT USE "CurrentStateChangeEvent" model. The view is too expensive.
         # It performs a max on id grouped by note for all notes, regardless of the note filter.
-        current_note_state = (
-            NoteStateChangeEvent.objects.filter(note_id=self.event.context["note_id"]).order_by("created").last()
-        )
-        note_is_editable = current_note_state and current_note_state.state in [
-            NoteStates.NEW,
-            NoteStates.PUSHED,
-            NoteStates.UNLOCKED,
-            NoteStates.RESTORED,
-            NoteStates.UNDELETED,
-            NoteStates.CONVERTED,
-        ]
-        if not note_is_editable:
+        if not Helper.editable_note(self.event.context["note_id"]):
             return False
 
         staff_id = self.context.get("user", {}).get("id", "")

@@ -5,9 +5,10 @@ from canvas_sdk.effects import Effect
 from canvas_sdk.effects.launch_modal import LaunchModalEffect
 from canvas_sdk.events import EventType
 from canvas_sdk.handlers.action_button import ActionButton
-from canvas_sdk.v1.data.note import Note, NoteStateChangeEvent, NoteStates
+from canvas_sdk.v1.data.note import Note
 
 from hyperscribe.libraries.constants import Constants
+from hyperscribe.libraries.helper import Helper
 from hyperscribe.structures.settings import Settings
 
 
@@ -39,15 +40,5 @@ class TuningLauncher(ActionButton):
         staff_id = self.context.get("user", {}).get("id", "")
         result = False
         if settings.is_tuning and settings.staffers_policy.is_allowed(staff_id):
-            current_note_state = (
-                NoteStateChangeEvent.objects.filter(note_id=self.event.context["note_id"]).order_by("created").last()
-            )
-            result = current_note_state and current_note_state.state in [
-                NoteStates.NEW,
-                NoteStates.PUSHED,
-                NoteStates.UNLOCKED,
-                NoteStates.RESTORED,
-                NoteStates.UNDELETED,
-                NoteStates.CONVERTED,
-            ]
+            result = Helper.editable_note(self.event.context["note_id"])
         return result

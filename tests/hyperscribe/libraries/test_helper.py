@@ -3,6 +3,7 @@ from enum import Enum
 from unittest.mock import patch, call, MagicMock
 
 import pytest
+from canvas_sdk.v1.data.note import NoteStateChangeEvent, NoteStates
 
 from hyperscribe.libraries.helper import Helper
 from hyperscribe.llms.llm_anthropic import LlmAnthropic
@@ -210,3 +211,43 @@ def test_canvas_ws_host():
         tested = Helper
         result = tested.canvas_ws_host(canvas_instance)
         assert result == expected
+
+
+@patch.object(NoteStateChangeEvent, "objects")
+def test_editable_note(note_state_change_event_db):
+    def reset_mocks():
+        note_state_change_event_db.reset_mock()
+
+    tested = Helper
+
+    tests = [
+        (NoteStateChangeEvent(state=NoteStates.NEW), True),
+        (NoteStateChangeEvent(state=NoteStates.PUSHED), True),
+        (NoteStateChangeEvent(state=NoteStates.UNLOCKED), True),
+        (NoteStateChangeEvent(state=NoteStates.RESTORED), True),
+        (NoteStateChangeEvent(state=NoteStates.UNDELETED), True),
+        (NoteStateChangeEvent(state=NoteStates.CONVERTED), True),
+        (NoteStateChangeEvent(state=NoteStates.LOCKED), False),
+        (NoteStateChangeEvent(state=NoteStates.DELETED), False),
+        (NoteStateChangeEvent(state=NoteStates.RELOCKED), False),
+        (NoteStateChangeEvent(state=NoteStates.RECALLED), False),
+        (NoteStateChangeEvent(state=NoteStates.DISCHARGED), False),
+        (NoteStateChangeEvent(state=NoteStates.SCHEDULING), False),
+        (NoteStateChangeEvent(state=NoteStates.BOOKED), False),
+        (NoteStateChangeEvent(state=NoteStates.CANCELLED), False),
+        (NoteStateChangeEvent(state=NoteStates.NOSHOW), False),
+        (NoteStateChangeEvent(state=NoteStates.REVERTED), False),
+        (NoteStateChangeEvent(state=NoteStates.CONFIRM_IMPORT), False),
+        (None, False),
+    ]
+    for current_note, expected in tests:
+        note_state_change_event_db.filter.return_value.order_by.return_value.last.side_effect = [current_note]
+        result = tested.editable_note(778)
+        assert result is expected
+        calls = [
+            call.filter(note_id=778),
+            call.filter().order_by("created"),
+            call.filter().order_by().last(),
+        ]
+        assert note_state_change_event_db.mock_calls == calls
+        reset_mocks()
