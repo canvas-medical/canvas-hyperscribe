@@ -3,8 +3,8 @@ from datetime import timezone, datetime
 from http import HTTPStatus
 from types import SimpleNamespace
 from unittest.mock import patch, call
-import pytest
 
+import pytest
 from canvas_generated.messages.effects_pb2 import Effect
 from canvas_sdk.effects.simple_api import Response, HTMLResponse
 from canvas_sdk.handlers.simple_api import SimpleAPI, Credentials
@@ -117,6 +117,44 @@ def test_trigger_render(authenticator, helper, requests_post):
     reset_mocks()
 
 
+@patch("hyperscribe.handlers.capture_view.Progress")
+def test_session_progress_log(progress):
+    def reset_mocks():
+        progress.reset_mock()
+
+    identification = IdentificationParameters(
+        patient_uuid="thePatientId",
+        note_uuid="theNoteId",
+        provider_uuid="",
+        canvas_instance="customerIdentifier",
+    )
+    settings = Settings(
+        api_signing_key="signingKey",
+        llm_text=VendorKey(vendor="theVendorTextLLM", api_key="theKeyTextLLM"),
+        llm_audio=VendorKey(vendor="theVendorAudioLLM", api_key="theKeyAudioLLM"),
+        structured_rfv=True,
+        audit_llm=True,
+        max_workers=5,
+        is_tuning=False,
+        send_progress=True,
+        commands_policy=AccessPolicy(policy=False, items=[]),
+        staffers_policy=AccessPolicy(policy=False, items=[]),
+        trial_staffers_policy=AccessPolicy(policy=True, items=[]),
+        cycle_transcript_overlap=37,
+    )
+    tested = helper_instance()
+    tested.session_progress_log("thePatientId", "theNoteId", "theProgress")
+    calls = [
+        call.send_to_user(
+            identification,
+            settings,
+            [ProgressMessage(message="theProgress", section="events:7")],
+        )
+    ]
+    assert progress.mock_calls == calls
+    reset_mocks()
+
+
 @patch("hyperscribe.handlers.capture_view.Helper")
 @patch("hyperscribe.handlers.capture_view.StopAndGo")
 @patch("hyperscribe.handlers.capture_view.render_to_string")
@@ -195,8 +233,10 @@ def test_capture_get(authenticator, render_to_string, stop_and_go, helper):
 
 
 @patch("hyperscribe.handlers.capture_view.AudioClient")
-def test_new_session_post(audio_client):
+@patch.object(CaptureView, "session_progress_log")
+def test_new_session_post(session_progress_log, audio_client):
     def reset_mocks():
+        session_progress_log.reset_mock()
         audio_client.reset_mock()
 
     audio_client.for_operation.return_value.get_user_token.side_effect = ["theUserToken"]
@@ -211,6 +251,8 @@ def test_new_session_post(audio_client):
     result = tested.new_session_post()
     assert result == []
 
+    calls = [call("p", "n", "started")]
+    assert session_progress_log.mock_calls == calls
     calls = [
         call.for_operation("https://audio", "customerIdentifier", "shared"),
         call.for_operation().get_user_token("u"),
@@ -222,8 +264,10 @@ def test_new_session_post(audio_client):
 
 
 @patch("hyperscribe.handlers.capture_view.StopAndGo")
-def test_idle_session_post(stop_and_go):
+@patch.object(CaptureView, "session_progress_log")
+def test_idle_session_post(session_progress_log, stop_and_go):
     def reset_mocks():
+        session_progress_log.reset_mock()
         stop_and_go.reset_mock()
 
     tested = helper_instance()
@@ -233,6 +277,7 @@ def test_idle_session_post(stop_and_go):
             "end",
             False,
             False,
+            [call("p", "n", "stopped")],
             [
                 call.get("n"),
                 call.get().is_ended(),
@@ -244,6 +289,7 @@ def test_idle_session_post(stop_and_go):
             "end",
             True,
             False,
+            [],
             [
                 call.get("n"),
                 call.get().is_ended(),
@@ -255,6 +301,7 @@ def test_idle_session_post(stop_and_go):
             "pause",
             False,
             True,
+            [],
             [
                 call.get("n"),
                 call.get().is_ended(),
@@ -266,6 +313,7 @@ def test_idle_session_post(stop_and_go):
             "pause",
             False,
             False,
+            [call("p", "n", "paused")],
             [
                 call.get("n"),
                 call.get().is_ended(),
@@ -279,6 +327,7 @@ def test_idle_session_post(stop_and_go):
             "resume",
             False,
             True,
+            [call("p", "n", "resumed")],
             [
                 call.get("n"),
                 call.get().is_ended(),
@@ -291,6 +340,7 @@ def test_idle_session_post(stop_and_go):
             "resume",
             False,
             False,
+            [],
             [
                 call.get("n"),
                 call.get().is_ended(),
@@ -299,7 +349,7 @@ def test_idle_session_post(stop_and_go):
             ],
         ),
     ]
-    for action, is_ended, is_paused, exp_calls in tests:
+    for action, is_ended, is_paused, exp_progress_calls, exp_stop_and_go_calls in tests:
         stop_and_go.get.return_value.is_ended.side_effect = [is_ended]
         stop_and_go.get.return_value.is_paused.side_effect = [is_paused, is_paused]
 
@@ -310,7 +360,8 @@ def test_idle_session_post(stop_and_go):
         result = tested.idle_session_post()
         assert result == []
 
-        assert stop_and_go.mock_calls == exp_calls
+        assert session_progress_log.mock_calls == exp_progress_calls
+        assert stop_and_go.mock_calls == exp_stop_and_go_calls
         reset_mocks()
 
 
@@ -434,14 +485,16 @@ def test_audio_chunk_post(executor, helper, audio_client, stop_and_go):
     reset_mocks()
 
 
+@patch.object(Note, "objects")
 @patch("hyperscribe.handlers.capture_view.Helper")
 @patch("hyperscribe.handlers.capture_view.executor")
 @patch("hyperscribe.handlers.capture_view.StopAndGo")
-def test_render_effect_post(stop_and_go, executor, helper):
+def test_render_effect_post(stop_and_go, executor, helper, note_db):
     def reset_mocks():
         stop_and_go.reset_mock()
         executor.reset_mock()
         helper.reset_mock()
+        note_db.reset_mock()
 
     tested = helper_instance()
 
@@ -451,6 +504,12 @@ def test_render_effect_post(stop_and_go, executor, helper):
         Effect(type="LOG", payload="Log3"),
     ]
     date_0 = datetime(2025, 8, 7, 18, 11, 21, 123456, tzinfo=timezone.utc)
+    identification = IdentificationParameters(
+        patient_uuid="patientId",
+        note_uuid="noteId",
+        provider_uuid="theProviderId",
+        canvas_instance="customerIdentifier",
+    )
 
     tests = [
         (
@@ -469,6 +528,7 @@ def test_render_effect_post(stop_and_go, executor, helper):
             ],
             [call.submit(helper.with_cleanup.return_value, "patientId", "noteId")],
             [call.with_cleanup(tested.trigger_render)],
+            [],
         ),
         (
             [],
@@ -482,6 +542,7 @@ def test_render_effect_post(stop_and_go, executor, helper):
                 call.get().paused_effects(),
                 call.get().is_running(),
             ],
+            [],
             [],
             [],
         ),
@@ -500,8 +561,9 @@ def test_render_effect_post(stop_and_go, executor, helper):
                 call.get().consume_next_waiting_cycles(True),
                 call.get().cycle(),
             ],
-            [call.submit(helper.with_cleanup.return_value, "patientId", "noteId", 7)],
+            [call.submit(helper.with_cleanup.return_value, identification, 7)],
             [call.with_cleanup(tested.run_commander)],
+            [call.get(id="noteId")],
         ),
         (
             [],
@@ -520,8 +582,9 @@ def test_render_effect_post(stop_and_go, executor, helper):
                 call.get().created(),
                 call.get().cycle(),
             ],
-            [call.submit(helper.with_cleanup.return_value, "patientId", "noteId", date_0, 7)],
+            [call.submit(helper.with_cleanup.return_value, identification, date_0, 7)],
             [call.with_cleanup(tested.run_reviewer)],
+            [call.get(id="noteId")],
         ),
         (
             [],
@@ -540,6 +603,7 @@ def test_render_effect_post(stop_and_go, executor, helper):
             ],
             [],
             [],
+            [call.get(id="noteId")],
         ),
     ]
 
@@ -551,10 +615,13 @@ def test_render_effect_post(stop_and_go, executor, helper):
             cycle,
             is_ended,
             expected,
-            exp_calls,
+            exp_stop_and_go,
             exp_executor,
             exp_helper,
+            exp_note_db,
         ) = test
+
+        note_db.get.return_value.provider.id = "theProviderId"
 
         stop_and_go.get.return_value.paused_effects.side_effect = [paused_effects]
         stop_and_go.get.return_value.is_running.side_effect = [is_running]
@@ -571,9 +638,10 @@ def test_render_effect_post(stop_and_go, executor, helper):
         result = tested.render_effect_post()
         assert result == expected
 
-        assert stop_and_go.mock_calls == exp_calls, f"---> {idx}"
+        assert stop_and_go.mock_calls == exp_stop_and_go, f"---> {idx}"
         assert executor.mock_calls == exp_executor, f"---> {idx}"
         assert helper.mock_calls == exp_helper, f"---> {idx}"
+        assert note_db.mock_calls == exp_note_db, f"---> {idx}"
         reset_mocks()
 
 
@@ -712,18 +780,16 @@ def test_feedback_post(aws_s3, requests_post, mock_datetime):
 
 
 @patch.object(Command, "objects")
-@patch.object(Note, "objects")
 @patch("hyperscribe.handlers.capture_view.Progress")
 @patch("hyperscribe.handlers.capture_view.LlmDecisionsReviewer")
 @patch("hyperscribe.handlers.capture_view.ImplementedCommands")
 @patch("hyperscribe.handlers.capture_view.log")
-def test_run_reviewer(log, implemented_commands, llm_decision_reviewer, progress, note_db, command_db):
+def test_run_reviewer(log, implemented_commands, llm_decision_reviewer, progress, command_db):
     def reset_mocks():
         log.reset_mock()
         implemented_commands.reset_mock()
         llm_decision_reviewer.reset_mock()
         progress.reset_mock()
-        note_db.reset_mock()
         command_db.reset_mock()
 
     date_0 = datetime(2025, 8, 7, 18, 11, 21, 123456, tzinfo=timezone.utc)
@@ -749,12 +815,10 @@ def test_run_reviewer(log, implemented_commands, llm_decision_reviewer, progress
     )
     credentials = AwsS3Credentials(aws_key="theKey", aws_secret="theSecret", region="theRegion", bucket="theBucketLogs")
 
-    note_db.get.return_value.provider.id = "theProviderId"
-
     tested = helper_instance()
     # no LLM audit
     tested.secrets["AuditLLMDecisions"] = "n"
-    tested.run_reviewer("patientId", "noteId", date_0, 7)
+    tested.run_reviewer(identification, date_0, 7)
 
     assert log.mock_calls == []
     assert implemented_commands.mock_calls == []
@@ -764,8 +828,6 @@ def test_run_reviewer(log, implemented_commands, llm_decision_reviewer, progress
         call.send_to_user(identification, settings, [ProgressMessage(message="EOF", section="events:7")]),
     ]
     assert progress.mock_calls == calls
-    calls = [call.get(id="noteId")]
-    assert note_db.mock_calls == calls
     assert command_db.mock_calls == []
     reset_mocks()
 
@@ -790,7 +852,7 @@ def test_run_reviewer(log, implemented_commands, llm_decision_reviewer, progress
         ],
     ]
 
-    tested.run_reviewer("patientId", "noteId", date_0, 7)
+    tested.run_reviewer(identification, date_0, 7)
 
     calls = [
         call.info("  => final audit started...noteId / 7 cycles"),
@@ -821,8 +883,6 @@ def test_run_reviewer(log, implemented_commands, llm_decision_reviewer, progress
         call.send_to_user(identification, settings, [ProgressMessage(message="EOF", section="events:7")]),
     ]
     assert progress.mock_calls == calls
-    calls = [call.get(id="noteId")]
-    assert note_db.mock_calls == calls
     calls = [
         call.filter(patient__id="patientId", note__id="noteId", state="staged"),
         call.filter().order_by("dbid"),
@@ -831,7 +891,6 @@ def test_run_reviewer(log, implemented_commands, llm_decision_reviewer, progress
     reset_mocks()
 
 
-@patch.object(Note, "objects")
 @patch("hyperscribe.handlers.capture_view.LlmTurnsStore")
 @patch("hyperscribe.handlers.capture_view.Commander")
 @patch("hyperscribe.handlers.capture_view.Progress")
@@ -847,7 +906,6 @@ def test_run_commander(
     progress,
     commander,
     llm_turns_store,
-    note_db,
     monkeypatch,
 ):
     monkeypatch.setattr("hyperscribe.handlers.capture_view.version", "theVersion")
@@ -860,7 +918,6 @@ def test_run_commander(
         progress.reset_mock()
         commander.reset_mock()
         llm_turns_store.reset_mock()
-        note_db.reset_mock()
 
     identification = IdentificationParameters(
         patient_uuid="patientId",
@@ -905,13 +962,12 @@ def test_run_commander(
         (True, True, [], None, None),
     ]
     for is_ended, is_paused, waiting_cycles, exp_log_msg, exp_progress_msg in tests:
-        note_db.get.return_value.provider.id = "theProviderId"
         commander.compute_audio.side_effect = [(False, effects)]
         stop_and_go.get.return_value.is_ended.side_effect = [is_ended]
         stop_and_go.get.return_value.is_paused.side_effect = [is_paused]
         stop_and_go.get.return_value.waiting_cycles.side_effect = [waiting_cycles]
 
-        tested.run_commander("patientId", "noteId", 7)
+        tested.run_commander(identification, 7)
 
         calls = [call("patientId", "noteId")]
         assert trigger_render.mock_calls == calls
@@ -955,15 +1011,12 @@ def test_run_commander(
         assert commander.mock_calls == calls
         calls = [call.end_session("noteId")]
         assert llm_turns_store.mock_calls == calls
-        calls = [call.get(id="noteId")]
-        assert note_db.mock_calls == calls
         reset_mocks()
 
     # error in Commander.compute_audio
-    note_db.get.return_value.provider.id = "theProviderId"
     commander.compute_audio.side_effect = [Exception("Test error")]
 
-    tested.run_commander("patientId", "noteId", 7)
+    tested.run_commander(identification, 7)
 
     calls = [call("patientId", "noteId")]
     assert trigger_render.mock_calls == calls
@@ -992,6 +1045,4 @@ def test_run_commander(
     calls = [call.compute_audio(identification, settings, credentials, audio_client, 7)]
     assert commander.mock_calls == calls
     assert llm_turns_store.mock_calls == []
-    calls = [call.get(id="noteId")]
-    assert note_db.mock_calls == calls
     reset_mocks()

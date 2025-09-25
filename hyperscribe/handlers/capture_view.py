@@ -58,6 +58,17 @@ class CaptureView(SimpleAPI):
             timeout=None,
         )
 
+    def session_progress_log(self, patient_id: str, note_id: str, progress: str) -> None:
+        identification = IdentificationParameters(
+            patient_uuid=patient_id,
+            note_uuid=note_id,
+            provider_uuid="",
+            canvas_instance=self.environment[Constants.CUSTOMER_IDENTIFIER],
+        )
+        settings = Settings.from_dictionary(self.secrets | {Constants.PROGRESS_SETTING_KEY: True})
+        messages = [ProgressMessage(message=progress, section=Constants.PROGRESS_SECTION_EVENTS)]
+        Progress.send_to_user(identification, settings, messages)
+
     @api.get("/capture/<patient_id>/<note_id>/<note_reference>")
     def capture_get(self) -> list[Response | Effect]:
         patient_id = self.request.path_params["patient_id"]
@@ -149,20 +160,26 @@ class CaptureView(SimpleAPI):
             },
         )
         audio_client.add_session(patient_id, note_id, session_id, logged_in_user_id, user_token)
+
+        self.session_progress_log(patient_id, note_id, "started")
         return []
 
     @api.post("/capture/idle/<patient_id>/<note_id>/<action>")
     def idle_session_post(self) -> list[Response | Effect]:
+        patient_id = self.request.path_params["patient_id"]
         note_id = self.request.path_params["note_id"]
         action = self.request.path_params["action"]
 
         stop_and_go = StopAndGo.get(note_id)
         if not stop_and_go.is_ended() and action == Constants.AUDIO_IDLE_END:
             stop_and_go.set_ended(True).save()
+            self.session_progress_log(patient_id, note_id, "stopped")
         elif stop_and_go.is_paused() and action == Constants.AUDIO_IDLE_RESUME:
             stop_and_go.set_paused(False).save()
+            self.session_progress_log(patient_id, note_id, "resumed")
         elif not stop_and_go.is_paused() and action == Constants.AUDIO_IDLE_PAUSE:
             stop_and_go.set_paused(True).save()
+            self.session_progress_log(patient_id, note_id, "paused")
         return []
 
     @api.post("/audio/<patient_id>/<note_id>")
@@ -213,18 +230,22 @@ class CaptureView(SimpleAPI):
             executor.submit(Helper.with_cleanup(self.trigger_render), patient_id, note_id)  # <-- loop!
         elif not stop_and_go.is_running():
             stop_and_go.consume_delay()
+            identification = IdentificationParameters(
+                patient_uuid=patient_id,
+                note_uuid=note_id,
+                provider_uuid=str(Note.objects.get(id=note_id).provider.id),
+                canvas_instance=self.environment[Constants.CUSTOMER_IDENTIFIER],
+            )
             if stop_and_go.consume_next_waiting_cycles(True):
                 executor.submit(
                     Helper.with_cleanup(self.run_commander),
-                    patient_id,
-                    note_id,
+                    identification,
                     stop_and_go.cycle(),
                 )
             elif stop_and_go.is_ended():
                 executor.submit(
                     Helper.with_cleanup(self.run_reviewer),
-                    patient_id,
-                    note_id,
+                    identification,
                     stop_and_go.created(),
                     stop_and_go.cycle(),
                 )
@@ -273,13 +294,7 @@ class CaptureView(SimpleAPI):
 
         return [Response(b"Feedback saved OK", HTTPStatus.CREATED)]
 
-    def run_reviewer(self, patient_id: str, note_id: str, created: datetime, cycles: int) -> None:
-        identification = IdentificationParameters(
-            patient_uuid=patient_id,
-            note_uuid=note_id,
-            provider_uuid=str(Note.objects.get(id=note_id).provider.id),
-            canvas_instance=self.environment[Constants.CUSTOMER_IDENTIFIER],
-        )
+    def run_reviewer(self, identification: IdentificationParameters, created: datetime, cycles: int) -> None:
         settings = Settings.from_dictionary(self.secrets | {Constants.PROGRESS_SETTING_KEY: True})
         # end of the session
         messages = [
@@ -291,21 +306,21 @@ class CaptureView(SimpleAPI):
         Progress.send_to_user(identification, settings, messages)
 
         if settings.audit_llm:
-            log.info(f"  => final audit started...{note_id} / {cycles} cycles")
+            log.info(f"  => final audit started...{identification.note_uuid} / {cycles} cycles")
             credentials = AwsS3Credentials.from_dictionary(self.secrets)
             mapping = ImplementedCommands.schema_key2instruction()
             command2uuid = {
                 LlmTurnsStore.indexed_instruction(mapping[command.schema_key], index): str(command.id)
                 for index, command in enumerate(
                     Command.objects.filter(
-                        patient__id=patient_id,
-                        note__id=note_id,
+                        patient__id=identification.patient_uuid,
+                        note__id=identification.note_uuid,
                         state="staged",  # <--- TODO use an Enum when provided
                     ).order_by("dbid"),
                 )
             }
             LlmDecisionsReviewer.review(identification, settings, credentials, command2uuid, created, cycles)
-            log.info(f"  => final audit done ({note_id} / {cycles} cycles)")
+            log.info(f"  => final audit done ({identification.note_uuid} / {cycles} cycles)")
         # end the flow
         messages = [
             ProgressMessage(
@@ -315,16 +330,10 @@ class CaptureView(SimpleAPI):
         ]
         Progress.send_to_user(identification, settings, messages)
 
-    def run_commander(self, patient_id: str, note_id: str, chunk_index: int) -> None:
+    def run_commander(self, identification: IdentificationParameters, chunk_index: int) -> None:
         # add the running flag
-        StopAndGo.get(note_id).set_cycle(chunk_index).set_running(True).save()
+        StopAndGo.get(identification.note_uuid).set_cycle(chunk_index).set_running(True).save()
         try:
-            identification = IdentificationParameters(
-                patient_uuid=patient_id,
-                note_uuid=note_id,
-                provider_uuid=str(Note.objects.get(id=note_id).provider.id),
-                canvas_instance=self.environment[Constants.CUSTOMER_IDENTIFIER],
-            )
             settings = Settings.from_dictionary(self.secrets | {Constants.PROGRESS_SETTING_KEY: True})
             aws_s3 = AwsS3Credentials.from_dictionary(self.secrets)
             audio_client = AudioClient.for_operation(
@@ -343,7 +352,7 @@ class CaptureView(SimpleAPI):
             had_audio, effects = Commander.compute_audio(identification, settings, aws_s3, audio_client, chunk_index)
 
             # store the effects
-            stop_and_go = StopAndGo.get(note_id)
+            stop_and_go = StopAndGo.get(identification.note_uuid)
             stop_and_go.add_paused_effects(effects).save()
             # messages
             if stop_and_go.waiting_cycles() or not stop_and_go.is_ended():
@@ -356,13 +365,13 @@ class CaptureView(SimpleAPI):
                 ]
                 Progress.send_to_user(identification, settings, messages)
             # clean up and messages
-            MemoryLog.end_session(note_id)
-            LlmTurnsStore.end_session(note_id)
+            MemoryLog.end_session(identification.note_uuid)
+            LlmTurnsStore.end_session(identification.note_uuid)
         except Exception as e:
             log.info("************************")
             log.info(f"Error while running commander: {e}")
             log.info("************************")
         finally:
             # remove the running flag
-            StopAndGo.get(note_id).set_running(False).save()
-            self.trigger_render(patient_id, note_id)
+            StopAndGo.get(identification.note_uuid).set_running(False).save()
+            self.trigger_render(identification.patient_uuid, identification.note_uuid)

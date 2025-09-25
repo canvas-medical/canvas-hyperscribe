@@ -596,13 +596,18 @@
             
             addToActivity(message, elapsedTime, section) {
                 const tbody = document.getElementById('activity-table-body');
-                
+
+                // Remove "waiting..." row if it exists
+                if (tbody.innerHTML.includes('waiting...')) {
+                    tbody.innerHTML = '';
+                }
+
                 // Determine icon based on section
                 const mask = parseInt(section.split(':')[1] || '0');
                 const technicalValue = 4;  // events:4
                 const isTechnical = (mask & technicalValue) !== 0;
-                
-                let iconName = '';
+
+                let iconName = 'radio_button_checked';
                 // Only show icon if message is NOT also displayed in Logs
                 if (!isTechnical) {
                     if ((mask & 1) !== 0) {  // events:1
@@ -611,7 +616,7 @@
                         iconName = 'label';  // Material icon for "Label"
                     }
                 }
-                
+
                 const row = ui.createTableRowWithIcon(iconName, message, elapsedTime);
                 row.dataset.section = section;
                 tbody.insertBefore(row, tbody.firstChild);
@@ -619,6 +624,12 @@
             
             addToLogs(message, elapsedTime, section) {
                 const tbody = document.getElementById('logs-table-body');
+
+                // Remove "waiting..." row if it exists
+                if (tbody.innerHTML.includes('waiting...')) {
+                    tbody.innerHTML = '';
+                }
+
                 const row = ui.createTableRow([message, elapsedTime]);
                 row.dataset.section = section;
                 tbody.insertBefore(row, tbody.firstChild);
@@ -782,13 +793,13 @@
                 // Pause recording
                 appState.recording.paused = true;
                 ui.setButtonState('paused');
-                
+
                 // Stop the MediaRecorder using AudioRecorder
                 if (appState.recording.recorder) {
                     audioRecorder.stop();
                     console.log("Recording paused");
                 }
-                
+
                 // Fetch pause session URL
                 fetch('{{pauseSessionURL | safe}}', {method: "POST"})
                 .then(response => response.text())
@@ -842,7 +853,7 @@
                 appState.recording.active = true;
                 appState.recording.paused = false;
                 ui.setButtonState('active');
-                
+
                 resetTable();
                 resetTranscriptTable();
                 startProgressAndRenderFetches();
@@ -872,11 +883,11 @@
                 appState.recording.paused = false;
                 appState.recording.ended = true;
                 ui.setButtonState('ended');
-                
+
                 if (audioRecorder) {
                     audioRecorder.stop();
                 }
-                
+
                 // Fetch end session URL
                 fetch('{{endSessionURL | safe}}', {method: "POST"})
                 .then(response => response.text())
@@ -887,7 +898,7 @@
 
         function resetTranscriptTable() {
             const tbody = document.getElementById('transcript-table-body');
-            tbody.innerHTML = '<tr><td>Waiting...</td></tr>';
+            tbody.innerHTML = '<tr><td>waiting...</td></tr>';
             const legend = document.getElementById('transcript-legend');
             legend.style.display = 'none';
             document.getElementById('legend-content').innerHTML = '';
@@ -966,8 +977,8 @@
         }
 
         function resetTable() {
-            document.getElementById('activity-table-body').innerHTML = '<tr><td colspan="3">Waiting...</td></tr>';
-            document.getElementById('logs-table-body').innerHTML = '<tr><td colspan="2">Waiting...</td></tr>';
+            document.getElementById('activity-table-body').innerHTML = '<tr><td colspan="3">waiting...</td></tr>';
+            document.getElementById('logs-table-body').innerHTML = '<tr><td colspan="2">waiting...</td></tr>';
         }
 
         function getCookie(name) {
@@ -1316,6 +1327,11 @@
 
             appState.transcript.processingTurns = true;
             const transcriptTbody = document.getElementById('transcript-table-body');
+
+            // Remove "waiting..." row if it exists
+            if (transcriptTbody.innerHTML.includes('waiting...')) {
+                transcriptTbody.innerHTML = '';
+            }
 
             // Get the first turn from the queue
             const turn = appState.transcript.pendingTurns.shift();
