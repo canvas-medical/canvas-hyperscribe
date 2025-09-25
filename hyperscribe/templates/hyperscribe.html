@@ -518,16 +518,17 @@
                 this.patientId = patientId;
                 this.noteId = noteId;
                 this.interval = interval;
+                this.stream = null;
             }
 
             async setup() {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                
+                this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
                 if (!MediaRecorder.isTypeSupported(CONSTANTS.AUDIO.MIME_TYPE)) {
                     throw new Error(`MIME type ${CONSTANTS.AUDIO.MIME_TYPE} is not supported.`);
                 }
 
-                const recorder = new MediaRecorder(stream, { mimeType: CONSTANTS.AUDIO.MIME_TYPE });
+                const recorder = new MediaRecorder(this.stream, { mimeType: CONSTANTS.AUDIO.MIME_TYPE });
                 recorder.ondataavailable = this.handleDataAvailable.bind(this);
                 return recorder;
             }
@@ -566,6 +567,12 @@
                         clearInterval(appState.recording.intervalId);
                         appState.recording.intervalId = null;
                     }
+                }
+
+                // Stop all tracks to release microphone access
+                if (this.stream) {
+                    this.stream.getTracks().forEach(track => track.stop());
+                    this.stream = null;
                 }
             }
         }
@@ -809,28 +816,18 @@
                 // Resume recording
                 appState.recording.paused = false;
                 ui.setButtonState('active');
-                
-                // Initialize AudioRecorder if not already done (e.g., after page reload)
-                if (!audioRecorder) {
-                    const recordingInterval = parseInt(document.getElementById("captureButton").dataset.interval);
-                    audioRecorder = new AudioRecorder('{{patientUuid}}', '{{noteUuid}}', recordingInterval);
-                    
-                    try {
-                        appState.recording.recorder = await audioRecorder.setup();
-                    } catch (error) {
-                        console.error("Error setting up recording for resume:", error);
-                        return;
-                    }
-                }
-                
-                // Restart the MediaRecorder
-                if (appState.recording.recorder) {
-                    try {
-                        audioRecorder.start();
-                        console.log("Recording resumed");
-                    } catch (error) {
-                        console.error("Error resuming recording:", error);
-                    }
+
+                // Re-initialize AudioRecorder (needed because MediaStream was stopped during pause)
+                const recordingInterval = parseInt(document.getElementById("captureButton").dataset.interval);
+                audioRecorder = new AudioRecorder('{{patientUuid}}', '{{noteUuid}}', recordingInterval);
+
+                try {
+                    appState.recording.recorder = await audioRecorder.setup();
+                    audioRecorder.start();
+                    console.log("Recording resumed");
+                } catch (error) {
+                    console.error("Error resuming recording:", error);
+                    return;
                 }
                 
                 // Start progress and render fetches if not already running
