@@ -72,7 +72,8 @@ class BuilderDirectFromTuning:
     @classmethod
     def run(cls) -> None:
         parameters = cls.parameters()
-        s3_credentials = HelperEvaluation.aws_s3_credentials()
+        s3_logs_credentials = HelperEvaluation.aws_s3_credentials()
+        s3_tuning_credentials = HelperEvaluation.aws_s3_credentials_tuning()
         settings = HelperEvaluation.settings()
         identification = IdentificationParameters(
             patient_uuid=parameters.patient,
@@ -87,7 +88,8 @@ class BuilderDirectFromTuning:
                 output_dir = Path(temp_dir)
             instance = cls(
                 settings,
-                s3_credentials,
+                s3_logs_credentials,
+                s3_tuning_credentials,
                 identification,
                 output_dir,
                 parameters.cycle_duration,
@@ -99,7 +101,8 @@ class BuilderDirectFromTuning:
     def __init__(
         self,
         settings: Settings,
-        s3_credentials: AwsS3Credentials,
+        s3_logs_credentials: AwsS3Credentials,
+        s3_tuning_credentials: AwsS3Credentials,
         identification: IdentificationParameters,
         output_dir: Path,
         cycle_duration: int,
@@ -107,7 +110,8 @@ class BuilderDirectFromTuning:
         force_rerun: bool,
     ) -> None:
         self.settings = settings
-        self.s3_credentials = s3_credentials
+        self.s3_logs_credentials = s3_logs_credentials
+        self.s3_tuning_credentials = s3_tuning_credentials
         self.identification = identification
         self.output_dir = output_dir
         self.cycle_duration = cycle_duration
@@ -122,14 +126,14 @@ class BuilderDirectFromTuning:
     ) -> list[Instruction]:
         credentials = HelperEvaluation.postgres_credentials()
 
-        auditor = AuditorPostgres(case_summary.title, 0, self.settings, self.s3_credentials, credentials)
+        auditor = AuditorPostgres(case_summary.title, 0, self.settings, self.s3_logs_credentials, credentials)
         case_id, generated_note_id = GeneratedNote(credentials).last_run_for(case_summary.title)
         if case_id and generated_note_id and self.force_rerun is False:
             auditor._case_id = case_id
             auditor._generated_note_id = generated_note_id
             return auditor.summarized_generated_commands_as_instructions()
 
-        chatter = AudioInterpreter(self.settings, self.s3_credentials, limited_cache, self.identification)
+        chatter = AudioInterpreter(self.settings, self.s3_logs_credentials, limited_cache, self.identification)
         previous = limited_cache.staged_commands_as_instructions(ImplementedCommands.schema_key2instruction())
         discussion = CachedSdk.get_discussion(chatter.identification.note_uuid)
 
@@ -188,7 +192,7 @@ class BuilderDirectFromTuning:
         return result
 
     def collated_webm_to_mp3(self) -> Path:
-        client_s3 = AwsS3(self.s3_credentials)
+        client_s3 = AwsS3(self.s3_tuning_credentials)
 
         s3_folder = (
             f"hyperscribe-{self.identification.canvas_instance}/"
@@ -277,7 +281,7 @@ class BuilderDirectFromTuning:
 
         result: list[Path] = []
         substitutions = transcript_files[0].parent / "anonymized_substitutions.json"
-        memory_log = MemoryLog.instance(self.identification, "anonymize_transcript", self.s3_credentials)
+        memory_log = MemoryLog.instance(self.identification, "anonymize_transcript", self.s3_logs_credentials)
 
         used_anonymizations: dict[str, AnonymizationSubstitution] = {}
         if substitutions.exists():
@@ -309,7 +313,7 @@ class BuilderDirectFromTuning:
         if not (substitutions and cache.existing_staff_members()):
             return cache
 
-        memory_log = MemoryLog.instance(self.identification, "anonymize_limited_cache", self.s3_credentials)
+        memory_log = MemoryLog.instance(self.identification, "anonymize_limited_cache", self.s3_logs_credentials)
         chatter = Helper.chatter(self.settings, memory_log)
         chatter.set_system_prompt(
             [
@@ -518,6 +522,7 @@ class BuilderDirectFromTuning:
                 json.dumps(schema_errors, indent=1),
                 "```",
                 "",
+                "Report only errors with the full context; do not comment if there is no error.",
             ],
         )
         chatter.set_user_prompt(
@@ -533,11 +538,15 @@ class BuilderDirectFromTuning:
                 "```",
                 "",
                 "Follow rigorously the instructions and report any broken rules using the mentioned JSON Schema.",
-                "If there is no issues, just send back an empty list in the JSON Markdown block.",
+                "If there is no error, just send back an empty list in the JSON Markdown block.",
             ],
         )
         response = chatter.chat([schema_errors])
-        return AnonymizationError(has_errors=bool(len(response.content[0]) > 0), errors=response.content[0])
+        errors: list[str] = []
+        for reported in response.content[0]:
+            if reported["error"]:
+                errors.append(reported["explanation"])
+        return AnonymizationError(has_errors=bool(len(errors) > 0), errors=errors)
 
     @classmethod
     def schema_anonymization(cls) -> dict:
@@ -603,12 +612,16 @@ class BuilderDirectFromTuning:
             "type": "array",
             "items": {
                 "type": "object",
-                "required": ["errorExplanation"],
+                "required": ["explanation", "error"],
                 "properties": {
-                    "errorExplanation": {
+                    "explanation": {
                         "type": "string",
                         "description": "full explanation of the deidentification error, "
                         "including the related text source and the broken rules",
+                    },
+                    "error": {
+                        "type": "boolean",
+                        "description": "set to True if this is an error, False otherwise",
                     },
                 },
                 "additionalProperties": False,

@@ -1743,116 +1743,113 @@ def test_to_json(
 
 
 def test_load_from_json():
-    tested = LimitedCache
-    result = tested.load_from_json(
-        {
-            "conditionHistory": [
-                {"code": "code002", "label": "label002", "uuid": "uuid002"},
-                {"code": "code102", "label": "label102", "uuid": "uuid102"},
-            ],
-            "currentAllergies": [
-                {"code": "code003", "label": "label003", "uuid": "uuid003"},
-                {"code": "code103", "label": "label103", "uuid": "uuid103"},
-            ],
-            "currentConditions": [
-                {"code": "code004", "label": "label004", "uuid": "uuid004"},
-                {"code": "code104", "label": "label104", "uuid": "uuid104"},
-            ],
-            "currentGoals": [
-                {"code": "code005", "label": "label005", "uuid": "uuid005"},
-                {"code": "code105", "label": "label105", "uuid": "uuid105"},
-            ],
-            "currentImmunization": [
-                {
-                    "uuid": "uuid321",
-                    "label": "label321",
-                    "codeCpt": "codeCpt321",
-                    "codeCvx": "codeCvx321",
-                    "comments": "theComments321",
-                    "approximateDate": "2025-07-21",
-                },
-                {
-                    "uuid": "uuid323",
-                    "label": "label323",
-                    "codeCpt": "codeCpt323",
-                    "codeCvx": "codeCvx323",
-                    "comments": "theComments323",
-                    "approximateDate": "2025-07-23",
-                },
-            ],
-            "currentMedications": [
-                {"code": "code006", "label": "label006", "uuid": "uuid006"},
-                {"code": "code106", "label": "label106", "uuid": "uuid106"},
-                {
-                    "codeRxNorm": "code076",
-                    "label": "label076",
-                    "uuid": "uuid076",
-                    "codeFdb": "code987",
-                    "nationalDrugCode": "ndc12",
-                    "potencyUnitCode": "puc78",
-                },
-                {
-                    "codeRxNorm": "code176",
-                    "label": "label176",
-                    "uuid": "uuid176",
-                    "codeFdb": "code998",
-                    "nationalDrugCode": "ndc17",
-                    "potencyUnitCode": "puc56",
-                },
-            ],
-            "demographicStr": "theDemographic",
-            "existingNoteTypes": [
-                {"code": "code008", "label": "label008", "uuid": "uuid008"},
-                {"code": "code108", "label": "label108", "uuid": "uuid108"},
-            ],
-            "existingReasonForVisit": [
-                {"code": "code009", "label": "label009", "uuid": "uuid009"},
-                {"code": "code109", "label": "label109", "uuid": "uuid109"},
-            ],
-            "existingRoles": [
-                {"code": "code431", "label": "label431", "uuid": "uuid431"},
-                {"code": "code473", "label": "label473", "uuid": "uuid473"},
-            ],
-            "existingStaffMembers": [
-                {"code": "code037", "label": "label037", "uuid": "uuid037"},
-                {"code": "code137", "label": "label137", "uuid": "uuid137"},
-            ],
-            "existingTeams": [
-                {"code": "code894", "label": "label894", "uuid": "uuid894"},
-                {"code": "code873", "label": "label873", "uuid": "uuid873"},
-            ],
-            "existingTaskLabels": [
-                {"code": "code091", "label": "label091", "uuid": "uuid091"},
-                {"code": "code191", "label": "label191", "uuid": "uuid191"},
-            ],
-            "familyHistory": [
-                {"code": "code010", "label": "label010", "uuid": "uuid010"},
-                {"code": "code110", "label": "label110", "uuid": "uuid110"},
-            ],
-            "stagedCommands": {
-                "keyX": [{"code": "code1", "label": "label1", "uuid": "uuid1"}],
-                "keyY": [],
-                "keyZ": [
-                    {"code": "code3", "label": "label3", "uuid": "uuid3"},
-                    {"code": "code2", "label": "label2", "uuid": "uuid2"},
-                ],
+    cache = {
+        "conditionHistory": [
+            {"code": "code002", "label": "label002", "uuid": "uuid002"},
+            {"code": "code102", "label": "label102", "uuid": "uuid102"},
+        ],
+        "currentAllergies": [
+            {"code": "code003", "label": "label003", "uuid": "uuid003"},
+            {"code": "code103", "label": "label103", "uuid": "uuid103"},
+        ],
+        "currentConditions": [
+            {"code": "code004", "label": "label004", "uuid": "uuid004"},
+            {"code": "code104", "label": "label104", "uuid": "uuid104"},
+        ],
+        "currentGoals": [
+            {"code": "code005", "label": "label005", "uuid": "uuid005"},
+            {"code": "code105", "label": "label105", "uuid": "uuid105"},
+        ],
+        "currentImmunization": [
+            {
+                "uuid": "uuid321",
+                "label": "label321",
+                "codeCpt": "codeCpt321",
+                "codeCvx": "codeCvx321",
+                "comments": "theComments321",
+                "approximateDate": "2025-07-21",
             },
-            "surgeryHistory": [
-                {"code": "code011", "label": "label011", "uuid": "uuid011"},
-                {"code": "code111", "label": "label111", "uuid": "uuid111"},
-            ],
-            "chargeDescriptions": [
-                {"full_name": "fullName1", "short_name": "shortName1", "cpt_code": "code1"},
-                {"fullName": "fullName2", "shortName": "shortName2", "cptCode": "code2"},
-            ],
-            "settings": {
-                "preferredLabPartner": "thePreferredLabPartner",
-                "serviceAreaZipCodes": "theServiceAreaZipCodes",
+            {
+                "uuid": "uuid323",
+                "label": "label323",
+                "codeCpt": "codeCpt323",
+                "codeCvx": "codeCvx323",
+                "comments": "theComments323",
+                "approximateDate": "2025-07-23",
             },
-            "preferredLabPartner": {"uuid": "theUuid", "label": "theLabel", "code": "theCode"},
-            "labTests": {"word1 word2": [{"code": "code157", "label": "label157", "uuid": "uuid157"}]},
+        ],
+        "currentMedications": [
+            {"code": "code006", "label": "label006", "uuid": "uuid006"},
+            {"code": "code106", "label": "label106", "uuid": "uuid106"},
+            {
+                "codeRxNorm": "code076",
+                "label": "label076",
+                "uuid": "uuid076",
+                "codeFdb": "code987",
+                "nationalDrugCode": "ndc12",
+                "potencyUnitCode": "puc78",
+            },
+            {
+                "codeRxNorm": "code176",
+                "label": "label176",
+                "uuid": "uuid176",
+                "codeFdb": "code998",
+                "nationalDrugCode": "ndc17",
+                "potencyUnitCode": "puc56",
+            },
+        ],
+        "demographicStr": "theDemographic",
+        "existingNoteTypes": [
+            {"code": "code008", "label": "label008", "uuid": "uuid008"},
+            {"code": "code108", "label": "label108", "uuid": "uuid108"},
+        ],
+        "existingReasonForVisit": [
+            {"code": "code009", "label": "label009", "uuid": "uuid009"},
+            {"code": "code109", "label": "label109", "uuid": "uuid109"},
+        ],
+        "existingRoles": [
+            {"code": "code431", "label": "label431", "uuid": "uuid431"},
+            {"code": "code473", "label": "label473", "uuid": "uuid473"},
+        ],
+        "existingStaffMembers": [
+            {"code": "code037", "label": "label037", "uuid": "uuid037"},
+            {"code": "code137", "label": "label137", "uuid": "uuid137"},
+        ],
+        "existingTeams": [
+            {"code": "code894", "label": "label894", "uuid": "uuid894"},
+            {"code": "code873", "label": "label873", "uuid": "uuid873"},
+        ],
+        "existingTaskLabels": [
+            {"code": "code091", "label": "label091", "uuid": "uuid091"},
+            {"code": "code191", "label": "label191", "uuid": "uuid191"},
+        ],
+        "familyHistory": [
+            {"code": "code010", "label": "label010", "uuid": "uuid010"},
+            {"code": "code110", "label": "label110", "uuid": "uuid110"},
+        ],
+        "stagedCommands": {
+            "keyX": [{"code": "code1", "label": "label1", "uuid": "uuid1"}],
+            "keyY": [],
+            "keyZ": [
+                {"code": "code3", "label": "label3", "uuid": "uuid3"},
+                {"code": "code2", "label": "label2", "uuid": "uuid2"},
+            ],
         },
-    )
+        "surgeryHistory": [
+            {"code": "code011", "label": "label011", "uuid": "uuid011"},
+            {"code": "code111", "label": "label111", "uuid": "uuid111"},
+        ],
+        "chargeDescriptions": [
+            {"full_name": "fullName1", "short_name": "shortName1", "cpt_code": "code1"},
+            {"fullName": "fullName2", "shortName": "shortName2", "cptCode": "code2"},
+        ],
+        "preferredLabPartner": {"uuid": "theUuid", "label": "theLabel", "code": "theCode"},
+        "labTests": {"word1 word2": [{"code": "code157", "label": "label157", "uuid": "uuid157"}]},
+    }
+    tested = LimitedCache
+
+    # without settings
+    result = tested.load_from_json(cache)
 
     assert result.patient_uuid == "_PatientUuid"
     assert result._staged_commands == {
@@ -1969,9 +1966,22 @@ def test_load_from_json():
         ChargeDescription(short_name="shortName1", full_name="fullName1", cpt_code="code1"),
         ChargeDescription(short_name="shortName2", full_name="fullName2", cpt_code="code2"),
     ]
-    assert result.practice_setting("preferredLabPartner") == "thePreferredLabPartner"
-    assert result.practice_setting("serviceAreaZipCodes") == "theServiceAreaZipCodes"
+    assert result.practice_setting("preferredLabPartner") == ""
+    assert result.practice_setting("serviceAreaZipCodes") == []
     assert result.preferred_lab_partner() == CodedItem(uuid="theUuid", label="theLabel", code="theCode")
 
     assert result._lab_tests == {}
     assert result._local_data is True
+
+    # with the settings
+    result = tested.load_from_json(
+        cache
+        | {
+            "settings": {
+                "preferredLabPartner": "thePreferredLabPartner",
+                "serviceAreaZipCodes": ["theServiceAreaZipCodes"],
+            }
+        }
+    )
+    assert result.practice_setting("preferredLabPartner") == "thePreferredLabPartner"
+    assert result.practice_setting("serviceAreaZipCodes") == ["theServiceAreaZipCodes"]

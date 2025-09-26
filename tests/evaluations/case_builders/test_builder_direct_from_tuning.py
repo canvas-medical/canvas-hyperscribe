@@ -44,14 +44,34 @@ def helper_instance() -> BuilderDirectFromTuning:
         trial_staffers_policy=AccessPolicy(policy=True, items=[]),
         cycle_transcript_overlap=37,
     )
-    s3_credentials = AwsS3Credentials(aws_key="theKey", aws_secret="theSecret", region="theRegion", bucket="theBucket")
+    s3_logs_credentials = AwsS3Credentials(
+        aws_key="theKeyLogs",
+        aws_secret="theSecretLogs",
+        region="theRegionLogs",
+        bucket="theBucketLogs",
+    )
+    s3_tuning_credentials = AwsS3Credentials(
+        aws_key="theKeyTuning",
+        aws_secret="theSecretTuning",
+        region="theRegionTuning",
+        bucket="theBucketTuning",
+    )
     identification = IdentificationParameters(
         patient_uuid="patientUuid",
         note_uuid="noteUuid",
         provider_uuid="providerUuid",
         canvas_instance="canvasInstance",
     )
-    return BuilderDirectFromTuning(settings, s3_credentials, identification, Path("/some/path"), 45, True, True)
+    return BuilderDirectFromTuning(
+        settings,
+        s3_logs_credentials,
+        s3_tuning_credentials,
+        identification,
+        Path("/some/path"),
+        45,
+        True,
+        True,
+    )
 
 
 def test_class():
@@ -146,7 +166,8 @@ def test_run(init, parameters, run, helper, temp_dir, path):
     ]
     path.side_effect = [mock_path_provided, mock_path_temp_dir]
     mock_path_provided.exists.side_effect = [True]
-    helper.aws_s3_credentials.side_effect = ["awsS3Credentials"]
+    helper.aws_s3_credentials.side_effect = ["awsS3CredentialsLogs"]
+    helper.aws_s3_credentials_tuning.side_effect = ["awsS3CredentialsTuning"]
     helper.settings.side_effect = ["settings"]
     helper.get_canvas_instance.side_effect = ["canvasInstance"]
 
@@ -155,7 +176,8 @@ def test_run(init, parameters, run, helper, temp_dir, path):
     calls = [
         call(
             "settings",
-            "awsS3Credentials",
+            "awsS3CredentialsLogs",
+            "awsS3CredentialsTuning",
             IdentificationParameters(
                 patient_uuid="thePatientUuid",
                 note_uuid="theNoteUuid",
@@ -173,7 +195,12 @@ def test_run(init, parameters, run, helper, temp_dir, path):
     assert parameters.mock_calls == calls
     calls = [call()]
     assert run.mock_calls == calls
-    calls = [call.aws_s3_credentials(), call.settings(), call.get_canvas_instance()]
+    calls = [
+        call.aws_s3_credentials(),
+        call.aws_s3_credentials_tuning(),
+        call.settings(),
+        call.get_canvas_instance(),
+    ]
     assert helper.mock_calls == calls
     calls = [call(), call().__enter__(), call().__exit__(None, None, None)]
     assert temp_dir.mock_calls == calls
@@ -196,7 +223,8 @@ def test_run(init, parameters, run, helper, temp_dir, path):
     ]
     path.side_effect = [mock_path_provided, mock_path_temp_dir]
     mock_path_provided.exists.side_effect = [False]
-    helper.aws_s3_credentials.side_effect = ["awsS3Credentials"]
+    helper.aws_s3_credentials.side_effect = ["awsS3CredentialsLogs"]
+    helper.aws_s3_credentials_tuning.side_effect = ["awsS3CredentialsTuning"]
     helper.settings.side_effect = ["settings"]
     helper.get_canvas_instance.side_effect = ["canvasInstance"]
 
@@ -205,7 +233,8 @@ def test_run(init, parameters, run, helper, temp_dir, path):
     calls = [
         call(
             "settings",
-            "awsS3Credentials",
+            "awsS3CredentialsLogs",
+            "awsS3CredentialsTuning",
             IdentificationParameters(
                 patient_uuid="thePatientUuid",
                 note_uuid="theNoteUuid",
@@ -223,7 +252,12 @@ def test_run(init, parameters, run, helper, temp_dir, path):
     assert parameters.mock_calls == calls
     calls = [call()]
     assert run.mock_calls == calls
-    calls = [call.aws_s3_credentials(), call.settings(), call.get_canvas_instance()]
+    calls = [
+        call.aws_s3_credentials(),
+        call.aws_s3_credentials_tuning(),
+        call.settings(),
+        call.get_canvas_instance(),
+    ]
     assert helper.mock_calls == calls
     calls = [call(), call().__enter__(), call().__exit__(None, None, None)]
     assert temp_dir.mock_calls == calls
@@ -246,7 +280,8 @@ def test_run(init, parameters, run, helper, temp_dir, path):
     ]
     path.side_effect = [mock_path_temp_dir]
     mock_path_provided.exists.side_effect = []
-    helper.aws_s3_credentials.side_effect = ["awsS3Credentials"]
+    helper.aws_s3_credentials.side_effect = ["awsS3CredentialsLogs"]
+    helper.aws_s3_credentials_tuning.side_effect = ["awsS3CredentialsTuning"]
     helper.settings.side_effect = ["settings"]
     helper.get_canvas_instance.side_effect = ["canvasInstance"]
 
@@ -255,7 +290,8 @@ def test_run(init, parameters, run, helper, temp_dir, path):
     calls = [
         call(
             "settings",
-            "awsS3Credentials",
+            "awsS3CredentialsLogs",
+            "awsS3CredentialsTuning",
             IdentificationParameters(
                 patient_uuid="thePatientUuid",
                 note_uuid="theNoteUuid",
@@ -273,7 +309,12 @@ def test_run(init, parameters, run, helper, temp_dir, path):
     assert parameters.mock_calls == calls
     calls = [call()]
     assert run.mock_calls == calls
-    calls = [call.aws_s3_credentials(), call.settings(), call.get_canvas_instance()]
+    calls = [
+        call.aws_s3_credentials(),
+        call.aws_s3_credentials_tuning(),
+        call.settings(),
+        call.get_canvas_instance(),
+    ]
     assert helper.mock_calls == calls
     calls = [call(), call().__enter__(), call().__exit__(None, None, None)]
     assert temp_dir.mock_calls == calls
@@ -299,7 +340,12 @@ def test___init__():
         trial_staffers_policy=AccessPolicy(policy=True, items=[]),
         cycle_transcript_overlap=37,
     )
-    s3_credentials = AwsS3Credentials(aws_key="theKey", aws_secret="theSecret", region="theRegion", bucket="theBucket")
+    s3_logs_credentials = AwsS3Credentials(
+        aws_key="theKey", aws_secret="theSecret", region="theRegion", bucket="theBucket"
+    )
+    s3_tuning_credentials = AwsS3Credentials(
+        aws_key="theKey", aws_secret="theSecret", region="theRegion", bucket="theBucket"
+    )
     identification = IdentificationParameters(
         patient_uuid="patientUuid",
         note_uuid="noteUuid",
@@ -307,8 +353,18 @@ def test___init__():
         canvas_instance="canvasInstance",
     )
     path = Path("/some/path")
-    tested = BuilderDirectFromTuning(settings, s3_credentials, identification, path, 45, True, False)
-    assert tested.s3_credentials == s3_credentials
+    tested = BuilderDirectFromTuning(
+        settings,
+        s3_logs_credentials,
+        s3_tuning_credentials,
+        identification,
+        path,
+        45,
+        True,
+        False,
+    )
+    assert tested.s3_logs_credentials == s3_logs_credentials
+    assert tested.s3_tuning_credentials == s3_tuning_credentials
     assert tested.identification == identification
     assert tested.settings == settings
     assert tested.output_dir == path
@@ -421,7 +477,7 @@ def test_generate_case(
                 ),
             ]
             assert real_world_case_store.mock_calls == calls
-            calls = [call(tested.settings, tested.s3_credentials, limited_cache, tested.identification)]
+            calls = [call(tested.settings, tested.s3_logs_credentials, limited_cache, tested.identification)]
             assert audio_interpreter.mock_calls == calls
             calls = [
                 call.get_discussion("noteUuid"),
@@ -467,7 +523,7 @@ def test_generate_case(
                 )
             assert commander.mock_calls == calls
             calls = [
-                call("theTitle", 0, mock_settings, tested.s3_credentials, "thePostgresCredentials"),
+                call("theTitle", 0, mock_settings, tested.s3_logs_credentials, "thePostgresCredentials"),
                 call().case_prepare(),
                 call().case_update_limited_cache({"obfuscated": "json"}),
                 call().case_id(),
@@ -524,7 +580,7 @@ def test_generate_case(
             assert cached_sdk.mock_calls == []
             assert commander.mock_calls == []
             calls = [
-                call("theTitle", 0, mock_settings, tested.s3_credentials, "thePostgresCredentials"),
+                call("theTitle", 0, mock_settings, tested.s3_logs_credentials, "thePostgresCredentials"),
                 call().summarized_generated_commands_as_instructions(),
             ]
             assert auditor_postgres.mock_calls == calls
@@ -731,10 +787,10 @@ def test_collated_webm_to_mp3(create_silent_mp3, client_s3, ffmpeg):
             calls = [
                 call(
                     AwsS3Credentials(
-                        aws_key="theKey",
-                        aws_secret="theSecret",
-                        region="theRegion",
-                        bucket="theBucket",
+                        aws_key="theKeyTuning",
+                        aws_secret="theSecretTuning",
+                        region="theRegionTuning",
+                        bucket="theBucketTuning",
                     )
                 ),
                 call().list_s3_objects("hyperscribe-canvasInstance/patient_patientUuid/note_noteUuid"),
@@ -813,7 +869,16 @@ def test_collated_webm_to_mp3(create_silent_mp3, client_s3, ffmpeg):
 
     calls = []
     assert create_silent_mp3.mock_calls == calls
-    calls = [call(AwsS3Credentials(aws_key="theKey", aws_secret="theSecret", region="theRegion", bucket="theBucket"))]
+    calls = [
+        call(
+            AwsS3Credentials(
+                aws_key="theKeyTuning",
+                aws_secret="theSecretTuning",
+                region="theRegionTuning",
+                bucket="theBucketTuning",
+            )
+        )
+    ]
     assert client_s3.mock_calls == calls
     assert ffmpeg.mock_calls == []
     calls = [
@@ -1161,7 +1226,7 @@ def test_anonymize_transcripts(anonymize_transcripts_chat, memory_log):
             call("theMemoryLog", files[2], substitutions[start_idx:-1]),
         ]
         assert anonymize_transcripts_chat.mock_calls == calls
-        calls = [call.instance(tested.identification, "anonymize_transcript", tested.s3_credentials)]
+        calls = [call.instance(tested.identification, "anonymize_transcript", tested.s3_logs_credentials)]
         assert memory_log.mock_calls == calls
         calls = [call.exists()]
         content = ""
@@ -1254,7 +1319,7 @@ def test_anonymize_transcripts(anonymize_transcripts_chat, memory_log):
 
     calls = []
     assert anonymize_transcripts_chat.mock_calls == calls
-    calls = [call.instance(tested.identification, "anonymize_transcript", tested.s3_credentials)]
+    calls = [call.instance(tested.identification, "anonymize_transcript", tested.s3_logs_credentials)]
     assert memory_log.mock_calls == calls
     calls = [call.exists(), call.read_text()]
     assert substitutions_file.mock_calls == calls
@@ -1393,7 +1458,7 @@ def test_anonymize_limited_cache(schema_code_items, memory_log, helper):
 
     calls = [call()]
     assert schema_code_items.mock_calls == calls
-    calls = [call.instance(tested.identification, "anonymize_limited_cache", tested.s3_credentials)]
+    calls = [call.instance(tested.identification, "anonymize_limited_cache", tested.s3_logs_credentials)]
     assert memory_log.mock_calls == calls
     calls = [
         call.chatter(tested.settings, "theMemoryLogInstance"),
@@ -1439,7 +1504,7 @@ def test_anonymize_limited_cache(schema_code_items, memory_log, helper):
 
     calls = [call()]
     assert schema_code_items.mock_calls == calls
-    calls = [call.instance(tested.identification, "anonymize_limited_cache", tested.s3_credentials)]
+    calls = [call.instance(tested.identification, "anonymize_limited_cache", tested.s3_logs_credentials)]
     assert memory_log.mock_calls == calls
     calls = [
         call.chatter(tested.settings, "theMemoryLogInstance"),
@@ -1949,6 +2014,7 @@ def test_anonymize_transcripts_check(schema_errors, helper):
         '"theSchemaErrors"',
         "```",
         "",
+        "Report only errors with the full context; do not comment if there is no error.",
     ]
     user_prompt = [
         "The original transcript is:",
@@ -1966,7 +2032,7 @@ def test_anonymize_transcripts_check(schema_errors, helper):
         "```",
         "",
         "Follow rigorously the instructions and report any broken rules using the mentioned JSON Schema.",
-        "If there is no issues, just send back an empty list in the JSON Markdown block.",
+        "If there is no error, just send back an empty list in the JSON Markdown block.",
     ]
 
     tested = helper_instance()
@@ -1974,8 +2040,19 @@ def test_anonymize_transcripts_check(schema_errors, helper):
     tests = [
         (JsonExtract(has_error=False, error="", content=[[]]), AnonymizationError(has_errors=False, errors=[])),
         (
-            JsonExtract(has_error=False, error="", content=[["error1", "error2"]]),
-            AnonymizationError(has_errors=True, errors=["error1", "error2"]),
+            JsonExtract(
+                has_error=False,
+                error="",
+                content=[
+                    [
+                        {"explanation": "error1", "error": True},
+                        {"explanation": "error2", "error": False},
+                        {"explanation": "error3", "error": True},
+                        {"explanation": "error4", "error": True},
+                    ]
+                ],
+            ),
+            AnonymizationError(has_errors=True, errors=["error1", "error3", "error4"]),
         ),
     ]
     for side_effect, expected in tests:
@@ -2083,12 +2160,16 @@ def test_schema_errors():
         "type": "array",
         "items": {
             "type": "object",
-            "required": ["errorExplanation"],
+            "required": ["explanation", "error"],
             "properties": {
-                "errorExplanation": {
+                "explanation": {
                     "type": "string",
-                    "description": "full explanation of the deidentification error, including the related "
-                    "text source and the broken rules",
+                    "description": "full explanation of the deidentification error, "
+                    "including the related text source and the broken rules",
+                },
+                "error": {
+                    "type": "boolean",
+                    "description": "set to True if this is an error, False otherwise",
                 },
             },
             "additionalProperties": False,

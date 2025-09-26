@@ -46,7 +46,7 @@ class BuilderDirectFromTuningSplit(BuilderDirectFromTuning):
         with (mp3_file.parent / "limited_chart.json").open("r") as f:
             cache = LimitedCache.load_from_json(json.load(f))
 
-        chat_transcript = AudioInterpreter(self.settings, self.s3_credentials, cache, self.identification)
+        chat_transcript = AudioInterpreter(self.settings, self.s3_logs_credentials, cache, self.identification)
         print("create transcripts...")
         transcript_files = self.create_transcripts(mp3_files, chat_transcript)
         compacted_transcript_files = self.compact_transcripts(transcript_files)
@@ -79,7 +79,7 @@ class BuilderDirectFromTuningSplit(BuilderDirectFromTuning):
             with topic_summary.open("r") as f:
                 return CaseExchangeSummary.load_from_json(json.load(f))[0]
 
-        memory_log = MemoryLog.instance(self.identification, "topical_exchange_naming", self.s3_credentials)
+        memory_log = MemoryLog.instance(self.identification, "topical_exchange_naming", self.s3_logs_credentials)
         chatter = Helper.chatter(self.settings, memory_log)
         chatter.set_system_prompt(
             [
@@ -127,7 +127,7 @@ class BuilderDirectFromTuningSplit(BuilderDirectFromTuning):
 
     def detect_topical_exchanges(self, transcript_files: list[Path]) -> list[TopicalExchange]:
         result: list[TopicalExchange] = []
-        memory_log = MemoryLog.instance(self.identification, "detect_topical_exchanges", self.s3_credentials)
+        memory_log = MemoryLog.instance(self.identification, "detect_topical_exchanges", self.s3_logs_credentials)
         schema_topical_exchanges = self.schema_topical_exchanges()
 
         for fragment, transcript in enumerate(transcript_files, start=1):

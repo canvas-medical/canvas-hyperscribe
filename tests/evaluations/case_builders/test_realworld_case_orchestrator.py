@@ -108,7 +108,7 @@ def test_notes(aws_s3, postgres, helper):
         ]
     ]
     helper.postgres_credentials.side_effect = ["thePostgresCredentials"]
-    helper.aws_s3_credentials.side_effect = ["theAwsS3Credentials"]
+    helper.aws_s3_credentials_tuning.side_effect = ["theAwsS3Credentials"]
 
     result = tested.notes("theCustomer")
     expected = [
@@ -138,7 +138,7 @@ def test_notes(aws_s3, postgres, helper):
     assert postgres.mock_calls == calls
     calls = [
         call.postgres_credentials(),
-        call.aws_s3_credentials(),
+        call.aws_s3_credentials_tuning(),
     ]
     assert helper.mock_calls == calls
     reset_mocks()

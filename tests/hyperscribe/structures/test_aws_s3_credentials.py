@@ -26,6 +26,19 @@ def test_from_dictionary():
     result = tested.from_dictionary({})
     expected = AwsS3Credentials(aws_key="", aws_secret="", region="", bucket="")
     assert result == expected
+    #
+    result = tested.from_dictionary(
+        {
+            "AwsKey": "theKey",
+            "AwsSecret": "theSecret",
+            "AwsRegion": "theRegion",
+            "AwsBucketLogs": "theBucketLogs",
+            "AwsBucketTuning": "theBucketTuning",
+            "S3CredentialsLogs": '{"key": "aKey", "secret": "aSecret", "region": "aRegion", "bucket": "aBucket"}',
+        },
+    )
+    expected = AwsS3Credentials(aws_key="aKey", aws_secret="aSecret", region="aRegion", bucket="aBucket")
+    assert result == expected
 
 
 def test_from_dictionary_tuning():
@@ -45,4 +58,17 @@ def test_from_dictionary_tuning():
     #
     result = tested.from_dictionary_tuning({})
     expected = AwsS3Credentials(aws_key="", aws_secret="", region="", bucket="")
+    assert result == expected
+    #
+    result = tested.from_dictionary_tuning(
+        {
+            "AwsKey": "theKey",
+            "AwsSecret": "theSecret",
+            "AwsRegion": "theRegion",
+            "AwsBucketLogs": "theBucketLogs",
+            "AwsBucketTuning": "theBucketTuning",
+            "S3CredentialsTuning": '{"key": "aKey", "secret": "aSecret", "region": "aRegion", "bucket": "aBucket"}',
+        },
+    )
+    expected = AwsS3Credentials(aws_key="aKey", aws_secret="aSecret", region="aRegion", bucket="aBucket")
     assert result == expected

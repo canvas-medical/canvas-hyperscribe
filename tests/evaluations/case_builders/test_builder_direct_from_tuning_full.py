@@ -30,14 +30,34 @@ def helper_instance() -> BuilderDirectFromTuningFull:
         trial_staffers_policy=AccessPolicy(policy=True, items=[]),
         cycle_transcript_overlap=37,
     )
-    s3_credentials = AwsS3Credentials(aws_key="theKey", aws_secret="theSecret", region="theRegion", bucket="theBucket")
+    s3_logs_credentials = AwsS3Credentials(
+        aws_key="theKeyLogs",
+        aws_secret="theSecretLogs",
+        region="theRegionLogs",
+        bucket="theBucketLogs",
+    )
+    s3_tuning_credentials = AwsS3Credentials(
+        aws_key="theKeyTuning",
+        aws_secret="theSecretTuning",
+        region="theRegionTuning",
+        bucket="theBucketTuning",
+    )
     identification = IdentificationParameters(
         patient_uuid="patientUuid",
         note_uuid="noteUuid",
         provider_uuid="providerUuid",
         canvas_instance="canvasInstance",
     )
-    return BuilderDirectFromTuningFull(settings, s3_credentials, identification, Path("/some/path"), 45, True, True)
+    return BuilderDirectFromTuningFull(
+        settings,
+        s3_logs_credentials,
+        s3_tuning_credentials,
+        identification,
+        Path("/some/path"),
+        45,
+        True,
+        True,
+    )
 
 
 def test_class():
@@ -174,7 +194,7 @@ def test__run(
     assert exchange_summary.mock_calls == calls
     calls = [call(anonymized_cache, summary, case_exchanges)]
     assert generate_case.mock_calls == calls
-    calls = [call(tested.settings, tested.s3_credentials, "theLimitedCache", tested.identification)]
+    calls = [call(tested.settings, tested.s3_logs_credentials, "theLimitedCache", tested.identification)]
     assert audio_interpreter.mock_calls == calls
     calls = [call.load_from_json({"limited": "cache"})]
     assert limited_cache.mock_calls == calls
@@ -335,7 +355,7 @@ def test_exchange_summary(schema_summary, memory_log, helper, uuid4):
 
         calls = [call()]
         assert schema_summary.mock_calls == calls
-        calls = [call.instance(tested.identification, "detect_summary", tested.s3_credentials)]
+        calls = [call.instance(tested.identification, "detect_summary", tested.s3_logs_credentials)]
         assert memory_log.mock_calls == calls
         calls = [
             call.chatter(tested.settings, "theMemoryLog"),
@@ -403,7 +423,7 @@ def test_exchange_summary(schema_summary, memory_log, helper, uuid4):
 
     calls = [call()]
     assert schema_summary.mock_calls == calls
-    calls = [call.instance(tested.identification, "detect_summary", tested.s3_credentials)]
+    calls = [call.instance(tested.identification, "detect_summary", tested.s3_logs_credentials)]
     assert memory_log.mock_calls == calls
     calls = [
         call.chatter(tested.settings, "theMemoryLog"),

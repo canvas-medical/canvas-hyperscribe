@@ -105,6 +105,9 @@ def test_constants():
         "SECRET_NOTION_API_KEY": "NotionAPIKey",
         "SECRET_TRIAL_STAFFERS_LIST": "TrialStaffersList",
         #
+        "AWS_S3_CREDENTIALS_LOGS": "S3CredentialsLogs",
+        "AWS_S3_CREDENTIALS_TUNING": "S3CredentialsTuning",
+        #
         "TRIAL_PATIENT_FIRST_NAME_STARTSWITH": "Hyperscribe",
         "TRIAL_PATIENT_LAST_NAME_STARTSWITH": "ZZTest",
         #

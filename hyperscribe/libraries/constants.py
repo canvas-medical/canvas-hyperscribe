@@ -102,6 +102,9 @@ class Constants:
     SECRET_NOTION_FEEDBACK_DATABASE_ID = "NotionFeedbackDatabaseId"
     SECRET_NOTION_API_KEY = "NotionAPIKey"
     SECRET_TRIAL_STAFFERS_LIST = "TrialStaffersList"
+    # JSON credentials which take precedence over the secrets
+    AWS_S3_CREDENTIALS_LOGS = "S3CredentialsLogs"
+    AWS_S3_CREDENTIALS_TUNING = "S3CredentialsTuning"
     #
     TRIAL_PATIENT_FIRST_NAME_STARTSWITH = "Hyperscribe"
     TRIAL_PATIENT_LAST_NAME_STARTSWITH = "ZZTest"

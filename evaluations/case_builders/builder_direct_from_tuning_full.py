@@ -26,7 +26,7 @@ class BuilderDirectFromTuningFull(BuilderDirectFromTuning):
         with (mp3_file.parent / "limited_chart.json").open("r") as f:
             cache = LimitedCache.load_from_json(json.load(f))
 
-        chat_transcript = AudioInterpreter(self.settings, self.s3_credentials, cache, self.identification)
+        chat_transcript = AudioInterpreter(self.settings, self.s3_logs_credentials, cache, self.identification)
         print(f"create transcripts...")
         transcript_files = self.create_transcripts(mp3_files, chat_transcript)
         compacted_transcript_files = self.compact_transcripts(transcript_files)
@@ -44,7 +44,7 @@ class BuilderDirectFromTuningFull(BuilderDirectFromTuning):
 
     def exchange_summary(self, transcript_files: list[Path]) -> CaseExchangeSummary:
         result: list[CaseExchangeSummary] = []
-        memory_log = MemoryLog.instance(self.identification, "detect_summary", self.s3_credentials)
+        memory_log = MemoryLog.instance(self.identification, "detect_summary", self.s3_logs_credentials)
         schema_summary = self.schema_summary()
 
         summary_detection = transcript_files[0].parent / f"summary_detection.json"

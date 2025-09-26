@@ -506,7 +506,13 @@ class LimitedCache:
 
         result = cls(Constants.FAUX_PATIENT_UUID, Constants.FAUX_PROVIDER_UUID, staged_commands)
         result._demographic = cache.get("demographicStr", "")
-        result._settings = cache.get("settings", {})
+        result._settings = cache.get(
+            "settings",
+            {
+                "preferredLabPartner": "",
+                "serviceAreaZipCodes": [],
+            },
+        )
 
         result._condition_history = CodedItem.load_from_json_list(cache.get("conditionHistory", []))
         result._allergies = CodedItem.load_from_json_list(cache.get("currentAllergies", []))
