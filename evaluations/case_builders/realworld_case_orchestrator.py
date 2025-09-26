@@ -77,7 +77,7 @@ class RealworldCaseOrchestrator:
             if found := re_match(pattern, record["patient_note_hash"]):
                 parsed_notes.append(found.group(2))
         # - retrieve the existing notes and keep only those not already parsed
-        s3_credentials = HelperEvaluation.aws_s3_credentials()
+        s3_credentials = HelperEvaluation.aws_s3_credentials_tuning()
         client_s3 = AwsS3(s3_credentials)
         pattern = re_compile(rf"hyperscribe-{customer}/patient_([a-z0-9-]+)/note_([a-z0-9-]+)/limited_chart.json")
         for f in client_s3.list_s3_objects(f"hyperscribe-{customer}/patient_"):

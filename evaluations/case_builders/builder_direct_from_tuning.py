@@ -72,7 +72,7 @@ class BuilderDirectFromTuning:
     @classmethod
     def run(cls) -> None:
         parameters = cls.parameters()
-        s3_credentials = HelperEvaluation.aws_s3_credentials()
+        s3_credentials = HelperEvaluation.aws_s3_credentials_tuning()
         settings = HelperEvaluation.settings()
         identification = IdentificationParameters(
             patient_uuid=parameters.patient,
@@ -134,7 +134,7 @@ class BuilderDirectFromTuning:
         discussion = CachedSdk.get_discussion(chatter.identification.note_uuid)
 
         auditor.case_prepare()
-        auditor.case_update_limited_cache(limited_cache.to_json(True))
+        auditor.case_update_limited_cache(limited_cache.to_json_no_db(True))
         RealWorldCaseStore(credentials).upsert(
             RealWordCaseRecord(
                 case_id=auditor.case_id(),

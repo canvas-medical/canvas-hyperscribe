@@ -463,6 +463,11 @@ class LimitedCache:
             self._preferred_lab_partner = CodedItem(uuid=lab_partner_uuid, label=preferred_lab, code="")
         return self._preferred_lab_partner
 
+    def to_json_no_db(self, obfuscate: bool) -> dict:
+        self._settings["preferredLabPartner"] = "GenericLab"
+        self._settings["serviceAreaZipCodes"] = ["94118", "94121"]
+        return self.to_json(obfuscate)
+
     def to_json(self, obfuscate: bool) -> dict:
         return {
             "stagedCommands": {key: [i.to_dict() for i in commands] for key, commands in self._staged_commands.items()},
