@@ -89,7 +89,7 @@ def test_build_prompts(mock_schema_rubric, tmp_files):
 
     result_system_lines, result_user_lines = tested.build_prompts(transcript, chart, canvas_context)
     expected_system_prompt_md5 = "a32a64e63443ef0f076080b5be3873d9"
-    expected_user_prompt_md5 = "8640c4f7a0f9369d0f0a7af503b5dce5"
+    expected_user_prompt_md5 = "f93ef0d3dbba3415884f3b9af0ee1d5c"
 
     result_system_prompt_md5 = hashlib.md5("\n".join(result_system_lines).encode()).hexdigest()
     result_user_prompt_md5 = hashlib.md5("\n".join(result_user_lines).encode()).hexdigest()

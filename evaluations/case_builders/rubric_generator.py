@@ -74,6 +74,7 @@ class RubricGenerator:
             "Each object keys:",
             ' - criterion (string) — must start with "Reward for"',
             " - weight (int 0-100)",
+            "Generate 4, 5, or 6 criteria. No exceptions.",
             "Include at least one criterion on overall completeness based on the transcript"
             "and one criterion related to not repeating information already documented in the chart.",
             "Your JSON **must** conform to the following JSON Schema:",
