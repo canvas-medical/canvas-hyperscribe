@@ -89,7 +89,10 @@ def test_command_from_json():
 def test_command_parameters():
     tested = helper_instance()
     result = tested.command_parameters()
-    expected = {"plan": "description of the plan, as free text"}
+    expected = {
+        "plan": "detailed description of the treatment plan in free text, including specific medications, doses, "
+        "follow-up dates/times, alternative options discussed, contingency plans, and ongoing interventions"
+    }
     assert result == expected
 
 
@@ -97,7 +100,13 @@ def test_instruction_description():
     tested = helper_instance()
     result = tested.instruction_description()
     expected = (
-        "Defined plan for future patient visits. "
+        "Comprehensive treatment plan capturing all agreed-upon actions and future care decisions. "
+        "Include: (1) medication changes (specific doses, timing, formulations), (2) exact follow-up schedule "
+        "(specific dates/times if discussed, not just timeframes like 'a couple months'), (3) alternative treatment "
+        "options mentioned for future consideration, (4) contingency plans (e.g., 'contact sooner if symptoms worsen'), "
+        "(5) ongoing interventions (therapy, monitoring, lifestyle modifications), and (6) important patient-specific "
+        "considerations discussed that may impact treatment (e.g., pregnancy planning, long-term medication concerns). "
+        "Capture specific details from the conversation rather than generic summaries. "
         "There can be only one plan per instruction, and no instruction in the lack of."
     )
     assert result == expected
