@@ -157,6 +157,7 @@ class InvestigateFeedback:
         parser.add_argument("note_id", type=str, help="ID of the note associated with the feedback")
         parser.add_argument("feedback_text", type=str, help="Text of the user feedback to search for")
         parser.add_argument("--debug", action="store_true", help="Debug mode: limit to 1 object each, print debug info")
+        parser.add_argument("--force", action="store_true", help="Force overwrite of existing files without prompting")
         return parser.parse_args()
 
     @classmethod
@@ -168,7 +169,9 @@ class InvestigateFeedback:
         output_file = output_dir / "full_transcript.json"
 
         if output_file.exists():
-            if parameters.debug:
+            if parameters.force:
+                print("Force mode: overwriting existing files...")
+            elif parameters.debug:
                 response = input("This is a debug run and will overwrite the contents, proceed? [Y/n] ")
                 if response.lower() not in ["y", ""]:
                     print("Aborting.")

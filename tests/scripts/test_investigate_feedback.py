@@ -15,7 +15,7 @@ def test__parameters(argument_parser):
         argument_parser.reset_mock()
 
     expected = Namespace(
-        feedback_id="7792e7c9", instance_name="test_instance", note_id="note123", feedback_text="User reported an issue", debug=False
+        feedback_id="7792e7c9", instance_name="test_instance", note_id="note123", feedback_text="User reported an issue", debug=False, force=False
     )
     argument_parser.return_value.parse_args.side_effect = [expected]
 
@@ -30,6 +30,7 @@ def test__parameters(argument_parser):
         call().add_argument("note_id", type=str, help="ID of the note associated with the feedback"),
         call().add_argument("feedback_text", type=str, help="Text of the user feedback to search for"),
         call().add_argument("--debug", action="store_true", help="Debug mode: limit to 1 object each, print debug info"),
+        call().add_argument("--force", action="store_true", help="Force overwrite of existing files without prompting"),
         call().parse_args(),
     ]
     assert argument_parser.mock_calls == calls
@@ -59,6 +60,7 @@ def test_run(mock_path, mock_open, parameters, helper, aws_s3, capsys):
             note_id="note456",
             feedback_text="Audio not working properly",
             debug=False,
+            force=False,
         )
     ]
     helper.aws_s3_credentials.side_effect = ["theCredentials"]
@@ -132,6 +134,7 @@ def test_run_invalid_credentials(mock_exit, parameters, helper, aws_s3, capsys):
             note_id="note456",
             feedback_text="Audio not working properly",
             debug=False,
+            force=False,
         )
     ]
     helper.aws_s3_credentials.side_effect = ["invalidCredentials"]
@@ -185,7 +188,7 @@ def test_run_file_already_exists(mock_path, parameters, helper, aws_s3, capsys):
     tested = InvestigateFeedback
 
     parameters.side_effect = [
-        Namespace(feedback_id="existing123", instance_name="prod", note_id="note789", feedback_text="Already processed", debug=False)
+        Namespace(feedback_id="existing123", instance_name="prod", note_id="note789", feedback_text="Already processed", debug=False, force=False)
     ]
 
     # Mock Path to indicate file exists
@@ -443,7 +446,7 @@ def test_run_with_transcripts(mock_path, mock_open, parameters, helper, aws_s3, 
     tested = InvestigateFeedback
 
     parameters.side_effect = [
-        Namespace(feedback_id="7792e7c9", instance_name="prod", note_id="note123", feedback_text="Audio issue", debug=False)
+        Namespace(feedback_id="7792e7c9", instance_name="prod", note_id="note123", feedback_text="Audio issue", debug=False, force=False)
     ]
     helper.aws_s3_credentials.side_effect = ["theCredentials"]
 
@@ -638,7 +641,7 @@ def test_run_debug_overwrite_yes(parameters, helper, aws_s3, mock_path, mock_inp
     tested = InvestigateFeedback
 
     parameters.side_effect = [
-        Namespace(feedback_id="debug123", instance_name="prod", note_id="note456", feedback_text="Debug test", debug=True)
+        Namespace(feedback_id="debug123", instance_name="prod", note_id="note456", feedback_text="Debug test", debug=True, force=False)
     ]
 
     # Mock Path to indicate file exists
@@ -677,7 +680,7 @@ def test_run_debug_overwrite_no(parameters, helper, aws_s3, mock_path, mock_inpu
     tested = InvestigateFeedback
 
     parameters.side_effect = [
-        Namespace(feedback_id="debug123", instance_name="prod", note_id="note456", feedback_text="Debug test", debug=True)
+        Namespace(feedback_id="debug123", instance_name="prod", note_id="note456", feedback_text="Debug test", debug=True, force=False)
     ]
 
     # Mock Path to indicate file exists
@@ -708,7 +711,7 @@ def test_run_debug_limit_objects(mock_path, mock_open, parameters, helper, aws_s
     tested = InvestigateFeedback
 
     parameters.side_effect = [
-        Namespace(feedback_id="debug456", instance_name="prod", note_id="note789", feedback_text="Debug limit test", debug=True)
+        Namespace(feedback_id="debug456", instance_name="prod", note_id="note789", feedback_text="Debug limit test", debug=True, force=False)
     ]
     helper.aws_s3_credentials.side_effect = ["theCredentials"]
 
@@ -775,3 +778,43 @@ def test_run_debug_limit_objects(mock_path, mock_open, parameters, helper, aws_s
     # Verify only 1 transcript and 1 log object were processed (limited from 3 each)
     assert "Found 1 transcript objects" in captured.out
     assert "Found 1 log objects" in captured.out
+
+
+@patch("builtins.open", create=True)
+@patch("scripts.investigate_feedback.Path")
+@patch("scripts.investigate_feedback.AwsS3")
+@patch("scripts.investigate_feedback.HelperEvaluation")
+@patch.object(InvestigateFeedback, "_parameters")
+def test_run_force_overwrite(parameters, helper, aws_s3, mock_path, mock_open, capsys):
+    tested = InvestigateFeedback
+
+    parameters.side_effect = [
+        Namespace(feedback_id="force123", instance_name="prod", note_id="note789", feedback_text="Force test", debug=False, force=True)
+    ]
+
+    # Mock Path to indicate file exists
+    mock_dir = MagicMock()
+    mock_file = MagicMock()
+    mock_path.return_value = mock_dir
+    mock_dir.__truediv__.return_value = mock_file
+    mock_file.exists.return_value = True
+    mock_file.__str__.return_value = "/tmp/PHI-hyperscribe-feedback/force123/full_transcript.json"
+
+    helper.aws_s3_credentials.side_effect = ["theCredentials"]
+
+    # Mock S3 client
+    mock_s3_client = MagicMock()
+    mock_s3_client.is_ready.return_value = True
+    mock_s3_client.bucket = "test-bucket"
+    mock_s3_client.region = "us-west-2"
+    mock_s3_client.list_s3_objects.return_value = []
+    aws_s3.return_value = mock_s3_client
+
+    tested.run()
+
+    captured = capsys.readouterr()
+    assert "Force mode: overwriting existing files..." in captured.out
+    # Should not see any prompt or abort messages
+    assert "proceed? [Y/n]" not in captured.out
+    assert "Aborting." not in captured.out
+    assert "Skipping S3 retrieval." not in captured.out
