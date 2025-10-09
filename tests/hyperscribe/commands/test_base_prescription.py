@@ -67,6 +67,8 @@ def test_medications_from(demographic, current_allergies, staged_commands_of, me
         "The conversation is in the medical context.",
         "",
         "Your task is to identify the most relevant medication to prescribe to a patient out of a list of medications.",
+        "CRITICAL: If a specific medication name and/or dose is mentioned in the comment, "
+        "you MUST select the medication that exactly matches the name and dose.",
         "",
     ]
     user_prompts = {
@@ -87,6 +89,9 @@ def test_medications_from(demographic, current_allergies, staged_commands_of, me
             "Among the following medications, identify the most appropriate option:",
             "",
             " * labelA (fdbCode: code123)\n * labelB (fdbCode: code369)\n * labelC (fdbCode: code752)",
+            "",
+            "IMPORTANT: If a specific medication name and/or dose is mentioned in the comment, select the "
+            "medication that exactly matches the name and dose. Do not substitute a different name or dose.",
             "",
             "Please, present your findings in a JSON format within a Markdown code block like:",
             "```json",
@@ -112,6 +117,9 @@ def test_medications_from(demographic, current_allergies, staged_commands_of, me
             "",
             " * labelA (fdbCode: code123)\n * labelB (fdbCode: code369)\n * labelC (fdbCode: code752)",
             "",
+            "IMPORTANT: If a specific medication name and/or dose is mentioned in the comment, select the "
+            "medication that exactly matches the name and dose. Do not substitute a different name or dose.",
+            "",
             "Please, present your findings in a JSON format within a Markdown code block like:",
             "```json",
             '[{"fdbCode": "the fdb code, as int", "description": "the description"}]',
@@ -135,6 +143,9 @@ def test_medications_from(demographic, current_allergies, staged_commands_of, me
             "Among the following medications, identify the most appropriate option:",
             "",
             " * labelA (fdbCode: code123)\n * labelB (fdbCode: code369)\n * labelC (fdbCode: code752)",
+            "",
+            "IMPORTANT: If a specific medication name and/or dose is mentioned in the comment, select the "
+            "medication that exactly matches the name and dose. Do not substitute a different name or dose.",
             "",
             "Please, present your findings in a JSON format within a Markdown code block like:",
             "```json",
@@ -316,6 +327,8 @@ def test_set_medication_dosage(demographic):
         "The conversation is in the medical context.",
         "",
         "Your task is to compute the quantity to dispense and the number of refills for a prescription.",
+        "CRITICAL: If a specific frequency is mentioned in the comment (e.g. 'once weekly', 'twice daily'), "
+        "you MUST preserve that exact frequency in the directions.",
         "",
     ]
     user_prompt = [
@@ -331,6 +344,10 @@ def test_set_medication_dosage(demographic):
         "to fulfill the 11 supply days?",
         "",
         "The exact quantities and refill have to also take into account that the patient has this demographic.",
+        "",
+        "IMPORTANT: If a specific frequency is mentioned in the comment (e.g. 'once weekly', 'twice daily'), "
+        "preserve that exact frequency in the informationToPatient field. Calculate the quantity based on that "
+        "stated frequency.",
         "",
         "Please, present your findings in a JSON format within a Markdown code block like:",
         "```json",

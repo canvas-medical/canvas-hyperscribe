@@ -47,6 +47,8 @@ class BasePrescription(Base):
                 "",
                 "Your task is to identify the most relevant medication to prescribe to a patient out "
                 "of a list of medications.",
+                "CRITICAL: If a specific medication name and/or dose is mentioned in the comment, "
+                "you MUST select the medication that exactly matches the name and dose.",
                 "",
             ]
             user_prompt = [
@@ -68,6 +70,9 @@ class BasePrescription(Base):
                 "\n".join(
                     f" * {medication.description} (fdbCode: {medication.fdb_code})" for medication in medications
                 ),
+                "",
+                "IMPORTANT: If a specific medication name and/or dose is mentioned in the comment, select the "
+                "medication that exactly matches the name and dose. Do not substitute a different name or dose.",
                 "",
                 "Please, present your findings in a JSON format within a Markdown code block like:",
                 "```json",
@@ -106,6 +111,8 @@ class BasePrescription(Base):
             "The conversation is in the medical context.",
             "",
             "Your task is to compute the quantity to dispense and the number of refills for a prescription.",
+            "CRITICAL: If a specific frequency is mentioned in the comment (e.g. 'once weekly', 'twice daily'), "
+            "you MUST preserve that exact frequency in the directions.",
             "",
         ]
         user_prompt = [
@@ -122,6 +129,10 @@ class BasePrescription(Base):
             "",
             "The exact quantities and refill have to also take into account that "
             f"{self.cache.demographic__str__(False)}.",
+            "",
+            "IMPORTANT: If a specific frequency is mentioned in the comment (e.g. 'once weekly', 'twice daily'), "
+            "preserve that exact frequency in the informationToPatient field. Calculate the quantity based on that "
+            "stated frequency.",
             "",
             "Please, present your findings in a JSON format within a Markdown code block like:",
             "```json",

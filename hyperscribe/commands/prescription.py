@@ -100,13 +100,16 @@ class Prescription(BasePrescription):
             "keywords": "comma separated list of up to 5 relevant drugs to consider prescribing",
             "medicationNames": "comma separated list of known medication names, generics and brands, "
             "related to the keywords",
-            "sig": "directions, as free text",
+            "sig": "directions as stated; if specific frequency mentioned (e.g. 'once weekly', 'twice daily'), "
+            "preserve it exactly, as free text",
             "suppliedDays": "mandatory, duration of the treatment in days either as mentioned, "
             "or following the standard practices, as integer",
             # "quantityToDispense": 0,
             # "refills": 0,
             "substitution": f"one of: {substitutions}",
-            "comment": "rationale of the prescription including all important words, as free text",
+            "comment": "rationale of the prescription including all mentioned details: medication name/brand, "
+            "specific strength if stated (e.g. '2.5 mg', '10 mg'), route, and specific frequency if stated "
+            "(e.g. 'once weekly', 'twice daily'), as free text",
             # "noteToPharmacist": "note to the pharmacist, as free text",
         } | condition_dict
 
