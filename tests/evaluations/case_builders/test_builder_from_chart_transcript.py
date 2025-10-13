@@ -5,7 +5,7 @@ from unittest.mock import patch, call, MagicMock
 from evaluations.case_builders.builder_base import BuilderBase
 from evaluations.case_builders.builder_from_chart_transcript import BuilderFromChartTranscript
 from hyperscribe.libraries.implemented_commands import ImplementedCommands
-from hyperscribe.libraries.limited_cache import LimitedCache
+from hyperscribe.libraries.limited_cache_loader import LimitedCacheLoader
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.instruction import Instruction
 from hyperscribe.structures.line import Line
@@ -46,7 +46,7 @@ def test__parameters(argument_parser):
 @patch("evaluations.case_builders.builder_from_chart_transcript.CachedSdk")
 @patch("evaluations.case_builders.builder_from_chart_transcript.Commander")
 @patch("evaluations.case_builders.builder_from_chart_transcript.AudioInterpreter")
-@patch.object(LimitedCache, "load_from_json")
+@patch.object(LimitedCacheLoader, "load_from_json")
 @patch.object(ImplementedCommands, "schema_key2instruction")
 @patch.object(BuilderFromChartTranscript, "_render_in_ui")
 def test__run(
@@ -126,7 +126,7 @@ def test__run(
     ]
     exp_limited_cache = [
         call({"chart": "data"}),
-        call().to_json(True),
+        call().to_json(),
         call().staged_commands_as_instructions("schemaKey2instruction"),
     ]
     exp_schema_key2instruction = [call()]

@@ -6,12 +6,10 @@ from unittest.mock import patch, call, MagicMock
 import pytest
 from canvas_generated.messages.effects_pb2 import Effect
 from canvas_sdk.test_utils import factories
-from canvas_sdk.v1.data import Command
 
 from evaluations.case_builders.builder_base import BuilderBase
 from evaluations.datastores.datastore_case import DatastoreCase
 from hyperscribe.libraries.cached_sdk import CachedSdk
-from hyperscribe.libraries.commander import Commander
 from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.identification_parameters import IdentificationParameters
@@ -448,16 +446,15 @@ def test__run_cycle(auditor_store, commander):
     reset_mocks()
 
 
-@patch.object(Commander, "existing_commands_to_coded_items")
-@patch.object(Command, "objects")
-def test__limited_cache_from(command_db, existing_commands_to_coded_items):
+@patch("evaluations.case_builders.builder_base.LimitedCacheLoader")
+def test__limited_cache_from(limited_cache_loader):
     def reset_mocks():
-        command_db.reset_mock()
-        existing_commands_to_coded_items.reset_mock()
+        limited_cache_loader.reset_mock()
 
     tested = BuilderBase
-    command_db.filter.return_value.order_by.side_effect = ["QuerySetCommands"]
-    existing_commands_to_coded_items.side_effect = [{}]
+
+    cache = LimitedCache()
+    limited_cache_loader.return_value.load_from_database.side_effect = [cache]
 
     identification = IdentificationParameters(
         patient_uuid="thePatient",
@@ -481,17 +478,22 @@ def test__limited_cache_from(command_db, existing_commands_to_coded_items):
     )
 
     result = tested._limited_cache_from(identification, settings)
-    assert isinstance(result, LimitedCache)
-    assert result.patient_uuid == "thePatient"
-    assert result._staged_commands == {}
+    assert result is cache
 
     calls = [
-        call.filter(patient__id="thePatient", note__id="theNoteUuid", state="staged"),
-        call.filter().order_by("dbid"),
+        call(
+            IdentificationParameters(
+                patient_uuid="thePatient",
+                note_uuid="theNoteUuid",
+                provider_uuid="theProviderUuid",
+                canvas_instance="theCanvasInstance",
+            ),
+            AccessPolicy(policy=False, items=["Command1", "Command2"]),
+            False,
+        ),
+        call().load_from_database(),
     ]
-    assert command_db.mock_calls == calls
-    calls = [call("QuerySetCommands", AccessPolicy(policy=False, items=["Command1", "Command2"]), True)]
-    assert existing_commands_to_coded_items.mock_calls == calls
+    assert limited_cache_loader.mock_calls == calls
     reset_mocks()
 
 

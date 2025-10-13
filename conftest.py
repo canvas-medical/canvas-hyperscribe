@@ -15,7 +15,9 @@ from evaluations.structures.evaluation_result import EvaluationResult
 from hyperscribe.libraries.audio_interpreter import AudioInterpreter
 from hyperscribe.libraries.constants import Constants as HyperscribeConstants
 from hyperscribe.libraries.limited_cache import LimitedCache
+from hyperscribe.libraries.limited_cache_loader import LimitedCacheLoader
 from hyperscribe.libraries.memory_log import MemoryLog, ENTRIES
+from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 
@@ -150,18 +152,14 @@ def audio_interpreter(request):
     patient_uuid = HyperscribeConstants.FAUX_PATIENT_UUID
     note_uuid = HyperscribeConstants.FAUX_NOTE_UUID
     provider_uuid = HyperscribeConstants.FAUX_PROVIDER_UUID
-    cache = LimitedCache(patient_uuid, provider_uuid, {})
+    cache = LimitedCache()
 
     if forced_patient_uuid := request.config.getoption(Constants.OPTION_PATIENT_UUID):
         patient_uuid = forced_patient_uuid
-        cache.patient_uuid = forced_patient_uuid
 
     if patient_uuid and patient_uuid != HyperscribeConstants.FAUX_PATIENT_UUID:
         note_uuid = HelperEvaluation.get_note_uuid(patient_uuid)
         provider_uuid = HelperEvaluation.get_provider_uuid(patient_uuid)
-    elif case := FileSystemCase.get(request.node.callspec.id):
-        # ^ if there is no provided patient uuid and this is a built case
-        cache = LimitedCache.load_from_json(case.limited_cache)
 
     identification = IdentificationParameters(
         patient_uuid=patient_uuid,
@@ -169,6 +167,13 @@ def audio_interpreter(request):
         provider_uuid=provider_uuid,
         canvas_instance=HelperEvaluation.get_canvas_instance(),
     )
+
+    if patient_uuid and patient_uuid != HyperscribeConstants.FAUX_PATIENT_UUID:
+        cache = LimitedCacheLoader(identification, AccessPolicy.allow_all(), False).load_from_database()
+    elif case := FileSystemCase.get(request.node.callspec.id):
+        # ^ if there is no provided patient uuid and this is a built case
+        cache = LimitedCacheLoader.load_from_json(case.limited_cache)
+
     return AudioInterpreter(settings, aws_s3, cache, identification)
 
 

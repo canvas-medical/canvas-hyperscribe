@@ -88,6 +88,8 @@ class StopAndGo:
 
     def save(self) -> None:
         get_cache().set(f"stopAndGo:{self.note_uuid}", self.to_json())
+        # from logger import log
+        # log.info(f"StopAndGo saved: {json.dumps(self.to_json())}")
 
     def to_json(self) -> dict:
         return {

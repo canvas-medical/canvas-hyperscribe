@@ -11,7 +11,6 @@ from hyperscribe.libraries.commander import Commander
 from hyperscribe.libraries.implemented_commands import ImplementedCommands
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
-from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.instruction import Instruction
 from hyperscribe.structures.instruction_with_command import InstructionWithCommand
@@ -43,38 +42,32 @@ def test_constants():
 @patch("hyperscribe.libraries.commander.AwsS3")
 @patch("hyperscribe.libraries.commander.Progress")
 @patch("hyperscribe.libraries.commander.MemoryLog")
-@patch("hyperscribe.libraries.commander.LimitedCache")
 @patch("hyperscribe.libraries.commander.AudioInterpreter")
 @patch("hyperscribe.libraries.commander.AuditorLive")
 @patch.object(AudioClient, "get_audio_chunk")
 @patch.object(CachedSdk, "save")
 @patch.object(CachedSdk, "get_discussion")
-@patch.object(Command, "objects")
-@patch.object(Commander, "existing_commands_to_coded_items")
 @patch.object(Commander, "existing_commands_to_instructions")
 @patch.object(Commander, "audio2commands")
 def test_compute_audio(
     audio2commands,
     existing_commands_to_instructions,
-    existing_commands_to_coded_items,
-    command_db,
     cache_get_discussion,
     cache_save,
     mock_get_audio_chunk,
     auditor_live,
     audio_interpreter,
-    limited_cache,
     memory_log,
     progress,
     aws_s3,
     the_audio_client,
     the_session,
 ):
+    limited_cache = MagicMock()
+
     def reset_mocks():
         audio2commands.reset_mock()
         existing_commands_to_instructions.reset_mock()
-        existing_commands_to_coded_items.reset_mock()
-        command_db.reset_mock()
         auditor_live.reset_mock()
         cache_get_discussion.reset_mock()
         cache_save.reset_mock()
@@ -114,8 +107,6 @@ def test_compute_audio(
     # no more audio
     audio2commands.side_effect = []
     existing_commands_to_instructions.side_effect = []
-    existing_commands_to_coded_items.side_effect = []
-    command_db.filter.return_value.order_by.side_effect = []
     auditor_live.side_effect = []
     cache_get_discussion.side_effect = []
     audio_interpreter.side_effect = []
@@ -124,7 +115,7 @@ def test_compute_audio(
 
     tested = Commander
     mock_get_audio_chunk.side_effect = [b""]
-    result = tested.compute_audio(identification, settings, aws_s3_credentials, the_audio_client, 3)
+    result = tested.compute_audio(identification, settings, aws_s3_credentials, the_audio_client, limited_cache, 3)
     expected = (False, [])
     assert result == expected
 
@@ -132,8 +123,6 @@ def test_compute_audio(
     assert memory_log.mock_calls == calls
     assert audio2commands.mock_calls == []
     assert existing_commands_to_instructions.mock_calls == []
-    assert existing_commands_to_coded_items.mock_calls == []
-    assert command_db.mock_calls == []
     assert auditor_live.mock_calls == []
     assert cache_get_discussion.mock_calls == []
     assert cache_save.mock_calls == []
@@ -213,18 +202,16 @@ def test_compute_audio(
         discussion.previous_transcript = [Line(speaker="speaker0", text="some text")]
         audio2commands.side_effect = [(exp_instructions, exp_effects, "other last words.")]
         existing_commands_to_instructions.side_effect = [instructions]
-        existing_commands_to_coded_items.side_effect = ["stagedCommands"]
-        command_db.filter.return_value.order_by.side_effect = ["QuerySetCommands"]
         auditor_live.side_effect = ["AuditorInstance"]
         cache_get_discussion.side_effect = [discussion]
         audio_interpreter.side_effect = ["AudioInterpreterInstance"]
-        limited_cache.side_effect = ["LimitedCacheInstance"]
+        limited_cache.current_commands.side_effect = ["CurrentCommands"]
         aws_s3.return_value.is_ready.side_effect = [is_ready]
         memory_log.end_session.side_effect = ["flushedMemoryLog"]
         tested = Commander
         mock_get_audio_chunk.side_effect = [b"raw-audio-bytes"]
-        result = tested.compute_audio(identification, settings, aws_s3_credentials, the_audio_client, 3)
-        mock_get_audio_chunk.calls == [call(identification.patient_uuid, identification.note_uuid, 3)]
+        result = tested.compute_audio(identification, settings, aws_s3_credentials, the_audio_client, limited_cache, 3)
+        assert mock_get_audio_chunk.mock_calls == [call(identification.patient_uuid, identification.note_uuid, 3)]
         expected = (True, exp_effects)
         assert result == expected
 
@@ -259,7 +246,6 @@ def test_compute_audio(
             )
             calls.append(call.end_session("noteUuid"))
         assert memory_log.mock_calls == calls
-        calls = [call("theAudioHost", "patientUuid", "noteUuid", 3)]
         calls = [
             call(
                 "AuditorInstance",
@@ -270,24 +256,17 @@ def test_compute_audio(
             )
         ]
         assert audio2commands.mock_calls == calls
-        calls = [call("QuerySetCommands", instructions[2:])]
+        calls = [call("CurrentCommands", instructions[2:])]
         assert existing_commands_to_instructions.mock_calls == calls
-        calls = [call("QuerySetCommands", AccessPolicy(policy=False, items=["Command1", "Command2", "Command3"]), True)]
-        assert existing_commands_to_coded_items.mock_calls == calls
-        calls = [
-            call.filter(patient__id="patientUuid", note__id="noteUuid", state="staged"),
-            call.filter().order_by("dbid"),
-        ]
-        assert command_db.mock_calls == calls
         calls = [call(3, settings, aws_s3_credentials, identification)]
         assert auditor_live.mock_calls == calls
         calls = [call("noteUuid")]
         assert cache_get_discussion.mock_calls == calls
         calls = [call(), call()]
         assert cache_save.mock_calls == calls
-        calls = [call(settings, aws_s3_credentials, "LimitedCacheInstance", identification)]
+        calls = [call(settings, aws_s3_credentials, limited_cache, identification)]
         assert audio_interpreter.mock_calls == calls
-        calls = [call("patientUuid", "providerUuid", "stagedCommands")]
+        calls = [call.current_commands()]
         assert limited_cache.mock_calls == calls
         calls = [
             call.send_to_user(
@@ -2028,136 +2007,4 @@ def test_existing_commands_to_instructions(schema_key2instruction):
     assert result == expected
     calls = [call()]
     assert schema_key2instruction.mock_calls == calls
-    reset_mocks()
-
-
-@patch.object(ImplementedCommands, "command_list")
-def test_existing_commands_to_coded_items(command_list):
-    mock_commands = [MagicMock(), MagicMock(), MagicMock()]
-
-    def reset_mocks():
-        command_list.reset_mock()
-        for c in mock_commands:
-            c.reset_mock()
-
-    tested = Commander
-    current_commands = [
-        Command(id="uuid1", schema_key="canvas_command_X", data={"key1": "value1"}),
-        Command(id="uuid2", schema_key="canvas_command_X", data={"key2": "value2"}),
-        Command(id="uuid3", schema_key="canvas_command_Y", data={"key3": "value3"}),
-        Command(id="uuid4", schema_key="canvas_command_Y", data={"key4": "value4"}),
-        Command(id="uuid5", schema_key="canvas_command_Y", data={"key5": "value5"}),
-        Command(id="uuid6", schema_key="canvas_command_A", data={"key6": "value6"}),
-    ]
-
-    # all commands allowed
-    command_list.side_effect = [mock_commands] * 6
-
-    mock_commands[0].schema_key.return_value = "canvas_command_X"
-    mock_commands[0].class_name.return_value = "CommandX"
-    mock_commands[1].schema_key.return_value = "canvas_command_Y"
-    mock_commands[1].class_name.return_value = "CommandY"
-    mock_commands[2].schema_key.return_value = "canvas_command_Z"
-    mock_commands[2].class_name.return_value = "CommandZ"
-
-    mock_commands[0].staged_command_extract.side_effect = [CodedItem(label="label1", code="code1", uuid=""), None]
-    mock_commands[1].staged_command_extract.side_effect = [
-        CodedItem(label="label3", code="code3", uuid=""),
-        CodedItem(label="label4", code="code4", uuid=""),
-        CodedItem(label="label5", code="code5", uuid=""),
-    ]
-    mock_commands[2].staged_command_extract.side_effect = []
-
-    policy = AccessPolicy(policy=True, items=["CommandX", "CommandY", "CommandZ"])
-    result = tested.existing_commands_to_coded_items(current_commands, policy, True)
-    expected = {
-        "canvas_command_X": [CodedItem(uuid="uuid1", label="label1", code="code1")],
-        "canvas_command_Y": [
-            CodedItem(uuid="uuid3", label="label3", code="code3"),
-            CodedItem(uuid="uuid4", label="label4", code="code4"),
-            CodedItem(uuid="uuid5", label="label5", code="code5"),
-        ],
-    }
-    assert result == expected
-    calls = [call()] * 6
-    assert command_list.mock_calls == calls
-    calls = [
-        call.class_name(),
-        call.schema_key(),
-        call.staged_command_extract({"key1": "value1"}),
-        call.class_name(),
-        call.schema_key(),
-        call.staged_command_extract({"key2": "value2"}),
-        call.class_name(),
-        call.schema_key(),
-        call.class_name(),
-        call.schema_key(),
-        call.class_name(),
-        call.schema_key(),
-        call.class_name(),
-        call.schema_key(),
-    ]
-    assert mock_commands[0].mock_calls == calls
-    calls = [
-        call.class_name(),
-        call.schema_key(),
-        call.staged_command_extract({"key3": "value3"}),
-        call.class_name(),
-        call.schema_key(),
-        call.staged_command_extract({"key4": "value4"}),
-        call.class_name(),
-        call.schema_key(),
-        call.staged_command_extract({"key5": "value5"}),
-        call.class_name(),
-        call.schema_key(),
-    ]
-    assert mock_commands[1].mock_calls == calls
-    calls = [call.class_name(), call.schema_key()]
-    assert mock_commands[2].mock_calls == calls
-    reset_mocks()
-
-    # one command allowed
-    command_list.side_effect = [mock_commands] * 6
-
-    mock_commands[0].schema_key.return_value = "canvas_command_X"
-    mock_commands[0].class_name.return_value = "CommandX"
-    mock_commands[1].schema_key.return_value = "canvas_command_Y"
-    mock_commands[1].class_name.return_value = "CommandY"
-    mock_commands[2].schema_key.return_value = "canvas_command_Z"
-    mock_commands[2].class_name.return_value = "CommandZ"
-
-    mock_commands[0].staged_command_extract.side_effect = [CodedItem(label="label1", code="code1", uuid=""), None]
-    mock_commands[1].staged_command_extract.side_effect = [
-        CodedItem(label="label3", code="code3", uuid=""),
-        CodedItem(label="label4", code="code4", uuid=""),
-        CodedItem(label="label5", code="code5", uuid=""),
-    ]
-    mock_commands[2].staged_command_extract.side_effect = []
-
-    policy = AccessPolicy(policy=True, items=["CommandX"])
-    result = tested.existing_commands_to_coded_items(current_commands, policy, False)
-    expected = {"canvas_command_X": [CodedItem(uuid="", label="label1", code="code1")]}
-    assert result == expected
-    calls = [call()] * 6
-    assert command_list.mock_calls == calls
-    calls = [
-        call.class_name(),
-        call.schema_key(),
-        call.staged_command_extract({"key1": "value1"}),
-        call.class_name(),
-        call.schema_key(),
-        call.staged_command_extract({"key2": "value2"}),
-        call.class_name(),
-        call.schema_key(),
-        call.class_name(),
-        call.schema_key(),
-        call.class_name(),
-        call.schema_key(),
-        call.class_name(),
-        call.schema_key(),
-    ]
-    assert mock_commands[0].mock_calls == calls
-    calls = [call.class_name(), call.class_name(), call.class_name(), call.class_name()]
-    assert mock_commands[1].mock_calls == calls
-    assert mock_commands[2].mock_calls == calls
     reset_mocks()

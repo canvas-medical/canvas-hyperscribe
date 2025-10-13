@@ -5,7 +5,7 @@ from importlib import import_module
 from pathlib import Path
 from typing import Tuple
 
-from canvas_sdk.v1.data import Patient, Command
+from canvas_sdk.v1.data import Patient
 from requests import post as requests_post, Response
 
 from evaluations.auditors.auditor_store import AuditorStore
@@ -21,6 +21,7 @@ from hyperscribe.libraries.cached_sdk import CachedSdk
 from hyperscribe.libraries.constants import Constants as HyperscribeConstants
 from hyperscribe.libraries.implemented_commands import ImplementedCommands
 from hyperscribe.libraries.limited_cache import LimitedCache
+from hyperscribe.libraries.limited_cache_loader import LimitedCacheLoader
 from hyperscribe.libraries.llm_decisions_reviewer import LlmDecisionsReviewer
 from hyperscribe.libraries.memory_log import MemoryLog
 from hyperscribe.structures.identification_parameters import IdentificationParameters
@@ -130,17 +131,7 @@ class BuilderBase:
 
     @classmethod
     def _limited_cache_from(cls, identification: IdentificationParameters, settings: Settings) -> LimitedCache:
-        current_commands = Command.objects.filter(
-            patient__id=identification.patient_uuid,
-            note__id=identification.note_uuid,
-            state="staged",  # <--- TODO use an Enum when provided
-        ).order_by("dbid")
-
-        return LimitedCache(
-            identification.patient_uuid,
-            identification.provider_uuid,
-            Commander.existing_commands_to_coded_items(current_commands, settings.commands_policy, True),
-        )
+        return LimitedCacheLoader(identification, settings.commands_policy, False).load_from_database()
 
     @classmethod
     def _summary_generated_commands(cls, recorder: AuditorStore) -> list[dict]:

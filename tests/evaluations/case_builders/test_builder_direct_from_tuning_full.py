@@ -78,7 +78,7 @@ def test__parameters():
     reset_mocks()
 
 
-@patch("evaluations.case_builders.builder_direct_from_tuning_full.LimitedCache")
+@patch("evaluations.case_builders.builder_direct_from_tuning_full.LimitedCacheLoader")
 @patch("evaluations.case_builders.builder_direct_from_tuning_full.AudioInterpreter")
 @patch.object(BuilderDirectFromTuningFull, "generate_case")
 @patch.object(BuilderDirectFromTuningFull, "exchange_summary")

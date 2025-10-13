@@ -138,7 +138,7 @@ class BuilderDirectFromTuning:
         discussion = CachedSdk.get_discussion(chatter.identification.note_uuid)
 
         auditor.case_prepare()
-        auditor.case_update_limited_cache(limited_cache.to_json(True))
+        auditor.case_update_limited_cache(limited_cache.to_json())
         RealWorldCaseStore(credentials).upsert(
             RealWordCaseRecord(
                 case_id=auditor.case_id(),

@@ -21,9 +21,7 @@ from hyperscribe.libraries.helper import Helper
 from hyperscribe.libraries.implemented_commands import ImplementedCommands
 from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.libraries.memory_log import MemoryLog
-from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
-from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.instruction import Instruction
 from hyperscribe.structures.instruction_with_command import InstructionWithCommand
@@ -42,6 +40,7 @@ class Commander(BaseProtocol):
         settings: Settings,
         aws_s3: AwsS3Credentials,
         audio_client: AudioClient,
+        cache: LimitedCache,
         chunk_index: int,
     ) -> tuple[bool, list[Effect]]:
         audio_bytes = audio_client.get_audio_chunk(identification.patient_uuid, identification.note_uuid, chunk_index)
@@ -68,20 +67,9 @@ class Commander(BaseProtocol):
         discussion.set_cycle(chunk_index)
 
         # request the transcript of the audio (provider + patient...)
-        current_commands = Command.objects.filter(
-            patient__id=identification.patient_uuid,
-            note__id=identification.note_uuid,
-            state="staged",  # <--- TODO use an Enum when provided
-        ).order_by("dbid")
-
-        cache = LimitedCache(
-            identification.patient_uuid,
-            identification.provider_uuid,
-            cls.existing_commands_to_coded_items(current_commands, settings.commands_policy, True),
-        )
         chatter = AudioInterpreter(settings, aws_s3, cache, identification)
         previous_instructions = cls.existing_commands_to_instructions(
-            current_commands,
+            cache.current_commands(),
             discussion.previous_instructions,
         )
         auditor = AuditorLive(chunk_index, settings, aws_s3, identification)
@@ -489,31 +477,3 @@ class Commander(BaseProtocol):
                 is_updated=False,
             )
         return list(result.values())
-
-    @classmethod
-    def existing_commands_to_coded_items(
-        cls,
-        current_commands: Iterable[Command],
-        commands_policy: AccessPolicy,
-        real_uuids: bool,
-    ) -> dict[str, list[CodedItem]]:
-        result: dict[str, list[CodedItem]] = {}
-        for command in current_commands:
-            for command_class in ImplementedCommands.command_list():
-                if (
-                    commands_policy.is_allowed(command_class.class_name())
-                    and command_class.schema_key() == command.schema_key
-                ):
-                    if coded_item := command_class.staged_command_extract(command.data):
-                        key = command.schema_key
-                        if key not in result:
-                            result[key] = []
-                        result[key].append(
-                            CodedItem(
-                                uuid=str(command.id) if real_uuids else coded_item.uuid,
-                                label=coded_item.label,
-                                code=coded_item.code,
-                            ),
-                        )
-                    break
-        return result

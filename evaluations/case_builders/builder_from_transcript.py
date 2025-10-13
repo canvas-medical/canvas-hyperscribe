@@ -43,7 +43,7 @@ class BuilderFromTranscript(BuilderBase):
         print(f"JSON file: {parameters.transcript.name}")
         print(f"Cycles: {cycles}")
 
-        recorder.case_update_limited_cache(limited_cache.to_json(True))
+        recorder.case_update_limited_cache(limited_cache.to_json())
 
         chatter = AudioInterpreter(recorder.settings, recorder.s3_credentials, limited_cache, identification)
         previous = limited_cache.staged_commands_as_instructions(ImplementedCommands.schema_key2instruction())

@@ -100,7 +100,7 @@ def test_schema_topical_exchanges():
     assert result == expected
 
 
-@patch("evaluations.case_builders.builder_direct_from_tuning_split.LimitedCache")
+@patch("evaluations.case_builders.builder_direct_from_tuning_split.LimitedCacheLoader")
 @patch("evaluations.case_builders.builder_direct_from_tuning_split.ImplementedCommands")
 @patch("evaluations.case_builders.builder_direct_from_tuning_split.AudioInterpreter")
 @patch.object(BuilderDirectFromTuningSplit, "generate_case")

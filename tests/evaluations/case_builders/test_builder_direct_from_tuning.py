@@ -16,7 +16,7 @@ from evaluations.structures.anonymization_substitution import AnonymizationSubst
 from evaluations.structures.case_exchange import CaseExchange
 from evaluations.structures.case_exchange_summary import CaseExchangeSummary
 from evaluations.structures.records.real_world_case import RealWorldCase as RecordRealWorldCase
-from hyperscribe.libraries.limited_cache import LimitedCache
+from hyperscribe.libraries.limited_cache_loader import LimitedCacheLoader
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.aws_s3_object import AwsS3Object
@@ -570,7 +570,7 @@ def test_generate_case(
             assert auditor_postgres.mock_calls == calls
             calls = [call.schema_key2instruction()]
             assert implemented_commands.mock_calls == calls
-            calls = [call.staged_commands_as_instructions({"implemented": "json"}), call.to_json(True)]
+            calls = [call.staged_commands_as_instructions({"implemented": "json"}), call.to_json()]
             assert limited_cache.mock_calls == calls
             calls = [call.llm_audio_model()]
             assert mock_settings.mock_calls == calls
@@ -1382,7 +1382,7 @@ def test_anonymize_limited_cache(schema_code_items, memory_log, helper):
     schema_code_items.side_effect = []
     memory_log.instance.side_effect = []
     helper.chatter.return_value.chat.side_effect = []
-    cache = LimitedCache.load_from_json(
+    cache = LimitedCacheLoader.load_from_json(
         {
             "existingStaffMembers": [
                 {"uuid": "uuid1", "code": "code1", "label": "name1"},
@@ -1402,7 +1402,7 @@ def test_anonymize_limited_cache(schema_code_items, memory_log, helper):
     schema_code_items.side_effect = []
     memory_log.instance.side_effect = []
     helper.chatter.return_value.chat.side_effect = []
-    cache = LimitedCache.load_from_json({"existingStaffMembers": []})
+    cache = LimitedCacheLoader.load_from_json({"existingStaffMembers": []})
     result = tested.anonymize_limited_cache(
         [
             AnonymizationSubstitution(original_entity="theOriginal1", anonymized_with="theAnonymized1"),
@@ -1433,7 +1433,7 @@ def test_anonymize_limited_cache(schema_code_items, memory_log, helper):
             ],
         )
     ]
-    cache = LimitedCache.load_from_json(
+    cache = LimitedCacheLoader.load_from_json(
         {
             "existingStaffMembers": [
                 {"uuid": "uuid1", "code": "code1", "label": "name1"},
@@ -1485,7 +1485,7 @@ def test_anonymize_limited_cache(schema_code_items, memory_log, helper):
             ],
         )
     ]
-    cache = LimitedCache.load_from_json(
+    cache = LimitedCacheLoader.load_from_json(
         {
             "existingStaffMembers": [
                 {"uuid": "uuid1", "code": "code1", "label": "name1"},

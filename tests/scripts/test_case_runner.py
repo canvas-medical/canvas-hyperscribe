@@ -1,12 +1,12 @@
 from argparse import Namespace
 from unittest.mock import patch, call, MagicMock
 
+from hyperscribe.libraries.limited_cache_loader import LimitedCacheLoader
 from scripts.case_runner import CaseRunner
 from evaluations.datastores.datastore_case import DatastoreCase
 from hyperscribe.libraries.commander import Commander
 from hyperscribe.libraries.cached_sdk import CachedSdk
 from hyperscribe.libraries.implemented_commands import ImplementedCommands
-from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.line import Line
 
@@ -43,7 +43,7 @@ def test_parameters(argument_parser):
 @patch.object(Commander, "transcript2commands")
 @patch.object(ImplementedCommands, "schema_key2instruction")
 @patch.object(CachedSdk, "get_discussion")
-@patch.object(LimitedCache, "load_from_json")
+@patch.object(LimitedCacheLoader, "load_from_json")
 @patch.object(CaseRunner, "prepare_cycles")
 @patch.object(CaseRunner, "parameters")
 def test_run(

@@ -3,12 +3,12 @@ from argparse import Namespace
 
 from evaluations.datastores.datastore_case import DatastoreCase
 from evaluations.helper_evaluation import HelperEvaluation
-from hyperscribe.libraries.commander import Commander
 from hyperscribe.libraries.audio_interpreter import AudioInterpreter
 from hyperscribe.libraries.cached_sdk import CachedSdk
+from hyperscribe.libraries.commander import Commander
 from hyperscribe.libraries.constants import Constants
 from hyperscribe.libraries.implemented_commands import ImplementedCommands
-from hyperscribe.libraries.limited_cache import LimitedCache
+from hyperscribe.libraries.limited_cache_loader import LimitedCacheLoader
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.line import Line
 
@@ -44,7 +44,7 @@ class CaseRunner:
             canvas_instance="runner-environment",
         )
 
-        limited_cache = LimitedCache.load_from_json(auditor.limited_chart())
+        limited_cache = LimitedCacheLoader.load_from_json(auditor.limited_chart())
         chatter = AudioInterpreter(auditor.settings, auditor.s3_credentials, limited_cache, identification)
         previous = limited_cache.staged_commands_as_instructions(ImplementedCommands.schema_key2instruction())
         discussion = CachedSdk.get_discussion(chatter.identification.note_uuid)

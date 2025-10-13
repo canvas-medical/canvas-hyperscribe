@@ -44,7 +44,7 @@ class BuilderFromMp3(BuilderBase):
         for file in parameters.mp3:
             print(f"- {file.name}")
 
-        recorder.case_update_limited_cache(limited_cache.to_json(True))
+        recorder.case_update_limited_cache(limited_cache.to_json())
 
         chatter = AudioInterpreter(recorder.settings, recorder.s3_credentials, limited_cache, identification)
         previous = limited_cache.staged_commands_as_instructions(ImplementedCommands.schema_key2instruction())

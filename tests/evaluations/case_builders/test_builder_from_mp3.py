@@ -147,7 +147,7 @@ def test__run(
 
         calls = [
             call(identification, "theSettings"),
-            call().to_json(True),
+            call().to_json(),
             call().staged_commands_as_instructions("schemaKey2instruction"),
         ]
         assert limited_cache_from.mock_calls == calls

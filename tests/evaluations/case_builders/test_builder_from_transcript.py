@@ -130,7 +130,7 @@ def test__run(
     exp_out = ["Patient UUID: thePatientUuid", "Evaluation Case: theCase", "JSON file: theFile"]
     exp_limited_cache = [
         call(identification, "theSettings"),
-        call().to_json(True),
+        call().to_json(),
         call().staged_commands_as_instructions("schemaKey2instruction"),
     ]
     exp_schema_key2instruction = [call()]

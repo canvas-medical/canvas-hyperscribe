@@ -33,7 +33,7 @@ def helper_instance() -> ImmunizationStatement:
         trial_staffers_policy=AccessPolicy(policy=True, items=[]),
         cycle_transcript_overlap=37,
     )
-    cache = LimitedCache("patientUuid", "providerUuid", {})
+    cache = LimitedCache()
     cache._demographic = "theDemographic"
     identification = IdentificationParameters(
         patient_uuid="patientUuid",

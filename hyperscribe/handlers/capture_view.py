@@ -21,15 +21,17 @@ from hyperscribe.libraries.commander import Commander
 from hyperscribe.libraries.constants import Constants
 from hyperscribe.libraries.helper import Helper
 from hyperscribe.libraries.implemented_commands import ImplementedCommands
+from hyperscribe.libraries.limited_cache import LimitedCache
+from hyperscribe.libraries.limited_cache_loader import LimitedCacheLoader
 from hyperscribe.libraries.llm_decisions_reviewer import LlmDecisionsReviewer
 from hyperscribe.libraries.llm_turns_store import LlmTurnsStore
 from hyperscribe.libraries.memory_log import MemoryLog
 from hyperscribe.libraries.stop_and_go import StopAndGo
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.identification_parameters import IdentificationParameters
+from hyperscribe.structures.notion_feedback_record import NotionFeedbackRecord
 from hyperscribe.structures.progress_message import ProgressMessage
 from hyperscribe.structures.settings import Settings
-from hyperscribe.structures.notion_feedback_record import NotionFeedbackRecord
 
 executor = ThreadPoolExecutor(max_workers=50)
 
@@ -237,9 +239,12 @@ class CaptureView(SimpleAPI):
                 canvas_instance=self.environment[Constants.CUSTOMER_IDENTIFIER],
             )
             if stop_and_go.consume_next_waiting_cycles(True):
+                settings = Settings.from_dictionary(self.secrets)
+                cache_loader = LimitedCacheLoader(identification, settings.commands_policy, False)
                 executor.submit(
                     Helper.with_cleanup(self.run_commander),
                     identification,
+                    cache_loader.load_from_database(),
                     stop_and_go.cycle(),
                 )
             elif stop_and_go.is_ended():
@@ -330,7 +335,12 @@ class CaptureView(SimpleAPI):
         ]
         Progress.send_to_user(identification, settings, messages)
 
-    def run_commander(self, identification: IdentificationParameters, chunk_index: int) -> None:
+    def run_commander(
+        self,
+        identification: IdentificationParameters,
+        cache: LimitedCache,
+        chunk_index: int,
+    ) -> None:
         # add the running flag
         StopAndGo.get(identification.note_uuid).set_cycle(chunk_index).set_running(True).save()
         try:
@@ -349,7 +359,14 @@ class CaptureView(SimpleAPI):
                 f"Workers: {settings.max_workers}"
             )
 
-            had_audio, effects = Commander.compute_audio(identification, settings, aws_s3, audio_client, chunk_index)
+            had_audio, effects = Commander.compute_audio(
+                identification,
+                settings,
+                aws_s3,
+                audio_client,
+                cache,
+                chunk_index,
+            )
 
             # store the effects
             stop_and_go = StopAndGo.get(identification.note_uuid)

@@ -16,6 +16,7 @@ from hyperscribe.handlers.capture_view import CaptureView
 from hyperscribe.libraries.audio_client import AudioClient
 from hyperscribe.libraries.authenticator import Authenticator
 from hyperscribe.libraries.constants import Constants
+from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.identification_parameters import IdentificationParameters
@@ -486,14 +487,16 @@ def test_audio_chunk_post(executor, helper, audio_client, stop_and_go):
 
 
 @patch.object(Note, "objects")
+@patch("hyperscribe.handlers.capture_view.LimitedCacheLoader")
 @patch("hyperscribe.handlers.capture_view.Helper")
 @patch("hyperscribe.handlers.capture_view.executor")
 @patch("hyperscribe.handlers.capture_view.StopAndGo")
-def test_render_effect_post(stop_and_go, executor, helper, note_db):
+def test_render_effect_post(stop_and_go, executor, helper, limited_cache_loader, note_db):
     def reset_mocks():
         stop_and_go.reset_mock()
         executor.reset_mock()
         helper.reset_mock()
+        limited_cache_loader.reset_mock()
         note_db.reset_mock()
 
     tested = helper_instance()
@@ -529,6 +532,7 @@ def test_render_effect_post(stop_and_go, executor, helper, note_db):
             [call.submit(helper.with_cleanup.return_value, "patientId", "noteId")],
             [call.with_cleanup(tested.trigger_render)],
             [],
+            [],
         ),
         (
             [],
@@ -542,6 +546,7 @@ def test_render_effect_post(stop_and_go, executor, helper, note_db):
                 call.get().paused_effects(),
                 call.get().is_running(),
             ],
+            [],
             [],
             [],
             [],
@@ -561,8 +566,12 @@ def test_render_effect_post(stop_and_go, executor, helper, note_db):
                 call.get().consume_next_waiting_cycles(True),
                 call.get().cycle(),
             ],
-            [call.submit(helper.with_cleanup.return_value, identification, 7)],
+            [call.submit(helper.with_cleanup.return_value, identification, "loadedCache", 7)],
             [call.with_cleanup(tested.run_commander)],
+            [
+                call(identification, AccessPolicy(policy=False, items=[]), False),
+                call().load_from_database(),
+            ],
             [call.get(id="noteId")],
         ),
         (
@@ -584,6 +593,7 @@ def test_render_effect_post(stop_and_go, executor, helper, note_db):
             ],
             [call.submit(helper.with_cleanup.return_value, identification, date_0, 7)],
             [call.with_cleanup(tested.run_reviewer)],
+            [],
             [call.get(id="noteId")],
         ),
         (
@@ -603,6 +613,7 @@ def test_render_effect_post(stop_and_go, executor, helper, note_db):
             ],
             [],
             [],
+            [],
             [call.get(id="noteId")],
         ),
     ]
@@ -618,6 +629,7 @@ def test_render_effect_post(stop_and_go, executor, helper, note_db):
             exp_stop_and_go,
             exp_executor,
             exp_helper,
+            exp_loader,
             exp_note_db,
         ) = test
 
@@ -630,6 +642,8 @@ def test_render_effect_post(stop_and_go, executor, helper, note_db):
         stop_and_go.get.return_value.is_ended.side_effect = [is_ended]
         stop_and_go.get.return_value.created.side_effect = [date_0]
 
+        limited_cache_loader.return_value.load_from_database.side_effect = ["loadedCache"]
+
         tested.request = SimpleNamespace(
             path_params={"patient_id": "patientId", "note_id": "noteId"},
             headers={"canvas-logged-in-user-id": "u"},
@@ -641,6 +655,7 @@ def test_render_effect_post(stop_and_go, executor, helper, note_db):
         assert stop_and_go.mock_calls == exp_stop_and_go, f"---> {idx}"
         assert executor.mock_calls == exp_executor, f"---> {idx}"
         assert helper.mock_calls == exp_helper, f"---> {idx}"
+        assert limited_cache_loader.mock_calls == exp_loader, f"---> {idx}"
         assert note_db.mock_calls == exp_note_db, f"---> {idx}"
         reset_mocks()
 
@@ -919,6 +934,7 @@ def test_run_commander(
         commander.reset_mock()
         llm_turns_store.reset_mock()
 
+    cache = LimitedCache()
     identification = IdentificationParameters(
         patient_uuid="patientId",
         note_uuid="noteId",
@@ -967,7 +983,7 @@ def test_run_commander(
         stop_and_go.get.return_value.is_paused.side_effect = [is_paused]
         stop_and_go.get.return_value.waiting_cycles.side_effect = [waiting_cycles]
 
-        tested.run_commander(identification, 7)
+        tested.run_commander(identification, cache, 7)
 
         calls = [call("patientId", "noteId")]
         assert trigger_render.mock_calls == calls
@@ -1007,7 +1023,7 @@ def test_run_commander(
         if not is_ended or waiting_cycles:
             calls = [call.send_to_user(identification, settings, exp_progress_msg)]
         assert progress.mock_calls == calls
-        calls = [call.compute_audio(identification, settings, credentials, audio_client, 7)]
+        calls = [call.compute_audio(identification, settings, credentials, audio_client, cache, 7)]
         assert commander.mock_calls == calls
         calls = [call.end_session("noteId")]
         assert llm_turns_store.mock_calls == calls
@@ -1016,7 +1032,7 @@ def test_run_commander(
     # error in Commander.compute_audio
     commander.compute_audio.side_effect = [Exception("Test error")]
 
-    tested.run_commander(identification, 7)
+    tested.run_commander(identification, cache, 7)
 
     calls = [call("patientId", "noteId")]
     assert trigger_render.mock_calls == calls
@@ -1042,7 +1058,7 @@ def test_run_commander(
     ]
     assert memory_log.mock_calls == calls
     assert progress.mock_calls == []
-    calls = [call.compute_audio(identification, settings, credentials, audio_client, 7)]
+    calls = [call.compute_audio(identification, settings, credentials, audio_client, cache, 7)]
     assert commander.mock_calls == calls
     assert llm_turns_store.mock_calls == []
     reset_mocks()

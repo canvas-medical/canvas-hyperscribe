@@ -30,7 +30,7 @@ def helper_instance() -> Base:
         trial_staffers_policy=AccessPolicy(policy=True, items=[]),
         cycle_transcript_overlap=37,
     )
-    cache = LimitedCache("patientUuid", "providerUuid", {})
+    cache = LimitedCache()
     identification = IdentificationParameters(
         patient_uuid="patientUuid",
         note_uuid="noteUuid",
@@ -55,7 +55,7 @@ def test___init__():
         trial_staffers_policy=AccessPolicy(policy=True, items=[]),
         cycle_transcript_overlap=37,
     )
-    cache = LimitedCache("patientUuid", "providerUuid", {})
+    cache = LimitedCache()
     identification = IdentificationParameters(
         patient_uuid="patientUuid",
         note_uuid="noteUuid",

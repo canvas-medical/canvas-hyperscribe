@@ -51,7 +51,7 @@ def test__parameters(argument_parser):
 @patch("evaluations.case_builders.builder_from_tuning.AudioInterpreter")
 @patch("evaluations.case_builders.builder_from_tuning.CachedSdk")
 @patch("evaluations.case_builders.builder_from_tuning.ImplementedCommands")
-@patch("evaluations.case_builders.builder_from_tuning.LimitedCache")
+@patch("evaluations.case_builders.builder_from_tuning.LimitedCacheLoader")
 @patch.object(BuilderFromTuning, "_run_cycle")
 def test__run(run_cycle, limited_cache, implemented_commands, cached_discussion, audio_interpreter, capsys):
     recorder = MagicMock()
@@ -175,7 +175,7 @@ def test__run(run_cycle, limited_cache, implemented_commands, cached_discussion,
                 call.set_cycle(5),
             ]
             assert recorder.mock_calls == calls
-            calls = [call.to_json(True), call.staged_commands_as_instructions("schemaKey2instruction")]
+            calls = [call.to_json(), call.staged_commands_as_instructions("schemaKey2instruction")]
             assert mock_limited_cache.mock_calls == calls
             calls = [call.schema_key2instruction()]
             assert implemented_commands.mock_calls == calls

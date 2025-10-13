@@ -53,7 +53,7 @@ def helper_instance(mocks, with_audit) -> tuple[AudioInterpreter, Settings, AwsS
 
         command_list.side_effect = [mocks]
 
-        cache = LimitedCache("patientUuid", "providerUuid", {})
+        cache = LimitedCache()
         cache._demographic = "thePatientDemographic"
         identification = IdentificationParameters(
             patient_uuid="patientUuid",
@@ -106,7 +106,7 @@ def test___init__(command_list):
     mocks[4].return_value.class_name.side_effect = ["CommandE", "CommandE"]
     command_list.side_effect = [mocks]
 
-    cache = LimitedCache("patientUuid", "providerUuid", {})
+    cache = LimitedCache()
     identification = IdentificationParameters(
         patient_uuid="patientUuid",
         note_uuid="noteUuid",

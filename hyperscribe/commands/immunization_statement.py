@@ -74,7 +74,7 @@ class ImmunizationStatement(Base):
                     for immunization in immunizations
                 ),
                 "",
-                f"It may be important to take into account that {self.cache.demographic__str__(False)}.",
+                f"It may be important to take into account that {self.cache.demographic__str__()}.",
                 "",
                 "Please, present your findings in a JSON format within a Markdown code block like:",
                 "```json",

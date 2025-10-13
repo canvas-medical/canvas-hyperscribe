@@ -327,7 +327,7 @@ class AudioInterpreter:
 
         system_prompt = [
             f"The conversation is in the context of a clinical encounter between "
-            f"patient ({self.cache.demographic__str__(False)}) and licensed healthcare provider.",
+            f"patient ({self.cache.demographic__str__()}) and licensed healthcare provider.",
             "During the encounter, the user has identified instructions with key information to record "
             "in its software.",
             "The user will submit an instruction and the linked information grounded in the transcript, as well "

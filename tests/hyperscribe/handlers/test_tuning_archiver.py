@@ -11,13 +11,13 @@ from canvas_sdk.effects.simple_api import HTMLResponse, JSONResponse
 from canvas_sdk.events import Event
 from canvas_sdk.events.base import TargetType
 from canvas_sdk.handlers.simple_api import SimpleAPIRoute, Credentials
-from canvas_sdk.v1.data import Patient, Command, Note
+from canvas_sdk.v1.data import Patient, Note
 from requests import Response
 
-from hyperscribe.libraries.commander import Commander
 from hyperscribe.handlers.tuning_archiver import TuningArchiver, ArchiverHelper
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
+from hyperscribe.structures.identification_parameters import IdentificationParameters
 from tests.helper import is_constant
 
 
@@ -215,18 +215,14 @@ def test_post(aws_s3, post_chart, post_audio):
 
 
 @patch.object(Note, "objects")
-@patch.object(Command, "objects")
-@patch.object(Commander, "existing_commands_to_coded_items")
-@patch("hyperscribe.handlers.tuning_archiver.LimitedCache")
+@patch("hyperscribe.handlers.tuning_archiver.LimitedCacheLoader")
 @patch("hyperscribe.handlers.tuning_archiver.AwsS3")
-def test_store_chart(aws_s3, limited_cache, existing_commands_to_coded_items, command_db, note_db):
+def test_store_chart(aws_s3, limited_cache, note_db):
     mock_request = MagicMock()
 
     def reset_mocks():
         aws_s3.reset_mock()
         limited_cache.reset_mock()
-        existing_commands_to_coded_items.reset_mock()
-        command_db.reset_mock()
         note_db.reset_mock()
         mock_request.reset_mock()
 
@@ -238,9 +234,7 @@ def test_store_chart(aws_s3, limited_cache, existing_commands_to_coded_items, co
     response.encoding = "utf-8"
 
     aws_s3.upload_text_to_s3.side_effect = [response]
-    existing_commands_to_coded_items.side_effect = ["existingCommandsToCodedItems"]
-    limited_cache.return_value.to_json.side_effect = [{"key": "theLimitedCache"}]
-    command_db.filter.return_value.order_by.side_effect = ["QuerySetCommands"]
+    limited_cache.return_value.load_from_database.return_value.to_json.side_effect = [{"key": "theLimitedCache"}]
     note_db.get.return_value.provider.id = "providerUuid"
     mock_request.query_params = {"patient_id": "thePatientId", "note_id": "theNoteId"}
 
@@ -261,16 +255,22 @@ def test_store_chart(aws_s3, limited_cache, existing_commands_to_coded_items, co
         ),
     ]
     assert aws_s3.mock_calls == calls
-    calls = [call("QuerySetCommands", AccessPolicy(policy=False, items=[]), False)]
-    assert existing_commands_to_coded_items.mock_calls == calls
-    calls = [
-        call.filter(patient__id="thePatientId", note__id="theNoteId", state="staged"),
-        call.filter().order_by("dbid"),
-    ]
-    assert command_db.mock_calls == calls
     calls = [call.get(id="theNoteId")]
     assert note_db.mock_calls == calls
-    calls = [call("thePatientId", "providerUuid", "existingCommandsToCodedItems"), call().to_json(True)]
+    calls = [
+        call(
+            IdentificationParameters(
+                patient_uuid="thePatientId",
+                note_uuid="theNoteId",
+                provider_uuid="providerUuid",
+                canvas_instance="",
+            ),
+            AccessPolicy(policy=False, items=[]),
+            True,
+        ),
+        call().load_from_database(),
+        call().load_from_database().to_json(),
+    ]
     assert limited_cache.mock_calls == calls
     assert mock_request.mock_calls == []
     reset_mocks()

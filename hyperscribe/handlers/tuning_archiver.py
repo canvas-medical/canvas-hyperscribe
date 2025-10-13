@@ -8,14 +8,14 @@ from canvas_sdk.effects.simple_api import HTMLResponse, JSONResponse, Response
 from canvas_sdk.handlers.simple_api import Credentials, SimpleAPIRoute
 from canvas_sdk.handlers.simple_api.api import Request
 from canvas_sdk.templates import render_to_string
-from canvas_sdk.v1.data import Command, Note
+from canvas_sdk.v1.data import Note
 
-from hyperscribe.libraries.commander import Commander
 from hyperscribe.libraries.aws_s3 import AwsS3
 from hyperscribe.libraries.constants import Constants
-from hyperscribe.libraries.limited_cache import LimitedCache
+from hyperscribe.libraries.limited_cache_loader import LimitedCacheLoader
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
+from hyperscribe.structures.identification_parameters import IdentificationParameters
 
 
 class TuningArchiver(SimpleAPIRoute):
@@ -68,16 +68,21 @@ class ArchiverHelper:
     def store_chart(cls, client_s3: AwsS3, subdomain: str, request: Request) -> JSONResponse:
         patient_id = request.query_params["patient_id"]
         note_id = request.query_params["note_id"]
-
-        current_commands = Command.objects.filter(patient__id=patient_id, note__id=note_id, state="staged").order_by(
-            "dbid",
+        identification = IdentificationParameters(
+            patient_uuid=patient_id,
+            note_uuid=note_id,
+            provider_uuid=str(Note.objects.get(id=note_id).provider.id),
+            canvas_instance="",
         )
-        limited_chart = LimitedCache(
-            patient_id,
-            str(Note.objects.get(id=note_id).provider.id),
-            Commander.existing_commands_to_coded_items(current_commands, AccessPolicy.allow_all(), False),
-        ).to_json(True)
-
+        limited_chart = (
+            LimitedCacheLoader(
+                identification,
+                AccessPolicy.allow_all(),
+                True,
+            )
+            .load_from_database()
+            .to_json()
+        )
         object_key = f"hyperscribe-{subdomain}/patient_{patient_id}/note_{note_id}/limited_chart.json"
         response = client_s3.upload_text_to_s3(object_key, json.dumps(limited_chart))
         return JSONResponse({"s3status": response.status_code, "s3text": response.text, "s3key": object_key})
