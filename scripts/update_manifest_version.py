@@ -102,11 +102,11 @@ def main() -> int:
     manifest_path = Path("hyperscribe/CANVAS_MANIFEST.json")
 
     if not manifest_path.exists():
-        print(f"❌ ERROR: {manifest_path} not found")
+        print(f"❌ ERROR: {manifest_path.as_posix()} not found")
         return 1
 
     # Read current manifest
-    with open(manifest_path) as f:
+    with manifest_path.open("r") as f:
         manifest = json.load(f)
 
     # Get git information
@@ -170,7 +170,7 @@ def main() -> int:
     manifest["plugin_version"] = new_plugin_version
 
     # Write back to file
-    with open(manifest_path, "w") as f:
+    with manifest_path.open("w") as f:
         json.dump(manifest, f, indent=2)
         f.write("\n")  # Add trailing newline
 
