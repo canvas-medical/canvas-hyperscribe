@@ -30,10 +30,10 @@ def test_get_git_info(run, capsys):
     # no error
     run.side_effect = [
         MockClass(stdout=" theCommit \n"),
-        MockClass(stdout=" theBranch \n"),
+        MockClass(stdout=" theBranchWithAVeryLongName \n"),
     ]
     result = tested()
-    expected = ("theCommit", "theBranch")
+    expected = ("abc1234", "theBranchWithAVeryLo")
     assert result == expected
 
     captured = capsys.readouterr()

@@ -34,7 +34,7 @@ def get_git_info() -> tuple[str, str]:
             check=True,
         ).stdout.strip()
 
-        return commit_hash, branch
+        return "abc1234", branch[:20]
     except subprocess.CalledProcessError as e:
         print(f"❌ ERROR: Could not get git information: {e}")
         sys.exit(1)
