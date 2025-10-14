@@ -1,9 +1,9 @@
 repos:
   - repo: local
     hooks:
-      - id: check-manifest-version
-        name: check manifest version
-        entry: uv run python scripts/check_manifest_version.py
+      - id: update-manifest-version
+        name: update manifest version
+        entry: uv run python scripts/update_manifest_version.py
         language: system
         pass_filenames: false
         always_run: true
