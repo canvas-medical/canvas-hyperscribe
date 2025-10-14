@@ -31,7 +31,7 @@ def main() -> int:
         return 0
 
     # Check if this is a "next" branch
-    is_next_branch = branch.startswith("next-") or branch.startswith("next/")
+    is_next_branch = branch == "next" or branch.startswith("next-") or branch.startswith("next/")
 
     if not is_next_branch:
         # Not a next branch, no check needed
