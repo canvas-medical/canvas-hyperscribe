@@ -1,6 +1,10 @@
 {
   "sdk_version": "0.69.0",
+<<<<<<< HEAD
   "plugin_version": "2025-10-14 v0.1.127 (main abc1234)",
+=======
+  "plugin_version": "2025-10-14 v0.1.128 (db_load_limited_cache_from_db_on_launch_issue_118 9f21692)",
+>>>>>>> 1b17b49 (rebase onto main)
   "name": "hyperscribe",
   "description": "Create commands based on the content of an audio discussion between a patient and a provider.",
   "url_permissions": [],
@@ -141,8 +145,13 @@
   ],
   "tags": {
     "version_date": "2025-10-14",
+<<<<<<< HEAD
     "version_commit_hash": "abc1234",
     "version_branch": "main",
+=======
+    "version_commit_hash": "9f21692fd55f3b38696f5e7f43e7934f63d37ded",
+    "version_branch": "db_load_limited_cache_from_db_on_launch_issue_118",
+>>>>>>> 1b17b49 (rebase onto main)
     "version_semantic": "0.1.128"
   },
   "references": [],
