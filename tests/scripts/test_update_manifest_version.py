@@ -53,11 +53,15 @@ def test_get_git_info(run, capsys):
     # no error
     run.side_effect = [
         MockClass(stdout=" theCommit \n"),
-        MockClass(stdout=" theBranch \n"),
+        MockClass(stdout=" theBranchWithAVeryLongName \n"),
     ]
     result = tested()
+<<<<<<< HEAD
     expected = ("theCommit", "theBranch")
 >>>>>>> b8ef7fa (add tests to scripts/update_manifest_version.py)
+=======
+    expected = ("abc1234", "theBranchWithAVeryLo")
+>>>>>>> 45255e9 (manifest update: truncate too long branch name + temporary fixed commit hash)
     assert result == expected
 
     captured = capsys.readouterr()

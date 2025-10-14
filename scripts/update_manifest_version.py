@@ -37,7 +37,11 @@ def get_git_branch() -> str:
             check=True,
         ).stdout.strip()
 
+<<<<<<< HEAD
         return branch[:20]
+=======
+        return "abc1234", branch[:20]
+>>>>>>> 45255e9 (manifest update: truncate too long branch name + temporary fixed commit hash)
     except subprocess.CalledProcessError as e:
         print(f"❌ ERROR: Could not get git branch: {e}")
         sys.exit(1)
