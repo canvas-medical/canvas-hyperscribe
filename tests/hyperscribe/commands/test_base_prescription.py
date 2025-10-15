@@ -353,6 +353,10 @@ def test_set_medication_dosage(demographic):
         "```json",
         '[{"quantityToDispense": "mandatory, quantity to dispense, as float", '
         '"refills": "mandatory, refills allowed, as integer", '
+        '"discreteQuantity": "mandatory, boolean indicating whether the medication form is discrete '
+        '(e.g., tablets, capsules, patches, suppositories) as opposed to continuous '
+        '(e.g., milliliters, grams, ounces). Interpret the ncpdp quantity qualifier description '
+        'to determine this. Set to true for countable units, false for measurable quantities.", '
         '"noteToPharmacist": "note to the pharmacist, as free text", '
         '"informationToPatient": "directions to the patient on how to use the medication, specifying the quantity, '
         "the form (e.g. tablets, drops, puffs, etc), "
@@ -370,10 +374,11 @@ def test_set_medication_dosage(demographic):
                 "properties": {
                     "quantityToDispense": {"type": "number", "exclusiveMinimum": 0},
                     "refills": {"type": "integer", "minimum": 0},
+                    "discreteQuantity": {"type": "boolean"},
                     "noteToPharmacist": {"type": "string"},
                     "informationToPatient": {"type": "string", "minLength": 1},
                 },
-                "required": ["quantityToDispense", "refills", "informationToPatient"],
+                "required": ["quantityToDispense", "refills", "discreteQuantity", "informationToPatient"],
                 "additionalProperties": False,
             },
             "minItems": 1,
@@ -445,6 +450,7 @@ def test_set_medication_dosage(demographic):
                 {
                     "quantityToDispense": "8.3",
                     "refills": 3,
+                    "discreteQuantity": False,
                     "noteToPharmacist": "theNoteToPharmacist",
                     "informationToPatient": "theInformationToPatient",
                 },
@@ -458,6 +464,34 @@ def test_set_medication_dosage(demographic):
         calls = [call.single_conversation(system_prompt, user_prompt, schemas, instruction)]
         assert chatter.mock_calls == calls
         reset_mocks()
+
+    # discrete quantity (tablets) - should be integer format
+    command = PrescribeCommand(days_supply=30)
+    demographic.side_effect = ["the patient has this demographic"]
+    chatter.single_conversation.side_effect = [
+        [
+            {
+                "quantityToDispense": "60",
+                "refills": 0,
+                "discreteQuantity": True,  # tablets are discrete
+                "noteToPharmacist": "Dispense 60 tablets",
+                "informationToPatient": "Take 2 tablets by mouth once daily",
+            },
+        ],
+    ]
+    tested.set_medication_dosage(instruction, chatter, "theComment", command, medication)
+    expected = PrescribeCommand(
+        days_supply=30,
+        fdb_code="code369",
+        type_to_dispense={"representative_ndc": "ndc1", "ncpdp_quantity_qualifier_code": "qualifier1"},
+        quantity_to_dispense=Decimal("60"),  # No .00 - integer format
+        refills=0,
+        note_to_pharmacist="Dispense 60 tablets",
+        sig="Take 2 tablets by mouth once daily",
+    )
+    assert command == expected
+    assert command.quantity_to_dispense == Decimal("60")  # Verify it's "60" not "60.00"
+    reset_mocks()
 
     # no response
     command = PrescribeCommand(days_supply=11)

@@ -141,6 +141,10 @@ class BasePrescription(Base):
                     {
                         "quantityToDispense": "mandatory, quantity to dispense, as float",
                         "refills": "mandatory, refills allowed, as integer",
+                        "discreteQuantity": "mandatory, boolean indicating whether the medication form is discrete "
+                        "(e.g., tablets, capsules, patches, suppositories) as opposed to continuous "
+                        "(e.g., milliliters, grams, ounces). Interpret the ncpdp quantity qualifier description "
+                        "to determine this. Set to true for countable units, false for measurable quantities.",
                         "noteToPharmacist": "note to the pharmacist, as free text",
                         "informationToPatient": "directions to the patient on how to use the medication, "
                         "specifying the quantity, "
@@ -154,7 +158,16 @@ class BasePrescription(Base):
         ]
         schemas = JsonSchema.get(["prescription_dosage"])
         if response := chatter.single_conversation(system_prompt, user_prompt, schemas, instruction):
-            command.quantity_to_dispense = Decimal(response[0]["quantityToDispense"]).quantize(Decimal("0.01"))
+            quantity = Decimal(response[0]["quantityToDispense"])
+            is_discrete = response[0]["discreteQuantity"]
+
+            # For discrete quantities (tablets, capsules, etc.), use integer format
+            # For continuous quantities (liquids, creams, etc.), use decimal format
+            if is_discrete:
+                command.quantity_to_dispense = Decimal(int(quantity))
+            else:
+                command.quantity_to_dispense = quantity.quantize(Decimal("0.01"))
+
             command.refills = int(response[0]["refills"])
             command.note_to_pharmacist = response[0]["noteToPharmacist"]
             command.sig = response[0]["informationToPatient"]

@@ -58,10 +58,11 @@ JSON_SCHEMAS: dict[str, dict] = {
             "properties": {
                 "quantityToDispense": {"type": "number", "exclusiveMinimum": 0},
                 "refills": {"type": "integer", "minimum": 0},
+                "discreteQuantity": {"type": "boolean"},
                 "noteToPharmacist": {"type": "string"},
                 "informationToPatient": {"type": "string", "minLength": 1},
             },
-            "required": ["quantityToDispense", "refills", "informationToPatient"],
+            "required": ["quantityToDispense", "refills", "discreteQuantity", "informationToPatient"],
             "additionalProperties": False,
         },
         "minItems": 1,
