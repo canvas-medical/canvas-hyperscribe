@@ -203,7 +203,7 @@ def test_instruction_description():
     tested = helper_instance()
     result = tested.instruction_description()
     expected = (
-        "Current medication. There can be only one medication per instruction, and no instruction in the lack of."
+        "Current medication being consumed by the patient, not a new prescription order. There can be only one medication per instruction, and no instruction in the lack of."
     )
     assert result == expected
 
