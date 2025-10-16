@@ -354,8 +354,8 @@ def test_set_medication_dosage(demographic):
         '[{"quantityToDispense": "mandatory, quantity to dispense, as float", '
         '"refills": "mandatory, refills allowed, as integer", '
         '"discreteQuantity": "mandatory, boolean indicating whether the medication form is discrete '
-        '(e.g., tablets, capsules, patches, suppositories) as opposed to continuous '
-        '(e.g., milliliters, grams, ounces). Interpret the ncpdp quantity qualifier description '
+        "(e.g., tablets, capsules, patches, suppositories) as opposed to continuous "
+        "(e.g., milliliters, grams, ounces). Interpret the ncpdp quantity qualifier description "
         'to determine this. Set to true for countable units, false for measurable quantities.", '
         '"noteToPharmacist": "note to the pharmacist, as free text", '
         '"informationToPatient": "directions to the patient on how to use the medication, specifying the quantity, '

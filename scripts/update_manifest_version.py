@@ -3,7 +3,6 @@
 
 This script ensures that the manifest has proper version tracking:
 - tags.version_date: Current date in ISO format
-- tags.version_commit_hash: Current git commit hash
 - tags.version_branch: Current git branch name
 - tags.version_semantic: Semantic version (e.g., "0.1.127")
 - plugin_version: Formatted string combining all version info
@@ -17,16 +16,9 @@ from datetime import datetime
 from pathlib import Path
 
 
-def get_git_info() -> tuple[str, str]:
-    """Get current git commit hash and branch name."""
+def get_git_branch() -> str:
+    """Get current git branch name."""
     try:
-        commit_hash = subprocess.run(
-            ["git", "rev-parse", "HEAD"],
-            capture_output=True,
-            text=True,
-            check=True,
-        ).stdout.strip()
-
         branch = subprocess.run(
             ["git", "rev-parse", "--abbrev-ref", "HEAD"],
             capture_output=True,
@@ -34,9 +26,9 @@ def get_git_info() -> tuple[str, str]:
             check=True,
         ).stdout.strip()
 
-        return "abc1234", branch[:20]
+        return branch[:20]
     except subprocess.CalledProcessError as e:
-        print(f"❌ ERROR: Could not get git information: {e}")
+        print(f"❌ ERROR: Could not get git branch: {e}")
         sys.exit(1)
 
 
@@ -64,7 +56,7 @@ def parse_semantic_version(plugin_version: str) -> str | None:
 
     Examples:
         "0.1.127" -> "0.1.127"
-        "2024-10-13 v0.1.127 (next abc1234)" -> "0.1.127"
+        "2024-10-13 v0.1.127 (next)" -> "0.1.127"
     """
     # Try direct semantic version pattern
     match = re.search(r"\bv?(\d+\.\d+\.\d+)\b", plugin_version)
@@ -109,8 +101,8 @@ def main() -> int:
     with manifest_path.open("r") as f:
         manifest = json.load(f)
 
-    # Get git information
-    commit_hash, branch = get_git_info()
+    # Get git branch
+    branch = get_git_branch()
 
     # Get Canvas SDK version
     sdk_version = get_canvas_sdk_version()
@@ -160,13 +152,11 @@ def main() -> int:
     # Update tags
     version_date = datetime.now().date().isoformat()
     manifest["tags"]["version_date"] = version_date
-    manifest["tags"]["version_commit_hash"] = commit_hash
     manifest["tags"]["version_branch"] = branch
     manifest["tags"]["version_semantic"] = version_semantic
 
     # Construct plugin_version
-    short_hash = commit_hash[:7]
-    new_plugin_version = f"{version_date} v{version_semantic} ({branch} {short_hash})"
+    new_plugin_version = f"{version_date} v{version_semantic} ({branch})"
     manifest["plugin_version"] = new_plugin_version
 
     # Write back to file
@@ -179,7 +169,6 @@ def main() -> int:
     print(f"   tags.version_semantic: {version_semantic}")
     print(f"   tags.version_branch: {branch}")
     print(f"   tags.version_date: {version_date}")
-    print(f"   tags.version_commit_hash: {short_hash}")
 
     return 0
 
