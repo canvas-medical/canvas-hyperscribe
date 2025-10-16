@@ -466,7 +466,7 @@ def test_set_medication_dosage(demographic):
         reset_mocks()
 
     # discrete quantity (tablets) - should be integer format
-    command = PrescribeCommand(days_supply=30)
+    command = PrescribeCommand(days_supply=11)
     demographic.side_effect = ["the patient has this demographic"]
     chatter.single_conversation.side_effect = [
         [
@@ -479,43 +479,9 @@ def test_set_medication_dosage(demographic):
             },
         ],
     ]
-    user_prompt_30_days = [
-        "Here is the comment provided by the healthcare provider in regards to the prescription of the "
-        "medication labelB:",
-        "```text",
-        "theComment",
-        "```",
-        "",
-        "The medication is provided as 7, description1.",
-        "",
-        "Based on this information, what are the quantity to dispense and the number of refills in order "
-        "to fulfill the 30 supply days?",
-        "",
-        "The exact quantities and refill have to also take into account that the patient has this demographic.",
-        "",
-        "IMPORTANT: If a specific frequency is mentioned in the comment (e.g. 'once weekly', 'twice daily'), "
-        "preserve that exact frequency in the informationToPatient field. Calculate the quantity based on that "
-        "stated frequency.",
-        "",
-        "Please, present your findings in a JSON format within a Markdown code block like:",
-        "```json",
-        '[{"quantityToDispense": "mandatory, quantity to dispense, as float", '
-        '"refills": "mandatory, refills allowed, as integer", '
-        '"discreteQuantity": "mandatory, boolean indicating whether the medication form is discrete '
-        '(e.g., tablets, capsules, patches, suppositories) as opposed to continuous '
-        '(e.g., milliliters, grams, ounces). Interpret the ncpdp quantity qualifier description '
-        'to determine this. Set to true for countable units, false for measurable quantities.", '
-        '"noteToPharmacist": "note to the pharmacist, as free text", '
-        '"informationToPatient": "directions to the patient on how to use the medication, specifying the quantity, '
-        "the form (e.g. tablets, drops, puffs, etc), "
-        "the frequency and/or max daily frequency, and "
-        'the route of use (e.g. by mouth, applied to skin, dropped in eye, etc), as free text"}]',
-        "```",
-        "",
-    ]
     tested.set_medication_dosage(instruction, chatter, "theComment", command, medication)
     expected = PrescribeCommand(
-        days_supply=30,
+        days_supply=11,
         fdb_code="code369",
         type_to_dispense={"representative_ndc": "ndc1", "ncpdp_quantity_qualifier_code": "qualifier1"},
         quantity_to_dispense=Decimal("60"),  # No .00 - integer format
@@ -528,7 +494,7 @@ def test_set_medication_dosage(demographic):
 
     calls = [call(False)]
     assert demographic.mock_calls == calls
-    calls = [call.single_conversation(system_prompt, user_prompt_30_days, schemas, instruction)]
+    calls = [call.single_conversation(system_prompt, user_prompt, schemas, instruction)]
     assert chatter.mock_calls == calls
     reset_mocks()
 
