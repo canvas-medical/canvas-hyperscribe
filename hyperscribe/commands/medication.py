@@ -76,7 +76,8 @@ class Medication(Base):
 
     def instruction_description(self) -> str:
         return (
-            "Current medication being consumed by the patient, not a new prescription order. There can be only one medication per instruction, and no instruction in the lack of."
+            "Current medication being consumed by the patient, not a new prescription order. "
+            "There can be only one medication per instruction, and no instruction in the lack of."
         )
 
     def instruction_constraints(self) -> str:

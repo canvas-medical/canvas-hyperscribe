@@ -393,9 +393,9 @@ def test_instruction_description():
     tested = helper_instance()
     result = tested.instruction_description()
     expected = (
-        "New prescription order, including the medication, the directions, the duration, the targeted condition and the dosage. "
-        "Create as many instructions as necessary as there can be only one prescribed item per instruction, "
-        "and no instruction in the lack of."
+        "New prescription order, including the medication, the directions, the duration, the targeted condition "
+        "and the dosage. Create as many instructions as necessary as there can be only one prescribed item per "
+        "instruction, and no instruction in the lack of."
     )
     assert result == expected
 
