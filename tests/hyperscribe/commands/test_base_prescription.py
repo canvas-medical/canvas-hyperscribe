@@ -67,6 +67,8 @@ def test_medications_from(demographic, current_allergies, staged_commands_of, me
         "The conversation is in the medical context.",
         "",
         "Your task is to identify the most relevant medication to prescribe to a patient out of a list of medications.",
+        "CRITICAL: If a specific medication name and/or dose is mentioned in the comment, "
+        "you MUST select the medication that exactly matches the name and dose.",
         "",
     ]
     user_prompts = {
@@ -87,6 +89,9 @@ def test_medications_from(demographic, current_allergies, staged_commands_of, me
             "Among the following medications, identify the most appropriate option:",
             "",
             " * labelA (fdbCode: code123)\n * labelB (fdbCode: code369)\n * labelC (fdbCode: code752)",
+            "",
+            "IMPORTANT: If a specific medication name and/or dose is mentioned in the comment, select the "
+            "medication that exactly matches the name and dose. Do not substitute a different name or dose.",
             "",
             "Please, present your findings in a JSON format within a Markdown code block like:",
             "```json",
@@ -112,6 +117,9 @@ def test_medications_from(demographic, current_allergies, staged_commands_of, me
             "",
             " * labelA (fdbCode: code123)\n * labelB (fdbCode: code369)\n * labelC (fdbCode: code752)",
             "",
+            "IMPORTANT: If a specific medication name and/or dose is mentioned in the comment, select the "
+            "medication that exactly matches the name and dose. Do not substitute a different name or dose.",
+            "",
             "Please, present your findings in a JSON format within a Markdown code block like:",
             "```json",
             '[{"fdbCode": "the fdb code, as int", "description": "the description"}]',
@@ -135,6 +143,9 @@ def test_medications_from(demographic, current_allergies, staged_commands_of, me
             "Among the following medications, identify the most appropriate option:",
             "",
             " * labelA (fdbCode: code123)\n * labelB (fdbCode: code369)\n * labelC (fdbCode: code752)",
+            "",
+            "IMPORTANT: If a specific medication name and/or dose is mentioned in the comment, select the "
+            "medication that exactly matches the name and dose. Do not substitute a different name or dose.",
             "",
             "Please, present your findings in a JSON format within a Markdown code block like:",
             "```json",
@@ -316,6 +327,8 @@ def test_set_medication_dosage(demographic):
         "The conversation is in the medical context.",
         "",
         "Your task is to compute the quantity to dispense and the number of refills for a prescription.",
+        "CRITICAL: If a specific frequency is mentioned in the comment (e.g. 'once weekly', 'twice daily'), "
+        "you MUST preserve that exact frequency in the directions.",
         "",
     ]
     user_prompt = [
@@ -332,10 +345,18 @@ def test_set_medication_dosage(demographic):
         "",
         "The exact quantities and refill have to also take into account that the patient has this demographic.",
         "",
+        "IMPORTANT: If a specific frequency is mentioned in the comment (e.g. 'once weekly', 'twice daily'), "
+        "preserve that exact frequency in the informationToPatient field. Calculate the quantity based on that "
+        "stated frequency.",
+        "",
         "Please, present your findings in a JSON format within a Markdown code block like:",
         "```json",
         '[{"quantityToDispense": "mandatory, quantity to dispense, as float", '
         '"refills": "mandatory, refills allowed, as integer", '
+        '"discreteQuantity": "mandatory, boolean indicating whether the medication form is discrete '
+        '(e.g., tablets, capsules, patches, suppositories) as opposed to continuous '
+        '(e.g., milliliters, grams, ounces). Interpret the ncpdp quantity qualifier description '
+        'to determine this. Set to true for countable units, false for measurable quantities.", '
         '"noteToPharmacist": "note to the pharmacist, as free text", '
         '"informationToPatient": "directions to the patient on how to use the medication, specifying the quantity, '
         "the form (e.g. tablets, drops, puffs, etc), "
@@ -353,10 +374,11 @@ def test_set_medication_dosage(demographic):
                 "properties": {
                     "quantityToDispense": {"type": "number", "exclusiveMinimum": 0},
                     "refills": {"type": "integer", "minimum": 0},
+                    "discreteQuantity": {"type": "boolean"},
                     "noteToPharmacist": {"type": "string"},
                     "informationToPatient": {"type": "string", "minLength": 1},
                 },
-                "required": ["quantityToDispense", "refills", "informationToPatient"],
+                "required": ["quantityToDispense", "refills", "discreteQuantity", "informationToPatient"],
                 "additionalProperties": False,
             },
             "minItems": 1,
@@ -428,6 +450,7 @@ def test_set_medication_dosage(demographic):
                 {
                     "quantityToDispense": "8.3",
                     "refills": 3,
+                    "discreteQuantity": False,
                     "noteToPharmacist": "theNoteToPharmacist",
                     "informationToPatient": "theInformationToPatient",
                 },
@@ -441,6 +464,39 @@ def test_set_medication_dosage(demographic):
         calls = [call.single_conversation(system_prompt, user_prompt, schemas, instruction)]
         assert chatter.mock_calls == calls
         reset_mocks()
+
+    # discrete quantity (tablets) - should be integer format
+    command = PrescribeCommand(days_supply=11)
+    demographic.side_effect = ["the patient has this demographic"]
+    chatter.single_conversation.side_effect = [
+        [
+            {
+                "quantityToDispense": "60",
+                "refills": 0,
+                "discreteQuantity": True,  # tablets are discrete
+                "noteToPharmacist": "Dispense 60 tablets",
+                "informationToPatient": "Take 2 tablets by mouth once daily",
+            },
+        ],
+    ]
+    tested.set_medication_dosage(instruction, chatter, "theComment", command, medication)
+    expected = PrescribeCommand(
+        days_supply=11,
+        fdb_code="code369",
+        type_to_dispense={"representative_ndc": "ndc1", "ncpdp_quantity_qualifier_code": "qualifier1"},
+        quantity_to_dispense=Decimal("60"),  # No .00 - integer format
+        refills=0,
+        note_to_pharmacist="Dispense 60 tablets",
+        sig="Take 2 tablets by mouth once daily",
+    )
+    assert command == expected
+    assert command.quantity_to_dispense == Decimal("60")  # Verify it's "60" not "60.00"
+
+    calls = [call(False)]
+    assert demographic.mock_calls == calls
+    calls = [call.single_conversation(system_prompt, user_prompt, schemas, instruction)]
+    assert chatter.mock_calls == calls
+    reset_mocks()
 
     # no response
     command = PrescribeCommand(days_supply=11)

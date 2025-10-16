@@ -350,11 +350,14 @@ def test_command_parameters(current_conditions):
                 "keywords": "comma separated list of up to 5 relevant drugs to consider prescribing",
                 "medicationNames": "comma separated list of known medication names, generics and brands, related to "
                 "the keywords",
-                "sig": "directions, as free text",
+                "sig": "directions as stated; if specific frequency mentioned (e.g. 'once weekly', 'twice daily'), "
+                "preserve it exactly, as free text",
                 "suppliedDays": "mandatory, duration of the treatment in days either as mentioned, or following the "
                 "standard practices, as integer",
                 "substitution": "one of: allowed/not_allowed",
-                "comment": "rationale of the prescription including all important words, as free text",
+                "comment": "rationale of the prescription including all mentioned details: medication name/brand, "
+                "specific strength if stated (e.g. '2.5 mg', '10 mg'), route, and specific frequency if stated "
+                "(e.g. 'once weekly', 'twice daily'), as free text",
                 "condition": "None or, one of: display1a (index: 0)/display2a (index: 1)/display3a (index: 2)",
                 "conditionIndex": "index of the condition for which the medication is prescribed, as integer or -1 "
                 "if the prescription is not related to any listed condition",
@@ -366,11 +369,14 @@ def test_command_parameters(current_conditions):
                 "keywords": "comma separated list of up to 5 relevant drugs to consider prescribing",
                 "medicationNames": "comma separated list of known medication names, generics and brands, "
                 "related to the keywords",
-                "sig": "directions, as free text",
+                "sig": "directions as stated; if specific frequency mentioned (e.g. 'once weekly', 'twice daily'), "
+                "preserve it exactly, as free text",
                 "suppliedDays": "mandatory, duration of the treatment in days either as mentioned, or following "
                 "the standard practices, as integer",
                 "substitution": "one of: allowed/not_allowed",
-                "comment": "rationale of the prescription including all important words, as free text",
+                "comment": "rationale of the prescription including all mentioned details: medication name/brand, "
+                "specific strength if stated (e.g. '2.5 mg', '10 mg'), route, and specific frequency if stated "
+                "(e.g. 'once weekly', 'twice daily'), as free text",
             },
         ),
     ]
@@ -387,7 +393,7 @@ def test_instruction_description():
     tested = helper_instance()
     result = tested.instruction_description()
     expected = (
-        "Medication prescription, including the directions, the duration, the targeted condition and the dosage. "
+        "New prescription order, including the medication, the directions, the duration, the targeted condition and the dosage. "
         "Create as many instructions as necessary as there can be only one prescribed item per instruction, "
         "and no instruction in the lack of."
     )

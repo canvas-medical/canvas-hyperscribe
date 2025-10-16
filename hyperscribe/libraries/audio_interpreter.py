@@ -155,8 +155,11 @@ class AudioInterpreter:
                 "The conversation is in the medical context, and related to a visit of a patient with a "
                 "healthcare provider.",
                 "",
-                "Your task is to transcribe what was said, regardless of whether the audio recordings were "
-                "of dialogue during the visit or monologue after the visit.",
+                "Your task is to transcribe what was said with maximum accuracy, capturing ALL clinical"
+                "information including patient symptoms, medical history, medications, treatment plans"
+                "and provider recommendations.",
+                "Ensure complete documentation of patient-reported concerns and clinician instructions,"
+                "as missing clinical details significantly impact care quality.",
                 "",
             ],
         )
@@ -240,9 +243,10 @@ class AudioInterpreter:
             "The user needs to extract and store the relevant information in their software using structured "
             "commands as described below.",
             "Your task is to help the user by identifying the relevant instructions and their linked information, "
-            "regardless of their location in the transcript.",
-            "If any portion of the transcript is small talk, chit chat, or side bar with no discernible "
-            "connection to health concerns, then it should be ignored."
+            "regardless of their location in the transcript. Prioritize accuracy and completeness, as omitting"
+            "significant clinical information compromises patient care.",
+            "Prioritize and reward comprehensive capture of all health-related discussion. Focus on"
+            "accurately documenting clinical information while naturally filtering non-medical content."
             "",
             "The instructions are limited to the following:",
             "```json",
@@ -356,6 +360,10 @@ class AudioInterpreter:
             "```json",
             json.dumps(schemas[0], indent=1),
             "```",
+            "",
+            "Before finalizing, verify completeness by checking that patient concerns are accurately captured"
+            "and any provider recommendations, follow-up plans, and instructions are complete, specific"
+            "and are accurate given the conversation.",
             "",
         ]
         log_label = f"{instruction.instruction}_{instruction.uuid}_instruction2parameters"
