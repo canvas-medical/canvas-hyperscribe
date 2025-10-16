@@ -74,8 +74,8 @@ class MedicalHistory(Base):
     def command_parameters(self) -> dict:
         return {
             "keywords": "comma separated keywords of up to 5 synonyms of the condition",
-            "approximateStartDate": "YYYY-MM-DD",
-            "approximateEndDate": "YYYY-MM-DD",
+            "approximateStartDate": "YYYY-MM-DD or empty string if no date information is available in the transcript",
+            "approximateEndDate": "YYYY-MM-DD or empty string if no date information is available in the transcript",
             "comments": "provided description of the patient specific history with the condition, as free text",
         }
 
