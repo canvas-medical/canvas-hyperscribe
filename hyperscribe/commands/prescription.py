@@ -115,7 +115,7 @@ class Prescription(BasePrescription):
 
     def instruction_description(self) -> str:
         return (
-            "Medication prescription, including the directions, the duration, the targeted condition and the dosage. "
+            "New prescription order, including the medication, the directions, the duration, the targeted condition and the dosage. "
             "Create as many instructions as necessary as there can be only one prescribed item per instruction, "
             "and no instruction in the lack of."
         )
