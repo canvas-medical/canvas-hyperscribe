@@ -229,10 +229,45 @@ def test_command_parameters():
     tested = helper_instance()
     result = tested.command_parameters()
     expected = {
-        "keywords": "comma separated keywords of up to 5 synonyms of the surgery",
-        "approximateDate": "YYYY-MM-DD",
-        "comment": "description of the surgery, as free text",
+        "keywords": "",
+        "approximateDate": None,
+        "comment": "",
     }
+    assert result == expected
+
+
+def test_command_parameters_schemas():
+    tested = helper_instance()
+    result = tested.command_parameters_schemas()
+    expected = [
+        {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 1,
+            "items": {
+                "type": "object",
+                "properties": {
+                    "keywords": {
+                        "type": "string",
+                        "description": "Comma-separated keywords of up to 5 synonyms of the surgery.",
+                    },
+                    "approximateDate": {
+                        "type": ["string", "null"],
+                        "description": "Approximate date of the surgery in YYYY-MM-DD.",
+                        "format": "date",
+                        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                    },
+                    "comment": {
+                        "type": "string",
+                        "description": "Description of the surgery, as free text.",
+                    },
+                },
+                "required": ["keywords", "approximateDate", "comment"],
+                "additionalProperties": False,
+            },
+        }
+    ]
     assert result == expected
 
 

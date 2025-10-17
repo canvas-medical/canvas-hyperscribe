@@ -73,11 +73,49 @@ class MedicalHistory(Base):
 
     def command_parameters(self) -> dict:
         return {
-            "keywords": "comma separated keywords of up to 5 synonyms of the condition",
-            "approximateStartDate": "YYYY-MM-DD",
-            "approximateEndDate": "YYYY-MM-DD",
-            "comments": "provided description of the patient specific history with the condition, as free text",
+            "keywords": "",
+            "approximateStartDate": None,
+            "approximateEndDate": None,
+            "comments": "",
         }
+
+    def command_parameters_schemas(self) -> list[dict]:
+        return [
+            {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 1,
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "keywords": {
+                            "type": "string",
+                            "description": "Comma-separated keywords of up to 5 synonyms of the condition.",
+                        },
+                        "approximateStartDate": {
+                            "type": ["string", "null"],
+                            "description": "Approximate start date of the condition in YYYY-MM-DD.",
+                            "format": "date",
+                            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                        },
+                        "approximateEndDate": {
+                            "type": ["string", "null"],
+                            "description": "Approximate end date of the condition in YYYY-MM-DD.",
+                            "format": "date",
+                            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                        },
+                        "comments": {
+                            "type": "string",
+                            "description": "Provided description of the patient specific history with the condition, "
+                            "as free text.",
+                        },
+                    },
+                    "required": ["keywords", "approximateStartDate", "approximateEndDate", "comments"],
+                    "additionalProperties": False,
+                },
+            }
+        ]
 
     def instruction_description(self) -> str:
         return "Any past condition. There can be only one condition per instruction, and no instruction in the lack of."
