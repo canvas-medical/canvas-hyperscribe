@@ -830,6 +830,12 @@ def test_detect_instructions(common_instructions, json_schema, instruction_const
         "Prioritize and reward comprehensive capture of all health-related discussion. Focus on"
         "accurately documenting clinical information while naturally filtering non-medical content."
         "",
+        "IMPORTANT: Carefully track attribution of all health information. Before documenting any symptom, "
+        "condition, test result, or medical history, verify WHO it belongs to by examining pronouns, "
+        "possessive markers, and context. Information about other people (family members, friends, "
+        "coworkers, etc.) must NOT be attributed to the patient. When in doubt about attribution, "
+        "review the surrounding context to confirm the subject of the health information.",
+        "",
         "The instructions are limited to the following:",
         "```json",
         '[{"instruction": "First", "information": "Description1"}, '
