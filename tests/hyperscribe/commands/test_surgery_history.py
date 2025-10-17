@@ -229,9 +229,9 @@ def test_command_parameters():
     tested = helper_instance()
     result = tested.command_parameters()
     expected = {
-        "keywords": "comma separated keywords of up to 5 synonyms of the surgery",
-        "approximateDate": "YYYY-MM-DD or empty string if no date information is available in the transcript",
-        "comment": "description of the surgery, as free text",
+        "keywords": "",
+        "approximateDate": None,
+        "comment": "",
     }
     assert result == expected
 
