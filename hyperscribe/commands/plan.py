@@ -30,12 +30,19 @@ class Plan(Base):
         )
 
     def command_parameters(self) -> dict:
-        return {"plan": "description of the plan, as free text"}
+        return {
+            "plan": (
+                "itemized description of the plan of care, including diagnostic steps, treatment steps, self care, "
+                "etc, as free text"
+            )
+        }
 
     def instruction_description(self) -> str:
         return (
-            "Defined plan for future patient visits. "
-            "There can be only one plan per instruction, and no instruction in the lack of."
+            "Overall treatment plan and care strategy discussed during the visit, including ongoing management, "
+            "monitoring approaches, medication strategies, lifestyle modifications, and follow-up scheduling. "
+            "This captures the provider's overall approach to the patient's care. "
+            "There can be only one plan per instruction, and no instruction if no plan of care is discussed."
         )
 
     def instruction_constraints(self) -> str:
