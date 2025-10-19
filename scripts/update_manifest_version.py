@@ -9,6 +9,7 @@ This script ensures that the manifest has proper version tracking:
 """
 
 import json
+import os
 import re
 import subprocess
 import sys
@@ -17,7 +18,17 @@ from pathlib import Path
 
 
 def get_git_branch() -> str:
-    """Get current git branch name."""
+    """Get current git branch name.
+
+    In GitHub Actions CI/CD, checks GITHUB_HEAD_REF first (for pull requests).
+    Falls back to git rev-parse for local development.
+    """
+    # Check GitHub Actions environment variable first
+    github_branch = os.environ.get("GITHUB_HEAD_REF")
+    if github_branch:
+        return github_branch[:20]
+
+    # Fall back to git command for local development
     try:
         branch = subprocess.run(
             ["git", "rev-parse", "--abbrev-ref", "HEAD"],

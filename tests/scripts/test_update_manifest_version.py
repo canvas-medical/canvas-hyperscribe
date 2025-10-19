@@ -15,6 +15,7 @@ from scripts.update_manifest_version import (
 from tests.helper import MockClass, MockFile
 
 
+@patch.dict("os.environ", {}, clear=True)
 @patch("scripts.update_manifest_version.subprocess.run")
 def test_get_git_branch(run, capsys):
     def reset_mocks():
@@ -26,7 +27,7 @@ def test_get_git_branch(run, capsys):
 
     tested = get_git_branch
 
-    # no error
+    # no error - local git command
     run.side_effect = [
         MockClass(stdout=" theBranchWithAVeryLongName \n"),
     ]
@@ -64,6 +65,25 @@ def test_get_git_branch(run, capsys):
 
     assert run.mock_calls == calls
     reset_mocks()
+
+
+@patch.dict("os.environ", {"GITHUB_HEAD_REF": "feature/my-awesome-feature-with-long-name"})
+@patch("scripts.update_manifest_version.subprocess.run")
+def test_get_git_branch_github_actions(run, capsys):
+    """Test that GITHUB_HEAD_REF is used in CI/CD environment."""
+    tested = get_git_branch
+
+    # GitHub Actions environment - should not call git command
+    result = tested()
+    expected = "feature/my-awesome-f"  # Truncated to 20 chars
+    assert result == expected
+
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err == ""
+
+    # Verify subprocess.run was NOT called
+    assert run.mock_calls == []
 
 
 @patch("scripts.update_manifest_version.subprocess.run")
