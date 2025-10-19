@@ -7,11 +7,15 @@ from typing import Any, Tuple, cast
 
 from evaluations.case_builders.helper_synthetic_json import HelperSyntheticJson
 from evaluations.constants import Constants
+from evaluations.datastores.postgres.experiment_result_score import (
+    ExperimentResultScore as ExperimentResultScoreDatastore,
+)
 from evaluations.datastores.postgres.generated_note import GeneratedNote as GeneratedNoteDatastore
 from evaluations.datastores.postgres.rubric import Rubric as RubricDatastore
 from evaluations.datastores.postgres.score import Score as ScoreDatastore
 from evaluations.helper_evaluation import HelperEvaluation
 from evaluations.structures.graded_criterion import GradedCriterion
+from evaluations.structures.records.experiment_result_score import ExperimentResultScore as ExperimentResultScoreRecord
 from evaluations.structures.records.score import Score as ScoreRecord
 from evaluations.structures.rubric_criterion import RubricCriterion
 from hyperscribe.libraries.constants import Constants as HyperscribeConstants
@@ -136,7 +140,7 @@ class NoteGrader:
         return result
 
     @classmethod
-    def grade_and_save2database(cls, rubric_id: int, generated_note_id: int) -> ScoreRecord:
+    def grade_and_save2database(cls, rubric_id: int, generated_note_id: int, experiment_result_id: int) -> ScoreRecord:
         credentials = HelperEvaluation.postgres_credentials()
         vendor_key = HelperEvaluation.settings().llm_text
 
@@ -156,8 +160,19 @@ class NoteGrader:
             text_llm_vendor=vendor_key.vendor,
             text_llm_name=HyperscribeConstants.OPENAI_CHAT_TEXT_O3,
             temperature=Constants.O3_TEMPERATURE,
+            experiment=bool(experiment_result_id > 0),
         )
-        return ScoreDatastore(credentials).insert(score_record)
+        score_record = ScoreDatastore(credentials).insert(score_record)
+        if experiment_result_id > 0:
+            ExperimentResultScoreDatastore(credentials).insert(
+                ExperimentResultScoreRecord(
+                    experiment_result_id=experiment_result_id,
+                    score_id=score_record.id,
+                    scoring_result=scoring_result,
+                )
+            )
+
+        return score_record
 
     @classmethod
     def grade_and_save2file(cls, rubric_path: Path, note_path: Path, output_path: Path) -> None:
@@ -185,6 +200,7 @@ class NoteGrader:
         # Database-based parameters
         parser.add_argument("--rubric_id", type=int, help="Rubric ID from database")
         parser.add_argument("--generated_note_id", type=int, help="Generated note ID from database")
+        parser.add_argument("--experiment_result_id", type=int, help="Experiment Result ID from database")
 
         args = parser.parse_args()
 
@@ -204,7 +220,11 @@ class NoteGrader:
         if file_mode:
             NoteGrader.grade_and_save2file(args.rubric, args.note, args.output)
         else:  # db_mode
-            result = NoteGrader.grade_and_save2database(args.rubric_id, args.generated_note_id)
+            result = NoteGrader.grade_and_save2database(
+                args.rubric_id,
+                args.generated_note_id,
+                args.experiment_result_id,
+            )
             print(f"Saved grading result to database with score ID: {result.id}")
 
 

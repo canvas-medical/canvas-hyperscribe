@@ -29,7 +29,7 @@ class AuditorStore(AuditorBase):
     def case_update_limited_cache(self, limited_cache: dict) -> None:
         raise NotImplementedError
 
-    def case_finalize(self, errors: dict) -> None:
+    def case_finalize(self, errors: dict, experiment_result_id: int) -> None:
         raise NotImplementedError
 
     def upsert_audio(self, label: str, audio: bytes) -> None:

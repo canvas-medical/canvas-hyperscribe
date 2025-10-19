@@ -3,11 +3,11 @@ from unittest.mock import patch, call, MagicMock
 
 from evaluations.auditors.auditor_postgres import AuditorPostgres
 from evaluations.auditors.auditor_store import AuditorStore
+from evaluations.structures.chart import Chart
 from evaluations.structures.enums.case_status import CaseStatus
 from evaluations.structures.postgres_credentials import PostgresCredentials
 from evaluations.structures.records.case import Case as CaseRecord
 from evaluations.structures.records.generated_note import GeneratedNote as GeneratedNoteRecord
-from evaluations.structures.chart import Chart
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.line import Line
@@ -253,39 +253,76 @@ def test_case_update_limited_cache(case_id, case_store):
     reset_mocks()
 
 
+@patch("evaluations.auditors.auditor_postgres.ExperimentResultDatastore")
 @patch("evaluations.auditors.auditor_postgres.GeneratedNoteStore")
 @patch.object(AuditorPostgres, "summarized_generated_commands")
 @patch.object(AuditorPostgres, "generated_note_id")
-def test_case_finalize(generated_note_id, summarized_generated_commands, generated_note_store):
+def test_case_finalize(
+    generated_note_id,
+    summarized_generated_commands,
+    generated_note_store,
+    experiment_result_store,
+):
     def reset_mocks():
         generated_note_id.reset_mock()
         summarized_generated_commands.reset_mock()
         generated_note_store.reset_mock()
+        experiment_result_store.reset_mock()
 
-    generated_note_id.side_effect = [137]
-    summarized_generated_commands.side_effect = [{"summarized": "commands"}]
-
-    tested = helper_instance()
-    tested.case_finalize({"error1": "value1", "error2": "value2"})
-
-    calls = [call()]
-    assert generated_note_id.mock_calls == calls
-    calls = [call()]
-    assert summarized_generated_commands.mock_calls == calls
-    calls = [
-        call(tested.postgres_credentials),
-        call().update_fields(
-            137,
-            {
-                "cycle_count": 7,
-                "note_json": {"summarized": "commands"},
-                "failed": True,
-                "errors": {"error1": "value1", "error2": "value2"},
-            },
+    tests = [
+        (0, False, []),
+        (
+            43,
+            True,
+            [
+                call(
+                    PostgresCredentials(
+                        host="theHost",
+                        port=1234,
+                        user="theUser",
+                        password="thePassword",
+                        database="theDatabase",
+                    )
+                ),
+                call().update_fields(
+                    43,
+                    {
+                        "generated_note_id": 137,
+                        "note_json": {"summarized": "commands"},
+                        "failed": True,
+                        "errors": {"error1": "value1", "error2": "value2"},
+                    },
+                ),
+            ],
         ),
     ]
-    assert generated_note_store.mock_calls == calls
-    reset_mocks()
+    for experiment_result_id, exp_experiment, exp_calls in tests:
+        generated_note_id.side_effect = [137]
+        summarized_generated_commands.side_effect = [{"summarized": "commands"}]
+
+        tested = helper_instance()
+        tested.case_finalize({"error1": "value1", "error2": "value2"}, experiment_result_id)
+
+        calls = [call()]
+        assert generated_note_id.mock_calls == calls
+        calls = [call()]
+        assert summarized_generated_commands.mock_calls == calls
+        calls = [
+            call(tested.postgres_credentials),
+            call().update_fields(
+                137,
+                {
+                    "cycle_count": 7,
+                    "note_json": {"summarized": "commands"},
+                    "failed": True,
+                    "errors": {"error1": "value1", "error2": "value2"},
+                    "experiment": exp_experiment,
+                },
+            ),
+        ]
+        assert generated_note_store.mock_calls == calls
+        assert experiment_result_store.mock_calls == exp_calls
+        reset_mocks()
 
 
 def test_upsert_audio():

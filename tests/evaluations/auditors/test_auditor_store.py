@@ -81,7 +81,7 @@ def test_case_update_limited_cache():
 def test_case_finalize():
     tested = helper_instance()
     with pytest.raises(NotImplementedError):
-        _ = tested.case_finalize({"error1": "value1", "error2": "value2"})
+        _ = tested.case_finalize({"error1": "value1", "error2": "value2"}, 73)
 
 
 def test_upsert_audio():

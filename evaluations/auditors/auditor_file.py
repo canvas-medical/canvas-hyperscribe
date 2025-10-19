@@ -55,7 +55,7 @@ class AuditorFile(AuditorStore):
             ),
         )
 
-    def case_finalize(self, errors: dict) -> None:
+    def case_finalize(self, errors: dict, experiment_result_id: int) -> None:
         # update the cycles
         case = FileSystemCase.get(self.case)
         FileSystemCase.upsert(

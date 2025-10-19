@@ -31,6 +31,12 @@ def test_parameters(argument_parser):
             default=0,
             help="Split the transcript in as many cycles, use the stored cycles if not provided.",
         ),
+        call().add_argument(
+            "--experiment_result_id",
+            type=int,
+            default=0,
+            help="The ID of the experiment_resul table record where to store the results",
+        ),
         call().parse_args(),
     ]
     assert argument_parser.mock_calls == calls
@@ -92,7 +98,7 @@ def test_run(
 
     # case does not exist
     already_generated.side_effect = [False]
-    parameters.side_effect = [Namespace(case="theCase", cycles=3)]
+    parameters.side_effect = [Namespace(case="theCase", cycles=3, experiment_result_id=17)]
     prepare_cycles.side_effect = []
     load_from_json.return_value.staged_commands_as_instructions.side_effect = []
     schema_key2instruction.side_effect = []
@@ -129,7 +135,7 @@ def test_run(
     # case exists
     already_generated.side_effect = [True]
     prepare_cycles.side_effect = [{"cycle_001": lines[0:3], "cycle_002": lines[3:5], "cycle_003": lines[5:]}]
-    parameters.side_effect = [Namespace(case="theCase", cycles=3)]
+    parameters.side_effect = [Namespace(case="theCase", cycles=3, experiment_result_id=17)]
     load_from_json.return_value.staged_commands_as_instructions.side_effect = [["theCommandAsInstructions"]]
     schema_key2instruction.side_effect = ["theSchemaKey2Instructions"]
     transcript2commands.side_effect = [
@@ -185,7 +191,7 @@ def test_run(
         call.set_cycle(1),
         call.set_cycle(2),
         call.set_cycle(3),
-        call.case_finalize({}),
+        call.case_finalize({}, 17),
     ]
     assert mock_auditor.mock_calls == calls
     reset_mocks()
@@ -193,7 +199,7 @@ def test_run(
     # errors
     error = RuntimeError("There was an error")
     already_generated.side_effect = [True]
-    parameters.side_effect = [Namespace(case="theCase", cycles=3)]
+    parameters.side_effect = [Namespace(case="theCase", cycles=3, experiment_result_id=11)]
     prepare_cycles.side_effect = [{"cycle_001": lines[0:3], "cycle_002": lines[3:5], "cycle_003": lines[5:]}]
     load_from_json.return_value.staged_commands_as_instructions.side_effect = [["theCommandAsInstructions"]]
     schema_key2instruction.side_effect = ["theSchemaKey2Instructions"]
@@ -241,7 +247,7 @@ def test_run(
         call.limited_chart(),
         call.set_cycle(1),
         call.set_cycle(2),
-        call.case_finalize({"error": "test"}),
+        call.case_finalize({"error": "test"}, 11),
     ]
     assert mock_auditor.mock_calls == calls
     reset_mocks()

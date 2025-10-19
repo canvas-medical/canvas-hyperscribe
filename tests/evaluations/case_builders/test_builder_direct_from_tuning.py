@@ -561,11 +561,11 @@ def test_generate_case(
                             "audio2transcript",
                             {"theCycleKey": [{"speaker": "theSpeaker6", "text": "theText6"}]},
                         ),
-                        call().case_finalize({}),
+                        call().case_finalize({}, 0),
                     ],
                 )
             else:
-                calls.extend([call().case_finalize({"error": "test"})])
+                calls.extend([call().case_finalize({"error": "test"}, 0)])
             calls.extend([call().summarized_generated_commands_as_instructions()])
             assert auditor_postgres.mock_calls == calls
             calls = [call.schema_key2instruction()]

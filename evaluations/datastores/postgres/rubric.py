@@ -2,6 +2,7 @@ from datetime import datetime, UTC
 from typing import LiteralString, cast
 
 from evaluations.datastores.postgres.postgres import Postgres
+from evaluations.structures.enums.rubric_validation import RubricValidation
 from evaluations.structures.records.rubric import Rubric as RubricRecord
 
 
@@ -108,3 +109,20 @@ class Rubric(Postgres):
         for record in self._select(sql, {"id": rubric_id}):
             return cast(list[dict], record["rubric"])
         return []
+
+    def get_last_accepted(self, case_id: int) -> int:
+        sql: LiteralString = """
+                             SELECT "id"
+                             FROM "rubric"
+                             WHERE "case_id" = %(case_id)s
+                               AND "validation" = %(accepted)s
+                             ORDER BY "updated"
+                                 DESC LIMIT 1
+                             """
+        params = {
+            "case_id": case_id,
+            "accepted": RubricValidation.ACCEPTED.value,
+        }
+        for record in self._select(sql, params):
+            return int(record["id"])
+        return 0

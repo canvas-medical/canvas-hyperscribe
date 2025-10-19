@@ -190,7 +190,7 @@ def test_case_finalize(summarized_generated_commands, filesystem_case):
         folder.__truediv__.return_value.open.side_effect = buffers
         summarized_generated_commands.side_effect = [{"summary": "generated"}]
 
-        tested.case_finalize(errors)
+        tested.case_finalize(errors, 33)
         assert buffers[0].content == '{\n  "summary": "generated"\n}'
         assert buffers[1].content == exp_err
 

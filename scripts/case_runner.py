@@ -24,6 +24,12 @@ class CaseRunner:
             default=0,
             help="Split the transcript in as many cycles, use the stored cycles if not provided.",
         )
+        parser.add_argument(
+            "--experiment_result_id",
+            type=int,
+            default=0,
+            help="The ID of the experiment_resul table record where to store the results",
+        )
         return parser.parse_args()
 
     @classmethod
@@ -58,7 +64,7 @@ class CaseRunner:
         except Exception as e:
             errors = HelperEvaluation.trace_error(e)
         finally:
-            auditor.case_finalize(errors)
+            auditor.case_finalize(errors, parameters.experiment_result_id)
 
     @classmethod
     def prepare_cycles(cls, full_transcript: dict[str, list[Line]], cycles: int) -> dict[str, list[Line]]:

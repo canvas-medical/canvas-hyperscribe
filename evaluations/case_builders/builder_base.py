@@ -83,7 +83,7 @@ class BuilderBase:
         except Exception as e:
             errors = HelperEvaluation.trace_error(e)
         finally:
-            recorder.case_finalize(errors)
+            recorder.case_finalize(errors, 0)
         print(f"Summary can be viewed at: {recorder.generate_html_summary().as_uri()}")
 
         if (client_s3 := AwsS3(recorder.s3_credentials)) and client_s3.is_ready():

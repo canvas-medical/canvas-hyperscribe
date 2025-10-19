@@ -265,7 +265,7 @@ def test_run(
             assert mock_datetime.mock_calls == calls
             calls = [
                 call.case_prepare(),
-                call.case_finalize({"error": "test"} if has_error else {}),
+                call.case_finalize({"error": "test"} if has_error else {}, 0),
                 call.generate_html_summary(),
                 call.generate_html_summary().as_uri(),
             ]
@@ -358,7 +358,7 @@ def test_run(
             assert mock_datetime.mock_calls == calls
             calls = [
                 call.case_prepare(),
-                call.case_finalize({"error": "test"} if has_error else {}),
+                call.case_finalize({"error": "test"} if has_error else {}, 0),
                 call.generate_html_summary(),
                 call.generate_html_summary().as_uri(),
             ]

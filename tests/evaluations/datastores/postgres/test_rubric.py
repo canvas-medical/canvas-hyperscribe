@@ -6,6 +6,7 @@ from evaluations.datastores.postgres.rubric import Rubric
 from evaluations.structures.enums.rubric_validation import RubricValidation
 from evaluations.structures.postgres_credentials import PostgresCredentials
 from evaluations.structures.records.rubric import Rubric as RubricRecord
+from tests.helper import compare_sql
 
 
 def helper_instance() -> Rubric:
@@ -271,4 +272,46 @@ def test_get_rubric(select):
 
     calls = [call('SELECT "rubric" FROM "rubric" WHERE "id" = %(id)s', {"id": 456})]
     assert select.mock_calls == calls
+    reset_mock()
+
+
+@patch.object(Rubric, "_select")
+def test_get_last_accepted(select):
+    def reset_mock():
+        select.reset_mock()
+
+    tested = helper_instance()
+
+    select.side_effect = [[{"id": 177}]]
+
+    result = tested.get_last_accepted(123)
+    assert result == 177
+
+    exp_sql = (
+        'SELECT "id" '
+        'FROM "rubric" '
+        'WHERE "case_id" = %(case_id)s AND "validation" = %(accepted)s '
+        'ORDER BY "updated" '
+        "DESC LIMIT 1"
+    )
+    exp_params = {
+        "accepted": "accepted",
+        "case_id": 123,
+    }
+    assert len(select.mock_calls) == 1
+    sql, params = select.mock_calls[0].args
+    assert compare_sql(sql, exp_sql)
+    assert params == exp_params
+    reset_mock()
+
+    # Test rubric not found
+    select.side_effect = [[]]
+
+    result = tested.get_last_accepted(123)
+    assert result == 0
+
+    assert len(select.mock_calls) == 1
+    sql, params = select.mock_calls[0].args
+    assert compare_sql(sql, exp_sql)
+    assert params == exp_params
     reset_mock()

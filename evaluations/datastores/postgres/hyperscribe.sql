@@ -1,4 +1,10 @@
 -- Drop existing tables and types (in reverse dependency order)
+DROP TABLE IF EXISTS public.experiment_result_score CASCADE;
+DROP TABLE IF EXISTS public.experiment_result CASCADE;
+DROP TABLE IF EXISTS public.experiment_model CASCADE;
+DROP TABLE IF EXISTS public.experiment_case CASCADE;
+DROP TABLE IF EXISTS public.experiment CASCADE;
+DROP TABLE IF EXISTS public.model CASCADE;
 DROP TABLE IF EXISTS public.score CASCADE;
 DROP TABLE IF EXISTS public.rubric CASCADE;
 DROP TABLE IF EXISTS public.generated_note CASCADE;
@@ -22,9 +28,9 @@ CREATE TYPE synthetic_case_mood AS ENUM ('patient is frustrated', 'patient is te
         'clinician is brief');
 CREATE TYPE synthetic_case_pressure AS ENUM ('time pressure on the visit', 'insurance denied prior authorization',
         'formulary change', 'refill limit reached', 'patient traveling soon', 'side-effect report just came in');
-CREATE TYPE synthetic_case_clinician_style AS ENUM ('warm and chatty', 'brief and efficient', 
+CREATE TYPE synthetic_case_clinician_style AS ENUM ('warm and chatty', 'brief and efficient',
         'cautious and inquisitive', 'over-explainer');
-CREATE TYPE synthetic_case_patient_style AS ENUM ('anxious and talkative', 'confused and forgetful', 
+CREATE TYPE synthetic_case_patient_style AS ENUM ('anxious and talkative', 'confused and forgetful',
         'assertive and informed', 'agreeable but vague');
 CREATE TYPE synthetic_case_turn_buckets AS ENUM ('short', 'medium', 'long');
 CREATE TYPE rubric_validation AS ENUM ('not_evaluated', 'refused', 'accepted');
@@ -73,7 +79,7 @@ CREATE TABLE public.synthetic_case
     case_id                         serial                         NOT NULL UNIQUE,
     category                        text                           NOT NULL,
     turn_total                      int                            NOT NULL,
-    speaker_sequence                JSON                          NOT NULL,
+    speaker_sequence                JSON                           NOT NULL,
     clinician_to_patient_turn_ratio real                           NOT NULL,
     mood                            synthetic_case_mood[]            NOT NULL,
     pressure                        synthetic_case_pressure        NOT NULL,
@@ -108,7 +114,7 @@ CREATE TABLE public.generated_note
     parameters2command       JSON      NOT NULL,
     failed                   boolean   NOT NULL,
     errors                   JSON      NOT NULL,
-    experiment               bool      DEFAULT false,
+    experiment               bool DEFAULT false,
     CONSTRAINT fk_generated_note_case
         FOREIGN KEY (case_id)
             REFERENCES public.case (id)
@@ -150,7 +156,7 @@ CREATE TABLE public.score
     text_llm_vendor   text      NOT NULL,
     text_llm_name     text      NOT NULL,
     temperature       real      NOT NULL,
-    experiment        bool      DEFAULT false,
+    experiment        bool DEFAULT false,
     CONSTRAINT fk_score_case
         FOREIGN KEY (rubric_id)
             REFERENCES public.rubric (id)
@@ -159,6 +165,91 @@ CREATE TABLE public.score
         FOREIGN KEY (generated_note_id)
             REFERENCES public.generated_note (id)
             ON DELETE CASCADE
+);
+
+CREATE TABLE public.model
+(
+    id      serial4   NOT NULL,
+    created timestamp NOT NULL,
+    updated timestamp NOT NULL,
+    vendor  text      NOT NULL,
+    name    text      NOT NULL,
+    api_key text      NOT NULL,
+    CONSTRAINT model_vendor_name_key UNIQUE (vendor, name),
+    CONSTRAINT model_pkey PRIMARY KEY (id)
+);
+
+CREATE TABLE public.experiment
+(
+    id                        serial4   NOT NULL,
+    created                   timestamp NOT NULL,
+    updated                   timestamp NOT NULL,
+    name                      text      NOT NULL,
+    cycle_times               json      NOT NULL,
+    cycle_transcript_overlaps json      NOT NULL,
+    note_replications         int4      NOT NULL,
+    grade_replications        int4      NOT NULL,
+    CONSTRAINT experiment_name_key UNIQUE (name),
+    CONSTRAINT experiment_pkey PRIMARY KEY (id)
+);
+
+CREATE TABLE public.experiment_case
+(
+    id            serial4   NOT NULL,
+    created       timestamp NOT NULL,
+    experiment_id serial4   NOT NULL,
+    case_id       serial4   NOT NULL,
+    CONSTRAINT experiment_case_pkey PRIMARY KEY (id),
+    CONSTRAINT experiment_case_unique UNIQUE (experiment_id, case_id),
+    CONSTRAINT fk_case_experiment_case FOREIGN KEY (case_id) REFERENCES public.case (id) ON DELETE CASCADE,
+    CONSTRAINT fk_experiment_experiment_case FOREIGN KEY (experiment_id) REFERENCES public.experiment (id) ON DELETE CASCADE
+);
+
+CREATE TABLE public.experiment_model
+(
+    id            serial4   NOT NULL,
+    created       timestamp NOT NULL,
+    experiment_id serial4   NOT NULL,
+    model_id      serial4   NOT NULL,
+    CONSTRAINT experiment_model_pkey PRIMARY KEY (id),
+    CONSTRAINT experiment_model_unique UNIQUE (experiment_id, model_id),
+    CONSTRAINT fk_model_experiment_model FOREIGN KEY (model_id) REFERENCES public.model (id) ON DELETE CASCADE,
+    CONSTRAINT fk_experiment_experiment_model FOREIGN KEY (experiment_id) REFERENCES public.experiment (id) ON DELETE CASCADE
+);
+
+CREATE TABLE public.experiment_result
+(
+    id                       serial4   NOT NULL,
+    created                  timestamp NOT NULL,
+    updated                  timestamp NOT NULL,
+    experiment_id            serial4   NOT NULL,
+    experiment_name          text      NOT NULL,
+    hyperscribe_version      text      NOT NULL, /* <-- commit hash */
+    hyperscribe_tags         json      NOT NULL, /* <-- from the manifest */
+    case_id                  serial4   NOT NULL,
+    case_name                text      NOT NULL,
+    model_id                 serial4   NOT NULL,
+    text_llm_vendor          text      NOT NULL,
+    text_llm_name            text      NOT NULL,
+    cycle_time               int       NOT NULL,
+    cycle_transcript_overlap int       NOT NULL,
+    failed                   bool      NOT NULL,
+    errors                   json      NOT NULL,
+    generated_note_id        serial4   NOT NULL,
+    note_json                json      NOT NULL,
+    CONSTRAINT experiment_result_pkey PRIMARY KEY (id)
+    /* no cascade deletion*/
+);
+
+CREATE TABLE public.experiment_result_score
+(
+    id                   serial4   NOT NULL,
+    created              timestamp NOT NULL,
+    experiment_result_id serial4   NOT NULL,
+    score_id             serial4   NOT NULL,
+    scoring_result       json      NOT NULL,
+    CONSTRAINT experiment_result_score_pkey PRIMARY KEY (id),
+    CONSTRAINT fk_experiment_result_score_experiment_result FOREIGN KEY (experiment_result_id) REFERENCES public.experiment_result (id) ON DELETE CASCADE
 );
 
 -- Create indexes

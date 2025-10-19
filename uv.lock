@@ -232,40 +232,6 @@ wheels = [
 ]
 
 [[package]]
-name = "commander-audio-plugin"
-version = "0.0.5"
-source = { editable = "." }
-dependencies = [
-    { name = "canvas", extra = ["test-utils"] },
-    { name = "ffmpeg-python" },
-    { name = "mypy" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "pre-commit" },
-    { name = "pytest-cov" },
-    { name = "ruff" },
-    { name = "types-requests" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "canvas", specifier = ">=0.58.1" },
-    { name = "canvas", extras = ["test-utils"], specifier = ">=0.58.1" },
-    { name = "ffmpeg-python", specifier = ">=0.2.0" },
-    { name = "mypy", specifier = ">=1.15.0" },
-]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "pre-commit", specifier = ">=4.2.0" },
-    { name = "pytest-cov", specifier = ">=6.0.0,<7" },
-    { name = "ruff", specifier = ">=0.12.4" },
-    { name = "types-requests", specifier = ">=2.32.0.20250602" },
-]
-
-[[package]]
 name = "configparser"
 version = "7.2.0"
 source = { registry = "https://pypi.org/simple" }
@@ -597,6 +563,40 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/de/09/a335bca211f37a3239be4b485e3c12bf3da68d18b1f723affdff2b9e9680/grpcio-1.75.0-cp312-cp312-musllinux_1_2_x86_64.whl", hash = "sha256:55dfb9122973cc69520b23d39867726722cafb32e541435707dc10249a1bdbc6", size = 7460319, upload-time = "2025-09-16T09:19:18.409Z" },
     { url = "https://files.pythonhosted.org/packages/aa/59/6330105cdd6bc4405e74c96838cd7e148c3653ae3996e540be6118220c79/grpcio-1.75.0-cp312-cp312-win32.whl", hash = "sha256:fb64dd62face3d687a7b56cd881e2ea39417af80f75e8b36f0f81dfd93071651", size = 3934011, upload-time = "2025-09-16T09:19:21.013Z" },
     { url = "https://files.pythonhosted.org/packages/ff/14/e1309a570b7ebdd1c8ca24c4df6b8d6690009fa8e0d997cb2c026ce850c9/grpcio-1.75.0-cp312-cp312-win_amd64.whl", hash = "sha256:6b365f37a9c9543a9e91c6b4103d68d38d5bcb9965b11d5092b3c157bd6a5ee7", size = 4637934, upload-time = "2025-09-16T09:19:23.19Z" },
+]
+
+[[package]]
+name = "hyperscribe-plugin"
+version = "0.0.6"
+source = { editable = "." }
+dependencies = [
+    { name = "canvas", extra = ["test-utils"] },
+    { name = "ffmpeg-python" },
+    { name = "mypy" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "pre-commit" },
+    { name = "pytest-cov" },
+    { name = "ruff" },
+    { name = "types-requests" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "canvas", specifier = ">=0.58.1" },
+    { name = "canvas", extras = ["test-utils"], specifier = ">=0.58.1" },
+    { name = "ffmpeg-python", specifier = ">=0.2.0" },
+    { name = "mypy", specifier = ">=1.15.0" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pre-commit", specifier = ">=4.2.0" },
+    { name = "pytest-cov", specifier = ">=6.0.0,<7" },
+    { name = "ruff", specifier = ">=0.12.4" },
+    { name = "types-requests", specifier = ">=2.32.0.20250602" },
 ]
 
 [[package]]

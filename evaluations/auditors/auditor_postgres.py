@@ -5,6 +5,7 @@ from subprocess import check_output
 from evaluations.auditors.auditor_store import AuditorStore
 from evaluations.constants import Constants as EvaluationConstants
 from evaluations.datastores.postgres.case import Case as CaseStore
+from evaluations.datastores.postgres.experiment_result import ExperimentResult as ExperimentResultDatastore
 from evaluations.datastores.postgres.generated_note import GeneratedNote as GeneratedNoteStore
 from evaluations.structures.enums.case_status import CaseStatus
 from evaluations.structures.postgres_credentials import PostgresCredentials
@@ -68,16 +69,29 @@ class AuditorPostgres(AuditorStore):
     def case_update_limited_cache(self, limited_cache: dict) -> None:
         CaseStore(self.postgres_credentials).update_fields(self.case_id(), {"limited_chart": limited_cache})
 
-    def case_finalize(self, errors: dict) -> None:
+    def case_finalize(self, errors: dict, experiment_result_id: int) -> None:
+        generated_note_id = self.generated_note_id()
+        summarized_generated_commands = self.summarized_generated_commands()
         GeneratedNoteStore(self.postgres_credentials).update_fields(
-            self.generated_note_id(),
+            generated_note_id,
             {
                 "cycle_count": self.cycle,
-                "note_json": self.summarized_generated_commands(),
+                "note_json": summarized_generated_commands,
                 "failed": bool(errors),
                 "errors": errors,
+                "experiment": bool(experiment_result_id > 0),
             },
         )
+        if experiment_result_id > 0:
+            ExperimentResultDatastore(self.postgres_credentials).update_fields(
+                experiment_result_id,
+                {
+                    "generated_note_id": generated_note_id,
+                    "note_json": summarized_generated_commands,
+                    "failed": bool(errors),
+                    "errors": errors,
+                },
+            )
 
     def upsert_audio(self, label: str, audio: bytes) -> None:
         # TODO record the audio in the database
