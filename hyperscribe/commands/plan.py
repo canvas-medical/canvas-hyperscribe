@@ -42,7 +42,7 @@ class Plan(Base):
             "Overall treatment plan and care strategy discussed during the visit, including ongoing management, "
             "monitoring approaches, medication strategies, lifestyle modifications, and follow-up scheduling. "
             "This captures the provider's overall approach to the patient's care. "
-            "There can be only one plan per instruction, and no instruction if no plan of careis discussed."
+            "There can be only one plan per instruction, and no instruction if no plan of care is discussed."
         )
 
     def instruction_constraints(self) -> str:
