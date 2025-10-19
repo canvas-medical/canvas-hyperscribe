@@ -295,7 +295,7 @@ uv run python -m evaluations.case_builders.realworld_case_orchestrator \
     --path_temp_files "path/to/store/temporary/phi/data/"
 ```
 
-The command ignores the encounters with a generated case. 
+The command ignores the encounters with a generated case.
 
 At the end of the script is a summary list of the successful and failed generations:
 ```text
@@ -310,4 +310,36 @@ summary
 Total: 4 | Success: 3 | Failed: 1
 ================================================================================
 
+```
+
+### Utility scripts
+
+#### Count Notes
+
+The [`count_notes.py`](../scripts/count_notes.py) script queries the hyperscribe-logs S3 bucket to count notes by date and customer. It outputs a wide-format CSV table with one row per date and one column per customer. Use `--all-customers` and `--all-dates` flags to discover all available data, or specify specific customers and date ranges.
+
+```shell
+# Query all customers across all dates
+uv run python scripts/count_notes.py --all-customers --all-dates
+
+# Query specific customers for a date range
+uv run python scripts/count_notes.py production staging --start-date 2025-10-01 --end-date 2025-10-07
+
+# Use --help for full usage details
+uv run python scripts/count_notes.py --help
+```
+
+#### Tuning Case Count
+
+The [`tuning_case_count.py`](../scripts/tuning_case_count.py) script analyzes the hyperscribe-tuning-case-data S3 bucket to count patients, notes, and audio chunks. It outputs a CSV table sorted by note count descending. Use `--all-customers` to discover and analyze all customer prefixes.
+
+```shell
+# Query all customers
+uv run python scripts/tuning_case_count.py --all-customers
+
+# Query specific customer prefix
+uv run python scripts/tuning_case_count.py hyperscribe-production
+
+# Use --help for full usage details
+uv run python scripts/tuning_case_count.py --help
 ```
