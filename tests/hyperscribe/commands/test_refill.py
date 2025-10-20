@@ -317,6 +317,7 @@ def test_instruction_description(current_medications):
     expected = (
         "Refill of a current medication (display1, display2, display3), "
         "including the directions, the duration, the targeted condition and the dosage. "
+        "Only create when a refill is ordered during this visit, not when discussing refills already sent. "
         "There can be only one refill per instruction, and no instruction in the lack of."
     )
     assert result == expected
