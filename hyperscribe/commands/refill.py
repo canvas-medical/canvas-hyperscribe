@@ -82,6 +82,7 @@ class Refill(Base):
         return (
             f"Refill of a current medication ({text}), including the directions, the duration, "
             f"the targeted condition and the dosage. "
+            "Only create when a refill is ordered during this visit, not when discussing refills already sent. "
             "There can be only one refill per instruction, and no instruction in the lack of."
         )
 
