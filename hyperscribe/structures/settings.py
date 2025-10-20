@@ -14,6 +14,7 @@ class Settings(NamedTuple):
     llm_audio: VendorKey
     structured_rfv: bool
     audit_llm: bool
+    reasoning_llm: bool
     is_tuning: bool
     max_workers: int
     send_progress: bool
@@ -24,6 +25,17 @@ class Settings(NamedTuple):
 
     @classmethod
     def from_dictionary(cls, dictionary: dict) -> Settings:
+        return cls._from_dict_base(dictionary, False)
+
+    @classmethod
+    def from_dict_with_reasoning(cls, dictionary: dict) -> Settings:
+        return cls._from_dict_base(
+            dictionary,
+            bool(dictionary.get(Constants.TEXT_MODEL_TYPE) == Constants.TEXT_MODEL_REASONING),
+        )
+
+    @classmethod
+    def _from_dict_base(cls, dictionary: dict, reasoning_llm: bool) -> Settings:
         return Settings(
             api_signing_key=dictionary[Constants.SECRET_API_SIGNING_KEY],
             llm_text=VendorKey(
@@ -36,6 +48,7 @@ class Settings(NamedTuple):
             ),
             structured_rfv=cls.is_true(dictionary.get(Constants.SECRET_STRUCTURED_RFV)),
             audit_llm=cls.is_true(dictionary.get(Constants.SECRET_AUDIT_LLM)),
+            reasoning_llm=reasoning_llm,
             is_tuning=cls.is_true(dictionary.get(Constants.SECRET_IS_TUNING)),
             max_workers=cls.clamp_int(
                 dictionary.get(Constants.SECRET_MAX_WORKERS),
@@ -92,8 +105,21 @@ class Settings(NamedTuple):
 
     def llm_text_model(self) -> str:
         result = Constants.OPENAI_CHAT_TEXT
+        if self.reasoning_llm:
+            result = Constants.OPENAI_REASONING_TEXT
+
         if self.llm_text.vendor.upper() == Constants.VENDOR_GOOGLE.upper():
             result = Constants.GOOGLE_CHAT_ALL
+            if self.reasoning_llm:
+                result = Constants.GOOGLE_REASONING_TEXT
         elif self.llm_text.vendor.upper() == Constants.VENDOR_ANTHROPIC.upper():
             result = Constants.ANTHROPIC_CHAT_TEXT
+            if self.reasoning_llm:
+                result = Constants.ANTHROPIC_REASONING_TEXT
+        return result
+
+    def llm_text_temperature(self) -> float:
+        result = 0.0
+        if self.llm_text_model() == Constants.OPENAI_CHAT_TEXT_O3:
+            result = Constants.O3_TEMPERATURE
         return result

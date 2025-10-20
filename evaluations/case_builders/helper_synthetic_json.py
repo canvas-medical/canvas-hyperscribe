@@ -21,14 +21,14 @@ class HelperSyntheticJson:
         returned_class: Type[Chart | Line | PatientProfile | RubricCriterion | GradedCriterion],
     ) -> Chart | list[Line] | list[PatientProfile] | list[RubricCriterion] | list[GradedCriterion]:
         """
-        1) Creates an O3 LLM client.
+        1) Creates a LLM client.
         2) Sends *system_prompt* and *user_prompt* (lists of strings).
         3) Extracts the JSON payload from a fenced block or raw output.
         4) Validates the payload against *schema* with jsonschema.
         5) On validation failure, writes the raw output to invalid_output.json
            and exits with status 1.
         """
-        settings = HelperEvaluation.settings()
+        settings = HelperEvaluation.settings_reasoning_allowed()
         llm = Helper.chatter(settings, MemoryLog.dev_null_instance())
 
         llm.set_system_prompt(system_prompt)

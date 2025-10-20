@@ -5,8 +5,6 @@ from typing import Any, cast
 
 from datetime import datetime, UTC
 
-from hyperscribe.structures.vendor_key import VendorKey
-from hyperscribe.libraries.constants import Constants as HyperscribeConstants
 
 from evaluations.case_builders.helper_synthetic_json import HelperSyntheticJson
 from evaluations.constants import Constants
@@ -19,9 +17,6 @@ from evaluations.datastores.postgres.case import Case as CaseDatastore
 
 
 class RubricGenerator:
-    def __init__(self, vendor_key: VendorKey) -> None:
-        self.vendor_key = vendor_key
-
     @staticmethod
     def load_json(path: Path) -> Any:
         with path.open("r") as f:
@@ -109,22 +104,23 @@ class RubricGenerator:
 
     @classmethod
     def generate_and_save2file(
-        cls, transcript_path: Path, chart_path: Path, canvas_context_path: Path, output_path: Path
+        cls,
+        transcript_path: Path,
+        chart_path: Path,
+        canvas_context_path: Path,
+        output_path: Path,
     ) -> None:
-        vendor_key = HelperEvaluation.settings().llm_text
-        generator = cls(vendor_key)
-
         transcript = cls.load_json(transcript_path)
         chart = cls.load_json(chart_path)
         context = cls.load_json(canvas_context_path)
 
-        rubric_list = generator.generate(transcript, chart, context)
+        rubric_list = cls().generate(transcript, chart, context)
         output_path.write_text(json.dumps([criterion.to_json() for criterion in rubric_list], indent=2))
         print(f"Saved rubric to file at: {output_path}")
 
     @classmethod
     def generate_and_save2database(cls, case_name: str, canvas_context_path: Path) -> RubricRecord:
-        vendor_key = HelperEvaluation.settings().llm_text
+        settings = HelperEvaluation.settings_reasoning_allowed()
         credentials = HelperEvaluation.postgres_credentials()
 
         datastore = CaseDatastore(credentials)
@@ -134,8 +130,7 @@ class RubricGenerator:
         chart = datastore.get_limited_chart(case_id)
         canvas_context = cls.load_json(canvas_context_path)
 
-        generator = cls(vendor_key)
-        rubric_list = generator.generate(transcript, chart, canvas_context)
+        rubric_list = cls().generate(transcript, chart, canvas_context)
 
         rubric_record = RubricRecord(
             id=0,
@@ -147,9 +142,9 @@ class RubricGenerator:
             rubric=[criterion.to_json() for criterion in rubric_list],
             case_provenance_classification="",
             comments="",
-            text_llm_vendor=vendor_key.vendor,
-            text_llm_name=HyperscribeConstants.OPENAI_CHAT_TEXT_O3,
-            temperature=Constants.O3_TEMPERATURE,
+            text_llm_vendor=settings.llm_text.vendor,
+            text_llm_name=settings.llm_text_model(),
+            temperature=settings.llm_text_temperature(),
         )
         print("Rubric record generated. Insert starting now.")
         return RubricDatastore(credentials).insert(rubric_record)

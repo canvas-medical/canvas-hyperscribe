@@ -1,19 +1,20 @@
-import json, re, argparse, hashlib
+import argparse
+import hashlib
+import json
+import re
 from pathlib import Path
 from typing import Any, cast
 
-from hyperscribe.libraries.helper import Helper
-from hyperscribe.structures.vendor_key import VendorKey
-from hyperscribe.libraries.memory_log import MemoryLog
-from evaluations.helper_evaluation import HelperEvaluation
 from evaluations.case_builders.helper_synthetic_json import HelperSyntheticJson
 from evaluations.case_builders.synthetic_profile_generator_prompts import SyntheticProfileGeneratorPrompts
+from evaluations.helper_evaluation import HelperEvaluation
 from evaluations.structures.patient_profile import PatientProfile
+from hyperscribe.libraries.helper import Helper
+from hyperscribe.libraries.memory_log import MemoryLog
 
 
 class SyntheticProfileGenerator:
-    def __init__(self, vendor_key: VendorKey, category: str) -> None:
-        self.vendor_key = vendor_key
+    def __init__(self, category: str) -> None:
         self.category = category
         self.seen_scenarios: list[str] = []
 
@@ -53,7 +54,7 @@ class SyntheticProfileGenerator:
                 " that best describe this patient's key characteristics:",
             ]
 
-            settings = HelperEvaluation.settings()
+            settings = HelperEvaluation.settings_reasoning_allowed()
             llm = Helper.chatter(settings, MemoryLog.dev_null_instance())
             llm.set_system_prompt(system_prompt)
             llm.set_user_prompt(user_prompt)
@@ -110,7 +111,11 @@ class SyntheticProfileGenerator:
 
         # prompts based on category.
         system_prompt, user_prompt = SyntheticProfileGeneratorPrompts.get_prompts(
-            self.category, batch_num, count, schema, self.seen_scenarios
+            self.category,
+            batch_num,
+            count,
+            schema,
+            self.seen_scenarios,
         )
 
         initial_profiles = cast(
@@ -157,11 +162,10 @@ class SyntheticProfileGenerator:
         output_path = Path(args.output)
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        settings = HelperEvaluation.settings()
-        vendor_key = settings.llm_text
-
-        SyntheticProfileGenerator(vendor_key, args.category).run(
-            batches=args.batches, batch_size=args.batch_size, output_path=args.output
+        SyntheticProfileGenerator(args.category).run(
+            batches=args.batches,
+            batch_size=args.batch_size,
+            output_path=args.output,
         )
 
 

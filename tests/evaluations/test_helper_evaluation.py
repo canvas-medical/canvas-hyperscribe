@@ -5,17 +5,14 @@ from unittest.mock import patch, MagicMock, call
 
 from canvas_sdk.v1.data import Note
 
+from evaluations.constants import Constants
 from evaluations.helper_evaluation import HelperEvaluation
 from evaluations.structures.postgres_credentials import PostgresCredentials
 from hyperscribe.libraries.helper import Helper
-from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.json_extract import JsonExtract
-from hyperscribe.structures.settings import Settings
-from hyperscribe.structures.vendor_key import VendorKey
 from hyperscribe.structures.line import Line
-from evaluations.constants import Constants
 
 
 def test_trace_error():
@@ -31,7 +28,7 @@ def test_trace_error():
         result = tested.trace_error(error)
         expected = {
             "error": "'x'",
-            "files": [f"{file_path}.test_trace_error:31", f"{file_path}.mistake:23"],
+            "files": [f"{file_path}.test_trace_error:28", f"{file_path}.mistake:20"],
             "variables": {"a_dict": "{'a': 1, 'secret': 'SecretA'}", "b_dict": "{'b': 2}", "various": "'random var'"},
         }
         assert result == expected
@@ -81,42 +78,40 @@ def test_get_auditor(settings, s3_credentials, psql_credentials, auditor_postgre
         reset_mocks()
 
 
-def test_settings(monkeypatch):
-    monkeypatch.setenv("VendorTextLLM", "textVendor")
-    monkeypatch.setenv("KeyTextLLM", "textAPIKey")
-    monkeypatch.setenv("VendorAudioLLM", "audioVendor")
-    monkeypatch.setenv("KeyAudioLLM", "audioAPIKey")
-    monkeypatch.setenv("MaxWorkers", "7")
-    monkeypatch.setenv("APISigningKey", "theApiSigningKey")
-    monkeypatch.setenv("CommandsList", "Command1 Command2, Command3")
-    monkeypatch.setenv("StaffersList", "41, 32 56")
-    monkeypatch.setenv("CycleTranscriptOverlap", "37")
+@patch("evaluations.helper_evaluation.Settings")
+def test_settings(settings):
+    def reset_mocks():
+        settings.reset_mock()
 
-    tests = [("y", True), ("yes", True), ("1", True), ("n", False), ("", False)]
-    for env_variable, exp_bool in tests:
-        monkeypatch.setenv("StructuredReasonForVisit", env_variable)
-        monkeypatch.setenv("AuditLLMDecisions", env_variable)
-        monkeypatch.setenv("IsTuning", env_variable)
-        monkeypatch.setenv("CommandsPolicy", env_variable)
-        monkeypatch.setenv("StaffersPolicy", env_variable)
-
+    with patch.dict("os.environ", {"variable1": "value1", "variable2": "value2"}, clear=True):
         tested = HelperEvaluation
+        settings.from_dictionary.side_effect = ["theSettings"]
+
         result = tested.settings()
-        expected = Settings(
-            llm_text=VendorKey(vendor="textVendor", api_key="textAPIKey"),
-            llm_audio=VendorKey(vendor="audioVendor", api_key="audioAPIKey"),
-            structured_rfv=exp_bool,
-            audit_llm=exp_bool,
-            is_tuning=exp_bool,
-            api_signing_key="theApiSigningKey",
-            max_workers=7,
-            send_progress=False,
-            commands_policy=AccessPolicy(policy=exp_bool, items=["Command1", "Command2", "Command3"]),
-            staffers_policy=AccessPolicy(policy=exp_bool, items=["32", "41", "56"]),
-            trial_staffers_policy=AccessPolicy(policy=True, items=[]),
-            cycle_transcript_overlap=37,
-        )
+        expected = "theSettings"
         assert result == expected
+
+        calls = [call.from_dictionary({"variable1": "value1", "variable2": "value2"})]
+        assert settings.mock_calls == calls
+        reset_mocks()
+
+
+@patch("evaluations.helper_evaluation.Settings")
+def test_settings_reasoning_allowed(settings):
+    def reset_mocks():
+        settings.reset_mock()
+
+    with patch.dict("os.environ", {"variable1": "value1", "variable2": "value2"}, clear=True):
+        tested = HelperEvaluation
+        settings.from_dict_with_reasoning.side_effect = ["theSettings"]
+
+        result = tested.settings_reasoning_allowed()
+        expected = "theSettings"
+        assert result == expected
+
+        calls = [call.from_dict_with_reasoning({"variable1": "value1", "variable2": "value2"})]
+        assert settings.mock_calls == calls
+        reset_mocks()
 
 
 def test_aws_s3_credentials(monkeypatch):

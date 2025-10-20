@@ -23,6 +23,7 @@ def test_class():
         "duration": float,
         "text_llm_vendor": str,
         "text_llm_name": str,
+        "temperature": float,
         "id": int,
     }
     assert is_namedtuple(tested, fields)
@@ -43,6 +44,7 @@ def test_default():
     assert result.duration == 0.0
     assert result.text_llm_vendor == ""
     assert result.text_llm_name == ""
+    assert result.temperature == 0.0
     assert result.id == 0
 
 
@@ -61,6 +63,7 @@ def test_duplicate_with():
         duration=15.5,
         text_llm_vendor="openai",
         text_llm_name="gpt-4o",
+        temperature=1.3,
         id=456,
     )
 
@@ -70,19 +73,20 @@ def test_duplicate_with():
     assert result.case_id == new_case_id
     assert tested.case_id == 123
 
-    assert result.category == tested.category
-    assert result.turn_total == tested.turn_total
-    assert result.speaker_sequence == tested.speaker_sequence
-    assert result.clinician_to_patient_turn_ratio == tested.clinician_to_patient_turn_ratio
-    assert result.mood == tested.mood
-    assert result.pressure == tested.pressure
-    assert result.clinician_style == tested.clinician_style
-    assert result.patient_style == tested.patient_style
-    assert result.turn_buckets == tested.turn_buckets
-    assert result.duration == tested.duration
-    assert result.text_llm_vendor == tested.text_llm_vendor
-    assert result.text_llm_name == tested.text_llm_name
-    assert result.id == tested.id
+    assert result.category == "test_category"
+    assert result.turn_total == 10
+    assert result.speaker_sequence == ["Clinician", "Patient", "Clinician"]
+    assert result.clinician_to_patient_turn_ratio == 1.5
+    assert result.mood == [SyntheticCaseMood.PATIENT_FRUSTRATED, SyntheticCaseMood.PATIENT_TEARFUL]
+    assert result.pressure == SyntheticCasePressure.TIME_PRESSURE
+    assert result.clinician_style == SyntheticCaseClinicianStyle.WARM_CHATTY
+    assert result.patient_style == SyntheticCasePatientStyle.ANXIOUS_TALKATIVE
+    assert result.turn_buckets == SyntheticCaseTurnBuckets.LONG
+    assert result.duration == 15.5
+    assert result.text_llm_vendor == "openai"
+    assert result.text_llm_name == "gpt-4o"
+    assert result.temperature == 1.3
+    assert result.id == 456
 
 
 def test_to_json():
@@ -102,6 +106,7 @@ def test_to_json():
                 duration=15.5,
                 text_llm_vendor="openai",
                 text_llm_name="gpt-4o",
+                temperature=1.3,
                 id=456,
             ),
             {
@@ -118,6 +123,7 @@ def test_to_json():
                 "duration": 15.5,
                 "textLlmVendor": "openai",
                 "textLlmName": "gpt-4o",
+                "temperature": 1.3,
                 "id": 456,
             },
         )

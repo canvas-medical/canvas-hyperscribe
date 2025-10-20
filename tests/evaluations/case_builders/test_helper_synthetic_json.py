@@ -1,14 +1,16 @@
-import pytest
 from pathlib import Path
 from unittest.mock import MagicMock, patch, call
-from hyperscribe.structures.json_extract import JsonExtract
+
+import pytest
+
 from evaluations.case_builders.helper_synthetic_json import HelperSyntheticJson
 from evaluations.structures.chart import Chart
+from evaluations.structures.graded_criterion import GradedCriterion
 from evaluations.structures.patient_profile import PatientProfile
 from evaluations.structures.rubric_criterion import RubricCriterion
-from evaluations.structures.graded_criterion import GradedCriterion
-from hyperscribe.structures.line import Line
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.json_extract import JsonExtract
+from hyperscribe.structures.line import Line
 from hyperscribe.structures.medication_cached import MedicationCached
 
 
@@ -94,11 +96,17 @@ def _invalid_path(tmp_path: Path) -> Path:
         ),
     ],
 )
-@patch("evaluations.case_builders.helper_synthetic_json.HelperEvaluation.settings")
+@patch("evaluations.case_builders.helper_synthetic_json.HelperEvaluation.settings_reasoning_allowed")
 @patch("evaluations.case_builders.helper_synthetic_json.Helper.chatter")
 @patch("evaluations.case_builders.helper_synthetic_json.MemoryLog")
 def test_generate__json_success(
-    mock_memory_log, mock_chatter, mock_settings, tmp_path, returned_class, test_data, expected_result
+    mock_memory_log,
+    mock_chatter,
+    mock_settings,
+    tmp_path,
+    returned_class,
+    test_data,
+    expected_result,
 ):
     def reset_mocks():
         mock_memory_log.reset_mock()
@@ -141,7 +149,7 @@ def test_generate__json_success(
     reset_mocks()
 
 
-@patch("evaluations.case_builders.helper_synthetic_json.HelperEvaluation.settings")
+@patch("evaluations.case_builders.helper_synthetic_json.HelperEvaluation.settings_reasoning_allowed")
 @patch("evaluations.case_builders.helper_synthetic_json.Helper.chatter")
 @patch("evaluations.case_builders.helper_synthetic_json.MemoryLog")
 def test_generate_json__unsupported_returned_class(mock_memory_log, mock_chatter, mock_settings):
@@ -172,7 +180,7 @@ def test_generate_json__unsupported_returned_class(mock_memory_log, mock_chatter
     reset_mocks()
 
 
-@patch("evaluations.case_builders.helper_synthetic_json.HelperEvaluation.settings")
+@patch("evaluations.case_builders.helper_synthetic_json.HelperEvaluation.settings_reasoning_allowed")
 @patch("evaluations.case_builders.helper_synthetic_json.Helper.chatter")
 @patch("evaluations.case_builders.helper_synthetic_json.MemoryLog")
 def test_generate_json__chat_error_exits(mock_memory_log, mock_chatter, mock_settings, tmp_path):

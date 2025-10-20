@@ -1,18 +1,21 @@
-import json, random, pytest, hashlib
-from tests.helper import MockClass
+import hashlib
+import json
+import pytest
+import random
 from pathlib import Path
-from unittest.mock import patch, MagicMock, call
+from unittest.mock import call
+from unittest.mock import patch
+
 from evaluations.case_builders.synthetic_transcript_generator import SyntheticTranscriptGenerator, HelperSyntheticJson
+from evaluations.structures.enums.synthetic_case_clinician_style import SyntheticCaseClinicianStyle
+from evaluations.structures.enums.synthetic_case_mood import SyntheticCaseMood
+from evaluations.structures.enums.synthetic_case_patient_style import SyntheticCasePatientStyle
+from evaluations.structures.enums.synthetic_case_pressure import SyntheticCasePressure
+from evaluations.structures.enums.synthetic_case_turn_buckets import SyntheticCaseTurnBuckets
 from evaluations.structures.patient_profile import PatientProfile
 from evaluations.structures.specification import Specification
-from evaluations.structures.enums.synthetic_case_turn_buckets import SyntheticCaseTurnBuckets
-from evaluations.structures.enums.synthetic_case_mood import SyntheticCaseMood
-from evaluations.structures.enums.synthetic_case_pressure import SyntheticCasePressure
-from evaluations.structures.enums.synthetic_case_clinician_style import SyntheticCaseClinicianStyle
-from evaluations.structures.enums.synthetic_case_patient_style import SyntheticCasePatientStyle
-from unittest.mock import call
-from hyperscribe.structures.vendor_key import VendorKey
 from hyperscribe.structures.line import Line
+from tests.helper import MockClass
 
 
 def create_fake_profiles_file(tmp_path: Path) -> Path:
@@ -51,12 +54,11 @@ def test__random_bucket(mock_choice):
 @patch.object(random, "sample")
 @patch.object(random, "choice")
 def test__make_specifications(mock_choice, mock_sample, mock_randint, mock_uniform):
-    vendor_key = VendorKey(vendor="openai", api_key="MY_KEY")
     profiles = [
         PatientProfile(name="Patient 1", profile="AAA"),
         PatientProfile(name="Patient 2", profile="BBB"),
     ]
-    tested = SyntheticTranscriptGenerator(vendor_key, profiles)
+    tested = SyntheticTranscriptGenerator(profiles)
 
     mock_choice.side_effect = (
         [SyntheticCaseTurnBuckets.SHORT]
@@ -96,12 +98,11 @@ def test__make_specifications(mock_choice, mock_sample, mock_randint, mock_unifo
 
 
 def test_schema_transcript():
-    vendor_key = VendorKey(vendor="openai", api_key="MY_KEY")
     profiles = [
         PatientProfile(name="Patient 1", profile="AAA"),
         PatientProfile(name="Patient 2", profile="BBB"),
     ]
-    tested = SyntheticTranscriptGenerator(vendor_key, profiles)
+    tested = SyntheticTranscriptGenerator(profiles)
     turn_total = 37
     result = tested.schema_transcript(turn_total)
     expected = {
@@ -126,7 +127,7 @@ def test_schema_transcript():
 
 
 def test__build_prompt():
-    tested = SyntheticTranscriptGenerator(VendorKey("openai", "MY_KEY"), {})
+    tested = SyntheticTranscriptGenerator([])
 
     specifications = Specification(
         turn_total=2,
@@ -170,7 +171,7 @@ def test_generate_transcript_for_profile__success(
         PatientProfile(name="Patient 1", profile="AAA"),
         PatientProfile(name="Patient 2", profile="BBB"),
     ]
-    tested = SyntheticTranscriptGenerator(vendor_key=VendorKey("openai", "KEY"), profiles=profiles)
+    tested = SyntheticTranscriptGenerator(profiles=profiles)
 
     # Create a proper Specification mock return value
     mock_spec = Specification(
@@ -224,8 +225,7 @@ def test_generate_transcript_for_profile__bad_json_raises(
         PatientProfile(name="Patient 1", profile="AAA"),
         PatientProfile(name="Patient 2", profile="BBB"),
     ]
-    vendor_key = VendorKey("openai", "KEY")
-    tested = SyntheticTranscriptGenerator(vendor_key, profiles=profiles)
+    tested = SyntheticTranscriptGenerator(profiles=profiles)
 
     # Create a proper Specification mock return value
     mock_spec = Specification(
@@ -272,7 +272,7 @@ def test_run(mock_generate_json, mock_make_specifications, mock_build_prompt, mo
         PatientProfile(name="Patient 1", profile="AAA"),
         PatientProfile(name="Patient 2", profile="BBB"),
     ]
-    tested = SyntheticTranscriptGenerator(vendor_key=VendorKey("openai", "KEY"), profiles=profiles)
+    tested = SyntheticTranscriptGenerator(profiles=profiles)
 
     expected_schema = {"type": "array"}
     mock_schema_transcript.side_effect = lambda _: expected_schema
@@ -314,18 +314,15 @@ def test_run(mock_generate_json, mock_make_specifications, mock_build_prompt, mo
     ]
 
 
-@patch("evaluations.case_builders.synthetic_transcript_generator.HelperEvaluation.settings")
 @patch("evaluations.case_builders.synthetic_transcript_generator.argparse.ArgumentParser.parse_args")
 @patch.object(SyntheticTranscriptGenerator, "run")
-def test_main(mock_run, mock_parse_args, mock_settings, tmp_path):
+def test_main(mock_run, mock_parse_args, tmp_path):
     fake_input = create_fake_profiles_file(tmp_path)
     fake_output = tmp_path / "output"
     fake_args = MockClass(input=fake_input, output=fake_output, start=5, limit=10)
     mock_parse_args.return_value = fake_args
-    mock_settings.return_value = MagicMock(llm_text=VendorKey("openai", "DUMMY"))
 
     SyntheticTranscriptGenerator.main()
 
     assert mock_parse_args.mock_calls == [call()]
-    assert mock_settings.mock_calls == [call()]
     assert mock_run.mock_calls == [call(start_index=5, limit=10, output_path=fake_output)]

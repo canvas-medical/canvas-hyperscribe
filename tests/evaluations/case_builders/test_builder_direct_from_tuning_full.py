@@ -21,6 +21,7 @@ def helper_instance() -> BuilderDirectFromTuningFull:
         llm_audio=VendorKey(vendor="theVendorAudioLLM", api_key="theKeyAudioLLM"),
         structured_rfv=True,
         audit_llm=False,
+        reasoning_llm=False,
         is_tuning=False,
         api_signing_key="theApiSigningKey",
         max_workers=3,

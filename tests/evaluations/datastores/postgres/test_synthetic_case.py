@@ -52,6 +52,7 @@ def test_upsert(select, alter, mock_datetime):
         duration=65.0,
         text_llm_vendor="VendorX",
         text_llm_name="ModelY",
+        temperature=1.73,
         id=123,
     )
 
@@ -69,6 +70,7 @@ def test_upsert(select, alter, mock_datetime):
         duration=65.0,
         text_llm_vendor="VendorX",
         text_llm_name="ModelY",
+        temperature=1.73,
         id=23,
     )
 
@@ -125,7 +127,7 @@ def test_upsert(select, alter, mock_datetime):
         "turn_buckets": "medium",
         "text_llm_vendor": "VendorX",
         "text_llm_name": "ModelY",
-        "temperature": 1.0,
+        "temperature": 1.73,
     }
     assert params == exp_params
     assert involved_id is None
@@ -176,7 +178,7 @@ def test_upsert(select, alter, mock_datetime):
         "turn_buckets": "medium",
         "text_llm_vendor": "VendorX",
         "text_llm_name": "ModelY",
-        "temperature": 1.0,
+        "temperature": 1.73,
     }
     assert involved_id == 777
     assert params == exp_params

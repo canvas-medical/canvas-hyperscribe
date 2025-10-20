@@ -6,7 +6,6 @@ from pprint import pformat
 from sys import exc_info
 
 from canvas_sdk.v1.data import Note
-from hyperscribe.structures.line import Line
 
 from evaluations.auditors.auditor_file import AuditorFile
 from evaluations.auditors.auditor_postgres import AuditorPostgres
@@ -18,6 +17,7 @@ from hyperscribe.libraries.helper import Helper
 from hyperscribe.libraries.memory_log import MemoryLog
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.identification_parameters import IdentificationParameters
+from hyperscribe.structures.line import Line
 from hyperscribe.structures.settings import Settings
 
 
@@ -54,6 +54,10 @@ class HelperEvaluation:
     @classmethod
     def settings(cls) -> Settings:
         return Settings.from_dictionary(dict(environ))
+
+    @classmethod
+    def settings_reasoning_allowed(cls) -> Settings:
+        return Settings.from_dict_with_reasoning(dict(environ))
 
     @classmethod
     def aws_s3_credentials(cls) -> AwsS3Credentials:

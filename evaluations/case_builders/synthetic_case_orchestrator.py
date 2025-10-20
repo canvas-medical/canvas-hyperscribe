@@ -1,32 +1,26 @@
 from __future__ import annotations
+
 import argparse
 import json
 from pathlib import Path
 from typing import Tuple
 
-from hyperscribe.libraries.constants import Constants
-
-from hyperscribe.structures.vendor_key import VendorKey
-from evaluations.structures.enums.case_status import CaseStatus
-from evaluations.helper_evaluation import HelperEvaluation
-from evaluations.structures.patient_profile import PatientProfile
-
-from evaluations.case_builders.synthetic_profile_generator import SyntheticProfileGenerator
 from evaluations.case_builders.synthetic_chart_generator import SyntheticChartGenerator
+from evaluations.case_builders.synthetic_profile_generator import SyntheticProfileGenerator
 from evaluations.case_builders.synthetic_transcript_generator import SyntheticTranscriptGenerator
-
+from evaluations.datastores.postgres.case import Case as CaseDatastore
+from evaluations.datastores.postgres.synthetic_case import SyntheticCase as SyntheticCaseDatastore
+from evaluations.helper_evaluation import HelperEvaluation
+from evaluations.structures.enums.case_status import CaseStatus
+from evaluations.structures.patient_profile import PatientProfile
 from evaluations.structures.records.case import Case as CaseRecord
 from evaluations.structures.records.synthetic_case import SyntheticCase as SyntheticCaseRecord
 
-from evaluations.datastores.postgres.case import Case as CaseDatastore
-from evaluations.datastores.postgres.synthetic_case import SyntheticCase as SyntheticCaseDatastore
-
 
 class SyntheticCaseOrchestrator:
-    def __init__(self, vendor_key: VendorKey, category: str):
-        self.vendor_key = vendor_key
+    def __init__(self, category: str):
         self.category = category
-        self.profile_generator = SyntheticProfileGenerator(vendor_key, category)
+        self.profile_generator = SyntheticProfileGenerator(category)
 
     def generate(
         self,
@@ -44,15 +38,9 @@ class SyntheticCaseOrchestrator:
             batch_profiles = self.profile_generator.generate_batch(batch_index, batch_size)
             all_profiles.extend(batch_profiles)
 
-        chart_generator = SyntheticChartGenerator(
-            vendor_key=self.vendor_key,
-            profiles=all_profiles,
-        )
-
-        transcript_generator = SyntheticTranscriptGenerator(
-            vendor_key=self.vendor_key,
-            profiles=all_profiles,
-        )
+        settings = HelperEvaluation.settings_reasoning_allowed()
+        chart_generator = SyntheticChartGenerator(profiles=all_profiles)
+        transcript_generator = SyntheticTranscriptGenerator(profiles=all_profiles)
 
         results: list[Tuple[CaseRecord, SyntheticCaseRecord]] = []
 
@@ -94,8 +82,9 @@ class SyntheticCaseOrchestrator:
                 patient_style=specifications.patient_style,
                 turn_buckets=specifications.bucket,
                 duration=0.0,
-                text_llm_vendor=self.vendor_key.vendor,
-                text_llm_name=Constants.OPENAI_CHAT_TEXT_O3,
+                text_llm_vendor=settings.llm_text.vendor,
+                text_llm_name=settings.llm_text_model(),
+                temperature=settings.llm_text_temperature(),
                 id=profile_index,
             )
 
@@ -111,10 +100,8 @@ class SyntheticCaseOrchestrator:
         category: str,
     ) -> list[SyntheticCaseRecord]:
         credentials = HelperEvaluation.postgres_credentials()
-        settings = HelperEvaluation.settings()
-        vendor_key = settings.llm_text
 
-        orchestrator = cls(vendor_key, category)
+        orchestrator = cls(category)
         record_pairs = orchestrator.generate(number_of_batches, batch_size)
 
         case_store = CaseDatastore(credentials)
@@ -139,9 +126,7 @@ class SyntheticCaseOrchestrator:
         category: str,
         output_root: Path,
     ) -> None:
-        settings = HelperEvaluation.settings()
-        vendor_key = settings.llm_text
-        orchestrator = cls(vendor_key, category)
+        orchestrator = cls(category)
         record_pairs = orchestrator.generate(number_of_batches, batch_size)
 
         for index, (case_record, synthetic_record) in enumerate(record_pairs, start=1):

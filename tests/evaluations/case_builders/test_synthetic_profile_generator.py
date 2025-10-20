@@ -1,12 +1,15 @@
-import json, re, pytest, hashlib
-from unittest.mock import patch, call, MagicMock
+import hashlib
+import json
+import pytest
+import re
 from argparse import ArgumentParser
-from tests.helper import MockClass
+from unittest.mock import MagicMock
+from unittest.mock import patch, call
+
 from evaluations.case_builders.synthetic_profile_generator import SyntheticProfileGenerator
 from evaluations.structures.patient_profile import PatientProfile
-from evaluations.helper_evaluation import HelperEvaluation
-from hyperscribe.structures.vendor_key import VendorKey
 from hyperscribe.structures.json_extract import JsonExtract
+from tests.helper import MockClass
 
 
 @pytest.fixture
@@ -26,20 +29,14 @@ def fake_llm_response():
     return _fake
 
 
-@pytest.fixture
-def vendor_key():
-    return VendorKey("openai", "MY_KEY")
-
-
-def test___init__(vendor_key: VendorKey):
-    tested = SyntheticProfileGenerator(vendor_key, "med_management")
-    assert tested.vendor_key == vendor_key
+def test___init__():
+    tested = SyntheticProfileGenerator("med_management")
     assert tested.category == "med_management"
     assert tested.seen_scenarios == []
 
 
-def test__extract_initial_fragment(vendor_key: VendorKey):
-    tested = SyntheticProfileGenerator(vendor_key, "med_management")
+def test__extract_initial_fragment():
+    tested = SyntheticProfileGenerator("med_management")
     narrative = "First sentence. Second sentence."
     expected = "First sentence"
     result = tested._extract_initial_fragment(narrative)
@@ -81,7 +78,6 @@ def test_update_patient_names(
     mock_helper_evaluation,
     mock_helper,
     mock_memory_log,
-    vendor_key: VendorKey,
     has_error,
     content,
     error_message,
@@ -90,7 +86,7 @@ def test_update_patient_names(
     expected_user_prompt_md5,
     expected_chat_calls,
 ):
-    tested = SyntheticProfileGenerator(vendor_key, "med_management")
+    tested = SyntheticProfileGenerator("med_management")
 
     def reset_mocks():
         mock_helper.reset_mock()
@@ -142,16 +138,16 @@ def test_update_patient_names(
 
     # Check Helper.chatter was called correctly - each profile calls it once
     expected_chatter_calls = [
-        call(mock_helper_evaluation.settings.return_value, "theMemoryInstance")
+        call(mock_helper_evaluation.settings_reasoning_allowed.return_value, "theMemoryInstance")
     ] * expected_chat_calls
     assert mock_helper.chatter.call_args_list == expected_chatter_calls
 
     reset_mocks()
 
 
-def test__save_combined(tmp_path, vendor_key: VendorKey):
+def test__save_combined(tmp_path):
     output_path = tmp_path / "combined.json"
-    tested = SyntheticProfileGenerator(vendor_key, "med_management")
+    tested = SyntheticProfileGenerator("med_management")
 
     profiles = [
         PatientProfile(name="Alice", profile="Profile for Alice"),
@@ -165,9 +161,9 @@ def test__save_combined(tmp_path, vendor_key: VendorKey):
     assert result == expected
 
 
-def test__save_individuals(tmp_path, vendor_key: VendorKey):
+def test__save_individuals(tmp_path):
     out_file = tmp_path / "combined.json"
-    tested = SyntheticProfileGenerator(vendor_key, "med_management")
+    tested = SyntheticProfileGenerator("med_management")
 
     profiles = [
         PatientProfile(name="Patient 1", profile="Alice takes lisinopril. Simple renewal."),
@@ -185,8 +181,8 @@ def test__save_individuals(tmp_path, vendor_key: VendorKey):
         assert result == expected
 
 
-def test_schema_batch(vendor_key: VendorKey):
-    tested = SyntheticProfileGenerator(vendor_key, "med_management")
+def test_schema_batch():
+    tested = SyntheticProfileGenerator("med_management")
     count_patients = 4
     result = tested.schema_batch(count_patients)
     expected = {
@@ -203,9 +199,7 @@ def test_schema_batch(vendor_key: VendorKey):
 @patch.object(SyntheticProfileGenerator, "update_patient_names")
 @patch.object(SyntheticProfileGenerator, "schema_batch")
 @patch("evaluations.case_builders.synthetic_profile_generator.HelperSyntheticJson.generate_json")
-def test_generate_batch(
-    mock_generate_json, mock_schema_batch, mock_update_names, fake_llm_response, vendor_key: VendorKey
-):
+def test_generate_batch(mock_generate_json, mock_schema_batch, mock_update_names, fake_llm_response):
     def reset_mocks():
         mock_generate_json.reset_mock()
         mock_schema_batch.reset_mock()
@@ -243,7 +237,7 @@ def test_generate_batch(
         expected_system_md5,
         expected_user_md5,
     ) in tests:
-        tested = SyntheticProfileGenerator(vendor_key, category)
+        tested = SyntheticProfileGenerator(category)
 
         if should_raise_error:
             expected_schema = {"expected": "schema"}
@@ -293,14 +287,14 @@ def test_generate_batch(
 @patch.object(SyntheticProfileGenerator, "_save_individuals")
 @patch.object(SyntheticProfileGenerator, "_save_combined")
 @patch.object(SyntheticProfileGenerator, "generate_batch")
-def test_run(mock_generate_batch, mock_save_combined, mock_save_individuals, tmp_path, vendor_key: VendorKey):
+def test_run(mock_generate_batch, mock_save_combined, mock_save_individuals, tmp_path):
     def reset_mocks():
         mock_generate_batch.reset_mock()
         mock_save_combined.reset_mock()
         mock_save_individuals.reset_mock()
 
     output_path = tmp_path / "out.json"
-    tested = SyntheticProfileGenerator(vendor_key, "med_management")
+    tested = SyntheticProfileGenerator("med_management")
 
     tests = [
         # (batches, batch_size, expected_generate_calls)
@@ -332,17 +326,12 @@ def test_run(mock_generate_batch, mock_save_combined, mock_save_individuals, tmp
 
 @patch("pathlib.Path.mkdir")
 @patch.object(ArgumentParser, "parse_args")
-@patch.object(HelperEvaluation, "settings")
 @patch.object(SyntheticProfileGenerator, "run")
-def test_main(mock_run, mock_settings, mock_parse_args, mock_mkdir, tmp_path):
+def test_main(mock_run, mock_parse_args, mock_mkdir, tmp_path):
     def reset_mocks():
         mock_run.reset_mock()
-        mock_settings.reset_mock()
         mock_parse_args.reset_mock()
         mock_mkdir.reset_mock()
-
-    # Mock settings
-    mock_settings.return_value = MagicMock(llm_text=VendorKey(vendor="openai", api_key="MAIN_KEY"))
 
     # Mock arguments
     output_path = tmp_path / "out.json"
@@ -353,7 +342,6 @@ def test_main(mock_run, mock_settings, mock_parse_args, mock_mkdir, tmp_path):
 
     # check mocks.
     assert mock_mkdir.mock_calls == [call(parents=True, exist_ok=True)]
-    assert mock_settings.mock_calls == [call()]
     assert mock_parse_args.mock_calls == [call()]
     assert mock_run.mock_calls == [call(batches=2, batch_size=5, output_path=output_path)]
 

@@ -1,23 +1,22 @@
-import json, uuid, hashlib
-from pathlib import Path
+import hashlib
+import json
+import uuid
 from argparse import ArgumentParser
-from tests.helper import MockClass
-from unittest.mock import patch, MagicMock, call
+from pathlib import Path
 from typing import Any
+from unittest.mock import patch, call
+
 from evaluations.case_builders.synthetic_chart_generator import SyntheticChartGenerator
-from evaluations.structures.patient_profile import PatientProfile
-from evaluations.structures.chart import Chart
-from evaluations.helper_evaluation import HelperEvaluation
-from hyperscribe.structures.vendor_key import VendorKey
 from evaluations.constants import Constants
+from evaluations.structures.chart import Chart
+from evaluations.structures.patient_profile import PatientProfile
+from tests.helper import MockClass
 
 
 def test___init__():
-    expected_vendor_key = VendorKey(vendor="openai", api_key="API_KEY_123")
     expected_profiles = [PatientProfile(name="Patient A", profile="Profile text")]
 
-    tested = SyntheticChartGenerator(expected_vendor_key, expected_profiles)
-    assert tested.vendor_key == expected_vendor_key
+    tested = SyntheticChartGenerator(expected_profiles)
     assert tested.profiles == expected_profiles
 
 
@@ -36,7 +35,7 @@ def test_load_json(tmp_path):
 
 def test_schema_chart():
     example_chart_known = {key: "" for key in Constants.EXAMPLE_CHART_DESCRIPTIONS}
-    tested_known = SyntheticChartGenerator(VendorKey("vendor", "key"), [])
+    tested_known = SyntheticChartGenerator([])
 
     result_schema = tested_known.schema_chart()
     assert result_schema["description"] == "Canvas-compatible chart structure with structured ChartItems"
@@ -93,9 +92,8 @@ def test_schema_chart():
 @patch.object(SyntheticChartGenerator, "schema_chart")
 @patch("evaluations.case_builders.synthetic_chart_generator.HelperSyntheticJson.generate_json")
 def test_generate_chart_for_profile(mock_generate_json, mock_schema_chart, tmp_path):
-    tested_key = VendorKey(vendor="openai", api_key="LLMKEY")
     dummy_profiles = [PatientProfile(name="P1*", profile="text1"), PatientProfile(name="P2!", profile="text2")]
-    tested = SyntheticChartGenerator(tested_key, dummy_profiles)
+    tested = SyntheticChartGenerator(dummy_profiles)
 
     profile_obj = PatientProfile(name="test", profile="irrelevant profile")
     expected_chart_data = {
@@ -140,7 +138,7 @@ def test_generate_chart_for_profile(mock_generate_json, mock_schema_chart, tmp_p
 
 
 def test_assign_valid_uuids():
-    tested = SyntheticChartGenerator(VendorKey("v", "k"), [])
+    tested = SyntheticChartGenerator([])
     input_chart = {"uuid": "old", "nested": [{"uuid": "old2"}, {"not_uuid": 123}]}
     result = tested.assign_valid_uuids(input_chart)
 
@@ -164,7 +162,7 @@ def test_run_range(mock_generate, mock_assign, tmp_path):
         PatientProfile(name="P2!", profile="text2"),
         PatientProfile(name="P3#", profile="text3"),
     ]
-    tested = SyntheticChartGenerator(VendorKey("v", "k"), profiles)
+    tested = SyntheticChartGenerator(profiles)
 
     tests = [
         (
@@ -304,8 +302,6 @@ def test_run_range(mock_generate, mock_assign, tmp_path):
 
 
 def test_main(tmp_path):
-    dummy_settings = MagicMock(llm_text=VendorKey(vendor="test", api_key="MY_API_KEY"))
-
     profiles_file = tmp_path / "profiles.json"
     example_file = tmp_path / "example.json"
     out_dir = tmp_path / "out"
@@ -327,7 +323,6 @@ def test_main(tmp_path):
         run_calls["output"] = output
 
     with (
-        patch.object(HelperEvaluation, "settings", classmethod(lambda cls: dummy_settings)),
         patch.object(SyntheticChartGenerator, "load_json", classmethod(fake_load_json)),
         patch.object(SyntheticChartGenerator, "run_range", fake_run_range),
         patch.object(
@@ -341,7 +336,6 @@ def test_main(tmp_path):
     assert load_calls == [profiles_file]
     instance = run_calls["instance"]
     assert isinstance(instance, SyntheticChartGenerator)
-    assert instance.vendor_key.api_key == "MY_API_KEY"
     assert run_calls["start"] == 1
     assert run_calls["limit"] == 3
     assert run_calls["output"] == out_dir

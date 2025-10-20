@@ -61,6 +61,5 @@ def test_constants():
         },
         "MAX_CHARACTERS_PER_CYCLE": 1000,
         "RUBRIC_AUTHOR_LLM": "llm",
-        "O3_TEMPERATURE": 1.0,
     }
     assert is_constant(tested, constants)

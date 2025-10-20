@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import NamedTuple
+
 from evaluations.structures.enums.synthetic_case_clinician_style import SyntheticCaseClinicianStyle
 from evaluations.structures.enums.synthetic_case_mood import SyntheticCaseMood
 from evaluations.structures.enums.synthetic_case_patient_style import SyntheticCasePatientStyle
@@ -22,6 +23,7 @@ class SyntheticCase(NamedTuple):
     duration: float = 0.0
     text_llm_vendor: str = ""
     text_llm_name: str = ""
+    temperature: float = 0.0
     id: int = 0
 
     def duplicate_with(self, case_id: int) -> SyntheticCase:
@@ -40,6 +42,7 @@ class SyntheticCase(NamedTuple):
             duration=self.duration,
             text_llm_vendor=self.text_llm_vendor,
             text_llm_name=self.text_llm_name,
+            temperature=self.temperature,
             id=self.id,
         )
 
@@ -58,5 +61,6 @@ class SyntheticCase(NamedTuple):
             "duration": self.duration,
             "textLlmVendor": self.text_llm_vendor,
             "textLlmName": self.text_llm_name,
+            "temperature": self.temperature,
             "id": self.id,
         }

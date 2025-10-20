@@ -1,18 +1,18 @@
-import json, re, uuid, argparse
+import argparse
+import json
+import re
+import uuid
 from pathlib import Path
 from typing import Any, Tuple, cast
 
-from hyperscribe.structures.vendor_key import VendorKey
-from evaluations.helper_evaluation import HelperEvaluation
 from evaluations.case_builders.helper_synthetic_json import HelperSyntheticJson
 from evaluations.constants import Constants
-from evaluations.structures.patient_profile import PatientProfile
 from evaluations.structures.chart import Chart
+from evaluations.structures.patient_profile import PatientProfile
 
 
 class SyntheticChartGenerator:
-    def __init__(self, vendor_key: VendorKey, profiles: list[PatientProfile]):
-        self.vendor_key = vendor_key
+    def __init__(self, profiles: list[PatientProfile]):
         self.profiles = profiles
 
     @classmethod
@@ -186,14 +186,8 @@ class SyntheticChartGenerator:
         parser.add_argument("--limit", type=int, required=True, help="Number of profiles to generate charts for")
         args = parser.parse_args()
 
-        settings = HelperEvaluation.settings()
-        vendor_key = settings.llm_text
         profiles = SyntheticChartGenerator.load_json(args.input)
-
-        generator = SyntheticChartGenerator(
-            vendor_key=vendor_key,
-            profiles=profiles,
-        )
+        generator = SyntheticChartGenerator(profiles=profiles)
         generator.run_range(start=args.start, limit=args.limit, output=args.output)
 
 

@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import Any, Tuple, cast
 
 from evaluations.case_builders.helper_synthetic_json import HelperSyntheticJson
-from evaluations.constants import Constants
 from evaluations.datastores.postgres.experiment_result_score import (
     ExperimentResultScore as ExperimentResultScoreDatastore,
 )
@@ -18,18 +17,14 @@ from evaluations.structures.graded_criterion import GradedCriterion
 from evaluations.structures.records.experiment_result_score import ExperimentResultScore as ExperimentResultScoreRecord
 from evaluations.structures.records.score import Score as ScoreRecord
 from evaluations.structures.rubric_criterion import RubricCriterion
-from hyperscribe.libraries.constants import Constants as HyperscribeConstants
-from hyperscribe.structures.vendor_key import VendorKey
 
 
 class NoteGrader:
     def __init__(
         self,
-        vendor_key: VendorKey,
         rubric: list[RubricCriterion],
         note: dict[str, Any],
     ) -> None:
-        self.vendor_key = vendor_key
         self.rubric = rubric
         self.note = note
 
@@ -142,12 +137,12 @@ class NoteGrader:
     @classmethod
     def grade_and_save2database(cls, rubric_id: int, generated_note_id: int, experiment_result_id: int) -> ScoreRecord:
         credentials = HelperEvaluation.postgres_credentials()
-        vendor_key = HelperEvaluation.settings().llm_text
+        settings = HelperEvaluation.settings_reasoning_allowed()
 
         rubric = RubricCriterion.load_from_json(RubricDatastore(credentials).get_rubric(rubric_id))
         note_data = GeneratedNoteDatastore(credentials).get_note_json(generated_note_id)
 
-        scoring_result: list[GradedCriterion] = cls(vendor_key, rubric, note_data).run()
+        scoring_result: list[GradedCriterion] = cls(rubric, note_data).run()
 
         overall_score = sum(item.score for item in scoring_result)
 
@@ -157,9 +152,9 @@ class NoteGrader:
             scoring_result=scoring_result,
             overall_score=overall_score,
             comments="",
-            text_llm_vendor=vendor_key.vendor,
-            text_llm_name=HyperscribeConstants.OPENAI_CHAT_TEXT_O3,
-            temperature=Constants.O3_TEMPERATURE,
+            text_llm_vendor=settings.llm_text.vendor,
+            text_llm_name=settings.llm_text_model(),
+            temperature=settings.llm_text_temperature(),
             experiment=bool(experiment_result_id > 0),
         )
         score_record = ScoreDatastore(credentials).insert(score_record)
@@ -177,12 +172,11 @@ class NoteGrader:
     @classmethod
     def grade_and_save2file(cls, rubric_path: Path, note_path: Path, output_path: Path) -> None:
         """Grade a note using rubric from files and save result to output file."""
-        vendor_key = HelperEvaluation.settings().llm_text
 
         rubric = RubricCriterion.load_from_json(cls.load_json(rubric_path))
         note = cls.load_json(note_path)
 
-        grader = cls(vendor_key, rubric, note)
+        grader = cls(rubric, note)
         result = grader.run()
 
         output_path.write_text(json.dumps([item.to_json() for item in result], indent=2))
@@ -200,7 +194,7 @@ class NoteGrader:
         # Database-based parameters
         parser.add_argument("--rubric_id", type=int, help="Rubric ID from database")
         parser.add_argument("--generated_note_id", type=int, help="Generated note ID from database")
-        parser.add_argument("--experiment_result_id", type=int, help="Experiment Result ID from database")
+        parser.add_argument("--experiment_result_id", type=int, default=0, help="Experiment Result ID from database")
 
         args = parser.parse_args()
 

@@ -65,4 +65,3 @@ class Constants:
     }
     MAX_CHARACTERS_PER_CYCLE = 1000
     RUBRIC_AUTHOR_LLM = "llm"
-    O3_TEMPERATURE = 1.0

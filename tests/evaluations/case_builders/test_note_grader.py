@@ -5,7 +5,6 @@ from unittest.mock import patch, call, MagicMock
 import pytest
 
 from evaluations.case_builders.note_grader import NoteGrader
-from evaluations.helper_evaluation import HelperEvaluation
 from evaluations.structures.graded_criterion import GradedCriterion
 from evaluations.structures.records.experiment_result_score import ExperimentResultScore
 from evaluations.structures.records.score import Score as ScoreRecord
@@ -46,7 +45,7 @@ def test_load_json(tmp_path):
 def test_schema_scores(tmp_files):
     rubric_path, note_path, output_path, rubric, note = tmp_files
     rubric_objs = RubricCriterion.load_from_json(rubric)
-    tested = NoteGrader(vendor_key=VendorKey("openai", "KEY"), rubric=rubric_objs, note=note)
+    tested = NoteGrader(rubric=rubric_objs, note=note)
 
     result = tested.schema_scores()
     expected = {
@@ -75,9 +74,8 @@ def test_build_prompts(mock_schema_scores, tmp_files):
         mock_schema_scores.reset_mock()
 
     _, _, _, rubric, note = tmp_files
-    vendor_key = VendorKey(vendor="openai", api_key="KEY")
     rubric_objs = RubricCriterion.load_from_json(rubric)
-    tested = NoteGrader(vendor_key, rubric_objs, note)
+    tested = NoteGrader(rubric_objs, note)
     expected_schema = {"type": "array"}
     mock_schema_scores.side_effect = [expected_schema]
 
@@ -104,9 +102,8 @@ def test_run(mock_generate_json, mock_schema_scores, mock_build_prompts, tmp_fil
         mock_build_prompts.reset_mock()
 
     _, _, _, rubric, note = tmp_files
-    vendor_key = VendorKey(vendor="openai", api_key="KEY")
     rubric_objs = RubricCriterion.load_from_json(rubric)
-    tested = NoteGrader(vendor_key, rubric_objs, note)
+    tested = NoteGrader(rubric_objs, note)
     expected_schema = {"type": "array"}
 
     test_cases = [
@@ -197,6 +194,8 @@ def test_grade_and_save2database(
 ):
     tested = NoteGrader
 
+    settings = MagicMock()
+
     def reset_mocks():
         mock_run.reset_mock()
         mock_score_datastore.reset_mock()
@@ -204,8 +203,10 @@ def test_grade_and_save2database(
         mock_rubric_datastore.reset_mock()
         mock_experiment_result_datastore.reset_mock()
         mock_helper.reset_mock()
+        settings.reset_mock()
+        settings.llm_text = VendorKey(vendor="theVendor", api_key="theApiKey")
 
-    vendor_key = VendorKey(vendor="openai", api_key="test_key")
+    reset_mocks()
     # Mock data
     rubric_data = [{"criterion": "Test criterion", "weight": 10}]
     note_data = {"some": "note"}
@@ -234,9 +235,11 @@ def test_grade_and_save2database(
         mock_rubric_datastore.return_value.get_rubric.side_effect = [rubric_data]
         mock_generated_note_datastore.return_value.get_note_json.side_effect = [note_data]
         mock_run.side_effect = [grading_result]
-        mock_helper.settings.side_effect = [MockClass(llm_text=vendor_key)]
+        mock_helper.settings_reasoning_allowed.side_effect = [settings]
         mock_helper.postgres_credentials.side_effect = ["thePostgresCredentials"]
         mock_score_datastore.return_value.insert.side_effect = [expected]
+        settings.llm_text_model.side_effect = ["theModel"]
+        settings.llm_text_temperature.side_effect = [1.37]
 
         # Call the method
         result = tested.grade_and_save2database(123, 456, experiment_result_id)
@@ -254,9 +257,9 @@ def test_grade_and_save2database(
                     scoring_result=[GradedCriterion(id=0, rationale="good work", satisfaction=85, score=8.5)],
                     overall_score=8.5,
                     comments="",
-                    text_llm_vendor="openai",
-                    text_llm_name="o3",
-                    temperature=1.0,
+                    text_llm_vendor="theVendor",
+                    text_llm_name="theModel",
+                    temperature=1.37,
                     experiment=exp_experiment,
                     id=0,
                 )
@@ -276,23 +279,25 @@ def test_grade_and_save2database(
         assert mock_experiment_result_datastore.mock_calls == exp_calls
         calls = [
             call.postgres_credentials(),
-            call.settings(),
+            call.settings_reasoning_allowed(),
         ]
         assert mock_helper.mock_calls == calls
+        calls = [
+            call.llm_text_model(),
+            call.llm_text_temperature(),
+        ]
+        assert settings.mock_calls == calls
         reset_mocks()
 
 
-@patch.object(HelperEvaluation, "settings")
 @patch.object(NoteGrader, "load_json")
 @patch.object(NoteGrader, "run")
-def test_grade_and_save2file(mock_run, mock_load_json, mock_settings, tmp_path, capsys):
+def test_grade_and_save2file(mock_run, mock_load_json, tmp_path, capsys):
     tested = NoteGrader
-    vendor_key = VendorKey(vendor="openai", api_key="test_key")
 
     def reset_mocks():
         mock_run.reset_mock()
         mock_load_json.reset_mock()
-        mock_settings.reset_mock()
 
     # Create test files
     rubric_path = tmp_path / "rubric.json"
@@ -306,14 +311,12 @@ def test_grade_and_save2file(mock_run, mock_load_json, mock_settings, tmp_path, 
 
     mock_load_json.side_effect = [rubric_data, note_data]
     mock_run.side_effect = [grading_result]
-    mock_settings.side_effect = [MagicMock(llm_text=vendor_key)]
 
     tested.grade_and_save2file(rubric_path, note_path, output_path)
 
     # Verify mock calls in reset_mocks order
     assert mock_run.mock_calls == [call()]
     assert mock_load_json.mock_calls == [call(rubric_path), call(note_path)]
-    assert mock_settings.mock_calls == [call()]
 
     # Verify output file was written
     assert output_path.exists()

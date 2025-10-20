@@ -1,18 +1,16 @@
 import hashlib
 import json
-from tests.helper import MockClass
+from datetime import datetime, UTC, timezone
 from unittest.mock import patch, call, MagicMock
-from datetime import datetime, UTC
 
 import pytest
 
-from hyperscribe.structures.vendor_key import VendorKey
-from hyperscribe.libraries.constants import Constants as HyperscribeConstants
-
 from evaluations.case_builders.rubric_generator import RubricGenerator
 from evaluations.structures.enums.rubric_validation import RubricValidation
-from evaluations.structures.rubric_criterion import RubricCriterion
 from evaluations.structures.records.rubric import Rubric as RubricRecord
+from evaluations.structures.rubric_criterion import RubricCriterion
+from hyperscribe.structures.vendor_key import VendorKey
+from tests.helper import MockClass
 
 
 @pytest.fixture
@@ -47,7 +45,7 @@ def test_load_json(tmp_path):
 
 
 def test_schema_rubric():
-    tested = RubricGenerator(VendorKey("openai", "KEY"))
+    tested = RubricGenerator()
 
     result = tested.schema_rubric()
     expected = {
@@ -82,8 +80,7 @@ def test_build_prompts(mock_schema_rubric, tmp_files):
         mock_schema_rubric.reset_mock()
 
     _, _, _, _, transcript, chart, canvas_context = tmp_files
-    vendor_key = VendorKey(vendor="openai", api_key="KEY")
-    tested = RubricGenerator(vendor_key)
+    tested = RubricGenerator()
     expected_schema = {"type": "array"}
     mock_schema_rubric.side_effect = [expected_schema]
 
@@ -110,8 +107,7 @@ def test_generate(mock_generate_json, mock_schema_rubric, mock_build_prompts, tm
         mock_build_prompts.reset_mock()
 
     _, _, _, _, transcript, chart, canvas_context = tmp_files
-    vendor_key = VendorKey(vendor="openai", api_key="KEY")
-    tested = RubricGenerator(vendor_key)
+    tested = RubricGenerator()
     expected_schema = {"type": "array"}
 
     test_cases = [
@@ -184,23 +180,14 @@ def test_generate(mock_generate_json, mock_schema_rubric, mock_build_prompts, tm
     reset_mocks()
 
 
-@patch("evaluations.case_builders.rubric_generator.HelperEvaluation.settings")
 @patch.object(RubricGenerator, "load_json")
 @patch.object(RubricGenerator, "generate")
-def test_generate_and_save2file(mock_generate, mock_load_json, mock_settings, tmp_files, capsys):
+def test_generate_and_save2file(mock_generate, mock_load_json, tmp_files, capsys):
     tested = RubricGenerator
-
-    vendor_key = VendorKey(vendor="openai", api_key="test_key")
-    mock_settings_instance = MagicMock()
-
-    mock_settings_instance.llm_text = vendor_key
-    mock_settings.side_effect = [mock_settings_instance]
 
     def reset_mocks():
         mock_generate.reset_mock()
         mock_load_json.reset_mock()
-        mock_settings.reset_mock()
-        mock_settings_instance.reset_mock()
 
     transcript_path, chart_path, canvas_context_path, output_path, transcript, chart, canvas_context = tmp_files
 
@@ -213,8 +200,6 @@ def test_generate_and_save2file(mock_generate, mock_load_json, mock_settings, tm
 
     assert mock_generate.mock_calls == [call(transcript, chart, canvas_context)]
     assert mock_load_json.mock_calls == [call(transcript_path), call(chart_path), call(canvas_context_path)]
-    assert mock_settings.mock_calls == [call()]
-    assert mock_settings_instance.mock_calls == []
 
     assert output_path.exists()
     result = json.loads(output_path.read_text())
@@ -243,6 +228,7 @@ def test_generate_and_save2database(
     tmp_files,
 ):
     tested = RubricGenerator
+    settings = MagicMock()
 
     def reset_mocks():
         mock_generate.reset_mock()
@@ -251,14 +237,18 @@ def test_generate_and_save2database(
         mock_rubric_datastore_class.reset_mock()
         mock_helper.reset_mock()
         mock_datetime.reset_mock()
+        settings.reset_mock()
+        settings.llm_text = VendorKey(vendor="theVendor", api_key="theApiKey")
 
-    vendor_key = VendorKey(vendor="openai", api_key="test_key")
+    reset_mocks()
+
     _, _, canvas_context_path, _, _, _, canvas_context = tmp_files
     case_name = "test_case"
     case_id = 123
     transcript_data = {"conversation": "test"}
     chart_data = {"data": "test"}
     rubric_result = [RubricCriterion(criterion="Test", weight=50)]
+    date_0 = datetime(2025, 10, 20, 11, 16, 24, 123456, tzinfo=timezone.utc)
 
     mock_case_datastore_class.return_value.get_id.side_effect = [case_id]
     mock_case_datastore_class.return_value.get_transcript.side_effect = [transcript_data]
@@ -266,9 +256,11 @@ def test_generate_and_save2database(
     mock_load_json.side_effect = [canvas_context]
     mock_generate.side_effect = [rubric_result]
     mock_helper.postgres_credentials.side_effect = ["thePostgresCredentials"]
-    mock_helper.settings.side_effect = [MockClass(llm_text=vendor_key)]
+    mock_helper.settings_reasoning_allowed.side_effect = [settings]
     mock_rubric_datastore_class.return_value.insert.side_effect = ["theInsertedRecord"]
-    mock_datetime.now.side_effect = ["theMockedDatetime"]
+    mock_datetime.now.side_effect = [date_0]
+    settings.llm_text_model.side_effect = ["theModel"]
+    settings.llm_text_temperature.side_effect = [1.37]
 
     result = tested.generate_and_save2database(case_name, canvas_context_path)
     expected = "theInsertedRecord"
@@ -291,27 +283,32 @@ def test_generate_and_save2database(
             RubricRecord(
                 case_id=case_id,
                 parent_rubric_id=None,
-                validation_timestamp="theMockedDatetime",
+                validation_timestamp=date_0,
                 validation=RubricValidation.NOT_EVALUATED,
                 author="llm",
                 rubric=[{"criterion": "Test", "weight": 50}],
                 case_provenance_classification="",
                 comments="",
-                text_llm_vendor="openai",
-                text_llm_name=HyperscribeConstants.OPENAI_CHAT_TEXT_O3,
-                temperature=1.0,
+                text_llm_vendor="theVendor",
+                text_llm_name="theModel",
+                temperature=1.37,
                 id=0,
             )
         ),
     ]
     assert mock_rubric_datastore_class.mock_calls == calls
     calls = [
-        call.settings(),
+        call.settings_reasoning_allowed(),
         call.postgres_credentials(),
     ]
     assert mock_helper.mock_calls == calls
     calls = [call.now(UTC)]
     assert mock_datetime.mock_calls == calls
+    calls = [
+        call.llm_text_model(),
+        call.llm_text_temperature(),
+    ]
+    assert settings.mock_calls == calls
     reset_mocks()
 
 

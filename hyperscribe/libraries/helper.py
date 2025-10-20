@@ -74,7 +74,7 @@ class Helper:
                     memory_log,
                     settings.llm_text.api_key,
                     with_audit=settings.audit_llm,
-                    temperature=Constants.O3_TEMPERATURE,
+                    temperature=settings.llm_text_temperature(),
                 )
             else:
                 return LlmOpenai(memory_log, settings.llm_text.api_key, model, settings.audit_llm)

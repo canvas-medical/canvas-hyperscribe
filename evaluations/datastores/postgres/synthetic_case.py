@@ -1,7 +1,6 @@
 from datetime import datetime, UTC
 from typing import LiteralString
 
-from evaluations.constants import Constants
 from evaluations.datastores.postgres.postgres import Postgres
 from evaluations.structures.records.synthetic_case import SyntheticCase as SyntheticCaseRecord
 
@@ -22,7 +21,7 @@ class SyntheticCase(Postgres):
             "turn_buckets": case.turn_buckets.value,
             "text_llm_vendor": case.text_llm_vendor,
             "text_llm_name": case.text_llm_name,
-            "temperature": Constants.O3_TEMPERATURE,
+            "temperature": case.temperature,
         }
 
         sql: LiteralString = 'SELECT "id" FROM "synthetic_case" WHERE "case_id" = %(case_id)s'
@@ -80,4 +79,5 @@ class SyntheticCase(Postgres):
             duration=case.duration,
             text_llm_vendor=case.text_llm_vendor,
             text_llm_name=case.text_llm_name,
+            temperature=case.temperature,
         )

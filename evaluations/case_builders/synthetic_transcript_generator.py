@@ -1,25 +1,26 @@
 from __future__ import annotations
-import json, re, argparse, random
+
+import argparse
+import json
+import random
+import re
 from pathlib import Path
 from typing import Any, Tuple, cast
 
-from hyperscribe.structures.vendor_key import VendorKey
-from hyperscribe.structures.line import Line
-from evaluations.helper_evaluation import HelperEvaluation
 from evaluations.case_builders.helper_synthetic_json import HelperSyntheticJson
+from evaluations.constants import Constants
 from evaluations.structures.enums.synthetic_case_clinician_style import SyntheticCaseClinicianStyle
-from evaluations.structures.enums.synthetic_case_patient_style import SyntheticCasePatientStyle
 from evaluations.structures.enums.synthetic_case_mood import SyntheticCaseMood
+from evaluations.structures.enums.synthetic_case_patient_style import SyntheticCasePatientStyle
 from evaluations.structures.enums.synthetic_case_pressure import SyntheticCasePressure
 from evaluations.structures.enums.synthetic_case_turn_buckets import SyntheticCaseTurnBuckets
-from evaluations.structures.specification import Specification
 from evaluations.structures.patient_profile import PatientProfile
-from evaluations.constants import Constants
+from evaluations.structures.specification import Specification
+from hyperscribe.structures.line import Line
 
 
 class SyntheticTranscriptGenerator:
-    def __init__(self, vendor_key: VendorKey, profiles: list[PatientProfile]) -> None:
-        self.vendor_key = vendor_key
+    def __init__(self, profiles: list[PatientProfile]) -> None:
         self.profiles = profiles
         self.seen_openings: set[str] = set()
 
@@ -172,11 +173,8 @@ class SyntheticTranscriptGenerator:
         parser.add_argument("--limit", type=int, required=True, help="Number of profiles")
         args = parser.parse_args()
 
-        settings = HelperEvaluation.settings()
-        vendor_key = settings.llm_text
-
         profiles = SyntheticTranscriptGenerator.load_profiles_from_file(args.input)
-        generator = SyntheticTranscriptGenerator(vendor_key=vendor_key, profiles=profiles)
+        generator = SyntheticTranscriptGenerator(profiles=profiles)
         generator.run(start_index=args.start, limit=args.limit, output_path=args.output)
 
 

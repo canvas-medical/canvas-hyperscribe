@@ -22,6 +22,7 @@ def helper_instance() -> UpdateDiagnose:
         llm_audio=VendorKey(vendor="audioVendor", api_key="audioKey"),
         structured_rfv=False,
         audit_llm=False,
+        reasoning_llm=False,
         is_tuning=False,
         api_signing_key="theApiSigningKey",
         max_workers=3,
