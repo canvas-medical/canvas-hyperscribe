@@ -1,5 +1,6 @@
 import hashlib
 import json
+from pathlib import Path
 from unittest.mock import patch, call, MagicMock
 
 import pytest
@@ -341,6 +342,16 @@ def test_main(mock_parser_class, tmp_path, capsys):
         mock_parser_class.reset_mock()
         mock_parser.reset_mock()
 
+    calls_parser = [
+        call.add_argument("--rubric", type=Path, help="Path to rubric.json"),
+        call.add_argument("--note", type=Path, help="Path to note.json"),
+        call.add_argument("--output", type=Path, help="Where to save grading JSON"),
+        call.add_argument("--rubric_id", type=int, help="Rubric ID from database"),
+        call.add_argument("--generated_note_id", type=int, help="Generated note ID from database"),
+        call.add_argument("--experiment_result_id", type=int, default=0, help="Experiment Result ID from database"),
+        call.parse_args(),
+    ]
+
     mock_parser_class.side_effect = [mock_parser]
 
     test_cases = [
@@ -393,6 +404,9 @@ def test_main(mock_parser_class, tmp_path, capsys):
                 output = capsys.readouterr().out
                 assert f"Saved grading result to database with score ID: {mock_score_record.id}" in output
 
+        assert mock_parser.mock_calls == calls_parser
+        calls = [call(description="Grade a note against a rubric.")]
+        assert mock_parser_class.mock_calls == calls
         reset_mocks()
         mock_parser = MagicMock()
         mock_parser_class.side_effect = [mock_parser]
@@ -424,7 +438,10 @@ def test_main(mock_parser_class, tmp_path, capsys):
         with pytest.raises(SystemExit):
             tested.main()
 
-        assert mock_parser.error.mock_calls == [call(test_case["expected_error"])]
+        calls = calls_parser + [call.error(test_case["expected_error"])]
+        assert mock_parser.mock_calls == calls
+        calls = [call(description="Grade a note against a rubric.")]
+        assert mock_parser_class.mock_calls == calls
         reset_mocks()
         mock_parser = MagicMock()
         mock_parser_class.side_effect = [mock_parser]
