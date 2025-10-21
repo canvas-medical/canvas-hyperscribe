@@ -3,6 +3,7 @@ from unittest.mock import patch, call
 
 from evaluations.datastores.postgres.experiment import Experiment
 from evaluations.datastores.postgres.postgres import Postgres
+from evaluations.structures.experiment_models import ExperimentModels
 from evaluations.structures.postgres_credentials import PostgresCredentials
 from evaluations.structures.records.case_id import CaseId as CaseIdRecord
 from evaluations.structures.records.experiment import Experiment as Record
@@ -149,26 +150,72 @@ def test_get_models(select):
     # record found
     select.side_effect = [
         [
-            {"id": 117, "name": "theName1", "vendor": "theVendor1", "api_key": "theApiKey1"},
-            {"id": 132, "name": "theName2", "vendor": "theVendor2", "api_key": "theApiKey2"},
-            {"id": 147, "name": "theName3", "vendor": "theVendor3", "api_key": "theApiKey3"},
+            {
+                "generator_id": 117,
+                "generator_vendor": "theVendor1",
+                "generator_api_key": "theApiKey1",
+                "grader_id": 217,
+                "grader_vendor": "theVendor4",
+                "grader_api_key": "theApiKey4",
+                "is_reasoning": True,
+            },
+            {
+                "generator_id": 132,
+                "generator_vendor": "theVendor2",
+                "generator_api_key": "theApiKey2",
+                "grader_id": 232,
+                "grader_vendor": "theVendor5",
+                "grader_api_key": "theApiKey5",
+                "is_reasoning": True,
+            },
+            {
+                "generator_id": 147,
+                "generator_vendor": "theVendor3",
+                "generator_api_key": "theApiKey3",
+                "grader_id": 247,
+                "grader_vendor": "theVendor6",
+                "grader_api_key": "theApiKey6",
+                "is_reasoning": False,
+            },
         ]
     ]
 
     result = tested.get_models(123)
     expected = [
-        ModelRecord(id=117, name="theName1", vendor="theVendor1", api_key="theApiKey1"),
-        ModelRecord(id=132, name="theName2", vendor="theVendor2", api_key="theApiKey2"),
-        ModelRecord(id=147, name="theName3", vendor="theVendor3", api_key="theApiKey3"),
+        ExperimentModels(
+            experiment_id=123,
+            model_generator=ModelRecord(id=117, vendor="theVendor1", api_key="theApiKey1"),
+            model_grader=ModelRecord(id=217, vendor="theVendor4", api_key="theApiKey4"),
+            grader_is_reasoning=True,
+        ),
+        ExperimentModels(
+            experiment_id=123,
+            model_generator=ModelRecord(id=132, vendor="theVendor2", api_key="theApiKey2"),
+            model_grader=ModelRecord(id=232, vendor="theVendor5", api_key="theApiKey5"),
+            grader_is_reasoning=True,
+        ),
+        ExperimentModels(
+            experiment_id=123,
+            model_generator=ModelRecord(id=147, vendor="theVendor3", api_key="theApiKey3"),
+            model_grader=ModelRecord(id=247, vendor="theVendor6", api_key="theApiKey6"),
+            grader_is_reasoning=False,
+        ),
     ]
     assert result == expected
 
     exp_sql = (
-        'SELECT m."id", m."name", m."vendor", m."api_key" '
-        'FROM "experiment_model" em'
-        '         JOIN "model" m ON em."model_id" = m."id" '
+        'SELECT n."id"                              as "generator_id",'
+        '       n."vendor"                          as "generator_vendor",'
+        '       n."api_key"                         as "generator_api_key",'
+        '       g."id"                              as "grader_id",'
+        '       g."vendor"                          as "grader_vendor",'
+        '       g."api_key"                         as "grader_api_key",'
+        '       em."model_note_grader_is_reasoning" as "is_reasoning" '
+        'FROM "experiment_model" em '
+        '         JOIN "model" n ON em."model_note_generator_id" = n."id" '
+        '         JOIN "model" g ON em."model_note_grader_id" = g."id" '
         'WHERE em."experiment_id" = %(experiment_id)s '
-        'ORDER BY m."id"'
+        'ORDER BY n."id", g."id" '
     )
     exp_params = {"experiment_id": 123}
     assert len(select.mock_calls) == 1

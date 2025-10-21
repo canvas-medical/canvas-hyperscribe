@@ -10,6 +10,8 @@ class ExperimentResultScore(Postgres):
         params = {
             "now": datetime.now(UTC),
             "experiment_result_id": experiment_result_score.experiment_result_id,
+            "text_llm_vendor": experiment_result_score.text_llm_vendor,
+            "text_llm_name": experiment_result_score.text_llm_name,
             "score_id": experiment_result_score.score_id,
             "scoring_result": self.constant_dumps(
                 [score.to_json() for score in experiment_result_score.scoring_result]
@@ -17,12 +19,16 @@ class ExperimentResultScore(Postgres):
         }
         sql: LiteralString = """
                              INSERT INTO "experiment_result_score" ("created", "experiment_result_id",
+                                                                    "text_llm_vendor", "text_llm_name",
                                                                     "score_id", "scoring_result")
                              VALUES (%(now)s, %(experiment_result_id)s,
+                                     %(text_llm_vendor)s, %(text_llm_name)s,
                                      %(score_id)s, %(scoring_result)s) RETURNING id"""
         return Record(
             id=self._alter(sql, params, None),
             experiment_result_id=experiment_result_score.experiment_result_id,
+            text_llm_vendor=experiment_result_score.text_llm_vendor,
+            text_llm_name=experiment_result_score.text_llm_name,
             score_id=experiment_result_score.score_id,
             scoring_result=experiment_result_score.scoring_result,
         )

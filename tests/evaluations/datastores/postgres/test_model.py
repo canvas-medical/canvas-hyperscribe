@@ -33,8 +33,8 @@ def test_get_model(select):
     tests = [
         ([], Record()),
         (
-            [{"id": 123, "name": "theModel", "vendor": "theVendor", "api_key": "theApiKey"}],
-            Record(id=123, name="theModel", vendor="theVendor", api_key="theApiKey"),
+            [{"id": 123, "vendor": "theVendor", "api_key": "theApiKey"}],
+            Record(id=123, vendor="theVendor", api_key="theApiKey"),
         ),
     ]
     for select_side_effect, expected in tests:
@@ -44,7 +44,7 @@ def test_get_model(select):
 
         assert len(select.mock_calls) == 1
         sql, params = select.mock_calls[0].args
-        exp_sql = 'SELECT "id", "name", "vendor", "api_key" FROM "model" WHERE "id" = %(id)s'
+        exp_sql = 'SELECT "id", "vendor", "api_key" FROM "model" WHERE "id" = %(id)s'
         assert compare_sql(sql, exp_sql)
         exp_params = {"id": 77}
         assert params == exp_params
@@ -61,13 +61,11 @@ def test_insert(alter, mock_datetime):
     date_0 = datetime(2025, 10, 17, 13, 56, 47, 123456, tzinfo=timezone.utc)
     model = Record(
         vendor="theVendor",
-        name="theName",
         api_key="theApiKey",
         id=333,
     )
     expected = Record(
         vendor="theVendor",
-        name="theName",
         api_key="theApiKey",
         id=351,
     )
@@ -86,12 +84,11 @@ def test_insert(alter, mock_datetime):
     assert len(alter.mock_calls) == 1
     sql, params, involved_id = alter.mock_calls[0].args
     exp_sql = (
-        'INSERT INTO "experiment_result" ("created", "updated", "name", "vendor", "api_key") '
-        "VALUES (%(now)s, %(now)s, %(name)s, %(vendor)s, %(api_key)s) RETURNING id"
+        'INSERT INTO "model" ("created", "updated", "vendor", "api_key") '
+        "VALUES (%(now)s, %(now)s, %(vendor)s, %(api_key)s) RETURNING id"
     )
     assert compare_sql(sql, exp_sql)
     exp_params = {
-        "name": "theName",
         "vendor": "theVendor",
         "api_key": "theApiKey",
         "now": date_0,

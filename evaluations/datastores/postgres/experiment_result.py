@@ -15,7 +15,6 @@ class ExperimentResult(Postgres):
             "hyperscribe_tags": self.constant_dumps(experiment_result.hyperscribe_tags),
             "case_id": experiment_result.case_id,
             "case_name": experiment_result.case_name,
-            "model_id": experiment_result.model_id,
             "text_llm_vendor": experiment_result.text_llm_vendor,
             "text_llm_name": experiment_result.text_llm_name,
             "cycle_time": experiment_result.cycle_time,
@@ -30,7 +29,7 @@ class ExperimentResult(Postgres):
                                                               "experiment_id", "experiment_name",
                                                               "hyperscribe_version", "hyperscribe_tags",
                                                               "case_id", "case_name",
-                                                              "model_id", "text_llm_vendor", "text_llm_name",
+                                                              "text_llm_vendor", "text_llm_name",
                                                               "cycle_time", "cycle_transcript_overlap",
                                                               "failed", "errors", "generated_note_id",
                                                               "note_json")
@@ -38,7 +37,7 @@ class ExperimentResult(Postgres):
                                      %(experiment_id)s, %(experiment_name)s,
                                      %(hyperscribe_version)s, %(hyperscribe_tags)s,
                                      %(case_id)s, %(case_name)s,
-                                     %(model_id)s, %(text_llm_vendor)s, %(text_llm_name)s,
+                                     %(text_llm_vendor)s, %(text_llm_name)s,
                                      %(cycle_time)s, %(cycle_transcript_overlap)s,
                                      %(failed)s, %(errors)s, %(generated_note_id)s,
                                      %(note_json)s) RETURNING id"""
@@ -50,7 +49,6 @@ class ExperimentResult(Postgres):
             hyperscribe_tags=experiment_result.hyperscribe_tags,
             case_id=experiment_result.case_id,
             case_name=experiment_result.case_name,
-            model_id=experiment_result.model_id,
             text_llm_vendor=experiment_result.text_llm_vendor,
             text_llm_name=experiment_result.text_llm_name,
             cycle_time=experiment_result.cycle_time,

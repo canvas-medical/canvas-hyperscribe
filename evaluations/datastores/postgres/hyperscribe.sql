@@ -114,7 +114,7 @@ CREATE TABLE public.generated_note
     parameters2command       JSON      NOT NULL,
     failed                   boolean   NOT NULL,
     errors                   JSON      NOT NULL,
-    experiment               bool DEFAULT false,
+    experiment               boolean DEFAULT false,
     CONSTRAINT fk_generated_note_case
         FOREIGN KEY (case_id)
             REFERENCES public.case (id)
@@ -156,7 +156,7 @@ CREATE TABLE public.score
     text_llm_vendor   text      NOT NULL,
     text_llm_name     text      NOT NULL,
     temperature       real      NOT NULL,
-    experiment        bool DEFAULT false,
+    experiment        boolean DEFAULT false,
     CONSTRAINT fk_score_case
         FOREIGN KEY (rubric_id)
             REFERENCES public.rubric (id)
@@ -173,7 +173,6 @@ CREATE TABLE public.model
     created timestamp NOT NULL,
     updated timestamp NOT NULL,
     vendor  text      NOT NULL,
-    name    text      NOT NULL,
     api_key text      NOT NULL,
     CONSTRAINT model_vendor_name_key UNIQUE (vendor, name),
     CONSTRAINT model_pkey PRIMARY KEY (id)
@@ -207,13 +206,15 @@ CREATE TABLE public.experiment_case
 
 CREATE TABLE public.experiment_model
 (
-    id            serial4   NOT NULL,
-    created       timestamp NOT NULL,
-    experiment_id serial4   NOT NULL,
-    model_id      serial4   NOT NULL,
+    id                             serial4   NOT NULL,
+    created                        timestamp NOT NULL,
+    experiment_id                  serial4   NOT NULL,
+    model_note_generator_id        serial4   NOT NULL,
+    model_note_grader_id           serial4   NOT NULL,
+    model_note_grader_is_reasoning boolean   NOT NULL,
     CONSTRAINT experiment_model_pkey PRIMARY KEY (id),
-    CONSTRAINT experiment_model_unique UNIQUE (experiment_id, model_id),
-    CONSTRAINT fk_model_experiment_model FOREIGN KEY (model_id) REFERENCES public.model (id) ON DELETE CASCADE,
+    CONSTRAINT fk_model_experiment_model_model_note_generator FOREIGN KEY (model_note_generator_id) REFERENCES public.model (id) ON DELETE CASCADE,
+    CONSTRAINT fk_model_experiment_model_model_note_grader FOREIGN KEY (model_note_grader_id) REFERENCES public.model (id) ON DELETE CASCADE,
     CONSTRAINT fk_experiment_experiment_model FOREIGN KEY (experiment_id) REFERENCES public.experiment (id) ON DELETE CASCADE
 );
 
@@ -228,12 +229,11 @@ CREATE TABLE public.experiment_result
     hyperscribe_tags         json      NOT NULL, /* <-- from the manifest */
     case_id                  serial4   NOT NULL,
     case_name                text      NOT NULL,
-    model_id                 serial4   NOT NULL,
     text_llm_vendor          text      NOT NULL,
     text_llm_name            text      NOT NULL,
     cycle_time               int       NOT NULL,
     cycle_transcript_overlap int       NOT NULL,
-    failed                   bool      NOT NULL,
+    failed                   boolean   NOT NULL,
     errors                   json      NOT NULL,
     generated_note_id        serial4   NOT NULL,
     note_json                json      NOT NULL,
@@ -246,6 +246,8 @@ CREATE TABLE public.experiment_result_score
     id                   serial4   NOT NULL,
     created              timestamp NOT NULL,
     experiment_result_id serial4   NOT NULL,
+    text_llm_vendor      text      NOT NULL,
+    text_llm_name        text      NOT NULL,
     score_id             serial4   NOT NULL,
     scoring_result       json      NOT NULL,
     CONSTRAINT experiment_result_score_pkey PRIMARY KEY (id),

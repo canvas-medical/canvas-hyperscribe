@@ -223,6 +223,8 @@ def test_grade_and_save2database(
                 call().insert(
                     ExperimentResultScore(
                         experiment_result_id=37,
+                        text_llm_vendor="theVendor",
+                        text_llm_name="theModel2",
                         score_id=781,
                         scoring_result=[GradedCriterion(id=0, rationale="good work", satisfaction=85, score=8.5)],
                         id=0,
@@ -239,7 +241,7 @@ def test_grade_and_save2database(
         mock_helper.settings_reasoning_allowed.side_effect = [settings]
         mock_helper.postgres_credentials.side_effect = ["thePostgresCredentials"]
         mock_score_datastore.return_value.insert.side_effect = [expected]
-        settings.llm_text_model.side_effect = ["theModel"]
+        settings.llm_text_model.side_effect = ["theModel1", "theModel2"]
         settings.llm_text_temperature.side_effect = [1.37]
 
         # Call the method
@@ -259,7 +261,7 @@ def test_grade_and_save2database(
                     overall_score=8.5,
                     comments="",
                     text_llm_vendor="theVendor",
-                    text_llm_name="theModel",
+                    text_llm_name="theModel1",
                     temperature=1.37,
                     experiment=exp_experiment,
                     id=0,
@@ -287,6 +289,8 @@ def test_grade_and_save2database(
             call.llm_text_model(),
             call.llm_text_temperature(),
         ]
+        if exp_calls:
+            calls.append(call.llm_text_model())
         assert settings.mock_calls == calls
         reset_mocks()
 

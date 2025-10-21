@@ -8,7 +8,6 @@ class ExperimentResult(NamedTuple):
     hyperscribe_tags: dict = {}
     case_id: int = 0
     case_name: str = ""
-    model_id: int = 0
     text_llm_vendor: str = ""
     text_llm_name: str = ""
     cycle_time: int = 0

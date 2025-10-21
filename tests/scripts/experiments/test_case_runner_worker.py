@@ -4,8 +4,10 @@ from unittest.mock import patch, call, MagicMock
 
 from evaluations.structures.case_runner_job import CaseRunnerJob
 from evaluations.structures.experiment_job import ExperimentJob
+from evaluations.structures.experiment_models import ExperimentModels
 from evaluations.structures.note_grader_job import NoteGraderJob
 from evaluations.structures.records.experiment_result import ExperimentResult as ExperimentResultRecord
+from evaluations.structures.records.model import Model
 from scripts.experiments.case_runner_worker import CaseRunnerWorker
 
 
@@ -31,10 +33,12 @@ def test__build_environment(environ):
         experiment_name="theExperimentName",
         case_id=4561,
         case_name="theCaseName",
-        model_id=31,
-        model_vendor="theModelVendor",
-        model_name="theModelName",
-        model_api_key="theModelKey",
+        models=ExperimentModels(
+            experiment_id=731,
+            model_generator=Model(vendor="theVendor1", api_key="theApiKey1", id=33),
+            model_grader=Model(vendor="theVendor2", api_key="theApiKey2", id=37),
+            grader_is_reasoning=True,
+        ),
         cycle_time=7,
         cycle_transcript_overlap=147,
         grade_replications=1,
@@ -79,14 +83,14 @@ def test__build_environment(environ):
             "CycleTranscriptOverlap": "147",
             "IsTuning": "n",
             "KeyAudioLLM": "",
-            "KeyTextLLM": "theModelKey",
+            "KeyTextLLM": "theApiKey1",
             "MaxWorkers": "1",
             "StaffersList": "",
             "StaffersPolicy": "y",
             "StructuredReasonForVisit": "n",
             "TrialStaffersList": "",
             "VendorAudioLLM": "",
-            "VendorTextLLM": "theModelVendor",
+            "VendorTextLLM": "theVendor1",
             "key1": "value1",
             "key2": "value2",
             "sendProgress": "",
@@ -123,7 +127,7 @@ def test__build_command_case_runner():
 @patch("scripts.experiments.case_runner_worker.HelperEvaluation")
 @patch.object(CaseRunnerWorker, "_build_command_case_runner")
 @patch.object(CaseRunnerWorker, "_build_environment")
-def test_run_case_runner_jobs(
+def test__process_case_runner_job(
     build_environment,
     build_command_case_runner,
     helper,
@@ -139,10 +143,12 @@ def test_run_case_runner_jobs(
         experiment_name="theExperimentName",
         case_id=4561,
         case_name="theCaseName",
-        model_id=31,
-        model_vendor="theModelVendor",
-        model_name="theModelName",
-        model_api_key="theModelKey",
+        models=ExperimentModels(
+            experiment_id=731,
+            model_generator=Model(vendor="theVendor1", api_key="theApiKey1", id=33),
+            model_grader=Model(vendor="theVendor2", api_key="theApiKey2", id=37),
+            grader_is_reasoning=True,
+        ),
         cycle_time=7,
         cycle_transcript_overlap=147,
         grade_replications=1,
@@ -192,6 +198,8 @@ def test_run_case_runner_jobs(
                         rubric_id=590,
                         generated_note_id=790,
                         experiment_result_id=412,
+                        model=Model(vendor="theVendor2", api_key="theApiKey2", id=37),
+                        model_is_reasoning=True,
                     )
                 )
             ],
@@ -236,9 +244,8 @@ def test_run_case_runner_jobs(
                             hyperscribe_tags=tags,
                             case_id=4561,
                             case_name="theCaseName",
-                            model_id=31,
-                            text_llm_vendor="theModelVendor",
-                            text_llm_name="theModelName",
+                            text_llm_vendor="",
+                            text_llm_name="",
                             cycle_time=7,
                             cycle_transcript_overlap=147,
                             failed=False,
@@ -298,10 +305,12 @@ def test_run(process_case_runner_job):
             experiment_name="theName",
             case_id=756,
             case_name="theCaseNameX",
-            model_id=756,
-            model_vendor="theVendorX",
-            model_name="theModelNameX",
-            model_api_key="theApiKeyX",
+            models=ExperimentModels(
+                experiment_id=731,
+                model_generator=Model(vendor="theVendor1", api_key="theApiKey1", id=33),
+                model_grader=Model(vendor="theVendor2", api_key="theApiKey2", id=37),
+                grader_is_reasoning=True,
+            ),
             cycle_time=0,
             cycle_transcript_overlap=95,
             grade_replications=11,
@@ -312,10 +321,12 @@ def test_run(process_case_runner_job):
             experiment_name="theName",
             case_id=756,
             case_name="theCaseNameX",
-            model_id=756,
-            model_vendor="theVendorX",
-            model_name="theModelNameX",
-            model_api_key="theApiKeyX",
+            models=ExperimentModels(
+                experiment_id=731,
+                model_generator=Model(vendor="theVendor1", api_key="theApiKey1", id=33),
+                model_grader=Model(vendor="theVendor2", api_key="theApiKey2", id=37),
+                grader_is_reasoning=True,
+            ),
             cycle_time=0,
             cycle_transcript_overlap=95,
             grade_replications=11,
@@ -326,10 +337,12 @@ def test_run(process_case_runner_job):
             experiment_name="theName",
             case_id=756,
             case_name="theCaseNameX",
-            model_id=756,
-            model_vendor="theVendorX",
-            model_name="theModelNameX",
-            model_api_key="theApiKeyX",
+            models=ExperimentModels(
+                experiment_id=731,
+                model_generator=Model(vendor="theVendor1", api_key="theApiKey1", id=33),
+                model_grader=Model(vendor="theVendor2", api_key="theApiKey2", id=37),
+                grader_is_reasoning=True,
+            ),
             cycle_time=0,
             cycle_transcript_overlap=125,
             grade_replications=11,

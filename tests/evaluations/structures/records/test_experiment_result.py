@@ -11,7 +11,6 @@ def test_class():
         "hyperscribe_tags": dict,
         "case_id": int,
         "case_name": str,
-        "model_id": int,
         "text_llm_vendor": str,
         "text_llm_name": str,
         "cycle_time": int,
@@ -33,7 +32,6 @@ def test_default():
     assert result.hyperscribe_tags == {}
     assert result.case_id == 0
     assert result.case_name == ""
-    assert result.model_id == 0
     assert result.text_llm_vendor == ""
     assert result.text_llm_name == ""
     assert result.cycle_time == 0

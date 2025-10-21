@@ -257,17 +257,20 @@ def test_case_update_limited_cache(case_id, case_store):
 
 @patch("evaluations.auditors.auditor_postgres.ExperimentResultDatastore")
 @patch("evaluations.auditors.auditor_postgres.GeneratedNoteStore")
+@patch.object(Settings, "llm_text_model")
 @patch.object(AuditorPostgres, "summarized_generated_commands")
 @patch.object(AuditorPostgres, "generated_note_id")
 def test_case_finalize(
     generated_note_id,
     summarized_generated_commands,
+    llm_text_model,
     generated_note_store,
     experiment_result_store,
 ):
     def reset_mocks():
         generated_note_id.reset_mock()
         summarized_generated_commands.reset_mock()
+        llm_text_model.reset_mock()
         generated_note_store.reset_mock()
         experiment_result_store.reset_mock()
 
@@ -293,6 +296,8 @@ def test_case_finalize(
                         "note_json": {"summarized": "commands"},
                         "failed": True,
                         "errors": {"error1": "value1", "error2": "value2"},
+                        "text_llm_vendor": "theVendorTextLLM",
+                        "text_llm_name": "theModel",
                     },
                 ),
             ],
@@ -301,6 +306,7 @@ def test_case_finalize(
     for experiment_result_id, exp_experiment, exp_calls in tests:
         generated_note_id.side_effect = [137]
         summarized_generated_commands.side_effect = [{"summarized": "commands"}]
+        llm_text_model.side_effect = ["theModel"]
 
         tested = helper_instance()
         tested.case_finalize({"error1": "value1", "error2": "value2"}, experiment_result_id)
@@ -324,6 +330,10 @@ def test_case_finalize(
         ]
         assert generated_note_store.mock_calls == calls
         assert experiment_result_store.mock_calls == exp_calls
+        calls = []
+        if exp_calls:
+            calls = [call()]
+        assert llm_text_model.mock_calls == calls
         reset_mocks()
 
 

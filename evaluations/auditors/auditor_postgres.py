@@ -87,6 +87,8 @@ class AuditorPostgres(AuditorStore):
                 experiment_result_id,
                 {
                     "generated_note_id": generated_note_id,
+                    "text_llm_vendor": self.settings.llm_text.vendor,
+                    "text_llm_name": self.settings.llm_text_model(),
                     "note_json": summarized_generated_commands,
                     "failed": bool(errors),
                     "errors": errors,

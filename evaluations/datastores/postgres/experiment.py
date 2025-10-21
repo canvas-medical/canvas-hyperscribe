@@ -2,6 +2,7 @@ from datetime import datetime, UTC
 from typing import LiteralString
 
 from evaluations.datastores.postgres.postgres import Postgres
+from evaluations.structures.experiment_models import ExperimentModels
 from evaluations.structures.records.case_id import CaseId as CaseIdRecord
 from evaluations.structures.records.experiment import Experiment as Record
 from evaluations.structures.records.model import Model as ModelRecord
@@ -47,21 +48,36 @@ class Experiment(Postgres):
             for record in self._select(sql, {"experiment_id": experiment_id})
         ]
 
-    def get_models(self, experiment_id: int) -> list[ModelRecord]:
+    def get_models(self, experiment_id: int) -> list[ExperimentModels]:
         sql: LiteralString = """
-                             SELECT m."id", m."name", m."vendor", m."api_key"
+                             SELECT n."id"                              as "generator_id",
+                                    n."vendor"                          as "generator_vendor",
+                                    n."api_key"                         as "generator_api_key",
+                                    g."id"                              as "grader_id",
+                                    g."vendor"                          as "grader_vendor",
+                                    g."api_key"                         as "grader_api_key",
+                                    em."model_note_grader_is_reasoning" as "is_reasoning"
                              FROM "experiment_model" em
-                                      JOIN "model" m ON em."model_id" = m."id"
+                                      JOIN "model" n ON em."model_note_generator_id" = n."id"
+                                      JOIN "model" g ON em."model_note_grader_id" = g."id"
                              WHERE em."experiment_id" = %(experiment_id)s
-                             ORDER BY m."id"
+                             ORDER BY n."id", g."id"
                              """
 
         return [
-            ModelRecord(
-                id=record["id"],
-                name=record["name"],
-                vendor=record["vendor"],
-                api_key=record["api_key"],
+            ExperimentModels(
+                experiment_id=experiment_id,
+                model_generator=ModelRecord(
+                    id=record["generator_id"],
+                    vendor=record["generator_vendor"],
+                    api_key=record["generator_api_key"],
+                ),
+                model_grader=ModelRecord(
+                    id=record["grader_id"],
+                    vendor=record["grader_vendor"],
+                    api_key=record["grader_api_key"],
+                ),
+                grader_is_reasoning=record["is_reasoning"],
             )
             for record in self._select(sql, {"experiment_id": experiment_id})
         ]

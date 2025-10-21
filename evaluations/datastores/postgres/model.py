@@ -8,14 +8,13 @@ from evaluations.structures.records.model import Model as Record
 class Model(Postgres):
     def get_model(self, model_id: int) -> Record:
         sql: LiteralString = """
-                             SELECT "id", "name", "vendor", "api_key"
+                             SELECT "id", "vendor", "api_key"
                              FROM "model"
                              WHERE "id" = %(id)s
                              """
         for record in self._select(sql, {"id": model_id}):
             return Record(
                 id=record["id"],
-                name=record["name"],
                 vendor=record["vendor"],
                 api_key=record["api_key"],
             )
@@ -24,16 +23,14 @@ class Model(Postgres):
     def insert(self, model: Record) -> Record:
         params = {
             "now": datetime.now(UTC),
-            "name": model.name,
             "vendor": model.vendor,
             "api_key": model.api_key,
         }
         sql: LiteralString = """
-                             INSERT INTO "experiment_result" ("created", "updated", "name", "vendor", "api_key")
-                             VALUES (%(now)s, %(now)s, %(name)s, %(vendor)s, %(api_key)s) RETURNING id"""
+                             INSERT INTO "model" ("created", "updated", "vendor", "api_key")
+                             VALUES (%(now)s, %(now)s, %(vendor)s, %(api_key)s) RETURNING id"""
         return Record(
             id=self._alter(sql, params, None),
-            name=model.name,
             vendor=model.vendor,
             api_key=model.api_key,
         )

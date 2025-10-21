@@ -109,7 +109,7 @@ class ExperimentRunner:
 
         job_index = 0
         for case in cases:
-            for model in models:
+            for models_experiment in models:
                 for cycle_overlap in experiment.cycle_transcript_overlaps:
                     # Create note_replications copies of each job
                     for _ in range(experiment.note_replications):
@@ -120,10 +120,7 @@ class ExperimentRunner:
                             experiment_name=experiment.name,
                             case_id=int(case.id),
                             case_name=case.name,
-                            model_id=int(model.id),
-                            model_vendor=model.vendor,
-                            model_name=model.name,
-                            model_api_key=model.api_key,
+                            models=models_experiment,
                             cycle_time=0,  # currently not available
                             cycle_transcript_overlap=cycle_overlap,
                             grade_replications=experiment.grade_replications,

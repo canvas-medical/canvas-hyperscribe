@@ -38,7 +38,6 @@ def test_insert(alter, mock_datetime):
         hyperscribe_tags={"tag1": "value1", "tag2": "value2"},
         case_id=254,
         case_name="theCaseName",
-        model_id=17,
         text_llm_vendor="theTextLLMVendor",
         text_llm_name="theTextLLMName",
         cycle_time=45,
@@ -56,7 +55,6 @@ def test_insert(alter, mock_datetime):
         hyperscribe_tags={"tag1": "value1", "tag2": "value2"},
         case_id=254,
         case_name="theCaseName",
-        model_id=17,
         text_llm_vendor="theTextLLMVendor",
         text_llm_name="theTextLLMName",
         cycle_time=45,
@@ -86,7 +84,7 @@ def test_insert(alter, mock_datetime):
         '   "experiment_id", "experiment_name",'
         '   "hyperscribe_version", "hyperscribe_tags",'
         '   "case_id", "case_name",'
-        '   "model_id", "text_llm_vendor", "text_llm_name",'
+        '   "text_llm_vendor", "text_llm_name",'
         '   "cycle_time", "cycle_transcript_overlap",'
         '   "failed", "errors", "generated_note_id",'
         '   "note_json") '
@@ -94,7 +92,7 @@ def test_insert(alter, mock_datetime):
         "  %(experiment_id)s, %(experiment_name)s,"
         "  %(hyperscribe_version)s, %(hyperscribe_tags)s,"
         "  %(case_id)s, %(case_name)s,"
-        "  %(model_id)s, %(text_llm_vendor)s, %(text_llm_name)s,"
+        "  %(text_llm_vendor)s, %(text_llm_name)s,"
         "  %(cycle_time)s, %(cycle_transcript_overlap)s,"
         "  %(failed)s, %(errors)s, %(generated_note_id)s,"
         "  %(note_json)s) "
@@ -113,7 +111,6 @@ def test_insert(alter, mock_datetime):
         "generated_note_id": 631,
         "hyperscribe_tags": '{"tag1":"value1","tag2":"value2"}',
         "hyperscribe_version": "theHyperscribeVersion",
-        "model_id": 17,
         "note_json": '["note1","note2"]',
         "text_llm_name": "theTextLLMName",
         "text_llm_vendor": "theTextLLMVendor",

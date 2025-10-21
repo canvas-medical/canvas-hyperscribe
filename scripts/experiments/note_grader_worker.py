@@ -5,6 +5,7 @@ from subprocess import Popen, PIPE, STDOUT
 from typing import Optional
 
 from evaluations.structures.note_grader_job import NoteGraderJob
+from hyperscribe.libraries.constants import Constants
 
 
 class NoteGraderWorker:
@@ -29,8 +30,22 @@ class NoteGraderWorker:
         return command
 
     @classmethod
+    def _build_environment(cls, job: NoteGraderJob) -> dict[str, str]:
+        env: dict[str, str] = environ.copy()
+
+        model_type = Constants.TEXT_MODEL_CHAT
+        if job.model_is_reasoning:
+            model_type = Constants.TEXT_MODEL_REASONING
+
+        env[Constants.SECRET_TEXT_LLM_VENDOR] = job.model.vendor
+        env[Constants.SECRET_TEXT_LLM_KEY] = job.model.api_key
+        env[Constants.TEXT_MODEL_TYPE] = model_type
+
+        return env
+
+    @classmethod
     def _process_note_grader_job(cls, job: NoteGraderJob) -> None:
-        env = environ.copy()
+        env = cls._build_environment(job)
         cmd = cls._build_command_note_grader(job)
         process = Popen(
             cmd,

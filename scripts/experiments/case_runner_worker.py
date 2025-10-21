@@ -11,6 +11,7 @@ from evaluations.structures.case_runner_job import CaseRunnerJob
 from evaluations.structures.experiment_job import ExperimentJob
 from evaluations.structures.note_grader_job import NoteGraderJob
 from evaluations.structures.records.experiment_result import ExperimentResult as ExperimentResultRecord
+from evaluations.structures.records.model import Model
 from hyperscribe.libraries.constants import Constants
 
 
@@ -31,8 +32,8 @@ class CaseRunnerWorker:
     def _build_environment(cls, job: ExperimentJob) -> dict[str, str]:
         env: dict[str, str] = environ.copy()
 
-        env[Constants.SECRET_TEXT_LLM_VENDOR] = job.model_vendor
-        env[Constants.SECRET_TEXT_LLM_KEY] = job.model_api_key
+        env[Constants.SECRET_TEXT_LLM_VENDOR] = job.models.model_generator.vendor
+        env[Constants.SECRET_TEXT_LLM_KEY] = job.models.model_generator.api_key
         env[Constants.SECRET_CYCLE_TRANSCRIPT_OVERLAP] = str(job.cycle_transcript_overlap)
 
         env[Constants.SECRET_AUDIT_LLM] = "n"
@@ -85,9 +86,6 @@ class CaseRunnerWorker:
                 hyperscribe_tags=self._hyperscribe_tags,
                 case_id=job.case_id,
                 case_name=job.case_name,
-                model_id=job.model_id,
-                text_llm_name=job.model_name,
-                text_llm_vendor=job.model_vendor,
                 cycle_time=job.cycle_time,
                 cycle_transcript_overlap=job.cycle_transcript_overlap,
             )
@@ -125,6 +123,12 @@ class CaseRunnerWorker:
                 parent_index=job.job_index,
                 rubric_id=rubric_id,
                 generated_note_id=generated_note_id,
+                model=Model(
+                    id=job.models.model_grader.id,
+                    vendor=job.models.model_grader.vendor,
+                    api_key=job.models.model_grader.api_key,
+                ),
+                model_is_reasoning=job.models.grader_is_reasoning,
                 experiment_result_id=experiment_result.id,
             )
             self._note_grader_queue.put(note_grader_job)

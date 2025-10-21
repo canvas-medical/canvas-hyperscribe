@@ -1,5 +1,7 @@
 from typing import NamedTuple
 
+from evaluations.structures.experiment_models import ExperimentModels
+
 
 class ExperimentJob(NamedTuple):
     job_index: int
@@ -7,10 +9,7 @@ class ExperimentJob(NamedTuple):
     experiment_name: str
     case_id: int
     case_name: str
-    model_id: int
-    model_vendor: str
-    model_name: str
-    model_api_key: str
+    models: ExperimentModels
     cycle_time: int
     cycle_transcript_overlap: int
     grade_replications: int

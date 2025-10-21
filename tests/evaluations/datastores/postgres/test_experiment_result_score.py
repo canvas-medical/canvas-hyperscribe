@@ -34,12 +34,16 @@ def test_insert(alter, mock_datetime):
     date_0 = datetime(2025, 10, 17, 14, 7, 21, 123456, tzinfo=timezone.utc)
     experiment_result_score = Record(
         experiment_result_id=133,
+        text_llm_vendor="theVendor",
+        text_llm_name="theName",
         score_id=435,
         scoring_result=[GradedCriterion(id=0, rationale="good work", satisfaction=85, score=8.5)],
         id=333,
     )
     expected = Record(
         experiment_result_id=133,
+        text_llm_vendor="theVendor",
+        text_llm_name="theName",
         score_id=435,
         scoring_result=[GradedCriterion(id=0, rationale="good work", satisfaction=85, score=8.5)],
         id=351,
@@ -59,13 +63,19 @@ def test_insert(alter, mock_datetime):
     assert len(alter.mock_calls) == 1
     sql, params, involved_id = alter.mock_calls[0].args
     exp_sql = (
-        'INSERT INTO "experiment_result_score" ("created", "experiment_result_id", "score_id", "scoring_result") '
-        "VALUES (%(now)s, %(experiment_result_id)s, %(score_id)s, %(scoring_result)s) "
-        "RETURNING id"
+        'INSERT INTO "experiment_result_score" ("created", "experiment_result_id",'
+        '                                        "text_llm_vendor", "text_llm_name",'
+        '                                        "score_id", "scoring_result")'
+        " VALUES (%(now)s, %(experiment_result_id)s,"
+        "         %(text_llm_vendor)s, %(text_llm_name)s,"
+        "         %(score_id)s, %(scoring_result)s) RETURNING id"
+        ""
     )
     assert compare_sql(sql, exp_sql)
     exp_params = {
         "experiment_result_id": 133,
+        "text_llm_vendor": "theVendor",
+        "text_llm_name": "theName",
         "score_id": 435,
         "scoring_result": '[{"id":0,"rationale":"good work","satisfaction":85,"score":8.5}]',
         "now": date_0,

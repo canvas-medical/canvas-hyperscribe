@@ -164,6 +164,8 @@ class NoteGrader:
                     experiment_result_id=experiment_result_id,
                     score_id=score_record.id,
                     scoring_result=scoring_result,
+                    text_llm_vendor=settings.llm_text.vendor,
+                    text_llm_name=settings.llm_text_model(),
                 )
             )
 
