@@ -110,19 +110,29 @@ class Rubric(Postgres):
             return cast(list[dict], record["rubric"])
         return []
 
-    def get_last_accepted(self, case_id: int) -> int:
+    def get_last_accepted(self, case_id: int) -> list[int]:
         sql: LiteralString = """
-                             SELECT "id"
-                             FROM "rubric"
-                             WHERE "case_id" = %(case_id)s
-                               AND "validation" = %(accepted)s
-                             ORDER BY "updated"
-                                 DESC LIMIT 1
+                             WITH latest_by_author AS (SELECT DISTINCT
+                             ON (author)
+                                 id as rubric_id,
+                                 author,
+                                 validation_timestamp
+                             FROM rubric
+                             WHERE case_id = %(case_id)s
+                               AND validation = %(accepted)s
+                               AND author LIKE %(email_like)s
+                             ORDER BY author, validation_timestamp DESC
+                                 )
+                             SELECT rubric_id
+                             FROM latest_by_author
+                             ORDER BY validation_timestamp DESC
                              """
         params = {
             "case_id": case_id,
             "accepted": RubricValidation.ACCEPTED.value,
+            "email_like": "%@%",
         }
+        result: list[int] = []
         for record in self._select(sql, params):
-            return int(record["id"])
-        return 0
+            result.append(int(record["rubric_id"]))
+        return result

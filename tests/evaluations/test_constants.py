@@ -61,5 +61,6 @@ def test_constants():
         },
         "MAX_CHARACTERS_PER_CYCLE": 1000,
         "RUBRIC_AUTHOR_LLM": "llm",
+        "EXPERIMENT_MAX_ACCEPTED_RUBRICS": 2,
     }
     assert is_constant(tested, constants)

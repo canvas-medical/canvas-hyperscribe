@@ -151,7 +151,7 @@ def test__process_case_runner_job(
         ),
         cycle_time=7,
         cycle_transcript_overlap=147,
-        grade_replications=1,
+        grade_replications=2,
         cwd_path=Path("/tmp/test_repo"),
     )
     process = MagicMock(stdout=["\rline1\r\n", "\nline2\r\n", "\n\r\n"])
@@ -173,21 +173,21 @@ def test__process_case_runner_job(
     tests = [
         (
             0,
-            590,
+            [590],
             ["[001] \rline1", "[001] \nline2", "[001] no note generated", ""],
             True,
             [],
         ),
         (
             790,
-            0,
+            [],
             ["[001] no rubric accepted", ""],
             False,
             [],
         ),
         (
             790,
-            590,
+            [590],
             ["[001] \rline1", "[001] \nline2", ""],
             True,
             [
@@ -202,17 +202,85 @@ def test__process_case_runner_job(
                         model_is_reasoning=True,
                         cwd_path=Path("/tmp/test_repo"),
                     )
-                )
+                ),
+                call.put(
+                    NoteGraderJob(
+                        job_index=1,
+                        parent_index=1,
+                        rubric_id=590,
+                        generated_note_id=790,
+                        experiment_result_id=412,
+                        model=Model(vendor="theVendor2", api_key="theApiKey2", id=37),
+                        model_is_reasoning=True,
+                        cwd_path=Path("/tmp/test_repo"),
+                    )
+                ),
+            ],
+        ),
+        (
+            790,
+            [590, 599, 595],
+            ["[001] \rline1", "[001] \nline2", ""],
+            True,
+            [
+                call.put(
+                    NoteGraderJob(
+                        job_index=0,
+                        parent_index=1,
+                        rubric_id=590,
+                        generated_note_id=790,
+                        experiment_result_id=412,
+                        model=Model(vendor="theVendor2", api_key="theApiKey2", id=37),
+                        model_is_reasoning=True,
+                        cwd_path=Path("/tmp/test_repo"),
+                    )
+                ),
+                call.put(
+                    NoteGraderJob(
+                        job_index=1,
+                        parent_index=1,
+                        rubric_id=590,
+                        generated_note_id=790,
+                        experiment_result_id=412,
+                        model=Model(vendor="theVendor2", api_key="theApiKey2", id=37),
+                        model_is_reasoning=True,
+                        cwd_path=Path("/tmp/test_repo"),
+                    )
+                ),
+                call.put(
+                    NoteGraderJob(
+                        job_index=2,
+                        parent_index=1,
+                        rubric_id=599,
+                        generated_note_id=790,
+                        experiment_result_id=412,
+                        model=Model(vendor="theVendor2", api_key="theApiKey2", id=37),
+                        model_is_reasoning=True,
+                        cwd_path=Path("/tmp/test_repo"),
+                    )
+                ),
+                call.put(
+                    NoteGraderJob(
+                        job_index=3,
+                        parent_index=1,
+                        rubric_id=599,
+                        generated_note_id=790,
+                        experiment_result_id=412,
+                        model=Model(vendor="theVendor2", api_key="theApiKey2", id=37),
+                        model_is_reasoning=True,
+                        cwd_path=Path("/tmp/test_repo"),
+                    )
+                ),
             ],
         ),
     ]
-    for generated_note_id, rubric_id, exp_out, exp_calls, exp_call_queue in tests:
+    for generated_note_id, rubric_ids, exp_out, exp_calls, exp_call_queue in tests:
         build_environment.side_effect = ["theEnvironment"]
         build_command_case_runner.side_effect = ["theCommand"]
         helper.postgres_credentials.side_effect = ["thePostgresCredentials"]
         experiment_result_store.return_value.insert.side_effect = [ExperimentResultRecord(id=412, experiment_id=371)]
         experiment_result_store.return_value.get_generated_note_id.side_effect = [generated_note_id]
-        rubric_store.return_value.get_last_accepted.side_effect = [rubric_id]
+        rubric_store.return_value.get_last_accepted.side_effect = [rubric_ids]
         popen.side_effect = [process]
 
         tested = CaseRunnerWorker(Queue(), note_grader_queue, version, tags)

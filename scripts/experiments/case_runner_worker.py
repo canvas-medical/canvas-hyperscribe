@@ -3,6 +3,7 @@ from os import environ
 from subprocess import Popen, PIPE, STDOUT
 from typing import Optional
 
+from evaluations.constants import Constants as EvaluationConstants
 from evaluations.datastores.postgres.experiment_result import ExperimentResult as ExperimentResultStore
 from evaluations.datastores.postgres.rubric import Rubric as RubricStore
 from evaluations.helper_evaluation import HelperEvaluation
@@ -74,8 +75,8 @@ class CaseRunnerWorker:
         result_store = ExperimentResultStore(psql_credential)
         rubric_store = RubricStore(psql_credential)
 
-        rubric_id = rubric_store.get_last_accepted(job.case_id)
-        if rubric_id == 0:
+        rubric_ids = rubric_store.get_last_accepted(job.case_id)[: EvaluationConstants.EXPERIMENT_MAX_ACCEPTED_RUBRICS]
+        if not rubric_ids:
             print(f"[{job.job_index:03d}] no rubric accepted")
             return
 
@@ -118,22 +119,25 @@ class CaseRunnerWorker:
             print(f"[{job.job_index:03d}] no note generated")
             return
 
-        for job_index in range(job.grade_replications):
-            note_grader_job = NoteGraderJob(
-                job_index=job_index,
-                parent_index=job.job_index,
-                rubric_id=rubric_id,
-                generated_note_id=generated_note_id,
-                model=Model(
-                    id=job.models.model_grader.id,
-                    vendor=job.models.model_grader.vendor,
-                    api_key=job.models.model_grader.api_key,
-                ),
-                model_is_reasoning=job.models.grader_is_reasoning,
-                experiment_result_id=experiment_result.id,
-                cwd_path=job.cwd_path,
-            )
-            self._note_grader_queue.put(note_grader_job)
+        job_index = -1
+        for rubric_id in rubric_ids:
+            for _ in range(job.grade_replications):
+                job_index += 1
+                note_grader_job = NoteGraderJob(
+                    job_index=job_index,
+                    parent_index=job.job_index,
+                    rubric_id=rubric_id,
+                    generated_note_id=generated_note_id,
+                    model=Model(
+                        id=job.models.model_grader.id,
+                        vendor=job.models.model_grader.vendor,
+                        api_key=job.models.model_grader.api_key,
+                    ),
+                    model_is_reasoning=job.models.grader_is_reasoning,
+                    experiment_result_id=experiment_result.id,
+                    cwd_path=job.cwd_path,
+                )
+                self._note_grader_queue.put(note_grader_job)
 
     def run(self) -> None:
         while True:

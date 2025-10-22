@@ -174,7 +174,7 @@ CREATE TABLE public.model
     updated timestamp NOT NULL,
     vendor  text      NOT NULL,
     api_key text      NOT NULL,
-    CONSTRAINT model_vendor_name_key UNIQUE (vendor, name),
+    CONSTRAINT model_vendor_name_key UNIQUE (vendor),
     CONSTRAINT model_pkey PRIMARY KEY (id)
 );
 

@@ -282,21 +282,32 @@ def test_get_last_accepted(select):
 
     tested = helper_instance()
 
-    select.side_effect = [[{"id": 177}]]
+    select.side_effect = [[{"rubric_id": 177}, {"rubric_id": 173}, {"rubric_id": 221}]]
 
     result = tested.get_last_accepted(123)
-    assert result == 177
+    expected = [177, 173, 221]
+    assert result == expected
 
     exp_sql = (
-        'SELECT "id" '
-        'FROM "rubric" '
-        'WHERE "case_id" = %(case_id)s AND "validation" = %(accepted)s '
-        'ORDER BY "updated" '
-        "DESC LIMIT 1"
+        "WITH latest_by_author AS (SELECT DISTINCT "
+        "ON (author) "
+        "    id as rubric_id, "
+        "    author, "
+        "    validation_timestamp "
+        "FROM rubric "
+        "WHERE case_id = %(case_id)s "
+        "  AND validation = %(accepted)s "
+        "  AND author LIKE %(email_like)s "
+        "ORDER BY author, validation_timestamp DESC "
+        "    ) "
+        "SELECT rubric_id "
+        "FROM latest_by_author "
+        "ORDER BY validation_timestamp DESC "
     )
     exp_params = {
         "accepted": "accepted",
         "case_id": 123,
+        "email_like": "%@%",
     }
     assert len(select.mock_calls) == 1
     sql, params = select.mock_calls[0].args
@@ -308,7 +319,7 @@ def test_get_last_accepted(select):
     select.side_effect = [[]]
 
     result = tested.get_last_accepted(123)
-    assert result == 0
+    assert result == []
 
     assert len(select.mock_calls) == 1
     sql, params = select.mock_calls[0].args
