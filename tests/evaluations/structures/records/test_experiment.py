@@ -6,6 +6,7 @@ def test_class():
     tested = Experiment
     fields = {
         "name": str,
+        "hyperscribe_version": str,
         "cycle_times": list,
         "cycle_transcript_overlaps": list,
         "note_replications": int,
@@ -18,6 +19,7 @@ def test_class():
 def test_default():
     result = Experiment()
     assert result.name == ""
+    assert result.hyperscribe_version == ""
     assert result.cycle_times == []
     assert result.cycle_transcript_overlaps == []
     assert result.note_replications == 0

@@ -42,6 +42,7 @@ def test__build_environment(environ):
         cycle_time=7,
         cycle_transcript_overlap=147,
         grade_replications=1,
+        cwd_path=Path("/tmp/test_repo"),
     )
 
     tested = CaseRunnerWorker
@@ -53,6 +54,7 @@ def test__build_environment(environ):
         {
             "key1": "value1",
             "key2": "value2",
+            "VIRTUAL_ENV": "someValue",
             "VendorTextLLM": "someValue",
             "KeyTextLLM": "someValue",
             "CycleTranscriptOverlap": "someValue",
@@ -120,7 +122,6 @@ def test__build_command_case_runner():
     assert result == expected
 
 
-@patch("scripts.experiments.case_runner_worker.Path")
 @patch("scripts.experiments.case_runner_worker.Popen")
 @patch("scripts.experiments.case_runner_worker.RubricStore")
 @patch("scripts.experiments.case_runner_worker.ExperimentResultStore")
@@ -134,7 +135,6 @@ def test__process_case_runner_job(
     experiment_result_store,
     rubric_store,
     popen,
-    path,
     capsys,
 ):
     job = ExperimentJob(
@@ -152,6 +152,7 @@ def test__process_case_runner_job(
         cycle_time=7,
         cycle_transcript_overlap=147,
         grade_replications=1,
+        cwd_path=Path("/tmp/test_repo"),
     )
     process = MagicMock(stdout=["\rline1\r\n", "\nline2\r\n", "\n\r\n"])
     note_grader_queue = MagicMock()
@@ -163,7 +164,6 @@ def test__process_case_runner_job(
         experiment_result_store.reset_mock()
         rubric_store.reset_mock()
         popen.reset_mock()
-        path.reset_mock()
         process.reset_mock()
         note_grader_queue.reset_mock()
 
@@ -200,6 +200,7 @@ def test__process_case_runner_job(
                         experiment_result_id=412,
                         model=Model(vendor="theVendor2", api_key="theApiKey2", id=37),
                         model_is_reasoning=True,
+                        cwd_path=Path("/tmp/test_repo"),
                     )
                 )
             ],
@@ -213,7 +214,6 @@ def test__process_case_runner_job(
         experiment_result_store.return_value.get_generated_note_id.side_effect = [generated_note_id]
         rubric_store.return_value.get_last_accepted.side_effect = [rubric_id]
         popen.side_effect = [process]
-        path.return_value.parent.parent.parent = "thePath"
 
         tested = CaseRunnerWorker(Queue(), note_grader_queue, version, tags)
         tested._process_case_runner_job(job)
@@ -274,14 +274,10 @@ def test__process_case_runner_job(
                     stderr=-2,
                     text=True,
                     bufsize=1,
-                    cwd="thePath",
+                    cwd=Path("/tmp/test_repo"),
                 )
             ]
         assert popen.mock_calls == calls
-        if exp_calls:
-            directory = Path(__file__).parent.parent.parent.as_posix().replace("/tests", "")
-            calls = [call(f"{directory}/scripts/experiments/case_runner_worker.py")]
-        assert path.mock_calls == calls
         if exp_calls:
             calls = [call.wait()]
         assert process.mock_calls == calls
@@ -314,6 +310,7 @@ def test_run(process_case_runner_job):
             cycle_time=0,
             cycle_transcript_overlap=95,
             grade_replications=11,
+            cwd_path=Path("/tmp/test_repo"),
         ),
         ExperimentJob(
             job_index=2,
@@ -330,6 +327,7 @@ def test_run(process_case_runner_job):
             cycle_time=0,
             cycle_transcript_overlap=95,
             grade_replications=11,
+            cwd_path=Path("/tmp/test_repo"),
         ),
         ExperimentJob(
             job_index=3,
@@ -346,6 +344,7 @@ def test_run(process_case_runner_job):
             cycle_time=0,
             cycle_transcript_overlap=125,
             grade_replications=11,
+            cwd_path=Path("/tmp/test_repo"),
         ),
     ]
     for job in jobs:

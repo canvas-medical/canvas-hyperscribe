@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from evaluations.structures.experiment_job import ExperimentJob
 from evaluations.structures.experiment_models import ExperimentModels
 from tests.helper import is_namedtuple
@@ -15,5 +17,6 @@ def test_class():
         "cycle_time": int,
         "cycle_transcript_overlap": int,
         "grade_replications": int,
+        "cwd_path": Path,
     }
     assert is_namedtuple(tested, fields)

@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from evaluations.structures.note_grader_job import NoteGraderJob
 from evaluations.structures.records.model import Model
 from tests.helper import is_namedtuple
@@ -13,5 +15,6 @@ def test_class():
         "model": Model,
         "model_is_reasoning": bool,
         "experiment_result_id": int,
+        "cwd_path": Path,
     }
     assert is_namedtuple(tested, fields)

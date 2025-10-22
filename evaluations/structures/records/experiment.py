@@ -3,6 +3,7 @@ from typing import NamedTuple
 
 class Experiment(NamedTuple):
     name: str = ""
+    hyperscribe_version: str = ""
     cycle_times: list = []
     cycle_transcript_overlaps: list = []
     note_replications: int = 0

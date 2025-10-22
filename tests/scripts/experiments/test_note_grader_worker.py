@@ -21,6 +21,7 @@ def test__build_command_note_grader():
         rubric_id=597,
         generated_note_id=791,
         experiment_result_id=414,
+        cwd_path=Path("/tmp/test_repo"),
         model=Model(vendor="theVendor", api_key="theApiKey", id=31),
         model_is_reasoning=False,
     )
@@ -60,6 +61,7 @@ def test__build_environment(environ):
             {
                 "key1": "value1",
                 "key2": "value2",
+                "VIRTUAL_ENV": "someValue",
                 "VendorTextLLM": "someValue",
                 "KeyTextLLM": "someValue",
                 "TextModelType": "someValue",
@@ -77,6 +79,7 @@ def test__build_environment(environ):
             rubric_id=597,
             generated_note_id=791,
             experiment_result_id=414,
+            cwd_path=Path("/tmp/test_repo"),
             model=Model(vendor="theVendor", api_key="theApiKey", id=33),
             model_is_reasoning=model_is_reasoning,
         )
@@ -95,18 +98,16 @@ def test__build_environment(environ):
         reset_mocks()
 
 
-@patch("scripts.experiments.note_grader_worker.Path")
 @patch("scripts.experiments.note_grader_worker.Popen")
 @patch.object(NoteGraderWorker, "_build_environment")
 @patch.object(NoteGraderWorker, "_build_command_note_grader")
-def test__process_note_grader_job(build_command_note_grader, build_environment, popen, path, capsys):
+def test__process_note_grader_job(build_command_note_grader, build_environment, popen, capsys):
     process = MagicMock(stdout=["\nline1\n", "\nline2\r\n", "\n\r\n"])
 
     def reset_mocks():
         build_command_note_grader.reset_mock()
         build_environment.reset_mock()
         popen.reset_mock()
-        path.reset_mock()
         process.reset_mock()
 
     tested = NoteGraderWorker
@@ -114,7 +115,6 @@ def test__process_note_grader_job(build_command_note_grader, build_environment, 
     build_command_note_grader.side_effect = ["theCommand"]
     build_environment.side_effect = ["theEnvironment"]
     popen.side_effect = [process]
-    path.return_value.parent.parent.parent = "thePath"
 
     job = NoteGraderJob(
         job_index=71,
@@ -122,6 +122,7 @@ def test__process_note_grader_job(build_command_note_grader, build_environment, 
         rubric_id=597,
         generated_note_id=791,
         experiment_result_id=414,
+        cwd_path=Path("/tmp/test_repo"),
         model=Model(vendor="theVendor", api_key="theApiKey", id=31),
         model_is_reasoning=False,
     )
@@ -140,11 +141,18 @@ def test__process_note_grader_job(build_command_note_grader, build_environment, 
     assert build_command_note_grader.mock_calls == calls
     calls = [call(job)]
     assert build_environment.mock_calls == calls
-    calls = [call("theCommand", env="theEnvironment", stdout=-1, stderr=-2, text=True, bufsize=1, cwd="thePath")]
+    calls = [
+        call(
+            "theCommand",
+            env="theEnvironment",
+            stdout=-1,
+            stderr=-2,
+            text=True,
+            bufsize=1,
+            cwd=Path("/tmp/test_repo"),
+        )
+    ]
     assert popen.mock_calls == calls
-    directory = Path(__file__).parent.parent.parent.as_posix().replace("/tests", "")
-    calls = [call(f"{directory}/scripts/experiments/note_grader_worker.py")]
-    assert path.mock_calls == calls
 
     calls = [call.wait()]
     assert process.mock_calls == calls
@@ -166,6 +174,7 @@ def test_run(process_note_grader_job):
             rubric_id=597,
             generated_note_id=791,
             experiment_result_id=414,
+            cwd_path=Path("/tmp/test_repo"),
             model=Model(vendor="theVendor1", api_key="theApiKey1", id=31),
             model_is_reasoning=False,
         ),
@@ -175,6 +184,7 @@ def test_run(process_note_grader_job):
             rubric_id=597,
             generated_note_id=793,
             experiment_result_id=415,
+            cwd_path=Path("/tmp/test_repo"),
             model=Model(vendor="theVendor3", api_key="theApiKey3", id=33),
             model_is_reasoning=False,
         ),
@@ -184,6 +194,7 @@ def test_run(process_note_grader_job):
             rubric_id=597,
             generated_note_id=797,
             experiment_result_id=417,
+            cwd_path=Path("/tmp/test_repo"),
             model=Model(vendor="theVendor7", api_key="theApiKey7", id=37),
             model_is_reasoning=True,
         ),

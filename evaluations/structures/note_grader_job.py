@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import NamedTuple
 
 from evaluations.structures.records.model import Model
@@ -11,3 +12,4 @@ class NoteGraderJob(NamedTuple):
     model: Model
     model_is_reasoning: bool
     experiment_result_id: int
+    cwd_path: Path

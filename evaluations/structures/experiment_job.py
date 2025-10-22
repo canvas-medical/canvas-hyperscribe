@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import NamedTuple
 
 from evaluations.structures.experiment_models import ExperimentModels
@@ -13,3 +14,4 @@ class ExperimentJob(NamedTuple):
     cycle_time: int
     cycle_transcript_overlap: int
     grade_replications: int
+    cwd_path: Path

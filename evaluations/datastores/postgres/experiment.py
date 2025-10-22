@@ -13,6 +13,7 @@ class Experiment(Postgres):
         sql: LiteralString = """
                              SELECT "id",
                                     "name",
+                                    "hyperscribe_version",
                                     "cycle_times",
                                     "cycle_transcript_overlaps",
                                     "note_replications",
@@ -24,12 +25,23 @@ class Experiment(Postgres):
             return Record(
                 id=record["id"],
                 name=record["name"],
+                hyperscribe_version=record["hyperscribe_version"],
                 cycle_times=record["cycle_times"],
                 cycle_transcript_overlaps=record["cycle_transcript_overlaps"],
                 note_replications=record["note_replications"],
                 grade_replications=record["grade_replications"],
             )
         return Record()
+
+    def get_experiment_hyperscribe_version(self, experiment_id: int) -> str:
+        sql: LiteralString = """
+                             SELECT "hyperscribe_version"
+                             FROM "experiment"
+                             WHERE "id" = %(id)s
+                             """
+        for record in self._select(sql, {"id": experiment_id}):
+            return str(record["hyperscribe_version"])
+        return ""
 
     def get_cases(self, experiment_id: int) -> list[CaseIdRecord]:
         sql: LiteralString = """
@@ -86,6 +98,7 @@ class Experiment(Postgres):
         params = {
             "now": datetime.now(UTC),
             "name": experiment.name,
+            "hyperscribe_version": experiment.hyperscribe_version,
             "cycle_times": self.constant_dumps(experiment.cycle_times),
             "cycle_transcript_overlaps": self.constant_dumps(experiment.cycle_transcript_overlaps),
             "note_replications": experiment.note_replications,
@@ -102,13 +115,15 @@ class Experiment(Postgres):
             sql = """
                   UPDATE "experiment"
                   SET "updated"=%(now)s,
+                      "hyperscribe_version"=%(hyperscribe_version)s,
                       "cycle_times"=%(cycle_times)s,
                       "cycle_transcript_overlaps"=%(cycle_transcript_overlaps)s,
                       "note_replications"=%(note_replications)s,
                       "grade_replications"=%(grade_replications)s
                   WHERE "id" = %(id)s
                     AND (
-                      MD5("cycle_times"::text) != %(cycle_times_md5)s OR
+                      "hyperscribe_version" != %(hyperscribe_version)s OR
+                          MD5("cycle_times"::text) != %(cycle_times_md5)s OR
                           MD5("cycle_transcript_overlaps"::text) != %(cycle_transcript_overlaps_md5)s OR
                           "note_replications" != %(note_replications)s OR
                           "grade_replications" != %(grade_replications)s
@@ -116,15 +131,17 @@ class Experiment(Postgres):
             break
         else:
             sql = """
-                  INSERT INTO "experiment" ("created", "updated", "name",
+                  INSERT INTO "experiment" ("created", "updated",
+                                            "name", "hyperscribe_version",
                                             "cycle_times", "cycle_transcript_overlaps",
                                             "note_replications", "grade_replications")
-                  VALUES (%(now)s, %(now)s, %(name)s,
+                  VALUES (%(now)s, %(now)s, %(name)s, %(hyperscribe_version)s,
                           %(cycle_times)s, %(cycle_transcript_overlaps)s,
                           %(note_replications)s, %(grade_replications)s) RETURNING id"""
         return Record(
             id=self._alter(sql, params, involved_id),
             name=experiment.name,
+            hyperscribe_version=experiment.hyperscribe_version,
             cycle_times=experiment.cycle_times,
             cycle_transcript_overlaps=experiment.cycle_transcript_overlaps,
             note_replications=experiment.note_replications,
@@ -154,25 +171,39 @@ class Experiment(Postgres):
             result = self._alter(sql, params, None)
         return result
 
-    def add_model(self, experiment_id: int, model_id: int) -> int:
+    def add_model(
+        self,
+        experiment_id: int,
+        model_note_generator_id: int,
+        model_note_grader_id: int,
+        model_note_grader_is_reasoning: bool,
+    ) -> int:
         params = {
             "now": datetime.now(UTC),
             "experiment_id": experiment_id,
-            "model_id": model_id,
+            "model_note_generator_id": model_note_generator_id,
+            "model_note_grader_id": model_note_grader_id,
+            "model_note_grader_is_reasoning": model_note_grader_is_reasoning,
         }
         sql: LiteralString = """
                              SELECT "id"
                              FROM "experiment_model"
                              WHERE "experiment_id" = %(experiment_id)s
-                               AND "model_id" = %(model_id)s
+                               AND "model_note_generator_id" = %(model_note_generator_id)s
+                               AND "model_note_grader_id" = %(model_note_grader_id)s
+                               AND "model_note_grader_is_reasoning" = %(model_note_grader_is_reasoning)s
                              """
         for record in self._select(sql, params):
             result = int(record["id"])
             break
         else:
             sql = """
-                  INSERT INTO "experiment_model"("created", "experiment_id", "model_id")
-                  VALUES (%(now)s, %(experiment_id)s, %(model_id)s) RETURNING id
+                  INSERT INTO "experiment_model"("created", "experiment_id",
+                                                 "model_note_generator_id", "model_note_grader_id",
+                                                 "model_note_grader_is_reasoning")
+                  VALUES (%(now)s, %(experiment_id)s,
+                          %(model_note_generator_id)s, %(model_note_grader_id)s,
+                          %(model_note_grader_is_reasoning)s) RETURNING id
                   """
             result = self._alter(sql, params, None)
         return result

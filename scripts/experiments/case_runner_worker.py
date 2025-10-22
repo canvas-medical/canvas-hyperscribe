@@ -1,6 +1,5 @@
 from multiprocessing import Queue
 from os import environ
-from pathlib import Path
 from subprocess import Popen, PIPE, STDOUT
 from typing import Optional
 
@@ -50,6 +49,8 @@ class CaseRunnerWorker:
         env[Constants.SECRET_API_SIGNING_KEY] = ""
         env[Constants.SECRET_AUDIO_LLM_VENDOR] = ""
         env[Constants.SECRET_AUDIO_LLM_KEY] = ""
+        if "VIRTUAL_ENV" in env:
+            del env["VIRTUAL_ENV"]
 
         return env
 
@@ -104,7 +105,7 @@ class CaseRunnerWorker:
             stderr=STDOUT,
             text=True,
             bufsize=1,
-            cwd=Path(__file__).parent.parent.parent,
+            cwd=job.cwd_path,
         )
         assert process.stdout is not None
         for line in process.stdout:
@@ -130,6 +131,7 @@ class CaseRunnerWorker:
                 ),
                 model_is_reasoning=job.models.grader_is_reasoning,
                 experiment_result_id=experiment_result.id,
+                cwd_path=job.cwd_path,
             )
             self._note_grader_queue.put(note_grader_job)
 

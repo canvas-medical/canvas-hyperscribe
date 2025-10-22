@@ -2,9 +2,11 @@ import json
 from argparse import ArgumentParser, Namespace
 from multiprocessing import Process, Queue
 from pathlib import Path
+from subprocess import Popen, PIPE
+from subprocess import run
+from tempfile import TemporaryDirectory
 from typing import Generator
 
-from evaluations.auditors.auditor_postgres import AuditorPostgres
 from evaluations.datastores.postgres.experiment import Experiment as ExperimentStore
 from evaluations.helper_evaluation import HelperEvaluation
 from evaluations.structures.experiment_job import ExperimentJob
@@ -34,61 +36,95 @@ class ExperimentRunner:
         return args
 
     @classmethod
-    def hyperscribe_version(cls) -> str:
-        return AuditorPostgres.get_plugin_commit()
-
-    @classmethod
-    def hyperscribe_tags(cls) -> dict:
-        with (Path(__file__).parent.parent / "hyperscribe" / "CANVAS_MANIFEST.json").open("r") as f:
+    def hyperscribe_tags(cls, repository: Path) -> dict:
+        with (repository / "hyperscribe" / "CANVAS_MANIFEST.json").open("r") as f:
             manifest = json.load(f)
             return manifest.get("tags") or {}
 
     @classmethod
-    def run(cls) -> None:
-        args = cls._parameters()
-        hyperscribe_version = cls.hyperscribe_version()
-        hyperscribe_tags = cls.hyperscribe_tags()
-
-        case_runner_queue: Queue = Queue()
-        note_grader_queue: Queue = Queue()
-
-        case_runner_workers: list[Process] = []
-        note_grader_workers: list[Process] = []
-
-        for _ in range(args.max_workers):
-            worker = Process(
-                target=CaseRunnerWorker(
-                    case_runner_queue,
-                    note_grader_queue,
-                    hyperscribe_version,
-                    hyperscribe_tags,
-                ).run
-            )
-            worker.start()
-            case_runner_workers.append(worker)
-
-        for _ in range(args.max_workers):
-            worker = Process(target=NoteGraderWorker(note_grader_queue).run)
-            worker.start()
-            note_grader_workers.append(worker)
-
-        for job in cls._generate_jobs(args.experiment_id):
-            case_runner_queue.put(job)
-
-        for _ in range(args.max_workers):
-            case_runner_queue.put(None)
-
-        for worker in case_runner_workers:
-            worker.join()
-
-        for _ in range(args.max_workers):
-            note_grader_queue.put(None)
-
-        for worker in note_grader_workers:
-            worker.join()
+    def _experiment_hyperscribe_version(cls, experiment_id: int) -> str:
+        psql_credential = HelperEvaluation.postgres_credentials()
+        store = ExperimentStore(psql_credential)
+        return store.get_experiment_hyperscribe_version(experiment_id)
 
     @classmethod
-    def _generate_jobs(cls, experiment_id: int) -> Generator[ExperimentJob, None, None]:
+    def hyperscribe_version_exists(cls, hyperscribe_version: str) -> bool:
+        process = Popen(
+            ["git", "rev-parse", "--quiet", "--verify", f"{hyperscribe_version}^{{commit}}"],
+            stdout=PIPE,
+            stderr=PIPE,
+        )
+        process.communicate()
+        return process.returncode == 0
+
+    @classmethod
+    def _clone_repository(cls, hyperscribe_version: str, clone_repository: Path) -> None:
+        repository = Path(__file__).parent.parent
+        run(
+            ["git", "clone", repository.as_posix(), clone_repository.as_posix()],
+            check=True,
+            capture_output=True,
+        )
+        run(
+            ["git", "checkout", hyperscribe_version],
+            cwd=clone_repository.as_posix(),
+            check=True,
+            capture_output=True,
+        )
+
+    @classmethod
+    def run(cls) -> None:
+        args = cls._parameters()
+
+        hyperscribe_version = cls._experiment_hyperscribe_version(args.experiment_id)
+        if not cls.hyperscribe_version_exists(hyperscribe_version):
+            print(f"hyperscribe version does not exist: {hyperscribe_version}")
+            return
+        with TemporaryDirectory() as temp_dir:
+            clone_repository = Path(temp_dir)
+            cls._clone_repository(hyperscribe_version, clone_repository)
+            hyperscribe_tags = cls.hyperscribe_tags(clone_repository)
+
+            case_runner_queue: Queue = Queue()
+            note_grader_queue: Queue = Queue()
+
+            case_runner_workers: list[Process] = []
+            note_grader_workers: list[Process] = []
+
+            for _ in range(args.max_workers):
+                worker = Process(
+                    target=CaseRunnerWorker(
+                        case_runner_queue,
+                        note_grader_queue,
+                        hyperscribe_version,
+                        hyperscribe_tags,
+                    ).run
+                )
+                worker.start()
+                case_runner_workers.append(worker)
+
+            for _ in range(args.max_workers):
+                worker = Process(target=NoteGraderWorker(note_grader_queue).run)
+                worker.start()
+                note_grader_workers.append(worker)
+
+            for job in cls._generate_jobs(args.experiment_id, clone_repository):
+                case_runner_queue.put(job)
+
+            for _ in range(args.max_workers):
+                case_runner_queue.put(None)
+
+            for worker in case_runner_workers:
+                worker.join()
+
+            for _ in range(args.max_workers):
+                note_grader_queue.put(None)
+
+            for worker in note_grader_workers:
+                worker.join()
+
+    @classmethod
+    def _generate_jobs(cls, experiment_id: int, repository: Path) -> Generator[ExperimentJob, None, None]:
         psql_credential = HelperEvaluation.postgres_credentials()
 
         store = ExperimentStore(psql_credential)
@@ -124,6 +160,7 @@ class ExperimentRunner:
                             cycle_time=0,  # currently not available
                             cycle_transcript_overlap=cycle_overlap,
                             grade_replications=experiment.grade_replications,
+                            cwd_path=repository,
                         )
                         yield job
 

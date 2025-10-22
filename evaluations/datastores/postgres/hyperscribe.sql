@@ -184,6 +184,7 @@ CREATE TABLE public.experiment
     created                   timestamp NOT NULL,
     updated                   timestamp NOT NULL,
     name                      text      NOT NULL,
+    hyperscribe_version       text      NOT NULL, /* <-- commit hash */
     cycle_times               json      NOT NULL,
     cycle_transcript_overlaps json      NOT NULL,
     note_replications         int4      NOT NULL,

@@ -1,6 +1,5 @@
 from multiprocessing import Queue
 from os import environ
-from pathlib import Path
 from subprocess import Popen, PIPE, STDOUT
 from typing import Optional
 
@@ -40,6 +39,8 @@ class NoteGraderWorker:
         env[Constants.SECRET_TEXT_LLM_VENDOR] = job.model.vendor
         env[Constants.SECRET_TEXT_LLM_KEY] = job.model.api_key
         env[Constants.TEXT_MODEL_TYPE] = model_type
+        if "VIRTUAL_ENV" in env:
+            del env["VIRTUAL_ENV"]
 
         return env
 
@@ -54,7 +55,7 @@ class NoteGraderWorker:
             stderr=STDOUT,
             text=True,
             bufsize=1,
-            cwd=Path(__file__).parent.parent.parent,
+            cwd=job.cwd_path,
         )
         assert process.stdout is not None
         for line in process.stdout:

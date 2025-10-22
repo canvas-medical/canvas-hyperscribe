@@ -39,6 +39,7 @@ def test_get_experiment(select):
             {
                 "id": 117,
                 "name": "theName",
+                "hyperscribe_version": "theVersion",
                 "cycle_times": [15, 30, 60],
                 "cycle_transcript_overlaps": [125],
                 "note_replications": 2,
@@ -51,6 +52,7 @@ def test_get_experiment(select):
     expected = Record(
         id=117,
         name="theName",
+        hyperscribe_version="theVersion",
         cycle_times=[15, 30, 60],
         cycle_transcript_overlaps=[125],
         note_replications=2,
@@ -61,6 +63,7 @@ def test_get_experiment(select):
     exp_sql = (
         'SELECT "id",'
         '       "name",'
+        '       "hyperscribe_version",'
         '       "cycle_times",'
         '       "cycle_transcript_overlaps",'
         '       "note_replications",'
@@ -80,6 +83,42 @@ def test_get_experiment(select):
 
     result = tested.get_experiment(123)
     expected = Record()
+    assert result == expected
+
+    assert len(select.mock_calls) == 1
+    sql, params = select.mock_calls[0].args
+    assert compare_sql(sql, exp_sql)
+    assert params == exp_params
+    reset_mock()
+
+
+@patch.object(Experiment, "_select")
+def test_get_experiment_hyperscribe_version(select):
+    def reset_mock():
+        select.reset_mock()
+
+    tested = helper_instance()
+
+    # record found
+    select.side_effect = [[{"hyperscribe_version": "abc123def"}]]
+
+    result = tested.get_experiment_hyperscribe_version(123)
+    expected = "abc123def"
+    assert result == expected
+
+    exp_sql = 'SELECT "hyperscribe_version" FROM "experiment" WHERE "id" = %(id)s'
+    exp_params = {"id": 123}
+    assert len(select.mock_calls) == 1
+    sql, params = select.mock_calls[0].args
+    assert compare_sql(sql, exp_sql)
+    assert params == exp_params
+    reset_mock()
+
+    # record not found
+    select.side_effect = [[]]
+
+    result = tested.get_experiment_hyperscribe_version(123)
+    expected = ""
     assert result == expected
 
     assert len(select.mock_calls) == 1
@@ -249,6 +288,7 @@ def test_upsert(select, alter, mock_datetime):
     date_0 = datetime(2025, 10, 17, 14, 39, 4, 123456, tzinfo=timezone.utc)
     record = Record(
         name="theName",
+        hyperscribe_version="theVersion",
         cycle_times=[15, 30, 60],
         cycle_transcript_overlaps=[100, 180],
         note_replications=3,
@@ -257,6 +297,7 @@ def test_upsert(select, alter, mock_datetime):
     )
     expected = Record(
         name="theName",
+        hyperscribe_version="theVersion",
         cycle_times=[15, 30, 60],
         cycle_transcript_overlaps=[100, 180],
         note_replications=3,
@@ -284,16 +325,18 @@ def test_upsert(select, alter, mock_datetime):
     assert params == exp_params
 
     exp_sql = (
-        'INSERT INTO "experiment" ("created", "updated", "name",'
+        'INSERT INTO "experiment" ("created", "updated", '
+        ' "name", "hyperscribe_version",'
         ' "cycle_times", "cycle_transcript_overlaps",'
         ' "note_replications", "grade_replications") '
-        "VALUES (%(now)s, %(now)s, %(name)s,"
+        "VALUES (%(now)s, %(now)s, %(name)s, %(hyperscribe_version)s,"
         " %(cycle_times)s, %(cycle_transcript_overlaps)s,"
         " %(note_replications)s, %(grade_replications)s) "
         " RETURNING id"
     )
     exp_params = {
         "name": "theName",
+        "hyperscribe_version": "theVersion",
         "cycle_times": "[15,30,60]",
         "cycle_transcript_overlaps": "[100,180]",
         "note_replications": 3,
@@ -328,13 +371,15 @@ def test_upsert(select, alter, mock_datetime):
     exp_sql = (
         'UPDATE "experiment" '
         'SET "updated"=%(now)s,'
+        '    "hyperscribe_version"=%(hyperscribe_version)s,'
         '    "cycle_times"=%(cycle_times)s,'
         '    "cycle_transcript_overlaps"=%(cycle_transcript_overlaps)s,'
         '    "note_replications"=%(note_replications)s,'
         '    "grade_replications"=%(grade_replications)s '
         'WHERE "id" = %(id)s'
         "  AND ("
-        '    MD5("cycle_times"::text) != %(cycle_times_md5)s OR'
+        '        "hyperscribe_version" != %(hyperscribe_version)s OR'
+        '        MD5("cycle_times"::text) != %(cycle_times_md5)s OR'
         '        MD5("cycle_transcript_overlaps"::text) != %(cycle_transcript_overlaps_md5)s OR'
         '        "note_replications" != %(note_replications)s OR'
         '        "grade_replications" != %(grade_replications)s'
@@ -342,6 +387,7 @@ def test_upsert(select, alter, mock_datetime):
     )
     exp_params = {
         "name": "theName",
+        "hyperscribe_version": "theVersion",
         "cycle_times": "[15,30,60]",
         "cycle_times_md5": "904053c01f23c0dc343d8e4affb8d841",
         "cycle_transcript_overlaps": "[100,180]",
@@ -445,7 +491,7 @@ def test_add_model(select, alter, mock_datetime):
     alter.side_effect = [351]
     mock_datetime.now.side_effect = [date_0]
 
-    result = tested.add_model(157, 325)
+    result = tested.add_model(157, 325, 328, False)
     expected = 351
     assert result == expected
 
@@ -453,12 +499,19 @@ def test_add_model(select, alter, mock_datetime):
     assert mock_datetime.mock_calls == calls
 
     exp_sql_select = (
-        'SELECT "id" FROM "experiment_model" WHERE "experiment_id" = %(experiment_id)s AND "model_id" = %(model_id)s'
+        'SELECT "id" '
+        'FROM "experiment_model" '
+        'WHERE "experiment_id" = %(experiment_id)s '
+        '  AND "model_note_generator_id" = %(model_note_generator_id)s '
+        '  AND "model_note_grader_id" = %(model_note_grader_id)s '
+        '  AND "model_note_grader_is_reasoning" = %(model_note_grader_is_reasoning)s '
     )
     exp_params = {
         "now": date_0,
         "experiment_id": 157,
-        "model_id": 325,
+        "model_note_generator_id": 325,
+        "model_note_grader_id": 328,
+        "model_note_grader_is_reasoning": False,
     }
     assert len(select.mock_calls) == 1
     sql, params = select.mock_calls[0].args
@@ -466,8 +519,12 @@ def test_add_model(select, alter, mock_datetime):
     assert params == exp_params
 
     exp_sql = (
-        'INSERT INTO "experiment_model"("created", "experiment_id", "model_id") '
-        "VALUES (%(now)s, %(experiment_id)s, %(model_id)s) RETURNING id"
+        'INSERT INTO "experiment_model"("created", "experiment_id",  '
+        '                               "model_note_generator_id", "model_note_grader_id", '
+        '                               "model_note_grader_is_reasoning") '
+        "VALUES (%(now)s, %(experiment_id)s,  "
+        "        %(model_note_generator_id)s, %(model_note_grader_id)s, "
+        "        %(model_note_grader_is_reasoning)s) RETURNING id "
     )
     assert len(alter.mock_calls) == 1
     sql, params, involved_id = alter.mock_calls[0].args
@@ -481,7 +538,7 @@ def test_add_model(select, alter, mock_datetime):
     alter.side_effect = []
     mock_datetime.now.side_effect = [date_0]
 
-    result = tested.add_model(157, 325)
+    result = tested.add_model(157, 325, 328, False)
     expected = 147
     assert result == expected
 

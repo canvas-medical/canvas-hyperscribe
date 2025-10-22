@@ -51,6 +51,34 @@ def test_get_model(select):
         reset_mock()
 
 
+@patch.object(Model, "_select")
+def test_get_model_by_vendor(select):
+    def reset_mock():
+        select.reset_mock()
+
+    tested = helper_instance()
+
+    tests = [
+        ([], Record()),
+        (
+            [{"id": 456, "vendor": "openai", "api_key": "sk-test123"}],
+            Record(id=456, vendor="openai", api_key="sk-test123"),
+        ),
+    ]
+    for select_side_effect, expected in tests:
+        select.side_effect = [select_side_effect]
+        result = tested.get_model_by_vendor("openai")
+        assert result == expected
+
+        assert len(select.mock_calls) == 1
+        sql, params = select.mock_calls[0].args
+        exp_sql = 'SELECT "id", "vendor", "api_key" FROM "model" WHERE "vendor" = %(vendor)s'
+        assert compare_sql(sql, exp_sql)
+        exp_params = {"vendor": "openai"}
+        assert params == exp_params
+        reset_mock()
+
+
 @patch("evaluations.datastores.postgres.model.datetime", wraps=datetime)
 @patch.object(Model, "_alter")
 def test_insert(alter, mock_datetime):

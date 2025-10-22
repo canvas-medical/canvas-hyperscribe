@@ -20,6 +20,20 @@ class Model(Postgres):
             )
         return Record()
 
+    def get_model_by_vendor(self, vendor: str) -> Record:
+        sql: LiteralString = """
+                             SELECT "id", "vendor", "api_key"
+                             FROM "model"
+                             WHERE "vendor" = %(vendor)s
+                             """
+        for record in self._select(sql, {"vendor": vendor}):
+            return Record(
+                id=record["id"],
+                vendor=record["vendor"],
+                api_key=record["api_key"],
+            )
+        return Record()
+
     def insert(self, model: Record) -> Record:
         params = {
             "now": datetime.now(UTC),
