@@ -40,14 +40,44 @@ class RemoveAllergy(Base):
         )
 
     def command_parameters(self) -> dict:
-        allergies = "/".join(
-            [f"{allergy.label} (index: {idx})" for idx, allergy in enumerate(self.cache.current_allergies())],
-        )
         return {
-            "allergies": f"one of: {allergies}",
-            "allergyIndex": "Index of the allergy to remove, or -1, as integer",
-            "narrative": "explanation of why the allergy is removed, as free text",
+            "allergies": "",
+            "allergyIndex": -1,
+            "narrative": "",
         }
+
+    def command_parameters_schemas(self) -> list[dict]:
+        allergies = [allergy.label for allergy in self.cache.current_allergies()]
+        return [
+            {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 1,
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "allergies": {
+                            "type": "string",
+                            "description": "The allergy to remove",
+                            "enum": allergies,
+                        },
+                        "allergyIndex": {
+                            "type": "integer",
+                            "description": "Index of the allergy to remove",
+                            "minimum": 0,
+                            "maximum": len(allergies) - 1,
+                        },
+                        "narrative": {
+                            "type": "string",
+                            "description": "Explanation of why the allergy is removed, as free text",
+                        },
+                    },
+                    "required": ["allergies", "allergyIndex", "narrative"],
+                    "additionalProperties": False,
+                },
+            }
+        ]
 
     def instruction_description(self) -> str:
         return (

@@ -1,3 +1,5 @@
+import json
+from hashlib import md5
 from unittest.mock import MagicMock
 
 from canvas_sdk.commands.commands.history_present_illness import HistoryOfPresentIllnessCommand
@@ -87,9 +89,16 @@ def test_command_parameters():
     tested = helper_instance()
     result = tested.command_parameters()
     expected = {
-        "narrative": "highlights of the patient's symptoms and surrounding events and observations, as free text",
+        "narrative": "",
     }
     assert result == expected
+
+
+def test_command_parameters_schemas():
+    tested = helper_instance()
+    result = tested.command_parameters_schemas()
+    expected = "349e8381a83bd3f8ec7a5048c48bbef2"
+    assert md5(json.dumps(result).encode()).hexdigest() == expected
 
 
 def test_instruction_description():

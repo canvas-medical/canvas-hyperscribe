@@ -1,4 +1,6 @@
+import json
 from datetime import date
+from hashlib import md5
 from unittest.mock import patch, call, MagicMock
 
 from canvas_sdk.commands.commands.goal import GoalCommand
@@ -127,15 +129,21 @@ def test_command_parameters():
     tested = helper_instance()
     result = tested.command_parameters()
     expected = {
-        "goal": "title of the goal, as free text",
-        "startDate": "YYYY-MM-DD",
-        "dueDate": "YYYY-MM-DD",
-        "status": "one of: in-progress/improving/worsening/no-change/achieved/sustaining/not-achieved/"
-        "no-progress/not-attainable",
-        "priority": "one of: high-priority/medium-priority/low-priority",
-        "progressAndBarriers": "progress and barriers, as free text",
+        "goal": "",
+        "startDate": None,
+        "dueDate": None,
+        "status": "",
+        "priority": "",
+        "progressAndBarriers": "",
     }
     assert result == expected
+
+
+def test_command_parameters_schemas():
+    tested = helper_instance()
+    result = tested.command_parameters_schemas()
+    expected = "2361777d82ecd6b8d6bb22ef0f09ef30"
+    assert md5(json.dumps(result).encode()).hexdigest() == expected
 
 
 def test_instruction_description():

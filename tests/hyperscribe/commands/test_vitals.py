@@ -1,3 +1,5 @@
+import json
+from hashlib import md5
 from unittest.mock import patch, call, MagicMock
 
 from canvas_sdk.commands.commands.vitals import VitalsCommand
@@ -207,16 +209,22 @@ def test_command_parameters():
     tested = helper_instance()
     result = tested.command_parameters()
     expected = {
-        "important": "all values are integers or null",
-        "height": {"inches": 0},
-        "weight": {"pounds": 0},
-        "waistCircumference": {"centimeters": 0},
-        "temperature": {"fahrenheit": 0},
-        "bloodPressure": {"systolicPressure": 0, "diastolicPressure": 0},
-        "pulseRate": {"beatPerMinute": 0},
-        "respirationRate": {"beatPerMinute": 0},
+        "height": {"inches": None},
+        "weight": {"pounds": None},
+        "waistCircumference": {"centimeters": None},
+        "temperature": {"fahrenheit": None},
+        "bloodPressure": {"systolicPressure": None, "diastolicPressure": None},
+        "pulseRate": {"beatPerMinute": None},
+        "respirationRate": {"beatPerMinute": None},
     }
     assert result == expected
+
+
+def test_command_parameters_schemas():
+    tested = helper_instance()
+    result = tested.command_parameters_schemas()
+    expected = "c264401d4faabbfbd58cf2afa2b2a473"
+    assert md5(json.dumps(result).encode()).hexdigest() == expected
 
 
 def test_instruction_description():

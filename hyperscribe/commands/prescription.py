@@ -82,36 +82,88 @@ class Prescription(BasePrescription):
         return InstructionWithCommand.add_command(instruction, result)
 
     def command_parameters(self) -> dict:
-        substitutions = "/".join([status.value for status in PrescribeCommand.Substitutions])
-        conditions = "/".join(
-            [f"{condition.label} (index: {idx})" for idx, condition in enumerate(self.cache.current_conditions())],
-        )
-
-        condition_dict = {}
-        if conditions:
-            condition_dict = {
-                "condition": f"None or, one of: {conditions}",  # ATTENTION limiting to only one condition
-                # even if the UI accepts up to 2 conditions
-                "conditionIndex": "index of the condition for which the medication is prescribed, "
-                "as integer or -1 if the prescription is not related to any listed condition",
+        result: dict = {
+            "keywords": "",
+            "medicationNames": "",
+            "sig": "",
+            "suppliedDays": 0,
+            "substitution": "",
+            "comment": "",
+        }
+        if self.cache.current_conditions():
+            result |= {
+                "condition": "",
+                "conditionIndex": -1,
             }
+        return result
 
-        return {
-            "keywords": "comma separated list of up to 5 relevant drugs to consider prescribing",
-            "medicationNames": "comma separated list of known medication names, generics and brands, "
-            "related to the keywords",
-            "sig": "directions as stated; if specific frequency mentioned (e.g. 'once weekly', 'twice daily'), "
-            "preserve it exactly, as free text",
-            "suppliedDays": "mandatory, duration of the treatment in days either as mentioned, "
-            "or following the standard practices, as integer",
-            # "quantityToDispense": 0,
-            # "refills": 0,
-            "substitution": f"one of: {substitutions}",
-            "comment": "rationale of the prescription including all mentioned details: medication name/brand, "
-            "specific strength if stated (e.g. '2.5 mg', '10 mg'), route, and specific frequency if stated "
-            "(e.g. 'once weekly', 'twice daily'), as free text",
-            # "noteToPharmacist": "note to the pharmacist, as free text",
-        } | condition_dict
+    def command_parameters_schemas(self) -> list[dict]:
+        substitutions = [status.value for status in PrescribeCommand.Substitutions]
+        conditions = [condition.label for condition in self.cache.current_conditions()]
+        fields: dict = {
+            "keywords": {
+                "type": "string",
+                "description": "Comma separated list of up to 5 relevant drugs to consider prescribing",
+            },
+            "medicationNames": {
+                "type": "string",
+                "description": "Comma separated list of known medication names, generics "
+                "and brands, related to the keywords",
+            },
+            "sig": {
+                "type": "string",
+                "description": "Directions as stated; if specific frequency mentioned "
+                "(e.g. 'once weekly', 'twice daily'), preserve it exactly, as free text",
+            },
+            "suppliedDays": {
+                "type": "integer",
+                "description": "Duration of the treatment in days either as mentioned, "
+                "or following the standard practices",
+            },
+            "substitution": {
+                "type": "string",
+                "description": "Substitution status for the prescription",
+                "enum": substitutions,
+            },
+            "comment": {
+                "type": "string",
+                "description": "Rationale of the prescription including all mentioned details: "
+                "medication name/brand, specific strength if stated (e.g. '2.5 mg', '10 mg'), "
+                "route, and specific frequency if stated (e.g. 'once weekly', 'twice daily'), "
+                "as free text",
+            },
+        }
+        required_fields: list[str] = ["keywords", "medicationNames", "sig", "suppliedDays", "substitution", "comment"]
+        if conditions:
+            fields |= {
+                "condition": {
+                    "type": ["string", "null"],
+                    "description": "The condition for which the medication is prescribed, "
+                    "or null if not related to any condition",
+                    "enum": conditions,
+                },
+                "conditionIndex": {
+                    "type": "integer",
+                    "description": "Index of the condition for which the medication is prescribed, "
+                    "or -1 if the prescription is not related to any listed condition",
+                },
+            }
+            required_fields.extend(["condition", "conditionIndex"])
+
+        return [
+            {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 1,
+                "items": {
+                    "type": "object",
+                    "properties": fields,
+                    "required": required_fields,
+                    "additionalProperties": False,
+                },
+            }
+        ]
 
     def instruction_description(self) -> str:
         return (

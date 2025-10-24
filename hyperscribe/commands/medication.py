@@ -70,9 +70,34 @@ class Medication(Base):
 
     def command_parameters(self) -> dict:
         return {
-            "keywords": "comma separated keywords of up to 5 synonyms of the taken medication",
-            "sig": "directions, as free text",
+            "keywords": "",
+            "sig": "",
         }
+
+    def command_parameters_schemas(self) -> list[dict]:
+        return [
+            {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 1,
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "keywords": {
+                            "type": "string",
+                            "description": "Comma separated keywords of up to 5 synonyms of the taken medication",
+                        },
+                        "sig": {
+                            "type": "string",
+                            "description": "Directions, as free text",
+                        },
+                    },
+                    "required": ["keywords", "sig"],
+                    "additionalProperties": False,
+                },
+            }
+        ]
 
     def instruction_description(self) -> str:
         return (

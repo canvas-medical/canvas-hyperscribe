@@ -39,16 +39,63 @@ class Goal(Base):
         )
 
     def command_parameters(self) -> dict:
-        statuses = "/".join([status.value for status in GoalCommand.AchievementStatus])
-        priorities = "/".join([status.value for status in GoalCommand.Priority])
         return {
-            "goal": "title of the goal, as free text",
-            "startDate": "YYYY-MM-DD",
-            "dueDate": "YYYY-MM-DD",
-            "status": f"one of: {statuses}",
-            "priority": f"one of: {priorities}",
-            "progressAndBarriers": "progress and barriers, as free text",
+            "goal": "",
+            "startDate": None,
+            "dueDate": None,
+            "status": "",
+            "priority": "",
+            "progressAndBarriers": "",
         }
+
+    def command_parameters_schemas(self) -> list[dict]:
+        statuses = [status.value for status in GoalCommand.AchievementStatus]
+        priorities = [status.value for status in GoalCommand.Priority]
+        return [
+            {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 1,
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "goal": {
+                            "type": "string",
+                            "description": "Title of the goal, as free text",
+                        },
+                        "startDate": {
+                            "type": ["string", "null"],
+                            "description": "Start date in YYYY-MM-DD format",
+                            "format": "date",
+                            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                        },
+                        "dueDate": {
+                            "type": ["string", "null"],
+                            "description": "Due date in YYYY-MM-DD format",
+                            "format": "date",
+                            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                        },
+                        "status": {
+                            "type": "string",
+                            "description": "Achievement status of the goal",
+                            "enum": statuses,
+                        },
+                        "priority": {
+                            "type": "string",
+                            "description": "Priority level of the goal",
+                            "enum": priorities,
+                        },
+                        "progressAndBarriers": {
+                            "type": "string",
+                            "description": "Progress and barriers, as free text",
+                        },
+                    },
+                    "required": ["goal", "startDate", "dueDate", "status", "priority", "progressAndBarriers"],
+                    "additionalProperties": False,
+                },
+            }
+        ]
 
     def instruction_description(self) -> str:
         return (

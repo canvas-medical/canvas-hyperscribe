@@ -72,9 +72,35 @@ class Perform(Base):
 
     def command_parameters(self) -> dict:
         return {
-            "procedureKeywords": "comma separated keywords of up to 5 synonyms of the procedure or action performed",
-            "comment": "information related to the procedure or action performed, as free text",
+            "procedureKeywords": "",
+            "comment": "",
         }
+
+    def command_parameters_schemas(self) -> list[dict]:
+        return [
+            {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 1,
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "procedureKeywords": {
+                            "type": "string",
+                            "description": "Comma separated keywords of up to 5 synonyms of "
+                            "the procedure or action performed",
+                        },
+                        "comment": {
+                            "type": "string",
+                            "description": "Information related to the procedure or action performed, as free text",
+                        },
+                    },
+                    "required": ["procedureKeywords", "comment"],
+                    "additionalProperties": False,
+                },
+            }
+        ]
 
     def instruction_description(self) -> str:
         return (

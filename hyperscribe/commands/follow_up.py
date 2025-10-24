@@ -60,22 +60,80 @@ class FollowUp(Base):
         return InstructionWithCommand.add_command(instruction, result)
 
     def command_parameters(self) -> dict:
-        reason_for_visit = {}
+        result: dict = {
+            "visitType": "",
+            "visitTypeIndex": 0,
+            "date": None,
+            "reasonForVisit": "",
+            "comment": "",
+        }
         if self.settings.structured_rfv:
-            options = "/".join([r.label for r in self.cache.existing_reason_for_visits()])
-            reason_for_visit = {
-                "reasonForVisit": f"one of: {options}",
-                "reasonForVisitIndex": "the index of the reason for visit, as integer",
+            result |= {
+                "reasonForVisitIndex": -1,
             }
+        return result
 
-        visits = "/".join([f"{item.label} (index:{idx})" for idx, item in enumerate(self.cache.existing_note_types())])
-        return {
-            "visitType": f"one of: {visits}",
-            "visitTypeIndex": "index of the visitType, as integer",
-            "date": "date of the follow up encounter, as YYYY-MM-DD",
-            "reasonForVisit": "the main reason for the follow up encounter, as free text",
-            "comment": "information related to the scheduling itself, as free text",
-        } | reason_for_visit
+    def command_parameters_schemas(self) -> list[dict]:
+        visits = [item.label for item in self.cache.existing_note_types()]
+        fields: dict = {
+            "visitType": {
+                "type": "string",
+                "description": "Type of visit",
+                "enum": visits,
+            },
+            "visitTypeIndex": {
+                "type": "integer",
+                "description": "Index of the visitType",
+                "minimum": 0,
+                "maximum": len(visits) - 1,
+            },
+            "date": {
+                "type": ["string", "null"],
+                "description": "Date of the follow up encounter in YYYY-MM-DD format",
+                "format": "date",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            },
+            "reasonForVisit": {
+                "type": "string",
+                "description": "The main reason for the follow up encounter, as free text",
+            },
+            "comment": {
+                "type": "string",
+                "description": "Information related to the scheduling itself, as free text",
+            },
+        }
+        required_fields: list[str] = ["visitType", "visitTypeIndex", "date", "reasonForVisit", "comment"]
+        if self.settings.structured_rfv:
+            options: list[str] = [r.label for r in self.cache.existing_reason_for_visits()]
+            fields |= {
+                "reasonForVisit": {
+                    "type": "string",
+                    "description": "The main reason for the follow up encounter",
+                    "enum": options,
+                },
+                "reasonForVisitIndex": {
+                    "type": "integer",
+                    "description": "The index of the reason for visit",
+                    "minimum": 0,
+                    "maximum": len(options) - 1,
+                },
+            }
+            required_fields.append("reasonForVisitIndex")
+
+        return [
+            {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 1,
+                "items": {
+                    "type": "object",
+                    "properties": fields,
+                    "required": required_fields,
+                    "additionalProperties": False,
+                },
+            }
+        ]
 
     def instruction_description(self) -> str:
         return (

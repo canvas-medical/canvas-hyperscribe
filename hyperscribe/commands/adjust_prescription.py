@@ -100,23 +100,95 @@ class AdjustPrescription(BasePrescription):
         return InstructionWithCommand.add_command(instruction, result)
 
     def command_parameters(self) -> dict:
-        substitutions = "/".join([status.value for status in AdjustPrescriptionCommand.Substitutions])
-        medications = "/".join(
-            [f"{medication.label} (index: {idx})" for idx, medication in enumerate(self.cache.current_medications())],
-        )
         return {
-            "oldMedication": f"one of: {medications}",
-            "oldMedicationIndex": "index of the medication to change, or -1, as integer",
+            "oldMedication": "",
+            "oldMedicationIndex": -1,
             "newMedication": {
-                "keywords": "comma separated keywords of up to 5 synonyms of the new medication to prescribe",
-                "brandNames": "comma separated of known medication names related to the keywords",
-                "sameAsCurrent": "same medication as current one, mandatory, True or False, as boolean",
+                "keywords": "",
+                "brandNames": "",
+                "sameAsCurrent": False,
             },
-            "sig": "directions, as free text",
-            "suppliedDays": "duration of the treatment in days, as integer",
-            "substitution": f"one of: {substitutions}",
-            "comment": "rationale of the change of prescription including all important words, as free text",
+            "sig": "",
+            "suppliedDays": 0,
+            "substitution": "",
+            "comment": "",
         }
+
+    def command_parameters_schemas(self) -> list[dict]:
+        substitutions = [status.value for status in AdjustPrescriptionCommand.Substitutions]
+        medications = [medication.label for medication in self.cache.current_medications()]
+        return [
+            {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 1,
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "oldMedication": {
+                            "type": "string",
+                            "description": "The current medication to be adjusted",
+                            "enum": medications,
+                        },
+                        "oldMedicationIndex": {
+                            "type": "integer",
+                            "description": "Index of the medication to change",
+                            "minimum": 0,
+                            "maximum": len(medications) - 1,
+                        },
+                        "newMedication": {
+                            "type": "object",
+                            "properties": {
+                                "keywords": {
+                                    "type": "string",
+                                    "description": "Comma separated keywords of up to 5 synonyms of "
+                                    "the new medication to prescribe",
+                                },
+                                "brandNames": {
+                                    "type": "string",
+                                    "description": "Comma separated of known medication names related to the keywords",
+                                },
+                                "sameAsCurrent": {
+                                    "type": "boolean",
+                                    "description": "Same medication as current one",
+                                },
+                            },
+                            "required": ["keywords", "brandNames", "sameAsCurrent"],
+                            "additionalProperties": False,
+                        },
+                        "sig": {
+                            "type": "string",
+                            "description": "Directions for the medication, as free text",
+                        },
+                        "suppliedDays": {
+                            "type": "integer",
+                            "description": "Duration of the treatment in days",
+                        },
+                        "substitution": {
+                            "type": "string",
+                            "description": "Substitution status for the prescription",
+                            "enum": substitutions,
+                        },
+                        "comment": {
+                            "type": "string",
+                            "description": "Rationale of the change of prescription including all "
+                            "important words, as free text",
+                        },
+                    },
+                    "required": [
+                        "oldMedication",
+                        "oldMedicationIndex",
+                        "newMedication",
+                        "sig",
+                        "suppliedDays",
+                        "substitution",
+                        "comment",
+                    ],
+                    "additionalProperties": False,
+                },
+            }
+        ]
 
     def instruction_description(self) -> str:
         text = ", ".join([f"{medication.label}" for medication in self.cache.current_medications()])

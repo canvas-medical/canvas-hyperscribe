@@ -142,8 +142,19 @@ def test_command_from_json(add_code2description, current_medications):
         reset_mocks()
 
 
+def test_command_parameters():
+    tested = helper_instance()
+    result = tested.command_parameters()
+    expected = {
+        "medication": "",
+        "medicationIndex": -1,
+        "rationale": "",
+    }
+    assert result == expected
+
+
 @patch.object(LimitedCache, "current_medications")
-def test_command_parameters(current_medications):
+def test_command_parameters_schemas(current_medications):
     def reset_mocks():
         current_medications.reset_mock()
 
@@ -175,12 +186,37 @@ def test_command_parameters(current_medications):
         ),
     ]
     current_medications.side_effect = [medications]
-    result = tested.command_parameters()
-    expected = {
-        "medication": "one of: display1 (index: 0)/display2 (index: 1)/display3 (index: 2)",
-        "medicationIndex": "index of the medication to stop, or -1, as integer",
-        "rationale": "explanation of why the medication is stopped, as free text",
-    }
+    result = tested.command_parameters_schemas()
+    expected = [
+        {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "items": {
+                "additionalProperties": False,
+                "properties": {
+                    "medication": {
+                        "description": "The medication to stop",
+                        "enum": ["display1", "display2", "display3"],
+                        "type": "string",
+                    },
+                    "medicationIndex": {
+                        "description": "Index of the medication to stop",
+                        "maximum": 2,
+                        "minimum": 0,
+                        "type": "integer",
+                    },
+                    "rationale": {
+                        "description": "Explanation of why the medication is stopped, as free text",
+                        "type": "string",
+                    },
+                },
+                "required": ["medication", "medicationIndex", "rationale"],
+                "type": "object",
+            },
+            "maxItems": 1,
+            "minItems": 1,
+            "type": "array",
+        },
+    ]
     assert result == expected
     calls = [call()]
     assert current_medications.mock_calls == calls

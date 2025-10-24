@@ -1,3 +1,5 @@
+import json
+from hashlib import md5
 from unittest.mock import patch, call, MagicMock
 
 from canvas_sdk.commands.commands.instruct import InstructCommand
@@ -200,10 +202,17 @@ def test_command_parameters():
     tested = helper_instance()
     result = tested.command_parameters()
     expected = {
-        "keywords": "comma separated single keywords of up to 5 synonyms to the specific direction",
-        "comment": "directions from the provider, as free text",
+        "keywords": "",
+        "comment": "",
     }
     assert result == expected
+
+
+def test_command_parameters_schemas():
+    tested = helper_instance()
+    result = tested.command_parameters_schemas()
+    expected = "792be5821aac063ba1468284cf5719f3"
+    assert md5(json.dumps(result).encode()).hexdigest() == expected
 
 
 def test_instruction_description():

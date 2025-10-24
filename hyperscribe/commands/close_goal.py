@@ -44,14 +44,51 @@ class CloseGoal(Base):
         )
 
     def command_parameters(self) -> dict:
-        goals = "/".join([f"{goal.label} (index: {idx})" for idx, goal in enumerate(self.cache.current_goals())])
-        statuses = "/".join([status.value for status in GoalCommand.AchievementStatus])
         return {
-            "goal": f"one of: {goals}",
-            "goalIndex": "index of the Goal to close, or -1, as integer",
-            "status": f"one of: {statuses}",
-            "progressAndBarriers": "progress and barriers, as free text",
+            "goal": "",
+            "goalIndex": -1,
+            "status": "",
+            "progressAndBarriers": "",
         }
+
+    def command_parameters_schemas(self) -> list[dict]:
+        goals = [goal.label for goal in self.cache.current_goals()]
+        statuses = [status.value for status in GoalCommand.AchievementStatus]
+        return [
+            {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 1,
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "goal": {
+                            "type": "string",
+                            "description": "The goal to close",
+                            "enum": goals,
+                        },
+                        "goalIndex": {
+                            "type": "integer",
+                            "description": "Index of the Goal to close",
+                            "minimum": 0,
+                            "maximum": len(goals) - 1,
+                        },
+                        "status": {
+                            "type": "string",
+                            "description": "Achievement status of the goal",
+                            "enum": statuses,
+                        },
+                        "progressAndBarriers": {
+                            "type": "string",
+                            "description": "Progress and barriers, as free text",
+                        },
+                    },
+                    "required": ["goal", "goalIndex", "status", "progressAndBarriers"],
+                    "additionalProperties": False,
+                },
+            }
+        ]
 
     def instruction_description(self) -> str:
         return "Ending of a previously set goal, including status, progress, barriers, priority or due date."

@@ -1,4 +1,6 @@
+import json
 from datetime import date
+from hashlib import md5
 from unittest.mock import patch, call, MagicMock
 
 from canvas_sdk.commands.commands.medical_history import MedicalHistoryCommand
@@ -250,13 +252,20 @@ def test_command_parameters():
     tested = helper_instance()
     result = tested.command_parameters()
     expected = {
-        "keywords": "comma separated keywords of up to 5 synonyms of the condition",
-        "approximateStartDate": "YYYY-MM-DD",
-        "approximateEndDate": "YYYY-MM-DD",
-        "comments": "provided description of the patient specific history with the condition, as free text",
+        "keywords": "",
+        "approximateStartDate": None,
+        "approximateEndDate": None,
+        "comments": "",
     }
 
     assert result == expected
+
+
+def test_command_parameters_schemas():
+    tested = helper_instance()
+    result = tested.command_parameters_schemas()
+    expected = "4dfce480004232df2a214e9c2012f5ba"
+    assert md5(json.dumps(result).encode()).hexdigest() == expected
 
 
 def test_instruction_description():
@@ -266,10 +275,12 @@ def test_instruction_description():
     assert result == expected
 
 
+@patch.object(LimitedCache, "current_conditions")
 @patch.object(LimitedCache, "condition_history")
-def test_instruction_constraints(condition_history):
+def test_instruction_constraints(condition_history, current_conditions):
     def reset_mocks():
         condition_history.reset_mock()
+        current_conditions.reset_mock()
 
     tested = helper_instance()
 
@@ -278,13 +289,19 @@ def test_instruction_constraints(condition_history):
         CodedItem(uuid="theUuid2", label="display2a", code="CODE45"),
         CodedItem(uuid="theUuid3", label="display3a", code="CODE98.76"),
     ]
-    tests = [(conditions, "'MedicalHistory' cannot include: display1a, display2a, display3a."), ([], "")]
-    for side_effect, expected in tests:
-        condition_history.side_effect = [side_effect]
+    tests = [
+        (conditions, [], "'MedicalHistory' cannot include: display1a, display2a, display3a."),
+        (conditions[:1], conditions[1:], "'MedicalHistory' cannot include: display1a, display2a, display3a."),
+        ([], [], ""),
+    ]
+    for history, current, expected in tests:
+        condition_history.side_effect = [history]
+        current_conditions.side_effect = [current]
         result = tested.instruction_constraints()
         assert result == expected
         calls = [call()]
         assert condition_history.mock_calls == calls
+        assert current_conditions.mock_calls == calls
         reset_mocks()
 
 

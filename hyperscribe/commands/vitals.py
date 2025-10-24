@@ -63,15 +63,120 @@ class Vitals(Base):
 
     def command_parameters(self) -> dict:
         return {
-            "important": "all values are integers or null",
-            "height": {"inches": 0},
-            "weight": {"pounds": 0},
-            "waistCircumference": {"centimeters": 0},
-            "temperature": {"fahrenheit": 0},
-            "bloodPressure": {"systolicPressure": 0, "diastolicPressure": 0},
-            "pulseRate": {"beatPerMinute": 0},
-            "respirationRate": {"beatPerMinute": 0},
+            "height": {"inches": None},
+            "weight": {"pounds": None},
+            "waistCircumference": {"centimeters": None},
+            "temperature": {"fahrenheit": None},
+            "bloodPressure": {"systolicPressure": None, "diastolicPressure": None},
+            "pulseRate": {"beatPerMinute": None},
+            "respirationRate": {"beatPerMinute": None},
         }
+
+    def command_parameters_schemas(self) -> list[dict]:
+        return [
+            {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 1,
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "height": {
+                            "type": "object",
+                            "properties": {
+                                "inches": {
+                                    "type": ["integer", "null"],
+                                    "description": "Height in inches",
+                                },
+                            },
+                            "required": ["inches"],
+                            "additionalProperties": False,
+                        },
+                        "weight": {
+                            "type": "object",
+                            "properties": {
+                                "pounds": {
+                                    "type": ["integer", "null"],
+                                    "description": "Weight in pounds",
+                                },
+                            },
+                            "required": ["pounds"],
+                            "additionalProperties": False,
+                        },
+                        "waistCircumference": {
+                            "type": "object",
+                            "properties": {
+                                "centimeters": {
+                                    "type": ["integer", "null"],
+                                    "description": "Waist circumference in centimeters",
+                                },
+                            },
+                            "required": ["centimeters"],
+                            "additionalProperties": False,
+                        },
+                        "temperature": {
+                            "type": "object",
+                            "properties": {
+                                "fahrenheit": {
+                                    "type": ["integer", "null"],
+                                    "description": "Body temperature in fahrenheit",
+                                },
+                            },
+                            "required": ["fahrenheit"],
+                            "additionalProperties": False,
+                        },
+                        "bloodPressure": {
+                            "type": "object",
+                            "properties": {
+                                "systolicPressure": {
+                                    "type": ["integer", "null"],
+                                    "description": "Systolic blood pressure",
+                                },
+                                "diastolicPressure": {
+                                    "type": ["integer", "null"],
+                                    "description": "Diastolic blood pressure",
+                                },
+                            },
+                            "required": ["systolicPressure", "diastolicPressure"],
+                            "additionalProperties": False,
+                        },
+                        "pulseRate": {
+                            "type": "object",
+                            "properties": {
+                                "beatPerMinute": {
+                                    "type": ["integer", "null"],
+                                    "description": "Pulse rate in beats per minute",
+                                },
+                            },
+                            "required": ["beatPerMinute"],
+                            "additionalProperties": False,
+                        },
+                        "respirationRate": {
+                            "type": "object",
+                            "properties": {
+                                "beatPerMinute": {
+                                    "type": ["integer", "null"],
+                                    "description": "Respiration rate in beats per minute",
+                                },
+                            },
+                            "required": ["beatPerMinute"],
+                            "additionalProperties": False,
+                        },
+                    },
+                    "required": [
+                        "height",
+                        "weight",
+                        "waistCircumference",
+                        "temperature",
+                        "bloodPressure",
+                        "pulseRate",
+                        "respirationRate",
+                    ],
+                    "additionalProperties": False,
+                },
+            }
+        ]
 
     def instruction_description(self) -> str:
         return (

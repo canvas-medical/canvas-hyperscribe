@@ -348,36 +348,25 @@ def test_command_parameters(current_conditions):
         (
             conditions,
             {
-                "keywords": "comma separated list of up to 5 relevant drugs to consider prescribing",
-                "medicationNames": "comma separated list of known medication names, generics and brands, related to "
-                "the keywords",
-                "sig": "directions as stated; if specific frequency mentioned (e.g. 'once weekly', 'twice daily'), "
-                "preserve it exactly, as free text",
-                "suppliedDays": "mandatory, duration of the treatment in days either as mentioned, or following the "
-                "standard practices, as integer",
-                "substitution": "one of: allowed/not_allowed",
-                "comment": "rationale of the prescription including all mentioned details: medication name/brand, "
-                "specific strength if stated (e.g. '2.5 mg', '10 mg'), route, and specific frequency if stated "
-                "(e.g. 'once weekly', 'twice daily'), as free text",
-                "condition": "None or, one of: display1a (index: 0)/display2a (index: 1)/display3a (index: 2)",
-                "conditionIndex": "index of the condition for which the medication is prescribed, as integer or -1 "
-                "if the prescription is not related to any listed condition",
+                "keywords": "",
+                "medicationNames": "",
+                "sig": "",
+                "suppliedDays": 0,
+                "substitution": "",
+                "comment": "",
+                "condition": "",
+                "conditionIndex": -1,
             },
         ),
         (
             [],
             {
-                "keywords": "comma separated list of up to 5 relevant drugs to consider prescribing",
-                "medicationNames": "comma separated list of known medication names, generics and brands, "
-                "related to the keywords",
-                "sig": "directions as stated; if specific frequency mentioned (e.g. 'once weekly', 'twice daily'), "
-                "preserve it exactly, as free text",
-                "suppliedDays": "mandatory, duration of the treatment in days either as mentioned, or following "
-                "the standard practices, as integer",
-                "substitution": "one of: allowed/not_allowed",
-                "comment": "rationale of the prescription including all mentioned details: medication name/brand, "
-                "specific strength if stated (e.g. '2.5 mg', '10 mg'), route, and specific frequency if stated "
-                "(e.g. 'once weekly', 'twice daily'), as free text",
+                "keywords": "",
+                "medicationNames": "",
+                "sig": "",
+                "suppliedDays": 0,
+                "substitution": "",
+                "comment": "",
             },
         ),
     ]
@@ -388,6 +377,160 @@ def test_command_parameters(current_conditions):
         calls = [call()]
         assert current_conditions.mock_calls == calls
         reset_mocks()
+
+
+@patch.object(LimitedCache, "current_conditions")
+def test_command_parameters_schemas(current_conditions):
+    def reset_mocks():
+        current_conditions.reset_mock()
+
+    conditions = [
+        CodedItem(uuid="theUuid1", label="display1a", code="CODE12.3"),
+        CodedItem(uuid="theUuid2", label="display2a", code="CODE45"),
+        CodedItem(uuid="theUuid3", label="display3a", code="CODE98.76"),
+    ]
+
+    tested = helper_instance()
+    # existing current conditions
+    current_conditions.side_effect = [conditions]
+    result = tested.command_parameters_schemas()
+    expected = [
+        {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "items": {
+                "additionalProperties": False,
+                "properties": {
+                    "comment": {
+                        "description": "Rationale of the prescription including all mentioned "
+                        "details: medication name/brand, specific strength if "
+                        "stated (e.g. '2.5 mg', '10 mg'), route, and specific "
+                        "frequency if stated (e.g. 'once weekly', 'twice daily'), "
+                        "as free text",
+                        "type": "string",
+                    },
+                    "condition": {
+                        "description": "The condition for which the medication is prescribed, or "
+                        "null if not related to any condition",
+                        "enum": ["display1a", "display2a", "display3a"],
+                        "type": ["string", "null"],
+                    },
+                    "conditionIndex": {
+                        "description": "Index of the condition for which the medication is "
+                        "prescribed, or -1 if the prescription is not related to "
+                        "any listed condition",
+                        "type": "integer",
+                    },
+                    "keywords": {
+                        "description": "Comma separated list of up to 5 relevant drugs to consider prescribing",
+                        "type": "string",
+                    },
+                    "medicationNames": {
+                        "description": "Comma separated list of known medication names, generics "
+                        "and brands, related to the keywords",
+                        "type": "string",
+                    },
+                    "sig": {
+                        "description": "Directions as stated; if specific frequency mentioned "
+                        "(e.g. 'once weekly', 'twice daily'), preserve it exactly, "
+                        "as free text",
+                        "type": "string",
+                    },
+                    "substitution": {
+                        "description": "Substitution status for the prescription",
+                        "enum": ["allowed", "not_allowed"],
+                        "type": "string",
+                    },
+                    "suppliedDays": {
+                        "description": "Duration of the treatment in days either as mentioned, or "
+                        "following the standard practices",
+                        "type": "integer",
+                    },
+                },
+                "required": [
+                    "keywords",
+                    "medicationNames",
+                    "sig",
+                    "suppliedDays",
+                    "substitution",
+                    "comment",
+                    "condition",
+                    "conditionIndex",
+                ],
+                "type": "object",
+            },
+            "maxItems": 1,
+            "minItems": 1,
+            "type": "array",
+        },
+    ]
+
+    assert result == expected
+    calls = [call()]
+    assert current_conditions.mock_calls == calls
+    reset_mocks()
+
+    # no current conditions
+    current_conditions.side_effect = [[]]
+    result = tested.command_parameters_schemas()
+    expected = [
+        {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "items": {
+                "additionalProperties": False,
+                "properties": {
+                    "comment": {
+                        "description": "Rationale of the prescription including all mentioned "
+                        "details: medication name/brand, specific strength if "
+                        "stated (e.g. '2.5 mg', '10 mg'), route, and specific "
+                        "frequency if stated (e.g. 'once weekly', 'twice daily'), "
+                        "as free text",
+                        "type": "string",
+                    },
+                    "keywords": {
+                        "description": "Comma separated list of up to 5 relevant drugs to consider prescribing",
+                        "type": "string",
+                    },
+                    "medicationNames": {
+                        "description": "Comma separated list of known medication names, generics "
+                        "and brands, related to the keywords",
+                        "type": "string",
+                    },
+                    "sig": {
+                        "description": "Directions as stated; if specific frequency mentioned "
+                        "(e.g. 'once weekly', 'twice daily'), preserve it exactly, "
+                        "as free text",
+                        "type": "string",
+                    },
+                    "substitution": {
+                        "description": "Substitution status for the prescription",
+                        "enum": ["allowed", "not_allowed"],
+                        "type": "string",
+                    },
+                    "suppliedDays": {
+                        "description": "Duration of the treatment in days either as mentioned, or "
+                        "following the standard practices",
+                        "type": "integer",
+                    },
+                },
+                "required": [
+                    "keywords",
+                    "medicationNames",
+                    "sig",
+                    "suppliedDays",
+                    "substitution",
+                    "comment",
+                ],
+                "type": "object",
+            },
+            "maxItems": 1,
+            "minItems": 1,
+            "type": "array",
+        },
+    ]
+    assert result == expected
+    calls = [call()]
+    assert current_conditions.mock_calls == calls
+    reset_mocks()
 
 
 def test_instruction_description():

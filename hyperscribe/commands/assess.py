@@ -25,7 +25,7 @@ class Assess(Base):
         instruction: InstructionWithParameters,
         chatter: LlmBase,
     ) -> InstructionWithCommand | None:
-        condition_id = ""
+        condition_id: str | None = None
         if 0 <= (idx := instruction.parameters["conditionIndex"]) < len(current := self.cache.current_conditions()):
             condition_id = current[idx].uuid
             self.add_code2description(current[idx].uuid, current[idx].label)
@@ -41,17 +41,56 @@ class Assess(Base):
         )
 
     def command_parameters(self) -> dict:
-        statuses = "/".join([status.value for status in AssessCommand.Status])
-        conditions = "/".join(
-            [f"{condition.label} (index: {idx})" for idx, condition in enumerate(self.cache.current_conditions())],
-        )
         return {
-            "condition": f"one of: {conditions}",
-            "conditionIndex": "index of the Condition to assess, or -1, as integer",
-            "rationale": "rationale about the current assessment, as free text",
-            "status": f"one of: {statuses}",
-            "assessment": "today's assessment of the condition, as free text",
+            "condition": None,
+            "conditionIndex": -1,
+            "rationale": "",
+            "status": "",
+            "assessment": "",
         }
+
+    def command_parameters_schemas(self) -> list[dict]:
+        statuses = [status.value for status in AssessCommand.Status]
+        conditions = [condition.label for condition in self.cache.current_conditions()]
+        return [
+            {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 1,
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "condition": {
+                            "type": ["string", "null"],  # could be null if the condition is not committed yet
+                            "description": "The condition to assess",
+                            "enum": conditions,
+                        },
+                        "conditionIndex": {
+                            "type": "integer",
+                            "description": "Index of the Condition to assess, or -1",
+                            "minimum": -1,
+                            "maximum": len(conditions) - 1,
+                        },
+                        "rationale": {
+                            "type": "string",
+                            "description": "Rationale about the current assessment, as free text",
+                        },
+                        "status": {
+                            "type": "string",
+                            "description": "Status of the condition",
+                            "enum": statuses,
+                        },
+                        "assessment": {
+                            "type": "string",
+                            "description": "Today's assessment of the condition, as free text",
+                        },
+                    },
+                    "required": ["condition", "conditionIndex", "rationale", "status", "assessment"],
+                    "additionalProperties": False,
+                },
+            }
+        ]
 
     def instruction_description(self) -> str:
         text = ", ".join([f"{condition.label}" for condition in self.cache.current_conditions()])

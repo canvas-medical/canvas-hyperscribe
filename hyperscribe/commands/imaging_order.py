@@ -102,21 +102,71 @@ class ImagingOrder(Base):
         return InstructionWithCommand.add_command(instruction, result)
 
     def command_parameters(self) -> dict:
-        priorities = "/".join([priority.value for priority in ImagingOrderCommand.Priority])
         return {
-            "imagingKeywords": "comma separated keywords of up to 5 synonyms of the imaging to order",
-            "conditions": [
-                {
-                    "conditionKeywords": "comma separated keywords of up to 5 synonyms of each condition "
-                    "targeted by the imaging",
-                    "ICD10": "comma separated keywords of up to 5 ICD-10 codes of each condition targeted "
-                    "by the imaging",
-                },
-            ],
-            "comment": "rationale of the imaging order, as free text",
-            "noteToRadiologist": "information to be sent to the radiologist, as free text",
-            "priority": f"mandatory, one of: {priorities}",
+            "imagingKeywords": "",
+            "conditions": [],
+            "comment": "",
+            "noteToRadiologist": "",
+            "priority": "",
         }
+
+    def command_parameters_schemas(self) -> list[dict]:
+        priorities: list[str] = [priority.value for priority in ImagingOrderCommand.Priority]
+        return [
+            {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 1,
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "imagingKeywords": {
+                            "type": "string",
+                            "description": "Comma separated keywords of up to 5 synonyms of the imaging to order",
+                        },
+                        "conditions": {
+                            "type": "array",
+                            "minItems": 0,
+                            "description": "List of conditions explicitly mentioned as related to the imaging order. "
+                            "The list has to be empty if no condition is provided in the transcript.",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "conditionKeywords": {
+                                        "type": "string",
+                                        "description": "Comma separated keywords of up to 5 synonyms "
+                                        "of each condition targeted by the imaging",
+                                    },
+                                    "ICD10": {
+                                        "type": "string",
+                                        "description": "Comma separated keywords of up to 5 ICD-10 "
+                                        "codes of each condition targeted by the imaging",
+                                    },
+                                },
+                                "required": ["conditionKeywords", "ICD10"],
+                                "additionalProperties": False,
+                            },
+                        },
+                        "comment": {
+                            "type": "string",
+                            "description": "Rationale of the imaging order, as free text",
+                        },
+                        "noteToRadiologist": {
+                            "type": "string",
+                            "description": "Information to be sent to the radiologist, as free text",
+                        },
+                        "priority": {
+                            "type": "string",
+                            "description": "Priority level for the imaging order",
+                            "enum": priorities,
+                        },
+                    },
+                    "required": ["imagingKeywords", "conditions", "comment", "noteToRadiologist", "priority"],
+                    "additionalProperties": False,
+                },
+            }
+        ]
 
     def instruction_description(self) -> str:
         return (

@@ -436,8 +436,27 @@ def test_command_from_json(
     reset_mocks()
 
 
+def test_command_parameters():
+    tested = helper_instance()
+    result = tested.command_parameters()
+    expected = {
+        "oldMedication": "",
+        "oldMedicationIndex": -1,
+        "newMedication": {
+            "keywords": "",
+            "brandNames": "",
+            "sameAsCurrent": False,
+        },
+        "sig": "",
+        "suppliedDays": 0,
+        "substitution": "",
+        "comment": "",
+    }
+    assert result == expected
+
+
 @patch.object(LimitedCache, "current_medications")
-def test_command_parameters(current_medications):
+def test_command_parameters_schemas(current_medications):
     def reset_mocks():
         current_medications.reset_mock()
 
@@ -469,20 +488,80 @@ def test_command_parameters(current_medications):
         ),
     ]
     current_medications.side_effect = [medications]
-    result = tested.command_parameters()
-    expected = {
-        "oldMedication": "one of: display1 (index: 0)/display2 (index: 1)/display3 (index: 2)",
-        "oldMedicationIndex": "index of the medication to change, or -1, as integer",
-        "newMedication": {
-            "keywords": "comma separated keywords of up to 5 synonyms of the new medication to prescribe",
-            "brandNames": "comma separated of known medication names related to the keywords",
-            "sameAsCurrent": "same medication as current one, mandatory, True or False, as boolean",
+    result = tested.command_parameters_schemas()
+    expected = [
+        {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "items": {
+                "additionalProperties": False,
+                "properties": {
+                    "comment": {
+                        "description": "Rationale of the change of prescription including all "
+                        "important words, as free text",
+                        "type": "string",
+                    },
+                    "newMedication": {
+                        "additionalProperties": False,
+                        "properties": {
+                            "brandNames": {
+                                "description": "Comma separated of known medication names related to the keywords",
+                                "type": "string",
+                            },
+                            "keywords": {
+                                "description": "Comma separated keywords of up to 5 synonyms of "
+                                "the new medication to prescribe",
+                                "type": "string",
+                            },
+                            "sameAsCurrent": {
+                                "description": "Same medication as current one",
+                                "type": "boolean",
+                            },
+                        },
+                        "required": ["keywords", "brandNames", "sameAsCurrent"],
+                        "type": "object",
+                    },
+                    "oldMedication": {
+                        "description": "The current medication to be adjusted",
+                        "enum": ["display1", "display2", "display3"],
+                        "type": "string",
+                    },
+                    "oldMedicationIndex": {
+                        "description": "Index of the medication to change",
+                        "maximum": 2,
+                        "minimum": 0,
+                        "type": "integer",
+                    },
+                    "sig": {
+                        "description": "Directions for the medication, as free text",
+                        "type": "string",
+                    },
+                    "substitution": {
+                        "description": "Substitution status for the prescription",
+                        "enum": ["allowed", "not_allowed"],
+                        "type": "string",
+                    },
+                    "suppliedDays": {
+                        "description": "Duration of the treatment in days",
+                        "type": "integer",
+                    },
+                },
+                "required": [
+                    "oldMedication",
+                    "oldMedicationIndex",
+                    "newMedication",
+                    "sig",
+                    "suppliedDays",
+                    "substitution",
+                    "comment",
+                ],
+                "type": "object",
+            },
+            "maxItems": 1,
+            "minItems": 1,
+            "type": "array",
         },
-        "sig": "directions, as free text",
-        "suppliedDays": "duration of the treatment in days, as integer",
-        "substitution": "one of: allowed/not_allowed",
-        "comment": "rationale of the change of prescription including all important words, as free text",
-    }
+    ]
+
     assert result == expected
     calls = [call()]
     assert current_medications.mock_calls == calls

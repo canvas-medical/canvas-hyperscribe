@@ -1,3 +1,5 @@
+import json
+from hashlib import md5
 from datetime import date
 from unittest.mock import patch, call, MagicMock
 
@@ -230,11 +232,19 @@ def test_command_parameters():
     tested = helper_instance()
     result = tested.command_parameters()
     expected = {
-        "keywords": "comma separated keywords of up to 5 synonyms of the surgery",
-        "approximateDate": "YYYY-MM-DD",
-        "comment": "description of the surgery, as free text",
+        "keywords": "",
+        "approximateDate": None,
+        "comment": "",
     }
+
     assert result == expected
+
+
+def test_command_parameters_schemas():
+    tested = helper_instance()
+    result = tested.command_parameters_schemas()
+    expected = "dba6643cf8cad941e26b33377a0eb96c"
+    assert md5(json.dumps(result).encode()).hexdigest() == expected
 
 
 def test_instruction_description():

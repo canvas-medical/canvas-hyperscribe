@@ -1,3 +1,5 @@
+import json
+from hashlib import md5
 from unittest.mock import MagicMock
 
 from canvas_sdk.commands.commands.instruct import InstructCommand
@@ -105,8 +107,18 @@ def test_command_from_json():
 def test_command_parameters():
     tested = helper_instance()
     result = tested.command_parameters()
-    expected = {"immunize": "medical name of the immunization and its CPT code", "sig": "directions, as free text"}
+    expected = {
+        "immunize": "",
+        "sig": "",
+    }
     assert result == expected
+
+
+def test_command_parameters_schemas():
+    tested = helper_instance()
+    result = tested.command_parameters_schemas()
+    expected = "bb602b117802fcfea90aae7a5821f61d"
+    assert md5(json.dumps(result).encode()).hexdigest() == expected
 
 
 def test_instruction_description():

@@ -137,7 +137,7 @@ def test_command_from_json(add_code2description, current_conditions, search_cond
         "",
         "Please, present your findings in a JSON format within a Markdown code block like:",
         "```json",
-        '[{"ICD10": "the ICD-10 code", "description": "the description"}]',
+        '[{"ICD10": "the ICD-10 code", "label": "the label"}]',
         "```",
         "",
     ]
@@ -197,7 +197,7 @@ def test_command_from_json(add_code2description, current_conditions, search_cond
         # all good
         current_conditions.side_effect = [conditions]
         search_conditions.side_effect = [search]
-        chatter.single_conversation.side_effect = [[{"ICD10": "code369", "description": "labelB"}]]
+        chatter.single_conversation.side_effect = [[{"ICD10": "code369", "label": "labelB"}]]
 
         instruction = InstructionWithParameters(**arguments)
         result = tested.command_from_json(instruction, chatter)
@@ -261,8 +261,22 @@ def test_command_from_json(add_code2description, current_conditions, search_cond
         reset_mocks()
 
 
+def test_command_parameters():
+    tested = helper_instance()
+    result = tested.command_parameters()
+    expected = {
+        "keywords": "",
+        "ICD10": "",
+        "previousCondition": "",
+        "previousConditionIndex": -1,
+        "rationale": "",
+        "assessment": "",
+    }
+    assert result == expected
+
+
 @patch.object(LimitedCache, "current_conditions")
-def test_command_parameters(current_conditions):
+def test_command_parameters_schemas(current_conditions):
     def reset_mocks():
         current_conditions.reset_mock()
 
@@ -273,15 +287,57 @@ def test_command_parameters(current_conditions):
         CodedItem(uuid="theUuid3", label="display3a", code="CODE98.76"),
     ]
     current_conditions.side_effect = [conditions]
-    result = tested.command_parameters()
-    expected = {
-        "keywords": "comma separated keywords of up to 5 synonyms of the new diagnosed condition",
-        "ICD10": "comma separated keywords of up to 5 ICD-10 codes of the new diagnosed condition",
-        "previousCondition": "one of: display1a (index: 0)/display2a (index: 1)/display3a (index: 2)",
-        "previousConditionIndex": "index of the previous Condition, or -1, as integer",
-        "rationale": "rationale about the current assessment, as free text",
-        "assessment": "today's assessment of the new condition, as free text",
-    }
+    result = tested.command_parameters_schemas()
+    expected = [
+        {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "items": {
+                "additionalProperties": False,
+                "properties": {
+                    "ICD10": {
+                        "description": "Comma separated keywords of up to 5 ICD-10 codes of the "
+                        "new diagnosed condition",
+                        "type": "string",
+                    },
+                    "assessment": {
+                        "description": "Today's assessment of the new condition, as free text",
+                        "type": "string",
+                    },
+                    "keywords": {
+                        "description": "Comma separated keywords of up to 5 synonyms of the new diagnosed condition",
+                        "type": "string",
+                    },
+                    "previousCondition": {
+                        "description": "The previous condition to be updated",
+                        "enum": ["display1a", "display2a", "display3a"],
+                        "type": "string",
+                    },
+                    "previousConditionIndex": {
+                        "description": "Index of the previous Condition",
+                        "maximum": 2,
+                        "minimum": 0,
+                        "type": "integer",
+                    },
+                    "rationale": {
+                        "description": "Rationale about the current assessment, as free text",
+                        "type": "string",
+                    },
+                },
+                "required": [
+                    "keywords",
+                    "ICD10",
+                    "previousCondition",
+                    "previousConditionIndex",
+                    "rationale",
+                    "assessment",
+                ],
+                "type": "object",
+            },
+            "maxItems": 1,
+            "minItems": 1,
+            "type": "array",
+        },
+    ]
     assert result == expected
     calls = [call()]
     assert current_conditions.mock_calls == calls

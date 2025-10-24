@@ -1,3 +1,5 @@
+import json
+from hashlib import md5
 from unittest.mock import patch, call, MagicMock
 
 from canvas_sdk.commands.commands.medication_statement import MedicationStatementCommand
@@ -194,10 +196,17 @@ def test_command_parameters():
     tested = helper_instance()
     result = tested.command_parameters()
     expected = {
-        "keywords": "comma separated keywords of up to 5 synonyms of the taken medication",
-        "sig": "directions, as free text",
+        "keywords": "",
+        "sig": "",
     }
     assert result == expected
+
+
+def test_command_parameters_schemas():
+    tested = helper_instance()
+    result = tested.command_parameters_schemas()
+    expected = "fd1f5ec054fa9bdef9a78711269eea06"
+    assert md5(json.dumps(result).encode()).hexdigest() == expected
 
 
 def test_instruction_description():

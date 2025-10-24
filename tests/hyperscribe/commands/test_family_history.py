@@ -1,3 +1,5 @@
+import json
+from hashlib import md5
 from unittest.mock import patch, call, MagicMock
 
 from canvas_sdk.commands.commands.family_history import FamilyHistoryCommand
@@ -186,9 +188,9 @@ def test_command_parameters():
     tested = helper_instance()
     result = tested.command_parameters()
     expected = {
-        "keywords": "comma separated keywords of up to 5 synonyms of the condition",
-        "relative": "one of: father/mother/parent/child/brother/sister/sibling/grand-parent/grand-father/grand-mother",
-        "note": "description of the condition, as free text",
+        "keywords": "",
+        "relative": "",
+        "note": "",
     }
     assert result == expected
 
@@ -224,6 +226,13 @@ def test_instruction_constraints(family_history):
         calls = [call()]
         assert family_history.mock_calls == calls
         reset_mocks()
+
+
+def test_command_parameters_schemas():
+    tested = helper_instance()
+    result = tested.command_parameters_schemas()
+    expected = "ab2489e2fbde153a16528830d88094a2"
+    assert md5(json.dumps(result).encode()).hexdigest() == expected
 
 
 def test_is_available():

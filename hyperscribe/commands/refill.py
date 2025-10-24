@@ -64,18 +64,59 @@ class Refill(Base):
         return InstructionWithCommand.add_command(instruction, result)
 
     def command_parameters(self) -> dict:
-        substitutions = "/".join([status.value for status in PrescribeCommand.Substitutions])
-        medications = "/".join(
-            [f"{medication.label} (index: {idx})" for idx, medication in enumerate(self.cache.current_medications())],
-        )
         return {
-            "medication": f"one of: {medications}",
-            "medicationIndex": "index of the medication to refill, as integer",
-            "sig": "directions, as free text",
-            "suppliedDays": "duration of the treatment in days, as integer",
-            "substitution": f"one of: {substitutions}",
-            "comment": "rationale of the prescription, as free text",
+            "medication": "",
+            "medicationIndex": -1,
+            "sig": "",
+            "suppliedDays": 0,
+            "substitution": "",
+            "comment": "",
         }
+
+    def command_parameters_schemas(self) -> list[dict]:
+        substitutions = [status.value for status in PrescribeCommand.Substitutions]
+        medications = [medication.label for medication in self.cache.current_medications()]
+        return [
+            {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 1,
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "medication": {
+                            "type": "string",
+                            "description": "The medication to refill",
+                            "enum": medications,
+                        },
+                        "medicationIndex": {
+                            "type": "integer",
+                            "description": "Index of the medication to refill",
+                        },
+                        "sig": {
+                            "type": "string",
+                            "description": "Directions, as free text",
+                        },
+                        "suppliedDays": {
+                            "type": "integer",
+                            "description": "Duration of the treatment in days",
+                        },
+                        "substitution": {
+                            "type": "string",
+                            "description": "Substitution status for the refill",
+                            "enum": substitutions,
+                        },
+                        "comment": {
+                            "type": "string",
+                            "description": "Rationale of the prescription, as free text",
+                        },
+                    },
+                    "required": ["medication", "medicationIndex", "sig", "suppliedDays", "substitution", "comment"],
+                    "additionalProperties": False,
+                },
+            }
+        ]
 
     def instruction_description(self) -> str:
         text = ", ".join([f"{medication.label}" for medication in self.cache.current_medications()])

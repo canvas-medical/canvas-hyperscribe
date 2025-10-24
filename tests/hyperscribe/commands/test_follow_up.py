@@ -231,11 +231,38 @@ def test_command_from_json(add_code2description, existing_note_types, existing_r
         reset_mocks()
 
 
+def test_command_parameters():
+    # no structured RfV
+    tested = helper_instance(structured_rfv=False)
+    result = tested.command_parameters()
+    expected = {
+        "visitType": "",
+        "visitTypeIndex": 0,
+        "date": None,
+        "reasonForVisit": "",
+        "comment": "",
+    }
+    assert result == expected
+    # with structured RfV
+    tested = helper_instance(structured_rfv=True)
+    result = tested.command_parameters()
+    expected = {
+        "visitType": "",
+        "visitTypeIndex": 0,
+        "date": None,
+        "reasonForVisit": "",
+        "comment": "",
+        "reasonForVisitIndex": -1,
+    }
+    assert result == expected
+
+
 @patch.object(LimitedCache, "existing_reason_for_visits")
 @patch.object(LimitedCache, "existing_note_types")
-def test_command_parameters(existing_note_types, existing_reason_for_visits):
+def test_command_parameters_schemas(existing_note_types, existing_reason_for_visits):
     def reset_mocks():
         existing_note_types.reset_mock()
+        existing_reason_for_visits.reset_mock()
 
     visit_types = [
         CodedItem(uuid="theUuid1", label="display1a", code="CODE123"),
@@ -247,38 +274,109 @@ def test_command_parameters(existing_note_types, existing_reason_for_visits):
         CodedItem(uuid="theUuidY", label="displayY", code="codeY"),
         CodedItem(uuid="theUuidZ", label="displayZ", code="codeZ"),
     ]
-
     # no structured RfV
     tested = helper_instance(structured_rfv=False)
     existing_note_types.side_effect = [visit_types]
     existing_reason_for_visits.side_effect = []
-    result = tested.command_parameters()
-    expected = {
-        "visitType": "one of: display1a (index:0)/display2a (index:1)/display3a (index:2)",
-        "visitTypeIndex": "index of the visitType, as integer",
-        "date": "date of the follow up encounter, as YYYY-MM-DD",
-        "reasonForVisit": "the main reason for the follow up encounter, as free text",
-        "comment": "information related to the scheduling itself, as free text",
-    }
+    result = tested.command_parameters_schemas()
+    expected = [
+        {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 1,
+            "items": {
+                "type": "object",
+                "properties": {
+                    "visitType": {
+                        "type": "string",
+                        "description": "Type of visit",
+                        "enum": ["display1a", "display2a", "display3a"],
+                    },
+                    "visitTypeIndex": {
+                        "type": "integer",
+                        "description": "Index of the visitType",
+                        "minimum": 0,
+                        "maximum": 2,
+                    },
+                    "date": {
+                        "type": ["string", "null"],
+                        "description": "Date of the follow up encounter in YYYY-MM-DD format",
+                        "format": "date",
+                        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                    },
+                    "reasonForVisit": {
+                        "type": "string",
+                        "description": "The main reason for the follow up encounter, as free text",
+                    },
+                    "comment": {
+                        "type": "string",
+                        "description": "Information related to the scheduling itself, as free text",
+                    },
+                },
+                "required": ["visitType", "visitTypeIndex", "date", "reasonForVisit", "comment"],
+                "additionalProperties": False,
+            },
+        },
+    ]
     assert result == expected
     calls = [call()]
     assert existing_note_types.mock_calls == calls
     assert existing_reason_for_visits.mock_calls == []
     reset_mocks()
 
-    # no structured RfV
+    # with structured RfV
     tested = helper_instance(structured_rfv=True)
     existing_note_types.side_effect = [visit_types]
     existing_reason_for_visits.side_effect = [reason_for_visits]
-    result = tested.command_parameters()
-    expected = {
-        "visitType": "one of: display1a (index:0)/display2a (index:1)/display3a (index:2)",
-        "visitTypeIndex": "index of the visitType, as integer",
-        "date": "date of the follow up encounter, as YYYY-MM-DD",
-        "reasonForVisit": "one of: displayX/displayY/displayZ",
-        "reasonForVisitIndex": "the index of the reason for visit, as integer",
-        "comment": "information related to the scheduling itself, as free text",
-    }
+    result = tested.command_parameters_schemas()
+    expected = [
+        {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 1,
+            "items": {
+                "type": "object",
+                "properties": {
+                    "visitType": {
+                        "type": "string",
+                        "description": "Type of visit",
+                        "enum": ["display1a", "display2a", "display3a"],
+                    },
+                    "visitTypeIndex": {
+                        "type": "integer",
+                        "description": "Index of the visitType",
+                        "minimum": 0,
+                        "maximum": 2,
+                    },
+                    "date": {
+                        "type": ["string", "null"],
+                        "description": "Date of the follow up encounter in YYYY-MM-DD format",
+                        "format": "date",
+                        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                    },
+                    "reasonForVisit": {
+                        "type": "string",
+                        "description": "The main reason for the follow up encounter",
+                        "enum": ["displayX", "displayY", "displayZ"],
+                    },
+                    "comment": {
+                        "type": "string",
+                        "description": "Information related to the scheduling itself, as free text",
+                    },
+                    "reasonForVisitIndex": {
+                        "type": "integer",
+                        "description": "The index of the reason for visit",
+                        "minimum": 0,
+                        "maximum": 2,
+                    },
+                },
+                "required": ["visitType", "visitTypeIndex", "date", "reasonForVisit", "comment", "reasonForVisitIndex"],
+                "additionalProperties": False,
+            },
+        },
+    ]
     assert result == expected
     calls = [call()]
     assert existing_note_types.mock_calls == calls

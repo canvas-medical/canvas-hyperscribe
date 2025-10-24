@@ -115,8 +115,19 @@ def test_command_from_json(add_code2description, current_allergies):
         reset_mocks()
 
 
+def test_command_parameters():
+    tested = helper_instance()
+    result = tested.command_parameters()
+    expected = {
+        "allergies": "",
+        "allergyIndex": -1,
+        "narrative": "",
+    }
+    assert result == expected
+
+
 @patch.object(LimitedCache, "current_allergies")
-def test_command_parameters(current_allergies):
+def test_command_parameters_schemas(current_allergies):
     def reset_mocks():
         current_allergies.reset_mock()
 
@@ -127,12 +138,42 @@ def test_command_parameters(current_allergies):
         CodedItem(uuid="theUuid3", label="display3a", code="CODE98.76"),
     ]
     current_allergies.side_effect = [allergies]
-    result = tested.command_parameters()
-    expected = {
-        "allergies": "one of: display1a (index: 0)/display2a (index: 1)/display3a (index: 2)",
-        "allergyIndex": "Index of the allergy to remove, or -1, as integer",
-        "narrative": "explanation of why the allergy is removed, as free text",
-    }
+    result = tested.command_parameters_schemas()
+    expected = [
+        {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "items": {
+                "additionalProperties": False,
+                "properties": {
+                    "allergies": {
+                        "description": "The allergy to remove",
+                        "enum": ["display1a", "display2a", "display3a"],
+                        "type": "string",
+                    },
+                    "allergyIndex": {
+                        "description": "Index of the allergy to remove",
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 2,
+                    },
+                    "narrative": {
+                        "description": "Explanation of why the allergy is removed, as free text",
+                        "type": "string",
+                    },
+                },
+                "required": [
+                    "allergies",
+                    "allergyIndex",
+                    "narrative",
+                ],
+                "type": "object",
+            },
+            "maxItems": 1,
+            "minItems": 1,
+            "type": "array",
+        },
+    ]
+
     assert result == expected
     calls = [call()]
     assert current_allergies.mock_calls == calls

@@ -85,15 +85,57 @@ class Allergy(Base):
         return InstructionWithCommand.add_command(instruction, result)
 
     def command_parameters(self) -> dict:
-        severity = "/".join([status.value for status in AllergyCommand.Severity])
         return {
-            "keywords": "comma separated keywords of up to 5 distinct synonyms of the component related to "
-            "the allergy or 'NKA' for No Known Allergy or 'NKDA' for No Known Drug Allergy",
-            "type": "mandatory, one of: allergy group/medication/ingredient",
-            "severity": f"mandatory, one of: {severity}",
-            "reaction": "description of the reaction, as free text",
-            "approximateDateOfOnset": "YYYY-MM-DD",
+            "keywords": "",
+            "type": "",
+            "severity": "",
+            "reaction": "",
+            "approximateDateOfOnset": None,
         }
+
+    def command_parameters_schemas(self) -> list[dict]:
+        severity_values: list[str] = [status.value for status in AllergyCommand.Severity]
+        return [
+            {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 1,
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "keywords": {
+                            "type": "string",
+                            "description": "Comma separated keywords of up to 5 distinct synonyms "
+                            "of the component related to the allergy or "
+                            "'NKA' for No Known Allergy or 'NKDA' for No Known Drug Allergy",
+                        },
+                        "type": {
+                            "type": "string",
+                            "description": "Type of allergen",
+                            "enum": ["allergy group", "medication", "ingredient"],
+                        },
+                        "severity": {
+                            "type": "string",
+                            "description": "Severity of the allergic reaction",
+                            "enum": severity_values,
+                        },
+                        "reaction": {
+                            "type": "string",
+                            "description": "Description of the reaction, as free text",
+                        },
+                        "approximateDateOfOnset": {
+                            "type": ["string", "null"],
+                            "description": "Approximate date of onset in YYYY-MM-DD format",
+                            "format": "date",
+                            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                        },
+                    },
+                    "required": ["keywords", "type", "severity", "reaction", "approximateDateOfOnset"],
+                    "additionalProperties": False,
+                },
+            }
+        ]
 
     def instruction_description(self) -> str:
         return (

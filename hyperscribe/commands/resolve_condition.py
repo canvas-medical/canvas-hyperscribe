@@ -40,14 +40,44 @@ class ResolveCondition(Base):
         )
 
     def command_parameters(self) -> dict:
-        conditions = "/".join(
-            [f"{condition.label} (index: {idx})" for idx, condition in enumerate(self.cache.current_conditions())],
-        )
         return {
-            "condition": f"one of: {conditions}",
-            "conditionIndex": "index of the Condition to set as resolved, or -1, as integer",
-            "rationale": "rationale to set the condition as resolved, as free text",
+            "condition": "",
+            "conditionIndex": -1,
+            "rationale": "",
         }
+
+    def command_parameters_schemas(self) -> list[dict]:
+        conditions = [condition.label for condition in self.cache.current_conditions()]
+        return [
+            {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 1,
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "condition": {
+                            "type": "string",
+                            "description": "The condition to set as resolved",
+                            "enum": conditions,
+                        },
+                        "conditionIndex": {
+                            "type": "integer",
+                            "description": "Index of the Condition to set as resolved",
+                            "minimum": 0,
+                            "maximum": len(conditions) - 1,
+                        },
+                        "rationale": {
+                            "type": "string",
+                            "description": "Rationale to set the condition as resolved, as free text",
+                        },
+                    },
+                    "required": ["condition", "conditionIndex", "rationale"],
+                    "additionalProperties": False,
+                },
+            }
+        ]
 
     def instruction_description(self) -> str:
         text = ", ".join([f"{condition.label}" for condition in self.cache.current_conditions()])

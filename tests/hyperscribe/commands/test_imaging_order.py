@@ -1,3 +1,5 @@
+import json
+from hashlib import md5
 from unittest.mock import patch, call, MagicMock
 
 from canvas_sdk.commands.commands.imaging_order import ImagingOrderCommand
@@ -352,19 +354,20 @@ def test_command_parameters():
     tested = helper_instance()
     result = tested.command_parameters()
     expected = {
-        "imagingKeywords": "comma separated keywords of up to 5 synonyms of the imaging to order",
-        "conditions": [
-            {
-                "conditionKeywords": "comma separated keywords of up to 5 synonyms of each condition "
-                "targeted by the imaging",
-                "ICD10": "comma separated keywords of up to 5 ICD-10 codes of each condition targeted by the imaging",
-            },
-        ],
-        "comment": "rationale of the imaging order, as free text",
-        "noteToRadiologist": "information to be sent to the radiologist, as free text",
-        "priority": "mandatory, one of: Routine/Urgent",
+        "imagingKeywords": "",
+        "conditions": [],
+        "comment": "",
+        "noteToRadiologist": "",
+        "priority": "",
     }
     assert result == expected
+
+
+def test_command_parameters_schemas():
+    tested = helper_instance()
+    result = tested.command_parameters_schemas()
+    expected = "944f87c0dd3a5e65ad507018c725e0b9"
+    assert md5(json.dumps(result).encode()).hexdigest() == expected
 
 
 def test_instruction_description():

@@ -36,14 +36,44 @@ class StopMedication(Base):
         return InstructionWithCommand.add_command(instruction, result)
 
     def command_parameters(self) -> dict:
-        medications = "/".join(
-            [f"{medication.label} (index: {idx})" for idx, medication in enumerate(self.cache.current_medications())],
-        )
         return {
-            "medication": f"one of: {medications}",
-            "medicationIndex": "index of the medication to stop, or -1, as integer",
-            "rationale": "explanation of why the medication is stopped, as free text",
+            "medication": "",
+            "medicationIndex": -1,
+            "rationale": "",
         }
+
+    def command_parameters_schemas(self) -> list[dict]:
+        medications = [medication.label for medication in self.cache.current_medications()]
+        return [
+            {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 1,
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "medication": {
+                            "type": "string",
+                            "description": "The medication to stop",
+                            "enum": medications,
+                        },
+                        "medicationIndex": {
+                            "type": "integer",
+                            "description": "Index of the medication to stop",
+                            "minimum": 0,
+                            "maximum": len(medications) - 1,
+                        },
+                        "rationale": {
+                            "type": "string",
+                            "description": "Explanation of why the medication is stopped, as free text",
+                        },
+                    },
+                    "required": ["medication", "medicationIndex", "rationale"],
+                    "additionalProperties": False,
+                },
+            }
+        ]
 
     def instruction_description(self) -> str:
         return (

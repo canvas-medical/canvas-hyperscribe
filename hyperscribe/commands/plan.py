@@ -30,7 +30,30 @@ class Plan(Base):
         )
 
     def command_parameters(self) -> dict:
-        return {"plan": "description of the plan, as free text"}
+        return {
+            "plan": "",
+        }
+
+    def command_parameters_schemas(self) -> list[dict]:
+        return [
+            {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 1,
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "plan": {
+                            "type": "string",
+                            "description": "Description of the plan, as free text",
+                        },
+                    },
+                    "required": ["plan"],
+                    "additionalProperties": False,
+                },
+            }
+        ]
 
     def instruction_description(self) -> str:
         return (

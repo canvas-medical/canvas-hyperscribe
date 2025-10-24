@@ -34,8 +34,30 @@ class HistoryOfPresentIllness(Base):
 
     def command_parameters(self) -> dict:
         return {
-            "narrative": "highlights of the patient's symptoms and surrounding events and observations, as free text",
+            "narrative": "",
         }
+
+    def command_parameters_schemas(self) -> list[dict]:
+        return [
+            {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 1,
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "narrative": {
+                            "type": "string",
+                            "description": "Highlights of the patient's symptoms and "
+                            "surrounding events and observations, as free text",
+                        },
+                    },
+                    "required": ["narrative"],
+                    "additionalProperties": False,
+                },
+            }
+        ]
 
     def instruction_description(self) -> str:
         return (

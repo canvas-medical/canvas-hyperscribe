@@ -37,7 +37,35 @@ class Immunize(Base):
         )
 
     def command_parameters(self) -> dict:
-        return {"immunize": "medical name of the immunization and its CPT code", "sig": "directions, as free text"}
+        return {
+            "immunize": "",
+            "sig": "",
+        }
+
+    def command_parameters_schemas(self) -> list[dict]:
+        return [
+            {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 1,
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "immunize": {
+                            "type": "string",
+                            "description": "Medical name of the immunization and its CPT code",
+                        },
+                        "sig": {
+                            "type": "string",
+                            "description": "Directions, as free text",
+                        },
+                    },
+                    "required": ["immunize", "sig"],
+                    "additionalProperties": False,
+                },
+            }
+        ]
 
     def instruction_description(self) -> str:
         return (

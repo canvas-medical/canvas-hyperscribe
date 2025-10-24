@@ -73,7 +73,7 @@ class UpdateDiagnose(Base):
                 "",
                 "Please, present your findings in a JSON format within a Markdown code block like:",
                 "```json",
-                json.dumps([{"ICD10": "the ICD-10 code", "description": "the description"}]),
+                json.dumps([{"ICD10": "the ICD-10 code", "label": "the label"}]),
                 "```",
                 "",
             ]
@@ -81,22 +81,73 @@ class UpdateDiagnose(Base):
             if response := chatter.single_conversation(system_prompt, user_prompt, schemas, instruction):
                 diagnosis = response[0]
                 result.new_condition_code = Helper.icd10_strip_dot(diagnosis["ICD10"])
-                self.add_code2description(diagnosis["ICD10"], diagnosis["description"])
+                self.add_code2description(diagnosis["ICD10"], diagnosis["label"])
 
         return InstructionWithCommand.add_command(instruction, result)
 
     def command_parameters(self) -> dict:
-        conditions = "/".join(
-            [f"{condition.label} (index: {idx})" for idx, condition in enumerate(self.cache.current_conditions())],
-        )
         return {
-            "keywords": "comma separated keywords of up to 5 synonyms of the new diagnosed condition",
-            "ICD10": "comma separated keywords of up to 5 ICD-10 codes of the new diagnosed condition",
-            "previousCondition": f"one of: {conditions}",
-            "previousConditionIndex": "index of the previous Condition, or -1, as integer",
-            "rationale": "rationale about the current assessment, as free text",
-            "assessment": "today's assessment of the new condition, as free text",
+            "keywords": "",
+            "ICD10": "",
+            "previousCondition": "",
+            "previousConditionIndex": -1,
+            "rationale": "",
+            "assessment": "",
         }
+
+    def command_parameters_schemas(self) -> list[dict]:
+        conditions = [condition.label for condition in self.cache.current_conditions()]
+        return [
+            {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 1,
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "keywords": {
+                            "type": "string",
+                            "description": "Comma separated keywords of up to 5 synonyms of "
+                            "the new diagnosed condition",
+                        },
+                        "ICD10": {
+                            "type": "string",
+                            "description": "Comma separated keywords of up to 5 ICD-10 codes of "
+                            "the new diagnosed condition",
+                        },
+                        "previousCondition": {
+                            "type": "string",
+                            "description": "The previous condition to be updated",
+                            "enum": conditions,
+                        },
+                        "previousConditionIndex": {
+                            "type": "integer",
+                            "description": "Index of the previous Condition",
+                            "minimum": 0,
+                            "maximum": len(conditions) - 1,
+                        },
+                        "rationale": {
+                            "type": "string",
+                            "description": "Rationale about the current assessment, as free text",
+                        },
+                        "assessment": {
+                            "type": "string",
+                            "description": "Today's assessment of the new condition, as free text",
+                        },
+                    },
+                    "required": [
+                        "keywords",
+                        "ICD10",
+                        "previousCondition",
+                        "previousConditionIndex",
+                        "rationale",
+                        "assessment",
+                    ],
+                    "additionalProperties": False,
+                },
+            }
+        ]
 
     def instruction_description(self) -> str:
         text = ", ".join([f"{condition.label}" for condition in self.cache.current_conditions()])

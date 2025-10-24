@@ -126,8 +126,19 @@ def test_command_from_json(add_code2description, current_conditions):
         reset_mocks()
 
 
+def test_command_parameters():
+    tested = helper_instance()
+    result = tested.command_parameters()
+    expected = {
+        "condition": "",
+        "conditionIndex": -1,
+        "rationale": "",
+    }
+    assert result == expected
+
+
 @patch.object(LimitedCache, "current_conditions")
-def test_command_parameters(current_conditions):
+def test_command_parameters_schemas(current_conditions):
     def reset_mocks():
         current_conditions.reset_mock()
 
@@ -138,12 +149,37 @@ def test_command_parameters(current_conditions):
         CodedItem(uuid="theUuid3", label="display3a", code="CODE98.76"),
     ]
     current_conditions.side_effect = [conditions]
-    result = tested.command_parameters()
-    expected = {
-        "condition": "one of: display1a (index: 0)/display2a (index: 1)/display3a (index: 2)",
-        "conditionIndex": "index of the Condition to set as resolved, or -1, as integer",
-        "rationale": "rationale to set the condition as resolved, as free text",
-    }
+    result = tested.command_parameters_schemas()
+    expected = [
+        {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "items": {
+                "additionalProperties": False,
+                "properties": {
+                    "condition": {
+                        "description": "The condition to set as resolved",
+                        "enum": ["display1a", "display2a", "display3a"],
+                        "type": "string",
+                    },
+                    "conditionIndex": {
+                        "description": "Index of the Condition to set as resolved",
+                        "maximum": 2,
+                        "minimum": 0,
+                        "type": "integer",
+                    },
+                    "rationale": {
+                        "description": "Rationale to set the condition as resolved, as free text",
+                        "type": "string",
+                    },
+                },
+                "required": ["condition", "conditionIndex", "rationale"],
+                "type": "object",
+            },
+            "maxItems": 1,
+            "minItems": 1,
+            "type": "array",
+        },
+    ]
     assert result == expected
     calls = [call()]
     assert current_conditions.mock_calls == calls

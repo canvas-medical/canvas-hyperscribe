@@ -1,4 +1,6 @@
+import json
 from datetime import date
+from hashlib import md5
 from unittest.mock import patch, call, MagicMock
 
 from canvas_sdk.commands.commands.allergy import AllergyCommand, Allergen, AllergenType
@@ -250,15 +252,20 @@ def test_command_parameters():
     tested = helper_instance()
     result = tested.command_parameters()
     expected = {
-        "approximateDateOfOnset": "YYYY-MM-DD",
-        "keywords": "comma separated keywords of up to 5 distinct synonyms of the component "
-        "related to the allergy or 'NKA' for No Known Allergy or 'NKDA' for No "
-        "Known Drug Allergy",
-        "reaction": "description of the reaction, as free text",
-        "severity": "mandatory, one of: mild/moderate/severe",
-        "type": "mandatory, one of: allergy group/medication/ingredient",
+        "keywords": "",
+        "type": "",
+        "severity": "",
+        "reaction": "",
+        "approximateDateOfOnset": None,
     }
     assert result == expected
+
+
+def test_command_parameters_schemas():
+    tested = helper_instance()
+    result = tested.command_parameters_schemas()
+    expected = "105cf3ae51aa95ec59a8114d5ee441fa"
+    assert md5(json.dumps(result).encode()).hexdigest() == expected
 
 
 def test_instruction_description():

@@ -126,8 +126,20 @@ def test_command_from_json(add_code2description, current_goals):
         reset_mocks()
 
 
+def test_command_parameters():
+    tested = helper_instance()
+    result = tested.command_parameters()
+    expected = {
+        "goal": "",
+        "goalIndex": -1,
+        "status": "",
+        "progressAndBarriers": "",
+    }
+    assert result == expected
+
+
 @patch.object(LimitedCache, "current_goals")
-def test_command_parameters(current_goals):
+def test_command_parameters_schemas(current_goals):
     def reset_mocks():
         current_goals.reset_mock()
 
@@ -138,14 +150,58 @@ def test_command_parameters(current_goals):
         CodedItem(uuid="theUuid3", label="display3a", code="CODE9876"),
     ]
     current_goals.side_effect = [goals]
-    result = tested.command_parameters()
-    expected = {
-        "goal": "one of: display1a (index: 0)/display2a (index: 1)/display3a (index: 2)",
-        "goalIndex": "index of the Goal to close, or -1, as integer",
-        "progressAndBarriers": "progress and barriers, as free text",
-        "status": "one of: in-progress/improving/worsening/no-change/achieved/sustaining/not-achieved/"
-        "no-progress/not-attainable",
-    }
+    result = tested.command_parameters_schemas()
+    expected = [
+        {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "items": {
+                "additionalProperties": False,
+                "properties": {
+                    "goal": {
+                        "description": "The goal to close",
+                        "enum": ["display1a", "display2a", "display3a"],
+                        "type": "string",
+                    },
+                    "goalIndex": {
+                        "description": "Index of the Goal to close",
+                        "maximum": 2,
+                        "minimum": 0,
+                        "type": "integer",
+                    },
+                    "progressAndBarriers": {
+                        "description": "Progress and barriers, as free text",
+                        "type": "string",
+                    },
+                    "status": {
+                        "description": "Achievement status of the goal",
+                        "enum": [
+                            "in-progress",
+                            "improving",
+                            "worsening",
+                            "no-change",
+                            "achieved",
+                            "sustaining",
+                            "not-achieved",
+                            "no-progress",
+                            "not-attainable",
+                        ],
+                        "type": "string",
+                    },
+                },
+                "required": [
+                    "goal",
+                    "goalIndex",
+                    "status",
+                    "progressAndBarriers",
+                ],
+                "type": "object",
+            },
+            "maxItems": 1,
+            "minItems": 1,
+            "type": "array",
+        },
+    ]
+
     assert result == expected
     calls = [call()]
     assert current_goals.mock_calls == calls

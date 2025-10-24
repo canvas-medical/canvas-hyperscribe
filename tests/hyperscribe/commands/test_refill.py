@@ -233,8 +233,21 @@ def test_command_from_json(add_code2description, current_medications):
     reset_mocks()
 
 
+def test_command_parameters():
+    tested = helper_instance()
+    result = tested.command_parameters()
+    expected = {
+        "medication": "",
+        "medicationIndex": -1,
+        "sig": "",
+        "suppliedDays": 0,
+        "substitution": "",
+        "comment": "",
+    }
+
+
 @patch.object(LimitedCache, "current_medications")
-def test_command_parameters(current_medications):
+def test_command_parameters_schemas(current_medications):
     def reset_mocks():
         current_medications.reset_mock()
 
@@ -266,15 +279,55 @@ def test_command_parameters(current_medications):
         ),
     ]
     current_medications.side_effect = [medications]
-    result = tested.command_parameters()
-    expected = {
-        "comment": "rationale of the prescription, as free text",
-        "medication": "one of: display1 (index: 0)/display2 (index: 1)/display3 (index: 2)",
-        "medicationIndex": "index of the medication to refill, as integer",
-        "sig": "directions, as free text",
-        "substitution": "one of: allowed/not_allowed",
-        "suppliedDays": "duration of the treatment in days, as integer",
-    }
+    result = tested.command_parameters_schemas()
+    expected = [
+        {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "items": {
+                "additionalProperties": False,
+                "properties": {
+                    "comment": {
+                        "description": "Rationale of the prescription, as free text",
+                        "type": "string",
+                    },
+                    "medication": {
+                        "description": "The medication to refill",
+                        "enum": ["display1", "display2", "display3"],
+                        "type": "string",
+                    },
+                    "medicationIndex": {
+                        "description": "Index of the medication to refill",
+                        "type": "integer",
+                    },
+                    "sig": {
+                        "description": "Directions, as free text",
+                        "type": "string",
+                    },
+                    "substitution": {
+                        "description": "Substitution status for the refill",
+                        "enum": ["allowed", "not_allowed"],
+                        "type": "string",
+                    },
+                    "suppliedDays": {
+                        "description": "Duration of the treatment in days",
+                        "type": "integer",
+                    },
+                },
+                "required": [
+                    "medication",
+                    "medicationIndex",
+                    "sig",
+                    "suppliedDays",
+                    "substitution",
+                    "comment",
+                ],
+                "type": "object",
+            },
+            "maxItems": 1,
+            "minItems": 1,
+            "type": "array",
+        },
+    ]
     assert result == expected
     calls = [call()]
     assert current_medications.mock_calls == calls

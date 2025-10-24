@@ -46,17 +46,65 @@ class UpdateGoal(Base):
         )
 
     def command_parameters(self) -> dict:
-        goals = "/".join([f"{goal.label} (index: {idx})" for idx, goal in enumerate(self.cache.current_goals())])
-        statuses = "/".join([status.value for status in UpdateGoalCommand.AchievementStatus])
-        priorities = "/".join([status.value for status in UpdateGoalCommand.Priority])
         return {
-            "goal": f"one of: {goals}",
-            "goalIndex": "index of the Goal to update, or -1, as integer",
-            "dueDate": "YYYY-MM-DD",
-            "status": f"one of: {statuses}",
-            "priority": f"one of: {priorities}",
-            "progressAndBarriers": "progress or barriers, as free text",
+            "goal": "",
+            "goalIndex": -1,
+            "dueDate": None,
+            "status": "",
+            "priority": "",
+            "progressAndBarriers": "",
         }
+
+    def command_parameters_schemas(self) -> list[dict]:
+        goals = [goal.label for goal in self.cache.current_goals()]
+        statuses = [status.value for status in UpdateGoalCommand.AchievementStatus]
+        priorities = [status.value for status in UpdateGoalCommand.Priority]
+        return [
+            {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 1,
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "goal": {
+                            "type": "string",
+                            "description": "The goal to update",
+                            "enum": goals,
+                        },
+                        "goalIndex": {
+                            "type": "integer",
+                            "description": "Index of the Goal to update",
+                            "minimum": 0,
+                            "maximum": len(goals) - 1,
+                        },
+                        "dueDate": {
+                            "type": ["string", "null"],
+                            "description": "Due date in YYYY-MM-DD format",
+                            "format": "date",
+                            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                        },
+                        "status": {
+                            "type": "string",
+                            "description": "Achievement status of the goal",
+                            "enum": statuses,
+                        },
+                        "priority": {
+                            "type": "string",
+                            "description": "Priority level of the goal",
+                            "enum": priorities,
+                        },
+                        "progressAndBarriers": {
+                            "type": "string",
+                            "description": "Progress or barriers, as free text",
+                        },
+                    },
+                    "required": ["goal", "goalIndex", "dueDate", "status", "priority", "progressAndBarriers"],
+                    "additionalProperties": False,
+                },
+            }
+        ]
 
     def instruction_description(self) -> str:
         return "Change of status of a previously set goal, including progress, barriers, priority or due date."

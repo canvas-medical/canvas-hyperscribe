@@ -69,11 +69,52 @@ class FamilyHistory(Base):
 
     def command_parameters(self) -> dict:
         return {
-            "keywords": "comma separated keywords of up to 5 synonyms of the condition",
-            "relative": "one of: father/mother/parent/child/brother/sister/sibling/grand-parent/"
-            "grand-father/grand-mother",
-            "note": "description of the condition, as free text",
+            "keywords": "",
+            "relative": "",
+            "note": "",
         }
+
+    def command_parameters_schemas(self) -> list[dict]:
+        relatives: list[str] = [
+            "father",
+            "mother",
+            "parent",
+            "child",
+            "brother",
+            "sister",
+            "sibling",
+            "grand-parent",
+            "grand-father",
+            "grand-mother",
+        ]
+        return [
+            {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 1,
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "keywords": {
+                            "type": "string",
+                            "description": "Comma separated keywords of up to 5 synonyms of the condition",
+                        },
+                        "relative": {
+                            "type": "string",
+                            "description": "The family member with the condition",
+                            "enum": relatives,
+                        },
+                        "note": {
+                            "type": "string",
+                            "description": "Description of the condition, as free text",
+                        },
+                    },
+                    "required": ["keywords", "relative", "note"],
+                    "additionalProperties": False,
+                },
+            }
+        ]
 
     def instruction_description(self) -> str:
         return (

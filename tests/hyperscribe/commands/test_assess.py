@@ -101,7 +101,7 @@ def test_command_from_json(add_code2description, current_conditions):
     tests = [
         (1, "theUuid2", [call("theUuid2", "display2a")]),
         (2, "theUuid3", [call("theUuid3", "display3a")]),
-        (4, "", []),
+        (4, None, []),
     ]
     for idx, exp_uuid, exp_calls in tests:
         current_conditions.side_effect = [conditions, conditions]
@@ -138,8 +138,21 @@ def test_command_from_json(add_code2description, current_conditions):
         reset_mocks()
 
 
+def test_command_parameters():
+    tested = helper_instance()
+    result = tested.command_parameters()
+    expected = {
+        "condition": None,
+        "conditionIndex": -1,
+        "rationale": "",
+        "status": "",
+        "assessment": "",
+    }
+    assert result == expected
+
+
 @patch.object(LimitedCache, "current_conditions")
-def test_command_parameters(current_conditions):
+def test_command_parameters_schemas(current_conditions):
     def reset_mocks():
         current_conditions.reset_mock()
 
@@ -150,14 +163,53 @@ def test_command_parameters(current_conditions):
         CodedItem(uuid="theUuid3", label="display3a", code="CODE98.76"),
     ]
     current_conditions.side_effect = [conditions]
-    result = tested.command_parameters()
-    expected = {
-        "assessment": "today's assessment of the condition, as free text",
-        "condition": "one of: display1a (index: 0)/display2a (index: 1)/display3a (index: 2)",
-        "conditionIndex": "index of the Condition to assess, or -1, as integer",
-        "rationale": "rationale about the current assessment, as free text",
-        "status": "one of: improved/stable/deteriorated",
-    }
+    result = tested.command_parameters_schemas()
+    expected = [
+        {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "items": {
+                "additionalProperties": False,
+                "properties": {
+                    "assessment": {
+                        "description": "Today's assessment of the condition, as free text",
+                        "type": "string",
+                    },
+                    "condition": {
+                        "description": "The condition to assess",
+                        "enum": ["display1a", "display2a", "display3a"],
+                        "type": ["string", "null"],
+                    },
+                    "conditionIndex": {
+                        "description": "Index of the Condition to assess, or -1",
+                        "maximum": 2,
+                        "minimum": -1,
+                        "type": "integer",
+                    },
+                    "rationale": {
+                        "description": "Rationale about the current assessment, as free text",
+                        "type": "string",
+                    },
+                    "status": {
+                        "description": "Status of the condition",
+                        "enum": ["improved", "stable", "deteriorated"],
+                        "type": "string",
+                    },
+                },
+                "required": [
+                    "condition",
+                    "conditionIndex",
+                    "rationale",
+                    "status",
+                    "assessment",
+                ],
+                "type": "object",
+            },
+            "maxItems": 1,
+            "minItems": 1,
+            "type": "array",
+        },
+    ]
+
     assert result == expected
     calls = [call()]
     assert current_conditions.mock_calls == calls
