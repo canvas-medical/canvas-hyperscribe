@@ -269,3 +269,79 @@ def test_load_from_llm():
         )
         result = tested.load_from_llm(data)
         assert result == expected, f"---> {idx}"
+
+
+def test_load_from_llm_rejects_unlabeled_selections():
+    """Test that load_from_llm rejects selections of unlabeled options."""
+    tested = Question
+
+    # Test case: LLM selects an unlabeled option - should be rejected
+    data = {
+        "questionId": 1435,
+        "question": "CGI-Severity",
+        "questionType": "single choice",
+        "responses": [
+            {"responseId": 4850, "selected": False, "value": "[Unlabeled Option 4850]"},
+            {"responseId": 4851, "selected": True, "value": "[Unlabeled Option 4851]"},  # LLM selected this
+            {"responseId": 4852, "selected": False, "value": "Mildly ill"},
+        ],
+        "skipped": False,
+    }
+
+    result = tested.load_from_llm(data)
+
+    # The unlabeled option should have been deselected automatically
+    expected = Question(
+        dbid=1435,
+        label="CGI-Severity",
+        type=QuestionType.TYPE_RADIO,
+        skipped=False,
+        responses=[
+            Response(dbid=4850, value="[Unlabeled Option 4850]", selected=False, comment=None),
+            Response(dbid=4851, value="[Unlabeled Option 4851]", selected=False, comment=None),  # Forced to False
+            Response(dbid=4852, value="Mildly ill", selected=False, comment=None),
+        ],
+    )
+
+    assert result == expected
+    # Verify the unlabeled option was deselected
+    assert result.responses[1].value == "[Unlabeled Option 4851]"
+    assert result.responses[1].selected is False  # Should be False, not True
+
+
+def test_load_from_llm_preserves_valid_selections():
+    """Test that load_from_llm preserves valid (non-unlabeled) selections."""
+    tested = Question
+
+    # Test case: LLM selects a valid option - should be preserved
+    data = {
+        "questionId": 1435,
+        "question": "CGI-Severity",
+        "questionType": "single choice",
+        "responses": [
+            {"responseId": 4850, "selected": False, "value": "[Unlabeled Option 4850]"},
+            {"responseId": 4851, "selected": False, "value": "[Unlabeled Option 4851]"},
+            {"responseId": 4852, "selected": True, "value": "Mildly ill"},  # Valid selection
+        ],
+        "skipped": False,
+    }
+
+    result = tested.load_from_llm(data)
+
+    # The valid option should remain selected
+    expected = Question(
+        dbid=1435,
+        label="CGI-Severity",
+        type=QuestionType.TYPE_RADIO,
+        skipped=False,
+        responses=[
+            Response(dbid=4850, value="[Unlabeled Option 4850]", selected=False, comment=None),
+            Response(dbid=4851, value="[Unlabeled Option 4851]", selected=False, comment=None),
+            Response(dbid=4852, value="Mildly ill", selected=True, comment=None),  # Preserved
+        ],
+    )
+
+    assert result == expected
+    # Verify the valid option remains selected
+    assert result.responses[2].value == "Mildly ill"
+    assert result.responses[2].selected is True

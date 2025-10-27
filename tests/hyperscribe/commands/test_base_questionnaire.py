@@ -222,6 +222,56 @@ def test_staged_command_extract():
             assert json.loads(result.label) == expected
 
 
+def test_staged_command_extract_with_empty_labels():
+    """Test that empty labels are handled gracefully with fallback values."""
+    tested = BaseQuestionnaire
+    data = {
+        "questionnaire": {
+            "extra": {
+                "pk": 127,
+                "name": "Clinical Global Impressions (CGI)",
+                "questions": [
+                    {
+                        "pk": 1435,
+                        "name": "question-1435",
+                        "type": "SING",
+                        "label": "CGI-Severity",
+                        "options": [
+                            {"pk": 4850, "label": ""},  # Empty label
+                            {"pk": 4851, "label": "   "},  # Whitespace only
+                            {"pk": 4852, "label": None},  # None value
+                            {"pk": 4853},  # Missing label key
+                            {"pk": 4854, "label": "Markedly ill"},  # Valid label
+                        ],
+                    }
+                ],
+            }
+        }
+    }
+
+    result = tested.staged_command_extract(data)
+    assert result is not None
+    parsed = json.loads(result.label)
+
+    # Check that the questionnaire was parsed
+    assert parsed["name"] == "Clinical Global Impressions (CGI)"
+    assert parsed["dbid"] == 127
+    assert len(parsed["questions"]) == 1
+
+    question = parsed["questions"][0]
+    assert question["dbid"] == 1435
+    assert question["label"] == "CGI-Severity"
+    assert len(question["responses"]) == 5
+
+    # Verify fallback labels were applied for empty/missing labels
+    responses = {r["dbid"]: r["value"] for r in question["responses"]}
+    assert responses[4850] == "[Unlabeled Option 4850]"  # Empty string
+    assert responses[4851] == "[Unlabeled Option 4851]"  # Whitespace only
+    assert responses[4852] == "[Unlabeled Option 4852]"  # None value
+    assert responses[4853] == "[Unlabeled Option 4853]"  # Missing key
+    assert responses[4854] == "Markedly ill"  # Valid label preserved
+
+
 def test_json_schema_questionnaire():
     tested = BaseQuestionnaire
     result = tested.json_schema_questionnaire(True)
@@ -240,7 +290,14 @@ def test_json_schema_questionnaire():
                         "properties": {
                             "responseId": {"type": "integer"},
                             "selected": {"type": "boolean"},
-                            "value": {"type": "string"},
+                            "value": {
+                                "type": "string",
+                                "description": (
+                                    "The label for this response option. "
+                                    "Values starting with '[Unlabeled Option' indicate "
+                                    "missing data and should not be selected."
+                                ),
+                            },
                             "comment": {
                                 "description": "any relevant information expanding the answer",
                                 "type": "string",
@@ -279,7 +336,14 @@ def test_json_schema_questionnaire():
                         "properties": {
                             "responseId": {"type": "integer"},
                             "selected": {"type": "boolean"},
-                            "value": {"type": "string"},
+                            "value": {
+                                "type": "string",
+                                "description": (
+                                    "The label for this response option. "
+                                    "Values starting with '[Unlabeled Option' indicate "
+                                    "missing data and should not be selected."
+                                ),
+                            },
                             "comment": {
                                 "description": "any relevant information expanding the answer",
                                 "type": "string",
@@ -582,6 +646,11 @@ def test_update_from_transcript(include_skipped, relevant_question_ids):
         "and what responses the patient is giving.",
         "Since this is only a part of the transcript, it may have no reference to the questionnaire at all.",
         "",
+        "IMPORTANT: If you encounter response options with labels starting with '[Unlabeled Option', "
+        "these indicate missing data in the source system. Do NOT select these options. "
+        "Only select response options with valid, descriptive labels that clearly match the clinical context. "
+        "If all options are unlabeled, leave the question unmodified.",
+        "",
         "Your response must be the JSON Markdown block of the questionnaire, with all the necessary changes "
         "to reflect the transcript content.",
         "",
@@ -715,7 +784,14 @@ def test_update_from_transcript(include_skipped, relevant_question_ids):
                             "type": "object",
                             "properties": {
                                 "responseId": {"type": "integer"},
-                                "value": {"type": "string"},
+                                "value": {
+                                    "type": "string",
+                                    "description": (
+                                        "The label for this response option. "
+                                        "Values starting with '[Unlabeled Option' indicate "
+                                        "missing data and should not be selected."
+                                    ),
+                                },
                                 "selected": {"type": "boolean"},
                                 "comment": {
                                     "type": "string",
@@ -751,7 +827,14 @@ def test_update_from_transcript(include_skipped, relevant_question_ids):
                             "type": "object",
                             "properties": {
                                 "responseId": {"type": "integer"},
-                                "value": {"type": "string"},
+                                "value": {
+                                    "type": "string",
+                                    "description": (
+                                        "The label for this response option. "
+                                        "Values starting with '[Unlabeled Option' indicate "
+                                        "missing data and should not be selected."
+                                    ),
+                                },
                                 "selected": {"type": "boolean"},
                                 "comment": {
                                     "type": "string",
