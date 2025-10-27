@@ -89,11 +89,14 @@ class ReasonForVisit(Base):
 
     def instruction_description(self) -> str:
         return (
-            "Patient's stated reason and/or the prompting circumstance for the visit. "
+            "Patient's stated symptom, problem or reason for the visit. "
+            "If this instruction already exists, "
+            "update it by adding a concise 2-5 word clinical summary of the chief complaint "
+            "or main presenting issue as the first line, followed by any existing content. "
+            "The summary should capture why the patient is being seen (e.g., 'Work-related "
+            "stress and anxiety' or 'Lower back pain'). "
             "There can be multiple reasons within an instruction, "
             "but only one such instruction in the whole discussion. "
-            "So, if one was already found, simply update it by intelligently merging all reasons. "
-            "It is important to report it upon identification."
         )
 
     def instruction_constraints(self) -> str:
