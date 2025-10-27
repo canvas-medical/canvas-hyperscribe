@@ -18,6 +18,10 @@ class Task(Base):
         return Constants.SCHEMA_KEY_TASK
 
     @classmethod
+    def note_section(cls) -> str:
+        return Constants.SECTION_PLAN
+
+    @classmethod
     def staged_command_extract(cls, data: dict) -> None | CodedItem:
         comment = data.get("comment") or "n/a"
         due_date = data.get("due_date") or "n/a"

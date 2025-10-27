@@ -1,6 +1,7 @@
 from canvas_sdk.commands.commands.diagnose import DiagnoseCommand
 
 from hyperscribe.commands.base import Base
+from hyperscribe.libraries.constants import Constants
 from hyperscribe.libraries.helper import Helper
 from hyperscribe.libraries.selector_chat import SelectorChat
 from hyperscribe.llms.llm_base import LlmBase
@@ -13,6 +14,10 @@ class Diagnose(Base):
     @classmethod
     def schema_key(cls) -> str:
         return "diagnose"
+
+    @classmethod
+    def note_section(cls) -> str:
+        return Constants.SECTION_ASSESSMENT
 
     @classmethod
     def staged_command_extract(cls, data: dict) -> None | CodedItem:

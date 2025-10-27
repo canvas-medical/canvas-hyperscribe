@@ -19,6 +19,10 @@ class SurgeryHistory(Base):
         return Constants.SCHEMA_KEY_SURGERY_HISTORY
 
     @classmethod
+    def note_section(cls) -> str:
+        return Constants.SECTION_HISTORY
+
+    @classmethod
     def staged_command_extract(cls, data: dict) -> None | CodedItem:
         comment = data.get("comment") or "n/a"
         on_date = (data.get("approximate_date") or {}).get("date") or "n/a"

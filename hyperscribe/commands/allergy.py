@@ -19,6 +19,10 @@ class Allergy(Base):
         return Constants.SCHEMA_KEY_ALLERGY
 
     @classmethod
+    def note_section(cls) -> str:
+        return Constants.SECTION_HISTORY
+
+    @classmethod
     def staged_command_extract(cls, data: dict) -> None | CodedItem:
         if (allergy := data.get("allergy", {})) and "text" in allergy and "value" in allergy:
             return CodedItem(label=allergy["text"], code=str(allergy["value"]), uuid="")
