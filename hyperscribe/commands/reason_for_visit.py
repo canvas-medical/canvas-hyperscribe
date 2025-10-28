@@ -101,6 +101,7 @@ class ReasonForVisit(Base):
             "stress and anxiety' or 'Lower back pain'). "
             "There can be multiple reasons within an instruction, "
             "but only one such instruction in the whole discussion. "
+            "It is important to report it upon identification."
         )
 
     def instruction_constraints(self) -> str:

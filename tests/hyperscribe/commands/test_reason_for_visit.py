@@ -267,6 +267,7 @@ def test_instruction_description(existing_reason_for_visits):
             "stress and anxiety' or 'Lower back pain'). "
             "There can be multiple reasons within an instruction, "
             "but only one such instruction in the whole discussion. "
+            "It is important to report it upon identification."
         )
         assert result == expected
         assert existing_reason_for_visits.mock_calls == []
