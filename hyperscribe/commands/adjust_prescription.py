@@ -17,6 +17,10 @@ class AdjustPrescription(BasePrescription):
         return Constants.SCHEMA_KEY_ADJUST_PRESCRIPTION
 
     @classmethod
+    def note_section(cls) -> str:
+        return Constants.SECTION_PLAN
+
+    @classmethod
     def staged_command_extract(cls, data: dict) -> None | CodedItem:
         new_medication = data.get("change_medication_to", {}).get("text")
         old_medication = data.get("prescribe", {}).get("text")

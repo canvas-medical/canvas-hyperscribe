@@ -15,6 +15,10 @@ class FollowUp(Base):
         return Constants.SCHEMA_KEY_FOLLOW_UP
 
     @classmethod
+    def note_section(cls) -> str:
+        return Constants.SECTION_PLAN
+
+    @classmethod
     def staged_command_extract(cls, data: dict) -> None | CodedItem:
         encounter = (data.get("note_type") or {}).get("text") or "n/a"
         on_date = (data.get("requested_date") or {}).get("date")

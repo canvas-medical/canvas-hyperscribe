@@ -17,6 +17,10 @@ class Refill(Base):
         return Constants.SCHEMA_KEY_REFILL
 
     @classmethod
+    def note_section(cls) -> str:
+        return Constants.SECTION_PLAN
+
+    @classmethod
     def staged_command_extract(cls, data: dict) -> None | CodedItem:
         if (prescribe := data.get("prescribe")) and (text := prescribe.get("text")):
             sig = data.get("sig") or "n/a"

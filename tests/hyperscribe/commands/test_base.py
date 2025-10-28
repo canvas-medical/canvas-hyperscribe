@@ -84,6 +84,12 @@ def test_schema_key():
         _ = tested.schema_key()
 
 
+def test_note_section():
+    tested = Base
+    with pytest.raises(NotImplementedError):
+        _ = tested.note_section()
+
+
 def test_staged_command_extract():
     tested = helper_instance()
     with pytest.raises(NotImplementedError):

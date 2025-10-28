@@ -19,6 +19,10 @@ class UpdateDiagnose(Base):
         return Constants.SCHEMA_KEY_UPDATE_DIAGNOSE
 
     @classmethod
+    def note_section(cls) -> str:
+        return Constants.SECTION_ASSESSMENT
+
+    @classmethod
     def staged_command_extract(cls, data: dict) -> None | CodedItem:
         if condition := (data.get("condition") or {}).get("text"):
             new_condition = (data.get("new_condition") or {}).get("text") or "n/a"

@@ -15,6 +15,10 @@ class LabOrder(Base):
         return Constants.SCHEMA_KEY_LAB_ORDER
 
     @classmethod
+    def note_section(cls) -> str:
+        return Constants.SECTION_PLAN
+
+    @classmethod
     def staged_command_extract(cls, data: dict) -> None | CodedItem:
         fasting = "n/a"
         if "fasting_status" in data:

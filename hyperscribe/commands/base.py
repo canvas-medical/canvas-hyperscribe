@@ -27,6 +27,10 @@ class Base:
         raise NotImplementedError
 
     @classmethod
+    def note_section(cls) -> str:
+        raise NotImplementedError
+
+    @classmethod
     def staged_command_extract(cls, data: dict) -> CodedItem | None:
         raise NotImplementedError
 
