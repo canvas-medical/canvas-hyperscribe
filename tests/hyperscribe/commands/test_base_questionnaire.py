@@ -60,11 +60,15 @@ def test_include_skipped():
         _ = tested.include_skipped()
 
 
-def test_staged_command_extract():
+@patch.object(BaseQuestionnaire, "_fetch_complete_option_labels")
+def test_staged_command_extract(mock_fetch_labels):
+    def reset_mocks():
+        mock_fetch_labels.reset_mock()
+
     tested = BaseQuestionnaire
     tests = [
-        ({}, None),
-        ({"questionnaire": None}, None),
+        ({}, None, []),  # No questionnaire data, should not call fetch
+        ({"questionnaire": None}, None, []),  # No questionnaire data, should not call fetch
         (
             {
                 "skip-60": True,
@@ -209,10 +213,16 @@ def test_staged_command_extract():
                     },
                 ],
             },
+            [call(123)],  # Should call fetch with questionnaire dbid=123
         ),
     ]
-    for data, expected in tests:
+
+    for data, expected, expected_calls in tests:
+        # Mock empty labels lookup (all labels present in staged data for this test)
+        mock_fetch_labels.return_value = {}
+
         result = tested.staged_command_extract(data)
+
         if expected is None:
             assert result is None
         else:
@@ -221,9 +231,24 @@ def test_staged_command_extract():
             assert result.uuid == ""
             assert json.loads(result.label) == expected
 
+        # Verify mock was called correctly
+        assert mock_fetch_labels.mock_calls == expected_calls
 
-def test_staged_command_extract_with_empty_labels():
-    """Test that empty labels are filtered out."""
+        reset_mocks()
+
+
+@patch.object(BaseQuestionnaire, "_fetch_complete_option_labels")
+def test_staged_command_extract_with_empty_labels(mock_fetch_labels):
+    """Test that empty labels in staged data are supplemented from full questionnaire definition."""
+    # Mock the full definition to provide complete labels for options 4850-4853
+    mock_fetch_labels.return_value = {
+        4850: "Not ill",
+        4851: "Mildly ill",
+        4852: "Moderately ill",
+        4853: "Severely ill",
+        4854: "Markedly ill",
+    }
+
     tested = BaseQuestionnaire
     data = {
         "questionnaire": {
@@ -261,20 +286,34 @@ def test_staged_command_extract_with_empty_labels():
     question = parsed["questions"][0]
     assert question["dbid"] == 1435
     assert question["label"] == "CGI-Severity"
-    assert len(question["responses"]) == 1
+    assert len(question["responses"]) == 5
 
-    # Verify only the valid label was included
+    # Verify all options were included using labels from full definition
     responses = {r["dbid"]: r["value"] for r in question["responses"]}
-    assert responses[4854] == "Markedly ill"  # Valid label preserved
+    assert responses[4850] == "Not ill"  # From full definition
+    assert responses[4851] == "Mildly ill"  # From full definition
+    assert responses[4852] == "Moderately ill"  # From full definition
+    assert responses[4853] == "Severely ill"  # From full definition
+    assert responses[4854] == "Markedly ill"  # From staged data (was already present)
 
 
-def test_staged_command_extract_with_all_unlabeled_options():
-    """Test behavior when all options have unlabeled responses (all filtered out).
+@patch.object(BaseQuestionnaire, "_fetch_complete_option_labels")
+def test_staged_command_extract_with_all_unlabeled_options(mock_fetch_labels):
+    """Test behavior when all options have unlabeled responses in both staged data AND full definition.
 
-    This tests the edge case where a questionnaire question has only unlabeled options,
-    which means after filtering, the question will have no response options at all.
-    This simulates what happens with questionnaires like CGI when all options are unlabeled.
+    This tests the edge case where a questionnaire question has only unlabeled options
+    in both the staged data and the full Canvas SDK definition.
+    After filtering, the question will have no response options at all.
+    This simulates a truly broken questionnaire configuration.
     """
+    # Mock the full definition to also have empty labels (truly broken configuration)
+    mock_fetch_labels.return_value = {
+        4850: "",
+        4851: "",
+        4852: "",
+        4853: "",
+    }
+
     tested = BaseQuestionnaire
     data = {
         "questionnaire": {
@@ -315,6 +354,76 @@ def test_staged_command_extract_with_all_unlabeled_options():
     # The key behavior: when all options are unlabeled, responses should be empty
     assert len(question["responses"]) == 0
     assert question["responses"] == []
+
+
+def test_fetch_complete_option_labels():
+    """Test fetching complete option labels from Canvas SDK."""
+    from canvas_sdk.v1.data.questionnaire import Questionnaire as QuestionnaireModel
+
+    # Test successful fetch with mixed questions (some with/without option sets)
+    with patch.object(QuestionnaireModel.objects, "get") as mock_get:
+        # Create mock questionnaire with questions and options
+        mock_option1 = MagicMock()
+        mock_option1.pk = 100
+        mock_option1.name = "Option 1"
+
+        mock_option2 = MagicMock()
+        mock_option2.pk = 101
+        mock_option2.name = "  Option 2  "  # Test stripping
+
+        mock_option3 = MagicMock()
+        mock_option3.pk = 102
+        mock_option3.name = None  # Test None handling
+
+        mock_option_set = MagicMock()
+        mock_option_set.options.all.return_value = [mock_option1, mock_option2, mock_option3]
+
+        # Question with options
+        mock_question_with_options = MagicMock()
+        mock_question_with_options.response_option_set = mock_option_set
+
+        # Question without options (None)
+        mock_question_without_options = MagicMock()
+        mock_question_without_options.response_option_set = None
+
+        mock_questionnaire = MagicMock()
+        mock_questionnaire.questions.all.return_value = [mock_question_with_options, mock_question_without_options]
+
+        mock_get.return_value = mock_questionnaire
+
+        result = BaseQuestionnaire._fetch_complete_option_labels(123)
+
+        # Verify the result (only options from question with option set)
+        assert result == {100: "Option 1", 101: "Option 2", 102: ""}
+
+        # Verify mock calls
+        mock_get.assert_called_once_with(dbid=123)
+        mock_questionnaire.questions.all.assert_called_once()
+        mock_option_set.options.all.assert_called_once()
+
+    # Test questionnaire not found
+    with patch.object(QuestionnaireModel.objects, "get") as mock_get:
+        mock_get.side_effect = QuestionnaireModel.DoesNotExist()
+
+        result = BaseQuestionnaire._fetch_complete_option_labels(999)
+
+        # Verify empty dict returned on error
+        assert result == {}
+
+        # Verify the method attempted to fetch
+        mock_get.assert_called_once_with(dbid=999)
+
+    # Test general exception
+    with patch.object(QuestionnaireModel.objects, "get") as mock_get:
+        mock_get.side_effect = Exception("Database error")
+
+        result = BaseQuestionnaire._fetch_complete_option_labels(456)
+
+        # Verify empty dict returned on error
+        assert result == {}
+
+        # Verify the method attempted to fetch
+        mock_get.assert_called_once_with(dbid=456)
 
 
 def test_json_schema_questionnaire():

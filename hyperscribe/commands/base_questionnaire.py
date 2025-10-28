@@ -10,6 +10,8 @@ from canvas_sdk.commands.commands.questionnaire.question import (
     RadioQuestion,
     BaseQuestion,
 )
+from canvas_sdk.v1.data.questionnaire import Questionnaire as QuestionnaireModel
+from logger import log
 
 from hyperscribe.commands.base import Base
 from hyperscribe.libraries.constants import Constants
@@ -32,10 +34,42 @@ class BaseQuestionnaire(Base):
         raise NotImplementedError
 
     @classmethod
+    def _fetch_complete_option_labels(cls, questionnaire_dbid: int) -> dict[int, str]:
+        """Fetch complete option labels from Canvas SDK questionnaire definition.
+
+        Args:
+            questionnaire_dbid: The database ID of the questionnaire
+
+        Returns:
+            Dictionary mapping option pk to label (name field from ResponseOption)
+        """
+        option_labels = {}
+        try:
+            full_questionnaire = QuestionnaireModel.objects.get(dbid=questionnaire_dbid)
+
+            for question in full_questionnaire.questions.all():
+                if question.response_option_set:
+                    for option in question.response_option_set.options.all():
+                        # Store the complete label from the full definition
+                        option_labels[option.pk] = (option.name or "").strip()
+
+            log.info(f"Fetched {len(option_labels)} option labels from questionnaire {questionnaire_dbid}")
+
+        except QuestionnaireModel.DoesNotExist:
+            log.warning(f"Could not find questionnaire with dbid={questionnaire_dbid} in Canvas SDK")
+        except Exception as e:
+            log.error(f"Error fetching questionnaire definition: {e}")
+
+        return option_labels
+
+    @classmethod
     def staged_command_extract(cls, data: dict) -> CodedItem | None:
         questionnaire = ((data.get("questionnaire") or {}).get("extra")) or {}
         if not questionnaire:
             return None
+
+        # Fetch full questionnaire definition from Canvas SDK to get complete option labels
+        option_labels = cls._fetch_complete_option_labels(questionnaire["pk"])
 
         questions: list[Question] = []
         for question in questionnaire.get("questions", []):
@@ -47,11 +81,18 @@ class BaseQuestionnaire(Base):
             elif question_type == QuestionType.TYPE_TEXT:
                 default = {"value": ""}
 
-            options = {
-                str(o["pk"]): {"dbid": o["pk"], "value": o["label"], "selected": False} | default
-                for o in question["options"]
-                if (o.get("label") or "").strip()
-            }
+            # Build options, using full definition labels as fallback for empty staged labels
+            options = {}
+            for o in question["options"]:
+                staged_label = (o.get("label") or "").strip()
+                full_label = option_labels.get(o["pk"], "")
+
+                # Use staged label if present, otherwise fall back to full definition label
+                final_label = staged_label or full_label
+
+                # Only include option if we have a label from either source
+                if final_label:
+                    options[str(o["pk"])] = {"dbid": o["pk"], "value": final_label, "selected": False} | default
 
             answers = data.get(question["name"])  # should be data.get(f'question-{question["pk"]}')
             if isinstance(answers, list):
