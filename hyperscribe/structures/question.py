@@ -59,22 +59,7 @@ class Question(NamedTuple):
     def load_from_llm(cls, data: dict) -> Question:
         mapping = {v: k for k, v in QuestionType.llm_readable().items()}
 
-        # Load responses and validate that unlabeled options are not selected
-        responses = []
-        for response_data in data["responses"]:
-            response = Response.load_from_llm(response_data)
-
-            # If this is an unlabeled option and it was selected by the LLM, reject the selection
-            if response.selected and isinstance(response.value, str) and response.value.startswith("[Unlabeled Option"):
-                # Keep the response but force selected to False
-                response = Response(
-                    dbid=response.dbid,
-                    value=response.value,
-                    selected=False,  # Override LLM's selection
-                    comment=response.comment,
-                )
-
-            responses.append(response)
+        responses = [Response.load_from_llm(response_data) for response_data in data["responses"]]
 
         return Question(
             dbid=data["questionId"],

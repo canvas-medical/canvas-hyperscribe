@@ -48,13 +48,9 @@ class BaseQuestionnaire(Base):
                 default = {"value": ""}
 
             options = {
-                str(o["pk"]): {
-                    "dbid": o["pk"],
-                    "value": (o.get("label") or "").strip() or f"[Unlabeled Option {o['pk']}]",
-                    "selected": False,
-                }
-                | default
+                str(o["pk"]): {"dbid": o["pk"], "value": o["label"], "selected": False} | default
                 for o in question["options"]
+                if (o.get("label") or "").strip()
             }
 
             answers = data.get(question["name"])  # should be data.get(f'question-{question["pk"]}')
@@ -102,14 +98,7 @@ class BaseQuestionnaire(Base):
                     "type": "object",
                     "properties": {
                         "responseId": {"type": "integer"},
-                        "value": {
-                            "type": "string",
-                            "description": (
-                                "The label for this response option. "
-                                "Values starting with '[Unlabeled Option' indicate "
-                                "missing data and should not be selected."
-                            ),
-                        },
+                        "value": {"type": "string"},
                         "selected": {"type": "boolean"},
                         "comment": {"type": "string", "description": "any relevant information expanding the answer"},
                     },
@@ -227,11 +216,6 @@ class BaseQuestionnaire(Base):
                 "Your task is to identifying from the transcript which questions the healthcare provider is "
                 "referencing and what responses the patient is giving.",
                 "Since this is only a part of the transcript, it may have no reference to the questionnaire at all.",
-                "",
-                "IMPORTANT: If you encounter response options with labels starting with '[Unlabeled Option', "
-                "these indicate missing data in the source system. Do NOT select these options. "
-                "Only select response options with valid, descriptive labels that clearly match the clinical context. "
-                "If all options are unlabeled, leave the question unmodified.",
                 "",
                 "Your response must be the JSON Markdown block of the questionnaire, with all the necessary "
                 "changes to reflect the transcript content.",
