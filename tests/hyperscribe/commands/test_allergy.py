@@ -298,7 +298,13 @@ def test_instruction_constraints(current_allergies):
         CodedItem(uuid="theUuid2", label="display2a", code="CODE45"),
         CodedItem(uuid="theUuid3", label="display3a", code="CODE9876"),
     ]
-    tests = [(allergies, "'Allergy' cannot include: display1a, display2a, display3a."), ([], "")]
+    tests = [
+        (
+            allergies,
+            "Only document 'Allergy' for allergies outside the following list: display1a, display2a, display3a.",
+        ),
+        ([], ""),
+    ]
     for side_effect, expected in tests:
         current_allergies.side_effect = [side_effect]
         result = tested.instruction_constraints()

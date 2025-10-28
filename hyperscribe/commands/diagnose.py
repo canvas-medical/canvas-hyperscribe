@@ -119,7 +119,7 @@ class Diagnose(Base):
     def instruction_constraints(self) -> str:
         result = ""
         if text := ", ".join([f"{condition.label}" for condition in self.cache.current_conditions()]):
-            result = f"'{self.class_name()}' cannot include: {text}."
+            result = f"Only document '{self.class_name()}' for conditions outside the following list: {text}."
         return result
 
     def is_available(self) -> bool:

@@ -259,7 +259,13 @@ def test_instruction_constraints(current_medications):
             potency_unit_code="puc3",
         ),
     ]
-    tests = [(medications, "'Medication' cannot include: display1, display2, display3."), ([], "")]
+    tests = [
+        (
+            medications,
+            "Only document 'Medication' for medications outside the following list: display1, display2, display3.",
+        ),
+        ([], ""),
+    ]
     for side_effect, expected in tests:
         current_medications.side_effect = [side_effect]
         result = tested.instruction_constraints()

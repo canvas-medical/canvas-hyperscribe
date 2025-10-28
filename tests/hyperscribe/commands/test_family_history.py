@@ -225,7 +225,14 @@ def test_instruction_constraints(family_history):
         CodedItem(uuid="theUuid2", label="display2a", code="CODE45"),
         CodedItem(uuid="theUuid3", label="display3a", code="CODE9876"),
     ]
-    tests = [(allergies, '"FamilyHistory" cannot include: display1a, display2a, display3a.'), ([], "")]
+    tests = [
+        (
+            allergies,
+            "Only document 'FamilyHistory' for information outside the following list: "
+            "display1a, display2a, display3a.",
+        ),
+        ([], ""),
+    ]
     for side_effect, expected in tests:
         family_history.side_effect = [side_effect]
         result = tested.instruction_constraints()

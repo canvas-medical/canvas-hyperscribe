@@ -110,7 +110,7 @@ class Goal(Base):
     def instruction_constraints(self) -> str:
         result = ""
         if text := ", ".join([f'"{goal.label}"' for goal in self.cache.current_goals()]):
-            result = f'"{self.class_name()}" cannot include: {text}'
+            result = f"Only document '{self.class_name()}' for goals outside the following list: {text}."
         return result
 
     def is_available(self) -> bool:

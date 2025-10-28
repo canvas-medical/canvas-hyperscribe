@@ -297,8 +297,18 @@ def test_instruction_constraints(condition_history, current_conditions):
         CodedItem(uuid="theUuid3", label="display3a", code="CODE98.76"),
     ]
     tests = [
-        (conditions, [], "'MedicalHistory' cannot include: display1a, display2a, display3a."),
-        (conditions[:1], conditions[1:], "'MedicalHistory' cannot include: display1a, display2a, display3a."),
+        (
+            conditions,
+            [],
+            "Only document 'MedicalHistory' for conditions outside the following list: "
+            "display1a, display2a, display3a.",
+        ),
+        (
+            conditions[:1],
+            conditions[1:],
+            "Only document 'MedicalHistory' for conditions outside the following list: "
+            "display1a, display2a, display3a.",
+        ),
         ([], [], ""),
     ]
     for history, current, expected in tests:
