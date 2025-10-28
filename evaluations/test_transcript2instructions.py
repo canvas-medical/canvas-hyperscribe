@@ -35,7 +35,7 @@ def runner_transcript2instructions(
     for idx, instruction in enumerate(instructions):
         instruction.uuid = f"id{idx:02d}"
     expected = Instruction.load_from_json(content["instructions"]["result"])
-    response = audio_interpreter.detect_instructions(lines, instructions)
+    response = audio_interpreter.detect_instructions_per_section(lines, instructions)
 
     result = Instruction.load_from_json(response)
     assert len(result) == len(expected), (

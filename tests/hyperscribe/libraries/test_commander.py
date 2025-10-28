@@ -829,7 +829,7 @@ def test_transcript2commands_common(time, memory_log, progress):
         mock_chatter.settings = settings
         mock_chatter.s3_credentials = "awsS3"
 
-        mock_chatter.detect_instructions.side_effect = [
+        mock_chatter.detect_instructions_per_section.side_effect = [
             [
                 {
                     "uuid": "uuidA",
@@ -937,7 +937,7 @@ def test_transcript2commands_common(time, memory_log, progress):
         ]
         assert mock_auditor.mock_calls == calls
         calls = [
-            call.detect_instructions(transcript, previous_instructions),
+            call.detect_instructions_per_section(transcript, previous_instructions),
             call.create_sdk_command_parameters(exp_instructions[0]),
             call.create_sdk_command_parameters(exp_instructions[2]),
             call.create_sdk_command_parameters(exp_instructions[3]),
@@ -1007,7 +1007,7 @@ def test_transcript2commands_common(time, memory_log, progress):
     mock_chatter.settings = settings
     mock_chatter.s3_credentials = "awsS3"
 
-    mock_chatter.detect_instructions.side_effect = [
+    mock_chatter.detect_instructions_per_section.side_effect = [
         [
             {
                 "uuid": "uuidA",
@@ -1085,7 +1085,7 @@ def test_transcript2commands_common(time, memory_log, progress):
         call.computed_commands(exp_instructions_w_commands),
     ]
     assert mock_auditor.mock_calls == calls
-    calls = [call.detect_instructions(transcript, previous_instructions)]
+    calls = [call.detect_instructions_per_section(transcript, previous_instructions)]
     assert mock_chatter.mock_calls == calls
     for mock_command in mock_commands:
         assert mock_command.mock_calls == []

@@ -1,4 +1,5 @@
 import json
+from collections import defaultdict
 from datetime import datetime
 
 from hyperscribe.commands.base import Base
@@ -19,6 +20,7 @@ from hyperscribe.structures.instruction_with_parameters import InstructionWithPa
 from hyperscribe.structures.json_extract import JsonExtract
 from hyperscribe.structures.line import Line
 from hyperscribe.structures.progress_message import ProgressMessage
+from hyperscribe.structures.section_with_transcript import SectionWithTranscript
 from hyperscribe.structures.settings import Settings
 
 
@@ -229,9 +231,124 @@ class AudioInterpreter:
             content=[{"speaker": speakers[text["voice"]], "text": text["text"]} for text in discussion],
         )
 
-    def detect_instructions(self, discussion: list[Line], known_instructions: list[Instruction]) -> list:
+    def detect_sections(self, common_instructions: list[Base], discussion: list[Line]) -> list[SectionWithTranscript]:
+        schema = self.json_schema_sections(Constants.NOTE_SECTIONS)
+        linked_command = defaultdict(list)
+        for instruction in common_instructions:
+            linked_command[instruction.note_section()].append(instruction.class_name())
+
+        system_prompt = [
+            "The conversation is in the context of a clinical encounter between patient and licensed "
+            "healthcare provider.",
+            "The user will submit a segment of the transcript of the visit of a patient with the healthcare provider.",
+            "Your task is to identify in the transcript whether it includes information related to "
+            "any of these sections:",
+            "```text",
+            f"* {Constants.NOTE_SECTION_ASSESSMENT}: any evaluations, diagnoses, or impressions made by "
+            "the provider about the patient's condition - "
+            f"linked commands: {linked_command[Constants.NOTE_SECTION_ASSESSMENT]}.",
+            f"* {Constants.NOTE_SECTION_HISTORY}: any past information about the patient's medical, "
+            "family, or social history that is not part of the current reason for visit - "
+            f"linked commands: {linked_command[Constants.NOTE_SECTION_HISTORY]}.",
+            f"* {Constants.NOTE_SECTION_OBJECTIVE}: any measurable or observable data such as physical exam findings,"
+            f" test results, or vital signs - linked commands: {linked_command[Constants.NOTE_SECTION_OBJECTIVE]}.",
+            f"* {Constants.NOTE_SECTION_PLAN}: any intended future actions such as treatments, follow-ups, "
+            f"prescriptions, or referrals - linked commands: {linked_command[Constants.NOTE_SECTION_PLAN]}.",
+            f"* {Constants.NOTE_SECTION_PROCEDURES}: any actions that have already been performed on the patient "
+            "during the encounter (e.g. immunizations, suturing) - "
+            f"linked commands: {linked_command[Constants.NOTE_SECTION_PROCEDURES]}.",
+            f"* {Constants.NOTE_SECTION_SUBJECTIVE}: any information describing the patient's current concerns, "
+            "symptoms, or the stated reason for visit (e.g. 'follow-up visit', 'check-up', 'here for cough', "
+            f"'experiencing pain' - linked commands: {linked_command[Constants.NOTE_SECTION_SUBJECTIVE]}.",
+            "```",
+            "",
+            "Your response must be a JSON Markdown block validated with the schema:",
+            "```json",
+            json.dumps(schema),
+            "```",
+            "",
+        ]
+        user_prompt = [
+            "Below is the most recent segment of the transcript of the visit of a patient with a healthcare provider.",
+            "What are the sections present in the transcript?",
+            "```json",
+            json.dumps([speaker.to_json() for speaker in discussion], indent=1),
+            "```",
+            "",
+        ]
+        memory_log = MemoryLog.instance(self.identification, "transcript2sections", self.s3_credentials)
+        chatter = Helper.chatter(self.settings, memory_log)
+        return SectionWithTranscript.load_from(
+            chatter.single_conversation(
+                system_prompt,
+                user_prompt,
+                [schema],
+                None,
+            )
+        )
+
+    def detect_instructions_per_section(self, discussion: list[Line], known_instructions: list[Instruction]) -> list:
+        result: list = []
         common_instructions = self.common_instructions()
-        schema = self.json_schema([item.class_name() for item in common_instructions])
+        detected_sections = self.detect_sections(common_instructions, discussion)
+
+        # keep the instructions which are not part of the detected sections
+        section_names = [detected.section for detected in detected_sections]
+        no_section_instructions_names = [
+            instruction.class_name()
+            for instruction in common_instructions
+            if instruction.note_section() not in section_names
+        ]
+
+        no_section_known_instructions = [
+            instruction
+            for instruction in known_instructions
+            if instruction.instruction in no_section_instructions_names
+        ]
+        for idx, instruction in enumerate(no_section_known_instructions):
+            result.append(instruction.to_json(True) | {"index": idx})
+
+        # detect the instruction for each section
+        for detected in detected_sections:
+            # select the known instructions related to the section
+            section_instructions = [
+                instruction for instruction in common_instructions if instruction.note_section() == detected.section
+            ]
+            section_instructions_names = [instruction.class_name() for instruction in section_instructions]
+            section_known_instructions = [
+                instruction
+                for instruction in known_instructions
+                if instruction.instruction in section_instructions_names
+            ]
+            # detect the upserted instructions
+            found_instructions = self.detect_instructions(
+                detected.transcript,
+                section_known_instructions,
+                section_instructions,
+                detected.section,
+            )
+            # prevent uuid or index collisions
+            count = len(result)
+            other_sections_uuids = [
+                instruction["uuid"]
+                for instruction in result
+                if instruction["instruction"] not in section_instructions_names
+            ]
+            for idx, instruction in enumerate(found_instructions):
+                if instruction["uuid"] in other_sections_uuids:
+                    instruction["uuid"] = f"instruction-{count + idx:03d}"
+                result.append(instruction | {"index": count + idx})
+
+        return result
+
+    def detect_instructions(
+        self,
+        discussion: list[Line],
+        known_instructions: list[Instruction],
+        common_instructions: list[Base],
+        section: str,
+    ) -> list:
+        schema = self.json_schema_instructions([item.class_name() for item in common_instructions])
         definitions = [
             {"instruction": item.class_name(), "information": item.instruction_description()}
             for item in common_instructions
@@ -291,7 +408,7 @@ class AudioInterpreter:
             )
         chatter = Helper.chatter(
             self.settings,
-            MemoryLog.instance(self.identification, "transcript2instructions", self.s3_credentials),
+            MemoryLog.instance(self.identification, f"transcript2instructions:{section}", self.s3_credentials),
         )
         result = chatter.single_conversation(system_prompt, user_prompt, [schema], None)
 
@@ -430,9 +547,13 @@ class AudioInterpreter:
         return None
 
     @classmethod
-    def json_schema(cls, commands: list[str]) -> dict:
+    def json_schema_instructions(cls, commands: list[str]) -> dict:
         properties = {
-            "uuid": {"type": "string", "description": "a unique identifier in this discussion"},
+            "uuid": {
+                "type": "string",
+                "description": "a unique identifier in this discussion",
+                "pattern": "^1a2b3c4d-\\d{4}$",
+            },
             "index": {
                 "type": "integer",
                 "description": "the 0-based appearance order of the instruction in this discussion",
@@ -455,4 +576,35 @@ class AudioInterpreter:
             "$schema": "http://json-schema.org/draft-07/schema#",
             "type": "array",
             "items": {"type": "object", "properties": properties, "required": required, "additionalProperties": False},
+        }
+
+    @classmethod
+    def json_schema_sections(cls, sections: list[str]) -> dict:
+        return {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "array",
+            "minItems": 1,
+            "items": {
+                "type": "object",
+                "properties": {
+                    "section": {
+                        "type": "string",
+                        "enum": sections,
+                    },
+                    "transcript": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "speaker": {"type": "string", "minLength": 1},
+                                "text": {"type": "string", "minLength": 1},
+                            },
+                            "required": ["speaker", "text"],
+                            "additionalProperties": False,
+                        },
+                    },
+                },
+                "required": ["section", "transcript"],
+                "additionalProperties": False,
+            },
         }

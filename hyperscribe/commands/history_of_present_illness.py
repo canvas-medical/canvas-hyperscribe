@@ -15,7 +15,7 @@ class HistoryOfPresentIllness(Base):
 
     @classmethod
     def note_section(cls) -> str:
-        return Constants.SECTION_SUBJECTIVE
+        return Constants.NOTE_SECTION_SUBJECTIVE
 
     @classmethod
     def staged_command_extract(cls, data: dict) -> None | CodedItem:

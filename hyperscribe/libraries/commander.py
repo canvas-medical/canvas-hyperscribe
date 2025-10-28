@@ -195,7 +195,7 @@ class Commander(BaseProtocol):
 
         start = time()
         # detect the instructions based on the transcript and the existing commands
-        response = chatter.detect_instructions(transcript, instructions)
+        response = chatter.detect_instructions_per_section(transcript, instructions)
         cumulated_instructions = Instruction.load_from_json(response)
         auditor.found_instructions(transcript, instructions, cumulated_instructions)
         memory_log.output(f"--> instructions: {len(cumulated_instructions)}")

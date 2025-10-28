@@ -20,7 +20,7 @@ class UpdateDiagnose(Base):
 
     @classmethod
     def note_section(cls) -> str:
-        return Constants.SECTION_ASSESSMENT
+        return Constants.NOTE_SECTION_ASSESSMENT
 
     @classmethod
     def staged_command_extract(cls, data: dict) -> None | CodedItem:
