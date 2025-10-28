@@ -144,7 +144,7 @@ class Prescription(BasePrescription):
                     "type": ["string", "null"],
                     "description": "The condition for which the medication is prescribed, "
                     "or null if not related to any condition",
-                    "enum": conditions,
+                    "enum": conditions + [None],
                 },
                 "conditionIndex": {
                     "type": "integer",

@@ -68,7 +68,7 @@ class Assess(Base):
                         "condition": {
                             "type": ["string", "null"],  # could be null if the condition is not committed yet
                             "description": "The condition to assess",
-                            "enum": conditions,
+                            "enum": conditions + [None],
                         },
                         "conditionIndex": {
                             "type": "integer",
