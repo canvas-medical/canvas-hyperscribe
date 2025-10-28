@@ -17,6 +17,10 @@ class Perform(Base):
         return Constants.SCHEMA_KEY_PERFORM
 
     @classmethod
+    def note_section(cls) -> str:
+        return Constants.SECTION_PROCEDURES
+
+    @classmethod
     def staged_command_extract(cls, data: dict) -> None | CodedItem:
         notes = data.get("notes") or "n/a"
         if text := (data.get("perform") or {}).get("text"):

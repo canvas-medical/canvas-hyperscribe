@@ -52,6 +52,13 @@ def test_schema_key():
     assert result == expected
 
 
+def test_note_section():
+    tested = Assess
+    result = tested.note_section()
+    expected = "Assessment"
+    assert result == expected
+
+
 def test_staged_command_extract():
     tested = Assess
     tests = [
@@ -176,7 +183,7 @@ def test_command_parameters_schemas(current_conditions):
                     },
                     "condition": {
                         "description": "The condition to assess",
-                        "enum": ["display1a", "display2a", "display3a"],
+                        "enum": ["display1a", "display2a", "display3a", None],
                         "type": ["string", "null"],
                     },
                     "conditionIndex": {

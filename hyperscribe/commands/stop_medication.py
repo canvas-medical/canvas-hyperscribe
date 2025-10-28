@@ -14,6 +14,10 @@ class StopMedication(Base):
         return Constants.SCHEMA_KEY_STOP_MEDICATION
 
     @classmethod
+    def note_section(cls) -> str:
+        return Constants.SECTION_PLAN
+
+    @classmethod
     def staged_command_extract(cls, data: dict) -> None | CodedItem:
         rationale = data.get("rationale") or "n/a"
         if medication := (data.get("medication") or {}).get("text"):

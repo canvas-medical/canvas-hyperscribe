@@ -14,6 +14,10 @@ class ReasonForVisit(Base):
         return Constants.SCHEMA_KEY_REASON_FOR_VISIT
 
     @classmethod
+    def note_section(cls) -> str:
+        return Constants.SECTION_SUBJECTIVE
+
+    @classmethod
     def staged_command_extract(cls, data: dict) -> None | CodedItem:
         reason_for_visit = data.get("comment")
         if text := (data.get("coding") or {}).get("text"):

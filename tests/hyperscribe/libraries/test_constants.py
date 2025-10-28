@@ -83,6 +83,13 @@ def test_constants():
         "SCHEMA_KEY_UPDATE_GOAL": "updateGoal",
         "SCHEMA_KEY_VITALS": "vitals",
         #
+        "SECTION_ASSESSMENT": "Assessment",
+        "SECTION_HISTORY": "History",
+        "SECTION_OBJECTIVE": "Objective",
+        "SECTION_PLAN": "Plan",
+        "SECTION_PROCEDURES": "Procedures",
+        "SECTION_SUBJECTIVE": "Subjective",
+        #
         "CUSTOMER_IDENTIFIER": "CUSTOMER_IDENTIFIER",
         #
         "SECRET_API_SIGNING_KEY": "APISigningKey",

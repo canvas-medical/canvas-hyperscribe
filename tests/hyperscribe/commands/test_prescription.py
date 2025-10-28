@@ -55,6 +55,13 @@ def test_schema_key():
     assert result == expected
 
 
+def test_note_section():
+    tested = Prescription
+    result = tested.note_section()
+    expected = "Plan"
+    assert result == expected
+
+
 def test_staged_command_extract():
     tested = Prescription
     tests = [
@@ -411,7 +418,7 @@ def test_command_parameters_schemas(current_conditions):
                     "condition": {
                         "description": "The condition for which the medication is prescribed, or "
                         "null if not related to any condition",
-                        "enum": ["display1a", "display2a", "display3a"],
+                        "enum": ["display1a", "display2a", "display3a", None],
                         "type": ["string", "null"],
                     },
                     "conditionIndex": {

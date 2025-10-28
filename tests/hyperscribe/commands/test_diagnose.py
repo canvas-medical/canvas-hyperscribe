@@ -56,6 +56,13 @@ def test_schema_key():
     assert result == expected
 
 
+def test_note_section():
+    tested = Diagnose
+    result = tested.note_section()
+    expected = "Assessment"
+    assert result == expected
+
+
 def test_staged_command_extract():
     tested = Diagnose
     tests = [
