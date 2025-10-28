@@ -1954,7 +1954,6 @@ def test_json_schema_instructions():
                 "uuid": {
                     "description": "a unique identifier in this discussion",
                     "type": "string",
-                    "pattern": "^1a2b3c4d-\\d{4}$",
                 },
             },
             "required": ["uuid", "index", "instruction", "information", "isNew", "isUpdated"],

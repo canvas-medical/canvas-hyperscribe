@@ -552,7 +552,6 @@ class AudioInterpreter:
             "uuid": {
                 "type": "string",
                 "description": "a unique identifier in this discussion",
-                "pattern": "^1a2b3c4d-\\d{4}$",
             },
             "index": {
                 "type": "integer",
