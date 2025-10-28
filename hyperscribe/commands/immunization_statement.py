@@ -89,8 +89,14 @@ class ImmunizationStatement(Base):
             schemas = JsonSchema.get(["selector_immunization_codes"])
             if response := chatter.single_conversation(system_prompt, user_prompt, schemas, instruction):
                 immunization = response[0]
-                result.cpt_code = str(immunization["cptCode"])
-                result.cvx_code = str(immunization["cvxCode"])
+                # cpt_code and cvx_code have to be set at the same time
+                result = ImmunizationStatementCommand(
+                    cpt_code=str(immunization["cptCode"]),
+                    cvx_code=str(immunization["cvxCode"]),
+                    comments=result.comments,
+                    approximate_date=result.approximate_date,
+                    note_uuid=result.note_uuid,
+                )
                 self.add_code2description(str(immunization["cptCode"]), immunization["label"])
                 self.add_code2description(str(immunization["cvxCode"]), immunization["label"])
 
@@ -128,6 +134,7 @@ class ImmunizationStatement(Base):
                         "comments": {
                             "type": "string",
                             "description": "provided information related to the immunization, as free text",
+                            "maxLength": 255,
                         },
                     },
                     "required": ["keywords", "onDate", "comments"],

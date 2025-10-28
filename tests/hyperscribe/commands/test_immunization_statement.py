@@ -343,6 +343,7 @@ def test_command_parameters_schemas():
                     "comments": {
                         "type": "string",
                         "description": "provided information related to the immunization, as free text",
+                        "maxLength": 255,
                     },
                 },
                 "required": ["keywords", "onDate", "comments"],
