@@ -45,7 +45,7 @@ class UpdateDiagnose(Base):
             <= (idx := instruction.parameters["previousConditionIndex"])
             < len(current := self.cache.current_conditions())
         ):
-            result.condition_code = current[idx].code
+            result.condition_code = Helper.icd10_strip_dot(current[idx].code)
             self.add_code2description(current[idx].uuid, current[idx].label)
 
         # retrieve existing conditions defined in Canvas Science

@@ -170,7 +170,7 @@ def test_command_from_json(add_code2description, current_conditions, search_cond
 
     tests = [
         (1, "CODE45", [call("theUuid2", "display2a"), call("code369", "labelB")]),
-        (2, "CODE98.76", [call("theUuid3", "display3a"), call("code369", "labelB")]),
+        (2, "CODE9876", [call("theUuid3", "display3a"), call("code369", "labelB")]),
         (4, None, [call("code369", "labelB")]),
     ]
     for idx, exp_current_icd10, exp_calls in tests:
