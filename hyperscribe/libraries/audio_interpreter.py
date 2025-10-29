@@ -384,6 +384,9 @@ class AudioInterpreter:
             transcript,
             "```",
             "",
+            "List all possible instructions as a text, and then, in a JSON markdown block, "
+            "respond with the found instructions as requested",
+            "",
         ]
         if known_instructions:
             content = [instruction.to_json(True) for instruction in known_instructions]
@@ -430,10 +433,9 @@ class AudioInterpreter:
             for constraint in constraints:
                 user_prompt.append(f" * {constraint}")
             user_prompt.append("")
-            user_prompt.append(
-                "Return the original JSON if valid, or provide a corrected version to follow the constraints "
-                "if needed.",
-            )
+            user_prompt.append("First, review carefully your response against the constraints.")
+            user_prompt.append("Then, return the original JSON if it doesn't infringe the constraints.")
+            user_prompt.append("Or provide a corrected version to follow the constraints if needed.")
             user_prompt.append("")
             result = chatter.single_conversation(system_prompt, user_prompt, [schema], None)
         return result
