@@ -1217,6 +1217,9 @@ def test_detect_instructions(json_schema, instruction_constraints, chatter, memo
             "\n]",
             "```",
             "",
+            "List all possible instructions as a text, and then, in a JSON markdown block, "
+            "respond with the found instructions as requested",
+            "",
         ],
         "withKnownInstructions": [
             "Below is the most recent segment of the transcript of the visit of a patient with a healthcare provider.",
@@ -1228,6 +1231,9 @@ def test_detect_instructions(json_schema, instruction_constraints, chatter, memo
             '\n {\n  "speaker": "personA",\n  "text": "the text 3"\n }'
             "\n]",
             "```",
+            "",
+            "List all possible instructions as a text, and then, in a JSON markdown block, "
+            "respond with the found instructions as requested",
             "",
             "From among all previous segments of the transcript, the following instructions were identified:",
             "```json",
@@ -1258,7 +1264,9 @@ def test_detect_instructions(json_schema, instruction_constraints, chatter, memo
             " * theConstraint1",
             " * theConstraint2",
             "",
-            "Return the original JSON if valid, or provide a corrected version to follow the constraints if needed.",
+            "First, review carefully your response against the constraints.",
+            "Then, return the original JSON if it doesn't infringe the constraints.",
+            "Or provide a corrected version to follow the constraints if needed.",
             "",
         ],
         "withMissingInstructions": [
