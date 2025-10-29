@@ -1,0 +1,7 @@
+[
+  {
+    "speaker": "doctor",
+    "text": "The patient's mixed hyperlipidemia has completely resolved with diet and medication, so we can mark this condition as resolved.",
+    "commands": "resolve_condition"
+  }
+]

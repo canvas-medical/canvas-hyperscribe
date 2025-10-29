@@ -1,0 +1,7 @@
+[
+  {
+    "speaker": "doctor",
+    "text": "I am adjusting the Lipitor dosage from 20 mg to 40 mg daily.",
+    "commands": "adjust_prescription"
+  }
+]

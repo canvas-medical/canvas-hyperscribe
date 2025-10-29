@@ -1,0 +1,7 @@
+[
+  {
+    "speaker": "doctor",
+    "text": "The patient mentions that his father had coronary artery disease.",
+    "commands": "family_history"
+  }
+]

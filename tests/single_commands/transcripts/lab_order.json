@@ -1,0 +1,7 @@
+[
+  {
+    "speaker": "doctor",
+    "text": "I am ordering a complete blood count and comprehensive metabolic panel.",
+    "commands": "lab_order"
+  }
+]

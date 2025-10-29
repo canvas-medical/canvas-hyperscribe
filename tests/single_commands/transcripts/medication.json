@@ -1,0 +1,7 @@
+[
+  {
+    "speaker": "doctor",
+    "text": "The patient is currently taking aspirin 81 mg daily for cardiovascular protection.",
+    "commands": "medication"
+  }
+]

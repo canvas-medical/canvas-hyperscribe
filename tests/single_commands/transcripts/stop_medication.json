@@ -1,0 +1,7 @@
+[
+  {
+    "speaker": "doctor",
+    "text": "I am discontinuing the patient's Zetia as their lipid levels have improved significantly.",
+    "commands": "stop_medication"
+  }
+]

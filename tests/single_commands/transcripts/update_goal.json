@@ -1,0 +1,7 @@
+[
+  {
+    "speaker": "doctor",
+    "text": "I am updating the nutrition goal to include avoiding processed foods as well.",
+    "commands": "update_goal"
+  }
+]

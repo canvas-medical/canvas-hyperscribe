@@ -1,0 +1,7 @@
+[
+  {
+    "speaker": "doctor",
+    "text": "I am updating the diagnosis for the patient's Type 2 diabetes mellitus to include diabetic neuropathy.",
+    "commands": "update_diagnose"
+  }
+]

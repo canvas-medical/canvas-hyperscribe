@@ -1,0 +1,1721 @@
+{
+  "stagedCommands": {},
+  "settings": {
+    "preferredLabPartner": "Generic Lab",
+    "serviceAreaZipCodes": [
+      "95476",
+      "9547685001",
+      "63105",
+      "11201",
+      "77001",
+      "22201",
+      "90009-8989",
+      "22201",
+      "96859-5000",
+      "94102",
+      "94104",
+      "94103",
+      "94105",
+      "94108",
+      "94107",
+      "94110",
+      "94109",
+      "94112",
+      "94111",
+      "94115",
+      "94114",
+      "94117",
+      "94116",
+      "94118",
+      "94121",
+      "94123",
+      "94122",
+      "94124",
+      "94127",
+      "94126",
+      "94129",
+      "94131",
+      "94133",
+      "94132",
+      "94134",
+      "94139",
+      "94143",
+      "94151",
+      "94159",
+      "94158",
+      "94188",
+      "94177"
+    ]
+  },
+  "demographicStr": "the patient is a man, born on <DOB REDACTED> (age 43) and weight 200.56 pounds",
+  "conditionHistory": [],
+  "currentAllergies": [
+    {
+      "uuid": "edc21500-a861-4b96-bc45-65a9a5287244",
+      "label": "lactose",
+      "code": "2432"
+    },
+    {
+      "uuid": "dd5cc550-2047-454e-a920-929b47e2b2f2",
+      "label": "penicillin G sodium",
+      "code": "8228"
+    }
+  ],
+  "currentConditions": [
+    {
+      "uuid": "ec22e067-b7ec-492f-863a-698412af0ab2",
+      "label": "Mixed hyperlipidemia",
+      "code": "E78.2"
+    },
+    {
+      "uuid": "649a3569-8157-4081-a79a-38c976d2334a",
+      "label": "Type 2 diabetes mellitus with other specified complication",
+      "code": "E11.69"
+    },
+    {
+      "uuid": "2e48c660-ac2e-4d84-a612-f953a0ad4e5f",
+      "label": "Essential (primary) hypertension",
+      "code": "I10"
+    }
+  ],
+  "currentGoals": [
+    {
+      "uuid": "b7909e75-fbd7-4fc8-aa82-b744adfc32ce",
+      "label": "Adapt the nutrition to avoid sugar",
+      "code": "46"
+    }
+  ],
+  "currentImmunization": [],
+  "currentMedications": [
+    {
+      "uuid": "9557b971-05c2-454c-9764-b75153c4ea32",
+      "label": "Zetia 10 mg tablet",
+      "codeRxNorm": "349556",
+      "codeFdb": "446641",
+      "nationalDrugCode": "78206017801",
+      "potencyUnitCode": "C48542"
+    },
+    {
+      "uuid": "907f35f7-a418-4a37-8bb7-253bee42d6aa",
+      "label": "Lipitor 20 mg tablet",
+      "codeRxNorm": "617310",
+      "codeFdb": "209964",
+      "nationalDrugCode": "58151015677",
+      "potencyUnitCode": "C48542"
+    },
+    {
+      "uuid": "3b893df3-8b25-42b4-93c5-247bc318bba4",
+      "label": "liraglutide 0.6 mg/0.1 mL (18 mg/3 mL) subcutaneous pen injector",
+      "codeRxNorm": "897122",
+      "codeFdb": "560349",
+      "nationalDrugCode": "00143914402",
+      "potencyUnitCode": "C28254"
+    },
+    {
+      "uuid": "092ecb0f-6d82-41ac-9bc1-762a688c6b7e",
+      "label": "metformin 500 mg tablet",
+      "codeRxNorm": "861007",
+      "codeFdb": "155744",
+      "nationalDrugCode": "59651085401",
+      "potencyUnitCode": "C48542"
+    }
+  ],
+  "existingNoteTypes": [
+    {
+      "uuid": "23efddb4-a35b-4230-8307-958412909588",
+      "label": "Generic event",
+      "code": "272379006"
+    },
+    {
+      "uuid": "af676763-c5c4-46c2-9e45-8a5a4978d00d",
+      "label": "Telehealth",
+      "code": "448337001"
+    },
+    {
+      "uuid": "f36d2270-0236-4011-a5a3-9fffd0d40522",
+      "label": "Phone call",
+      "code": "185317003"
+    },
+    {
+      "uuid": "f1b72dff-1c9e-45bd-8cc6-429f0b8ddf06",
+      "label": "Home visit",
+      "code": "439708006"
+    },
+    {
+      "uuid": "a48efbb6-1140-4925-b566-7cc3e6009f8e",
+      "label": "Lab visit",
+      "code": "31108002"
+    },
+    {
+      "uuid": "e7fd7cce-598c-4d39-af46-63247df37344",
+      "label": "Office visit",
+      "code": "308335008"
+    }
+  ],
+  "existingReasonForVisit": [
+    {
+      "uuid": "e7b00211-254f-45e6-9b15-c049a02475ef",
+      "label": "Emergency Visit",
+      "code": "123459"
+    },
+    {
+      "uuid": "552e61e5-2b6c-45d8-bbf2-9cb34b8594e9",
+      "label": "First Visit",
+      "code": "123458"
+    },
+    {
+      "uuid": "8d3ee666-2e71-437d-b793-f8da64e0c294",
+      "label": "Follow Up",
+      "code": "123457"
+    },
+    {
+      "uuid": "b3bd4107-a721-4da6-a560-d6fbd43cc101",
+      "label": "Winter Visit (Cough, Fever)",
+      "code": "123456"
+    },
+    {
+      "uuid": "7d5314d3-9ee1-496f-bbd6-fb2bab5660e4",
+      "label": "Acute exacerbation of chronic latent schizophrenia (disorder)",
+      "code": "191564007"
+    },
+    {
+      "uuid": "26722636-6f41-40e3-af64-1e31b0054e66",
+      "label": "Homoiothermia",
+      "code": "129007"
+    },
+    {
+      "uuid": "02c6b9d5-68e0-41c8-a39e-05340646ec19",
+      "label": "Anxiety disorder of childhood OR adolescence",
+      "code": "109006"
+    },
+    {
+      "uuid": "b0d56b01-4134-4f7e-b1da-c7f8bb40e2e4",
+      "label": "Accident-prone",
+      "code": "165002"
+    }
+  ],
+  "existingRoles": [
+    {
+      "uuid": "1",
+      "label": "Primary care physician",
+      "code": ""
+    }
+  ],
+  "existingStaffMembers": [
+    {
+      "uuid": "4",
+      "label": "Ninad Athale (Clinical/Provider)",
+      "code": ""
+    },
+    {
+      "uuid": "1",
+      "label": "Canvas Bot (Clinical/Non-Licensed)",
+      "code": ""
+    },
+    {
+      "uuid": "21",
+      "label": "Michael Brown",
+      "code": ""
+    },
+    {
+      "uuid": "8",
+      "label": "Pat Byrnes (Clinical/Non-Licensed)",
+      "code": ""
+    },
+    {
+      "uuid": "14",
+      "label": "Andrea Franchett (Clinical/Provider)",
+      "code": ""
+    },
+    {
+      "uuid": "9",
+      "label": "Beau Gunderson (Clinical/Non-Licensed)",
+      "code": ""
+    },
+    {
+      "uuid": "16",
+      "label": "Kellan Hickman (Hybrid/Non-Licensed)",
+      "code": ""
+    },
+    {
+      "uuid": "5",
+      "label": "Annalies Hines (Clinical/Provider)",
+      "code": ""
+    },
+    {
+      "uuid": "7",
+      "label": "Andrew Hines (Clinical/Non-Licensed)",
+      "code": ""
+    },
+    {
+      "uuid": "20",
+      "label": "Emily Johnson (Clinical/Licensed)",
+      "code": ""
+    },
+    {
+      "uuid": "3",
+      "label": "Steven Magee (Clinical/Provider)",
+      "code": ""
+    },
+    {
+      "uuid": "6",
+      "label": "Erik McDonald (Clinical/Provider)",
+      "code": ""
+    },
+    {
+      "uuid": "15",
+      "label": "Shannon McLelland (Hybrid/Non-Licensed)",
+      "code": ""
+    },
+    {
+      "uuid": "19",
+      "label": "Allan Smith (Clinical/Provider)",
+      "code": ""
+    },
+    {
+      "uuid": "11",
+      "label": "Pedro Torres (Clinical/Non-Licensed)",
+      "code": ""
+    },
+    {
+      "uuid": "18",
+      "label": "Sam Tregar (Clinical/Provider)",
+      "code": ""
+    },
+    {
+      "uuid": "17",
+      "label": "Allyn Turner (Hybrid/Non-Licensed)",
+      "code": ""
+    },
+    {
+      "uuid": "10",
+      "label": "Mel van Londen (Clinical/Non-Licensed)",
+      "code": ""
+    },
+    {
+      "uuid": "2",
+      "label": "Larry Weed (Clinical/Non-Licensed)",
+      "code": ""
+    },
+    {
+      "uuid": "12",
+      "label": "Beamer Wilkins (Clinical/Non-Licensed)",
+      "code": ""
+    },
+    {
+      "uuid": "13",
+      "label": "Michael Zimmerman (Clinical/Provider)",
+      "code": ""
+    }
+  ],
+  "existingTaskLabels": [
+    {
+      "uuid": "1",
+      "label": "Emergent",
+      "code": ""
+    },
+    {
+      "uuid": "5",
+      "label": "Encounter Copilot",
+      "code": ""
+    },
+    {
+      "uuid": "3",
+      "label": "Routine",
+      "code": ""
+    },
+    {
+      "uuid": "2",
+      "label": "Urgent",
+      "code": ""
+    }
+  ],
+  "existingTeams": [
+    {
+      "uuid": "2",
+      "label": "Administratif",
+      "code": ""
+    },
+    {
+      "uuid": "1",
+      "label": "Medical",
+      "code": ""
+    }
+  ],
+  "familyHistory": [],
+  "preferredLabPartner": {
+    "uuid": "18736b3a-31e8-4451-b80a-7876f78303c8",
+    "label": "Generic Lab",
+    "code": ""
+  },
+  "surgeryHistory": [
+    {
+      "uuid": "51870fe4-6ce5-4a6f-9e44-70bb91309f4c",
+      "label": "Coronary artery bypass grafting (procedure)",
+      "code": "232717009"
+    },
+    {
+      "uuid": "7731e66e-983a-46c2-a276-bc1a652851cc",
+      "label": "Emergency appendectomy (procedure)",
+      "code": "174036004"
+    }
+  ],
+  "chargeDescriptions": [
+    {
+      "fullName": "Anesthesia for procedures on salivary glands, including biopsy",
+      "shortName": "Anesthesia salivary glands with biopsy",
+      "cptCode": "00100"
+    },
+    {
+      "fullName": "Anesthesia for intraoral procedures, including biopsy; not otherwise specified",
+      "shortName": "Anesthesia intraoral with biopsy nos",
+      "cptCode": "00170"
+    },
+    {
+      "fullName": "Anesthesia for vaginal procedures (including biopsy of labia, vagina, cervix or endometrium); culdoscopy",
+      "shortName": "Anesthesia culdoscopy including biopsy",
+      "cptCode": "00950"
+    },
+    {
+      "fullName": "Anesthesia for diagnostic or therapeutic nerve blocks and injections (when block or injection is performed by a different physician or other qualified health care professional); other than the prone position",
+      "shortName": "Anes dx/ther nrv blk/njx oth/thn prone pos",
+      "cptCode": "01991"
+    },
+    {
+      "fullName": "Injection(s), platelet rich plasma, any site, including image guidance, harvesting and preparation when performed",
+      "shortName": "Njx pltlt plasma w/img harvest/preparation",
+      "cptCode": "0232T"
+    },
+    {
+      "fullName": "Insertion of left atrial hemodynamic monitor; complete system, includes implanted communication module and pressure sensor lead in left atrium including transseptal access, radiological supervision and interpretation, and associated injection procedures, when performed",
+      "shortName": "Ins lt atrl hemodyn motr cmplete syst w/s&i",
+      "cptCode": "0293T"
+    },
+    {
+      "fullName": "Biopsy of nail unit (eg, plate, bed, matrix, hyponychium, proximal and lateral nail folds) (separate procedure)",
+      "shortName": "Biopsy nail unit separate procedure",
+      "cptCode": "11755"
+    },
+    {
+      "fullName": "Injection, intralesional; more than 7 lesions",
+      "shortName": "Injection intralesional >7 lesions",
+      "cptCode": "11901"
+    },
+    {
+      "fullName": "Intravenous injection of agent (eg, fluorescein) to test vascular flow in flap or graft",
+      "shortName": "Iv injection test vascular flow flap/graft",
+      "cptCode": "15860"
+    },
+    {
+      "fullName": "Injection procedure only for mammary ductogram or galactogram",
+      "shortName": "Injection mammary ductogram/galactogram",
+      "cptCode": "19030"
+    },
+    {
+      "fullName": "Biopsy of breast; open, incisional",
+      "shortName": "Biopsy breast open incisional",
+      "cptCode": "19101"
+    },
+    {
+      "fullName": "Biopsy, muscle; superficial",
+      "shortName": "Biopsy muscle superficial",
+      "cptCode": "20200"
+    },
+    {
+      "fullName": "Biopsy, muscle; deep",
+      "shortName": "Biopsy muscle deep",
+      "cptCode": "20205"
+    },
+    {
+      "fullName": "Biopsy, muscle, percutaneous needle",
+      "shortName": "Biopsy muscle percutaneous needle",
+      "cptCode": "20206"
+    },
+    {
+      "fullName": "Biopsy, bone, trocar, or needle; superficial (eg, ilium, sternum, spinous process, ribs)",
+      "shortName": "Biopsy bone trocar/needle superficial",
+      "cptCode": "20220"
+    },
+    {
+      "fullName": "Biopsy, bone, trocar, or needle; deep (eg, vertebral body, femur)",
+      "shortName": "Biopsy bone trocar/needle deep",
+      "cptCode": "20225"
+    },
+    {
+      "fullName": "Biopsy, bone, open; superficial (eg, sternum, spinous process, rib, patella, olecranon process, calcaneus, tarsal, metatarsal, carpal, metacarpal, phalanx)",
+      "shortName": "Biopsy bone open superficial",
+      "cptCode": "20240"
+    },
+    {
+      "fullName": "Biopsy, bone, open; deep (eg, humeral shaft, ischium, femoral shaft)",
+      "shortName": "Biopsy bone open deep",
+      "cptCode": "20245"
+    },
+    {
+      "fullName": "Biopsy, vertebral body, open; thoracic",
+      "shortName": "Biopsy vertebral body open thoracic",
+      "cptCode": "20250"
+    },
+    {
+      "fullName": "Injection of sinus tract; diagnostic (sinogram)",
+      "shortName": "Injection sinus tract diagnostic",
+      "cptCode": "20501"
+    },
+    {
+      "fullName": "Injection, therapeutic (eg, local anesthetic, corticosteroid), carpal tunnel",
+      "shortName": "Injection therapeutic carpal tunnel",
+      "cptCode": "20526"
+    },
+    {
+      "fullName": "Injection, enzyme (eg, collagenase), palmar fascial cord (ie, Dupuytrens contracture)",
+      "shortName": "Injection enzyme palmar fascial cord",
+      "cptCode": "20527"
+    },
+    {
+      "fullName": "Injection(s); single tendon origin/insertion",
+      "shortName": "Injection single tendon origin/insertion",
+      "cptCode": "20551"
+    },
+    {
+      "fullName": "Aspiration and injection for treatment of bone cyst",
+      "shortName": "Aspiration & injection treatment bone cyst",
+      "cptCode": "20615"
+    },
+    {
+      "fullName": "Biopsy, soft tissue of neck or thorax",
+      "shortName": "Biopsy soft tissue neck/thorax",
+      "cptCode": "21550"
+    },
+    {
+      "fullName": "Biopsy, soft tissue of back or flank; deep",
+      "shortName": "Biopsy soft tissue back/flank deep",
+      "cptCode": "21925"
+    },
+    {
+      "fullName": "Biopsy, soft tissue of shoulder area; deep",
+      "shortName": "Biopsy soft tissue shoulder deep",
+      "cptCode": "23066"
+    },
+    {
+      "fullName": "Arthrotomy, glenohumeral joint, including biopsy",
+      "shortName": "Arthrotomy glenohumeral joint w/biopsy",
+      "cptCode": "23100"
+    },
+    {
+      "fullName": "Injection procedure for elbow arthrography",
+      "shortName": "Injection elbow arthrography",
+      "cptCode": "24220"
+    },
+    {
+      "fullName": "Arthrotomy, wrist joint; with biopsy",
+      "shortName": "Arthrotomy wrist joint with biopsy",
+      "cptCode": "25100"
+    },
+    {
+      "fullName": "Injection procedure for wrist arthrography",
+      "shortName": "Injection wrist arthrography",
+      "cptCode": "25246"
+    },
+    {
+      "fullName": "Arthrotomy, with biopsy; sacroiliac joint",
+      "shortName": "Arthrotomy w/biopsy sacroiliac joint",
+      "cptCode": "27050"
+    },
+    {
+      "fullName": "Arthrotomy, with biopsy; hip joint",
+      "shortName": "Arthrotomy w/biopsy hip joint",
+      "cptCode": "27052"
+    },
+    {
+      "fullName": "Injection procedure for hip arthrography; without anesthesia",
+      "shortName": "Injection hip arthrography w/o anesthesia",
+      "cptCode": "27093"
+    },
+    {
+      "fullName": "Injection procedure for hip arthrography; with anesthesia",
+      "shortName": "Injection hip arthrography w/anesthesia",
+      "cptCode": "27095"
+    },
+    {
+      "fullName": "Arthrotomy, knee; including joint exploration, biopsy, or removal of loose or foreign bodies",
+      "shortName": "Arthrt kne w/jt expl bx/rmvl loose/fb",
+      "cptCode": "27331"
+    },
+    {
+      "fullName": "Injection of contrast for knee arthrography",
+      "shortName": "Injection knee arthrography",
+      "cptCode": "27370"
+    },
+    {
+      "fullName": "Injection procedure for ankle arthrography",
+      "shortName": "Injection ankle arthrography",
+      "cptCode": "27648"
+    },
+    {
+      "fullName": "Arthrotomy with biopsy; interphalangeal joint",
+      "shortName": "Arthrtomy w/bx interphalangeal joint",
+      "cptCode": "28054"
+    },
+    {
+      "fullName": "Biopsy, intranasal",
+      "shortName": "Biopsy intranasal",
+      "cptCode": "30100"
+    },
+    {
+      "fullName": "Injection into turbinate(s), therapeutic",
+      "shortName": "Injection turbinate therapeutic",
+      "cptCode": "30200"
+    },
+    {
+      "fullName": "Sinusotomy, sphenoid, with or without biopsy;",
+      "shortName": "Sinusotomy sphenoid w/wo biopsy",
+      "cptCode": "31050"
+    },
+    {
+      "fullName": "Forceps esophageal biopsy performed (GERD)",
+      "shortName": "Forceps esophageal biopsy performed",
+      "cptCode": "3150F"
+    },
+    {
+      "fullName": "Laryngoscopy, indirect; with biopsy",
+      "shortName": "Laryngoscopy indirect w/biopsy",
+      "cptCode": "31510"
+    },
+    {
+      "fullName": "Laryngoscopy, flexible; with biopsy(ies)",
+      "shortName": "Laryngoscopy flexible w/biopsy(ies)",
+      "cptCode": "31576"
+    },
+    {
+      "fullName": "Thoracotomy, with biopsy(ies) of pleura",
+      "shortName": "Thoracotomy w/biopsy of pleura",
+      "cptCode": "32098"
+    },
+    {
+      "fullName": "Biopsy, pleura, percutaneous needle",
+      "shortName": "Biopsy pleura percutaneous needle",
+      "cptCode": "32400"
+    },
+    {
+      "fullName": "Thoracoscopy; with biopsy(ies) of pleura",
+      "shortName": "Thoracoscopy with biopsyies of pleura",
+      "cptCode": "32609"
+    },
+    {
+      "fullName": "Injection procedure for extremity venography (including introduction of needle or intracatheter)",
+      "shortName": "Njx px xtr vngrph w/intro ndl/intracath",
+      "cptCode": "36005"
+    },
+    {
+      "fullName": "Unlisted procedure, vascular injection",
+      "shortName": "Unlisted procedure vascular injection",
+      "cptCode": "36299"
+    },
+    {
+      "fullName": "Injection of sclerosing solution; single vein",
+      "shortName": "Njx sclerosing solution single vein",
+      "cptCode": "36470"
+    },
+    {
+      "fullName": "Contrast injection(s) for radiologic evaluation of existing central venous access device, including fluoroscopy, image documentation and report",
+      "shortName": "Cntrst njx rad eval ctr vad fluor img&reprt",
+      "cptCode": "36598"
+    },
+    {
+      "fullName": "Percutaneous transluminal mechanical thrombectomy, vein(s), including intraprocedural pharmacological thrombolytic injections and fluoroscopic guidance, repeat treatment on subsequent day during course of thrombolytic therapy",
+      "shortName": "Prq trluml mchnl thrmbc vein repeat tx",
+      "cptCode": "37188"
+    },
+    {
+      "fullName": "Transcatheter biopsy",
+      "shortName": "Transcatheter biopsy",
+      "cptCode": "37200"
+    },
+    {
+      "fullName": "Ligation or biopsy, temporal artery",
+      "shortName": "Ligation/biopsy temporal artery",
+      "cptCode": "37609"
+    },
+    {
+      "fullName": "Injection procedure for splenoportography",
+      "shortName": "Injection procedure splenoportograpy",
+      "cptCode": "38200"
+    },
+    {
+      "fullName": "Bone marrow; biopsy, needle or trocar",
+      "shortName": "Bone marrow biopsy needle/trocar",
+      "cptCode": "38221"
+    },
+    {
+      "fullName": "Biopsy or excision of lymph node(s); open, superficial",
+      "shortName": "Bx/exc lymph node open superficial",
+      "cptCode": "38500"
+    },
+    {
+      "fullName": "Biopsy or excision of lymph node(s); by needle, superficial (eg, cervical, inguinal, axillary)",
+      "shortName": "Bx/exc lymph node needle superficial",
+      "cptCode": "38505"
+    },
+    {
+      "fullName": "Injection procedure; lymphangiography",
+      "shortName": "Injection procedure lymphangiography",
+      "cptCode": "38790"
+    },
+    {
+      "fullName": "Biopsy of lip",
+      "shortName": "Biopsy of lip",
+      "cptCode": "40490"
+    },
+    {
+      "fullName": "Biopsy, vestibule of mouth",
+      "shortName": "Biopsy vestibule mouth",
+      "cptCode": "40808"
+    },
+    {
+      "fullName": "Biopsy of tongue; anterior two-thirds",
+      "shortName": "Biopsy tongue anterior two-thirds",
+      "cptCode": "41100"
+    },
+    {
+      "fullName": "Biopsy of tongue; posterior one-third",
+      "shortName": "Biopsy tongue posterior one-third",
+      "cptCode": "41105"
+    },
+    {
+      "fullName": "Biopsy of floor of mouth",
+      "shortName": "Biopsy floor mouth",
+      "cptCode": "41108"
+    },
+    {
+      "fullName": "Biopsy of palate, uvula",
+      "shortName": "Biopsy palate uvula",
+      "cptCode": "42100"
+    },
+    {
+      "fullName": "Biopsy of salivary gland; needle",
+      "shortName": "Biopsy salivary gland needle",
+      "cptCode": "42400"
+    },
+    {
+      "fullName": "Biopsy of salivary gland; incisional",
+      "shortName": "Biopsy salivary gland incisional",
+      "cptCode": "42405"
+    },
+    {
+      "fullName": "Injection procedure for sialography",
+      "shortName": "Injection procedure sialography",
+      "cptCode": "42550"
+    },
+    {
+      "fullName": "Dilation and catheterization of salivary duct, with or without injection",
+      "shortName": "Dilat&cathj salivary duct w/wo injection",
+      "cptCode": "42660"
+    },
+    {
+      "fullName": "Biopsy; oropharynx",
+      "shortName": "Biopsy oropharynx",
+      "cptCode": "42800"
+    },
+    {
+      "fullName": "Patient screened for injection drug use (HIV)",
+      "shortName": "Patient screened for injection drug use",
+      "cptCode": "4290F"
+    },
+    {
+      "fullName": "Esophagogastroduodenoscopy, flexible, transoral; with biopsy, single or multiple",
+      "shortName": "Egd transoral biopsy single/multiple",
+      "cptCode": "43239"
+    },
+    {
+      "fullName": "Endoscopic retrograde cholangiopancreatography (ERCP); with biopsy, single or multiple",
+      "shortName": "Ercp w/biopsy single/multiple",
+      "cptCode": "43261"
+    },
+    {
+      "fullName": "Biopsy of stomach, by laparotomy",
+      "shortName": "Biopsy stomach laparotomy",
+      "cptCode": "43605"
+    },
+    {
+      "fullName": "Small intestinal endoscopy, enteroscopy beyond second portion of duodenum, not including ileum; with control of bleeding (eg, injection, bipolar cautery, unipolar cautery, laser, heater probe, stapler, plasma coagulator)",
+      "shortName": "Enteroscopy > 2nd prtn w/control bleeding",
+      "cptCode": "44366"
+    },
+    {
+      "fullName": "Small intestinal endoscopy, enteroscopy beyond second portion of duodenum, not including ileum; with ablation of tumor(s), polyp(s), or other lesion(s) not amenable to removal by hot biopsy forceps, bipolar cautery or snare technique",
+      "shortName": "Enteroscopy > 2nd prtn abltj lesion",
+      "cptCode": "44369"
+    },
+    {
+      "fullName": "Ileoscopy, through stoma; with biopsy, single or multiple",
+      "shortName": "Ileoscopy stoma w/bx single/multiple",
+      "cptCode": "44382"
+    },
+    {
+      "fullName": "Colonoscopy through stoma; with directed submucosal injection(s), any substance",
+      "shortName": "Colonoscopy stoma w/submucosal injection",
+      "cptCode": "44404"
+    },
+    {
+      "fullName": "Biopsy of anorectal wall, anal approach (eg, congenital megacolon)",
+      "shortName": "Bx anorectal wall anal approach",
+      "cptCode": "45100"
+    },
+    {
+      "fullName": "Proctosigmoidoscopy, rigid; with control of bleeding (eg, injection, bipolar cautery, unipolar cautery, laser, heater probe, stapler, plasma coagulator)",
+      "shortName": "Proctosgmdsc rigid control bleeding",
+      "cptCode": "45317"
+    },
+    {
+      "fullName": "Proctosigmoidoscopy, rigid; with ablation of tumor(s), polyp(s), or other lesion(s) not amenable to removal by hot biopsy forceps, bipolar cautery or snare technique (eg, laser)",
+      "shortName": "Proctosgmdsc rigid ablation lesion",
+      "cptCode": "45320"
+    },
+    {
+      "fullName": "Sigmoidoscopy, flexible; with directed submucosal injection(s), any substance",
+      "shortName": "Sgmdsc flx dired sbmcsl njx any sbst",
+      "cptCode": "45335"
+    },
+    {
+      "fullName": "Colonoscopy, flexible; with biopsy, single or multiple",
+      "shortName": "Colonoscopy w/biopsy single/multiple",
+      "cptCode": "45380"
+    },
+    {
+      "fullName": "Injection of sclerosing solution, hemorrhoids",
+      "shortName": "Injection sclerosing solution hemorrhoids",
+      "cptCode": "46500"
+    },
+    {
+      "fullName": "Anoscopy; with biopsy, single or multiple",
+      "shortName": "Anoscopy w/bx single/multiple",
+      "cptCode": "46606"
+    },
+    {
+      "fullName": "Anoscopy; with removal of single tumor, polyp, or other lesion by hot biopsy forceps or bipolar cautery",
+      "shortName": "Anoscopy w/rmvl lesion cautery",
+      "cptCode": "46610"
+    },
+    {
+      "fullName": "Anoscopy; with removal of multiple tumors, polyps, or other lesions by hot biopsy forceps, bipolar cautery or snare technique",
+      "shortName": "Anosc rmvl mult tumors cautery/snare",
+      "cptCode": "46612"
+    },
+    {
+      "fullName": "Anoscopy; with control of bleeding (eg, injection, bipolar cautery, unipolar cautery, laser, heater probe, stapler, plasma coagulator)",
+      "shortName": "Anoscopy control bleeding",
+      "cptCode": "46614"
+    },
+    {
+      "fullName": "Anoscopy; with ablation of tumor(s), polyp(s), or other lesion(s) not amenable to removal by hot biopsy forceps, bipolar cautery or snare technique",
+      "shortName": "Anoscopy ablation lesion",
+      "cptCode": "46615"
+    },
+    {
+      "fullName": "Biopsy of liver, needle; percutaneous",
+      "shortName": "Biopsy liver needle percutaneous",
+      "cptCode": "47000"
+    },
+    {
+      "fullName": "Biopsy of liver, wedge",
+      "shortName": "Biopsy liver wedge",
+      "cptCode": "47100"
+    },
+    {
+      "fullName": "Injection procedure for cholangiography, percutaneous, complete diagnostic procedure including imaging guidance (eg, ultrasound and/or fluoroscopy) and all associated radiological supervision and interpretation; new access (eg, percutaneous transhepatic cholangiogram)",
+      "shortName": "Njx cholangio prq w/img gid rs&i new access",
+      "cptCode": "47532"
+    },
+    {
+      "fullName": "Exploration for congenital atresia of bile ducts, without repair, with or without liver biopsy, with or without cholangiography",
+      "shortName": "Expl congenital atresia bile ducts",
+      "cptCode": "47700"
+    },
+    {
+      "fullName": "Biopsy of pancreas, open (eg, fine needle aspiration, needle core biopsy, wedge biopsy)",
+      "shortName": "Biopsy pancreas open",
+      "cptCode": "48100"
+    },
+    {
+      "fullName": "Biopsy of pancreas, percutaneous needle",
+      "shortName": "Biopsy pancrea percutaneous needle",
+      "cptCode": "48102"
+    },
+    {
+      "fullName": "Injection procedure for intraoperative pancreatography (List separately in addition to code for primary procedure)",
+      "shortName": "Injection intraoperative pancreatography",
+      "cptCode": "48400"
+    },
+    {
+      "fullName": "Exploration, retroperitoneal area with or without biopsy(s) (separate procedure)",
+      "shortName": "Expl retroperitoneum w/wo bx spx",
+      "cptCode": "49010"
+    },
+    {
+      "fullName": "Laparoscopy, surgical; with biopsy (single or multiple)",
+      "shortName": "Laparoscopy surg w/bx single/multiple",
+      "cptCode": "49321"
+    },
+    {
+      "fullName": "Insertion of tunneled intraperitoneal catheter (eg, dialysis, intraperitoneal chemotherapy instillation, management of ascites), complete procedure, including imaging guidance, catheter placement, contrast injection when performed, and radiological supervision and interpretation, percutaneous",
+      "shortName": "Insj intraperitoneal catheter w/img guid",
+      "cptCode": "49418"
+    },
+    {
+      "fullName": "Insertion of gastrostomy tube, percutaneous, under fluoroscopic guidance including contrast injection(s), image documentation and report",
+      "shortName": "Insert gastrostomy tube percutaneous",
+      "cptCode": "49440"
+    },
+    {
+      "fullName": "Insertion of duodenostomy or jejunostomy tube, percutaneous, under fluoroscopic guidance including contrast injection(s), image documentation and report",
+      "shortName": "Insert duodenostomy/jejunostomy tube perq",
+      "cptCode": "49441"
+    },
+    {
+      "fullName": "Replacement of duodenostomy or jejunostomy tube, percutaneous, under fluoroscopic guidance including contrast injection(s), image documentation and report",
+      "shortName": "Replace duodenostomy/jejunostomy tube perq",
+      "cptCode": "49451"
+    },
+    {
+      "fullName": "Mechanical removal of obstructive material from gastrostomy, duodenostomy, jejunostomy, gastro-jejunostomy, or cecostomy (or other colonic) tube, any method, under fluoroscopic guidance including contrast injection(s), if performed, image documentation and report",
+      "shortName": "Obstructive material removal from gi tube",
+      "cptCode": "49460"
+    },
+    {
+      "fullName": "Renal biopsy; percutaneous, by trocar or needle",
+      "shortName": "Renal biopsy prq trocar/needle",
+      "cptCode": "50200"
+    },
+    {
+      "fullName": "Renal biopsy; by surgical exposure of kidney",
+      "shortName": "Renal biopsy surg exposure kidney",
+      "cptCode": "50205"
+    },
+    {
+      "fullName": "Aspiration and/or injection of renal cyst or pelvis by needle, percutaneous",
+      "shortName": "Aspir &/njx renal cyst/pelvis needle prq",
+      "cptCode": "50390"
+    },
+    {
+      "fullName": "Renal endoscopy through established nephrostomy or pyelostomy, with or without irrigation, instillation, or ureteropyelography, exclusive of radiologic service; with biopsy",
+      "shortName": "Renal ndsc nephros/pyelostomy biopsy",
+      "cptCode": "50555"
+    },
+    {
+      "fullName": "Renal endoscopy through nephrotomy or pyelotomy, with or without irrigation, instillation, or ureteropyelography, exclusive of radiologic service; with biopsy",
+      "shortName": "Renal ndsc nephrotomy w/biopsy",
+      "cptCode": "50574"
+    },
+    {
+      "fullName": "Injection procedure for ureterography or ureteropyelography through ureterostomy or indwelling ureteral catheter",
+      "shortName": "Inj px ureterography/ureteropylography cath",
+      "cptCode": "50684"
+    },
+    {
+      "fullName": "Injection procedure for cystography or voiding urethrocystography",
+      "shortName": "Njx cstograpy/voiding urethrocstograpy",
+      "cptCode": "51600"
+    },
+    {
+      "fullName": "Injection procedure for retrograde urethrocystography",
+      "shortName": "Njx retrograde urethrocstograpy",
+      "cptCode": "51610"
+    },
+    {
+      "fullName": "Endoscopic injection of implant material into the submucosal tissues of the urethra and/or bladder neck",
+      "shortName": "Ndsc njx implt matrl urt&/bldr nck",
+      "cptCode": "51715"
+    },
+    {
+      "fullName": "Cystourethroscopy, with biopsy(s)",
+      "shortName": "Cystourethroscopy with biopsy",
+      "cptCode": "52204"
+    },
+    {
+      "fullName": "Cystourethroscopy, with fulguration (including cryosurgery or laser surgery) or treatment of MINOR (less than 0.5 cm) lesion(s) with or without biopsy",
+      "shortName": "Cysto w/removal of lesions small",
+      "cptCode": "52224"
+    },
+    {
+      "fullName": "Cystourethroscopy, with calibration and/or dilation of urethral stricture or stenosis, with or without meatotomy, with or without injection procedure for cystography, male or female",
+      "shortName": "Cysto calibration dilat urtl strix/stenosis",
+      "cptCode": "52281"
+    },
+    {
+      "fullName": "Cystourethroscopy (including ureteral catheterization); with subureteric injection of implant material",
+      "shortName": "Cysto w/suburtric njx implt matrl",
+      "cptCode": "52327"
+    },
+    {
+      "fullName": "Biopsy of urethra",
+      "shortName": "Biopsy urethra",
+      "cptCode": "53200"
+    },
+    {
+      "fullName": "Biopsy of penis; (separate procedure)",
+      "shortName": "Biopsy penis separate procedure",
+      "cptCode": "54100"
+    },
+    {
+      "fullName": "Biopsy of penis; deep structures",
+      "shortName": "Biopsy penis deep structures",
+      "cptCode": "54105"
+    },
+    {
+      "fullName": "Injection procedure for Peyronie disease;",
+      "shortName": "Injection peyronie disease",
+      "cptCode": "54200"
+    },
+    {
+      "fullName": "Injection procedure for Peyronie disease; with surgical exposure of plaque",
+      "shortName": "Njx peyronie w/surg expos plaque",
+      "cptCode": "54205"
+    },
+    {
+      "fullName": "Injection procedure for corpora cavernosography",
+      "shortName": "Injection corpora cavernosograpy",
+      "cptCode": "54230"
+    },
+    {
+      "fullName": "Dynamic cavernosometry, including intracavernosal injection of vasoactive drugs (eg, papaverine, phentolamine)",
+      "shortName": "Dynamic cavernosometry njx vasoactive drugs",
+      "cptCode": "54231"
+    },
+    {
+      "fullName": "Injection of corpora cavernosa with pharmacologic agent(s) (eg, papaverine, phentolamine)",
+      "shortName": "Njx c/p/a cavernosa w/pharmacologic agt",
+      "cptCode": "54235"
+    },
+    {
+      "fullName": "Biopsy of epididymis, needle",
+      "shortName": "Biopsy epididymis needle",
+      "cptCode": "54800"
+    },
+    {
+      "fullName": "Exploration of epididymis, with or without biopsy",
+      "shortName": "Exploration epididymis w/wo biopsy",
+      "cptCode": "54865"
+    },
+    {
+      "fullName": "Biopsy, prostate; needle or punch, single or multiple, any approach",
+      "shortName": "Prostate needle biopsy any approach",
+      "cptCode": "55700"
+    },
+    {
+      "fullName": "Biopsy of vulva or perineum (separate procedure); 1 lesion",
+      "shortName": "Biopsy vulva/perineum 1 lesion spx",
+      "cptCode": "56605"
+    },
+    {
+      "fullName": "Colposcopy of the vulva; with biopsy(s)",
+      "shortName": "Colposcopy vulva w/biopsy",
+      "cptCode": "56821"
+    },
+    {
+      "fullName": "Biopsy of vaginal mucosa; simple (separate procedure)",
+      "shortName": "Biopsy vaginal mucosa simple",
+      "cptCode": "57100"
+    },
+    {
+      "fullName": "Biopsy of vaginal mucosa; extensive, requiring suture (including cysts)",
+      "shortName": "Biopsy vaginal mucosa extensive",
+      "cptCode": "57105"
+    },
+    {
+      "fullName": "Radical trachelectomy, with bilateral total pelvic lymphadenectomy and para-aortic lymph node sampling biopsy, with or without removal of tube(s), with or without removal of ovary(s)",
+      "shortName": "Rad trachelectomy w/bi pel lmphadec",
+      "cptCode": "57531"
+    },
+    {
+      "fullName": "Endometrial sampling (biopsy) performed in conjunction with colposcopy (List separately in addition to code for primary procedure)",
+      "shortName": "Endometrial bx conjunct w/colposcopy",
+      "cptCode": "58110"
+    },
+    {
+      "fullName": "Induced abortion, by 1 or more intra-amniotic injections (amniocentesis-injections), including hospital admission and visits, delivery of fetus and secundines; with dilation and curettage and/or evacuation",
+      "shortName": "Induce abort 1/> amniot njxs dlvr fetus d&c",
+      "cptCode": "59851"
+    },
+    {
+      "fullName": "Aspiration and/or injection, thyroid cyst",
+      "shortName": "Aspiration and/or injection thyroid cyst",
+      "cptCode": "60300"
+    },
+    {
+      "fullName": "Burr hole(s) for ventricular puncture (including injection of gas, contrast media, dye, or radioactive material)",
+      "shortName": "Burr hole ventricular puncture",
+      "cptCode": "61120"
+    },
+    {
+      "fullName": "Surgery of aneurysm, vascular malformation or carotid-cavernous fistula; by intra-arterial embolization, injection procedure, or balloon catheter",
+      "shortName": "Arysm vasc malfrmj ia embolization",
+      "cptCode": "61710"
+    },
+    {
+      "fullName": "Injection, epidural, of blood or clot patch",
+      "shortName": "Injection epidural blood/clot patch",
+      "cptCode": "62273"
+    },
+    {
+      "fullName": "Injection procedure for myelography and/or computed tomography, lumbar",
+      "shortName": "Injection procedure myelography/ct lumbar",
+      "cptCode": "62284"
+    },
+    {
+      "fullName": "Injection procedure for discography, each level; lumbar",
+      "shortName": "Injection px discography each level lumbar",
+      "cptCode": "62290"
+    },
+    {
+      "fullName": "Injection procedure, arterial, for occlusion of arteriovenous malformation, spinal",
+      "shortName": "Njx arterial occlusion arven malfrmj spinal",
+      "cptCode": "62294"
+    },
+    {
+      "fullName": "Laminectomy for biopsy/excision of intraspinal neoplasm; intradural, extramedullary, lumbar",
+      "shortName": "Lam bx/exc ispi neo idrl xmed lumbar",
+      "cptCode": "63282"
+    },
+    {
+      "fullName": "Laminectomy for biopsy/excision of intraspinal neoplasm; intradural, sacral",
+      "shortName": "Lam bx/exc ispi neo idrl sacral",
+      "cptCode": "63283"
+    },
+    {
+      "fullName": "Injection, anesthetic agent; trigeminal nerve, any division or branch",
+      "shortName": "Njx anes trigeminal nrv any div/branch",
+      "cptCode": "64400"
+    },
+    {
+      "fullName": "Injection, anesthetic agent; facial nerve",
+      "shortName": "Injection anesthetic agent facial nerve",
+      "cptCode": "64402"
+    },
+    {
+      "fullName": "Injection, anesthetic agent; vagus nerve",
+      "shortName": "Injection anesthetic agent vagus nerve",
+      "cptCode": "64408"
+    },
+    {
+      "fullName": "Injection, anesthetic agent; phrenic nerve",
+      "shortName": "Injection anesthetic agent phrenic nerve",
+      "cptCode": "64410"
+    },
+    {
+      "fullName": "Injection, anesthetic agent; cervical plexus",
+      "shortName": "Injection anesthetic agent cervical plexus",
+      "cptCode": "64413"
+    },
+    {
+      "fullName": "Injection, anesthetic agent; brachial plexus, single",
+      "shortName": "Single nerve block injection arm nerve",
+      "cptCode": "64415"
+    },
+    {
+      "fullName": "Injection, anesthetic agent; axillary nerve",
+      "shortName": "Injection anesthetic agent axillary nerve",
+      "cptCode": "64417"
+    },
+    {
+      "fullName": "Injection, anesthetic agent; intercostal nerves, multiple, regional block",
+      "shortName": "Multiple nerve block injections rib nerves",
+      "cptCode": "64421"
+    },
+    {
+      "fullName": "Injection, anesthetic agent; pudendal nerve",
+      "shortName": "Injection anesthetic agent pudendal nerve",
+      "cptCode": "64430"
+    },
+    {
+      "fullName": "Transversus abdominis plane (TAP) block (abdominal plane block, rectus sheath block) unilateral; by injection(s) (includes imaging guidance, when performed)",
+      "shortName": "Tap block unilateral by injection(s)",
+      "cptCode": "64486"
+    },
+    {
+      "fullName": "Transversus abdominis plane (TAP) block (abdominal plane block, rectus sheath block) bilateral; by injections (includes imaging guidance, when performed)",
+      "shortName": "Tap block bilateral by injection(s)",
+      "cptCode": "64488"
+    },
+    {
+      "fullName": "Injection, anesthetic agent; stellate ganglion (cervical sympathetic)",
+      "shortName": "Njx anes stellate ganglion crv sympathetic",
+      "cptCode": "64510"
+    },
+    {
+      "fullName": "Injection, anesthetic agent; superior hypogastric plexus",
+      "shortName": "Injection anes superior hypogastric plexus",
+      "cptCode": "64517"
+    },
+    {
+      "fullName": "Biopsy of nerve",
+      "shortName": "Biopsy nerve",
+      "cptCode": "64795"
+    },
+    {
+      "fullName": "Biopsy of cornea",
+      "shortName": "Biopsy cornea",
+      "cptCode": "65410"
+    },
+    {
+      "fullName": "Injection, anterior chamber of eye (separate procedure); air or liquid",
+      "shortName": "Injx anterior chamber eye air/liquid spx",
+      "cptCode": "66020"
+    },
+    {
+      "fullName": "Injection, anterior chamber of eye (separate procedure); medication",
+      "shortName": "Injx anterior chamber eye medication spx",
+      "cptCode": "66030"
+    },
+    {
+      "fullName": "Fistulization of sclera for glaucoma; trabeculectomy ab externo with scarring from previous ocular surgery or trauma (includes injection of antifibrotic agents)",
+      "shortName": "Fstlj sclera glc trbec ab externo scarring",
+      "cptCode": "66172"
+    },
+    {
+      "fullName": "Intravitreal injection of a pharmacologic agent (separate procedure)",
+      "shortName": "Intravitreal njx pharmacologic agt spx",
+      "cptCode": "67028"
+    },
+    {
+      "fullName": "Biopsy of extraocular muscle",
+      "shortName": "Biopsy extraocular muscle",
+      "cptCode": "67346"
+    },
+    {
+      "fullName": "Retrobulbar injection; medication (separate procedure, does not include supply of medication)",
+      "shortName": "Retrobulbar injection medication spx",
+      "cptCode": "67500"
+    },
+    {
+      "fullName": "Retrobulbar injection; alcohol",
+      "shortName": "Retrobulbar injection alcohol",
+      "cptCode": "67505"
+    },
+    {
+      "fullName": "Biopsy of conjunctiva",
+      "shortName": "Biopsy conjunctiva",
+      "cptCode": "68100"
+    },
+    {
+      "fullName": "Subconjunctival injection",
+      "shortName": "Subconjunctival injection",
+      "cptCode": "68200"
+    },
+    {
+      "fullName": "Biopsy of lacrimal gland",
+      "shortName": "Biopsy lacrimal gland",
+      "cptCode": "68510"
+    },
+    {
+      "fullName": "Biopsy of lacrimal sac",
+      "shortName": "Biopsy lacrimal sac",
+      "cptCode": "68525"
+    },
+    {
+      "fullName": "Injection of contrast medium for dacryocystography",
+      "shortName": "Injection contrast medium dacryocystograpy",
+      "cptCode": "68850"
+    },
+    {
+      "fullName": "Biopsy external ear",
+      "shortName": "Biopsy external ear",
+      "cptCode": "69100"
+    },
+    {
+      "fullName": "Biopsy external auditory canal",
+      "shortName": "Biopsy external auditory canal",
+      "cptCode": "69105"
+    },
+    {
+      "fullName": "Peritoneogram (eg, after injection of air or contrast), radiological supervision and interpretation",
+      "shortName": "Peritoneogram rs&i",
+      "cptCode": "74190"
+    },
+    {
+      "fullName": "Angiography, pulmonary, by nonselective catheter or venous injection, radiological supervision and interpretation",
+      "shortName": "Angrph pulmonary nonslctv cath/ven njx rs&i",
+      "cptCode": "75746"
+    },
+    {
+      "fullName": "Transcatheter biopsy, radiological supervision and interpretation",
+      "shortName": "Transcatheter biopsy rs&i",
+      "cptCode": "75970"
+    },
+    {
+      "fullName": "Fluoroscopy, physician or other qualified health care professional time more than 1 hour, assisting a nonradiologic physician or other qualified health care professional (eg, nephrostolithotomy, ERCP, bronchoscopy, transbronchial biopsy)",
+      "shortName": "Fluoroscopy spx >1 hour phys/qhp time",
+      "cptCode": "76001"
+    },
+    {
+      "fullName": "Ultrasonic guidance for endomyocardial biopsy, imaging supervision and interpretation",
+      "shortName": "Us endomyocardial biopsy rs&i",
+      "cptCode": "76932"
+    },
+    {
+      "fullName": "Ultrasonic guidance for needle placement (eg, biopsy, aspiration, injection, localization device), imaging supervision and interpretation",
+      "shortName": "Us guidance needle placement img s&i",
+      "cptCode": "76942"
+    },
+    {
+      "fullName": "Fluoroscopic guidance for central venous access device placement, replacement (catheter only or complete), or removal (includes fluoroscopic guidance for vascular access and catheter manipulation, any necessary contrast injections through access site or catheter with related venography radiologic supervision and interpretation, and radiographic documentation of final catheter position) (List separately in addition to code for primary procedure)",
+      "shortName": "Fluoro central venous access dev placement",
+      "cptCode": "77001"
+    },
+    {
+      "fullName": "Computed tomography guidance for needle placement (eg, biopsy, aspiration, injection, localization device), radiological supervision and interpretation",
+      "shortName": "Ct guidance needle placement",
+      "cptCode": "77012"
+    },
+    {
+      "fullName": "Magnetic resonance guidance for needle placement (eg, for biopsy, needle aspiration, injection, or placement of localization device) radiological supervision and interpretation",
+      "shortName": "Mr guidance needle placement",
+      "cptCode": "77021"
+    },
+    {
+      "fullName": "Myocardial perfusion imaging, tomographic (SPECT) (including attenuation correction, qualitative or quantitative wall motion, ejection fraction by first pass or gated technique, additional quantification, when performed); multiple studies, at rest and/or stress (exercise or pharmacologic) and/or redistribution and/or rest reinjection",
+      "shortName": "Myocardial spect multiple studies",
+      "cptCode": "78452"
+    },
+    {
+      "fullName": "Biopsy, oocyte polar body or embryo blastomere, microtechnique (for pre-implantation genetic diagnosis); less than or equal to 5 embryos",
+      "shortName": "Bx oocyte microtq </= 5 embry",
+      "cptCode": "89290"
+    },
+    {
+      "fullName": "Biopsy, oocyte polar body or embryo blastomere, microtechnique (for pre-implantation genetic diagnosis); greater than 5 embryos",
+      "shortName": "Bx oocyte microtq >5 embry",
+      "cptCode": "89291"
+    },
+    {
+      "fullName": "immune globulin, intramuscular",
+      "shortName": "IG",
+      "cptCode": "90281"
+    },
+    {
+      "fullName": "immune globulin, intravenous",
+      "shortName": "IGIV",
+      "cptCode": "90283"
+    },
+    {
+      "fullName": "botulinum antitoxin",
+      "shortName": "botulinum antitoxin",
+      "cptCode": "90287"
+    },
+    {
+      "fullName": "cytomegalovirus immune globulin, intravenous",
+      "shortName": "CMVIG",
+      "cptCode": "90291"
+    },
+    {
+      "fullName": "diphtheria antitoxin",
+      "shortName": "diphtheria antitoxin",
+      "cptCode": "90296"
+    },
+    {
+      "fullName": "hepatitis B immune globulin",
+      "shortName": "HBIG",
+      "cptCode": "90371"
+    },
+    {
+      "fullName": "rabies immune globulin",
+      "shortName": "RIG",
+      "cptCode": "90376"
+    },
+    {
+      "fullName": "respiratory syncytial virus monoclonal antibody (palivizumab), intramuscular",
+      "shortName": "RSV-MAb",
+      "cptCode": "90378"
+    },
+    {
+      "fullName": "respiratory syncytial virus immune globulin, intravenous",
+      "shortName": "RSV-IGIV",
+      "cptCode": "90379"
+    },
+    {
+      "fullName": "Immunization administration (includes percutaneous, intradermal, subcutaneous, or intramuscular injections); 1 vaccine (single or combination vaccine/toxoid)",
+      "shortName": "Im adm prq id subq/im njxs 1 vaccine",
+      "cptCode": "90471"
+    },
+    {
+      "fullName": "Immunization administration (includes percutaneous, intradermal, subcutaneous, or intramuscular injections); each additional vaccine (single or combination vaccine/toxoid) (List separately in addition to code for primary procedure)",
+      "shortName": "Im adm prq id subq/im njxs ea vaccine",
+      "cptCode": "90472"
+    },
+    {
+      "fullName": "adenovirus vaccine, type 4, live, oral",
+      "shortName": "adenovirus, type 4",
+      "cptCode": "90476"
+    },
+    {
+      "fullName": "adenovirus vaccine, type 7, live, oral",
+      "shortName": "adenovirus, type 7",
+      "cptCode": "90477"
+    },
+    {
+      "fullName": "anthrax vaccine",
+      "shortName": "anthrax",
+      "cptCode": "90581"
+    },
+    {
+      "fullName": "Bacillus Calmette-Guerin vaccine",
+      "shortName": "BCG",
+      "cptCode": "90728"
+    },
+    {
+      "fullName": "hepatitis A vaccine, adult dosage",
+      "shortName": "Hep A, adult",
+      "cptCode": "90632"
+    },
+    {
+      "fullName": "hepatitis A vaccine, pediatric/adolescent dosage, 2 dose schedule",
+      "shortName": "Hep A, ped/adol, 2 dose",
+      "cptCode": "90633"
+    },
+    {
+      "fullName": "hepatitis A vaccine, pediatric/adolescent dosage, 3 dose schedule",
+      "shortName": "Hep A, ped/adol, 3 dose",
+      "cptCode": "90634"
+    },
+    {
+      "fullName": "hepatitis A and hepatitis B vaccine",
+      "shortName": "Hep A-Hep B",
+      "cptCode": "90636"
+    },
+    {
+      "fullName": "Haemophilus influenzae type b vaccine, HbOC conjugate",
+      "shortName": "Hib (HbOC)",
+      "cptCode": "90645"
+    },
+    {
+      "fullName": "Haemophilus influenzae type b vaccine, PRP-D conjugate",
+      "shortName": "Hib (PRP-D)",
+      "cptCode": "90646"
+    },
+    {
+      "fullName": "Haemophilus influenzae type b vaccine, PRP-OMP conjugate",
+      "shortName": "Hib (PRP-OMP)",
+      "cptCode": "90647"
+    },
+    {
+      "fullName": "Haemophilus influenzae type b vaccine, PRP-T conjugate",
+      "shortName": "Hib (PRP-T)",
+      "cptCode": "90648"
+    },
+    {
+      "fullName": "human papilloma virus vaccine, quadrivalent",
+      "shortName": "HPV, quadrivalent",
+      "cptCode": "90649"
+    },
+    {
+      "fullName": "human papilloma virus vaccine, bivalent",
+      "shortName": "HPV, bivalent",
+      "cptCode": "90650"
+    },
+    {
+      "fullName": "influenza virus vaccine, whole virus",
+      "shortName": "influenza, whole",
+      "cptCode": "90659"
+    },
+    {
+      "fullName": "influenza virus vaccine, live, attenuated, for intranasal use",
+      "shortName": "influenza, live, intranasal",
+      "cptCode": "90660"
+    },
+    {
+      "fullName": "Lyme disease vaccine",
+      "shortName": "Lyme disease",
+      "cptCode": "90665"
+    },
+    {
+      "fullName": "pneumococcal conjugate vaccine, 7 valent",
+      "shortName": "pneumococcal conjugate PCV 7",
+      "cptCode": "90669"
+    },
+    {
+      "fullName": "rabies vaccine, unspecified formulation",
+      "shortName": "rabies, unspecified formulation",
+      "cptCode": "90726"
+    },
+    {
+      "fullName": "rabies vaccine, for intradermal injection",
+      "shortName": "rabies, intradermal injection",
+      "cptCode": "90676"
+    },
+    {
+      "fullName": "rotavirus, live, pentavalent vaccine",
+      "shortName": "rotavirus, pentavalent",
+      "cptCode": "90680"
+    },
+    {
+      "fullName": "rotavirus, live, monovalent vaccine",
+      "shortName": "rotavirus, monovalent",
+      "cptCode": "90681"
+    },
+    {
+      "fullName": "Diphtheria, tetanus toxoids and acellular pertussis vaccine, and poliovirus vaccine, inactivated",
+      "shortName": "DTaP-IPV",
+      "cptCode": "90696"
+    },
+    {
+      "fullName": "diphtheria, tetanus toxoids and acellular pertussis vaccine, Haemophilus influenzae type b conjugate, and poliovirus vaccine, inactivated (DTaP-Hib-IPV)",
+      "shortName": "DTaP-Hib-IPV",
+      "cptCode": "90698"
+    },
+    {
+      "fullName": "diphtheria, tetanus toxoids and acellular pertussis vaccine, unspecified formulation",
+      "shortName": "DTaP, unspecified formulation",
+      "cptCode": "90700"
+    },
+    {
+      "fullName": "diphtheria, tetanus toxoids and pertussis vaccine",
+      "shortName": "DTP",
+      "cptCode": "90701"
+    },
+    {
+      "fullName": "diphtheria and tetanus toxoids, adsorbed for pediatric use",
+      "shortName": "DT (pediatric)",
+      "cptCode": "90702"
+    },
+    {
+      "fullName": "tetanus toxoid, adsorbed",
+      "shortName": "tetanus toxoid, adsorbed",
+      "cptCode": "90703"
+    },
+    {
+      "fullName": "mumps virus vaccine",
+      "shortName": "mumps",
+      "cptCode": "90704"
+    },
+    {
+      "fullName": "measles virus vaccine",
+      "shortName": "measles",
+      "cptCode": "90705"
+    },
+    {
+      "fullName": "rubella virus vaccine",
+      "shortName": "rubella",
+      "cptCode": "90706"
+    },
+    {
+      "fullName": "measles, mumps and rubella virus vaccine",
+      "shortName": "MMR",
+      "cptCode": "90707"
+    },
+    {
+      "fullName": "measles and rubella virus vaccine",
+      "shortName": "M/R",
+      "cptCode": "90708"
+    },
+    {
+      "fullName": "measles, mumps, rubella, and varicella virus vaccine",
+      "shortName": "MMRV",
+      "cptCode": "90710"
+    },
+    {
+      "fullName": "poliovirus vaccine, inactivated",
+      "shortName": "IPV",
+      "cptCode": "90713"
+    },
+    {
+      "fullName": "tetanus toxoid, reduced diphtheria toxoid, and acellular pertussis vaccine, adsorbed",
+      "shortName": "Tdap",
+      "cptCode": "90715"
+    },
+    {
+      "fullName": "tetanus and diphtheria toxoids, adsorbed, for adult use",
+      "shortName": "Td (adult), adsorbed",
+      "cptCode": "90718"
+    },
+    {
+      "fullName": "DTP-Haemophilus influenzae type b conjugate vaccine",
+      "shortName": "DTP-Hib",
+      "cptCode": "90720"
+    },
+    {
+      "fullName": "DTaP-Haemophilus influenzae type b conjugate vaccine",
+      "shortName": "DTaP-Hib",
+      "cptCode": "90721"
+    },
+    {
+      "fullName": "DTaP-hepatitis B and poliovirus vaccine",
+      "shortName": "DTaP-Hep B-IPV",
+      "cptCode": "90723"
+    },
+    {
+      "fullName": "influenza virus vaccine, unspecified formulation",
+      "shortName": "influenza, unspecified formulation",
+      "cptCode": "90724"
+    },
+    {
+      "fullName": "cholera vaccine, unspecified formulation",
+      "shortName": "cholera, unspecified formulation",
+      "cptCode": "90725"
+    },
+    {
+      "fullName": "plague vaccine",
+      "shortName": "plague",
+      "cptCode": "90727"
+    },
+    {
+      "fullName": "hepatitis A vaccine, unspecified formulation",
+      "shortName": "Hep A, unspecified formulation",
+      "cptCode": "90730"
+    },
+    {
+      "fullName": "hepatitis B vaccine, unspecified formulation",
+      "shortName": "Hep B, unspecified formulation",
+      "cptCode": "90731"
+    },
+    {
+      "fullName": "pneumococcal polysaccharide vaccine, 23 valent",
+      "shortName": "pneumococcal polysaccharide PPV23",
+      "cptCode": "90732"
+    },
+    {
+      "fullName": "meningococcal polysaccharide vaccine (MPSV4)",
+      "shortName": "meningococcal MPSV4",
+      "cptCode": "90733"
+    },
+    {
+      "fullName": "Japanese Encephalitis Vaccine SC",
+      "shortName": "Japanese encephalitis SC",
+      "cptCode": "90735"
+    },
+    {
+      "fullName": "Haemophilus influenzae type b vaccine, conjugate unspecified formulation",
+      "shortName": "Hib, unspecified formulation",
+      "cptCode": "90737"
+    },
+    {
+      "fullName": "hepatitis B vaccine, adult dosage",
+      "shortName": "Hep B, adult",
+      "cptCode": "90746"
+    },
+    {
+      "fullName": "hepatitis B vaccine, dialysis patient dosage",
+      "shortName": "Hep B, dialysis",
+      "cptCode": "90747"
+    },
+    {
+      "fullName": "immune globulin, unspecified formulation",
+      "shortName": "IG, unspecified formulation",
+      "cptCode": "90741"
+    },
+    {
+      "fullName": "hepatitis B vaccine, pediatric or pediatric/adolescent dosage",
+      "shortName": "Hep B, adolescent or pediatric",
+      "cptCode": "90744"
+    },
+    {
+      "fullName": "hepatitis B vaccine, adolescent/high risk infant dosage",
+      "shortName": "Hep B, adolescent/high risk infant",
+      "cptCode": "90745"
+    },
+    {
+      "fullName": "Haemophilus influenzae type b conjugate and Hepatitis B vaccine",
+      "shortName": "Hib-Hep B",
+      "cptCode": "90748"
+    },
+    {
+      "fullName": "Left heart catheterization including intraprocedural injection(s) for left ventriculography, imaging supervision and interpretation, when performed",
+      "shortName": "L hrt cath w/njx l ventriculography img s&i",
+      "cptCode": "93452"
+    },
+    {
+      "fullName": "Combined right and left heart catheterization including intraprocedural injection(s) for left ventriculography, imaging supervision and interpretation, when performed",
+      "shortName": "R & l hrt cath w/njx l ventriculog img s&i",
+      "cptCode": "93453"
+    },
+    {
+      "fullName": "Catheter placement in coronary artery(s) for coronary angiography, including intraprocedural injection(s) for coronary angiography, imaging supervision and interpretation; with right and left heart catheterization including intraprocedural injection(s) for left ventriculography, when performed",
+      "shortName": "R & l hrt cath winjx hrt art& l ventr img",
+      "cptCode": "93460"
+    },
+    {
+      "fullName": "Endomyocardial biopsy",
+      "shortName": "Endomyocardial biopsy",
+      "cptCode": "93505"
+    },
+    {
+      "fullName": "Injection procedure during cardiac catheterization including imaging supervision, interpretation, and report; for selective coronary angiography during congenital heart catheterization (List separately in addition to code for primary procedure)",
+      "shortName": "Njx sel hrt art congenital hrt cath w/s&i",
+      "cptCode": "93563"
+    },
+    {
+      "fullName": "Injection procedure during cardiac catheterization including imaging supervision, interpretation, and report; for selective left ventricular or left atrial angiography (List separately in addition to code for primary procedure)",
+      "shortName": "Njx sel l vent/atrial angio hrt cath w/s&i",
+      "cptCode": "93565"
+    },
+    {
+      "fullName": "Injection procedure during cardiac catheterization including imaging supervision, interpretation, and report; for selective right ventricular or right atrial angiography (List separately in addition to code for primary procedure)",
+      "shortName": "Njx sel r vent/atrial angio hrt cath w/s&i",
+      "cptCode": "93566"
+    },
+    {
+      "fullName": "Injection procedure during cardiac catheterization including imaging supervision, interpretation, and report; for supravalvular aortography (List separately in addition to code for primary procedure)",
+      "shortName": "Njx supravalv aortog hrt cath w/s&i",
+      "cptCode": "93567"
+    },
+    {
+      "fullName": "Injection procedure during cardiac catheterization including imaging supervision, interpretation, and report; for pulmonary angiography (List separately in addition to code for primary procedure)",
+      "shortName": "Njx pulmonary angio hrt cath w/s&i",
+      "cptCode": "93568"
+    },
+    {
+      "fullName": "Percutaneous transcatheter closure of paravalvular leak; initial occlusion device, mitral valve",
+      "shortName": "Perq transcath cls paravalvr leak 1 mitral valve",
+      "cptCode": "93590"
+    },
+    {
+      "fullName": "Office or other outpatient visit for the evaluation and management of an established patient, that may not require the presence of a physician or other qualified health care professional. Usually, the presenting problem(s) are minimal. Typically, 5 minutes are spent performing or supervising these services.",
+      "shortName": "Office outpatient visit 5 minutes",
+      "cptCode": "99211"
+    },
+    {
+      "fullName": "Office or other outpatient visit for the evaluation and management of an established patient, which requires at least 2 of these 3 key components: A problem focused history; A problem focused examination; Straightforward medical decision making. Counseling and/or coordination of care with other physicians, other qualified health care professionals, or agencies are provided consistent with the nature of the problem(s) and the patient's and/or family's needs. Usually, the presenting problem(s) are self limited or minor. Typically, 10 minutes are spent face-to-face with the patient and/or family.",
+      "shortName": "Office outpatient visit 10 minutes",
+      "cptCode": "99212"
+    },
+    {
+      "fullName": "Established patient office visit, level three",
+      "shortName": "Established patient office visit, level three",
+      "cptCode": "99213"
+    },
+    {
+      "fullName": "Office or other outpatient visit for the evaluation and management of an established patient, which requires at least 2 of these 3 key components: A detailed history; A detailed examination; Medical decision making of moderate complexity. Counseling and/or coordination of care with other physicians, other qualified health care professionals, or agencies are provided consistent with the nature of the problem(s) and the patient's and/or family's needs. Usually, the presenting problem(s) are of moderate to high severity. Typically, 25 minutes are spent face-to-face with the patient and/or family.",
+      "shortName": "Office outpatient visit 25 minutes",
+      "cptCode": "99214"
+    },
+    {
+      "fullName": "Office or other outpatient visit for the evaluation and management of an established patient, that may not require the presence of a physician or other qualified health care professional. Usually, the presenting problem(s) are minimal. Typically, 5 minute",
+      "shortName": "Office outpatient visit 40 minutes",
+      "cptCode": "99215"
+    },
+    {
+      "fullName": "Home visit for intramuscular injections",
+      "shortName": "Home visit intramuscular injections",
+      "cptCode": "99506"
+    },
+    {
+      "fullName": "stitches on the arm",
+      "shortName": "stitches on the arm",
+      "cptCode": "ABC_121"
+    },
+    {
+      "fullName": "stitches on the mouth",
+      "shortName": "stitches on the mouth",
+      "cptCode": "ABC_122"
+    },
+    {
+      "fullName": "stitches on the finger",
+      "shortName": "stitches on the finger",
+      "cptCode": "ABC_123"
+    },
+    {
+      "fullName": "stitches",
+      "shortName": "stitches",
+      "cptCode": "ABC_125"
+    }
+  ],
+  "labTests": {}
+}

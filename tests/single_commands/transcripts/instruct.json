@@ -1,0 +1,7 @@
+[
+  {
+    "speaker": "doctor",
+    "text": "I instructed the patient to increase water intake to at least 8 glasses per day.",
+    "commands": "instruct"
+  }
+]

@@ -1,0 +1,7 @@
+[
+  {
+    "speaker": "doctor",
+    "text": "The patient's blood pressure is 120 over 80 and heart rate is 72 beats per minute.",
+    "commands": "vitals"
+  }
+]

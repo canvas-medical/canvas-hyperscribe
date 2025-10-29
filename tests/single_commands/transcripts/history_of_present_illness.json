@@ -1,0 +1,7 @@
+[
+  {
+    "speaker": "doctor",
+    "text": "The patient presents with a three-day history of fever and cough.",
+    "commands": "history_of_present_illness"
+  }
+]

@@ -1,0 +1,7 @@
+[
+  {
+    "speaker": "doctor",
+    "text": "After testing, we confirmed the patient does not have an allergy to penicillin, so we are removing it from the allergy list.",
+    "commands": "remove_allergy"
+  }
+]

@@ -1,0 +1,7 @@
+[
+  {
+    "speaker": "doctor",
+    "text": "The patient reports an allergy to sulfa drugs that causes a rash.",
+    "commands": "allergy"
+  }
+]

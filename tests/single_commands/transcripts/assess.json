@@ -1,0 +1,7 @@
+[
+  {
+    "speaker": "doctor",
+    "text": "My assessment is that the patient's Type 2 diabetes mellitus is well controlled with current medication regimen.",
+    "commands": "assess"
+  }
+]

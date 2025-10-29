@@ -1,0 +1,7 @@
+[
+  {
+    "speaker": "doctor",
+    "text": "I am diagnosing the patient with acute bronchitis.",
+    "commands": "diagnose"
+  }
+]

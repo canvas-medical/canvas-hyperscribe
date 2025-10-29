@@ -1,0 +1,7 @@
+[
+  {
+    "speaker": "doctor",
+    "text": "The patient had a cholecystectomy ten years ago.",
+    "commands": "surgery_history"
+  }
+]

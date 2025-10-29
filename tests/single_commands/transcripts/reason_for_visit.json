@@ -1,0 +1,7 @@
+[
+  {
+    "speaker": "doctor",
+    "text": "The patient came in today for a routine checkup.",
+    "commands": "reason_for_visit"
+  }
+]

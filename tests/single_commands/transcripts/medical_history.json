@@ -1,0 +1,7 @@
+[
+  {
+    "speaker": "doctor",
+    "text": "The patient has a medical history of asthma in childhood.",
+    "commands": "medical_history"
+  }
+]

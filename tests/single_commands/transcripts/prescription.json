@@ -1,0 +1,7 @@
+[
+  {
+    "speaker": "doctor",
+    "text": "I am prescribing amoxicillin 500 mg three times daily for 10 days.",
+    "commands": "prescription"
+  }
+]

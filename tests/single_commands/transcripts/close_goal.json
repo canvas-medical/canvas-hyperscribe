@@ -1,0 +1,7 @@
+[
+  {
+    "speaker": "doctor",
+    "text": "The goal to adapt nutrition to avoid sugar has been achieved, we can close this goal.",
+    "commands": "close_goal"
+  }
+]

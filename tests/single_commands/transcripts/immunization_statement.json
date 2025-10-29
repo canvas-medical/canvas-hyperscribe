@@ -1,0 +1,7 @@
+[
+  {
+    "speaker": "doctor",
+    "text": "The patient reports having received the TDAP vaccine last month.",
+    "commands": "immunization_statement"
+  }
+]

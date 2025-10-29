@@ -1,0 +1,7 @@
+[
+  {
+    "speaker": "doctor",
+    "text": "I am ordering a chest X-ray to evaluate for pneumonia.",
+    "commands": "imaging_order"
+  }
+]

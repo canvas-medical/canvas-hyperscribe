@@ -1,0 +1,7 @@
+[
+  {
+    "speaker": "doctor",
+    "text": "I am refilling the patient's Lipitor prescription for another 90 days.",
+    "commands": "refill"
+  }
+]
