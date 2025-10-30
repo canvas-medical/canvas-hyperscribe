@@ -1,0 +1,52 @@
+[
+  {
+    "speaker": "doctor",
+    "text": "Let me do a brief review of systems with you. Have you had any fever, chills, or loss of appetite?",
+    "commands": "review_of_system"
+  },
+  {
+    "speaker": "patient",
+    "text": "I've had some chills and my appetite hasn't been great lately.",
+    "commands": ""
+  },
+  {
+    "speaker": "doctor",
+    "text": "Any chest pain, shortness of breath with exertion, or swelling in your legs?",
+    "commands": ""
+  },
+  {
+    "speaker": "patient",
+    "text": "I do cough a bit when climbing stairs, but no chest pain or swelling.",
+    "commands": ""
+  },
+  {
+    "speaker": "doctor",
+    "text": "How about digestive issues - any nausea, vomiting, abdominal pain, constipation, or diarrhea?",
+    "commands": ""
+  },
+  {
+    "speaker": "patient",
+    "text": "No digestive problems.",
+    "commands": ""
+  },
+  {
+    "speaker": "doctor",
+    "text": "Any muscle aches, body aches, or arthritis?",
+    "commands": ""
+  },
+  {
+    "speaker": "patient",
+    "text": "Yes, I've been having some body aches and my knee has been bothering me - arthritis I think.",
+    "commands": ""
+  },
+  {
+    "speaker": "doctor",
+    "text": "And finally, any skin issues like lumps, bumps, or rashes?",
+    "commands": ""
+  },
+  {
+    "speaker": "patient",
+    "text": "I noticed a small rash on my arm about a week ago.",
+    "commands": ""
+  }
+]

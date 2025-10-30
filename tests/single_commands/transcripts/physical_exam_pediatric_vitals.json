@@ -1,0 +1,27 @@
+[
+  {
+    "speaker": "doctor",
+    "text": "Let me measure the child's growth parameters today. I'm going to measure body length and head circumference. ",
+    "commands": "physical_exam"
+  },
+  {
+    "speaker": "doctor",
+    "text": "But I don't want the generation of a Vitals command.",
+    "commands": ""
+  },
+  {
+    "speaker": "doctor",
+    "text": "The child's body length is 28 inches.",
+    "commands": ""
+  },
+  {
+    "speaker": "doctor",
+    "text": "And the head circumference measures 45 centimeters.",
+    "commands": ""
+  },
+  {
+    "speaker": "doctor",
+    "text": "These measurements are tracking well on the growth chart for the child's age.",
+    "commands": ""
+  }
+]

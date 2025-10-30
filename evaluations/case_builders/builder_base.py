@@ -13,11 +13,11 @@ from evaluations.case_builders.builder_audit_url import BuilderAuditUrl
 from evaluations.constants import Constants as EvaluationConstants
 from evaluations.datastores.datastore_case import DatastoreCase
 from evaluations.helper_evaluation import HelperEvaluation
-from hyperscribe.libraries.commander import Commander
 from hyperscribe.libraries.audio_interpreter import AudioInterpreter
 from hyperscribe.libraries.authenticator import Authenticator
 from hyperscribe.libraries.aws_s3 import AwsS3
 from hyperscribe.libraries.cached_sdk import CachedSdk
+from hyperscribe.libraries.commander import Commander
 from hyperscribe.libraries.constants import Constants as HyperscribeConstants
 from hyperscribe.libraries.implemented_commands import ImplementedCommands
 from hyperscribe.libraries.limited_cache import LimitedCache
@@ -54,7 +54,9 @@ class BuilderBase:
     @classmethod
     def run(cls) -> None:
         parameters = cls._parameters()
-        if DatastoreCase.already_generated(parameters.case):
+        if DatastoreCase.already_generated(parameters.case) and not (
+            hasattr(parameters, "overwrite") and parameters.overwrite
+        ):
             print(f"Case '{parameters.case}' already generated")
             return
 

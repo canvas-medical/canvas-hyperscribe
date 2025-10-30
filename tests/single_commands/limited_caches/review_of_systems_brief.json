@@ -1,0 +1,60 @@
+{
+  "stagedCommands": {
+    "ros": [
+      {
+        "uuid": "e09a0cd8-f6e4-4752-8d5a-918222a7612b",
+        "label": "{\"name\": \"Brief\", \"dbid\": 12, \"questions\": [{\"dbid\": 60, \"label\": \"Constitutional\", \"type\": \"MULT\", \"skipped\": false, \"responses\": [{\"dbid\": 177, \"value\": \"Fever\", \"selected\": false, \"comment\": \"\"}, {\"dbid\": 178, \"value\": \"Chills\", \"selected\": false, \"comment\": \"\"}, {\"dbid\": 179, \"value\": \"Loss of appetite\", \"selected\": false, \"comment\": \"\"}]}, {\"dbid\": 61, \"label\": \"Cardiac\", \"type\": \"MULT\", \"skipped\": false, \"responses\": [{\"dbid\": 180, \"value\": \"Chest pain\", \"selected\": false, \"comment\": \"\"}, {\"dbid\": 181, \"value\": \"Shortness of breath with exertion\", \"selected\": false, \"comment\": \"\"}, {\"dbid\": 182, \"value\": \"Swelling in the legs\", \"selected\": false, \"comment\": \"\"}]}, {\"dbid\": 62, \"label\": \"Respiratory\", \"type\": \"MULT\", \"skipped\": true, \"responses\": [{\"dbid\": 183, \"value\": \"Cough\", \"selected\": false, \"comment\": \"\"}, {\"dbid\": 184, \"value\": \"Nocturnal dyspnea\", \"selected\": false, \"comment\": \"\"}, {\"dbid\": 185, \"value\": \"Shortness of breath\", \"selected\": false, \"comment\": \"\"}]}, {\"dbid\": 63, \"label\": \"Digestive\", \"type\": \"MULT\", \"skipped\": false, \"responses\": [{\"dbid\": 186, \"value\": \"Nausea\", \"selected\": false, \"comment\": \"\"}, {\"dbid\": 187, \"value\": \"Vomiting\", \"selected\": false, \"comment\": \"\"}, {\"dbid\": 188, \"value\": \"Abdominal pain\", \"selected\": false, \"comment\": \"\"}, {\"dbid\": 189, \"value\": \"Constipation\", \"selected\": false, \"comment\": \"\"}, {\"dbid\": 190, \"value\": \"Diarrhea\", \"selected\": false, \"comment\": \"\"}]}, {\"dbid\": 64, \"label\": \"Musculoskeletal\", \"type\": \"MULT\", \"skipped\": false, \"responses\": [{\"dbid\": 191, \"value\": \"Muscle aches or cramps\", \"selected\": false, \"comment\": \"\"}, {\"dbid\": 192, \"value\": \"Body aches\", \"selected\": false, \"comment\": \"\"}, {\"dbid\": 193, \"value\": \"Arthritis\", \"selected\": false, \"comment\": \"\"}]}, {\"dbid\": 65, \"label\": \"Skin\", \"type\": \"MULT\", \"skipped\": false, \"responses\": [{\"dbid\": 194, \"value\": \"Lumps/bumps\", \"selected\": false, \"comment\": \"\"}, {\"dbid\": 195, \"value\": \"Rash\", \"selected\": false, \"comment\": \"\"}]}]}",
+        "code": ""
+      }
+    ]
+  },
+  "settings": {
+    "preferredLabPartner": "Generic Lab",
+    "serviceAreaZipCodes": [
+      "95476"
+    ]
+  },
+  "demographicStr": "the patient is a man, born on <DOB REDACTED> (age 43) and weight 200.56 pounds",
+  "conditionHistory": [],
+  "currentAllergies": [],
+  "currentConditions": [],
+  "currentGoals": [],
+  "currentImmunization": [],
+  "currentMedications": [],
+  "existingNoteTypes": [],
+  "existingReasonForVisit": [],
+  "existingRoles": [],
+  "existingStaffMembers": [],
+  "existingTaskLabels": [
+    {
+      "uuid": "1",
+      "label": "Emergent",
+      "code": ""
+    },
+    {
+      "uuid": "5",
+      "label": "Encounter Copilot",
+      "code": ""
+    },
+    {
+      "uuid": "3",
+      "label": "Routine",
+      "code": ""
+    },
+    {
+      "uuid": "2",
+      "label": "Urgent",
+      "code": ""
+    }
+  ],
+  "existingTeams": [],
+  "familyHistory": [],
+  "preferredLabPartner": {
+    "uuid": "18736b3a-31e8-4451-b80a-7876f78303c8",
+    "label": "Generic Lab",
+    "code": ""
+  },
+  "surgeryHistory": [],
+  "chargeDescriptions": [],
+  "labTests": {}
+}

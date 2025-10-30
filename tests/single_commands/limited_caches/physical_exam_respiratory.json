@@ -1,0 +1,60 @@
+{
+  "stagedCommands": {
+    "exam": [
+      {
+        "uuid": "5b3b9a0d-2331-4608-9d01-430f8bb6361f",
+        "label": "{\"name\": \"Respiratory\", \"dbid\": 5, \"questions\": [{\"dbid\": 14, \"label\": \"Constitutional\", \"type\": \"TXT\", \"skipped\": false, \"responses\": [{\"dbid\": 40, \"value\": \"Alert, no acute distress. Well developed and nourished.\", \"selected\": false, \"comment\": null}]}, {\"dbid\": 15, \"label\": \"Skin\", \"type\": \"TXT\", \"skipped\": false, \"responses\": [{\"dbid\": 41, \"value\": \"Warm and dry, no suspicious lesions.\", \"selected\": false, \"comment\": null}]}, {\"dbid\": 16, \"label\": \"Eyes\", \"type\": \"TXT\", \"skipped\": false, \"responses\": [{\"dbid\": 42, \"value\": \"PERRL/EOM intact. Conjunctiva and sclera normal.\", \"selected\": false, \"comment\": null}]}, {\"dbid\": 17, \"label\": \"ENT\", \"type\": \"TXT\", \"skipped\": true, \"responses\": [{\"dbid\": 43, \"value\": \"Ears: normal; Throat: Clear, mucus membranes moist.\", \"selected\": false, \"comment\": null}]}, {\"dbid\": 18, \"label\": \"Mouth\", \"type\": \"TXT\", \"skipped\": true, \"responses\": [{\"dbid\": 44, \"value\": \"Normal oral mucosa without erythema, lesions or exudates. Good dentition.\", \"selected\": false, \"comment\": null}]}, {\"dbid\": 19, \"label\": \"Neck\", \"type\": \"TXT\", \"skipped\": true, \"responses\": [{\"dbid\": 45, \"value\": \"Neck supple, full range of motion, no cervical lymphadenopathy.\", \"selected\": false, \"comment\": null}]}, {\"dbid\": 20, \"label\": \"Pulmonary\", \"type\": \"TXT\", \"skipped\": false, \"responses\": [{\"dbid\": 46, \"value\": \"Clear bilaterally to auscultation bilaterally.\", \"selected\": false, \"comment\": null}]}, {\"dbid\": 21, \"label\": \"Cardiovascular\", \"type\": \"TXT\", \"skipped\": false, \"responses\": [{\"dbid\": 47, \"value\": \"Regular rate and rhythm, S1, S2 normal, no murmurs.\", \"selected\": false, \"comment\": null}]}, {\"dbid\": 22, \"label\": \"Extremities\", \"type\": \"TXT\", \"skipped\": false, \"responses\": [{\"dbid\": 48, \"value\": \"No clubbing, cyanosis, or edema.\", \"selected\": false, \"comment\": null}]}, {\"dbid\": 23, \"label\": \"Other\", \"type\": \"TXT\", \"skipped\": false, \"responses\": [{\"dbid\": 49, \"value\": \"Other\", \"selected\": false, \"comment\": null}]}]}",
+        "code": ""
+      }
+    ]
+  },
+  "settings": {
+    "preferredLabPartner": "Generic Lab",
+    "serviceAreaZipCodes": [
+      "95476"
+    ]
+  },
+  "demographicStr": "the patient is a man, born on <DOB REDACTED> (age 43) and weight 200.56 pounds",
+  "conditionHistory": [],
+  "currentAllergies": [],
+  "currentConditions": [],
+  "currentGoals": [],
+  "currentImmunization": [],
+  "currentMedications": [],
+  "existingNoteTypes": [],
+  "existingReasonForVisit": [],
+  "existingRoles": [],
+  "existingStaffMembers": [],
+  "existingTaskLabels": [
+    {
+      "uuid": "1",
+      "label": "Emergent",
+      "code": ""
+    },
+    {
+      "uuid": "5",
+      "label": "Encounter Copilot",
+      "code": ""
+    },
+    {
+      "uuid": "3",
+      "label": "Routine",
+      "code": ""
+    },
+    {
+      "uuid": "2",
+      "label": "Urgent",
+      "code": ""
+    }
+  ],
+  "existingTeams": [],
+  "familyHistory": [],
+  "preferredLabPartner": {
+    "uuid": "18736b3a-31e8-4451-b80a-7876f78303c8",
+    "label": "Generic Lab",
+    "code": ""
+  },
+  "surgeryHistory": [],
+  "chargeDescriptions": [],
+  "labTests": {}
+}

@@ -1,7 +1,7 @@
 [
   {
     "speaker": "doctor",
-    "text": "The plan is to continue current medications and monitor blood sugar levels.",
+    "text": "Let's write down a plan to continue current medications and monitor blood sugar levels.",
     "commands": "plan"
   }
 ]

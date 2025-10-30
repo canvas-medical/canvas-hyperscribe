@@ -1,0 +1,60 @@
+{
+  "stagedCommands": {
+    "questionnaire": [
+      {
+        "uuid": "8dead439-ab3a-4344-9753-4fad5d793497",
+        "label": "{\"name\": \"Tobacco\", \"dbid\": 3, \"questions\": [{\"dbid\": 9, \"label\": \"Tobacco status\", \"type\": \"SING\", \"skipped\": null, \"responses\": [{\"dbid\": 25, \"value\": \"Never user\", \"selected\": false, \"comment\": null}, {\"dbid\": 26, \"value\": \"Former user\", \"selected\": false, \"comment\": null}, {\"dbid\": 27, \"value\": \"Current every day user\", \"selected\": false, \"comment\": null}, {\"dbid\": 28, \"value\": \"Current some day user\", \"selected\": false, \"comment\": null}, {\"dbid\": 29, \"value\": \"Current Heavy tobacco user\", \"selected\": false, \"comment\": null}, {\"dbid\": 30, \"value\": \"Current Light tobacco user\", \"selected\": false, \"comment\": null}, {\"dbid\": 31, \"value\": \"Tobacco user, current status unknown\", \"selected\": false, \"comment\": null}, {\"dbid\": 32, \"value\": \"Unknown if ever used tobacco\", \"selected\": false, \"comment\": null}]}, {\"dbid\": 10, \"label\": \"Tobacco type\", \"type\": \"MULT\", \"skipped\": null, \"responses\": [{\"dbid\": 33, \"value\": \"Cigarettes\", \"selected\": false, \"comment\": \"\"}, {\"dbid\": 34, \"value\": \"eCigarette\", \"selected\": false, \"comment\": \"\"}, {\"dbid\": 35, \"value\": \"Smokeless\", \"selected\": false, \"comment\": \"\"}, {\"dbid\": 36, \"value\": \"Cigar/Pipe\", \"selected\": false, \"comment\": \"\"}]}, {\"dbid\": 11, \"label\": \"Tobacco comment\", \"type\": \"TXT\", \"skipped\": null, \"responses\": [{\"dbid\": 37, \"value\": \"\", \"selected\": false, \"comment\": null}]}]}",
+        "code": ""
+      }
+    ]
+  },
+  "settings": {
+    "preferredLabPartner": "Generic Lab",
+    "serviceAreaZipCodes": [
+      "95476"
+    ]
+  },
+  "demographicStr": "the patient is a man, born on <DOB REDACTED> (age 43) and weight 200.56 pounds",
+  "conditionHistory": [],
+  "currentAllergies": [],
+  "currentConditions": [],
+  "currentGoals": [],
+  "currentImmunization": [],
+  "currentMedications": [],
+  "existingNoteTypes": [],
+  "existingReasonForVisit": [],
+  "existingRoles": [],
+  "existingStaffMembers": [],
+  "existingTaskLabels": [
+    {
+      "uuid": "1",
+      "label": "Emergent",
+      "code": ""
+    },
+    {
+      "uuid": "5",
+      "label": "Encounter Copilot",
+      "code": ""
+    },
+    {
+      "uuid": "3",
+      "label": "Routine",
+      "code": ""
+    },
+    {
+      "uuid": "2",
+      "label": "Urgent",
+      "code": ""
+    }
+  ],
+  "existingTeams": [],
+  "familyHistory": [],
+  "preferredLabPartner": {
+    "uuid": "18736b3a-31e8-4451-b80a-7876f78303c8",
+    "label": "Generic Lab",
+    "code": ""
+  },
+  "surgeryHistory": [],
+  "chargeDescriptions": [],
+  "labTests": {}
+}

@@ -1,0 +1,60 @@
+{
+  "stagedCommands": {
+    "structuredAssessment": [
+      {
+        "uuid": "821d9793-93d5-4820-87e5-7ded702c88e4",
+        "label": "{\"name\": \"COPD\", \"dbid\": 2, \"questions\": [{\"dbid\": 2, \"label\": \"Type\", \"type\": \"MULT\", \"skipped\": null, \"responses\": [{\"dbid\": 4, \"value\": \"COPD\", \"selected\": false, \"comment\": \"\"}, {\"dbid\": 5, \"value\": \"Asthma\", \"selected\": false, \"comment\": \"\"}, {\"dbid\": 6, \"value\": \"Bronchiectasis\", \"selected\": false, \"comment\": \"\"}, {\"dbid\": 7, \"value\": \"Pulmonary Fibrosis\", \"selected\": false, \"comment\": \"\"}, {\"dbid\": 8, \"value\": \"Chronic Respiratory Failure\", \"selected\": false, \"comment\": \"\"}, {\"dbid\": 9, \"value\": \"Other\", \"selected\": false, \"comment\": \"\"}]}, {\"dbid\": 3, \"label\": \"Status\", \"type\": \"MULT\", \"skipped\": null, \"responses\": [{\"dbid\": 10, \"value\": \"Deteriorated\", \"selected\": false, \"comment\": \"\"}, {\"dbid\": 11, \"value\": \"Stable\", \"selected\": false, \"comment\": \"\"}, {\"dbid\": 12, \"value\": \"Improved\", \"selected\": false, \"comment\": \"\"}]}, {\"dbid\": 4, \"label\": \"Assessment - Symptoms\", \"type\": \"MULT\", \"skipped\": null, \"responses\": [{\"dbid\": 13, \"value\": \"Not well controlled\", \"selected\": false, \"comment\": \"\"}, {\"dbid\": 14, \"value\": \"Well controlled\", \"selected\": false, \"comment\": \"\"}, {\"dbid\": 15, \"value\": \"Without medications\", \"selected\": false, \"comment\": \"\"}, {\"dbid\": 16, \"value\": \"With current medication regimen\", \"selected\": false, \"comment\": \"\"}]}, {\"dbid\": 5, \"label\": \"Assessment - Regimen\", \"type\": \"TXT\", \"skipped\": null, \"responses\": [{\"dbid\": 17, \"value\": \"\", \"selected\": false, \"comment\": null}]}, {\"dbid\": 6, \"label\": \"Additional Information\", \"type\": \"TXT\", \"skipped\": null, \"responses\": [{\"dbid\": 18, \"value\": \"\", \"selected\": false, \"comment\": null}]}, {\"dbid\": 7, \"label\": \"Recommendation / Actions Taken\", \"type\": \"MULT\", \"skipped\": null, \"responses\": [{\"dbid\": 19, \"value\": \"Defer management to PCP\", \"selected\": false, \"comment\": \"\"}, {\"dbid\": 20, \"value\": \"Consider referral to Pulmonology\", \"selected\": false, \"comment\": \"\"}, {\"dbid\": 21, \"value\": \"Continue to monitor\", \"selected\": false, \"comment\": \"\"}, {\"dbid\": 22, \"value\": \"Continue current management\", \"selected\": false, \"comment\": \"\"}, {\"dbid\": 23, \"value\": \"Counseled on energy conservation techniques\", \"selected\": false, \"comment\": \"\"}]}, {\"dbid\": 8, \"label\": \"Other Recommendations\", \"type\": \"TXT\", \"skipped\": null, \"responses\": [{\"dbid\": 24, \"value\": \"\", \"selected\": false, \"comment\": null}]}]}",
+        "code": ""
+      }
+    ]
+  },
+  "settings": {
+    "preferredLabPartner": "Generic Lab",
+    "serviceAreaZipCodes": [
+      "95476"
+    ]
+  },
+  "demographicStr": "the patient is a man, born on <DOB REDACTED> (age 43) and weight 200.56 pounds",
+  "conditionHistory": [],
+  "currentAllergies": [],
+  "currentConditions": [],
+  "currentGoals": [],
+  "currentImmunization": [],
+  "currentMedications": [],
+  "existingNoteTypes": [],
+  "existingReasonForVisit": [],
+  "existingRoles": [],
+  "existingStaffMembers": [],
+  "existingTaskLabels": [
+    {
+      "uuid": "1",
+      "label": "Emergent",
+      "code": ""
+    },
+    {
+      "uuid": "5",
+      "label": "Encounter Copilot",
+      "code": ""
+    },
+    {
+      "uuid": "3",
+      "label": "Routine",
+      "code": ""
+    },
+    {
+      "uuid": "2",
+      "label": "Urgent",
+      "code": ""
+    }
+  ],
+  "existingTeams": [],
+  "familyHistory": [],
+  "preferredLabPartner": {
+    "uuid": "18736b3a-31e8-4451-b80a-7876f78303c8",
+    "label": "Generic Lab",
+    "code": ""
+  },
+  "surgeryHistory": [],
+  "chargeDescriptions": [],
+  "labTests": {}
+}

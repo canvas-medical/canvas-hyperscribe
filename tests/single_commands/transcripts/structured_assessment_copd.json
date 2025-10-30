@@ -1,0 +1,62 @@
+[
+  {
+    "speaker": "doctor",
+    "text": "Let me assess your COPD today.",
+    "commands": ""
+  },
+  {
+    "speaker": "doctor",
+    "text": "COPD is the type of respiratory condition you have. How have your respiratory symptoms been since your last visit?",
+    "commands": "structured_assessment"
+  },
+  {
+    "speaker": "patient",
+    "text": "My breathing has been about the same, maybe a little better actually.",
+    "commands": ""
+  },
+  {
+    "speaker": "doctor",
+    "text": "Good. So your COPD status is stable to improved. Are your symptoms well controlled with your current medications?",
+    "commands": ""
+  },
+  {
+    "speaker": "patient",
+    "text": "Yes, I'm doing pretty well with the inhalers you prescribed. I can do most of my daily activities without too much trouble.",
+    "commands": ""
+  },
+  {
+    "speaker": "doctor",
+    "text": "That's excellent. So your symptoms are well controlled with your current medication regimen, which includes Zetia tablets.",
+    "commands": ""
+  },
+  {
+    "speaker": "patient",
+    "text": "Right, the Zetia once daily.",
+    "commands": ""
+  },
+  {
+    "speaker": "doctor",
+    "text": "Any shortness of breath with exertion or other concerns?",
+    "commands": ""
+  },
+  {
+    "speaker": "patient",
+    "text": "Just a little when I climb stairs, but that's normal for me.",
+    "commands": ""
+  },
+  {
+    "speaker": "doctor",
+    "text": "Okay. I'm going to have you continue your current management. We'll keep monitoring your condition.",
+    "commands": ""
+  },
+  {
+    "speaker": "doctor",
+    "text": "As a general recommendation, make sure you're using proper breathing techniques.",
+    "commands": ""
+  },
+  {
+    "speaker": "patient",
+    "text": "Sounds good, thank you.",
+    "commands": ""
+  }
+]

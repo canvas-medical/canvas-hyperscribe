@@ -21,7 +21,7 @@ class BuilderFromChartTranscript(BuilderBase):
         parser.add_argument("--chart", type=cls.validate_files, required=True, help="Path to limited_cache JSON file")
         parser.add_argument("--transcript", type=cls.validate_files, required=True, help="Path to transcript JSON file")
         parser.add_argument("--cycles", type=int, default=1, help="Number of transcript cycles")
-        parser.add_argument("--render", action="store_true", help="Render commands to UI")
+        parser.add_argument("--overwrite", action="store_true", help="Overwrite existing case")
         return parser.parse_args()
 
     @classmethod
@@ -58,6 +58,3 @@ class BuilderFromChartTranscript(BuilderBase):
                 {recorder.cycle_key: [line.to_json() for line in transcript[idx : idx + length]]},
             )
             previous, _ = Commander.transcript2commands(recorder, transcript[idx : idx + length], chatter, previous)
-
-        if parameters.render:
-            cls._render_in_ui(recorder, identification, limited_cache)

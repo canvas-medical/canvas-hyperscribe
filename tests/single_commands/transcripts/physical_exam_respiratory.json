@@ -1,0 +1,52 @@
+[
+  {
+    "speaker": "doctor",
+    "text": "Let me perform a physical examination. On general appearance, the patient appears fatigued and mildly dyspneic at rest, but is alert and oriented.",
+    "commands": "physical_exam"
+  },
+  {
+    "speaker": "doctor",
+    "text": "Skin examination shows cool and slightly mottled extremities with decreased capillary refill.",
+    "commands": ""
+  },
+  {
+    "speaker": "doctor",
+    "text": "Eye exam reveals pupils are equal and reactive to light, extraocular movements intact. Conjunctiva are pale.",
+    "commands": ""
+  },
+  {
+    "speaker": "doctor",
+    "text": "ENT exam shows ears are clear, throat reveals mild erythema without exudates.",
+    "commands": ""
+  },
+  {
+    "speaker": "doctor",
+    "text": "Mouth shows dry mucous membranes but otherwise normal oral mucosa with adequate dentition.",
+    "commands": ""
+  },
+  {
+    "speaker": "doctor",
+    "text": "Neck exam reveals mild jugular venous distension at 30 degrees, supple with full range of motion, no lymphadenopathy.",
+    "commands": ""
+  },
+  {
+    "speaker": "doctor",
+    "text": "On pulmonary examination, there are bilateral crackles at the bases with decreased breath sounds in the right lower lobe. Some expiratory wheezing noted.",
+    "commands": ""
+  },
+  {
+    "speaker": "doctor",
+    "text": "Cardiovascular exam shows tachycardia with regular rhythm, S1 and S2 present, a grade 2 out of 6 systolic murmur heard best at the apex.",
+    "commands": ""
+  },
+  {
+    "speaker": "doctor",
+    "text": "Extremities show trace bilateral pedal edema and mild clubbing of the fingernails. No cyanosis.",
+    "commands": ""
+  },
+  {
+    "speaker": "doctor",
+    "text": "Additionally, the patient is using accessory muscles for breathing and has a productive cough.",
+    "commands": ""
+  }
+]

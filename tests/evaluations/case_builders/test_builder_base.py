@@ -143,35 +143,42 @@ def test_run(
     tested = BuilderBase()
 
     # the case has already been generated
-    run.side_effect = []
-    parameters.side_effect = [Namespace(case="theCase")]
-    already_generated.side_effect = [True]
-    aws_s3.return_value.is_ready.side_effect = []
-    cached_discussion.side_effect = []
-    helper.side_effect = []
-    memory_log.end_session.side_effect = []
-    mock_datetime.now.side_effect = []
+    tests = [
+        # -- no overwrite argument
+        Namespace(case="theCase"),
+        # -- overwrite argument False
+        Namespace(case="theCase", patient="patientUuid", overwrite=False),
+    ]
+    for parameter_effect in tests:
+        run.side_effect = []
+        parameters.side_effect = [parameter_effect]
+        already_generated.side_effect = [True]
+        aws_s3.return_value.is_ready.side_effect = []
+        cached_discussion.side_effect = []
+        helper.side_effect = []
+        memory_log.end_session.side_effect = []
+        mock_datetime.now.side_effect = []
 
-    result = tested.run()
-    assert result is None
+        result = tested.run()
+        assert result is None
 
-    exp_out = ["Case 'theCase' already generated", ""]
-    assert capsys.readouterr().out == "\n".join(exp_out)
+        exp_out = ["Case 'theCase' already generated", ""]
+        assert capsys.readouterr().out == "\n".join(exp_out)
 
-    assert run.mock_calls == []
-    calls = [call()]
-    assert parameters.mock_calls == calls
-    calls = [call("theCase")]
-    assert already_generated.mock_calls == calls
-    assert aws_s3.mock_calls == []
-    assert builder_audit_url.mock_calls == []
-    assert cached_discussion.mock_calls == []
-    assert helper.mock_calls == []
-    assert llm_decisions_reviewer.mock_calls == []
-    assert memory_log.mock_calls == []
-    assert mock_datetime.mock_calls == []
-    assert mock_auditor.mock_calls == []
-    reset_mocks()
+        assert run.mock_calls == []
+        calls = [call()]
+        assert parameters.mock_calls == calls
+        calls = [call("theCase")]
+        assert already_generated.mock_calls == calls
+        assert aws_s3.mock_calls == []
+        assert builder_audit_url.mock_calls == []
+        assert cached_discussion.mock_calls == []
+        assert helper.mock_calls == []
+        assert llm_decisions_reviewer.mock_calls == []
+        assert memory_log.mock_calls == []
+        assert mock_datetime.mock_calls == []
+        assert mock_auditor.mock_calls == []
+        reset_mocks()
 
     error = RuntimeError("There was an error")
     tests_error = [(None, False), (error, True)]
@@ -180,7 +187,7 @@ def test_run(
         tests = [(True, True), (True, False), (False, True), (False, False)]
         # -- patient is provided
         for aws_is_ready, audit_llm in tests:
-            arguments = Namespace(case="theCase", patient="patientUuid")
+            arguments = Namespace(case="theCase", patient="patientUuid", overwrite=True)  # <-- overwrite is True
 
             settings = Settings(
                 llm_text=VendorKey(vendor="theVendorTextLLM", api_key="theKeyTextLLM"),

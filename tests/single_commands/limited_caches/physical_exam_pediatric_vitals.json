@@ -1,0 +1,60 @@
+{
+  "stagedCommands": {
+    "exam": [
+      {
+        "uuid": "98cdc4e4-4e23-4231-9101-b13f288b2fc4",
+        "label": "{\"name\": \"Pediatric Vitals\", \"dbid\": 4, \"questions\": [{\"dbid\": 12, \"label\": \"Body length (in)\", \"type\": \"TXT\", \"skipped\": false, \"responses\": [{\"dbid\": 38, \"value\": \"\", \"selected\": false, \"comment\": null}]}, {\"dbid\": 13, \"label\": \"Head circumference (cm)\", \"type\": \"TXT\", \"skipped\": false, \"responses\": [{\"dbid\": 39, \"value\": \"\", \"selected\": false, \"comment\": null}]}]}",
+        "code": ""
+      }
+    ]
+  },
+  "settings": {
+    "preferredLabPartner": "Generic Lab",
+    "serviceAreaZipCodes": [
+      "95476"
+    ]
+  },
+  "demographicStr": "the patient is a man, born on <DOB REDACTED> (age 43) and weight 200.56 pounds",
+  "conditionHistory": [],
+  "currentAllergies": [],
+  "currentConditions": [],
+  "currentGoals": [],
+  "currentImmunization": [],
+  "currentMedications": [],
+  "existingNoteTypes": [],
+  "existingReasonForVisit": [],
+  "existingRoles": [],
+  "existingStaffMembers": [],
+  "existingTaskLabels": [
+    {
+      "uuid": "1",
+      "label": "Emergent",
+      "code": ""
+    },
+    {
+      "uuid": "5",
+      "label": "Encounter Copilot",
+      "code": ""
+    },
+    {
+      "uuid": "3",
+      "label": "Routine",
+      "code": ""
+    },
+    {
+      "uuid": "2",
+      "label": "Urgent",
+      "code": ""
+    }
+  ],
+  "existingTeams": [],
+  "familyHistory": [],
+  "preferredLabPartner": {
+    "uuid": "18736b3a-31e8-4451-b80a-7876f78303c8",
+    "label": "Generic Lab",
+    "code": ""
+  },
+  "surgeryHistory": [],
+  "chargeDescriptions": [],
+  "labTests": {}
+}

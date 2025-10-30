@@ -1,0 +1,32 @@
+[
+  {
+    "speaker": "doctor",
+    "text": "Let me ask you about your tobacco use. Are you a current smoker?",
+    "commands": "questionnaire"
+  },
+  {
+    "speaker": "patient",
+    "text": "Yes, I smoke cigarettes every day, about a pack a day.",
+    "commands": ""
+  },
+  {
+    "speaker": "doctor",
+    "text": "So you're a current every day tobacco user. Do you use any other tobacco products besides cigarettes?",
+    "commands": ""
+  },
+  {
+    "speaker": "patient",
+    "text": "No, just cigarettes.",
+    "commands": ""
+  },
+  {
+    "speaker": "doctor",
+    "text": "How long have you been smoking?",
+    "commands": ""
+  },
+  {
+    "speaker": "patient",
+    "text": "I've been smoking for about 20 years.",
+    "commands": ""
+  }
+]

@@ -37,7 +37,7 @@ def test__parameters(argument_parser):
             help="Path to transcript JSON file",
         ),
         call().add_argument("--cycles", type=int, default=1, help="Number of transcript cycles"),
-        call().add_argument("--render", action="store_true", help="Render commands to UI"),
+        call().add_argument("--overwrite", action="store_true", help="Overwrite existing case"),
         call().parse_args(),
     ]
     assert argument_parser.mock_calls == calls
@@ -48,9 +48,7 @@ def test__parameters(argument_parser):
 @patch("evaluations.case_builders.builder_from_chart_transcript.AudioInterpreter")
 @patch.object(LimitedCache, "load_from_json")
 @patch.object(ImplementedCommands, "schema_key2instruction")
-@patch.object(BuilderFromChartTranscript, "_render_in_ui")
 def test__run(
-    render_in_ui,
     schema_key2instruction,
     limited_cache,
     audio_interpreter,
@@ -63,7 +61,6 @@ def test__run(
     recorder = MagicMock()
 
     def reset_mocks():
-        render_in_ui.reset_mock()
         schema_key2instruction.reset_mock()
         limited_cache.reset_mock()
         audio_interpreter.reset_mock()
@@ -154,14 +151,11 @@ def test__run(
         case="theCase",
         transcript=mock_file_transcript,
         cycles=1,
-        render=True,
     )
     tested._run(parameters, recorder, identification)
 
     assert capsys.readouterr().out == "\n".join(exp_out + ["Cycles: 1", ""])
     assert limited_cache.mock_calls == exp_limited_cache
-    calls = [call(recorder, identification, limited_cache.return_value)]
-    assert render_in_ui.mock_calls == calls
     assert schema_key2instruction.mock_calls == exp_schema_key2instruction
     assert audio_interpreter.mock_calls == exp_audio_interpreter
     calls = [call.transcript2commands(recorder, lines, audio_interpreter.return_value, instructions)]
@@ -207,13 +201,11 @@ def test__run(
         type="theType",
         transcript=mock_file_transcript,
         cycles=2,
-        render=False,
     )
     tested._run(parameters, recorder, identification)
 
     assert capsys.readouterr().out == "\n".join(exp_out + ["Cycles: 2", ""])
     assert limited_cache.mock_calls == exp_limited_cache
-    assert render_in_ui.mock_calls == []
     assert schema_key2instruction.mock_calls == exp_schema_key2instruction
     assert audio_interpreter.mock_calls == exp_audio_interpreter
     calls = [
@@ -274,14 +266,11 @@ def test__run(
         case="theCase",
         transcript=mock_file_transcript,
         cycles=3,
-        render=True,
     )
     tested._run(parameters, recorder, identification)
 
     assert capsys.readouterr().out == "\n".join(exp_out + ["Cycles: 3", ""])
     assert limited_cache.mock_calls == exp_limited_cache
-    calls = [call(recorder, identification, limited_cache.return_value)]
-    assert render_in_ui.mock_calls == calls
     assert schema_key2instruction.mock_calls == exp_schema_key2instruction
     assert audio_interpreter.mock_calls == exp_audio_interpreter
     calls = [
