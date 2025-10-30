@@ -116,8 +116,10 @@ def test_instruction_description():
     tested = helper_instance()
     result = tested.instruction_description()
     expected = (
-        "Defined plan for future patient visits. "
-        "There can be only one plan per instruction, and no instruction in the lack of."
+        "Overall treatment plan and care strategy discussed during the visit, including ongoing management, "
+        "monitoring approaches, medication strategies, lifestyle modifications, and follow-up scheduling. "
+        "This captures the provider's overall approach to the patient's care. "
+        "There can be only one plan per instruction, and no instruction if no plan of care is discussed."
     )
     assert result == expected
 

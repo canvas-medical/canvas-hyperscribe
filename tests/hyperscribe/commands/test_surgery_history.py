@@ -250,7 +250,7 @@ def test_command_parameters():
 def test_command_parameters_schemas():
     tested = helper_instance()
     result = tested.command_parameters_schemas()
-    expected = "dba6643cf8cad941e26b33377a0eb96c"
+    expected = "00b3404f35b1562a8699e0c9169eb714"
     assert md5(json.dumps(result).encode()).hexdigest() == expected
 
 
@@ -258,7 +258,10 @@ def test_instruction_description():
     tested = helper_instance()
     result = tested.instruction_description()
     expected = (
-        "Any past surgery. There can be one and only one surgery per instruction, and no instruction in the lack of."
+        "Any past surgery. There can be one and only one surgery per instruction, "
+        "and no instruction in the lack of. "
+        "Do not create instructions for vague references like 'multiple surgeries' "
+        "only create instructions when a specific surgery type is mentioned."
     )
     assert result == expected
 

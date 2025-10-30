@@ -93,17 +93,17 @@ class SurgeryHistory(Base):
                     "properties": {
                         "keywords": {
                             "type": "string",
-                            "description": "Comma separated keywords of up to 5 synonyms of the surgery",
+                            "description": "Comma-separated keywords of up to 5 synonyms of the surgery.",
                         },
                         "approximateDate": {
                             "type": ["string", "null"],
-                            "description": "Approximate date in YYYY-MM-DD format",
+                            "description": "Approximate date of the surgery in YYYY-MM-DD.",
                             "format": "date",
                             "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
                         },
                         "comment": {
                             "type": "string",
-                            "description": "Description of the surgery, as free text",
+                            "description": "Description of the surgery, as free text.",
                         },
                     },
                     "required": ["keywords", "approximateDate", "comment"],
@@ -115,7 +115,9 @@ class SurgeryHistory(Base):
     def instruction_description(self) -> str:
         return (
             "Any past surgery. There can be one and only one surgery per instruction, "
-            "and no instruction in the lack of."
+            "and no instruction in the lack of. "
+            "Do not create instructions for vague references like 'multiple surgeries' "
+            "only create instructions when a specific surgery type is mentioned."
         )
 
     def instruction_constraints(self) -> str:

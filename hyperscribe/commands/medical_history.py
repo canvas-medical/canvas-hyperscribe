@@ -95,24 +95,24 @@ class MedicalHistory(Base):
                     "properties": {
                         "keywords": {
                             "type": "string",
-                            "description": "Comma separated keywords of up to 5 synonyms of the condition",
+                            "description": "Comma-separated keywords of up to 5 synonyms of the condition.",
                         },
                         "approximateStartDate": {
                             "type": ["string", "null"],
-                            "description": "Approximate start date in YYYY-MM-DD format",
+                            "description": "Approximate start date of the condition in YYYY-MM-DD.",
                             "format": "date",
                             "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
                         },
                         "approximateEndDate": {
                             "type": ["string", "null"],
-                            "description": "Approximate end date in YYYY-MM-DD format",
+                            "description": "Approximate end date of the condition in YYYY-MM-DD.",
                             "format": "date",
                             "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
                         },
                         "comments": {
                             "type": "string",
-                            "description": "Provided description of the patient specific history "
-                            "with the condition, as free text",
+                            "description": "Provided description of the patient specific history with the condition, "
+                            "as free text.",
                         },
                     },
                     "required": ["keywords", "approximateStartDate", "approximateEndDate", "comments"],
