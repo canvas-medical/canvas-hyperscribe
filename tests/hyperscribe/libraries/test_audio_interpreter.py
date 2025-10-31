@@ -384,9 +384,9 @@ def test_combine_and_speaker_detection(
     tested, settings, aws_credentials, cache = helper_instance([], True)
     audio_chunks = [b"chunk1", b"chunk2"]
     lines = [
-        Line(speaker="speaker", text="last words 1"),
-        Line(speaker="speaker", text="last words 2"),
-        Line(speaker="speaker", text="last words 3"),
+        Line(speaker="speaker", text="last words 1", start=0.0, end=1.3),
+        Line(speaker="speaker", text="last words 2", start=1.3, end=2.5),
+        Line(speaker="speaker", text="last words 3", start=2.5, end=3.6),
     ]
 
     tests = [
@@ -445,15 +445,15 @@ def test_combine_and_speaker_detection_double_step():
         detector.reset_mock()
 
     lines = [
-        Line(speaker="speaker1", text="last words 1"),
-        Line(speaker="speaker2", text="last words 2"),
-        Line(speaker="speaker3", text="last words 3"),
+        Line(speaker="speaker1", text="last words 1", start=0.0, end=1.3),
+        Line(speaker="speaker2", text="last words 2", start=1.3, end=2.5),
+        Line(speaker="speaker3", text="last words 3", start=2.5, end=3.6),
     ]
     content = [
         [
-            {"speaker": "speaker_0", "text": "text 0"},
-            {"speaker": "speaker_1", "text": "text 1"},
-            {"speaker": "speaker_0", "text": "text 3"},
+            {"speaker": "speaker_0", "text": "text 0", "start": 0.0, "end": 3.6},
+            {"speaker": "speaker_1", "text": "text 1", "start": 3.6, "end": 4.7},
+            {"speaker": "speaker_0", "text": "text 3", "start": 4.7, "end": 5.3},
         ]
     ]
     system_prompt = [
@@ -471,16 +471,18 @@ def test_combine_and_speaker_detection_double_step():
             "",
             "```json",
             "[\n [\n  "
-            '{\n   "speaker": "speaker_0",\n   "text": "text 0"\n  },\n  '
-            '{\n   "speaker": "speaker_1",\n   "text": "text 1"\n  },\n  '
-            '{\n   "speaker": "speaker_0",\n   "text": "text 3"\n  }\n ]\n]',
+            '{\n   "speaker": "speaker_0",\n   "text": "text 0",\n   "start": 0.0,\n   "end": 3.6\n  },\n  '
+            '{\n   "speaker": "speaker_1",\n   "text": "text 1",\n   "start": 3.6,\n   "end": 4.7\n  },\n  '
+            '{\n   "speaker": "speaker_0",\n   "text": "text 3",\n   "start": 4.7,\n   "end": 5.3\n  }\n ]\n]',
             "```",
             "",
             "Present your findings in a JSON format within a Markdown code block:",
             "```json",
-            "[\n {\n  "
-            '"speaker": "Patient/Clinician/Nurse/Parent...",\n  '
-            '"text": "the verbatim transcription as reported in the transcription"\n }\n]',
+            "[\n {"
+            '\n  "speaker": "Patient/Clinician/Nurse/Parent...",'
+            '\n  "text": "the verbatim transcription as reported in the transcription",'
+            '\n  "start": "the start as reported in the transcription",'
+            '\n  "end": "the end as reported in the transcription"\n }\n]',
             "```",
             "",
         ],
@@ -488,25 +490,27 @@ def test_combine_and_speaker_detection_double_step():
             "The previous segment finished with:\n"
             "```json\n"
             "[\n "
-            '{\n  "speaker": "speaker1",\n  "text": "last words 1"\n },\n '
-            '{\n  "speaker": "speaker2",\n  "text": "last words 2"\n },\n '
-            '{\n  "speaker": "speaker3",\n  "text": "last words 3"\n }\n'
+            '{\n  "speaker": "speaker1",\n  "text": "last words 1",\n  "start": 0.0,\n  "end": 1.3\n },\n '
+            '{\n  "speaker": "speaker2",\n  "text": "last words 2",\n  "start": 1.3,\n  "end": 2.5\n },\n '
+            '{\n  "speaker": "speaker3",\n  "text": "last words 3",\n  "start": 2.5,\n  "end": 3.6\n }\n'
             "]\n```\n",
             "Your task is to identify the role of the voices (patient, clinician, nurse, parents...) "
             "in the conversation, if there is only one voice, or just only silence, assume this is the clinician.",
             "",
             "```json",
             "[\n [\n  "
-            '{\n   "speaker": "speaker_0",\n   "text": "text 0"\n  },\n  '
-            '{\n   "speaker": "speaker_1",\n   "text": "text 1"\n  },\n  '
-            '{\n   "speaker": "speaker_0",\n   "text": "text 3"\n  }\n ]\n]',
+            '{\n   "speaker": "speaker_0",\n   "text": "text 0",\n   "start": 0.0,\n   "end": 3.6\n  },\n  '
+            '{\n   "speaker": "speaker_1",\n   "text": "text 1",\n   "start": 3.6,\n   "end": 4.7\n  },\n  '
+            '{\n   "speaker": "speaker_0",\n   "text": "text 3",\n   "start": 4.7,\n   "end": 5.3\n  }\n ]\n]',
             "```",
             "",
             "Present your findings in a JSON format within a Markdown code block:",
             "```json",
-            "[\n {\n  "
-            '"speaker": "Patient/Clinician/Nurse/Parent...",\n  '
-            '"text": "the verbatim transcription as reported in the transcription"\n }\n]',
+            "[\n {"
+            '\n  "speaker": "Patient/Clinician/Nurse/Parent...",'
+            '\n  "text": "the verbatim transcription as reported in the transcription",'
+            '\n  "start": "the start as reported in the transcription",'
+            '\n  "end": "the end as reported in the transcription"\n }\n]',
             "```",
             "",
         ],
@@ -519,6 +523,8 @@ def test_combine_and_speaker_detection_double_step():
             "properties": {
                 "speaker": {"type": "string", "minLength": 1},
                 "text": {"type": "string", "minLength": 1},
+                "start": {"type": "number", "default": 0.0},
+                "end": {"type": "number", "default": 0.0},
             },
             "required": ["speaker", "text"],
             "additionalProperties": False,
@@ -646,9 +652,9 @@ def test_combine_and_speaker_detection_single_step():
             "The previous segment finished with:"
             "\n```json"
             "\n["
-            '\n {\n  "speaker": "speaker",\n  "text": "last words 1"\n },'
-            '\n {\n  "speaker": "speaker",\n  "text": "last words 2"\n },'
-            '\n {\n  "speaker": "speaker",\n  "text": "last words 3"\n }'
+            '\n {\n  "speaker": "speaker",\n  "text": "last words 1",\n  "start": 0.0,\n  "end": 1.3\n },'
+            '\n {\n  "speaker": "speaker",\n  "text": "last words 2",\n  "start": 1.3,\n  "end": 2.5\n },'
+            '\n {\n  "speaker": "speaker",\n  "text": "last words 3",\n  "start": 2.5,\n  "end": 3.6\n }'
             "\n]"
             "\n```"
             "\n",
@@ -682,6 +688,8 @@ def test_combine_and_speaker_detection_single_step():
                 "properties": {
                     "voice": {"type": "string", "pattern": "^voice_[1-9]\\d*$"},
                     "text": {"type": "string", "minLength": 1},
+                    "start": {"type": "number", "default": 0.0},
+                    "end": {"type": "number", "default": 0.0},
                 },
                 "required": ["voice", "text"],
                 "additionalProperties": False,
@@ -730,9 +738,9 @@ def test_combine_and_speaker_detection_single_step():
         {"speaker": "nurse", "text": "the text H"},
     ]
     lines = [
-        Line(speaker="speaker", text="last words 1"),
-        Line(speaker="speaker", text="last words 2"),
-        Line(speaker="speaker", text="last words 3"),
+        Line(speaker="speaker", text="last words 1", start=0.0, end=1.3),
+        Line(speaker="speaker", text="last words 2", start=1.3, end=2.5),
+        Line(speaker="speaker", text="last words 3", start=2.5, end=3.6),
     ]
 
     tested, settings, aws_credentials, cache = helper_instance([], True)
@@ -859,9 +867,9 @@ def test_detect_instructions(common_instructions, json_schema, instruction_const
             "What are the instructions I need to add to my software to document the visit correctly?",
             "```json",
             "["
-            '\n {\n  "speaker": "personA",\n  "text": "the text 1"\n },'
-            '\n {\n  "speaker": "personB",\n  "text": "the text 2"\n },'
-            '\n {\n  "speaker": "personA",\n  "text": "the text 3"\n }'
+            '\n {\n  "speaker": "personA",\n  "text": "the text 1",\n  "start": 0.0,\n  "end": 1.3\n },'
+            '\n {\n  "speaker": "personB",\n  "text": "the text 2",\n  "start": 1.3,\n  "end": 2.5\n },'
+            '\n {\n  "speaker": "personA",\n  "text": "the text 3",\n  "start": 2.5,\n  "end": 3.6\n }'
             "\n]",
             "```",
             "",
@@ -871,9 +879,9 @@ def test_detect_instructions(common_instructions, json_schema, instruction_const
             "What are the instructions I need to add to my software to document the visit correctly?",
             "```json",
             "["
-            '\n {\n  "speaker": "personA",\n  "text": "the text 1"\n },'
-            '\n {\n  "speaker": "personB",\n  "text": "the text 2"\n },'
-            '\n {\n  "speaker": "personA",\n  "text": "the text 3"\n }'
+            '\n {\n  "speaker": "personA",\n  "text": "the text 1",\n  "start": 0.0,\n  "end": 1.3\n },'
+            '\n {\n  "speaker": "personB",\n  "text": "the text 2",\n  "start": 1.3,\n  "end": 2.5\n },'
+            '\n {\n  "speaker": "personA",\n  "text": "the text 3",\n  "start": 2.5,\n  "end": 3.6\n }'
             "\n]",
             "```",
             "",
@@ -916,9 +924,9 @@ def test_detect_instructions(common_instructions, json_schema, instruction_const
     }
 
     discussion = [
-        Line(speaker="personA", text="the text 1"),
-        Line(speaker="personB", text="the text 2"),
-        Line(speaker="personA", text="the text 3"),
+        Line(speaker="personA", text="the text 1", start=0.0, end=1.3),
+        Line(speaker="personB", text="the text 2", start=1.3, end=2.5),
+        Line(speaker="personA", text="the text 3", start=2.5, end=3.6),
     ]
     known_instructions = [
         Instruction(
@@ -1525,9 +1533,9 @@ def test_update_questionnaire(chatter, memory_log):
     reset_mocks()
 
     discussion = [
-        Line(speaker="personA", text="the text 1"),
-        Line(speaker="personB", text="the text 2"),
-        Line(speaker="personA", text="the text 3"),
+        Line(speaker="personA", text="the text 1", start=0.0, end=1.3),
+        Line(speaker="personB", text="the text 2", start=1.3, end=2.5),
+        Line(speaker="personA", text="the text 3", start=2.5, end=3.6),
     ]
 
     tests = [

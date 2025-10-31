@@ -115,7 +115,12 @@ def test_request(requests_post):
     result = tested.request()
     expected = HttpResponse(
         code=200,
-        response='```json\n[\n {\n  "speaker": "speaker_0",\n  "text": "[silence]"\n }\n]\n```',
+        response="```json\n[\n {"
+        '\n  "speaker": "speaker_0",'
+        '\n  "text": "[silence]",'
+        '\n  "start": 0.0,'
+        '\n  "end": 0.0'
+        "\n }\n]\n```",
     )
     assert result == expected
 
@@ -143,20 +148,20 @@ def test_request(requests_post):
     #  -- not empty response
     content = {
         "words": [
-            {"text": "text A", "type": "word", "speaker_id": "speaker_0"},
-            {"text": "text B", "type": "audio_event", "speaker_id": "speaker_0"},
-            {"text": "text C", "type": "word", "speaker_id": "speaker_0"},
-            {"text": "text D", "type": "word", "speaker_id": "speaker_0"},
-            {"text": "text E", "type": "word", "speaker_id": "speaker_1"},
-            {"text": "text F", "type": "spacing", "speaker_id": "speaker_1"},
-            {"text": "text G", "type": "word", "speaker_id": "speaker_1"},
-            {"text": "text H", "type": "word", "speaker_id": "speaker_2"},
-            {"text": "text I", "type": "spacing", "speaker_id": "speaker_2"},
-            {"text": "text J", "type": "word", "speaker_id": "speaker_1"},
-            {"text": "text K", "type": "word", "speaker_id": "speaker_0"},
-            {"text": "text L", "type": "word", "speaker_id": "speaker_1"},
-            {"text": "text M", "type": "spacing", "speaker_id": "speaker_1"},
-            {"text": "text N", "type": "word", "speaker_id": "speaker_1"},
+            {"text": "text A", "start": 0.0, "end": 1.3, "type": "word", "speaker_id": "speaker_0"},
+            {"text": "text B", "start": 1.3, "end": 2.5, "type": "audio_event", "speaker_id": "speaker_0"},
+            {"text": "text C", "start": 2.5, "end": 3.6, "type": "word", "speaker_id": "speaker_0"},
+            {"text": "text D", "start": 3.6, "end": 4.7, "type": "word", "speaker_id": "speaker_0"},
+            {"text": "text E", "start": 4.7, "end": 5.3, "type": "word", "speaker_id": "speaker_1"},
+            {"text": "text F", "start": 5.3, "end": 6.4, "type": "spacing", "speaker_id": "speaker_1"},
+            {"text": "text G", "start": 6.4, "end": 7.1, "type": "word", "speaker_id": "speaker_1"},
+            {"text": "text H", "start": 7.1, "end": 8.0, "type": "word", "speaker_id": "speaker_2"},
+            {"text": "text I", "start": 8.0, "end": 9.9, "type": "spacing", "speaker_id": "speaker_2"},
+            {"text": "text J", "start": 9.9, "end": 11.3, "type": "word", "speaker_id": "speaker_1"},
+            {"text": "text K", "start": 11.3, "end": 12.5, "type": "word", "speaker_id": "speaker_0"},
+            {"text": "text L", "start": 12.5, "end": 13.6, "type": "word", "speaker_id": "speaker_1"},
+            {"text": "text M", "start": 13.6, "end": 14.7, "type": "spacing", "speaker_id": "speaker_1"},
+            {"text": "text N", "start": 14.7, "end": 15.3, "type": "word", "speaker_id": "speaker_1"},
         ],
     }
     response = type(
@@ -178,12 +183,12 @@ def test_request(requests_post):
         code=200,
         response="```json\n"
         "[\n "
-        '{\n  "speaker": "speaker_0",\n  "text": "text Atext Ctext D"\n },\n '
-        '{\n  "speaker": "speaker_1",\n  "text": "text E text G"\n },\n '
-        '{\n  "speaker": "speaker_2",\n  "text": "text H "\n },\n '
-        '{\n  "speaker": "speaker_1",\n  "text": "text J"\n },\n '
-        '{\n  "speaker": "speaker_0",\n  "text": "text K"\n },\n '
-        '{\n  "speaker": "speaker_1",\n  "text": "text L text N"\n }\n'
+        '{\n  "speaker": "speaker_0",\n  "text": "text Atext Ctext D",\n  "start": 0.0,\n  "end": 4.7\n },\n '
+        '{\n  "speaker": "speaker_1",\n  "text": "text E text G",\n  "start": 4.7,\n  "end": 7.1\n },\n '
+        '{\n  "speaker": "speaker_2",\n  "text": "text H ",\n  "start": 7.1,\n  "end": 9.9\n },\n '
+        '{\n  "speaker": "speaker_1",\n  "text": "text J",\n  "start": 9.9,\n  "end": 11.3\n },\n '
+        '{\n  "speaker": "speaker_0",\n  "text": "text K",\n  "start": 11.3,\n  "end": 12.5\n },\n '
+        '{\n  "speaker": "speaker_1",\n  "text": "text L text N",\n  "start": 12.5,\n  "end": 15.3\n }\n'
         "]\n"
         "```",
     )
@@ -207,20 +212,20 @@ def test_request(requests_post):
         call.log(
             {
                 "words": [
-                    {"text": "text A", "type": "word", "speaker_id": "speaker_0"},
-                    {"text": "text B", "type": "audio_event", "speaker_id": "speaker_0"},
-                    {"text": "text C", "type": "word", "speaker_id": "speaker_0"},
-                    {"text": "text D", "type": "word", "speaker_id": "speaker_0"},
-                    {"text": "text E", "type": "word", "speaker_id": "speaker_1"},
-                    {"text": "text F", "type": "spacing", "speaker_id": "speaker_1"},
-                    {"text": "text G", "type": "word", "speaker_id": "speaker_1"},
-                    {"text": "text H", "type": "word", "speaker_id": "speaker_2"},
-                    {"text": "text I", "type": "spacing", "speaker_id": "speaker_2"},
-                    {"text": "text J", "type": "word", "speaker_id": "speaker_1"},
-                    {"text": "text K", "type": "word", "speaker_id": "speaker_0"},
-                    {"text": "text L", "type": "word", "speaker_id": "speaker_1"},
-                    {"text": "text M", "type": "spacing", "speaker_id": "speaker_1"},
-                    {"text": "text N", "type": "word", "speaker_id": "speaker_1"},
+                    {"text": "text A", "start": 0.0, "end": 1.3, "type": "word", "speaker_id": "speaker_0"},
+                    {"text": "text B", "start": 1.3, "end": 2.5, "type": "audio_event", "speaker_id": "speaker_0"},
+                    {"text": "text C", "start": 2.5, "end": 3.6, "type": "word", "speaker_id": "speaker_0"},
+                    {"text": "text D", "start": 3.6, "end": 4.7, "type": "word", "speaker_id": "speaker_0"},
+                    {"text": "text E", "start": 4.7, "end": 5.3, "type": "word", "speaker_id": "speaker_1"},
+                    {"text": "text F", "start": 5.3, "end": 6.4, "type": "spacing", "speaker_id": "speaker_1"},
+                    {"text": "text G", "start": 6.4, "end": 7.1, "type": "word", "speaker_id": "speaker_1"},
+                    {"text": "text H", "start": 7.1, "end": 8.0, "type": "word", "speaker_id": "speaker_2"},
+                    {"text": "text I", "start": 8.0, "end": 9.9, "type": "spacing", "speaker_id": "speaker_2"},
+                    {"text": "text J", "start": 9.9, "end": 11.3, "type": "word", "speaker_id": "speaker_1"},
+                    {"text": "text K", "start": 11.3, "end": 12.5, "type": "word", "speaker_id": "speaker_0"},
+                    {"text": "text L", "start": 12.5, "end": 13.6, "type": "word", "speaker_id": "speaker_1"},
+                    {"text": "text M", "start": 13.6, "end": 14.7, "type": "spacing", "speaker_id": "speaker_1"},
+                    {"text": "text N", "start": 14.7, "end": 15.3, "type": "word", "speaker_id": "speaker_1"},
                 ],
             }
         ),

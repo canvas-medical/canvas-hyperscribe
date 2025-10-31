@@ -49,15 +49,18 @@ class LlmElevenLabs(LlmBase):
                         {
                             "speaker_id": words["speaker_id"],
                             "text": [],
+                            "start": words["start"],
+                            "end": words["end"],
                         }
                     )
+                turns[-1]["end"] = words["end"]
                 if words["type"] == "word":
                     turns[-1]["text"].append(words["text"])
                 elif words["type"] == "spacing":
                     turns[-1]["text"].append(" ")
 
             if not turns:
-                turns = [{"speaker_id": "speaker_0", "text": []}]
+                turns = [{"speaker_id": "speaker_0", "text": [], "start": 0.0, "end": 0.0}]
 
             result = HttpResponse(
                 code=result.code,
@@ -69,6 +72,8 @@ class LlmElevenLabs(LlmBase):
                                 {
                                     "speaker": t["speaker_id"],
                                     "text": "".join(t["text"]) or "[silence]",
+                                    "start": t["start"],
+                                    "end": t["end"],
                                 }
                                 for t in turns
                             ],

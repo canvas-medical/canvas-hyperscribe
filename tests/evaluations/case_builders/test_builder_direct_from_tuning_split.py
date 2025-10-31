@@ -93,8 +93,10 @@ def test_schema_topical_exchanges():
                 "text": {"type": "string", "minLength": 1},
                 "chunk": {"type": "integer"},
                 "topic": {"type": "integer"},
+                "start": {"type": "number"},
+                "end": {"type": "number"},
             },
-            "required": ["speaker", "text", "chunk", "topic"],
+            "required": ["speaker", "text", "chunk", "topic", "start", "end"],
             "additionalProperties": False,
         },
     }
@@ -154,30 +156,40 @@ def test__run(
     tested = helper_instance()
 
     topical_exchanges = [
-        TopicalExchange(speaker="theSpeaker1", text="theText1", chunk=1, topic=1),
-        TopicalExchange(speaker="theSpeaker2", text="theText2", chunk=1, topic=1),
-        TopicalExchange(speaker="theSpeaker1", text="theText3", chunk=1, topic=2),
-        TopicalExchange(speaker="theSpeaker2", text="theText4", chunk=2, topic=2),
-        TopicalExchange(speaker="theSpeaker2", text="theText5", chunk=2, topic=3),
-        TopicalExchange(speaker="theSpeaker1", text="theText6", chunk=2, topic=3),
-        TopicalExchange(speaker="theSpeaker1", text="theText7", chunk=4, topic=3),
-        TopicalExchange(speaker="theSpeaker1", text="theText7", chunk=5, topic=4),
+        TopicalExchange(speaker="theSpeaker1", text="theText1", chunk=1, topic=1, start=0.0, end=1.7),
+        TopicalExchange(speaker="theSpeaker2", text="theText2", chunk=1, topic=1, start=1.7, end=3.5),
+        TopicalExchange(speaker="theSpeaker1", text="theText3", chunk=1, topic=2, start=3.5, end=4.8),
+        TopicalExchange(speaker="theSpeaker2", text="theText4", chunk=2, topic=2, start=4.8, end=6.1),
+        TopicalExchange(speaker="theSpeaker2", text="theText5", chunk=2, topic=3, start=6.1, end=8.3),
+        TopicalExchange(speaker="theSpeaker1", text="theText6", chunk=2, topic=3, start=8.3, end=9.9),
+        TopicalExchange(speaker="theSpeaker1", text="theText7", chunk=4, topic=3, start=9.9, end=11.7),
+        TopicalExchange(speaker="theSpeaker1", text="theText7", chunk=5, topic=4, start=11.7, end=15.5),
     ]
     case_exchanges = [
-        CaseExchange(speaker="theSpeaker1", text="theText1", chunk=1),
-        CaseExchange(speaker="theSpeaker2", text="theText2", chunk=1),
-        CaseExchange(speaker="theSpeaker1", text="theText3", chunk=1),
-        CaseExchange(speaker="theSpeaker2", text="theText4", chunk=2),
-        CaseExchange(speaker="theSpeaker2", text="theText5", chunk=2),
-        CaseExchange(speaker="theSpeaker1", text="theText6", chunk=2),
-        CaseExchange(speaker="theSpeaker1", text="theText7", chunk=4),
-        CaseExchange(speaker="theSpeaker1", text="theText7", chunk=5),
+        CaseExchange(speaker="theSpeaker1", text="theText1", chunk=1, start=0.0, end=1.7),
+        CaseExchange(speaker="theSpeaker2", text="theText2", chunk=1, start=1.7, end=3.5),
+        CaseExchange(speaker="theSpeaker1", text="theText3", chunk=1, start=0.0, end=1.3),
+        CaseExchange(speaker="theSpeaker2", text="theText4", chunk=2, start=1.3, end=2.6),
+        CaseExchange(speaker="theSpeaker2", text="theText5", chunk=2, start=0.0, end=2.2),
+        CaseExchange(speaker="theSpeaker1", text="theText6", chunk=2, start=2.2, end=3.8),
+        CaseExchange(speaker="theSpeaker1", text="theText7", chunk=4, start=3.8, end=5.6),
+        CaseExchange(speaker="theSpeaker1", text="theText7", chunk=5, start=0.0, end=3.8),
     ]
     exchange_summaries = [
         CaseExchangeSummary(title="title1", summary="summary1"),
         CaseExchangeSummary(title="title2", summary="summary2"),
         CaseExchangeSummary(title="title3", summary="summary3"),
         CaseExchangeSummary(title="title4", summary="summary4"),
+    ]
+    passed_topical_exchanges = [
+        TopicalExchange(speaker="theSpeaker1", text="theText1", chunk=1, topic=1, start=0.0, end=1.7),
+        TopicalExchange(speaker="theSpeaker2", text="theText2", chunk=1, topic=1, start=1.7, end=3.5),
+        TopicalExchange(speaker="theSpeaker1", text="theText3", chunk=1, topic=2, start=0.0, end=1.3),
+        TopicalExchange(speaker="theSpeaker2", text="theText4", chunk=2, topic=2, start=1.3, end=2.6),
+        TopicalExchange(speaker="theSpeaker2", text="theText5", chunk=2, topic=3, start=0.0, end=2.2),
+        TopicalExchange(speaker="theSpeaker1", text="theText6", chunk=2, topic=3, start=2.2, end=3.8),
+        TopicalExchange(speaker="theSpeaker1", text="theText7", chunk=4, topic=3, start=3.8, end=5.6),
+        TopicalExchange(speaker="theSpeaker1", text="theText7", chunk=5, topic=4, start=0.0, end=3.8),
     ]
 
     split_audio.side_effect = ["theSplitAudioFiles"]
@@ -236,10 +248,10 @@ def test__run(
     calls = [call(["file1", "file2"])]
     assert detect_topical_exchanges.mock_calls == calls
     calls = [
-        call([topical_exchanges[i] for i in [0, 1]], full_mp3_file.parent),
-        call([topical_exchanges[i] for i in [2, 3]], full_mp3_file.parent),
-        call([topical_exchanges[i] for i in [4, 5, 6]], full_mp3_file.parent),
-        call([topical_exchanges[i] for i in [7]], full_mp3_file.parent),
+        call([passed_topical_exchanges[i] for i in [0, 1]], full_mp3_file.parent),
+        call([passed_topical_exchanges[i] for i in [2, 3]], full_mp3_file.parent),
+        call([passed_topical_exchanges[i] for i in [4, 5, 6]], full_mp3_file.parent),
+        call([passed_topical_exchanges[i] for i in [7]], full_mp3_file.parent),
     ]
     assert topical_exchange_summary.mock_calls == calls
     calls = [
@@ -300,9 +312,9 @@ def test_topical_exchange_summary(schema_summary, memory_log, helper, uuid4):
     reset_mocks("w")
 
     topical_exchanges = [
-        TopicalExchange(speaker="theSpeaker2", text="theText5", chunk=2, topic=3),
-        TopicalExchange(speaker="theSpeaker1", text="theText6", chunk=2, topic=3),
-        TopicalExchange(speaker="theSpeaker1", text="theText7", chunk=4, topic=3),
+        TopicalExchange(speaker="theSpeaker2", text="theText5", chunk=2, topic=3, start=0.0, end=1.7),
+        TopicalExchange(speaker="theSpeaker1", text="theText6", chunk=2, topic=3, start=1.7, end=3.5),
+        TopicalExchange(speaker="theSpeaker1", text="theText7", chunk=4, topic=3, start=3.5, end=4.8),
     ]
     system_prompt = [
         "The conversation is in the medical context, and related to a visit of a patient with a healthcare provider.",
@@ -322,9 +334,30 @@ def test_topical_exchange_summary(schema_summary, memory_log, helper, uuid4):
         "Coherent topical exchange:",
         "```json",
         "["
-        '\n {\n  "speaker": "theSpeaker2",\n  "text": "theText5",\n  "chunk": 2,\n  "topic": 3\n },'
-        '\n {\n  "speaker": "theSpeaker1",\n  "text": "theText6",\n  "chunk": 2,\n  "topic": 3\n },'
-        '\n {\n  "speaker": "theSpeaker1",\n  "text": "theText7",\n  "chunk": 4,\n  "topic": 3\n }'
+        "\n {"
+        '\n  "speaker": "theSpeaker2",'
+        '\n  "text": "theText5",'
+        '\n  "chunk": 2,'
+        '\n  "topic": 3,'
+        '\n  "start": 0.0,'
+        '\n  "end": 1.7'
+        "\n },"
+        "\n {"
+        '\n  "speaker": "theSpeaker1",'
+        '\n  "text": "theText6",'
+        '\n  "chunk": 2,'
+        '\n  "topic": 3,'
+        '\n  "start": 1.7,'
+        '\n  "end": 3.5'
+        "\n },"
+        "\n {"
+        '\n  "speaker": "theSpeaker1",'
+        '\n  "text": "theText7",'
+        '\n  "chunk": 4,'
+        '\n  "topic": 3,'
+        '\n  "start": 3.5,'
+        '\n  "end": 4.8'
+        "\n }"
         "\n]",
         "```",
         "",
@@ -473,7 +506,16 @@ def test_detect_topical_exchanges(schema_topical_exchanges, memory_log, helper):
             if idx < 3:
                 item.parent.__truediv__.side_effect = [files[idx + 3]]
             buffers[idx].content = json.dumps(
-                [{"speaker": f"theSpeaker{idx}", "text": f"theText{idx}", "chunk": idx, "topic": idx}],
+                [
+                    {
+                        "speaker": f"theSpeaker{idx}",
+                        "text": f"theText{idx}",
+                        "chunk": idx,
+                        "topic": idx,
+                        "start": 1.1 * idx,
+                        "end": 1.5 * idx,
+                    }
+                ],
             )
 
     reset_mocks()
@@ -511,7 +553,7 @@ def test_detect_topical_exchanges(schema_topical_exchanges, memory_log, helper):
         [
             "The fragment of the discussion is:",
             "```json",
-            '[{"speaker": "theSpeaker0", "text": "theText0", "chunk": 0, "topic": 0}]',
+            '[{"speaker": "theSpeaker0", "text": "theText0", "chunk": 0, "topic": 0, "start": 0.0, "end": 0.0}]',
             "```",
             "",
             "Follow rigorously the instructions and provide the requested information using the mentioned "
@@ -523,7 +565,14 @@ def test_detect_topical_exchanges(schema_topical_exchanges, memory_log, helper):
         [
             "Here is the current set of exchanges for the topic #02:",
             "```json",
-            '[\n {\n  "speaker": "theSpeaker2",\n  "text": "theText3",\n  "chunk": 1,\n  "topic": 2\n }\n]',
+            "[\n {"
+            '\n  "speaker": "theSpeaker2",'
+            '\n  "text": "theText3",'
+            '\n  "chunk": 1,'
+            '\n  "topic": 2,'
+            '\n  "start": 7.8,'
+            '\n  "end": 9.9'
+            "\n }\n]",
             "```",
             "",
             "This is just for the context, so do not repeat it in your answer.",
@@ -531,7 +580,7 @@ def test_detect_topical_exchanges(schema_topical_exchanges, memory_log, helper):
         [
             "The fragment of the discussion is:",
             "```json",
-            '[{"speaker": "theSpeaker1", "text": "theText1", "chunk": 1, "topic": 1}]',
+            '[{"speaker": "theSpeaker1", "text": "theText1", "chunk": 1, "topic": 1, "start": 1.1, "end": 1.5}]',
             "```",
             "",
             "Follow rigorously the instructions and provide the requested information using the mentioned "
@@ -543,11 +592,33 @@ def test_detect_topical_exchanges(schema_topical_exchanges, memory_log, helper):
         [
             "Here is the current set of exchanges for the topic #02:",
             "```json",
-            "[\n "
-            '{\n  "speaker": "theSpeaker2",\n  "text": "theText3",\n  "chunk": 1,\n  "topic": 2\n },\n '
-            '{\n  "speaker": "theSpeaker1",\n  "text": "theText1",\n  "chunk": 2,\n  "topic": 2\n },\n '
-            '{\n  "speaker": "theSpeaker1",\n  "text": "theText2",\n  "chunk": 2,\n  "topic": 2\n },\n '
-            '{\n  "speaker": "theSpeaker2",\n  "text": "theText3",\n  "chunk": 2,\n  "topic": 2\n }\n]',
+            "[\n {"
+            '\n  "speaker": "theSpeaker2",'
+            '\n  "text": "theText3",\n  "chunk": 1,'
+            '\n  "topic": 2,\n  "start": 7.8,'
+            '\n  "end": 9.9'
+            "\n },\n {"
+            '\n  "speaker": "theSpeaker1",'
+            '\n  "text": "theText4",'
+            '\n  "chunk": 2,'
+            '\n  "topic": 2,'
+            '\n  "start": 10.1,'
+            '\n  "end": 11.3'
+            "\n },\n {"
+            '\n  "speaker": "theSpeaker1",'
+            '\n  "text": "theText5",'
+            '\n  "chunk": 2,'
+            '\n  "topic": 2,'
+            '\n  "start": 11.3,'
+            '\n  "end": 14.7'
+            "\n },\n {"
+            '\n  "speaker": "theSpeaker2",'
+            '\n  "text": "theText6",'
+            '\n  "chunk": 2,'
+            '\n  "topic": 2,'
+            '\n  "start": 14.7,'
+            '\n  "end": 19.9'
+            "\n }\n]",
             "```",
             "",
             "This is just for the context, so do not repeat it in your answer.",
@@ -555,7 +626,7 @@ def test_detect_topical_exchanges(schema_topical_exchanges, memory_log, helper):
         [
             "The fragment of the discussion is:",
             "```json",
-            '[{"speaker": "theSpeaker2", "text": "theText2", "chunk": 2, "topic": 2}]',
+            '[{"speaker": "theSpeaker2", "text": "theText2", "chunk": 2, "topic": 2, "start": 2.2, "end": 3.0}]',
             "```",
             "",
             "Follow rigorously the instructions and provide the requested information using the mentioned "
@@ -582,9 +653,30 @@ def test_detect_topical_exchanges(schema_topical_exchanges, memory_log, helper):
                 has_error=False,
                 content=[
                     [
-                        {"speaker": "theSpeaker1", "text": "theText1", "chunk": 1, "topic": 1},
-                        {"speaker": "theSpeaker1", "text": "theText2", "chunk": 1, "topic": 1},
-                        {"speaker": "theSpeaker2", "text": "theText3", "chunk": 1, "topic": 2},
+                        {
+                            "speaker": "theSpeaker1",
+                            "text": "theText1",
+                            "chunk": 1,
+                            "topic": 1,
+                            "start": 0.0,
+                            "end": 5.6,
+                        },
+                        {
+                            "speaker": "theSpeaker1",
+                            "text": "theText2",
+                            "chunk": 1,
+                            "topic": 1,
+                            "start": 5.6,
+                            "end": 7.8,
+                        },
+                        {
+                            "speaker": "theSpeaker2",
+                            "text": "theText3",
+                            "chunk": 1,
+                            "topic": 2,
+                            "start": 7.8,
+                            "end": 9.9,
+                        },
                     ],
                 ],
             ),
@@ -593,9 +685,30 @@ def test_detect_topical_exchanges(schema_topical_exchanges, memory_log, helper):
                 has_error=False,
                 content=[
                     [
-                        {"speaker": "theSpeaker1", "text": "theText1", "chunk": 2, "topic": 2},
-                        {"speaker": "theSpeaker1", "text": "theText2", "chunk": 2, "topic": 2},
-                        {"speaker": "theSpeaker2", "text": "theText3", "chunk": 2, "topic": 2},
+                        {
+                            "speaker": "theSpeaker1",
+                            "text": "theText4",
+                            "chunk": 2,
+                            "topic": 2,
+                            "start": 10.1,
+                            "end": 11.3,
+                        },
+                        {
+                            "speaker": "theSpeaker1",
+                            "text": "theText5",
+                            "chunk": 2,
+                            "topic": 2,
+                            "start": 11.3,
+                            "end": 14.7,
+                        },
+                        {
+                            "speaker": "theSpeaker2",
+                            "text": "theText6",
+                            "chunk": 2,
+                            "topic": 2,
+                            "start": 14.7,
+                            "end": 19.9,
+                        },
                     ],
                 ],
             ),
@@ -604,9 +717,30 @@ def test_detect_topical_exchanges(schema_topical_exchanges, memory_log, helper):
                 has_error=False,
                 content=[
                     [
-                        {"speaker": "theSpeaker1", "text": "theText1", "chunk": 3, "topic": 2},
-                        {"speaker": "theSpeaker1", "text": "theText2", "chunk": 3, "topic": 3},
-                        {"speaker": "theSpeaker2", "text": "theText3", "chunk": 3, "topic": 4},
+                        {
+                            "speaker": "theSpeaker1",
+                            "text": "theText7",
+                            "chunk": 3,
+                            "topic": 2,
+                            "start": 20.0,
+                            "end": 23.7,
+                        },
+                        {
+                            "speaker": "theSpeaker1",
+                            "text": "theText8",
+                            "chunk": 3,
+                            "topic": 3,
+                            "start": 23.7,
+                            "end": 25.3,
+                        },
+                        {
+                            "speaker": "theSpeaker2",
+                            "text": "theText9",
+                            "chunk": 3,
+                            "topic": 4,
+                            "start": 25.3,
+                            "end": 28.6,
+                        },
                     ],
                 ],
             ),
@@ -614,15 +748,15 @@ def test_detect_topical_exchanges(schema_topical_exchanges, memory_log, helper):
 
         result = tested.detect_topical_exchanges(files[:3])
         expected = [
-            TopicalExchange(speaker="theSpeaker1", text="theText1", chunk=1, topic=1),
-            TopicalExchange(speaker="theSpeaker1", text="theText2", chunk=1, topic=1),
-            TopicalExchange(speaker="theSpeaker2", text="theText3", chunk=1, topic=2),
-            TopicalExchange(speaker="theSpeaker1", text="theText1", chunk=2, topic=2),
-            TopicalExchange(speaker="theSpeaker1", text="theText2", chunk=2, topic=2),
-            TopicalExchange(speaker="theSpeaker2", text="theText3", chunk=2, topic=2),
-            TopicalExchange(speaker="theSpeaker1", text="theText1", chunk=3, topic=2),
-            TopicalExchange(speaker="theSpeaker1", text="theText2", chunk=3, topic=3),
-            TopicalExchange(speaker="theSpeaker2", text="theText3", chunk=3, topic=4),
+            TopicalExchange(speaker="theSpeaker1", text="theText1", chunk=1, topic=1, start=0.0, end=5.6),
+            TopicalExchange(speaker="theSpeaker1", text="theText2", chunk=1, topic=1, start=5.6, end=7.8),
+            TopicalExchange(speaker="theSpeaker2", text="theText3", chunk=1, topic=2, start=7.8, end=9.9),
+            TopicalExchange(speaker="theSpeaker1", text="theText4", chunk=2, topic=2, start=10.1, end=11.3),
+            TopicalExchange(speaker="theSpeaker1", text="theText5", chunk=2, topic=2, start=11.3, end=14.7),
+            TopicalExchange(speaker="theSpeaker2", text="theText6", chunk=2, topic=2, start=14.7, end=19.9),
+            TopicalExchange(speaker="theSpeaker1", text="theText7", chunk=3, topic=2, start=20.0, end=23.7),
+            TopicalExchange(speaker="theSpeaker1", text="theText8", chunk=3, topic=3, start=23.7, end=25.3),
+            TopicalExchange(speaker="theSpeaker2", text="theText9", chunk=3, topic=4, start=25.3, end=28.6),
         ]
         assert result == expected
 
@@ -659,32 +793,104 @@ def test_detect_topical_exchanges(schema_topical_exchanges, memory_log, helper):
 
             if index < 3:
                 exp_content = json.dumps(
-                    [{"speaker": f"theSpeaker{index}", "text": f"theText{index}", "chunk": index, "topic": index}],
+                    [
+                        {
+                            "speaker": f"theSpeaker{index}",
+                            "text": f"theText{index}",
+                            "chunk": index,
+                            "topic": index,
+                            "start": 1.1 * index,
+                            "end": 1.5 * index,
+                        }
+                    ],
                 )
             elif index == 3:
                 exp_content = json.dumps(
                     [
-                        {"speaker": "theSpeaker1", "text": "theText1", "chunk": 1, "topic": 1},
-                        {"speaker": "theSpeaker1", "text": "theText2", "chunk": 1, "topic": 1},
-                        {"speaker": "theSpeaker2", "text": "theText3", "chunk": 1, "topic": 2},
+                        {
+                            "speaker": "theSpeaker1",
+                            "text": "theText1",
+                            "chunk": 1,
+                            "topic": 1,
+                            "start": 0.0,
+                            "end": 5.6,
+                        },
+                        {
+                            "speaker": "theSpeaker1",
+                            "text": "theText2",
+                            "chunk": 1,
+                            "topic": 1,
+                            "start": 5.6,
+                            "end": 7.8,
+                        },
+                        {
+                            "speaker": "theSpeaker2",
+                            "text": "theText3",
+                            "chunk": 1,
+                            "topic": 2,
+                            "start": 7.8,
+                            "end": 9.9,
+                        },
                     ],
                     indent=2,
                 )
             elif index == 4:
                 exp_content = json.dumps(
                     [
-                        {"speaker": "theSpeaker1", "text": "theText1", "chunk": 2, "topic": 2},
-                        {"speaker": "theSpeaker1", "text": "theText2", "chunk": 2, "topic": 2},
-                        {"speaker": "theSpeaker2", "text": "theText3", "chunk": 2, "topic": 2},
+                        {
+                            "speaker": "theSpeaker1",
+                            "text": "theText4",
+                            "chunk": 2,
+                            "topic": 2,
+                            "start": 10.1,
+                            "end": 11.3,
+                        },
+                        {
+                            "speaker": "theSpeaker1",
+                            "text": "theText5",
+                            "chunk": 2,
+                            "topic": 2,
+                            "start": 11.3,
+                            "end": 14.7,
+                        },
+                        {
+                            "speaker": "theSpeaker2",
+                            "text": "theText6",
+                            "chunk": 2,
+                            "topic": 2,
+                            "start": 14.7,
+                            "end": 19.9,
+                        },
                     ],
                     indent=2,
                 )
             else:
                 exp_content = json.dumps(
                     [
-                        {"speaker": "theSpeaker1", "text": "theText1", "chunk": 3, "topic": 2},
-                        {"speaker": "theSpeaker1", "text": "theText2", "chunk": 3, "topic": 3},
-                        {"speaker": "theSpeaker2", "text": "theText3", "chunk": 3, "topic": 4},
+                        {
+                            "speaker": "theSpeaker1",
+                            "text": "theText7",
+                            "chunk": 3,
+                            "topic": 2,
+                            "start": 20.0,
+                            "end": 23.7,
+                        },
+                        {
+                            "speaker": "theSpeaker1",
+                            "text": "theText8",
+                            "chunk": 3,
+                            "topic": 3,
+                            "start": 23.7,
+                            "end": 25.3,
+                        },
+                        {
+                            "speaker": "theSpeaker2",
+                            "text": "theText9",
+                            "chunk": 3,
+                            "topic": 4,
+                            "start": 25.3,
+                            "end": 28.6,
+                        },
                     ],
                     indent=2,
                 )
@@ -705,9 +911,9 @@ def test_detect_topical_exchanges(schema_topical_exchanges, memory_log, helper):
 
     result = tested.detect_topical_exchanges(files[:3])
     expected = [
-        TopicalExchange(speaker="theSpeaker3", text="theText3", chunk=3, topic=3),
-        TopicalExchange(speaker="theSpeaker4", text="theText4", chunk=4, topic=4),
-        TopicalExchange(speaker="theSpeaker5", text="theText5", chunk=5, topic=5),
+        TopicalExchange(speaker="theSpeaker3", text="theText3", chunk=3, topic=3, start=3 * 1.1, end=3 * 1.5),
+        TopicalExchange(speaker="theSpeaker4", text="theText4", chunk=4, topic=4, start=4 * 1.1, end=4 * 1.5),
+        TopicalExchange(speaker="theSpeaker5", text="theText5", chunk=5, topic=5, start=5 * 1.1, end=5 * 1.5),
     ]
     assert result == expected
 
@@ -726,13 +932,55 @@ def test_detect_topical_exchanges(schema_topical_exchanges, memory_log, helper):
 
         if index < 3:
             exp_content = json.dumps(
-                [{"speaker": f"theSpeaker{index}", "text": f"theText{index}", "chunk": index, "topic": index}],
+                [
+                    {
+                        "speaker": f"theSpeaker{index}",
+                        "text": f"theText{index}",
+                        "chunk": index,
+                        "topic": index,
+                        "start": index * 1.1,
+                        "end": index * 1.5,
+                    }
+                ],
             )
         elif index == 3:
-            exp_content = json.dumps([{"speaker": "theSpeaker3", "text": "theText3", "chunk": 3, "topic": 3}])
+            exp_content = json.dumps(
+                [
+                    {
+                        "speaker": "theSpeaker3",
+                        "text": "theText3",
+                        "chunk": 3,
+                        "topic": 3,
+                        "start": index * 1.1,
+                        "end": index * 1.5,
+                    }
+                ]
+            )
         elif index == 4:
-            exp_content = json.dumps([{"speaker": "theSpeaker4", "text": "theText4", "chunk": 4, "topic": 4}])
+            exp_content = json.dumps(
+                [
+                    {
+                        "speaker": "theSpeaker4",
+                        "text": "theText4",
+                        "chunk": 4,
+                        "topic": 4,
+                        "start": index * 1.1,
+                        "end": index * 1.5,
+                    }
+                ]
+            )
         else:
-            exp_content = json.dumps([{"speaker": "theSpeaker5", "text": "theText5", "chunk": 5, "topic": 5}])
+            exp_content = json.dumps(
+                [
+                    {
+                        "speaker": "theSpeaker5",
+                        "text": "theText5",
+                        "chunk": 5,
+                        "topic": 5,
+                        "start": index * 1.1,
+                        "end": index * 1.5,
+                    }
+                ]
+            )
         assert buffers[index].content == exp_content
     reset_mocks()

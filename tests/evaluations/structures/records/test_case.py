@@ -46,11 +46,11 @@ def test_to_json():
         name="theName",
         transcript={
             "cycle_001": [
-                Line(speaker="theSpeaker1", text="theText1"),
-                Line(speaker="theSpeaker2", text="theText2"),
-                Line(speaker="", text=""),
+                Line(speaker="theSpeaker1", text="theText1", start=0.0, end=1.3),
+                Line(speaker="theSpeaker2", text="theText2", start=1.3, end=2.5),
+                Line(speaker="", text="", start=0.0, end=0.0),
             ],
-            "cycle_002": [Line(speaker="theSpeaker3", text="theText3")],
+            "cycle_002": [Line(speaker="theSpeaker3", text="theText3", start=2.5, end=3.6)],
         },
         limited_chart=Chart(
             demographic_str="Sample demographic",
@@ -73,11 +73,11 @@ def test_to_json():
         "name": "theName",
         "transcript": {
             "cycle_001": [
-                {"speaker": "theSpeaker1", "text": "theText1"},
-                {"speaker": "theSpeaker2", "text": "theText2"},
-                {"speaker": "", "text": ""},
+                {"speaker": "theSpeaker1", "text": "theText1", "start": 0.0, "end": 1.3},
+                {"speaker": "theSpeaker2", "text": "theText2", "start": 1.3, "end": 2.5},
+                {"speaker": "", "text": "", "start": 0.0, "end": 0.0},
             ],
-            "cycle_002": [{"speaker": "theSpeaker3", "text": "theText3"}],
+            "cycle_002": [{"speaker": "theSpeaker3", "text": "theText3", "start": 2.5, "end": 3.6}],
         },
         "limitedChart": {
             "demographicStr": "Sample demographic",
@@ -105,11 +105,11 @@ def test_load_record():
             "name": "theName",
             "transcript": {
                 "cycle_001": [
-                    {"speaker": "theSpeaker1", "text": "theText1"},
-                    {"speaker": "theSpeaker2", "text": "theText2"},
+                    {"speaker": "theSpeaker1", "text": "theText1", "start": 0.0, "end": 1.3},
+                    {"speaker": "theSpeaker2", "text": "theText2", "start": 1.3, "end": 2.5},
                     {},
                 ],
-                "cycle_002": [{"speaker": "theSpeaker3", "text": "theText3"}],
+                "cycle_002": [{"speaker": "theSpeaker3", "text": "theText3", "start": 2.5, "end": 3.6}],
             },
             "limited_chart": {
                 "demographicStr": "Sample demographic",
@@ -132,11 +132,11 @@ def test_load_record():
         name="theName",
         transcript={
             "cycle_001": [
-                Line(speaker="theSpeaker1", text="theText1"),
-                Line(speaker="theSpeaker2", text="theText2"),
+                Line(speaker="theSpeaker1", text="theText1", start=0.0, end=1.3),
+                Line(speaker="theSpeaker2", text="theText2", start=1.3, end=2.5),
                 Line(speaker="", text=""),
             ],
-            "cycle_002": [Line(speaker="theSpeaker3", text="theText3")],
+            "cycle_002": [Line(speaker="theSpeaker3", text="theText3", start=2.5, end=3.6)],
         },
         limited_chart=Chart(
             demographic_str="Sample demographic",

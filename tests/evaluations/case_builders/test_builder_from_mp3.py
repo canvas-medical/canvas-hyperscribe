@@ -111,9 +111,9 @@ def test__run(
         for idx in range(5)
     ]
     lines = [
-        Line(speaker="speaker", text="last words 1"),
-        Line(speaker="speaker", text="last words 2"),
-        Line(speaker="speaker", text="last words 3"),
+        Line(speaker="speaker", text="last words 1", start=2.1, end=4.8),
+        Line(speaker="speaker", text="last words 2", start=4.8, end=5.7),
+        Line(speaker="speaker", text="last words 3", start=5.7, end=8.8),
     ]
     tests = [
         ([0, 1, 2], "- audio file 0\n- audio file 1\n- audio file 2", True),

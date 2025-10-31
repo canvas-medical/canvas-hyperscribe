@@ -31,8 +31,10 @@ class BuilderDirectFromTuningSplit(BuilderDirectFromTuning):
                     "text": {"type": "string", "minLength": 1},
                     "chunk": {"type": "integer"},
                     "topic": {"type": "integer"},
+                    "start": {"type": "number"},
+                    "end": {"type": "number"},
                 },
-                "required": ["speaker", "text", "chunk", "topic"],
+                "required": ["speaker", "text", "chunk", "topic", "start", "end"],
                 "additionalProperties": False,
             },
         }
@@ -58,11 +60,28 @@ class BuilderDirectFromTuningSplit(BuilderDirectFromTuning):
         topic_exchanges = self.detect_topical_exchanges(anonymization.files)
 
         key2instruction = ImplementedCommands.schema_key2instruction()
-        for topic, exchange in groupby(topic_exchanges, key=lambda x: x.topic):
+        for topic, (internal, exchange) in enumerate(groupby(topic_exchanges, key=lambda x: x.topic), start=1):
             # # TODO debug
             # if topic > 2:
             #     break
-            topic_exchange = [line for line in exchange]
+
+            # set the time from 0.0
+            topic_exchange: list[TopicalExchange] = []
+            start_time = 0.0
+            for line in exchange:
+                end_time = round(start_time + (line.end - line.start), 2)
+                topic_exchange.append(
+                    TopicalExchange(
+                        speaker=line.speaker,
+                        text=line.text,
+                        chunk=line.chunk,
+                        topic=topic,
+                        start=start_time,
+                        end=end_time,
+                    )
+                )
+                start_time = end_time
+
             topic_summary = self.topical_exchange_summary(topic_exchange, mp3_file.parent)
             print(f"build case for topic {topic_summary.title}:")
             case_exchange = TopicalExchange.case_exchange_from(topic_exchange)

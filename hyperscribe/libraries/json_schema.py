@@ -199,6 +199,8 @@ JSON_SCHEMAS: dict[str, dict] = {
             "properties": {
                 "voice": {"type": "string", "pattern": "^voice_[1-9]\\d*$"},
                 "text": {"type": "string", "minLength": 1},
+                "start": {"type": "number", "default": 0.0},
+                "end": {"type": "number", "default": 0.0},
             },
             "required": ["voice", "text"],
             "additionalProperties": False,
@@ -213,6 +215,8 @@ JSON_SCHEMAS: dict[str, dict] = {
             "properties": {
                 "speaker": {"type": "string", "minLength": 1},
                 "text": {"type": "string", "minLength": 1},
+                "start": {"type": "number", "default": 0.0},
+                "end": {"type": "number", "default": 0.0},
             },
             "required": ["speaker", "text"],
             "additionalProperties": False,

@@ -211,7 +211,7 @@ def test_compute_audio(
         discussion.updated = datetime(2025, 3, 11, 0, 3, 17, tzinfo=timezone.utc)
         discussion.cycle = 7
         discussion.previous_instructions = instructions[2:]
-        discussion.previous_transcript = [Line(speaker="speaker0", text="some text")]
+        discussion.previous_transcript = [Line(speaker="speaker0", text="some text", start=0.0, end=2.1)]
         audio2commands.side_effect = [(exp_instructions, exp_effects, "other last words.")]
         existing_commands_to_instructions.side_effect = [instructions]
         existing_commands_to_coded_items.side_effect = ["stagedCommands"]
@@ -260,14 +260,13 @@ def test_compute_audio(
             )
             calls.append(call.end_session("noteUuid"))
         assert memory_log.mock_calls == calls
-        calls = [call("theAudioHost", "patientUuid", "noteUuid", 3)]
         calls = [
             call(
                 "AuditorInstance",
                 [b"raw-audio-bytes"],
                 "AudioInterpreterInstance",
                 instructions,
-                [Line(speaker="speaker0", text="some text")],
+                [Line(speaker="speaker0", text="some text", start=0.0, end=2.1)],
             )
         ]
         assert audio2commands.mock_calls == calls
@@ -365,17 +364,17 @@ def test_audio2commands(transcript2commands, tail_of, memory_log, progress):
         cycle_transcript_overlap=37,
     )
     lines = [
-        Line(speaker="speaker", text="last words 1"),
-        Line(speaker="speaker", text="last words 2"),
-        Line(speaker="speaker", text="last words 3"),
+        Line(speaker="speaker", text="last words 1", start=0.0, end=1.3),
+        Line(speaker="speaker", text="last words 2", start=1.3, end=2.5),
+        Line(speaker="speaker", text="last words 3", start=2.5, end=3.6),
     ]
 
     text = " ".join([f"word{i:02d}" for i in range(4)])
 
     transcript = [
-        {"speaker": "speaker1", "text": f"{text} textA."},
-        {"speaker": "speaker2", "text": f"{text} textB."},
-        {"speaker": "speaker1", "text": f"{text} textC."},
+        {"speaker": "speaker1", "text": f"{text} textA.", "start": 0.0, "end": 1.3},
+        {"speaker": "speaker2", "text": f"{text} textB.", "start": 1.3, "end": 2.5},
+        {"speaker": "speaker1", "text": f"{text} textC.", "start": 2.5, "end": 3.6},
     ]
     # all good
     transcript2commands.side_effect = [("instructions", "effects")]
@@ -392,7 +391,7 @@ def test_audio2commands(transcript2commands, tail_of, memory_log, progress):
         audios,
         mock_chatter,
         previous,
-        [Line(speaker="speaker0", text="some text")],
+        [Line(speaker="speaker0", text="some text", start=0.0, end=2.1)],
     )
     expected = ("instructions", "effects", lines)
     assert result == expected
@@ -408,9 +407,10 @@ def test_audio2commands(transcript2commands, tail_of, memory_log, progress):
             settings,
             [
                 ProgressMessage(
-                    message='[{"speaker": "speaker1", "text": "word00 word01 word02 word03 textA."}, '
-                    '{"speaker": "speaker2", "text": "word00 word01 word02 word03 textB."}, '
-                    '{"speaker": "speaker1", "text": "word00 word01 word02 word03 textC."}]',
+                    message="["
+                    '{"speaker": "speaker1", "text": "word00 word01 word02 word03 textA.", "start": 0.0, "end": 1.3}, '
+                    '{"speaker": "speaker2", "text": "word00 word01 word02 word03 textB.", "start": 1.3, "end": 2.5}, '
+                    '{"speaker": "speaker1", "text": "word00 word01 word02 word03 textC.", "start": 2.5, "end": 3.6}]',
                     section="transcript",
                 )
             ],
@@ -421,9 +421,9 @@ def test_audio2commands(transcript2commands, tail_of, memory_log, progress):
         call(
             mock_auditor,
             [
-                Line(speaker="speaker1", text=f"{text} textA."),
-                Line(speaker="speaker2", text=f"{text} textB."),
-                Line(speaker="speaker1", text=f"{text} textC."),
+                Line(speaker="speaker1", text=f"{text} textA.", start=0.0, end=1.3),
+                Line(speaker="speaker2", text=f"{text} textB.", start=1.3, end=2.5),
+                Line(speaker="speaker1", text=f"{text} textC.", start=2.5, end=3.6),
             ],
             mock_chatter,
             [
@@ -442,9 +442,9 @@ def test_audio2commands(transcript2commands, tail_of, memory_log, progress):
     calls = [
         call(
             [
-                Line(speaker="speaker1", text=f"{text} textA."),
-                Line(speaker="speaker2", text=f"{text} textB."),
-                Line(speaker="speaker1", text=f"{text} textC."),
+                Line(speaker="speaker1", text=f"{text} textA.", start=0.0, end=1.3),
+                Line(speaker="speaker2", text=f"{text} textB.", start=1.3, end=2.5),
+                Line(speaker="speaker1", text=f"{text} textC.", start=2.5, end=3.6),
             ],
             37,
         ),
@@ -454,14 +454,19 @@ def test_audio2commands(transcript2commands, tail_of, memory_log, progress):
         call.identified_transcript(
             [b"audio1", b"audio2"],
             [
-                Line(speaker="speaker1", text=f"{text} textA."),
-                Line(speaker="speaker2", text=f"{text} textB."),
-                Line(speaker="speaker1", text=f"{text} textC."),
+                Line(speaker="speaker1", text=f"{text} textA.", start=0.0, end=1.3),
+                Line(speaker="speaker2", text=f"{text} textB.", start=1.3, end=2.5),
+                Line(speaker="speaker1", text=f"{text} textC.", start=2.5, end=3.6),
             ],
         ),
     ]
     assert mock_auditor.mock_calls == calls
-    calls = [call.combine_and_speaker_detection([b"audio1", b"audio2"], [Line(speaker="speaker0", text="some text")])]
+    calls = [
+        call.combine_and_speaker_detection(
+            [b"audio1", b"audio2"],
+            [Line(speaker="speaker0", text="some text", start=0.0, end=2.1)],
+        )
+    ]
     assert mock_chatter.mock_calls == calls
     reset_mocks()
 
@@ -477,7 +482,7 @@ def test_audio2commands(transcript2commands, tail_of, memory_log, progress):
         audios,
         mock_chatter,
         previous,
-        [Line(speaker="speaker0", text="some text")],
+        [Line(speaker="speaker0", text="some text", start=0.0, end=2.1)],
     )
     expected = (previous, [], [])
     assert result == expected
@@ -489,7 +494,12 @@ def test_audio2commands(transcript2commands, tail_of, memory_log, progress):
     assert memory_log.mock_calls == calls
     assert transcript2commands.mock_calls == []
     assert tail_of.mock_calls == []
-    calls = [call.combine_and_speaker_detection([b"audio1", b"audio2"], [Line(speaker="speaker0", text="some text")])]
+    calls = [
+        call.combine_and_speaker_detection(
+            [b"audio1", b"audio2"],
+            [Line(speaker="speaker0", text="some text", start=0.0, end=2.1)],
+        )
+    ]
     assert mock_chatter.mock_calls == calls
     reset_mocks()
 
@@ -509,9 +519,9 @@ def test_transcript2command(transcript2commands_common, transcript2commands_ques
     tested = Commander
 
     transcript = [
-        Line(speaker="speaker1", text="textA"),
-        Line(speaker="speaker2", text="textB"),
-        Line(speaker="speaker1", text="textC"),
+        Line(speaker="speaker1", text="textA", start=0.0, end=2.1),
+        Line(speaker="speaker2", text="textB", start=2.1, end=4.8),
+        Line(speaker="speaker1", text="textC", start=4.8, end=5.7),
     ]
     # only common instructions
     instructions = [
@@ -636,9 +646,9 @@ def test_transcript2commands_common(time, memory_log, progress):
     tested = Commander
 
     transcript = [
-        Line(speaker="speaker1", text="textA"),
-        Line(speaker="speaker2", text="textB"),
-        Line(speaker="speaker1", text="textC"),
+        Line(speaker="speaker1", text="textA", start=0.0, end=2.1),
+        Line(speaker="speaker2", text="textB", start=2.1, end=4.8),
+        Line(speaker="speaker1", text="textC", start=4.8, end=5.7),
     ]
     previous_instructions = [
         Instruction(
@@ -1111,9 +1121,9 @@ def test_transcript2commands_questionnaires(time, memory_log, progress):
             a_command.reset_mock()
 
     transcript = [
-        Line(speaker="speaker1", text="textA"),
-        Line(speaker="speaker2", text="textB"),
-        Line(speaker="speaker1", text="textC"),
+        Line(speaker="speaker1", text="textA", start=0.0, end=2.1),
+        Line(speaker="speaker2", text="textB", start=2.1, end=4.8),
+        Line(speaker="speaker1", text="textC", start=4.8, end=5.7),
     ]
 
     instructions = [

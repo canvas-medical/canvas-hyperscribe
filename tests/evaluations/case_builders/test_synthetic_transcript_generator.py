@@ -163,7 +163,18 @@ def test__build_prompt():
 @patch.object(SyntheticTranscriptGenerator, "schema_transcript")
 @patch.object(SyntheticTranscriptGenerator, "_build_prompt", return_value=(["System Prompt"], ["User Prompt"]))
 @patch.object(SyntheticTranscriptGenerator, "_make_specifications")
-@patch.object(HelperSyntheticJson, "generate_json", return_value=[Line(speaker="Clinician", text="Sample text")])
+@patch.object(
+    HelperSyntheticJson,
+    "generate_json",
+    return_value=[
+        Line(
+            speaker="Clinician",
+            text="Sample text",
+            start=1.3,
+            end=2.5,
+        )
+    ],
+)
 def test_generate_transcript_for_profile__success(
     mock_generate_json, mock_make_specifications, mock_build_prompt, mock_schema_transcript
 ):
@@ -266,7 +277,18 @@ def test_generate_transcript_for_profile__bad_json_raises(
 @patch.object(SyntheticTranscriptGenerator, "schema_transcript")
 @patch.object(SyntheticTranscriptGenerator, "_build_prompt", return_value=(["System Prompt"], ["User Prompt"]))
 @patch.object(SyntheticTranscriptGenerator, "_make_specifications")
-@patch.object(HelperSyntheticJson, "generate_json", return_value=[Line(speaker="Clinician", text="Content")])
+@patch.object(
+    HelperSyntheticJson,
+    "generate_json",
+    return_value=[
+        Line(
+            speaker="Clinician",
+            text="Content",
+            start=1.3,
+            end=2.5,
+        )
+    ],
+)
 def test_run(mock_generate_json, mock_make_specifications, mock_build_prompt, mock_schema_transcript, tmp_path):
     profiles = [
         PatientProfile(name="Patient 1", profile="AAA"),

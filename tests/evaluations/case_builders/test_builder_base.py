@@ -418,12 +418,12 @@ def test__run_cycle(auditor_store, commander):
         Effect(type="LOG", payload="Log3"),
     ]
     lines = [
-        Line(speaker="voiceA", text="theText1"),
-        Line(speaker="voiceB", text="theText2"),
-        Line(speaker="voiceB", text="theText3"),
-        Line(speaker="voiceA", text="theText4"),
+        Line(speaker="voiceA", text="theText1", start=2.1, end=4.8),
+        Line(speaker="voiceB", text="theText2", start=4.8, end=5.7),
+        Line(speaker="voiceB", text="theText3", start=5.7, end=8.8),
+        Line(speaker="voiceA", text="theText4", start=8.8, end=9.9),
     ]
-    previous = [Line(speaker="voiceA", text="theText0")]
+    previous = [Line(speaker="voiceA", text="theText0", start=0.0, end=2.1)]
 
     tested = BuilderBase
     # the transcript has not been done yet

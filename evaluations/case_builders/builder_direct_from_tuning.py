@@ -157,7 +157,15 @@ class BuilderDirectFromTuning:
         try:
             cycle = 0
             for _, exchange in groupby(case_exchanges, key=lambda x: x.chunk):
-                transcript = [Line(speaker=line.speaker, text=line.text) for line in exchange]
+                transcript = [
+                    Line(
+                        speaker=line.speaker,
+                        text=line.text,
+                        start=line.start,
+                        end=line.end,
+                    )
+                    for line in exchange
+                ]
                 cycle += 1
                 discussion.set_cycle(cycle)
                 auditor.set_cycle(cycle)
@@ -175,6 +183,7 @@ class BuilderDirectFromTuning:
     def create_transcripts(self, mp3_files: list[Path], interpreter: AudioInterpreter) -> list[Path]:
         result: list[Path] = []
         last_exchange: list[Line] = []
+        end_time = 0.0
         for chunk, mp3_file in enumerate(mp3_files, 1):
             json_file = mp3_file.parent / f"transcript_{chunk:03d}.json"
             if self.force_refresh or not json_file.exists():
@@ -184,7 +193,21 @@ class BuilderDirectFromTuning:
                 response = interpreter.combine_and_speaker_detection(audio_chunks, last_exchange)
                 transcript = Line.load_from_json(response.content)
                 with json_file.open("w") as f:
-                    json.dump([line.to_json() for line in transcript], f, indent=2)
+                    json.dump(
+                        [
+                            Line(
+                                speaker=line.speaker,
+                                text=line.text,
+                                start=round(line.start + end_time, 2),
+                                end=round(line.end + end_time, 2),
+                            ).to_json()
+                            for line in transcript
+                        ],
+                        f,
+                        indent=2,
+                    )
+                if transcript:
+                    end_time = round(end_time + max([line.end for line in transcript]), 2)
 
                 last_exchange = Line.tail_of(transcript, interpreter.settings.cycle_transcript_overlap)
 
@@ -555,10 +578,12 @@ class BuilderDirectFromTuning:
             "type": "array",
             "items": {
                 "type": "object",
-                "required": ["speaker", "text", "chunk"],
+                "required": ["speaker", "text", "start", "end", "chunk"],
                 "properties": {
                     "speaker": {"type": "string", "minLength": 1},
                     "text": {"type": "string"},
+                    "start": {"type": "number"},
+                    "end": {"type": "number"},
                     "chunk": {"type": "integer"},
                 },
                 "additionalProperties": False,

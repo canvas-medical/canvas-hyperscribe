@@ -87,13 +87,13 @@ def test_run(
         canvas_instance="runner-environment",
     )
     lines = [
-        Line(speaker="theSpeaker1", text="theText1"),
-        Line(speaker="theSpeaker2", text="theText2"),
-        Line(speaker="theSpeaker3", text="theText3"),
-        Line(speaker="theSpeaker4", text="theText4"),
-        Line(speaker="theSpeaker5", text="theText5"),
-        Line(speaker="theSpeaker6", text="theText6"),
-        Line(speaker="theSpeaker7", text="theText7"),
+        Line(speaker="theSpeaker1", text="theText1", start=0.0, end=1.3),
+        Line(speaker="theSpeaker2", text="theText2", start=1.3, end=2.5),
+        Line(speaker="theSpeaker3", text="theText3", start=2.5, end=3.6),
+        Line(speaker="theSpeaker4", text="theText4", start=3.6, end=4.7),
+        Line(speaker="theSpeaker5", text="theText5", start=4.7, end=5.3),
+        Line(speaker="theSpeaker6", text="theText6", start=5.3, end=6.4),
+        Line(speaker="theSpeaker7", text="theText7", start=6.4, end=7.1),
     ]
 
     # case does not exist
@@ -256,13 +256,13 @@ def test_run(
 def test_prepare_cycles():
     tested = CaseRunner
     lines = [
-        Line(speaker="theSpeaker1", text="theText1"),
-        Line(speaker="theSpeaker2", text="theText2"),
-        Line(speaker="theSpeaker3", text="theText3"),
-        Line(speaker="theSpeaker4", text="theText4"),
-        Line(speaker="theSpeaker5", text="theText5"),
-        Line(speaker="theSpeaker6", text="theText6"),
-        Line(speaker="theSpeaker7", text="theText7"),
+        Line(speaker="theSpeaker1", text="theText1", start=0.0, end=1.3),
+        Line(speaker="theSpeaker2", text="theText2", start=1.3, end=2.5),
+        Line(speaker="theSpeaker3", text="theText3", start=2.5, end=3.6),
+        Line(speaker="theSpeaker4", text="theText4", start=3.6, end=4.7),
+        Line(speaker="theSpeaker5", text="theText5", start=4.7, end=5.3),
+        Line(speaker="theSpeaker6", text="theText6", start=5.3, end=6.4),
+        Line(speaker="theSpeaker7", text="theText7", start=6.4, end=7.1),
     ]
     full_transcript = {"cycle_001": lines[0:3], "cycle_002": lines[3:]}
     tests = [

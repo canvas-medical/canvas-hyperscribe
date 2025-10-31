@@ -369,9 +369,13 @@ def test_upsert_json(case_id, generated_note_id, case_store, generated_note_stor
     # update the transcript
     case_id.side_effect = [144, 137]
     generated_note_id.side_effect = []
-    case_store.return_value.get_transcript.side_effect = [{"cycle_004": [Line(speaker="aSpeaker", text="aText")]}]
+    case_store.return_value.get_transcript.side_effect = [
+        {"cycle_004": [Line(speaker="aSpeaker", text="aText", start=1.1, end=3.4)]}
+    ]
 
-    tested.upsert_json("audio2transcript", {"cycle_007": [{"speaker": "theSpeaker", "text": "theText"}]})
+    tested.upsert_json(
+        "audio2transcript", {"cycle_007": [{"speaker": "theSpeaker", "text": "theText", "start": 2.4, "end": 4.3}]}
+    )
 
     calls = [call(), call()]
     assert case_id.mock_calls == calls
@@ -383,8 +387,8 @@ def test_upsert_json(case_id, generated_note_id, case_store, generated_note_stor
             137,
             {
                 "transcript": {
-                    "cycle_004": [{"speaker": "aSpeaker", "text": "aText"}],
-                    "cycle_007": [{"speaker": "theSpeaker", "text": "theText"}],
+                    "cycle_004": [{"speaker": "aSpeaker", "text": "aText", "start": 1.1, "end": 3.4}],
+                    "cycle_007": [{"speaker": "theSpeaker", "text": "theText", "start": 2.4, "end": 4.3}],
                 },
             },
         ),
@@ -459,17 +463,17 @@ def test_transcript(full_transcript):
     def reset_mocks():
         full_transcript.reset_mock()
 
-    full_transcript.side_effect = [{"cycle_007": [Line(speaker="aSpeaker", text="aText")]}]
+    full_transcript.side_effect = [{"cycle_007": [Line(speaker="aSpeaker", text="aText", start=5.7, end=9.9)]}]
     tested = helper_instance()
     result = tested.transcript()
-    expected = [Line(speaker="aSpeaker", text="aText")]
+    expected = [Line(speaker="aSpeaker", text="aText", start=5.7, end=9.9)]
     assert result == expected
 
     calls = [call()]
     assert full_transcript.mock_calls == calls
     reset_mocks()
 
-    full_transcript.side_effect = [{"cycle_006": [Line(speaker="aSpeaker", text="aText")]}]
+    full_transcript.side_effect = [{"cycle_006": [Line(speaker="aSpeaker", text="aText", start=5.7, end=9.9)]}]
     tested = helper_instance()
     result = tested.transcript()
     expected = []
@@ -488,10 +492,12 @@ def test_full_transcript(case_id, case_store):
         case_store.reset_mock()
 
     case_id.side_effect = [333]
-    case_store.return_value.get_transcript.side_effect = [{"cycle_001": [Line(speaker="aSpeaker", text="aText")]}]
+    case_store.return_value.get_transcript.side_effect = [
+        {"cycle_001": [Line(speaker="aSpeaker", text="aText", start=5.7, end=9.9)]}
+    ]
     tested = helper_instance()
     result = tested.full_transcript()
-    expected = {"cycle_001": [Line(speaker="aSpeaker", text="aText")]}
+    expected = {"cycle_001": [Line(speaker="aSpeaker", text="aText", start=5.7, end=9.9)]}
     assert result == expected
 
     calls = [call()]

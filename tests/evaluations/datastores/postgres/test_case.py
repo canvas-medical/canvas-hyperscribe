@@ -130,21 +130,21 @@ def test_get_transcript(select):
                 {
                     "transcript": {
                         "cycle_001": [
-                            {"speaker": "theSpeaker1", "text": "theText1"},
-                            {"speaker": "theSpeaker2", "text": "theText2"},
+                            {"speaker": "theSpeaker1", "text": "theText1", "start": 0.0, "end": 2.1},
+                            {"speaker": "theSpeaker2", "text": "theText2", "start": 2.1, "end": 4.8},
                             {},
                         ],
-                        "cycle_002": [{"speaker": "theSpeaker3", "text": "theText3"}],
+                        "cycle_002": [{"speaker": "theSpeaker3", "text": "theText3", "start": 5.7, "end": 9.9}],
                     },
                 },
             ],
             {
                 "cycle_001": [
-                    Line(speaker="theSpeaker1", text="theText1"),
-                    Line(speaker="theSpeaker2", text="theText2"),
-                    Line(speaker="", text=""),
+                    Line(speaker="theSpeaker1", text="theText1", start=0.0, end=2.1),
+                    Line(speaker="theSpeaker2", text="theText2", start=2.1, end=4.8),
+                    Line(speaker="", text="", start=0.0, end=0.0),
                 ],
-                "cycle_002": [Line(speaker="theSpeaker3", text="theText3")],
+                "cycle_002": [Line(speaker="theSpeaker3", text="theText3", start=5.7, end=9.9)],
             },
         ),
         ([], {}),
@@ -177,11 +177,11 @@ def test_get_case(select):
                     "name": "theName",
                     "transcript": {
                         "cycle_001": [
-                            {"speaker": "theSpeaker1", "text": "theText1"},
-                            {"speaker": "theSpeaker2", "text": "theText2"},
+                            {"speaker": "theSpeaker1", "text": "theText1", "start": 0.0, "end": 2.1},
+                            {"speaker": "theSpeaker2", "text": "theText2", "start": 2.1, "end": 4.8},
                             {},
                         ],
-                        "cycle_002": [{"speaker": "theSpeaker3", "text": "theText3"}],
+                        "cycle_002": [{"speaker": "theSpeaker3", "text": "theText3", "start": 5.7, "end": 9.9}],
                     },
                     "limited_chart": {
                         "demographicStr": "Sample demographic",
@@ -204,11 +204,11 @@ def test_get_case(select):
                 name="theName",
                 transcript={
                     "cycle_001": [
-                        Line(speaker="theSpeaker1", text="theText1"),
-                        Line(speaker="theSpeaker2", text="theText2"),
-                        Line(speaker="", text=""),
+                        Line(speaker="theSpeaker1", text="theText1", start=0.0, end=2.1),
+                        Line(speaker="theSpeaker2", text="theText2", start=2.1, end=4.8),
+                        Line(speaker="", text="", start=0.0, end=0.0),
                     ],
-                    "cycle_002": [Line(speaker="theSpeaker3", text="theText3")],
+                    "cycle_002": [Line(speaker="theSpeaker3", text="theText3", start=5.7, end=9.9)],
                 },
                 limited_chart=Chart(
                     demographic_str="Sample demographic",
@@ -261,11 +261,11 @@ def test_upsert(select, alter, mock_datetime):
         name="theName",
         transcript={
             "cycle_001": [
-                Line(speaker="theSpeaker1", text="theText1"),
-                Line(speaker="theSpeaker2", text="theText2"),
-                Line(speaker="", text=""),
+                Line(speaker="theSpeaker1", text="theText1", start=0.0, end=1.3),
+                Line(speaker="theSpeaker2", text="theText2", start=1.3, end=2.5),
+                Line(speaker="", text="", start=0.0, end=0.0),
             ],
-            "cycle_002": [Line(speaker="theSpeaker3", text="theText3")],
+            "cycle_002": [Line(speaker="theSpeaker3", text="theText3", start=2.5, end=3.6)],
         },
         limited_chart=Chart(
             demographic_str="Sample demographic",
@@ -287,11 +287,11 @@ def test_upsert(select, alter, mock_datetime):
         name="theName",
         transcript={
             "cycle_001": [
-                Line(speaker="theSpeaker1", text="theText1"),
-                Line(speaker="theSpeaker2", text="theText2"),
-                Line(speaker="", text=""),
+                Line(speaker="theSpeaker1", text="theText1", start=0.0, end=1.3),
+                Line(speaker="theSpeaker2", text="theText2", start=1.3, end=2.5),
+                Line(speaker="", text="", start=0.0, end=0.0),
             ],
-            "cycle_002": [Line(speaker="theSpeaker3", text="theText3")],
+            "cycle_002": [Line(speaker="theSpeaker3", text="theText3", start=2.5, end=3.6)],
         },
         limited_chart=Chart(
             demographic_str="Sample demographic",
@@ -349,9 +349,11 @@ def test_upsert(select, alter, mock_datetime):
         "now": date_0,
         "profile": "theProfile",
         "tags": '{"tag1":"tag1","tag2":"tag2"}',
-        "transcript": '{"cycle_001":[{"speaker":"theSpeaker1","text":"theText1"},'
-        '{"speaker":"theSpeaker2","text":"theText2"},{"speaker":"","text":""}],'
-        '"cycle_002":[{"speaker":"theSpeaker3","text":"theText3"}]}',
+        "transcript": "{"
+        '"cycle_001":[{"end":1.3,"speaker":"theSpeaker1","start":0.0,"text":"theText1"},'
+        '{"end":2.5,"speaker":"theSpeaker2","start":1.3,"text":"theText2"},'
+        '{"end":0.0,"speaker":"","start":0.0,"text":""}],'
+        '"cycle_002":[{"end":3.6,"speaker":"theSpeaker3","start":2.5,"text":"theText3"}]}',
         "validation_status": "review",
     }
     assert params == exp_params
@@ -404,12 +406,11 @@ def test_upsert(select, alter, mock_datetime):
         "profile": "theProfile",
         "tags": '{"tag1":"tag1","tag2":"tag2"}',
         "tags_md5": "d4e924bd09088665e5dd1403881a7f09",
-        "transcript": '{"cycle_001":['
-        '{"speaker":"theSpeaker1","text":"theText1"},'
-        '{"speaker":"theSpeaker2","text":"theText2"},'
-        '{"speaker":"","text":""}],'
-        '"cycle_002":[{"speaker":"theSpeaker3","text":"theText3"}]}',
-        "transcript_md5": "5d164dbf3550fdf5531b449c69d9cae9",
+        "transcript": '{"cycle_001":[{"end":1.3,"speaker":"theSpeaker1","start":0.0,"text":"theText1"},'
+        '{"end":2.5,"speaker":"theSpeaker2","start":1.3,"text":"theText2"},'
+        '{"end":0.0,"speaker":"","start":0.0,"text":""}],'
+        '"cycle_002":[{"end":3.6,"speaker":"theSpeaker3","start":2.5,"text":"theText3"}]}',
+        "transcript_md5": "27fe3a2fe0c71df4a94f888c0f77a238",
         "validation_status": "review",
     }
     assert params == exp_params

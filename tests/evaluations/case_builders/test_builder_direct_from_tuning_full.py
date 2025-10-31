@@ -123,14 +123,44 @@ def test__run(
         full_mp3_file.reset_mock()
         json_file.reset_mock()
         anonymized_cache.reset_mock()
+        times = [
+            0.0,
+            1.7,
+            3.5,
+            4.8,
+            6.1,
+            8.3,
+            9.9,
+            11.7,
+            15.5,
+            17.8,
+        ]
         for idx in range(len(anonymized_files)):
             anonymized_files[idx].reset_mock()
             anonymized_files[idx].read_text.side_effect = [
                 json.dumps(
                     [
-                        {"speaker": f"theSpeaker{idx}x", "text": f"theText{idx}x", "chunk": idx},
-                        {"speaker": f"theSpeaker{idx}y", "text": f"theText{idx}y", "chunk": idx},
-                        {"speaker": f"theSpeaker{idx}z", "text": f"theText{idx}z", "chunk": idx + 1},
+                        {
+                            "speaker": f"theSpeaker{idx}x",
+                            "text": f"theText{idx}x",
+                            "chunk": idx,
+                            "start": times[3 * idx],
+                            "end": times[3 * idx + 1],
+                        },
+                        {
+                            "speaker": f"theSpeaker{idx}y",
+                            "text": f"theText{idx}y",
+                            "chunk": idx,
+                            "start": times[3 * idx + 1],
+                            "end": times[3 * idx + 2],
+                        },
+                        {
+                            "speaker": f"theSpeaker{idx}z",
+                            "text": f"theText{idx}z",
+                            "chunk": idx + 1,
+                            "start": times[3 * idx + 2],
+                            "end": times[3 * idx + 3],
+                        },
                     ],
                 ),
             ]
@@ -140,15 +170,15 @@ def test__run(
     tested = helper_instance()
 
     case_exchanges = [
-        CaseExchange(speaker="theSpeaker0x", text="theText0x", chunk=0),
-        CaseExchange(speaker="theSpeaker0y", text="theText0y", chunk=0),
-        CaseExchange(speaker="theSpeaker0z", text="theText0z", chunk=1),
-        CaseExchange(speaker="theSpeaker1x", text="theText1x", chunk=1),
-        CaseExchange(speaker="theSpeaker1y", text="theText1y", chunk=1),
-        CaseExchange(speaker="theSpeaker1z", text="theText1z", chunk=2),
-        CaseExchange(speaker="theSpeaker2x", text="theText2x", chunk=2),
-        CaseExchange(speaker="theSpeaker2y", text="theText2y", chunk=2),
-        CaseExchange(speaker="theSpeaker2z", text="theText2z", chunk=3),
+        CaseExchange(speaker="theSpeaker0x", text="theText0x", chunk=0, start=0.0, end=1.7),
+        CaseExchange(speaker="theSpeaker0y", text="theText0y", chunk=0, start=1.7, end=3.5),
+        CaseExchange(speaker="theSpeaker0z", text="theText0z", chunk=1, start=3.5, end=4.8),
+        CaseExchange(speaker="theSpeaker1x", text="theText1x", chunk=1, start=4.8, end=6.1),
+        CaseExchange(speaker="theSpeaker1y", text="theText1y", chunk=1, start=6.1, end=8.3),
+        CaseExchange(speaker="theSpeaker1z", text="theText1z", chunk=2, start=8.3, end=9.9),
+        CaseExchange(speaker="theSpeaker2x", text="theText2x", chunk=2, start=9.9, end=11.7),
+        CaseExchange(speaker="theSpeaker2y", text="theText2y", chunk=2, start=11.7, end=15.5),
+        CaseExchange(speaker="theSpeaker2z", text="theText2z", chunk=3, start=15.5, end=17.8),
     ]
     summary = CaseExchangeSummary(title="theTitle", summary="theSummary")
 

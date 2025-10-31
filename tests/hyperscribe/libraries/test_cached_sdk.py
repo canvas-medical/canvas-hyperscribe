@@ -112,8 +112,8 @@ def test_save(get_cache):
             },
         ],
         "previous_transcript": [
-            {"speaker": "speaker1", "text": "some words"},
-            {"speaker": "speaker2", "text": "other words"},
+            {"speaker": "speaker1", "text": "some words", "start": 0.0, "end": 1.3},
+            {"speaker": "speaker2", "text": "other words", "start": 1.3, "end": 2.5},
         ],
     }
 
@@ -140,8 +140,8 @@ def test_save(get_cache):
         ),
     ]
     tested.previous_transcript = [
-        Line(speaker="speaker1", text="some words"),
-        Line(speaker="speaker2", text="other words"),
+        Line(speaker="speaker1", text="some words", start=0.0, end=1.3),
+        Line(speaker="speaker2", text="other words", start=1.3, end=2.5),
     ]
     with patch.object(cached_sdk, "CACHED", {}):
         # cache exists
@@ -193,8 +193,8 @@ def test_to_json():
         ),
     ]
     tested.previous_transcript = [
-        Line(speaker="speaker1", text="some words"),
-        Line(speaker="speaker2", text="other words"),
+        Line(speaker="speaker1", text="some words", start=0.0, end=1.3),
+        Line(speaker="speaker2", text="other words", start=1.3, end=2.5),
     ]
 
     result = tested.to_json()
@@ -222,8 +222,8 @@ def test_to_json():
             },
         ],
         "previous_transcript": [
-            {"speaker": "speaker1", "text": "some words"},
-            {"speaker": "speaker2", "text": "other words"},
+            {"speaker": "speaker1", "text": "some words", "start": 0.0, "end": 1.3},
+            {"speaker": "speaker2", "text": "other words", "start": 1.3, "end": 2.5},
         ],
     }
     assert result == expected
@@ -260,8 +260,8 @@ def test_get_discussion(get_cache, mock_datetime):
             },
         ],
         "previous_transcript": [
-            {"speaker": "speaker1", "text": "some words"},
-            {"speaker": "speaker2", "text": "other words"},
+            {"speaker": "speaker1", "text": "some words", "start": 0.0, "end": 2.1},
+            {"speaker": "speaker2", "text": "other words", "start": 2.1, "end": 4.8},
         ],
     }
     instructions = [
@@ -282,7 +282,10 @@ def test_get_discussion(get_cache, mock_datetime):
             is_updated=False,
         ),
     ]
-    lines = [Line(speaker="speaker1", text="some words"), Line(speaker="speaker2", text="other words")]
+    lines = [
+        Line(speaker="speaker1", text="some words", start=0.0, end=2.1),
+        Line(speaker="speaker2", text="other words", start=2.1, end=4.8),
+    ]
 
     date_0 = datetime(2025, 6, 12, 14, 33, 51, 123456, tzinfo=timezone.utc)
     date_1 = datetime(2025, 6, 12, 14, 33, 21, 123456, tzinfo=timezone.utc)
@@ -403,8 +406,8 @@ def test_load_from_json():
                 },
             ],
             "previous_transcript": [
-                {"speaker": "speaker1", "text": "some words"},
-                {"speaker": "speaker2", "text": "other words"},
+                {"speaker": "speaker1", "text": "some words", "start": 0.0, "end": 2.1},
+                {"speaker": "speaker2", "text": "other words", "start": 2.1, "end": 4.8},
             ],
         },
     )
@@ -431,6 +434,6 @@ def test_load_from_json():
         ),
     ]
     assert result.previous_transcript == [
-        Line(speaker="speaker1", text="some words"),
-        Line(speaker="speaker2", text="other words"),
+        Line(speaker="speaker1", text="some words", start=0.0, end=2.1),
+        Line(speaker="speaker2", text="other words", start=2.1, end=4.8),
     ]

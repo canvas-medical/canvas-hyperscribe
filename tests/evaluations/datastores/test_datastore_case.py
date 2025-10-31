@@ -40,7 +40,10 @@ def test_already_generated(helper, psql_case, auditor_file):
             Case(
                 name="theCase",
                 transcript={
-                    "cycle_001": [Line(speaker="speaker1", text="text1"), Line(speaker="speaker2", text="text2")]
+                    "cycle_001": [
+                        Line(speaker="speaker1", text="text1", start=0.0, end=2.1),
+                        Line(speaker="speaker2", text="text2", start=2.1, end=4.8),
+                    ]
                 },
                 limited_chart=Chart(
                     demographic_str="Sample demographic",
@@ -86,7 +89,10 @@ def test_already_generated(helper, psql_case, auditor_file):
             Case(
                 name="theCase",
                 transcript={
-                    "cycle_001": [Line(speaker="speaker1", text="text1"), Line(speaker="speaker2", text="text2")]
+                    "cycle_001": [
+                        Line(speaker="speaker1", text="text1", start=0.0, end=2.1),
+                        Line(speaker="speaker2", text="text2", start=2.1, end=4.8),
+                    ]
                 },
                 limited_chart=Chart(
                     demographic_str="",

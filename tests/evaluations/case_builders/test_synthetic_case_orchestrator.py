@@ -92,8 +92,8 @@ def test___init__(mock_profile_generator_class, tmp_files):
 @pytest.mark.parametrize(
     "profiles,line_objects,expected_count",
     [
-        ({"Test Patient": "Profile A"}, [{"speaker": "Clinician", "text": "Hi"}], 1),
-        ({"A": "P1", "B": "P2"}, [{"speaker": "Clinician", "text": "Hello"}], 2),
+        ({"Test Patient": "Profile A"}, [{"speaker": "Clinician", "text": "Hi", "start": 1.3, "end": 2.5}], 1),
+        ({"A": "P1", "B": "P2"}, [{"speaker": "Clinician", "text": "Hello", "start": 2.5, "end": 3.8}], 2),
     ],
 )
 @patch("evaluations.case_builders.synthetic_case_orchestrator.HelperEvaluation")

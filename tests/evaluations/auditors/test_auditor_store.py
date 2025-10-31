@@ -154,10 +154,10 @@ def test_identified_transcript(upsert_json, upsert_audio):
     tested = helper_instance()
     audios = [b"audio1", b"audio2", b"audio3"]
     transcript = [
-        Line(speaker="speaker1", text="text1"),
-        Line(speaker="speaker2", text="text2"),
-        Line(speaker="speaker3", text="text3"),
-        Line(speaker="speaker4", text="text4"),
+        Line(speaker="speaker1", text="text1", start=0.0, end=2.1),
+        Line(speaker="speaker2", text="text2", start=2.1, end=4.8),
+        Line(speaker="speaker3", text="text3", start=4.8, end=5.7),
+        Line(speaker="speaker4", text="text4", start=5.7, end=9.9),
     ]
 
     result = tested.identified_transcript(audios, transcript)
@@ -168,10 +168,10 @@ def test_identified_transcript(upsert_json, upsert_audio):
             "audio2transcript",
             {
                 "cycle_007": [
-                    {"speaker": "speaker1", "text": "text1"},
-                    {"speaker": "speaker2", "text": "text2"},
-                    {"speaker": "speaker3", "text": "text3"},
-                    {"speaker": "speaker4", "text": "text4"},
+                    {"speaker": "speaker1", "text": "text1", "start": 0.0, "end": 2.1},
+                    {"speaker": "speaker2", "text": "text2", "start": 2.1, "end": 4.8},
+                    {"speaker": "speaker3", "text": "text3", "start": 4.8, "end": 5.7},
+                    {"speaker": "speaker4", "text": "text4", "start": 5.7, "end": 9.9},
                 ],
             },
         ),
@@ -189,7 +189,10 @@ def test_found_instructions(get_json, upsert_json):
         get_json.reset_mock()
         upsert_json.reset_mock()
 
-    transcript = [Line(speaker="speaker1", text="text1"), Line(speaker="speaker2", text="text2")]
+    transcript = [
+        Line(speaker="speaker1", text="text1", start=0.0, end=2.1),
+        Line(speaker="speaker2", text="text2", start=2.1, end=4.8),
+    ]
     initial = [
         Instruction(
             uuid="uuid1",
@@ -240,7 +243,10 @@ def test_found_instructions(get_json, upsert_json):
             {
                 "cycle_001": "data1",
                 "cycle_007": {
-                    "transcript": [{"speaker": "speaker1", "text": "text1"}, {"speaker": "speaker2", "text": "text2"}],
+                    "transcript": [
+                        {"speaker": "speaker1", "text": "text1", "start": 0.0, "end": 2.1},
+                        {"speaker": "speaker2", "text": "text2", "start": 2.1, "end": 4.8},
+                    ],
                     "instructions": {
                         "initial": [
                             {
@@ -574,10 +580,10 @@ def test_computed_questionnaires(get_json, upsert_json):
         }
 
     transcript = [
-        Line(speaker="voiceA", text="theText1"),
-        Line(speaker="voiceB", text="theText2"),
-        Line(speaker="voiceB", text="theText3"),
-        Line(speaker="voiceA", text="theText4"),
+        Line(speaker="voiceA", text="theText1", start=0.0, end=2.1),
+        Line(speaker="voiceB", text="theText2", start=2.1, end=4.8),
+        Line(speaker="voiceB", text="theText3", start=4.8, end=5.7),
+        Line(speaker="voiceA", text="theText4", start=5.7, end=9.9),
     ]
     initial_instructions = [
         Instruction(
@@ -651,10 +657,10 @@ def test_computed_questionnaires(get_json, upsert_json):
                 "cycle_001": "data1",
                 "cycle_007": {
                     "transcript": [
-                        {"speaker": "voiceA", "text": "theText1"},
-                        {"speaker": "voiceB", "text": "theText2"},
-                        {"speaker": "voiceB", "text": "theText3"},
-                        {"speaker": "voiceA", "text": "theText4"},
+                        {"speaker": "voiceA", "text": "theText1", "start": 0.0, "end": 2.1},
+                        {"speaker": "voiceB", "text": "theText2", "start": 2.1, "end": 4.8},
+                        {"speaker": "voiceB", "text": "theText3", "start": 4.8, "end": 5.7},
+                        {"speaker": "voiceA", "text": "theText4", "start": 5.7, "end": 9.9},
                     ],
                     "instructions": [
                         {

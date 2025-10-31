@@ -135,6 +135,8 @@ class AudioInterpreter:
                         {
                             "speaker": "Patient/Clinician/Nurse/Parent...",
                             "text": "the verbatim transcription as reported in the transcription",
+                            "start": "the start as reported in the transcription",
+                            "end": "the end as reported in the transcription",
                         },
                     ],
                     indent=1,

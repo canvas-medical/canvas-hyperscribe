@@ -79,9 +79,9 @@ def test_identified_transcript(aws_s3):
         aws_s3.reset_mock()
 
     transcript = [
-        Line(speaker="speaker1", text="textA"),
-        Line(speaker="speaker2", text="textB"),
-        Line(speaker="speaker1", text="textC"),
+        Line(speaker="speaker1", text="textA", start=0.0, end=1.3),
+        Line(speaker="speaker2", text="textB", start=1.3, end=2.5),
+        Line(speaker="speaker1", text="textC", start=2.5, end=3.6),
     ]
     tested = helper_instance()
 
@@ -96,9 +96,9 @@ def test_identified_transcript(aws_s3):
                 call().upload_text_to_s3(
                     "hyperscribe-theCanvasInstance/transcripts/theNoteUuid/transcript_07.log",
                     "[\n  "
-                    '{\n    "speaker": "speaker1",\n    "text": "textA"\n  },\n  '
-                    '{\n    "speaker": "speaker2",\n    "text": "textB"\n  },\n  '
-                    '{\n    "speaker": "speaker1",\n    "text": "textC"\n  }\n]',
+                    '{\n    "speaker": "speaker1",\n    "text": "textA",\n    "start": 0.0,\n    "end": 1.3\n  },\n  '
+                    '{\n    "speaker": "speaker2",\n    "text": "textB",\n    "start": 1.3,\n    "end": 2.5\n  },\n  '
+                    '{\n    "speaker": "speaker1",\n    "text": "textC",\n    "start": 2.5,\n    "end": 3.6\n  }\n]',
                 ),
             ],
         ),

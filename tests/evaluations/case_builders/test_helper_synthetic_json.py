@@ -58,8 +58,14 @@ def _invalid_path(tmp_path: Path) -> Path:
         # transcript returned_class
         (
             Line,
-            [{"speaker": "Clinician", "text": "Hello"}, {"speaker": "Patient", "text": "Hi there"}],
-            [Line(speaker="Clinician", text="Hello"), Line(speaker="Patient", text="Hi there")],
+            [
+                {"speaker": "Clinician", "text": "Hello", "start": 0.0, "end": 1.3},
+                {"speaker": "Patient", "text": "Hi there", "start": 1.3, "end": 2.5},
+            ],
+            [
+                Line(speaker="Clinician", text="Hello", start=0.0, end=1.3),
+                Line(speaker="Patient", text="Hi there", start=1.3, end=2.5),
+            ],
         ),
         # profile returned_class
         (

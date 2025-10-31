@@ -81,15 +81,15 @@ def test__run(
     tested = BuilderFromChartTranscript
 
     lines = [
-        Line(speaker="speakerA", text="text1"),
-        Line(speaker="speakerB", text="text2"),
-        Line(speaker="speakerA", text="text3"),
-        Line(speaker="speakerA", text="text4"),
-        Line(speaker="speakerB", text="text5"),
-        Line(speaker="speakerB", text="text6"),
-        Line(speaker="speakerB", text="text7"),
-        Line(speaker="speakerA", text="text8"),
-        Line(speaker="speakerA", text="text9"),
+        Line(speaker="speakerA", text="text1", start=0.0, end=1.3),
+        Line(speaker="speakerB", text="text2", start=1.3, end=2.5),
+        Line(speaker="speakerA", text="text3", start=2.5, end=3.6),
+        Line(speaker="speakerA", text="text4", start=3.6, end=4.7),
+        Line(speaker="speakerB", text="text5", start=4.7, end=5.3),
+        Line(speaker="speakerB", text="text6", start=5.3, end=6.4),
+        Line(speaker="speakerB", text="text7", start=6.4, end=7.1),
+        Line(speaker="speakerA", text="text8", start=7.1, end=8.0),
+        Line(speaker="speakerA", text="text9", start=8.0, end=9.9),
     ]
     instructions = [
         Instruction(
@@ -170,15 +170,15 @@ def test__run(
             "audio2transcript",
             {
                 "theCycleKey": [
-                    {"speaker": "speakerA", "text": "text1"},
-                    {"speaker": "speakerB", "text": "text2"},
-                    {"speaker": "speakerA", "text": "text3"},
-                    {"speaker": "speakerA", "text": "text4"},
-                    {"speaker": "speakerB", "text": "text5"},
-                    {"speaker": "speakerB", "text": "text6"},
-                    {"speaker": "speakerB", "text": "text7"},
-                    {"speaker": "speakerA", "text": "text8"},
-                    {"speaker": "speakerA", "text": "text9"},
+                    {"speaker": "speakerA", "text": "text1", "start": 0.0, "end": 1.3},
+                    {"speaker": "speakerB", "text": "text2", "start": 1.3, "end": 2.5},
+                    {"speaker": "speakerA", "text": "text3", "start": 2.5, "end": 3.6},
+                    {"speaker": "speakerA", "text": "text4", "start": 3.6, "end": 4.7},
+                    {"speaker": "speakerB", "text": "text5", "start": 4.7, "end": 5.3},
+                    {"speaker": "speakerB", "text": "text6", "start": 5.3, "end": 6.4},
+                    {"speaker": "speakerB", "text": "text7", "start": 6.4, "end": 7.1},
+                    {"speaker": "speakerA", "text": "text8", "start": 7.1, "end": 8.0},
+                    {"speaker": "speakerA", "text": "text9", "start": 8.0, "end": 9.9},
                 ],
             },
         ),
@@ -224,11 +224,11 @@ def test__run(
             "audio2transcript",
             {
                 "theCycleKey": [
-                    {"speaker": "speakerA", "text": "text1"},
-                    {"speaker": "speakerB", "text": "text2"},
-                    {"speaker": "speakerA", "text": "text3"},
-                    {"speaker": "speakerA", "text": "text4"},
-                    {"speaker": "speakerB", "text": "text5"},
+                    {"speaker": "speakerA", "text": "text1", "start": 0.0, "end": 1.3},
+                    {"speaker": "speakerB", "text": "text2", "start": 1.3, "end": 2.5},
+                    {"speaker": "speakerA", "text": "text3", "start": 2.5, "end": 3.6},
+                    {"speaker": "speakerA", "text": "text4", "start": 3.6, "end": 4.7},
+                    {"speaker": "speakerB", "text": "text5", "start": 4.7, "end": 5.3},
                 ],
             },
         ),
@@ -237,10 +237,10 @@ def test__run(
             "audio2transcript",
             {
                 "theCycleKey": [
-                    {"speaker": "speakerB", "text": "text6"},
-                    {"speaker": "speakerB", "text": "text7"},
-                    {"speaker": "speakerA", "text": "text8"},
-                    {"speaker": "speakerA", "text": "text9"},
+                    {"speaker": "speakerB", "text": "text6", "start": 5.3, "end": 6.4},
+                    {"speaker": "speakerB", "text": "text7", "start": 6.4, "end": 7.1},
+                    {"speaker": "speakerA", "text": "text8", "start": 7.1, "end": 8.0},
+                    {"speaker": "speakerA", "text": "text9", "start": 8.0, "end": 9.9},
                 ],
             },
         ),
@@ -295,9 +295,9 @@ def test__run(
             "audio2transcript",
             {
                 "theCycleKey": [
-                    {"speaker": "speakerA", "text": "text1"},
-                    {"speaker": "speakerB", "text": "text2"},
-                    {"speaker": "speakerA", "text": "text3"},
+                    {"speaker": "speakerA", "text": "text1", "start": 0.0, "end": 1.3},
+                    {"speaker": "speakerB", "text": "text2", "start": 1.3, "end": 2.5},
+                    {"speaker": "speakerA", "text": "text3", "start": 2.5, "end": 3.6},
                 ],
             },
         ),
@@ -306,9 +306,9 @@ def test__run(
             "audio2transcript",
             {
                 "theCycleKey": [
-                    {"speaker": "speakerA", "text": "text4"},
-                    {"speaker": "speakerB", "text": "text5"},
-                    {"speaker": "speakerB", "text": "text6"},
+                    {"speaker": "speakerA", "text": "text4", "start": 3.6, "end": 4.7},
+                    {"speaker": "speakerB", "text": "text5", "start": 4.7, "end": 5.3},
+                    {"speaker": "speakerB", "text": "text6", "start": 5.3, "end": 6.4},
                 ],
             },
         ),
@@ -317,9 +317,9 @@ def test__run(
             "audio2transcript",
             {
                 "theCycleKey": [
-                    {"speaker": "speakerB", "text": "text7"},
-                    {"speaker": "speakerA", "text": "text8"},
-                    {"speaker": "speakerA", "text": "text9"},
+                    {"speaker": "speakerB", "text": "text7", "start": 6.4, "end": 7.1},
+                    {"speaker": "speakerA", "text": "text8", "start": 7.1, "end": 8.0},
+                    {"speaker": "speakerA", "text": "text9", "start": 8.0, "end": 9.9},
                 ],
             },
         ),

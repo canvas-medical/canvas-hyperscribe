@@ -85,11 +85,11 @@ def test__run(run_cycle, limited_cache, implemented_commands, cached_discussion,
         for idx in range(5)
     ]
     lines = [
-        Line(speaker="speaker", text="last words 1"),
-        Line(speaker="speaker", text="last words 2"),
-        Line(speaker="speaker", text="last words 3"),
-        Line(speaker="speaker", text="last words 4"),
-        Line(speaker="speaker", text="last words 5"),
+        Line(speaker="speaker", text="last words 1", start=0.0, end=1.3),
+        Line(speaker="speaker", text="last words 2", start=1.3, end=2.5),
+        Line(speaker="speaker", text="last words 3", start=2.5, end=3.6),
+        Line(speaker="speaker", text="last words 4", start=3.6, end=4.7),
+        Line(speaker="speaker", text="last words 5", start=4.7, end=5.3),
     ]
 
     tested = BuilderFromTuning

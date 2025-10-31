@@ -447,12 +447,12 @@ def test_generate_case(
 
         case_summary = CaseExchangeSummary(title="theTitle", summary="theSummary")
         case_exchanges = [
-            CaseExchange(speaker="theSpeaker1", text="theText1", chunk=1),
-            CaseExchange(speaker="theSpeaker2", text="theText2", chunk=2),
-            CaseExchange(speaker="theSpeaker3", text="theText3", chunk=2),
-            CaseExchange(speaker="theSpeaker4", text="theText4", chunk=3),
-            CaseExchange(speaker="theSpeaker5", text="theText5", chunk=3),
-            CaseExchange(speaker="theSpeaker6", text="theText6", chunk=4),
+            CaseExchange(speaker="theSpeaker1", text="theText1", chunk=1, start=0.0, end=1.7),
+            CaseExchange(speaker="theSpeaker2", text="theText2", chunk=2, start=1.7, end=3.5),
+            CaseExchange(speaker="theSpeaker3", text="theText3", chunk=2, start=3.5, end=4.8),
+            CaseExchange(speaker="theSpeaker4", text="theText4", chunk=3, start=4.8, end=6.1),
+            CaseExchange(speaker="theSpeaker5", text="theText5", chunk=3, start=6.1, end=8.3),
+            CaseExchange(speaker="theSpeaker6", text="theText6", chunk=4, start=8.3, end=9.9),
         ]
         tested.settings = mock_settings
         result = tested.generate_case(limited_cache, case_summary, case_exchanges)
@@ -492,13 +492,16 @@ def test_generate_case(
             calls = [
                 call.transcript2commands(
                     auditor_postgres.return_value,
-                    [Line(speaker="theSpeaker1", text="theText1")],
+                    [Line(speaker="theSpeaker1", text="theText1", start=0.0, end=1.7)],
                     mock_chatter,
                     ["previous0"],
                 ),
                 call.transcript2commands(
                     auditor_postgres.return_value,
-                    [Line(speaker="theSpeaker2", text="theText2"), Line(speaker="theSpeaker3", text="theText3")],
+                    [
+                        Line(speaker="theSpeaker2", text="theText2", start=1.7, end=3.5),
+                        Line(speaker="theSpeaker3", text="theText3", start=3.5, end=4.8),
+                    ],
                     mock_chatter,
                     ["previous1"],
                 ),
@@ -509,15 +512,15 @@ def test_generate_case(
                         call.transcript2commands(
                             auditor_postgres.return_value,
                             [
-                                Line(speaker="theSpeaker4", text="theText4"),
-                                Line(speaker="theSpeaker5", text="theText5"),
+                                Line(speaker="theSpeaker4", text="theText4", start=4.8, end=6.1),
+                                Line(speaker="theSpeaker5", text="theText5", start=6.1, end=8.3),
                             ],
                             mock_chatter,
                             ["previous2"],
                         ),
                         call.transcript2commands(
                             auditor_postgres.return_value,
-                            [Line(speaker="theSpeaker6", text="theText6")],
+                            [Line(speaker="theSpeaker6", text="theText6", start=8.3, end=9.9)],
                             mock_chatter,
                             ["previous3"],
                         ),
@@ -532,15 +535,15 @@ def test_generate_case(
                 call().set_cycle(1),
                 call().upsert_json(
                     "audio2transcript",
-                    {"theCycleKey": [{"speaker": "theSpeaker1", "text": "theText1"}]},
+                    {"theCycleKey": [{"speaker": "theSpeaker1", "text": "theText1", "start": 0.0, "end": 1.7}]},
                 ),
                 call().set_cycle(2),
                 call().upsert_json(
                     "audio2transcript",
                     {
                         "theCycleKey": [
-                            {"speaker": "theSpeaker2", "text": "theText2"},
-                            {"speaker": "theSpeaker3", "text": "theText3"},
+                            {"speaker": "theSpeaker2", "text": "theText2", "start": 1.7, "end": 3.5},
+                            {"speaker": "theSpeaker3", "text": "theText3", "start": 3.5, "end": 4.8},
                         ],
                     },
                 ),
@@ -553,15 +556,15 @@ def test_generate_case(
                             "audio2transcript",
                             {
                                 "theCycleKey": [
-                                    {"speaker": "theSpeaker4", "text": "theText4"},
-                                    {"speaker": "theSpeaker5", "text": "theText5"},
+                                    {"speaker": "theSpeaker4", "text": "theText4", "start": 4.8, "end": 6.1},
+                                    {"speaker": "theSpeaker5", "text": "theText5", "start": 6.1, "end": 8.3},
                                 ],
                             },
                         ),
                         call().set_cycle(4),
                         call().upsert_json(
                             "audio2transcript",
-                            {"theCycleKey": [{"speaker": "theSpeaker6", "text": "theText6"}]},
+                            {"theCycleKey": [{"speaker": "theSpeaker6", "text": "theText6", "start": 8.3, "end": 9.9}]},
                         ),
                         call().case_finalize({}, 0),
                     ],
@@ -602,10 +605,10 @@ def test_generate_case(
 
 def test_create_transcripts():
     mock_interpreter = MagicMock()
-    mock_json_files = [MagicMock(), MagicMock(), MagicMock()]
-    mock_audio_files = [MagicMock(), MagicMock(), MagicMock()]
-    json_buffers = [MockFile(), MockFile(), MockFile()]
-    audio_buffers = [MockFile(), MockFile(), MockFile()]
+    mock_json_files = [MagicMock(), MagicMock(), MagicMock(), MagicMock()]
+    mock_audio_files = [MagicMock(), MagicMock(), MagicMock(), MagicMock()]
+    json_buffers = [MockFile(), MockFile(), MockFile(), MockFile()]
+    audio_buffers = [MockFile(), MockFile(), MockFile(), MockFile()]
 
     def reset_mocks():
         mock_interpreter.reset_mock()
@@ -622,6 +625,38 @@ def test_create_transcripts():
 
     reset_mocks()
 
+    interpreter_side_effects = [
+        JsonExtract(
+            error="error",
+            has_error=False,
+            content=[
+                {"speaker": "theSpeaker1", "text": "theText1", "start": 0.0, "end": 2.1},
+                {"speaker": "theSpeaker2", "text": "theText2", "start": 2.1, "end": 3.7},
+            ],
+        ),
+        JsonExtract(
+            error="error",
+            has_error=False,
+            content=[
+                {"speaker": "theSpeaker3", "text": "theText3", "start": 0.0, "end": 4.8},
+            ],
+        ),
+        JsonExtract(
+            error="error",
+            has_error=False,
+            content=[],
+        ),
+        JsonExtract(
+            error="error",
+            has_error=False,
+            content=[
+                {"speaker": "theSpeaker4", "text": "theText4", "start": 0.0, "end": 5.6},
+                {"speaker": "theSpeaker5", "text": "theText5", "start": 5.6, "end": 7.8},
+                {"speaker": "theSpeaker6", "text": "theText6", "start": 7.8, "end": 9.9},
+            ],
+        ),
+    ]
+
     tested = helper_instance()
 
     # forced refresh or json does not exist
@@ -630,11 +665,7 @@ def test_create_transcripts():
         for mock_file in mock_json_files:
             mock_file.exists.side_effect = [not test]
 
-        mock_interpreter.combine_and_speaker_detection.side_effect = [
-            JsonExtract(error="error", has_error=False, content=[{"speaker": "theSpeaker1", "text": "theText1"}]),
-            JsonExtract(error="error", has_error=False, content=[{"speaker": "theSpeaker2", "text": "theText2"}]),
-            JsonExtract(error="error", has_error=False, content=[{"speaker": "theSpeaker3", "text": "theText3"}]),
-        ]
+        mock_interpreter.combine_and_speaker_detection.side_effect = interpreter_side_effects
         mock_interpreter.settings = tested.settings
         result = tested.create_transcripts(mock_audio_files, mock_interpreter)
         expected = mock_json_files
@@ -642,15 +673,38 @@ def test_create_transcripts():
 
         calls = [
             call.combine_and_speaker_detection([b"audio content 0"], []),
-            call.combine_and_speaker_detection([b"audio content 1"], [Line(speaker="theSpeaker1", text="theText1")]),
-            call.combine_and_speaker_detection([b"audio content 2"], [Line(speaker="theSpeaker2", text="theText2")]),
+            call.combine_and_speaker_detection(
+                [b"audio content 1"],
+                [
+                    Line(speaker="theSpeaker1", text="theText1", start=0.0, end=2.1),
+                    Line(speaker="theSpeaker2", text="theText2", start=2.1, end=3.7),
+                ],
+            ),
+            call.combine_and_speaker_detection(
+                [b"audio content 2"], [Line(speaker="theSpeaker3", text="theText3", start=0.0, end=4.8)]
+            ),
+            call.combine_and_speaker_detection([b"audio content 3"], []),
         ]
         assert mock_interpreter.mock_calls == calls
+        exp_content = [
+            [
+                {"speaker": "theSpeaker1", "text": "theText1", "start": 0.0, "end": 2.1},
+                {"speaker": "theSpeaker2", "text": "theText2", "start": 2.1, "end": 3.7},
+            ],
+            [
+                {"speaker": "theSpeaker3", "text": "theText3", "start": 3.7, "end": 8.5},
+            ],
+            [],
+            [
+                {"speaker": "theSpeaker4", "text": "theText4", "start": 8.5, "end": 14.1},
+                {"speaker": "theSpeaker5", "text": "theText5", "start": 14.1, "end": 16.3},
+                {"speaker": "theSpeaker6", "text": "theText6", "start": 16.3, "end": 18.4},
+            ],
+        ]
         calls = [call.open("w")]
         for index, mock_file in enumerate(mock_json_files):
             assert mock_file.mock_calls == calls
-            exp_content = [{"speaker": f"theSpeaker{index + 1}", "text": f"theText{index + 1}"}]
-            assert json.loads(json_buffers[index].content) == exp_content
+            assert json.loads(json_buffers[index].content) == exp_content[index], f"--> {index}"
 
         for index, mock_file in enumerate(mock_audio_files, start=1):
             calls = [call.parent.__truediv__(f"transcript_{index:03d}.json"), call.open("rb")]
@@ -664,12 +718,9 @@ def test_create_transcripts():
     mock_json_files[0].exists.side_effect = [False]
     mock_json_files[1].exists.side_effect = [True]
     mock_json_files[2].exists.side_effect = [True]
+    mock_json_files[3].exists.side_effect = [True]
 
-    mock_interpreter.combine_and_speaker_detection.side_effect = [
-        JsonExtract(error="error", has_error=False, content=[{"speaker": "theSpeaker1", "text": "theText1"}]),
-        JsonExtract(error="error", has_error=False, content=[{"speaker": "theSpeaker2", "text": "theText2"}]),
-        JsonExtract(error="error", has_error=False, content=[{"speaker": "theSpeaker3", "text": "theText3"}]),
-    ]
+    mock_interpreter.combine_and_speaker_detection.side_effect = interpreter_side_effects
     result = tested.create_transcripts(mock_audio_files, mock_interpreter)
     expected = mock_json_files
     assert result == expected
@@ -678,7 +729,10 @@ def test_create_transcripts():
     assert mock_interpreter.mock_calls == calls
     calls = [call.exists(), call.open("w")]
     assert mock_json_files[0].mock_calls == calls
-    exp_content = [{"speaker": "theSpeaker1", "text": "theText1"}]
+    exp_content = [
+        {"speaker": "theSpeaker1", "text": "theText1", "start": 0.0, "end": 2.1},
+        {"speaker": "theSpeaker2", "text": "theText2", "start": 2.1, "end": 3.7},
+    ]
     assert json.loads(json_buffers[0].content) == exp_content
 
     calls = [call.exists()]
@@ -1171,9 +1225,9 @@ def test_anonymize_transcripts(anonymize_transcripts_chat, memory_log):
             Anonymization(
                 source=[],
                 result=[
-                    CaseExchange(speaker="theSpeaker1", text="theText1", chunk=1),
-                    CaseExchange(speaker="theSpeaker1", text="theText2", chunk=1),
-                    CaseExchange(speaker="theSpeaker2", text="theText3", chunk=1),
+                    CaseExchange(speaker="theSpeaker1", text="theText1", chunk=1, start=0.0, end=2.1),
+                    CaseExchange(speaker="theSpeaker1", text="theText2", chunk=1, start=2.1, end=4.8),
+                    CaseExchange(speaker="theSpeaker2", text="theText3", chunk=1, start=5.7, end=9.9),
                 ],
                 substitutions=[
                     AnonymizationSubstitution(original_entity="theOriginal1", anonymized_with="theAnonymized1"),
@@ -1182,9 +1236,9 @@ def test_anonymize_transcripts(anonymize_transcripts_chat, memory_log):
             Anonymization(
                 source=[],
                 result=[
-                    CaseExchange(speaker="theSpeaker1", text="theText1", chunk=2),
-                    CaseExchange(speaker="theSpeaker1", text="theText2", chunk=2),
-                    CaseExchange(speaker="theSpeaker2", text="theText3", chunk=2),
+                    CaseExchange(speaker="theSpeaker1", text="theText1", chunk=2, start=0.0, end=2.1),
+                    CaseExchange(speaker="theSpeaker1", text="theText2", chunk=2, start=2.1, end=4.8),
+                    CaseExchange(speaker="theSpeaker2", text="theText3", chunk=2, start=5.7, end=9.9),
                 ],
                 substitutions=[
                     AnonymizationSubstitution(original_entity="theOriginal1", anonymized_with="theAnonymized1"),
@@ -1195,9 +1249,9 @@ def test_anonymize_transcripts(anonymize_transcripts_chat, memory_log):
             Anonymization(
                 source=[],
                 result=[
-                    CaseExchange(speaker="theSpeaker1", text="theText1", chunk=3),
-                    CaseExchange(speaker="theSpeaker1", text="theText2", chunk=3),
-                    CaseExchange(speaker="theSpeaker2", text="theText3", chunk=3),
+                    CaseExchange(speaker="theSpeaker1", text="theText1", chunk=3, start=0.0, end=2.1),
+                    CaseExchange(speaker="theSpeaker1", text="theText2", chunk=3, start=2.1, end=4.8),
+                    CaseExchange(speaker="theSpeaker2", text="theText3", chunk=3, start=5.7, end=9.9),
                 ],
                 substitutions=[
                     AnonymizationSubstitution(original_entity="theOriginal1", anonymized_with="theAnonymized1"),
@@ -1272,27 +1326,27 @@ def test_anonymize_transcripts(anonymize_transcripts_chat, memory_log):
             elif index == 3:
                 exp_content = json.dumps(
                     [
-                        {"speaker": "theSpeaker1", "text": "theText1", "chunk": 1},
-                        {"speaker": "theSpeaker1", "text": "theText2", "chunk": 1},
-                        {"speaker": "theSpeaker2", "text": "theText3", "chunk": 1},
+                        {"speaker": "theSpeaker1", "text": "theText1", "chunk": 1, "start": 0.0, "end": 2.1},
+                        {"speaker": "theSpeaker1", "text": "theText2", "chunk": 1, "start": 2.1, "end": 4.8},
+                        {"speaker": "theSpeaker2", "text": "theText3", "chunk": 1, "start": 5.7, "end": 9.9},
                     ],
                     indent=2,
                 )
             elif index == 4:
                 exp_content = json.dumps(
                     [
-                        {"speaker": "theSpeaker1", "text": "theText1", "chunk": 2},
-                        {"speaker": "theSpeaker1", "text": "theText2", "chunk": 2},
-                        {"speaker": "theSpeaker2", "text": "theText3", "chunk": 2},
+                        {"speaker": "theSpeaker1", "text": "theText1", "chunk": 2, "start": 0.0, "end": 2.1},
+                        {"speaker": "theSpeaker1", "text": "theText2", "chunk": 2, "start": 2.1, "end": 4.8},
+                        {"speaker": "theSpeaker2", "text": "theText3", "chunk": 2, "start": 5.7, "end": 9.9},
                     ],
                     indent=2,
                 )
             else:
                 exp_content = json.dumps(
                     [
-                        {"speaker": "theSpeaker1", "text": "theText1", "chunk": 3},
-                        {"speaker": "theSpeaker1", "text": "theText2", "chunk": 3},
-                        {"speaker": "theSpeaker2", "text": "theText3", "chunk": 3},
+                        {"speaker": "theSpeaker1", "text": "theText1", "chunk": 3, "start": 0.0, "end": 2.1},
+                        {"speaker": "theSpeaker1", "text": "theText2", "chunk": 3, "start": 2.1, "end": 4.8},
+                        {"speaker": "theSpeaker2", "text": "theText3", "chunk": 3, "start": 5.7, "end": 9.9},
                     ],
                     indent=2,
                 )
@@ -1537,9 +1591,9 @@ def test_anonymize_transcripts_chat(schema_anonymization, schema_changes, anonym
         transcript.open.return_value = buffer
         buffer.content = json.dumps(
             [
-                {"speaker": "theSpeaker1", "text": "theText1", "chunk": 3},
-                {"speaker": "theSpeaker1", "text": "theText2", "chunk": 3},
-                {"speaker": "theSpeaker2", "text": "theText3", "chunk": 4},
+                {"speaker": "theSpeaker1", "text": "theText1", "chunk": 3, "start": 0.0, "end": 2.1},
+                {"speaker": "theSpeaker1", "text": "theText2", "chunk": 3, "start": 2.1, "end": 4.9},
+                {"speaker": "theSpeaker2", "text": "theText3", "chunk": 4, "start": 4.9, "end": 8.1},
             ],
         )
         transcript.as_posix.side_effect = ["theTranscriptPosix"]
@@ -1547,24 +1601,24 @@ def test_anonymize_transcripts_chat(schema_anonymization, schema_changes, anonym
     reset_mocks()
 
     exchange_123 = [
-        CaseExchange(speaker="theSpeaker1", text="theText1", chunk=3),
-        CaseExchange(speaker="theSpeaker1", text="theText2", chunk=3),
-        CaseExchange(speaker="theSpeaker2", text="theText3", chunk=4),
+        CaseExchange(speaker="theSpeaker1", text="theText1", chunk=3, start=0.0, end=2.1),
+        CaseExchange(speaker="theSpeaker1", text="theText2", chunk=3, start=2.1, end=4.9),
+        CaseExchange(speaker="theSpeaker2", text="theText3", chunk=4, start=4.9, end=8.1),
     ]
     exchange_xyz = [
-        CaseExchange(speaker="theSpeaker1", text="theTextX", chunk=3),
-        CaseExchange(speaker="theSpeaker1", text="theTextY", chunk=3),
-        CaseExchange(speaker="theSpeaker2", text="theTextZ", chunk=4),
+        CaseExchange(speaker="theSpeaker1", text="theTextX", chunk=3, start=0.0, end=2.7),
+        CaseExchange(speaker="theSpeaker1", text="theTextY", chunk=3, start=2.7, end=5.4),
+        CaseExchange(speaker="theSpeaker2", text="theTextZ", chunk=4, start=5.4, end=8.3),
     ]
     exchange_abc = [
-        CaseExchange(speaker="theSpeaker1", text="theTextA", chunk=3),
-        CaseExchange(speaker="theSpeaker1", text="theTextB", chunk=3),
-        CaseExchange(speaker="theSpeaker2", text="theTextC", chunk=4),
+        CaseExchange(speaker="theSpeaker1", text="theTextA", chunk=3, start=0.0, end=2.1),
+        CaseExchange(speaker="theSpeaker1", text="theTextB", chunk=3, start=2.1, end=4.9),
+        CaseExchange(speaker="theSpeaker2", text="theTextC", chunk=4, start=4.9, end=8.1),
     ]
     exchange_efg = [
-        CaseExchange(speaker="theSpeaker1", text="theTextE", chunk=3),
-        CaseExchange(speaker="theSpeaker1", text="theTextF", chunk=3),
-        CaseExchange(speaker="theSpeaker2", text="theTextG", chunk=4),
+        CaseExchange(speaker="theSpeaker1", text="theTextE", chunk=3, start=0.0, end=1.9),
+        CaseExchange(speaker="theSpeaker1", text="theTextF", chunk=3, start=1.9, end=3.5),
+        CaseExchange(speaker="theSpeaker2", text="theTextG", chunk=4, start=3.5, end=7.2),
     ]
     substitutions = [
         AnonymizationSubstitution(original_entity="theOriginal1", anonymized_with="theAnonymized1"),
@@ -1621,9 +1675,9 @@ def test_anonymize_transcripts_chat(schema_anonymization, schema_changes, anonym
         "firstRound": [
             "Please anonymize the following medical transcript while preserving all clinical information:",
             "```json",
-            '[{"speaker": "theSpeaker1", "text": "theText1", "chunk": 3}, '
-            '{"speaker": "theSpeaker1", "text": "theText2", "chunk": 3}, '
-            '{"speaker": "theSpeaker2", "text": "theText3", "chunk": 4}]',
+            '[{"speaker": "theSpeaker1", "text": "theText1", "chunk": 3, "start": 0.0, "end": 2.1}, '
+            '{"speaker": "theSpeaker1", "text": "theText2", "chunk": 3, "start": 2.1, "end": 4.9}, '
+            '{"speaker": "theSpeaker2", "text": "theText3", "chunk": 4, "start": 4.9, "end": 8.1}]',
             "```",
             "",
             "Follow rigorously the instructions and provide both JSON Markdown code blocks using the mentioned "
@@ -1664,9 +1718,27 @@ def test_anonymize_transcripts_chat(schema_anonymization, schema_changes, anonym
         "firstResponse": [
             "```json",
             "[\n "
-            '{\n  "speaker": "theSpeaker1",\n  "text": "theTextX",\n  "chunk": 3\n },\n '
-            '{\n  "speaker": "theSpeaker1",\n  "text": "theTextY",\n  "chunk": 3\n },\n '
-            '{\n  "speaker": "theSpeaker2",\n  "text": "theTextZ",\n  "chunk": 4\n }\n]',
+            "{"
+            '\n  "speaker": "theSpeaker1",'
+            '\n  "text": "theTextX",'
+            '\n  "chunk": 3,'
+            '\n  "start": 0.0,'
+            '\n  "end": 2.7'
+            "\n },\n "
+            "{"
+            '\n  "speaker": "theSpeaker1",'
+            '\n  "text": "theTextY",'
+            '\n  "chunk": 3,'
+            '\n  "start": 2.7,'
+            '\n  "end": 5.4'
+            "\n },\n "
+            "{"
+            '\n  "speaker": "theSpeaker2",'
+            '\n  "text": "theTextZ",'
+            '\n  "chunk": 4,'
+            '\n  "start": 5.4,'
+            '\n  "end": 8.3'
+            "\n }\n]",
             "```",
             "```json",
             "[\n "
@@ -1677,9 +1749,27 @@ def test_anonymize_transcripts_chat(schema_anonymization, schema_changes, anonym
         "secondResponse": [
             "```json",
             "[\n "
-            '{\n  "speaker": "theSpeaker1",\n  "text": "theTextA",\n  "chunk": 3\n },\n '
-            '{\n  "speaker": "theSpeaker1",\n  "text": "theTextB",\n  "chunk": 3\n },\n '
-            '{\n  "speaker": "theSpeaker2",\n  "text": "theTextC",\n  "chunk": 4\n }\n]',
+            "{"
+            '\n  "speaker": "theSpeaker1",'
+            '\n  "text": "theTextA",'
+            '\n  "chunk": 3,'
+            '\n  "start": 0.0,'
+            '\n  "end": 2.1'
+            "\n },\n "
+            "{"
+            '\n  "speaker": "theSpeaker1",'
+            '\n  "text": "theTextB",'
+            '\n  "chunk": 3,'
+            '\n  "start": 2.1,'
+            '\n  "end": 4.9'
+            "\n },\n "
+            "{"
+            '\n  "speaker": "theSpeaker2",'
+            '\n  "text": "theTextC",'
+            '\n  "chunk": 4,'
+            '\n  "start": 4.9,'
+            '\n  "end": 8.1'
+            "\n }\n]",
             "```",
             "```json",
             "[\n "
@@ -1700,9 +1790,9 @@ def test_anonymize_transcripts_chat(schema_anonymization, schema_changes, anonym
             has_error=False,
             content=[
                 [
-                    {"speaker": "theSpeaker1", "text": "theTextX", "chunk": 3},
-                    {"speaker": "theSpeaker1", "text": "theTextY", "chunk": 3},
-                    {"speaker": "theSpeaker2", "text": "theTextZ", "chunk": 4},
+                    {"speaker": "theSpeaker1", "text": "theTextX", "chunk": 3, "start": 0.0, "end": 2.7},
+                    {"speaker": "theSpeaker1", "text": "theTextY", "chunk": 3, "start": 2.7, "end": 5.4},
+                    {"speaker": "theSpeaker2", "text": "theTextZ", "chunk": 4, "start": 5.4, "end": 8.3},
                 ],
                 [
                     {"originalEntity": "theOriginal1", "anonymizedWith": "theAnonymized1"},
@@ -1751,9 +1841,9 @@ def test_anonymize_transcripts_chat(schema_anonymization, schema_changes, anonym
                 has_error=False,
                 content=[
                     [
-                        {"speaker": "theSpeaker1", "text": "theTextX", "chunk": 3},
-                        {"speaker": "theSpeaker1", "text": "theTextY", "chunk": 3},
-                        {"speaker": "theSpeaker2", "text": "theTextZ", "chunk": 4},
+                        {"speaker": "theSpeaker1", "text": "theTextX", "chunk": 3, "start": 0.0, "end": 2.7},
+                        {"speaker": "theSpeaker1", "text": "theTextY", "chunk": 3, "start": 2.7, "end": 5.4},
+                        {"speaker": "theSpeaker2", "text": "theTextZ", "chunk": 4, "start": 5.4, "end": 8.3},
                     ],
                     [
                         {"originalEntity": "theOriginal1", "anonymizedWith": "theAnonymized1"},
@@ -1766,9 +1856,9 @@ def test_anonymize_transcripts_chat(schema_anonymization, schema_changes, anonym
                 has_error=False,
                 content=[
                     [
-                        {"speaker": "theSpeaker1", "text": "theTextA", "chunk": 3},
-                        {"speaker": "theSpeaker1", "text": "theTextB", "chunk": 3},
-                        {"speaker": "theSpeaker2", "text": "theTextC", "chunk": 4},
+                        {"speaker": "theSpeaker1", "text": "theTextA", "chunk": 3, "start": 0.0, "end": 2.1},
+                        {"speaker": "theSpeaker1", "text": "theTextB", "chunk": 3, "start": 2.1, "end": 4.9},
+                        {"speaker": "theSpeaker2", "text": "theTextC", "chunk": 4, "start": 4.9, "end": 8.1},
                     ],
                     [
                         {"originalEntity": "theOriginal1", "anonymizedWith": "theAnonymized1"},
@@ -1781,9 +1871,9 @@ def test_anonymize_transcripts_chat(schema_anonymization, schema_changes, anonym
                 has_error=False,
                 content=[
                     [
-                        {"speaker": "theSpeaker1", "text": "theTextE", "chunk": 3},
-                        {"speaker": "theSpeaker1", "text": "theTextF", "chunk": 3},
-                        {"speaker": "theSpeaker2", "text": "theTextG", "chunk": 4},
+                        {"speaker": "theSpeaker1", "text": "theTextE", "chunk": 3, "start": 0.0, "end": 1.9},
+                        {"speaker": "theSpeaker1", "text": "theTextF", "chunk": 3, "start": 1.9, "end": 3.5},
+                        {"speaker": "theSpeaker2", "text": "theTextG", "chunk": 4, "start": 3.5, "end": 7.2},
                     ],
                     [
                         {"originalEntity": "theOriginal1", "anonymizedWith": "theAnonymized1"},
@@ -1858,9 +1948,9 @@ def test_anonymize_transcripts_chat(schema_anonymization, schema_changes, anonym
                     has_error=False,
                     content=[
                         [
-                            {"speaker": "theSpeaker1", "text": "theTextX", "chunk": 3},
-                            {"speaker": "theSpeaker1", "text": "theTextY", "chunk": 3},
-                            {"speaker": "theSpeaker2", "text": "theTextZ", "chunk": 4},
+                            {"speaker": "theSpeaker1", "text": "theTextX", "chunk": 3, "start": 0.0, "end": 2.7},
+                            {"speaker": "theSpeaker1", "text": "theTextY", "chunk": 3, "start": 2.7, "end": 5.4},
+                            {"speaker": "theSpeaker2", "text": "theTextZ", "chunk": 4, "start": 5.4, "end": 8.3},
                         ],
                         [
                             {"originalEntity": "theOriginal1", "anonymizedWith": "theAnonymized1"},
@@ -1873,9 +1963,9 @@ def test_anonymize_transcripts_chat(schema_anonymization, schema_changes, anonym
                     has_error=False,
                     content=[
                         [
-                            {"speaker": "theSpeaker1", "text": "theTextA", "chunk": 3},
-                            {"speaker": "theSpeaker1", "text": "theTextB", "chunk": 3},
-                            {"speaker": "theSpeaker2", "text": "theTextC", "chunk": 4},
+                            {"speaker": "theSpeaker1", "text": "theTextA", "chunk": 3, "start": 0.0, "end": 2.1},
+                            {"speaker": "theSpeaker1", "text": "theTextB", "chunk": 3, "start": 2.1, "end": 4.9},
+                            {"speaker": "theSpeaker2", "text": "theTextC", "chunk": 4, "start": 4.9, "end": 8.1},
                         ],
                         [
                             {"originalEntity": "theOriginal1", "anonymizedWith": "theAnonymized1"},
@@ -1888,9 +1978,9 @@ def test_anonymize_transcripts_chat(schema_anonymization, schema_changes, anonym
                     has_error=False,
                     content=[
                         [
-                            {"speaker": "theSpeaker1", "text": "theTextE", "chunk": 3},
-                            {"speaker": "theSpeaker1", "text": "theTextF", "chunk": 3},
-                            {"speaker": "theSpeaker2", "text": "theTextG", "chunk": 4},
+                            {"speaker": "theSpeaker1", "text": "theTextE", "chunk": 3, "start": 0.0, "end": 1.9},
+                            {"speaker": "theSpeaker1", "text": "theTextF", "chunk": 3, "start": 1.9, "end": 3.5},
+                            {"speaker": "theSpeaker2", "text": "theTextG", "chunk": 4, "start": 3.5, "end": 7.2},
                         ],
                         [
                             {"originalEntity": "theOriginal1", "anonymizedWith": "theAnonymized1"},
@@ -2021,16 +2111,16 @@ def test_anonymize_transcripts_check(schema_errors, helper):
     user_prompt = [
         "The original transcript is:",
         "```json",
-        '[{"speaker": "theSpeaker1", "text": "theText1", "chunk": 3},'
-        ' {"speaker": "theSpeaker1", "text": "theText2", "chunk": 3},'
-        ' {"speaker": "theSpeaker2", "text": "theText3", "chunk": 4}]',
+        '[{"speaker": "theSpeaker1", "text": "theText1", "chunk": 3, "start": 0.0, "end": 2.1},'
+        ' {"speaker": "theSpeaker1", "text": "theText2", "chunk": 3, "start": 2.1, "end": 4.9},'
+        ' {"speaker": "theSpeaker2", "text": "theText3", "chunk": 4, "start": 4.9, "end": 8.1}]',
         "```",
         "",
         "The anonymized transcript is:",
         "```json",
-        '[{"speaker": "theSpeaker1", "text": "theTextX", "chunk": 3},'
-        ' {"speaker": "theSpeaker1", "text": "theTextY", "chunk": 3},'
-        ' {"speaker": "theSpeaker2", "text": "theTextZ", "chunk": 4}]',
+        '[{"speaker": "theSpeaker1", "text": "theTextX", "chunk": 3, "start": 0.0, "end": 2.7},'
+        ' {"speaker": "theSpeaker1", "text": "theTextY", "chunk": 3, "start": 2.7, "end": 5.4},'
+        ' {"speaker": "theSpeaker2", "text": "theTextZ", "chunk": 4, "start": 5.4, "end": 8.3}]',
         "```",
         "",
         "Follow rigorously the instructions and report any broken rules using the mentioned JSON Schema.",
@@ -2063,14 +2153,14 @@ def test_anonymize_transcripts_check(schema_errors, helper):
 
         anonymization = Anonymization(
             source=[
-                CaseExchange(speaker="theSpeaker1", text="theText1", chunk=3),
-                CaseExchange(speaker="theSpeaker1", text="theText2", chunk=3),
-                CaseExchange(speaker="theSpeaker2", text="theText3", chunk=4),
+                CaseExchange(speaker="theSpeaker1", text="theText1", chunk=3, start=0.0, end=2.1),
+                CaseExchange(speaker="theSpeaker1", text="theText2", chunk=3, start=2.1, end=4.9),
+                CaseExchange(speaker="theSpeaker2", text="theText3", chunk=4, start=4.9, end=8.1),
             ],
             result=[
-                CaseExchange(speaker="theSpeaker1", text="theTextX", chunk=3),
-                CaseExchange(speaker="theSpeaker1", text="theTextY", chunk=3),
-                CaseExchange(speaker="theSpeaker2", text="theTextZ", chunk=4),
+                CaseExchange(speaker="theSpeaker1", text="theTextX", chunk=3, start=0.0, end=2.7),
+                CaseExchange(speaker="theSpeaker1", text="theTextY", chunk=3, start=2.7, end=5.4),
+                CaseExchange(speaker="theSpeaker2", text="theTextZ", chunk=4, start=5.4, end=8.3),
             ],
             substitutions=[AnonymizationSubstitution(original_entity="theOriginal1", anonymized_with="theAnonymized1")],
         )
@@ -2099,10 +2189,12 @@ def test_schema_anonymization():
         "type": "array",
         "items": {
             "type": "object",
-            "required": ["speaker", "text", "chunk"],
+            "required": ["speaker", "text", "start", "end", "chunk"],
             "properties": {
                 "speaker": {"type": "string", "minLength": 1},
                 "text": {"type": "string"},
+                "start": {"type": "number"},
+                "end": {"type": "number"},
                 "chunk": {"type": "integer"},
             },
             "additionalProperties": False,
@@ -2242,9 +2334,9 @@ def test_compact_transcripts():
             if idx < 7:
                 buffers[idx].content = json.dumps(
                     [
-                        {"speaker": "speaker1", "text": "word1 word2 word3 word4 word5"},
-                        {"speaker": "speaker2", "text": "word6 word7 word8"},
-                        {"speaker": "speaker3", "text": "word9 word10"},
+                        {"speaker": "speaker1", "text": "word1 word2 word3 word4 word5", "start": 0.0, "end": 2.1},
+                        {"speaker": "speaker2", "text": "word6 word7 word8", "start": 2.1, "end": 4.9},
+                        {"speaker": "speaker3", "text": "word9 word10", "start": 4.9, "end": 8.1},
                     ],
                 )
             else:
@@ -2301,47 +2393,89 @@ def test_compact_transcripts():
             if index < 7:
                 exp_content = json.dumps(
                     [
-                        {"speaker": "speaker1", "text": "word1 word2 word3 word4 word5"},
-                        {"speaker": "speaker2", "text": "word6 word7 word8"},
-                        {"speaker": "speaker3", "text": "word9 word10"},
+                        {"speaker": "speaker1", "text": "word1 word2 word3 word4 word5", "start": 0.0, "end": 2.1},
+                        {"speaker": "speaker2", "text": "word6 word7 word8", "start": 2.1, "end": 4.9},
+                        {"speaker": "speaker3", "text": "word9 word10", "start": 4.9, "end": 8.1},
                     ],
                 )
             elif index in [7]:
                 exp_content = json.dumps(
                     [
-                        {"speaker": "speaker1", "text": "word1 word2 word3 word4 word5", "chunk": 1},
-                        {"speaker": "speaker2", "text": "word6 word7 word8", "chunk": 1},
-                        {"speaker": "speaker3", "text": "word9 word10", "chunk": 1},
-                        {"speaker": "speaker1", "text": "word1 word2 word3 word4 word5", "chunk": 2},
-                        {"speaker": "speaker2", "text": "word6 word7 word8", "chunk": 2},
-                        {"speaker": "speaker3", "text": "word9 word10", "chunk": 2},
-                        {"speaker": "speaker1", "text": "word1 word2 word3 word4 word5", "chunk": 3},
-                        {"speaker": "speaker2", "text": "word6 word7 word8", "chunk": 3},
+                        {
+                            "speaker": "speaker1",
+                            "text": "word1 word2 word3 word4 word5",
+                            "chunk": 1,
+                            "start": 0.0,
+                            "end": 2.1,
+                        },
+                        {"speaker": "speaker2", "text": "word6 word7 word8", "chunk": 1, "start": 2.1, "end": 4.9},
+                        {"speaker": "speaker3", "text": "word9 word10", "chunk": 1, "start": 4.9, "end": 8.1},
+                        {
+                            "speaker": "speaker1",
+                            "text": "word1 word2 word3 word4 word5",
+                            "chunk": 2,
+                            "start": 0.0,
+                            "end": 2.1,
+                        },
+                        {"speaker": "speaker2", "text": "word6 word7 word8", "chunk": 2, "start": 2.1, "end": 4.9},
+                        {"speaker": "speaker3", "text": "word9 word10", "chunk": 2, "start": 4.9, "end": 8.1},
+                        {
+                            "speaker": "speaker1",
+                            "text": "word1 word2 word3 word4 word5",
+                            "chunk": 3,
+                            "start": 0.0,
+                            "end": 2.1,
+                        },
+                        {"speaker": "speaker2", "text": "word6 word7 word8", "chunk": 3, "start": 2.1, "end": 4.9},
                     ],
                     indent=2,
                 )
             elif index in [8]:
                 exp_content = json.dumps(
                     [
-                        {"speaker": "speaker3", "text": "word9 word10", "chunk": 3},
-                        {"speaker": "speaker1", "text": "word1 word2 word3 word4 word5", "chunk": 4},
-                        {"speaker": "speaker2", "text": "word6 word7 word8", "chunk": 4},
-                        {"speaker": "speaker3", "text": "word9 word10", "chunk": 4},
-                        {"speaker": "speaker1", "text": "word1 word2 word3 word4 word5", "chunk": 5},
-                        {"speaker": "speaker2", "text": "word6 word7 word8", "chunk": 5},
-                        {"speaker": "speaker3", "text": "word9 word10", "chunk": 5},
-                        {"speaker": "speaker1", "text": "word1 word2 word3 word4 word5", "chunk": 6},
+                        {"speaker": "speaker3", "text": "word9 word10", "chunk": 3, "start": 4.9, "end": 8.1},
+                        {
+                            "speaker": "speaker1",
+                            "text": "word1 word2 word3 word4 word5",
+                            "chunk": 4,
+                            "start": 0.0,
+                            "end": 2.1,
+                        },
+                        {"speaker": "speaker2", "text": "word6 word7 word8", "chunk": 4, "start": 2.1, "end": 4.9},
+                        {"speaker": "speaker3", "text": "word9 word10", "chunk": 4, "start": 4.9, "end": 8.1},
+                        {
+                            "speaker": "speaker1",
+                            "text": "word1 word2 word3 word4 word5",
+                            "chunk": 5,
+                            "start": 0.0,
+                            "end": 2.1,
+                        },
+                        {"speaker": "speaker2", "text": "word6 word7 word8", "chunk": 5, "start": 2.1, "end": 4.9},
+                        {"speaker": "speaker3", "text": "word9 word10", "chunk": 5, "start": 4.9, "end": 8.1},
+                        {
+                            "speaker": "speaker1",
+                            "text": "word1 word2 word3 word4 word5",
+                            "chunk": 6,
+                            "start": 0.0,
+                            "end": 2.1,
+                        },
                     ],
                     indent=2,
                 )
             elif index in [9]:
                 exp_content = json.dumps(
                     [
-                        {"speaker": "speaker2", "text": "word6 word7 word8", "chunk": 6},
-                        {"speaker": "speaker3", "text": "word9 word10", "chunk": 6},
-                        {"speaker": "speaker1", "text": "word1 word2 word3 word4 word5", "chunk": 7},
-                        {"speaker": "speaker2", "text": "word6 word7 word8", "chunk": 7},
-                        {"speaker": "speaker3", "text": "word9 word10", "chunk": 7},
+                        {"speaker": "speaker2", "text": "word6 word7 word8", "chunk": 6, "start": 2.1, "end": 4.9},
+                        {"speaker": "speaker3", "text": "word9 word10", "chunk": 6, "start": 4.9, "end": 8.1},
+                        {
+                            "speaker": "speaker1",
+                            "text": "word1 word2 word3 word4 word5",
+                            "chunk": 7,
+                            "start": 0.0,
+                            "end": 2.1,
+                        },
+                        {"speaker": "speaker2", "text": "word6 word7 word8", "chunk": 7, "start": 2.1, "end": 4.9},
+                        {"speaker": "speaker3", "text": "word9 word10", "chunk": 7, "start": 4.9, "end": 8.1},
                     ],
                     indent=2,
                 )
@@ -2400,41 +2534,83 @@ def test_compact_transcripts():
             if index < 7:
                 exp_content = json.dumps(
                     [
-                        {"speaker": "speaker1", "text": "word1 word2 word3 word4 word5"},
-                        {"speaker": "speaker2", "text": "word6 word7 word8"},
-                        {"speaker": "speaker3", "text": "word9 word10"},
+                        {"speaker": "speaker1", "text": "word1 word2 word3 word4 word5", "start": 0.0, "end": 2.1},
+                        {"speaker": "speaker2", "text": "word6 word7 word8", "start": 2.1, "end": 4.9},
+                        {"speaker": "speaker3", "text": "word9 word10", "start": 4.9, "end": 8.1},
                     ],
                 )
             elif index in [7]:
                 exp_content = json.dumps(
                     [
-                        {"speaker": "speaker1", "text": "word1 word2 word3 word4 word5", "chunk": 1},
-                        {"speaker": "speaker2", "text": "word6 word7 word8", "chunk": 1},
-                        {"speaker": "speaker3", "text": "word9 word10", "chunk": 1},
-                        {"speaker": "speaker1", "text": "word1 word2 word3 word4 word5", "chunk": 2},
-                        {"speaker": "speaker2", "text": "word6 word7 word8", "chunk": 2},
-                        {"speaker": "speaker3", "text": "word9 word10", "chunk": 2},
-                        {"speaker": "speaker1", "text": "word1 word2 word3 word4 word5", "chunk": 3},
-                        {"speaker": "speaker2", "text": "word6 word7 word8", "chunk": 3},
-                        {"speaker": "speaker3", "text": "word9 word10", "chunk": 3},
-                        {"speaker": "speaker1", "text": "word1 word2 word3 word4 word5", "chunk": 4},
-                        {"speaker": "speaker2", "text": "word6 word7 word8", "chunk": 4},
-                        {"speaker": "speaker3", "text": "word9 word10", "chunk": 4},
-                        {"speaker": "speaker1", "text": "word1 word2 word3 word4 word5", "chunk": 5},
-                        {"speaker": "speaker2", "text": "word6 word7 word8", "chunk": 5},
+                        {
+                            "speaker": "speaker1",
+                            "text": "word1 word2 word3 word4 word5",
+                            "chunk": 1,
+                            "start": 0.0,
+                            "end": 2.1,
+                        },
+                        {"speaker": "speaker2", "text": "word6 word7 word8", "chunk": 1, "start": 2.1, "end": 4.9},
+                        {"speaker": "speaker3", "text": "word9 word10", "chunk": 1, "start": 4.9, "end": 8.1},
+                        {
+                            "speaker": "speaker1",
+                            "text": "word1 word2 word3 word4 word5",
+                            "chunk": 2,
+                            "start": 0.0,
+                            "end": 2.1,
+                        },
+                        {"speaker": "speaker2", "text": "word6 word7 word8", "chunk": 2, "start": 2.1, "end": 4.9},
+                        {"speaker": "speaker3", "text": "word9 word10", "chunk": 2, "start": 4.9, "end": 8.1},
+                        {
+                            "speaker": "speaker1",
+                            "text": "word1 word2 word3 word4 word5",
+                            "chunk": 3,
+                            "start": 0.0,
+                            "end": 2.1,
+                        },
+                        {"speaker": "speaker2", "text": "word6 word7 word8", "chunk": 3, "start": 2.1, "end": 4.9},
+                        {"speaker": "speaker3", "text": "word9 word10", "chunk": 3, "start": 4.9, "end": 8.1},
+                        {
+                            "speaker": "speaker1",
+                            "text": "word1 word2 word3 word4 word5",
+                            "chunk": 4,
+                            "start": 0.0,
+                            "end": 2.1,
+                        },
+                        {"speaker": "speaker2", "text": "word6 word7 word8", "chunk": 4, "start": 2.1, "end": 4.9},
+                        {"speaker": "speaker3", "text": "word9 word10", "chunk": 4, "start": 4.9, "end": 8.1},
+                        {
+                            "speaker": "speaker1",
+                            "text": "word1 word2 word3 word4 word5",
+                            "chunk": 5,
+                            "start": 0.0,
+                            "end": 2.1,
+                        },
+                        {"speaker": "speaker2", "text": "word6 word7 word8", "chunk": 5, "start": 2.1, "end": 4.9},
                     ],
                     indent=2,
                 )
             elif index in [8]:
                 exp_content = json.dumps(
                     [
-                        {"speaker": "speaker3", "text": "word9 word10", "chunk": 5},
-                        {"speaker": "speaker1", "text": "word1 word2 word3 word4 word5", "chunk": 6},
-                        {"speaker": "speaker2", "text": "word6 word7 word8", "chunk": 6},
-                        {"speaker": "speaker3", "text": "word9 word10", "chunk": 6},
-                        {"speaker": "speaker1", "text": "word1 word2 word3 word4 word5", "chunk": 7},
-                        {"speaker": "speaker2", "text": "word6 word7 word8", "chunk": 7},
-                        {"speaker": "speaker3", "text": "word9 word10", "chunk": 7},
+                        {"speaker": "speaker3", "text": "word9 word10", "chunk": 5, "start": 4.9, "end": 8.1},
+                        {
+                            "speaker": "speaker1",
+                            "text": "word1 word2 word3 word4 word5",
+                            "chunk": 6,
+                            "start": 0.0,
+                            "end": 2.1,
+                        },
+                        {"speaker": "speaker2", "text": "word6 word7 word8", "chunk": 6, "start": 2.1, "end": 4.9},
+                        {"speaker": "speaker3", "text": "word9 word10", "chunk": 6, "start": 4.9, "end": 8.1},
+                        {
+                            "speaker": "speaker1",
+                            "text": "word1 word2 word3 word4 word5",
+                            "chunk": 7,
+                            "start": 0.0,
+                            "end": 2.1,
+                        },
+                        {"speaker": "speaker2", "text": "word6 word7 word8", "chunk": 7, "start": 2.1, "end": 4.9},
+                        {"speaker": "speaker3", "text": "word9 word10", "chunk": 7, "start": 4.9, "end": 8.1},
                     ],
                     indent=2,
                 )

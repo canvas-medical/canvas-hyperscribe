@@ -374,9 +374,9 @@ def test_transcript(full_transcript):
         folder.reset_mock()
         full_transcript.reset_mock()
 
-    full_transcript.side_effect = [{"cycle_007": [Line(speaker="aSpeaker", text="aText")]}]
+    full_transcript.side_effect = [{"cycle_007": [Line(speaker="aSpeaker", text="aText", start=1.1, end=3.4)]}]
     result = tested.transcript()
-    expected = [Line(speaker="aSpeaker", text="aText")]
+    expected = [Line(speaker="aSpeaker", text="aText", start=1.1, end=3.4)]
     assert result == expected
 
     assert folder.mock_calls == []
@@ -384,7 +384,7 @@ def test_transcript(full_transcript):
     assert full_transcript.mock_calls == calls
     reset_mocks()
 
-    full_transcript.side_effect = [{"cycle_006": [Line(speaker="aSpeaker", text="aText")]}]
+    full_transcript.side_effect = [{"cycle_006": [Line(speaker="aSpeaker", text="aText", start=1.1, end=3.4)]}]
     result = tested.transcript()
     expected = []
     assert result == expected
@@ -406,22 +406,22 @@ def test_full_transcript(get_json):
     get_json.side_effect = [
         {
             "cycle_001": [
-                {"speaker": "theSpeaker1", "text": "theText1"},
-                {"speaker": "theSpeaker2", "text": "theText2"},
+                {"speaker": "theSpeaker1", "text": "theText1", "start": 0.0, "end": 2.1},
+                {"speaker": "theSpeaker2", "text": "theText2", "start": 2.1, "end": 4.8},
                 {},
             ],
-            "cycle_002": [{"speaker": "theSpeaker3", "text": "theText3"}],
+            "cycle_002": [{"speaker": "theSpeaker3", "text": "theText3", "start": 5.7, "end": 9.9}],
         },
     ]
 
     result = tested.full_transcript()
     expected = {
         "cycle_001": [
-            Line(speaker="theSpeaker1", text="theText1"),
-            Line(speaker="theSpeaker2", text="theText2"),
-            Line(speaker="", text=""),
+            Line(speaker="theSpeaker1", text="theText1", start=0.0, end=2.1),
+            Line(speaker="theSpeaker2", text="theText2", start=2.1, end=4.8),
+            Line(speaker="", text="", start=0, end=0),
         ],
-        "cycle_002": [Line(speaker="theSpeaker3", text="theText3")],
+        "cycle_002": [Line(speaker="theSpeaker3", text="theText3", start=5.7, end=9.9)],
     }
     assert result == expected
 

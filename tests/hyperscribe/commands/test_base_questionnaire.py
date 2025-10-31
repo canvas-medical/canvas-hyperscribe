@@ -343,9 +343,9 @@ def test_relevant_question_ids():
         "Below is a part of the transcript between the patient and the healthcare provider:",
         "```json",
         "[\n "
-        '{\n  "speaker": "speaker1",\n  "text": "line1"\n },\n '
-        '{\n  "speaker": "speaker2",\n  "text": "line2"\n },\n '
-        '{\n  "speaker": "speaker2",\n  "text": "line3"\n }\n'
+        '{\n  "speaker": "speaker1",\n  "text": "line1",\n  "start": 0.0,\n  "end": 1.3\n },\n '
+        '{\n  "speaker": "speaker2",\n  "text": "line2",\n  "start": 1.3,\n  "end": 2.5\n },\n '
+        '{\n  "speaker": "speaker2",\n  "text": "line3",\n  "start": 2.5,\n  "end": 3.6\n }\n'
         "]",
         "```",
         "",
@@ -416,9 +416,9 @@ def test_relevant_question_ids():
         ],
     )
     discussion = [
-        Line(speaker="speaker1", text="line1"),
-        Line(speaker="speaker2", text="line2"),
-        Line(speaker="speaker2", text="line3"),
+        Line(speaker="speaker1", text="line1", start=0.0, end=1.3),
+        Line(speaker="speaker2", text="line2", start=1.3, end=2.5),
+        Line(speaker="speaker2", text="line3", start=2.5, end=3.6),
     ]
     tested = BaseQuestionnaire
 
@@ -481,10 +481,10 @@ def test_update_from_transcript(include_skipped, relevant_question_ids):
 
     discussion = Line.load_from_json(
         [
-            {"speaker": "spk1", "text": "line1"},
-            {"speaker": "spk2", "text": "line2"},
-            {"speaker": "spk2", "text": "line3"},
-            {"speaker": "spk1", "text": "line4"},
+            {"speaker": "spk1", "text": "line1", "start": 0.0, "end": 1.3},
+            {"speaker": "spk2", "text": "line2", "start": 1.3, "end": 2.5},
+            {"speaker": "spk2", "text": "line3", "start": 2.5, "end": 3.6},
+            {"speaker": "spk1", "text": "line4", "start": 3.6, "end": 4.7},
         ],
     )
     questionnaire_full = Questionnaire(
@@ -592,10 +592,10 @@ def test_update_from_transcript(include_skipped, relevant_question_ids):
             "Below is a part of the transcript between the patient and the healthcare provider:",
             "```json",
             "[\n "
-            '{\n  "speaker": "spk1",\n  "text": "line1"\n },\n '
-            '{\n  "speaker": "spk2",\n  "text": "line2"\n },\n '
-            '{\n  "speaker": "spk2",\n  "text": "line3"\n },\n '
-            '{\n  "speaker": "spk1",\n  "text": "line4"\n }\n]',
+            '{\n  "speaker": "spk1",\n  "text": "line1",\n  "start": 0.0,\n  "end": 1.3\n },\n '
+            '{\n  "speaker": "spk2",\n  "text": "line2",\n  "start": 1.3,\n  "end": 2.5\n },\n '
+            '{\n  "speaker": "spk2",\n  "text": "line3",\n  "start": 2.5,\n  "end": 3.6\n },\n '
+            '{\n  "speaker": "spk1",\n  "text": "line4",\n  "start": 3.6,\n  "end": 4.7\n }\n]',
             "```",
             "",
             "The questionnaire 'theQuestionnaire' is currently as follow,:",
@@ -648,10 +648,10 @@ def test_update_from_transcript(include_skipped, relevant_question_ids):
             "Below is a part of the transcript between the patient and the healthcare provider:",
             "```json",
             "[\n "
-            '{\n  "speaker": "spk1",\n  "text": "line1"\n },\n '
-            '{\n  "speaker": "spk2",\n  "text": "line2"\n },\n '
-            '{\n  "speaker": "spk2",\n  "text": "line3"\n },\n '
-            '{\n  "speaker": "spk1",\n  "text": "line4"\n }\n]',
+            '{\n  "speaker": "spk1",\n  "text": "line1",\n  "start": 0.0,\n  "end": 1.3\n },\n '
+            '{\n  "speaker": "spk2",\n  "text": "line2",\n  "start": 1.3,\n  "end": 2.5\n },\n '
+            '{\n  "speaker": "spk2",\n  "text": "line3",\n  "start": 2.5,\n  "end": 3.6\n },\n '
+            '{\n  "speaker": "spk1",\n  "text": "line4",\n  "start": 3.6,\n  "end": 4.7\n }\n]',
             "```",
             "",
             "The questionnaire 'theQuestionnaire' is currently as follow,:",

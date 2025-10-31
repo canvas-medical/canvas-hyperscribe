@@ -33,6 +33,8 @@ def test_get():
                 "properties": {
                     "voice": {"type": "string", "pattern": "^voice_[1-9]\\d*$"},
                     "text": {"type": "string", "minLength": 1},
+                    "start": {"type": "number", "default": 0.0},
+                    "end": {"type": "number", "default": 0.0},
                 },
                 "required": ["voice", "text"],
                 "additionalProperties": False,
