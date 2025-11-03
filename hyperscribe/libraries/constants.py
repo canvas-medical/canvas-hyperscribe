@@ -1,5 +1,5 @@
 class Constants:
-    ANTHROPIC_CHAT_TEXT = "claude-3-5-sonnet-20241022"  # LLM model used for text completion
+    ANTHROPIC_CHAT_TEXT = "claude-3-7-sonnet-20250219"  # LLM model used for text completion
     ANTHROPIC_REASONING_TEXT = "claude-3-5-sonnet-20241022"
     AWS3_LINK_EXPIRATION_SECONDS = 1200  # duration of an AWS S3 link
     API_SIGNED_EXPIRATION_SECONDS = 3600
@@ -8,7 +8,7 @@ class Constants:
     CYCLE_TRANSCRIPT_OVERLAP_DEFAULT = 100
     DISCUSSION_CACHED_DURATION = 90  # minutes before a discussion is cleared
     ELEVEN_LABS_AUDIO = "scribe_v1"  # model used for speech to text
-    GOOGLE_CHAT_ALL = "models/gemini-2.0-flash"  # LLM model used for speech to text and text completion
+    GOOGLE_CHAT_ALL = "models/gemini-2.5-flash"  # LLM model used for speech to text and text completion
     GOOGLE_REASONING_TEXT = "models/gemini-2.0-flash"
     MAX_AUDIO_INTERVAL_SECONDS = "15"
     MAX_AUTHENTICATION_TIME = 3600

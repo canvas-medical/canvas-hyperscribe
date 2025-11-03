@@ -33,9 +33,17 @@ class ParallelNoteGenerator:
         else:
             self.vendors = [vendor]
         
-        # Case IDs to process - specific ranges requested
+        # All cases with ≤2 successful notes in 2900+ range (834 total cases)
         case_ranges = [
-            range(329, 379)
+                range(2914, 2915),
+                range(2922, 2925),
+                range(2926, 2965),
+                range(2966, 2967),
+                range(2968, 3249),
+                range(3251, 3257),
+                range(3259, 3265),
+                range(3266, 3422),
+                range(3423, 3764),
         ]
         
         self.case_ids = []
