@@ -14,7 +14,7 @@ from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
 
 
-@patch("hyperscribe.libraries.llm_decisions_reviewer.Progress")
+@patch("hyperscribe.libraries.llm_decisions_reviewer.ProgressDisplay")
 @patch("hyperscribe.libraries.llm_decisions_reviewer.MemoryLog")
 @patch("hyperscribe.libraries.llm_decisions_reviewer.LlmTurnsStore")
 @patch("hyperscribe.libraries.llm_decisions_reviewer.Helper")
@@ -186,6 +186,7 @@ def test_review(cache_get_discussion, cache_save, aws_s3, helper, llm_turns_stor
         structured_rfv=True,
         audit_llm=False,
         reasoning_llm=False,
+        custom_prompts=[],
         is_tuning=False,
         api_signing_key="theApiSigningKey",
         max_workers=3,
@@ -218,6 +219,7 @@ def test_review(cache_get_discussion, cache_save, aws_s3, helper, llm_turns_stor
         structured_rfv=True,
         audit_llm=True,
         reasoning_llm=False,
+        custom_prompts=[],
         is_tuning=False,
         api_signing_key="theApiSigningKey",
         max_workers=3,

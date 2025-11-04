@@ -13,7 +13,7 @@ from canvas_sdk.v1.data.note import Note
 from logger import log
 from requests import post as requests_post
 
-from hyperscribe.handlers.progress import Progress
+from hyperscribe.handlers.progress_display import ProgressDisplay
 from hyperscribe.libraries.audio_client import AudioClient
 from hyperscribe.libraries.authenticator import Authenticator
 from hyperscribe.libraries.aws_s3 import AwsS3
@@ -67,7 +67,7 @@ class CaptureView(SimpleAPI):
         )
         settings = Settings.from_dictionary(self.secrets | {Constants.PROGRESS_SETTING_KEY: True})
         messages = [ProgressMessage(message=progress, section=Constants.PROGRESS_SECTION_EVENTS)]
-        Progress.send_to_user(identification, settings, messages)
+        ProgressDisplay.send_to_user(identification, settings, messages)
 
     @api.get("/capture/<patient_id>/<note_id>/<note_reference>")
     def capture_get(self) -> list[Response | Effect]:
@@ -303,7 +303,7 @@ class CaptureView(SimpleAPI):
                 section=Constants.PROGRESS_SECTION_EVENTS,
             )
         ]
-        Progress.send_to_user(identification, settings, messages)
+        ProgressDisplay.send_to_user(identification, settings, messages)
 
         if settings.audit_llm:
             log.info(f"  => final audit started...{identification.note_uuid} / {cycles} cycles")
@@ -328,7 +328,7 @@ class CaptureView(SimpleAPI):
                 section=Constants.PROGRESS_SECTION_EVENTS,
             )
         ]
-        Progress.send_to_user(identification, settings, messages)
+        ProgressDisplay.send_to_user(identification, settings, messages)
 
     def run_commander(self, identification: IdentificationParameters, chunk_index: int) -> None:
         # add the running flag
@@ -363,7 +363,7 @@ class CaptureView(SimpleAPI):
                         section=Constants.PROGRESS_SECTION_TECHNICAL,
                     )
                 ]
-                Progress.send_to_user(identification, settings, messages)
+                ProgressDisplay.send_to_user(identification, settings, messages)
             # clean up and messages
             MemoryLog.end_session(identification.note_uuid)
             LlmTurnsStore.end_session(identification.note_uuid)

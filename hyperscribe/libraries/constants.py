@@ -98,6 +98,7 @@ class Constants:
     SECRET_AWS_SECRET = "AwsSecret"
     SECRET_COMMANDS_LIST = "CommandsList"
     SECRET_COMMANDS_POLICY = "CommandsPolicy"
+    SECRET_CUSTOM_PROMPTS = "CustomPrompts"
     SECRET_CYCLE_TRANSCRIPT_OVERLAP = "CycleTranscriptOverlap"
     SECRET_IS_TUNING = "IsTuning"
     SECRET_MAX_WORKERS = "MaxWorkers"

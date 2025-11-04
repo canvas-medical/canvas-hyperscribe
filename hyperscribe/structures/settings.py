@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import json
 import re
 from typing import NamedTuple
 
 from hyperscribe.libraries.constants import Constants
 from hyperscribe.structures.access_policy import AccessPolicy
+from hyperscribe.structures.custom_prompt import CustomPrompt
 from hyperscribe.structures.vendor_key import VendorKey
 
 
@@ -22,6 +24,7 @@ class Settings(NamedTuple):
     staffers_policy: AccessPolicy
     trial_staffers_policy: AccessPolicy
     cycle_transcript_overlap: int
+    custom_prompts: list[CustomPrompt]
 
     @classmethod
     def from_dictionary(cls, dictionary: dict) -> Settings:
@@ -74,6 +77,9 @@ class Settings(NamedTuple):
                 Constants.CYCLE_TRANSCRIPT_OVERLAP_MIN,
                 Constants.CYCLE_TRANSCRIPT_OVERLAP_MAX,
                 Constants.CYCLE_TRANSCRIPT_OVERLAP_DEFAULT,
+            ),
+            custom_prompts=CustomPrompt.load_from_json_list(
+                json.loads(dictionary.get(Constants.SECRET_CUSTOM_PROMPTS) or "[]") or []
             ),
         )
 

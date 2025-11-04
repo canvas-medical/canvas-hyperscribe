@@ -1,7 +1,7 @@
 [
   {
     "speaker": "doctor",
-    "text": "The patient came in today for a routine checkup.",
+    "text": "The patient came in today for a routine checkup as the last one was about 14 months ago.",
     "commands": "reason_for_visit"
   }
 ]

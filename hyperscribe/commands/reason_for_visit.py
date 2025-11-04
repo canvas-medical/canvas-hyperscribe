@@ -32,7 +32,7 @@ class ReasonForVisit(Base):
         chatter: LlmBase,
     ) -> InstructionWithCommand | None:
         result = ReasonForVisitCommand(
-            comment=instruction.parameters["comment"],
+            comment=self.command_from_json_custom_prompted(instruction.parameters["comment"], chatter),
             note_uuid=self.identification.note_uuid,
         )
         if "reasonForVisitIndex" in instruction.parameters:
@@ -92,13 +92,19 @@ class ReasonForVisit(Base):
         ]
 
     def instruction_description(self) -> str:
-        return (
+        result = (
             "Patient's stated reason and/or the prompting circumstance for the visit. "
             "There can be multiple reasons within an instruction, "
             "but only one such instruction in the whole discussion. "
             "So, if one was already found, simply update it by intelligently merging all reasons. "
             "It is important to report it upon identification."
         )
+        if self.custom_prompt():
+            result += (
+                "For documentation purposes, always include the relevant parts of the transcript for reference, "
+                "including any previous sections when merging."
+            )
+        return result
 
     def instruction_constraints(self) -> str:
         return ""

@@ -22,6 +22,7 @@ def helper_instance() -> UpdateGoal:
         structured_rfv=False,
         audit_llm=False,
         reasoning_llm=False,
+        custom_prompts=[],
         is_tuning=False,
         api_signing_key="theApiSigningKey",
         max_workers=3,

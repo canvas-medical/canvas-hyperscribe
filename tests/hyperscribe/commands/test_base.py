@@ -1,4 +1,5 @@
 import json
+from datetime import datetime, timezone
 from hashlib import md5
 from unittest.mock import MagicMock, patch, call
 
@@ -16,12 +17,20 @@ from tests.helper import MockClass
 
 
 def helper_instance() -> Base:
+    from hyperscribe.structures.custom_prompt import CustomPrompt
+
     settings = Settings(
         llm_text=VendorKey(vendor="textVendor", api_key="textKey"),
         llm_audio=VendorKey(vendor="audioVendor", api_key="audioKey"),
         structured_rfv=False,
         audit_llm=False,
         reasoning_llm=False,
+        custom_prompts=[
+            CustomPrompt(command="Command1", prompt="Prompt1"),
+            CustomPrompt(command="Command2", prompt="Prompt2"),
+            CustomPrompt(command="Command3", prompt="Prompt3"),
+            CustomPrompt(command="Command4", prompt=""),
+        ],
         is_tuning=False,
         api_signing_key="theApiSigningKey",
         max_workers=3,
@@ -48,6 +57,7 @@ def test___init__():
         structured_rfv=False,
         audit_llm=False,
         reasoning_llm=False,
+        custom_prompts=[],
         is_tuning=False,
         api_signing_key="theApiSigningKey",
         max_workers=3,
@@ -94,6 +104,29 @@ def test_staged_command_extract():
     tested = helper_instance()
     with pytest.raises(NotImplementedError):
         _ = tested.staged_command_extract({})
+
+
+@patch.object(Base, "class_name")
+def test_custom_prompt(class_name):
+    def reset_mocks():
+        class_name.reset_mock()
+
+    tested = helper_instance()
+    tests = [
+        ("Command1", "Prompt1"),
+        ("Command2", "Prompt2"),
+        ("Command3", "Prompt3"),
+        ("Command4", ""),
+        ("Command5", ""),
+    ]
+    for class_name_side_effect, expected in tests:
+        class_name.side_effect = [class_name_side_effect]
+        result = tested.custom_prompt()
+        assert result == expected, f"---> {class_name_side_effect}"
+
+        calls = [call()]
+        assert class_name.mock_calls == calls
+        reset_mocks()
 
 
 def test_command_from_json():
@@ -273,6 +306,106 @@ def test_command_from_json_with_summary(command_from_json, instruction_with_summ
     calls = [call.single_conversation(system_prompt, user_prompt, schemas, instruction)]
     assert chatter.mock_calls == calls
     assert command.mock_calls == []
+    reset_mocks()
+
+
+@patch("hyperscribe.commands.base.datetime", wraps=datetime)
+@patch.object(LimitedCache, "demographic__str__")
+@patch("hyperscribe.commands.base.JsonSchema")
+@patch.object(Base, "custom_prompt")
+def test_command_from_json_custom_prompted(custom_prompt, json_schema, demographic, mock_datetime):
+    chatter = MagicMock()
+
+    def reset_mocks():
+        custom_prompt.reset_mock()
+        json_schema.reset_mock()
+        demographic.reset_mock()
+        mock_datetime.reset_mock()
+        chatter.reset_mock()
+
+    date_0 = datetime(2025, 11, 4, 4, 55, 21, 12346, tzinfo=timezone.utc)
+
+    system_prompt = [
+        "The conversation is in the context of a clinical encounter between "
+        "patient (theDemographic) and licensed healthcare provider.",
+        "",
+        "The user will submit to you some data related to the conversation as well as how to modify it.",
+        "It is important to follow the requested changes without never make things up.",
+        "It is better to keep the data unchanged rather than create incorrect information.",
+        "",
+        "Please, note that now is 2025-11-04T04:55:21.012346+00:00.",
+        "",
+    ]
+    user_prompt = [
+        "Here is the original data:",
+        "```text",
+        "theData",
+        "```",
+        "",
+        "Apply the following changes:",
+        "```text",
+        "thePrompt",
+        "```",
+        "",
+        "Do NOT add information which is not explicitly provided in the original data.",
+        "",
+        "Fill the JSON object with the relevant information:",
+        "```json",
+        '[{"newData": ""}]',
+        "```",
+        "",
+        "Your response must be a JSON Markdown block validated with the schema:",
+        "```json",
+        '{\n "the": "schema"\n}',
+        "```",
+        "",
+    ]
+    tested = helper_instance()
+
+    # there is a custom prompt
+    tests = [
+        ([{"newData": "theNewData"}], "theNewData"),
+        ([], "theData"),
+    ]
+    for chatter_side_effect, expected in tests:
+        custom_prompt.side_effect = ["thePrompt"]
+        json_schema.get.side_effect = [[{"the": "schema"}]]
+        demographic.side_effect = ["theDemographic"]
+        mock_datetime.now.side_effect = [date_0]
+        chatter.single_conversation.side_effect = [chatter_side_effect]
+
+        result = tested.command_from_json_custom_prompted("theData", chatter)
+        assert result == expected
+
+        calls = [call()]
+        assert custom_prompt.mock_calls == calls
+        calls = [call.get(["command_custom_prompt"])]
+        assert json_schema.mock_calls == calls
+        calls = [call(False)]
+        assert demographic.mock_calls == calls
+        calls = [call.now()]
+        assert mock_datetime.mock_calls == calls
+        calls = [call.single_conversation(system_prompt, user_prompt, [{"the": "schema"}], None)]
+        assert chatter.mock_calls == calls
+        reset_mocks()
+
+    # there is NO custom prompt
+    custom_prompt.side_effect = [""]
+    json_schema.get.side_effect = []
+    demographic.side_effect = []
+    mock_datetime.now.side_effect = []
+    chatter.single_conversation.side_effect = []
+
+    result = tested.command_from_json_custom_prompted("theData", chatter)
+    expected = "theData"
+    assert result == expected
+
+    calls = [call()]
+    assert custom_prompt.mock_calls == calls
+    assert json_schema.mock_calls == []
+    assert demographic.mock_calls == []
+    assert mock_datetime.mock_calls == []
+    assert chatter.mock_calls == []
     reset_mocks()
 
 

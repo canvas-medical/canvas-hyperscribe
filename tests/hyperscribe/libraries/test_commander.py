@@ -41,7 +41,7 @@ def test_constants():
 
 
 @patch("hyperscribe.libraries.commander.AwsS3")
-@patch("hyperscribe.libraries.commander.Progress")
+@patch("hyperscribe.libraries.commander.ProgressDisplay")
 @patch("hyperscribe.libraries.commander.MemoryLog")
 @patch("hyperscribe.libraries.commander.LimitedCache")
 @patch("hyperscribe.libraries.commander.AudioInterpreter")
@@ -103,6 +103,7 @@ def test_compute_audio(
         structured_rfv=True,
         audit_llm=False,
         reasoning_llm=False,
+        custom_prompts=[],
         is_tuning=False,
         api_signing_key="theApiSigningKey",
         max_workers=7,
@@ -313,7 +314,7 @@ def test_compute_audio(
         reset_mocks()
 
 
-@patch("hyperscribe.libraries.commander.Progress")
+@patch("hyperscribe.libraries.commander.ProgressDisplay")
 @patch("hyperscribe.libraries.commander.MemoryLog")
 @patch.object(Line, "tail_of")
 @patch.object(Commander, "transcript2commands")
@@ -354,6 +355,7 @@ def test_audio2commands(transcript2commands, tail_of, memory_log, progress):
         structured_rfv=True,
         audit_llm=True,
         reasoning_llm=False,
+        custom_prompts=[],
         is_tuning=False,
         api_signing_key="theApiSigningKey",
         max_workers=7,
@@ -626,7 +628,7 @@ def test_transcript2command(transcript2commands_common, transcript2commands_ques
     reset_mocks()
 
 
-@patch("hyperscribe.libraries.commander.Progress")
+@patch("hyperscribe.libraries.commander.ProgressDisplay")
 @patch("hyperscribe.libraries.commander.MemoryLog")
 @patch("hyperscribe.libraries.commander.time")
 def test_transcript2commands_common(time, memory_log, progress):
@@ -825,6 +827,7 @@ def test_transcript2commands_common(time, memory_log, progress):
             structured_rfv=True,
             audit_llm=True,
             reasoning_llm=False,
+            custom_prompts=[],
             is_tuning=False,
             api_signing_key="theApiSigningKey",
             max_workers=7,
@@ -1004,6 +1007,7 @@ def test_transcript2commands_common(time, memory_log, progress):
         structured_rfv=True,
         audit_llm=True,
         reasoning_llm=False,
+        custom_prompts=[],
         is_tuning=False,
         api_signing_key="theApiSigningKey",
         max_workers=7,
@@ -1103,7 +1107,7 @@ def test_transcript2commands_common(time, memory_log, progress):
     reset_mocks()
 
 
-@patch("hyperscribe.libraries.commander.Progress")
+@patch("hyperscribe.libraries.commander.ProgressDisplay")
 @patch("hyperscribe.libraries.commander.MemoryLog")
 @patch("hyperscribe.libraries.commander.time")
 def test_transcript2commands_questionnaires(time, memory_log, progress):
@@ -1248,6 +1252,7 @@ def test_transcript2commands_questionnaires(time, memory_log, progress):
             structured_rfv=True,
             audit_llm=True,
             reasoning_llm=False,
+            custom_prompts=[],
             is_tuning=False,
             api_signing_key="theApiSigningKey",
             max_workers=7,
@@ -1316,6 +1321,7 @@ def test_new_commands_from(time, memory_log):
         structured_rfv=True,
         audit_llm=True,
         reasoning_llm=False,
+        custom_prompts=[],
         is_tuning=False,
         api_signing_key="theApiSigningKey",
         max_workers=7,
@@ -1541,6 +1547,7 @@ def test_update_commands_from(time, memory_log):
         structured_rfv=True,
         audit_llm=True,
         reasoning_llm=False,
+        custom_prompts=[],
         is_tuning=False,
         api_signing_key="theApiSigningKey",
         max_workers=7,

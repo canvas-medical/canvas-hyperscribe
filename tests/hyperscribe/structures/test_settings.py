@@ -3,6 +3,7 @@ from unittest.mock import patch, call
 import pytest
 
 from hyperscribe.structures.access_policy import AccessPolicy
+from hyperscribe.structures.custom_prompt import CustomPrompt
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
 from tests.helper import is_namedtuple
@@ -24,6 +25,7 @@ def test_class():
         "staffers_policy": AccessPolicy,
         "trial_staffers_policy": AccessPolicy,
         "cycle_transcript_overlap": int,
+        "custom_prompts": list[CustomPrompt],
     }
     assert is_namedtuple(tested, fields)
 
@@ -102,6 +104,9 @@ def test__from_dict_base(is_true, clamp_int):
                 "StaffersPolicy": "staffers",
                 "CycleTranscriptOverlap": "57",
                 "MaxWorkers": "4",
+                "CustomPrompts": '[{"command":"theCommand1","prompt":"thePrompt1"},'
+                '{"command":"theCommand2","prompt":"thePrompt2"},'
+                '{"command":"theCommand3","prompt":"thePrompt3"}]',
             },
             False,
         )
@@ -111,6 +116,11 @@ def test__from_dict_base(is_true, clamp_int):
             structured_rfv=rfv,
             audit_llm=audit,
             reasoning_llm=False,
+            custom_prompts=[
+                CustomPrompt(command="theCommand1", prompt="thePrompt1"),
+                CustomPrompt(command="theCommand2", prompt="thePrompt2"),
+                CustomPrompt(command="theCommand3", prompt="thePrompt3"),
+            ],
             is_tuning=tuning,
             api_signing_key="theApiSigningKey",
             max_workers=7,
@@ -147,6 +157,7 @@ def test__from_dict_base(is_true, clamp_int):
                 "KeyAudioLLM": "audioAPIKey",
                 "APISigningKey": "theApiSigningKey",
                 "CycleTranscriptOverlap": overlap,
+                "CustomPrompts": "",
             },
             True,
         )
@@ -156,6 +167,7 @@ def test__from_dict_base(is_true, clamp_int):
             structured_rfv=False,
             audit_llm=False,
             reasoning_llm=True,
+            custom_prompts=[],
             is_tuning=False,
             api_signing_key="theApiSigningKey",
             max_workers=6,
@@ -232,6 +244,7 @@ def test_llm_audio_model():
             structured_rfv=True,
             audit_llm=True,
             reasoning_llm=False,
+            custom_prompts=[],
             is_tuning=True,
             api_signing_key="theApiSigningKey",
             max_workers=3,
@@ -265,6 +278,7 @@ def test_llm_text_model():
             structured_rfv=True,
             audit_llm=True,
             reasoning_llm=reasoning_llm,
+            custom_prompts=[],
             is_tuning=True,
             api_signing_key="theApiSigningKey",
             max_workers=3,
@@ -298,6 +312,7 @@ def test_llm_text_temperature(llm_text_model):
             structured_rfv=True,
             audit_llm=True,
             reasoning_llm=True,
+            custom_prompts=[],
             is_tuning=True,
             api_signing_key="theApiSigningKey",
             max_workers=3,

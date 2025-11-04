@@ -31,7 +31,7 @@ class HistoryOfPresentIllness(Base):
         return InstructionWithCommand.add_command(
             instruction,
             HistoryOfPresentIllnessCommand(
-                narrative=instruction.parameters["narrative"],
+                narrative=self.command_from_json_custom_prompted(instruction.parameters["narrative"], chatter),
                 note_uuid=self.identification.note_uuid,
             ),
         )
@@ -64,12 +64,18 @@ class HistoryOfPresentIllness(Base):
         ]
 
     def instruction_description(self) -> str:
-        return (
+        result = (
             "Highlights of the patient's symptoms and surrounding events and observations. "
             "There can be multiple highlights within an instruction, but only one such instruction in the "
             "whole discussion. "
             "So, if one was already found, simply update it by intelligently merging all key highlights."
         )
+        if self.custom_prompt():
+            result += (
+                " For documentation purposes, always include the relevant parts of the transcript for reference, "
+                "including any previous sections when merging."
+            )
+        return result
 
     def instruction_constraints(self) -> str:
         return ""

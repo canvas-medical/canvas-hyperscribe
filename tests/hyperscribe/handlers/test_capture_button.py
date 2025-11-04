@@ -10,21 +10,21 @@ from canvas_sdk.test_utils import factories
 from canvas_sdk.v1.data.note import Note
 from canvas_sdk.v1.data.patient import Patient
 
-from hyperscribe.handlers.launcher import Launcher
+from hyperscribe.handlers.capture_button import CaptureButton
 from hyperscribe.libraries.helper import Helper
 from tests.helper import is_constant
 
 
 def test_class():
-    tested = Launcher
+    tested = CaptureButton
     assert issubclass(tested, ActionButton)
 
 
 def test_constants():
-    tested = Launcher
+    tested = CaptureButton
     constants = {
         "BUTTON_TITLE": "🖊️ Hyperscribe",
-        "BUTTON_KEY": "HYPERSCRIBE_LAUNCHER",
+        "BUTTON_KEY": "HYPERSCRIBE_CAPTURE",
         "BUTTON_LOCATION": "note_header",
         "RESPONDS_TO": ["SHOW_NOTE_HEADER_BUTTON", "ACTION_BUTTON_CLICKED"],
         "PRIORITY": 0,
@@ -33,8 +33,8 @@ def test_constants():
 
 
 @patch.object(Note, "objects")
-@patch("hyperscribe.handlers.launcher.Authenticator")
-@patch("hyperscribe.handlers.launcher.LaunchModalEffect")
+@patch("hyperscribe.handlers.capture_button.Authenticator")
+@patch("hyperscribe.handlers.capture_button.LaunchModalEffect")
 def test_handle(launch_modal_effect, authenticator, note_db):
     def reset_mocks():
         launch_modal_effect.reset_mock()
@@ -55,7 +55,7 @@ def test_handle(launch_modal_effect, authenticator, note_db):
         "CopilotsTeamFHIRGroupId": "theCopilotsTeamFHIRGroupId",
     }
     environment = {"CUSTOMER_IDENTIFIER": "theTestEnv"}
-    tested = Launcher(event, secrets, environment)
+    tested = CaptureButton(event, secrets, environment)
     result = tested.handle()
     expected = [Effect(type="LOG", payload="SomePayload")]
     assert result == expected
@@ -140,7 +140,7 @@ def test_visible(editable_note):
                 "StaffersPolicy": policy,
                 "TrialStaffersList": "trialId",
             }
-            tested = Launcher(event, secrets)
+            tested = CaptureButton(event, secrets)
             assert tested.visible() is (expected and editable)
             exp_button_title = "🖊️ Hyperscribe"
             if expected and editable:

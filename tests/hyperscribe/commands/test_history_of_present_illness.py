@@ -9,6 +9,7 @@ from hyperscribe.commands.history_of_present_illness import HistoryOfPresentIlln
 from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.custom_prompt import CustomPrompt
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.instruction_with_command import InstructionWithCommand
 from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
@@ -16,13 +17,14 @@ from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
 
 
-def helper_instance() -> HistoryOfPresentIllness:
+def helper_instance(custom_prompts: list[CustomPrompt] = []) -> HistoryOfPresentIllness:
     settings = Settings(
         llm_text=VendorKey(vendor="textVendor", api_key="textKey"),
         llm_audio=VendorKey(vendor="audioVendor", api_key="audioKey"),
         structured_rfv=False,
         audit_llm=False,
         reasoning_llm=False,
+        custom_prompts=custom_prompts,
         is_tuning=False,
         api_signing_key="theApiSigningKey",
         max_workers=3,
@@ -109,13 +111,34 @@ def test_command_parameters_schemas():
 
 
 def test_instruction_description():
+    # without custom prompt
     tested = helper_instance()
     result = tested.instruction_description()
     expected = (
         "Highlights of the patient's symptoms and surrounding events and observations. "
-        "There can be multiple highlights within an instruction, but only one such instruction in the whole "
-        "discussion. "
+        "There can be multiple highlights within an instruction, but only one such instruction in the "
+        "whole discussion. "
         "So, if one was already found, simply update it by intelligently merging all key highlights."
+    )
+    assert result == expected
+    #
+    # with custom prompt
+    tested = helper_instance(
+        custom_prompts=[
+            CustomPrompt(
+                command="HistoryOfPresentIllness",
+                prompt="custom prompt text",
+            )
+        ]
+    )
+    result = tested.instruction_description()
+    expected = (
+        "Highlights of the patient's symptoms and surrounding events and observations. "
+        "There can be multiple highlights within an instruction, but only one such instruction in the "
+        "whole discussion. "
+        "So, if one was already found, simply update it by intelligently merging all key highlights. "
+        "For documentation purposes, always include the relevant parts of the transcript for reference, "
+        "including any previous sections when merging."
     )
     assert result == expected
 

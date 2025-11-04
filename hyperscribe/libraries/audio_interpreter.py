@@ -3,7 +3,7 @@ from datetime import datetime
 
 from hyperscribe.commands.base import Base
 from hyperscribe.commands.base_questionnaire import BaseQuestionnaire
-from hyperscribe.handlers.progress import Progress
+from hyperscribe.handlers.progress_display import ProgressDisplay
 from hyperscribe.libraries.constants import Constants
 from hyperscribe.libraries.helper import Helper
 from hyperscribe.libraries.implemented_commands import ImplementedCommands
@@ -387,7 +387,7 @@ class AudioInterpreter:
                     section=Constants.PROGRESS_SECTION_TECHNICAL,
                 )
             ]
-            Progress.send_to_user(self.identification, self.settings, messages)
+            ProgressDisplay.send_to_user(self.identification, self.settings, messages)
         return result
 
     def create_sdk_command_from(self, direction: InstructionWithParameters) -> InstructionWithCommand | None:
@@ -410,7 +410,7 @@ class AudioInterpreter:
                             section = Constants.PROGRESS_SECTION_MEDICAL_UPDATED
                         messages.append(ProgressMessage(message=summary, section=section))
 
-                    Progress.send_to_user(self.identification, self.settings, messages)
+                    ProgressDisplay.send_to_user(self.identification, self.settings, messages)
                 return result
         return None
 
