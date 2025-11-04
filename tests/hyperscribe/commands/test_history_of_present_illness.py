@@ -104,7 +104,7 @@ def test_command_parameters():
 def test_command_parameters_schemas():
     tested = helper_instance()
     result = tested.command_parameters_schemas()
-    expected = "349e8381a83bd3f8ec7a5048c48bbef2"
+    expected = "cafc1fdbdf63556cc5265a8919980039"
     assert md5(json.dumps(result).encode()).hexdigest() == expected
 
 
@@ -112,10 +112,11 @@ def test_instruction_description():
     tested = helper_instance()
     result = tested.instruction_description()
     expected = (
-        "Highlights of the patient's symptoms and surrounding events and observations. "
-        "There can be multiple highlights within an instruction, but only one such instruction in the whole "
-        "discussion. "
-        "So, if one was already found, simply update it by intelligently merging all key highlights."
+        "Narrative description of the patient's symptoms, observations and related events "
+        "e.g. onset, duration, character, timing and severity. "
+        "There can be multiple symptoms and descriptors within an instruction, "
+        "but only one such instruction in the whole discussion, and no instruction in the lack of. "
+        "If an instruction was already found, update the description upon identification."
     )
     assert result == expected
 

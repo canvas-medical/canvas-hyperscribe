@@ -53,8 +53,7 @@ class HistoryOfPresentIllness(Base):
                     "properties": {
                         "narrative": {
                             "type": "string",
-                            "description": "Highlights of the patient's symptoms and "
-                            "surrounding events and observations, as free text",
+                            "description": "Description of the patient's symptoms, as free text",
                         },
                     },
                     "required": ["narrative"],
@@ -65,10 +64,11 @@ class HistoryOfPresentIllness(Base):
 
     def instruction_description(self) -> str:
         return (
-            "Highlights of the patient's symptoms and surrounding events and observations. "
-            "There can be multiple highlights within an instruction, but only one such instruction in the "
-            "whole discussion. "
-            "So, if one was already found, simply update it by intelligently merging all key highlights."
+            "Narrative description of the patient's symptoms, observations and related events "
+            "e.g. onset, duration, character, timing and severity. "
+            "There can be multiple symptoms and descriptors within an instruction, "
+            "but only one such instruction in the whole discussion, and no instruction in the lack of. "
+            "If an instruction was already found, update the description upon identification."
         )
 
     def instruction_constraints(self) -> str:
