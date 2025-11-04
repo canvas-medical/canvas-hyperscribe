@@ -104,9 +104,27 @@
           "read": [],
           "write": []
         }
+      },
+      {
+        "class": "hyperscribe.handlers.customization_display:CustomizationDisplay",
+        "description": "",
+        "data_access": {
+          "event": "",
+          "read": [],
+          "write": []
+        }
       }
     ],
-    "applications": [],
+    "applications": [
+      {
+        "class": "hyperscribe.handlers.customization_app:CustomizationApp",
+        "name": "Hyperscribe Customization",
+        "description": "UI Hyperscribe Customization",
+        "icon": "static/customization.png",
+        "scope": "global",
+        "show_in_panel": true
+      }
+    ],
     "commands": [],
     "content": [],
     "effects": [],
