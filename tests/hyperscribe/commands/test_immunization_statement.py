@@ -270,8 +270,6 @@ def test_command_from_json(search_immunization, add_code2description):
 
     result = tested.command_from_json(instruction, chatter)
     command = ImmunizationStatementCommand(
-        cpt_code="",
-        cvx_code="",
         approximate_date=date(2024, 9, 23),
         comments="theComments",
         note_uuid="noteUuid",
@@ -291,8 +289,6 @@ def test_command_from_json(search_immunization, add_code2description):
 
     result = tested.command_from_json(instruction, chatter)
     command = ImmunizationStatementCommand(
-        cpt_code="",
-        cvx_code="",
         approximate_date=date(2024, 9, 23),
         comments="theComments",
         note_uuid="noteUuid",
