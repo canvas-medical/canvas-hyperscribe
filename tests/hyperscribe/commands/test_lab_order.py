@@ -2,6 +2,8 @@ import json
 from hashlib import md5
 from unittest.mock import patch, call, MagicMock
 
+import pytest
+
 from canvas_sdk.commands.commands.lab_order import LabOrderCommand
 
 from hyperscribe.commands.base import Base
@@ -169,42 +171,20 @@ def test_command_from_json(add_code2description, condition_from, lab_test_from, 
         },
     }
 
-    # Test case where lab partner has no uuid - should succeed with lab_partner=None
+    # Test case where lab partner has no uuid - should raise RuntimeError
     condition_from.side_effect = [
         CodedItem(uuid="uuid1", label="condition1", code="icd1"),
         CodedItem(uuid="uuid3", label="condition3", code=""),
         CodedItem(uuid="uuid4", label="condition4", code="icd3"),
     ]
-    lab_test_from.side_effect = [
-        CodedItem(uuid="uuid2", label="lab2", code="code2"),
-        CodedItem(uuid="uuid3", label="lab3", code=""),
-        CodedItem(uuid="uuid4", label="lab4", code="code4"),
-    ]
+    lab_test_from.side_effect = []  # Won't be called due to exception
     preferred_lab_partner.side_effect = [CodedItem(uuid="", label="theLabPartner", code="")]
 
     instruction = InstructionWithParameters(**arguments)
-    result = tested.command_from_json(instruction, chatter)
-
-    expected = LabOrderCommand(
-        lab_partner=None,  # Should be None when no lab partner is configured
-        ordering_provider_key="providerUuid",
-        fasting_required=True,
-        comment="A very long comment to see that it is truncated after 127 characters. "
-        "That is to go over the 127 characters, just in the middle",
-        note_uuid="noteUuid",
-        tests_order_codes=["code2", "code4"],
-        diagnosis_codes=["icd1", "icd3"],
-    )
-
-    assert result.command == expected
-    exp_calls = [
-        call("providerUuid", ""),
-        call("icd1", "condition1"),
-        call("icd3", "condition4"),
-        call("code2", "lab2"),
-        call("code4", "lab4"),
-    ]
-    assert add_code2description.call_args_list == exp_calls
+    with pytest.raises(
+        RuntimeError, match="Cannot process LabOrder without preferred lab for the staff practice location"
+    ):
+        tested.command_from_json(instruction, chatter)
 
     reset_mocks()
 
