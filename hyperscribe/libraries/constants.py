@@ -114,12 +114,12 @@ class Constants:
     AWS_S3_CREDENTIALS_LOGS = "S3CredentialsLogs"
     AWS_S3_CREDENTIALS_TUNING = "S3CredentialsTuning"
     #
-    SECTION_ASSESSMENT = "Assessment"
-    SECTION_HISTORY = "History"
-    SECTION_OBJECTIVE = "Objective"
-    SECTION_PLAN = "Plan"
-    SECTION_PROCEDURES = "Procedures"
-    SECTION_SUBJECTIVE = "Subjective"
+    NOTE_SECTION_ASSESSMENT = "Assessment"
+    NOTE_SECTION_HISTORY = "History"
+    NOTE_SECTION_OBJECTIVE = "Objective"
+    NOTE_SECTION_PLAN = "Plan"
+    NOTE_SECTION_PROCEDURES = "Procedures"
+    NOTE_SECTION_SUBJECTIVE = "Subjective"
     #
     TRIAL_PATIENT_FIRST_NAME_STARTSWITH = "Hyperscribe"
     TRIAL_PATIENT_LAST_NAME_STARTSWITH = "ZZTest"
