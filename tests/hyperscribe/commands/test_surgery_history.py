@@ -30,6 +30,7 @@ def helper_instance() -> SurgeryHistory:
         is_tuning=False,
         api_signing_key="theApiSigningKey",
         max_workers=3,
+        hierarchical_detection_threshold=5,
         send_progress=False,
         commands_policy=AccessPolicy(policy=False, items=[]),
         staffers_policy=AccessPolicy(policy=False, items=[]),
@@ -278,7 +279,14 @@ def test_instruction_constraints(surgery_history):
         CodedItem(uuid="theUuid2", label="display2a", code="CODE45"),
         CodedItem(uuid="theUuid3", label="display3a", code="CODE9876"),
     ]
-    tests = [([], ""), (surgeries, '"SurgeryHistory" cannot include: "display1a", "display2a", "display3a".')]
+    tests = [
+        ([], ""),
+        (
+            surgeries,
+            "Only document 'SurgeryHistory' for surgeries outside the following list: "
+            '"display1a", "display2a", "display3a".',
+        ),
+    ]
     for side_effect, expected in tests:
         surgery_history.side_effect = [side_effect]
         result = tested.instruction_constraints()

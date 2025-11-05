@@ -26,6 +26,7 @@ def helper_instance() -> CloseGoal:
         is_tuning=False,
         api_signing_key="theApiSigningKey",
         max_workers=3,
+        hierarchical_detection_threshold=5,
         send_progress=False,
         commands_policy=AccessPolicy(policy=False, items=[]),
         staffers_policy=AccessPolicy(policy=False, items=[]),

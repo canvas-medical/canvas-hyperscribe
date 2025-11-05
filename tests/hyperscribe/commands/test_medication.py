@@ -30,6 +30,7 @@ def helper_instance() -> Medication:
         is_tuning=False,
         api_signing_key="theApiSigningKey",
         max_workers=3,
+        hierarchical_detection_threshold=5,
         send_progress=False,
         commands_policy=AccessPolicy(policy=False, items=[]),
         staffers_policy=AccessPolicy(policy=False, items=[]),
@@ -260,7 +261,13 @@ def test_instruction_constraints(current_medications):
             potency_unit_code="puc3",
         ),
     ]
-    tests = [(medications, "'Medication' cannot include: display1, display2, display3."), ([], "")]
+    tests = [
+        (
+            medications,
+            "Only document 'Medication' for medications outside the following list: display1, display2, display3.",
+        ),
+        ([], ""),
+    ]
     for side_effect, expected in tests:
         current_medications.side_effect = [side_effect]
         result = tested.instruction_constraints()

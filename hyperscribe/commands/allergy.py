@@ -151,7 +151,7 @@ class Allergy(Base):
     def instruction_constraints(self) -> str:
         result = ""
         if text := ", ".join([allergy.label for allergy in self.cache.current_allergies()]):
-            result = f"'{self.class_name()}' cannot include: {text}."
+            result = f"Only document '{self.class_name()}' for allergies outside the following list: {text}."
         return result
 
     def is_available(self) -> bool:

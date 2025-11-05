@@ -30,6 +30,7 @@ def helper_instance() -> MedicalHistory:
         is_tuning=False,
         api_signing_key="theApiSigningKey",
         max_workers=3,
+        hierarchical_detection_threshold=5,
         send_progress=False,
         commands_policy=AccessPolicy(policy=False, items=[]),
         staffers_policy=AccessPolicy(policy=False, items=[]),
@@ -298,8 +299,18 @@ def test_instruction_constraints(condition_history, current_conditions):
         CodedItem(uuid="theUuid3", label="display3a", code="CODE98.76"),
     ]
     tests = [
-        (conditions, [], "'MedicalHistory' cannot include: display1a, display2a, display3a."),
-        (conditions[:1], conditions[1:], "'MedicalHistory' cannot include: display1a, display2a, display3a."),
+        (
+            conditions,
+            [],
+            "Only document 'MedicalHistory' for conditions outside the following list: "
+            "display1a, display2a, display3a.",
+        ),
+        (
+            conditions[:1],
+            conditions[1:],
+            "Only document 'MedicalHistory' for conditions outside the following list: "
+            "display1a, display2a, display3a.",
+        ),
         ([], [], ""),
     ]
     for history, current, expected in tests:

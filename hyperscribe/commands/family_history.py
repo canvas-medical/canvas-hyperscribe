@@ -130,7 +130,7 @@ class FamilyHistory(Base):
     def instruction_constraints(self) -> str:
         result = ""
         if text := ", ".join([f"{history.label}" for history in self.cache.family_history()]):
-            result = f'"{self.class_name()}" cannot include: {text}.'
+            result = f"Only document '{self.class_name()}' for information outside the following list: {text}."
         return result
 
     def is_available(self) -> bool:

@@ -19,6 +19,7 @@ class Settings(NamedTuple):
     reasoning_llm: bool
     is_tuning: bool
     max_workers: int
+    hierarchical_detection_threshold: int
     send_progress: bool
     commands_policy: AccessPolicy
     staffers_policy: AccessPolicy
@@ -58,6 +59,12 @@ class Settings(NamedTuple):
                 Constants.MAX_WORKERS_MIN,
                 Constants.MAX_WORKERS_MAX,
                 Constants.MAX_WORKERS_DEFAULT,
+            ),
+            hierarchical_detection_threshold=cls.clamp_int(
+                dictionary.get(Constants.SECRET_HIERARCHICAL_DETECTION_THRESHOLD),
+                Constants.HIERARCHICAL_DETECTION_THRESHOLD_MIN,
+                Constants.HIERARCHICAL_DETECTION_THRESHOLD_MAX,
+                Constants.HIERARCHICAL_DETECTION_THRESHOLD_DEFAULT,
             ),
             send_progress=dictionary.get(Constants.PROGRESS_SETTING_KEY, False),
             commands_policy=AccessPolicy(

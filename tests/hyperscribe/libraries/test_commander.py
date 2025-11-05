@@ -107,6 +107,7 @@ def test_compute_audio(
         is_tuning=False,
         api_signing_key="theApiSigningKey",
         max_workers=7,
+        hierarchical_detection_threshold=5,
         send_progress=False,
         commands_policy=AccessPolicy(policy=False, items=["Command1", "Command2", "Command3"]),
         staffers_policy=AccessPolicy(policy=False, items=["31", "47"]),
@@ -226,7 +227,6 @@ def test_compute_audio(
         tested = Commander
         mock_get_audio_chunk.side_effect = [b"raw-audio-bytes"]
         result = tested.compute_audio(identification, settings, aws_s3_credentials, the_audio_client, 3)
-        mock_get_audio_chunk.calls == [call(identification.patient_uuid, identification.note_uuid, 3)]
         expected = (True, exp_effects)
         assert result == expected
 
@@ -311,6 +311,8 @@ def test_compute_audio(
                 ),
             )
         assert aws_s3.mock_calls == calls
+        calls = [call(identification.patient_uuid, identification.note_uuid, 3)]
+        assert mock_get_audio_chunk.mock_calls == calls
         reset_mocks()
 
 
@@ -359,6 +361,7 @@ def test_audio2commands(transcript2commands, tail_of, memory_log, progress):
         is_tuning=False,
         api_signing_key="theApiSigningKey",
         max_workers=7,
+        hierarchical_detection_threshold=5,
         send_progress=True,
         commands_policy=AccessPolicy(policy=False, items=[]),
         staffers_policy=AccessPolicy(policy=False, items=[]),
@@ -831,6 +834,7 @@ def test_transcript2commands_common(time, memory_log, progress):
             is_tuning=False,
             api_signing_key="theApiSigningKey",
             max_workers=7,
+            hierarchical_detection_threshold=5,
             send_progress=False,
             commands_policy=AccessPolicy(policy=False, items=["Command1", "Command2", "Command3"]),
             staffers_policy=AccessPolicy(policy=False, items=["31", "47"]),
@@ -1011,6 +1015,7 @@ def test_transcript2commands_common(time, memory_log, progress):
         is_tuning=False,
         api_signing_key="theApiSigningKey",
         max_workers=7,
+        hierarchical_detection_threshold=5,
         send_progress=False,
         commands_policy=AccessPolicy(policy=False, items=["Command1", "Command2", "Command3"]),
         staffers_policy=AccessPolicy(policy=False, items=["31", "47"]),
@@ -1256,6 +1261,7 @@ def test_transcript2commands_questionnaires(time, memory_log, progress):
             is_tuning=False,
             api_signing_key="theApiSigningKey",
             max_workers=7,
+            hierarchical_detection_threshold=5,
             send_progress=False,
             commands_policy=AccessPolicy(policy=False, items=["Command1", "Command2", "Command3"]),
             staffers_policy=AccessPolicy(policy=False, items=["31", "47"]),
@@ -1325,6 +1331,7 @@ def test_new_commands_from(time, memory_log):
         is_tuning=False,
         api_signing_key="theApiSigningKey",
         max_workers=7,
+        hierarchical_detection_threshold=5,
         send_progress=False,
         commands_policy=AccessPolicy(policy=False, items=["Command1", "Command2", "Command3"]),
         staffers_policy=AccessPolicy(policy=False, items=["31", "47"]),
@@ -1551,6 +1558,7 @@ def test_update_commands_from(time, memory_log):
         is_tuning=False,
         api_signing_key="theApiSigningKey",
         max_workers=7,
+        hierarchical_detection_threshold=5,
         send_progress=False,
         commands_policy=AccessPolicy(policy=False, items=["Command1", "Command2", "Command3"]),
         staffers_policy=AccessPolicy(policy=False, items=["31", "47"]),

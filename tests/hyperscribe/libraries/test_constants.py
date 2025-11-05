@@ -16,6 +16,9 @@ def test_constants():
         "DISCUSSION_CACHED_DURATION": 90,
         "GOOGLE_CHAT_ALL": "models/gemini-2.0-flash",
         "GOOGLE_REASONING_TEXT": "models/gemini-2.0-flash",
+        "HIERARCHICAL_DETECTION_THRESHOLD_MIN": 0,
+        "HIERARCHICAL_DETECTION_THRESHOLD_MAX": 999,
+        "HIERARCHICAL_DETECTION_THRESHOLD_DEFAULT": 5,
         "MAX_AUDIO_INTERVAL_SECONDS": "15",
         "MAX_AUTHENTICATION_TIME": 3600,
         "MAX_ATTEMPTS_LLM_HTTP": 3,
@@ -89,6 +92,14 @@ def test_constants():
         "NOTE_SECTION_PLAN": "Plan",
         "NOTE_SECTION_PROCEDURES": "Procedures",
         "NOTE_SECTION_SUBJECTIVE": "Subjective",
+        "NOTE_SECTIONS": [
+            "Assessment",
+            "History",
+            "Objective",
+            "Plan",
+            "Procedures",
+            "Subjective",
+        ],
         #
         "CUSTOMER_IDENTIFIER": "CUSTOMER_IDENTIFIER",
         #
@@ -108,6 +119,7 @@ def test_constants():
         "SECRET_COMMANDS_POLICY": "CommandsPolicy",
         "SECRET_CUSTOM_PROMPTS": "CustomPrompts",
         "SECRET_CYCLE_TRANSCRIPT_OVERLAP": "CycleTranscriptOverlap",
+        "SECRET_HIERARCHICAL_DETECTION_THRESHOLD": "HierarchicalDetectionThreshold",
         "SECRET_IS_TUNING": "IsTuning",
         "SECRET_MAX_WORKERS": "MaxWorkers",
         "SECRET_STAFFERS_LIST": "StaffersList",

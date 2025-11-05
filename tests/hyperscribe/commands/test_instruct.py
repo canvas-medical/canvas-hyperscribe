@@ -20,7 +20,9 @@ from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
 
 
-def helper_instance(custom_prompts: list[CustomPrompt] = []) -> Instruct:
+def helper_instance(custom_prompts: list[CustomPrompt] = None) -> Instruct:
+    if custom_prompts is None:
+        custom_prompts = []
     settings = Settings(
         llm_text=VendorKey(vendor="textVendor", api_key="textKey"),
         llm_audio=VendorKey(vendor="audioVendor", api_key="audioKey"),
@@ -31,6 +33,7 @@ def helper_instance(custom_prompts: list[CustomPrompt] = []) -> Instruct:
         is_tuning=False,
         api_signing_key="theApiSigningKey",
         max_workers=3,
+        hierarchical_detection_threshold=5,
         send_progress=False,
         commands_policy=AccessPolicy(policy=False, items=[]),
         staffers_policy=AccessPolicy(policy=False, items=[]),

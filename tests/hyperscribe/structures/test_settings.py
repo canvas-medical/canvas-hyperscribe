@@ -12,6 +12,7 @@ from tests.helper import is_namedtuple
 def test_class():
     tested = Settings
     fields = {
+        "api_signing_key": str,
         "llm_text": VendorKey,
         "llm_audio": VendorKey,
         "structured_rfv": bool,
@@ -19,7 +20,7 @@ def test_class():
         "reasoning_llm": bool,
         "is_tuning": bool,
         "max_workers": int,
-        "api_signing_key": str,
+        "hierarchical_detection_threshold": int,
         "send_progress": bool,
         "commands_policy": AccessPolicy,
         "staffers_policy": AccessPolicy,
@@ -86,7 +87,7 @@ def test__from_dict_base(is_true, clamp_int):
     ]
     for rfv, audit, commands, staffers, progress, tuning in tests:
         is_true.side_effect = [rfv, audit, tuning, commands, staffers]
-        clamp_int.side_effect = [7, 54]
+        clamp_int.side_effect = [7, 11, 54]
         result = tested._from_dict_base(
             {
                 "VendorTextLLM": "textVendor",
@@ -104,6 +105,7 @@ def test__from_dict_base(is_true, clamp_int):
                 "StaffersPolicy": "staffers",
                 "CycleTranscriptOverlap": "57",
                 "MaxWorkers": "4",
+                "HierarchicalDetectionThreshold": "9",
                 "CustomPrompts": '[{"command":"theCommand1","prompt":"thePrompt1"},'
                 '{"command":"theCommand2","prompt":"thePrompt2"},'
                 '{"command":"theCommand3","prompt":"thePrompt3"}]',
@@ -124,6 +126,7 @@ def test__from_dict_base(is_true, clamp_int):
             is_tuning=tuning,
             api_signing_key="theApiSigningKey",
             max_workers=7,
+            hierarchical_detection_threshold=11,
             send_progress=progress,
             commands_policy=AccessPolicy(policy=commands, items=["ReasonForVisit", "StopMedication", "Task", "Vitals"]),
             staffers_policy=AccessPolicy(policy=staffers, items=["32", "47"]),
@@ -135,6 +138,7 @@ def test__from_dict_base(is_true, clamp_int):
         assert is_true.mock_calls == calls
         calls = [
             call("4", 1, 10, 3),
+            call("9", 0, 999, 5),
             call("57", 5, 250, 100),
         ]
         assert clamp_int.mock_calls == calls
@@ -148,7 +152,7 @@ def test__from_dict_base(is_true, clamp_int):
     overlap_tests = [("0", 5), ("1", 5), ("5", 5), ("6", 6), ("249", 249), ("250", 250), ("251", 250), ("251", 250)]
     for overlap, exp_overlap in overlap_tests:
         is_true.side_effect = [False, False, False, False, False]
-        clamp_int.side_effect = [6, exp_overlap]
+        clamp_int.side_effect = [6, 7, exp_overlap]
         result = tested._from_dict_base(
             {
                 "VendorTextLLM": "textVendor",
@@ -171,6 +175,7 @@ def test__from_dict_base(is_true, clamp_int):
             is_tuning=False,
             api_signing_key="theApiSigningKey",
             max_workers=6,
+            hierarchical_detection_threshold=7,
             send_progress=False,
             commands_policy=AccessPolicy(policy=False, items=[]),
             staffers_policy=AccessPolicy(policy=False, items=[]),
@@ -182,6 +187,7 @@ def test__from_dict_base(is_true, clamp_int):
         assert is_true.mock_calls == calls
         calls = [
             call(None, 1, 10, 3),
+            call(None, 0, 999, 5),
             call(overlap, 5, 250, 100),
         ]
         assert clamp_int.mock_calls == calls
@@ -248,6 +254,7 @@ def test_llm_audio_model():
             is_tuning=True,
             api_signing_key="theApiSigningKey",
             max_workers=3,
+            hierarchical_detection_threshold=5,
             send_progress=True,
             commands_policy=AccessPolicy(policy=True, items=[]),
             staffers_policy=AccessPolicy(policy=True, items=[]),
@@ -282,6 +289,7 @@ def test_llm_text_model():
             is_tuning=True,
             api_signing_key="theApiSigningKey",
             max_workers=3,
+            hierarchical_detection_threshold=5,
             send_progress=True,
             commands_policy=AccessPolicy(policy=True, items=[]),
             staffers_policy=AccessPolicy(policy=True, items=[]),
@@ -316,6 +324,7 @@ def test_llm_text_temperature(llm_text_model):
             is_tuning=True,
             api_signing_key="theApiSigningKey",
             max_workers=3,
+            hierarchical_detection_threshold=5,
             send_progress=True,
             commands_policy=AccessPolicy(policy=True, items=[]),
             staffers_policy=AccessPolicy(policy=True, items=[]),

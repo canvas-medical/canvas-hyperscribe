@@ -10,6 +10,12 @@ class Constants:
     ELEVEN_LABS_AUDIO = "scribe_v1"  # model used for speech to text
     GOOGLE_CHAT_ALL = "models/gemini-2.0-flash"  # LLM model used for speech to text and text completion
     GOOGLE_REASONING_TEXT = "models/gemini-2.0-flash"
+
+    # number of staged common commands to use the hierarchical detection flow
+    HIERARCHICAL_DETECTION_THRESHOLD_MIN = 0
+    HIERARCHICAL_DETECTION_THRESHOLD_MAX = 999
+    HIERARCHICAL_DETECTION_THRESHOLD_DEFAULT = 5
+
     MAX_AUDIO_INTERVAL_SECONDS = "15"
     MAX_AUTHENTICATION_TIME = 3600
     MAX_ATTEMPTS_LLM_HTTP = 3
@@ -100,6 +106,7 @@ class Constants:
     SECRET_COMMANDS_POLICY = "CommandsPolicy"
     SECRET_CUSTOM_PROMPTS = "CustomPrompts"
     SECRET_CYCLE_TRANSCRIPT_OVERLAP = "CycleTranscriptOverlap"
+    SECRET_HIERARCHICAL_DETECTION_THRESHOLD = "HierarchicalDetectionThreshold"
     SECRET_IS_TUNING = "IsTuning"
     SECRET_MAX_WORKERS = "MaxWorkers"
     SECRET_STAFFERS_LIST = "StaffersList"
@@ -120,6 +127,14 @@ class Constants:
     NOTE_SECTION_PLAN = "Plan"
     NOTE_SECTION_PROCEDURES = "Procedures"
     NOTE_SECTION_SUBJECTIVE = "Subjective"
+    NOTE_SECTIONS = [
+        NOTE_SECTION_ASSESSMENT,
+        NOTE_SECTION_HISTORY,
+        NOTE_SECTION_OBJECTIVE,
+        NOTE_SECTION_PLAN,
+        NOTE_SECTION_PROCEDURES,
+        NOTE_SECTION_SUBJECTIVE,
+    ]
     #
     TRIAL_PATIENT_FIRST_NAME_STARTSWITH = "Hyperscribe"
     TRIAL_PATIENT_LAST_NAME_STARTSWITH = "ZZTest"

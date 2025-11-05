@@ -149,7 +149,7 @@ class ImmunizationStatement(Base):
                 for item in self.cache.current_immunizations()
             ]
         ):
-            result = f"'{self.class_name()}' cannot include: {text}."
+            result = f"Only document '{self.class_name()}' for information outside the following list: {text}."
         return result
 
     def is_available(self) -> bool:

@@ -29,6 +29,7 @@ def helper_instance() -> ImmunizationStatement:
         is_tuning=False,
         api_signing_key="theApiSigningKey",
         max_workers=3,
+        hierarchical_detection_threshold=5,
         send_progress=False,
         commands_policy=AccessPolicy(policy=False, items=[]),
         staffers_policy=AccessPolicy(policy=False, items=[]),
@@ -397,7 +398,7 @@ def test_instruction_constraints(current_immunizations):
     tests = [
         (
             immunizations,
-            "'ImmunizationStatement' cannot include: "
+            "Only document 'ImmunizationStatement' for information outside the following list: "
             "display1 (CPT: theCptC1, CVX: theCvxC1) on 2024-09-21, "
             "display2 (CPT: theCptC2, CVX: theCvxC2) on 2024-09-22, "
             "display3 (CPT: theCptC3, CVX: theCvxC3) on 2024-09-23.",
