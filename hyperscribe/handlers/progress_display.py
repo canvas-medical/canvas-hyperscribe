@@ -15,7 +15,7 @@ from hyperscribe.structures.progress_message import ProgressMessage
 from hyperscribe.structures.settings import Settings
 
 
-class Progress(SimpleAPIRoute):
+class ProgressDisplay(SimpleAPIRoute):
     PATH = "/progress"
 
     def authenticate(self, credentials: Credentials) -> bool:

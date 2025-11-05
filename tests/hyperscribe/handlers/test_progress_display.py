@@ -12,7 +12,7 @@ from canvas_sdk.events.base import TargetType
 from canvas_sdk.handlers.simple_api import SimpleAPIRoute, Credentials
 from canvas_sdk.v1.data import Patient
 
-from hyperscribe.handlers.progress import Progress
+from hyperscribe.handlers.progress_display import ProgressDisplay
 from hyperscribe.libraries.authenticator import Authenticator
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.identification_parameters import IdentificationParameters
@@ -22,7 +22,7 @@ from hyperscribe.structures.vendor_key import VendorKey
 from tests.helper import is_constant
 
 
-def helper_instance() -> Progress:
+def helper_instance() -> ProgressDisplay:
     event = Event(
         EventRequest(
             context=json.dumps(
@@ -40,7 +40,7 @@ def helper_instance() -> Progress:
     event.target = TargetType(id="targetId", type=Patient)
     secrets = {"APISigningKey": "theApiSigningKey"}
     environment = {}
-    instance = Progress(event, secrets, environment)
+    instance = ProgressDisplay(event, secrets, environment)
     instance._path_pattern = re.compile(
         r".*",
     )  # TODO this is a hack, find the right way to create the Archiver instance
@@ -48,12 +48,12 @@ def helper_instance() -> Progress:
 
 
 def test_class():
-    tested = Progress
+    tested = ProgressDisplay
     assert issubclass(tested, SimpleAPIRoute)
 
 
 def test_constants():
-    tested = Progress
+    tested = ProgressDisplay
     constants = {
         "PATH": "/progress",
         "RESPONDS_TO": ["SIMPLE_API_AUTHENTICATE", "SIMPLE_API_REQUEST"],  # <--- SimpleAPIBase class
@@ -77,8 +77,8 @@ def test_authenticate(check):
         reset_mocks()
 
 
-@patch("hyperscribe.handlers.progress.datetime", wraps=datetime)
-@patch("hyperscribe.handlers.progress.get_cache")
+@patch("hyperscribe.handlers.progress_display.datetime", wraps=datetime)
+@patch("hyperscribe.handlers.progress_display.get_cache")
 def test_get(get_cache, mock_datetime):
     def reset_mocks():
         get_cache.reset_mock()
@@ -127,7 +127,7 @@ def test_get(get_cache, mock_datetime):
     reset_mocks()
 
 
-@patch("hyperscribe.handlers.progress.get_cache")
+@patch("hyperscribe.handlers.progress_display.get_cache")
 def test_post(get_cache):
     def reset_mocks():
         get_cache.reset_mock()
@@ -194,9 +194,9 @@ def test_key_cache():
         assert result == key
 
 
-@patch("hyperscribe.handlers.progress.datetime", wraps=datetime)
-@patch("hyperscribe.handlers.progress.Authenticator")
-@patch("hyperscribe.handlers.progress.requests_post")
+@patch("hyperscribe.handlers.progress_display.datetime", wraps=datetime)
+@patch("hyperscribe.handlers.progress_display.Authenticator")
+@patch("hyperscribe.handlers.progress_display.requests_post")
 def test_send_to_user(requests_post, authenticator, mock_datetime):
     def reset_mocks():
         requests_post.reset_mock()
@@ -212,7 +212,7 @@ def test_send_to_user(requests_post, authenticator, mock_datetime):
         canvas_instance="canvasInstance",
     )
 
-    tested = Progress
+    tested = ProgressDisplay
 
     # set to send messages to the user
     settings = Settings(
@@ -221,6 +221,7 @@ def test_send_to_user(requests_post, authenticator, mock_datetime):
         structured_rfv=False,
         audit_llm=False,
         reasoning_llm=False,
+        custom_prompts=[],
         is_tuning=False,
         api_signing_key="theApiSigningKey",
         max_workers=3,
@@ -274,6 +275,7 @@ def test_send_to_user(requests_post, authenticator, mock_datetime):
         structured_rfv=False,
         audit_llm=False,
         reasoning_llm=False,
+        custom_prompts=[],
         is_tuning=False,
         api_signing_key="theApiSigningKey",
         max_workers=3,

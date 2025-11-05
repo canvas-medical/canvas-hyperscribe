@@ -1,4 +1,5 @@
 import json
+from datetime import datetime
 
 from hyperscribe.libraries.json_schema import JsonSchema
 from hyperscribe.libraries.limited_cache import LimitedCache
@@ -33,6 +34,10 @@ class Base:
     @classmethod
     def staged_command_extract(cls, data: dict) -> CodedItem | None:
         raise NotImplementedError
+
+    def custom_prompt(self) -> str:
+        class_name = self.class_name()
+        return next((cp.prompt for cp in self.settings.custom_prompts if cp.command == class_name), "")
 
     def command_from_json(
         self,
@@ -117,6 +122,52 @@ class Base:
             instruction=result,
             summary=summary,
         )
+
+    def command_from_json_custom_prompted(self, data: str, chatter: LlmBase) -> str:
+        prompt = self.custom_prompt()
+        if not prompt:
+            return data
+
+        schemas = JsonSchema.get(["command_custom_prompt"])
+        system_prompt = [
+            "The conversation is in the context of a clinical encounter between "
+            f"patient ({self.cache.demographic__str__(False)}) and licensed healthcare provider.",
+            "",
+            "The user will submit to you some data related to the conversation as well as how to modify it.",
+            "It is important to follow the requested changes without never make things up.",
+            "It is better to keep the data unchanged rather than create incorrect information.",
+            "",
+            f"Please, note that now is {datetime.now().isoformat()}.",
+            "",
+        ]
+        user_prompt = [
+            "Here is the original data:",
+            "```text",
+            data,
+            "```",
+            "",
+            "Apply the following changes:",
+            "```text",
+            prompt,
+            "```",
+            "",
+            "Do NOT add information which is not explicitly provided in the original data.",
+            "",
+            "Fill the JSON object with the relevant information:",
+            "```json",
+            json.dumps([{"newData": ""}]),
+            "```",
+            "",
+            "Your response must be a JSON Markdown block validated with the schema:",
+            "```json",
+            json.dumps(schemas[0], indent=1),
+            "```",
+            "",
+        ]
+        result = data
+        if response := chatter.single_conversation(system_prompt, user_prompt, schemas, None):
+            result = str(response[0]["newData"])
+        return result
 
     def command_parameters(self) -> dict:
         raise NotImplementedError

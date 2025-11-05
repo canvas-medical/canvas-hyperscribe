@@ -73,6 +73,7 @@ def test_presigned_url(aws_s3, helper, authenticator, capsys):
         structured_rfv=True,
         audit_llm=False,
         reasoning_llm=False,
+        custom_prompts=[],
         is_tuning=False,
         api_signing_key="theApiSigningKey",
         max_workers=3,

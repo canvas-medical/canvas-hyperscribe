@@ -25,6 +25,7 @@ def helper_instance() -> ImmunizationStatement:
         structured_rfv=False,
         audit_llm=False,
         reasoning_llm=False,
+        custom_prompts=[],
         is_tuning=False,
         api_signing_key="theApiSigningKey",
         max_workers=3,
@@ -269,8 +270,6 @@ def test_command_from_json(search_immunization, add_code2description):
 
     result = tested.command_from_json(instruction, chatter)
     command = ImmunizationStatementCommand(
-        cpt_code="",
-        cvx_code="",
         approximate_date=date(2024, 9, 23),
         comments="theComments",
         note_uuid="noteUuid",
@@ -290,8 +289,6 @@ def test_command_from_json(search_immunization, add_code2description):
 
     result = tested.command_from_json(instruction, chatter)
     command = ImmunizationStatementCommand(
-        cpt_code="",
-        cvx_code="",
         approximate_date=date(2024, 9, 23),
         comments="theComments",
         note_uuid="noteUuid",

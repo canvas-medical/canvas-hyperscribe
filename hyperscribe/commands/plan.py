@@ -15,7 +15,7 @@ class Plan(Base):
 
     @classmethod
     def note_section(cls) -> str:
-        return Constants.SECTION_PLAN
+        return Constants.NOTE_SECTION_PLAN
 
     @classmethod
     def staged_command_extract(cls, data: dict) -> None | CodedItem:
@@ -30,7 +30,10 @@ class Plan(Base):
     ) -> InstructionWithCommand | None:
         return InstructionWithCommand.add_command(
             instruction,
-            PlanCommand(narrative=instruction.parameters["plan"], note_uuid=self.identification.note_uuid),
+            PlanCommand(
+                narrative=self.command_from_json_custom_prompted(instruction.parameters["plan"], chatter),
+                note_uuid=self.identification.note_uuid,
+            ),
         )
 
     def command_parameters(self) -> dict:
@@ -60,12 +63,15 @@ class Plan(Base):
         ]
 
     def instruction_description(self) -> str:
-        return (
+        result = (
             "Overall treatment plan and care strategy discussed during the visit, including ongoing management, "
             "monitoring approaches, medication strategies, lifestyle modifications, and follow-up scheduling. "
             "This captures the provider's overall approach to the patient's care. "
             "There can be only one plan per instruction, and no instruction if no plan of care is discussed."
         )
+        if self.custom_prompt():
+            result += " For documentation purposes, always include the relevant parts of the transcript for reference."
+        return result
 
     def instruction_constraints(self) -> str:
         return ""

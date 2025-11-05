@@ -117,7 +117,7 @@ def test_trigger_render(authenticator, helper, requests_post):
     reset_mocks()
 
 
-@patch("hyperscribe.handlers.capture_view.Progress")
+@patch("hyperscribe.handlers.capture_view.ProgressDisplay")
 def test_session_progress_log(progress):
     def reset_mocks():
         progress.reset_mock()
@@ -135,6 +135,7 @@ def test_session_progress_log(progress):
         structured_rfv=True,
         audit_llm=True,
         reasoning_llm=False,
+        custom_prompts=[],
         is_tuning=False,
         max_workers=5,
         send_progress=True,
@@ -781,7 +782,7 @@ def test_feedback_post(aws_s3, requests_post, mock_datetime):
 
 
 @patch.object(Command, "objects")
-@patch("hyperscribe.handlers.capture_view.Progress")
+@patch("hyperscribe.handlers.capture_view.ProgressDisplay")
 @patch("hyperscribe.handlers.capture_view.LlmDecisionsReviewer")
 @patch("hyperscribe.handlers.capture_view.ImplementedCommands")
 @patch("hyperscribe.handlers.capture_view.log")
@@ -808,6 +809,7 @@ def test_run_reviewer(log, implemented_commands, llm_decision_reviewer, progress
         audit_llm=False,
         reasoning_llm=False,
         max_workers=5,
+        custom_prompts=[],
         is_tuning=False,
         send_progress=True,
         commands_policy=AccessPolicy(policy=False, items=[]),
@@ -895,7 +897,7 @@ def test_run_reviewer(log, implemented_commands, llm_decision_reviewer, progress
 
 @patch("hyperscribe.handlers.capture_view.LlmTurnsStore")
 @patch("hyperscribe.handlers.capture_view.Commander")
-@patch("hyperscribe.handlers.capture_view.Progress")
+@patch("hyperscribe.handlers.capture_view.ProgressDisplay")
 @patch("hyperscribe.handlers.capture_view.MemoryLog")
 @patch("hyperscribe.handlers.capture_view.StopAndGo")
 @patch("hyperscribe.handlers.capture_view.log")
@@ -934,6 +936,7 @@ def test_run_commander(
         structured_rfv=True,
         audit_llm=True,
         reasoning_llm=False,
+        custom_prompts=[],
         is_tuning=False,
         max_workers=5,
         send_progress=True,

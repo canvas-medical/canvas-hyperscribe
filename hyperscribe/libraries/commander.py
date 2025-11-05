@@ -9,7 +9,7 @@ from canvas_sdk.protocols import BaseProtocol
 from canvas_sdk.utils.http import ThreadPoolExecutor
 from canvas_sdk.v1.data.command import Command
 
-from hyperscribe.handlers.progress import Progress
+from hyperscribe.handlers.progress_display import ProgressDisplay
 from hyperscribe.libraries.audio_client import AudioClient
 from hyperscribe.libraries.audio_interpreter import AudioInterpreter
 from hyperscribe.libraries.auditor_base import AuditorBase
@@ -63,7 +63,7 @@ class Commander(BaseProtocol):
                 section=Constants.PROGRESS_SECTION_TECHNICAL,
             )
         ]
-        Progress.send_to_user(identification, settings, messages)
+        ProgressDisplay.send_to_user(identification, settings, messages)
         discussion = CachedSdk.get_discussion(identification.note_uuid)
         discussion.set_cycle(chunk_index)
 
@@ -142,7 +142,7 @@ class Commander(BaseProtocol):
                 section=Constants.PROGRESS_SECTION_TRANSCRIPT,
             )
         ]
-        Progress.send_to_user(chatter.identification, chatter.settings, messages)
+        ProgressDisplay.send_to_user(chatter.identification, chatter.settings, messages)
         instructions, effects = cls.transcript2commands(auditor, transcript, chatter, previous_instructions)
         transcript_tail = Line.tail_of(transcript, chatter.settings.cycle_transcript_overlap)
         return instructions, effects, transcript_tail
@@ -238,7 +238,7 @@ class Commander(BaseProtocol):
                 section=Constants.PROGRESS_SECTION_TECHNICAL,
             )
         ]
-        Progress.send_to_user(chatter.identification, chatter.settings, messages)
+        ProgressDisplay.send_to_user(chatter.identification, chatter.settings, messages)
 
         max_workers = max(1, chatter.settings.max_workers)
         with ThreadPoolExecutor(max_workers=max_workers) as builder:
@@ -257,7 +257,7 @@ class Commander(BaseProtocol):
                 section=Constants.PROGRESS_SECTION_TECHNICAL,
             )
         ]
-        Progress.send_to_user(chatter.identification, chatter.settings, messages)
+        ProgressDisplay.send_to_user(chatter.identification, chatter.settings, messages)
         auditor.computed_parameters(instructions_with_parameter)
 
         instructions_with_command: list[InstructionWithCommand] = []
@@ -278,7 +278,7 @@ class Commander(BaseProtocol):
                 section=Constants.PROGRESS_SECTION_TECHNICAL,
             )
         ]
-        Progress.send_to_user(chatter.identification, chatter.settings, messages)
+        ProgressDisplay.send_to_user(chatter.identification, chatter.settings, messages)
         auditor.computed_commands(instructions_with_command)
 
         if chatter.is_local_data:
@@ -336,7 +336,7 @@ class Commander(BaseProtocol):
                 section=Constants.PROGRESS_SECTION_TECHNICAL,
             )
         ]
-        Progress.send_to_user(chatter.identification, chatter.settings, messages)
+        ProgressDisplay.send_to_user(chatter.identification, chatter.settings, messages)
         auditor.computed_questionnaires(transcript, instructions, instructions_with_command)
 
         if chatter.is_local_data:

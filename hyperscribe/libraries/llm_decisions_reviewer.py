@@ -1,7 +1,7 @@
 import json
 from datetime import datetime
 
-from hyperscribe.handlers.progress import Progress
+from hyperscribe.handlers.progress_display import ProgressDisplay
 from hyperscribe.libraries.aws_s3 import AwsS3
 from hyperscribe.libraries.cached_sdk import CachedSdk
 from hyperscribe.libraries.constants import Constants
@@ -53,7 +53,7 @@ class LlmDecisionsReviewer:
                 section=Constants.PROGRESS_SECTION_TECHNICAL,
             )
         ]
-        Progress.send_to_user(identification, settings, messages)
+        ProgressDisplay.send_to_user(identification, settings, messages)
         for cycle in range(1, cycles + 1):
             result: list[dict] = []
             store = LlmTurnsStore(credentials, identification, creation_day, cycle)
@@ -64,7 +64,7 @@ class LlmDecisionsReviewer:
                         section=Constants.PROGRESS_SECTION_TECHNICAL,
                     )
                 ]
-                Progress.send_to_user(identification, settings, messages)
+                ProgressDisplay.send_to_user(identification, settings, messages)
                 indexed_command, increment = LlmTurnsStore.decompose(incremented_step)
                 chatter = Helper.chatter(
                     settings,
@@ -128,4 +128,4 @@ class LlmDecisionsReviewer:
                 section=Constants.PROGRESS_SECTION_TECHNICAL,
             )
         ]
-        Progress.send_to_user(identification, settings, messages)
+        ProgressDisplay.send_to_user(identification, settings, messages)

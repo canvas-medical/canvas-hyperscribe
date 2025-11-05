@@ -34,6 +34,7 @@ def helper_instance(mocks, with_audit) -> tuple[AudioInterpreter, Settings, AwsS
             structured_rfv=False,
             audit_llm=with_audit,
             reasoning_llm=False,
+            custom_prompts=[],
             is_tuning=False,
             api_signing_key="theApiSigningKey",
             max_workers=3,
@@ -85,6 +86,7 @@ def test___init__(command_list):
         structured_rfv=False,
         audit_llm=False,
         reasoning_llm=False,
+        custom_prompts=[],
         is_tuning=False,
         api_signing_key="theApiSigningKey",
         max_workers=3,
@@ -1192,7 +1194,7 @@ def test_detect_instructions(common_instructions, json_schema, instruction_const
 
 
 @patch("hyperscribe.libraries.audio_interpreter.datetime", wraps=datetime)
-@patch("hyperscribe.libraries.audio_interpreter.Progress")
+@patch("hyperscribe.libraries.audio_interpreter.ProgressDisplay")
 @patch("hyperscribe.libraries.audio_interpreter.MemoryLog")
 @patch.object(Helper, "chatter")
 @patch.object(AudioInterpreter, "command_schema")
@@ -1397,7 +1399,7 @@ def test_create_sdk_command_parameters(
     reset_mocks()
 
 
-@patch("hyperscribe.libraries.audio_interpreter.Progress")
+@patch("hyperscribe.libraries.audio_interpreter.ProgressDisplay")
 @patch("hyperscribe.libraries.audio_interpreter.MemoryLog")
 @patch.object(Helper, "chatter")
 def test_create_sdk_command_from(chatter, memory_log, progress):

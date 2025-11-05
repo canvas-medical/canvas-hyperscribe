@@ -1,13 +1,13 @@
 {
   "sdk_version": "0.73.0",
-  "plugin_version": "2025-10-31 v0.2.137 (main)",
+  "plugin_version": "2025-11-04 v0.2.139 (main)",
   "name": "hyperscribe",
   "description": "Create commands based on the content of an audio discussion between a patient and a provider.",
   "url_permissions": [],
   "components": {
     "protocols": [
       {
-        "class": "hyperscribe.handlers.launcher:Launcher",
+        "class": "hyperscribe.handlers.capture_button:CaptureButton",
         "description": "Action button on the note to launch Hyperscribe with note context",
         "data_access": {
           "event": "",
@@ -43,7 +43,7 @@
         }
       },
       {
-        "class": "hyperscribe.handlers.progress:Progress",
+        "class": "hyperscribe.handlers.progress_display:ProgressDisplay",
         "description": "Store and serve the Hyperscribe progress messages",
         "data_access": {
           "event": "",
@@ -125,24 +125,25 @@
     "AwsSecret",
     "CommandsList",
     "CommandsPolicy",
+    "CustomPrompts",
     "CycleTranscriptOverlap",
     "IsTuning",
     "KeyAudioLLM",
     "KeyTextLLM",
     "MaxWorkers",
+    "NotionAPIKey",
+    "NotionFeedbackDatabaseId",
     "StaffersList",
     "StaffersPolicy",
     "StructuredReasonForVisit",
+    "TrialStaffersList",
     "VendorAudioLLM",
-    "VendorTextLLM",
-    "NotionFeedbackDatabaseId",
-    "NotionAPIKey",
-    "TrialStaffersList"
+    "VendorTextLLM"
   ],
   "tags": {
-    "version_date": "2025-10-31",
+    "version_date": "2025-11-04",
     "version_branch": "main",
-    "version_semantic": "0.2.137"
+    "version_semantic": "0.2.139"
   },
   "references": [],
   "license": "",

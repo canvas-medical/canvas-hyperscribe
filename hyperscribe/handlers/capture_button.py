@@ -11,9 +11,9 @@ from hyperscribe.libraries.helper import Helper
 from hyperscribe.structures.settings import Settings
 
 
-class Launcher(ActionButton):
+class CaptureButton(ActionButton):
     BUTTON_TITLE = "🖊️ Hyperscribe"
-    BUTTON_KEY = "HYPERSCRIBE_LAUNCHER"
+    BUTTON_KEY = "HYPERSCRIBE_CAPTURE"
     BUTTON_LOCATION = ActionButton.ButtonLocation.NOTE_HEADER
 
     RESPONDS_TO = [EventType.Name(EventType.SHOW_NOTE_HEADER_BUTTON), EventType.Name(EventType.ACTION_BUTTON_CLICKED)]

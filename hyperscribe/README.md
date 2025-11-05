@@ -7,7 +7,7 @@ Plugin inserting commands based on the content of an audio, discussion between a
 
 The plugin provides these components:
 
-- [launcher](handlers/launcher.py): button in the header of the note (UI) to start the recording
+- [launcher](handlers/capture_button.py): button in the header of the note (UI) to start the recording
 - [reviewer](handlers/reviewer_button.py): button in the header of the note (UI) to review the LLM decisions
 - [tuning_launcher](handlers/tuning_launcher.py): button in the header of the note (UI) to start the recording for tuning purpose
 
@@ -64,30 +64,31 @@ canvas logs --host my-canvas-host
 
 The `secrets` are stored in the Canvas instance database and can be upsert in `https://my-canvas-host.canvasmedical.com/admin/plugin_io/plugin/`.
 
-| Secret                     | Values                          | Comments                                                                                                                                                    |
-|----------------------------|---------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `AudioHost`                |                                 | `audio` Canvas service                                                                                                                                      |
-| `AudioIntervalSeconds`     | `20`                            | duration of each audio chunk                                                                                                                                |
-| `VendorTextLLM`            | `OpenAi`, `Google`, `Anthropic` | by default `OpenAi` (case insensitive)                                                                                                                      |
-| `KeyTextLLM`               |                                 | the vendor's API key                                                                                                                                        |
-| `VendorAudioLLM`           | `OpenAi`, `Google`              | by default `OpenAi` (case insensitive)                                                                                                                      |
-| `KeyAudioLLM`              |                                 | the vendor's API key                                                                                                                                        |
-| `MaxWorkers`               |                                 | the number of concurrent commands computed                                                                                                                  |
-| `StructuredReasonForVisit` | `y`, `yes` or `1`               | any other value means `no`/`false`                                                                                                                          |
-| `AuditLLMDecisions`        | `y`, `yes` or `1`               | any other value means `no`/`false`                                                                                                                          |
-| `IsTuning`                 | `y`, `yes` or `1`               | any other value means `no`/`false`, if `true`, only the `Tuning` button is displayed, otherwise the `Hyperscribe` and `Reviewer` buttons are displayed      |
-| `AwsKey`                   |                                 | AWS key to access the S3 service                                                                                                                            |
-| `AwsSecret`                |                                 | AWS secret to access the S3 service                                                                                                                         |
-| `AwsRegion`                |                                 | AWS region of the S3 service                                                                                                                                |
-| `AwsBucketLogs`            |                                 | AWS bucket of the S3 service for the logs                                                                                                                   |
-| `AwsBucketTuning`          |                                 | AWS bucket of the S3 service for the tuning files                                                                                                           |
-| `APISigningKey`            |                                 | generated key to accept published effects from the case builder                                                                                             |
-| `CommandsList`             | `Command1,Command2 Command3`    | list of commands, as defined in [libraries/implemented_commands.py::command_list](libraries/implemented_commands.py), related to the `CommandsPolicy` value |
-| `CommandsPolicy`           | `y`, `yes` or `1`               | the commands of `CommandsList` are allowed (`y`) or excluded (`n`)                                                                                          |
-| `StaffersList`             | `key1 key2, key3`               | list of staffer keys, related to the `StaffersPolicy` value                                                                                                 |
-| `StaffersPolicy`           | `y`, `yes` or `1`               | the staffers of `StaffersList` are allowed (`y`) or excluded (`n`)                                                                                          |
-| `TrialStaffersList`        | `key1 key2, key3`               | list of trial staffer keys allowed to use hyperscribe on test patients whose name matches the pattern Hyperscribe* ZZTest*                               |
-| `CycleTranscriptOverlap`   | `100`                           | the numbers of words from the end of the last audio chunk provided to the LLM when generating the transcript from the audio                                 |
+| Secret                      | Values                                      | Comments                                                                                                                                                    |
+|-----------------------------|---------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `APISigningKey`             |                                             | generated key to accept published effects from the case builder                                                                                             |
+| `AudioHost`                 |                                             | `audio` Canvas service                                                                                                                                      |
+| `AudioIntervalSeconds`      | `20`                                        | duration of each audio chunk                                                                                                                                |
+| `AuditLLMDecisions`         | `y`, `yes` or `1`                           | any other value means `no`/`false`                                                                                                                          |
+| `AwsBucketLogs`             |                                             | AWS bucket of the S3 service for the logs                                                                                                                   |
+| `AwsBucketTuning`           |                                             | AWS bucket of the S3 service for the tuning files                                                                                                           |
+| `AwsKey`                    |                                             | AWS key to access the S3 service                                                                                                                            |
+| `AwsRegion`                 |                                             | AWS region of the S3 service                                                                                                                                |
+| `AwsSecret`                 |                                             | AWS secret to access the S3 service                                                                                                                         |
+| `CommandsList`              | `Command1,Command2 Command3`                | list of commands, as defined in [libraries/implemented_commands.py::command_list](libraries/implemented_commands.py), related to the `CommandsPolicy` value |
+| `CommandsPolicy`            | `y`, `yes` or `1`                           | the commands of `CommandsList` are allowed (`y`) or excluded (`n`)                                                                                          |
+| `CustomPrompts`             | `[{"command":"...", "prompt": "..."}, ...]` | list of custom prompts for the commands `FollowUp`, `HistoryOfPresentIllness`, `Instruct`, `Plan`, `ReasonForVisit`.                                        |
+| `CycleTranscriptOverlap`    | `100`                                       | the numbers of words from the end of the last audio chunk provided to the LLM when generating the transcript from the audio                                 |
+| `IsTuning`                  | `y`, `yes` or `1`                           | any other value means `no`/`false`, if `true`, only the `Tuning` button is displayed, otherwise the `Hyperscribe` and `Reviewer` buttons are displayed      |
+| `MaxWorkers`                |                                             | the number of concurrent commands computed                                                                                                                  |
+| `StaffersList`              | `key1 key2, key3`                           | list of staffer keys, related to the `StaffersPolicy` value                                                                                                 |
+| `StaffersPolicy`            | `y`, `yes` or `1`                           | the staffers of `StaffersList` are allowed (`y`) or excluded (`n`)                                                                                          |
+| `StructuredReasonForVisit`  | `y`, `yes` or `1`                           | any other value means `no`/`false`                                                                                                                          |
+| `TrialStaffersList`         | `key1 key2, key3`                           | list of trial staffer keys allowed to use hyperscribe on test patients whose name matches the pattern Hyperscribe* ZZTest*                                  |
+| `VendorAudioLLM`            | `OpenAi`, `Google`                          | by default `OpenAi` (case insensitive)                                                                                                                      |
+| `KeyAudioLLM`               |                                             | the vendor's API key                                                                                                                                        |
+| `VendorTextLLM`             | `OpenAi`, `Google`, `Anthropic`             | by default `OpenAi` (case insensitive)                                                                                                                      |
+| `KeyTextLLM`                |                                             | the vendor's API key                                                                                                                                        |
 
 
 The logs, mainly the communication with the LLMs, are stored in a `AWS S3 bucket` if credentials are provided as listed above. The credentials must belong to an AWS IAM user with username following the format `hyperscribe-{canvas_instance}`.

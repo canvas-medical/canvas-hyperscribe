@@ -22,6 +22,7 @@ def helper_instance() -> BuilderDirectFromTuningFull:
         structured_rfv=True,
         audit_llm=False,
         reasoning_llm=False,
+        custom_prompts=[],
         is_tuning=False,
         api_signing_key="theApiSigningKey",
         max_workers=3,

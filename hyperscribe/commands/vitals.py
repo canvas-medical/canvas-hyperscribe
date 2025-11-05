@@ -17,7 +17,7 @@ class Vitals(Base):
 
     @classmethod
     def note_section(cls) -> str:
-        return Constants.SECTION_OBJECTIVE
+        return Constants.NOTE_SECTION_OBJECTIVE
 
     @classmethod
     def staged_command_extract(cls, data: dict) -> None | CodedItem:

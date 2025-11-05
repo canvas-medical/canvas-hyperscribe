@@ -20,7 +20,7 @@ class Instruct(Base):
 
     @classmethod
     def note_section(cls) -> str:
-        return Constants.SECTION_PLAN
+        return Constants.NOTE_SECTION_PLAN
 
     @classmethod
     def staged_command_extract(cls, data: dict) -> None | CodedItem:
@@ -34,7 +34,10 @@ class Instruct(Base):
         instruction: InstructionWithParameters,
         chatter: LlmBase,
     ) -> InstructionWithCommand | None:
-        result = InstructCommand(comment=instruction.parameters["comment"], note_uuid=self.identification.note_uuid)
+        result = InstructCommand(
+            comment=self.command_from_json_custom_prompted(instruction.parameters["comment"], chatter),
+            note_uuid=self.identification.note_uuid,
+        )
         # retrieve existing instructions defined in Canvas Science
         expressions = instruction.parameters["keywords"].split(",")
         if concepts := CanvasScience.instructions(expressions):
@@ -106,10 +109,13 @@ class Instruct(Base):
         ]
 
     def instruction_description(self) -> str:
-        return (
+        result = (
             "Specific or standard direction. "
             "There can be only one direction per instruction, and no instruction in the lack of."
         )
+        if self.custom_prompt():
+            result += "For documentation purpose, always add the parts of the transcript used."
+        return result
 
     def instruction_constraints(self) -> str:
         return ""

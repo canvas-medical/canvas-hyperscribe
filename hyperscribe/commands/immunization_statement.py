@@ -20,7 +20,7 @@ class ImmunizationStatement(Base):
 
     @classmethod
     def note_section(cls) -> str:
-        return Constants.SECTION_HISTORY
+        return Constants.NOTE_SECTION_HISTORY
 
     @classmethod
     def staged_command_extract(cls, data: dict) -> None | CodedItem:
@@ -46,8 +46,6 @@ class ImmunizationStatement(Base):
         chatter: LlmBase,
     ) -> InstructionWithCommand | None:
         result = ImmunizationStatementCommand(
-            cpt_code="",
-            cvx_code="",
             comments=instruction.parameters["comments"],
             approximate_date=Helper.str2date(instruction.parameters["onDate"]),
             note_uuid=self.identification.note_uuid,
@@ -89,16 +87,10 @@ class ImmunizationStatement(Base):
             schemas = JsonSchema.get(["selector_immunization_codes"])
             if response := chatter.single_conversation(system_prompt, user_prompt, schemas, instruction):
                 immunization = response[0]
-                # cpt_code and cvx_code have to be set at the same time
-                result = ImmunizationStatementCommand(
-                    cpt_code=str(immunization["cptCode"]),
-                    cvx_code=str(immunization["cvxCode"]),
-                    comments=result.comments,
-                    approximate_date=result.approximate_date,
-                    note_uuid=result.note_uuid,
-                )
-                self.add_code2description(str(immunization["cptCode"]), immunization["label"])
-                self.add_code2description(str(immunization["cvxCode"]), immunization["label"])
+                result.cpt_code = str(immunization["cptCode"])
+                result.cvx_code = str(immunization["cvxCode"])
+                self.add_code2description(result.cpt_code, immunization["label"])
+                self.add_code2description(result.cvx_code, immunization["label"])
 
         return InstructionWithCommand.add_command(instruction, result)
 

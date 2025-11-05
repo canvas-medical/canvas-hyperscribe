@@ -15,7 +15,7 @@ class HistoryOfPresentIllness(Base):
 
     @classmethod
     def note_section(cls) -> str:
-        return Constants.SECTION_SUBJECTIVE
+        return Constants.NOTE_SECTION_SUBJECTIVE
 
     @classmethod
     def staged_command_extract(cls, data: dict) -> None | CodedItem:
@@ -31,7 +31,7 @@ class HistoryOfPresentIllness(Base):
         return InstructionWithCommand.add_command(
             instruction,
             HistoryOfPresentIllnessCommand(
-                narrative=instruction.parameters["narrative"],
+                narrative=self.command_from_json_custom_prompted(instruction.parameters["narrative"], chatter),
                 note_uuid=self.identification.note_uuid,
             ),
         )
@@ -70,6 +70,12 @@ class HistoryOfPresentIllness(Base):
             "but only one such instruction in the whole discussion, and no instruction in the lack of. "
             "If an instruction was already found, update the description upon identification."
         )
+        if self.custom_prompt():
+            result += (
+                " For documentation purposes, always include the relevant parts of the transcript for reference, "
+                "including any previous sections when merging."
+            )
+        return result
 
     def instruction_constraints(self) -> str:
         return ""

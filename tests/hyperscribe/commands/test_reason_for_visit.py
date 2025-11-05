@@ -7,6 +7,7 @@ from hyperscribe.commands.reason_for_visit import ReasonForVisit
 from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.custom_prompt import CustomPrompt
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.instruction_with_command import InstructionWithCommand
 from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
@@ -14,13 +15,14 @@ from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
 
 
-def helper_instance(structured_rfv: bool = False) -> ReasonForVisit:
+def helper_instance(structured_rfv: bool = False, custom_prompts: list[CustomPrompt] = []) -> ReasonForVisit:
     settings = Settings(
         llm_text=VendorKey(vendor="textVendor", api_key="textKey"),
         llm_audio=VendorKey(vendor="audioVendor", api_key="audioKey"),
         structured_rfv=structured_rfv,
         audit_llm=False,
         reasoning_llm=False,
+        custom_prompts=custom_prompts,
         is_tuning=False,
         api_signing_key="theApiSigningKey",
         max_workers=3,
@@ -253,6 +255,7 @@ def test_instruction_description(existing_reason_for_visits):
     def reset_mocks():
         existing_reason_for_visits.reset_mock()
 
+    # without custom prompt
     tests = [False, True]
     for rfv in tests:
         tested = helper_instance(structured_rfv=rfv)
@@ -264,6 +267,31 @@ def test_instruction_description(existing_reason_for_visits):
             "but only one such instruction in the whole discussion. "
             "So, if one was already found, simply update it by intelligently merging all reasons. "
             "It is important to report it upon identification."
+        )
+        assert result == expected
+        reset_mocks()
+    #
+    # with custom prompt
+    for rfv in tests:
+        tested = helper_instance(
+            structured_rfv=rfv,
+            custom_prompts=[
+                CustomPrompt(
+                    command="ReasonForVisit",
+                    prompt="custom prompt text",
+                )
+            ],
+        )
+        existing_reason_for_visits.side_effect = []
+        result = tested.instruction_description()
+        expected = (
+            "Patient's stated reason and/or the prompting circumstance for the visit. "
+            "There can be multiple reasons within an instruction, "
+            "but only one such instruction in the whole discussion. "
+            "So, if one was already found, simply update it by intelligently merging all reasons. "
+            "It is important to report it upon identification."
+            "For documentation purposes, always include the relevant parts of the transcript for reference, "
+            "including any previous sections when merging."
         )
         assert result == expected
         assert existing_reason_for_visits.mock_calls == []

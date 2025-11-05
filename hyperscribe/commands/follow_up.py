@@ -16,7 +16,7 @@ class FollowUp(Base):
 
     @classmethod
     def note_section(cls) -> str:
-        return Constants.SECTION_PLAN
+        return Constants.NOTE_SECTION_PLAN
 
     @classmethod
     def staged_command_extract(cls, data: dict) -> None | CodedItem:
@@ -60,6 +60,8 @@ class FollowUp(Base):
                 result.structured = True
                 result.reason_for_visit = existing[idx].uuid
                 self.add_code2description(existing[idx].uuid, existing[idx].label)
+        else:
+            result.reason_for_visit = self.command_from_json_custom_prompted(result.reason_for_visit, chatter)
 
         return InstructionWithCommand.add_command(instruction, result)
 
@@ -140,11 +142,17 @@ class FollowUp(Base):
         ]
 
     def instruction_description(self) -> str:
-        return (
+        result = (
             "Any follow up encounter, either virtually or in person. "
             "There can be only one such instruction in the whole discussion, "
             "so if one was already found, just update it by intelligently merging all key information."
         )
+        if self.custom_prompt():
+            result += (
+                " For documentation purposes, always include the relevant parts of the transcript for reference, "
+                "including any previous sections when merging."
+            )
+        return result
 
     def instruction_constraints(self) -> str:
         return ""

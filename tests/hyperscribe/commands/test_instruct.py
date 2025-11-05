@@ -11,6 +11,7 @@ from hyperscribe.libraries.canvas_science import CanvasScience
 from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.coded_item import CodedItem
+from hyperscribe.structures.custom_prompt import CustomPrompt
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.instruction_with_command import InstructionWithCommand
 from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
@@ -19,13 +20,14 @@ from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
 
 
-def helper_instance() -> Instruct:
+def helper_instance(custom_prompts: list[CustomPrompt] = []) -> Instruct:
     settings = Settings(
         llm_text=VendorKey(vendor="textVendor", api_key="textKey"),
         llm_audio=VendorKey(vendor="audioVendor", api_key="audioKey"),
         structured_rfv=False,
         audit_llm=False,
         reasoning_llm=False,
+        custom_prompts=custom_prompts,
         is_tuning=False,
         api_signing_key="theApiSigningKey",
         max_workers=3,
@@ -223,11 +225,22 @@ def test_command_parameters_schemas():
 
 
 def test_instruction_description():
+    # without custom prompt
     tested = helper_instance()
     result = tested.instruction_description()
     expected = (
         "Specific or standard direction. "
         "There can be only one direction per instruction, and no instruction in the lack of."
+    )
+    assert result == expected
+    #
+    # with custom prompt
+    tested = helper_instance(custom_prompts=[CustomPrompt(command="Instruct", prompt="custom prompt text")])
+    result = tested.instruction_description()
+    expected = (
+        "Specific or standard direction. "
+        "There can be only one direction per instruction, and no instruction in the lack of."
+        "For documentation purpose, always add the parts of the transcript used."
     )
     assert result == expected
 

@@ -33,6 +33,24 @@ JSON_SCHEMAS: dict[str, dict] = {
             },
         },
     },
+    "command_custom_prompt": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "array",
+        "minItems": 1,
+        "maxItems": 1,
+        "items": {
+            "type": "object",
+            "properties": {
+                "newData": {
+                    "type": "string",
+                    "description": "the changed data as a single string of UTF-8 characters, "
+                    "including \n for multiple lines",
+                },
+            },
+            "required": ["newData"],
+            "additionalProperties": False,
+        },
+    },
     "command_summary": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "array",
@@ -73,7 +91,10 @@ JSON_SCHEMAS: dict[str, dict] = {
         "type": "array",
         "items": {
             "type": "object",
-            "properties": {"conceptId": {"type": "string", "minLength": 1}, "term": {"type": "string", "minLength": 1}},
+            "properties": {
+                "conceptId": {"type": "string", "minLength": 1},
+                "term": {"type": "string", "minLength": 1},
+            },
             "required": ["conceptId", "term"],
             "additionalProperties": False,
         },
@@ -85,7 +106,10 @@ JSON_SCHEMAS: dict[str, dict] = {
         "type": "array",
         "items": {
             "type": "object",
-            "properties": {"ICD10": {"type": "string", "minLength": 1}, "label": {"type": "string", "minLength": 1}},
+            "properties": {
+                "ICD10": {"type": "string", "minLength": 1},
+                "label": {"type": "string", "minLength": 1},
+            },
             "required": ["ICD10", "label"],
             "additionalProperties": False,
         },
@@ -141,7 +165,10 @@ JSON_SCHEMAS: dict[str, dict] = {
         "type": "array",
         "items": {
             "type": "object",
-            "properties": {"code": {"type": "string", "minLength": 1}, "label": {"type": "string", "minLength": 1}},
+            "properties": {
+                "code": {"type": "string", "minLength": 1},
+                "label": {"type": "string", "minLength": 1},
+            },
             "required": ["code", "label"],
             "additionalProperties": False,
         },
@@ -153,7 +180,10 @@ JSON_SCHEMAS: dict[str, dict] = {
         "type": "array",
         "items": {
             "type": "object",
-            "properties": {"labelId": {"type": "integer", "minimum": 1}, "name": {"type": "string", "minLength": 1}},
+            "properties": {
+                "labelId": {"type": "integer", "minimum": 1},
+                "name": {"type": "string", "minLength": 1},
+            },
             "required": ["labelId", "name"],
             "additionalProperties": False,
         },

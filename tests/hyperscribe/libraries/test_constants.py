@@ -83,12 +83,12 @@ def test_constants():
         "SCHEMA_KEY_UPDATE_GOAL": "updateGoal",
         "SCHEMA_KEY_VITALS": "vitals",
         #
-        "SECTION_ASSESSMENT": "Assessment",
-        "SECTION_HISTORY": "History",
-        "SECTION_OBJECTIVE": "Objective",
-        "SECTION_PLAN": "Plan",
-        "SECTION_PROCEDURES": "Procedures",
-        "SECTION_SUBJECTIVE": "Subjective",
+        "NOTE_SECTION_ASSESSMENT": "Assessment",
+        "NOTE_SECTION_HISTORY": "History",
+        "NOTE_SECTION_OBJECTIVE": "Objective",
+        "NOTE_SECTION_PLAN": "Plan",
+        "NOTE_SECTION_PROCEDURES": "Procedures",
+        "NOTE_SECTION_SUBJECTIVE": "Subjective",
         #
         "CUSTOMER_IDENTIFIER": "CUSTOMER_IDENTIFIER",
         #
@@ -106,6 +106,7 @@ def test_constants():
         "SECRET_AWS_SECRET": "AwsSecret",
         "SECRET_COMMANDS_LIST": "CommandsList",
         "SECRET_COMMANDS_POLICY": "CommandsPolicy",
+        "SECRET_CUSTOM_PROMPTS": "CustomPrompts",
         "SECRET_CYCLE_TRANSCRIPT_OVERLAP": "CycleTranscriptOverlap",
         "SECRET_IS_TUNING": "IsTuning",
         "SECRET_MAX_WORKERS": "MaxWorkers",
