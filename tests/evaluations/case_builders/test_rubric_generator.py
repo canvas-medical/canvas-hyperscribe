@@ -9,6 +9,7 @@ from evaluations.case_builders.rubric_generator import RubricGenerator
 from evaluations.structures.enums.rubric_validation import RubricValidation
 from evaluations.structures.records.rubric import Rubric as RubricRecord
 from evaluations.structures.rubric_criterion import RubricCriterion
+from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.vendor_key import VendorKey
 from tests.helper import MockClass
 
@@ -46,32 +47,37 @@ def test_load_json(tmp_path):
 
 def test_schema_rubric():
     tested = RubricGenerator()
+    schema = tested.schema_rubric()
 
-    result = tested.schema_rubric()
-    expected = {
-        "$schema": "http://json-schema.org/draft-07/schema#",
-        "type": "array",
-        "minItems": 1,
-        "items": {
-            "type": "object",
-            "properties": {
-                "criterion": {
-                    "type": "string",
-                    "description": "dimension of note being evaluated",
-                },
-                "weight": {
-                    "type": "integer",
-                    "description": "how much criterion is worth",
-                    "minimum": 0,
-                    "maximum": 100,
-                },
-            },
-            "required": ["criterion", "weight"],
-            "additionalProperties": False,
-        },
-    }
+    schema_hash = hashlib.md5(json.dumps(schema, sort_keys=True).encode()).hexdigest()
+    expected_hash = "419ef17a313b4a934ede2a44347ea20b"
+    assert schema_hash == expected_hash
 
-    assert result == expected
+    tests = [
+        # Valid case
+        ([{"criterion": "Accuracy", "weight": 50}], ""),
+        # Valid case with multiple items
+        ([{"criterion": "Completeness", "weight": 30}, {"criterion": "Clarity", "weight": 20}], ""),
+        # Empty array
+        ([], "[] should be non-empty"),
+        # Additional properties
+        (
+            [{"criterion": "Accuracy", "weight": 50, "extra": "field"}],
+            "Additional properties are not allowed ('extra' was unexpected), in path [0]",
+        ),
+        # Missing criterion
+        ([{"weight": 50}], "'criterion' is a required property, in path [0]"),
+        # Missing weight
+        ([{"criterion": "Accuracy"}], "'weight' is a required property, in path [0]"),
+        # Weight below minimum
+        ([{"criterion": "Accuracy", "weight": -1}], "-1 is less than the minimum of 0, in path [0, 'weight']"),
+        # Weight above maximum
+        ([{"criterion": "Accuracy", "weight": 101}], "101 is greater than the maximum of 100, in path [0, 'weight']"),
+    ]
+
+    for idx, (test_data, expected) in enumerate(tests):
+        result = LlmBase.json_validator(test_data, schema)
+        assert result == expected, f"---> {idx}"
 
 
 @patch.object(RubricGenerator, "schema_rubric")

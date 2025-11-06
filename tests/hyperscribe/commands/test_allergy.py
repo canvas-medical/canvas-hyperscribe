@@ -1,6 +1,6 @@
-import json
 from datetime import date
 from hashlib import md5
+import json
 from unittest.mock import patch, call, MagicMock
 
 from canvas_sdk.commands.commands.allergy import AllergyCommand, Allergen, AllergenType
@@ -9,6 +9,7 @@ from hyperscribe.commands.allergy import Allergy
 from hyperscribe.commands.base import Base
 from hyperscribe.libraries.canvas_science import CanvasScience
 from hyperscribe.libraries.limited_cache import LimitedCache
+from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.allergy_detail import AllergyDetail
 from hyperscribe.structures.coded_item import CodedItem
@@ -272,9 +273,181 @@ def test_command_parameters():
 
 def test_command_parameters_schemas():
     tested = helper_instance()
-    result = tested.command_parameters_schemas()
-    expected = "105cf3ae51aa95ec59a8114d5ee441fa"
-    assert md5(json.dumps(result).encode()).hexdigest() == expected
+    schemas = tested.command_parameters_schemas()
+    assert len(schemas) == 1
+    schema = schemas[0]
+
+    #
+    schema_hash = md5(json.dumps(schema, sort_keys=True).encode()).hexdigest()
+    expected_hash = "d50901bfa8bdc4165d5fb42783be80f6"
+    assert schema_hash == expected_hash
+
+    tests = [
+        (
+            [
+                {
+                    "keywords": "peanuts,nuts",
+                    "type": "allergy group",
+                    "severity": "mild",
+                    "reaction": "hives",
+                    "approximateDateOfOnset": "2025-02-04",
+                }
+            ],
+            "",
+        ),
+        (
+            [
+                {
+                    "keywords": "NKA",
+                    "type": "medication",
+                    "severity": "moderate",
+                    "reaction": "none",
+                    "approximateDateOfOnset": None,
+                }
+            ],
+            "",
+        ),
+        (
+            [],
+            "[] should be non-empty",
+        ),
+        (
+            [
+                {
+                    "keywords": "peanuts",
+                    "type": "allergy group",
+                    "severity": "mild",
+                    "reaction": "hives",
+                    "approximateDateOfOnset": "2025-02-04",
+                },
+                {
+                    "keywords": "penicillin",
+                    "type": "medication",
+                    "severity": "severe",
+                    "reaction": "anaphylaxis",
+                    "approximateDateOfOnset": "2020-01-01",
+                },
+            ],
+            "[{'keywords': 'peanuts', "
+            "'type': 'allergy group', "
+            "'severity': 'mild', "
+            "'reaction': 'hives', "
+            "'approximateDateOfOnset': "
+            "'2025-02-04'}, "
+            "{'keywords': 'penicillin', "
+            "'type': 'medication', "
+            "'severity': 'severe', "
+            "'reaction': 'anaphylaxis', "
+            "'approximateDateOfOnset': '2020-01-01'}] is too long",
+        ),
+        (
+            [
+                {
+                    "keywords": "peanuts",
+                    "type": "allergy group",
+                    "severity": "mild",
+                    "reaction": "hives",
+                    "approximateDateOfOnset": "2025-02-04",
+                    "extra": "field",
+                }
+            ],
+            "Additional properties are not allowed ('extra' was unexpected), in path [0]",
+        ),
+        (
+            [
+                {
+                    "type": "allergy group",
+                    "severity": "mild",
+                    "reaction": "hives",
+                    "approximateDateOfOnset": "2025-02-04",
+                }
+            ],
+            "'keywords' is a required property, in path [0]",
+        ),
+        (
+            [
+                {
+                    "keywords": "peanuts",
+                    "severity": "mild",
+                    "reaction": "hives",
+                    "approximateDateOfOnset": "2025-02-04",
+                }
+            ],
+            "'type' is a required property, in path [0]",
+        ),
+        (
+            [
+                {
+                    "keywords": "peanuts",
+                    "type": "allergy group",
+                    "reaction": "hives",
+                    "approximateDateOfOnset": "2025-02-04",
+                }
+            ],
+            "'severity' is a required property, in path [0]",
+        ),
+        (
+            [
+                {
+                    "keywords": "peanuts",
+                    "type": "allergy group",
+                    "severity": "mild",
+                    "approximateDateOfOnset": "2025-02-04",
+                }
+            ],
+            "'reaction' is a required property, in path [0]",
+        ),
+        (
+            [
+                {
+                    "keywords": "peanuts",
+                    "type": "allergy group",
+                    "severity": "mild",
+                    "reaction": "hives",
+                }
+            ],
+            "'approximateDateOfOnset' is a required property, in path [0]",
+        ),
+        (
+            [
+                {
+                    "keywords": "peanuts",
+                    "type": "invalid_type",
+                    "severity": "mild",
+                    "reaction": "hives",
+                    "approximateDateOfOnset": "2025-02-04",
+                }
+            ],
+            "'invalid_type' is not one of ['allergy group', 'medication', 'ingredient'], in path [0, 'type']",
+        ),
+        (
+            [
+                {
+                    "keywords": "peanuts",
+                    "type": "allergy group",
+                    "severity": "mild",
+                    "reaction": "hives",
+                    "approximateDateOfOnset": "02-04-2025",
+                }
+            ],
+            "'02-04-2025' does not match '^\\\\d{4}-\\\\d{2}-\\\\d{2}$', in path [0, 'approximateDateOfOnset']",
+        ),
+        (
+            [
+                {
+                    "keywords": "peanuts",
+                    "type": "allergy group",
+                    "severity": "mild",
+                    "reaction": "hives",
+                    "approximateDateOfOnset": "10-21-89",
+                }
+            ],
+            "'10-21-89' does not match '^\\\\d{4}-\\\\d{2}-\\\\d{2}$', in path [0, 'approximateDateOfOnset']",
+        ),
+    ]
+    for idx, (dictionary, expected) in enumerate(tests):
+        result = LlmBase.json_validator(dictionary, schema)
+        assert result == expected, f"---> {idx}"
 
 
 def test_instruction_description():

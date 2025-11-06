@@ -1,4 +1,5 @@
 import json
+from hashlib import md5
 from pathlib import Path
 from unittest.mock import patch, call, MagicMock
 
@@ -7,6 +8,7 @@ from evaluations.case_builders.builder_direct_from_tuning_split import BuilderDi
 from evaluations.structures.case_exchange import CaseExchange
 from evaluations.structures.case_exchange_summary import CaseExchangeSummary
 from evaluations.structures.topical_exchange import TopicalExchange
+from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.identification_parameters import IdentificationParameters
@@ -84,25 +86,108 @@ def test__parameters():
 
 def test_schema_topical_exchanges():
     tested = BuilderDirectFromTuningSplit
-    result = tested.schema_topical_exchanges()
-    expected = {
-        "$schema": "http://json-schema.org/draft-07/schema#",
-        "type": "array",
-        "items": {
-            "type": "object",
-            "properties": {
-                "speaker": {"type": "string"},
-                "text": {"type": "string", "minLength": 1},
-                "chunk": {"type": "integer"},
-                "topic": {"type": "integer"},
-                "start": {"type": "number"},
-                "end": {"type": "number"},
-            },
-            "required": ["speaker", "text", "chunk", "topic", "start", "end"],
-            "additionalProperties": False,
-        },
-    }
-    assert result == expected
+    schema = tested.schema_topical_exchanges()
+
+    schema_hash = md5(json.dumps(schema, sort_keys=True).encode()).hexdigest()
+    expected_hash = "dd122114e65f532ec024c438a4b6fa7d"
+    assert schema_hash == expected_hash
+
+    tests = [
+        # Valid case with all required fields
+        (
+            [
+                {"speaker": "Clinician", "text": "Hello", "chunk": 1, "topic": 1, "start": 0.0, "end": 1.5},
+                {"speaker": "Patient", "text": "Hi there", "chunk": 1, "topic": 1, "start": 1.5, "end": 3.2},
+            ],
+            "",
+        ),
+        # Empty array (valid - no minItems constraint)
+        ([], ""),
+        # Additional properties violation
+        (
+            [
+                {
+                    "speaker": "Clinician",
+                    "text": "Hello",
+                    "chunk": 1,
+                    "topic": 1,
+                    "start": 0.0,
+                    "end": 1.5,
+                    "extra": "field",
+                },
+            ],
+            "Additional properties are not allowed ('extra' was unexpected), in path [0]",
+        ),
+        # Missing required field: speaker
+        (
+            [{"text": "Hello", "chunk": 1, "topic": 1, "start": 0.0, "end": 1.5}],
+            "'speaker' is a required property, in path [0]",
+        ),
+        # Missing required field: text
+        (
+            [{"speaker": "Clinician", "chunk": 1, "topic": 1, "start": 0.0, "end": 1.5}],
+            "'text' is a required property, in path [0]",
+        ),
+        # Missing required field: chunk
+        (
+            [{"speaker": "Clinician", "text": "Hello", "topic": 1, "start": 0.0, "end": 1.5}],
+            "'chunk' is a required property, in path [0]",
+        ),
+        # Missing required field: topic
+        (
+            [{"speaker": "Clinician", "text": "Hello", "chunk": 1, "start": 0.0, "end": 1.5}],
+            "'topic' is a required property, in path [0]",
+        ),
+        # Missing required field: start
+        (
+            [{"speaker": "Clinician", "text": "Hello", "chunk": 1, "topic": 1, "end": 1.5}],
+            "'start' is a required property, in path [0]",
+        ),
+        # Missing required field: end
+        (
+            [{"speaker": "Clinician", "text": "Hello", "chunk": 1, "topic": 1, "start": 0.0}],
+            "'end' is a required property, in path [0]",
+        ),
+        # Type violation: speaker not string
+        (
+            [{"speaker": 123, "text": "Hello", "chunk": 1, "topic": 1, "start": 0.0, "end": 1.5}],
+            "123 is not of type 'string', in path [0, 'speaker']",
+        ),
+        # Type violation: text not string
+        (
+            [{"speaker": "Clinician", "text": 456, "chunk": 1, "topic": 1, "start": 0.0, "end": 1.5}],
+            "456 is not of type 'string', in path [0, 'text']",
+        ),
+        # Type violation: chunk not integer
+        (
+            [{"speaker": "Clinician", "text": "Hello", "chunk": "1", "topic": 1, "start": 0.0, "end": 1.5}],
+            "'1' is not of type 'integer', in path [0, 'chunk']",
+        ),
+        # Type violation: topic not integer
+        (
+            [{"speaker": "Clinician", "text": "Hello", "chunk": 1, "topic": "1", "start": 0.0, "end": 1.5}],
+            "'1' is not of type 'integer', in path [0, 'topic']",
+        ),
+        # Type violation: start not number
+        (
+            [{"speaker": "Clinician", "text": "Hello", "chunk": 1, "topic": 1, "start": "0.0", "end": 1.5}],
+            "'0.0' is not of type 'number', in path [0, 'start']",
+        ),
+        # Type violation: end not number
+        (
+            [{"speaker": "Clinician", "text": "Hello", "chunk": 1, "topic": 1, "start": 0.0, "end": "1.5"}],
+            "'1.5' is not of type 'number', in path [0, 'end']",
+        ),
+        # MinLength violation: empty text
+        (
+            [{"speaker": "Clinician", "text": "", "chunk": 1, "topic": 1, "start": 0.0, "end": 1.5}],
+            "'' should be non-empty, in path [0, 'text']",
+        ),
+    ]
+
+    for idx, (test_data, expected) in enumerate(tests):
+        result = LlmBase.json_validator(test_data, schema)
+        assert result == expected, f"---> {idx}"
 
 
 @patch("evaluations.case_builders.builder_direct_from_tuning_split.LimitedCache")

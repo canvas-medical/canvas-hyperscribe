@@ -1,5 +1,5 @@
-import json
 from hashlib import md5
+import json
 from unittest.mock import patch, call, MagicMock
 import pytest
 
@@ -9,6 +9,7 @@ from hyperscribe.commands.base import Base
 from hyperscribe.commands.lab_order import LabOrder
 from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.libraries.selector_chat import SelectorChat
+from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.identification_parameters import IdentificationParameters
@@ -288,9 +289,188 @@ def test_command_parameters():
 
 def test_command_parameters_schemas():
     tested = helper_instance()
-    result = tested.command_parameters_schemas()
-    expected = "d3f734d221f79a694ac3ec21f4171052"
-    assert md5(json.dumps(result).encode()).hexdigest() == expected
+    schemas = tested.command_parameters_schemas()
+    assert len(schemas) == 1
+    schema = schemas[0]
+
+    #
+    schema_hash = md5(json.dumps(schema, sort_keys=True).encode()).hexdigest()
+    expected_hash = "b195d75d40c994afd9b80d1e69545261"
+    assert schema_hash == expected_hash
+
+    tests = [
+        (
+            [
+                {
+                    "labOrders": [{"labOrderName": "CBC", "labOrderKeywords": "complete blood count,CBC"}],
+                    "conditions": [],
+                    "fastingRequired": False,
+                    "comment": "Routine check",
+                }
+            ],
+            "",
+        ),
+        (
+            [
+                {
+                    "labOrders": [{"labOrderName": "Lipid panel", "labOrderKeywords": "lipid,cholesterol"}],
+                    "conditions": [{"conditionKeywords": "hyperlipidemia", "ICD10": "E78.5"}],
+                    "fastingRequired": True,
+                    "comment": "Check lipid levels",
+                }
+            ],
+            "",
+        ),
+        (
+            [],
+            "[] should be non-empty",
+        ),
+        (
+            [
+                {
+                    "labOrders": [{"labOrderName": "CBC", "labOrderKeywords": "CBC"}],
+                    "conditions": [],
+                    "fastingRequired": False,
+                    "comment": "Routine",
+                },
+                {
+                    "labOrders": [{"labOrderName": "CMP", "labOrderKeywords": "CMP"}],
+                    "conditions": [],
+                    "fastingRequired": False,
+                    "comment": "Routine",
+                },
+            ],
+            "[{'labOrders': [{'labOrderName': 'CBC', 'labOrderKeywords': 'CBC'}], "
+            "'conditions': [], "
+            "'fastingRequired': False, "
+            "'comment': 'Routine'}, "
+            "{'labOrders': [{'labOrderName': 'CMP', 'labOrderKeywords': 'CMP'}], "
+            "'conditions': [], "
+            "'fastingRequired': False, "
+            "'comment': 'Routine'}] is too long",
+        ),
+        (
+            [
+                {
+                    "labOrders": [{"labOrderName": "CBC", "labOrderKeywords": "CBC"}],
+                    "conditions": [],
+                    "fastingRequired": False,
+                    "comment": "Routine",
+                    "extra": "field",
+                }
+            ],
+            "Additional properties are not allowed ('extra' was unexpected), in path [0]",
+        ),
+        (
+            [
+                {
+                    "conditions": [],
+                    "fastingRequired": False,
+                    "comment": "Routine",
+                }
+            ],
+            "'labOrders' is a required property, in path [0]",
+        ),
+        (
+            [
+                {
+                    "labOrders": [{"labOrderName": "CBC", "labOrderKeywords": "CBC"}],
+                    "fastingRequired": False,
+                    "comment": "Routine",
+                }
+            ],
+            "'conditions' is a required property, in path [0]",
+        ),
+        (
+            [
+                {
+                    "labOrders": [{"labOrderName": "CBC", "labOrderKeywords": "CBC"}],
+                    "conditions": [],
+                    "comment": "Routine",
+                }
+            ],
+            "'fastingRequired' is a required property, in path [0]",
+        ),
+        (
+            [
+                {
+                    "labOrders": [{"labOrderName": "CBC", "labOrderKeywords": "CBC"}],
+                    "conditions": [],
+                    "fastingRequired": False,
+                }
+            ],
+            "'comment' is a required property, in path [0]",
+        ),
+        (
+            [
+                {
+                    "labOrders": [],
+                    "conditions": [],
+                    "fastingRequired": False,
+                    "comment": "Routine",
+                }
+            ],
+            "[] should be non-empty, in path [0, 'labOrders']",
+        ),
+        (
+            [
+                {
+                    "labOrders": [{"labOrderKeywords": "CBC"}],
+                    "conditions": [],
+                    "fastingRequired": False,
+                    "comment": "Routine",
+                }
+            ],
+            "'labOrderName' is a required property, in path [0, 'labOrders', 0]",
+        ),
+        (
+            [
+                {
+                    "labOrders": [{"labOrderName": "CBC"}],
+                    "conditions": [],
+                    "fastingRequired": False,
+                    "comment": "Routine",
+                }
+            ],
+            "'labOrderKeywords' is a required property, in path [0, 'labOrders', 0]",
+        ),
+        (
+            [
+                {
+                    "labOrders": [{"labOrderName": "CBC", "labOrderKeywords": "CBC", "extra": "field"}],
+                    "conditions": [],
+                    "fastingRequired": False,
+                    "comment": "Routine",
+                }
+            ],
+            "Additional properties are not allowed ('extra' was unexpected), in path [0, 'labOrders', 0]",
+        ),
+        (
+            [
+                {
+                    "labOrders": [{"labOrderName": "CBC", "labOrderKeywords": "CBC"}],
+                    "conditions": [{"ICD10": "E78.5"}],
+                    "fastingRequired": False,
+                    "comment": "Routine",
+                }
+            ],
+            "'conditionKeywords' is a required property, in path [0, 'conditions', 0]",
+        ),
+        (
+            [
+                {
+                    "labOrders": [{"labOrderName": "CBC", "labOrderKeywords": "CBC"}],
+                    "conditions": [{"conditionKeywords": "hyperlipidemia"}],
+                    "fastingRequired": False,
+                    "comment": "Routine",
+                }
+            ],
+            "'ICD10' is a required property, in path [0, 'conditions', 0]",
+        ),
+    ]
+    for idx, (dictionary, expected) in enumerate(tests):
+        result = LlmBase.json_validator(dictionary, schema)
+        assert result == expected, f"---> {idx}"
 
 
 def test_instruction_description():

@@ -10,6 +10,7 @@ from evaluations.structures.graded_criterion import GradedCriterion
 from evaluations.structures.records.experiment_result_score import ExperimentResultScore
 from evaluations.structures.records.score import Score as ScoreRecord
 from evaluations.structures.rubric_criterion import RubricCriterion
+from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.vendor_key import VendorKey
 from tests.helper import MockClass
 
@@ -47,26 +48,116 @@ def test_schema_scores(tmp_files):
     rubric_path, note_path, output_path, rubric, note = tmp_files
     rubric_objs = RubricCriterion.load_from_json(rubric)
     tested = NoteGrader(rubric=rubric_objs, note=note)
+    schema = tested.schema_scores()
 
-    result = tested.schema_scores()
-    expected = {
-        "$schema": "http://json-schema.org/draft-07/schema#",
-        "type": "array",
-        "minItems": 2,
-        "maxItems": 2,
-        "items": {
-            "type": "object",
-            "properties": {
-                "id": {"type": "integer", "description": "index to match criteria"},
-                "rationale": {"type": "string", "description": "reasoning for satisfaction score"},
-                "satisfaction": {"type": "integer", "description": "note grade", "minimum": 0, "maximum": 100},
-            },
-            "required": ["id", "rationale", "satisfaction"],
-            "additionalProperties": False,
-        },
-    }
+    schema_hash = hashlib.md5(json.dumps(schema, sort_keys=True).encode()).hexdigest()
+    expected_hash = "8b1858ddd1d12f945ac7c0db078d1245"
+    assert schema_hash == expected_hash
 
-    assert result == expected
+    tests = [
+        # Valid case with all required fields
+        (
+            [
+                {"id": 0, "rationale": "Good work on A", "satisfaction": 85},
+                {"id": 1, "rationale": "Needs improvement on B", "satisfaction": 60},
+            ],
+            "",
+        ),
+        # Empty array violation
+        ([], "[] is too short"),
+        # Too few items
+        (
+            [{"id": 0, "rationale": "Good work", "satisfaction": 85}],
+            "[{'id': 0, 'rationale': 'Good work', 'satisfaction': 85}] is too short",
+        ),
+        # Too many items
+        (
+            [
+                {"id": 0, "rationale": "Good work on A", "satisfaction": 85},
+                {"id": 1, "rationale": "Needs improvement on B", "satisfaction": 60},
+                {"id": 2, "rationale": "Extra item", "satisfaction": 70},
+            ],
+            "[{'id': 0, 'rationale': 'Good work on A', 'satisfaction': 85}, "
+            "{'id': 1, 'rationale': 'Needs improvement on B', 'satisfaction': 60}, "
+            "{'id': 2, 'rationale': 'Extra item', 'satisfaction': 70}] is too long",
+        ),
+        # Additional properties violation
+        (
+            [
+                {"id": 0, "rationale": "Good work", "satisfaction": 85, "extra": "field"},
+                {"id": 1, "rationale": "Needs improvement", "satisfaction": 60},
+            ],
+            "Additional properties are not allowed ('extra' was unexpected), in path [0]",
+        ),
+        # Missing required field: id
+        (
+            [
+                {"rationale": "Good work", "satisfaction": 85},
+                {"id": 1, "rationale": "Needs improvement", "satisfaction": 60},
+            ],
+            "'id' is a required property, in path [0]",
+        ),
+        # Missing required field: rationale
+        (
+            [
+                {"id": 0, "satisfaction": 85},
+                {"id": 1, "rationale": "Needs improvement", "satisfaction": 60},
+            ],
+            "'rationale' is a required property, in path [0]",
+        ),
+        # Missing required field: satisfaction
+        (
+            [
+                {"id": 0, "rationale": "Good work"},
+                {"id": 1, "rationale": "Needs improvement", "satisfaction": 60},
+            ],
+            "'satisfaction' is a required property, in path [0]",
+        ),
+        # Type violation: id not integer
+        (
+            [
+                {"id": "0", "rationale": "Good work", "satisfaction": 85},
+                {"id": 1, "rationale": "Needs improvement", "satisfaction": 60},
+            ],
+            "'0' is not of type 'integer', in path [0, 'id']",
+        ),
+        # Type violation: rationale not string
+        (
+            [
+                {"id": 0, "rationale": 123, "satisfaction": 85},
+                {"id": 1, "rationale": "Needs improvement", "satisfaction": 60},
+            ],
+            "123 is not of type 'string', in path [0, 'rationale']",
+        ),
+        # Type violation: satisfaction not integer
+        (
+            [
+                {"id": 0, "rationale": "Good work", "satisfaction": "85"},
+                {"id": 1, "rationale": "Needs improvement", "satisfaction": 60},
+            ],
+            "'85' is not of type 'integer', in path [0, 'satisfaction']",
+        ),
+        # Minimum violation: satisfaction below 0
+        (
+            [
+                {"id": 0, "rationale": "Good work", "satisfaction": -1},
+                {"id": 1, "rationale": "Needs improvement", "satisfaction": 60},
+            ],
+            "-1 is less than the minimum of 0, in path [0, 'satisfaction']",
+        ),
+        # Maximum violation: satisfaction above 100
+        (
+            [
+                {"id": 0, "rationale": "Good work", "satisfaction": 101},
+                {"id": 1, "rationale": "Needs improvement", "satisfaction": 60},
+            ],
+            "101 is greater than the maximum of 100, in path [0, 'satisfaction']",
+        ),
+    ]
+
+    for idx, (test_data, expected) in enumerate(tests):
+        result = LlmBase.json_validator(test_data, schema)
+        assert result == expected, f"---> {idx}"
 
 
 @patch.object(NoteGrader, "schema_scores")

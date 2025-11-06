@@ -1,6 +1,4 @@
-import json
 from datetime import datetime, timezone
-from hashlib import md5
 from unittest.mock import MagicMock, patch, call
 
 import pytest
@@ -419,9 +417,11 @@ def test_command_parameters():
 
 def test_command_parameters_schemas():
     tested = helper_instance()
-    result = tested.command_parameters_schemas()
-    expected = "d751713988987e9331980363e24189ce"
-    assert md5(json.dumps(result).encode()).hexdigest() == expected
+    schemas = tested.command_parameters_schemas()
+    assert len(schemas) == 0
+    result = schemas
+    expected = []
+    assert result == expected
 
 
 def test_instruction_description():

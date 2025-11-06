@@ -1,6 +1,6 @@
-import json
 from datetime import date
 from hashlib import md5
+import json
 from unittest.mock import patch, call, MagicMock
 
 from canvas_sdk.commands.commands.task import TaskCommand, TaskAssigner, AssigneeType
@@ -8,6 +8,7 @@ from canvas_sdk.commands.commands.task import TaskCommand, TaskAssigner, Assigne
 from hyperscribe.commands.base import Base
 from hyperscribe.commands.task import Task
 from hyperscribe.libraries.limited_cache import LimitedCache
+from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.identification_parameters import IdentificationParameters
@@ -496,9 +497,68 @@ def test_command_parameters():
 
 def test_command_parameters_schemas():
     tested = helper_instance()
-    result = tested.command_parameters_schemas()
-    expected = "3792c107a65b706bc29080bfa3e2ab0a"
-    assert md5(json.dumps(result).encode()).hexdigest() == expected
+    schemas = tested.command_parameters_schemas()
+    assert len(schemas) == 1
+    schema = schemas[0]
+
+    #
+    schema_hash = md5(json.dumps(schema, sort_keys=True).encode()).hexdigest()
+    expected_hash = "6e425ee25d3b96833096b7db64c8a37a"
+    assert schema_hash == expected_hash
+
+    tests = [
+        (
+            [
+                {
+                    "title": "Schedule follow-up appointment",
+                    "dueDate": "2025-03-15",
+                    "assignTo": "front desk staff",
+                    "labels": "scheduling",
+                    "comment": "Patient needs to schedule within 2 weeks",
+                }
+            ],
+            "",
+        ),
+        (
+            [{"title": "Review lab results", "dueDate": "2025-03-10", "assignTo": "", "labels": "", "comment": ""}],
+            "",
+        ),
+        (
+            [],
+            "[] should be non-empty",
+        ),
+        (
+            [
+                {"title": "Task 1", "dueDate": "2025-03-15", "assignTo": "", "labels": "", "comment": ""},
+                {"title": "Task 2", "dueDate": "2025-03-16", "assignTo": "", "labels": "", "comment": ""},
+            ],
+            "[{'title': 'Task 1', 'dueDate': '2025-03-15', 'assignTo': '', 'labels': '', 'comment': ''}, "
+            "{'title': 'Task 2', 'dueDate': '2025-03-16', 'assignTo': '', 'labels': '', 'comment': ''}] is too long",
+        ),
+        (
+            [{"dueDate": "2025-03-15", "assignTo": "", "labels": "", "comment": "Task without title"}],
+            "'title' is a required property, in path [0]",
+        ),
+        (
+            [{"title": "Review lab results", "assignTo": "", "labels": "", "comment": "Task without due date"}],
+            "'dueDate' is a required property, in path [0]",
+        ),
+        (
+            [{"title": "Review lab results", "dueDate": "2025-03-10", "labels": "", "comment": ""}],
+            "'assignTo' is a required property, in path [0]",
+        ),
+        (
+            [{"title": "Review lab results", "dueDate": "2025-03-10", "assignTo": "", "comment": ""}],
+            "'labels' is a required property, in path [0]",
+        ),
+        (
+            [{"title": "Review lab results", "dueDate": "2025-03-10", "assignTo": "", "labels": ""}],
+            "'comment' is a required property, in path [0]",
+        ),
+    ]
+    for idx, (dictionary, expected) in enumerate(tests):
+        result = LlmBase.json_validator(dictionary, schema)
+        assert result == expected, f"---> {idx}"
 
 
 def test_instruction_description():

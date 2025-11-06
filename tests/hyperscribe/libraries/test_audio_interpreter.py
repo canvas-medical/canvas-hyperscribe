@@ -9,6 +9,7 @@ from hyperscribe.libraries.helper import Helper
 from hyperscribe.libraries.implemented_commands import ImplementedCommands
 from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.libraries.memory_log import MemoryLog
+from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.identification_parameters import IdentificationParameters
@@ -2070,6 +2071,181 @@ def test_json_schema_instructions():
     assert result == expected
 
 
+def test_json_schema_instructions_validation():
+    tested = AudioInterpreter
+    schema = tested.json_schema_instructions(["Command1", "Command2"])
+
+    tests = [
+        # Valid case
+        (
+            [
+                {
+                    "uuid": "uuid-123",
+                    "index": 0,
+                    "instruction": "Command1",
+                    "information": "Some relevant info",
+                    "isNew": True,
+                    "isUpdated": False,
+                }
+            ],
+            "",
+        ),
+        # Valid case with Command2
+        (
+            [
+                {
+                    "uuid": "uuid-456",
+                    "index": 1,
+                    "instruction": "Command2",
+                    "information": "Different info",
+                    "isNew": False,
+                    "isUpdated": True,
+                }
+            ],
+            "",
+        ),
+        # Additional properties
+        (
+            [
+                {
+                    "uuid": "uuid-123",
+                    "index": 0,
+                    "instruction": "Command1",
+                    "information": "Info",
+                    "isNew": True,
+                    "isUpdated": False,
+                    "extra": "field",
+                }
+            ],
+            "Additional properties are not allowed ('extra' was unexpected), in path [0]",
+        ),
+        # Missing uuid
+        (
+            [
+                {
+                    "index": 0,
+                    "instruction": "Command1",
+                    "information": "Info",
+                    "isNew": True,
+                    "isUpdated": False,
+                }
+            ],
+            "'uuid' is a required property, in path [0]",
+        ),
+        # Missing index
+        (
+            [
+                {
+                    "uuid": "uuid-123",
+                    "instruction": "Command1",
+                    "information": "Info",
+                    "isNew": True,
+                    "isUpdated": False,
+                }
+            ],
+            "'index' is a required property, in path [0]",
+        ),
+        # Missing instruction
+        (
+            [
+                {
+                    "uuid": "uuid-123",
+                    "index": 0,
+                    "information": "Info",
+                    "isNew": True,
+                    "isUpdated": False,
+                }
+            ],
+            "'instruction' is a required property, in path [0]",
+        ),
+        # Missing information
+        (
+            [
+                {
+                    "uuid": "uuid-123",
+                    "index": 0,
+                    "instruction": "Command1",
+                    "isNew": True,
+                    "isUpdated": False,
+                }
+            ],
+            "'information' is a required property, in path [0]",
+        ),
+        # Missing isNew
+        (
+            [
+                {
+                    "uuid": "uuid-123",
+                    "index": 0,
+                    "instruction": "Command1",
+                    "information": "Info",
+                    "isUpdated": False,
+                }
+            ],
+            "'isNew' is a required property, in path [0]",
+        ),
+        # Missing isUpdated
+        (
+            [
+                {
+                    "uuid": "uuid-123",
+                    "index": 0,
+                    "instruction": "Command1",
+                    "information": "Info",
+                    "isNew": True,
+                }
+            ],
+            "'isUpdated' is a required property, in path [0]",
+        ),
+        # Invalid instruction enum value
+        (
+            [
+                {
+                    "uuid": "uuid-123",
+                    "index": 0,
+                    "instruction": "InvalidCommand",
+                    "information": "Info",
+                    "isNew": True,
+                    "isUpdated": False,
+                }
+            ],
+            "'InvalidCommand' is not one of ['Command1', 'Command2'], in path [0, 'instruction']",
+        ),
+        # Wrong type for index (string instead of integer)
+        (
+            [
+                {
+                    "uuid": "uuid-123",
+                    "index": "0",
+                    "instruction": "Command1",
+                    "information": "Info",
+                    "isNew": True,
+                    "isUpdated": False,
+                }
+            ],
+            "'0' is not of type 'integer', in path [0, 'index']",
+        ),
+        # Wrong type for isNew (string instead of boolean)
+        (
+            [
+                {
+                    "uuid": "uuid-123",
+                    "index": 0,
+                    "instruction": "Command1",
+                    "information": "Info",
+                    "isNew": "true",
+                    "isUpdated": False,
+                }
+            ],
+            "'true' is not of type 'boolean', in path [0, 'isNew']",
+        ),
+    ]
+
+    for idx, (test_data, expected) in enumerate(tests):
+        result = LlmBase.json_validator(test_data, schema)
+        assert result == expected, f"---> {idx}"
+
+
 def test_json_schema_sections():
     tested = AudioInterpreter
     result = tested.json_schema_sections(["section1", "section2", "section3"])
@@ -2102,3 +2278,133 @@ def test_json_schema_sections():
         },
     }
     assert result == expected
+
+
+def test_json_schema_sections_validation():
+    tested = AudioInterpreter
+    schema = tested.json_schema_sections(["section1", "section2", "section3"])
+
+    tests = [
+        # Valid case
+        (
+            [
+                {
+                    "section": "section1",
+                    "transcript": [
+                        {"speaker": "Doctor", "text": "Hello"},
+                        {"speaker": "Patient", "text": "Hi"},
+                    ],
+                }
+            ],
+            "",
+        ),
+        # Valid case with different section
+        (
+            [
+                {
+                    "section": "section2",
+                    "transcript": [{"speaker": "Doctor", "text": "How are you?"}],
+                }
+            ],
+            "",
+        ),
+        # Valid case with empty transcript array
+        ([{"section": "section3", "transcript": []}], ""),
+        # Empty array
+        ([], "[] should be non-empty"),
+        # Additional properties at root level
+        (
+            [
+                {
+                    "section": "section1",
+                    "transcript": [],
+                    "extra": "field",
+                }
+            ],
+            "Additional properties are not allowed ('extra' was unexpected), in path [0]",
+        ),
+        # Missing section
+        ([{"transcript": []}], "'section' is a required property, in path [0]"),
+        # Missing transcript
+        ([{"section": "section1"}], "'transcript' is a required property, in path [0]"),
+        # Invalid section enum value
+        (
+            [{"section": "invalidSection", "transcript": []}],
+            "'invalidSection' is not one of ['section1', 'section2', 'section3'], in path [0, 'section']",
+        ),
+        # Wrong type for transcript (not array)
+        (
+            [{"section": "section1", "transcript": "not an array"}],
+            "'not an array' is not of type 'array', in path [0, 'transcript']",
+        ),
+        # Additional properties in transcript item
+        (
+            [
+                {
+                    "section": "section1",
+                    "transcript": [
+                        {
+                            "speaker": "Doctor",
+                            "text": "Hello",
+                            "extra": "field",
+                        }
+                    ],
+                }
+            ],
+            "Additional properties are not allowed ('extra' was unexpected), in path [0, 'transcript', 0]",
+        ),
+        # Missing speaker in transcript item
+        (
+            [
+                {
+                    "section": "section1",
+                    "transcript": [{"text": "Hello"}],
+                }
+            ],
+            "'speaker' is a required property, in path [0, 'transcript', 0]",
+        ),
+        # Missing text in transcript item
+        (
+            [
+                {
+                    "section": "section1",
+                    "transcript": [{"speaker": "Doctor"}],
+                }
+            ],
+            "'text' is a required property, in path [0, 'transcript', 0]",
+        ),
+        # Empty speaker (minLength violation)
+        (
+            [
+                {
+                    "section": "section1",
+                    "transcript": [{"speaker": "", "text": "Hello"}],
+                }
+            ],
+            "'' should be non-empty, in path [0, 'transcript', 0, 'speaker']",
+        ),
+        # Empty text (minLength violation)
+        (
+            [
+                {
+                    "section": "section1",
+                    "transcript": [{"speaker": "Doctor", "text": ""}],
+                }
+            ],
+            "'' should be non-empty, in path [0, 'transcript', 0, 'text']",
+        ),
+        # Wrong type for speaker (not string)
+        (
+            [
+                {
+                    "section": "section1",
+                    "transcript": [{"speaker": 123, "text": "Hello"}],
+                }
+            ],
+            "123 is not of type 'string', in path [0, 'transcript', 0, 'speaker']",
+        ),
+    ]
+
+    for idx, (test_data, expected) in enumerate(tests):
+        result = LlmBase.json_validator(test_data, schema)
+        assert result == expected, f"---> {idx}"

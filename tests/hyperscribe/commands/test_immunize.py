@@ -1,5 +1,5 @@
-import json
 from hashlib import md5
+import json
 from unittest.mock import MagicMock
 
 from canvas_sdk.commands.commands.instruct import InstructCommand
@@ -7,6 +7,7 @@ from canvas_sdk.commands.commands.instruct import InstructCommand
 from hyperscribe.commands.base import Base
 from hyperscribe.commands.immunize import Immunize
 from hyperscribe.libraries.limited_cache import LimitedCache
+from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.identification_parameters import IdentificationParameters
@@ -125,9 +126,48 @@ def test_command_parameters():
 
 def test_command_parameters_schemas():
     tested = helper_instance()
-    result = tested.command_parameters_schemas()
-    expected = "bb602b117802fcfea90aae7a5821f61d"
-    assert md5(json.dumps(result).encode()).hexdigest() == expected
+    schemas = tested.command_parameters_schemas()
+    assert len(schemas) == 1
+    schema = schemas[0]
+
+    #
+    schema_hash = md5(json.dumps(schema, sort_keys=True).encode()).hexdigest()
+    expected_hash = "7ed6df86c41bd6f4a707e03b939d92ed"
+    assert schema_hash == expected_hash
+
+    tests = [
+        (
+            [{"immunize": "Flu vaccine (CPT 90658)", "sig": "Administer 0.5ml IM"}],
+            "",
+        ),
+        (
+            [],
+            "[] should be non-empty",
+        ),
+        (
+            [
+                {"immunize": "Flu vaccine (CPT 90658)", "sig": "Administer 0.5ml IM"},
+                {"immunize": "Tetanus vaccine (CPT 90703)", "sig": "Administer 0.5ml IM"},
+            ],
+            "[{'immunize': 'Flu vaccine (CPT 90658)', 'sig': 'Administer 0.5ml IM'}, "
+            "{'immunize': 'Tetanus vaccine (CPT 90703)', 'sig': 'Administer 0.5ml IM'}] is too long",
+        ),
+        (
+            [{"immunize": "Flu vaccine (CPT 90658)", "sig": "Administer 0.5ml IM", "extra": "field"}],
+            "Additional properties are not allowed ('extra' was unexpected), in path [0]",
+        ),
+        (
+            [{"sig": "Administer 0.5ml IM"}],
+            "'immunize' is a required property, in path [0]",
+        ),
+        (
+            [{"immunize": "Flu vaccine (CPT 90658)"}],
+            "'sig' is a required property, in path [0]",
+        ),
+    ]
+    for idx, (dictionary, expected) in enumerate(tests):
+        result = LlmBase.json_validator(dictionary, schema)
+        assert result == expected, f"---> {idx}"
 
 
 def test_instruction_description():

@@ -8,6 +8,7 @@ from unittest.mock import patch, call
 
 from evaluations.case_builders.synthetic_profile_generator import SyntheticProfileGenerator
 from evaluations.structures.patient_profile import PatientProfile
+from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.json_extract import JsonExtract
 from tests.helper import MockClass
 
@@ -194,6 +195,72 @@ def test_schema_batch():
         "additionalProperties": False,
     }
     assert result == expected
+
+
+def test_schema_batch_validation():
+    tested = SyntheticProfileGenerator("med_management")
+    schema = tested.schema_batch(4)
+
+    tests = [
+        # Valid case with all required fields
+        (
+            {
+                "Patient 1": "Profile for patient 1",
+                "Patient 2": "Profile for patient 2",
+                "Patient 3": "Profile for patient 3",
+                "Patient 4": "Profile for patient 4",
+            },
+            "",
+        ),
+        # Too few properties
+        (
+            {
+                "Patient 1": "Profile for patient 1",
+                "Patient 2": "Profile for patient 2",
+            },
+            "{'Patient 1': 'Profile for patient 1', "
+            "'Patient 2': 'Profile for patient 2'} does not have enough properties",
+        ),
+        # Too many properties
+        (
+            {
+                "Patient 1": "Profile for patient 1",
+                "Patient 2": "Profile for patient 2",
+                "Patient 3": "Profile for patient 3",
+                "Patient 4": "Profile for patient 4",
+                "Patient 5": "Profile for patient 5",
+            },
+            "{'Patient 1': 'Profile for patient 1', "
+            "'Patient 2': 'Profile for patient 2', "
+            "'Patient 3': 'Profile for patient 3', "
+            "'Patient 4': 'Profile for patient 4', "
+            "'Patient 5': 'Profile for patient 5'} has too many properties",
+        ),
+        # Additional properties violation (key doesn't match pattern)
+        (
+            {
+                "Patient 1": "Profile for patient 1",
+                "Patient 2": "Profile for patient 2",
+                "Patient 3": "Profile for patient 3",
+                "NotAPatient": "Profile for not a patient",
+            },
+            "'NotAPatient' does not match any of the regexes: '^Patient\\\\s\\\\d+$'",
+        ),
+        # Type violation (value is not string)
+        (
+            {
+                "Patient 1": "Profile for patient 1",
+                "Patient 2": 123,
+                "Patient 3": "Profile for patient 3",
+                "Patient 4": "Profile for patient 4",
+            },
+            "123 is not of type 'string', in path ['Patient 2']",
+        ),
+    ]
+
+    for idx, (test_data, expected) in enumerate(tests):
+        result = LlmBase.json_validator(test_data, schema)
+        assert result == expected, f"---> {idx}"
 
 
 @patch.object(SyntheticProfileGenerator, "update_patient_names")

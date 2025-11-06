@@ -1,6 +1,6 @@
-import json
-from hashlib import md5
 from datetime import date
+from hashlib import md5
+import json
 from unittest.mock import patch, call, MagicMock
 
 from canvas_sdk.commands.commands.past_surgical_history import PastSurgicalHistoryCommand
@@ -9,6 +9,7 @@ from hyperscribe.commands.base import Base
 from hyperscribe.commands.surgery_history import SurgeryHistory
 from hyperscribe.libraries.canvas_science import CanvasScience
 from hyperscribe.libraries.limited_cache import LimitedCache
+from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.identification_parameters import IdentificationParameters
@@ -251,9 +252,82 @@ def test_command_parameters():
 
 def test_command_parameters_schemas():
     tested = helper_instance()
-    result = tested.command_parameters_schemas()
-    expected = "00b3404f35b1562a8699e0c9169eb714"
-    assert md5(json.dumps(result).encode()).hexdigest() == expected
+    schemas = tested.command_parameters_schemas()
+    assert len(schemas) == 1
+    schema = schemas[0]
+
+    #
+    schema_hash = md5(json.dumps(schema, sort_keys=True).encode()).hexdigest()
+    expected_hash = "14e495721ca2e057e8fb0fccde313c2d"
+    assert schema_hash == expected_hash
+
+    tests = [
+        (
+            [
+                {
+                    "keywords": "appendectomy,appendix removal",
+                    "approximateDate": "2015-06-10",
+                    "comment": "Emergency surgery",
+                }
+            ],
+            "",
+        ),
+        (
+            [{"keywords": "appendectomy", "approximateDate": None, "comment": "No date available"}],
+            "",
+        ),
+        (
+            [],
+            "[] should be non-empty",
+        ),
+        (
+            [
+                {"keywords": "appendectomy", "approximateDate": "2015-06-10", "comment": "Emergency surgery"},
+                {"keywords": "tonsillectomy", "approximateDate": "2010-03-15", "comment": "Routine surgery"},
+            ],
+            "[{'keywords': 'appendectomy', 'approximateDate': '2015-06-10', 'comment': 'Emergency surgery'}, "
+            "{'keywords': 'tonsillectomy', 'approximateDate': '2010-03-15', 'comment': 'Routine surgery'}] "
+            "is too long",
+        ),
+        (
+            [
+                {
+                    "keywords": "appendectomy",
+                    "approximateDate": "2015-06-10",
+                    "comment": "Emergency surgery",
+                    "extra": "field",
+                }
+            ],
+            "Additional properties are not allowed ('extra' was unexpected), in path [0]",
+        ),
+        (
+            [{"approximateDate": "2015-06-10", "comment": "Emergency surgery"}],
+            "'keywords' is a required property, in path [0]",
+        ),
+        (
+            [{"keywords": "appendectomy", "comment": "Emergency surgery"}],
+            "'approximateDate' is a required property, in path [0]",
+        ),
+        (
+            [{"keywords": "appendectomy", "approximateDate": "2015-06-10"}],
+            "'comment' is a required property, in path [0]",
+        ),
+        (
+            [{"keywords": "appendectomy", "approximateDate": "2015-06", "comment": "Invalid date format"}],
+            "'2015-06' does not match '^\\\\d{4}-\\\\d{2}-\\\\d{2}$', in path [0, 'approximateDate']",
+        ),
+        (
+            [{"keywords": "appendectomy", "approximateDate": "02-04-2025", "comment": "Emergency surgery"}],
+            "'02-04-2025' does not match '^\\\\d{4}-\\\\d{2}-\\\\d{2}$', in path [0, 'approximateDate']",
+        ),
+        (
+            [{"keywords": "appendectomy", "approximateDate": "10-21-89", "comment": "Emergency surgery"}],
+            "'10-21-89' does not match '^\\\\d{4}-\\\\d{2}-\\\\d{2}$', in path [0, 'approximateDate']",
+        ),
+    ]
+    for idx, (dictionary, expected) in enumerate(tests):
+        result = LlmBase.json_validator(dictionary, schema)
+        assert result == expected, f"---> {idx}"
 
 
 def test_instruction_description():

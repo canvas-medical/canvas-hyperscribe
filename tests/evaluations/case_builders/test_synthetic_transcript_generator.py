@@ -14,6 +14,7 @@ from evaluations.structures.enums.synthetic_case_pressure import SyntheticCasePr
 from evaluations.structures.enums.synthetic_case_turn_buckets import SyntheticCaseTurnBuckets
 from evaluations.structures.patient_profile import PatientProfile
 from evaluations.structures.specification import Specification
+from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.line import Line
 from tests.helper import MockClass
 
@@ -124,6 +125,99 @@ def test_schema_transcript():
         },
     }
     assert result == expected
+
+
+def test_schema_transcript_validation():
+    profiles = [
+        PatientProfile(name="Patient 1", profile="AAA"),
+        PatientProfile(name="Patient 2", profile="BBB"),
+    ]
+    tested = SyntheticTranscriptGenerator(profiles)
+    turn_total = 3
+    schema = tested.schema_transcript(turn_total)
+
+    tests = [
+        # Valid case with all required fields
+        (
+            [
+                {"speaker": "Clinician", "text": "Hello, how are you?"},
+                {"speaker": "Patient", "text": "I'm doing well, thanks."},
+                {"speaker": "Clinician", "text": "What brings you in today?"},
+            ],
+            "",
+        ),
+        # Empty array violation
+        ([], "[] is too short"),
+        # Too few items
+        (
+            [
+                {"speaker": "Clinician", "text": "Hello"},
+            ],
+            "[{'speaker': 'Clinician', 'text': 'Hello'}] is too short",
+        ),
+        # Too many items
+        (
+            [
+                {"speaker": "Clinician", "text": "Turn 1"},
+                {"speaker": "Patient", "text": "Turn 2"},
+                {"speaker": "Clinician", "text": "Turn 3"},
+                {"speaker": "Patient", "text": "Turn 4"},
+            ],
+            "[{'speaker': 'Clinician', 'text': 'Turn 1'}, "
+            "{'speaker': 'Patient', 'text': 'Turn 2'}, "
+            "{'speaker': 'Clinician', 'text': 'Turn 3'}, "
+            "{'speaker': 'Patient', 'text': 'Turn 4'}] is too long",
+        ),
+        # Additional properties violation
+        (
+            [
+                {"speaker": "Clinician", "text": "Hello", "extra": "field"},
+                {"speaker": "Patient", "text": "Hi"},
+                {"speaker": "Clinician", "text": "How are you?"},
+            ],
+            "Additional properties are not allowed ('extra' was unexpected), in path [0]",
+        ),
+        # Missing required field: speaker
+        (
+            [
+                {"text": "Hello"},
+                {"speaker": "Patient", "text": "Hi"},
+                {"speaker": "Clinician", "text": "How are you?"},
+            ],
+            "'speaker' is a required property, in path [0]",
+        ),
+        # Missing required field: text
+        (
+            [
+                {"speaker": "Clinician"},
+                {"speaker": "Patient", "text": "Hi"},
+                {"speaker": "Clinician", "text": "How are you?"},
+            ],
+            "'text' is a required property, in path [0]",
+        ),
+        # Type violation: speaker not string
+        (
+            [
+                {"speaker": 123, "text": "Hello"},
+                {"speaker": "Patient", "text": "Hi"},
+                {"speaker": "Clinician", "text": "How are you?"},
+            ],
+            "123 is not of type 'string', in path [0, 'speaker']",
+        ),
+        # Type violation: text not string
+        (
+            [
+                {"speaker": "Clinician", "text": 456},
+                {"speaker": "Patient", "text": "Hi"},
+                {"speaker": "Clinician", "text": "How are you?"},
+            ],
+            "456 is not of type 'string', in path [0, 'text']",
+        ),
+    ]
+
+    for idx, (test_data, expected) in enumerate(tests):
+        result = LlmBase.json_validator(test_data, schema)
+        assert result == expected, f"---> {idx}"
 
 
 def test__build_prompt():

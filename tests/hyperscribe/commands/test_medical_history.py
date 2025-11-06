@@ -1,6 +1,6 @@
-import json
 from datetime import date
 from hashlib import md5
+import json
 from unittest.mock import patch, call, MagicMock
 
 from canvas_sdk.commands.commands.medical_history import MedicalHistoryCommand
@@ -9,6 +9,7 @@ from hyperscribe.commands.base import Base
 from hyperscribe.commands.medical_history import MedicalHistory
 from hyperscribe.libraries.canvas_science import CanvasScience
 from hyperscribe.libraries.limited_cache import LimitedCache
+from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.icd10_condition import Icd10Condition
@@ -272,9 +273,144 @@ def test_command_parameters():
 
 def test_command_parameters_schemas():
     tested = helper_instance()
-    result = tested.command_parameters_schemas()
-    expected = "4ce3b0e4958e07b82dde532a47d6a5fb"
-    assert md5(json.dumps(result).encode()).hexdigest() == expected
+    schemas = tested.command_parameters_schemas()
+    assert len(schemas) == 1
+    schema = schemas[0]
+
+    #
+    schema_hash = md5(json.dumps(schema, sort_keys=True).encode()).hexdigest()
+    expected_hash = "43210824b0541d2171387f32b8415759"
+    assert schema_hash == expected_hash
+
+    tests = [
+        (
+            [
+                {
+                    "keywords": "diabetes,type 2 diabetes",
+                    "approximateStartDate": "2020-01-15",
+                    "approximateEndDate": None,
+                    "comments": "diagnosed in 2020",
+                }
+            ],
+            "",
+        ),
+        (
+            [
+                {
+                    "keywords": "hypertension",
+                    "approximateStartDate": None,
+                    "approximateEndDate": "2023-12-31",
+                    "comments": "resolved",
+                }
+            ],
+            "",
+        ),
+        (
+            [],
+            "[] should be non-empty",
+        ),
+        (
+            [
+                {
+                    "keywords": "diabetes",
+                    "approximateStartDate": "2020-01-01",
+                    "approximateEndDate": None,
+                    "comments": "first condition",
+                },
+                {
+                    "keywords": "hypertension",
+                    "approximateStartDate": "2021-01-01",
+                    "approximateEndDate": None,
+                    "comments": "second condition",
+                },
+            ],
+            "[{'keywords': 'diabetes', "
+            "'approximateStartDate': '2020-01-01', "
+            "'approximateEndDate': None, "
+            "'comments': 'first condition'}, "
+            "{'keywords': 'hypertension', "
+            "'approximateStartDate': '2021-01-01', "
+            "'approximateEndDate': None, "
+            "'comments': 'second condition'}] is too long",
+        ),
+        (
+            [
+                {
+                    "keywords": "diabetes",
+                    "approximateStartDate": "2020-01-01",
+                    "approximateEndDate": None,
+                    "comments": "diabetes history",
+                    "extra": "field",
+                }
+            ],
+            "Additional properties are not allowed ('extra' was unexpected), in path [0]",
+        ),
+        (
+            [
+                {
+                    "approximateStartDate": "2020-01-01",
+                    "approximateEndDate": None,
+                    "comments": "diabetes history",
+                }
+            ],
+            "'keywords' is a required property, in path [0]",
+        ),
+        (
+            [
+                {
+                    "keywords": "diabetes",
+                    "approximateEndDate": None,
+                    "comments": "diabetes history",
+                }
+            ],
+            "'approximateStartDate' is a required property, in path [0]",
+        ),
+        (
+            [
+                {
+                    "keywords": "diabetes",
+                    "approximateStartDate": "2020-01-01",
+                    "comments": "diabetes history",
+                }
+            ],
+            "'approximateEndDate' is a required property, in path [0]",
+        ),
+        (
+            [
+                {
+                    "keywords": "diabetes",
+                    "approximateStartDate": "2020-01-01",
+                    "approximateEndDate": None,
+                }
+            ],
+            "'comments' is a required property, in path [0]",
+        ),
+        (
+            [
+                {
+                    "keywords": "diabetes",
+                    "approximateStartDate": "02-04-2025",
+                    "approximateEndDate": None,
+                    "comments": "diagnosed in 2025",
+                }
+            ],
+            "'02-04-2025' does not match '^\\\\d{4}-\\\\d{2}-\\\\d{2}$', in path [0, 'approximateStartDate']",
+        ),
+        (
+            [
+                {
+                    "keywords": "diabetes",
+                    "approximateStartDate": "2020-01-01",
+                    "approximateEndDate": "10-21-89",
+                    "comments": "resolved",
+                }
+            ],
+            "'10-21-89' does not match '^\\\\d{4}-\\\\d{2}-\\\\d{2}$', in path [0, 'approximateEndDate']",
+        ),
+    ]
+    for idx, (dictionary, expected) in enumerate(tests):
+        result = LlmBase.json_validator(dictionary, schema)
+        assert result == expected, f"---> {idx}"
 
 
 def test_instruction_description():

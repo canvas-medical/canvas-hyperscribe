@@ -2,6 +2,7 @@ import json
 from argparse import ArgumentParser, Namespace
 from datetime import datetime
 from datetime import timezone
+from hashlib import md5
 from pathlib import Path, PosixPath
 from unittest.mock import patch, call, MagicMock
 
@@ -17,6 +18,7 @@ from evaluations.structures.case_exchange import CaseExchange
 from evaluations.structures.case_exchange_summary import CaseExchangeSummary
 from evaluations.structures.records.real_world_case import RealWorldCase as RecordRealWorldCase
 from hyperscribe.libraries.limited_cache import LimitedCache
+from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.aws_s3_object import AwsS3Object
@@ -2187,117 +2189,276 @@ def test_anonymize_transcripts_check(schema_errors, helper):
 
 def test_schema_anonymization():
     tested = BuilderDirectFromTuning
-    result = tested.schema_anonymization()
-    expected = {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "type": "array",
-        "items": {
-            "type": "object",
-            "required": ["speaker", "text", "start", "end", "chunk"],
-            "properties": {
-                "speaker": {"type": "string", "minLength": 1},
-                "text": {"type": "string"},
-                "start": {"type": "number"},
-                "end": {"type": "number"},
-                "chunk": {"type": "integer"},
-            },
-            "additionalProperties": False,
-        },
-    }
-    assert result == expected
+    schema = tested.schema_anonymization()
+
+    schema_hash = md5(json.dumps(schema, sort_keys=True).encode()).hexdigest()
+    expected_hash = "1cb7d695ba3299e57da09a600635f93c"
+    assert schema_hash == expected_hash
+
+    tests = [
+        # Valid case
+        ([{"speaker": "Doctor", "text": "Hello", "start": 0.0, "end": 1.5, "chunk": 1}], ""),
+        # Valid case with multiple items
+        (
+            [
+                {"speaker": "Doctor", "text": "Hello", "start": 0.0, "end": 1.5, "chunk": 1},
+                {"speaker": "Patient", "text": "Hi", "start": 1.5, "end": 2.0, "chunk": 1},
+            ],
+            "",
+        ),
+        # Additional properties
+        (
+            [{"speaker": "Doctor", "text": "Hello", "start": 0.0, "end": 1.5, "chunk": 1, "extra": "field"}],
+            "Additional properties are not allowed ('extra' was unexpected), in path [0]",
+        ),
+        # Missing speaker
+        ([{"text": "Hello", "start": 0.0, "end": 1.5, "chunk": 1}], "'speaker' is a required property, in path [0]"),
+        # Missing text
+        ([{"speaker": "Doctor", "start": 0.0, "end": 1.5, "chunk": 1}], "'text' is a required property, in path [0]"),
+        # Missing start
+        (
+            [{"speaker": "Doctor", "text": "Hello", "end": 1.5, "chunk": 1}],
+            "'start' is a required property, in path [0]",
+        ),
+        # Missing end
+        (
+            [{"speaker": "Doctor", "text": "Hello", "start": 0.0, "chunk": 1}],
+            "'end' is a required property, in path [0]",
+        ),
+        # Missing chunk
+        (
+            [{"speaker": "Doctor", "text": "Hello", "start": 0.0, "end": 1.5}],
+            "'chunk' is a required property, in path [0]",
+        ),
+        # Empty speaker (minLength violation)
+        (
+            [{"speaker": "", "text": "Hello", "start": 0.0, "end": 1.5, "chunk": 1}],
+            "'' should be non-empty, in path [0, 'speaker']",
+        ),
+        # Wrong type for speaker
+        (
+            [{"speaker": 123, "text": "Hello", "start": 0.0, "end": 1.5, "chunk": 1}],
+            "123 is not of type 'string', in path [0, 'speaker']",
+        ),
+        # Wrong type for text
+        (
+            [{"speaker": "Doctor", "text": 123, "start": 0.0, "end": 1.5, "chunk": 1}],
+            "123 is not of type 'string', in path [0, 'text']",
+        ),
+        # Wrong type for start (string instead of number)
+        (
+            [{"speaker": "Doctor", "text": "Hello", "start": "0.0", "end": 1.5, "chunk": 1}],
+            "'0.0' is not of type 'number', in path [0, 'start']",
+        ),
+        # Wrong type for end (string instead of number)
+        (
+            [{"speaker": "Doctor", "text": "Hello", "start": 0.0, "end": "1.5", "chunk": 1}],
+            "'1.5' is not of type 'number', in path [0, 'end']",
+        ),
+        # Wrong type for chunk (float instead of integer)
+        (
+            [{"speaker": "Doctor", "text": "Hello", "start": 0.0, "end": 1.5, "chunk": 1.5}],
+            "1.5 is not of type 'integer', in path [0, 'chunk']",
+        ),
+    ]
+
+    for idx, (test_data, expected) in enumerate(tests):
+        result = LlmBase.json_validator(test_data, schema)
+        assert result == expected, f"---> {idx}"
 
 
 def test_schema_changes():
     tested = BuilderDirectFromTuning
-    result = tested.schema_changes()
-    expected = {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "type": "array",
-        "items": {
-            "type": "object",
-            "required": ["originalEntity", "anonymizedWith"],
-            "properties": {
-                "originalEntity": {"type": "string", "description": "value of the original entity before replacement"},
-                "anonymizedWith": {
-                    "type": "string",
-                    "description": "value of the replacement ; "
-                    "two different entities cannot use the same anonymization",
-                },
-            },
-            "additionalProperties": False,
-        },
-    }
-    assert result == expected
+    schema = tested.schema_changes()
+
+    schema_hash = md5(json.dumps(schema, sort_keys=True).encode()).hexdigest()
+    expected_hash = "38d1a290e9535316eb8a10c961459dee"
+    assert schema_hash == expected_hash
+
+    tests = [
+        # Valid case
+        ([{"originalEntity": "John Doe", "anonymizedWith": "Jane Smith"}], ""),
+        # Valid case with multiple items
+        (
+            [
+                {"originalEntity": "John Doe", "anonymizedWith": "Jane Smith"},
+                {"originalEntity": "123 Main St", "anonymizedWith": "456 Oak Ave"},
+            ],
+            "",
+        ),
+        # Additional properties
+        (
+            [{"originalEntity": "John Doe", "anonymizedWith": "Jane Smith", "extra": "field"}],
+            "Additional properties are not allowed ('extra' was unexpected), in path [0]",
+        ),
+        # Missing originalEntity
+        ([{"anonymizedWith": "Jane Smith"}], "'originalEntity' is a required property, in path [0]"),
+        # Missing anonymizedWith
+        ([{"originalEntity": "John Doe"}], "'anonymizedWith' is a required property, in path [0]"),
+        # Wrong type for originalEntity
+        (
+            [{"originalEntity": 123, "anonymizedWith": "Jane Smith"}],
+            "123 is not of type 'string', in path [0, 'originalEntity']",
+        ),
+        # Wrong type for anonymizedWith
+        (
+            [{"originalEntity": "John Doe", "anonymizedWith": 123}],
+            "123 is not of type 'string', in path [0, 'anonymizedWith']",
+        ),
+    ]
+
+    for idx, (test_data, expected) in enumerate(tests):
+        result = LlmBase.json_validator(test_data, schema)
+        assert result == expected, f"---> {idx}"
 
 
 def test_schema_code_items():
     tested = BuilderDirectFromTuning
-    result = tested.schema_code_items()
-    expected = {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "type": "array",
-        "items": {
-            "type": "object",
-            "required": ["uuid", "label", "code"],
-            "properties": {
-                "uuid": {"type": "string"},
-                "label": {"type": "string"},
-                "code": {"type": "string"},
-            },
-            "additionalProperties": False,
-        },
-    }
-    assert result == expected
+    schema = tested.schema_code_items()
+
+    schema_hash = md5(json.dumps(schema, sort_keys=True).encode()).hexdigest()
+    expected_hash = "630d386cea88fa72636fe61fb89b6c9e"
+    assert schema_hash == expected_hash
+
+    tests = [
+        # Valid case
+        ([{"uuid": "uuid-123", "label": "Test Label", "code": "T123"}], ""),
+        # Valid case with multiple items
+        (
+            [
+                {"uuid": "uuid-123", "label": "Label 1", "code": "C001"},
+                {"uuid": "uuid-456", "label": "Label 2", "code": "C002"},
+            ],
+            "",
+        ),
+        # Additional properties
+        (
+            [{"uuid": "uuid-123", "label": "Test Label", "code": "T123", "extra": "field"}],
+            "Additional properties are not allowed ('extra' was unexpected), in path [0]",
+        ),
+        # Missing uuid
+        ([{"label": "Test Label", "code": "T123"}], "'uuid' is a required property, in path [0]"),
+        # Missing label
+        ([{"uuid": "uuid-123", "code": "T123"}], "'label' is a required property, in path [0]"),
+        # Missing code
+        ([{"uuid": "uuid-123", "label": "Test Label"}], "'code' is a required property, in path [0]"),
+        # Wrong type for uuid
+        (
+            [{"uuid": 123, "label": "Test Label", "code": "T123"}],
+            "123 is not of type 'string', in path [0, 'uuid']",
+        ),
+        # Wrong type for label
+        (
+            [{"uuid": "uuid-123", "label": 123, "code": "T123"}],
+            "123 is not of type 'string', in path [0, 'label']",
+        ),
+        # Wrong type for code
+        (
+            [{"uuid": "uuid-123", "label": "Test Label", "code": 123}],
+            "123 is not of type 'string', in path [0, 'code']",
+        ),
+    ]
+
+    for idx, (test_data, expected) in enumerate(tests):
+        result = LlmBase.json_validator(test_data, schema)
+        assert result == expected, f"---> {idx}"
 
 
 def test_schema_errors():
     tested = BuilderDirectFromTuning
-    result = tested.schema_errors()
-    expected = {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "type": "array",
-        "items": {
-            "type": "object",
-            "required": ["explanation", "error"],
-            "properties": {
-                "explanation": {
-                    "type": "string",
-                    "description": "full explanation of the deidentification error, "
-                    "including the related text source and the broken rules",
-                },
-                "error": {
-                    "type": "boolean",
-                    "description": "set to True if this is an error, False otherwise",
-                },
-            },
-            "additionalProperties": False,
-        },
-    }
-    assert result == expected
+    schema = tested.schema_errors()
+
+    schema_hash = md5(json.dumps(schema, sort_keys=True).encode()).hexdigest()
+    expected_hash = "dc072327e0d607230d7aea92e1b9cf7f"
+    assert schema_hash == expected_hash
+
+    tests = [
+        # Valid case
+        ([{"explanation": "Some error explanation", "error": True}], ""),
+        # Valid case with multiple items
+        (
+            [
+                {"explanation": "Error 1", "error": True},
+                {"explanation": "Not an error", "error": False},
+            ],
+            "",
+        ),
+        # Additional properties
+        (
+            [{"explanation": "Some error", "error": True, "extra": "field"}],
+            "Additional properties are not allowed ('extra' was unexpected), in path [0]",
+        ),
+        # Missing explanation
+        ([{"error": True}], "'explanation' is a required property, in path [0]"),
+        # Missing error
+        ([{"explanation": "Some error"}], "'error' is a required property, in path [0]"),
+        # Wrong type for explanation
+        (
+            [{"explanation": 123, "error": True}],
+            "123 is not of type 'string', in path [0, 'explanation']",
+        ),
+        # Wrong type for error
+        (
+            [{"explanation": "Some error", "error": "true"}],
+            "'true' is not of type 'boolean', in path [0, 'error']",
+        ),
+    ]
+
+    for idx, (test_data, expected) in enumerate(tests):
+        result = LlmBase.json_validator(test_data, schema)
+        assert result == expected, f"---> {idx}"
 
 
 def test_schema_summary():
     tested = BuilderDirectFromTuning
-    result = tested.schema_summary()
-    expected = {
-        "$schema": "http://json-schema.org/draft-07/schema#",
-        "type": "array",
-        "minItems": 1,
-        "items": {
-            "type": "object",
-            "properties": {
-                "title": {
-                    "type": "string",
-                    "pattern": "^[a-zA-Z0-9 ]+$",
-                    "description": "a concise title composed with 25 to 40 characters",
-                },
-                "summary": {"type": "string", "description": "a summary of the exchange"},
-            },
-            "required": ["title", "summary"],
-            "additionalProperties": False,
-        },
-    }
-    assert result == expected
+    schema = tested.schema_summary()
+
+    schema_hash = md5(json.dumps(schema, sort_keys=True).encode()).hexdigest()
+    expected_hash = "118d9ec1114846c034bfd9473c272704"
+    assert schema_hash == expected_hash
+
+    tests = [
+        # Valid case
+        ([{"title": "Valid Title 123", "summary": "A summary of the exchange"}], ""),
+        # Valid case with multiple items
+        (
+            [
+                {"title": "Title 1", "summary": "Summary 1"},
+                {"title": "Title 2", "summary": "Summary 2"},
+            ],
+            "",
+        ),
+        # Empty array (violates minItems)
+        ([], "[] should be non-empty"),
+        # Additional properties
+        (
+            [{"title": "Valid Title", "summary": "Summary", "extra": "field"}],
+            "Additional properties are not allowed ('extra' was unexpected), in path [0]",
+        ),
+        # Missing title
+        ([{"summary": "Summary"}], "'title' is a required property, in path [0]"),
+        # Missing summary
+        ([{"title": "Valid Title"}], "'summary' is a required property, in path [0]"),
+        # Invalid title pattern (contains special characters)
+        (
+            [{"title": "Invalid@Title!", "summary": "Summary"}],
+            "'Invalid@Title!' does not match '^[a-zA-Z0-9 ]+$', in path [0, 'title']",
+        ),
+        # Wrong type for title
+        (
+            [{"title": 123, "summary": "Summary"}],
+            "123 is not of type 'string', in path [0, 'title']",
+        ),
+        # Wrong type for summary
+        (
+            [{"title": "Valid Title", "summary": 123}],
+            "123 is not of type 'string', in path [0, 'summary']",
+        ),
+    ]
+
+    for idx, (test_data, expected) in enumerate(tests):
+        result = LlmBase.json_validator(test_data, schema)
+        assert result == expected, f"---> {idx}"
 
 
 def test_compact_transcripts():

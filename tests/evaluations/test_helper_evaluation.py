@@ -1,4 +1,5 @@
 import json
+from hashlib import md5
 from io import StringIO
 from pathlib import Path
 from unittest.mock import patch, MagicMock, call
@@ -9,6 +10,7 @@ from evaluations.constants import Constants
 from evaluations.helper_evaluation import HelperEvaluation
 from evaluations.structures.postgres_credentials import PostgresCredentials
 from hyperscribe.libraries.helper import Helper
+from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.json_extract import JsonExtract
@@ -28,7 +30,7 @@ def test_trace_error():
         result = tested.trace_error(error)
         expected = {
             "error": "'x'",
-            "files": [f"{file_path}.test_trace_error:28", f"{file_path}.mistake:20"],
+            "files": [f"{file_path}.test_trace_error:30", f"{file_path}.mistake:22"],
             "variables": {"a_dict": "{'a': 1, 'secret': 'SecretA'}", "b_dict": "{'b': 2}", "various": "'random var'"},
         }
         assert result == expected
@@ -237,20 +239,45 @@ def test_get_canvas_host(monkeypatch):
 
 def test_json_schema_differences():
     tested = HelperEvaluation
-    result = tested.json_schema_differences()
-    expected = {
-        "$schema": "http://json-schema.org/draft-07/schema#",
-        "type": "array",
-        "items": {
-            "type": "object",
-            "properties": {
-                "level": {"type": "string", "enum": ["minor", "moderate", "severe", "critical"]},
-                "difference": {"type": "string", "description": "description of the difference between the JSONs"},
-            },
-            "required": ["level", "difference"],
-        },
-    }
-    assert result == expected
+    schema = tested.json_schema_differences()
+
+    schema_hash = md5(json.dumps(schema, sort_keys=True).encode()).hexdigest()
+    expected_hash = "545f93c5adeb8542d43618857e054c7c"
+    assert schema_hash == expected_hash
+
+    tests = [
+        # Valid case
+        ([{"level": "minor", "difference": "some difference"}], ""),
+        # Valid case with multiple items
+        (
+            [
+                {"level": "moderate", "difference": "difference 1"},
+                {"level": "severe", "difference": "difference 2"},
+            ],
+            "",
+        ),
+        # Missing level
+        ([{"difference": "text"}], "'level' is a required property, in path [0]"),
+        # Missing difference
+        ([{"level": "minor"}], "'difference' is a required property, in path [0]"),
+        # Invalid enum value
+        (
+            [{"level": "invalid", "difference": "text"}],
+            "'invalid' is not one of ['minor', 'moderate', 'severe', 'critical'], in path [0, 'level']",
+        ),
+        # Wrong type for level (triggers both type and enum errors)
+        (
+            [{"level": 123, "difference": "text"}],
+            "123 is not of type 'string', in path [0, 'level']\n"
+            "123 is not one of ['minor', 'moderate', 'severe', 'critical'], in path [0, 'level']",
+        ),
+        # Wrong type for difference
+        ([{"level": "minor", "difference": 123}], "123 is not of type 'string', in path [0, 'difference']"),
+    ]
+
+    for idx, (test_data, expected) in enumerate(tests):
+        result = LlmBase.json_validator(test_data, schema)
+        assert result == expected, f"---> {idx}"
 
 
 @patch.object(HelperEvaluation, "nuanced_differences")

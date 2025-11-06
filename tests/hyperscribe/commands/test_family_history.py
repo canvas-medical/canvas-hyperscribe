@@ -1,5 +1,5 @@
-import json
 from hashlib import md5
+import json
 from unittest.mock import patch, call, MagicMock
 
 from canvas_sdk.commands.commands.family_history import FamilyHistoryCommand
@@ -8,6 +8,7 @@ from hyperscribe.commands.base import Base
 from hyperscribe.commands.family_history import FamilyHistory
 from hyperscribe.libraries.canvas_science import CanvasScience
 from hyperscribe.libraries.limited_cache import LimitedCache
+from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.identification_parameters import IdentificationParameters
@@ -246,9 +247,58 @@ def test_instruction_constraints(family_history):
 
 def test_command_parameters_schemas():
     tested = helper_instance()
-    result = tested.command_parameters_schemas()
-    expected = "ab2489e2fbde153a16528830d88094a2"
-    assert md5(json.dumps(result).encode()).hexdigest() == expected
+    schemas = tested.command_parameters_schemas()
+    assert len(schemas) == 1
+    schema = schemas[0]
+
+    #
+    schema_hash = md5(json.dumps(schema, sort_keys=True).encode()).hexdigest()
+    expected_hash = "c1d479de900bc36cee8c956843371baa"
+    assert schema_hash == expected_hash
+
+    tests = [
+        (
+            [{"keywords": "diabetes,T2DM", "relative": "father", "note": "Patient's father has diabetes"}],
+            "",
+        ),
+        (
+            [],
+            "[] should be non-empty",
+        ),
+        (
+            [
+                {"keywords": "diabetes", "relative": "father", "note": "Patient's father has diabetes"},
+                {"keywords": "hypertension", "relative": "mother", "note": "Patient's mother has hypertension"},
+            ],
+            "[{'keywords': 'diabetes', 'relative': 'father', 'note': \"Patient's father has diabetes\"}, "
+            "{'keywords': 'hypertension', 'relative': 'mother', 'note': \"Patient's mother has hypertension\"}] "
+            "is too long",
+        ),
+        (
+            [{"keywords": "diabetes", "relative": "father", "note": "Patient's father has diabetes", "extra": "field"}],
+            "Additional properties are not allowed ('extra' was unexpected), in path [0]",
+        ),
+        (
+            [{"relative": "father", "note": "Patient's father has diabetes"}],
+            "'keywords' is a required property, in path [0]",
+        ),
+        (
+            [{"keywords": "diabetes", "note": "Patient's father has diabetes"}],
+            "'relative' is a required property, in path [0]",
+        ),
+        (
+            [{"keywords": "diabetes", "relative": "father"}],
+            "'note' is a required property, in path [0]",
+        ),
+        (
+            [{"keywords": "diabetes", "relative": "uncle", "note": "Patient's uncle has diabetes"}],
+            "'uncle' is not one of ['father', 'mother', 'parent', 'child', 'brother', 'sister', 'sibling', "
+            "'grand-parent', 'grand-father', 'grand-mother'], in path [0, 'relative']",
+        ),
+    ]
+    for idx, (dictionary, expected) in enumerate(tests):
+        result = LlmBase.json_validator(dictionary, schema)
+        assert result == expected, f"---> {idx}"
 
 
 def test_is_available():

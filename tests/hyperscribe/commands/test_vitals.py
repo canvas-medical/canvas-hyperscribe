@@ -1,5 +1,5 @@
-import json
 from hashlib import md5
+import json
 from unittest.mock import patch, call, MagicMock
 
 from canvas_sdk.commands.commands.vitals import VitalsCommand
@@ -7,6 +7,7 @@ from canvas_sdk.commands.commands.vitals import VitalsCommand
 from hyperscribe.commands.base import Base
 from hyperscribe.commands.vitals import Vitals
 from hyperscribe.libraries.limited_cache import LimitedCache
+from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.identification_parameters import IdentificationParameters
@@ -231,9 +232,236 @@ def test_command_parameters():
 
 def test_command_parameters_schemas():
     tested = helper_instance()
-    result = tested.command_parameters_schemas()
-    expected = "c264401d4faabbfbd58cf2afa2b2a473"
-    assert md5(json.dumps(result).encode()).hexdigest() == expected
+    schemas = tested.command_parameters_schemas()
+    assert len(schemas) == 1
+    schema = schemas[0]
+
+    #
+    schema_hash = md5(json.dumps(schema, sort_keys=True).encode()).hexdigest()
+    expected_hash = "5ab059e8d6ed14301a58a309b6cf77e4"
+    assert schema_hash == expected_hash
+
+    tests = [
+        (
+            [
+                {
+                    "height": {"inches": 70},
+                    "weight": {"pounds": 180},
+                    "waistCircumference": {"centimeters": 95},
+                    "temperature": {"fahrenheit": 98},
+                    "bloodPressure": {"systolicPressure": 120, "diastolicPressure": 80},
+                    "pulseRate": {"beatPerMinute": 72},
+                    "respirationRate": {"beatPerMinute": 16},
+                }
+            ],
+            "",
+        ),
+        (
+            [
+                {
+                    "height": {"inches": None},
+                    "weight": {"pounds": None},
+                    "waistCircumference": {"centimeters": None},
+                    "temperature": {"fahrenheit": None},
+                    "bloodPressure": {"systolicPressure": None, "diastolicPressure": None},
+                    "pulseRate": {"beatPerMinute": None},
+                    "respirationRate": {"beatPerMinute": None},
+                }
+            ],
+            "",
+        ),
+        (
+            [],
+            "[] should be non-empty",
+        ),
+        (
+            [
+                {
+                    "height": {"inches": 70},
+                    "weight": {"pounds": 180},
+                    "waistCircumference": {"centimeters": 95},
+                    "temperature": {"fahrenheit": 98},
+                    "bloodPressure": {"systolicPressure": 120, "diastolicPressure": 80},
+                    "pulseRate": {"beatPerMinute": 72},
+                    "respirationRate": {"beatPerMinute": 16},
+                },
+                {
+                    "height": {"inches": 68},
+                    "weight": {"pounds": 170},
+                    "waistCircumference": {"centimeters": 90},
+                    "temperature": {"fahrenheit": 99},
+                    "bloodPressure": {"systolicPressure": 115, "diastolicPressure": 75},
+                    "pulseRate": {"beatPerMinute": 70},
+                    "respirationRate": {"beatPerMinute": 15},
+                },
+            ],
+            "[{'height': {'inches': 70}, "
+            "'weight': {'pounds': 180}, "
+            "'waistCircumference': {'centimeters': 95}, "
+            "'temperature': {'fahrenheit': 98}, "
+            "'bloodPressure': {'systolicPressure': 120, 'diastolicPressure': 80}, "
+            "'pulseRate': {'beatPerMinute': 72}, "
+            "'respirationRate': {'beatPerMinute': 16}}, "
+            "{'height': {'inches': 68}, "
+            "'weight': {'pounds': 170}, "
+            "'waistCircumference': {'centimeters': 90}, "
+            "'temperature': {'fahrenheit': 99}, "
+            "'bloodPressure': {'systolicPressure': 115, 'diastolicPressure': 75}, "
+            "'pulseRate': {'beatPerMinute': 70}, "
+            "'respirationRate': {'beatPerMinute': 15}}] is too long",
+        ),
+        (
+            [
+                {
+                    "height": {"inches": 70},
+                    "weight": {"pounds": 180},
+                    "waistCircumference": {"centimeters": 95},
+                    "temperature": {"fahrenheit": 98},
+                    "bloodPressure": {"systolicPressure": 120, "diastolicPressure": 80},
+                    "pulseRate": {"beatPerMinute": 72},
+                    "respirationRate": {"beatPerMinute": 16},
+                    "extra": "field",
+                }
+            ],
+            "Additional properties are not allowed ('extra' was unexpected), in path [0]",
+        ),
+        (
+            [
+                {
+                    "weight": {"pounds": 180},
+                    "waistCircumference": {"centimeters": 95},
+                    "temperature": {"fahrenheit": 98},
+                    "bloodPressure": {"systolicPressure": 120, "diastolicPressure": 80},
+                    "pulseRate": {"beatPerMinute": 72},
+                    "respirationRate": {"beatPerMinute": 16},
+                }
+            ],
+            "'height' is a required property, in path [0]",
+        ),
+        (
+            [
+                {
+                    "height": {"inches": 70},
+                    "waistCircumference": {"centimeters": 95},
+                    "temperature": {"fahrenheit": 98},
+                    "bloodPressure": {"systolicPressure": 120, "diastolicPressure": 80},
+                    "pulseRate": {"beatPerMinute": 72},
+                    "respirationRate": {"beatPerMinute": 16},
+                }
+            ],
+            "'weight' is a required property, in path [0]",
+        ),
+        (
+            [
+                {
+                    "height": {"inches": 70},
+                    "weight": {"pounds": 180},
+                    "temperature": {"fahrenheit": 98},
+                    "bloodPressure": {"systolicPressure": 120, "diastolicPressure": 80},
+                    "pulseRate": {"beatPerMinute": 72},
+                    "respirationRate": {"beatPerMinute": 16},
+                }
+            ],
+            "'waistCircumference' is a required property, in path [0]",
+        ),
+        (
+            [
+                {
+                    "height": {"inches": 70},
+                    "weight": {"pounds": 180},
+                    "waistCircumference": {"centimeters": 95},
+                    "bloodPressure": {"systolicPressure": 120, "diastolicPressure": 80},
+                    "pulseRate": {"beatPerMinute": 72},
+                    "respirationRate": {"beatPerMinute": 16},
+                }
+            ],
+            "'temperature' is a required property, in path [0]",
+        ),
+        (
+            [
+                {
+                    "height": {"inches": 70},
+                    "weight": {"pounds": 180},
+                    "waistCircumference": {"centimeters": 95},
+                    "temperature": {"fahrenheit": 98},
+                    "pulseRate": {"beatPerMinute": 72},
+                    "respirationRate": {"beatPerMinute": 16},
+                }
+            ],
+            "'bloodPressure' is a required property, in path [0]",
+        ),
+        (
+            [
+                {
+                    "height": {"inches": 70},
+                    "weight": {"pounds": 180},
+                    "waistCircumference": {"centimeters": 95},
+                    "temperature": {"fahrenheit": 98},
+                    "bloodPressure": {"systolicPressure": 120, "diastolicPressure": 80},
+                    "respirationRate": {"beatPerMinute": 16},
+                }
+            ],
+            "'pulseRate' is a required property, in path [0]",
+        ),
+        (
+            [
+                {
+                    "height": {"inches": 70},
+                    "weight": {"pounds": 180},
+                    "waistCircumference": {"centimeters": 95},
+                    "temperature": {"fahrenheit": 98},
+                    "bloodPressure": {"systolicPressure": 120, "diastolicPressure": 80},
+                    "pulseRate": {"beatPerMinute": 72},
+                }
+            ],
+            "'respirationRate' is a required property, in path [0]",
+        ),
+        (
+            [
+                {
+                    "height": {"inches": 70, "extra": "field"},
+                    "weight": {"pounds": 180},
+                    "waistCircumference": {"centimeters": 95},
+                    "temperature": {"fahrenheit": 98},
+                    "bloodPressure": {"systolicPressure": 120, "diastolicPressure": 80},
+                    "pulseRate": {"beatPerMinute": 72},
+                    "respirationRate": {"beatPerMinute": 16},
+                }
+            ],
+            "Additional properties are not allowed ('extra' was unexpected), in path [0, 'height']",
+        ),
+        (
+            [
+                {
+                    "height": {"inches": 70},
+                    "weight": {"pounds": 180},
+                    "waistCircumference": {"centimeters": 95},
+                    "temperature": {"fahrenheit": 98},
+                    "bloodPressure": {"systolicPressure": 120},
+                    "pulseRate": {"beatPerMinute": 72},
+                    "respirationRate": {"beatPerMinute": 16},
+                }
+            ],
+            "'diastolicPressure' is a required property, in path [0, 'bloodPressure']",
+        ),
+        (
+            [
+                {
+                    "height": {"inches": 70},
+                    "weight": {"pounds": 180},
+                    "waistCircumference": {"centimeters": 95},
+                    "temperature": {"fahrenheit": 98},
+                    "bloodPressure": {"diastolicPressure": 80},
+                    "pulseRate": {"beatPerMinute": 72},
+                    "respirationRate": {"beatPerMinute": 16},
+                }
+            ],
+            "'systolicPressure' is a required property, in path [0, 'bloodPressure']",
+        ),
+    ]
+    for idx, (dictionary, expected) in enumerate(tests):
+        result = LlmBase.json_validator(dictionary, schema)
+        assert result == expected, f"---> {idx}"
 
 
 def test_instruction_description():

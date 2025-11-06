@@ -1,5 +1,5 @@
-import json
 from hashlib import md5
+import json
 from unittest.mock import patch, call, MagicMock
 
 from canvas_sdk.commands.commands.medication_statement import MedicationStatementCommand
@@ -8,6 +8,7 @@ from hyperscribe.commands.base import Base
 from hyperscribe.commands.medication import Medication
 from hyperscribe.libraries.canvas_science import CanvasScience
 from hyperscribe.libraries.limited_cache import LimitedCache
+from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.identification_parameters import IdentificationParameters
@@ -213,9 +214,48 @@ def test_command_parameters():
 
 def test_command_parameters_schemas():
     tested = helper_instance()
-    result = tested.command_parameters_schemas()
-    expected = "fd1f5ec054fa9bdef9a78711269eea06"
-    assert md5(json.dumps(result).encode()).hexdigest() == expected
+    schemas = tested.command_parameters_schemas()
+    assert len(schemas) == 1
+    schema = schemas[0]
+
+    #
+    schema_hash = md5(json.dumps(schema, sort_keys=True).encode()).hexdigest()
+    expected_hash = "f93a9337b80f990ef0f4d19240e24f03"
+    assert schema_hash == expected_hash
+
+    tests = [
+        (
+            [{"keywords": "aspirin,pain reliever", "sig": "Take 1 tablet daily"}],
+            "",
+        ),
+        (
+            [],
+            "[] should be non-empty",
+        ),
+        (
+            [
+                {"keywords": "aspirin", "sig": "Take 1 tablet daily"},
+                {"keywords": "ibuprofen", "sig": "Take as needed"},
+            ],
+            "[{'keywords': 'aspirin', 'sig': 'Take 1 tablet daily'}, "
+            "{'keywords': 'ibuprofen', 'sig': 'Take as needed'}] is too long",
+        ),
+        (
+            [{"keywords": "aspirin", "sig": "Take 1 tablet daily", "extra": "field"}],
+            "Additional properties are not allowed ('extra' was unexpected), in path [0]",
+        ),
+        (
+            [{"sig": "Take 1 tablet daily"}],
+            "'keywords' is a required property, in path [0]",
+        ),
+        (
+            [{"keywords": "aspirin"}],
+            "'sig' is a required property, in path [0]",
+        ),
+    ]
+    for idx, (dictionary, expected) in enumerate(tests):
+        result = LlmBase.json_validator(dictionary, schema)
+        assert result == expected, f"---> {idx}"
 
 
 def test_instruction_description():

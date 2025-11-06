@@ -1,6 +1,6 @@
-import json
 from datetime import date
 from hashlib import md5
+import json
 from unittest.mock import patch, call, MagicMock
 
 from canvas_sdk.commands.commands.diagnose import DiagnoseCommand
@@ -9,6 +9,7 @@ from hyperscribe.commands.base import Base
 from hyperscribe.commands.diagnose import Diagnose
 from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.libraries.selector_chat import SelectorChat
+from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.identification_parameters import IdentificationParameters
@@ -180,9 +181,180 @@ def test_command_parameters():
 
 def test_command_parameters_schemas():
     tested = helper_instance()
-    result = tested.command_parameters_schemas()
-    expected = "de777483065675d98757de2eb0ea79c2"
-    assert md5(json.dumps(result).encode()).hexdigest() == expected
+    schemas = tested.command_parameters_schemas()
+    assert len(schemas) == 1
+    schema = schemas[0]
+
+    #
+    schema_hash = md5(json.dumps(schema, sort_keys=True).encode()).hexdigest()
+    expected_hash = "5cc7c4535c62245fca9852966e5b326c"
+    assert schema_hash == expected_hash
+
+    tests = [
+        (
+            [
+                {
+                    "keywords": "diabetes,type 2",
+                    "ICD10": "E11.9,E11",
+                    "rationale": "Patient has elevated blood sugar levels",
+                    "onsetDate": "2025-02-03",
+                    "assessment": "Stable, well-controlled",
+                }
+            ],
+            "",
+        ),
+        (
+            [],
+            "[] should be non-empty",
+        ),
+        (
+            [
+                {
+                    "keywords": "diabetes",
+                    "ICD10": "E11.9",
+                    "rationale": "Elevated blood sugar",
+                    "onsetDate": "2025-02-03",
+                    "assessment": "Stable",
+                },
+                {
+                    "keywords": "hypertension",
+                    "ICD10": "I10",
+                    "rationale": "High blood pressure",
+                    "onsetDate": "2024-01-01",
+                    "assessment": "Controlled with medication",
+                },
+            ],
+            "[{'keywords': 'diabetes', "
+            "'ICD10': 'E11.9', "
+            "'rationale': 'Elevated blood sugar', "
+            "'onsetDate': '2025-02-03', "
+            "'assessment': 'Stable'}, "
+            "{'keywords': 'hypertension', "
+            "'ICD10': 'I10', "
+            "'rationale': 'High blood pressure', "
+            "'onsetDate': '2024-01-01', "
+            "'assessment': 'Controlled with medication'}] is too long",
+        ),
+        (
+            [
+                {
+                    "keywords": "diabetes",
+                    "ICD10": "E11.9",
+                    "rationale": "Elevated blood sugar",
+                    "onsetDate": "2025-02-03",
+                    "assessment": "Stable",
+                    "extra": "field",
+                }
+            ],
+            "Additional properties are not allowed ('extra' was unexpected), in path [0]",
+        ),
+        (
+            [
+                {
+                    "ICD10": "E11.9",
+                    "rationale": "Elevated blood sugar",
+                    "onsetDate": "2025-02-03",
+                    "assessment": "Stable",
+                }
+            ],
+            "'keywords' is a required property, in path [0]",
+        ),
+        (
+            [
+                {
+                    "keywords": "diabetes",
+                    "rationale": "Elevated blood sugar",
+                    "onsetDate": "2025-02-03",
+                    "assessment": "Stable",
+                }
+            ],
+            "'ICD10' is a required property, in path [0]",
+        ),
+        (
+            [
+                {
+                    "keywords": "diabetes",
+                    "ICD10": "E11.9",
+                    "onsetDate": "2025-02-03",
+                    "assessment": "Stable",
+                }
+            ],
+            "'rationale' is a required property, in path [0]",
+        ),
+        (
+            [
+                {
+                    "keywords": "diabetes",
+                    "ICD10": "E11.9",
+                    "rationale": "Elevated blood sugar",
+                    "assessment": "Stable",
+                }
+            ],
+            "'onsetDate' is a required property, in path [0]",
+        ),
+        (
+            [
+                {
+                    "keywords": "diabetes",
+                    "ICD10": "E11.9",
+                    "rationale": "Elevated blood sugar",
+                    "onsetDate": "2025-02-03",
+                }
+            ],
+            "'assessment' is a required property, in path [0]",
+        ),
+        (
+            [
+                {
+                    "keywords": "diabetes",
+                    "ICD10": "E11.9",
+                    "rationale": "",
+                    "onsetDate": "2025-02-03",
+                    "assessment": "Stable",
+                }
+            ],
+            "'' should be non-empty, in path [0, 'rationale']",
+        ),
+        (
+            [
+                {
+                    "keywords": "diabetes",
+                    "ICD10": "E11.9",
+                    "rationale": "Elevated blood sugar",
+                    "onsetDate": "2025-02-03",
+                    "assessment": "",
+                }
+            ],
+            "'' should be non-empty, in path [0, 'assessment']",
+        ),
+        (
+            [
+                {
+                    "keywords": "diabetes",
+                    "ICD10": "E11.9",
+                    "rationale": "Elevated blood sugar",
+                    "onsetDate": "02-04-2025",
+                    "assessment": "Stable",
+                }
+            ],
+            "'02-04-2025' does not match '^\\\\d{4}-\\\\d{2}-\\\\d{2}$', in path [0, 'onsetDate']",
+        ),
+        (
+            [
+                {
+                    "keywords": "diabetes",
+                    "ICD10": "E11.9",
+                    "rationale": "Elevated blood sugar",
+                    "onsetDate": "10-21-89",
+                    "assessment": "Stable",
+                }
+            ],
+            "'10-21-89' does not match '^\\\\d{4}-\\\\d{2}-\\\\d{2}$', in path [0, 'onsetDate']",
+        ),
+    ]
+    for idx, (dictionary, expected) in enumerate(tests):
+        result = LlmBase.json_validator(dictionary, schema)
+        assert result == expected, f"---> {idx}"
 
 
 def test_instruction_description():

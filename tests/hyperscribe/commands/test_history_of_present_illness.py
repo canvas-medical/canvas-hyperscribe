@@ -1,5 +1,5 @@
-import json
 from hashlib import md5
+import json
 from unittest.mock import MagicMock
 
 from canvas_sdk.commands.commands.history_present_illness import HistoryOfPresentIllnessCommand
@@ -7,6 +7,7 @@ from canvas_sdk.commands.commands.history_present_illness import HistoryOfPresen
 from hyperscribe.commands.base import Base
 from hyperscribe.commands.history_of_present_illness import HistoryOfPresentIllness
 from hyperscribe.libraries.limited_cache import LimitedCache
+from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.custom_prompt import CustomPrompt
@@ -108,9 +109,43 @@ def test_command_parameters():
 
 def test_command_parameters_schemas():
     tested = helper_instance()
-    result = tested.command_parameters_schemas()
-    expected = "349e8381a83bd3f8ec7a5048c48bbef2"
-    assert md5(json.dumps(result).encode()).hexdigest() == expected
+    schemas = tested.command_parameters_schemas()
+    assert len(schemas) == 1
+    schema = schemas[0]
+
+    #
+    schema_hash = md5(json.dumps(schema, sort_keys=True).encode()).hexdigest()
+    expected_hash = "f74d047438c7bb480f347e81e8e479e5"
+    assert schema_hash == expected_hash
+
+    tests = [
+        (
+            [{"narrative": "Patient presents with chest pain that started 2 hours ago"}],
+            "",
+        ),
+        (
+            [],
+            "[] should be non-empty",
+        ),
+        (
+            [
+                {"narrative": "Patient has chest pain"},
+                {"narrative": "Patient has shortness of breath"},
+            ],
+            "[{'narrative': 'Patient has chest pain'}, {'narrative': 'Patient has shortness of breath'}] is too long",
+        ),
+        (
+            [{"narrative": "Patient has chest pain", "extra": "field"}],
+            "Additional properties are not allowed ('extra' was unexpected), in path [0]",
+        ),
+        (
+            [{}],
+            "'narrative' is a required property, in path [0]",
+        ),
+    ]
+    for idx, (dictionary, expected) in enumerate(tests):
+        result = LlmBase.json_validator(dictionary, schema)
+        assert result == expected, f"---> {idx}"
 
 
 def test_instruction_description():

@@ -1,5 +1,5 @@
-import json
 from hashlib import md5
+import json
 from unittest.mock import MagicMock, patch, call
 
 from canvas_sdk.commands import PerformCommand
@@ -7,6 +7,7 @@ from canvas_sdk.commands import PerformCommand
 from hyperscribe.commands.base import Base
 from hyperscribe.commands.perform import Perform
 from hyperscribe.libraries.limited_cache import LimitedCache
+from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.charge_description import ChargeDescription
 from hyperscribe.structures.coded_item import CodedItem
@@ -216,9 +217,48 @@ def test_command_parameters():
 
 def test_command_parameters_schemas():
     tested = helper_instance()
-    result = tested.command_parameters_schemas()
-    expected = "2c76f5a97f2f2a38a7e06f31ac7311eb"
-    assert md5(json.dumps(result).encode()).hexdigest() == expected
+    schemas = tested.command_parameters_schemas()
+    assert len(schemas) == 1
+    schema = schemas[0]
+
+    #
+    schema_hash = md5(json.dumps(schema, sort_keys=True).encode()).hexdigest()
+    expected_hash = "5be3b81a2d571231760daa1ecf666e0d"
+    assert schema_hash == expected_hash
+
+    tests = [
+        (
+            [{"procedureKeywords": "suture,stitching", "comment": "Laceration repair on left arm"}],
+            "",
+        ),
+        (
+            [],
+            "[] should be non-empty",
+        ),
+        (
+            [
+                {"procedureKeywords": "suture", "comment": "Laceration repair"},
+                {"procedureKeywords": "injection", "comment": "Administered vaccine"},
+            ],
+            "[{'procedureKeywords': 'suture', 'comment': 'Laceration repair'}, "
+            "{'procedureKeywords': 'injection', 'comment': 'Administered vaccine'}] is too long",
+        ),
+        (
+            [{"procedureKeywords": "suture", "comment": "Laceration repair", "extra": "field"}],
+            "Additional properties are not allowed ('extra' was unexpected), in path [0]",
+        ),
+        (
+            [{"comment": "Laceration repair"}],
+            "'procedureKeywords' is a required property, in path [0]",
+        ),
+        (
+            [{"procedureKeywords": "suture"}],
+            "'comment' is a required property, in path [0]",
+        ),
+    ]
+    for idx, (dictionary, expected) in enumerate(tests):
+        result = LlmBase.json_validator(dictionary, schema)
+        assert result == expected, f"---> {idx}"
 
 
 def test_instruction_description():

@@ -1,5 +1,5 @@
-import json
 from hashlib import md5
+import json
 from unittest.mock import patch, call, MagicMock
 
 from canvas_sdk.commands.commands.imaging_order import ImagingOrderCommand
@@ -9,6 +9,7 @@ from hyperscribe.commands.imaging_order import ImagingOrder
 from hyperscribe.libraries.canvas_science import CanvasScience
 from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.libraries.selector_chat import SelectorChat
+from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.identification_parameters import IdentificationParameters
@@ -374,9 +375,192 @@ def test_command_parameters():
 
 def test_command_parameters_schemas():
     tested = helper_instance()
-    result = tested.command_parameters_schemas()
-    expected = "944f87c0dd3a5e65ad507018c725e0b9"
-    assert md5(json.dumps(result).encode()).hexdigest() == expected
+    schemas = tested.command_parameters_schemas()
+    assert len(schemas) == 1
+    schema = schemas[0]
+
+    #
+    schema_hash = md5(json.dumps(schema, sort_keys=True).encode()).hexdigest()
+    expected_hash = "f248a67eecc13ae7d4754b8ad608b93a"
+    assert schema_hash == expected_hash
+
+    tests = [
+        (
+            [
+                {
+                    "imagingKeywords": "chest xray,CXR",
+                    "conditions": [{"conditionKeywords": "pneumonia,infection", "ICD10": "J18.9,J18"}],
+                    "comment": "Rule out pneumonia",
+                    "noteToRadiologist": "Patient has fever and cough",
+                    "priority": "Routine",
+                }
+            ],
+            "",
+        ),
+        (
+            [
+                {
+                    "imagingKeywords": "CT scan,head CT",
+                    "conditions": [],
+                    "comment": "Evaluate for stroke",
+                    "noteToRadiologist": "Sudden onset headache",
+                    "priority": "Urgent",
+                }
+            ],
+            "",
+        ),
+        (
+            [],
+            "[] should be non-empty",
+        ),
+        (
+            [
+                {
+                    "imagingKeywords": "chest xray",
+                    "conditions": [],
+                    "comment": "Rule out pneumonia",
+                    "noteToRadiologist": "Patient has fever",
+                    "priority": "Routine",
+                },
+                {
+                    "imagingKeywords": "CT scan",
+                    "conditions": [],
+                    "comment": "Evaluate for stroke",
+                    "noteToRadiologist": "Sudden headache",
+                    "priority": "Urgent",
+                },
+            ],
+            "[{'imagingKeywords': 'chest xray', "
+            "'conditions': [], "
+            "'comment': 'Rule out pneumonia', "
+            "'noteToRadiologist': 'Patient has fever', "
+            "'priority': 'Routine'}, "
+            "{'imagingKeywords': 'CT scan', "
+            "'conditions': [], "
+            "'comment': 'Evaluate for stroke', "
+            "'noteToRadiologist': 'Sudden headache', "
+            "'priority': 'Urgent'}] is too long",
+        ),
+        (
+            [
+                {
+                    "imagingKeywords": "chest xray",
+                    "conditions": [],
+                    "comment": "Rule out pneumonia",
+                    "noteToRadiologist": "Patient has fever",
+                    "priority": "Routine",
+                    "extra": "field",
+                }
+            ],
+            "Additional properties are not allowed ('extra' was unexpected), in path [0]",
+        ),
+        (
+            [
+                {
+                    "conditions": [],
+                    "comment": "Rule out pneumonia",
+                    "noteToRadiologist": "Patient has fever",
+                    "priority": "Routine",
+                }
+            ],
+            "'imagingKeywords' is a required property, in path [0]",
+        ),
+        (
+            [
+                {
+                    "imagingKeywords": "chest xray",
+                    "comment": "Rule out pneumonia",
+                    "noteToRadiologist": "Patient has fever",
+                    "priority": "Routine",
+                }
+            ],
+            "'conditions' is a required property, in path [0]",
+        ),
+        (
+            [
+                {
+                    "imagingKeywords": "chest xray",
+                    "conditions": [],
+                    "noteToRadiologist": "Patient has fever",
+                    "priority": "Routine",
+                }
+            ],
+            "'comment' is a required property, in path [0]",
+        ),
+        (
+            [
+                {
+                    "imagingKeywords": "chest xray",
+                    "conditions": [],
+                    "comment": "Rule out pneumonia",
+                    "priority": "Routine",
+                }
+            ],
+            "'noteToRadiologist' is a required property, in path [0]",
+        ),
+        (
+            [
+                {
+                    "imagingKeywords": "chest xray",
+                    "conditions": [],
+                    "comment": "Rule out pneumonia",
+                    "noteToRadiologist": "Patient has fever",
+                }
+            ],
+            "'priority' is a required property, in path [0]",
+        ),
+        (
+            [
+                {
+                    "imagingKeywords": "chest xray",
+                    "conditions": [],
+                    "comment": "Rule out pneumonia",
+                    "noteToRadiologist": "Patient has fever",
+                    "priority": "invalid_priority",
+                }
+            ],
+            "'invalid_priority' is not one of ['Routine', 'Urgent'], in path [0, 'priority']",
+        ),
+        (
+            [
+                {
+                    "imagingKeywords": "chest xray",
+                    "conditions": [{"conditionKeywords": "pneumonia"}],
+                    "comment": "Rule out pneumonia",
+                    "noteToRadiologist": "Patient has fever",
+                    "priority": "Routine",
+                }
+            ],
+            "'ICD10' is a required property, in path [0, 'conditions', 0]",
+        ),
+        (
+            [
+                {
+                    "imagingKeywords": "chest xray",
+                    "conditions": [{"ICD10": "J18.9"}],
+                    "comment": "Rule out pneumonia",
+                    "noteToRadiologist": "Patient has fever",
+                    "priority": "Routine",
+                }
+            ],
+            "'conditionKeywords' is a required property, in path [0, 'conditions', 0]",
+        ),
+        (
+            [
+                {
+                    "imagingKeywords": "chest xray",
+                    "conditions": [{"conditionKeywords": "pneumonia", "ICD10": "J18.9", "extra": "field"}],
+                    "comment": "Rule out pneumonia",
+                    "noteToRadiologist": "Patient has fever",
+                    "priority": "Routine",
+                }
+            ],
+            "Additional properties are not allowed ('extra' was unexpected), in path [0, 'conditions', 0]",
+        ),
+    ]
+    for idx, (dictionary, expected) in enumerate(tests):
+        result = LlmBase.json_validator(dictionary, schema)
+        assert result == expected, f"---> {idx}"
 
 
 def test_instruction_description():

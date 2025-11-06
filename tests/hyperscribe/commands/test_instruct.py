@@ -1,5 +1,5 @@
-import json
 from hashlib import md5
+import json
 from unittest.mock import patch, call, MagicMock
 
 from canvas_sdk.commands.commands.instruct import InstructCommand
@@ -9,6 +9,7 @@ from hyperscribe.commands.base import Base
 from hyperscribe.commands.instruct import Instruct
 from hyperscribe.libraries.canvas_science import CanvasScience
 from hyperscribe.libraries.limited_cache import LimitedCache
+from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.custom_prompt import CustomPrompt
@@ -222,9 +223,48 @@ def test_command_parameters():
 
 def test_command_parameters_schemas():
     tested = helper_instance()
-    result = tested.command_parameters_schemas()
-    expected = "792be5821aac063ba1468284cf5719f3"
-    assert md5(json.dumps(result).encode()).hexdigest() == expected
+    schemas = tested.command_parameters_schemas()
+    assert len(schemas) == 1
+    schema = schemas[0]
+
+    #
+    schema_hash = md5(json.dumps(schema, sort_keys=True).encode()).hexdigest()
+    expected_hash = "adf009d69cd83beebd42f143f449ed37"
+    assert schema_hash == expected_hash
+
+    tests = [
+        (
+            [{"keywords": "diet,nutrition,lifestyle", "comment": "Patient should follow a low-sodium diet"}],
+            "",
+        ),
+        (
+            [],
+            "[] should be non-empty",
+        ),
+        (
+            [
+                {"keywords": "diet,nutrition", "comment": "Follow low-sodium diet"},
+                {"keywords": "exercise", "comment": "Walk 30 minutes daily"},
+            ],
+            "[{'keywords': 'diet,nutrition', 'comment': 'Follow low-sodium diet'}, "
+            "{'keywords': 'exercise', 'comment': 'Walk 30 minutes daily'}] is too long",
+        ),
+        (
+            [{"keywords": "diet", "comment": "Follow low-sodium diet", "extra": "field"}],
+            "Additional properties are not allowed ('extra' was unexpected), in path [0]",
+        ),
+        (
+            [{"comment": "Follow low-sodium diet"}],
+            "'keywords' is a required property, in path [0]",
+        ),
+        (
+            [{"keywords": "diet"}],
+            "'comment' is a required property, in path [0]",
+        ),
+    ]
+    for idx, (dictionary, expected) in enumerate(tests):
+        result = LlmBase.json_validator(dictionary, schema)
+        assert result == expected, f"---> {idx}"
 
 
 def test_instruction_description():

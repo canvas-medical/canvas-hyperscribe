@@ -10,6 +10,7 @@ from evaluations.case_builders.synthetic_chart_generator import SyntheticChartGe
 from evaluations.constants import Constants
 from evaluations.structures.chart import Chart
 from evaluations.structures.patient_profile import PatientProfile
+from hyperscribe.llms.llm_base import LlmBase
 from tests.helper import MockClass
 
 
@@ -87,6 +88,184 @@ def test_schema_chart():
         "nationalDrugCode",
         "potencyUnitCode",
     ]
+
+
+def test_schema_chart_validation():
+    tested = SyntheticChartGenerator([])
+    schema = tested.schema_chart()
+
+    tests = [
+        # Valid case with all required fields
+        (
+            {
+                "demographicStr": "65-year-old male",
+                "conditionHistory": [{"code": "Z87.891", "label": "History of tobacco use", "uuid": ""}],
+                "currentAllergies": [{"code": "Z88.1", "label": "Allergy to penicillin", "uuid": ""}],
+                "currentConditions": [{"code": "J45.9", "label": "Asthma", "uuid": ""}],
+                "currentMedications": [
+                    {
+                        "uuid": "",
+                        "label": "Albuterol",
+                        "codeRxNorm": "329498",
+                        "codeFdb": "",
+                        "nationalDrugCode": "",
+                        "potencyUnitCode": "",
+                    }
+                ],
+                "currentGoals": [{"code": "", "label": "Control asthma", "uuid": ""}],
+                "familyHistory": [],
+                "surgeryHistory": [],
+            },
+            "",
+        ),
+        # Additional properties violation
+        (
+            {
+                "demographicStr": "65-year-old male",
+                "conditionHistory": [],
+                "currentAllergies": [],
+                "currentConditions": [],
+                "currentMedications": [],
+                "currentGoals": [],
+                "familyHistory": [],
+                "surgeryHistory": [],
+                "extraField": "not allowed",
+            },
+            "Additional properties are not allowed ('extraField' was unexpected)",
+        ),
+        # Missing required field: demographicStr
+        (
+            {
+                "conditionHistory": [],
+                "currentAllergies": [],
+                "currentConditions": [],
+                "currentMedications": [],
+                "currentGoals": [],
+                "familyHistory": [],
+                "surgeryHistory": [],
+            },
+            "'demographicStr' is a required property",
+        ),
+        # Missing required field: conditionHistory
+        (
+            {
+                "demographicStr": "65-year-old male",
+                "currentAllergies": [],
+                "currentConditions": [],
+                "currentMedications": [],
+                "currentGoals": [],
+                "familyHistory": [],
+                "surgeryHistory": [],
+            },
+            "'conditionHistory' is a required property",
+        ),
+        # Type violation: demographicStr not string
+        (
+            {
+                "demographicStr": 123,
+                "conditionHistory": [],
+                "currentAllergies": [],
+                "currentConditions": [],
+                "currentMedications": [],
+                "currentGoals": [],
+                "familyHistory": [],
+                "surgeryHistory": [],
+            },
+            "123 is not of type 'string', in path ['demographicStr']",
+        ),
+        # ChartItem missing required field: code
+        (
+            {
+                "demographicStr": "65-year-old male",
+                "conditionHistory": [{"label": "History of tobacco use", "uuid": ""}],
+                "currentAllergies": [],
+                "currentConditions": [],
+                "currentMedications": [],
+                "currentGoals": [],
+                "familyHistory": [],
+                "surgeryHistory": [],
+            },
+            "'code' is a required property, in path ['conditionHistory', 0]",
+        ),
+        # ChartItem missing required field: label
+        (
+            {
+                "demographicStr": "65-year-old male",
+                "conditionHistory": [{"code": "Z87.891", "uuid": ""}],
+                "currentAllergies": [],
+                "currentConditions": [],
+                "currentMedications": [],
+                "currentGoals": [],
+                "familyHistory": [],
+                "surgeryHistory": [],
+            },
+            "'label' is a required property, in path ['conditionHistory', 0]",
+        ),
+        # ChartItem additional properties
+        (
+            {
+                "demographicStr": "65-year-old male",
+                "conditionHistory": [{"code": "Z87.891", "label": "History", "uuid": "", "extra": "field"}],
+                "currentAllergies": [],
+                "currentConditions": [],
+                "currentMedications": [],
+                "currentGoals": [],
+                "familyHistory": [],
+                "surgeryHistory": [],
+            },
+            "Additional properties are not allowed ('extra' was unexpected), in path ['conditionHistory', 0]",
+        ),
+        # Medication missing required field: codeRxNorm
+        (
+            {
+                "demographicStr": "65-year-old male",
+                "conditionHistory": [],
+                "currentAllergies": [],
+                "currentConditions": [],
+                "currentMedications": [
+                    {
+                        "uuid": "",
+                        "label": "Albuterol",
+                        "codeFdb": "",
+                        "nationalDrugCode": "",
+                        "potencyUnitCode": "",
+                    }
+                ],
+                "currentGoals": [],
+                "familyHistory": [],
+                "surgeryHistory": [],
+            },
+            "'codeRxNorm' is a required property, in path ['currentMedications', 0]",
+        ),
+        # Medication additional properties
+        (
+            {
+                "demographicStr": "65-year-old male",
+                "conditionHistory": [],
+                "currentAllergies": [],
+                "currentConditions": [],
+                "currentMedications": [
+                    {
+                        "uuid": "",
+                        "label": "Albuterol",
+                        "codeRxNorm": "329498",
+                        "codeFdb": "",
+                        "nationalDrugCode": "",
+                        "potencyUnitCode": "",
+                        "extra": "field",
+                    }
+                ],
+                "currentGoals": [],
+                "familyHistory": [],
+                "surgeryHistory": [],
+            },
+            "Additional properties are not allowed ('extra' was unexpected), in path ['currentMedications', 0]",
+        ),
+    ]
+
+    for idx, (test_data, expected) in enumerate(tests):
+        result = LlmBase.json_validator(test_data, schema)
+        assert result == expected, f"---> {idx}"
 
 
 @patch.object(SyntheticChartGenerator, "schema_chart")
