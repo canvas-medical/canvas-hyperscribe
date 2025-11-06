@@ -106,8 +106,8 @@ def test__from_dict_base(is_true, clamp_int):
                 "CycleTranscriptOverlap": "57",
                 "MaxWorkers": "4",
                 "HierarchicalDetectionThreshold": "9",
-                "CustomPrompts": '[{"command":"theCommand1","prompt":"thePrompt1"},'
-                '{"command":"theCommand2","prompt":"thePrompt2"},'
+                "CustomPrompts": '[{"command":"theCommand1","prompt":"thePrompt1","active":true},'
+                '{"command":"theCommand2","prompt":"thePrompt2","active":false},'
                 '{"command":"theCommand3","prompt":"thePrompt3"}]',
             },
             False,
@@ -119,9 +119,9 @@ def test__from_dict_base(is_true, clamp_int):
             audit_llm=audit,
             reasoning_llm=False,
             custom_prompts=[
-                CustomPrompt(command="theCommand1", prompt="thePrompt1"),
-                CustomPrompt(command="theCommand2", prompt="thePrompt2"),
-                CustomPrompt(command="theCommand3", prompt="thePrompt3"),
+                CustomPrompt(command="theCommand1", prompt="thePrompt1", active=True),
+                CustomPrompt(command="theCommand2", prompt="thePrompt2", active=False),
+                CustomPrompt(command="theCommand3", prompt="thePrompt3", active=True),
             ],
             is_tuning=tuning,
             api_signing_key="theApiSigningKey",

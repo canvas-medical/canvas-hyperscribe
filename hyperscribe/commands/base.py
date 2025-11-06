@@ -37,7 +37,7 @@ class Base:
 
     def custom_prompt(self) -> str:
         class_name = self.class_name()
-        return next((cp.prompt for cp in self.settings.custom_prompts if cp.command == class_name), "")
+        return next((cp.prompt for cp in self.settings.custom_prompts if cp.command == class_name and cp.active), "")
 
     def command_from_json(
         self,

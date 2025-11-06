@@ -24,10 +24,10 @@ def helper_instance() -> Base:
         audit_llm=False,
         reasoning_llm=False,
         custom_prompts=[
-            CustomPrompt(command="Command1", prompt="Prompt1"),
-            CustomPrompt(command="Command2", prompt="Prompt2"),
-            CustomPrompt(command="Command3", prompt="Prompt3"),
-            CustomPrompt(command="Command4", prompt=""),
+            CustomPrompt(command="Command1", prompt="Prompt1", active=True),
+            CustomPrompt(command="Command2", prompt="Prompt2", active=True),
+            CustomPrompt(command="Command3", prompt="Prompt3", active=False),
+            CustomPrompt(command="Command4", prompt="", active=True),
         ],
         is_tuning=False,
         api_signing_key="theApiSigningKey",
@@ -115,9 +115,9 @@ def test_custom_prompt(class_name):
     tests = [
         ("Command1", "Prompt1"),
         ("Command2", "Prompt2"),
-        ("Command3", "Prompt3"),
+        ("Command3", ""),  # <-- not active
         ("Command4", ""),
-        ("Command5", ""),
+        ("Command5", ""),  # <--- unknown
     ]
     for class_name_side_effect, expected in tests:
         class_name.side_effect = [class_name_side_effect]

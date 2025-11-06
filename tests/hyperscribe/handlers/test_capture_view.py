@@ -18,6 +18,7 @@ from hyperscribe.libraries.authenticator import Authenticator
 from hyperscribe.libraries.constants import Constants
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
+from hyperscribe.structures.custom_prompt import CustomPrompt
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.notion_feedback_record import NotionFeedbackRecord
 from hyperscribe.structures.progress_message import ProgressMessage
@@ -897,6 +898,7 @@ def test_run_reviewer(log, implemented_commands, llm_decision_reviewer, progress
     reset_mocks()
 
 
+@patch("hyperscribe.handlers.capture_view.Customization")
 @patch("hyperscribe.handlers.capture_view.LlmTurnsStore")
 @patch("hyperscribe.handlers.capture_view.Commander")
 @patch("hyperscribe.handlers.capture_view.ProgressDisplay")
@@ -912,6 +914,7 @@ def test_run_commander(
     progress,
     commander,
     llm_turns_store,
+    customization,
     monkeypatch,
 ):
     monkeypatch.setattr("hyperscribe.handlers.capture_view.version", "theVersion")
@@ -923,6 +926,7 @@ def test_run_commander(
         memory_log.reset_mock()
         progress.reset_mock()
         commander.reset_mock()
+        customization.reset_mock()
         llm_turns_store.reset_mock()
 
     identification = IdentificationParameters(
@@ -931,24 +935,52 @@ def test_run_commander(
         provider_uuid="theProviderId",
         canvas_instance="customerIdentifier",
     )
-    settings = Settings(
-        api_signing_key="signingKey",
-        llm_text=VendorKey(vendor="theVendorTextLLM", api_key="theKeyTextLLM"),
-        llm_audio=VendorKey(vendor="theVendorAudioLLM", api_key="theKeyAudioLLM"),
-        structured_rfv=True,
-        audit_llm=True,
-        reasoning_llm=False,
-        custom_prompts=[],
-        is_tuning=False,
-        max_workers=5,
-        hierarchical_detection_threshold=5,
-        send_progress=True,
-        commands_policy=AccessPolicy(policy=False, items=[]),
-        staffers_policy=AccessPolicy(policy=False, items=[]),
-        trial_staffers_policy=AccessPolicy(policy=True, items=[]),
-        cycle_transcript_overlap=37,
+    settings = [
+        Settings(
+            api_signing_key="signingKey",
+            llm_text=VendorKey(vendor="theVendorTextLLM", api_key="theKeyTextLLM"),
+            llm_audio=VendorKey(vendor="theVendorAudioLLM", api_key="theKeyAudioLLM"),
+            structured_rfv=True,
+            audit_llm=True,
+            reasoning_llm=False,
+            custom_prompts=[
+                CustomPrompt(command="theCommand1", prompt="thePrompt1", active=True),
+                CustomPrompt(command="theCommand2", prompt="thePrompt2", active=False),
+                CustomPrompt(command="theCommand3", prompt="thePrompt3", active=True),
+            ],
+            is_tuning=False,
+            max_workers=5,
+            hierarchical_detection_threshold=5,
+            send_progress=True,
+            commands_policy=AccessPolicy(policy=False, items=[]),
+            staffers_policy=AccessPolicy(policy=False, items=[]),
+            trial_staffers_policy=AccessPolicy(policy=True, items=[]),
+            cycle_transcript_overlap=37,
+        ),
+        Settings(
+            api_signing_key="signingKey",
+            llm_text=VendorKey(vendor="theVendorTextLLM", api_key="theKeyTextLLM"),
+            llm_audio=VendorKey(vendor="theVendorAudioLLM", api_key="theKeyAudioLLM"),
+            structured_rfv=True,
+            audit_llm=True,
+            reasoning_llm=False,
+            custom_prompts=[CustomPrompt(command="theCommand1", prompt="thePrompt1", active=True)],
+            is_tuning=False,
+            max_workers=5,
+            hierarchical_detection_threshold=5,
+            send_progress=True,
+            commands_policy=AccessPolicy(policy=False, items=[]),
+            staffers_policy=AccessPolicy(policy=False, items=[]),
+            trial_staffers_policy=AccessPolicy(policy=True, items=[]),
+            cycle_transcript_overlap=37,
+        ),
+    ]
+    credentials = AwsS3Credentials(
+        aws_key="theKey",
+        aws_secret="theSecret",
+        region="theRegion",
+        bucket="theBucketLogs",
     )
-    credentials = AwsS3Credentials(aws_key="theKey", aws_secret="theSecret", region="theRegion", bucket="theBucketLogs")
     effects = [
         Effect(type="LOG", payload="Log1"),
         Effect(type="LOG", payload="Log2"),
@@ -975,6 +1007,13 @@ def test_run_commander(
         stop_and_go.get.return_value.is_ended.side_effect = [is_ended]
         stop_and_go.get.return_value.is_paused.side_effect = [is_paused]
         stop_and_go.get.return_value.waiting_cycles.side_effect = [waiting_cycles]
+        customization.custom_prompts_as_secret.side_effect = [
+            {
+                "CustomPrompts": '[{"command":"theCommand1","prompt":"thePrompt1","active":true},'
+                '{"command":"theCommand2","prompt":"thePrompt2","active":false},'
+                '{"command":"theCommand3","prompt":"thePrompt3"}]'
+            }
+        ]
 
         tested.run_commander(identification, 7)
 
@@ -1014,16 +1053,21 @@ def test_run_commander(
         assert memory_log.mock_calls == calls
         calls = []
         if not is_ended or waiting_cycles:
-            calls = [call.send_to_user(identification, settings, exp_progress_msg)]
+            calls = [call.send_to_user(identification, settings[0], exp_progress_msg)]
         assert progress.mock_calls == calls
-        calls = [call.compute_audio(identification, settings, credentials, audio_client, 7)]
+        calls = [call.compute_audio(identification, settings[0], credentials, audio_client, 7)]
         assert commander.mock_calls == calls
         calls = [call.end_session("noteId")]
         assert llm_turns_store.mock_calls == calls
+        calls = [call.custom_prompts_as_secret(credentials, "customerIdentifier")]
+        assert customization.mock_calls == calls
         reset_mocks()
 
     # error in Commander.compute_audio
     commander.compute_audio.side_effect = [Exception("Test error")]
+    customization.custom_prompts_as_secret.side_effect = [
+        {"CustomPrompts": '[{"command":"theCommand1","prompt":"thePrompt1","active":true}]'}
+    ]
 
     tested.run_commander(identification, 7)
 
@@ -1051,7 +1095,9 @@ def test_run_commander(
     ]
     assert memory_log.mock_calls == calls
     assert progress.mock_calls == []
-    calls = [call.compute_audio(identification, settings, credentials, audio_client, 7)]
+    calls = [call.compute_audio(identification, settings[1], credentials, audio_client, 7)]
     assert commander.mock_calls == calls
     assert llm_turns_store.mock_calls == []
+    calls = [call.custom_prompts_as_secret(credentials, "customerIdentifier")]
+    assert customization.mock_calls == calls
     reset_mocks()

@@ -81,19 +81,33 @@ def test_get_auditor(settings, s3_credentials, psql_credentials, auditor_postgre
 
 
 @patch("evaluations.helper_evaluation.Settings")
-def test_settings(settings):
+@patch("evaluations.helper_evaluation.Customization")
+@patch.object(HelperEvaluation, "get_canvas_instance")
+@patch.object(HelperEvaluation, "aws_s3_credentials")
+def test_settings(aws_s3_credentials, get_canvas_instance, customization, settings):
     def reset_mocks():
+        aws_s3_credentials.reset_mock()
+        get_canvas_instance.reset_mock()
+        customization.reset_mock()
         settings.reset_mock()
 
     with patch.dict("os.environ", {"variable1": "value1", "variable2": "value2"}, clear=True):
         tested = HelperEvaluation
+        aws_s3_credentials.side_effect = ["theAwsS3Credentials"]
+        get_canvas_instance.side_effect = ["theCanvasInstance"]
+        customization.custom_prompts_as_secret.side_effect = [{"variable1": "value4", "variable3": "value3"}]
         settings.from_dictionary.side_effect = ["theSettings"]
 
         result = tested.settings()
         expected = "theSettings"
         assert result == expected
 
-        calls = [call.from_dictionary({"variable1": "value1", "variable2": "value2"})]
+        calls = [call()]
+        assert aws_s3_credentials.mock_calls == calls
+        assert get_canvas_instance.mock_calls == calls
+        calls = [call.custom_prompts_as_secret("theAwsS3Credentials", "theCanvasInstance")]
+        assert customization.mock_calls == calls
+        calls = [call.from_dictionary({"variable1": "value4", "variable2": "value2", "variable3": "value3"})]
         assert settings.mock_calls == calls
         reset_mocks()
 
