@@ -5,8 +5,8 @@ from tests.helper import is_constant
 def test_constants():
     tested = Constants
     constants = {
-        "ANTHROPIC_CHAT_TEXT": "claude-3-5-sonnet-20241022",
-        "ANTHROPIC_REASONING_TEXT": "claude-3-5-sonnet-20241022",
+        "ANTHROPIC_CHAT_TEXT": "claude-sonnet-4-5-20250929",
+        "ANTHROPIC_REASONING_TEXT": "claude-opus-4-1-20250805",
         "AWS3_LINK_EXPIRATION_SECONDS": 1200,
         "API_SIGNED_EXPIRATION_SECONDS": 3600,
         "CYCLE_TRANSCRIPT_OVERLAP_MIN": 5,
@@ -14,8 +14,8 @@ def test_constants():
         "CYCLE_TRANSCRIPT_OVERLAP_DEFAULT": 100,
         "ELEVEN_LABS_AUDIO": "scribe_v1",
         "DISCUSSION_CACHED_DURATION": 90,
-        "GOOGLE_CHAT_ALL": "models/gemini-2.0-flash",
-        "GOOGLE_REASONING_TEXT": "models/gemini-2.0-flash",
+        "GOOGLE_CHAT_ALL": "models/gemini-2.5-flash",
+        "GOOGLE_REASONING_TEXT": "models/gemini-2.5-pro",
         "HIERARCHICAL_DETECTION_THRESHOLD_MIN": 0,
         "HIERARCHICAL_DETECTION_THRESHOLD_MAX": 999,
         "HIERARCHICAL_DETECTION_THRESHOLD_DEFAULT": 5,
@@ -34,7 +34,7 @@ def test_constants():
         "TEXT_MODEL_CHAT": "chat",
         "MEMORY_LOG_LABEL": "main",
         "OPENAI_CHAT_AUDIO": "gpt-4o-audio-preview",
-        "OPENAI_CHAT_TEXT": "gpt-4o",
+        "OPENAI_CHAT_TEXT": "gpt-4.1",
         "OPENAI_CHAT_TEXT_O3": "o3",
         "OPENAI_REASONING_TEXT": "o3",
         "O3_TEMPERATURE": 1.0,

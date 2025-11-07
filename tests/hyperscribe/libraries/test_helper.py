@@ -119,10 +119,10 @@ def test_chatter():
     memory_log = MagicMock()
     tested = Helper
     tests = [
-        ("Anthropic", LlmAnthropic, "claude-3-5-sonnet-20241022"),
-        ("Google", LlmGoogle, "models/gemini-2.0-flash"),
+        ("Anthropic", LlmAnthropic, "claude-sonnet-4-5-20250929"),
+        ("Google", LlmGoogle, "models/gemini-2.5-flash"),
         ("OpenAI", LlmOpenaiO3, "o3"),
-        ("Any", LlmOpenai, "gpt-4o"),
+        ("Any", LlmOpenai, "gpt-4.1"),
     ]
     for vendor, exp_class, exp_model in tests:
         memory_log.reset_mock()
@@ -162,7 +162,7 @@ def test_audio2texter():
     memory_log = MagicMock()
     tested = Helper
     tests = [
-        ("Google", LlmGoogle, "models/gemini-2.0-flash"),
+        ("Google", LlmGoogle, "models/gemini-2.5-flash"),
         ("ElevenLabs", LlmElevenLabs, "scribe_v1"),
         ("Any", LlmOpenai, "gpt-4o-audio-preview"),
     ]

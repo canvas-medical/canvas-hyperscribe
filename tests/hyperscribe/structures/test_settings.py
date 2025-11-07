@@ -239,7 +239,7 @@ def test_llm_audio_model():
         ("", "gpt-4o-audio-preview"),
         ("Anthropic", "gpt-4o-audio-preview"),
         ("ElevenLabs", "scribe_v1"),
-        ("Google", "models/gemini-2.0-flash"),
+        ("Google", "models/gemini-2.5-flash"),
         ("OpenAI", "gpt-4o-audio-preview"),
         ("Other", "gpt-4o-audio-preview"),
     ]
@@ -268,15 +268,15 @@ def test_llm_audio_model():
 def test_llm_text_model():
     tests = [
         ("", True, "o3"),
-        ("Anthropic", True, "claude-3-5-sonnet-20241022"),
-        ("Google", True, "models/gemini-2.0-flash"),
+        ("Anthropic", True, "claude-opus-4-1-20250805"),
+        ("Google", True, "models/gemini-2.5-pro"),
         ("OpenAI", True, "o3"),
         ("Other", True, "o3"),
-        ("", False, "gpt-4o"),
-        ("Anthropic", False, "claude-3-5-sonnet-20241022"),
-        ("Google", False, "models/gemini-2.0-flash"),
-        ("OpenAI", False, "gpt-4o"),
-        ("Other", False, "gpt-4o"),
+        ("", False, "gpt-4.1"),
+        ("Anthropic", False, "claude-sonnet-4-5-20250929"),
+        ("Google", False, "models/gemini-2.5-flash"),
+        ("OpenAI", False, "gpt-4.1"),
+        ("Other", False, "gpt-4.1"),
     ]
     for vendor, reasoning_llm, expected in tests:
         tested = Settings(

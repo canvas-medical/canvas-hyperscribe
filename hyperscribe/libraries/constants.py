@@ -1,6 +1,6 @@
 class Constants:
-    ANTHROPIC_CHAT_TEXT = "claude-3-5-sonnet-20241022"  # LLM model used for text completion
-    ANTHROPIC_REASONING_TEXT = "claude-3-5-sonnet-20241022"
+    ANTHROPIC_CHAT_TEXT = "claude-sonnet-4-5-20250929"  # LLM model used for text completion
+    ANTHROPIC_REASONING_TEXT = "claude-opus-4-1-20250805"
     AWS3_LINK_EXPIRATION_SECONDS = 1200  # duration of an AWS S3 link
     API_SIGNED_EXPIRATION_SECONDS = 3600
     CYCLE_TRANSCRIPT_OVERLAP_MIN = 5
@@ -8,8 +8,8 @@ class Constants:
     CYCLE_TRANSCRIPT_OVERLAP_DEFAULT = 100
     DISCUSSION_CACHED_DURATION = 90  # minutes before a discussion is cleared
     ELEVEN_LABS_AUDIO = "scribe_v1"  # model used for speech to text
-    GOOGLE_CHAT_ALL = "models/gemini-2.0-flash"  # LLM model used for speech to text and text completion
-    GOOGLE_REASONING_TEXT = "models/gemini-2.0-flash"
+    GOOGLE_CHAT_ALL = "models/gemini-2.5-flash"  # LLM model used for speech to text and text completion
+    GOOGLE_REASONING_TEXT = "models/gemini-2.5-pro"
 
     # number of staged common commands to use the hierarchical detection flow
     HIERARCHICAL_DETECTION_THRESHOLD_MIN = 0
@@ -36,7 +36,7 @@ class Constants:
 
     MEMORY_LOG_LABEL = "main"
     OPENAI_CHAT_AUDIO = "gpt-4o-audio-preview"  # LLM model used for speech to text
-    OPENAI_CHAT_TEXT = "gpt-4o"  # LLM model used for text completion
+    OPENAI_CHAT_TEXT = "gpt-4.1"  # LLM model used for text completion
     OPENAI_CHAT_TEXT_O3 = "o3"
     OPENAI_REASONING_TEXT = "o3"  # LLM model used for reasoning
     O3_TEMPERATURE = 1.0
