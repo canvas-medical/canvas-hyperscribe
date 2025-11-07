@@ -33,8 +33,6 @@ from hyperscribe.structures.settings import Settings
 
 
 class Commander(BaseProtocol):
-    MAX_PREVIOUS_AUDIOS = 0
-
     @classmethod
     def compute_audio(
         cls,
@@ -46,15 +44,9 @@ class Commander(BaseProtocol):
     ) -> tuple[bool, list[Effect]]:
         audio_bytes = audio_client.get_audio_chunk(identification.patient_uuid, identification.note_uuid, chunk_index)
 
-        # TODO: Are we going to do overlapping chunks? If not, then simplify,
-        # TODO: doesn't need to be a list?
-        audios = []
-        if audio_bytes:
-            audios.append(audio_bytes)
-
         memory_log = MemoryLog.instance(identification, Constants.MEMORY_LOG_LABEL, aws_s3)
-        memory_log.output(f"--> audio chunks: {len(audios)}")
-        if not audios:
+        memory_log.output(f"--> audio length: {len(audio_bytes)}")
+        if not audio_bytes:
             return False, []
 
         messages = [
@@ -87,7 +79,7 @@ class Commander(BaseProtocol):
         auditor = AuditorLive(chunk_index, settings, aws_s3, identification)
         discussion.previous_instructions, results, discussion.previous_transcript = cls.audio2commands(
             auditor,
-            audios,
+            audio_bytes,
             chatter,
             previous_instructions,
             discussion.previous_transcript,
@@ -122,19 +114,19 @@ class Commander(BaseProtocol):
     def audio2commands(
         cls,
         auditor: AuditorBase,
-        audios: list[bytes],
+        audio_bytes: bytes,
         chatter: AudioInterpreter,
         previous_instructions: list[Instruction],
         previous_transcript: list[Line],
     ) -> tuple[list[Instruction], list[Effect], list[Line]]:
         memory_log = MemoryLog.instance(chatter.identification, Constants.MEMORY_LOG_LABEL, chatter.s3_credentials)
-        response = chatter.combine_and_speaker_detection(audios, previous_transcript)
+        response = chatter.combine_and_speaker_detection(audio_bytes, previous_transcript)
         if response.has_error is True:
             memory_log.output(f"--> transcript encountered: {response.error}")
             return previous_instructions, [], []  # <--- let's continue even if we were not able to get a transcript
 
         transcript = Line.load_from_json(response.content)
-        auditor.identified_transcript(audios, transcript)
+        auditor.identified_transcript(audio_bytes, transcript)
         memory_log.output(f"--> transcript back and forth: {len(transcript)}")
         messages = [
             ProgressMessage(

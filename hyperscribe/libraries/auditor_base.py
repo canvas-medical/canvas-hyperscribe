@@ -5,7 +5,7 @@ from hyperscribe.structures.line import Line
 
 
 class AuditorBase:
-    def identified_transcript(self, audios: list[bytes], transcript: list[Line]) -> bool:
+    def identified_transcript(self, audio_bytes: bytes, transcript: list[Line]) -> bool:
         raise NotImplementedError
 
     def found_instructions(

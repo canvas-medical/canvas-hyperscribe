@@ -32,7 +32,8 @@ def runner_audio2transcript(
 
     expected = json.load(json_file.open("r")).get(cycle, [])
 
-    transcript = audio_interpreter.combine_and_speaker_detection(content, [])
+    # content[0] --> always use the first set of audio bytes
+    transcript = audio_interpreter.combine_and_speaker_detection(content[0], [])
     assert transcript.has_error is False, f"{case}-{cycle}: transcript failed"
 
     valid, differences = HelperEvaluation.json_nuanced_differences(

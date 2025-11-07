@@ -3,12 +3,12 @@ from unittest.mock import patch, call, MagicMock
 
 from evaluations.case_builders.builder_base import BuilderBase
 from evaluations.case_builders.builder_from_mp3 import BuilderFromMp3
-from hyperscribe.libraries.commander import Commander
 from hyperscribe.libraries.cached_sdk import CachedSdk
 from hyperscribe.libraries.implemented_commands import ImplementedCommands
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.instruction import Instruction
 from hyperscribe.structures.line import Line
+from tests.helper import MockFile
 
 
 def test_class():
@@ -186,70 +186,86 @@ def test__run(
         reset_mocks()
 
 
-def test__combined_audios():
+@patch("evaluations.case_builders.builder_from_mp3.ffmpeg")
+def test__combined_audios(ffmpeg):
     mock_files = [MagicMock(), MagicMock(), MagicMock(), MagicMock(), MagicMock()]
+    mock_buffers = [
+        MockFile(content=b"audio content 0"),
+        MockFile(content=b"audio content 1"),
+        MockFile(content=b"audio content 2"),
+        MockFile(content=b"audio content 3"),
+        MockFile(content=b"audio content 4"),
+    ]
 
     def reset_mocks():
+        ffmpeg.reset_mock()
         for idx, item in enumerate(mock_files):
             item.reset_mock()
-            item.open.return_value.__enter__.return_value.read.side_effect = [f"audio content {idx}".encode("utf-8")]
+            item.open.side_effect = [mock_buffers[idx]]
+            item.__str__.side_effect = [f"input{idx}"]
 
     tested = BuilderFromMp3
-
-    tests = [
-        (
-            2,
-            True,
-            [[b"audio content 0", b"audio content 1", b"audio content 2", b"audio content 3", b"audio content 4"]],
-        ),
-        (
-            0,
-            True,
-            [[b"audio content 0", b"audio content 1", b"audio content 2", b"audio content 3", b"audio content 4"]],
-        ),
-        (
-            2,
-            False,
-            [
-                [b"audio content 0"],
-                [b"audio content 0", b"audio content 1"],
-                [b"audio content 0", b"audio content 1", b"audio content 2"],
-                [b"audio content 1", b"audio content 2", b"audio content 3"],
-                [b"audio content 2", b"audio content 3", b"audio content 4"],
-            ],
-        ),
-        (
-            0,
-            False,
-            [
-                [b"audio content 0"],
-                [b"audio content 1"],
-                [b"audio content 2"],
-                [b"audio content 3"],
-                [b"audio content 4"],
-            ],
-        ),
-    ]
+    # combined audios
     reset_mocks()
-    for max_previous_audios, combined, expected in tests:
-        with patch.object(Commander, "MAX_PREVIOUS_AUDIOS", max_previous_audios):
-            parameters = Namespace(
-                patient="thePatientUuid",
-                case="theCase",
-                group="theGroup",
-                type="theType",
-                mp3=mock_files,
-                combined=combined,
-                render=True,
-            )
-            result = tested._combined_audios(parameters)
-            assert result == expected
-            calls = [
-                call.open("rb"),
-                call.open().__enter__(),
-                call.open().__enter__().read(),
-                call.open().__exit__(None, None, None),
-            ]
-            for idx, mock_file in enumerate(mock_files):
-                assert mock_file.mock_calls == calls
-            reset_mocks()
+    ffmpeg.input.side_effect = ["input0", "input1", "input2", "input3", "input4"]
+    ffmpeg.concat.side_effect = ["concatenated"]
+    ffmpeg.output.side_effect = ["output"]
+    ffmpeg.run.side_effect = [(b"combined", "error")]
+
+    parameters = Namespace(
+        patient="thePatientUuid",
+        case="theCase",
+        group="theGroup",
+        type="theType",
+        mp3=mock_files,
+        combined=True,
+        render=True,
+    )
+    result = tested._combined_audios(parameters)
+    expected = [b"combined"]
+    assert result == expected
+
+    for mock_file in mock_files:
+        # <-- cannot use 'assert mock_file.mock_calls == [call.__str__()]' because
+        # call.__str__() is evaluated as 'call'!!
+        mock_file.__str__.assert_called_once()
+
+    calls = [
+        call.input("input0"),
+        call.input("input1"),
+        call.input("input2"),
+        call.input("input3"),
+        call.input("input4"),
+        call.concat("input0", "input1", "input2", "input3", "input4", v=0, a=1),
+        call.output("concatenated", "pipe:", format="mp3"),
+        call.run("output", capture_stdout=True, capture_stderr=True),
+    ]
+    assert ffmpeg.mock_calls == calls
+    reset_mocks()
+
+    # audios not combined
+    reset_mocks()
+    parameters = Namespace(
+        patient="thePatientUuid",
+        case="theCase",
+        group="theGroup",
+        type="theType",
+        mp3=mock_files,
+        combined=False,
+        render=True,
+    )
+    result = tested._combined_audios(parameters)
+    expected = [
+        b"audio content 0",
+        b"audio content 1",
+        b"audio content 2",
+        b"audio content 3",
+        b"audio content 4",
+    ]
+    assert result == expected
+
+    calls = [call.open("rb")]
+    for idx, mock_file in enumerate(mock_files):
+        assert mock_file.mock_calls == calls
+    assert ffmpeg.mock_calls == []
+    reset_mocks()

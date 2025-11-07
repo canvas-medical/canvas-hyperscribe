@@ -74,12 +74,11 @@ class AudioInterpreter:
             raise ValueError(f"{class_name} is not a known command")
         return self._command_context[class_name].command_parameters_schemas()
 
-    def combine_and_speaker_detection(self, audio_chunks: list[bytes], transcript_tail: list[Line]) -> JsonExtract:
+    def combine_and_speaker_detection(self, audio_bytes: bytes, transcript_tail: list[Line]) -> JsonExtract:
         memory_log = MemoryLog.instance(self.identification, "audio2transcript", self.s3_credentials)
         transcriber = Helper.audio2texter(self.settings, memory_log)
         extension = "mp3"
-        for audio in audio_chunks:
-            transcriber.add_audio(audio, extension)
+        transcriber.add_audio(audio_bytes, extension)
 
         if transcriber.support_speaker_identification():
             return self.combine_and_speaker_detection_single_step(transcriber, transcript_tail)

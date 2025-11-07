@@ -118,7 +118,7 @@ def test_identified_transcript(aws_s3):
     ]
     for is_ready, exp_calls in tests:
         aws_s3.return_value.is_ready.side_effect = [is_ready]
-        result = tested.identified_transcript([b"theAudio"], transcript)
+        result = tested.identified_transcript(b"theAudio", transcript)
         assert result is True
         assert aws_s3.mock_calls == exp_calls
         reset_mocks()

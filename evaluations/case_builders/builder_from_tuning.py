@@ -3,7 +3,6 @@ from argparse import ArgumentParser, Namespace
 
 from evaluations.auditors.auditor_store import AuditorStore
 from evaluations.case_builders.builder_base import BuilderBase
-from hyperscribe.libraries.commander import Commander
 from hyperscribe.libraries.audio_interpreter import AudioInterpreter
 from hyperscribe.libraries.cached_sdk import CachedSdk
 from hyperscribe.libraries.implemented_commands import ImplementedCommands
@@ -46,11 +45,6 @@ class BuilderFromTuning(BuilderBase):
             print(f"- {file.name}")
 
         limited_cache = LimitedCache.load_from_json(limited_cache_data)
-        audios: list[bytes] = []
-        for file in parameters.tuning_mp3:
-            with file.open("rb") as f:
-                audios.append(f.read())
-
         recorder.case_update_limited_cache(limited_cache.to_json(True))
 
         chatter = AudioInterpreter(recorder.settings, recorder.s3_credentials, limited_cache, identification)
@@ -58,12 +52,8 @@ class BuilderFromTuning(BuilderBase):
         discussion = CachedSdk.get_discussion(chatter.identification.note_uuid)
 
         transcript_tail: list[Line] = []
-        for cycle in range(len(audios)):
-            combined: list[bytes] = []
-            for chunk in range(cycle, max(-1, cycle - (1 + Commander.MAX_PREVIOUS_AUDIOS)), -1):
-                combined.insert(0, audios[chunk])
-
+        for cycle, file in enumerate(parameters.tuning_mp3):
             discussion.set_cycle(cycle + 1)
             recorder.set_cycle(cycle + 1)
-
-            previous, transcript_tail = cls._run_cycle(recorder, combined, chatter, previous, transcript_tail)
+            with file.open("rb") as f:
+                previous, transcript_tail = cls._run_cycle(recorder, f.read(), chatter, previous, transcript_tail)

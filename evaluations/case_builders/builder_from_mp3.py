@@ -1,8 +1,9 @@
 from argparse import ArgumentParser, Namespace
 
+import ffmpeg
+
 from evaluations.auditors.auditor_store import AuditorStore
 from evaluations.case_builders.builder_base import BuilderBase
-from hyperscribe.libraries.commander import Commander
 from hyperscribe.libraries.audio_interpreter import AudioInterpreter
 from hyperscribe.libraries.cached_sdk import CachedSdk
 from hyperscribe.libraries.implemented_commands import ImplementedCommands
@@ -61,18 +62,18 @@ class BuilderFromMp3(BuilderBase):
             cls._render_in_ui(recorder, identification, limited_cache)
 
     @classmethod
-    def _combined_audios(cls, parameters: Namespace) -> list[list[bytes]]:
-        audios: list[bytes] = []
-        for file in parameters.mp3:
-            with file.open("rb") as f:
-                audios.append(f.read())
+    def _combined_audios(cls, parameters: Namespace) -> list[bytes]:
+        result: list[bytes] = []
 
-        cycles: list[list[bytes]] = []
         if parameters.combined:
-            cycles.append(audios)
+            inputs = [ffmpeg.input(str(file)) for file in parameters.mp3]
+            concatenated = ffmpeg.concat(*inputs, v=0, a=1)
+            output = ffmpeg.output(concatenated, "pipe:", format="mp3")
+            combined, _ = ffmpeg.run(output, capture_stdout=True, capture_stderr=True)
+            result = [combined]
         else:
-            for cycle in range(len(audios)):
-                cycles.append([])
-                for chunk in range(cycle, max(-1, cycle - (1 + Commander.MAX_PREVIOUS_AUDIOS)), -1):
-                    cycles[-1].insert(0, audios[chunk])
-        return cycles
+            for file in parameters.mp3:
+                with file.open("rb") as f:
+                    result.append(f.read())
+
+        return result

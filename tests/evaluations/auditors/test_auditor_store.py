@@ -156,7 +156,7 @@ def test_identified_transcript(upsert_json, upsert_audio):
         upsert_audio.reset_mock()
 
     tested = helper_instance()
-    audios = [b"audio1", b"audio2", b"audio3"]
+    audio_bytes = b"audioBytes"
     transcript = [
         Line(speaker="speaker1", text="text1", start=0.0, end=2.1),
         Line(speaker="speaker2", text="text2", start=2.1, end=4.8),
@@ -164,7 +164,7 @@ def test_identified_transcript(upsert_json, upsert_audio):
         Line(speaker="speaker4", text="text4", start=5.7, end=9.9),
     ]
 
-    result = tested.identified_transcript(audios, transcript)
+    result = tested.identified_transcript(audio_bytes, transcript)
     assert result is True
 
     calls = [
@@ -181,7 +181,7 @@ def test_identified_transcript(upsert_json, upsert_audio):
         ),
     ]
     assert upsert_json.mock_calls == calls
-    calls = [call("cycle_007_00", b"audio1"), call("cycle_007_01", b"audio2"), call("cycle_007_02", b"audio3")]
+    calls = [call("cycle_007", b"audioBytes")]
     assert upsert_audio.mock_calls == calls
     reset_mocks()
 

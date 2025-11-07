@@ -61,11 +61,8 @@ class AuditorStore(AuditorBase):
         self.cycle = max(0, self.cycle, cycle)
         self.cycle_key = self.cycle_key_for(self.cycle)
 
-    def identified_transcript(self, audios: list[bytes], transcript: list[Line]) -> bool:
-        for idx, audio in enumerate(audios):
-            audio_file = f"{self.cycle_key}_{idx:02d}"
-            self.upsert_audio(audio_file, audio)
-
+    def identified_transcript(self, audio_bytes: bytes, transcript: list[Line]) -> bool:
+        self.upsert_audio(self.cycle_key, audio_bytes)
         label = Constants.AUDIO2TRANSCRIPT
         self.upsert_json(label, {self.cycle_key: [line.to_json() for line in transcript]})
         return True

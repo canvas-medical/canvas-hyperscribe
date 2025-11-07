@@ -678,18 +678,19 @@ def test_create_transcripts():
         assert result == expected
 
         calls = [
-            call.combine_and_speaker_detection([b"audio content 0"], []),
+            call.combine_and_speaker_detection(b"audio content 0", []),
             call.combine_and_speaker_detection(
-                [b"audio content 1"],
+                b"audio content 1",
                 [
                     Line(speaker="theSpeaker1", text="theText1", start=0.0, end=2.1),
                     Line(speaker="theSpeaker2", text="theText2", start=2.1, end=3.7),
                 ],
             ),
             call.combine_and_speaker_detection(
-                [b"audio content 2"], [Line(speaker="theSpeaker3", text="theText3", start=0.0, end=4.8)]
+                b"audio content 2",
+                [Line(speaker="theSpeaker3", text="theText3", start=0.0, end=4.8)],
             ),
-            call.combine_and_speaker_detection([b"audio content 3"], []),
+            call.combine_and_speaker_detection(b"audio content 3", []),
         ]
         assert mock_interpreter.mock_calls == calls
         exp_content = [
@@ -731,7 +732,7 @@ def test_create_transcripts():
     expected = mock_json_files
     assert result == expected
 
-    calls = [call.combine_and_speaker_detection([b"audio content 0"], [])]
+    calls = [call.combine_and_speaker_detection(b"audio content 0", [])]
     assert mock_interpreter.mock_calls == calls
     calls = [call.exists(), call.open("w")]
     assert mock_json_files[0].mock_calls == calls

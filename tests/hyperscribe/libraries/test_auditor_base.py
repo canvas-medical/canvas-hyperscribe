@@ -6,7 +6,7 @@ from hyperscribe.libraries.auditor_base import AuditorBase
 def test_identified_transcript():
     tested = AuditorBase()
     with pytest.raises(NotImplementedError):
-        _ = tested.identified_transcript([b""], [])
+        _ = tested.identified_transcript(b"", [])
 
 
 def test_found_instructions():

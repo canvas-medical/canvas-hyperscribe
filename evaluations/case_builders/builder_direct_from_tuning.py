@@ -188,9 +188,9 @@ class BuilderDirectFromTuning:
             json_file = mp3_file.parent / f"transcript_{chunk:03d}.json"
             if self.force_refresh or not json_file.exists():
                 with mp3_file.open("rb") as f:
-                    audio_chunks = [f.read()]
+                    audio_bytes = f.read()
 
-                response = interpreter.combine_and_speaker_detection(audio_chunks, last_exchange)
+                response = interpreter.combine_and_speaker_detection(audio_bytes, last_exchange)
                 transcript = Line.load_from_json(response.content)
                 with json_file.open("w") as f:
                     json.dump(

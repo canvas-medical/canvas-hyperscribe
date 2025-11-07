@@ -388,7 +388,7 @@ def test_combine_and_speaker_detection(
         combine_and_speaker_detection_double_step.reset_mock()
 
     tested, settings, aws_credentials, cache = helper_instance([], True)
-    audio_chunks = [b"chunk1", b"chunk2"]
+    audio_bytes = b"chunkAudio"
     lines = [
         Line(speaker="speaker", text="last words 1", start=0.0, end=1.3),
         Line(speaker="speaker", text="last words 2", start=1.3, end=2.5),
@@ -403,8 +403,7 @@ def test_combine_and_speaker_detection(
             [],
             [
                 call.audio2texter(settings, memory_log.instance.return_value),
-                call.audio2texter().add_audio(b"chunk1", "mp3"),
-                call.audio2texter().add_audio(b"chunk2", "mp3"),
+                call.audio2texter().add_audio(b"chunkAudio", "mp3"),
                 call.audio2texter().support_speaker_identification(),
             ],
             [call.instance(tested.identification, "audio2transcript", aws_credentials)],
@@ -416,8 +415,7 @@ def test_combine_and_speaker_detection(
             [call(helper.audio2texter.return_value, helper.chatter.return_value, lines)],
             [
                 call.audio2texter(settings, memory_log.instance.return_value),
-                call.audio2texter().add_audio(b"chunk1", "mp3"),
-                call.audio2texter().add_audio(b"chunk2", "mp3"),
+                call.audio2texter().add_audio(b"chunkAudio", "mp3"),
                 call.audio2texter().support_speaker_identification(),
                 call.chatter(settings, memory_log.instance.return_value),
             ],
@@ -432,7 +430,7 @@ def test_combine_and_speaker_detection(
         combine_and_speaker_detection_single_step.side_effect = ["single"]
         combine_and_speaker_detection_double_step.side_effect = ["double"]
 
-        result = tested.combine_and_speaker_detection(audio_chunks, lines)
+        result = tested.combine_and_speaker_detection(audio_bytes, lines)
         assert result == expected
 
         assert helper.mock_calls == exp_call_helper

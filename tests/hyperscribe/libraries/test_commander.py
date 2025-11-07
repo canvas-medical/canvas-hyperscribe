@@ -21,7 +21,6 @@ from hyperscribe.structures.line import Line
 from hyperscribe.structures.progress_message import ProgressMessage
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
-from tests.helper import is_constant
 
 
 @pytest.fixture
@@ -32,12 +31,6 @@ def the_audio_client() -> AudioClient:
 @pytest.fixture
 def the_session() -> CachedAudioSession:
     return CachedAudioSession("theSessionId", "theUserToken", "theLoggedInUserId")
-
-
-def test_constants():
-    tested = Commander
-    constants = {"MAX_PREVIOUS_AUDIOS": 0}
-    assert is_constant(tested, constants)
 
 
 @patch("hyperscribe.libraries.commander.AwsS3")
@@ -60,7 +53,7 @@ def test_compute_audio(
     command_db,
     cache_get_discussion,
     cache_save,
-    mock_get_audio_chunk,
+    get_audio_chunk,
     auditor_live,
     audio_interpreter,
     limited_cache,
@@ -83,7 +76,7 @@ def test_compute_audio(
         memory_log.reset_mock()
         progress.reset_mock()
         aws_s3.reset_mock()
-        mock_get_audio_chunk.reset_mock()
+        get_audio_chunk.reset_mock()
 
     identification = IdentificationParameters(
         patient_uuid="patientUuid",
@@ -126,12 +119,12 @@ def test_compute_audio(
     aws_s3.return_value.is_ready.side_effect = []
 
     tested = Commander
-    mock_get_audio_chunk.side_effect = [b""]
+    get_audio_chunk.side_effect = [b""]
     result = tested.compute_audio(identification, settings, aws_s3_credentials, the_audio_client, 3)
     expected = (False, [])
     assert result == expected
 
-    calls = [call.instance(identification, "main", aws_s3_credentials), call.instance().output("--> audio chunks: 0")]
+    calls = [call.instance(identification, "main", aws_s3_credentials), call.instance().output("--> audio length: 0")]
     assert memory_log.mock_calls == calls
     assert audio2commands.mock_calls == []
     assert existing_commands_to_instructions.mock_calls == []
@@ -145,7 +138,7 @@ def test_compute_audio(
     assert progress.mock_calls == []
     assert aws_s3.mock_calls == []
     calls = [call(identification.patient_uuid, identification.note_uuid, 3)]
-    assert mock_get_audio_chunk.mock_calls == calls
+    assert get_audio_chunk.mock_calls == calls
     reset_mocks()
 
     # audios retrieved
@@ -225,7 +218,7 @@ def test_compute_audio(
         aws_s3.return_value.is_ready.side_effect = [is_ready]
         memory_log.end_session.side_effect = ["flushedMemoryLog"]
         tested = Commander
-        mock_get_audio_chunk.side_effect = [b"raw-audio-bytes"]
+        get_audio_chunk.side_effect = [b"raw-audio-bytes"]
         result = tested.compute_audio(identification, settings, aws_s3_credentials, the_audio_client, 3)
         expected = (True, exp_effects)
         assert result == expected
@@ -236,7 +229,7 @@ def test_compute_audio(
 
         calls = [
             call.instance(identification, "main", aws_s3_credentials),
-            call.instance().output("--> audio chunks: 1"),
+            call.instance().output("--> audio length: 15"),
             call.instance().output("<===  note: noteUuid ===>"),
             call.instance().output("Structured RfV: True"),
             call.instance().output("Audit LLM Decisions: False"),
@@ -264,7 +257,7 @@ def test_compute_audio(
         calls = [
             call(
                 "AuditorInstance",
-                [b"raw-audio-bytes"],
+                b"raw-audio-bytes",
                 "AudioInterpreterInstance",
                 instructions,
                 [Line(speaker="speaker0", text="some text", start=0.0, end=2.1)],
@@ -312,7 +305,7 @@ def test_compute_audio(
             )
         assert aws_s3.mock_calls == calls
         calls = [call(identification.patient_uuid, identification.note_uuid, 3)]
-        assert mock_get_audio_chunk.mock_calls == calls
+        assert get_audio_chunk.mock_calls == calls
         reset_mocks()
 
 
@@ -327,14 +320,14 @@ def test_audio2commands(transcript2commands, tail_of, memory_log, progress):
     def reset_mocks():
         transcript2commands.reset_mock()
         tail_of.reset_mock()
-        mock_auditor.reset_mock()
-        mock_chatter.reset_mock()
         memory_log.reset_mock()
         progress.reset_mock()
+        mock_auditor.reset_mock()
+        mock_chatter.reset_mock()
 
     tested = Commander
 
-    audios = [b"audio1", b"audio2"]
+    audio_bytes = b"audioBytes"
     previous = [
         Instruction(
             uuid="uuidA",
@@ -393,7 +386,7 @@ def test_audio2commands(transcript2commands, tail_of, memory_log, progress):
 
     result = tested.audio2commands(
         mock_auditor,
-        audios,
+        audio_bytes,
         mock_chatter,
         previous,
         [Line(speaker="speaker0", text="some text", start=0.0, end=2.1)],
@@ -457,7 +450,7 @@ def test_audio2commands(transcript2commands, tail_of, memory_log, progress):
     assert tail_of.mock_calls == calls
     calls = [
         call.identified_transcript(
-            [b"audio1", b"audio2"],
+            b"audioBytes",
             [
                 Line(speaker="speaker1", text=f"{text} textA.", start=0.0, end=1.3),
                 Line(speaker="speaker2", text=f"{text} textB.", start=1.3, end=2.5),
@@ -468,7 +461,7 @@ def test_audio2commands(transcript2commands, tail_of, memory_log, progress):
     assert mock_auditor.mock_calls == calls
     calls = [
         call.combine_and_speaker_detection(
-            [b"audio1", b"audio2"],
+            b"audioBytes",
             [Line(speaker="speaker0", text="some text", start=0.0, end=2.1)],
         )
     ]
@@ -484,7 +477,7 @@ def test_audio2commands(transcript2commands, tail_of, memory_log, progress):
 
     result = tested.audio2commands(
         mock_auditor,
-        audios,
+        audio_bytes,
         mock_chatter,
         previous,
         [Line(speaker="speaker0", text="some text", start=0.0, end=2.1)],
@@ -501,7 +494,7 @@ def test_audio2commands(transcript2commands, tail_of, memory_log, progress):
     assert tail_of.mock_calls == []
     calls = [
         call.combine_and_speaker_detection(
-            [b"audio1", b"audio2"],
+            b"audioBytes",
             [Line(speaker="speaker0", text="some text", start=0.0, end=2.1)],
         )
     ]

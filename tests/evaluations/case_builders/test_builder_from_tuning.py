@@ -3,7 +3,6 @@ from unittest.mock import patch, call, MagicMock
 
 from evaluations.case_builders.builder_base import BuilderBase
 from evaluations.case_builders.builder_from_tuning import BuilderFromTuning
-from hyperscribe.libraries.commander import Commander
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.instruction import Instruction
 from hyperscribe.structures.line import Line
@@ -94,124 +93,109 @@ def test__run(run_cycle, limited_cache, implemented_commands, cached_discussion,
 
     tested = BuilderFromTuning
     reset_mocks()
-    tests = [
-        (
-            2,
-            [
-                [b"audio content 0"],
-                [b"audio content 0", b"audio content 1"],
-                [b"audio content 0", b"audio content 1", b"audio content 2"],
-                [b"audio content 1", b"audio content 2", b"audio content 3"],
-                [b"audio content 2", b"audio content 3", b"audio content 4"],
-            ],
-        ),
-        (
-            0,
-            [
-                [b"audio content 0"],
-                [b"audio content 1"],
-                [b"audio content 2"],
-                [b"audio content 3"],
-                [b"audio content 4"],
-            ],
-        ),
+
+    exp_combined = [
+        b"audio content 0",
+        b"audio content 1",
+        b"audio content 2",
+        b"audio content 3",
+        b"audio content 4",
     ]
-    for max_previous_audios, exp_combined in tests:
-        with patch.object(Commander, "MAX_PREVIOUS_AUDIOS", max_previous_audios):
-            limited_cache.load_from_json.side_effect = [mock_limited_cache]
-            mock_limited_cache.staged_commands_as_instructions.side_effect = [instructions[:1]]
-            mock_limited_cache.to_json.side_effect = [{"limited": "cache"}]
-            implemented_commands.schema_key2instruction.side_effect = ["schemaKey2instruction"]
-            recorder.settings = "theSettings"
-            recorder.s3_credentials = "theAwsS3Credentials"
-            mock_json_file.name = "theJsonFile"
-            mock_json_file.open.return_value.__enter__.return_value.read.side_effect = ['{"key": "value"}']
 
-            run_cycle.side_effect = [
-                (instructions[:2], lines[0]),
-                (instructions[:3], lines[1]),
-                (instructions[:4], lines[2]),
-                (instructions[:5], lines[3]),
-                (instructions[:6], lines[4]),
-            ]
+    limited_cache.load_from_json.side_effect = [mock_limited_cache]
+    mock_limited_cache.staged_commands_as_instructions.side_effect = [instructions[:1]]
+    mock_limited_cache.to_json.side_effect = [{"limited": "cache"}]
+    implemented_commands.schema_key2instruction.side_effect = ["schemaKey2instruction"]
+    recorder.settings = "theSettings"
+    recorder.s3_credentials = "theAwsS3Credentials"
+    mock_json_file.name = "theJsonFile"
+    mock_json_file.open.return_value.__enter__.return_value.read.side_effect = ['{"key": "value"}']
 
-            parameters = Namespace(
-                patient="thePatientUuid",
-                case="theCase",
-                tuning_json=mock_json_file,
-                tuning_mp3=mock_mp3_files,
-            )
-            identification = IdentificationParameters(
-                patient_uuid="thePatient",
-                note_uuid="theNoteUuid",
-                provider_uuid="theProviderUuid",
-                canvas_instance="theCanvasInstance",
-            )
-            audio_interpreter.return_value.identification = identification
+    run_cycle.side_effect = [
+        (instructions[:2], lines[0]),
+        (instructions[:3], lines[1]),
+        (instructions[:4], lines[2]),
+        (instructions[:5], lines[3]),
+        (instructions[:6], lines[4]),
+    ]
 
-            tested._run(parameters, recorder, identification)
+    parameters = Namespace(
+        patient="thePatientUuid",
+        case="theCase",
+        tuning_json=mock_json_file,
+        tuning_mp3=mock_mp3_files,
+    )
+    identification = IdentificationParameters(
+        patient_uuid="thePatient",
+        note_uuid="theNoteUuid",
+        provider_uuid="theProviderUuid",
+        canvas_instance="theCanvasInstance",
+    )
+    audio_interpreter.return_value.identification = identification
 
-            exp_out = [
-                "Evaluation Case: theCase",
-                "JSON file: theJsonFile",
-                "MP3 files:",
-                "- audio file 0",
-                "- audio file 1",
-                "- audio file 2",
-                "- audio file 3",
-                "- audio file 4",
-                "",
-            ]
-            assert capsys.readouterr().out == "\n".join(exp_out)
+    tested._run(parameters, recorder, identification)
 
-            calls = [call.load_from_json({"key": "value"})]
-            assert limited_cache.mock_calls == calls
-            calls = [
-                call.case_update_limited_cache({"limited": "cache"}),
-                call.set_cycle(1),
-                call.set_cycle(2),
-                call.set_cycle(3),
-                call.set_cycle(4),
-                call.set_cycle(5),
-            ]
-            assert recorder.mock_calls == calls
-            calls = [call.to_json(True), call.staged_commands_as_instructions("schemaKey2instruction")]
-            assert mock_limited_cache.mock_calls == calls
-            calls = [call.schema_key2instruction()]
-            assert implemented_commands.mock_calls == calls
-            calls = [
-                call.get_discussion("theNoteUuid"),
-                call.get_discussion().set_cycle(1),
-                call.get_discussion().set_cycle(2),
-                call.get_discussion().set_cycle(3),
-                call.get_discussion().set_cycle(4),
-                call.get_discussion().set_cycle(5),
-            ]
-            assert cached_discussion.mock_calls == calls
-            calls = [call("theSettings", "theAwsS3Credentials", mock_limited_cache, identification)]
-            assert audio_interpreter.mock_calls == calls
-            calls = [
-                call(recorder, exp_combined[0], audio_interpreter.return_value, instructions[:1], []),
-                call(recorder, exp_combined[1], audio_interpreter.return_value, instructions[:2], lines[0]),
-                call(recorder, exp_combined[2], audio_interpreter.return_value, instructions[:3], lines[1]),
-                call(recorder, exp_combined[3], audio_interpreter.return_value, instructions[:4], lines[2]),
-                call(recorder, exp_combined[4], audio_interpreter.return_value, instructions[:5], lines[3]),
-            ]
-            assert run_cycle.mock_calls == calls
-            calls = [
-                call.open("r"),
-                call.open().__enter__(),
-                call.open().__enter__().read(),
-                call.open().__exit__(None, None, None),
-            ]
-            assert mock_json_file.mock_calls == calls
-            calls = [
-                call.open("rb"),
-                call.open().__enter__(),
-                call.open().__enter__().read(),
-                call.open().__exit__(None, None, None),
-            ]
-            for idx, mock_file in enumerate(mock_mp3_files):
-                assert mock_file.mock_calls == calls
+    exp_out = [
+        "Evaluation Case: theCase",
+        "JSON file: theJsonFile",
+        "MP3 files:",
+        "- audio file 0",
+        "- audio file 1",
+        "- audio file 2",
+        "- audio file 3",
+        "- audio file 4",
+        "",
+    ]
+    assert capsys.readouterr().out == "\n".join(exp_out)
 
-            reset_mocks()
+    calls = [call.load_from_json({"key": "value"})]
+    assert limited_cache.mock_calls == calls
+    calls = [
+        call.case_update_limited_cache({"limited": "cache"}),
+        call.set_cycle(1),
+        call.set_cycle(2),
+        call.set_cycle(3),
+        call.set_cycle(4),
+        call.set_cycle(5),
+    ]
+    assert recorder.mock_calls == calls
+    calls = [call.to_json(True), call.staged_commands_as_instructions("schemaKey2instruction")]
+    assert mock_limited_cache.mock_calls == calls
+    calls = [call.schema_key2instruction()]
+    assert implemented_commands.mock_calls == calls
+    calls = [
+        call.get_discussion("theNoteUuid"),
+        call.get_discussion().set_cycle(1),
+        call.get_discussion().set_cycle(2),
+        call.get_discussion().set_cycle(3),
+        call.get_discussion().set_cycle(4),
+        call.get_discussion().set_cycle(5),
+    ]
+    assert cached_discussion.mock_calls == calls
+    calls = [call("theSettings", "theAwsS3Credentials", mock_limited_cache, identification)]
+    assert audio_interpreter.mock_calls == calls
+    calls = [
+        call(recorder, exp_combined[0], audio_interpreter.return_value, instructions[:1], []),
+        call(recorder, exp_combined[1], audio_interpreter.return_value, instructions[:2], lines[0]),
+        call(recorder, exp_combined[2], audio_interpreter.return_value, instructions[:3], lines[1]),
+        call(recorder, exp_combined[3], audio_interpreter.return_value, instructions[:4], lines[2]),
+        call(recorder, exp_combined[4], audio_interpreter.return_value, instructions[:5], lines[3]),
+    ]
+    assert run_cycle.mock_calls == calls
+    calls = [
+        call.open("r"),
+        call.open().__enter__(),
+        call.open().__enter__().read(),
+        call.open().__exit__(None, None, None),
+    ]
+    assert mock_json_file.mock_calls == calls
+    calls = [
+        call.open("rb"),
+        call.open().__enter__(),
+        call.open().__enter__().read(),
+        call.open().__exit__(None, None, None),
+    ]
+    for idx, mock_file in enumerate(mock_mp3_files):
+        assert mock_file.mock_calls == calls
+
+    reset_mocks()

@@ -24,7 +24,7 @@ class AuditorLive(AuditorBase):
         self.s3_credentials = s3_credentials
         self.identification = identification
 
-    def identified_transcript(self, audios: list[bytes], transcript: list[Line]) -> bool:
+    def identified_transcript(self, audio_bytes: bytes, transcript: list[Line]) -> bool:
         client_s3 = AwsS3(self.s3_credentials)
         if client_s3.is_ready():
             store_path = (

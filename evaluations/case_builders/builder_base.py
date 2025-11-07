@@ -112,7 +112,7 @@ class BuilderBase:
     def _run_cycle(
         cls,
         auditor: AuditorStore,
-        audios: list[bytes],
+        audio_bytes: bytes,
         chatter: AudioInterpreter,
         previous_instructions: list[Instruction],
         previous_transcript: list[Line],
@@ -123,7 +123,7 @@ class BuilderBase:
         else:
             instructions, _, end_of_transcript = Commander.audio2commands(
                 auditor,
-                audios,
+                audio_bytes,
                 chatter,
                 previous_instructions,
                 previous_transcript,
