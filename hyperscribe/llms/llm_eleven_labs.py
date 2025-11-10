@@ -5,6 +5,7 @@ from requests import post as requests_post
 
 from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.http_response import HttpResponse
+from hyperscribe.structures.token_counts import TokenCounts
 
 
 class LlmElevenLabs(LlmBase):
@@ -17,7 +18,11 @@ class LlmElevenLabs(LlmBase):
 
     def request(self) -> HttpResponse:
         if not self.audios:
-            return HttpResponse(code=HTTPStatus.UNPROCESSABLE_ENTITY, response="no audio provided")
+            return HttpResponse(
+                code=HTTPStatus.UNPROCESSABLE_ENTITY,
+                response="no audio provided",
+                tokens=TokenCounts(prompt=0, generated=0),
+            )
         url = "https://api.elevenlabs.io/v1/speech-to-text"
         headers = {
             "xi-api-key": self.api_key,
@@ -40,7 +45,11 @@ class LlmElevenLabs(LlmBase):
         self.memory_log.log(f"status code: {request.status_code}")
         self.memory_log.log(request.json())
         self.memory_log.log("--- request ends ---")
-        result = HttpResponse(code=request.status_code, response=request.text)
+        result = HttpResponse(
+            code=request.status_code,
+            response=request.text,
+            tokens=TokenCounts(prompt=0, generated=0),
+        )
         if result.code == HTTPStatus.OK.value:
             turns: list[dict] = []
             for words in request.json()["words"]:
@@ -82,6 +91,7 @@ class LlmElevenLabs(LlmBase):
                         "```",
                     ]
                 ),
+                tokens=TokenCounts(prompt=0, generated=0),
             )
 
         return result

@@ -3,6 +3,7 @@ from unittest.mock import patch, call, MagicMock
 
 from hyperscribe.llms.llm_openai_responses import LlmOpenaiResponses
 from hyperscribe.structures.http_response import HttpResponse
+from hyperscribe.structures.token_counts import TokenCounts
 
 
 def test_support_speaker_identification():
@@ -152,6 +153,10 @@ def test_request(requests_post):
                             ],
                         },
                     ],
+                    "usage": {
+                        "input_tokens": 178,
+                        "output_tokens": 93,
+                    },
                 },
             ),
         },
@@ -162,6 +167,7 @@ def test_request(requests_post):
     expected = HttpResponse(
         code=200,
         response='response:\n```json\n["item1", "item2"]\n```\n\n```json\n["item3"]\n```\n\nend.',
+        tokens=TokenCounts(prompt=178, generated=93),
     )
     calls_request_post = [
         call(
@@ -210,7 +216,8 @@ def test_request(requests_post):
             "```json\\n"
             '[\\"item1\\", \\"item2\\"]\\n```\\n\\n```json\\n[\\"item3\\"]\\n'
             "```\\n\\n"
-            'end."}]}]}'
+            'end."}]}], '
+            '"usage": {"input_tokens": 178, "output_tokens": 93}}'
         ),
         call.log("--- request ends ---"),
     ]
@@ -231,7 +238,9 @@ def test_request(requests_post):
         "```json\\n"
         '[\\"item3\\"]\\n'
         "```\\n\\n"
-        'end."}]}]}',
+        'end."}]}], '
+        '"usage": {"input_tokens": 178, "output_tokens": 93}}',
+        tokens=TokenCounts(prompt=0, generated=0),
     )
     assert result == exp_with_error
     assert requests_post.mock_calls == calls_request_post
@@ -255,7 +264,8 @@ def test_request(requests_post):
             "```json\\n"
             '[\\"item3\\"]\\n'
             "```\\n\\n"
-            'end."}]}]}'
+            'end."}]}], '
+            '"usage": {"input_tokens": 178, "output_tokens": 93}}'
         ),
         call.log("--- request ends ---"),
     ]

@@ -1,8 +1,11 @@
 import json
 from unittest.mock import patch, call, MagicMock
+
 import pytest
+
 from hyperscribe.llms.llm_google import LlmGoogle
 from hyperscribe.structures.http_response import HttpResponse
+from hyperscribe.structures.token_counts import TokenCounts
 
 
 def test_support_speaker_identification():
@@ -230,6 +233,10 @@ def test_request(upload_audio, to_dict, requests_post):
                             },
                         },
                     ],
+                    "usageMetadata": {
+                        "promptTokenCount": 173,
+                        "candidatesTokenCount": 97,
+                    },
                 },
             ),
         },
@@ -250,7 +257,9 @@ def test_request(upload_audio, to_dict, requests_post):
         response='{"candidates": [{"content": {"parts": [{"text": "'
         "```json\\n"
         '[\\"line 1\\",\\"line 2\\",\\"line 3\\"]\\n'
-        '```\\n"}]}}]}',
+        '```\\n"}]}}], '
+        '"usageMetadata": {"promptTokenCount": 173, "candidatesTokenCount": 97}}',
+        tokens=TokenCounts(prompt=0, generated=0),
     )
     assert result == expected
 
@@ -284,7 +293,8 @@ def test_request(upload_audio, to_dict, requests_post):
             '{"candidates": [{"content": {"parts": [{"text": "'
             "```json\\n"
             '[\\"line 1\\",\\"line 2\\",\\"line 3\\"]\\n'
-            '```\\n"}]}}]}',
+            '```\\n"}]}}], '
+            '"usageMetadata": {"promptTokenCount": 173, "candidatesTokenCount": 97}}',
         ),
         call.log("--- request ends ---"),
     ]
@@ -301,7 +311,11 @@ def test_request(upload_audio, to_dict, requests_post):
     tested.add_audio(b"the audio1", "mp3")
     tested.add_audio(b"the audio2", "wav")
     result = tested.request()
-    expected = HttpResponse(code=200, response='```json\n["line 1","line 2","line 3"]\n```\n')
+    expected = HttpResponse(
+        code=200,
+        response='```json\n["line 1","line 2","line 3"]\n```\n',
+        tokens=TokenCounts(prompt=173, generated=97),
+    )
     assert result == expected
 
     calls = [call(b"the audio1", "audio/mp3", "audio00"), call(b"the audio2", "audio/wav", "audio01")]
@@ -327,7 +341,8 @@ def test_request(upload_audio, to_dict, requests_post):
             '{"candidates": [{"content": {"parts": [{"text": '
             '"```json\\n'
             '[\\"line 1\\",\\"line 2\\",\\"line 3\\"]\\n'
-            '```\\n"}]}}]}',
+            '```\\n"}]}}], '
+            '"usageMetadata": {"promptTokenCount": 173, "candidatesTokenCount": 97}}',
         ),
         call.log("--- request ends ---"),
     ]
@@ -340,7 +355,11 @@ def test_request(upload_audio, to_dict, requests_post):
 
     tested = LlmGoogle(memory_log, "apiKey", "theModel", False)
     result = tested.request()
-    expected = HttpResponse(code=200, response='```json\n["line 1","line 2","line 3"]\n```\n')
+    expected = HttpResponse(
+        code=200,
+        response='```json\n["line 1","line 2","line 3"]\n```\n',
+        tokens=TokenCounts(prompt=173, generated=97),
+    )
     assert result == expected
 
     assert upload_audio.mock_calls == []
@@ -365,7 +384,8 @@ def test_request(upload_audio, to_dict, requests_post):
             '{"candidates": [{"content": {"parts": [{"text": "'
             "```json\\n"
             '[\\"line 1\\",\\"line 2\\",\\"line 3\\"]\\n'
-            '```\\n"}]}}]}',
+            '```\\n"}]}}], '
+            '"usageMetadata": {"promptTokenCount": 173, "candidatesTokenCount": 97}}',
         ),
         call.log("--- request ends ---"),
     ]

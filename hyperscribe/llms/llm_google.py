@@ -5,6 +5,7 @@ from requests import post as requests_post
 
 from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.http_response import HttpResponse
+from hyperscribe.structures.token_counts import TokenCounts
 
 
 class LlmGoogle(LlmBase):
@@ -77,10 +78,22 @@ class LlmGoogle(LlmBase):
         self.memory_log.log(f"status code: {request.status_code}")
         self.memory_log.log(request.text)
         self.memory_log.log("--- request ends ---")
-        result = HttpResponse(code=request.status_code, response=request.text)
+        result = HttpResponse(
+            code=request.status_code,
+            response=request.text,
+            tokens=TokenCounts(prompt=0, generated=0),
+        )
         if result.code == HTTPStatus.OK.value:
             content = json.loads(request.text)
             text = content.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "")
-            result = HttpResponse(code=result.code, response=text)
+            usage = content.get("usageMetadata", {})
+            result = HttpResponse(
+                code=result.code,
+                response=text,
+                tokens=TokenCounts(
+                    prompt=usage.get("promptTokenCount") or 0,
+                    generated=(usage.get("candidatesTokenCount") or 0) + (usage.get("thoughtsTokenCount") or 0),
+                ),
+            )
 
         return result

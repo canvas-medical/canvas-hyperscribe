@@ -8,6 +8,7 @@ from hyperscribe.structures.http_response import HttpResponse
 from hyperscribe.structures.instruction import Instruction
 from hyperscribe.structures.json_extract import JsonExtract
 from hyperscribe.structures.llm_turn import LlmTurn
+from hyperscribe.structures.token_counts import TokenCounts
 from tests.helper import is_constant
 
 
@@ -161,11 +162,11 @@ def test_attempt_requests(request):
 
     # one error
     request.side_effect = [
-        HttpResponse(code=501, response="some response1"),
-        HttpResponse(code=200, response="some response2"),
+        HttpResponse(code=501, response="some response1", tokens=TokenCounts(prompt=0, generated=0)),
+        HttpResponse(code=200, response="some response2", tokens=TokenCounts(prompt=0, generated=0)),
     ]
     result = tested.attempt_requests(3)
-    expected = HttpResponse(code=200, response="some response2")
+    expected = HttpResponse(code=200, response="some response2", tokens=TokenCounts(prompt=0, generated=0))
     assert result == expected
     calls = [call(), call()]
     assert request.mock_calls == calls
@@ -174,13 +175,17 @@ def test_attempt_requests(request):
 
     # too many errors
     request.side_effect = [
-        HttpResponse(code=501, response="some response1"),
-        HttpResponse(code=501, response="some response2"),
-        HttpResponse(code=501, response="some response3"),
-        HttpResponse(code=200, response="some response4"),
+        HttpResponse(code=501, response="some response1", tokens=TokenCounts(prompt=0, generated=0)),
+        HttpResponse(code=501, response="some response2", tokens=TokenCounts(prompt=0, generated=0)),
+        HttpResponse(code=501, response="some response3", tokens=TokenCounts(prompt=0, generated=0)),
+        HttpResponse(code=200, response="some response4", tokens=TokenCounts(prompt=73, generated=31)),
     ]
     result = tested.attempt_requests(3)
-    expected = HttpResponse(code=429, response="Http error: max attempts (3) exceeded")
+    expected = HttpResponse(
+        code=429,
+        response="Http error: max attempts (3) exceeded",
+        tokens=TokenCounts(prompt=0, generated=0),
+    )
     assert result == expected
     calls = [call(), call(), call()]
     assert request.mock_calls == calls
@@ -202,7 +207,13 @@ def test_chat(attempt_requests, extract_json_from):
     assert tested.prompts == []
 
     # http error
-    attempt_requests.side_effect = [HttpResponse(code=429, response="max attempts (3) exceeded")]
+    attempt_requests.side_effect = [
+        HttpResponse(
+            code=429,
+            response="max attempts (3) exceeded",
+            tokens=TokenCounts(prompt=0, generated=0),
+        )
+    ]
     extract_json_from.side_effect = []
     result = tested.chat([])
     expected = JsonExtract(has_error=True, error="max attempts (3) exceeded", content=[])
@@ -220,8 +231,8 @@ def test_chat(attempt_requests, extract_json_from):
     # no http error
     # -- one json error
     attempt_requests.side_effect = [
-        HttpResponse(code=200, response="response1:\nline1\nline2"),
-        HttpResponse(code=200, response="response2:\nline3\nline4"),
+        HttpResponse(code=200, response="response1:\nline1\nline2", tokens=TokenCounts(prompt=71, generated=51)),
+        HttpResponse(code=200, response="response2:\nline3\nline4", tokens=TokenCounts(prompt=83, generated=47)),
     ]
     extract_json_from.side_effect = [
         JsonExtract(has_error=True, error="some error1", content=["error 1"]),
@@ -258,6 +269,8 @@ def test_chat(attempt_requests, extract_json_from):
         call.log("--- CHAT ENDS - 1 attempts ---"),
         call.store_so_far(),
         call.log("-- CHAT BEGINS --"),
+        call.add_consumption(TokenCounts(prompt=71, generated=51)),
+        call.add_consumption(TokenCounts(prompt=83, generated=47)),
         call.log("result->>"),
         call.log('[\n  "line1",\n  "line2"\n]'),
         call.log("<<-"),
@@ -268,10 +281,10 @@ def test_chat(attempt_requests, extract_json_from):
     reset_mocks()
     # -- too many json error
     attempt_requests.side_effect = [
-        HttpResponse(code=200, response="response1:\nline1\nline2"),
-        HttpResponse(code=200, response="response2:\nline3\nline4"),
-        HttpResponse(code=200, response="response3:\nline5\nline6"),
-        HttpResponse(code=200, response="response4:\nline7\nline8"),
+        HttpResponse(code=200, response="response1:\nline1\nline2", tokens=TokenCounts(prompt=71, generated=41)),
+        HttpResponse(code=200, response="response2:\nline3\nline4", tokens=TokenCounts(prompt=72, generated=42)),
+        HttpResponse(code=200, response="response3:\nline5\nline6", tokens=TokenCounts(prompt=73, generated=43)),
+        HttpResponse(code=200, response="response4:\nline7\nline8", tokens=TokenCounts(prompt=74, generated=44)),
     ]
     extract_json_from.side_effect = [
         JsonExtract(has_error=True, error="some error1", content=["error 1"]),
@@ -339,12 +352,17 @@ def test_chat(attempt_requests, extract_json_from):
         call.log("--- CHAT ENDS - 1 attempts ---"),
         call.store_so_far(),
         call.log("-- CHAT BEGINS --"),
+        call.add_consumption(TokenCounts(prompt=71, generated=51)),
+        call.add_consumption(TokenCounts(prompt=83, generated=47)),
         call.log("result->>"),
         call.log('[\n  "line1",\n  "line2"\n]'),
         call.log("<<-"),
         call.log("--- CHAT ENDS - 2 attempts ---"),
         call.store_so_far(),
         call.log("-- CHAT BEGINS --"),
+        call.add_consumption(TokenCounts(prompt=71, generated=41)),
+        call.add_consumption(TokenCounts(prompt=72, generated=42)),
+        call.add_consumption(TokenCounts(prompt=73, generated=43)),
         call.log("error: JSON incorrect: max attempts (3) exceeded"),
         call.log("--- CHAT ENDS - 3 attempts ---"),
         call.store_so_far(),

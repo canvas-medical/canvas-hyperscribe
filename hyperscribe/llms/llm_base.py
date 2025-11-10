@@ -14,6 +14,7 @@ from hyperscribe.structures.http_response import HttpResponse
 from hyperscribe.structures.instruction import Instruction
 from hyperscribe.structures.json_extract import JsonExtract
 from hyperscribe.structures.llm_turn import LlmTurn
+from hyperscribe.structures.token_counts import TokenCounts
 
 
 class LlmBase:
@@ -72,6 +73,7 @@ class LlmBase:
             result = HttpResponse(
                 code=HTTPStatus.TOO_MANY_REQUESTS,
                 response=f"Http error: max attempts ({attempts}) exceeded",
+                tokens=TokenCounts(prompt=0, generated=0),
             )
             self.memory_log.log(f"error: {result.response}")
         return result
@@ -88,6 +90,7 @@ class LlmBase:
                 break
 
             result = self.extract_json_from(response.response, schemas)
+            self.memory_log.add_consumption(response.tokens)
             if result.has_error is False:
                 self.memory_log.log("result->>")
                 self.memory_log.log(json.dumps(result.content, indent=2))

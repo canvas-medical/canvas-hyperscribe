@@ -5,6 +5,7 @@ import pytest
 
 from hyperscribe.llms.llm_anthropic import LlmAnthropic
 from hyperscribe.structures.http_response import HttpResponse
+from hyperscribe.structures.token_counts import TokenCounts
 
 
 def test_support_speaker_identification():
@@ -89,7 +90,10 @@ def test_request(to_dict, requests_post):
         {
             "status_code": 202,
             "text": json.dumps(
-                {"content": [{"text": "\n".join(["```json", '["line 1","line 2","line 3"]', "```", ""])}]},
+                {
+                    "content": [{"text": "\n".join(["```json", '["line 1","line 2","line 3"]', "```", ""])}],
+                    "usage": {"input_tokens": 137, "output_tokens": 43},
+                },
             ),
         },
     )()
@@ -102,7 +106,9 @@ def test_request(to_dict, requests_post):
     result = tested.request()
     expected = HttpResponse(
         code=202,
-        response='{"content": [{"text": "```json\\n[\\"line 1\\",\\"line 2\\",\\"line 3\\"]\\n```\\n"}]}',
+        response='{"content": [{"text": "```json\\n[\\"line 1\\",\\"line 2\\",\\"line 3\\"]\\n```\\n"}], '
+        '"usage": {"input_tokens": 137, "output_tokens": 43}}',
+        tokens=TokenCounts(prompt=0, generated=0),
     )
     assert result == expected
 
@@ -123,7 +129,10 @@ def test_request(to_dict, requests_post):
         call.log("--- request begins:"),
         call.log('{\n  "key": "valueY"\n}'),
         call.log("status code: 202"),
-        call.log('{"content": [{"text": "```json\\n[\\"line 1\\",\\"line 2\\",\\"line 3\\"]\\n```\\n"}]}'),
+        call.log(
+            '{"content": [{"text": "```json\\n[\\"line 1\\",\\"line 2\\",\\"line 3\\"]\\n```\\n"}],'
+            ' "usage": {"input_tokens": 137, "output_tokens": 43}}'
+        ),
         call.log("--- request ends ---"),
     ]
     assert memory_log.mock_calls == calls
@@ -136,7 +145,11 @@ def test_request(to_dict, requests_post):
 
     tested = LlmAnthropic(memory_log, "apiKey", "theModel", False)
     result = tested.request()
-    expected = HttpResponse(code=200, response='```json\n["line 1","line 2","line 3"]\n```\n')
+    expected = HttpResponse(
+        code=200,
+        response='```json\n["line 1","line 2","line 3"]\n```\n',
+        tokens=TokenCounts(prompt=137, generated=43),
+    )
     assert result == expected
 
     calls = [call(), call()]
@@ -156,7 +169,10 @@ def test_request(to_dict, requests_post):
         call.log("--- request begins:"),
         call.log('{\n  "key": "valueB"\n}'),
         call.log("status code: 200"),
-        call.log('{"content": [{"text": "```json\\n[\\"line 1\\",\\"line 2\\",\\"line 3\\"]\\n```\\n"}]}'),
+        call.log(
+            '{"content": [{"text": "```json\\n[\\"line 1\\",\\"line 2\\",\\"line 3\\"]\\n```\\n"}],'
+            ' "usage": {"input_tokens": 137, "output_tokens": 43}}'
+        ),
         call.log("--- request ends ---"),
     ]
     assert memory_log.mock_calls == calls

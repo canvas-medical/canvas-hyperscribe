@@ -5,6 +5,7 @@ from requests import post as requests_post
 
 from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.http_response import HttpResponse
+from hyperscribe.structures.token_counts import TokenCounts
 
 
 class LlmAnthropic(LlmBase):
@@ -36,10 +37,22 @@ class LlmAnthropic(LlmBase):
         self.memory_log.log(f"status code: {request.status_code}")
         self.memory_log.log(request.text)
         self.memory_log.log("--- request ends ---")
-        result = HttpResponse(code=request.status_code, response=request.text)
+        result = HttpResponse(
+            code=request.status_code,
+            response=request.text,
+            tokens=TokenCounts(prompt=0, generated=0),
+        )
         if result.code == HTTPStatus.OK.value:
             content = json.loads(request.text)
             text = content.get("content", [{}])[0].get("text", "")
-            result = HttpResponse(code=result.code, response=text)
+            usage = content.get("usage", {})
+            result = HttpResponse(
+                code=result.code,
+                response=text,
+                tokens=TokenCounts(
+                    prompt=usage.get("input_tokens") or 0,
+                    generated=usage.get("output_tokens") or 0,
+                ),
+            )
 
         return result

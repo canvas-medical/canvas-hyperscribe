@@ -498,8 +498,8 @@ class AudioInterpreter:
             json.dumps(schemas[0], indent=1),
             "```",
             "",
-            "Before finalizing, verify completeness by checking that patient concerns are accurately captured"
-            "and any provider recommendations, follow-up plans, and instructions are complete, specific"
+            "Before finalizing, verify completeness by checking that patient concerns are accurately captured "
+            "and any provider recommendations, follow-up plans, and instructions are complete, specific "
             "and are accurate given the conversation.",
             "",
         ]

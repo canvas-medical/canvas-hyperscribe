@@ -1690,8 +1690,8 @@ def test_create_sdk_command_parameters(
             '"theSchema"',
             "```",
             "",
-            "Before finalizing, verify completeness by checking that patient concerns are accurately captured"
-            "and any provider recommendations, follow-up plans, and instructions are complete, specific"
+            "Before finalizing, verify completeness by checking that patient concerns are accurately captured "
+            "and any provider recommendations, follow-up plans, and instructions are complete, specific "
             "and are accurate given the conversation.",
             "",
         ],
@@ -1714,8 +1714,8 @@ def test_create_sdk_command_parameters(
             '"items": {\n  "type": "object",\n  "additionalProperties": true\n }\n}',
             "```",
             "",
-            "Before finalizing, verify completeness by checking that patient concerns are accurately captured"
-            "and any provider recommendations, follow-up plans, and instructions are complete, specific"
+            "Before finalizing, verify completeness by checking that patient concerns are accurately captured "
+            "and any provider recommendations, follow-up plans, and instructions are complete, specific "
             "and are accurate given the conversation.",
             "",
         ],

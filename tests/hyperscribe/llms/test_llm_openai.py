@@ -3,6 +3,7 @@ from unittest.mock import patch, call, MagicMock
 
 from hyperscribe.llms.llm_openai import LlmOpenai
 from hyperscribe.structures.http_response import HttpResponse
+from hyperscribe.structures.token_counts import TokenCounts
 
 
 def test_support_speaker_identification():
@@ -131,6 +132,10 @@ def test_request(requests_post):
                             },
                         },
                     ],
+                    "usage": {
+                        "prompt_tokens": 178,
+                        "completion_tokens": 53,
+                    },
                 },
             ),
         },
@@ -141,6 +146,7 @@ def test_request(requests_post):
     expected = HttpResponse(
         code=200,
         response='response:\n```json\n["item1", "item2"]\n```\n\n```json\n["item3"]\n```\n\nend.',
+        tokens=TokenCounts(prompt=178, generated=53),
     )
     calls_request_post = [
         call(
@@ -178,7 +184,8 @@ def test_request(requests_post):
             "```json\\n"
             '[\\"item3\\"]\\n'
             "```\\n\\n"
-            'end."}}]}',
+            'end."}}], '
+            '"usage": {"prompt_tokens": 178, "completion_tokens": 53}}',
         ),
         call.log("--- request ends ---"),
     ]
@@ -194,7 +201,9 @@ def test_request(requests_post):
         response='{"choices": [{"message": {"content": "response:'
         "\\n```json"
         '\\n[\\"item1\\", \\"item2\\"]\\n```\\n\\n```json\\n[\\"item3\\"]'
-        '\\n```\\n\\nend."}}]}',
+        '\\n```\\n\\nend."}}], '
+        '"usage": {"prompt_tokens": 178, "completion_tokens": 53}}',
+        tokens=TokenCounts(prompt=0, generated=0),
     )
     assert result == exp_with_error
     assert requests_post.mock_calls == calls_request_post
@@ -216,31 +225,13 @@ def test_request(requests_post):
             "```json\\n"
             '[\\"item3\\"]\\n'
             "```\\n\\n"
-            'end."}}]}',
+            'end."}}], '
+            '"usage": {"prompt_tokens": 178, "completion_tokens": 53}}',
         ),
         call.log("--- request ends ---"),
     ]
     assert memory_log.mock_calls == calls
     reset_mocks()
-
-
-# For status_code==200, to parse json and pull out the message content.
-@patch("hyperscribe.llms.llm_openai.requests_post")
-def test_request_extracts_choice_content(requests_post):
-    memory_log = MagicMock()
-    tested = LlmOpenai(memory_log, "openaiKey", "theModel", False)
-    body = {"choices": [{"message": {"content": "Here is the actual reply"}}]}
-    resp = MagicMock()
-    resp.status_code = 200
-    resp.text = json.dumps(body)
-    requests_post.return_value = resp
-
-    out = tested.request()
-    assert isinstance(out, HttpResponse)
-    assert out.code == 200
-    assert out.response == "Here is the actual reply"
-    requests_post.assert_called_once()
-    memory_log.assert_not_called()
 
 
 @patch("hyperscribe.llms.llm_openai.requests_post")
@@ -256,7 +247,7 @@ def test_audio_to_text(requests_post):
 
     tested = LlmOpenai(memory_log, "openaiKey", "theModel", False)
     result = tested.audio_to_text(b"abc")
-    expected = HttpResponse(code=202, response="theResponse")
+    expected = HttpResponse(code=202, response="theResponse", tokens=TokenCounts(prompt=0, generated=0))
     assert result == expected
     calls = [
         call(

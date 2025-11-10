@@ -2,6 +2,7 @@ from unittest.mock import patch, call, MagicMock
 
 from hyperscribe.llms.llm_eleven_labs import LlmElevenLabs
 from hyperscribe.structures.http_response import HttpResponse
+from hyperscribe.structures.token_counts import TokenCounts
 
 
 def test_support_speaker_identification():
@@ -42,7 +43,7 @@ def test_request(requests_post):
 
     tested = LlmElevenLabs(memory_log, "apiKey", "theModel", False)
     result = tested.request()
-    expected = HttpResponse(code=422, response="no audio provided")
+    expected = HttpResponse(code=422, response="no audio provided", tokens=TokenCounts(prompt=0, generated=0))
     assert result == expected
 
     assert requests_post.mock_calls == []
@@ -69,6 +70,7 @@ def test_request(requests_post):
     expected = HttpResponse(
         code=202,
         response='{"error": "theError"}',
+        tokens=TokenCounts(prompt=0, generated=0),
     )
     assert result == expected
 
@@ -121,6 +123,7 @@ def test_request(requests_post):
         '\n  "start": 0.0,'
         '\n  "end": 0.0'
         "\n }\n]\n```",
+        tokens=TokenCounts(prompt=0, generated=0),
     )
     assert result == expected
 
@@ -191,6 +194,7 @@ def test_request(requests_post):
         '{\n  "speaker": "speaker_1",\n  "text": "text L text N",\n  "start": 12.5,\n  "end": 15.3\n }\n'
         "]\n"
         "```",
+        tokens=TokenCounts(prompt=0, generated=0),
     )
     assert result == expected
 
