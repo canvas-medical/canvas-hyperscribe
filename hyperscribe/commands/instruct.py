@@ -57,11 +57,11 @@ class Instruct(Base):
                 "```",
                 "Among the following expressions, identify the most relevant one:",
                 "",
-                "\n".join(f" * {concept.term} ({concept.concept_id})" for concept in concepts),
+                "\n".join(f" * {concept.term} (conceptId: '{str(concept.concept_id)}')" for concept in concepts),
                 "",
                 "Please, present your findings in a JSON format within a Markdown code block like:",
                 "```json",
-                json.dumps([{"conceptId": "the concept ID", "term": "the expression"}]),
+                json.dumps([{"conceptId": "the concept id, as string", "term": "the expression"}]),
                 "```",
                 "",
             ]

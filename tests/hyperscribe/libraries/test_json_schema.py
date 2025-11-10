@@ -181,11 +181,11 @@ def test_schema_prescription_dosage():
         ),
         (
             [{"quantityToDispense": 0, "refills": 2, "discreteQuantity": True, "informationToPatient": "Take daily"}],
-            "0 is less than or equal to the minimum of 0, in path [0, 'quantityToDispense']",
+            "0 is less than or equal to the minimum of 0.0, in path [0, 'quantityToDispense']",
         ),
         (
             [{"quantityToDispense": -5, "refills": 2, "discreteQuantity": True, "informationToPatient": "Take daily"}],
-            "-5 is less than or equal to the minimum of 0, in path [0, 'quantityToDispense']",
+            "-5 is less than or equal to the minimum of 0.0, in path [0, 'quantityToDispense']",
         ),
         (
             [{"quantityToDispense": 10, "refills": -1, "discreteQuantity": True, "informationToPatient": "Take daily"}],

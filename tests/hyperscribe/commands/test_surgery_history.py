@@ -143,11 +143,11 @@ def test_command_from_json(surgical_histories):
         "```",
         "Among the following surgeries, identify the most relevant one:",
         "",
-        " * termA (123)\n * termB (369)\n * termC (752)",
+        " * termA (conceptId: '123')\n * termB (conceptId: '369')\n * termC (conceptId: '752')",
         "",
         "Please, present your findings in a JSON format within a Markdown code block like:",
         "```json",
-        '[{"conceptId": "the concept ID", "term": "the expression"}]',
+        '[{"conceptId": "the concept id, as string", "term": "the expression"}]',
         "```",
         "",
     ]

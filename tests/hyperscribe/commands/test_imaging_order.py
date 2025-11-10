@@ -191,11 +191,11 @@ def test_command_from_json(condition_from, search_imagings, add_code2description
         "```",
         "Among the following imaging orders, identify the most relevant one:",
         "",
-        " * name1 (code1)\n * name2 (code2)\n * name3 (code3)",
+        " * name1 (conceptId: code1)\n * name2 (conceptId: code2)\n * name3 (conceptId: code3)",
         "",
         "Please, present your findings in a JSON format within a Markdown code block like:",
         "```json",
-        '[{"conceptId": "the code ID", "term": "the name of the imaging"}]',
+        '[{"conceptId": "the concept id, as string", "term": "the name of the imaging"}]',
         "```",
         "",
     ]

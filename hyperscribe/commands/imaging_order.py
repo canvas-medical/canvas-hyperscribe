@@ -89,19 +89,19 @@ class ImagingOrder(Base):
                 "```",
                 "Among the following imaging orders, identify the most relevant one:",
                 "",
-                "\n".join(f" * {concept.name} ({concept.code})" for concept in concepts),
+                "\n".join(f" * {concept.name} (conceptId: {concept.code})" for concept in concepts),
                 "",
                 "Please, present your findings in a JSON format within a Markdown code block like:",
                 "```json",
-                json.dumps([{"conceptId": "the code ID", "term": "the name of the imaging"}]),
+                json.dumps([{"conceptId": "the concept id, as string", "term": "the name of the imaging"}]),
                 "```",
                 "",
             ]
             schemas = JsonSchema.get(["selector_concept"])
             if response := chatter.single_conversation(system_prompt, user_prompt, schemas, instruction):
                 image = response[0]
-                result.image_code = image["conceptId"]
-                self.add_code2description(image["conceptId"], image["term"])
+                result.image_code = str(image["conceptId"])
+                self.add_code2description(str(image["conceptId"]), image["term"])
 
         return InstructionWithCommand.add_command(instruction, result)
 

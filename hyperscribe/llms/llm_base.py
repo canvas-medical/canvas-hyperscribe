@@ -78,7 +78,9 @@ class LlmBase:
 
     def chat(self, schemas: list) -> JsonExtract:
         self.memory_log.log("-- CHAT BEGINS --")
+        attempts = 0
         for _ in range(Constants.MAX_ATTEMPTS_LLM_JSON):
+            attempts += 1
             response = self.attempt_requests(Constants.MAX_ATTEMPTS_LLM_HTTP)
             # http error
             if response.code != HTTPStatus.OK.value:
@@ -113,7 +115,7 @@ class LlmBase:
             )
             self.memory_log.log(f"error: {result.error}")
 
-        self.memory_log.log("--- CHAT ENDS ---")
+        self.memory_log.log(f"--- CHAT ENDS - {attempts} attempts ---")
         self.memory_log.store_so_far()
         return result
 

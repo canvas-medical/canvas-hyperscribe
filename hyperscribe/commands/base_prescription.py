@@ -107,6 +107,7 @@ class BasePrescription(Base):
             ncpdp_quantity_qualifier_code=quantity.ncpdp_quantity_qualifier_code,
         )
 
+        schemas = JsonSchema.get(["prescription_dosage"])
         system_prompt = [
             "The conversation is in the medical context.",
             "",
@@ -139,24 +140,22 @@ class BasePrescription(Base):
             json.dumps(
                 [
                     {
-                        "quantityToDispense": "mandatory, quantity to dispense, as float",
-                        "refills": "mandatory, refills allowed, as integer",
-                        "discreteQuantity": "mandatory, boolean indicating whether the medication form is discrete "
-                        "(e.g., tablets, capsules, patches, suppositories) as opposed to continuous "
-                        "(e.g., milliliters, grams, ounces). Interpret the ncpdp quantity qualifier description "
-                        "to determine this. Set to true for countable units, false for measurable quantities.",
-                        "noteToPharmacist": "note to the pharmacist, as free text",
-                        "informationToPatient": "directions to the patient on how to use the medication, "
-                        "specifying the quantity, "
-                        "the form (e.g. tablets, drops, puffs, etc), the frequency and/or max daily frequency, "
-                        "and the route of use (e.g. by mouth, applied to skin, dropped in eye, etc), as free text",
+                        "quantityToDispense": -1,
+                        "refills": -1,
+                        "discreteQuantity": True,
+                        "noteToPharmacist": "",
+                        "informationToPatient": "",
                     },
                 ],
             ),
             "```",
             "",
+            "Your response must be a JSON Markdown block validated with the schema:",
+            "```json",
+            json.dumps(schemas[0]),
+            "```",
+            "",
         ]
-        schemas = JsonSchema.get(["prescription_dosage"])
         if response := chatter.single_conversation(system_prompt, user_prompt, schemas, instruction):
             quantity = Decimal(response[0]["quantityToDispense"])
             is_discrete = response[0]["discreteQuantity"]

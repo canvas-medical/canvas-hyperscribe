@@ -69,13 +69,13 @@ class Allergy(Base):
                 "Among the following allergies, identify the most relevant one:",
                 "",
                 "\n".join(
-                    f" * {allergy.concept_id_description} (conceptId: {allergy.concept_id_value})"
+                    f" * {allergy.concept_id_description} (conceptId: '{str(allergy.concept_id_value)}')"
                     for allergy in allergies
                 ),
                 "",
                 "Please, present your findings in a JSON format within a Markdown code block like:",
                 "```json",
-                json.dumps([{"conceptId": "the concept id, as int", "term": "the description"}]),
+                json.dumps([{"conceptId": "the concept id, as string", "term": "the description"}]),
                 "```",
                 "",
             ]

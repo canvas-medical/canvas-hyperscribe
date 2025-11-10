@@ -354,17 +354,31 @@ def test_set_medication_dosage(demographic):
         "",
         "Please, present your findings in a JSON format within a Markdown code block like:",
         "```json",
-        '[{"quantityToDispense": "mandatory, quantity to dispense, as float", '
-        '"refills": "mandatory, refills allowed, as integer", '
-        '"discreteQuantity": "mandatory, boolean indicating whether the medication form is discrete '
+        '[{"quantityToDispense": -1, '
+        '"refills": -1, '
+        '"discreteQuantity": true, '
+        '"noteToPharmacist": "", '
+        '"informationToPatient": ""}]',
+        "```",
+        "",
+        "Your response must be a JSON Markdown block validated with the schema:",
+        "```json",
+        '{"$schema": "http://json-schema.org/draft-07/schema#", '
+        '"type": "array", '
+        '"items": {"type": "object", "properties": {'
+        '"quantityToDispense": {"type": "number", "exclusiveMinimum": 0.0, "description": "the quantity to dispense"}, '
+        '"refills": {"type": "integer", "minimum": 0, "description": "the refills allowed"}, '
+        '"discreteQuantity": {"type": "boolean", "description": "whether the medication form is discrete '
         "(e.g., tablets, capsules, patches, suppositories) as opposed to continuous "
-        "(e.g., milliliters, grams, ounces). Interpret the ncpdp quantity qualifier description "
-        'to determine this. Set to true for countable units, false for measurable quantities.", '
-        '"noteToPharmacist": "note to the pharmacist, as free text", '
-        '"informationToPatient": "directions to the patient on how to use the medication, specifying the quantity, '
-        "the form (e.g. tablets, drops, puffs, etc), "
-        "the frequency and/or max daily frequency, and "
-        'the route of use (e.g. by mouth, applied to skin, dropped in eye, etc), as free text"}]',
+        "(e.g., milliliters, grams, ounces). Interpret the ncpdp quantity qualifier description to determine this. "
+        'Set to true for countable units, false for measurable quantities."}, '
+        '"noteToPharmacist": {"type": "string", "description": "the note to the pharmacist, as free text"}, '
+        '"informationToPatient": {"type": "string", "minLength": 1, "description": "the information to the patient '
+        "on how to use the medication, specifying the quantity, the form (e.g. tablets, drops, puffs, etc), "
+        "the frequency and/or max daily frequency, and the route of use "
+        '(e.g. by mouth, applied to skin, dropped in eye, etc), as free text"}}, '
+        '"required": ["quantityToDispense", "refills", "discreteQuantity", "informationToPatient"], '
+        '"additionalProperties": false}, "minItems": 1, "maxItems": 1}',
         "```",
         "",
     ]
@@ -375,11 +389,36 @@ def test_set_medication_dosage(demographic):
             "items": {
                 "type": "object",
                 "properties": {
-                    "quantityToDispense": {"type": "number", "exclusiveMinimum": 0},
-                    "refills": {"type": "integer", "minimum": 0},
-                    "discreteQuantity": {"type": "boolean"},
-                    "noteToPharmacist": {"type": "string"},
-                    "informationToPatient": {"type": "string", "minLength": 1},
+                    "quantityToDispense": {
+                        "type": "number",
+                        "exclusiveMinimum": 0.0,
+                        "description": "the quantity to dispense",
+                    },
+                    "refills": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "description": "the refills allowed",
+                    },
+                    "discreteQuantity": {
+                        "type": "boolean",
+                        "description": "whether the medication form is discrete "
+                        "(e.g., tablets, capsules, patches, suppositories) as opposed to continuous "
+                        "(e.g., milliliters, grams, ounces). Interpret the ncpdp quantity qualifier "
+                        "description to determine this. Set to true for countable units, "
+                        "false for measurable quantities.",
+                    },
+                    "noteToPharmacist": {
+                        "type": "string",
+                        "description": "the note to the pharmacist, as free text",
+                    },
+                    "informationToPatient": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "the information to the patient on how to use the medication, "
+                        "specifying the quantity, the form (e.g. tablets, drops, puffs, etc), "
+                        "the frequency and/or max daily frequency, and the route of use "
+                        "(e.g. by mouth, applied to skin, dropped in eye, etc), as free text",
+                    },
                 },
                 "required": ["quantityToDispense", "refills", "discreteQuantity", "informationToPatient"],
                 "additionalProperties": False,

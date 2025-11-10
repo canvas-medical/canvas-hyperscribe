@@ -74,11 +74,36 @@ JSON_SCHEMAS: dict[str, dict] = {
         "items": {
             "type": "object",
             "properties": {
-                "quantityToDispense": {"type": "number", "exclusiveMinimum": 0},
-                "refills": {"type": "integer", "minimum": 0},
-                "discreteQuantity": {"type": "boolean"},
-                "noteToPharmacist": {"type": "string"},
-                "informationToPatient": {"type": "string", "minLength": 1},
+                "quantityToDispense": {
+                    "type": "number",
+                    "exclusiveMinimum": 0.0,
+                    "description": "the quantity to dispense",
+                },
+                "refills": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "the refills allowed",
+                },
+                "discreteQuantity": {
+                    "type": "boolean",
+                    "description": "whether the medication form is discrete "
+                    "(e.g., tablets, capsules, patches, suppositories) as opposed to continuous "
+                    "(e.g., milliliters, grams, ounces). Interpret the ncpdp quantity qualifier "
+                    "description to determine this. Set to true for countable units, "
+                    "false for measurable quantities.",
+                },
+                "noteToPharmacist": {
+                    "type": "string",
+                    "description": "the note to the pharmacist, as free text",
+                },
+                "informationToPatient": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "the information to the patient on how to use the medication, "
+                    "specifying the quantity, the form (e.g. tablets, drops, puffs, etc), "
+                    "the frequency and/or max daily frequency, and the route of use "
+                    "(e.g. by mouth, applied to skin, dropped in eye, etc), as free text",
+                },
             },
             "required": ["quantityToDispense", "refills", "discreteQuantity", "informationToPatient"],
             "additionalProperties": False,

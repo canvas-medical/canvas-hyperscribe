@@ -109,11 +109,11 @@ def test_command_from_json(add_code2description, search_allergy):
         "",
         "Among the following allergies, identify the most relevant one:",
         "",
-        " * descriptionA (conceptId: 134)\n * descriptionB (conceptId: 167)\n * descriptionC (conceptId: 234)",
+        " * descriptionA (conceptId: '134')\n * descriptionB (conceptId: '167')\n * descriptionC (conceptId: '234')",
         "",
         "Please, present your findings in a JSON format within a Markdown code block like:",
         "```json",
-        '[{"conceptId": "the concept id, as int", "term": "the description"}]',
+        '[{"conceptId": "the concept id, as string", "term": "the description"}]',
         "```",
         "",
     ]

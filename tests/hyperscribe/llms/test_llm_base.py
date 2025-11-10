@@ -213,7 +213,7 @@ def test_chat(attempt_requests, extract_json_from):
     calls = [call(3)]
     assert attempt_requests.mock_calls == calls
     assert extract_json_from.mock_calls == []
-    calls = [call.log("-- CHAT BEGINS --"), call.log("--- CHAT ENDS ---"), call.store_so_far()]
+    calls = [call.log("-- CHAT BEGINS --"), call.log("--- CHAT ENDS - 1 attempts ---"), call.store_so_far()]
     assert memory_log.mock_calls == calls
     reset_mocks()
 
@@ -255,13 +255,13 @@ def test_chat(attempt_requests, extract_json_from):
     assert extract_json_from.mock_calls == calls
     calls = [
         call.log("-- CHAT BEGINS --"),
-        call.log("--- CHAT ENDS ---"),
+        call.log("--- CHAT ENDS - 1 attempts ---"),
         call.store_so_far(),
         call.log("-- CHAT BEGINS --"),
         call.log("result->>"),
         call.log('[\n  "line1",\n  "line2"\n]'),
         call.log("<<-"),
-        call.log("--- CHAT ENDS ---"),
+        call.log("--- CHAT ENDS - 2 attempts ---"),
         call.store_so_far(),
     ]
     assert memory_log.mock_calls == calls
@@ -336,17 +336,17 @@ def test_chat(attempt_requests, extract_json_from):
     assert extract_json_from.mock_calls == calls
     calls = [
         call.log("-- CHAT BEGINS --"),
-        call.log("--- CHAT ENDS ---"),
+        call.log("--- CHAT ENDS - 1 attempts ---"),
         call.store_so_far(),
         call.log("-- CHAT BEGINS --"),
         call.log("result->>"),
         call.log('[\n  "line1",\n  "line2"\n]'),
         call.log("<<-"),
-        call.log("--- CHAT ENDS ---"),
+        call.log("--- CHAT ENDS - 2 attempts ---"),
         call.store_so_far(),
         call.log("-- CHAT BEGINS --"),
         call.log("error: JSON incorrect: max attempts (3) exceeded"),
-        call.log("--- CHAT ENDS ---"),
+        call.log("--- CHAT ENDS - 3 attempts ---"),
         call.store_so_far(),
     ]
     assert memory_log.mock_calls == calls
