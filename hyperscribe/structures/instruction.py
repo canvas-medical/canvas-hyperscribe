@@ -1,17 +1,24 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 
-
-@dataclass
 class Instruction:
-    uuid: str
-    index: int
-    instruction: str
-    information: str
-    is_new: bool
-    is_updated: bool
-    previous_information: str
+    def __init__(
+        self,
+        uuid: str,
+        index: int,
+        instruction: str,
+        information: str,
+        is_new: bool,
+        is_updated: bool,
+        previous_information: str,
+    ):
+        self.uuid = uuid
+        self.index = index
+        self.instruction = instruction
+        self.information = information
+        self.is_new = is_new
+        self.is_updated = is_updated
+        self.previous_information = previous_information
 
     @classmethod
     def load_from_json(cls, json_list: list) -> list[Instruction]:
@@ -42,4 +49,16 @@ class Instruction:
         return (
             f"{self.instruction} #{self.index:02d} "
             f"({self.uuid}, new/updated: {self.is_new}/{self.is_updated}): {self.information}"
+        )
+
+    def __eq__(self, other: object) -> bool:
+        assert isinstance(other, Instruction)
+        return (
+            self.uuid == other.uuid
+            and self.index == other.index
+            and self.instruction == other.instruction
+            and self.information == other.information
+            and self.previous_information == other.previous_information
+            and self.is_new == other.is_new
+            and self.is_updated == other.is_updated
         )

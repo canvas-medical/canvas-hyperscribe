@@ -1,12 +1,10 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 
-
-@dataclass
 class TokenCounts:
-    prompt: int
-    generated: int
+    def __init__(self, prompt: int, generated: int):
+        self.prompt = prompt
+        self.generated = generated
 
     def add(self, counts: TokenCounts) -> None:
         self.prompt = self.prompt + counts.prompt

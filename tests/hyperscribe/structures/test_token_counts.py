@@ -1,14 +1,4 @@
 from hyperscribe.structures.token_counts import TokenCounts
-from tests.helper import is_dataclass
-
-
-def test_class():
-    tested = TokenCounts
-    fields = {
-        "prompt": "int",
-        "generated": "int",
-    }
-    assert is_dataclass(tested, fields)
 
 
 def test_add():

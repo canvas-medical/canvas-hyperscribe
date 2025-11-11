@@ -1,13 +1,36 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from canvas_sdk.commands.base import _BaseCommand
 
 from hyperscribe.structures.instruction_with_command import InstructionWithCommand
 
 
-@dataclass
 class InstructionWithSummary(InstructionWithCommand):
-    summary: str
+    def __init__(
+        self,
+        uuid: str,
+        index: int,
+        instruction: str,
+        information: str,
+        is_new: bool,
+        is_updated: bool,
+        previous_information: str,
+        parameters: dict,
+        command: _BaseCommand,
+        summary: str,
+    ):
+        super().__init__(
+            uuid,
+            index,
+            instruction,
+            information,
+            is_new,
+            is_updated,
+            previous_information,
+            parameters,
+            command,
+        )
+        self.summary = summary
 
     @classmethod
     def add_explanation(cls, instruction: InstructionWithCommand, summary: str) -> InstructionWithSummary:
@@ -23,3 +46,7 @@ class InstructionWithSummary(InstructionWithCommand):
             command=instruction.command,
             summary=summary,
         )
+
+    def __eq__(self, other: object) -> bool:
+        assert isinstance(other, InstructionWithSummary)
+        return super().__eq__(other) and self.summary == other.summary

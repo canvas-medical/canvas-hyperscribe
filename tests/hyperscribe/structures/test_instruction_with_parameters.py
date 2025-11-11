@@ -1,22 +1,5 @@
 from hyperscribe.structures.instruction import Instruction
 from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
-from tests.helper import is_dataclass
-
-
-def test_class():
-    tested = InstructionWithParameters
-    assert issubclass(tested, Instruction)
-    fields = {
-        "uuid": "str",
-        "index": "int",
-        "instruction": "str",
-        "information": "str",
-        "is_new": "bool",
-        "is_updated": "bool",
-        "previous_information": "str",
-        "parameters": "dict",
-    }
-    assert is_dataclass(tested, fields)
 
 
 def test_add_parameters():
@@ -44,3 +27,50 @@ def test_add_parameters():
         parameters={"key": "value"},
     )
     assert result == expected
+
+
+def test___eq__():
+    tested = InstructionWithParameters(
+        uuid="theUuid",
+        index=3,
+        instruction="theInstruction",
+        information="theInformation",
+        is_new=True,
+        is_updated=True,
+        previous_information="thePreviousInformation",
+        parameters={"key": "value"},
+    )
+    tests = [
+        (
+            InstructionWithParameters(
+                uuid="theUuid",
+                index=3,
+                instruction="theInstruction",
+                information="theInformation",
+                is_new=True,
+                is_updated=True,
+                previous_information="thePreviousInformation",
+                parameters={"key": "value"},
+            ),
+            True,
+        ),
+        (
+            InstructionWithParameters(
+                uuid="theUuid",
+                index=3,
+                instruction="theInstruction",
+                information="theInformation",
+                is_new=True,
+                is_updated=True,
+                previous_information="thePreviousInformation",
+                parameters={"key": "other"},
+            ),
+            False,
+        ),
+    ]
+    for other, expected in tests:
+        if expected:
+            assert tested == other
+        else:
+            assert tested != other
+        assert tested is not other
