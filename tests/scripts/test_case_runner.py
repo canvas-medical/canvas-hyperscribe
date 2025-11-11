@@ -43,6 +43,7 @@ def test_parameters(argument_parser):
     reset_mocks()
 
 
+@patch("scripts.case_runner.MemoryLog")
 @patch("scripts.case_runner.AudioInterpreter")
 @patch("scripts.case_runner.HelperEvaluation")
 @patch.object(DatastoreCase, "already_generated")
@@ -62,6 +63,7 @@ def test_run(
     already_generated,
     helper,
     audio_interpreter,
+    memory_log,
     capsys,
 ):
     mock_chatter = MagicMock()
@@ -77,6 +79,7 @@ def test_run(
         already_generated.reset_mock()
         helper.reset_mock()
         audio_interpreter.reset_mock()
+        memory_log.reset_mock()
         mock_chatter.reset_mock()
         mock_auditor.reset_mock()
 
@@ -109,7 +112,8 @@ def test_run(
     mock_auditor.note_uuid.side_effect = []
     mock_auditor.settings = "theSettings"
     mock_auditor.s3_credentials = "theAwsCredentials"
-    audio_interpreter.side_effect = []
+    audio_interpreter.token_counts.side_effect = []
+    memory_log.side_effect = []
     mock_chatter.identification = identification
 
     tested = CaseRunner
@@ -128,6 +132,7 @@ def test_run(
     assert transcript2commands.mock_calls == []
     assert helper.mock_calls == []
     assert audio_interpreter.mock_calls == []
+    assert memory_log.mock_calls == []
     assert mock_chatter.mock_calls == []
     assert mock_auditor.mock_calls == []
     reset_mocks()
@@ -154,6 +159,7 @@ def test_run(
     mock_auditor.settings = "theSettings"
     mock_auditor.s3_credentials = "theAwsCredentials"
     audio_interpreter.side_effect = [mock_chatter]
+    memory_log.token_counts.side_effect = ["tokenCounts"]
     mock_chatter.identification = identification
 
     tested = CaseRunner
@@ -183,6 +189,8 @@ def test_run(
     assert helper.mock_calls == calls
     calls = [call("theSettings", "theAwsCredentials", load_from_json.return_value, identification)]
     assert audio_interpreter.mock_calls == calls
+    calls = [call.token_counts("theNoteUuid")]
+    assert memory_log.mock_calls == calls
     assert mock_chatter.mock_calls == []
     calls = [
         call.full_transcript(),
@@ -191,7 +199,7 @@ def test_run(
         call.set_cycle(1),
         call.set_cycle(2),
         call.set_cycle(3),
-        call.case_finalize({}, 17),
+        call.case_finalize({}, 17, "tokenCounts"),
     ]
     assert mock_auditor.mock_calls == calls
     reset_mocks()
@@ -212,6 +220,7 @@ def test_run(
     mock_auditor.settings = "theSettings"
     mock_auditor.s3_credentials = "theAwsCredentials"
     audio_interpreter.side_effect = [mock_chatter]
+    memory_log.token_counts.side_effect = ["tokenCounts"]
     mock_chatter.identification = identification
 
     tested = CaseRunner
@@ -240,6 +249,8 @@ def test_run(
     assert helper.mock_calls == calls
     calls = [call("theSettings", "theAwsCredentials", load_from_json.return_value, identification)]
     assert audio_interpreter.mock_calls == calls
+    calls = [call.token_counts("theNoteUuid")]
+    assert memory_log.mock_calls == calls
     assert mock_chatter.mock_calls == []
     calls = [
         call.full_transcript(),
@@ -247,7 +258,7 @@ def test_run(
         call.limited_chart(),
         call.set_cycle(1),
         call.set_cycle(2),
-        call.case_finalize({"error": "test"}, 11),
+        call.case_finalize({"error": "test"}, 11, "tokenCounts"),
     ]
     assert mock_auditor.mock_calls == calls
     reset_mocks()

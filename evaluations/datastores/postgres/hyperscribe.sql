@@ -112,6 +112,7 @@ CREATE TABLE public.generated_note
     transcript2instructions  JSON      NOT NULL,
     instruction2parameters   JSON      NOT NULL,
     parameters2command       JSON      NOT NULL,
+    token_counts             JSON      NOT NULL,
     failed                   boolean   NOT NULL,
     errors                   JSON      NOT NULL,
     experiment               boolean DEFAULT false,

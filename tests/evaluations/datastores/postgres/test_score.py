@@ -82,7 +82,7 @@ def test_insert(alter, mock_datetime):
         "now": date_0,
         "rubric_id": 123,
         "generated_note_id": 456,
-        "scoring_result": '{"criterion1": 8.5, "criterion2": 7.2, "criterion3": 9.1}',
+        "scoring_result": '{"criterion1":8.5,"criterion2":7.2,"criterion3":9.1}',
         "overall_score": 8.3,
         "comments": "theComments",
         "text_llm_vendor": "theTextLlmVendor",

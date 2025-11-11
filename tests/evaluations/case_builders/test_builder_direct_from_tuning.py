@@ -381,6 +381,7 @@ def test___init__():
     assert tested.force_rerun is False
 
 
+@patch("evaluations.case_builders.builder_direct_from_tuning.MemoryLog")
 @patch("evaluations.case_builders.builder_direct_from_tuning.GeneratedNote")
 @patch("evaluations.case_builders.builder_direct_from_tuning.HelperEvaluation")
 @patch("evaluations.case_builders.builder_direct_from_tuning.ImplementedCommands")
@@ -398,6 +399,7 @@ def test_generate_case(
     implemented_commands,
     helper,
     generated_note,
+    memory_log,
 ):
     mock_chatter = MagicMock()
     limited_cache = MagicMock()
@@ -412,6 +414,7 @@ def test_generate_case(
         implemented_commands.reset_mock()
         helper.reset_mock()
         generated_note.reset_mock()
+        memory_log.reset_mock()
         mock_chatter.reset_mock()
         limited_cache.reset_mock()
         mock_settings.reset_mock()
@@ -446,6 +449,7 @@ def test_generate_case(
         helper.postgres_credentials.side_effect = ["thePostgresCredentials"]
         helper.trace_error.side_effect = [{"error": "test"}]
         generated_note.return_value.last_run_for.side_effect = [last_run_side_effect]
+        memory_log.token_counts.side_effect = ["tokenCounts"]
         mock_settings.llm_audio.vendor = "theVendorAudio"
         mock_settings.llm_audio_model.side_effect = ["theModelAudio"]
         mock_settings.llm_text.vendor = "theVendorText"
@@ -572,11 +576,11 @@ def test_generate_case(
                             "audio2transcript",
                             {"theCycleKey": [{"speaker": "theSpeaker6", "text": "theText6", "start": 8.3, "end": 9.9}]},
                         ),
-                        call().case_finalize({}, 0),
+                        call().case_finalize({}, 0, "tokenCounts"),
                     ],
                 )
             else:
-                calls.extend([call().case_finalize({"error": "test"}, 0)])
+                calls.extend([call().case_finalize({"error": "test"}, 0, "tokenCounts")])
             calls.extend([call().summarized_generated_commands_as_instructions()])
             assert auditor_postgres.mock_calls == calls
             calls = [call.schema_key2instruction()]
@@ -585,6 +589,8 @@ def test_generate_case(
             assert limited_cache.mock_calls == calls
             calls = [call.llm_audio_model()]
             assert mock_settings.mock_calls == calls
+            calls = [call.token_counts("noteUuid")]
+            assert memory_log.mock_calls == calls
         else:
             assert real_world_case_store.mock_calls == []
             assert audio_interpreter.mock_calls == []
@@ -598,6 +604,7 @@ def test_generate_case(
             assert implemented_commands.mock_calls == []
             assert limited_cache.mock_calls == []
             assert mock_settings.mock_calls == []
+            assert memory_log.mock_calls == []
 
         calls = [call.postgres_credentials()]
         if has_error:

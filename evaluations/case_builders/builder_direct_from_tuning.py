@@ -177,7 +177,7 @@ class BuilderDirectFromTuning:
         except Exception as e:
             errors = HelperEvaluation.trace_error(e)
         finally:
-            auditor.case_finalize(errors, 0)
+            auditor.case_finalize(errors, 0, MemoryLog.token_counts(self.identification.note_uuid))
         return auditor.summarized_generated_commands_as_instructions()
 
     def create_transcripts(self, mp3_files: list[Path], interpreter: AudioInterpreter) -> list[Path]:

@@ -5,6 +5,7 @@ from evaluations.datastores.postgres.generated_note import GeneratedNote
 from evaluations.datastores.postgres.postgres import Postgres
 from evaluations.structures.postgres_credentials import PostgresCredentials
 from evaluations.structures.records.generated_note import GeneratedNote as Record
+from hyperscribe.structures.token_counts import TokenCounts
 from tests.helper import compare_sql
 
 
@@ -71,6 +72,7 @@ def test_insert(alter, mock_datetime):
         transcript2instructions={"case": "transcript2instructions"},
         instruction2parameters={"case": "instruction2parameters"},
         parameters2command={"case": "parameters2command"},
+        token_counts=TokenCounts(prompt=157, generated=71),
         failed=True,
         errors={"case": "errors"},
         experiment=False,
@@ -89,6 +91,7 @@ def test_insert(alter, mock_datetime):
         transcript2instructions={"case": "transcript2instructions"},
         instruction2parameters={"case": "instruction2parameters"},
         parameters2command={"case": "parameters2command"},
+        token_counts=TokenCounts(prompt=157, generated=71),
         failed=True,
         errors={"case": "errors"},
         experiment=False,
@@ -112,12 +115,12 @@ def test_insert(alter, mock_datetime):
         'INSERT INTO "generated_note" ("created", "updated", "case_id", "cycle_duration", "cycle_count", '
         ' "cycle_transcript_overlap", "text_llm_vendor", "text_llm_name", "note_json", "hyperscribe_version", '
         ' "staged_questionnaires", "transcript2instructions", "instruction2parameters", '
-        ' "parameters2command", "failed", "errors", "experiment") '
+        ' "parameters2command", "token_counts", "failed", "errors", "experiment") '
         "VALUES (%(now)s, %(now)s, %(case_id)s, %(cycle_duration)s, %(cycle_count)s, "
         " %(cycle_transcript_overlap)s, %(text_llm_vendor)s, %(text_llm_name)s, "
         " %(note_json)s, %(hyperscribe_version)s, "
         " %(staged_questionnaires)s, %(transcript2instructions)s, %(instruction2parameters)s, "
-        " %(parameters2command)s, %(failed)s, %(errors)s, %(experiment)s) "
+        " %(parameters2command)s, %(token_counts)s, %(failed)s, %(errors)s, %(experiment)s) "
         "RETURNING id"
     )
     assert compare_sql(sql, exp_sql)
@@ -126,17 +129,18 @@ def test_insert(alter, mock_datetime):
         "cycle_count": 7,
         "cycle_duration": 35,
         "cycle_transcript_overlap": 57,
-        "errors": '{"case": "errors"}',
+        "errors": '{"case":"errors"}',
         "failed": True,
         "hyperscribe_version": "theHyperscribeVersion",
-        "instruction2parameters": '{"case": "instruction2parameters"}',
-        "note_json": '["note1", "note2"]',
+        "instruction2parameters": '{"case":"instruction2parameters"}',
+        "note_json": '["note1","note2"]',
         "now": date_0,
-        "parameters2command": '{"case": "parameters2command"}',
-        "staged_questionnaires": '{"case": "staged_questionnaires"}',
+        "parameters2command": '{"case":"parameters2command"}',
+        "staged_questionnaires": '{"case":"staged_questionnaires"}',
         "text_llm_name": "theTextLlmName",
         "text_llm_vendor": "theTextLlmVendor",
-        "transcript2instructions": '{"case": "transcript2instructions"}',
+        "token_counts": '{"generated":71,"prompt":157}',
+        "transcript2instructions": '{"case":"transcript2instructions"}',
         "experiment": False,
     }
     assert params == exp_params

@@ -9,6 +9,7 @@ from hyperscribe.libraries.cached_sdk import CachedSdk
 from hyperscribe.libraries.constants import Constants
 from hyperscribe.libraries.implemented_commands import ImplementedCommands
 from hyperscribe.libraries.limited_cache import LimitedCache
+from hyperscribe.libraries.memory_log import MemoryLog
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.line import Line
 
@@ -64,7 +65,11 @@ class CaseRunner:
         except Exception as e:
             errors = HelperEvaluation.trace_error(e)
         finally:
-            auditor.case_finalize(errors, parameters.experiment_result_id)
+            auditor.case_finalize(
+                errors,
+                parameters.experiment_result_id,
+                MemoryLog.token_counts(identification.note_uuid),
+            )
 
     @classmethod
     def prepare_cycles(cls, full_transcript: dict[str, list[Line]], cycles: int) -> dict[str, list[Line]]:

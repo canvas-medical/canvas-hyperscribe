@@ -157,6 +157,7 @@ def test_run(
         cached_discussion.side_effect = []
         helper.side_effect = []
         memory_log.end_session.side_effect = []
+        memory_log.token_counts.side_effect = []
         mock_datetime.now.side_effect = []
 
         result = tested.run()
@@ -218,6 +219,7 @@ def test_run(
             helper.get_canvas_instance.side_effect = ["canvasInstance"]
             helper.trace_error.side_effect = [{"error": "test"}]
             memory_log.end_session.side_effect = ["flushedMemoryLog"]
+            memory_log.token_counts.side_effect = ["tokenCounts"]
             mock_datetime.now.side_effect = [dates[1]]
             mock_auditor.s3_credentials = "awsS3CredentialsInstance1"
             mock_auditor.settings = settings
@@ -265,7 +267,10 @@ def test_run(
             if aws_is_ready and audit_llm:
                 calls = [call.review(identifications["target"], settings, "awsS3CredentialsInstance1", {}, dates[0], 3)]
             assert llm_decisions_reviewer.mock_calls == calls
-            calls = [call(identifications["target"], "case_builder")]
+            calls = [
+                call(identifications["target"], "case_builder"),
+                call.token_counts("noteUuid"),
+            ]
             if aws_is_ready:
                 calls.append(call.end_session("noteUuid"))
             assert memory_log.mock_calls == calls
@@ -275,7 +280,7 @@ def test_run(
             assert mock_datetime.mock_calls == calls
             calls = [
                 call.case_prepare(),
-                call.case_finalize({"error": "test"} if has_error else {}, 0),
+                call.case_finalize({"error": "test"} if has_error else {}, 0, "tokenCounts"),
                 call.generate_html_summary(),
                 call.generate_html_summary().as_uri(),
             ]
@@ -316,6 +321,7 @@ def test_run(
             helper.settings.side_effect = [settings]
             helper.trace_error.side_effect = [{"error": "test"}]
             memory_log.end_session.side_effect = ["flushedMemoryLog"]
+            memory_log.token_counts.side_effect = ["tokenCounts"]
             mock_datetime.now.side_effect = [dates[2]]
             mock_auditor.s3_credentials = "awsS3CredentialsInstance1"
             mock_auditor.settings = settings
@@ -361,7 +367,10 @@ def test_run(
                     call.review(identifications["generic"], settings, "awsS3CredentialsInstance1", {}, dates[0], 3),
                 ]
             assert llm_decisions_reviewer.mock_calls == calls
-            calls = [call(identifications["generic"], "case_builder")]
+            calls = [
+                call(identifications["generic"], "case_builder"),
+                call.token_counts("_NoteUuid"),
+            ]
             if aws_is_ready:
                 calls.append(call.end_session("_NoteUuid"))
             assert memory_log.mock_calls == calls
@@ -371,7 +380,7 @@ def test_run(
             assert mock_datetime.mock_calls == calls
             calls = [
                 call.case_prepare(),
-                call.case_finalize({"error": "test"} if has_error else {}, 0),
+                call.case_finalize({"error": "test"} if has_error else {}, 0, "tokenCounts"),
                 call.generate_html_summary(),
                 call.generate_html_summary().as_uri(),
             ]

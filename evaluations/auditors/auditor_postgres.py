@@ -14,6 +14,7 @@ from evaluations.structures.records.generated_note import GeneratedNote as Gener
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.line import Line
 from hyperscribe.structures.settings import Settings
+from hyperscribe.structures.token_counts import TokenCounts
 
 
 class AuditorPostgres(AuditorStore):
@@ -69,7 +70,7 @@ class AuditorPostgres(AuditorStore):
     def case_update_limited_cache(self, limited_cache: dict) -> None:
         CaseStore(self.postgres_credentials).update_fields(self.case_id(), {"limited_chart": limited_cache})
 
-    def case_finalize(self, errors: dict, experiment_result_id: int) -> None:
+    def case_finalize(self, errors: dict, experiment_result_id: int, token_counts: TokenCounts) -> None:
         generated_note_id = self.generated_note_id()
         summarized_generated_commands = self.summarized_generated_commands()
         GeneratedNoteStore(self.postgres_credentials).update_fields(
@@ -80,6 +81,7 @@ class AuditorPostgres(AuditorStore):
                 "failed": bool(errors),
                 "errors": errors,
                 "experiment": bool(experiment_result_id > 0),
+                "token_counts": token_counts.to_dict(),
             },
         )
         if experiment_result_id > 0:

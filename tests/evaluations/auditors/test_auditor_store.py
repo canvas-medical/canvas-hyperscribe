@@ -12,6 +12,7 @@ from hyperscribe.structures.instruction_with_command import InstructionWithComma
 from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.line import Line
 from hyperscribe.structures.settings import Settings
+from hyperscribe.structures.token_counts import TokenCounts
 from hyperscribe.structures.vendor_key import VendorKey
 from tests.helper import MockFile
 
@@ -87,7 +88,11 @@ def test_case_update_limited_cache():
 def test_case_finalize():
     tested = helper_instance()
     with pytest.raises(NotImplementedError):
-        _ = tested.case_finalize({"error1": "value1", "error2": "value2"}, 73)
+        _ = tested.case_finalize(
+            {"error1": "value1", "error2": "value2"},
+            73,
+            TokenCounts(prompt=187, generated=91),
+        )
 
 
 def test_upsert_audio():

@@ -16,6 +16,10 @@ PROMPTS: dict[str, TokenCounts] = {}  # store the token consumptions
 
 class MemoryLog:
     @classmethod
+    def token_counts(cls, note_uuid: str) -> TokenCounts:
+        return PROMPTS.get(note_uuid) or TokenCounts(prompt=0, generated=0)
+
+    @classmethod
     def end_session(cls, note_uuid: str) -> str:
         if note_uuid not in ENTRIES:
             return ""

@@ -9,6 +9,29 @@ from hyperscribe.structures.identification_parameters import IdentificationParam
 from hyperscribe.structures.token_counts import TokenCounts
 
 
+def test_token_counts():
+    with patch.object(memory_log, "PROMPTS", {}):
+        tested = MemoryLog
+
+        result = tested.token_counts("noteUuid")
+        expected = TokenCounts(prompt=0, generated=0)
+        assert result == expected
+
+        memory_log.PROMPTS = {
+            "noteUuid_1": TokenCounts(prompt=121, generated=81),
+            "noteUuid_2": TokenCounts(prompt=122, generated=82),
+        }
+        result = tested.token_counts("noteUuid_1")
+        expected = TokenCounts(prompt=121, generated=81)
+        assert result == expected
+        result = tested.token_counts("noteUuid_2")
+        expected = TokenCounts(prompt=122, generated=82)
+        assert result == expected
+        result = tested.token_counts("noteUuid_3")
+        expected = TokenCounts(prompt=0, generated=0)
+        assert result == expected
+
+
 def test_end_session():
     with patch.object(memory_log, "ENTRIES", {}):
         with patch.object(memory_log, "PROMPTS", {}):

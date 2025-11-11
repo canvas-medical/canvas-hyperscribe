@@ -1,5 +1,7 @@
 from typing import NamedTuple
 
+from hyperscribe.structures.token_counts import TokenCounts
+
 
 class GeneratedNote(NamedTuple):
     case_id: int
@@ -17,4 +19,5 @@ class GeneratedNote(NamedTuple):
     failed: bool = False
     errors: dict = {}
     experiment: bool = False
+    token_counts: TokenCounts = TokenCounts(prompt=0, generated=0)
     id: int = 0

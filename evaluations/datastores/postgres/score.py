@@ -1,4 +1,3 @@
-import json
 from datetime import datetime, UTC
 from typing import LiteralString
 
@@ -12,7 +11,7 @@ class Score(Postgres):
             "now": datetime.now(UTC),
             "rubric_id": score.rubric_id,
             "generated_note_id": score.generated_note_id,
-            "scoring_result": json.dumps(score.scoring_result),
+            "scoring_result": self.constant_dumps(score.scoring_result),
             "overall_score": score.overall_score,
             "comments": score.comments,
             "text_llm_vendor": score.text_llm_vendor,

@@ -12,6 +12,7 @@ from evaluations.structures.evaluation_case import EvaluationCase
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.line import Line
 from hyperscribe.structures.settings import Settings
+from hyperscribe.structures.token_counts import TokenCounts
 
 
 class AuditorFile(AuditorStore):
@@ -55,7 +56,7 @@ class AuditorFile(AuditorStore):
             ),
         )
 
-    def case_finalize(self, errors: dict, experiment_result_id: int) -> None:
+    def case_finalize(self, errors: dict, experiment_result_id: int, token_counts: TokenCounts) -> None:
         # update the cycles
         case = FileSystemCase.get(self.case)
         FileSystemCase.upsert(

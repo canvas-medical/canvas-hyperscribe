@@ -12,6 +12,7 @@ from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.line import Line
 from hyperscribe.structures.settings import Settings
+from hyperscribe.structures.token_counts import TokenCounts
 from hyperscribe.structures.vendor_key import VendorKey
 
 
@@ -313,7 +314,11 @@ def test_case_finalize(
         llm_text_model.side_effect = ["theModel"]
 
         tested = helper_instance()
-        tested.case_finalize({"error1": "value1", "error2": "value2"}, experiment_result_id)
+        tested.case_finalize(
+            {"error1": "value1", "error2": "value2"},
+            experiment_result_id,
+            TokenCounts(prompt=187, generated=91),
+        )
 
         calls = [call()]
         assert generated_note_id.mock_calls == calls
@@ -329,6 +334,7 @@ def test_case_finalize(
                     "failed": True,
                     "errors": {"error1": "value1", "error2": "value2"},
                     "experiment": exp_experiment,
+                    "token_counts": {"prompt": 187, "generated": 91},
                 },
             ),
         ]

@@ -1,4 +1,3 @@
-import json
 from datetime import datetime, UTC
 from typing import LiteralString, get_type_hints, cast
 
@@ -27,14 +26,15 @@ class GeneratedNote(Postgres):
             "cycle_transcript_overlap": case.cycle_transcript_overlap,
             "text_llm_vendor": case.text_llm_vendor,
             "text_llm_name": case.text_llm_name,
-            "note_json": json.dumps(case.note_json),
+            "note_json": self.constant_dumps(case.note_json),
             "hyperscribe_version": case.hyperscribe_version,
-            "staged_questionnaires": json.dumps(case.staged_questionnaires),
-            "transcript2instructions": json.dumps(case.transcript2instructions),
-            "instruction2parameters": json.dumps(case.instruction2parameters),
-            "parameters2command": json.dumps(case.parameters2command),
+            "staged_questionnaires": self.constant_dumps(case.staged_questionnaires),
+            "transcript2instructions": self.constant_dumps(case.transcript2instructions),
+            "instruction2parameters": self.constant_dumps(case.instruction2parameters),
+            "parameters2command": self.constant_dumps(case.parameters2command),
+            "token_counts": self.constant_dumps(case.token_counts.to_dict()),
             "failed": case.failed,
-            "errors": json.dumps(case.errors),
+            "errors": self.constant_dumps(case.errors),
             "experiment": case.experiment,
         }
         sql: LiteralString = """
@@ -42,11 +42,11 @@ class GeneratedNote(Postgres):
                                             "cycle_transcript_overlap", "text_llm_vendor", "text_llm_name",
                                             "note_json", "hyperscribe_version", "staged_questionnaires",
                                             "transcript2instructions", "instruction2parameters",
-                                            "parameters2command", "failed", "errors", "experiment")
+                                            "parameters2command", "token_counts", "failed", "errors", "experiment")
               VALUES (%(now)s, %(now)s, %(case_id)s, %(cycle_duration)s, %(cycle_count)s, %(cycle_transcript_overlap)s,
                       %(text_llm_vendor)s, %(text_llm_name)s, %(note_json)s, %(hyperscribe_version)s,
                       %(staged_questionnaires)s, %(transcript2instructions)s, %(instruction2parameters)s,
-                      %(parameters2command)s, %(failed)s, %(errors)s, %(experiment)s) RETURNING id"""
+                      %(parameters2command)s, %(token_counts)s, %(failed)s, %(errors)s, %(experiment)s) RETURNING id"""
         return Record(
             id=self._alter(sql, params, None),
             case_id=case.case_id,
@@ -61,6 +61,7 @@ class GeneratedNote(Postgres):
             transcript2instructions=case.transcript2instructions,
             instruction2parameters=case.instruction2parameters,
             parameters2command=case.parameters2command,
+            token_counts=case.token_counts,
             failed=case.failed,
             errors=case.errors,
             experiment=case.experiment,
