@@ -561,6 +561,7 @@ class AudioInterpreter:
                         information=json.dumps(questionnaire.to_json()),
                         is_new=False,
                         is_updated=True,
+                        previous_information=direction.previous_information,
                         parameters={},
                         command=command,
                     )

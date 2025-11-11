@@ -339,6 +339,7 @@ def test_add_instructions_as_staged_commands():
             information=f"theInformation{idx}",
             is_new=False,
             is_updated=True,
+            previous_information=f"thePreviousInformation{idx}",
         )
         for idx in range(5)
     ]
@@ -428,31 +429,35 @@ def test_staged_commands_as_instructions():
 
     schema_key2instruction = {"keyX": "Instruction1", "keyY": "Instruction2", "keyZ": "Instruction3"}
     result = tested.staged_commands_as_instructions(schema_key2instruction)
-    expected = Instruction.load_from_json(
-        [
-            {
-                "uuid": "uuid1",
-                "instruction": "Instruction1",
-                "information": "label1",
-                "isNew": True,
-                "isUpdated": False,
-            },
-            {
-                "uuid": "uuid3",
-                "instruction": "Instruction3",
-                "information": "label3",
-                "isNew": True,
-                "isUpdated": False,
-            },
-            {
-                "uuid": "uuid2",
-                "instruction": "Instruction3",
-                "information": "label2",
-                "isNew": True,
-                "isUpdated": False,
-            },
-        ],
-    )
+    expected = [
+        Instruction(
+            uuid="uuid1",
+            index=1,
+            instruction="Instruction1",
+            information="label1",
+            is_new=True,
+            is_updated=False,
+            previous_information="",
+        ),
+        Instruction(
+            uuid="uuid3",
+            index=2,
+            instruction="Instruction3",
+            information="label3",
+            is_new=True,
+            is_updated=False,
+            previous_information="",
+        ),
+        Instruction(
+            uuid="uuid2",
+            index=3,
+            instruction="Instruction3",
+            information="label2",
+            is_new=True,
+            is_updated=False,
+            previous_information="",
+        ),
+    ]
     assert result == expected
 
 

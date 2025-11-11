@@ -194,6 +194,7 @@ class LimitedCache:
                         information=command.label,
                         is_new=True,
                         is_updated=False,
+                        previous_information="",
                     ),
                 )
         return result

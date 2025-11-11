@@ -157,6 +157,7 @@ def test_command_from_json(add_code2description, condition_from, lab_test_from, 
         "information": "theInformation",
         "is_new": False,
         "is_updated": True,
+        "previous_information": "thePreviousInformation",
         "parameters": {
             "labOrders": [
                 {"labOrderKeywords": "lab1,lab2"},

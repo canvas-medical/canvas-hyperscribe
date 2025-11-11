@@ -169,6 +169,7 @@ def test_command_from_json(add_code2description, existing_note_types, existing_r
             "information": "theInformation",
             "is_new": False,
             "is_updated": True,
+            "previous_information": "thePreviousInformation",
             "parameters": {
                 "visitType": "theVisit",
                 "visitTypeIndex": idx,
@@ -211,6 +212,7 @@ def test_command_from_json(add_code2description, existing_note_types, existing_r
             "information": "theInformation",
             "is_new": False,
             "is_updated": True,
+            "previous_information": "thePreviousInformation",
             "parameters": {
                 "visitType": "theVisit",
                 "visitTypeIndex": 2,

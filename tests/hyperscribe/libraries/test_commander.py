@@ -151,6 +151,7 @@ def test_compute_audio(
                 information="theInformationA",
                 is_new=False,
                 is_updated=False,
+                previous_information="thePreviousInformation1",
             ),
             Instruction(
                 uuid="uuidB",
@@ -159,6 +160,7 @@ def test_compute_audio(
                 information="theInformationB",
                 is_new=False,
                 is_updated=False,
+                previous_information="thePreviousInformation2",
             ),
             Instruction(
                 uuid="uuidC",
@@ -167,6 +169,7 @@ def test_compute_audio(
                 information="theInformationC",
                 is_new=True,
                 is_updated=False,
+                previous_information="thePreviousInformation3",
             ),
         ]
         exp_instructions = [
@@ -177,6 +180,7 @@ def test_compute_audio(
                 information="theInformationA",
                 is_new=False,
                 is_updated=True,
+                previous_information="thePreviousInformation1",
             ),
             Instruction(
                 uuid="uuidB",
@@ -185,6 +189,7 @@ def test_compute_audio(
                 information="theInformationB",
                 is_new=True,
                 is_updated=False,
+                previous_information="thePreviousInformation2",
             ),
             Instruction(
                 uuid="uuidC",
@@ -193,6 +198,7 @@ def test_compute_audio(
                 information="theInformationC",
                 is_new=True,
                 is_updated=False,
+                previous_information="thePreviousInformation3",
             ),
         ]
         exp_effects = [
@@ -336,6 +342,7 @@ def test_audio2commands(transcript2commands, tail_of, memory_log, progress):
             information="theInformationA",
             is_new=True,
             is_updated=False,
+            previous_information="thePreviousInformation1",
         ),
     ]
     identification = IdentificationParameters(
@@ -432,6 +439,7 @@ def test_audio2commands(transcript2commands, tail_of, memory_log, progress):
                     information="theInformationA",
                     is_new=True,
                     is_updated=False,
+                    previous_information="thePreviousInformation1",
                 ),
             ],
         ),
@@ -530,6 +538,7 @@ def test_transcript2command(transcript2commands_common, transcript2commands_ques
             information="theInformationA",
             is_new=True,
             is_updated=False,
+            previous_information="thePreviousInformation1",
         ),
         Instruction(
             uuid="uuidB",
@@ -538,6 +547,7 @@ def test_transcript2command(transcript2commands_common, transcript2commands_ques
             information="theInformationB",
             is_new=False,
             is_updated=True,
+            previous_information="thePreviousInformation2",
         ),
     ]
     transcript2commands_common.side_effect = [(["instruction1", "instruction2"], ["effect1", "effect2"])]
@@ -564,6 +574,7 @@ def test_transcript2command(transcript2commands_common, transcript2commands_ques
             information="theInformationA",
             is_new=True,
             is_updated=False,
+            previous_information="thePreviousInformation1",
         ),
         Instruction(
             uuid="uuidB",
@@ -572,6 +583,7 @@ def test_transcript2command(transcript2commands_common, transcript2commands_ques
             information="theInformationB",
             is_new=False,
             is_updated=True,
+            previous_information="thePreviousInformation2",
         ),
     ]
     transcript2commands_common.side_effect = [([], [])]
@@ -598,6 +610,7 @@ def test_transcript2command(transcript2commands_common, transcript2commands_ques
             information="theInformationA",
             is_new=True,
             is_updated=False,
+            previous_information="thePreviousInformation1",
         ),
         Instruction(
             uuid="uuidB",
@@ -606,6 +619,7 @@ def test_transcript2command(transcript2commands_common, transcript2commands_ques
             information="theInformationB",
             is_new=False,
             is_updated=True,
+            previous_information="thePreviousInformation2",
         ),
     ]
     transcript2commands_common.side_effect = [(["instruction1"], ["effect1"])]
@@ -656,6 +670,7 @@ def test_transcript2commands_common(time, memory_log, progress):
             information="theInformationA",
             is_new=False,
             is_updated=True,
+            previous_information="thePreviousInformation1",
         ),
         Instruction(
             uuid="uuidB",
@@ -664,6 +679,7 @@ def test_transcript2commands_common(time, memory_log, progress):
             information="theInformationB",
             is_new=False,
             is_updated=False,
+            previous_information="thePreviousInformation2",
         ),
         Instruction(
             uuid="uuidF",
@@ -672,6 +688,7 @@ def test_transcript2commands_common(time, memory_log, progress):
             information="theInformationF",
             is_new=False,
             is_updated=True,
+            previous_information="thePreviousInformation3",
         ),
     ]
     exp_instructions = [
@@ -682,7 +699,8 @@ def test_transcript2commands_common(time, memory_log, progress):
             information="changedInformationA",
             is_new=False,
             is_updated=True,
-        ).set_previous_information("theInformationA"),
+            previous_information="theInformationA",
+        ),
         Instruction(
             uuid="uuidB",
             index=2,
@@ -690,38 +708,43 @@ def test_transcript2commands_common(time, memory_log, progress):
             information="theInformationB",
             is_new=False,
             is_updated=False,
-        ).set_previous_information("theInformationB"),
+            previous_information="theInformationB",
+        ),
         Instruction(
             uuid="uuidF",
-            index=3,
+            index=6,
             instruction="theInstructionA",
             information="changedInformationF",
             is_new=False,
             is_updated=True,
-        ).set_previous_information("theInformationF"),
+            previous_information="theInformationF",
+        ),
         Instruction(
             uuid="uuidC",
-            index=4,
+            index=3,
             instruction="theInstructionC",
             information="theInformationC",
             is_new=True,
             is_updated=False,
+            previous_information="",
         ),
         Instruction(
             uuid="uuidD",
-            index=5,
+            index=4,
             instruction="theInstructionD",
             information="theInformationD",
             is_new=True,
             is_updated=False,
+            previous_information="",
         ),
         Instruction(
             uuid="uuidE",
-            index=6,
+            index=5,
             instruction="theInstructionD",
             information="theInformationE",
             is_new=True,
             is_updated=False,
+            previous_information="",
         ),
     ]
     instructions_with_parameters = [
@@ -732,35 +755,39 @@ def test_transcript2commands_common(time, memory_log, progress):
             information="changedInformationA",
             is_new=False,
             is_updated=True,
+            previous_information="thePreviousInformation1",
             parameters={"params": "instruction0"},
         ),
         # B is unchanged
         InstructionWithParameters(
             uuid="uuidF",
-            index=3,
+            index=6,
             instruction="theInstructionA",
             information="changedInformationF",
             is_new=False,
             is_updated=True,
+            previous_information="thePreviousInformation6",
             parameters={"params": "instruction5"},
         ),
         None,  # C results with None
         InstructionWithParameters(
             uuid="uuidD",
-            index=5,
+            index=4,
             instruction="theInstructionD",
             information="theInformationD",
             is_new=True,
             is_updated=False,
+            previous_information="thePreviousInformation4",
             parameters={"params": "instruction3"},
         ),
         InstructionWithParameters(
             uuid="uuidE",
-            index=6,
+            index=5,
             instruction="theInstructionD",
             information="theInformationE",
             is_new=True,
             is_updated=False,
+            previous_information="thePreviousInformation5",
             parameters={"params": "instruction4"},
         ),
     ]
@@ -772,26 +799,29 @@ def test_transcript2commands_common(time, memory_log, progress):
             information="changedInformationA",
             is_new=False,
             is_updated=True,
+            previous_information="thePreviousInformation1",
             parameters={"params": "instruction0"},
             command=mock_commands[0],
         ),
         InstructionWithCommand(
             uuid="uuidF",
-            index=3,
+            index=6,
             instruction="theInstructionA",
             information="changedInformationF",
             is_new=False,
             is_updated=True,
+            previous_information="thePreviousInformation6",
             parameters={"params": "instruction5"},
             command=mock_commands[1],
         ),
         InstructionWithCommand(
             uuid="uuidD",
-            index=5,
+            index=4,
             instruction="theInstructionD",
             information="theInformationD",
             is_new=True,
             is_updated=False,
+            previous_information="thePreviousInformation4",
             parameters={"params": "instruction3"},
             command=mock_commands[2],
         ),
@@ -843,6 +873,7 @@ def test_transcript2commands_common(time, memory_log, progress):
             [
                 {
                     "uuid": "uuidA",
+                    "index": 1,
                     "instruction": "theInstructionA",
                     "information": "changedInformationA",
                     "isNew": False,
@@ -850,6 +881,7 @@ def test_transcript2commands_common(time, memory_log, progress):
                 },
                 {
                     "uuid": "uuidB",
+                    "index": 2,
                     "instruction": "theInstructionB",
                     "information": "theInformationB",
                     "isNew": False,
@@ -857,6 +889,7 @@ def test_transcript2commands_common(time, memory_log, progress):
                 },
                 {
                     "uuid": "uuidF",
+                    "index": 6,
                     "instruction": "theInstructionA",
                     "information": "changedInformationF",
                     "isNew": False,
@@ -864,6 +897,7 @@ def test_transcript2commands_common(time, memory_log, progress):
                 },
                 {
                     "uuid": "uuidC",
+                    "index": 3,
                     "instruction": "theInstructionC",
                     "information": "theInformationC",
                     "isNew": True,
@@ -871,6 +905,7 @@ def test_transcript2commands_common(time, memory_log, progress):
                 },
                 {
                     "uuid": "uuidD",
+                    "index": 4,
                     "instruction": "theInstructionD",
                     "information": "theInformationD",
                     "isNew": True,
@@ -878,6 +913,7 @@ def test_transcript2commands_common(time, memory_log, progress):
                 },
                 {
                     "uuid": "uuidE",
+                    "index": 5,
                     "instruction": "theInstructionD",
                     "information": "theInformationE",
                     "isNew": True,
@@ -969,28 +1005,31 @@ def test_transcript2commands_common(time, memory_log, progress):
     previous_instructions = [
         Instruction(
             uuid="uuidA",
-            index=0,
+            index=1,
             instruction="theInstructionA",
             information="theInformationA",
             is_new=False,
             is_updated=False,
-        ).set_previous_information("theInformationA"),
+            previous_information="theInformationA",
+        ),
         Instruction(
             uuid="uuidB",
-            index=1,
+            index=2,
             instruction="theInstructionB",
             information="theInformationB",
             is_new=False,
             is_updated=False,
-        ).set_previous_information("theInformationB"),
+            previous_information="theInformationB",
+        ),
         Instruction(
             uuid="uuidF",
-            index=2,
+            index=3,
             instruction="theInstructionA",
             information="theInformationF",
             is_new=False,
             is_updated=False,
-        ).set_previous_information("theInformationF"),
+            previous_information="theInformationF",
+        ),
     ]
     identification = IdentificationParameters(
         patient_uuid="patientUuid",
@@ -1023,6 +1062,7 @@ def test_transcript2commands_common(time, memory_log, progress):
         [
             {
                 "uuid": "uuidA",
+                "index": 1,
                 "instruction": "theInstructionA",
                 "information": "theInformationA",
                 "isNew": False,
@@ -1030,6 +1070,7 @@ def test_transcript2commands_common(time, memory_log, progress):
             },
             {
                 "uuid": "uuidB",
+                "index": 2,
                 "instruction": "theInstructionB",
                 "information": "theInformationB",
                 "isNew": False,
@@ -1037,6 +1078,7 @@ def test_transcript2commands_common(time, memory_log, progress):
             },
             {
                 "uuid": "uuidF",
+                "index": 3,
                 "instruction": "theInstructionA",
                 "information": "theInformationF",
                 "isNew": False,
@@ -1136,6 +1178,7 @@ def test_transcript2commands_questionnaires(time, memory_log, progress):
             information="theInformationA",
             is_new=False,
             is_updated=True,
+            previous_information="thePreviousInformation1",
         ),
         Instruction(
             uuid="uuidB",
@@ -1144,6 +1187,7 @@ def test_transcript2commands_questionnaires(time, memory_log, progress):
             information="theInformationB",
             is_new=True,
             is_updated=False,
+            previous_information="thePreviousInformation2",
         ),
         Instruction(
             uuid="uuidC",
@@ -1152,6 +1196,7 @@ def test_transcript2commands_questionnaires(time, memory_log, progress):
             information="theInformationC",
             is_new=False,
             is_updated=False,
+            previous_information="thePreviousInformation3",
         ),
         Instruction(
             uuid="uuidD",
@@ -1160,6 +1205,7 @@ def test_transcript2commands_questionnaires(time, memory_log, progress):
             information="theInformationD",
             is_new=True,
             is_updated=True,
+            previous_information="thePreviousInformation4",
         ),
         Instruction(
             uuid="uuidE",
@@ -1168,6 +1214,7 @@ def test_transcript2commands_questionnaires(time, memory_log, progress):
             information="theInformationE",
             is_new=True,
             is_updated=True,
+            previous_information="thePreviousInformation5",
         ),
     ]
     instructions_with_commands = [
@@ -1179,6 +1226,7 @@ def test_transcript2commands_questionnaires(time, memory_log, progress):
             information="theInformationB",
             is_new=False,
             is_updated=False,
+            previous_information="",
             parameters={},
             command=mock_commands[0],
         ),
@@ -1189,6 +1237,7 @@ def test_transcript2commands_questionnaires(time, memory_log, progress):
             information="theInformationC",
             is_new=False,
             is_updated=True,
+            previous_information="",
             parameters={},
             command=mock_commands[1],
         ),
@@ -1204,6 +1253,7 @@ def test_transcript2commands_questionnaires(time, memory_log, progress):
             information="theInformationB",
             is_new=False,
             is_updated=False,
+            previous_information="",
         ),
         Instruction(
             uuid="uuidC",
@@ -1212,6 +1262,7 @@ def test_transcript2commands_questionnaires(time, memory_log, progress):
             information="theInformationC",
             is_new=False,
             is_updated=True,
+            previous_information="",
         ),
     ]
     effects = [Effect(type="LOG", payload="Log0"), Effect(type="LOG", payload="Log1")]
@@ -1345,6 +1396,7 @@ def test_new_commands_from(time, memory_log):
             information="theInformationA",
             is_new=False,
             is_updated=True,
+            previous_information="thePreviousInformation1",
         ),
         Instruction(
             uuid="uuidB",
@@ -1353,6 +1405,7 @@ def test_new_commands_from(time, memory_log):
             information="theInformationB",
             is_new=True,
             is_updated=False,
+            previous_information="thePreviousInformation2",
         ),
         Instruction(
             uuid="uuidC",
@@ -1361,6 +1414,7 @@ def test_new_commands_from(time, memory_log):
             information="theInformationC",
             is_new=True,
             is_updated=False,
+            previous_information="thePreviousInformation3",
         ),
         Instruction(
             uuid="uuidD",
@@ -1369,6 +1423,7 @@ def test_new_commands_from(time, memory_log):
             information="theInformationD",
             is_new=True,
             is_updated=False,
+            previous_information="thePreviousInformation4",
         ),
         Instruction(
             uuid="uuidE",
@@ -1377,6 +1432,7 @@ def test_new_commands_from(time, memory_log):
             information="theInformationE",
             is_new=True,
             is_updated=False,
+            previous_information="thePreviousInformation5",
         ),
     ]
     instructions_with_parameters = [
@@ -1387,6 +1443,7 @@ def test_new_commands_from(time, memory_log):
             information="theInformationB",
             is_new=True,
             is_updated=False,
+            previous_information="thePreviousInformation2",
             parameters={"params": "instruction1"},
         ),
         None,
@@ -1397,6 +1454,7 @@ def test_new_commands_from(time, memory_log):
             information="theInformationD",
             is_new=True,
             is_updated=False,
+            previous_information="thePreviousInformation4",
             parameters={"params": "instruction3"},
         ),
         InstructionWithParameters(
@@ -1406,6 +1464,7 @@ def test_new_commands_from(time, memory_log):
             information="theInformationE",
             is_new=True,
             is_updated=False,
+            previous_information="thePreviousInformation5",
             parameters={"params": "instruction4"},
         ),
     ]
@@ -1417,6 +1476,7 @@ def test_new_commands_from(time, memory_log):
             information="theInformationB",
             is_new=True,
             is_updated=False,
+            previous_information="thePreviousInformation2",
             parameters={"params": "instruction1"},
             command=mock_commands[0],
         ),
@@ -1427,6 +1487,7 @@ def test_new_commands_from(time, memory_log):
             information="theInformationD",
             is_new=True,
             is_updated=False,
+            previous_information="thePreviousInformation4",
             parameters={"params": "instruction3"},
             command=mock_commands[1],
         ),
@@ -1572,6 +1633,7 @@ def test_update_commands_from(time, memory_log):
             information="theInformationA",
             is_new=False,
             is_updated=True,
+            previous_information="thePreviousInformation1",
         ),
         Instruction(
             uuid="uuidB",
@@ -1580,6 +1642,7 @@ def test_update_commands_from(time, memory_log):
             information="theInformationB",
             is_new=False,
             is_updated=True,
+            previous_information="thePreviousInformation2",
         ),
         Instruction(
             uuid="uuidC",
@@ -1588,6 +1651,7 @@ def test_update_commands_from(time, memory_log):
             information="theInformationC",
             is_new=False,
             is_updated=True,
+            previous_information="thePreviousInformation3",
         ),
         Instruction(
             uuid="uuidD",
@@ -1596,6 +1660,7 @@ def test_update_commands_from(time, memory_log):
             information="theInformationD",
             is_new=False,
             is_updated=True,
+            previous_information="thePreviousInformation4",
         ),
         Instruction(
             uuid="uuidE",
@@ -1604,6 +1669,7 @@ def test_update_commands_from(time, memory_log):
             information="theInformationE",
             is_new=True,
             is_updated=False,
+            previous_information="thePreviousInformation5",
         ),
         Instruction(
             uuid="uuidF",
@@ -1612,6 +1678,7 @@ def test_update_commands_from(time, memory_log):
             information="theInformationF",
             is_new=True,
             is_updated=False,
+            previous_information="thePreviousInformation6",
         ),
     ]
     instructions_with_parameters = [
@@ -1622,6 +1689,7 @@ def test_update_commands_from(time, memory_log):
             information="theInformationB",
             is_new=True,
             is_updated=False,
+            previous_information="thePreviousInformation2",
             parameters={"params": "instruction1"},
         ),
         None,
@@ -1632,6 +1700,7 @@ def test_update_commands_from(time, memory_log):
             information="theInformationD",
             is_new=True,
             is_updated=False,
+            previous_information="thePreviousInformation4",
             parameters={"params": "instruction3"},
         ),
         InstructionWithParameters(
@@ -1641,6 +1710,7 @@ def test_update_commands_from(time, memory_log):
             information="theInformationE",
             is_new=True,
             is_updated=False,
+            previous_information="thePreviousInformation5",
             parameters={"params": "instruction4"},
         ),
     ]
@@ -1652,6 +1722,7 @@ def test_update_commands_from(time, memory_log):
             information="theInformationB",
             is_new=True,
             is_updated=False,
+            previous_information="thePreviousInformation2",
             parameters={"params": "instruction1"},
             command=mock_commands[0],
         ),
@@ -1662,6 +1733,7 @@ def test_update_commands_from(time, memory_log):
             information="theInformationD",
             is_new=True,
             is_updated=False,
+            previous_information="thePreviousInformation4",
             parameters={"params": "instruction3"},
             command=mock_commands[1],
         ),
@@ -1723,6 +1795,7 @@ def test_update_commands_from(time, memory_log):
                 information="changedA",
                 is_new=False,
                 is_updated=True,
+                previous_information="thePreviousInformation1",
             ),
             "uuidB": instructions[1],
             "uuidC": instructions[2],
@@ -1733,6 +1806,7 @@ def test_update_commands_from(time, memory_log):
                 information="changedD",
                 is_new=False,
                 is_updated=True,
+                previous_information="thePreviousInformation4",
             ),
             "uuidE": Instruction(
                 uuid="uuidE",
@@ -1741,6 +1815,7 @@ def test_update_commands_from(time, memory_log):
                 information="changedE",
                 is_new=True,
                 is_updated=False,
+                previous_information="thePreviousInformation5",
             ),
             "uuidF": Instruction(
                 uuid="uuidF",
@@ -1749,6 +1824,7 @@ def test_update_commands_from(time, memory_log):
                 information="changedE",
                 is_new=True,
                 is_updated=False,
+                previous_information="thePreviousInformation6",
             ),
         }
         time.side_effect = [111.110, 111.451]
@@ -1817,6 +1893,7 @@ def test_existing_commands_to_instructions(schema_key2instruction):
             information="",
             is_new=False,
             is_updated=False,
+            previous_information="",
         ),
         Instruction(
             uuid="uuid2",
@@ -1825,6 +1902,7 @@ def test_existing_commands_to_instructions(schema_key2instruction):
             information="",
             is_new=False,
             is_updated=False,
+            previous_information="",
         ),
         Instruction(
             uuid="uuid3",
@@ -1833,6 +1911,7 @@ def test_existing_commands_to_instructions(schema_key2instruction):
             information="",
             is_new=False,
             is_updated=False,
+            previous_information="",
         ),
         Instruction(
             uuid="uuid4",
@@ -1841,6 +1920,7 @@ def test_existing_commands_to_instructions(schema_key2instruction):
             information="",
             is_new=False,
             is_updated=False,
+            previous_information="",
         ),
         Instruction(
             uuid="uuid5",
@@ -1849,6 +1929,7 @@ def test_existing_commands_to_instructions(schema_key2instruction):
             information="",
             is_new=False,
             is_updated=False,
+            previous_information="",
         ),
     ]
     assert result == expected
@@ -1932,6 +2013,7 @@ def test_existing_commands_to_instructions(schema_key2instruction):
             information="theInformationA",
             is_new=True,
             is_updated=True,
+            previous_information="thePreviousInformation0",
         ),
         Instruction(
             uuid="uuidB",
@@ -1940,6 +2022,7 @@ def test_existing_commands_to_instructions(schema_key2instruction):
             information="theInformationD",
             is_new=True,
             is_updated=True,
+            previous_information="thePreviousInformation1",
         ),
         Instruction(
             uuid="uuidC",
@@ -1948,6 +2031,7 @@ def test_existing_commands_to_instructions(schema_key2instruction):
             information="theInformationE",
             is_new=True,
             is_updated=True,
+            previous_information="thePreviousInformation2",
         ),
     ]
 
@@ -1960,6 +2044,7 @@ def test_existing_commands_to_instructions(schema_key2instruction):
             information="",
             is_new=False,
             is_updated=False,
+            previous_information="",
         ),
         Instruction(
             uuid="uuid1",
@@ -1968,30 +2053,34 @@ def test_existing_commands_to_instructions(schema_key2instruction):
             information="theInformationA",
             is_new=False,
             is_updated=False,
+            previous_information="",
         ),
         Instruction(
             uuid="uuid3",
-            index=3,
+            index=2,
             instruction="theInstructionY",
             information="theInformationD",
             is_new=False,
             is_updated=False,
+            previous_information="",
         ),
         Instruction(
             uuid="uuid4",
-            index=4,
+            index=3,
             instruction="theInstructionY",
             information="theInformationE",
             is_new=False,
             is_updated=False,
+            previous_information="",
         ),
         Instruction(
             uuid="uuid2",
-            index=2,
+            index=4,
             instruction="theInstructionX",
             information="",
             is_new=False,
             is_updated=False,
+            previous_information="",
         ),
         Instruction(
             uuid="uuid5",
@@ -2000,6 +2089,7 @@ def test_existing_commands_to_instructions(schema_key2instruction):
             information="",
             is_new=False,
             is_updated=False,
+            previous_information="",
         ),
         Instruction(
             uuid="uuid6",
@@ -2008,6 +2098,7 @@ def test_existing_commands_to_instructions(schema_key2instruction):
             information="theNarrative6",
             is_new=False,
             is_updated=False,
+            previous_information="",
         ),
         Instruction(
             uuid="uuid7",
@@ -2016,6 +2107,7 @@ def test_existing_commands_to_instructions(schema_key2instruction):
             information="theComment7",
             is_new=False,
             is_updated=False,
+            previous_information="",
         ),
         Instruction(
             uuid="uuid8",
@@ -2024,6 +2116,7 @@ def test_existing_commands_to_instructions(schema_key2instruction):
             information='{"name": "thePhysicalExam", "dbid": 123, "questions": []}',
             is_new=False,
             is_updated=False,
+            previous_information="",
         ),
         Instruction(
             uuid="uuid9",
@@ -2032,6 +2125,7 @@ def test_existing_commands_to_instructions(schema_key2instruction):
             information='{"name": "theQuestionnaire", "dbid": 234, "questions": []}',
             is_new=False,
             is_updated=False,
+            previous_information="",
         ),
         Instruction(
             uuid="uuid10",
@@ -2040,6 +2134,7 @@ def test_existing_commands_to_instructions(schema_key2instruction):
             information='{"name": "theReviewOfSystem", "dbid": 125, "questions": []}',
             is_new=False,
             is_updated=False,
+            previous_information="",
         ),
         Instruction(
             uuid="uuid11",
@@ -2048,6 +2143,7 @@ def test_existing_commands_to_instructions(schema_key2instruction):
             information='{"name": "theStructuredAssessment", "dbid": 222, "questions": []}',
             is_new=False,
             is_updated=False,
+            previous_information="",
         ),
     ]
     assert result == expected

@@ -80,6 +80,7 @@ def test__run(run_cycle, limited_cache, implemented_commands, cached_discussion,
             information=f"theInformation{idx}",
             is_new=False,
             is_updated=True,
+            previous_information=f"thePreviousInformation{idx}",
         )
         for idx in range(5)
     ]

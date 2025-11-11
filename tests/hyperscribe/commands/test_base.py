@@ -140,6 +140,7 @@ def test_command_from_json():
             information="theInformation",
             is_new=False,
             is_updated=True,
+            previous_information="thePreviousInformation",
             parameters={"key": "value"},
         )
         _ = tested.command_from_json(instruction, chatter)
@@ -238,8 +239,9 @@ def test_command_from_json_with_summary(command_from_json, instruction_with_summ
         information="theInformation",
         is_new=False,
         is_updated=True,
+        previous_information="thePreviousInformation",
         parameters={"key": "value"},
-    ).set_previous_information("thePreviousInformation")
+    )
 
     tested = helper_instance()
 
@@ -265,9 +267,10 @@ def test_command_from_json_with_summary(command_from_json, instruction_with_summ
         information="theInformation",
         is_new=False,
         is_updated=True,
+        previous_information="thePreviousInformation",
         parameters={"key": "value"},
         command=command,
-    ).set_previous_information("thePreviousInformation")
+    )
     # -- with chatter response
     command_from_json.side_effect = [instruction_with_command]
     chatter.single_conversation.side_effect = [[{"summary": "theSummary"}]]

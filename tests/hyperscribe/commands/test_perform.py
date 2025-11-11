@@ -101,6 +101,7 @@ def test_command_from_json(add_code2description, charge_descriptions):
         "information": "theInformation",
         "is_new": False,
         "is_updated": True,
+        "previous_information": "thePreviousInformation",
         "parameters": {"comment": "theComment", "procedureKeywords": "procedure1,procedure2,procedure3"},
     }
     system_prompt = [

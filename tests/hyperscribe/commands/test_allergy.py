@@ -152,6 +152,7 @@ def test_command_from_json(add_code2description, search_allergy):
             "information": "theInformation",
             "is_new": False,
             "is_updated": True,
+            "previous_information": "thePreviousInformation",
             "parameters": {
                 "approximateDateOfOnset": "2025-02-04",
                 "keywords": "keyword1,keyword2,keyword3",

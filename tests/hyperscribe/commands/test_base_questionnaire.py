@@ -782,6 +782,7 @@ def test_update_from_transcript(include_skipped, relevant_question_ids):
             information=json.dumps(questionnaire_full.to_json()),
             is_new=False,
             is_updated=True,
+            previous_information="thePreviousInformation",
         )
 
         # no relevant questions
@@ -894,6 +895,7 @@ def test_update_from_transcript(include_skipped, relevant_question_ids):
             information="something",
             is_new=False,
             is_updated=True,
+            previous_information="thePreviousInformation",
         )
         include_skipped.side_effect = []
         mock_chatter.single_conversation.side_effect = []

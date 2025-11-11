@@ -407,6 +407,7 @@ def test__run_cycle(auditor_store, commander):
             information="theInformation1",
             is_new=False,
             is_updated=True,
+            previous_information="thePreviousInformation1",
         ),
         Instruction(
             uuid="uuid2",
@@ -415,6 +416,7 @@ def test__run_cycle(auditor_store, commander):
             information="theInformation2",
             is_new=False,
             is_updated=True,
+            previous_information="thePreviousInformation2",
         ),
         Instruction(
             uuid="uuid3",
@@ -423,6 +425,7 @@ def test__run_cycle(auditor_store, commander):
             information="theInformation3",
             is_new=False,
             is_updated=True,
+            previous_information="thePreviousInformation3",
         ),
     ]
     effects = [
@@ -702,6 +705,7 @@ def test__render_in_ui(summary_generated_commands, post_commands, import_module,
             information="theInformation1",
             is_new=True,
             is_updated=False,
+            previous_information="thePreviousInformation1",
         ),
         Instruction(
             uuid="uuid4",
@@ -710,6 +714,7 @@ def test__render_in_ui(summary_generated_commands, post_commands, import_module,
             information="theInformation4",
             is_new=True,
             is_updated=False,
+            previous_information="thePreviousInformation2",
         ),
     ]
     schema_key2instruction = {

@@ -121,7 +121,12 @@ def test_command_from_json(add_code2description, current_conditions):
             "information": "theInformation",
             "is_new": False,
             "is_updated": True,
-            "parameters": {"condition": "display2a", "conditionIndex": idx, "rationale": "theRationale"},
+            "previous_information": "thePreviousInformation",
+            "parameters": {
+                "condition": "display2a",
+                "conditionIndex": idx,
+                "rationale": "theRationale",
+            },
         }
         instruction = InstructionWithParameters(**arguments)
         result = tested.command_from_json(instruction, chatter)

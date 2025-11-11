@@ -110,6 +110,7 @@ def test__run(
             information="theInformation1",
             is_new=False,
             is_updated=True,
+            previous_information="thePreviousInformation1",
         ),
         Instruction(
             uuid="uuid2",
@@ -118,6 +119,7 @@ def test__run(
             information="theInformation2",
             is_new=False,
             is_updated=True,
+            previous_information="thePreviousInformation2",
         ),
     ]
     identification = IdentificationParameters(

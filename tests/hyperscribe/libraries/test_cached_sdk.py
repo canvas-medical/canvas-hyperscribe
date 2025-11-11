@@ -129,6 +129,7 @@ def test_save(get_cache):
             information="theInformation1",
             is_new=False,
             is_updated=True,
+            previous_information="thePreviousInformation1",
         ),
         Instruction(
             uuid="uuid2",
@@ -137,6 +138,7 @@ def test_save(get_cache):
             information="theInformation2",
             is_new=True,
             is_updated=False,
+            previous_information="thePreviousInformation2",
         ),
     ]
     tested.previous_transcript = [
@@ -182,6 +184,7 @@ def test_to_json():
             information="theInformation1",
             is_new=False,
             is_updated=True,
+            previous_information="thePreviousInformation1",
         ),
         Instruction(
             uuid="uuid2",
@@ -190,6 +193,7 @@ def test_to_json():
             information="theInformation2",
             is_new=True,
             is_updated=False,
+            previous_information="thePreviousInformation2",
         ),
     ]
     tested.previous_transcript = [
@@ -272,6 +276,7 @@ def test_get_discussion(get_cache, mock_datetime):
             information="theInformation1",
             is_new=False,
             is_updated=True,
+            previous_information="",
         ),
         Instruction(
             uuid="uuid2",
@@ -280,6 +285,7 @@ def test_get_discussion(get_cache, mock_datetime):
             information="theInformation2",
             is_new=True,
             is_updated=False,
+            previous_information="",
         ),
     ]
     lines = [
@@ -423,6 +429,7 @@ def test_load_from_json():
             information="theInformation1",
             is_new=False,
             is_updated=True,
+            previous_information="",
         ),
         Instruction(
             uuid="uuid2",
@@ -431,6 +438,7 @@ def test_load_from_json():
             information="theInformation2",
             is_new=True,
             is_updated=False,
+            previous_information="",
         ),
     ]
     assert result.previous_transcript == [

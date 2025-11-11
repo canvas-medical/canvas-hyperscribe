@@ -107,6 +107,7 @@ def test__run(
             information=f"theInformation{idx}",
             is_new=False,
             is_updated=True,
+            previous_information=f"thePreviousInformation{idx}",
         )
         for idx in range(5)
     ]

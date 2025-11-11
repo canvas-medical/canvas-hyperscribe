@@ -88,6 +88,7 @@ def test_command_from_json():
         "information": "theInformation",
         "is_new": False,
         "is_updated": True,
+        "previous_information": "thePreviousInformation",
         "parameters": {"narrative": "theNarrative"},
     }
     instruction = InstructionWithParameters(**arguments)

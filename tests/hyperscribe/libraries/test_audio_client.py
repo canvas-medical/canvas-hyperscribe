@@ -38,20 +38,65 @@ def test_webm_prefix():
 
 
 def test___eq__():
-    one_client = AudioClient(
+    tested = AudioClient(
         base_url="https://theAudioServer.com",
         registration_key="theRegKey",
         instance="theInstance",
         instance_key="theSharedSecret",
     )
-    another_client = AudioClient(
-        base_url="https://theAudioServer.com",
-        registration_key="theRegKey",
-        instance="theInstance",
-        instance_key="theSharedSecret",
-    )
-    assert one_client is not another_client
-    assert one_client == another_client
+    tests = [
+        (
+            AudioClient(
+                base_url="https://theAudioServer.com",
+                registration_key="theRegKey",
+                instance="theInstance",
+                instance_key="theSharedSecret",
+            ),
+            True,
+        ),
+        (
+            AudioClient(
+                base_url="https://theAudioServer.fr",
+                registration_key="theRegKey",
+                instance="theInstance",
+                instance_key="theSharedSecret",
+            ),
+            False,
+        ),
+        (
+            AudioClient(
+                base_url="https://theAudioServer.com",
+                registration_key="otherRegKey",
+                instance="theInstance",
+                instance_key="theSharedSecret",
+            ),
+            False,
+        ),
+        (
+            AudioClient(
+                base_url="https://theAudioServer.com",
+                registration_key="theRegKey",
+                instance="otherInstance",
+                instance_key="theSharedSecret",
+            ),
+            False,
+        ),
+        (
+            AudioClient(
+                base_url="https://theAudioServer.com",
+                registration_key="theRegKey",
+                instance="theInstance",
+                instance_key="otherSharedSecret",
+            ),
+            False,
+        ),
+    ]
+    for other, expected in tests:
+        if expected:
+            assert tested == other
+        else:
+            assert tested != other
+        assert tested is not other
 
 
 def test___repr__(the_client):

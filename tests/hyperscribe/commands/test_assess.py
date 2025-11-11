@@ -121,6 +121,7 @@ def test_command_from_json(add_code2description, current_conditions):
             "information": "theInformation",
             "is_new": False,
             "is_updated": True,
+            "previous_information": "thePreviousInformation",
             "parameters": {
                 "assessment": "theAssessment",
                 "condition": "display2a",

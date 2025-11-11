@@ -207,6 +207,7 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
             "information": "theInformation",
             "is_new": False,
             "is_updated": True,
+            "previous_information": "thePreviousInformation",
             "parameters": {
                 "keywords": "keyword1,keyword2,keyword3",
                 "medicationNames": "brand1,brand2,brand3,brand4",
@@ -262,6 +263,7 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
         "information": "theInformation",
         "is_new": False,
         "is_updated": True,
+        "previous_information": "thePreviousInformation",
         "parameters": {
             "keywords": "keyword1,keyword2,keyword3",
             "medicationNames": "brand1,brand2,brand3,brand4",
@@ -307,6 +309,7 @@ def test_command_from_json(current_conditions, medications_from, set_medication_
         "information": "theInformation",
         "is_new": False,
         "is_updated": True,
+        "previous_information": "thePreviousInformation",
         "parameters": {
             "keywords": "keyword1,keyword2,keyword3",
             "medicationNames": "brand1,brand2,brand3,brand4",

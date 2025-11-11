@@ -171,6 +171,7 @@ def test_select_assignee(add_code2description, existing_staff_members, existing_
         information="theInformation",
         is_new=False,
         is_updated=True,
+        previous_information="thePreviousInformation",
         parameters={"key": "value"},
     )
 
@@ -316,6 +317,7 @@ def test_select_labels(existing_task_labels):
         information="theInformation",
         is_new=False,
         is_updated=True,
+        previous_information="thePreviousInformation",
         parameters={"key": "value"},
     )
 
@@ -382,6 +384,7 @@ def test_command_from_json(select_assignee, select_labels):
             "information": "theInformation",
             "is_new": False,
             "is_updated": True,
+            "previous_information": "thePreviousInformation",
             "parameters": {
                 "title": "theTitle",
                 "dueDate": "2025-02-04",
@@ -419,6 +422,7 @@ def test_command_from_json(select_assignee, select_labels):
             "information": "theInformation",
             "is_new": False,
             "is_updated": True,
+            "previous_information": "thePreviousInformation",
             "parameters": {
                 "title": "theTitle",
                 "dueDate": "2025-02-04",
@@ -454,6 +458,7 @@ def test_command_from_json(select_assignee, select_labels):
             "information": "theInformation",
             "is_new": False,
             "is_updated": True,
+            "previous_information": "thePreviousInformation",
             "parameters": {
                 "title": "theTitle",
                 "dueDate": "2025-02-04",

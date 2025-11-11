@@ -94,6 +94,7 @@ def test_condition_from(search_conditions):
         information="theInformation",
         is_new=True,
         is_updated=True,
+        previous_information="thePreviousInformation1",
     )
     # all good
     search_conditions.side_effect = [search]
@@ -223,6 +224,7 @@ def test_lab_test_from(limited_cache):
         information="theInformation",
         is_new=True,
         is_updated=True,
+        previous_information="thePreviousInformation1",
     )
 
     # all good
@@ -385,6 +387,7 @@ def test_contact_from(search_contacts, summary_of):
         information="theInformation",
         is_new=True,
         is_updated=True,
+        previous_information="thePreviousInformation1",
     )
     schemas = [
         {

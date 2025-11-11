@@ -227,6 +227,7 @@ def test_command_from_json(condition_from, search_imagings, add_code2description
         "information": "theInformation",
         "is_new": False,
         "is_updated": True,
+        "previous_information": "thePreviousInformation",
         "parameters": {
             "imagingKeywords": "keyword1,keyword2,keyword3",
             "conditions": [
@@ -284,6 +285,7 @@ def test_command_from_json(condition_from, search_imagings, add_code2description
         "information": "theInformation",
         "is_new": False,
         "is_updated": True,
+        "previous_information": "thePreviousInformation",
         "parameters": {
             "imagingKeywords": "keyword1,keyword2,keyword3",
             "conditions": [],
@@ -326,6 +328,7 @@ def test_command_from_json(condition_from, search_imagings, add_code2description
         "information": "theInformation",
         "is_new": False,
         "is_updated": True,
+        "previous_information": "thePreviousInformation",
         "parameters": {
             "imagingKeywords": "keyword1,keyword2,keyword3",
             "conditions": [],

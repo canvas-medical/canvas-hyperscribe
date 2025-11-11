@@ -147,6 +147,7 @@ def test_command_from_json(add_code2description, medication_details):
         "information": "theInformation",
         "is_new": False,
         "is_updated": True,
+        "previous_information": "thePreviousInformation",
         "parameters": {"keywords": "keyword1,keyword2,keyword3", "sig": "theSig"},
     }
     medications = [

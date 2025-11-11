@@ -2,11 +2,25 @@ from canvas_sdk.commands.base import _BaseCommand
 
 from hyperscribe.structures.instruction_with_command import InstructionWithCommand
 from hyperscribe.structures.instruction_with_summary import InstructionWithSummary
+from tests.helper import is_dataclass
 
 
 def test_class():
     tested = InstructionWithSummary
     assert issubclass(tested, InstructionWithCommand)
+    fields = {
+        "uuid": "str",
+        "index": "int",
+        "instruction": "str",
+        "information": "str",
+        "is_new": "bool",
+        "is_updated": "bool",
+        "previous_information": "str",
+        "parameters": "dict",
+        "command": "_BaseCommand",
+        "summary": "str",
+    }
+    assert is_dataclass(tested, fields)
 
 
 def test_add_explanation():
@@ -20,9 +34,10 @@ def test_add_explanation():
             information="theInformation",
             is_new=True,
             is_updated=True,
+            previous_information="thePreviousInformation",
             parameters={"key": "value"},
             command=command,
-        ).set_previous_information("thePreviousInformation"),
+        ),
         "the summary",
     )
     expected = InstructionWithSummary(
@@ -32,9 +47,9 @@ def test_add_explanation():
         information="theInformation",
         is_new=True,
         is_updated=True,
+        previous_information="thePreviousInformation",
         parameters={"key": "value"},
         command=command,
         summary="the summary",
     )
-    expected.previous_information = "thePreviousInformation"
     assert result == expected

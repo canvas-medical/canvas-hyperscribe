@@ -227,6 +227,7 @@ def test_command_from_json(search_immunization, add_code2description):
         "information": "theInformation",
         "is_new": False,
         "is_updated": True,
+        "previous_information": "thePreviousInformation",
         "parameters": {
             "keywords": "keyword1,keyword2,keyword3",
             "onDate": "2024-09-23",

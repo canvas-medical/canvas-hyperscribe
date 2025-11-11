@@ -210,6 +210,7 @@ def test_found_instructions(get_json, upsert_json):
             information="theInformation0",
             is_new=False,
             is_updated=False,
+            previous_information="thePreviousInformation1",
         ),
     ]
     cumulated = [
@@ -220,6 +221,7 @@ def test_found_instructions(get_json, upsert_json):
             information="theInformation1",
             is_new=False,
             is_updated=True,
+            previous_information="thePreviousInformation2",
         ),
         Instruction(
             uuid="uuid2",
@@ -228,6 +230,7 @@ def test_found_instructions(get_json, upsert_json):
             information="theInformation2",
             is_new=True,
             is_updated=False,
+            previous_information="thePreviousInformation3",
         ),
         Instruction(
             uuid="uuid3",
@@ -236,6 +239,7 @@ def test_found_instructions(get_json, upsert_json):
             information="theInformation3",
             is_new=True,
             is_updated=False,
+            previous_information="thePreviousInformation4",
         ),
     ]
     get_json.side_effect = [{"cycle_001": "data1", "cycle_007": "data2"}]
@@ -317,6 +321,7 @@ def test_computed_parameters(get_json, upsert_json):
             information="theInformation1",
             is_new=False,
             is_updated=True,
+            previous_information="thePreviousInformation1",
             parameters={"key1": "parameter1"},
         ),
         InstructionWithParameters(
@@ -326,6 +331,7 @@ def test_computed_parameters(get_json, upsert_json):
             information="theInformation2",
             is_new=True,
             is_updated=False,
+            previous_information="thePreviousInformation2",
             parameters={"key2": "parameter2"},
         ),
     ]
@@ -439,6 +445,7 @@ def test_computed_commands(get_json, upsert_json):
             information="theInformation1",
             is_new=False,
             is_updated=True,
+            previous_information="thePreviousInformation1",
             parameters={"key1": "parameter1"},
             command=commands[0],
         ),
@@ -449,6 +456,7 @@ def test_computed_commands(get_json, upsert_json):
             information="theInformation2",
             is_new=True,
             is_updated=False,
+            previous_information="thePreviousInformation2",
             parameters={"key2": "parameter2"},
             command=commands[1],
         ),
@@ -602,6 +610,7 @@ def test_computed_questionnaires(get_json, upsert_json):
             information="theInformation1",
             is_new=False,
             is_updated=True,
+            previous_information="thePreviousInformation1",
         ),
         Instruction(
             uuid="uuid2",
@@ -610,6 +619,7 @@ def test_computed_questionnaires(get_json, upsert_json):
             information="theInformation2",
             is_new=False,
             is_updated=True,
+            previous_information="thePreviousInformation2",
         ),
         Instruction(
             uuid="uuid3",
@@ -618,6 +628,7 @@ def test_computed_questionnaires(get_json, upsert_json):
             information="theInformation3",
             is_new=False,
             is_updated=True,
+            previous_information="thePreviousInformation3",
         ),
     ]
     instructions_with_command = [
@@ -628,6 +639,7 @@ def test_computed_questionnaires(get_json, upsert_json):
             information="changedInformation1",
             is_new=False,
             is_updated=True,
+            previous_information="thePreviousInformation1",
             parameters={},
             command=commands[0],
         ),
@@ -638,6 +650,7 @@ def test_computed_questionnaires(get_json, upsert_json):
             information="changedInformation2",
             is_new=False,
             is_updated=True,
+            previous_information="thePreviousInformation2",
             parameters={},
             command=commands[1],
         ),
@@ -648,6 +661,7 @@ def test_computed_questionnaires(get_json, upsert_json):
             information="changedInformation3",
             is_new=False,
             is_updated=True,
+            previous_information="thePreviousInformation3",
             parameters={},
             command=commands[2],
         ),
@@ -1055,6 +1069,7 @@ def test_summarized_generated_commands_as_instructions(get_json):
             information="theInformation2",
             is_new=False,
             is_updated=True,
+            previous_information="",
         ),
         Instruction(
             uuid="uuid3",
@@ -1063,6 +1078,7 @@ def test_summarized_generated_commands_as_instructions(get_json):
             information="theInformation3",
             is_new=True,
             is_updated=False,
+            previous_information="",
         ),
         Instruction(
             uuid="uuid4",
@@ -1071,6 +1087,7 @@ def test_summarized_generated_commands_as_instructions(get_json):
             information="theInformation4",
             is_new=True,
             is_updated=False,
+            previous_information="",
         ),
     ]
     assert result == expected
@@ -1256,6 +1273,7 @@ def test_summarized_generated_commands_as_instructions(get_json):
             ),
             is_new=True,
             is_updated=False,
+            previous_information="",
         ),
         Instruction(
             uuid="uuid2",
@@ -1296,6 +1314,7 @@ def test_summarized_generated_commands_as_instructions(get_json):
             ),
             is_new=False,
             is_updated=True,
+            previous_information="",
         ),
     ]
     assert result == expected

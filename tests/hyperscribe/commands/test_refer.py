@@ -149,6 +149,7 @@ def test_command_from_json(add_code2description, condition_from, contact_from, p
             "information": "theInformation",
             "is_new": False,
             "is_updated": True,
+            "previous_information": "thePreviousInformation",
             "parameters": {
                 "referredServiceProvider": {"names": names, "specialty": "theSpecialty"},
                 "clinicalQuestion": "Diagnostic Uncertainty",

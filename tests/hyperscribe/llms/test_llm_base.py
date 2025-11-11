@@ -437,6 +437,7 @@ def test_single_conversation(chat, set_system_prompt, set_user_prompt, store_llm
             information="theInformation",
             is_new=False,
             is_updated=True,
+            previous_information="thePreviousInformation1",
         )
         chat.side_effect = [JsonExtract(error="theError", has_error=False, content=[["theContent1"], ["theAudit"]])]
         result = tested.single_conversation(system_prompt, user_prompt, schemas[:1], instruction)
@@ -488,6 +489,7 @@ def test_store_llm_turns(discussion_store):
         information="theInformation",
         is_new=False,
         is_updated=True,
+        previous_information="thePreviousInformation",
     )
     prompts = [
         LlmTurn(role="system", text=["textSystem"]),

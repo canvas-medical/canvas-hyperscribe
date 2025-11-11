@@ -1,42 +1,25 @@
 from __future__ import annotations
 
-from canvas_sdk.commands.base import _BaseCommand
+from dataclasses import dataclass
 
 from hyperscribe.structures.instruction_with_command import InstructionWithCommand
 
 
+@dataclass
 class InstructionWithSummary(InstructionWithCommand):
-    def __init__(
-        self,
-        uuid: str,
-        index: int,
-        instruction: str,
-        information: str,
-        is_new: bool,
-        is_updated: bool,
-        parameters: dict,
-        command: _BaseCommand,
-        summary: str,
-    ):
-        super().__init__(uuid, index, instruction, information, is_new, is_updated, parameters, command)
-        self.summary = summary
+    summary: str
 
     @classmethod
     def add_explanation(cls, instruction: InstructionWithCommand, summary: str) -> InstructionWithSummary:
-        result = InstructionWithSummary(
+        return InstructionWithSummary(
             uuid=instruction.uuid,
             index=instruction.index,
             instruction=instruction.instruction,
             information=instruction.information,
             is_new=instruction.is_new,
             is_updated=instruction.is_updated,
+            previous_information=instruction.previous_information,
             parameters=instruction.parameters,
             command=instruction.command,
             summary=summary,
         )
-        result.set_previous_information(instruction.previous_information)  # need to be able to use typing.Self
-        return result
-
-    def __eq__(self, other: object) -> bool:
-        assert isinstance(other, InstructionWithSummary)
-        return super().__eq__(other) and self.summary == other.summary

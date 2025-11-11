@@ -109,6 +109,7 @@ def test_command_from_json(add_code2description, existing_reason_for_visits):
         "information": "theInformation",
         "is_new": False,
         "is_updated": True,
+        "previous_information": "thePreviousInformation",
         "parameters": {"comment": "theComment"},
     }
     instruction = InstructionWithParameters(**arguments)
@@ -137,6 +138,7 @@ def test_command_from_json(add_code2description, existing_reason_for_visits):
             "information": "theInformation",
             "is_new": False,
             "is_updated": True,
+            "previous_information": "thePreviousInformation",
             "parameters": {
                 "comment": "theComment",
                 "reasonForVisit": "theReasonForVisit",

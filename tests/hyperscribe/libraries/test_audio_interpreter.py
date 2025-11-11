@@ -830,6 +830,7 @@ def test_detect_instructions(common_instructions, detect_instructions_flat, dete
             information="",
             is_new=True,
             is_updated=False,
+            previous_information="thePreviousInformation1",
         ),
         Instruction(
             uuid="uuid2",
@@ -838,6 +839,7 @@ def test_detect_instructions(common_instructions, detect_instructions_flat, dete
             information="",
             is_new=True,
             is_updated=False,
+            previous_information="thePreviousInformation2",
         ),
         Instruction(
             uuid="uuid3",
@@ -846,6 +848,7 @@ def test_detect_instructions(common_instructions, detect_instructions_flat, dete
             information="",
             is_new=True,
             is_updated=False,
+            previous_information="thePreviousInformation3",
         ),
         Instruction(
             uuid="uuid4",
@@ -854,6 +857,7 @@ def test_detect_instructions(common_instructions, detect_instructions_flat, dete
             information="",
             is_new=True,
             is_updated=False,
+            previous_information="thePreviousInformation4",
         ),
         Instruction(
             uuid="uuid5",
@@ -862,6 +866,7 @@ def test_detect_instructions(common_instructions, detect_instructions_flat, dete
             information="",
             is_new=True,
             is_updated=False,
+            previous_information="thePreviousInformation5",
         ),
     ]
 
@@ -1089,6 +1094,7 @@ def test_detect_instructions_per_section(detect_sections, detect_instructions_fl
             is_new=False,
             is_updated=False,
             uuid="uuidA",
+            previous_information="thePreviousInformation1",
         ),
         Instruction(
             index=1,
@@ -1097,6 +1103,7 @@ def test_detect_instructions_per_section(detect_sections, detect_instructions_fl
             is_new=False,
             is_updated=False,
             uuid="uuidA",
+            previous_information="thePreviousInformation5",
         ),
     ]
     detected = [
@@ -1385,6 +1392,7 @@ def test_detect_instructions_flat(json_schema, instruction_constraints, chatter,
             information="the information 1",
             is_new=True,
             is_updated=False,
+            previous_information="thePreviousInformation1",
         ),
         Instruction(
             uuid="uuid2",
@@ -1393,6 +1401,7 @@ def test_detect_instructions_flat(json_schema, instruction_constraints, chatter,
             information="the information 2",
             is_new=False,
             is_updated=True,
+            previous_information="thePreviousInformation2",
         ),
     ]
     reset_mocks()
@@ -1412,7 +1421,19 @@ def test_detect_instructions_flat(json_schema, instruction_constraints, chatter,
     calls = [call(["First", "Second", "Third", "Fourth", "Fifth"])]
     assert json_schema.mock_calls == calls
     calls = [
-        call([Instruction(uuid="", index=0, instruction="", information="response1", is_new=True, is_updated=False)]),
+        call(
+            [
+                Instruction(
+                    uuid="",
+                    index=0,
+                    instruction="",
+                    information="response1",
+                    is_new=True,
+                    is_updated=False,
+                    previous_information="",
+                )
+            ]
+        ),
     ]
     assert instruction_constraints.mock_calls == calls
     calls = [
@@ -1462,7 +1483,19 @@ def test_detect_instructions_flat(json_schema, instruction_constraints, chatter,
     calls = [call(["First", "Second", "Third", "Fourth", "Fifth"])]
     assert json_schema.mock_calls == calls
     calls = [
-        call([Instruction(uuid="", index=0, instruction="", information="response1", is_new=True, is_updated=False)]),
+        call(
+            [
+                Instruction(
+                    uuid="",
+                    index=0,
+                    instruction="",
+                    information="response1",
+                    is_new=True,
+                    is_updated=False,
+                    previous_information="",
+                )
+            ]
+        ),
     ]
     assert instruction_constraints.mock_calls == calls
     calls = [
@@ -1514,6 +1547,7 @@ def test_detect_instructions_flat(json_schema, instruction_constraints, chatter,
                     information="",
                     is_new=True,
                     is_updated=False,
+                    previous_information="",
                 ),
                 Instruction(
                     uuid="uuid2",
@@ -1522,6 +1556,7 @@ def test_detect_instructions_flat(json_schema, instruction_constraints, chatter,
                     information="",
                     is_new=True,
                     is_updated=False,
+                    previous_information="",
                 ),
                 Instruction(
                     uuid="uuid3",
@@ -1530,6 +1565,7 @@ def test_detect_instructions_flat(json_schema, instruction_constraints, chatter,
                     information="",
                     is_new=True,
                     is_updated=False,
+                    previous_information="",
                 ),
             ],
         ),
@@ -1602,6 +1638,7 @@ def test_detect_instructions_flat(json_schema, instruction_constraints, chatter,
                         information="",
                         is_new=False,
                         is_updated=True,
+                        previous_information="",
                     ),
                     Instruction(
                         uuid="uuid4",
@@ -1610,6 +1647,7 @@ def test_detect_instructions_flat(json_schema, instruction_constraints, chatter,
                         information="",
                         is_new=True,
                         is_updated=False,
+                        previous_information="",
                     ),
                 ],
             ),
@@ -1652,11 +1690,12 @@ def test_create_sdk_command_parameters(
 
     instruction = Instruction(
         uuid="theUuid",
-        index=0,
+        index=3,
         instruction="Second",
         information="theInformation",
         is_new=False,
         is_updated=True,
+        previous_information="thePreviousInformation",
     )
     system_prompt = [
         "The conversation is in the context of a clinical encounter between patient (thePatientDemographic) and "
@@ -1744,6 +1783,7 @@ def test_create_sdk_command_parameters(
         information="theInformation",
         is_new=False,
         is_updated=True,
+        previous_information="thePreviousInformation",
         parameters={"key": "response1"},
     )
     assert result == expected
@@ -1782,6 +1822,7 @@ def test_create_sdk_command_parameters(
         information="theInformation",
         is_new=False,
         is_updated=True,
+        previous_information="thePreviousInformation",
         parameters={"key": "response1"},
     )
     assert result == expected
@@ -1906,6 +1947,7 @@ def test_create_sdk_command_from(chatter, memory_log, progress):
             information="theInformation",
             is_new=False,
             is_updated=True,
+            previous_information="thePreviousInformation",
             parameters={"theKey": "theValue"},
         )
         tested, settings, aws_credentials, cache = helper_instance(mocks, True)
@@ -1992,6 +2034,7 @@ def test_update_questionnaire(chatter, memory_log):
             information="theInformation",
             is_new=False,
             is_updated=True,
+            previous_information="thePreviousInformation",
         )
         tested, settings, aws_credentials, cache = helper_instance(command_mocks, True)
         result = tested.update_questionnaire(discussion, instruction)
@@ -2003,6 +2046,7 @@ def test_update_questionnaire(chatter, memory_log):
                 information=exp_information,
                 is_new=False,
                 is_updated=True,
+                previous_information="thePreviousInformation",
                 parameters={},
                 command=exp_command,
             )

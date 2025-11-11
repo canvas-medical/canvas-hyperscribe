@@ -20,9 +20,17 @@ def test_add():
 
 def test___eq__():
     tested = TokenCounts(178, 37)
-    other = TokenCounts(178, 37)
-    assert tested == other
-    assert tested is not other
+    tests = [
+        (TokenCounts(178, 37), True),
+        (TokenCounts(177, 37), False),
+        (TokenCounts(178, 38), False),
+    ]
+    for other, expected in tests:
+        if expected:
+            assert tested == other
+        else:
+            assert tested != other
+        assert tested is not other
 
 
 def test_to_dict():

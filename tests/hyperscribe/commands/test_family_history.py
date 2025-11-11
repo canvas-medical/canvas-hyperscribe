@@ -143,7 +143,12 @@ def test_command_from_json(family_histories):
         "information": "theInformation",
         "is_new": False,
         "is_updated": True,
-        "parameters": {"keywords": "keyword1,keyword2,keyword3", "relative": "sibling", "note": "theNote"},
+        "previous_information": "thePreviousInformation",
+        "parameters": {
+            "keywords": "keyword1,keyword2,keyword3",
+            "relative": "sibling",
+            "note": "theNote",
+        },
     }
     medical_concepts = [
         MedicalConcept(concept_id=123, term="termA"),

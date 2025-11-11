@@ -110,7 +110,12 @@ def test_command_from_json(add_code2description, current_allergies):
             "information": "theInformation",
             "is_new": False,
             "is_updated": True,
-            "parameters": {"allergies": "display2a", "allergyIndex": idx, "narrative": "theNarrative"},
+            "previous_information": "thePreviousInformation",
+            "parameters": {
+                "allergies": "display2a",
+                "allergyIndex": idx,
+                "narrative": "theNarrative",
+            },
         }
         instruction = InstructionWithParameters(**arguments)
         result = tested.command_from_json(instruction, chatter)

@@ -176,6 +176,7 @@ def test_command_from_json(add_code2description, current_medications):
             "information": "theInformation",
             "is_new": False,
             "is_updated": True,
+            "previous_information": "thePreviousInformation",
             "parameters": {
                 "comment": "theComment",
                 "medication": "display2",
@@ -215,6 +216,7 @@ def test_command_from_json(add_code2description, current_medications):
         "information": "theInformation",
         "is_new": False,
         "is_updated": True,
+        "previous_information": "thePreviousInformation",
         "parameters": {
             "comment": "theComment",
             "medication": "display2",

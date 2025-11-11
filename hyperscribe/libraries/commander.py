@@ -317,6 +317,7 @@ class Commander(BaseProtocol):
                 information=result.information,
                 is_new=result.is_new,
                 is_updated=result.is_updated,
+                previous_information="",
             )
             for result in instructions_with_command
         ]
@@ -479,6 +480,7 @@ class Commander(BaseProtocol):
                 information=information,
                 is_new=False,
                 is_updated=False,
+                previous_information="",
             )
         return list(result.values())
 

@@ -175,6 +175,7 @@ def test_command_from_json(valid_or_none):
         "information": "theInformation",
         "is_new": False,
         "is_updated": True,
+        "previous_information": "thePreviousInformation",
         "parameters": {
             "height": {"inches": 1},
             "weight": {"pounds": 2},

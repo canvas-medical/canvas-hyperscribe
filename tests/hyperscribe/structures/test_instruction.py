@@ -1,18 +1,19 @@
 from hyperscribe.structures.instruction import Instruction
+from tests.helper import is_dataclass
 
 
-def test_set_previous_information():
-    tested = Instruction(
-        uuid="theUuid",
-        index=3,
-        instruction="theInstruction",
-        information="theInformation",
-        is_new=True,
-        is_updated=True,
-    )
-    tested.set_previous_information("thePreviousInformation")
-    assert tested.information == "theInformation"
-    assert tested.previous_information == "thePreviousInformation"
+def test_class():
+    tested = Instruction
+    fields = {
+        "uuid": "str",
+        "index": "int",
+        "instruction": "str",
+        "information": "str",
+        "is_new": "bool",
+        "is_updated": "bool",
+        "previous_information": "str",
+    }
+    assert is_dataclass(tested, fields)
 
 
 def test_load_from_json():
@@ -54,6 +55,7 @@ def test_load_from_json():
             information="theInformation1",
             is_new=False,
             is_updated=True,
+            previous_information="",
         ),
         Instruction(
             uuid="theUuid2",
@@ -62,15 +64,25 @@ def test_load_from_json():
             information="theInformation2",
             is_new=True,
             is_updated=False,
+            previous_information="",
         ),
-        Instruction(uuid="", index=0, instruction="", information="", is_new=True, is_updated=False),
+        Instruction(
+            uuid="",
+            index=0,
+            instruction="",
+            information="",
+            is_new=True,
+            is_updated=False,
+            previous_information="",
+        ),
         Instruction(
             uuid="theUuid3",
-            index=3,
+            index=2,
             instruction="theInstruction3",
             information="theInformation3",
             is_new=False,
             is_updated=True,
+            previous_information="",
         ),
     ]
     assert result == expected
@@ -85,6 +97,7 @@ def test_to_json():
             information="theInformation",
             is_new=flag,
             is_updated=flag,
+            previous_information="",
         )
         result = tested.to_json(True)
         expected = {
@@ -116,6 +129,7 @@ def test_limited_str():
         information="theInformation",
         is_new=True,
         is_updated=True,
+        previous_information="",
     )
     result = tested.limited_str()
     expected = "theInstruction #07 (theUuid, new/updated: True/True): theInformation"

@@ -221,6 +221,7 @@ class AuditorStore(AuditorBase):
                     information=instruction["information"],
                     is_new=instruction["isNew"],
                     is_updated=instruction["isUpdated"],
+                    previous_information="",
                 )
 
         # questionnaires - result is from the last cycle
@@ -262,6 +263,7 @@ class AuditorStore(AuditorBase):
                     information=json.dumps(questionnaire),
                     is_new=instruction["isNew"],
                     is_updated=instruction["isUpdated"],
+                    previous_information="",
                 )
 
         return list(result.values())
