@@ -22,6 +22,61 @@ def test___init__():
     assert tested._hyperscribe_tags == tags
 
 
+@patch("scripts.experiments.case_runner_worker.Path")
+def test__update_chat_model_constants(path):
+    def reset_mocks():
+        path.reset_mock()
+
+    texts = [
+        """
+            ANTHROPIC_CHAT_TEXT = "anthropicModel"
+            GOOGLE_CHAT_ALL = "googleModel"
+            OPENAI_CHAT_TEXT = "openaiModel"
+        """,
+        """
+            ANTHROPIC_CHAT_TEXT = "theModel"
+            GOOGLE_CHAT_ALL = "googleModel"
+            OPENAI_CHAT_TEXT = "openaiModel"
+        """,
+        """
+            ANTHROPIC_CHAT_TEXT = "anthropicModel"
+            GOOGLE_CHAT_ALL = "theModel"
+            OPENAI_CHAT_TEXT = "openaiModel"
+        """,
+        """
+            ANTHROPIC_CHAT_TEXT = "anthropicModel"
+            GOOGLE_CHAT_ALL = "googleModel"
+            OPENAI_CHAT_TEXT = "theModel"
+        """,
+    ]
+    path_calls = [call.__truediv__("hyperscribe/libraries/constants.py")]
+
+    tested = CaseRunnerWorker
+
+    tests = [
+        ("", "Anthropic", [], []),
+        ("", "Google", [], []),
+        ("", "OpenAI", [], []),
+        ("theModel", "Anthropic", path_calls, [call.write_text(texts[1])]),
+        ("theModel", "Google", path_calls, [call.write_text(texts[2])]),
+        ("theModel", "OpenAI", path_calls, [call.write_text(texts[3])]),
+    ]
+    for model_name, vendor, exp_path_calls, exp_file_calls in tests:
+        mock_file = MagicMock(read_text=lambda: texts[0])
+        path.__truediv__.side_effect = [mock_file]
+        model = ExperimentModels(
+            experiment_id=731,
+            model_generator=Model(vendor=vendor, api_key="theApiKey1", model=model_name, id=33),
+            model_grader=Model(vendor="theVendor2", api_key="theApiKey2", id=37),
+            grader_is_reasoning=True,
+        )
+        tested._update_chat_model_constants(path, model)
+
+        assert path.mock_calls == exp_path_calls
+        assert mock_file.mock_calls == exp_file_calls
+        reset_mocks()
+
+
 @patch("scripts.experiments.case_runner_worker.environ")
 def test__build_environment(environ):
     def reset_mocks():
@@ -35,7 +90,7 @@ def test__build_environment(environ):
         case_name="theCaseName",
         models=ExperimentModels(
             experiment_id=731,
-            model_generator=Model(vendor="theVendor1", api_key="theApiKey1", id=33),
+            model_generator=Model(vendor="theVendor1", api_key="theApiKey1", model="theModel1", id=33),
             model_grader=Model(vendor="theVendor2", api_key="theApiKey2", id=37),
             grader_is_reasoning=True,
         ),
@@ -122,19 +177,25 @@ def test__build_command_case_runner():
     assert result == expected
 
 
+@patch("scripts.experiments.case_runner_worker.copytree")
+@patch("scripts.experiments.case_runner_worker.TemporaryDirectory")
 @patch("scripts.experiments.case_runner_worker.Popen")
 @patch("scripts.experiments.case_runner_worker.RubricStore")
 @patch("scripts.experiments.case_runner_worker.ExperimentResultStore")
 @patch("scripts.experiments.case_runner_worker.HelperEvaluation")
+@patch.object(CaseRunnerWorker, "_update_chat_model_constants")
 @patch.object(CaseRunnerWorker, "_build_command_case_runner")
 @patch.object(CaseRunnerWorker, "_build_environment")
 def test__process_case_runner_job(
     build_environment,
     build_command_case_runner,
+    update_chat_model_constants,
     helper,
     experiment_result_store,
     rubric_store,
     popen,
+    temporary_directory,
+    copytree,
     capsys,
 ):
     job = ExperimentJob(
@@ -145,8 +206,8 @@ def test__process_case_runner_job(
         case_name="theCaseName",
         models=ExperimentModels(
             experiment_id=731,
-            model_generator=Model(vendor="theVendor1", api_key="theApiKey1", id=33),
-            model_grader=Model(vendor="theVendor2", api_key="theApiKey2", id=37),
+            model_generator=Model(vendor="theVendor1", api_key="theApiKey1", id=33, model="theModel1"),
+            model_grader=Model(vendor="theVendor2", api_key="theApiKey2", id=37, model="theModel2"),
             grader_is_reasoning=True,
         ),
         cycle_time=7,
@@ -160,10 +221,13 @@ def test__process_case_runner_job(
     def reset_mocks():
         build_environment.reset_mock()
         build_command_case_runner.reset_mock()
+        update_chat_model_constants.reset_mock()
         helper.reset_mock()
         experiment_result_store.reset_mock()
         rubric_store.reset_mock()
         popen.reset_mock()
+        temporary_directory.reset_mock()
+        copytree.reset_mock()
         process.reset_mock()
         note_grader_queue.reset_mock()
 
@@ -198,7 +262,7 @@ def test__process_case_runner_job(
                         rubric_id=590,
                         generated_note_id=790,
                         experiment_result_id=412,
-                        model=Model(vendor="theVendor2", api_key="theApiKey2", id=37),
+                        model=Model(vendor="theVendor2", api_key="theApiKey2", id=37, model="theModel2"),
                         model_is_reasoning=True,
                         cwd_path=Path("/tmp/test_repo"),
                     )
@@ -210,7 +274,7 @@ def test__process_case_runner_job(
                         rubric_id=590,
                         generated_note_id=790,
                         experiment_result_id=412,
-                        model=Model(vendor="theVendor2", api_key="theApiKey2", id=37),
+                        model=Model(vendor="theVendor2", api_key="theApiKey2", id=37, model="theModel2"),
                         model_is_reasoning=True,
                         cwd_path=Path("/tmp/test_repo"),
                     )
@@ -230,7 +294,7 @@ def test__process_case_runner_job(
                         rubric_id=590,
                         generated_note_id=790,
                         experiment_result_id=412,
-                        model=Model(vendor="theVendor2", api_key="theApiKey2", id=37),
+                        model=Model(vendor="theVendor2", api_key="theApiKey2", id=37, model="theModel2"),
                         model_is_reasoning=True,
                         cwd_path=Path("/tmp/test_repo"),
                     )
@@ -242,7 +306,7 @@ def test__process_case_runner_job(
                         rubric_id=590,
                         generated_note_id=790,
                         experiment_result_id=412,
-                        model=Model(vendor="theVendor2", api_key="theApiKey2", id=37),
+                        model=Model(vendor="theVendor2", api_key="theApiKey2", id=37, model="theModel2"),
                         model_is_reasoning=True,
                         cwd_path=Path("/tmp/test_repo"),
                     )
@@ -254,7 +318,7 @@ def test__process_case_runner_job(
                         rubric_id=599,
                         generated_note_id=790,
                         experiment_result_id=412,
-                        model=Model(vendor="theVendor2", api_key="theApiKey2", id=37),
+                        model=Model(vendor="theVendor2", api_key="theApiKey2", id=37, model="theModel2"),
                         model_is_reasoning=True,
                         cwd_path=Path("/tmp/test_repo"),
                     )
@@ -266,7 +330,7 @@ def test__process_case_runner_job(
                         rubric_id=599,
                         generated_note_id=790,
                         experiment_result_id=412,
-                        model=Model(vendor="theVendor2", api_key="theApiKey2", id=37),
+                        model=Model(vendor="theVendor2", api_key="theApiKey2", id=37, model="theModel2"),
                         model_is_reasoning=True,
                         cwd_path=Path("/tmp/test_repo"),
                     )
@@ -282,6 +346,7 @@ def test__process_case_runner_job(
         experiment_result_store.return_value.get_generated_note_id.side_effect = [generated_note_id]
         rubric_store.return_value.get_last_accepted.side_effect = [rubric_ids]
         popen.side_effect = [process]
+        temporary_directory.return_value.__enter__.return_value = "/tmp/test_dir"
 
         tested = CaseRunnerWorker(Queue(), note_grader_queue, version, tags)
         tested._process_case_runner_job(job)
@@ -298,6 +363,9 @@ def test__process_case_runner_job(
         if exp_calls:
             calls = [call(CaseRunnerJob(case_name="theCaseName", experiment_result_id=412))]
         assert build_command_case_runner.mock_calls == calls
+        if exp_calls:
+            calls = [call(Path("/tmp/test_dir/clone"), job.models)]
+        assert update_chat_model_constants.mock_calls == calls
         calls = [call.postgres_credentials()]
         assert helper.mock_calls == calls
         calls = [call("thePostgresCredentials")]
@@ -342,10 +410,20 @@ def test__process_case_runner_job(
                     stderr=-2,
                     text=True,
                     bufsize=1,
-                    cwd=Path("/tmp/test_repo"),
+                    cwd=Path("/tmp/test_dir/clone"),
                 )
             ]
         assert popen.mock_calls == calls
+        if exp_calls:
+            calls = [
+                call(),
+                call().__enter__(),
+                call().__exit__(None, None, None),
+            ]
+        assert temporary_directory.mock_calls == calls
+        if exp_calls:
+            calls = [call(Path("/tmp/test_repo"), Path("/tmp/test_dir/clone"))]
+        assert copytree.mock_calls == calls
         if exp_calls:
             calls = [call.wait()]
         assert process.mock_calls == calls
@@ -371,8 +449,8 @@ def test_run(process_case_runner_job):
             case_name="theCaseNameX",
             models=ExperimentModels(
                 experiment_id=731,
-                model_generator=Model(vendor="theVendor1", api_key="theApiKey1", id=33),
-                model_grader=Model(vendor="theVendor2", api_key="theApiKey2", id=37),
+                model_generator=Model(vendor="theVendor1", api_key="theApiKey1", id=33, model="theModel1"),
+                model_grader=Model(vendor="theVendor2", api_key="theApiKey2", id=37, model="theModel2"),
                 grader_is_reasoning=True,
             ),
             cycle_time=0,
@@ -388,8 +466,8 @@ def test_run(process_case_runner_job):
             case_name="theCaseNameX",
             models=ExperimentModels(
                 experiment_id=731,
-                model_generator=Model(vendor="theVendor1", api_key="theApiKey1", id=33),
-                model_grader=Model(vendor="theVendor2", api_key="theApiKey2", id=37),
+                model_generator=Model(vendor="theVendor1", api_key="theApiKey1", id=33, model="theModel1"),
+                model_grader=Model(vendor="theVendor2", api_key="theApiKey2", id=37, model="theModel2"),
                 grader_is_reasoning=True,
             ),
             cycle_time=0,
@@ -405,8 +483,8 @@ def test_run(process_case_runner_job):
             case_name="theCaseNameX",
             models=ExperimentModels(
                 experiment_id=731,
-                model_generator=Model(vendor="theVendor1", api_key="theApiKey1", id=33),
-                model_grader=Model(vendor="theVendor2", api_key="theApiKey2", id=37),
+                model_generator=Model(vendor="theVendor1", api_key="theApiKey1", id=33, model="theModel1"),
+                model_grader=Model(vendor="theVendor2", api_key="theApiKey2", id=37, model="theModel2"),
                 grader_is_reasoning=True,
             ),
             cycle_time=0,

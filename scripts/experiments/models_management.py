@@ -28,17 +28,21 @@ class ModelsManagement:
         psql_credential = HelperEvaluation.postgres_credentials()
         model_store = ModelStore(psql_credential)
 
-        model = model_store.get_model_by_vendor(vendor)
+        models = model_store.get_models_by_vendor(vendor)
 
-        message = "no change made"
-        if model.id:
-            if model.api_key != api_key:
-                model_store.update_fields(model.id, {"api_key": api_key})
-                message = f"model vendor '{vendor}' updated"
+        messages: list = []
+        if models:
+            for model in models:
+                if model.api_key != api_key:
+                    model_store.update_fields(model.id, {"api_key": api_key})
+                    messages.append(f"model vendor '{vendor}' (model: {model.model or 'default'}) updated")
         else:
-            model = model_store.insert(ModelRecord(vendor=vendor, api_key=api_key))
-            message = f"model vendor '{vendor}' added with id {model.id}"
-        print(message)
+            model = model_store.insert(ModelRecord(vendor=vendor, api_key=api_key, model=""))
+            messages.append(f"model vendor '{vendor}' added with id {model.id}")
+        if not messages:
+            messages.append("no change made")
+        for message in messages:
+            print(message)
 
 
 if __name__ == "__main__":

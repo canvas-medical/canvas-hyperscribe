@@ -48,34 +48,38 @@ def test_run(parameters, getpass_mock, helper, model_store, capsys):
     tests = [
         (
             "api-key",
-            ModelRecord(id=123, vendor="theVendor", api_key="other-api-key"),
+            [
+                ModelRecord(id=123, vendor="theVendor", api_key="other-api-key", model="theModel"),
+                ModelRecord(id=147, vendor="theVendor", api_key="other-api-key", model=""),
+            ],
             None,
-            "model vendor 'theVendor' updated\n",
+            "model vendor 'theVendor' (model: theModel) updated\nmodel vendor 'theVendor' (model: default) updated\n",
             [
                 call("thePostgresCredentials"),
-                call().get_model_by_vendor("theVendor"),
+                call().get_models_by_vendor("theVendor"),
                 call().update_fields(123, {"api_key": "api-key"}),
+                call().update_fields(147, {"api_key": "api-key"}),
             ],
         ),
         (
             "api-key",
-            ModelRecord(id=123, vendor="theVendor", api_key="api-key"),
+            [ModelRecord(id=123, vendor="theVendor", api_key="api-key")],
             None,
             "no change made\n",
             [
                 call("thePostgresCredentials"),
-                call().get_model_by_vendor("theVendor"),
+                call().get_models_by_vendor("theVendor"),
             ],
         ),
         (
             "api-key",
-            ModelRecord(),
-            ModelRecord(id=789, vendor="theVendor", api_key="api-key"),
+            [],
+            ModelRecord(id=789, vendor="theVendor", api_key="api-key", model=""),
             "model vendor 'theVendor' added with id 789\n",
             [
                 call("thePostgresCredentials"),
-                call().get_model_by_vendor("theVendor"),
-                call().insert(ModelRecord(vendor="theVendor", api_key="api-key", id=0)),
+                call().get_models_by_vendor("theVendor"),
+                call().insert(ModelRecord(vendor="theVendor", api_key="api-key", model="", id=0)),
             ],
         ),
     ]
@@ -83,7 +87,7 @@ def test_run(parameters, getpass_mock, helper, model_store, capsys):
         parameters.side_effect = [Namespace(vendor="theVendor")]
         getpass_mock.side_effect = [api_key]
         helper.postgres_credentials.side_effect = ["thePostgresCredentials"]
-        model_store.return_value.get_model_by_vendor.side_effect = [get_model_result]
+        model_store.return_value.get_models_by_vendor.side_effect = [get_model_result]
         model_store.return_value.insert.side_effect = [insert_result]
 
         tested.run()

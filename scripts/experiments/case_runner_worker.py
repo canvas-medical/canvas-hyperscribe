@@ -1,6 +1,10 @@
+import re
 from multiprocessing import Queue
 from os import environ
+from pathlib import Path
+from shutil import copytree
 from subprocess import Popen, PIPE, STDOUT
+from tempfile import TemporaryDirectory
 from typing import Optional
 
 from evaluations.constants import Constants as EvaluationConstants
@@ -9,6 +13,7 @@ from evaluations.datastores.postgres.rubric import Rubric as RubricStore
 from evaluations.helper_evaluation import HelperEvaluation
 from evaluations.structures.case_runner_job import CaseRunnerJob
 from evaluations.structures.experiment_job import ExperimentJob
+from evaluations.structures.experiment_models import ExperimentModels
 from evaluations.structures.note_grader_job import NoteGraderJob
 from evaluations.structures.records.experiment_result import ExperimentResult as ExperimentResultRecord
 from evaluations.structures.records.model import Model
@@ -27,6 +32,27 @@ class CaseRunnerWorker:
         self._note_grader_queue: Queue = note_grader_queue
         self._hyperscribe_version: str = hyperscribe_version
         self._hyperscribe_tags: dict = hyperscribe_tags
+
+    @classmethod
+    def _update_chat_model_constants(cls, clone_repository: Path, model: ExperimentModels) -> None:
+        if not model.model_generator.model:
+            return
+
+        constants_file = clone_repository / "hyperscribe/libraries/constants.py"
+        content = constants_file.read_text()
+        if model.model_generator.vendor.upper() == Constants.VENDOR_ANTHROPIC.upper():
+            constant = "ANTHROPIC_CHAT_TEXT"
+        elif model.model_generator.vendor.upper() == Constants.VENDOR_GOOGLE.upper():
+            constant = "GOOGLE_CHAT_ALL"
+        else:  # model.model_generator.vendor == Constants.VENDOR_OPENAI:
+            constant = "OPENAI_CHAT_TEXT"
+
+        content = re.sub(
+            rf'{constant} = "[^"]*"',
+            f'{constant} = "{model.model_generator.model}"',
+            content,
+        )
+        constants_file.write_text(content)
 
     @classmethod
     def _build_environment(cls, job: ExperimentJob) -> dict[str, str]:
@@ -97,22 +123,27 @@ class CaseRunnerWorker:
             experiment_result_id=experiment_result.id,
         )
 
-        env = self._build_environment(job)
-        cmd = self._build_command_case_runner(case_runner_job)
-        process = Popen(
-            cmd,
-            env=env,
-            stdout=PIPE,
-            stderr=STDOUT,
-            text=True,
-            bufsize=1,
-            cwd=job.cwd_path,
-        )
-        assert process.stdout is not None
-        for line in process.stdout:
-            if message := line.rstrip("\n\r"):
-                print(f"[{job.job_index:03d}] {message}")
-        process.wait()
+        with TemporaryDirectory() as temp_dir:
+            clone_repository: Path = Path(temp_dir) / "clone"
+            copytree(job.cwd_path, clone_repository)
+            self._update_chat_model_constants(clone_repository, job.models)
+
+            env = self._build_environment(job)
+            cmd = self._build_command_case_runner(case_runner_job)
+            process = Popen(
+                cmd,
+                env=env,
+                stdout=PIPE,
+                stderr=STDOUT,
+                text=True,
+                bufsize=1,
+                cwd=clone_repository,
+            )
+            assert process.stdout is not None
+            for line in process.stdout:
+                if message := line.rstrip("\n\r"):
+                    print(f"[{job.job_index:03d}] {message}")
+            process.wait()
 
         generated_note_id = result_store.get_generated_note_id(experiment_result.id)
         if generated_note_id == 0:
@@ -132,6 +163,7 @@ class CaseRunnerWorker:
                         id=job.models.model_grader.id,
                         vendor=job.models.model_grader.vendor,
                         api_key=job.models.model_grader.api_key,
+                        model=job.models.model_grader.model,
                     ),
                     model_is_reasoning=job.models.grader_is_reasoning,
                     experiment_result_id=experiment_result.id,

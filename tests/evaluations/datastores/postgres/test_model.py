@@ -33,8 +33,8 @@ def test_get_model(select):
     tests = [
         ([], Record()),
         (
-            [{"id": 123, "vendor": "theVendor", "api_key": "theApiKey"}],
-            Record(id=123, vendor="theVendor", api_key="theApiKey"),
+            [{"id": 123, "vendor": "theVendor", "api_key": "theApiKey", "model": "theModel"}],
+            Record(id=123, vendor="theVendor", api_key="theApiKey", model="theModel"),
         ),
     ]
     for select_side_effect, expected in tests:
@@ -44,7 +44,7 @@ def test_get_model(select):
 
         assert len(select.mock_calls) == 1
         sql, params = select.mock_calls[0].args
-        exp_sql = 'SELECT "id", "vendor", "api_key" FROM "model" WHERE "id" = %(id)s'
+        exp_sql = 'SELECT "id", "vendor", "api_key", "model" FROM "model" WHERE "id" = %(id)s'
         assert compare_sql(sql, exp_sql)
         exp_params = {"id": 77}
         assert params == exp_params
@@ -52,29 +52,35 @@ def test_get_model(select):
 
 
 @patch.object(Model, "_select")
-def test_get_model_by_vendor(select):
+def test_get_models_by_vendor(select):
     def reset_mock():
         select.reset_mock()
 
     tested = helper_instance()
 
     tests = [
-        ([], Record()),
+        ([], []),
         (
-            [{"id": 456, "vendor": "openai", "api_key": "sk-test123"}],
-            Record(id=456, vendor="openai", api_key="sk-test123"),
+            [
+                {"id": 456, "vendor": "theVendor", "api_key": "theKey1", "model": "theModel1"},
+                {"id": 459, "vendor": "theVendor", "api_key": "theKey2", "model": "theModel2"},
+            ],
+            [
+                Record(id=456, vendor="theVendor", api_key="theKey1", model="theModel1"),
+                Record(id=459, vendor="theVendor", api_key="theKey2", model="theModel2"),
+            ],
         ),
     ]
     for select_side_effect, expected in tests:
         select.side_effect = [select_side_effect]
-        result = tested.get_model_by_vendor("openai")
+        result = tested.get_models_by_vendor("theVendor")
         assert result == expected
 
         assert len(select.mock_calls) == 1
         sql, params = select.mock_calls[0].args
-        exp_sql = 'SELECT "id", "vendor", "api_key" FROM "model" WHERE "vendor" = %(vendor)s'
+        exp_sql = 'SELECT "id", "vendor", "api_key", "model" FROM "model" WHERE "vendor" = %(vendor)s ORDER BY "id"'
         assert compare_sql(sql, exp_sql)
-        exp_params = {"vendor": "openai"}
+        exp_params = {"vendor": "theVendor"}
         assert params == exp_params
         reset_mock()
 
@@ -90,11 +96,13 @@ def test_insert(alter, mock_datetime):
     model = Record(
         vendor="theVendor",
         api_key="theApiKey",
+        model="theModel",
         id=333,
     )
     expected = Record(
         vendor="theVendor",
         api_key="theApiKey",
+        model="theModel",
         id=351,
     )
 
@@ -112,13 +120,14 @@ def test_insert(alter, mock_datetime):
     assert len(alter.mock_calls) == 1
     sql, params, involved_id = alter.mock_calls[0].args
     exp_sql = (
-        'INSERT INTO "model" ("created", "updated", "vendor", "api_key") '
-        "VALUES (%(now)s, %(now)s, %(vendor)s, %(api_key)s) RETURNING id"
+        'INSERT INTO "model" ("created", "updated", "vendor", "api_key", "model") '
+        "VALUES (%(now)s, %(now)s, %(vendor)s, %(api_key)s, %(model)s) RETURNING id"
     )
     assert compare_sql(sql, exp_sql)
     exp_params = {
         "vendor": "theVendor",
         "api_key": "theApiKey",
+        "model": "theModel",
         "now": date_0,
     }
     assert params == exp_params

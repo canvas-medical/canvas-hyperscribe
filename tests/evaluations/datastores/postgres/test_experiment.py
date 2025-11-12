@@ -193,6 +193,7 @@ def test_get_models(select):
                 "generator_id": 117,
                 "generator_vendor": "theVendor1",
                 "generator_api_key": "theApiKey1",
+                "generator_model": None,
                 "grader_id": 217,
                 "grader_vendor": "theVendor4",
                 "grader_api_key": "theApiKey4",
@@ -202,6 +203,7 @@ def test_get_models(select):
                 "generator_id": 132,
                 "generator_vendor": "theVendor2",
                 "generator_api_key": "theApiKey2",
+                "generator_model": "theModel2",
                 "grader_id": 232,
                 "grader_vendor": "theVendor5",
                 "grader_api_key": "theApiKey5",
@@ -211,6 +213,7 @@ def test_get_models(select):
                 "generator_id": 147,
                 "generator_vendor": "theVendor3",
                 "generator_api_key": "theApiKey3",
+                "generator_model": "theModel3",
                 "grader_id": 247,
                 "grader_vendor": "theVendor6",
                 "grader_api_key": "theApiKey6",
@@ -223,20 +226,20 @@ def test_get_models(select):
     expected = [
         ExperimentModels(
             experiment_id=123,
-            model_generator=ModelRecord(id=117, vendor="theVendor1", api_key="theApiKey1"),
-            model_grader=ModelRecord(id=217, vendor="theVendor4", api_key="theApiKey4"),
+            model_generator=ModelRecord(id=117, vendor="theVendor1", api_key="theApiKey1", model=""),
+            model_grader=ModelRecord(id=217, vendor="theVendor4", api_key="theApiKey4", model=""),
             grader_is_reasoning=True,
         ),
         ExperimentModels(
             experiment_id=123,
-            model_generator=ModelRecord(id=132, vendor="theVendor2", api_key="theApiKey2"),
-            model_grader=ModelRecord(id=232, vendor="theVendor5", api_key="theApiKey5"),
+            model_generator=ModelRecord(id=132, vendor="theVendor2", api_key="theApiKey2", model="theModel2"),
+            model_grader=ModelRecord(id=232, vendor="theVendor5", api_key="theApiKey5", model=""),
             grader_is_reasoning=True,
         ),
         ExperimentModels(
             experiment_id=123,
-            model_generator=ModelRecord(id=147, vendor="theVendor3", api_key="theApiKey3"),
-            model_grader=ModelRecord(id=247, vendor="theVendor6", api_key="theApiKey6"),
+            model_generator=ModelRecord(id=147, vendor="theVendor3", api_key="theApiKey3", model="theModel3"),
+            model_grader=ModelRecord(id=247, vendor="theVendor6", api_key="theApiKey6", model=""),
             grader_is_reasoning=False,
         ),
     ]
@@ -246,6 +249,7 @@ def test_get_models(select):
         'SELECT n."id"                              as "generator_id",'
         '       n."vendor"                          as "generator_vendor",'
         '       n."api_key"                         as "generator_api_key",'
+        '       n."model"                           as "generator_model",'
         '       g."id"                              as "grader_id",'
         '       g."vendor"                          as "grader_vendor",'
         '       g."api_key"                         as "grader_api_key",'

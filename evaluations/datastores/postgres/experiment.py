@@ -65,6 +65,7 @@ class Experiment(Postgres):
                              SELECT n."id"                              as "generator_id",
                                     n."vendor"                          as "generator_vendor",
                                     n."api_key"                         as "generator_api_key",
+                                    n."model"                           as "generator_model",
                                     g."id"                              as "grader_id",
                                     g."vendor"                          as "grader_vendor",
                                     g."api_key"                         as "grader_api_key",
@@ -83,11 +84,13 @@ class Experiment(Postgres):
                     id=record["generator_id"],
                     vendor=record["generator_vendor"],
                     api_key=record["generator_api_key"],
+                    model=record["generator_model"] or "",
                 ),
                 model_grader=ModelRecord(
                     id=record["grader_id"],
                     vendor=record["grader_vendor"],
                     api_key=record["grader_api_key"],
+                    model="",  # <-- the grader always uses the model defined in the repository
                 ),
                 grader_is_reasoning=record["is_reasoning"],
             )

@@ -320,14 +320,14 @@ def test__generate_jobs(helper, experiment_store, capsys):
     models_experiments = [
         ExperimentModels(
             experiment_id=123,
-            model_generator=ModelRecord(id=117, vendor="theVendor1", api_key="theApiKey1"),
-            model_grader=ModelRecord(id=217, vendor="theVendor4", api_key="theApiKey4"),
+            model_generator=ModelRecord(id=117, vendor="theVendor1", api_key="theApiKey1", model="theModel1"),
+            model_grader=ModelRecord(id=217, vendor="theVendor4", api_key="theApiKey4", model="theModel4"),
             grader_is_reasoning=True,
         ),
         ExperimentModels(
             experiment_id=123,
-            model_generator=ModelRecord(id=132, vendor="theVendor2", api_key="theApiKey2"),
-            model_grader=ModelRecord(id=232, vendor="theVendor5", api_key="theApiKey5"),
+            model_generator=ModelRecord(id=132, vendor="theVendor2", api_key="theApiKey2", model="theModel2"),
+            model_grader=ModelRecord(id=232, vendor="theVendor5", api_key="theApiKey5", model="theModel5"),
             grader_is_reasoning=True,
         ),
     ]
