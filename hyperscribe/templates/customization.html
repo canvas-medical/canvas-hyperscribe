@@ -69,9 +69,8 @@
       resize: vertical;
       box-sizing: border-box;
     }
-    #save-button {
+    #save-draft-button, #publish-button {
       padding: 8px 16px;
-      background-color: #3498db;
       color: white;
       border: none;
       border-radius: 4px;
@@ -79,10 +78,23 @@
       font-size: 14px;
       transition: background-color 0.3s;
     }
-    #save-button:hover {
-      background-color: #2980b9;
+    #save-draft-button {
+      background-color: #95a5a6;
     }
-    #save-button:disabled {
+    #save-draft-button:hover {
+      background-color: #7f8c8d;
+    }
+    #save-draft-button:disabled {
+      background-color: #bdc3c7;
+      cursor: not-allowed;
+    }
+    #publish-button {
+      background-color: #27ae60;
+    }
+    #publish-button:hover {
+      background-color: #229954;
+    }
+    #publish-button:disabled {
       background-color: #95a5a6;
       cursor: not-allowed;
     }
@@ -123,11 +135,8 @@
       <textarea id="prompt-textarea"></textarea>
     </div>
     <div class="button-row">
-      <label class="checkbox-label">
-        <input type="checkbox" id="active-checkbox" checked>
-        Active
-      </label>
-      <button id="save-button">Save</button>
+      <button id="save-draft-button">Save Draft</button>
+      <button id="publish-button">Publish Changes</button>
     </div>
     <div id="message"></div>
   </div>
@@ -180,31 +189,31 @@
     function updateTextarea() {
       const commandSelect = document.getElementById('command-select');
       const promptTextarea = document.getElementById('prompt-textarea');
-      const activeCheckbox = document.getElementById('active-checkbox');
       const selectedCommand = commandSelect.value;
 
       if (selectedCommand && commandsData[selectedCommand] !== undefined) {
         const commandData = commandsData[selectedCommand];
         promptTextarea.value = commandData.prompt || '';
-        activeCheckbox.checked = commandData.active !== undefined ? commandData.active : true;
       }
     }
 
-    async function saveCommand() {
+    async function saveCommand(active, buttonId, actionText) {
       const commandSelect = document.getElementById('command-select');
       const promptTextarea = document.getElementById('prompt-textarea');
-      const activeCheckbox = document.getElementById('active-checkbox');
-      const saveButton = document.getElementById('save-button');
+      const saveDraftButton = document.getElementById('save-draft-button');
+      const publishButton = document.getElementById('publish-button');
       const messageDiv = document.getElementById('message');
 
       const selectedCommand = commandSelect.value;
       const prompt = promptTextarea.value;
-      const active = activeCheckbox.checked;
 
       // Clear previous message
       messageDiv.innerHTML = '';
-      saveButton.disabled = true;
-      saveButton.textContent = 'Saving...';
+      saveDraftButton.disabled = true;
+      publishButton.disabled = true;
+
+      const originalText = document.getElementById(buttonId).textContent;
+      document.getElementById(buttonId).textContent = actionText + '...';
 
       try {
         const response = await fetch('{{saveCommandPromptURL | safe}}', {
@@ -229,16 +238,26 @@
           active: active
         };
 
-        messageDiv.innerHTML = '<div class="message success-message">Saved successfully!</div>';
+        const statusText = active ? 'published' : 'saved as draft';
+        messageDiv.innerHTML = `<div class="message success-message">Successfully ${statusText}!</div>`;
         setTimeout(() => {
           messageDiv.innerHTML = '';
         }, 3000);
       } catch (error) {
-        messageDiv.innerHTML = `<div class="message error-message">Error saving: ${error.message}</div>`;
+        messageDiv.innerHTML = `<div class="message error-message">Error: ${error.message}</div>`;
       } finally {
-        saveButton.disabled = false;
-        saveButton.textContent = 'Save';
+        saveDraftButton.disabled = false;
+        publishButton.disabled = false;
+        document.getElementById(buttonId).textContent = originalText;
       }
+    }
+
+    async function saveDraft() {
+      await saveCommand(false, 'save-draft-button', 'Saving');
+    }
+
+    async function publishChanges() {
+      await saveCommand(true, 'publish-button', 'Publishing');
     }
 
     // Load commands when the page loads
@@ -247,7 +266,8 @@
 
       // Add event listeners
       document.getElementById('command-select').addEventListener('change', updateTextarea);
-      document.getElementById('save-button').addEventListener('click', saveCommand);
+      document.getElementById('save-draft-button').addEventListener('click', saveDraft);
+      document.getElementById('publish-button').addEventListener('click', publishChanges);
     });
   </script>
 </body>
