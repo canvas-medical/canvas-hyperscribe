@@ -7,6 +7,7 @@ from typing import NamedTuple
 from hyperscribe.libraries.constants import Constants
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.custom_prompt import CustomPrompt
+from hyperscribe.structures.model_spec import ModelSpec
 from hyperscribe.structures.vendor_key import VendorKey
 
 
@@ -116,23 +117,29 @@ class Settings(NamedTuple):
             result = Constants.ELEVEN_LABS_AUDIO
         return result
 
-    def llm_text_model(self) -> str:
-        result = Constants.OPENAI_CHAT_TEXT
+    def llm_text_model(self, model_spec: ModelSpec) -> str:
         if self.reasoning_llm:
             result = Constants.OPENAI_REASONING_TEXT
+            if self.llm_text.vendor.upper() == Constants.VENDOR_GOOGLE.upper():
+                result = Constants.GOOGLE_REASONING_TEXT
+            elif self.llm_text.vendor.upper() == Constants.VENDOR_ANTHROPIC.upper():
+                result = Constants.ANTHROPIC_REASONING_TEXT
+            return result
 
+        result = Constants.OPENAI_CHAT_TEXT
         if self.llm_text.vendor.upper() == Constants.VENDOR_GOOGLE.upper():
             result = Constants.GOOGLE_CHAT_ALL
-            if self.reasoning_llm:
-                result = Constants.GOOGLE_REASONING_TEXT
         elif self.llm_text.vendor.upper() == Constants.VENDOR_ANTHROPIC.upper():
             result = Constants.ANTHROPIC_CHAT_TEXT
-            if self.reasoning_llm:
-                result = Constants.ANTHROPIC_REASONING_TEXT
-        return result
+
+        if model_spec.value == ModelSpec.SIMPLER.value:
+            return result.split()[-1]
+        elif model_spec.value == ModelSpec.COMPLEX.value:
+            return result.split()[0]
+        return result  # <--- not used with the APIs - just for logging
 
     def llm_text_temperature(self) -> float:
         result = 0.0
-        if self.llm_text_model() == Constants.OPENAI_CHAT_TEXT_O3:
+        if self.llm_text_model(ModelSpec.SIMPLER) == Constants.OPENAI_CHAT_TEXT_O3:
             result = Constants.O3_TEMPERATURE
         return result

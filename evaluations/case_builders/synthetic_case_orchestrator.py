@@ -15,6 +15,7 @@ from evaluations.structures.enums.case_status import CaseStatus
 from evaluations.structures.patient_profile import PatientProfile
 from evaluations.structures.records.case import Case as CaseRecord
 from evaluations.structures.records.synthetic_case import SyntheticCase as SyntheticCaseRecord
+from hyperscribe.structures.model_spec import ModelSpec
 
 
 class SyntheticCaseOrchestrator:
@@ -83,7 +84,7 @@ class SyntheticCaseOrchestrator:
                 turn_buckets=specifications.bucket,
                 duration=0.0,
                 text_llm_vendor=settings.llm_text.vendor,
-                text_llm_name=settings.llm_text_model(),
+                text_llm_name=settings.llm_text_model(ModelSpec.LISTED),
                 temperature=settings.llm_text_temperature(),
                 id=profile_index,
             )

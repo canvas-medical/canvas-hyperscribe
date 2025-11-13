@@ -13,6 +13,7 @@ from evaluations.structures.records.case import Case as CaseRecord
 from evaluations.structures.records.generated_note import GeneratedNote as GeneratedNoteRecord
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.line import Line
+from hyperscribe.structures.model_spec import ModelSpec
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.token_counts import TokenCounts
 
@@ -48,7 +49,7 @@ class AuditorPostgres(AuditorStore):
                         note_json=[],  # <-- updated at the end
                         cycle_transcript_overlap=self.settings.cycle_transcript_overlap,
                         text_llm_vendor=self.settings.llm_text.vendor,
-                        text_llm_name=self.settings.llm_text_model(),
+                        text_llm_name=self.settings.llm_text_model(ModelSpec.LISTED),
                         hyperscribe_version=self.get_plugin_commit(),
                         failed=True,  # <-- will be changed to False at the end
                     ),
@@ -90,7 +91,7 @@ class AuditorPostgres(AuditorStore):
                 {
                     "generated_note_id": generated_note_id,
                     "text_llm_vendor": self.settings.llm_text.vendor,
-                    "text_llm_name": self.settings.llm_text_model(),
+                    "text_llm_name": self.settings.llm_text_model(ModelSpec.LISTED),
                     "note_json": summarized_generated_commands,
                     "failed": bool(errors),
                     "errors": errors,

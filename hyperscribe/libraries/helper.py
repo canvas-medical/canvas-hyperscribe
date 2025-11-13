@@ -14,6 +14,7 @@ from hyperscribe.llms.llm_eleven_labs import LlmElevenLabs
 from hyperscribe.llms.llm_google import LlmGoogle
 from hyperscribe.llms.llm_openai import LlmOpenai
 from hyperscribe.llms.llm_openai_o3 import LlmOpenaiO3
+from hyperscribe.structures.model_spec import ModelSpec
 from hyperscribe.structures.settings import Settings
 
 
@@ -62,13 +63,23 @@ class Helper:
         return code.replace(".", "")
 
     @classmethod
-    def chatter(cls, settings: Settings, memory_log: MemoryLog) -> LlmBase:
+    def chatter(cls, settings: Settings, memory_log: MemoryLog, model_spec: ModelSpec) -> LlmBase:
         if settings.llm_text.vendor.upper() == Constants.VENDOR_GOOGLE.upper():
-            return LlmGoogle(memory_log, settings.llm_text.api_key, settings.llm_text_model(), settings.audit_llm)
+            return LlmGoogle(
+                memory_log,
+                settings.llm_text.api_key,
+                settings.llm_text_model(model_spec),
+                settings.audit_llm,
+            )
         elif settings.llm_text.vendor.upper() == Constants.VENDOR_ANTHROPIC.upper():
-            return LlmAnthropic(memory_log, settings.llm_text.api_key, settings.llm_text_model(), settings.audit_llm)
+            return LlmAnthropic(
+                memory_log,
+                settings.llm_text.api_key,
+                settings.llm_text_model(model_spec),
+                settings.audit_llm,
+            )
         else:
-            model = settings.llm_text_model()
+            model = settings.llm_text_model(model_spec)
             if model == Constants.OPENAI_CHAT_TEXT_O3:
                 return LlmOpenaiO3(
                     memory_log,

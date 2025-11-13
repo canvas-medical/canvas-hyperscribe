@@ -26,6 +26,7 @@ from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.json_extract import JsonExtract
 from hyperscribe.structures.line import Line
+from hyperscribe.structures.model_spec import ModelSpec
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
 from tests.helper import MockFile, is_constant, MockClass
@@ -1531,7 +1532,7 @@ def test_anonymize_limited_cache(schema_code_items, memory_log, helper):
     calls = [call.instance(tested.identification, "anonymize_limited_cache", tested.s3_logs_credentials)]
     assert memory_log.mock_calls == calls
     calls = [
-        call.chatter(tested.settings, "theMemoryLogInstance"),
+        call.chatter(tested.settings, "theMemoryLogInstance", ModelSpec.COMPLEX),
         call.chatter().set_system_prompt(system_prompt),
         call.chatter().set_user_prompt(user_prompt),
         call.chatter().chat(["theCodeItemsSchema"]),
@@ -1577,7 +1578,7 @@ def test_anonymize_limited_cache(schema_code_items, memory_log, helper):
     calls = [call.instance(tested.identification, "anonymize_limited_cache", tested.s3_logs_credentials)]
     assert memory_log.mock_calls == calls
     calls = [
-        call.chatter(tested.settings, "theMemoryLogInstance"),
+        call.chatter(tested.settings, "theMemoryLogInstance", ModelSpec.COMPLEX),
         call.chatter().set_system_prompt(system_prompt),
         call.chatter().set_user_prompt(user_prompt),
         call.chatter().chat(["theCodeItemsSchema"]),
@@ -1827,7 +1828,7 @@ def test_anonymize_transcripts_chat(schema_anonymization, schema_changes, anonym
     calls = [call(memory_log, expected)]
     assert anonymize_transcripts_check.mock_calls == calls
     calls = [
-        call.chatter(tested.settings, memory_log),
+        call.chatter(tested.settings, memory_log, ModelSpec.COMPLEX),
         call.chatter().set_system_prompt(system_prompt),
         call.chatter().set_user_prompt(user_prompts["firstRound"]),
         call.chatter().set_user_prompt(user_prompts["usedAnonymizations"]),
@@ -1930,7 +1931,7 @@ def test_anonymize_transcripts_chat(schema_anonymization, schema_changes, anonym
         ]
         assert anonymize_transcripts_check.mock_calls == calls
         calls = [
-            call.chatter(tested.settings, memory_log),
+            call.chatter(tested.settings, memory_log, ModelSpec.COMPLEX),
             call.chatter().set_system_prompt(system_prompt),
             call.chatter().set_user_prompt(user_prompts["firstRound"]),
             call.chatter().chat([{"schema": "anonymization"}, {"schema": "changes"}]),
@@ -2037,7 +2038,7 @@ def test_anonymize_transcripts_chat(schema_anonymization, schema_changes, anonym
             ]
             assert anonymize_transcripts_check.mock_calls == calls
             calls = [
-                call.chatter(tested.settings, memory_log),
+                call.chatter(tested.settings, memory_log, ModelSpec.COMPLEX),
                 call.chatter().set_system_prompt(system_prompt),
                 call.chatter().set_user_prompt(user_prompts["firstRound"]),
                 call.chatter().chat([{"schema": "anonymization"}, {"schema": "changes"}]),
@@ -2185,7 +2186,7 @@ def test_anonymize_transcripts_check(schema_errors, helper):
         calls = [call()]
         assert schema_errors.mock_calls == calls
         calls = [
-            call.chatter(tested.settings, memory_log),
+            call.chatter(tested.settings, memory_log, ModelSpec.COMPLEX),
             call.chatter().set_system_prompt(system_prompt),
             call.chatter().set_user_prompt(user_prompt),
             call.chatter().chat(["theSchemaErrors"]),

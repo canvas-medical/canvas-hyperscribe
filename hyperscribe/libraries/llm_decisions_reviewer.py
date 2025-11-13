@@ -13,6 +13,7 @@ from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.llm_turn import LlmTurn
+from hyperscribe.structures.model_spec import ModelSpec
 from hyperscribe.structures.progress_message import ProgressMessage
 from hyperscribe.structures.settings import Settings
 
@@ -69,6 +70,7 @@ class LlmDecisionsReviewer:
                 chatter = Helper.chatter(
                     settings,
                     MemoryLog.instance(identification, f"audit_{incremented_step}", credentials),
+                    ModelSpec.COMPLEX,
                 )
                 system_prompt: list[str] = []
                 model_prompt: list[str] = []

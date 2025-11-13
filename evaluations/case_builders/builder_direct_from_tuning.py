@@ -34,6 +34,7 @@ from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.instruction import Instruction
 from hyperscribe.structures.line import Line
+from hyperscribe.structures.model_spec import ModelSpec
 from hyperscribe.structures.settings import Settings
 
 
@@ -337,7 +338,7 @@ class BuilderDirectFromTuning:
             return cache
 
         memory_log = MemoryLog.instance(self.identification, "anonymize_limited_cache", self.s3_logs_credentials)
-        chatter = Helper.chatter(self.settings, memory_log)
+        chatter = Helper.chatter(self.settings, memory_log, ModelSpec.COMPLEX)
         chatter.set_system_prompt(
             [
                 "You are part of an anonymization process.",
@@ -376,7 +377,7 @@ class BuilderDirectFromTuning:
         schema_anonymization = self.schema_anonymization()
         schema_changes = self.schema_changes()
 
-        chatter = Helper.chatter(self.settings, memory_log)
+        chatter = Helper.chatter(self.settings, memory_log, ModelSpec.COMPLEX)
         chatter.set_system_prompt(
             [
                 "You are a medical transcript anonymization specialist with expertise in healthcare privacy compliance."
@@ -491,7 +492,7 @@ class BuilderDirectFromTuning:
     def anonymize_transcripts_check(self, memory_log: MemoryLog, anonymization: Anonymization) -> AnonymizationError:
         schema_errors = self.schema_errors()
 
-        chatter = Helper.chatter(self.settings, memory_log)
+        chatter = Helper.chatter(self.settings, memory_log, ModelSpec.COMPLEX)
         chatter.set_system_prompt(
             [
                 "You are a validator of medical transcript anonymization with expertise in "

@@ -19,6 +19,7 @@ from hyperscribe.libraries.memory_log import MemoryLog
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.line import Line
+from hyperscribe.structures.model_spec import ModelSpec
 from hyperscribe.structures.settings import Settings
 
 
@@ -212,7 +213,7 @@ class HelperEvaluation:
             provider_uuid=HyperscribeConstants.FAUX_PROVIDER_UUID,
             canvas_instance=cls.get_canvas_instance(),
         )
-        conversation = Helper.chatter(cls.settings(), MemoryLog(identification, case))
+        conversation = Helper.chatter(cls.settings(), MemoryLog(identification, case), ModelSpec.COMPLEX)
         conversation.set_system_prompt(system_prompt)
         conversation.set_user_prompt(user_prompt)
         chat = conversation.chat([cls.json_schema_differences()])

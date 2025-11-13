@@ -11,6 +11,7 @@ from evaluations.structures.records.generated_note import GeneratedNote as Gener
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.line import Line
+from hyperscribe.structures.model_spec import ModelSpec
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.token_counts import TokenCounts
 from hyperscribe.structures.vendor_key import VendorKey
@@ -162,7 +163,7 @@ def test_generated_note_id(case_id, get_plugin_commit, generated_note_store):
         ),
     ]
     assert generated_note_store.mock_calls == calls
-    calls = [call.llm_text_model()]
+    calls = [call.llm_text_model(ModelSpec.LISTED)]
     assert mock_settings.mock_calls == calls
     calls = [call()]
     assert get_plugin_commit.mock_calls == calls
@@ -342,7 +343,7 @@ def test_case_finalize(
         assert experiment_result_store.mock_calls == exp_calls
         calls = []
         if exp_calls:
-            calls = [call()]
+            calls = [call(ModelSpec.LISTED)]
         assert llm_text_model.mock_calls == calls
         reset_mocks()
 

@@ -1,4 +1,5 @@
 import json
+from time import time
 from unittest.mock import patch, call, MagicMock
 
 import pytest
@@ -194,19 +195,25 @@ def test_attempt_requests(request):
     reset_mocks()
 
 
+@patch("hyperscribe.llms.llm_base.time", wraps=time)
 @patch.object(LlmBase, "extract_json_from")
 @patch.object(LlmBase, "attempt_requests")
-def test_chat(attempt_requests, extract_json_from):
+def test_chat(attempt_requests, extract_json_from, mock_time):
     memory_log = MagicMock()
 
     def reset_mocks():
         attempt_requests.reset_mock()
         extract_json_from.reset_mock()
+        mock_time.reset_mock()
+        memory_log.reset_mock()
+
+    times = [136.458, 139.687, 141.951, 147.632, 153.321, 167.528]
 
     tested = LlmBase(memory_log, "apiKey", "theModel", False)
     assert tested.prompts == []
 
     # http error
+    mock_time.side_effect = times[0:2]
     attempt_requests.side_effect = [
         HttpResponse(
             code=429,
@@ -221,15 +228,22 @@ def test_chat(attempt_requests, extract_json_from):
 
     assert tested.prompts == []
 
+    calls = [call(), call()]
+    assert mock_time.mock_calls == calls
     calls = [call(3)]
     assert attempt_requests.mock_calls == calls
     assert extract_json_from.mock_calls == []
-    calls = [call.log("-- CHAT BEGINS --"), call.log("--- CHAT ENDS - 1 attempts ---"), call.store_so_far()]
+    calls = [
+        call.log("-- CHAT BEGINS --"),
+        call.log("--- CHAT ENDS - 1 attempts - 3229ms ---"),
+        call.store_so_far(),
+    ]
     assert memory_log.mock_calls == calls
     reset_mocks()
 
     # no http error
     # -- one json error
+    mock_time.side_effect = times[2:4]
     attempt_requests.side_effect = [
         HttpResponse(code=200, response="response1:\nline1\nline2", tokens=TokenCounts(prompt=71, generated=51)),
         HttpResponse(code=200, response="response2:\nline3\nline4", tokens=TokenCounts(prompt=83, generated=47)),
@@ -266,20 +280,18 @@ def test_chat(attempt_requests, extract_json_from):
     assert extract_json_from.mock_calls == calls
     calls = [
         call.log("-- CHAT BEGINS --"),
-        call.log("--- CHAT ENDS - 1 attempts ---"),
-        call.store_so_far(),
-        call.log("-- CHAT BEGINS --"),
         call.add_consumption(TokenCounts(prompt=71, generated=51)),
         call.add_consumption(TokenCounts(prompt=83, generated=47)),
         call.log("result->>"),
         call.log('[\n  "line1",\n  "line2"\n]'),
         call.log("<<-"),
-        call.log("--- CHAT ENDS - 2 attempts ---"),
+        call.log("--- CHAT ENDS - 2 attempts - 5681ms ---"),
         call.store_so_far(),
     ]
     assert memory_log.mock_calls == calls
     reset_mocks()
     # -- too many json error
+    mock_time.side_effect = times[4:6]
     attempt_requests.side_effect = [
         HttpResponse(code=200, response="response1:\nline1\nline2", tokens=TokenCounts(prompt=71, generated=41)),
         HttpResponse(code=200, response="response2:\nline3\nline4", tokens=TokenCounts(prompt=72, generated=42)),
@@ -349,22 +361,11 @@ def test_chat(attempt_requests, extract_json_from):
     assert extract_json_from.mock_calls == calls
     calls = [
         call.log("-- CHAT BEGINS --"),
-        call.log("--- CHAT ENDS - 1 attempts ---"),
-        call.store_so_far(),
-        call.log("-- CHAT BEGINS --"),
-        call.add_consumption(TokenCounts(prompt=71, generated=51)),
-        call.add_consumption(TokenCounts(prompt=83, generated=47)),
-        call.log("result->>"),
-        call.log('[\n  "line1",\n  "line2"\n]'),
-        call.log("<<-"),
-        call.log("--- CHAT ENDS - 2 attempts ---"),
-        call.store_so_far(),
-        call.log("-- CHAT BEGINS --"),
         call.add_consumption(TokenCounts(prompt=71, generated=41)),
         call.add_consumption(TokenCounts(prompt=72, generated=42)),
         call.add_consumption(TokenCounts(prompt=73, generated=43)),
         call.log("error: JSON incorrect: max attempts (3) exceeded"),
-        call.log("--- CHAT ENDS - 3 attempts ---"),
+        call.log("--- CHAT ENDS - 3 attempts - 14206ms ---"),
         call.store_so_far(),
     ]
     assert memory_log.mock_calls == calls

@@ -2,8 +2,10 @@ from unittest.mock import patch, call
 
 import pytest
 
+from hyperscribe.libraries.constants import Constants
 from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.custom_prompt import CustomPrompt
+from hyperscribe.structures.model_spec import ModelSpec
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
 from tests.helper import is_namedtuple
@@ -296,8 +298,34 @@ def test_llm_text_model():
             trial_staffers_policy=AccessPolicy(policy=True, items=[]),
             cycle_transcript_overlap=54,
         )
-        result = tested.llm_text_model()
-        assert result == expected, f"---> {vendor}"
+        for size in ModelSpec:
+            result = tested.llm_text_model(size)
+            assert result == expected, f"---> {vendor}, {size}"
+
+    with patch.object(Constants, "OPENAI_CHAT_TEXT", "modelX modelY modelZ"):
+        tested = Settings(
+            llm_text=VendorKey(vendor="OpenAI", api_key="textAPIKey"),
+            llm_audio=VendorKey(vendor="audioVendor", api_key="audioAPIKey"),
+            structured_rfv=True,
+            audit_llm=True,
+            reasoning_llm=False,
+            custom_prompts=[],
+            is_tuning=True,
+            api_signing_key="theApiSigningKey",
+            max_workers=3,
+            hierarchical_detection_threshold=5,
+            send_progress=True,
+            commands_policy=AccessPolicy(policy=True, items=[]),
+            staffers_policy=AccessPolicy(policy=True, items=[]),
+            trial_staffers_policy=AccessPolicy(policy=True, items=[]),
+            cycle_transcript_overlap=54,
+        )
+        result = tested.llm_text_model(ModelSpec.COMPLEX)
+        assert result == "modelX"
+        result = tested.llm_text_model(ModelSpec.SIMPLER)
+        assert result == "modelZ"
+        result = tested.llm_text_model(ModelSpec.LISTED)
+        assert result == "modelX modelY modelZ"
 
 
 @patch.object(Settings, "llm_text_model")
@@ -334,6 +362,6 @@ def test_llm_text_temperature(llm_text_model):
         result = tested.llm_text_temperature()
         assert result == expected, f"---> {model}"
 
-        calls = [call()]
+        calls = [call(ModelSpec.SIMPLER)]
         assert llm_text_model.mock_calls == calls
         reset_mocks()

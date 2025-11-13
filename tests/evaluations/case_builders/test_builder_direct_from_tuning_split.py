@@ -13,6 +13,7 @@ from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.json_extract import JsonExtract
+from hyperscribe.structures.model_spec import ModelSpec
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
 from tests.helper import MockFile, MockClass
@@ -479,7 +480,7 @@ def test_topical_exchange_summary(schema_summary, memory_log, helper, uuid4):
         calls = [call.instance(tested.identification, "topical_exchange_naming", tested.s3_logs_credentials)]
         assert memory_log.mock_calls == calls
         calls = [
-            call.chatter(tested.settings, "theMemoryLog"),
+            call.chatter(tested.settings, "theMemoryLog", ModelSpec.COMPLEX),
             call.chatter().set_system_prompt(system_prompt),
             call.chatter().set_user_prompt(user_prompt),
             call.chatter().chat([{"schema": "summary2"}]),
@@ -523,7 +524,7 @@ def test_topical_exchange_summary(schema_summary, memory_log, helper, uuid4):
         calls = [call.instance(tested.identification, "topical_exchange_naming", tested.s3_logs_credentials)]
         assert memory_log.mock_calls == calls
         calls = [
-            call.chatter(tested.settings, "theMemoryLog"),
+            call.chatter(tested.settings, "theMemoryLog", ModelSpec.COMPLEX),
             call.chatter().set_system_prompt(system_prompt),
             call.chatter().set_user_prompt(user_prompt),
             call.chatter().chat([{"schema": "summary2"}]),
@@ -852,18 +853,18 @@ def test_detect_topical_exchanges(schema_topical_exchanges, memory_log, helper):
         calls = [call.instance(tested.identification, "detect_topical_exchanges", tested.s3_logs_credentials)]
         assert memory_log.mock_calls == calls
         calls = [
-            call.chatter(tested.settings, "theMemoryLog"),
+            call.chatter(tested.settings, "theMemoryLog", ModelSpec.COMPLEX),
             call.chatter().set_system_prompt(system_prompt),
             call.chatter().set_user_prompt(user_prompts[0]),
             call.chatter().chat([{"schema": "topical"}]),
             #
-            call.chatter(tested.settings, "theMemoryLog"),
+            call.chatter(tested.settings, "theMemoryLog", ModelSpec.COMPLEX),
             call.chatter().set_system_prompt(system_prompt),
             call.chatter().set_user_prompt(user_prompts[1]),
             call.chatter().set_user_prompt(user_prompts[2]),
             call.chatter().chat([{"schema": "topical"}]),
             #
-            call.chatter(tested.settings, "theMemoryLog"),
+            call.chatter(tested.settings, "theMemoryLog", ModelSpec.COMPLEX),
             call.chatter().set_system_prompt(system_prompt),
             call.chatter().set_user_prompt(user_prompts[3]),
             call.chatter().set_user_prompt(user_prompts[4]),

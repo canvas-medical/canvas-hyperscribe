@@ -10,6 +10,7 @@ from hyperscribe.libraries.audio_interpreter import AudioInterpreter
 from hyperscribe.libraries.helper import Helper
 from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.libraries.memory_log import MemoryLog
+from hyperscribe.structures.model_spec import ModelSpec
 
 
 class BuilderDirectFromTuningFull(BuilderDirectFromTuning):
@@ -57,7 +58,7 @@ class BuilderDirectFromTuningFull(BuilderDirectFromTuning):
             if fragment <= len(result):
                 continue
 
-            chatter = Helper.chatter(self.settings, memory_log)
+            chatter = Helper.chatter(self.settings, memory_log, ModelSpec.COMPLEX)
             chatter.set_system_prompt(
                 [
                     "The conversation is in the medical context, and related to a visit of a patient with a "

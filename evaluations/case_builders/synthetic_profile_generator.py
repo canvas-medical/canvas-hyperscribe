@@ -11,6 +11,7 @@ from evaluations.helper_evaluation import HelperEvaluation
 from evaluations.structures.patient_profile import PatientProfile
 from hyperscribe.libraries.helper import Helper
 from hyperscribe.libraries.memory_log import MemoryLog
+from hyperscribe.structures.model_spec import ModelSpec
 
 
 class SyntheticProfileGenerator:
@@ -55,7 +56,7 @@ class SyntheticProfileGenerator:
             ]
 
             settings = HelperEvaluation.settings_reasoning_allowed()
-            llm = Helper.chatter(settings, MemoryLog.dev_null_instance())
+            llm = Helper.chatter(settings, MemoryLog.dev_null_instance(), ModelSpec.COMPLEX)
             llm.set_system_prompt(system_prompt)
             llm.set_user_prompt(user_prompt)
 

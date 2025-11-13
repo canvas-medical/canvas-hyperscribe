@@ -11,6 +11,7 @@ from evaluations.structures.records.experiment_result_score import ExperimentRes
 from evaluations.structures.records.score import Score as ScoreRecord
 from evaluations.structures.rubric_criterion import RubricCriterion
 from hyperscribe.llms.llm_base import LlmBase
+from hyperscribe.structures.model_spec import ModelSpec
 from hyperscribe.structures.vendor_key import VendorKey
 from tests.helper import MockClass
 
@@ -377,11 +378,11 @@ def test_grade_and_save2database(
         ]
         assert mock_helper.mock_calls == calls
         calls = [
-            call.llm_text_model(),
+            call.llm_text_model(ModelSpec.LISTED),
             call.llm_text_temperature(),
         ]
         if exp_calls:
-            calls.append(call.llm_text_model())
+            calls.append(call.llm_text_model(ModelSpec.LISTED))
         assert settings.mock_calls == calls
         reset_mocks()
 

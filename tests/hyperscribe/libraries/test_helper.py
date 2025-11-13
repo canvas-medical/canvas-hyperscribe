@@ -12,6 +12,7 @@ from hyperscribe.llms.llm_google import LlmGoogle
 from hyperscribe.llms.llm_openai import LlmOpenai
 from hyperscribe.llms.llm_openai_o3 import LlmOpenaiO3
 from hyperscribe.structures.access_policy import AccessPolicy
+from hyperscribe.structures.model_spec import ModelSpec
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
 
@@ -147,9 +148,9 @@ def test_chatter():
         # handle o3 alternative.
         if exp_model == "o3":
             with patch("hyperscribe.structures.settings.Settings.llm_text_model", return_value="o3"):
-                result = tested.chatter(settings, memory_log)
+                result = tested.chatter(settings, memory_log, ModelSpec.SIMPLER)
         else:
-            result = tested.chatter(settings, memory_log)
+            result = tested.chatter(settings, memory_log, ModelSpec.SIMPLER)
 
         assert memory_log.mock_calls == []
         assert isinstance(result, exp_class)

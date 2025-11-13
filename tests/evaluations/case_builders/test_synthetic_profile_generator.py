@@ -10,6 +10,7 @@ from evaluations.case_builders.synthetic_profile_generator import SyntheticProfi
 from evaluations.structures.patient_profile import PatientProfile
 from hyperscribe.llms.llm_base import LlmBase
 from hyperscribe.structures.json_extract import JsonExtract
+from hyperscribe.structures.model_spec import ModelSpec
 from tests.helper import MockClass
 
 
@@ -139,7 +140,7 @@ def test_update_patient_names(
 
     # Check Helper.chatter was called correctly - each profile calls it once
     expected_chatter_calls = [
-        call(mock_helper_evaluation.settings_reasoning_allowed.return_value, "theMemoryInstance")
+        call(mock_helper_evaluation.settings_reasoning_allowed.return_value, "theMemoryInstance", ModelSpec.COMPLEX)
     ] * expected_chat_calls
     assert mock_helper.chatter.call_args_list == expected_chatter_calls
 

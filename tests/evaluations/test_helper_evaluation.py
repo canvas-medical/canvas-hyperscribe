@@ -15,6 +15,7 @@ from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.json_extract import JsonExtract
 from hyperscribe.structures.line import Line
+from hyperscribe.structures.model_spec import ModelSpec
 
 
 def test_trace_error():
@@ -30,7 +31,7 @@ def test_trace_error():
         result = tested.trace_error(error)
         expected = {
             "error": "'x'",
-            "files": [f"{file_path}.test_trace_error:30", f"{file_path}.mistake:22"],
+            "files": [f"{file_path}.test_trace_error:31", f"{file_path}.mistake:23"],
             "variables": {"a_dict": "{'a': 1, 'secret': 'SecretA'}", "b_dict": "{'b': 2}", "various": "'random var'"},
         }
         assert result == expected
@@ -445,7 +446,7 @@ def test_nuanced_differences(settings, get_canvas_instance, chatter, memory_log)
     assert get_canvas_instance.mock_calls == calls
     calls = [call(identification, "theCase")]
     assert memory_log.mock_calls == calls
-    calls = [call("theSettings", "MemoryLogInstance")]
+    calls = [call("theSettings", "MemoryLogInstance", ModelSpec.COMPLEX)]
     assert chatter.mock_calls == calls
     calls = [call.set_system_prompt(system_prompt), call.set_user_prompt(user_prompt), call.chat([schema])]
     assert conversation.mock_calls == calls
@@ -467,7 +468,7 @@ def test_nuanced_differences(settings, get_canvas_instance, chatter, memory_log)
     assert get_canvas_instance.mock_calls == calls
     calls = [call(identification, "theCase")]
     assert memory_log.mock_calls == calls
-    calls = [call("theSettings", "MemoryLogInstance")]
+    calls = [call("theSettings", "MemoryLogInstance", ModelSpec.COMPLEX)]
     assert chatter.mock_calls == calls
     calls = [call.set_system_prompt(system_prompt), call.set_user_prompt(user_prompt), call.chat([schema])]
     assert conversation.mock_calls == calls
@@ -487,7 +488,7 @@ def test_nuanced_differences(settings, get_canvas_instance, chatter, memory_log)
     assert get_canvas_instance.mock_calls == calls
     calls = [call(identification, "theCase")]
     assert memory_log.mock_calls == calls
-    calls = [call("theSettings", "MemoryLogInstance")]
+    calls = [call("theSettings", "MemoryLogInstance", ModelSpec.COMPLEX)]
     assert chatter.mock_calls == calls
     calls = [call.set_system_prompt(system_prompt), call.set_user_prompt(user_prompt), call.chat([schema])]
     assert conversation.mock_calls == calls

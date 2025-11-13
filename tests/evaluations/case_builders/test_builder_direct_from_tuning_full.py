@@ -10,6 +10,7 @@ from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.json_extract import JsonExtract
+from hyperscribe.structures.model_spec import ModelSpec
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
 from tests.helper import MockFile, MockClass
@@ -391,18 +392,18 @@ def test_exchange_summary(schema_summary, memory_log, helper, uuid4):
         calls = [call.instance(tested.identification, "detect_summary", tested.s3_logs_credentials)]
         assert memory_log.mock_calls == calls
         calls = [
-            call.chatter(tested.settings, "theMemoryLog"),
+            call.chatter(tested.settings, "theMemoryLog", ModelSpec.COMPLEX),
             call.chatter().set_system_prompt(system_prompt),
             call.chatter().set_user_prompt(user_prompts["initial_0"]),
             call.chatter().chat([{"schema": "summary"}]),
             #
-            call.chatter(tested.settings, "theMemoryLog"),
+            call.chatter(tested.settings, "theMemoryLog", ModelSpec.COMPLEX),
             call.chatter().set_system_prompt(system_prompt),
             call.chatter().set_user_prompt(user_prompts["previous_1"]),
             call.chatter().set_user_prompt(user_prompts["initial_1"]),
             call.chatter().chat([{"schema": "summary"}]),
             #
-            call.chatter(tested.settings, "theMemoryLog"),
+            call.chatter(tested.settings, "theMemoryLog", ModelSpec.COMPLEX),
             call.chatter().set_system_prompt(system_prompt),
             call.chatter().set_user_prompt(user_prompts["previous_2"]),
             call.chatter().set_user_prompt(user_prompts["initial_2"]),
@@ -459,7 +460,7 @@ def test_exchange_summary(schema_summary, memory_log, helper, uuid4):
     calls = [call.instance(tested.identification, "detect_summary", tested.s3_logs_credentials)]
     assert memory_log.mock_calls == calls
     calls = [
-        call.chatter(tested.settings, "theMemoryLog"),
+        call.chatter(tested.settings, "theMemoryLog", ModelSpec.COMPLEX),
         call.chatter().set_system_prompt(system_prompt),
         call.chatter().set_user_prompt(user_prompts["previous_2"]),
         call.chatter().set_user_prompt(user_prompts["initial_2"]),

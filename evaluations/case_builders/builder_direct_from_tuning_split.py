@@ -12,6 +12,7 @@ from hyperscribe.libraries.helper import Helper
 from hyperscribe.libraries.implemented_commands import ImplementedCommands
 from hyperscribe.libraries.limited_cache import LimitedCache
 from hyperscribe.libraries.memory_log import MemoryLog
+from hyperscribe.structures.model_spec import ModelSpec
 
 
 class BuilderDirectFromTuningSplit(BuilderDirectFromTuning):
@@ -99,7 +100,7 @@ class BuilderDirectFromTuningSplit(BuilderDirectFromTuning):
                 return CaseExchangeSummary.load_from_json(json.load(f))[0]
 
         memory_log = MemoryLog.instance(self.identification, "topical_exchange_naming", self.s3_logs_credentials)
-        chatter = Helper.chatter(self.settings, memory_log)
+        chatter = Helper.chatter(self.settings, memory_log, ModelSpec.COMPLEX)
         chatter.set_system_prompt(
             [
                 "The conversation is in the medical context, and related to a visit of a patient with a "
@@ -156,7 +157,7 @@ class BuilderDirectFromTuningSplit(BuilderDirectFromTuning):
                     result.extend(TopicalExchange.load_from_json(json.load(f)))
                 continue
 
-            chatter = Helper.chatter(self.settings, memory_log)
+            chatter = Helper.chatter(self.settings, memory_log, ModelSpec.COMPLEX)
             chatter.set_system_prompt(
                 [
                     "The conversation is in the medical context, and related to a visit of a patient with a "

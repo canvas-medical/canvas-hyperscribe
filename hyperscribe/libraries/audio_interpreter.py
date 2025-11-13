@@ -19,6 +19,7 @@ from hyperscribe.structures.instruction_with_command import InstructionWithComma
 from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.json_extract import JsonExtract
 from hyperscribe.structures.line import Line
+from hyperscribe.structures.model_spec import ModelSpec
 from hyperscribe.structures.progress_message import ProgressMessage
 from hyperscribe.structures.section_with_transcript import SectionWithTranscript
 from hyperscribe.structures.settings import Settings
@@ -84,7 +85,7 @@ class AudioInterpreter:
             return self.combine_and_speaker_detection_single_step(transcriber, transcript_tail)
         else:
             memory_log = MemoryLog.instance(self.identification, "speakerDetection", self.s3_credentials)
-            detector = Helper.chatter(self.settings, memory_log)
+            detector = Helper.chatter(self.settings, memory_log, ModelSpec.COMPLEX)
             return self.combine_and_speaker_detection_double_step(transcriber, detector, transcript_tail)
 
     @classmethod
@@ -285,7 +286,7 @@ class AudioInterpreter:
             "",
         ]
         memory_log = MemoryLog.instance(self.identification, "transcript2sections", self.s3_credentials)
-        chatter = Helper.chatter(self.settings, memory_log)
+        chatter = Helper.chatter(self.settings, memory_log, ModelSpec.COMPLEX)
         return SectionWithTranscript.load_from(
             chatter.single_conversation(
                 system_prompt,
@@ -430,6 +431,7 @@ class AudioInterpreter:
         chatter = Helper.chatter(
             self.settings,
             MemoryLog.instance(self.identification, f"transcript2instructions:{section}", self.s3_credentials),
+            ModelSpec.COMPLEX,
         )
         result = chatter.single_conversation(system_prompt, user_prompt, [schema], None)
 
@@ -505,7 +507,7 @@ class AudioInterpreter:
         ]
         log_label = f"{instruction.instruction}_{instruction.uuid}_instruction2parameters"
         memory_log = MemoryLog.instance(self.identification, log_label, self.s3_credentials)
-        chatter = Helper.chatter(self.settings, memory_log)
+        chatter = Helper.chatter(self.settings, memory_log, ModelSpec.SIMPLER)
         response = chatter.single_conversation(system_prompt, user_prompt, schemas, instruction)
         if response:
             result = InstructionWithParameters.add_parameters(instruction, response[0])
@@ -524,7 +526,7 @@ class AudioInterpreter:
             if direction.instruction == class_name:
                 log_label = f"{direction.instruction}_{direction.uuid}_parameters2command"
                 memory_log = MemoryLog.instance(self.identification, log_label, self.s3_credentials)
-                chatter = Helper.chatter(self.settings, memory_log)
+                chatter = Helper.chatter(self.settings, memory_log, ModelSpec.SIMPLER)
                 result = instance.command_from_json_with_summary(direction, chatter)
                 if result:
                     messages = [
@@ -551,6 +553,7 @@ class AudioInterpreter:
                 chatter = Helper.chatter(
                     self.settings,
                     MemoryLog.instance(self.identification, log_label, self.s3_credentials),
+                    ModelSpec.COMPLEX,
                 )
                 if questionnaire := instance.update_from_transcript(discussion, direction, chatter):
                     command = instance.command_from_questionnaire(direction.uuid, questionnaire)

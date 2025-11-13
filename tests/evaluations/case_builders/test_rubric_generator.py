@@ -10,6 +10,7 @@ from evaluations.structures.enums.rubric_validation import RubricValidation
 from evaluations.structures.records.rubric import Rubric as RubricRecord
 from evaluations.structures.rubric_criterion import RubricCriterion
 from hyperscribe.llms.llm_base import LlmBase
+from hyperscribe.structures.model_spec import ModelSpec
 from hyperscribe.structures.vendor_key import VendorKey
 from tests.helper import MockClass
 
@@ -311,7 +312,7 @@ def test_generate_and_save2database(
     calls = [call.now(UTC)]
     assert mock_datetime.mock_calls == calls
     calls = [
-        call.llm_text_model(),
+        call.llm_text_model(ModelSpec.LISTED),
         call.llm_text_temperature(),
     ]
     assert settings.mock_calls == calls

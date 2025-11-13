@@ -12,6 +12,7 @@ from hyperscribe.structures.coded_item import CodedItem
 from hyperscribe.structures.json_extract import JsonExtract
 from hyperscribe.structures.line import Line
 from hyperscribe.structures.medication_cached import MedicationCached
+from hyperscribe.structures.model_spec import ModelSpec
 
 
 def _invalid_path(tmp_path: Path) -> Path:
@@ -144,7 +145,7 @@ def test_generate__json_success(
     assert mock_memory_log.mock_calls == calls
     calls = [call()]
     assert mock_settings.mock_calls == calls
-    calls = [call(settings_instance, "MemoryLogInstance")]
+    calls = [call(settings_instance, "MemoryLogInstance", ModelSpec.COMPLEX)]
     assert mock_chatter.mock_calls == calls
     calls = [
         call.set_system_prompt(["System prompt"]),
@@ -229,7 +230,7 @@ def test_generate_json__chat_error_exits(mock_memory_log, mock_chatter, mock_set
     assert mock_memory_log.mock_calls == calls
     calls = [call()]
     assert mock_settings.mock_calls == calls
-    calls = [call(settings_instance, "MemoryLogInstance")]
+    calls = [call(settings_instance, "MemoryLogInstance", ModelSpec.COMPLEX)]
     assert mock_chatter.mock_calls == calls
     calls = [
         call.set_system_prompt(["system"]),

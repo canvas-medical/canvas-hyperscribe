@@ -1,5 +1,5 @@
 from __future__ import annotations
-
+from time import time
 import json
 import re
 from http import HTTPStatus
@@ -81,6 +81,7 @@ class LlmBase:
     def chat(self, schemas: list) -> JsonExtract:
         self.memory_log.log("-- CHAT BEGINS --")
         attempts = 0
+        start = time()
         for _ in range(Constants.MAX_ATTEMPTS_LLM_JSON):
             attempts += 1
             response = self.attempt_requests(Constants.MAX_ATTEMPTS_LLM_HTTP)
@@ -118,7 +119,7 @@ class LlmBase:
             )
             self.memory_log.log(f"error: {result.error}")
 
-        self.memory_log.log(f"--- CHAT ENDS - {attempts} attempts ---")
+        self.memory_log.log(f"--- CHAT ENDS - {attempts} attempts - {int((time() - start) * 1000)}ms ---")
         self.memory_log.store_so_far()
         return result
 

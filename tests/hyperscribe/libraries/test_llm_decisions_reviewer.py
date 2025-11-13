@@ -9,6 +9,7 @@ from hyperscribe.structures.access_policy import AccessPolicy
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.identification_parameters import IdentificationParameters
 from hyperscribe.structures.llm_turn import LlmTurn
+from hyperscribe.structures.model_spec import ModelSpec
 from hyperscribe.structures.progress_message import ProgressMessage
 from hyperscribe.structures.settings import Settings
 from hyperscribe.structures.vendor_key import VendorKey
@@ -393,43 +394,43 @@ def test_review(cache_get_discussion, cache_save, aws_s3, helper, llm_turns_stor
     ]
     assert aws_s3.mock_calls == calls
     calls = [
-        call.chatter(settings, "memoryLogInstance0"),
+        call.chatter(settings, "memoryLogInstance0", ModelSpec.COMPLEX),
         call.chatter().add_prompt(LlmTurn(role="system", text=["system_t2i_00"])),
         call.chatter().add_prompt(LlmTurn(role="user", text=["turn_t2i_00_1"])),
         call.chatter().add_prompt(LlmTurn(role="model", text=["model_t2i_00"])),
         call.chatter().single_conversation(["system_t2i_00"], exp_system_prompts["transcript1"], [schema], None),
-        call.chatter(settings, "memoryLogInstance1"),
+        call.chatter(settings, "memoryLogInstance1", ModelSpec.COMPLEX),
         call.chatter().add_prompt(LlmTurn(role="system", text=["system_t2i_01"])),
         call.chatter().add_prompt(LlmTurn(role="user", text=["turn_t2i_01_1"])),
         call.chatter().add_prompt(LlmTurn(role="model", text=["model_t2i_01"])),
         call.chatter().single_conversation(["system_t2i_01"], exp_system_prompts["transcript2"], [schema], None),
-        call.chatter(settings, "memoryLogInstance2"),
+        call.chatter(settings, "memoryLogInstance2", ModelSpec.COMPLEX),
         call.chatter().add_prompt(LlmTurn(role="system", text=["system_00_00"])),
         call.chatter().add_prompt(LlmTurn(role="user", text=["turn_00_00_1"])),
         call.chatter().add_prompt(LlmTurn(role="model", text=["turn_00_00_2"])),
         call.chatter().add_prompt(LlmTurn(role="user", text=["turn_00_00_3"])),
         call.chatter().add_prompt(LlmTurn(role="model", text=["model_00_00"])),
         call.chatter().single_conversation(["system_00_00"], exp_system_prompts["common"], [schema], None),
-        call.chatter(settings, "memoryLogInstance3"),
+        call.chatter(settings, "memoryLogInstance3", ModelSpec.COMPLEX),
         call.chatter().add_prompt(LlmTurn(role="system", text=["system_00_01"])),
         call.chatter().add_prompt(LlmTurn(role="user", text=["turn_00_01_1"])),
         call.chatter().add_prompt(LlmTurn(role="model", text=["turn_00_01_2"])),
         call.chatter().add_prompt(LlmTurn(role="user", text=["turn_00_01_3"])),
         call.chatter().add_prompt(LlmTurn(role="model", text=["model_00_01"])),
         call.chatter().single_conversation(["system_00_01"], exp_system_prompts["common"], [schema], None),
-        call.chatter(settings, "memoryLogInstance4"),
+        call.chatter(settings, "memoryLogInstance4", ModelSpec.COMPLEX),
         call.chatter().add_prompt(LlmTurn(role="system", text=["system_01_00"])),
         call.chatter().add_prompt(LlmTurn(role="user", text=["turn_01_00_1"])),
         call.chatter().add_prompt(LlmTurn(role="model", text=["turn_01_00_2"])),
         call.chatter().add_prompt(LlmTurn(role="user", text=["turn_01_00_3"])),
         call.chatter().add_prompt(LlmTurn(role="model", text=["model_01_00"])),
         call.chatter().single_conversation(["system_01_00"], exp_system_prompts["common"], [schema], None),
-        call.chatter(settings, "memoryLogInstance5"),
+        call.chatter(settings, "memoryLogInstance5", ModelSpec.COMPLEX),
         call.chatter().add_prompt(LlmTurn(role="system", text=["system_02_00"])),
         call.chatter().add_prompt(LlmTurn(role="user", text=["turn_02_00_1"])),
         call.chatter().add_prompt(LlmTurn(role="model", text=["model_02_00"])),
         call.chatter().single_conversation(["system_02_00"], exp_system_prompts["common"], [schema], None),
-        call.chatter(settings, "memoryLogInstance6"),
+        call.chatter(settings, "memoryLogInstance6", ModelSpec.COMPLEX),
         call.chatter().add_prompt(LlmTurn(role="system", text=["system_06_00"])),
         call.chatter().add_prompt(LlmTurn(role="user", text=["turn_06_00_1"])),
         call.chatter().add_prompt(LlmTurn(role="model", text=["model_06_00"])),

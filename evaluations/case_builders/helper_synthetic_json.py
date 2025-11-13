@@ -10,6 +10,7 @@ from evaluations.structures.chart import Chart
 from evaluations.structures.patient_profile import PatientProfile
 from evaluations.structures.rubric_criterion import RubricCriterion
 from evaluations.structures.graded_criterion import GradedCriterion
+from hyperscribe.structures.model_spec import ModelSpec
 
 
 class HelperSyntheticJson:
@@ -29,7 +30,7 @@ class HelperSyntheticJson:
            and exits with status 1.
         """
         settings = HelperEvaluation.settings_reasoning_allowed()
-        llm = Helper.chatter(settings, MemoryLog.dev_null_instance())
+        llm = Helper.chatter(settings, MemoryLog.dev_null_instance(), ModelSpec.COMPLEX)
 
         llm.set_system_prompt(system_prompt)
         llm.set_user_prompt(user_prompt)

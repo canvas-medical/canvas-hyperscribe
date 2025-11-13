@@ -18,6 +18,7 @@ from hyperscribe.structures.instruction_with_command import InstructionWithComma
 from hyperscribe.structures.instruction_with_parameters import InstructionWithParameters
 from hyperscribe.structures.json_extract import JsonExtract
 from hyperscribe.structures.line import Line
+from hyperscribe.structures.model_spec import ModelSpec
 from hyperscribe.structures.progress_message import ProgressMessage
 from hyperscribe.structures.section_with_transcript import SectionWithTranscript
 from hyperscribe.structures.settings import Settings
@@ -417,7 +418,7 @@ def test_combine_and_speaker_detection(
                 call.audio2texter(settings, memory_log.instance.return_value),
                 call.audio2texter().add_audio(b"chunkAudio", "mp3"),
                 call.audio2texter().support_speaker_identification(),
-                call.chatter(settings, memory_log.instance.return_value),
+                call.chatter(settings, memory_log.instance.return_value, ModelSpec.COMPLEX),
             ],
             [
                 call.instance(tested.identification, "audio2transcript", aws_credentials),
@@ -1014,7 +1015,7 @@ def test_detect_sections(json_schema, chatter, memory_log):
     calls = [call(["Assessment", "History", "Objective", "Plan", "Procedures", "Subjective"])]
     assert json_schema.mock_calls == calls
     calls = [
-        call(settings, "MemoryLogInstance"),
+        call(settings, "MemoryLogInstance", ModelSpec.COMPLEX),
         call().single_conversation(system_prompt, user_prompt, ["theJsonSchema"], None),
     ]
     assert chatter.mock_calls == calls
@@ -1437,7 +1438,7 @@ def test_detect_instructions_flat(json_schema, instruction_constraints, chatter,
     ]
     assert instruction_constraints.mock_calls == calls
     calls = [
-        call(settings, "MemoryLogInstance"),
+        call(settings, "MemoryLogInstance", ModelSpec.COMPLEX),
         call().single_conversation(system_prompt, user_prompts["noKnownInstructions"], ["theJsonSchema"], None),
         call().set_model_prompt(["```json", '[{"information": "response1"}]', "```"]),
         call().single_conversation(system_prompt, user_prompts["constraints"], ["theJsonSchema"], None),
@@ -1499,7 +1500,7 @@ def test_detect_instructions_flat(json_schema, instruction_constraints, chatter,
     ]
     assert instruction_constraints.mock_calls == calls
     calls = [
-        call(settings, "MemoryLogInstance"),
+        call(settings, "MemoryLogInstance", ModelSpec.COMPLEX),
         call().single_conversation(system_prompt, user_prompts["noKnownInstructions"], ["theJsonSchema"], None),
     ]
     assert chatter.mock_calls == calls
@@ -1572,7 +1573,7 @@ def test_detect_instructions_flat(json_schema, instruction_constraints, chatter,
     ]
     assert instruction_constraints.mock_calls == calls
     calls = [
-        call(settings, "MemoryLogInstance"),
+        call(settings, "MemoryLogInstance", ModelSpec.COMPLEX),
         call().single_conversation(system_prompt, user_prompts["withKnownInstructions"], ["theJsonSchema"], None),
         call().set_model_prompt(
             [
@@ -1654,7 +1655,7 @@ def test_detect_instructions_flat(json_schema, instruction_constraints, chatter,
         ]
         assert instruction_constraints.mock_calls == calls
         calls = [
-            call(settings, "MemoryLogInstance"),
+            call(settings, "MemoryLogInstance", ModelSpec.COMPLEX),
             call().single_conversation(system_prompt, user_prompts["withKnownInstructions"], ["theJsonSchema"], None),
         ]
         assert chatter.mock_calls == calls
@@ -1792,7 +1793,7 @@ def test_create_sdk_command_parameters(
     assert command_structures.mock_calls == calls
     assert command_schema.mock_calls == calls
     calls = [
-        call(settings, memory_log.instance.return_value),
+        call(settings, memory_log.instance.return_value, ModelSpec.SIMPLER),
         call().single_conversation(system_prompt, user_prompts["commandWithSchema"], ["theSchema"], instruction),
     ]
     assert chatter.mock_calls == calls
@@ -1831,7 +1832,7 @@ def test_create_sdk_command_parameters(
     assert command_structures.mock_calls == calls
     assert command_schema.mock_calls == calls
     calls = [
-        call(settings, memory_log.instance.return_value),
+        call(settings, memory_log.instance.return_value, ModelSpec.SIMPLER),
         call().single_conversation(system_prompt, user_prompts["commandNoSchema"], schemas, instruction),
     ]
     assert chatter.mock_calls == calls
@@ -1862,7 +1863,7 @@ def test_create_sdk_command_parameters(
     assert command_structures.mock_calls == calls
     assert command_schema.mock_calls == calls
     calls = [
-        call(settings, memory_log.instance.return_value),
+        call(settings, memory_log.instance.return_value, ModelSpec.SIMPLER),
         call().single_conversation(system_prompt, user_prompts["commandWithSchema"], ["theSchema"], instruction),
     ]
     assert chatter.mock_calls == calls
@@ -1954,7 +1955,7 @@ def test_create_sdk_command_from(chatter, memory_log, progress):
         result = tested.create_sdk_command_from(instruction)
         assert result == expected
 
-        calls = [call(settings, memory_log.instance.return_value)] if exp_log_label else []
+        calls = [call(settings, memory_log.instance.return_value, ModelSpec.SIMPLER)] if exp_log_label else []
         assert chatter.mock_calls == calls
         calls = [call.instance(tested.identification, exp_log_label, aws_credentials)] if exp_log_label else []
         assert memory_log.mock_calls == calls
@@ -2054,7 +2055,7 @@ def test_update_questionnaire(chatter, memory_log):
         else:
             assert result is None
 
-        calls = [call(settings, "MemoryLogInstance")] if exp_log_label else []
+        calls = [call(settings, "MemoryLogInstance", ModelSpec.COMPLEX)] if exp_log_label else []
         assert chatter.mock_calls == calls
         calls = [call(tested.identification, exp_log_label, aws_credentials)] if exp_log_label else []
         assert memory_log.mock_calls == calls

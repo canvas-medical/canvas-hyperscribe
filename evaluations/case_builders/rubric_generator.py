@@ -14,6 +14,7 @@ from evaluations.structures.enums.rubric_validation import RubricValidation
 from evaluations.structures.rubric_criterion import RubricCriterion
 from evaluations.datastores.postgres.rubric import Rubric as RubricDatastore
 from evaluations.datastores.postgres.case import Case as CaseDatastore
+from hyperscribe.structures.model_spec import ModelSpec
 
 
 class RubricGenerator:
@@ -143,7 +144,7 @@ class RubricGenerator:
             case_provenance_classification="",
             comments="",
             text_llm_vendor=settings.llm_text.vendor,
-            text_llm_name=settings.llm_text_model(),
+            text_llm_name=settings.llm_text_model(ModelSpec.LISTED),
             temperature=settings.llm_text_temperature(),
         )
         print("Rubric record generated. Insert starting now.")

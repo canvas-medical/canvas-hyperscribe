@@ -17,6 +17,7 @@ from evaluations.structures.graded_criterion import GradedCriterion
 from evaluations.structures.records.experiment_result_score import ExperimentResultScore as ExperimentResultScoreRecord
 from evaluations.structures.records.score import Score as ScoreRecord
 from evaluations.structures.rubric_criterion import RubricCriterion
+from hyperscribe.structures.model_spec import ModelSpec
 
 
 class NoteGrader:
@@ -153,7 +154,7 @@ class NoteGrader:
             overall_score=overall_score,
             comments="",
             text_llm_vendor=settings.llm_text.vendor,
-            text_llm_name=settings.llm_text_model(),
+            text_llm_name=settings.llm_text_model(ModelSpec.LISTED),
             temperature=settings.llm_text_temperature(),
             experiment=bool(experiment_result_id > 0),
         )
@@ -165,7 +166,7 @@ class NoteGrader:
                     score_id=score_record.id,
                     scoring_result=scoring_result,
                     text_llm_vendor=settings.llm_text.vendor,
-                    text_llm_name=settings.llm_text_model(),
+                    text_llm_name=settings.llm_text_model(ModelSpec.LISTED),
                 )
             )
 
