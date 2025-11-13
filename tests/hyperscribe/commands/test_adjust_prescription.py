@@ -549,12 +549,13 @@ def test_command_parameters_schemas(current_medications):
                         "type": "string",
                     },
                     "substitution": {
-                        "description": "Substitution status for the prescription",
+                        "description": "Substitution status for the prescription, default is 'allowed'",
                         "enum": ["allowed", "not_allowed"],
                         "type": "string",
                     },
                     "suppliedDays": {
-                        "description": "Duration of the treatment in days",
+                        "description": "Duration of the treatment in days, at least 1",
+                        "exclusiveMinimum": 0,
                         "type": "integer",
                     },
                 },

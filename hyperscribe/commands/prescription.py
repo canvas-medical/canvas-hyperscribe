@@ -121,13 +121,14 @@ class Prescription(BasePrescription):
             },
             "suppliedDays": {
                 "type": "integer",
-                "exclusiveMinimum": -1,
+                "exclusiveMinimum": 0,
                 "description": "Duration of the treatment in days either as mentioned, "
-                "or following the standard practices",
+                "or following the standard practices, at least 1",
             },
             "substitution": {
                 "type": "string",
-                "description": "Substitution status for the prescription",
+                "description": "Substitution status for the prescription, "
+                f"default is '{PrescribeCommand.Substitutions.ALLOWED.value}'",
                 "enum": substitutions,
             },
             "comment": {

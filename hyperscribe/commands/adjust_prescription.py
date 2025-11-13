@@ -167,11 +167,13 @@ class AdjustPrescription(BasePrescription):
                         },
                         "suppliedDays": {
                             "type": "integer",
-                            "description": "Duration of the treatment in days",
+                            "exclusiveMinimum": 0,
+                            "description": "Duration of the treatment in days, at least 1",
                         },
                         "substitution": {
                             "type": "string",
-                            "description": "Substitution status for the prescription",
+                            "description": "Substitution status for the prescription, "
+                            f"default is '{AdjustPrescriptionCommand.Substitutions.ALLOWED.value}'",
                             "enum": substitutions,
                         },
                         "comment": {

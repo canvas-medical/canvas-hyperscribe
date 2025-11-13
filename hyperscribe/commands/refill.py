@@ -104,7 +104,8 @@ class Refill(Base):
                         },
                         "suppliedDays": {
                             "type": "integer",
-                            "description": "Duration of the treatment in days",
+                            "exclusiveMinimum": 0,
+                            "description": "Duration of the treatment in days, at least 1",
                         },
                         "substitution": {
                             "type": "string",

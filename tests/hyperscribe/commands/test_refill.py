@@ -320,7 +320,8 @@ def test_command_parameters_schemas(current_medications):
                         "type": "string",
                     },
                     "suppliedDays": {
-                        "description": "Duration of the treatment in days",
+                        "description": "Duration of the treatment in days, at least 1",
+                        "exclusiveMinimum": 0,
                         "type": "integer",
                     },
                 },
