@@ -6,6 +6,7 @@ debug_*.py
 debug_*.html
 cases_runs/
 .coverage
+.coverage.*
 .venv
 evaluations.db
 local_env.sh
