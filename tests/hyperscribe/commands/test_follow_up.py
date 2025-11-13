@@ -410,7 +410,15 @@ def test_instruction_description():
     assert result == expected
     #
     # with custom prompt
-    tested = helper_instance(custom_prompts=[CustomPrompt(command="FollowUp", prompt="custom prompt text")])
+    tested = helper_instance(
+        custom_prompts=[
+            CustomPrompt(
+                command="FollowUp",
+                prompt="custom prompt text",
+                active=True,
+            )
+        ]
+    )
     result = tested.instruction_description()
     expected = (
         "Any follow up encounter, either virtually or in person. "

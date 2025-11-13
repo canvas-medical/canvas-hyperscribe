@@ -19,6 +19,7 @@ from hyperscribe.libraries.authenticator import Authenticator
 from hyperscribe.libraries.aws_s3 import AwsS3
 from hyperscribe.libraries.commander import Commander
 from hyperscribe.libraries.constants import Constants
+from hyperscribe.libraries.customization import Customization
 from hyperscribe.libraries.helper import Helper
 from hyperscribe.libraries.implemented_commands import ImplementedCommands
 from hyperscribe.libraries.llm_decisions_reviewer import LlmDecisionsReviewer
@@ -27,9 +28,9 @@ from hyperscribe.libraries.memory_log import MemoryLog
 from hyperscribe.libraries.stop_and_go import StopAndGo
 from hyperscribe.structures.aws_s3_credentials import AwsS3Credentials
 from hyperscribe.structures.identification_parameters import IdentificationParameters
+from hyperscribe.structures.notion_feedback_record import NotionFeedbackRecord
 from hyperscribe.structures.progress_message import ProgressMessage
 from hyperscribe.structures.settings import Settings
-from hyperscribe.structures.notion_feedback_record import NotionFeedbackRecord
 
 executor = ThreadPoolExecutor(max_workers=50)
 
@@ -334,8 +335,12 @@ class CaptureView(SimpleAPI):
         # add the running flag
         StopAndGo.get(identification.note_uuid).set_cycle(chunk_index).set_running(True).save()
         try:
-            settings = Settings.from_dictionary(self.secrets | {Constants.PROGRESS_SETTING_KEY: True})
             aws_s3 = AwsS3Credentials.from_dictionary(self.secrets)
+            settings = Settings.from_dictionary(
+                self.secrets
+                | Customization.custom_prompts_as_secret(aws_s3, self.environment[Constants.CUSTOMER_IDENTIFIER])
+                | {Constants.PROGRESS_SETTING_KEY: True}
+            )
             audio_client = AudioClient.for_operation(
                 self.secrets[Constants.SECRET_AUDIO_HOST],
                 self.environment[Constants.CUSTOMER_IDENTIFIER],

@@ -167,6 +167,7 @@ def test_instruction_description():
             CustomPrompt(
                 command="HistoryOfPresentIllness",
                 prompt="custom prompt text",
+                active=True,
             )
         ]
     )

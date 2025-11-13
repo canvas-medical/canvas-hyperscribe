@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Hyperscribe Custom Prompts</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 2em;
+      background-color: #f5f5f5;
+      font-size: 14px;
+    }
+    h4 {
+      color: #333;
+      font-size: 18px;
+    }
+    #editor-container {
+      background-color: white;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 1.5em;
+      margin-top: 2em;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .form-group {
+      margin-bottom: 1.5em;
+    }
+    label {
+      display: block;
+      font-weight: bold;
+      color: #2c3e50;
+      margin-bottom: 0.5em;
+      font-size: 14px;
+    }
+    .checkbox-label {
+      display: flex;
+      align-items: center;
+      font-weight: normal;
+      margin: 0;
+    }
+    .checkbox-label input[type="checkbox"] {
+      margin-right: 0.5em;
+      width: 16px;
+      height: 16px;
+    }
+    .button-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 1em;
+    }
+    #command-select {
+      width: 100%;
+      padding: 8px;
+      font-size: 14px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      background-color: white;
+      box-sizing: border-box;
+    }
+    #prompt-textarea {
+      width: 100%;
+      min-height: 200px;
+      padding: 8px;
+      font-family: monospace;
+      font-size: 13px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      resize: vertical;
+      box-sizing: border-box;
+    }
+    #save-button {
+      padding: 8px 16px;
+      background-color: #3498db;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: background-color 0.3s;
+    }
+    #save-button:hover {
+      background-color: #2980b9;
+    }
+    #save-button:disabled {
+      background-color: #95a5a6;
+      cursor: not-allowed;
+    }
+    .message {
+      margin-top: 1em;
+      padding: 8px;
+      border-radius: 4px;
+      font-size: 13px;
+    }
+    .success-message {
+      background-color: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+    .error-message {
+      background-color: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+    #loading {
+      text-align: center;
+      font-size: 16px;
+      color: #666;
+      margin-top: 2em;
+    }
+  </style>
+</head>
+<body>
+  <h4>Hyperscribe Customization</h4>
+  <div id="loading">Loading commands...</div>
+  <div id="editor-container" style="display: none;">
+    <div class="form-group">
+      <label for="command-select">Select Command:</label>
+      <select id="command-select"></select>
+    </div>
+    <div class="form-group">
+      <label for="prompt-textarea">Custom Prompt:</label>
+      <textarea id="prompt-textarea"></textarea>
+    </div>
+    <div class="button-row">
+      <label class="checkbox-label">
+        <input type="checkbox" id="active-checkbox" checked>
+        Published
+      </label>
+      <button id="save-button">Save</button>
+    </div>
+    <div id="message"></div>
+  </div>
+
+  <script>
+    let commandsData = {};
+
+    async function loadCommands() {
+      const loadingDiv = document.getElementById('loading');
+      const editorContainer = document.getElementById('editor-container');
+      const commandSelect = document.getElementById('command-select');
+
+      try {
+        const response = await fetch('{{listCommands | safe}}');
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const commandList = await response.json();
+
+        // Convert array to object with command names as keys
+        commandsData = {};
+        for (const item of commandList) {
+          commandsData[item.command] = {
+            prompt: item.prompt,
+            active: item.active
+          };
+        }
+
+        loadingDiv.style.display = 'none';
+        editorContainer.style.display = 'block';
+
+        // Populate the dropdown with commands
+        for (const commandName of Object.keys(commandsData)) {
+          const option = document.createElement('option');
+          option.value = commandName;
+          option.textContent = commandName;
+          commandSelect.appendChild(option);
+        }
+
+        // Load the first command's prompt if available
+        if (Object.keys(commandsData).length > 0) {
+          updateTextarea();
+        }
+      } catch (error) {
+        loadingDiv.innerHTML = `<div class="message error-message">Error loading commands: ${error.message}</div>`;
+      }
+    }
+
+    function updateTextarea() {
+      const commandSelect = document.getElementById('command-select');
+      const promptTextarea = document.getElementById('prompt-textarea');
+      const activeCheckbox = document.getElementById('active-checkbox');
+      const selectedCommand = commandSelect.value;
+
+      if (selectedCommand && commandsData[selectedCommand] !== undefined) {
+        const commandData = commandsData[selectedCommand];
+        promptTextarea.value = commandData.prompt || '';
+        activeCheckbox.checked = commandData.active !== undefined ? commandData.active : true;
+      }
+    }
+
+    async function saveCommand() {
+      const commandSelect = document.getElementById('command-select');
+      const promptTextarea = document.getElementById('prompt-textarea');
+      const activeCheckbox = document.getElementById('active-checkbox');
+      const saveButton = document.getElementById('save-button');
+      const messageDiv = document.getElementById('message');
+
+      const selectedCommand = commandSelect.value;
+      const prompt = promptTextarea.value;
+      const active = activeCheckbox.checked;
+
+      // Clear previous message
+      messageDiv.innerHTML = '';
+      saveButton.disabled = true;
+      saveButton.textContent = 'Saving...';
+
+      try {
+        const response = await fetch('{{saveCommandPromptURL | safe}}', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            command: selectedCommand,
+            prompt: prompt,
+            active: active
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        // Update local data
+        commandsData[selectedCommand] = {
+          prompt: prompt,
+          active: active
+        };
+
+        messageDiv.innerHTML = '<div class="message success-message">Saved successfully!</div>';
+        setTimeout(() => {
+          messageDiv.innerHTML = '';
+        }, 3000);
+      } catch (error) {
+        messageDiv.innerHTML = `<div class="message error-message">Error saving: ${error.message}</div>`;
+      } finally {
+        saveButton.disabled = false;
+        saveButton.textContent = 'Save';
+      }
+    }
+
+    // Load commands when the page loads
+    document.addEventListener('DOMContentLoaded', () => {
+      loadCommands();
+
+      // Add event listeners
+      document.getElementById('command-select').addEventListener('change', updateTextarea);
+      document.getElementById('save-button').addEventListener('click', saveCommand);
+    });
+  </script>
+</body>
+</html>

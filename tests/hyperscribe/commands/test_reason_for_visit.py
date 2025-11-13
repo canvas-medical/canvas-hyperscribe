@@ -284,6 +284,7 @@ def test_instruction_description(existing_reason_for_visits):
                 CustomPrompt(
                     command="ReasonForVisit",
                     prompt="custom prompt text",
+                    active=True,
                 )
             ],
         )
