@@ -40,7 +40,7 @@ class SelectorChat:
                 comment,
                 "```",
                 "",
-                "Among the following conditions, identify the most relevant one:",
+                "Sort the following conditions from most relevant to least, and return the first one:",
                 "",
                 "\n".join(
                     f" * {condition.label} (ICD-10: {Helper.icd10_add_dot(condition.code)})" for condition in conditions
@@ -139,7 +139,7 @@ class SelectorChat:
                 free_text_information,
                 "```",
                 "",
-                "Among the following contacts, identify the most relevant one:",
+                "Sort the following contacts from most relevant to least, and return the first one:",
                 "",
                 "\n".join(f" * {cls.summary_of(contact)} (index: {idx})" for idx, contact in enumerate(contacts)),
                 "",

@@ -141,7 +141,7 @@ def test_command_from_json(surgical_histories):
         " -- ",
         "theComment",
         "```",
-        "Among the following surgeries, identify the most relevant one:",
+        "Sort the following surgeries from most relevant to least, and return the first one:",
         "",
         " * termA (conceptId: '123')\n * termB (conceptId: '369')\n * termC (conceptId: '752')",
         "",

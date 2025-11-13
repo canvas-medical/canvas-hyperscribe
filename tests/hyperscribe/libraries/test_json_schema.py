@@ -438,17 +438,14 @@ def test_schema_selector_lab_test():
         assert result == expected, f"---> {idx}"
 
 
-def test_schema_selector_label():
-    schema = JsonSchema.get(["selector_label"])[0]
+def test_schema_selector_labels():
+    schema = JsonSchema.get(["selector_labels"])[0]
     tests = [
+        ([], ""),
         ([{"labelId": 1, "name": "theName"}], ""),
         (
-            [],
-            "[] should be non-empty",
-        ),
-        (
             [{"labelId": 1, "name": "name1"}, {"labelId": 2, "name": "name2"}],
-            "[{'labelId': 1, 'name': 'name1'}, {'labelId': 2, 'name': 'name2'}] is too long",
+            "",
         ),
         (
             [{"labelId": 1, "name": "theName", "other": "added"}],

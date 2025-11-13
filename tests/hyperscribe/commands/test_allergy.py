@@ -107,7 +107,7 @@ def test_command_from_json(add_code2description, search_allergy):
         "theReaction",
         "```",
         "",
-        "Among the following allergies, identify the most relevant one:",
+        "Sort the following allergies from most relevant to least, and return the first one:",
         "",
         " * descriptionA (conceptId: '134')\n * descriptionB (conceptId: '167')\n * descriptionC (conceptId: '234')",
         "",

@@ -65,7 +65,7 @@ class BasePrescription(Base):
                 f" - {self.cache.demographic__str__(False)},",
                 f" - {prompt_allergy}.",
                 "",
-                "Among the following medications, identify the most appropriate option:",
+                "Sort the following medications from most relevant to least, and return the first one:",
                 "",
                 "\n".join(
                     f" * {medication.description} (fdbCode: {medication.fdb_code})" for medication in medications

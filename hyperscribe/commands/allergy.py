@@ -66,7 +66,7 @@ class Allergy(Base):
                 instruction.parameters["reaction"],
                 "```",
                 "",
-                "Among the following allergies, identify the most relevant one:",
+                "Sort the following allergies from most relevant to least, and return the first one:",
                 "",
                 "\n".join(
                     f" * {allergy.concept_id_description} (conceptId: '{str(allergy.concept_id_value)}')"

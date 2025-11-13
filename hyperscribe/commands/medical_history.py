@@ -60,7 +60,7 @@ class MedicalHistory(Base):
                 " -- ",
                 instruction.parameters["comments"],
                 "```",
-                "Among the following conditions, identify the most relevant one:",
+                "Sort the following conditions from most relevant to least, and return the first one:",
                 "",
                 "\n".join(f" * {concept.label} (ICD10: {concept.code})" for concept in concepts),
                 "",

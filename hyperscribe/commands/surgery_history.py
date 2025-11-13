@@ -58,7 +58,7 @@ class SurgeryHistory(Base):
                 " -- ",
                 instruction.parameters["comment"],
                 "```",
-                "Among the following surgeries, identify the most relevant one:",
+                "Sort the following surgeries from most relevant to least, and return the first one:",
                 "",
                 "\n".join(f" * {concept.term} (conceptId: '{str(concept.concept_id)}')" for concept in concepts),
                 "",

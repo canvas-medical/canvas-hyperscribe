@@ -110,7 +110,7 @@ def test_command_from_json(add_code2description, medication_details):
         "theSig",
         "```",
         "",
-        "Among the following medications, identify the most relevant one:",
+        "Sort the following medications from most relevant to least, and return the first one:",
         "",
         " * labelA (fdbCode: code123)\n * labelB (fdbCode: code369)\n * labelC (fdbCode: code752)",
         "",

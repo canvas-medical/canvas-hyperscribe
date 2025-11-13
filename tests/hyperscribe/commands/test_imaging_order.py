@@ -189,7 +189,7 @@ def test_command_from_json(condition_from, search_imagings, add_code2description
         " -- ",
         "note to the radiologist: keyword1,keyword2,keyword3",
         "```",
-        "Among the following imaging orders, identify the most relevant one:",
+        "Sort the following imaging orders from most relevant to least, and return the first one:",
         "",
         " * name1 (conceptId: code1)\n * name2 (conceptId: code2)\n * name3 (conceptId: code3)",
         "",

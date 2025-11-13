@@ -133,7 +133,7 @@ def test_select_assignee(add_code2description, existing_staff_members, existing_
         "",
         "```",
         "",
-        "Among the following staff members, teams and roles, identify the most relevant one:",
+        "Sort the following staff members, teams and roles from most relevant to least, and return the first one:",
         "",
         " * Joe Smith (type: staff, id: 741)\n * Jane Doe (type: staff, id: 596)\n * Jim Boy (type: staff, id: 963)",
         " * Administrative (type: team, id: 741)\n * Medical (type: team, id: 752)",
@@ -304,8 +304,7 @@ def test_select_labels(existing_task_labels):
                 "required": ["labelId", "name"],
                 "additionalProperties": False,
             },
-            "minItems": 1,
-            "maxItems": 1,
+            "minItems": 0,
         },
     ]
     tested = helper_instance()

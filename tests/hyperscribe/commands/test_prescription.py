@@ -363,7 +363,7 @@ def test_command_parameters(current_conditions):
                 "keywords": "",
                 "medicationNames": "",
                 "sig": "",
-                "suppliedDays": -1,
+                "suppliedDays": 0,
                 "substitution": "",
                 "comment": "",
                 "condition": "",
@@ -376,7 +376,7 @@ def test_command_parameters(current_conditions):
                 "keywords": "",
                 "medicationNames": "",
                 "sig": "",
-                "suppliedDays": -1,
+                "suppliedDays": 0,
                 "substitution": "",
                 "comment": "",
             },
@@ -455,7 +455,7 @@ def test_command_parameters_schemas(current_conditions):
                     "suppliedDays": {
                         "description": "Duration of the treatment in days either as mentioned, or "
                         "following the standard practices",
-                        "exclusiveMinimum": 0,
+                        "exclusiveMinimum": -1,
                         "type": "integer",
                     },
                 },
@@ -522,7 +522,7 @@ def test_command_parameters_schemas(current_conditions):
                     "suppliedDays": {
                         "description": "Duration of the treatment in days either as mentioned, or "
                         "following the standard practices",
-                        "exclusiveMinimum": 0,
+                        "exclusiveMinimum": -1,
                         "type": "integer",
                     },
                 },

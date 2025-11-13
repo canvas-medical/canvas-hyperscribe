@@ -106,7 +106,7 @@ def test_command_from_json(family_histories):
         " -- ",
         "theNote",
         "```",
-        "Among the following conditions, identify the most relevant one:",
+        "Sort the following conditions from most relevant to least, and return the first one:",
         "",
         " * termA (conceptId: '123')\n * termB (conceptId: '369')\n * termC (conceptId: '752')",
         "",

@@ -69,7 +69,7 @@ class ImmunizationStatement(Base):
                 instruction.parameters["comments"],
                 "```",
                 "",
-                "Among the following immunizations, identify the most relevant one:",
+                "Sort the following immunizations from most relevant to least, and return the first one:",
                 "",
                 "\n".join(
                     f" * {immunization.label} (cptCode: {immunization.code_cpt}, cvxCode: {immunization.code_cvx})"

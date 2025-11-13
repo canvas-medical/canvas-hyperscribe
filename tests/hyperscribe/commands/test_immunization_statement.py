@@ -185,7 +185,7 @@ def test_command_from_json(search_immunization, add_code2description):
         "theComments",
         "```",
         "",
-        "Among the following immunizations, identify the most relevant one:",
+        "Sort the following immunizations from most relevant to least, and return the first one:",
         "",
         " * labelA (cptCode: theCptA, cvxCode: theCvxA)\n"
         " * labelB (cptCode: theCptB, cvxCode: theCvxB)\n"

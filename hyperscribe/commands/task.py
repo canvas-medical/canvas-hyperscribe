@@ -58,7 +58,7 @@ class Task(Base):
             "",
             "```",
             "",
-            "Among the following staff members, teams and roles, identify the most relevant one:",
+            "Sort the following staff members, teams and roles from most relevant to least, and return the first one:",
             "",
             "\n".join(f" * {staff.label} (type: staff, id: {staff.uuid})" for staff in staffs),
             "\n".join(f" * {team.label} (type: team, id: {team.uuid})" for team in teams),
@@ -115,7 +115,7 @@ class Task(Base):
             "```",
             "",
         ]
-        schemas = JsonSchema.get(["selector_label"])
+        schemas = JsonSchema.get(["selector_labels"])
         if response := chatter.single_conversation(system_prompt, user_prompt, schemas, instruction):
             return [label["name"] for label in response]
         return None

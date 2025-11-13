@@ -53,7 +53,7 @@ class Medication(Base):
                 instruction.parameters["sig"],
                 "```",
                 "",
-                "Among the following medications, identify the most relevant one:",
+                "Sort the following medications from most relevant to least, and return the first one:",
                 "",
                 "\n".join(
                     f" * {medication.description} (fdbCode: {medication.fdb_code})" for medication in medications

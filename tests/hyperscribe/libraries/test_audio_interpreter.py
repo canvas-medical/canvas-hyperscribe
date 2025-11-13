@@ -951,7 +951,7 @@ def test_detect_sections(json_schema, chatter, memory_log):
         " - linked commands: [].",
         "```",
         "",
-        "Your response must be a JSON Markdown block validated with the schema:",
+        "Your response must be in a JSON Markdown block and validated with the schema:",
         "```json",
         '"theJsonSchema"',
         "```",
@@ -1304,7 +1304,7 @@ def test_detect_instructions_flat(json_schema, instruction_constraints, chatter,
         '{"instruction": "Fifth", "information": "Description5"}]',
         "```",
         "",
-        "Your response must be a JSON Markdown block validated with the schema:",
+        "Your response must be in a JSON Markdown block and validated with the schema:",
         "```json",
         '"theJsonSchema"',
         "```",
@@ -1725,10 +1725,12 @@ def test_create_sdk_command_parameters(
             '[\n "theStructure"\n]',
             "```",
             "",
-            "Your response must be a JSON Markdown block validated with the schema:",
+            "The explanations and constraints about the fields are defined in this JSON Schema:",
             "```json",
             '"theSchema"',
             "```",
+            "",
+            "Be sure your response validates the JSON Schema.",
             "",
             "Before finalizing, verify completeness by checking that patient concerns are accurately captured "
             "and any provider recommendations, follow-up plans, and instructions are complete, specific "
@@ -1746,13 +1748,15 @@ def test_create_sdk_command_parameters(
             '[\n "theStructure"\n]',
             "```",
             "",
-            "Your response must be a JSON Markdown block validated with the schema:",
+            "The explanations and constraints about the fields are defined in this JSON Schema:",
             "```json",
             "{\n "
             '"$schema": "http://json-schema.org/draft-07/schema#",\n '
             '"type": "array",\n '
             '"items": {\n  "type": "object",\n  "additionalProperties": true\n }\n}',
             "```",
+            "",
+            "Be sure your response validates the JSON Schema.",
             "",
             "Before finalizing, verify completeness by checking that patient concerns are accurately captured "
             "and any provider recommendations, follow-up plans, and instructions are complete, specific "

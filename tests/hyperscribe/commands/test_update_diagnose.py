@@ -140,7 +140,7 @@ def test_command_from_json(add_code2description, current_conditions, search_cond
         "theAssessment",
         "```",
         "",
-        "Among the following conditions, identify the most relevant one:",
+        "Sort the following conditions from most relevant to least, and return the first one:",
         "",
         " * labelA (ICD-10: code12.3)\n * labelB (ICD-10: code36.9)\n * labelC (ICD-10: code75.2)",
         "",

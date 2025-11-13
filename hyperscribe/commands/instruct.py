@@ -55,7 +55,7 @@ class Instruct(Base):
                 " -- ",
                 instruction.parameters["comment"],
                 "```",
-                "Among the following expressions, identify the most relevant one:",
+                "Sort the following expressions from most relevant to least, and return the first one:",
                 "",
                 "\n".join(f" * {concept.term} (conceptId: '{str(concept.concept_id)}')" for concept in concepts),
                 "",

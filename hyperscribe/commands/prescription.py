@@ -90,7 +90,7 @@ class Prescription(BasePrescription):
             "keywords": "",
             "medicationNames": "",
             "sig": "",
-            "suppliedDays": -1,
+            "suppliedDays": 0,
             "substitution": "",
             "comment": "",
         }
@@ -121,7 +121,7 @@ class Prescription(BasePrescription):
             },
             "suppliedDays": {
                 "type": "integer",
-                "exclusiveMinimum": 0,
+                "exclusiveMinimum": -1,
                 "description": "Duration of the treatment in days either as mentioned, "
                 "or following the standard practices",
             },

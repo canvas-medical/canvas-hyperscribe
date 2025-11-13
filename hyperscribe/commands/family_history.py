@@ -56,7 +56,7 @@ class FamilyHistory(Base):
                 " -- ",
                 instruction.parameters["note"],
                 "```",
-                "Among the following conditions, identify the most relevant one:",
+                "Sort the following conditions from most relevant to least, and return the first one:",
                 "",
                 "\n".join(f" * {concept.term} (conceptId: '{str(concept.concept_id)}')" for concept in concepts),
                 "",

@@ -115,7 +115,7 @@ def test_command_from_json(add_code2description, instructions):
         " -- ",
         "theComment",
         "```",
-        "Among the following expressions, identify the most relevant one:",
+        "Sort the following expressions from most relevant to least, and return the first one:",
         "",
         " * termA (conceptId: '123')\n * termB (conceptId: '369')\n * termC (conceptId: '752')",
         "",

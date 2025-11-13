@@ -87,7 +87,7 @@ class ImagingOrder(Base):
                 " -- ",
                 f"note to the radiologist: {instruction.parameters['imagingKeywords']}",
                 "```",
-                "Among the following imaging orders, identify the most relevant one:",
+                "Sort the following imaging orders from most relevant to least, and return the first one:",
                 "",
                 "\n".join(f" * {concept.name} (conceptId: {concept.code})" for concept in concepts),
                 "",

@@ -69,7 +69,7 @@ class UpdateDiagnose(Base):
                 instruction.parameters["assessment"],
                 "```",
                 "",
-                "Among the following conditions, identify the most relevant one:",
+                "Sort the following conditions from most relevant to least, and return the first one:",
                 "",
                 "\n".join(
                     f" * {condition.label} (ICD-10: {Helper.icd10_add_dot(condition.code)})" for condition in conditions

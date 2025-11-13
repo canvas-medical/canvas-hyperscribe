@@ -146,7 +146,7 @@ def test_command_from_json(medical_histories):
         " -- ",
         "theComment",
         "```",
-        "Among the following conditions, identify the most relevant one:",
+        "Sort the following conditions from most relevant to least, and return the first one:",
         "",
         " * labelA (ICD10: code123)\n * labelB (ICD10: code369)\n * labelC (ICD10: code752)",
         "",
