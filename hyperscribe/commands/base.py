@@ -115,6 +115,7 @@ class Base:
 
         schemas = JsonSchema.get(["command_summary"])
         summary = ""
+        chatter.reset_prompts()
         if response := chatter.single_conversation(system_prompt, user_prompt, schemas, instruction):
             summary = str(response[0]["summary"])
 

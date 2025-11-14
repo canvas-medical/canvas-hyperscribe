@@ -88,12 +88,19 @@ class BuilderBase:
             recorder.case_finalize(errors, 0, MemoryLog.token_counts(identification.note_uuid))
         print(f"Summary can be viewed at: {recorder.generate_html_summary().as_uri()}")
 
+        full_log = MemoryLog.end_session(identification.note_uuid)
+        # from tempfile import NamedTemporaryFile
+        # with NamedTemporaryFile(mode='w', dir='/tmp', delete=False) as f:
+        #     f.write(full_log)
+        #     filename = f.name
+        #     print("The full log is saved in:", filename)
+
         if (client_s3 := AwsS3(recorder.s3_credentials)) and client_s3.is_ready():
             remote_path = (
                 f"hyperscribe-{identification.canvas_instance}/finals/"
                 f"{datetime.now(UTC).date().isoformat()}/{parameters.case}.log"
             )
-            client_s3.upload_text_to_s3(remote_path, MemoryLog.end_session(identification.note_uuid))
+            client_s3.upload_text_to_s3(remote_path, full_log)
             print(f"Logs saved in: {remote_path}")
 
             if recorder.settings.audit_llm is True:

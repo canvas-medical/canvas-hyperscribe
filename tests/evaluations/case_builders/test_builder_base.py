@@ -270,9 +270,8 @@ def test_run(
             calls = [
                 call(identifications["target"], "case_builder"),
                 call.token_counts("noteUuid"),
+                call.end_session("noteUuid"),
             ]
-            if aws_is_ready:
-                calls.append(call.end_session("noteUuid"))
             assert memory_log.mock_calls == calls
             calls = []
             if aws_is_ready:
@@ -370,9 +369,8 @@ def test_run(
             calls = [
                 call(identifications["generic"], "case_builder"),
                 call.token_counts("_NoteUuid"),
+                call.end_session("_NoteUuid"),
             ]
-            if aws_is_ready:
-                calls.append(call.end_session("_NoteUuid"))
             assert memory_log.mock_calls == calls
             calls = []
             if aws_is_ready:

@@ -290,7 +290,10 @@ def test_command_from_json_with_summary(command_from_json, instruction_with_summ
     assert command_from_json.mock_calls == calls
     calls = [call.add_explanation(instruction=instruction_with_command, summary="theSummary")]
     assert instruction_with_summary.mock_calls == calls
-    calls = [call.single_conversation(system_prompt, user_prompt, schemas, instruction)]
+    calls = [
+        call.reset_prompts(),
+        call.single_conversation(system_prompt, user_prompt, schemas, instruction),
+    ]
     assert chatter.mock_calls == calls
     assert command.mock_calls == []
     reset_mocks()
@@ -306,7 +309,10 @@ def test_command_from_json_with_summary(command_from_json, instruction_with_summ
     assert command_from_json.mock_calls == calls
     calls = [call.add_explanation(instruction=instruction_with_command, summary="")]
     assert instruction_with_summary.mock_calls == calls
-    calls = [call.single_conversation(system_prompt, user_prompt, schemas, instruction)]
+    calls = [
+        call.reset_prompts(),
+        call.single_conversation(system_prompt, user_prompt, schemas, instruction),
+    ]
     assert chatter.mock_calls == calls
     assert command.mock_calls == []
     reset_mocks()
