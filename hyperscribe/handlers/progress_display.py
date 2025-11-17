@@ -40,8 +40,9 @@ class ProgressDisplay(SimpleAPIRoute):
                 cached = []
             cached.extend(events)
             get_cache().set(key, cached)
+        channel = self.websocket_channel(self.request.query_params.get("note_id"))
         return [
-            Broadcast(message={"events": events}, channel=Constants.WS_CHANNEL_PROGRESSES).apply(),
+            Broadcast(message={"events": events}, channel=channel).apply(),
             JSONResponse({"status": "ok"}, status_code=HTTPStatus.ACCEPTED),
         ]
 
@@ -77,3 +78,9 @@ class ProgressDisplay(SimpleAPIRoute):
                 verify=True,
                 timeout=None,
             )
+
+    @classmethod
+    def websocket_channel(cls, note_id: str) -> str:
+        if not note_id:
+            note_id = Constants.WS_CHANNEL_PROGRESSES
+        return f"progress_{note_id.replace('-', '')}"

@@ -136,32 +136,35 @@ def test_post(get_cache):
 
     tests = [
         (
-            "noteId",
+            "the-01-note-02-id",
             '[{"key": "value1"}]',
             None,
             [
                 call(),
-                call().get("progress-noteId"),
+                call().get("progress-the-01-note-02-id"),
                 call(),
-                call().set("progress-noteId", [{"key": "value1"}]),
+                call().set("progress-the-01-note-02-id", [{"key": "value1"}]),
             ],
+            "progress_the01note02id",
         ),
-        ("", '[{"key": "value1"}]', [], []),
+        ("", '[{"key": "value1"}]', [], [], "progress_progresses"),
         (
-            "noteId",
+            "the-01-note-02-id",
             '[{"key": "value1"},{"key": "value4"}]',
             [{"key": "value3"}, {"key": "value2"}],
             [
                 call(),
-                call().get("progress-noteId"),
+                call().get("progress-the-01-note-02-id"),
                 call(),
                 call().set(
-                    "progress-noteId", [{"key": "value3"}, {"key": "value2"}, {"key": "value1"}, {"key": "value4"}]
+                    "progress-the-01-note-02-id",
+                    [{"key": "value3"}, {"key": "value2"}, {"key": "value1"}, {"key": "value4"}],
                 ),
             ],
+            "progress_the01note02id",
         ),
     ]
-    for note_id, body, side_effect_get, exp_calls in tests:
+    for note_id, body, side_effect_get, exp_calls, exp_channel in tests:
         get_cache.return_value.get.side_effect = [side_effect_get]
         tested.request.query_params = {"note_id": note_id}
         tested.request.body = body
@@ -171,7 +174,7 @@ def test_post(get_cache):
                 type="SIMPLE_API_WEBSOCKET_BROADCAST",
                 payload=json.dumps(
                     {
-                        "data": {"channel": "progresses", "message": {"events": json.loads(body)}},
+                        "data": {"channel": exp_channel, "message": {"events": json.loads(body)}},
                     }
                 ),
             ),
@@ -185,7 +188,7 @@ def test_post(get_cache):
 def test_key_cache():
     tested = helper_instance()
     tests = [
-        ("noteId", "progress-noteId"),
+        ("the-note-id", "progress-the-note-id"),
         ("", ""),
     ]
     for note_id, key in tests:
@@ -302,3 +305,14 @@ def test_send_to_user(requests_post, authenticator, mock_datetime):
     assert requests_post.mock_calls == []
     assert mock_datetime.mock_calls == []
     reset_mocks()
+
+
+def test_websocket_channel():
+    tested = ProgressDisplay
+    tests = [
+        ("", "progress_progresses"),
+        ("the-01-note", "progress_the01note"),
+    ]
+    for note_id, expected in tests:
+        result = tested.websocket_channel(note_id)
+        assert result == expected, f"---> {note_id}"

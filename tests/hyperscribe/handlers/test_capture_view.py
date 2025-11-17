@@ -180,7 +180,7 @@ def test_capture_get(authenticator, render_to_string, stop_and_go, helper):
 
     tested = helper_instance()
     tested.request = SimpleNamespace(
-        path_params={"patient_id": "p", "note_id": "n", "note_reference": "4571"},
+        path_params={"patient_id": "the-00-patient", "note_id": "the-00-note", "note_reference": "4571"},
         query_params={},
         headers={},
     )
@@ -190,25 +190,43 @@ def test_capture_get(authenticator, render_to_string, stop_and_go, helper):
     assert result == expected
 
     calls = [
-        call.presigned_url("signingKey", "/plugin-io/api/hyperscribe/progress", {"note_id": "n"}),
-        call.presigned_url_no_params("signingKey", "/plugin-io/api/hyperscribe/capture/new-session/p/n"),
-        call.presigned_url_no_params("signingKey", "/plugin-io/api/hyperscribe/capture/idle/p/n/pause"),
-        call.presigned_url_no_params("signingKey", "/plugin-io/api/hyperscribe/capture/idle/p/n/resume"),
-        call.presigned_url_no_params("signingKey", "/plugin-io/api/hyperscribe/capture/idle/p/n/end"),
-        call.presigned_url_no_params("signingKey", "/plugin-io/api/hyperscribe/feedback/p/n"),
-        call.presigned_url_no_params("signingKey", "/plugin-io/api/hyperscribe/audio/p/n"),
+        call.presigned_url("signingKey", "/plugin-io/api/hyperscribe/progress", {"note_id": "the-00-note"}),
+        call.presigned_url_no_params(
+            "signingKey",
+            "/plugin-io/api/hyperscribe/capture/new-session/the-00-patient/the-00-note",
+        ),
+        call.presigned_url_no_params(
+            "signingKey",
+            "/plugin-io/api/hyperscribe/capture/idle/the-00-patient/the-00-note/pause",
+        ),
+        call.presigned_url_no_params(
+            "signingKey",
+            "/plugin-io/api/hyperscribe/capture/idle/the-00-patient/the-00-note/resume",
+        ),
+        call.presigned_url_no_params(
+            "signingKey",
+            "/plugin-io/api/hyperscribe/capture/idle/the-00-patient/the-00-note/end",
+        ),
+        call.presigned_url_no_params(
+            "signingKey",
+            "/plugin-io/api/hyperscribe/feedback/the-00-patient/the-00-note",
+        ),
+        call.presigned_url_no_params(
+            "signingKey",
+            "/plugin-io/api/hyperscribe/audio/the-00-patient/the-00-note",
+        ),
     ]
     assert authenticator.mock_calls == calls
     calls = [
         call(
             "templates/hyperscribe.html",
             {
-                "patientUuid": "p",
-                "noteUuid": "n",
+                "patientUuid": "the-00-patient",
+                "noteUuid": "the-00-note",
                 "noteReference": "4571",
                 "interval": 5,
                 "endFlag": "EOF",
-                "wsProgressURL": "theWsHost/plugin-io/ws/hyperscribe/progresses/",
+                "wsProgressURL": "theWsHost/plugin-io/ws/hyperscribe/progress_the00note/",
                 "progressURL": "Url1",
                 "newSessionURL": "Url2",
                 "pauseSessionURL": "Url3",
@@ -224,7 +242,7 @@ def test_capture_get(authenticator, render_to_string, stop_and_go, helper):
     ]
     assert render_to_string.mock_calls == calls
     calls = [
-        call.get("n"),
+        call.get("the-00-note"),
         call.get().is_ended(),
         call.get().is_paused(),
         call.get().cycle(),

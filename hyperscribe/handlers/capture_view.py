@@ -108,7 +108,7 @@ class CaptureView(SimpleAPI):
         )
         ws_progress_url = (
             f"{Helper.canvas_ws_host(self.environment[Constants.CUSTOMER_IDENTIFIER])}"
-            f"{Constants.PLUGIN_WS_BASE_ROUTE}/{Constants.WS_CHANNEL_PROGRESSES}/"
+            f"{Constants.PLUGIN_WS_BASE_ROUTE}/{ProgressDisplay.websocket_channel(note_id)}/"
         )
 
         stop_and_go = StopAndGo.get(note_id)
